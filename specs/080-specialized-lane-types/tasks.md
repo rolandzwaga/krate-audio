@@ -371,7 +371,7 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 ### N-2.2 Final Commit
 
 - [X] T093 Commit architecture documentation updates
-- [ ] T094 Verify all spec work is committed to feature branch `080-specialized-lane-types`
+- [X] T094 Verify all spec work is committed to feature branch `080-specialized-lane-types`
 
 ---
 
