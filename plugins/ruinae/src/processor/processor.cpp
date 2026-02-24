@@ -1220,13 +1220,6 @@ void Processor::applyParamsToEngine() {
         }
     }
     {
-        const auto octaveRange = arpParams_.octaveRange.load(std::memory_order_relaxed);
-        if (octaveRange != prevArpOctaveRange_) {
-            arpCore_.setOctaveRange(octaveRange);
-            prevArpOctaveRange_ = octaveRange;
-        }
-    }
-    {
         const auto octaveMode = static_cast<OctaveMode>(
             arpParams_.octaveMode.load(std::memory_order_relaxed));
         if (octaveMode != prevArpOctaveMode_) {
@@ -1234,7 +1227,6 @@ void Processor::applyParamsToEngine() {
             prevArpOctaveMode_ = octaveMode;
         }
     }
-    arpCore_.setTempoSync(arpParams_.tempoSync.load(std::memory_order_relaxed));
     {
         const auto noteValue = arpParams_.noteValue.load(std::memory_order_relaxed);
         if (noteValue != prevArpNoteValue_) {
@@ -1243,10 +1235,106 @@ void Processor::applyParamsToEngine() {
             prevArpNoteValue_ = noteValue;
         }
     }
-    arpCore_.setFreeRate(arpParams_.freeRate.load(std::memory_order_relaxed));
-    arpCore_.setGateLength(arpParams_.gateLength.load(std::memory_order_relaxed));
-    // setSwing() takes 0-75 percent as-is, NOT normalized 0-1
-    arpCore_.setSwing(arpParams_.swing.load(std::memory_order_relaxed));
+
+    // --- Arp Modulation (078-modulation-integration) ---
+    // Read mod offsets and apply to arp parameters when arp is enabled (FR-015).
+    // When disabled, skip mod reads for performance optimization.
+    if (arpParams_.enabled.load(std::memory_order_relaxed)) {
+        const float rateOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::ArpRate);
+        const float gateOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::ArpGateLength);
+        const float octaveOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::ArpOctaveRange);
+        const float swingOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::ArpSwing);
+        const float spiceOffset = engine_.getGlobalModOffset(
+            RuinaeModDest::ArpSpice);
+
+        // --- Rate modulation (FR-008, FR-014) ---
+        const bool tempoSync = arpParams_.tempoSync.load(std::memory_order_relaxed);
+        const float baseRate = arpParams_.freeRate.load(std::memory_order_relaxed);
+
+        if (rateOffset != 0.0f && tempoSync) {
+            // Tempo-sync override: compute equivalent free rate from modulated duration
+            const int noteIdx = arpParams_.noteValue.load(std::memory_order_relaxed);
+            const float baseDurationMs = Krate::DSP::dropdownToDelayMs(
+                noteIdx, static_cast<float>(tempoBPM_));
+            if (baseDurationMs > 0.0f) {
+                const float scaleFactor = 1.0f + 0.5f * rateOffset;
+                const float effectiveDurationMs = (scaleFactor > 0.001f)
+                    ? baseDurationMs / scaleFactor
+                    : baseDurationMs / 0.001f;
+                const float effectiveHz = 1000.0f / effectiveDurationMs;
+                arpCore_.setTempoSync(false);
+                arpCore_.setFreeRate(std::clamp(effectiveHz, 0.5f, 50.0f));
+            } else {
+                arpCore_.setTempoSync(true);
+                arpCore_.setFreeRate(baseRate);
+            }
+        } else {
+            // Free-rate mode or zero offset in tempo-sync (no override needed)
+            arpCore_.setTempoSync(tempoSync);
+            const float effectiveRate = std::clamp(
+                baseRate * (1.0f + 0.5f * rateOffset), 0.5f, 50.0f);
+            arpCore_.setFreeRate(effectiveRate);
+        }
+
+        // --- Gate length modulation (FR-009) ---
+        {
+            const float baseGate = arpParams_.gateLength.load(std::memory_order_relaxed);
+            const float effectiveGate = std::clamp(
+                baseGate + 100.0f * gateOffset, 1.0f, 200.0f);
+            arpCore_.setGateLength(effectiveGate);
+        }
+
+        // --- Octave range modulation (FR-010, 078-modulation-integration) ---
+        // Integer destination: rounded to nearest integer, +/-3 octaves, clamped [1, 4].
+        // prevArpOctaveRange_ tracks the EFFECTIVE (modulated) value, not the raw base.
+        {
+            const int baseOctave = arpParams_.octaveRange.load(std::memory_order_relaxed);
+            const int effectiveOctave = std::clamp(
+                baseOctave + static_cast<int>(std::round(3.0f * octaveOffset)),
+                1, 4);
+            if (effectiveOctave != prevArpOctaveRange_) {
+                arpCore_.setOctaveRange(effectiveOctave);
+                prevArpOctaveRange_ = effectiveOctave;
+            }
+        }
+
+        // --- Swing modulation (FR-011, 078-modulation-integration) ---
+        // Additive +/-50 points, clamped [0, 75]%.
+        // setSwing() takes 0-75 percent as-is, NOT normalized 0-1
+        {
+            const float baseSwing = arpParams_.swing.load(std::memory_order_relaxed);
+            const float effectiveSwing = std::clamp(
+                baseSwing + 50.0f * swingOffset, 0.0f, 75.0f);
+            arpCore_.setSwing(effectiveSwing);
+        }
+
+        // --- Spice modulation (FR-012, 078-modulation-integration) ---
+        // Bipolar additive: effectiveSpice = baseSpice + offset, clamped [0, 1]
+        {
+            const float baseSpice = arpParams_.spice.load(std::memory_order_relaxed);
+            const float effectiveSpice = std::clamp(
+                baseSpice + spiceOffset, 0.0f, 1.0f);
+            arpCore_.setSpice(effectiveSpice);
+        }
+    } else {
+        // Arp disabled: use raw params, no mod reads (FR-015)
+        arpCore_.setTempoSync(arpParams_.tempoSync.load(std::memory_order_relaxed));
+        arpCore_.setFreeRate(arpParams_.freeRate.load(std::memory_order_relaxed));
+        arpCore_.setGateLength(arpParams_.gateLength.load(std::memory_order_relaxed));
+        {
+            const auto octaveRange = arpParams_.octaveRange.load(std::memory_order_relaxed);
+            if (octaveRange != prevArpOctaveRange_) {
+                arpCore_.setOctaveRange(octaveRange);
+                prevArpOctaveRange_ = octaveRange;
+            }
+        }
+        arpCore_.setSwing(arpParams_.swing.load(std::memory_order_relaxed));
+        arpCore_.setSpice(arpParams_.spice.load(std::memory_order_relaxed));
+    }
     {
         const auto latchMode = static_cast<LatchMode>(
             arpParams_.latchMode.load(std::memory_order_relaxed));
@@ -1353,8 +1441,8 @@ void Processor::applyParamsToEngine() {
     }
     arpCore_.setFillActive(arpParams_.fillToggle.load(std::memory_order_relaxed));
 
-    // --- Spice/Dice & Humanize (077-spice-dice-humanize) ---
-    arpCore_.setSpice(arpParams_.spice.load(std::memory_order_relaxed));
+    // --- Dice & Humanize (077-spice-dice-humanize) ---
+    // NOTE: setSpice() moved into arp-enabled mod block above (078-modulation-integration)
     // Dice trigger: consume rising edge via compare_exchange_strong (FR-036)
     {
         bool expected = true;

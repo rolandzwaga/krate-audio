@@ -57,6 +57,7 @@ add_executable(ruinae_tests
     # Arpeggiator Tests (071-arp-engine-integration)
     unit/parameters/arpeggiator_params_test.cpp
     unit/processor/arp_integration_test.cpp
+    unit/processor/arp_mod_integration_test.cpp
     unit/controller/arp_controller_test.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
@@ -107,6 +108,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/reverb_volume_test.cpp
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
+        unit/processor/arp_mod_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
