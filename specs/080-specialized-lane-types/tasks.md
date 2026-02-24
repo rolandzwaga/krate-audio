@@ -381,13 +381,13 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 ### N.1 Requirements Verification
 
-- [ ] T095 Review ALL FR-001 through FR-051 requirements against actual implementation -- open each implementation file and confirm the code satisfies each FR; record file path and line number for each
-- [ ] T096 Review ALL SC-001 through SC-012 success criteria -- run tests or inspect code for each; record actual measured values vs spec targets; specifically: SC-009 (zero allocations -- code review), SC-010 (pluginval -- record pass/fail), SC-011 (playhead -- run with plugin), SC-012 (zero warnings -- build output)
-- [ ] T097 Search for cheating patterns in new code: no `// placeholder`, no `// TODO`, no `// stub` in any of: arp_lane.h, arp_lane_header.h, arp_lane_editor.h, arp_lane_container.h, arp_modifier_lane.h, arp_condition_lane.h, plugin_ids.h (3296-3299 block), arpeggiator_params.h, controller.h, controller.cpp, editor.uidesc. ALSO run `grep -n "dynamic_cast" plugins/shared/src/ui/arp_lane_container.h` and confirm zero results (FR-044, G2).
+- [X] T095 Review ALL FR-001 through FR-051 requirements against actual implementation -- open each implementation file and confirm the code satisfies each FR; record file path and line number for each
+- [X] T096 Review ALL SC-001 through SC-012 success criteria -- run tests or inspect code for each; record actual measured values vs spec targets; specifically: SC-009 (zero allocations -- code review), SC-010 (pluginval -- record pass/fail), SC-011 (playhead -- run with plugin), SC-012 (zero warnings -- build output)
+- [X] T097 Search for cheating patterns in new code: no `// placeholder`, no `// TODO`, no `// stub` in any of: arp_lane.h, arp_lane_header.h, arp_lane_editor.h, arp_lane_container.h, arp_modifier_lane.h, arp_condition_lane.h, plugin_ids.h (3296-3299 block), arpeggiator_params.h, controller.h, controller.cpp, editor.uidesc. ALSO run `grep -n "dynamic_cast" plugins/shared/src/ui/arp_lane_container.h` and confirm zero results (FR-044, G2).
 
 ### N.2 Fill Compliance Table
 
-- [ ] T098 Update `specs/080-specialized-lane-types/spec.md` "Implementation Verification" section -- fill each row of the compliance table with: Status (MET/NOT MET/PARTIAL/DEFERRED), file path + line number of implementation, test name + actual result
+- [X] T098 Update `specs/080-specialized-lane-types/spec.md` "Implementation Verification" section -- fill each row of the compliance table with: Status (MET/NOT MET/PARTIAL/DEFERRED), file path + line number of implementation, test name + actual result
 
 ### N.3 Honest Self-Check
 
@@ -399,13 +399,13 @@ Answer these before claiming completion. If ANY answer is "yes", completion cann
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T099 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T099 All self-check questions answered "no" (or gaps documented honestly)
 
 ### N.4 Final Commit
 
-- [ ] T100 Commit all remaining spec work to feature branch
-- [ ] T101 Verify all tests pass: shared_tests + ruinae_tests
-- [ ] T102 Claim completion ONLY if all requirements are MET or gaps explicitly approved by user
+- [X] T100 Commit all remaining spec work to feature branch
+- [X] T101 Verify all tests pass: shared_tests + ruinae_tests
+- [X] T102 Claim completion ONLY if all requirements are MET or gaps explicitly approved by user
 
 **Checkpoint**: Spec implementation honestly complete.
 

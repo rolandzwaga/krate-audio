@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 11a complete — Layout Restructure & Lane Framework) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 11b complete — Specialized Lane Types) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -42,6 +42,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | **Generative** ✅ | 9 | Spice/Dice mutation, humanize. Unique. |
 | **Modulated** ✅ | 10 | Arp params as mod destinations (rate, gate, octave, swing, spice). Expressive. |
 | **Lane Framework** ✅ | 11a | SEQ tab restructured, velocity + gate lanes editable with playheads. |
+| **Specialized Lanes** ✅ | 11b | Pitch/ratchet/modifier/condition lanes with custom rendering, all 6 in stacked container. |
 | **Complete** | 12 | Dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
@@ -85,7 +86,7 @@ Phase 3: Ruinae integration - processor, params, basic UI
     |
     +---> Phase 11a: Layout restructure + lane framework (vel/gate) ✅
               |
-              +---> Phase 11b: Specialized lanes (pitch/ratchet/modifier/condition)
+              +---> Phase 11b: Specialized lanes (pitch/ratchet/modifier/condition) ✅
               |
               +---> Phase 11c: Interaction polish (trail, transforms, copy/paste)
                         |
@@ -1110,7 +1111,7 @@ Restructure the SEQ tab layout and build the lane editor framework. Prove the ar
 
 ---
 
-## Phase 11b: Specialized Lane Types
+## Phase 11b: Specialized Lane Types ✅ COMPLETE
 
 **Plugin Layer**: `plugins/shared/` and `plugins/ruinae/`
 **Files**:
@@ -1192,16 +1193,16 @@ Implement the four specialized lane types that require custom rendering and inte
 
 ### Acceptance Criteria
 
-- [ ] All 6 lanes visible and editable in the stacked lane editor
-- [ ] Pitch lane: center line visible, bars go up/down, snap to semitone
-- [ ] Ratchet lane: click cycles 1→2→3→4→1, blocks visualization correct
-- [ ] Modifier lane: 4-row dot grid, each flag toggleable independently per step
-- [ ] Condition lane: icon display, click opens popup with all 18 options
-- [ ] All lanes collapse/expand with miniature previews
-- [ ] Left-alignment correct: step 1 lines up across lanes with different lengths
-- [ ] All parameter wiring functional (automation, state save/load)
-- [ ] No allocations in draw/mouse paths
-- [ ] Pluginval level 5 passes
+- [x] All 6 lanes visible and editable in the stacked lane editor
+- [x] Pitch lane: center line visible, bars go up/down, snap to semitone
+- [x] Ratchet lane: click cycles 1→2→3→4→1, blocks visualization correct
+- [x] Modifier lane: 4-row dot grid, each flag toggleable independently per step
+- [x] Condition lane: icon display, click opens popup with all 18 options
+- [x] All lanes collapse/expand with miniature previews
+- [x] Left-alignment correct: step 1 lines up across lanes with different lengths
+- [x] All parameter wiring functional (automation, state save/load)
+- [x] No allocations in draw/mouse paths
+- [x] Pluginval level 5 passes
 
 ---
 
