@@ -390,7 +390,7 @@ After implementing tests, verify:
 **Purpose**: Update living architecture documentation per Constitution Principle XIII.
 
 - [X] T084 Update `specs/_architecture_/plugin-ui-patterns.md`: add entries for `ArpLaneEditor` (location: `plugins/shared/src/ui/arp_lane_editor.h`, purpose: StepPatternEditor subclass for arp lane editing with collapsible header and accent color, when to use: any arp lane needing bar-chart editing, phase 11b extends) and `ArpLaneContainer` (location: `plugins/shared/src/ui/arp_lane_container.h`, purpose: CViewContainer subclass with manual vertical scroll for stacked arp lanes, when to use: multi-lane arp display). Also update `specs/_architecture_/README.md` to add index entries for ArpLaneEditor and ArpLaneContainer under the Shared UI Components section (Constitution Principle XIV requires the index file to be kept current).
-- [ ] T085 Commit architecture documentation update: `docs: update plugin-ui-patterns with ArpLaneEditor and ArpLaneContainer`
+- [X] T085 Commit architecture documentation update: `docs: update plugin-ui-patterns with ArpLaneEditor and ArpLaneContainer`
 
 ---
 
@@ -400,18 +400,18 @@ After implementing tests, verify:
 
 ### 12.1 Requirements Verification
 
-- [ ] T086 **Review ALL FR-001 through FR-037** from `specs/079-layout-framework/spec.md` against actual implementation files; for each FR, open the file and find the code -- record file path and relevant lines; do NOT mark complete from memory
-- [ ] T087 **Review ALL SC-001 through SC-011**: run or read the specific test for each; for numeric thresholds (SC-005: 30fps, SC-006: 104px max, SC-007: 6 decimal places), record the actual measured value
-- [ ] T088 **Search for cheating patterns**: run `grep -r "placeholder\|TODO\|stub" plugins/shared/src/ui/arp_lane_editor.h plugins/shared/src/ui/arp_lane_container.h plugins/ruinae/src/` -- confirm zero hits in new implementation code
+- [X] T086 **Review ALL FR-001 through FR-037** from `specs/079-layout-framework/spec.md` against actual implementation files; for each FR, open the file and find the code -- record file path and relevant lines; do NOT mark complete from memory
+- [X] T087 **Review ALL SC-001 through SC-011**: run or read the specific test for each; for numeric thresholds (SC-005: 30fps, SC-006: 104px max, SC-007: 6 decimal places), record the actual measured value
+- [X] T088 **Search for cheating patterns**: run `grep -r "placeholder\|TODO\|stub" plugins/shared/src/ui/arp_lane_editor.h plugins/shared/src/ui/arp_lane_container.h plugins/ruinae/src/` -- confirm zero hits in new implementation code
 
 ### 12.2 Fill Compliance Table
 
-- [ ] T089 Update `specs/079-layout-framework/spec.md` "Implementation Verification" section: fill every FR-xxx and SC-xxx row with Status (MET/NOT MET/PARTIAL/DEFERRED) and Evidence (file path + line number + test name + actual measured value); mark Overall Status honestly
+- [X] T089 Update `specs/079-layout-framework/spec.md` "Implementation Verification" section: fill every FR-xxx and SC-xxx row with Status (MET/NOT MET/PARTIAL/DEFERRED) and Evidence (file path + line number + test name + actual measured value); mark Overall Status honestly
 
 ### 12.3 Final Commit
 
-- [ ] T090 Commit all remaining work: `feat(079-layout-framework): complete arp layout restructure and lane framework`
-- [ ] T091 Verify all tests still pass after final commit: run `shared_tests` and `ruinae_tests`
+- [X] T090 Commit all remaining work: `feat(079-layout-framework): complete arp layout restructure and lane framework`
+- [X] T091 Verify all tests still pass after final commit: run `shared_tests` and `ruinae_tests`
 
 **Checkpoint**: Spec implementation honestly assessed and documented. Feature branch ready for review.
 
