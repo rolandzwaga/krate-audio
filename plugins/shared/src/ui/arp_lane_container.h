@@ -104,23 +104,35 @@ public:
         float y = 0.0f;
         float containerWidth = static_cast<float>(getViewSize().getWidth());
 
+        // First pass: calculate total content height
         for (auto* lane : lanes_) {
             float laneHeight = lane->isCollapsed()
                 ? lane->getCollapsedHeight()
                 : lane->getExpandedHeight();
-
-            VSTGUI::CRect laneRect(0.0, y, containerWidth, y + laneHeight);
-            lane->setViewSize(laneRect);
-            lane->setMouseableArea(laneRect);
-
             y += laneHeight;
         }
 
         totalContentHeight_ = y;
 
-        // Clamp scroll offset
+        // Clamp scroll offset before applying to positions
         float maxScroll = getMaxScrollOffset();
         scrollOffset_ = std::clamp(scrollOffset_, 0.0f, maxScroll);
+
+        // Second pass: position lanes with scroll offset translation
+        float contentY = 0.0f;
+        for (auto* lane : lanes_) {
+            float laneHeight = lane->isCollapsed()
+                ? lane->getCollapsedHeight()
+                : lane->getExpandedHeight();
+
+            float visualY = contentY - scrollOffset_;
+            VSTGUI::CRect laneRect(0.0, visualY, containerWidth,
+                                    visualY + laneHeight);
+            lane->setViewSize(laneRect);
+            lane->setMouseableArea(laneRect);
+
+            contentY += laneHeight;
+        }
 
         invalid();
     }
@@ -140,6 +152,21 @@ public:
 
     [[nodiscard]] float getMaxScrollOffset() const {
         return std::max(0.0f, totalContentHeight_ - viewportHeight_);
+    }
+
+    /// Apply a wheel scroll delta (deltaY from MouseWheelEvent).
+    /// Returns true if the scroll offset changed.
+    /// Formula: scrollDelta = -wheelDeltaY * 20.0f (20px per wheel unit).
+    bool scrollByWheelDelta(float wheelDeltaY) {
+        float delta = -wheelDeltaY * 20.0f;
+        float newOffset = std::clamp(
+            scrollOffset_ + delta, 0.0f, getMaxScrollOffset());
+        if (newOffset != scrollOffset_) {
+            scrollOffset_ = newOffset;
+            recalculateLayout();
+            return true;
+        }
+        return false;
     }
 
     // =========================================================================
@@ -162,13 +189,7 @@ public:
 
     void onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) override {
         if (event.deltaY != 0.0) {
-            float delta = static_cast<float>(-event.deltaY) * 20.0f;
-            float newOffset = std::clamp(
-                scrollOffset_ + delta, 0.0f, getMaxScrollOffset());
-
-            if (newOffset != scrollOffset_) {
-                scrollOffset_ = newOffset;
-                recalculateLayout();
+            if (scrollByWheelDelta(static_cast<float>(event.deltaY))) {
                 event.consumed = true;
                 return;
             }

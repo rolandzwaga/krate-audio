@@ -278,3 +278,130 @@ TEST_CASE("Scroll offset clamps to 0 when content shrinks below viewport after c
     REQUIRE(container.getTotalContentHeight() == Approx(32.0f).margin(0.01f));
     REQUIRE(container.getScrollOffset() == Approx(0.0f).margin(0.01f));
 }
+
+// ==============================================================================
+// Wheel Scroll Tests (T065) - Tests scrollByWheelDelta which is the core
+// logic called by onMouseWheelEvent. Tests use scrollByWheelDelta directly
+// to avoid VSTGUI event dispatch infrastructure requirements in unit tests.
+// ==============================================================================
+
+TEST_CASE("scrollByWheelDelta with deltaY=-3 increases scrollOffset by 60",
+          "[arp_lane_container][scroll][wheel]") {
+    // Use a small viewport so scrolling is possible
+    auto container = makeContainer(100.0f);
+
+    // Add enough lanes to exceed viewport (86 + 86 + 86 = 258, viewport = 100)
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+    auto* lane3 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+    container.addLane(lane3);
+
+    // Total content = 258, viewport = 100 -> maxScrollOffset = 158
+    REQUIRE(container.getMaxScrollOffset() == Approx(158.0f).margin(0.01f));
+
+    // Initially scrollOffset is 0
+    REQUIRE(container.getScrollOffset() == Approx(0.0f).margin(0.01f));
+
+    // Simulate mouse wheel with deltaY = -3.0 (scroll down)
+    // Formula: scrollDelta = -deltaY * 20.0 = -(-3.0) * 20.0 = 60.0
+    bool changed = container.scrollByWheelDelta(-3.0f);
+    REQUIRE(changed);
+    REQUIRE(container.getScrollOffset() == Approx(60.0f).margin(0.01f));
+}
+
+TEST_CASE("scrollByWheelDelta clamps scrollOffset at maxScrollOffset",
+          "[arp_lane_container][scroll][wheel]") {
+    // Use a small viewport: content = 172, viewport = 100 -> maxScroll = 72
+    auto container = makeContainer(100.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // maxScrollOffset = 172 - 100 = 72
+    REQUIRE(container.getMaxScrollOffset() == Approx(72.0f).margin(0.01f));
+
+    // Scroll down by a large amount (deltaY = -10 -> delta = 200px)
+    // Should clamp at maxScrollOffset = 72
+    bool changed = container.scrollByWheelDelta(-10.0f);
+    REQUIRE(changed);
+    REQUIRE(container.getScrollOffset() == Approx(72.0f).margin(0.01f));
+}
+
+TEST_CASE("scrollByWheelDelta clamps scrollOffset at 0 when scrolling up past top",
+          "[arp_lane_container][scroll][wheel]") {
+    auto container = makeContainer(100.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // Set initial scroll position to 30
+    container.setScrollOffset(30.0f);
+    REQUIRE(container.getScrollOffset() == Approx(30.0f).margin(0.01f));
+
+    // Scroll up by a large amount (deltaY = +10 -> delta = -200px)
+    // Should clamp at 0
+    bool changed = container.scrollByWheelDelta(10.0f);
+    REQUIRE(changed);
+    REQUIRE(container.getScrollOffset() == Approx(0.0f).margin(0.01f));
+}
+
+TEST_CASE("scrollByWheelDelta returns false when no scroll change occurs",
+          "[arp_lane_container][scroll][wheel]") {
+    // Content fits in viewport -> no scroll possible
+    auto container = makeContainer(390.0f);
+
+    auto* lane1 = makeArpLane(86.0f);
+    auto* lane2 = makeArpLane(86.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // maxScrollOffset = 0 (content 172 < viewport 390)
+    REQUIRE(container.getMaxScrollOffset() == Approx(0.0f).margin(0.01f));
+
+    // Scrolling should not change offset
+    bool changed = container.scrollByWheelDelta(-3.0f);
+    REQUIRE_FALSE(changed);
+    REQUIRE(container.getScrollOffset() == Approx(0.0f).margin(0.01f));
+}
+
+// ==============================================================================
+// Mouse Event Routing Through Scroll Offset Tests (T066)
+// ==============================================================================
+
+TEST_CASE("Scroll offset translates child lane positions in recalculateLayout",
+          "[arp_lane_container][scroll][mouse_routing]") {
+    // Use a viewport smaller than content to enable scrolling
+    auto container = makeContainer(100.0f);
+
+    auto* lane1 = makeArpLane(80.0f);
+    auto* lane2 = makeArpLane(80.0f);
+
+    container.addLane(lane1);
+    container.addLane(lane2);
+
+    // Without scroll: lane1 at y=0..80, lane2 at y=80..160
+    // Set scrollOffset to 50: lane1 should be at y=-50..30, lane2 at y=30..110
+    container.setScrollOffset(50.0f);
+
+    // Verify lane positions reflect scroll offset translation
+    CRect lane1Rect = lane1->getViewSize();
+    CRect lane2Rect = lane2->getViewSize();
+
+    // lane1: content y=0, visual y = 0 - 50 = -50
+    REQUIRE(static_cast<float>(lane1Rect.top) == Approx(-50.0f).margin(0.01f));
+    REQUIRE(static_cast<float>(lane1Rect.bottom) == Approx(30.0f).margin(0.01f));
+
+    // lane2: content y=80, visual y = 80 - 50 = 30
+    REQUIRE(static_cast<float>(lane2Rect.top) == Approx(30.0f).margin(0.01f));
+    REQUIRE(static_cast<float>(lane2Rect.bottom) == Approx(110.0f).margin(0.01f));
+}

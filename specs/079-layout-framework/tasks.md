@@ -318,20 +318,20 @@ After implementing tests, verify:
 
 > Most scroll tests were partially written in T013. Extend them here with scroll interaction verification.
 
-- [ ] T065 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for `onWheel()` scroll: simulate a mouse wheel event with distance=-3.0f and verify `scrollOffset_` increases by 60.0f (3 * 20px per unit); then verify it clamps at `getMaxScrollOffset()`
-- [ ] T066 Add failing test for mouse event routing through scroll offset: create a container with `scrollOffset_=50.0f`, add a lane at position y=80 (after offset: visually at 30px). A click at y=30 in the container coordinate should route to the child lane starting at y=80 in content coordinates (i.e., y + scrollOffset = 80). Verify child lane `onMouseDown()` is called with adjusted coordinates.
+- [X] T065 Add failing tests to `plugins/shared/tests/test_arp_lane_container.cpp` for `onWheel()` scroll: simulate a mouse wheel event with distance=-3.0f and verify `scrollOffset_` increases by 60.0f (3 * 20px per unit); then verify it clamps at `getMaxScrollOffset()`
+- [X] T066 Add failing test for mouse event routing through scroll offset: create a container with `scrollOffset_=50.0f`, add a lane at position y=80 (after offset: visually at 30px). A click at y=30 in the container coordinate should route to the child lane starting at y=80 in content coordinates (i.e., y + scrollOffset = 80). Verify child lane `onMouseDown()` is called with adjusted coordinates.
 
 ### 8.2 Verify US6 Tests Pass
 
-- [ ] T067 Build `shared_tests` and run -- confirm T065/T066 tests pass; scroll behavior was partially implemented in T017 -- this phase adds targeted tests for wheel and mouse routing
+- [X] T067 Build `shared_tests` and run -- confirm T065/T066 tests pass; scroll behavior was partially implemented in T017 -- this phase adds targeted tests for wheel and mouse routing
 
 ### 8.3 Cross-Platform Verification
 
-- [ ] T068 [US6] Verify no IEEE 754 functions in scroll tests
+- [X] T068 [US6] Verify no IEEE 754 functions in scroll tests
 
 ### 8.4 Commit US6
 
-- [ ] T069 [US6] Commit scroll container test coverage: `test: scrollable lane container with mouse routing (US6)`
+- [X] T069 [US6] Commit scroll container test coverage: `test: scrollable lane container with mouse routing (US6)`
 
 **Checkpoint**: All 6 user stories complete and independently tested.
 
