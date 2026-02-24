@@ -600,6 +600,14 @@ inline void registerArpParams(
     // Normalized default: (50 - 50) / 25 = 0.0
     parameters.addParameter(STR16("Arp Ratchet Swing"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kArpRatchetSwingId);
+
+    // --- Playhead Parameters (079-layout-framework) ---
+    // Hidden, non-automatable. Written by processor, polled by controller.
+    // NOT saved to preset state (transient playback position only).
+    parameters.addParameter(STR16("Arp Vel Playhead"), STR16(""), 0, 1.0,
+        ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpVelocityPlayheadId);
+    parameters.addParameter(STR16("Arp Gate Playhead"), STR16(""), 0, 1.0,
+        ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpGatePlayheadId);
 }
 
 // =============================================================================

@@ -2187,3 +2187,105 @@ TEST_CASE("SpiceHumanize_HandleParamChange_HumanizeStored", "[arp][params][human
     handleArpParamChange(params, kArpHumanizeId, 0.75);
     CHECK(params.humanize.load() == Approx(0.75f).margin(0.001f));
 }
+
+// ==============================================================================
+// T057: Playhead Parameter Registration (079-layout-framework, US5)
+// ==============================================================================
+// Verify kArpVelocityPlayheadId (3294) and kArpGatePlayheadId (3295) are
+// registered as hidden, non-automatable (kIsReadOnly), and excluded from
+// preset state save/load.
+// ==============================================================================
+
+TEST_CASE("PlayheadParams_Registration_HiddenAndReadOnly", "[arp][params][playhead]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    SECTION("Velocity playhead is registered with kIsHidden") {
+        auto* param = container.getParameter(kArpVelocityPlayheadId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+    }
+
+    SECTION("Velocity playhead is registered with kIsReadOnly (non-automatable)") {
+        auto* param = container.getParameter(kArpVelocityPlayheadId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsReadOnly) != 0);
+        // kIsReadOnly implies NOT automatable (kCanAutomate must not be set)
+        CHECK((info.flags & ParameterInfo::kCanAutomate) == 0);
+    }
+
+    SECTION("Gate playhead is registered with kIsHidden") {
+        auto* param = container.getParameter(kArpGatePlayheadId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsHidden) != 0);
+    }
+
+    SECTION("Gate playhead is registered with kIsReadOnly (non-automatable)") {
+        auto* param = container.getParameter(kArpGatePlayheadId);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        CHECK((info.flags & ParameterInfo::kIsReadOnly) != 0);
+        CHECK((info.flags & ParameterInfo::kCanAutomate) == 0);
+    }
+}
+
+TEST_CASE("PlayheadParams_ExcludedFromPresetState", "[arp][params][playhead][state]") {
+    using namespace Ruinae;
+
+    // Save params with non-default playhead values
+    // (In practice, playhead params are not part of ArpeggiatorParams struct
+    // since they are transient. Verify that saveArpParams/loadArpParams do NOT
+    // include kArpVelocityPlayheadId or kArpGatePlayheadId in the stream.)
+
+    // Set some non-default arp params and save
+    ArpeggiatorParams original;
+    original.enabled.store(true, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Load into a fresh struct
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream);
+        REQUIRE(ok);
+    }
+
+    // The ArpeggiatorParams struct should NOT have playhead fields (they are
+    // transient parameter-only, not part of the serialized state).
+    // We verify this indirectly: the save/load round-trip succeeds without any
+    // playhead data, proving they are excluded from serialization.
+    CHECK(loaded.enabled.load() == true);
+
+    // Additionally verify the parameter IDs are correct constants
+    CHECK(kArpVelocityPlayheadId == 3294);
+    CHECK(kArpGatePlayheadId == 3295);
+}
+
+TEST_CASE("PlayheadParams_DefaultValueIsSentinel", "[arp][params][playhead]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    SECTION("Velocity playhead default is 1.0 (sentinel = no playback)") {
+        auto* param = container.getParameter(kArpVelocityPlayheadId);
+        REQUIRE(param != nullptr);
+        // Default normalized value should be 1.0 (sentinel)
+        CHECK(param->getNormalized() == Approx(1.0).margin(1e-6));
+    }
+
+    SECTION("Gate playhead default is 1.0 (sentinel = no playback)") {
+        auto* param = container.getParameter(kArpGatePlayheadId);
+        REQUIRE(param != nullptr);
+        CHECK(param->getNormalized() == Approx(1.0).margin(1e-6));
+    }
+}

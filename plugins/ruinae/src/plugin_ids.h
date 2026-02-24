@@ -1049,6 +1049,10 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpHumanizeId            = 3292,   // continuous: 0.0-1.0 (displayed as 0-100%)
     kArpRatchetSwingId        = 3293,   // continuous: 0.0-1.0 (displayed as 50-75%)
 
+    // --- Playhead Parameters (079-layout-framework) ---
+    kArpVelocityPlayheadId    = 3294,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
+    kArpGatePlayheadId        = 3295,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
+
     kArpEndId = 3299,
 
     // ==========================================================================

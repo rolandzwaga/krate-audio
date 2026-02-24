@@ -52,6 +52,14 @@
 
         <!-- Toggle states -->
         <color name="toggle-off" rgba="#505055ff"/>
+
+        <!-- Arp lane colors (079-layout-framework) -->
+        <color name="arp-lane-velocity" rgba="#D0845Cff"/>
+        <color name="arp-lane-velocity-normal" rgba="#7D4F37ff"/>
+        <color name="arp-lane-velocity-ghost" rgba="#492E20ff"/>
+        <color name="arp-lane-gate" rgba="#C8A464ff"/>
+        <color name="arp-lane-gate-normal" rgba="#78623Cff"/>
+        <color name="arp-lane-gate-ghost" rgba="#463923ff"/>
     </colors>
 
 
@@ -2955,12 +2963,12 @@
     <template name="Tab_Seq" size="1400, 620" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
-        <!-- TRANCE GATE (reduced height)                                  -->
+        <!-- TRANCE GATE (compressed to ~100px, FR-001, SC-006)            -->
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
             origin="8, 4"
-            size="1384, 390"
+            size="1384, 100"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
             fieldset-radius="4"
@@ -2968,41 +2976,41 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Toolbar row (y=14): Enable, Step count, Presets, Transform buttons -->
-            <view class="ToggleButton" origin="8, 14" size="40, 18"
+            <!-- Toolbar row: Enable, Step count, Presets, Transform buttons -->
+            <view class="ToggleButton" origin="8, 2" size="40, 18"
                   control-tag="TranceGateEnabled" default-value="0"
                   tooltip="Enable trance gate"
                   transparent="false"/>
-            <view class="CTextLabel" origin="56, 16" size="60, 14"
+            <view class="CTextLabel" origin="56, 4" size="60, 14"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Step count"/>
-            <view class="COptionMenu" origin="116, 14" size="56, 18"
+            <view class="COptionMenu" origin="116, 2" size="56, 18"
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Pattern preset dropdown -->
-            <view class="COptionMenu" origin="200, 14" size="110, 22"
+            <view class="COptionMenu" origin="200, 2" size="110, 18"
                   custom-id="preset-dropdown" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Transform buttons -->
-            <view class="ActionButton" origin="320, 12" size="26, 26"
+            <view class="ActionButton" origin="320, 0" size="22, 22"
                   control-tag="ActionTransformInvert" default-value="0"
                   icon-style="invert" tooltip="Invert pattern"
                   transparent="false"/>
-            <view class="ActionButton" origin="348, 12" size="26, 26"
+            <view class="ActionButton" origin="344, 0" size="22, 22"
                   control-tag="ActionTransformShiftLeft" default-value="0"
                   icon-style="shift-left" tooltip="Shift pattern left"
                   transparent="false"/>
-            <view class="ActionButton" origin="376, 12" size="26, 26"
+            <view class="ActionButton" origin="368, 0" size="22, 22"
                   control-tag="ActionTransformShiftRight" default-value="0"
                   icon-style="shift-right" tooltip="Shift pattern right"
                   transparent="false"/>
 
             <!-- Sync toggle -->
-            <view class="ToggleButton" origin="430, 14" size="50, 18"
+            <view class="ToggleButton" origin="400, 2" size="50, 18"
                   control-tag="TranceGateSync"
                   default-value="1.0"
                   title="Sync"
@@ -3014,92 +3022,89 @@
                   transparent="true"/>
 
             <!-- Rate (hidden when sync active) -->
-            <view class="CViewContainer" origin="488, 10" size="48, 38"
+            <view class="CViewContainer" origin="458, 0" size="48, 24"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
-                <view class="ArcKnob" origin="0, 0" size="28, 28"
+                <view class="ArcKnob" origin="0, 0" size="20, 20"
                       control-tag="TranceGateRate" default-value="0.5"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                <view class="CTextLabel" origin="-4, 16" size="28, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
             <!-- Note Value (visible when sync active) -->
-            <view class="CViewContainer" origin="488, 10" size="80, 38"
+            <view class="CViewContainer" origin="458, 0" size="80, 24"
                   custom-view-name="TranceGateNoteValueGroup" transparent="true">
-                <view class="COptionMenu" origin="0, 4" size="70, 20"
+                <view class="COptionMenu" origin="0, 2" size="70, 18"
                       control-tag="TranceGateNoteValue"
                       font="~ NormalFontSmaller"
                       font-color="trance-gate"
                       back-color="bg-dropdown"
                       frame-color="frame-dropdown"
                       transparent="false"/>
-                <view class="CTextLabel" origin="0, 28" size="70, 10"
-                      font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Note"/>
             </view>
 
-            <!-- Parameter knobs -->
-            <view class="ArcKnob" origin="580, 10" size="28, 28"
+            <!-- Parameter knobs (compact 20x20) -->
+            <view class="ArcKnob" origin="546, 0" size="20, 20"
                   control-tag="TranceGateDepth" default-value="0.5"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="574, 38" size="40, 10"
+            <view class="CTextLabel" origin="538, 18" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Depth"/>
-            <view class="ArcKnob" origin="628, 10" size="28, 28"
+            <view class="ArcKnob" origin="586, 0" size="20, 20"
                   control-tag="TranceGateAttack" default-value="0.2"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="621, 38" size="42, 10"
+            <view class="CTextLabel" origin="578, 18" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Attack"/>
-            <view class="ArcKnob" origin="676, 10" size="28, 28"
+            <view class="ArcKnob" origin="626, 0" size="20, 20"
                   control-tag="TranceGateRelease" default-value="0.3"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="667, 38" size="46, 10"
+            <view class="CTextLabel" origin="618, 18" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Release"/>
-            <view class="ArcKnob" origin="724, 10" size="28, 28"
+            <view class="ArcKnob" origin="666, 0" size="20, 20"
                   control-tag="TranceGatePhaseOffset" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="718, 38" size="40, 10"
+            <view class="CTextLabel" origin="658, 18" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
             <!-- Euclidean toggle + controls -->
-            <view class="ToggleButton" origin="1252, 14" size="26, 26"
+            <view class="ToggleButton" origin="1252, 2" size="22, 22"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   tooltip="Enable euclidean mode"
                   transparent="false"/>
-            <view class="CTextLabel" origin="1239, 40" size="52, 10"
+            <view class="CTextLabel" origin="1239, 22" size="52, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Euclidean"/>
-            <view class="CViewContainer" origin="1280, 10" size="100, 38"
+            <view class="CViewContainer" origin="1280, 0" size="100, 28"
                   custom-view-name="EuclideanControlsGroup" transparent="true">
-                <view class="ActionButton" origin="0, 2" size="26, 26"
+                <view class="ActionButton" origin="0, 0" size="22, 22"
                       control-tag="ActionEuclideanRegen" default-value="0"
                       icon-style="regen" tooltip="Regenerate pattern"
                       transparent="false"/>
-                <view class="ArcKnob" origin="28, 0" size="28, 28"
+                <view class="ArcKnob" origin="24, 0" size="20, 20"
                       control-tag="TranceGateEuclideanHits" default-value="0.5"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="22, 28" size="40, 10"
+                <view class="CTextLabel" origin="18, 18" size="32, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Hits"/>
-                <view class="ArcKnob" origin="58, 0" size="28, 28"
+                <view class="ArcKnob" origin="56, 0" size="20, 20"
                       control-tag="TranceGateEuclideanRotation" default-value="0.0"
                       arc-color="trance-gate" guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="50, 28" size="44, 10"
+                <view class="CTextLabel" origin="48, 18" size="36, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Rotate"/>
             </view>
 
-            <!-- Step Pattern Editor (reduced height) -->
-            <view class="StepPatternEditor" origin="8, 56" size="1368, 326"
+            <!-- Step Pattern Editor (thin bar area, ~70px) -->
+            <view class="StepPatternEditor" origin="8, 28" size="1368, 70"
                   transparent="false"/>
         </view>
 
-        <!-- Horizontal divider between Trance Gate and Arpeggiator -->
-        <view class="CViewContainer" origin="8, 396" size="1384, 1"
+        <!-- 4px visual divider between Trance Gate and Arpeggiator (FR-003) -->
+        <view class="CViewContainer" origin="8, 104" size="1384, 4"
               background-color="#FFFFFF18" transparent="false"/>
 
         <!-- ============================================================ -->
@@ -3107,8 +3112,8 @@
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
-            origin="8, 400"
-            size="1384, 216"
+            origin="8, 108"
+            size="1384, 508"
             fieldset-title="ARPEGGIATOR"
             fieldset-color="arpeggiator"
             fieldset-radius="4"
@@ -3216,6 +3221,11 @@
             <view class="CTextLabel" origin="206, 72" size="48, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Swing"/>
+
+            <!-- ArpLaneContainer: arp lane viewport (FR-002, FR-014, FR-019) -->
+            <view class="ArpLaneContainer" origin="8, 86" size="1368, 390"
+                  viewport-height="390"
+                  transparent="false"/>
         </view>
 
     </template>

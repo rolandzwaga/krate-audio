@@ -481,3 +481,35 @@ TEST_CASE("setPlaybackStep updates position", "[step_pattern_editor][playback]")
     CRect noRect = editor.getPlaybackIndicatorRect();
     REQUIRE(noRect.isEmpty());
 }
+
+// ==============================================================================
+// barAreaTopOffset_ Tests (079-layout-framework T001)
+// ==============================================================================
+
+TEST_CASE("setBarAreaTopOffset shifts getBarArea().top by offset", "[step_pattern_editor][layout][bar_area_offset]") {
+    auto editor = makeEditor(16);
+
+    // Record default bar area top
+    CRect defaultBarArea = editor.getBarArea();
+    float defaultTop = static_cast<float>(defaultBarArea.top);
+
+    // Set offset of 16px (simulating ArpLaneEditor header)
+    editor.setBarAreaTopOffset(16.0f);
+    CRect offsetBarArea = editor.getBarArea();
+    float offsetTop = static_cast<float>(offsetBarArea.top);
+
+    // The top should have shifted down by 16px
+    REQUIRE(offsetTop == Approx(defaultTop + 16.0f).margin(0.01f));
+}
+
+TEST_CASE("barAreaTopOffset default 0.0 preserves existing bar area (backward-compatible)", "[step_pattern_editor][layout][bar_area_offset]") {
+    auto editor = makeEditor(16);
+
+    // Default offset is 0.0f -- bar area should be unchanged
+    CRect barArea = editor.getBarArea();
+    VSTGUI::CRect vs = editor.getViewSize();
+
+    // Top should be vs.top + kPhaseOffsetHeight (12.0f) + 0.0f offset
+    float expectedTop = static_cast<float>(vs.top) + StepPatternEditor::kPhaseOffsetHeight;
+    REQUIRE(static_cast<float>(barArea.top) == Approx(expectedTop).margin(0.01f));
+}

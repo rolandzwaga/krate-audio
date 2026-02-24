@@ -53,7 +53,7 @@ TEST_CASE("Controller registers parameters on initialize", "[controller][params]
     ctrl->terminate();
 }
 
-TEST_CASE("All registered parameters have kCanAutomate flag", "[controller][params]") {
+TEST_CASE("All registered parameters have kCanAutomate flag (except hidden)", "[controller][params]") {
     auto* ctrl = makeControllerRaw();
     int32 paramCount = ctrl->getParameterCount();
 
@@ -61,7 +61,10 @@ TEST_CASE("All registered parameters have kCanAutomate flag", "[controller][para
         ParameterInfo info{};
         tresult result = ctrl->getParameterInfo(i, info);
         REQUIRE(result == kResultTrue);
-        // Every parameter should have kCanAutomate flag set
+        // Hidden/read-only params (e.g., playhead indicators) don't need kCanAutomate
+        if (info.flags & ParameterInfo::kIsHidden)
+            continue;
+        // Every non-hidden parameter should have kCanAutomate flag set
         CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
     }
 

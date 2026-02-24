@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 10 complete — Modulation Integration, Phase 11 UI designed) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 11a complete — Layout Restructure & Lane Framework) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -41,6 +41,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | **Conditional** ✅ | 8 | Euclidean rhythms, conditional trigs (probability, A:B ratios, Fill, First). Evolving. |
 | **Generative** ✅ | 9 | Spice/Dice mutation, humanize. Unique. |
 | **Modulated** ✅ | 10 | Arp params as mod destinations (rate, gate, octave, swing, spice). Expressive. |
+| **Lane Framework** ✅ | 11a | SEQ tab restructured, velocity + gate lanes editable with playheads. |
 | **Complete** | 12 | Dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
@@ -82,7 +83,7 @@ Phase 3: Ruinae integration - processor, params, basic UI
     |
     +---> Phase 10: Modulation integration (independent of 4-9)
     |
-    +---> Phase 11a: Layout restructure + lane framework (vel/gate)
+    +---> Phase 11a: Layout restructure + lane framework (vel/gate) ✅
               |
               +---> Phase 11b: Specialized lanes (pitch/ratchet/modifier/condition)
               |
@@ -945,6 +946,7 @@ Phase 11 is split into three sequential sub-phases. Each produces a usable, test
 
 ### Design Principles
 
+- **Shared UI components**: All new arpeggiator UI views and controls MUST be implemented in `plugins/shared/src/ui/`, NOT in `plugins/ruinae/`. These are reusable components (lane editors, lane containers, modifier/condition views) that belong in shared infrastructure. Only Ruinae-specific layout and wiring (e.g., `editor.uidesc`, sub-controller registration) lives in `plugins/ruinae/`.
 - **Reuse over rebuild**: Extend `StepPatternEditor` rather than creating from scratch. New custom views only for lane types that fundamentally differ from bar charts (modifier bitmask, condition enum).
 - **Stacked multi-lane view**: All lanes visible simultaneously in a vertically scrollable container, sized to content. No tab-switching between lanes.
 - **Per-lane playheads**: Each lane tracks its own position independently (polymetric support). Playhead includes a 2-3 step fading trail and an X overlay on steps that were evaluated but skipped (by condition/probability).
@@ -1062,7 +1064,7 @@ SEQ Tab (1400 x 620)
 
 ---
 
-## Phase 11a: Layout Restructure & Lane Framework
+## Phase 11a: Layout Restructure & Lane Framework ✅ COMPLETE
 
 **Plugin Layer**: `plugins/ruinae/` and `plugins/shared/`
 **Files**:
@@ -1097,14 +1099,14 @@ Restructure the SEQ tab layout and build the lane editor framework. Prove the ar
 
 ### Acceptance Criteria
 
-- [ ] Trance Gate section ≤ 100px tall, fully functional at reduced size
-- [ ] Velocity and Gate lanes visible, editable, with per-lane playhead
-- [ ] Lane collapse/expand works, collapsed lanes show miniature preview
-- [ ] Scrollable container scrolls when both lanes are expanded
-- [ ] Per-lane length dropdown changes step count immediately
-- [ ] Parameter changes round-trip: UI → processor → UI (host automation works)
-- [ ] No allocations in draw/mouse paths (verified with ASan)
-- [ ] Pluginval level 5 passes
+- [x] Trance Gate section ≤ 100px tall, fully functional at reduced size
+- [x] Velocity and Gate lanes visible, editable, with per-lane playhead
+- [x] Lane collapse/expand works, collapsed lanes show miniature preview
+- [x] Scrollable container scrolls when both lanes are expanded
+- [x] Per-lane length dropdown changes step count immediately
+- [x] Parameter changes round-trip: UI → processor → UI (host automation works)
+- [x] No allocations in draw/mouse paths (verified with ASan)
+- [x] Pluginval level 5 passes
 
 ---
 

@@ -60,6 +60,9 @@ add_executable(ruinae_tests
     unit/processor/arp_mod_integration_test.cpp
     unit/controller/arp_controller_test.cpp
 
+    # Arp Lane Parameter Flow Tests (079-layout-framework)
+    integration/arp_lane_param_flow_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

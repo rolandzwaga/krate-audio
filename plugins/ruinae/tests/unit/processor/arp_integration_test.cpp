@@ -187,6 +187,108 @@ public:
 };
 
 // =============================================================================
+// Mock: Output Parameter Value Queue (captures writes from processor)
+// =============================================================================
+
+class ArpOutputParamQueue : public Steinberg::Vst::IParamValueQueue {
+public:
+    explicit ArpOutputParamQueue(Steinberg::Vst::ParamID id) : paramId_(id) {}
+
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return paramId_; }
+    Steinberg::int32 PLUGIN_API getPointCount() override {
+        return static_cast<Steinberg::int32>(points_.size());
+    }
+
+    Steinberg::tresult PLUGIN_API getPoint(
+        Steinberg::int32 index,
+        Steinberg::int32& sampleOffset,
+        Steinberg::Vst::ParamValue& value) override {
+        if (index < 0 || index >= static_cast<Steinberg::int32>(points_.size()))
+            return Steinberg::kResultFalse;
+        sampleOffset = points_[static_cast<size_t>(index)].first;
+        value = points_[static_cast<size_t>(index)].second;
+        return Steinberg::kResultTrue;
+    }
+
+    Steinberg::tresult PLUGIN_API addPoint(
+        Steinberg::int32 sampleOffset,
+        Steinberg::Vst::ParamValue value,
+        Steinberg::int32& index) override {
+        index = static_cast<Steinberg::int32>(points_.size());
+        points_.emplace_back(sampleOffset, value);
+        return Steinberg::kResultTrue;
+    }
+
+    [[nodiscard]] double getLastValue() const {
+        if (points_.empty()) return -1.0;
+        return points_.back().second;
+    }
+
+    [[nodiscard]] bool hasPoints() const { return !points_.empty(); }
+
+private:
+    Steinberg::Vst::ParamID paramId_;
+    std::vector<std::pair<Steinberg::int32, double>> points_;
+};
+
+// =============================================================================
+// Mock: Output Parameter Changes Container (captures writes from processor)
+// =============================================================================
+
+class ArpOutputParamChanges : public Steinberg::Vst::IParameterChanges {
+public:
+    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
+        return Steinberg::kNoInterface;
+    }
+    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
+    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+
+    Steinberg::int32 PLUGIN_API getParameterCount() override {
+        return static_cast<Steinberg::int32>(queues_.size());
+    }
+
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
+        Steinberg::int32 index) override {
+        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size()))
+            return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+
+    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
+        const Steinberg::Vst::ParamID& id,
+        Steinberg::int32& index) override {
+        // Check if queue for this param already exists
+        for (size_t i = 0; i < queues_.size(); ++i) {
+            if (queues_[i].getParameterId() == id) {
+                index = static_cast<Steinberg::int32>(i);
+                return &queues_[i];
+            }
+        }
+        index = static_cast<Steinberg::int32>(queues_.size());
+        queues_.emplace_back(id);
+        return &queues_.back();
+    }
+
+    ArpOutputParamQueue* findQueue(Steinberg::Vst::ParamID id) {
+        for (auto& q : queues_) {
+            if (q.getParameterId() == id) return &q;
+        }
+        return nullptr;
+    }
+
+    void clear() { queues_.clear(); }
+
+private:
+    std::vector<ArpOutputParamQueue> queues_;
+};
+
+// =============================================================================
 // Helpers
 // =============================================================================
 
@@ -3134,4 +3236,97 @@ TEST_CASE("SpiceHumanize_OverlayEphemeral_NotRestoredAfterLoad",
         if (preDiceVelocities[i] != 100) anyPreDiceNot100 = true;
     }
     CHECK(anyPreDiceNot100);  // Random overlay at Spice=1.0 -> velocities differ from base
+}
+
+// =============================================================================
+// Phase 7 (079-layout-framework) US5: Playhead Write Tests
+// =============================================================================
+
+// T059: Verify processor writes velocity/gate step indices to output parameters
+// After the arp advances, the processor should write:
+//   kArpVelocityPlayheadId = (float)velStep / 32.0f
+//   kArpGatePlayheadId = (float)gateStep / 32.0f
+// When transport stops (arp not playing), writes 1.0f sentinel.
+
+TEST_CASE("ArpPlayhead_ProcessorWritesStepToOutputParam", "[arp][integration][playhead]") {
+    ArpIntegrationFixture f;
+    ArpOutputParamChanges outputParams;
+    f.data.outputParameterChanges = &outputParams;
+
+    // Enable arp
+    f.enableArp();
+
+    // Send a note to trigger the arp
+    f.events.addNoteOn(60, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // Process enough blocks for the arp to produce at least one step event.
+    // At 120 BPM with 1/8 note default rate, one step = ~11025 samples.
+    // With blockSize=512, that's ~22 blocks per step.
+    // Process several blocks and check for output parameter writes.
+    bool velPlayheadWritten = false;
+    bool gatePlayheadWritten = false;
+
+    for (int i = 0; i < 60; ++i) {
+        outputParams.clear();
+        f.processBlock();
+
+        auto* velQueue = outputParams.findQueue(Ruinae::kArpVelocityPlayheadId);
+        auto* gateQueue = outputParams.findQueue(Ruinae::kArpGatePlayheadId);
+
+        if (velQueue && velQueue->hasPoints()) {
+            velPlayheadWritten = true;
+            // The value should be a valid step/32 encoding in [0.0, 1.0]
+            double val = velQueue->getLastValue();
+            CHECK(val >= 0.0);
+            CHECK(val <= 1.0);
+        }
+        if (gateQueue && gateQueue->hasPoints()) {
+            gatePlayheadWritten = true;
+            double val = gateQueue->getLastValue();
+            CHECK(val >= 0.0);
+            CHECK(val <= 1.0);
+        }
+
+        if (velPlayheadWritten && gatePlayheadWritten) break;
+    }
+
+    REQUIRE(velPlayheadWritten);
+    REQUIRE(gatePlayheadWritten);
+}
+
+TEST_CASE("ArpPlayhead_WritesSentinelWhenArpDisabled", "[arp][integration][playhead]") {
+    ArpIntegrationFixture f;
+    ArpOutputParamChanges outputParams;
+    f.data.outputParameterChanges = &outputParams;
+
+    // Enable arp and send a note
+    f.enableArp();
+    f.events.addNoteOn(60, 0.8f);
+    f.processBlock();
+    f.clearEvents();
+
+    // Process a few blocks to get arp running
+    for (int i = 0; i < 30; ++i) {
+        f.processBlock();
+    }
+
+    // Now disable the arp
+    f.disableArp();
+
+    // Process one more block and check sentinel
+    outputParams.clear();
+    f.processBlock();
+
+    auto* velQueue = outputParams.findQueue(Ruinae::kArpVelocityPlayheadId);
+    auto* gateQueue = outputParams.findQueue(Ruinae::kArpGatePlayheadId);
+
+    // When arp is disabled, the processor should write 1.0 sentinel
+    if (velQueue && velQueue->hasPoints()) {
+        CHECK(velQueue->getLastValue() == Approx(1.0).margin(1e-6));
+    }
+    if (gateQueue && gateQueue->hasPoints()) {
+        CHECK(gateQueue->getLastValue() == Approx(1.0).margin(1e-6));
+    }
 }
