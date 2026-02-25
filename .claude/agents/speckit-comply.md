@@ -22,7 +22,7 @@ tools:
   - mcp__serena__think_about_whether_you_are_done
   - mcp__serena__list_memories
   - mcp__serena__read_memory
-skills: testing-guide, vst-guide, dsp-architecture, claude-file
+skills: testing-guide, vst-guide, dsp-architecture, claude-file, code-review
 ---
 
 # Compliance Verification Agent

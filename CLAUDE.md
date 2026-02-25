@@ -504,6 +504,7 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 
 **Skills (auto-load when relevant):**
 - `.claude/skills/claude-file/` - Display project CLAUDE.md with all development guidelines
+- `.claude/skills/code-review/` - DSP & VST3 specialized code review (real-time safety, thread safety, numerical stability)
 - `.claude/skills/testing-guide/` - Test patterns, Catch2, DSP testing strategies
 - `.claude/skills/vst-guide/` - VST3/VSTGUI patterns, thread safety, UI components
 - `.claude/skills/dsp-architecture/` - Real-time safety, layers, interpolation, performance
