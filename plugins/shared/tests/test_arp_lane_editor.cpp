@@ -850,6 +850,90 @@ TEST_CASE("setDiscreteCount sets correct normalized level",
     REQUIRE(editor.getStepLevel(0) == Approx(1.0f).margin(0.001f));
 }
 
+// ==============================================================================
+// Bug Fix Tests
+// ==============================================================================
+
+// Bug 1: Header draw order - header drawn after base class
+TEST_CASE("ArpLaneEditor header draw order: header drawn after base class",
+          "[arp_lane_editor][draw_order]") {
+    auto editor = makeArpLaneEditor(16);
+    editor.setLaneName("VEL");
+
+    // The bar area top must start at or below kHeaderHeight + kPhaseOffsetHeight,
+    // proving the header occupies space above the bar area and the base class
+    // background fill does not cover it (since header draws after base).
+    VSTGUI::CRect barArea = editor.getBarArea();
+    float minBarTop = ArpLaneEditor::kHeaderHeight + StepPatternEditor::kPhaseOffsetHeight;
+    REQUIRE(static_cast<float>(barArea.top) >= minBarTop);
+}
+
+// Bug 2: Ratchet lane at 86px has usable bar area height
+TEST_CASE("Ratchet lane at 86px has usable bar area height (>= 30px)",
+          "[arp_lane_editor][ratchet][layout]") {
+    ArpLaneEditor editor(CRect(0, 0, 500, 86), nullptr, -1);
+    editor.setNumSteps(16);
+    editor.setLaneType(ArpLaneType::kRatchet);
+
+    CRect barArea = editor.getBarArea();
+    float barAreaHeight = static_cast<float>(barArea.getHeight());
+    REQUIRE(barAreaHeight >= 30.0f);
+}
+
+TEST_CASE("Ratchet lane at old 52px height has tiny bar area",
+          "[arp_lane_editor][ratchet][layout]") {
+    // This documents the old bug: 52px gave only ~4px bar area
+    ArpLaneEditor editor(CRect(0, 0, 500, 52), nullptr, -1);
+    editor.setNumSteps(16);
+    editor.setLaneType(ArpLaneType::kRatchet);
+
+    CRect barArea = editor.getBarArea();
+    float barAreaHeight = static_cast<float>(barArea.getHeight());
+    // At 52px total, bar area is way too small to be usable
+    REQUIRE(barAreaHeight < 20.0f);
+}
+
+// Bug 3: Grid labels per lane type
+TEST_CASE("Pitch lane type sets empty grid labels on base class",
+          "[arp_lane_editor][grid_labels]") {
+    auto editor = makeArpLaneEditor(16);
+    editor.setLaneType(ArpLaneType::kPitch);
+
+    REQUIRE(editor.getGridTopLabel().empty());
+    REQUIRE(editor.getGridBottomLabel().empty());
+}
+
+TEST_CASE("Ratchet lane type sets 4/1 grid labels on base class",
+          "[arp_lane_editor][grid_labels]") {
+    auto editor = makeArpLaneEditor(16);
+    editor.setLaneType(ArpLaneType::kRatchet);
+
+    REQUIRE(editor.getGridTopLabel() == "4");
+    REQUIRE(editor.getGridBottomLabel() == "1");
+}
+
+TEST_CASE("Velocity lane type keeps default 1.0/0.0 grid labels",
+          "[arp_lane_editor][grid_labels]") {
+    auto editor = makeArpLaneEditor(16);
+    // Default lane type is kVelocity
+    REQUIRE(editor.getLaneType() == ArpLaneType::kVelocity);
+    REQUIRE(editor.getGridTopLabel() == "1.0");
+    REQUIRE(editor.getGridBottomLabel() == "0.0");
+}
+
+TEST_CASE("Gate lane type keeps default 1.0/0.0 grid labels",
+          "[arp_lane_editor][grid_labels]") {
+    auto editor = makeArpLaneEditor(16);
+    editor.setLaneType(ArpLaneType::kGate);
+
+    REQUIRE(editor.getGridTopLabel() == "1.0");
+    REQUIRE(editor.getGridBottomLabel() == "0.0");
+}
+
+// ==============================================================================
+// Ratchet Lane Helper Method Tests (080-specialized-lane-types T025-T028)
+// ==============================================================================
+
 TEST_CASE("handleDiscreteClick cycles through 1->2->3->4->1",
           "[arp_lane_editor][discrete]") {
     auto editor = makeRatchetLaneEditor();

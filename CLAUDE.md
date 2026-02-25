@@ -70,6 +70,10 @@ For Edit/Glob/Grep/Read tools: Use Windows backslash paths (`C:\path\file.txt`).
 - If a VSTGUI feature doesn't work, the fix must also use VSTGUI
 - Platform-specific code is ONLY acceptable for debug logging (guarded by `#ifdef`) or documented bug workarounds with user approval
 
+### Use Node.js for Helper Scripts
+
+**When generating helper scripts, CLI tools, or automation utilities, use Node.js — NOT Python.** This applies to any scripting needs such as code generators, data processing, build helpers, or dev tooling.
+
 ### Build-Before-Test Discipline
 
 **NO TESTS WITHOUT A CLEAN BUILD. PERIOD.**

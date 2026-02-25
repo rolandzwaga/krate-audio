@@ -1139,6 +1139,12 @@ VSTGUI::CView* Controller::verifyView(
             [this](uint32_t paramId) {
                 endEdit(paramId);
             });
+        velocityLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                endEdit(paramId);
+            });
 
         // Sync current parameter values to the velocity lane
         for (int i = 0; i < 32; ++i) {
@@ -1185,6 +1191,12 @@ VSTGUI::CView* Controller::verifyView(
             });
         gateLane_->setEndEditCallback(
             [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+        gateLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
 
@@ -1234,6 +1246,12 @@ VSTGUI::CView* Controller::verifyView(
             [this](uint32_t paramId) {
                 endEdit(paramId);
             });
+        pitchLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                endEdit(paramId);
+            });
 
         // Sync current parameter values to the pitch lane
         for (int i = 0; i < 32; ++i) {
@@ -1258,7 +1276,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct ratchet lane (080-specialized-lane-types, US5)
         ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 52), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
         ratchetLane_->setLaneName("RATCH");
         ratchetLane_->setLaneType(Krate::Plugins::ArpLaneType::kRatchet);
         ratchetLane_->setAccentColor(VSTGUI::CColor{152, 128, 176, 255});
@@ -1277,6 +1295,12 @@ VSTGUI::CView* Controller::verifyView(
             });
         ratchetLane_->setEndEditCallback(
             [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+        ratchetLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
 
@@ -1322,6 +1346,12 @@ VSTGUI::CView* Controller::verifyView(
             [this](uint32_t paramId) {
                 endEdit(paramId);
             });
+        modifierLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                endEdit(paramId);
+            });
 
         // Sync current parameter values to the modifier lane
         for (int i = 0; i < 32; ++i) {
@@ -1365,6 +1395,12 @@ VSTGUI::CView* Controller::verifyView(
             });
         conditionLane_->setEndEditCallback(
             [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+        conditionLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
 

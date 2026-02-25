@@ -670,7 +670,7 @@ TEST_CASE("ArpVelParams_BackwardCompat", "[arp][params]") {
     CHECK(loaded.mode.load() == 0);
 
     // Velocity lane defaults preserved (no lane data in stream)
-    CHECK(loaded.velocityLaneLength.load() == 1);
+    CHECK(loaded.velocityLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         CHECK(loaded.velocityLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
@@ -803,7 +803,7 @@ TEST_CASE("ArpGateParams_BackwardCompat", "[arp][params]") {
     CHECK(loaded.velocityLaneLength.load() == 1);
 
     // Gate lane defaults preserved (no gate lane data in stream)
-    CHECK(loaded.gateLaneLength.load() == 1);
+    CHECK(loaded.gateLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
@@ -953,7 +953,7 @@ TEST_CASE("ArpPitchParams_BackwardCompat", "[arp][params]") {
     CHECK(loaded.gateLaneLength.load() == 1);
 
     // Pitch lane defaults preserved (no pitch lane data in stream)
-    CHECK(loaded.pitchLaneLength.load() == 1);
+    CHECK(loaded.pitchLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         CHECK(loaded.pitchLaneSteps[i].load() == 0);
     }
@@ -1084,21 +1084,21 @@ TEST_CASE("LanePersistence_Phase3Compat_NoLaneData", "[arp][params]") {
 
     // SC-005: Verify all lane defaults
     // Velocity lane defaults
-    CHECK(loaded.velocityLaneLength.load() == 1);
+    CHECK(loaded.velocityLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Velocity step " << i);
         CHECK(loaded.velocityLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
 
     // Gate lane defaults
-    CHECK(loaded.gateLaneLength.load() == 1);
+    CHECK(loaded.gateLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Gate step " << i);
         CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
 
     // Pitch lane defaults
-    CHECK(loaded.pitchLaneLength.load() == 1);
+    CHECK(loaded.pitchLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Pitch step " << i);
         CHECK(loaded.pitchLaneSteps[i].load() == 0);
@@ -1150,14 +1150,14 @@ TEST_CASE("LanePersistence_PartialLaneData", "[arp][params]") {
     CHECK(loaded.velocityLaneSteps[4].load() == Approx(1.0f).margin(1e-6f));
 
     // Gate lane at defaults (not present in stream)
-    CHECK(loaded.gateLaneLength.load() == 1);
+    CHECK(loaded.gateLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Gate step " << i);
         CHECK(loaded.gateLaneSteps[i].load() == Approx(1.0f).margin(1e-6f));
     }
 
     // Pitch lane at defaults (not present in stream)
-    CHECK(loaded.pitchLaneLength.load() == 1);
+    CHECK(loaded.pitchLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Pitch step " << i);
         CHECK(loaded.pitchLaneSteps[i].load() == 0);
@@ -1445,7 +1445,7 @@ TEST_CASE("ModifierLane_BackwardCompat_Phase4Stream", "[arp][params][state][comp
     CHECK(loaded.mode.load() == 0);
 
     // Modifier lane defaults preserved
-    CHECK(loaded.modifierLaneLength.load() == 1);
+    CHECK(loaded.modifierLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Modifier step " << i);
         CHECK(loaded.modifierLaneSteps[i].load() == 1);  // kStepActive

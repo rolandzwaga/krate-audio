@@ -50,19 +50,19 @@ struct ArpeggiatorParams {
     std::atomic<int>   retrigger{0};         // 0=Off, 1=Note, 2=Beat
 
     // Velocity lane (072-independent-lanes, US1)
-    std::atomic<int>   velocityLaneLength{1};   // 1-32
+    std::atomic<int>   velocityLaneLength{16};  // 1-32
     std::array<std::atomic<float>, 32> velocityLaneSteps{};
 
     // Gate lane (072-independent-lanes, US2)
-    std::atomic<int>   gateLaneLength{1};       // 1-32
+    std::atomic<int>   gateLaneLength{16};      // 1-32
     std::array<std::atomic<float>, 32> gateLaneSteps{};
 
     // Pitch lane (072-independent-lanes, US3)
-    std::atomic<int>   pitchLaneLength{1};      // 1-32
+    std::atomic<int>   pitchLaneLength{16};     // 1-32
     std::array<std::atomic<int>, 32> pitchLaneSteps{};  // -24 to +24 (int for lock-free guarantee)
 
     // --- Modifier Lane (073-per-step-mods) ---
-    std::atomic<int>   modifierLaneLength{1};      // 1-32
+    std::atomic<int>   modifierLaneLength{16};     // 1-32
     std::array<std::atomic<int>, 32> modifierLaneSteps{};  // uint8_t bitmask stored as int (lock-free)
 
     // Modifier configuration
@@ -70,7 +70,7 @@ struct ArpeggiatorParams {
     std::atomic<float> slideTime{60.0f};           // 0-500 ms
 
     // --- Ratchet Lane (074-ratcheting) ---
-    std::atomic<int>   ratchetLaneLength{1};       // 1-32
+    std::atomic<int>   ratchetLaneLength{16};      // 1-32
     std::array<std::atomic<int>, 32> ratchetLaneSteps{};  // 1-4 (int for lock-free guarantee)
 
     // --- Euclidean Timing (075-euclidean-timing) ---
@@ -80,7 +80,7 @@ struct ArpeggiatorParams {
     std::atomic<int>  euclideanRotation{0};       // default 0
 
     // --- Condition Lane (076-conditional-trigs) ---
-    std::atomic<int>   conditionLaneLength{1};       // 1-32
+    std::atomic<int>   conditionLaneLength{16};      // 1-32
     std::array<std::atomic<int>, 32> conditionLaneSteps{};  // 0-17 (TrigCondition, int for lock-free)
     std::atomic<bool>  fillToggle{false};            // Fill mode toggle
 
@@ -418,10 +418,10 @@ inline void registerArpParams(
 
     // --- Velocity Lane (072-independent-lanes, US1) ---
 
-    // Velocity lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Velocity lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Vel Lane Len"), kArpVelocityLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Velocity lane steps: loop 0-31, RangeParameter 0.0-1.0, default 1.0
@@ -439,10 +439,10 @@ inline void registerArpParams(
 
     // --- Gate Lane (072-independent-lanes, US2) ---
 
-    // Gate lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Gate lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Gate Lane Len"), kArpGateLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Gate lane steps: loop 0-31, RangeParameter 0.01-2.0, default 1.0
@@ -460,10 +460,10 @@ inline void registerArpParams(
 
     // --- Pitch Lane (072-independent-lanes, US3) ---
 
-    // Pitch lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Pitch lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Pitch Lane Len"), kArpPitchLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Pitch lane steps: loop 0-31, RangeParameter -24 to +24, default 0, stepCount 48
@@ -481,10 +481,10 @@ inline void registerArpParams(
 
     // --- Modifier Lane (073-per-step-mods) ---
 
-    // Modifier lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Modifier lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Mod Lane Len"), kArpModifierLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Modifier lane steps: loop 0-31, RangeParameter 0-255, default 1 (kStepActive), stepCount 255
@@ -513,10 +513,10 @@ inline void registerArpParams(
 
     // --- Ratchet Lane (074-ratcheting) ---
 
-    // Ratchet lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Ratchet lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Ratchet Lane Len"), kArpRatchetLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Ratchet lane steps: loop 0-31, RangeParameter 1-4, default 1, stepCount 3
@@ -558,10 +558,10 @@ inline void registerArpParams(
 
     // --- Condition Lane (076-conditional-trigs) ---
 
-    // Condition lane length: RangeParameter 1-32, default 1, stepCount 31
+    // Condition lane length: RangeParameter 1-32, default 16, stepCount 31
     parameters.addParameter(
         new RangeParameter(STR16("Arp Cond Lane Len"), kArpConditionLaneLengthId,
-                          STR16(""), 1, 32, 1, 31,
+                          STR16(""), 1, 32, 16, 31,
                           ParameterInfo::kCanAutomate));
 
     // Condition lane steps: loop 0-31, RangeParameter 0-17, default 0 (Always), stepCount 17

@@ -114,8 +114,13 @@ public:
         // Pitch mode: right-click resets to 0.5 (0 semitones center line)
         if (type == ArpLaneType::kPitch) {
             setRightClickResetLevel(0.5f);
+            setGridLabels("", "");   // Bipolar labels drawn separately
+        } else if (type == ArpLaneType::kRatchet) {
+            setRightClickResetLevel(0.0f);
+            setGridLabels("4", "1"); // Ratchet count range
         } else {
             setRightClickResetLevel(0.0f);
+            // kVelocity/kGate keep the default "1.0"/"0.0"
         }
     }
     [[nodiscard]] ArpLaneType getLaneType() const { return laneType_; }
@@ -266,30 +271,22 @@ public:
         header_.setNumSteps(getNumSteps());
 
         if (isCollapsed()) {
-            // Draw header with miniature preview
             header_.draw(context, headerRect);
             drawMiniaturePreview(context, vs);
         } else {
-            // Draw header
-            header_.draw(context, headerRect);
-
-            // Dispatch body drawing by lane type
+            // Draw body FIRST (base class fills entire view with bg)
             if (laneType_ == ArpLaneType::kPitch) {
-                // Pitch mode: background + grid + bipolar bars + labels + playback
                 StepPatternEditor::draw(context);
-                // Overlay: bipolar bars replace the standard bars
-                // (base class already drew standard bars; we overdraw with bipolar)
                 drawBipolarBars(context);
                 drawBipolarGridLabels(context);
             } else if (laneType_ == ArpLaneType::kRatchet) {
-                // Ratchet mode: background + grid + stacked blocks + playback
                 StepPatternEditor::draw(context);
-                // Overlay: discrete blocks replace the standard bars
                 drawDiscreteBlocks(context);
             } else {
-                // Standard bar mode (velocity, gate)
                 StepPatternEditor::draw(context);
             }
+            // Draw header LAST so it's on top (not erased by base bg fill)
+            header_.draw(context, headerRect);
         }
 
         setDirty(false);

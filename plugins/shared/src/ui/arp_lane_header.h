@@ -33,7 +33,7 @@ public:
     static constexpr float kCollapseTriangleSize = 8.0f;
     static constexpr float kLengthDropdownX = 80.0f;
     static constexpr float kLengthDropdownWidth = 36.0f;
-    static constexpr int kMinSteps = 2;
+    static constexpr int kMinSteps = 1;
     static constexpr int kMaxSteps = 32;
 
     // =========================================================================

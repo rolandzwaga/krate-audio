@@ -418,6 +418,30 @@ TEST_CASE("applyPresetRandom generates values in [0,1]", "[step_pattern_editor][
 }
 
 // ==============================================================================
+// Grid Label Configuration Tests (Bug 3 fix)
+// ==============================================================================
+
+TEST_CASE("default grid labels are 1.0 and 0.0", "[step_pattern_editor][grid_labels]") {
+    auto editor = makeEditor(16);
+    REQUIRE(editor.getGridTopLabel() == "1.0");
+    REQUIRE(editor.getGridBottomLabel() == "0.0");
+}
+
+TEST_CASE("setGridLabels changes top and bottom labels", "[step_pattern_editor][grid_labels]") {
+    auto editor = makeEditor(16);
+    editor.setGridLabels("+24", "-24");
+    REQUIRE(editor.getGridTopLabel() == "+24");
+    REQUIRE(editor.getGridBottomLabel() == "-24");
+}
+
+TEST_CASE("setGridLabels to empty strings suppresses labels", "[step_pattern_editor][grid_labels]") {
+    auto editor = makeEditor(16);
+    editor.setGridLabels("", "");
+    REQUIRE(editor.getGridTopLabel().empty());
+    REQUIRE(editor.getGridBottomLabel().empty());
+}
+
+// ==============================================================================
 // Phase Offset Tests (T139)
 // ==============================================================================
 

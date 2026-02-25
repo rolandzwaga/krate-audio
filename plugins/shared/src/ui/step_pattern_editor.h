@@ -209,6 +209,17 @@ public:
     }
 
     // =========================================================================
+    // Grid Label Configuration
+    // =========================================================================
+
+    void setGridLabels(const std::string& top, const std::string& bottom) {
+        gridTopLabel_ = top;
+        gridBottomLabel_ = bottom;
+    }
+    [[nodiscard]] const std::string& getGridTopLabel() const { return gridTopLabel_; }
+    [[nodiscard]] const std::string& getGridBottomLabel() const { return gridBottomLabel_; }
+
+    // =========================================================================
     // Euclidean Mode API (FR-018 through FR-023)
     // =========================================================================
 
@@ -843,15 +854,19 @@ private:
             getViewSize().left, static_cast<float>(barArea.top) - 6.0f,
             static_cast<float>(barArea.left) - 2.0f,
             static_cast<float>(barArea.top) + 6.0f);
-        context->drawString(VSTGUI::UTF8String("1.0"), topLabelRect,
-                             VSTGUI::kRightText, true);
+        if (!gridTopLabel_.empty()) {
+            context->drawString(VSTGUI::UTF8String(gridTopLabel_), topLabelRect,
+                                 VSTGUI::kRightText, true);
+        }
 
         VSTGUI::CRect bottomLabelRect(
             getViewSize().left, static_cast<float>(barArea.bottom) - 6.0f,
             static_cast<float>(barArea.left) - 2.0f,
             static_cast<float>(barArea.bottom) + 6.0f);
-        context->drawString(VSTGUI::UTF8String("0.0"), bottomLabelRect,
-                             VSTGUI::kRightText, true);
+        if (!gridBottomLabel_.empty()) {
+            context->drawString(VSTGUI::UTF8String(gridBottomLabel_), bottomLabelRect,
+                                 VSTGUI::kRightText, true);
+        }
     }
 
     void drawBars(VSTGUI::CDrawContext* context) const {
@@ -1113,6 +1128,10 @@ private:
 
     // Right-click reset
     float rightClickResetLevel_ = 0.0f;
+
+    // Configurable grid labels (default: "1.0" top, "0.0" bottom)
+    std::string gridTopLabel_ = "1.0";
+    std::string gridBottomLabel_ = "0.0";
 
     // Timer
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> refreshTimer_;

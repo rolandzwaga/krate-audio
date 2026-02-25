@@ -147,6 +147,36 @@ TEST_CASE("ArpLaneHeader handleMouseDown outside header rect returns false", "[a
     REQUIRE_FALSE(handled);
 }
 
+// ==============================================================================
+// kMinSteps Tests (Bug 5 fix)
+// ==============================================================================
+
+TEST_CASE("ArpLaneHeader kMinSteps is 1", "[arp_lane_header][config]") {
+    REQUIRE(ArpLaneHeader::kMinSteps == 1);
+}
+
+TEST_CASE("ArpLaneHeader dropdown calculations work with kMinSteps=1", "[arp_lane_header][config]") {
+    ArpLaneHeader header;
+    // setCurrent uses index = numSteps_ - kMinSteps
+    // With kMinSteps=1, step count 1 => index 0, step count 32 => index 31
+    int stepCount = 1;
+    int index = stepCount - ArpLaneHeader::kMinSteps;
+    REQUIRE(index == 0);
+
+    stepCount = 32;
+    index = stepCount - ArpLaneHeader::kMinSteps;
+    REQUIRE(index == 31);
+
+    // Reverse: selectedIndex + kMinSteps
+    int selectedIndex = 0;
+    int newSteps = selectedIndex + ArpLaneHeader::kMinSteps;
+    REQUIRE(newSteps == 1);
+
+    selectedIndex = 31;
+    newSteps = selectedIndex + ArpLaneHeader::kMinSteps;
+    REQUIRE(newSteps == 32);
+}
+
 TEST_CASE("ArpLaneHeader handleMouseDown with offset headerRect works correctly", "[arp_lane_header][interaction]") {
     ArpLaneHeader header;
 

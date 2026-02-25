@@ -2088,7 +2088,7 @@ TEST_CASE("RatchetParams_Phase5BackwardCompat_DefaultsOnEOF", "[arp][integration
     }
 
     // Ratchet values should be at defaults
-    CHECK(loaded.ratchetLaneLength.load() == 1);
+    CHECK(loaded.ratchetLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         INFO("Step " << i);
         CHECK(loaded.ratchetLaneSteps[i].load() == 1);
@@ -2767,7 +2767,7 @@ TEST_CASE("ConditionState_Phase7Backward_Compat", "[arp][integration][condition]
     }
 
     // Condition values should be at defaults
-    CHECK(loaded.conditionLaneLength.load() == 1);
+    CHECK(loaded.conditionLaneLength.load() == 16);
     for (int i = 0; i < 32; ++i) {
         CHECK(loaded.conditionLaneSteps[i].load() == 0);
     }
