@@ -82,13 +82,10 @@ public:
     }
 
     /// @brief Get value at step index. Index clamped to [0, length-1].
-    /// Out-of-range returns T{} (default value).
     [[nodiscard]] T getStep(size_t index) const noexcept
     {
-        if (index >= length_) {
-            return T{};
-        }
-        return steps_[index];
+        const size_t clampedIndex = std::min(index, length_ - 1);
+        return steps_[clampedIndex];
     }
 
     // =========================================================================

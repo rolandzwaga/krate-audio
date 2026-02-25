@@ -201,7 +201,7 @@ inline void appendDestStrings(Steinberg::Vst::StringListParameter* param) {
     }
 }
 
-// Helper: map dropdown index (0-7) to RuinaeModDest enum value (64-71)
+// Helper: map dropdown index (0-14) to RuinaeModDest enum value (64-78)
 inline Krate::DSP::RuinaeModDest modDestFromIndex(int index) {
     return static_cast<Krate::DSP::RuinaeModDest>(
         static_cast<uint32_t>(Krate::DSP::RuinaeModDest::GlobalFilterCutoff) + index);

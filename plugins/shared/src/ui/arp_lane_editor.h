@@ -122,6 +122,14 @@ public:
             setRightClickResetLevel(0.0f);
             // kVelocity/kGate keep the default "1.0"/"0.0"
         }
+
+        // Set default accent color per lane type (can be overridden via setAccentColor)
+        switch (type) {
+            case ArpLaneType::kVelocity: setAccentColor({208, 132, 92, 255});  break; // Copper #D0845C
+            case ArpLaneType::kGate:     setAccentColor({200, 164, 100, 255}); break; // Sand #C8A464
+            case ArpLaneType::kPitch:    setAccentColor({108, 168, 160, 255}); break; // Sage #6CA8A0
+            case ArpLaneType::kRatchet:  setAccentColor({152, 128, 176, 255}); break; // Lavender #9880B0
+        }
     }
     [[nodiscard]] ArpLaneType getLaneType() const { return laneType_; }
 
@@ -233,12 +241,13 @@ public:
     }
 
     void setCollapsed(bool collapsed) override {
-        if (!header_.isCollapsed() && collapsed) {
+        bool wasCollapsed = header_.isCollapsed();
+        if (!wasCollapsed && collapsed) {
             // Transitioning from expanded to collapsed: save expanded height
             expandedHeight_ = static_cast<float>(getViewSize().getHeight());
         }
         header_.setCollapsed(collapsed);
-        if (collapseCallback_) {
+        if (collapsed != wasCollapsed && collapseCallback_) {
             collapseCallback_();
         }
         setDirty();

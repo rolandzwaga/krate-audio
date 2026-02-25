@@ -137,17 +137,17 @@ TEST_CASE("ArpLane: setStep index > length-1 clamps to length-1",
 // getStep out-of-range
 // =============================================================================
 
-TEST_CASE("ArpLane: getStep out-of-range returns T{}", "[arp_lane][primitives]")
+TEST_CASE("ArpLane: getStep out-of-range clamps to last step", "[arp_lane][primitives]")
 {
     ArpLane<float> lane;
     lane.setLength(2);
     lane.setStep(0, 5.0f);
     lane.setStep(1, 6.0f);
 
-    // Index >= length should return T{} (0.0f for float)
-    REQUIRE(lane.getStep(2) == Approx(0.0f));
-    REQUIRE(lane.getStep(10) == Approx(0.0f));
-    REQUIRE(lane.getStep(31) == Approx(0.0f));
+    // Index >= length should clamp to last step (index length-1)
+    REQUIRE(lane.getStep(2) == Approx(6.0f));
+    REQUIRE(lane.getStep(10) == Approx(6.0f));
+    REQUIRE(lane.getStep(31) == Approx(6.0f));
 }
 
 // =============================================================================
