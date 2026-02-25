@@ -53,9 +53,11 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 
 **NEVER use `git commit --amend`.** Always create a new commit. Amending is ONLY allowed when the user explicitly asks for it.
 
-### No Background Agents
+### Subagent Policy
 
 **NEVER run Task agents in the background.** Always use `run_in_background: false` (or omit the parameter). The user needs to monitor agent progress in real-time. Background execution obscures what's happening and is forbidden.
+
+**NEVER use subagents that require user permissions** (e.g., write/edit/bash actions that trigger permission prompts). Subagents that only perform read-only operations (file reads, searches, web fetches) are allowed and encouraged for parallelizing independent research tasks.
 
 ### Windows Path Workaround
 
