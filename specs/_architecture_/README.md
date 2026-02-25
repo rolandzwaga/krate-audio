@@ -50,7 +50,7 @@ This architecture documentation is split into the following sections:
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |
 | [Plugin State Persistence](plugin-state-persistence.md) | State version history, stream format, ModSource enum migration, backward compatibility |
-| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, ArpLaneEditor, ArpLaneContainer, template conventions |
+| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, IArpLane, ArpLaneHeader, ArpLaneEditor, ArpModifierLane, ArpConditionLane, ArpLaneContainer, template conventions |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
 
@@ -76,8 +76,12 @@ Reusable VSTGUI custom views in `plugins/shared/src/ui/`. Full API documentation
 | Component | Location | Purpose | Since |
 |-----------|----------|---------|-------|
 | StepPatternEditor | [`step_pattern_editor.h`](../../plugins/shared/src/ui/step_pattern_editor.h) | Visual step pattern editor for bar-chart sequences (Spec 046) | 0.1.0 |
-| ArpLaneEditor | [`arp_lane_editor.h`](../../plugins/shared/src/ui/arp_lane_editor.h) | StepPatternEditor subclass for arp lane editing with collapsible header and accent color (Spec 079) | 0.22.0 |
-| ArpLaneContainer | [`arp_lane_container.h`](../../plugins/shared/src/ui/arp_lane_container.h) | CViewContainer subclass with manual vertical scroll for stacked arp lanes (Spec 079) | 0.22.0 |
+| IArpLane | [`arp_lane.h`](../../plugins/shared/src/ui/arp_lane.h) | Pure virtual interface for polymorphic arpeggiator lane management (Spec 080) | 0.23.0 |
+| ArpLaneHeader | [`arp_lane_header.h`](../../plugins/shared/src/ui/arp_lane_header.h) | Non-CView helper for collapsible lane headers with name/length dropdown (Spec 080) | 0.23.0 |
+| ArpLaneEditor | [`arp_lane_editor.h`](../../plugins/shared/src/ui/arp_lane_editor.h) | StepPatternEditor + IArpLane subclass for arp lane editing: velocity, gate, pitch (bipolar), ratchet (discrete) (Specs 079 + 080) | 0.22.0 |
+| ArpModifierLane | [`arp_modifier_lane.h`](../../plugins/shared/src/ui/arp_modifier_lane.h) | CControl + IArpLane for 4-row toggle dot grid (Rest/Tie/Slide/Accent bitmask) (Spec 080) | 0.23.0 |
+| ArpConditionLane | [`arp_condition_lane.h`](../../plugins/shared/src/ui/arp_condition_lane.h) | CControl + IArpLane for per-step condition enum popup with 18 TrigCondition values (Spec 080) | 0.23.0 |
+| ArpLaneContainer | [`arp_lane_container.h`](../../plugins/shared/src/ui/arp_lane_container.h) | CViewContainer with manual vertical scroll for stacked IArpLane* lanes (Specs 079 + 080) | 0.22.0 |
 | ArcKnob | [`arc_knob.h`](../../plugins/shared/src/ui/arc_knob.h) | Minimal arc-style knob control | 0.1.0 |
 | FieldsetContainer | [`fieldset_container.h`](../../plugins/shared/src/ui/fieldset_container.h) | Labeled container with rounded border and title | 0.1.0 |
 | XYMorphPad | [`xy_morph_pad.h`](../../plugins/shared/src/ui/xy_morph_pad.h) | 2D XY pad for dual-parameter control (Spec 047) | 0.1.0 |

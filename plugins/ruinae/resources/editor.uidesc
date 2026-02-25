@@ -60,6 +60,12 @@
         <color name="arp-lane-gate" rgba="#C8A464ff"/>
         <color name="arp-lane-gate-normal" rgba="#78623Cff"/>
         <color name="arp-lane-gate-ghost" rgba="#463923ff"/>
+
+        <!-- 080-specialized-lane-types: per-lane accent colors -->
+        <color name="arp.pitch" rgba="#6CA8A0FF"/>
+        <color name="arp.ratchet" rgba="#9880B0FF"/>
+        <color name="arp.modifier" rgba="#C0707CFF"/>
+        <color name="arp.condition" rgba="#7C90B0FF"/>
     </colors>
 
 
