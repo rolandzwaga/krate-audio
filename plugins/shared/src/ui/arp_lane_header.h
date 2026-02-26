@@ -16,6 +16,7 @@
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/lib/platform/iplatformframe.h"
 
 #include <cstdint>
 #include <functional>
@@ -125,16 +126,16 @@ public:
     /// Uses CGraphicsPath for cross-platform icon rendering.
     void drawTransformButtons(VSTGUI::CDrawContext* context,
                               const VSTGUI::CRect& headerRect) {
-        // Tint color for button icons
-        VSTGUI::CColor tint{
+        // Normal tint: dimmed accent color
+        VSTGUI::CColor normalTint{
             static_cast<uint8_t>(accentColor_.red * 0.6f),
             static_cast<uint8_t>(accentColor_.green * 0.6f),
             static_cast<uint8_t>(accentColor_.blue * 0.6f),
             accentColor_.alpha
         };
+        // Hover tint: full accent color (brighter)
+        VSTGUI::CColor hoverTint = accentColor_;
 
-        context->setFrameColor(tint);
-        context->setFillColor(tint);
         context->setLineWidth(1.0);
         context->setLineStyle(VSTGUI::CLineStyle(
             VSTGUI::CLineStyle::kLineCapRound,
@@ -145,6 +146,10 @@ public:
             float cx = static_cast<float>(btnRect.left + btnRect.right) / 2.0f;
             float cy = static_cast<float>(btnRect.top + btnRect.bottom) / 2.0f;
             float half = kButtonSize * 0.35f;
+
+            VSTGUI::CColor tint = (i == hoveredButton_) ? hoverTint : normalTint;
+            context->setFrameColor(tint);
+            context->setFillColor(tint);
 
             switch (static_cast<TransformType>(i)) {
                 case TransformType::kInvert:
@@ -225,6 +230,65 @@ public:
         }
 
         return selectedIndex >= 0;
+    }
+
+    // =========================================================================
+    // Transform Button Hover (cursor, tooltip, highlight)
+    // =========================================================================
+
+    /// Update hover state for transform buttons. Shows/hides platform tooltip
+    /// directly. Returns true if mouse is over a button (for cursor changes).
+    /// `ownerView` is used to map coordinates and access the platform frame.
+    bool updateHover(const VSTGUI::CPoint& where,
+                     const VSTGUI::CRect& headerRect,
+                     VSTGUI::CView* ownerView) {
+        static constexpr const char* kTooltips[4] = {
+            "Invert", "Shift Left", "Shift Right", "Randomize"
+        };
+        int prev = hoveredButton_;
+        hoveredButton_ = -1;
+        for (int i = 0; i < 4; ++i) {
+            if (getButtonRect(headerRect, i).pointInside(where)) {
+                hoveredButton_ = i;
+                break;
+            }
+        }
+
+        // Show/hide platform tooltip when hover changes
+        if (hoveredButton_ != prev && ownerView) {
+            if (auto* frame = ownerView->getFrame()) {
+                if (auto* pf = frame->getPlatformFrame()) {
+                    if (hoveredButton_ >= 0) {
+                        // Moving between buttons: just update text (no hide
+                        // first) so the OS doesn't re-apply its show delay.
+                        VSTGUI::CRect btnRect = getButtonRect(headerRect,
+                                                               hoveredButton_);
+                        VSTGUI::CRect global =
+                            ownerView->translateToGlobal(btnRect);
+                        pf->showTooltip(global, kTooltips[hoveredButton_]);
+                    } else if (prev >= 0) {
+                        // Moved off all buttons — hide tooltip.
+                        pf->hideTooltip();
+                    }
+                }
+            }
+        }
+
+        return hoveredButton_ >= 0;
+    }
+
+    /// Returns true if any button is currently hovered.
+    [[nodiscard]] bool isButtonHovered() const { return hoveredButton_ >= 0; }
+
+    /// Clear hover state and hide tooltip.
+    void clearHover(VSTGUI::CView* ownerView) {
+        if (hoveredButton_ >= 0 && ownerView) {
+            if (auto* frame = ownerView->getFrame()) {
+                if (auto* pf = frame->getPlatformFrame())
+                    pf->hideTooltip();
+            }
+        }
+        hoveredButton_ = -1;
     }
 
     // =========================================================================
@@ -530,6 +594,7 @@ private:
     CopyCallback copyCallback_;
     PasteCallback pasteCallback_;
     bool pasteEnabled_ = false;
+    int hoveredButton_ = -1; // -1 = none, 0-3 = button index
 };
 
 } // namespace Krate::Plugins

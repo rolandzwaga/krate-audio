@@ -508,6 +508,18 @@ public:
         return StepPatternEditor::onMouseDown(where, buttons);
     }
 
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        if (header_.isButtonHovered()) {
+            header_.clearHover(this);
+            setDirty(true);
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
     VSTGUI::CMouseEventResult onMouseMoved(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
@@ -520,6 +532,23 @@ public:
         // Ratchet mode: custom discrete drag
         if (laneType_ == ArpLaneType::kRatchet && discreteIsDragging_) {
             return handleDiscreteMouseMoved(where, buttons);
+        }
+
+        // Transform button hover: tooltip, cursor, highlight
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right,
+                                  vs.top + ArpLaneHeader::kHeight);
+        bool wasHovered = header_.isButtonHovered();
+        if (header_.updateHover(where, headerRect, this)) {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorHand);
+            if (!wasHovered)
+                setDirty(true);
+        } else {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorDefault);
+            if (wasHovered)
+                setDirty(true);
         }
 
         // Delegate to base class for standard drag

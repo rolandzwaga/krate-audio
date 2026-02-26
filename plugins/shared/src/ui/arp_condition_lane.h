@@ -494,30 +494,41 @@ public:
         return VSTGUI::kMouseEventHandled;
     }
 
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        if (header_.isButtonHovered()) {
+            header_.clearHover(this);
+            setDirty(true);
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
     VSTGUI::CMouseEventResult onMouseMoved(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& /*buttons*/) override {
 
         VSTGUI::CRect vs = getViewSize();
-        float bodyTop = static_cast<float>(vs.top) + ArpLaneHeader::kHeight;
-        float bodyLeft = static_cast<float>(vs.left);
-        float bodyWidth = static_cast<float>(vs.getWidth());
 
-        float localX = static_cast<float>(where.x) - bodyLeft - kLeftMargin;
-        float localY = static_cast<float>(where.y) - bodyTop;
+        // Transform button hover: tooltip, cursor, highlight
+        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right,
+                                  vs.top + ArpLaneHeader::kHeight);
+        bool wasHovered = header_.isButtonHovered();
+        if (header_.updateHover(where, headerRect, this)) {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorHand);
+            if (!wasHovered)
+                setDirty(true);
+            return VSTGUI::kMouseEventHandled;
+        }
 
-        float contentWidth = bodyWidth - kLeftMargin;
-        if (localX >= 0.0f && localY >= 0.0f && localY < kBodyHeight &&
-            numSteps_ > 0 && contentWidth > 0.0f) {
-            float cellWidth = contentWidth / static_cast<float>(numSteps_);
-            int step = static_cast<int>(localX / cellWidth);
-
-            if (step >= 0 && step < numSteps_) {
-                uint8_t cond = stepConditions_[static_cast<size_t>(step)];
-                if (cond < kConditionCount) {
-                    setTooltipText(kConditionTooltips[cond]);
-                }
-            }
+        // Clear button hover if we moved off buttons
+        if (wasHovered) {
+            setDirty(true);
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorDefault);
         }
 
         return VSTGUI::kMouseEventHandled;
