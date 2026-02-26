@@ -23,6 +23,8 @@
 #include "step_pattern_editor.h"
 #include "color_utils.h"
 
+#include <krate/dsp/core/euclidean_pattern.h>
+
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
@@ -36,9 +38,11 @@
 #include "vstgui/uidescription/detail/uiviewcreatorattributes.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <string>
 
 namespace Krate::Plugins {
@@ -151,6 +155,7 @@ public:
         setBarColorAccent(color);
         setBarColorNormal(normal);
         setBarColorGhost(ghost);
+        setPlaybackColor(color);
     }
 
     [[nodiscard]] VSTGUI::CColor getAccentColor() const { return accentColor_; }
@@ -267,6 +272,156 @@ public:
     }
 
     // =========================================================================
+    // IArpLane Phase 11c Stubs
+    // =========================================================================
+
+    void setTrailSteps(const int32_t steps[4], const float alphas[4]) override {
+        for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
+            trailState_.steps[i] = steps[i];
+            trailAlphas_[i] = alphas[i];
+        }
+    }
+
+    void setSkippedStep(int32_t step) override {
+        trailState_.markSkipped(step);
+        setDirty();
+    }
+
+    void clearOverlays() override {
+        trailState_.clear();
+        setDirty();
+    }
+
+    [[nodiscard]] int32_t getActiveLength() const override {
+        return static_cast<int32_t>(getNumSteps());
+    }
+
+    [[nodiscard]] float getNormalizedStepValue(int32_t step) const override {
+        if (step >= 0 && step < getNumSteps()) {
+            return getStepLevel(step);
+        }
+        return 0.0f;
+    }
+
+    void setNormalizedStepValue(int32_t step, float value) override {
+        if (step >= 0 && step < getNumSteps()) {
+            setStepLevel(step, value);
+        }
+    }
+
+    [[nodiscard]] int32_t getLaneTypeId() const override {
+        return static_cast<int32_t>(laneType_);
+    }
+
+    void setTransformCallback(TransformCallback cb) override {
+        transformCallback_ = cb;
+        // Forward to header with type conversion (IArpLane uses int, header uses TransformType)
+        header_.setTransformCallback(
+            [cb](TransformType type) {
+                if (cb) cb(static_cast<int>(type));
+            });
+    }
+
+    void setCopyPasteCallbacks(CopyCallback copy, PasteCallback paste) override {
+        copyCallback_ = std::move(copy);
+        pasteCallback_ = std::move(paste);
+    }
+
+    void setPasteEnabled(bool enabled) override {
+        pasteEnabled_ = enabled;
+    }
+
+    void setEuclideanOverlay(int hits, int steps, int rotation,
+                             bool enabled) override {
+        euclideanHits_ = hits;
+        euclideanSteps_ = std::clamp(steps, 2, 32);
+        euclideanRotation_ = rotation;
+        euclideanEnabled_ = enabled;
+        setDirty(true);
+    }
+
+    int getEuclideanHits() const { return euclideanHits_; }
+    int getEuclideanSteps() const { return euclideanSteps_; }
+    int getEuclideanRotation() const { return euclideanRotation_; }
+    bool isEuclideanEnabled() const { return euclideanEnabled_; }
+
+    // =========================================================================
+    // Transform Operations (Phase 5, T046)
+    // =========================================================================
+
+    /// Apply a transform to this lane's step data.
+    /// Returns an array of (stepIndex, newNormalizedValue) pairs for
+    /// the controller to apply via the parameter edit protocol.
+    /// The lane data is NOT modified here -- the controller must call
+    /// setNormalizedStepValue() after the parameter protocol.
+    [[nodiscard]] std::array<float, 32> computeTransform(TransformType type) const {
+        int32_t len = getActiveLength();
+        std::array<float, 32> result{};
+
+        // Read current values
+        for (int32_t i = 0; i < len; ++i) {
+            result[static_cast<size_t>(i)] = getNormalizedStepValue(i);
+        }
+
+        switch (type) {
+            case TransformType::kInvert:
+                for (int32_t i = 0; i < len; ++i) {
+                    result[static_cast<size_t>(i)] = 1.0f - result[static_cast<size_t>(i)];
+                }
+                break;
+
+            case TransformType::kShiftLeft:
+                if (len > 1) {
+                    float first = result[0];
+                    for (int32_t i = 0; i < len - 1; ++i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                    }
+                    result[static_cast<size_t>(len - 1)] = first;
+                }
+                break;
+
+            case TransformType::kShiftRight:
+                if (len > 1) {
+                    float last = result[static_cast<size_t>(len - 1)];
+                    for (int32_t i = len - 1; i > 0; --i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i - 1)];
+                    }
+                    result[0] = last;
+                }
+                break;
+
+            case TransformType::kRandomize: {
+                std::random_device rd;
+                std::mt19937 rng(rd());
+
+                if (laneType_ == ArpLaneType::kPitch) {
+                    // Snap to semitone: uniform float, then snap
+                    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+                    for (int32_t i = 0; i < len; ++i) {
+                        result[static_cast<size_t>(i)] = snapBipolarToSemitone(dist(rng));
+                    }
+                } else if (laneType_ == ArpLaneType::kRatchet) {
+                    // Discrete 0-3 mapped to 0.0, 1/3, 2/3, 1.0
+                    std::uniform_int_distribution<int> dist(0, 3);
+                    for (int32_t i = 0; i < len; ++i) {
+                        result[static_cast<size_t>(i)] =
+                            static_cast<float>(dist(rng)) / 3.0f;
+                    }
+                } else {
+                    // Velocity/Gate: uniform float [0, 1]
+                    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+                    for (int32_t i = 0; i < len; ++i) {
+                        result[static_cast<size_t>(i)] = dist(rng);
+                    }
+                }
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    // =========================================================================
     // CControl Overrides
     // =========================================================================
 
@@ -294,6 +449,12 @@ public:
             } else {
                 StepPatternEditor::draw(context);
             }
+            // Draw Euclidean linear dot overlay (081-interaction-polish US5)
+            drawEuclideanLinearOverlay(context);
+            // Draw trail overlay (semi-transparent accent rects for trail steps)
+            drawTrailOverlay(context);
+            // Draw skip X overlays on skipped steps
+            drawSkipOverlay(context);
             // Draw header LAST so it's on top (not erased by base bg fill)
             header_.draw(context, headerRect);
         }
@@ -307,6 +468,13 @@ public:
 
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + kHeaderHeight);
+
+        // Right-click in header area: open copy/paste context menu
+        if (buttons.isRightButton() && headerRect.pointInside(where)) {
+            if (header_.handleRightClick(where, headerRect, getFrame())) {
+                return VSTGUI::kMouseEventHandled;
+            }
+        }
 
         // Track collapse state before header interaction
         bool wasCollapsed = isCollapsed();
@@ -810,6 +978,132 @@ private:
     }
 
     // =========================================================================
+    // Trail Overlay Drawing (Phase 11c - US1)
+    // =========================================================================
+
+    /// Draw semi-transparent accent-color rectangles for trail steps.
+    /// Each trail step renders at its alpha level from trailAlphas_.
+    /// FR-004: trail stores absolute step indices; render uses stepIndex.
+    /// FR-006: skip trail rendering when collapsed (handled by caller).
+    void drawTrailOverlay(VSTGUI::CDrawContext* context) {
+        VSTGUI::CRect barArea = getBarArea();
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+
+        for (int t = 0; t < PlayheadTrailState::kTrailLength; ++t) {
+            int32_t step = trailState_.steps[t];
+            if (step < 0 || step >= numSteps) continue;
+
+            float overlayLeft = static_cast<float>(barArea.left) +
+                static_cast<float>(step) * stepWidth;
+            float overlayRight = overlayLeft + stepWidth;
+
+            VSTGUI::CColor overlayColor = accentColor_;
+            overlayColor.alpha = static_cast<uint8_t>(
+                std::clamp(trailAlphas_[t], 0.0f, 255.0f));
+            context->setFillColor(overlayColor);
+            VSTGUI::CRect overlay(overlayLeft, barArea.top, overlayRight, barArea.bottom);
+            context->drawRect(overlay, VSTGUI::kDrawFilled);
+        }
+    }
+
+    // =========================================================================
+    // Skip X Overlay (081-interaction-polish, FR-007, FR-011)
+    // =========================================================================
+
+    void drawSkipOverlay(VSTGUI::CDrawContext* context) {
+        VSTGUI::CRect barArea = getBarArea();
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+
+        // X glyph color: bright accent at 80% alpha (FR-011)
+        VSTGUI::CColor xColor = brightenColor(accentColor_, 1.3f);
+        xColor.alpha = 204;  // ~80%
+
+        constexpr float kXSize = 4.0f;  // half-size of the X glyph
+        constexpr float kXStroke = 1.5f;
+
+        for (int i = 0; i < numSteps && i < 32; ++i) {
+            if (!trailState_.skipped[i]) continue;
+
+            float cellCenterX = static_cast<float>(barArea.left) +
+                (static_cast<float>(i) + 0.5f) * stepWidth;
+            float cellCenterY = static_cast<float>(barArea.top) +
+                static_cast<float>(barArea.getHeight()) * 0.5f;
+
+            // Draw X using two crossed lines
+            context->setFrameColor(xColor);
+            context->setLineWidth(kXStroke);
+            context->drawLine(
+                VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY - kXSize),
+                VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY + kXSize));
+            context->drawLine(
+                VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY - kXSize),
+                VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY + kXSize));
+        }
+    }
+
+    // =========================================================================
+    // Euclidean Linear Overlay (081-interaction-polish US5, T072)
+    // =========================================================================
+    // Draws small filled/outline circles above step bars when Euclidean mode
+    // is enabled. Uses EuclideanPattern::generate() for hit positions.
+
+    void drawEuclideanLinearOverlay(VSTGUI::CDrawContext* context) {
+        if (!euclideanEnabled_) return;
+
+        VSTGUI::CRect barArea = getBarArea();
+        int numSteps = getNumSteps();
+        if (numSteps <= 0 || euclideanSteps_ < 2) return;
+
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+
+        // Draw dots just above the bar area
+        constexpr float kDotRadius = 3.0f;
+        float dotCenterY = static_cast<float>(barArea.top) - kDotRadius - 1.0f;
+
+        // Clamp to view bounds
+        VSTGUI::CRect vs = getViewSize();
+        float minY = static_cast<float>(vs.top) + kHeaderHeight + kDotRadius;
+        if (dotCenterY < minY) dotCenterY = minY;
+
+        // Generate pattern
+        uint32_t pattern = Krate::DSP::EuclideanPattern::generate(
+            euclideanHits_, euclideanSteps_, euclideanRotation_);
+
+        VSTGUI::CColor hitColor = accentColor_;
+        VSTGUI::CColor restColor{80, 80, 85, 255};
+
+        for (int i = 0; i < numSteps && i < euclideanSteps_; ++i) {
+            float centerX = static_cast<float>(barArea.left) +
+                (static_cast<float>(i) + 0.5f) * stepWidth;
+
+            VSTGUI::CRect dotRect(
+                static_cast<double>(centerX - kDotRadius),
+                static_cast<double>(dotCenterY - kDotRadius),
+                static_cast<double>(centerX + kDotRadius),
+                static_cast<double>(dotCenterY + kDotRadius));
+
+            if (Krate::DSP::EuclideanPattern::isHit(pattern, i,
+                                                     euclideanSteps_)) {
+                context->setFillColor(hitColor);
+                context->drawEllipse(dotRect, VSTGUI::kDrawFilled);
+            } else {
+                context->setFrameColor(restColor);
+                context->setLineWidth(1.0);
+                context->drawEllipse(dotRect, VSTGUI::kDrawStroked);
+            }
+        }
+    }
+
+    // =========================================================================
     // Discrete Mode Interaction (FR-013, FR-014, FR-015)
     // =========================================================================
 
@@ -884,6 +1178,20 @@ private:
     float expandedHeight_ = 0.0f;
     std::function<void()> collapseCallback_;
     ArpLaneHeader header_;
+
+    // Phase 11c callbacks and state
+    TransformCallback transformCallback_;
+    CopyCallback copyCallback_;
+    PasteCallback pasteCallback_;
+    bool pasteEnabled_ = false;
+    PlayheadTrailState trailState_;
+    float trailAlphas_[PlayheadTrailState::kTrailLength] = {160.0f, 100.0f, 55.0f, 25.0f};
+
+    // Euclidean linear overlay state (081-interaction-polish US5)
+    int euclideanHits_ = 0;
+    int euclideanSteps_ = 8;
+    int euclideanRotation_ = 0;
+    bool euclideanEnabled_ = false;
 
     // Discrete mode drag state
     bool discreteIsDragging_ = false;

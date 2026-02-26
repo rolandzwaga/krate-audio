@@ -1203,6 +1203,76 @@ To add a new modulation destination (e.g., effects chain parameters, trance gate
 | `controller/parameter_helpers.h` | Dropdown parameter creation helpers | Copied from Iterum |
 | `parameters/note_value_ui.h` | Note value dropdown strings | Copied from Iterum |
 
+### Arp Skip Event IMessage Pattern (Spec 081)
+
+The arpeggiator processor sends skip events to the controller via IMessage when a step is skipped (due to condition, probability, or rest). The controller uses these events to render X overlays on the corresponding lane step cells.
+
+#### Message Schema
+
+| Property | Value |
+|----------|-------|
+| Message ID | `"ArpSkipEvent"` |
+| Attribute `"lane"` | `int64`, 0-5 (Velocity=0, Gate=1, Pitch=2, Ratchet=3, Modifier=4, Condition=5) |
+| Attribute `"step"` | `int64`, 0-31 (step index within the lane) |
+
+#### Pre-allocation (Processor)
+
+Six `IMessage` instances are pre-allocated in `Processor::initialize()` to avoid heap allocation on the audio thread:
+
+```cpp
+// In Processor::initialize():
+for (int i = 0; i < 6; ++i) {
+    skipMessages_[i] = Steinberg::owned(allocateMessage());
+    if (skipMessages_[i])
+        skipMessages_[i]->setMessageID("ArpSkipEvent");
+}
+```
+
+Messages are reused by overwriting attributes before each `sendMessage()` call.
+
+#### Editor Open Gate
+
+Skip events are only sent when the editor is open (no UI to display them otherwise). The controller signals editor state via an `"EditorState"` IMessage with `int "open" = 0 or 1`. The processor stores this in `std::atomic<bool> editorOpen_`.
+
+```cpp
+void Processor::sendSkipEvent(int lane, int step) {
+    if (!editorOpen_) return;              // Skip when UI not visible
+    auto* msg = skipMessages_[lane].get();
+    if (!msg) return;
+    msg->getAttributes()->setInt("lane", static_cast<int64>(lane));
+    msg->getAttributes()->setInt("step", static_cast<int64>(step));
+    sendMessage(msg);
+}
+```
+
+#### Receiver (Controller)
+
+```cpp
+// In Controller::notify():
+if (FIDStringsEqual(message->getMessageID(), "ArpSkipEvent")) {
+    int64 lane = 0, step = 0;
+    if (message->getAttributes()->getInt("lane", lane) == kResultOk &&
+        message->getAttributes()->getInt("step", step) == kResultOk) {
+        if (lane >= 0 && lane < 6 && step >= 0 && step < 32)
+            handleArpSkipEvent(static_cast<int>(lane), static_cast<int>(step));
+    }
+    return kResultOk;
+}
+```
+
+The handler calls `trailStates_[lane].markSkipped(step)` and invalidates the lane view. Skip flags are automatically cleared by `PlayheadTrailState::clearPassedSkips()` when the trail advances past the marked step.
+
+#### Frequency Estimate
+
+At 200 BPM with 1/32 notes, 4x ratchet, and conditions on every step: ~14 messages/second (well within IMessage capacity).
+
+#### Real-Time Safety
+
+- Pre-allocated messages: zero `new`/`delete` on audio thread
+- `editorOpen_` gate: `std::atomic<bool>` load with `relaxed` ordering
+- Attribute set: `setInt()` on pre-allocated attributes (no allocation)
+- `sendMessage()`: VST3 SDK queues the message for UI thread delivery
+
 ### Ruinae UI Layout Patterns (Spec 051)
 
 #### 4-Row Layout Structure

@@ -24,6 +24,9 @@ add_executable(ruinae_tests
     unit/vst/engine_osc_param_test.cpp
     unit/vst/osc_ab_independence_test.cpp
 
+    # Skip Event IMessage Tests (081-interaction-polish)
+    unit/vst/skip_event_test.cpp
+
     # Plugin Shell Tests (045-plugin-shell)
     unit/processor_bus_test.cpp
     unit/param_denorm_test.cpp
@@ -60,6 +63,9 @@ add_executable(ruinae_tests
     unit/processor/arp_mod_integration_test.cpp
     unit/controller/arp_controller_test.cpp
 
+    # Bottom Bar Tests (081-interaction-polish, Phase 8)
+    unit/controller/bottom_bar_test.cpp
+
     # Arp Lane Parameter Flow Tests (079-layout-framework)
     integration/arp_lane_param_flow_test.cpp
 
@@ -67,6 +73,10 @@ add_executable(ruinae_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+
+    # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
 
     # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
     vstgui_test_stubs.cpp

@@ -66,6 +66,34 @@
         <color name="arp.ratchet" rgba="#9880B0FF"/>
         <color name="arp.modifier" rgba="#C0707CFF"/>
         <color name="arp.condition" rgba="#7C90B0FF"/>
+
+        <!-- 081-interaction-polish US7: All 6 lane accent colors with dim/fill variants -->
+        <!-- Velocity (copper) -->
+        <color name="arp.velocity.accent" rgba="#D0845Cff"/>
+        <color name="arp.velocity.dim" rgba="#D0845C66"/>
+        <color name="arp.velocity.fill" rgba="#D0845C40"/>
+        <!-- Gate (sand) -->
+        <color name="arp.gate.accent" rgba="#C8A464ff"/>
+        <color name="arp.gate.dim" rgba="#C8A46466"/>
+        <color name="arp.gate.fill" rgba="#C8A46440"/>
+        <!-- Pitch (sage) -->
+        <color name="arp.pitch.accent" rgba="#6CA8A0ff"/>
+        <color name="arp.pitch.dim" rgba="#6CA8A066"/>
+        <color name="arp.pitch.fill" rgba="#6CA8A040"/>
+        <!-- Ratchet (lavender) -->
+        <color name="arp.ratchet.accent" rgba="#9880B0ff"/>
+        <color name="arp.ratchet.dim" rgba="#9880B066"/>
+        <color name="arp.ratchet.fill" rgba="#9880B040"/>
+        <!-- Modifier (rose) -->
+        <color name="arp.modifier.accent" rgba="#C0707Cff"/>
+        <color name="arp.modifier.dim" rgba="#C0707C66"/>
+        <color name="arp.modifier.fill" rgba="#C0707C40"/>
+        <!-- Condition (slate) -->
+        <color name="arp.condition.accent" rgba="#7C90B0ff"/>
+        <color name="arp.condition.dim" rgba="#7C90B066"/>
+        <color name="arp.condition.fill" rgba="#7C90B040"/>
+        <!-- Bottom bar neutral -->
+        <color name="arp.bottombar.neutral" rgba="#606068ff"/>
     </colors>
 
 
@@ -305,6 +333,17 @@
         <control-tag name="ArpSwing" tag="3008"/>
         <control-tag name="ArpLatchMode" tag="3009"/>
         <control-tag name="ArpRetrigger" tag="3010"/>
+
+        <!-- Arpeggiator Bottom Bar (081-interaction-polish, Phase 8) -->
+        <control-tag name="ArpEuclideanEnabled" tag="3230"/>
+        <control-tag name="ArpEuclideanHits" tag="3231"/>
+        <control-tag name="ArpEuclideanSteps" tag="3232"/>
+        <control-tag name="ArpEuclideanRotation" tag="3233"/>
+        <control-tag name="ArpFillToggle" tag="3280"/>
+        <control-tag name="ArpSpice" tag="3290"/>
+        <control-tag name="ArpDiceTrigger" tag="3291"/>
+        <control-tag name="ArpHumanize" tag="3292"/>
+        <control-tag name="ArpRatchetSwing" tag="3293"/>
 
         <!-- Envelopes: Amp (ENV 1) -->
         <control-tag name="AmpEnvAttack" tag="700"/>
@@ -3229,9 +3268,101 @@
                   text-alignment="center" transparent="true" title="Swing"/>
 
             <!-- ArpLaneContainer: arp lane viewport (FR-002, FR-014, FR-019) -->
-            <view class="ArpLaneContainer" origin="8, 86" size="1368, 390"
+            <view class="ArpLaneContainer" origin="8, 86" size="1368, 340"
                   viewport-height="390"
                   transparent="false"/>
+
+            <!-- ============================================================ -->
+            <!-- BOTTOM BAR: Generative Controls (081-interaction-polish US6) -->
+            <!-- ============================================================ -->
+            <view class="CViewContainer" origin="8, 428" size="1368, 74"
+                  transparent="true">
+
+                <!-- EUCLIDEAN SECTION -->
+                <!-- Enable toggle -->
+                <view class="ToggleButton" origin="4, 8" size="20, 20"
+                      control-tag="ArpEuclideanEnabled" default-value="0"
+                      on-color="#A0A0A8" off-color="#606068"
+                      tooltip="Enable Euclidean pattern"
+                      transparent="false"/>
+
+                <!-- Euclidean controls sub-container (hidden when disabled) -->
+                <view class="CViewContainer" origin="28, 0" size="230, 74"
+                      custom-view-name="ArpEuclideanGroup" transparent="true">
+
+                    <!-- Hits knob -->
+                    <view class="ArcKnob" origin="4, 4" size="32, 32"
+                          control-tag="ArpEuclideanHits" default-value="0"
+                          arc-color="#606068" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="0, 36" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Hits"/>
+
+                    <!-- Steps knob -->
+                    <view class="ArcKnob" origin="48, 4" size="32, 32"
+                          control-tag="ArpEuclideanSteps" default-value="0.2"
+                          arc-color="#606068" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="44, 36" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Steps"/>
+
+                    <!-- Rotation knob -->
+                    <view class="ArcKnob" origin="92, 4" size="32, 32"
+                          control-tag="ArpEuclideanRotation" default-value="0"
+                          arc-color="#606068" guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="88, 36" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rot"/>
+
+                    <!-- Euclidean Dot Display -->
+                    <view class="EuclideanDotDisplay" origin="140, 4" size="60, 60"
+                          hits="0" steps="8" rotation="0" dot-radius="3"
+                          accent-color="#606068"/>
+                </view>
+
+                <!-- GENERATIVE SECTION -->
+                <!-- Humanize knob -->
+                <view class="ArcKnob" origin="280, 8" size="32, 32"
+                      control-tag="ArpHumanize" default-value="0"
+                      arc-color="#606068" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="274, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Hmz"/>
+
+                <!-- Spice knob -->
+                <view class="ArcKnob" origin="332, 8" size="32, 32"
+                      control-tag="ArpSpice" default-value="0"
+                      arc-color="#606068" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="326, 40" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Spice"/>
+
+                <!-- Ratchet Swing knob -->
+                <view class="ArcKnob" origin="384, 8" size="32, 32"
+                      control-tag="ArpRatchetSwing" default-value="0"
+                      arc-color="#606068" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="374, 40" size="52, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="RatSwg"/>
+
+                <!-- PERFORMANCE SECTION -->
+                <!-- Dice button (momentary) -->
+                <view class="ActionButton" origin="450, 12" size="24, 24"
+                      control-tag="ArpDiceTrigger"
+                      icon-style="regen"
+                      accent-color="#606068"
+                      tooltip="Dice: randomize pattern variation"/>
+
+                <!-- Fill toggle (latching) -->
+                <view class="ToggleButton" origin="482, 12" size="24, 24"
+                      control-tag="ArpFillToggle" default-value="0"
+                      on-color="#A0A0A8" off-color="#606068"
+                      tooltip="Fill: latch fill mode"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="478, 38" size="32, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Fill"/>
+            </view>
         </view>
 
     </template>

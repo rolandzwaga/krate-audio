@@ -23,12 +23,14 @@
 #include "vstgui/lib/cviewcontainer.h"
 #include "parameters/arpeggiator_params.h"
 #include "preset/preset_manager.h"
+#include "ui/arp_lane.h"
 
 #include <array>
 #include <atomic>
 #include <memory>
 
 namespace Krate::Plugins {
+// ClipboardLaneType and LaneClipboard are now defined in arp_lane.h
 class PresetBrowserView;
 class SavePresetDialogView;
 class StepPatternEditor;
@@ -40,6 +42,7 @@ class XYMorphPad;
 class ADSRDisplay;
 class ModMatrixGrid;
 class ModRingIndicator;
+class EuclideanDotDisplay;
 }
 
 namespace Ruinae {
@@ -218,6 +221,9 @@ private:
     /// Euclidean controls container (regen, hits, rotate) - hidden when Euclidean mode is off
     VSTGUI::CView* euclideanControlsGroup_ = nullptr;
 
+    /// Euclidean circular dot display (081-interaction-polish US5)
+    Krate::Plugins::EuclideanDotDisplay* euclideanDotDisplay_ = nullptr;
+
     /// LFO Rate groups - hidden when tempo sync is active
     VSTGUI::CView* lfo1RateGroup_ = nullptr;
     VSTGUI::CView* lfo2RateGroup_ = nullptr;
@@ -301,6 +307,52 @@ private:
     std::atomic<float>* modEnvOutputPtr_ = nullptr;
     std::atomic<int>* modEnvStagePtr_ = nullptr;
     std::atomic<bool>* envVoiceActivePtr_ = nullptr;
+
+    // ==========================================================================
+    // Arp Interaction Polish (Phase 11c)
+    // ==========================================================================
+
+    /// Handle an arp skip event received via IMessage from the processor
+    void handleArpSkipEvent(int lane, int step);
+
+    /// Copy lane values to clipboard (Phase 11c, T059)
+    void onLaneCopy(int laneIndex);
+
+    /// Paste clipboard values to target lane (Phase 11c, T060)
+    void onLanePaste(int targetLaneIndex);
+
+    /// Wire copy/paste callbacks on all 6 lanes (Phase 11c, T061)
+    void wireCopyPasteCallbacks();
+
+    /// Get the IArpLane pointer for a given lane index (0-5)
+    Krate::Plugins::IArpLane* getArpLane(int index);
+
+    /// Get the step base parameter ID for a given lane index (0-5)
+    static uint32_t getArpLaneStepBaseParamId(int index);
+
+    /// Get the length parameter ID for a given lane index (0-5)
+    static uint32_t getArpLaneLengthParamId(int index);
+
+    Krate::Plugins::LaneClipboard clipboard_;
+
+    /// Trail polling timer (~30fps), drives playhead trail rendering in all lanes
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> trailTimer_;
+
+    /// Per-lane trail state (6 lanes: vel, gate, pitch, ratchet, modifier, condition)
+    static constexpr int kArpLaneCount = 6;
+    std::array<Krate::Plugins::PlayheadTrailState, 6> laneTrailStates_{};
+    std::array<int32_t, 6> lastPolledSteps_{-1, -1, -1, -1, -1, -1};
+    bool wasTransportPlaying_ = false;  ///< Track transport state for stop→clear
+
+    // ==========================================================================
+    // Bottom Bar Controls (081-interaction-polish, Phase 8 / US6)
+    // ==========================================================================
+
+    /// Euclidean controls sub-container (knobs + dot display, hidden when disabled)
+    VSTGUI::CView* arpEuclideanGroup_ = nullptr;
+
+    /// Dice ActionButton control pointer (for registerControlListener)
+    VSTGUI::CControl* diceButton_ = nullptr;
 
     // ==========================================================================
     // Preset Browser

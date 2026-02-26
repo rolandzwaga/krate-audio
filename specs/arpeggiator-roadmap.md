@@ -1,6 +1,6 @@
 # Ruinae Arpeggiator — Software Roadmap
 
-**Status**: In Progress (Phase 11b complete — Specialized Lane Types) | **Created**: 2026-02-20
+**Status**: In Progress (Phase 11c complete — Interaction Polish) | **Created**: 2026-02-20
 
 A dependency-ordered implementation roadmap for the Ruinae arpeggiator. Phases build incrementally — each one produces a testable, usable arpeggiator that the next phase extends.
 
@@ -43,6 +43,7 @@ The arpeggiator is decomposed into **12 phases**. The first 3 phases produce a *
 | **Modulated** ✅ | 10 | Arp params as mod destinations (rate, gate, octave, swing, spice). Expressive. |
 | **Lane Framework** ✅ | 11a | SEQ tab restructured, velocity + gate lanes editable with playheads. |
 | **Specialized Lanes** ✅ | 11b | Pitch/ratchet/modifier/condition lanes with custom rendering, all 6 in stacked container. |
+| **Interaction Polish** ✅ | 11c | Playhead trail, skip indicators, transforms, copy/paste, Euclidean display, bottom bar, colors. |
 | **Complete** | 12 | Dedicated UI, preset arp patterns. Polished. |
 
 ### Existing Components Reused
@@ -88,7 +89,7 @@ Phase 3: Ruinae integration - processor, params, basic UI
               |
               +---> Phase 11b: Specialized lanes (pitch/ratchet/modifier/condition) ✅
               |
-              +---> Phase 11c: Interaction polish (trail, transforms, copy/paste)
+              +---> Phase 11c: Interaction polish (trail, transforms, copy/paste) ✅
                         |
                         +---> Phase 12: Presets & polish
 ```
@@ -1255,19 +1256,19 @@ Add playback feedback, pattern manipulation tools, and generative controls that 
 
 ### Acceptance Criteria
 
-- [ ] Playhead trail visible: current step bright, 2-3 previous steps fading
-- [ ] Skipped steps show X overlay within ~1 frame of the skip event
-- [ ] Per-lane transforms (invert, shift L/R, randomize) work for all 6 lane types
-- [ ] Copy/paste: same-type paste preserves values exactly; cross-type paste maps range
-- [ ] Euclidean circular dots display in bottom bar, update live with knob changes
-- [ ] Euclidean linear overlay visible in lane editor when Euclidean enabled
-- [ ] Dice button triggers audible pattern variation
-- [ ] Fill toggle is responsive for live performance (no UI lag)
-- [ ] All generative controls (Humanize, Spice, Ratchet Swing) wired and functional
-- [ ] Full color scheme applied: each lane has distinct accent, collapsed previews colored
-- [ ] UI is responsive and doesn't block audio thread
-- [ ] No allocations in draw/mouse/timer paths
-- [ ] Pluginval level 5 passes
+- [x] Playhead trail visible: current step bright, 2-3 previous steps fading
+- [x] Skipped steps show X overlay within ~1 frame of the skip event
+- [x] Per-lane transforms (invert, shift L/R, randomize) work for all 6 lane types
+- [x] Copy/paste: same-type paste preserves values exactly; cross-type paste maps range
+- [x] Euclidean circular dots display in bottom bar, update live with knob changes
+- [x] Euclidean linear overlay visible in lane editor when Euclidean enabled
+- [x] Dice button triggers audible pattern variation
+- [x] Fill toggle is responsive for live performance (no UI lag)
+- [x] All generative controls (Humanize, Spice, Ratchet Swing) wired and functional
+- [x] Full color scheme applied: each lane has distinct accent, collapsed previews colored
+- [x] UI is responsive and doesn't block audio thread
+- [x] No allocations in draw/mouse/timer paths
+- [x] Pluginval level 5 passes
 
 ---
 

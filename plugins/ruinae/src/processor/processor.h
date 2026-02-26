@@ -55,6 +55,7 @@
 #include "ui/mod_matrix_types.h"
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 
 #include <array>
 #include <atomic>
@@ -257,6 +258,19 @@ private:
 
     /// Send authoritative voice route state to controller
     void sendVoiceModRouteState();
+
+    // ==========================================================================
+    // Arp Skip Event State (Phase 11c - FR-012)
+    // ==========================================================================
+
+    /// Pre-allocated IMessages for skip events (one per lane, 6 total)
+    std::array<Steinberg::IPtr<Steinberg::Vst::IMessage>, 6> skipMessages_{};
+
+    /// Send a skip event to the controller (no allocations)
+    void sendSkipEvent(int lane, int step);
+
+    /// Whether the editor is open (gating skip event sends)
+    std::atomic<bool> editorOpen_{false};
 };
 
 } // namespace Ruinae
