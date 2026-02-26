@@ -1601,27 +1601,27 @@ TEST_CASE("SC010_FormatArpParam_ModifierStep", "[arp][params][format]") {
     using namespace Ruinae;
     Steinberg::Vst::String128 string;
 
-    // Step value 5 -> normalized = 5/255
+    // Step value 5 (Active|Slide) -> normalized = 5/255 -> "SL"
     double norm5 = 5.0 / 255.0;
     auto result = formatArpParam(kArpModifierLaneStep0Id, norm5, string);
     CHECK(result == Steinberg::kResultOk);
-    CHECK(toString128(string) == "0x05");
+    CHECK(toString128(string) == "SL");
 
-    // Step value 0 -> norm 0.0
+    // Step value 0 (Rest) -> norm 0.0 -> "REST"
     result = formatArpParam(kArpModifierLaneStep0Id, 0.0, string);
     CHECK(result == Steinberg::kResultOk);
-    CHECK(toString128(string) == "0x00");
+    CHECK(toString128(string) == "REST");
 
-    // Step value 255 -> norm 1.0
+    // Step value 255 (all flags set) -> norm 1.0 -> has Active+Tie -> "TIE"
     result = formatArpParam(kArpModifierLaneStep0Id, 1.0, string);
     CHECK(result == Steinberg::kResultOk);
-    CHECK(toString128(string) == "0xFF");
+    CHECK(toString128(string) == "TIE");
 
-    // Step value 1 (kStepActive) -> norm 1/255
+    // Step value 1 (kStepActive) -> norm 1/255 -> "--"
     double norm1 = 1.0 / 255.0;
     result = formatArpParam(kArpModifierLaneStep0Id, norm1, string);
     CHECK(result == Steinberg::kResultOk);
-    CHECK(toString128(string) == "0x01");
+    CHECK(toString128(string) == "--");
 }
 
 TEST_CASE("SC010_FormatArpParam_AccentVelocity", "[arp][params][format]") {
@@ -2287,5 +2287,343 @@ TEST_CASE("PlayheadParams_DefaultValueIsSentinel", "[arp][params][playhead]") {
         auto* param = container.getParameter(kArpGatePlayheadId);
         REQUIRE(param != nullptr);
         CHECK(param->getNormalized() == Approx(1.0).margin(1e-6));
+    }
+}
+
+// ==============================================================================
+// Phase 12 (082-presets-polish) US4: Parameter Display Verification Tests
+// ==============================================================================
+
+// T063: All arp parameters have "Arp" prefix in display name (FR-020, SC-005)
+TEST_CASE("All arp parameters have Arp prefix in display name", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    // Collect all kArp* parameter IDs from plugin_ids.h, excluding playhead-only IDs
+    std::vector<ParamID> arpParamIds;
+
+    // Base arp parameters (3000-3010)
+    for (ParamID id = kArpEnabledId; id <= kArpRetriggerId; ++id)
+        arpParamIds.push_back(id);
+
+    // Velocity lane: length + 32 steps (3020-3052)
+    arpParamIds.push_back(kArpVelocityLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpVelocityLaneStep0Id + i));
+
+    // Gate lane: length + 32 steps (3060-3092)
+    arpParamIds.push_back(kArpGateLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpGateLaneStep0Id + i));
+
+    // Pitch lane: length + 32 steps (3100-3132)
+    arpParamIds.push_back(kArpPitchLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpPitchLaneStep0Id + i));
+
+    // Modifier lane: length + 32 steps (3140-3172)
+    arpParamIds.push_back(kArpModifierLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpModifierLaneStep0Id + i));
+
+    // Accent velocity + slide time (3180-3181)
+    arpParamIds.push_back(kArpAccentVelocityId);
+    arpParamIds.push_back(kArpSlideTimeId);
+
+    // Ratchet lane: length + 32 steps (3190-3222)
+    arpParamIds.push_back(kArpRatchetLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpRatchetLaneStep0Id + i));
+
+    // Euclidean (3230-3233)
+    arpParamIds.push_back(kArpEuclideanEnabledId);
+    arpParamIds.push_back(kArpEuclideanHitsId);
+    arpParamIds.push_back(kArpEuclideanStepsId);
+    arpParamIds.push_back(kArpEuclideanRotationId);
+
+    // Condition lane: length + 32 steps (3240-3272)
+    arpParamIds.push_back(kArpConditionLaneLengthId);
+    for (int i = 0; i < 32; ++i)
+        arpParamIds.push_back(static_cast<ParamID>(kArpConditionLaneStep0Id + i));
+
+    // Fill toggle (3280)
+    arpParamIds.push_back(kArpFillToggleId);
+
+    // Spice, Dice, Humanize (3290-3292)
+    arpParamIds.push_back(kArpSpiceId);
+    arpParamIds.push_back(kArpDiceTriggerId);
+    arpParamIds.push_back(kArpHumanizeId);
+
+    // Ratchet swing (3293)
+    arpParamIds.push_back(kArpRatchetSwingId);
+
+    // NOTE: Playhead IDs (3294-3299) are excluded per task spec
+
+    // Verify each has the "Arp" prefix
+    for (auto id : arpParamIds) {
+        auto* param = container.getParameter(id);
+        REQUIRE(param != nullptr);
+        ParameterInfo info = param->getInfo();
+        std::string title = toString128(info.title);
+        INFO("Parameter ID " << id << " has title: \"" << title << "\"");
+        CHECK(title.substr(0, 3) == "Arp");
+    }
+}
+
+// T064: Arp step parameters use non-padded numbering (FR-021)
+TEST_CASE("Arp step parameters use non-padded numbering", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::ParameterContainer container;
+    registerArpParams(container);
+
+    SECTION("Velocity step 1 is 'Arp Vel Step 1' not 'Arp Vel Step 01'") {
+        auto* param = container.getParameter(kArpVelocityLaneStep0Id);
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Vel Step 1");
+    }
+
+    SECTION("Velocity step 16 is 'Arp Vel Step 16'") {
+        auto* param = container.getParameter(
+            static_cast<ParamID>(kArpVelocityLaneStep0Id + 15));
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Vel Step 16");
+    }
+
+    SECTION("Gate step 1 is 'Arp Gate Step 1'") {
+        auto* param = container.getParameter(kArpGateLaneStep0Id);
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Gate Step 1");
+    }
+
+    SECTION("Pitch step 32 is 'Arp Pitch Step 32'") {
+        auto* param = container.getParameter(
+            static_cast<ParamID>(kArpPitchLaneStep0Id + 31));
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Pitch Step 32");
+    }
+
+    SECTION("Modifier step 1 is 'Arp Mod Step 1'") {
+        auto* param = container.getParameter(kArpModifierLaneStep0Id);
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Mod Step 1");
+    }
+
+    SECTION("Ratchet step 1 is 'Arp Ratchet Step 1'") {
+        auto* param = container.getParameter(kArpRatchetLaneStep0Id);
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Ratchet Step 1");
+    }
+
+    SECTION("Condition step 1 is 'Arp Cond Step 1'") {
+        auto* param = container.getParameter(kArpConditionLaneStep0Id);
+        REQUIRE(param != nullptr);
+        std::string title = toString128(param->getInfo().title);
+        CHECK(title == "Arp Cond Step 1");
+    }
+}
+
+// T065: formatArpParam -- mode values display as mode names (FR-022)
+TEST_CASE("formatArpParam -- mode values display as mode names", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    static const char* const kExpected[] = {
+        "Up", "Down", "UpDown", "DownUp", "Converge",
+        "Diverge", "Random", "Walk", "AsPlayed", "Chord"
+    };
+
+    for (int i = 0; i < 10; ++i) {
+        double norm = static_cast<double>(i) / 9.0;
+        auto result = formatArpParam(kArpModeId, norm, str);
+        INFO("Mode index " << i << " at normalized " << norm);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == kExpected[i]);
+    }
+}
+
+// T066: formatArpParam -- note value displays as note duration (FR-022)
+TEST_CASE("formatArpParam -- note value displays as note duration", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    SECTION("Index 7 -> 1/16") {
+        double norm = 7.0 / 20.0;
+        auto result = formatArpParam(kArpNoteValueId, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "1/16");
+    }
+
+    SECTION("Index 10 -> 1/8") {
+        double norm = 10.0 / 20.0;
+        auto result = formatArpParam(kArpNoteValueId, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "1/8");
+    }
+
+    SECTION("Index 9 -> 1/8T") {
+        double norm = 9.0 / 20.0;
+        auto result = formatArpParam(kArpNoteValueId, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "1/8T");
+    }
+
+    SECTION("Index 13 -> 1/4") {
+        double norm = 13.0 / 20.0;
+        auto result = formatArpParam(kArpNoteValueId, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "1/4");
+    }
+}
+
+// T067: formatArpParam -- gate length displays as percentage (FR-022)
+TEST_CASE("formatArpParam -- gate length displays as percentage", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    // 75% -> normalized = (75 - 1) / 199 = 74/199
+    double norm75 = (75.0 - 1.0) / 199.0;
+    auto result = formatArpParam(kArpGateLengthId, norm75, str);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(str) == "75%");
+}
+
+// T068: formatArpParam -- pitch step displays as signed semitones (FR-022)
+TEST_CASE("formatArpParam -- pitch step displays as signed semitones", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    SECTION("+3 st: normalized = (3 + 24) / 48") {
+        double norm = (3.0 + 24.0) / 48.0;
+        auto result = formatArpParam(kArpPitchLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "+3 st");
+    }
+
+    SECTION("-12 st: normalized = (-12 + 24) / 48 = 0.25") {
+        double norm = (-12.0 + 24.0) / 48.0;
+        auto result = formatArpParam(kArpPitchLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "-12 st");
+    }
+
+    SECTION("0 st: normalized = 24 / 48 = 0.5") {
+        double norm = 24.0 / 48.0;
+        auto result = formatArpParam(kArpPitchLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "0 st");
+    }
+}
+
+// T069: formatArpParam -- condition step displays as condition name (FR-022)
+TEST_CASE("formatArpParam -- condition step displays as condition name", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    SECTION("Index 0 (Always)") {
+        double norm = 0.0 / 17.0;
+        auto result = formatArpParam(kArpConditionLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "Always");
+    }
+
+    SECTION("Index 3 (Prob50) -> 50%") {
+        double norm = 3.0 / 17.0;
+        auto result = formatArpParam(kArpConditionLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "50%");
+    }
+
+    SECTION("Index 16 (Fill)") {
+        double norm = 16.0 / 17.0;
+        auto result = formatArpParam(kArpConditionLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "Fill");
+    }
+}
+
+// T070: formatArpParam -- spice and humanize display as percentage (FR-022)
+TEST_CASE("formatArpParam -- spice and humanize display as percentage", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    SECTION("Spice 0.73 -> 73%") {
+        auto result = formatArpParam(kArpSpiceId, 0.73, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "73%");
+    }
+
+    SECTION("Humanize 0.42 -> 42%") {
+        auto result = formatArpParam(kArpHumanizeId, 0.42, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "42%");
+    }
+}
+
+// T070a: formatArpParam -- ratchet swing displays as percentage (FR-022, SC-006)
+TEST_CASE("formatArpParam -- ratchet swing displays as percentage", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    // Normalized 0.48 maps to 50 + 0.48 * 25 = 62% in the 50-75% range
+    auto result = formatArpParam(kArpRatchetSwingId, 0.48, str);
+    CHECK(result == Steinberg::kResultOk);
+    CHECK(toString128(str) == "62%");
+}
+
+// T070b: formatArpParam -- modifier step displays as human-readable flag abbreviations (FR-022)
+TEST_CASE("formatArpParam -- modifier step displays as human-readable flag abbreviations", "[arp][param display]") {
+    using namespace Ruinae;
+    Steinberg::Vst::String128 str;
+
+    // Modifier steps are RangeParameter 0-255, stepCount=255
+    // Normalized = value / 255.0
+
+    SECTION("0x00 (Rest) -> REST") {
+        double norm = 0.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "REST");
+    }
+
+    SECTION("0x01 (kStepActive only) -> --") {
+        double norm = 1.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "--");
+    }
+
+    SECTION("0x05 (kStepActive | kStepSlide) -> SL") {
+        double norm = 5.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "SL");
+    }
+
+    SECTION("0x09 (kStepActive | kStepAccent) -> AC") {
+        double norm = 9.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "AC");
+    }
+
+    SECTION("0x0D (kStepActive | kStepSlide | kStepAccent) -> SL AC") {
+        double norm = 13.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "SL AC");
+    }
+
+    SECTION("0x03 (kStepActive | kStepTie) -> TIE") {
+        double norm = 3.0 / 255.0;
+        auto result = formatArpParam(kArpModifierLaneStep0Id, norm, str);
+        CHECK(result == Steinberg::kResultOk);
+        CHECK(toString128(str) == "TIE");
     }
 }
