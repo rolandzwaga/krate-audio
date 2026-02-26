@@ -35,6 +35,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <string>
 
 namespace Krate::Plugins {
@@ -184,6 +185,134 @@ public:
     }
 
     // =========================================================================
+    // IArpLane Phase 11c Stubs
+    // =========================================================================
+
+    void setTrailSteps(const int32_t steps[4], const float alphas[4]) override {
+        for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
+            trailState_.steps[i] = steps[i];
+            trailAlphas_[i] = alphas[i];
+        }
+    }
+
+    void setSkippedStep(int32_t step) override {
+        trailState_.markSkipped(step);
+        setDirty();
+    }
+
+    void clearOverlays() override {
+        trailState_.clear();
+        setDirty();
+    }
+
+    [[nodiscard]] int32_t getActiveLength() const override {
+        return static_cast<int32_t>(numSteps_);
+    }
+
+    [[nodiscard]] float getNormalizedStepValue(int32_t step) const override {
+        if (step >= 0 && step < kMaxSteps) {
+            return static_cast<float>(stepFlags_[static_cast<size_t>(step)] & 0x0F) / 15.0f;
+        }
+        return 0.0f;
+    }
+
+    void setNormalizedStepValue(int32_t step, float value) override {
+        if (step >= 0 && step < kMaxSteps) {
+            auto flags = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 15.0f)), 0, 15));
+            stepFlags_[static_cast<size_t>(step)] = flags;
+        }
+    }
+
+    [[nodiscard]] int32_t getLaneTypeId() const override {
+        return 4;  // ClipboardLaneType::kModifier
+    }
+
+    void setTransformCallback(TransformCallback cb) override {
+        transformCallback_ = cb;
+        // Forward to header with type conversion
+        header_.setTransformCallback(
+            [cb](TransformType type) {
+                if (cb) cb(static_cast<int>(type));
+            });
+    }
+
+    void setCopyPasteCallbacks(CopyCallback copy, PasteCallback paste) override {
+        copyCallback_ = std::move(copy);
+        pasteCallback_ = std::move(paste);
+    }
+
+    void setPasteEnabled(bool enabled) override {
+        pasteEnabled_ = enabled;
+    }
+
+    void setEuclideanOverlay(int /*hits*/, int /*steps*/, int /*rotation*/,
+                             bool /*enabled*/) override {
+        // Euclidean linear overlay not shown on modifier lanes (dot grid only)
+    }
+
+    // =========================================================================
+    // Transform Operations (Phase 5, T047)
+    // =========================================================================
+
+    /// Compute the result of applying a transform to this lane's step data.
+    /// Returns an array of new normalized values (flags/15.0f).
+    [[nodiscard]] std::array<float, 32> computeTransform(TransformType type) const {
+        int32_t len = getActiveLength();
+        std::array<float, 32> result{};
+
+        // Read current flag values
+        for (int32_t i = 0; i < len; ++i) {
+            result[static_cast<size_t>(i)] = getNormalizedStepValue(i);
+        }
+
+        switch (type) {
+            case TransformType::kInvert:
+                for (int32_t i = 0; i < len; ++i) {
+                    auto flags = static_cast<uint8_t>(
+                        std::round(result[static_cast<size_t>(i)] * 15.0f));
+                    auto inverted = static_cast<uint8_t>((~flags) & 0x0F);
+                    result[static_cast<size_t>(i)] =
+                        static_cast<float>(inverted) / 15.0f;
+                }
+                break;
+
+            case TransformType::kShiftLeft:
+                if (len > 1) {
+                    float first = result[0];
+                    for (int32_t i = 0; i < len - 1; ++i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                    }
+                    result[static_cast<size_t>(len - 1)] = first;
+                }
+                break;
+
+            case TransformType::kShiftRight:
+                if (len > 1) {
+                    float last = result[static_cast<size_t>(len - 1)];
+                    for (int32_t i = len - 1; i > 0; --i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i - 1)];
+                    }
+                    result[0] = last;
+                }
+                break;
+
+            case TransformType::kRandomize: {
+                std::random_device rd;
+                std::mt19937 rng(rd());
+                std::uniform_int_distribution<int> dist(0, 15);
+                for (int32_t i = 0; i < len; ++i) {
+                    result[static_cast<size_t>(i)] =
+                        static_cast<float>(dist(rng)) / 15.0f;
+                }
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    // =========================================================================
     // CControl Overrides
     // =========================================================================
 
@@ -213,6 +342,13 @@ public:
 
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + ArpLaneHeader::kHeight);
+
+        // Right-click in header area: open copy/paste context menu
+        if (buttons.isRightButton() && headerRect.pointInside(where)) {
+            if (header_.handleRightClick(where, headerRect, getFrame())) {
+                return VSTGUI::kMouseEventHandled;
+            }
+        }
 
         // Track collapse state before header interaction
         bool wasCollapsed = isCollapsed();
@@ -277,6 +413,41 @@ public:
         }
 
         setDirty(true);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        if (header_.isButtonHovered()) {
+            header_.clearHover(this);
+            setDirty(true);
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseMoved(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+
+        VSTGUI::CRect vs = getViewSize();
+        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right,
+                                  vs.top + ArpLaneHeader::kHeight);
+        bool wasHovered = header_.isButtonHovered();
+        if (header_.updateHover(where, headerRect, this)) {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorHand);
+            if (!wasHovered)
+                setDirty(true);
+        } else {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorDefault);
+            if (wasHovered)
+                setDirty(true);
+        }
+
         return VSTGUI::kMouseEventHandled;
     }
 
@@ -365,6 +536,48 @@ private:
             }
         }
 
+        // Draw trail overlay (semi-transparent accent rects for trail steps)
+        for (int t = 0; t < PlayheadTrailState::kTrailLength; ++t) {
+            int32_t trailStep = trailState_.steps[t];
+            if (trailStep < 0 || trailStep >= numSteps_) continue;
+
+            float overlayLeft = contentLeft +
+                static_cast<float>(trailStep) * stepWidth;
+            float overlayRight = overlayLeft + stepWidth;
+
+            VSTGUI::CColor overlayColor = accentColor_;
+            overlayColor.alpha = static_cast<uint8_t>(
+                std::clamp(trailAlphas_[t], 0.0f, 255.0f));
+            context->setFillColor(overlayColor);
+            VSTGUI::CRect overlay(overlayLeft, bodyTop, overlayRight, bodyBottom);
+            context->drawRect(overlay, VSTGUI::kDrawFilled);
+        }
+
+        // Draw skip X overlays (081-interaction-polish, FR-007, FR-011)
+        {
+            VSTGUI::CColor xColor = brightenColor(accentColor_, 1.3f);
+            xColor.alpha = 204;
+            constexpr float kXSize = 3.0f;
+            constexpr float kXStroke = 1.5f;
+
+            for (int i = 0; i < numSteps_ && i < 32; ++i) {
+                if (!trailState_.skipped[i]) continue;
+
+                float cellCenterX = contentLeft +
+                    (static_cast<float>(i) + 0.5f) * stepWidth;
+                float cellCenterY = bodyTop + kBodyHeight * 0.5f;
+
+                context->setFrameColor(xColor);
+                context->setLineWidth(kXStroke);
+                context->drawLine(
+                    VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY - kXSize),
+                    VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY + kXSize));
+                context->drawLine(
+                    VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY - kXSize),
+                    VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY + kXSize));
+            }
+        }
+
         // Draw playhead overlay
         if (playheadStep_ >= 0 && playheadStep_ < numSteps_) {
             float overlayLeft = contentLeft +
@@ -439,6 +652,14 @@ private:
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;
     std::function<void()> collapseCallback_;
+
+    // Phase 11c callbacks and state
+    TransformCallback transformCallback_;
+    CopyCallback copyCallback_;
+    PasteCallback pasteCallback_;
+    bool pasteEnabled_ = false;
+    PlayheadTrailState trailState_;
+    float trailAlphas_[PlayheadTrailState::kTrailLength] = {160.0f, 100.0f, 55.0f, 25.0f};
 };
 
 // =============================================================================

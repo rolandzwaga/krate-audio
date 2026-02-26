@@ -240,6 +240,9 @@ public:
 | `kLengthDropdownWidth` | 36.0f | Width of length dropdown area |
 | `kMinSteps` | 2 | Minimum step count |
 | `kMaxSteps` | 32 | Maximum step count |
+| `kButtonSize` | 12.0f | Transform button icon size (Spec 081) |
+| `kButtonGap` | 2.0f | Gap between transform buttons (Spec 081) |
+| `kButtonsRightMargin` | 4.0f | Right margin after last button (Spec 081) |
 
 ### Key API
 
@@ -260,22 +263,37 @@ class ArpLaneHeader {
     void setCollapseCallback(std::function<void()> cb);
     void setLengthParamCallback(std::function<void(uint32_t, float)> cb);
 
+    // Transform buttons (Spec 081)
+    enum TransformType { kInvert = 0, kShiftLeft = 1, kShiftRight = 2, kRandomize = 3 };
+    using TransformCallback = std::function<void(TransformType)>;
+    void setTransformCallback(TransformCallback cb);
+
+    // Copy/paste context menu (Spec 081)
+    using CopyCallback = std::function<void()>;
+    using PasteCallback = std::function<void()>;
+    void setCopyPasteCallbacks(CopyCallback copy, PasteCallback paste);
+    void setPasteEnabled(bool enabled);
+
     // Rendering and interaction (called by owning lane)
     void draw(CDrawContext* context, const CRect& headerRect);
+    void drawTransformButtons(CDrawContext* context, const CRect& headerRect);
     bool handleMouseDown(const CPoint& where, const CRect& headerRect, CFrame* frame);
+    bool handleTransformClick(const CPoint& where, const CRect& headerRect);
+    bool handleRightClick(const CPoint& where, const CRect& headerRect, CFrame* frame);
 };
 ```
 
 ### Header Layout
 
 ```
-|<--24px-->|<---56px--->|<----36px---->|
-| triangle |  lane name | step count v |
+|<--24px-->|<---56px--->|<----36px---->|    ...    |<----58px---->|
+| triangle |  lane name | step count v |          | [I][<][>][R] |
 ```
 
 - **Collapse zone** (left 24px): Click toggles collapsed/expanded, fires collapseCallback
 - **Name label** (24-80px): Drawn in accent color
 - **Length dropdown** (80-116px): Shows current step count, click opens COptionMenu popup
+- **Transform buttons** (right-aligned, 58px from right edge): 4 icon buttons drawn with CGraphicsPath (Spec 081)
 
 ### Drawing
 
@@ -283,13 +301,49 @@ class ArpLaneHeader {
 2. Draw collapse triangle (right-pointing if collapsed, down-pointing if expanded)
 3. Draw lane name in accent color
 4. Draw step count label + small dropdown indicator triangle
+5. Draw 4 transform buttons right-aligned in header (Spec 081)
+
+### Transform Buttons (Spec 081)
+
+Four small icon buttons are drawn in the right side of the header using CGraphicsPath. Each button is 12x12px with 2px gaps. The buttons use dimmed accent color, brightening on hover.
+
+| Button | Icon | TransformType | Description |
+|--------|------|---------------|-------------|
+| Invert | Two opposing arrows | `kInvert` | Mirror/negate step values |
+| Shift Left | Left arrow | `kShiftLeft` | Rotate pattern left by 1 |
+| Shift Right | Right arrow | `kShiftRight` | Rotate pattern right by 1 |
+| Randomize | Circular refresh | `kRandomize` | Randomize all step values |
+
+**Callback delegation pattern**: The header does NOT implement transform logic. It fires the `TransformCallback` with the clicked `TransformType`, and the owning lane class executes the transform using its knowledge of lane-type semantics (e.g., velocity inversion vs. condition probability inversion). This keeps the header type-agnostic.
+
+**Per-lane transform semantics** (implemented in owning lane classes):
+
+| Lane Type | Invert | Shift | Randomize |
+|-----------|--------|-------|-----------|
+| Velocity/Gate | `1.0 - old` | Circular rotate by 1 | `uniform_real(0, 1)` |
+| Pitch | `1.0 - old` (negate semitones) | Circular rotate by 1 | Snap to integer semitone |
+| Ratchet | `1.0 - old` (mirror 1-4) | Circular rotate by 1 | `uniform_int(0,3) / 3.0` |
+| Modifier | `(~bitmask) & 0x0F` | Circular rotate by 1 | `uniform_int(0, 15)` |
+| Condition | Probability inversion table | Circular rotate by 1 | `uniform_int(0, 17)` |
+
+Each modified step follows the VST3 parameter edit protocol: `beginEdit()` / `performEdit()` / `setParamNormalized()` / `endEdit()`.
+
+### Right-Click Context Menu (Spec 081)
+
+Right-clicking the header opens a COptionMenu with Copy and Paste entries. Paste is grayed out when the clipboard is empty (`setPasteEnabled(false)`). The header delegates to `CopyCallback` and `PasteCallback` set by the owning lane class.
 
 ### Interaction
 
 `handleMouseDown()` returns `true` if click was handled:
 1. If click in collapse zone (localX < 24px): toggle collapse state, fire callback
 2. If click in length dropdown zone (localX in 80-116px): open COptionMenu with values 2-32
-3. Otherwise: return false (let owning lane handle the click)
+3. If click in transform button zone (right-aligned 58px): fire TransformCallback with appropriate type (Spec 081)
+4. Otherwise: return false (let owning lane handle the click)
+
+`handleRightClick()` returns `true` if right-click was handled:
+1. Opens COptionMenu with "Copy" and "Paste" entries
+2. Paste entry is enabled/disabled based on `pasteEnabled_` flag
+3. Fires CopyCallback or PasteCallback on selection
 
 **Consumers:** ArpLaneEditor (header_ member), ArpModifierLane (header_ member), ArpConditionLane (header_ member).
 
@@ -771,3 +825,164 @@ Registered as `"ArpLaneContainer"` via VSTGUI ViewCreator.
 - `getLane()` returns `IArpLane*`, not a concrete type -- callers should use the interface only
 
 **Consumers:** Ruinae SEQ tab arpeggiator section (Specs 079 + 080). Holds all 6 lanes (velocity, gate, pitch, ratchet, modifier, condition).
+
+---
+
+## EuclideanDotDisplay (Spec 081)
+
+### Overview
+
+**Location:** [`plugins/shared/src/ui/euclidean_dot_display.h`](../../plugins/shared/src/ui/euclidean_dot_display.h)
+
+**Purpose:** Standalone CView that renders a circular ring of dots visualizing a Euclidean rhythm pattern E(k,n,r). Hit dots are filled in accent color; non-hit dots are stroked in outline color. Uses `Krate::DSP::EuclideanPattern::generate()` and `isHit()` from Layer 0.
+
+**When to use:** Circular visualization of Euclidean patterns. Self-contained CView with no parameter bindings -- properties are set programmatically by the controller when hits/steps/rotation parameters change.
+
+**Namespace:** `Krate::Plugins`
+
+### Class Hierarchy
+
+```
+CView (VSTGUI)
+    |
+    +-- EuclideanDotDisplay
+        (plugins/shared/src/ui/euclidean_dot_display.h)
+```
+
+### Key Properties
+
+| Property | Type | Default | Range | Description |
+|----------|------|---------|-------|-------------|
+| `hits` | int | 0 | 0 to steps | Number of active Euclidean hits (k) |
+| `steps` | int | 8 | 2 to 32 | Number of steps in the pattern (n) |
+| `rotation` | int | 0 | 0 to steps-1 | Pattern rotation offset (r) |
+| `dotRadius` | float | 3.0f | > 0 | Radius of each dot in pixels |
+| `accentColor` | CColor | {208, 132, 92, 255} | -- | Fill color for hit dots |
+| `outlineColor` | CColor | {80, 80, 85, 255} | -- | Stroke color for non-hit dots |
+
+### Draw Algorithm
+
+```
+1. center = (viewWidth/2, viewHeight/2)
+2. ringRadius = min(viewWidth, viewHeight)/2 - dotRadius - 2
+3. pattern = EuclideanPattern::generate(hits, steps, rotation)
+4. For each step i in 0..steps-1:
+   a. angle = -PI/2 + 2*PI*i/steps  (top = 12 o'clock, clockwise)
+   b. (x, y) = center + ringRadius * (cos(angle), sin(angle))
+   c. If EuclideanPattern::isHit(pattern, i, steps):
+      -> Draw filled circle at (x,y) with dotRadius in accentColor
+   d. Else:
+      -> Draw stroked circle at (x,y) with dotRadius in outlineColor
+```
+
+### ViewCreator Attributes
+
+Registered as `"EuclideanDotDisplay"` via VSTGUI ViewCreator.
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `hits` | kIntegerType | 0 | Number of Euclidean hits |
+| `steps` | kIntegerType | 8 | Number of Euclidean steps |
+| `rotation` | kIntegerType | 0 | Pattern rotation offset |
+| `accent-color` | kColorType | #D0845C | Fill color for hit dots |
+| `dot-radius` | kFloatType | 3.0 | Radius of each dot |
+
+### Controller Wiring
+
+```cpp
+// In verifyView(): store pointer when custom-view-name matches
+if (*name == "EuclideanDotDisplay") {
+    euclideanDotDisplay_ = dynamic_cast<EuclideanDotDisplay*>(view);
+}
+
+// In setParamNormalized(): update display when Euclidean params change
+if (tag == kArpEuclideanHitsId && euclideanDotDisplay_) {
+    euclideanDotDisplay_->setHits(static_cast<int>(round(value * 32)));
+    euclideanDotDisplay_->setDirty(true);
+}
+```
+
+### Design Notes
+
+- No parameter bindings or IDependent -- purely programmatic updates from the controller
+- Uses `EuclideanPattern` from `dsp/include/krate/dsp/core/euclidean_pattern.h` (Layer 0)
+- Zero allocations in `draw()` -- pattern is regenerated per frame via constexpr `generate()`
+- Self-contained: does not depend on any arp lane classes or IArpLane
+
+**Consumers:** Ruinae arpeggiator bottom bar Euclidean section (Spec 081).
+
+---
+
+## PlayheadTrailState (Spec 081)
+
+### Overview
+
+**Location:** [`plugins/shared/src/ui/arp_lane.h`](../../plugins/shared/src/ui/arp_lane.h) (alongside IArpLane)
+
+**Purpose:** Simple helper struct for maintaining a fading 4-step playhead trail in arpeggiator lanes. Each lane owns a `PlayheadTrailState` instance that tracks the current and 3 previous playhead positions along with per-step skip overlay flags.
+
+**When to use:** Any lane class that wants to display a trailing glow behind the playhead. Composed as a member variable in each lane; the controller's trail timer calls `advance()` each tick and pushes trail data to lanes via `IArpLane::setTrailSteps()`.
+
+**Namespace:** `Krate::Plugins`
+
+### Key Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `kTrailLength` | 4 | Current step + 3 trailing positions |
+| `kTrailAlphas[0]` | 160.0f | Alpha for current step (~63%) |
+| `kTrailAlphas[1]` | 100.0f | Alpha for 1-step-behind (~39%) |
+| `kTrailAlphas[2]` | 55.0f | Alpha for 2-steps-behind (~22%) |
+| `kTrailAlphas[3]` | 25.0f | Alpha for 3-steps-behind (~10%) |
+
+### Struct Definition
+
+```cpp
+struct PlayheadTrailState {
+    static constexpr int kTrailLength = 4;
+    static constexpr float kTrailAlphas[kTrailLength] = {160.0f, 100.0f, 55.0f, 25.0f};
+
+    int32_t steps[kTrailLength] = {-1, -1, -1, -1};  // -1 = empty
+    bool skipped[32] = {};                            // per-step skip overlay flags
+
+    void advance(int32_t newStep);      // Shift trail, push new step at [0]
+    void clear();                       // Reset all trail positions and skips
+    void markSkipped(int32_t step);     // Flag step as skipped (X overlay)
+    void clearPassedSkips();            // Clear skip flags for steps not in trail
+};
+```
+
+### Usage Pattern
+
+```cpp
+// Controller trail timer callback (~30fps):
+void Controller::onTrailTimerTick() {
+    for (int i = 0; i < 6; ++i) {
+        int32_t step = getCurrentPlayheadStep(i);  // read from parameter
+        if (step != trailStates_[i].steps[0]) {
+            trailStates_[i].advance(step);
+            trailStates_[i].clearPassedSkips();
+            lanes_[i]->setTrailSteps(trailStates_[i].steps, PlayheadTrailState::kTrailAlphas);
+            lanes_[i]->getView()->setDirty(true);
+        }
+    }
+}
+```
+
+### State Transitions
+
+```
+[Idle] --(transport starts)--> [Tracking: advance() each timer tick]
+[Tracking] --(transport stops)--> [Idle: clear()]
+[Tracking] --(skip event received)--> [markSkipped(step)]
+[Marked step] --(trail passes)--> [clearPassedSkips() removes flag]
+```
+
+### Design Notes
+
+- Fixed-size arrays only -- zero allocations
+- Trail data is passed to lanes as unpacked arrays (`int32_t steps[4]`, `float alphas[4]`) via `IArpLane::setTrailSteps()`, keeping the lane interface independent of the struct location
+- The controller owns one `PlayheadTrailState` per lane (6 total), not the lanes themselves
+- Skip overlay flags (`skipped[]`) are set by the controller when IMessages arrive from the processor and automatically cleared when the trail advances past them
+
+**Consumers:** Ruinae Controller trail timer, all 6 arp lane types (Spec 081).

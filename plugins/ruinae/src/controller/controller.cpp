@@ -16,6 +16,7 @@
 #include "ui/mod_matrix_grid.h"
 #include "ui/mod_ring_indicator.h"
 #include "ui/mod_heatmap.h"
+#include "ui/euclidean_dot_display.h"
 #include "ui/category_tab_bar.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
@@ -235,6 +236,7 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     modulatedMorphXPtr_ = nullptr;
     modulatedMorphYPtr_ = nullptr;
     playbackPollTimer_ = nullptr;
+    trailTimer_ = nullptr;
     tranceGatePlaybackStepPtr_ = nullptr;
     isTransportPlayingPtr_ = nullptr;
     ampEnvOutputPtr_ = nullptr;
@@ -547,6 +549,23 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         return Steinberg::kResultOk;
     }
 
+    // 081-interaction-polish: Arp skip event from processor (FR-007, FR-008)
+    if (strcmp(message->getMessageID(), "ArpSkipEvent") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 lane = 0;
+        Steinberg::int64 step = 0;
+        if (attrs->getInt("lane", lane) == Steinberg::kResultOk &&
+            attrs->getInt("step", step) == Steinberg::kResultOk) {
+            if (lane >= 0 && lane < kArpLaneCount && step >= 0 && step < 32) {
+                handleArpSkipEvent(static_cast<int>(lane), static_cast<int>(step));
+            }
+        }
+        return Steinberg::kResultOk;
+    }
+
     if (strcmp(message->getMessageID(), "VoiceModRouteState") == 0) {
         auto* attrs = message->getAttributes();
         if (!attrs)
@@ -709,6 +728,46 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
                 static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             conditionLane_->setNumSteps(steps);
             conditionLane_->setDirty(true);
+        }
+    }
+
+    // 081-interaction-polish US5: Push arp Euclidean parameter changes to
+    // EuclideanDotDisplay and linear overlays on bar lanes
+    if (tag == kArpEuclideanHitsId || tag == kArpEuclideanStepsId ||
+        tag == kArpEuclideanRotationId || tag == kArpEuclideanEnabledId) {
+        // Read current values from parameter objects
+        auto readInt = [this](Steinberg::Vst::ParamID pid, double scale,
+                              double offset, int lo, int hi) -> int {
+            auto* p = getParameterObject(pid);
+            if (!p) return lo;
+            return std::clamp(
+                static_cast<int>(offset + std::round(p->getNormalized() * scale)),
+                lo, hi);
+        };
+        int hits = readInt(kArpEuclideanHitsId, 32.0, 0.0, 0, 32);
+        int steps = readInt(kArpEuclideanStepsId, 30.0, 2.0, 2, 32);
+        int rot = readInt(kArpEuclideanRotationId, 31.0, 0.0, 0, 31);
+        auto* enabledParam = getParameterObject(kArpEuclideanEnabledId);
+        bool enabled = (enabledParam != nullptr) && enabledParam->getNormalized() >= 0.5;
+
+        if (euclideanDotDisplay_) {
+            euclideanDotDisplay_->setSteps(steps);
+            euclideanDotDisplay_->setHits(hits);
+            euclideanDotDisplay_->setRotation(rot);
+            euclideanDotDisplay_->invalid();
+        }
+
+        // Push to all lanes (bar lanes show overlay, others ignore it)
+        Krate::Plugins::IArpLane* lanes[] = {
+            velocityLane_, gateLane_, pitchLane_, ratchetLane_,
+            modifierLane_, conditionLane_};
+        for (auto* lane : lanes) {
+            if (lane) lane->setEuclideanOverlay(hits, steps, rot, enabled);
+        }
+
+        // 081-interaction-polish Phase 8: Toggle arp Euclidean bottom bar visibility
+        if (tag == kArpEuclideanEnabledId && arpEuclideanGroup_) {
+            arpEuclideanGroup_->setVisible(enabled);
         }
     }
 
@@ -877,67 +936,87 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     xyMorphPad_->setMorphPosition(modX, modY);
                 }
 
-                // 079-layout-framework US5: Poll arp lane playhead parameters.
-                // The processor writes step indices as normalized values
-                // (stepIndex / 32.0). We decode and forward to each lane.
-                constexpr long kMaxSteps = 32;
-                if (velocityLane_) {
-                    auto* param = getParameterObject(kArpVelocityPlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        velocityLane_->setPlaybackStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                // 081-interaction-polish US1: Detect transport stop and clear trails
+                if (isTransportPlayingPtr_) {
+                    bool playing = isTransportPlayingPtr_->load(std::memory_order_relaxed);
+                    if (wasTransportPlaying_ && !playing) {
+                        // Transport just stopped: clear all trail overlays
+                        for (auto& ts : laneTrailStates_) ts.clear();
+                        lastPolledSteps_.fill(-1);
+                        if (velocityLane_) velocityLane_->clearOverlays();
+                        if (gateLane_) gateLane_->clearOverlays();
+                        if (pitchLane_) pitchLane_->clearOverlays();
+                        if (ratchetLane_) ratchetLane_->clearOverlays();
+                        if (modifierLane_) modifierLane_->clearOverlays();
+                        if (conditionLane_) conditionLane_->clearOverlays();
                     }
-                }
-                if (gateLane_) {
-                    auto* param = getParameterObject(kArpGatePlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        gateLane_->setPlaybackStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
-                    }
+                    wasTransportPlaying_ = playing;
                 }
 
-                // 080-specialized-lane-types US7: Poll playhead params for 4 new lanes.
-                if (pitchLane_) {
-                    auto* param = getParameterObject(kArpPitchPlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        pitchLane_->setPlaybackStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
+                // 079-layout-framework US5 + 081-interaction-polish US1:
+                // Poll arp lane playhead parameters, advance trail state,
+                // and push trail overlay data to each lane.
+                // The processor writes step indices as normalized values
+                // (stepIndex / 32.0). We decode and forward to each lane.
+                // Helper: poll one lane's playhead param, advance trail, push overlay
+                auto pollLanePlayhead = [&](Krate::Plugins::IArpLane* lane,
+                                            Steinberg::Vst::ParamID playheadParamId,
+                                            int laneIdx) {
+                    if (!lane) return;
+                    auto* param = getParameterObject(playheadParamId);
+                    if (!param) return;
+
+                    constexpr long kMaxArpSteps = 32;
+                    double normalized = param->getNormalized();
+                    long rawStep = std::lround(normalized * kMaxArpSteps);
+                    int32_t step = rawStep >= kMaxArpSteps ? -1 : static_cast<int32_t>(rawStep);
+
+                    // Advance trail if step changed
+                    if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
+                        lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;
+                        if (step >= 0) {
+                            laneTrailStates_[static_cast<size_t>(laneIdx)].advance(step);
+                        }
                     }
-                }
-                if (ratchetLane_) {
-                    auto* param = getParameterObject(kArpRatchetPlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        ratchetLane_->setPlaybackStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int>(stepIndex));
-                    }
-                }
-                if (modifierLane_) {
-                    auto* param = getParameterObject(kArpModifierPlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        modifierLane_->setPlayheadStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int32_t>(stepIndex));
-                    }
-                }
-                if (conditionLane_) {
-                    auto* param = getParameterObject(kArpConditionPlayheadId);
-                    if (param) {
-                        double normalized = param->getNormalized();
-                        long stepIndex = std::lround(normalized * kMaxSteps);
-                        conditionLane_->setPlayheadStep(
-                            stepIndex >= kMaxSteps ? -1 : static_cast<int32_t>(stepIndex));
-                    }
-                }
+
+                    // Clear passed skip overlays (FR-010)
+                    laneTrailStates_[static_cast<size_t>(laneIdx)].clearPassedSkips();
+
+                    // Push trail state to lane for rendering
+                    auto& ts = laneTrailStates_[static_cast<size_t>(laneIdx)];
+                    lane->setTrailSteps(ts.steps, Krate::Plugins::PlayheadTrailState::kTrailAlphas);
+
+                    // Also keep the old setPlayheadStep for backward compat
+                    lane->setPlayheadStep(step);
+                };
+
+                pollLanePlayhead(velocityLane_, kArpVelocityPlayheadId, 0);
+                pollLanePlayhead(gateLane_, kArpGatePlayheadId, 1);
+                pollLanePlayhead(pitchLane_, kArpPitchPlayheadId, 2);
+                pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
+                pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
+                pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
             }, 33); // ~30fps
+
+        // trailTimer_ references the same poll timer for trail management
+        trailTimer_ = playbackPollTimer_;
+    }
+
+    // Reset trail states on editor open (fresh trail)
+    for (auto& ts : laneTrailStates_) ts.clear();
+    lastPolledSteps_.fill(-1);
+
+    // 081-interaction-polish: notify processor that editor is open (FR-012)
+    {
+        auto msg = Steinberg::owned(allocateMessage());
+        if (msg) {
+            msg->setMessageID("EditorState");
+            auto* attrs = msg->getAttributes();
+            if (attrs) {
+                attrs->setInt("open", 1);
+                sendMessage(msg);
+            }
+        }
     }
 }
 
@@ -959,6 +1038,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         filterEnvDisplay_ = nullptr;
         modEnvDisplay_ = nullptr;
         euclideanControlsGroup_ = nullptr;
+        euclideanDotDisplay_ = nullptr;
+        arpEuclideanGroup_ = nullptr;
+        diceButton_ = nullptr;
         lfo1RateGroup_ = nullptr;
         lfo2RateGroup_ = nullptr;
         lfo1NoteValueGroup_ = nullptr;
@@ -995,6 +1077,28 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
         // Stop poll timer when editor closes (will be recreated in didOpen)
         playbackPollTimer_ = nullptr;
+        trailTimer_ = nullptr;
+
+        // Clear trail state
+        for (auto& ts : laneTrailStates_) ts.clear();
+        lastPolledSteps_.fill(-1);
+        wasTransportPlaying_ = false;
+
+        // Clear clipboard on editor close (editor-scoped, per data-model.md)
+        clipboard_.clear();
+
+        // 081-interaction-polish: notify processor that editor is closing (FR-012)
+        {
+            auto msg = Steinberg::owned(allocateMessage());
+            if (msg) {
+                msg->setMessageID("EditorState");
+                auto* attrs = msg->getAttributes();
+                if (attrs) {
+                    attrs->setInt("open", 0);
+                    sendMessage(msg);
+                }
+            }
+        }
 
         activeEditor_ = nullptr;
     }
@@ -1426,6 +1530,92 @@ VSTGUI::CView* Controller::verifyView(
         }
 
         arpLaneContainer_->addLane(conditionLane_);
+
+        // =====================================================================
+        // Wire transform callbacks for all 6 lanes (081-interaction-polish, T049)
+        // =====================================================================
+
+        // Helper: wire transform callback for an ArpLaneEditor (bar-type lane)
+        auto wireBarLaneTransform = [this](
+            Krate::Plugins::ArpLaneEditor* lane, uint32_t stepBaseParamId) {
+            if (!lane) return;
+            lane->setTransformCallback(
+                [this, lane, stepBaseParamId](int transformType) {
+                    auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                    auto newValues = lane->computeTransform(type);
+                    int32_t len = lane->getActiveLength();
+                    for (int32_t i = 0; i < len; ++i) {
+                        uint32_t paramId = stepBaseParamId + static_cast<uint32_t>(i);
+                        beginEdit(paramId);
+                        performEdit(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        endEdit(paramId);
+                    }
+                    // Update lane data to reflect new values
+                    for (int32_t i = 0; i < len; ++i) {
+                        lane->setNormalizedStepValue(i, newValues[static_cast<size_t>(i)]);
+                    }
+                    lane->setDirty(true);
+                });
+        };
+
+        wireBarLaneTransform(velocityLane_, kArpVelocityLaneStep0Id);
+        wireBarLaneTransform(gateLane_, kArpGateLaneStep0Id);
+        wireBarLaneTransform(pitchLane_, kArpPitchLaneStep0Id);
+        wireBarLaneTransform(ratchetLane_, kArpRatchetLaneStep0Id);
+
+        // Wire transform for modifier lane
+        if (modifierLane_) {
+            modifierLane_->setTransformCallback(
+                [this](int transformType) {
+                    auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                    auto newValues = modifierLane_->computeTransform(type);
+                    int32_t len = modifierLane_->getActiveLength();
+                    for (int32_t i = 0; i < len; ++i) {
+                        uint32_t paramId = kArpModifierLaneStep0Id +
+                            static_cast<uint32_t>(i);
+                        beginEdit(paramId);
+                        performEdit(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        endEdit(paramId);
+                    }
+                    // Update lane data
+                    for (int32_t i = 0; i < len; ++i) {
+                        modifierLane_->setNormalizedStepValue(i,
+                            newValues[static_cast<size_t>(i)]);
+                    }
+                    modifierLane_->setDirty(true);
+                });
+        }
+
+        // Wire transform for condition lane
+        if (conditionLane_) {
+            conditionLane_->setTransformCallback(
+                [this](int transformType) {
+                    auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                    auto newValues = conditionLane_->computeTransform(type);
+                    int32_t len = conditionLane_->getActiveLength();
+                    for (int32_t i = 0; i < len; ++i) {
+                        uint32_t paramId = kArpConditionLaneStep0Id +
+                            static_cast<uint32_t>(i);
+                        beginEdit(paramId);
+                        performEdit(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        endEdit(paramId);
+                    }
+                    // Update lane data
+                    for (int32_t i = 0; i < len; ++i) {
+                        conditionLane_->setNormalizedStepValue(i,
+                            newValues[static_cast<size_t>(i)]);
+                    }
+                    conditionLane_->setDirty(true);
+                });
+        }
+
+        // =====================================================================
+        // Wire copy/paste callbacks for all 6 lanes (081-interaction-polish, T061)
+        // =====================================================================
+        wireCopyPasteCallbacks();
     }
 
     // Wire XYMorphPad callbacks
@@ -1657,6 +1847,14 @@ VSTGUI::CView* Controller::verifyView(
             else if (*name == "SettingsDrawer") {
                 settingsDrawer_ = container;
             }
+            // Arp Euclidean group (knobs + dot display, hidden when disabled)
+            // 081-interaction-polish Phase 8 / US6
+            else if (*name == "ArpEuclideanGroup") {
+                arpEuclideanGroup_ = container;
+                auto* param = getParameterObject(kArpEuclideanEnabledId);
+                bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
+                container->setVisible(enabled);
+            }
         }
     }
 
@@ -1673,6 +1871,41 @@ VSTGUI::CView* Controller::verifyView(
             settingsOverlay_ = view;
             view->setVisible(false);
             ctrl->registerControlListener(this);
+        }
+        // 081-interaction-polish Phase 8: Register Dice button as control listener
+        if (tag == static_cast<int32_t>(kArpDiceTriggerId)) {
+            diceButton_ = ctrl;
+            ctrl->registerControlListener(this);
+        }
+    }
+
+    // 081-interaction-polish US5: Wire EuclideanDotDisplay
+    auto* eucDotDisplay = dynamic_cast<Krate::Plugins::EuclideanDotDisplay*>(view);
+    if (eucDotDisplay) {
+        euclideanDotDisplay_ = eucDotDisplay;
+
+        // Sync current arp euclidean parameter values to the display
+        auto* hitsParam = getParameterObject(kArpEuclideanHitsId);
+        if (hitsParam) {
+            int hits = std::clamp(
+                static_cast<int>(std::round(hitsParam->getNormalized() * 32.0)),
+                0, 32);
+            eucDotDisplay->setHits(hits);
+        }
+        auto* stepsParam = getParameterObject(kArpEuclideanStepsId);
+        if (stepsParam) {
+            // kArpEuclideanStepsId: discrete 2-32, stepCount=30
+            int steps = std::clamp(
+                static_cast<int>(2.0 + std::round(stepsParam->getNormalized() * 30.0)),
+                2, 32);
+            eucDotDisplay->setSteps(steps);
+        }
+        auto* rotParam = getParameterObject(kArpEuclideanRotationId);
+        if (rotParam) {
+            int rot = std::clamp(
+                static_cast<int>(std::round(rotParam->getNormalized() * 31.0)),
+                0, 31);
+            eucDotDisplay->setRotation(rot);
         }
     }
 
@@ -1695,6 +1928,17 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
             if (settingsDrawerOpen_) toggleSettingsDrawer();
             return;
         default: break;
+    }
+
+    // 081-interaction-polish Phase 8 / US6: Dice trigger button
+    // The ActionButton fires beginEdit/setValue(1.0)/valueChanged/setValue(0.0)/endEdit.
+    // VST3Editor forwards the 1.0 to the host via performEdit. We additionally
+    // send performEdit(0.0) so the processor sees the 0->1->0 edge in one block.
+    if (tag == static_cast<int32_t>(kArpDiceTriggerId) &&
+        control->getValue() >= 0.5f) {
+        performEdit(kArpDiceTriggerId, 0.0);
+        setParamNormalized(kArpDiceTriggerId, 0.0);
+        return;
     }
 
     // Pattern preset dropdown (identified by pointer, no control-tag)
@@ -2286,6 +2530,9 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     modifierLane_ = nullptr;
     conditionLane_ = nullptr;
     euclideanControlsGroup_ = nullptr;
+    euclideanDotDisplay_ = nullptr;
+    arpEuclideanGroup_ = nullptr;
+    diceButton_ = nullptr;
     tranceGateRateGroup_ = nullptr;
     tranceGateNoteValueGroup_ = nullptr;
     arpRateGroup_ = nullptr;
@@ -2444,6 +2691,149 @@ void Controller::rebuildRingIndicators() {
         }
 
         indicator->setArcs(arcs);
+    }
+}
+
+// ==============================================================================
+// Arp Skip Event Handler (Phase 11c - stub)
+// ==============================================================================
+
+void Controller::handleArpSkipEvent(int lane, int step) {
+    // 081-interaction-polish (FR-007, FR-008): route skip event to the lane
+    if (lane < 0 || lane >= kArpLaneCount) return;
+    if (step < 0 || step >= 32) return;
+
+    // Map lane index to IArpLane pointer
+    Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
+        velocityLane_, gateLane_, pitchLane_,
+        ratchetLane_, modifierLane_, conditionLane_
+    };
+
+    auto* targetLane = lanes[lane];
+    if (!targetLane) return;
+
+    targetLane->setSkippedStep(static_cast<int32_t>(step));
+
+    // Schedule repaint
+    auto* view = targetLane->getView();
+    if (view) {
+        view->invalid();
+    }
+}
+
+// ==============================================================================
+// Copy/Paste (Phase 11c, T059-T061)
+// ==============================================================================
+
+Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
+    Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
+        velocityLane_, gateLane_, pitchLane_,
+        ratchetLane_, modifierLane_, conditionLane_
+    };
+    if (index < 0 || index >= kArpLaneCount) return nullptr;
+    return lanes[index];
+}
+
+uint32_t Controller::getArpLaneStepBaseParamId(int index) {
+    static constexpr uint32_t kStepBaseIds[6] = {
+        kArpVelocityLaneStep0Id,
+        kArpGateLaneStep0Id,
+        kArpPitchLaneStep0Id,
+        kArpRatchetLaneStep0Id,
+        kArpModifierLaneStep0Id,
+        kArpConditionLaneStep0Id
+    };
+    if (index < 0 || index >= kArpLaneCount) return 0;
+    return kStepBaseIds[index];
+}
+
+uint32_t Controller::getArpLaneLengthParamId(int index) {
+    static constexpr uint32_t kLengthIds[6] = {
+        kArpVelocityLaneLengthId,
+        kArpGateLaneLengthId,
+        kArpPitchLaneLengthId,
+        kArpRatchetLaneLengthId,
+        kArpModifierLaneLengthId,
+        kArpConditionLaneLengthId
+    };
+    if (index < 0 || index >= kArpLaneCount) return 0;
+    return kLengthIds[index];
+}
+
+void Controller::onLaneCopy(int laneIndex) {
+    auto* lane = getArpLane(laneIndex);
+    if (!lane) return;
+
+    // Read all step values as normalized floats
+    int32_t len = lane->getActiveLength();
+    for (int32_t i = 0; i < len; ++i) {
+        clipboard_.values[static_cast<size_t>(i)] = lane->getNormalizedStepValue(i);
+    }
+    clipboard_.length = len;
+    clipboard_.sourceType = static_cast<Krate::Plugins::ClipboardLaneType>(
+        lane->getLaneTypeId());
+    clipboard_.hasData = true;
+
+    // Enable paste on all 6 lanes
+    for (int i = 0; i < kArpLaneCount; ++i) {
+        auto* l = getArpLane(i);
+        if (l) l->setPasteEnabled(true);
+    }
+}
+
+void Controller::onLanePaste(int targetLaneIndex) {
+    if (!clipboard_.hasData) return;
+
+    auto* lane = getArpLane(targetLaneIndex);
+    if (!lane) return;
+
+    uint32_t stepBaseId = getArpLaneStepBaseParamId(targetLaneIndex);
+    uint32_t lengthParamId = getArpLaneLengthParamId(targetLaneIndex);
+    if (stepBaseId == 0 || lengthParamId == 0) return;
+
+    // Paste each step value with proper VST3 edit protocol for undo support
+    for (int32_t i = 0; i < clipboard_.length; ++i) {
+        uint32_t paramId = stepBaseId + static_cast<uint32_t>(i);
+        float value = clipboard_.values[static_cast<size_t>(i)];
+
+        beginEdit(paramId);
+        performEdit(paramId, static_cast<double>(value));
+        setParamNormalized(paramId, static_cast<double>(value));
+        endEdit(paramId);
+
+        // Update lane visual state
+        lane->setNormalizedStepValue(i, value);
+    }
+
+    // Update target lane length to match clipboard length
+    if (clipboard_.length != lane->getActiveLength()) {
+        float normalizedLength = static_cast<float>(clipboard_.length - 1) / 31.0f;
+        beginEdit(lengthParamId);
+        performEdit(lengthParamId, static_cast<double>(normalizedLength));
+        setParamNormalized(lengthParamId, static_cast<double>(normalizedLength));
+        endEdit(lengthParamId);
+
+        lane->setLength(clipboard_.length);
+    }
+
+    // Schedule repaint
+    auto* view = lane->getView();
+    if (view) {
+        view->invalid();
+    }
+}
+
+void Controller::wireCopyPasteCallbacks() {
+    for (int i = 0; i < kArpLaneCount; ++i) {
+        auto* lane = getArpLane(i);
+        if (!lane) continue;
+
+        int laneIdx = i;
+        lane->setCopyPasteCallbacks(
+            [this, laneIdx]() { onLaneCopy(laneIdx); },
+            [this, laneIdx]() { onLanePaste(laneIdx); }
+        );
+        lane->setPasteEnabled(clipboard_.hasData);
     }
 }
 

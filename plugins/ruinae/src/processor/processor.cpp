@@ -91,6 +91,14 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addEventInput(STR16("Event Input"));
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // Pre-allocate skip event IMessages (Phase 11c, FR-012)
+    for (int i = 0; i < 6; ++i) {
+        skipMessages_[static_cast<size_t>(i)] = Steinberg::owned(allocateMessage());
+        if (skipMessages_[static_cast<size_t>(i)]) {
+            skipMessages_[static_cast<size_t>(i)]->setMessageID("ArpSkipEvent");
+        }
+    }
+
     return Steinberg::kResultTrue;
 }
 
@@ -226,8 +234,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
                 engine_.noteOn(evt.note, evt.velocity, evt.legato);
-            } else {
+            } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
                 engine_.noteOff(evt.note);
+            } else if (evt.type == Krate::DSP::ArpEvent::Type::kSkip) {
+                // 081-interaction-polish: send skip event to controller (FR-007, FR-008)
+                // evt.note carries the step index (0-31)
+                const int step = static_cast<int>(evt.note);
+                for (int lane = 0; lane < 6; ++lane) {
+                    sendSkipEvent(lane, step);
+                }
             }
         }
 
@@ -1642,7 +1657,42 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         return Steinberg::kResultOk;
     }
 
+    // EditorState message: controller tells processor whether editor is open (Phase 11c)
+    if (strcmp(message->getMessageID(), "EditorState") == 0) {
+        auto* attrs = message->getAttributes();
+        if (attrs) {
+            Steinberg::int64 open = 0;
+            if (attrs->getInt("open", open) == Steinberg::kResultOk) {
+                editorOpen_.store(open != 0, std::memory_order_relaxed);
+            }
+        }
+        return Steinberg::kResultOk;
+    }
+
     return AudioEffect::notify(message);
+}
+
+// ==============================================================================
+// Arp Skip Event Sender (081-interaction-polish, FR-007, FR-008, FR-012)
+// ==============================================================================
+
+void Processor::sendSkipEvent(int lane, int step) {
+    // FR-012: don't send when editor is closed
+    if (!editorOpen_.load(std::memory_order_relaxed))
+        return;
+
+    if (lane < 0 || lane >= 6) return;
+    if (step < 0 || step >= 32) return;
+
+    auto* msg = skipMessages_[static_cast<size_t>(lane)].get();
+    if (!msg) return;
+
+    auto* attrs = msg->getAttributes();
+    if (!attrs) return;
+
+    attrs->setInt("lane", static_cast<Steinberg::int64>(lane));
+    attrs->setInt("step", static_cast<Steinberg::int64>(step));
+    sendMessage(msg);
 }
 
 // ==============================================================================

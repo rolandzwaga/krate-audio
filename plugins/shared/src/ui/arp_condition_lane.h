@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <string>
 
 namespace Krate::Plugins {
@@ -219,6 +220,146 @@ public:
     }
 
     // =========================================================================
+    // IArpLane Phase 11c Stubs
+    // =========================================================================
+
+    void setTrailSteps(const int32_t steps[4], const float alphas[4]) override {
+        for (int i = 0; i < PlayheadTrailState::kTrailLength; ++i) {
+            trailState_.steps[i] = steps[i];
+            trailAlphas_[i] = alphas[i];
+        }
+    }
+
+    void setSkippedStep(int32_t step) override {
+        trailState_.markSkipped(step);
+        setDirty();
+    }
+
+    void clearOverlays() override {
+        trailState_.clear();
+        setDirty();
+    }
+
+    [[nodiscard]] int32_t getActiveLength() const override {
+        return static_cast<int32_t>(numSteps_);
+    }
+
+    [[nodiscard]] float getNormalizedStepValue(int32_t step) const override {
+        if (step >= 0 && step < kMaxSteps) {
+            return static_cast<float>(stepConditions_[static_cast<size_t>(step)]) / 17.0f;
+        }
+        return 0.0f;
+    }
+
+    void setNormalizedStepValue(int32_t step, float value) override {
+        if (step >= 0 && step < kMaxSteps) {
+            auto condIdx = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 17.0f)), 0, 17));
+            stepConditions_[static_cast<size_t>(step)] = condIdx;
+        }
+    }
+
+    [[nodiscard]] int32_t getLaneTypeId() const override {
+        return 5;  // ClipboardLaneType::kCondition
+    }
+
+    void setTransformCallback(TransformCallback cb) override {
+        transformCallback_ = cb;
+        // Forward to header with type conversion
+        header_.setTransformCallback(
+            [cb](TransformType type) {
+                if (cb) cb(static_cast<int>(type));
+            });
+    }
+
+    void setCopyPasteCallbacks(CopyCallback copy, PasteCallback paste) override {
+        copyCallback_ = std::move(copy);
+        pasteCallback_ = std::move(paste);
+    }
+
+    void setPasteEnabled(bool enabled) override {
+        pasteEnabled_ = enabled;
+    }
+
+    void setEuclideanOverlay(int /*hits*/, int /*steps*/, int /*rotation*/,
+                             bool /*enabled*/) override {
+        // Euclidean linear overlay not shown on condition lanes
+    }
+
+    // =========================================================================
+    // Transform Operations (Phase 5, T048)
+    // =========================================================================
+
+    /// Condition inversion table: maps condition index to its inverse.
+    /// From transform-operations.md:
+    /// 0->0 (Always stays), 1<->5, 2<->4, 3->3, 6-14 unchanged,
+    /// 15->15 (First stays), 16<->17 (Fill<->Not Fill)
+    static constexpr uint8_t kConditionInvertTable[18] = {
+        0, 5, 4, 3, 2, 1,              // probabilities: 0, 10%<->90%, 25%<->75%, 50% stays
+        6, 7, 8, 9, 10, 11, 12, 13, 14, // ratios: unchanged
+        15,                              // First: unchanged
+        17, 16                           // Fill <-> Not Fill
+    };
+
+    /// Compute the result of applying a transform to this lane's step data.
+    /// Returns an array of new normalized values (conditionIndex/17.0f).
+    [[nodiscard]] std::array<float, 32> computeTransform(TransformType type) const {
+        int32_t len = getActiveLength();
+        std::array<float, 32> result{};
+
+        // Read current condition values
+        for (int32_t i = 0; i < len; ++i) {
+            result[static_cast<size_t>(i)] = getNormalizedStepValue(i);
+        }
+
+        switch (type) {
+            case TransformType::kInvert:
+                for (int32_t i = 0; i < len; ++i) {
+                    auto condIdx = static_cast<uint8_t>(
+                        std::clamp(static_cast<int>(
+                            std::round(result[static_cast<size_t>(i)] * 17.0f)), 0, 17));
+                    uint8_t inverted = kConditionInvertTable[condIdx];
+                    result[static_cast<size_t>(i)] =
+                        static_cast<float>(inverted) / 17.0f;
+                }
+                break;
+
+            case TransformType::kShiftLeft:
+                if (len > 1) {
+                    float first = result[0];
+                    for (int32_t i = 0; i < len - 1; ++i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i + 1)];
+                    }
+                    result[static_cast<size_t>(len - 1)] = first;
+                }
+                break;
+
+            case TransformType::kShiftRight:
+                if (len > 1) {
+                    float last = result[static_cast<size_t>(len - 1)];
+                    for (int32_t i = len - 1; i > 0; --i) {
+                        result[static_cast<size_t>(i)] = result[static_cast<size_t>(i - 1)];
+                    }
+                    result[0] = last;
+                }
+                break;
+
+            case TransformType::kRandomize: {
+                std::random_device rd;
+                std::mt19937 rng(rd());
+                std::uniform_int_distribution<int> dist(0, 17);
+                for (int32_t i = 0; i < len; ++i) {
+                    result[static_cast<size_t>(i)] =
+                        static_cast<float>(dist(rng)) / 17.0f;
+                }
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    // =========================================================================
     // CControl Overrides
     // =========================================================================
 
@@ -248,6 +389,13 @@ public:
 
         VSTGUI::CRect vs = getViewSize();
         VSTGUI::CRect headerRect(vs.left, vs.top, vs.right, vs.top + ArpLaneHeader::kHeight);
+
+        // Right-click in header area: open copy/paste context menu
+        if (buttons.isRightButton() && headerRect.pointInside(where)) {
+            if (header_.handleRightClick(where, headerRect, getFrame())) {
+                return VSTGUI::kMouseEventHandled;
+            }
+        }
 
         // Track collapse state before header interaction
         bool wasCollapsed = isCollapsed();
@@ -285,7 +433,7 @@ public:
             return VSTGUI::kMouseEventHandled;
         }
 
-        // Right-click: reset to Always (0)
+        // Right-click on body: reset to Always (0)
         if (buttons.isRightButton()) {
             if (beginEditCallback_ && stepConditionBaseParamId_ != 0) {
                 beginEditCallback_(stepConditionBaseParamId_ + static_cast<uint32_t>(step));
@@ -346,30 +494,41 @@ public:
         return VSTGUI::kMouseEventHandled;
     }
 
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        if (header_.isButtonHovered()) {
+            header_.clearHover(this);
+            setDirty(true);
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
     VSTGUI::CMouseEventResult onMouseMoved(
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& /*buttons*/) override {
 
         VSTGUI::CRect vs = getViewSize();
-        float bodyTop = static_cast<float>(vs.top) + ArpLaneHeader::kHeight;
-        float bodyLeft = static_cast<float>(vs.left);
-        float bodyWidth = static_cast<float>(vs.getWidth());
 
-        float localX = static_cast<float>(where.x) - bodyLeft - kLeftMargin;
-        float localY = static_cast<float>(where.y) - bodyTop;
+        // Transform button hover: tooltip, cursor, highlight
+        VSTGUI::CRect headerRect(vs.left, vs.top, vs.right,
+                                  vs.top + ArpLaneHeader::kHeight);
+        bool wasHovered = header_.isButtonHovered();
+        if (header_.updateHover(where, headerRect, this)) {
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorHand);
+            if (!wasHovered)
+                setDirty(true);
+            return VSTGUI::kMouseEventHandled;
+        }
 
-        float contentWidth = bodyWidth - kLeftMargin;
-        if (localX >= 0.0f && localY >= 0.0f && localY < kBodyHeight &&
-            numSteps_ > 0 && contentWidth > 0.0f) {
-            float cellWidth = contentWidth / static_cast<float>(numSteps_);
-            int step = static_cast<int>(localX / cellWidth);
-
-            if (step >= 0 && step < numSteps_) {
-                uint8_t cond = stepConditions_[static_cast<size_t>(step)];
-                if (cond < kConditionCount) {
-                    setTooltipText(kConditionTooltips[cond]);
-                }
-            }
+        // Clear button hover if we moved off buttons
+        if (wasHovered) {
+            setDirty(true);
+            if (auto* frame = getFrame())
+                frame->setCursor(VSTGUI::kCursorDefault);
         }
 
         return VSTGUI::kMouseEventHandled;
@@ -432,6 +591,48 @@ private:
 
             context->drawString(VSTGUI::UTF8String(kConditionAbbrev[condIdx]),
                                cellRect, VSTGUI::kCenterText);
+        }
+
+        // Draw trail overlay (semi-transparent accent rects for trail steps)
+        for (int t = 0; t < PlayheadTrailState::kTrailLength; ++t) {
+            int32_t trailStep = trailState_.steps[t];
+            if (trailStep < 0 || trailStep >= numSteps_) continue;
+
+            float overlayLeft = contentLeft +
+                static_cast<float>(trailStep) * cellWidth;
+            float overlayRight = overlayLeft + cellWidth;
+
+            VSTGUI::CColor overlayColor = accentColor_;
+            overlayColor.alpha = static_cast<uint8_t>(
+                std::clamp(trailAlphas_[t], 0.0f, 255.0f));
+            context->setFillColor(overlayColor);
+            VSTGUI::CRect overlay(overlayLeft, bodyTop, overlayRight, bodyBottom);
+            context->drawRect(overlay, VSTGUI::kDrawFilled);
+        }
+
+        // Draw skip X overlays (081-interaction-polish, FR-007, FR-011)
+        {
+            VSTGUI::CColor xColor = brightenColor(accentColor_, 1.3f);
+            xColor.alpha = 204;
+            constexpr float kXSize = 3.0f;
+            constexpr float kXStroke = 1.5f;
+
+            for (int i = 0; i < numSteps_ && i < 32; ++i) {
+                if (!trailState_.skipped[i]) continue;
+
+                float cellCenterX = contentLeft +
+                    (static_cast<float>(i) + 0.5f) * cellWidth;
+                float cellCenterY = bodyTop + kBodyHeight * 0.5f;
+
+                context->setFrameColor(xColor);
+                context->setLineWidth(kXStroke);
+                context->drawLine(
+                    VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY - kXSize),
+                    VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY + kXSize));
+                context->drawLine(
+                    VSTGUI::CPoint(cellCenterX + kXSize, cellCenterY - kXSize),
+                    VSTGUI::CPoint(cellCenterX - kXSize, cellCenterY + kXSize));
+            }
         }
 
         // Draw playhead overlay
@@ -502,6 +703,14 @@ private:
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;
     std::function<void()> collapseCallback_;
+
+    // Phase 11c callbacks and state
+    TransformCallback transformCallback_;
+    CopyCallback copyCallback_;
+    PasteCallback pasteCallback_;
+    bool pasteEnabled_ = false;
+    PlayheadTrailState trailState_;
+    float trailAlphas_[PlayheadTrailState::kTrailLength] = {160.0f, 100.0f, 55.0f, 25.0f};
 };
 
 // =============================================================================

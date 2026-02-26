@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-02-24 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-26 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -50,7 +50,7 @@ This architecture documentation is split into the following sections:
 | [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |
 | [Plugin State Persistence](plugin-state-persistence.md) | State version history, stream format, ModSource enum migration, backward compatibility |
-| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, IArpLane, ArpLaneHeader, ArpLaneEditor, ArpModifierLane, ArpConditionLane, ArpLaneContainer, template conventions |
+| [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, IArpLane, ArpLaneHeader (+ transform buttons), ArpLaneEditor, ArpModifierLane, ArpConditionLane, ArpLaneContainer, EuclideanDotDisplay, PlayheadTrailState, template conventions |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
 
@@ -91,6 +91,8 @@ Reusable VSTGUI custom views in `plugins/shared/src/ui/`. Full API documentation
 | ModHeatmap | [`mod_heatmap.h`](../../plugins/shared/src/ui/mod_heatmap.h) | Source-by-destination routing heatmap (Spec 049) | 0.19.0 |
 | BipolarSlider | [`bipolar_slider.h`](../../plugins/shared/src/ui/bipolar_slider.h) | Bipolar (-1 to +1) slider control (Spec 049) | 0.19.0 |
 | OscillatorTypeSelector | [`oscillator_type_selector.h`](../../plugins/shared/src/ui/oscillator_type_selector.h) | Dropdown tile grid oscillator type chooser (Spec 050) | 0.19.0 |
+| EuclideanDotDisplay | [`euclidean_dot_display.h`](../../plugins/shared/src/ui/euclidean_dot_display.h) | Circular Euclidean E(k,n) pattern visualization CView (Spec 081) | 0.24.0 |
+| PlayheadTrailState | [`arp_lane.h`](../../plugins/shared/src/ui/arp_lane.h) | Helper struct for fading 4-step playhead trail in arp lanes (Spec 081) | 0.24.0 |
 
 ---
 
