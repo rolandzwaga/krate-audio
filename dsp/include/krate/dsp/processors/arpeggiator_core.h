@@ -604,10 +604,20 @@ public:
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
                 }
-                // Emit all pending NoteOffs
+                // Emit pending NoteOffs, skipping duplicates already emitted
+                // from currentArpNotes_ (FR-027, 082-presets-polish)
                 for (size_t i = 0; i < pendingNoteOffCount_ && eventCount < maxEvents; ++i) {
-                    outputEvents[eventCount++] = ArpEvent{
-                        ArpEvent::Type::NoteOff, pendingNoteOffs_[i].note, 0, 0};
+                    bool alreadyEmitted = false;
+                    for (size_t j = 0; j < currentArpNoteCount_; ++j) {
+                        if (pendingNoteOffs_[i].note == currentArpNotes_[j]) {
+                            alreadyEmitted = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyEmitted) {
+                        outputEvents[eventCount++] = ArpEvent{
+                            ArpEvent::Type::NoteOff, pendingNoteOffs_[i].note, 0, 0};
+                    }
                 }
                 currentArpNoteCount_ = 0;
                 pendingNoteOffCount_ = 0;
@@ -638,11 +648,15 @@ public:
             return eventCount;
         }
 
-        // Handle transport restart
+        // Handle transport restart (FR-023, FR-025): reset step counters
+        // and lane positions so the arp restarts cleanly from step 1.
         if (!wasPlaying_) {
             wasPlaying_ = true;
             firstStepPending_ = true;
             sampleCounter_ = 0;
+            selector_.reset();
+            swingStepCounter_ = 0;
+            resetLanes();
         }
 
         // (g) firstStepPending_: compute initial step duration before loop

@@ -646,6 +646,21 @@ Spice/Humanize identity defaults (spice=0.0, humanize=0.0) produce bit-identical
 
 ---
 
+## Arp State Round-Trip Guarantee (Spec 082)
+
+All arpeggiator state values survive a `getState()`/`setState()` round-trip with exact fidelity. This is verified by automated tests in `plugins/ruinae/tests/unit/state_roundtrip_test.cpp`:
+
+- **All 6 lane types** (velocity, gate, pitch, modifier, ratchet, condition): lengths and all 32 step values preserved with exact equality
+- **Euclidean settings**: enabled, hits, steps, rotation preserved exactly
+- **Condition values**: all 18 `TrigCondition` variants preserved with integer equality
+- **Modifier bitmasks**: all `ArpStepFlags` combinations preserved with integer equality
+- **Float values**: spice, humanize, ratchetSwing preserved bit-identically (verified via `std::memcmp`)
+- **Ephemeral state NOT serialized**: `diceTrigger`, velocity/gate/ratchet/condition overlays are cleared on load (they revert to identity defaults)
+
+**Pre-arp backward compatibility**: Presets saved before the arpeggiator was added (stream truncated before arp data) load with arp disabled and all parameters at struct defaults. Partially-written arp data (e.g., base params only, no lane data) loads whatever is available and keeps defaults for the rest.
+
+---
+
 ## Backward Compatibility Rules
 
 1. **New packs are always appended** at the end of the stream, never inserted between existing packs

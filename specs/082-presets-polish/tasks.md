@@ -168,7 +168,7 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 - [X] T040 [US1] Run `"$CMAKE" --build build/windows-x64-release --config Release --target generate_ruinae_presets` and verify at least 12 `.vstpreset` files are created in `plugins/ruinae/resources/presets/{category}/` (SC-001 threshold; the full implementation should produce exactly 14 files, but the gate is >=12)
 - [X] T041 [US1] Verify preset count matches SC-001: confirm at least 12 arp presets exist, covering all 6 categories with at least 2 per category
 - [X] T042 [US1] Build full Ruinae plugin: `"$CMAKE" --build build/windows-x64-release --config Release --target Ruinae` -- confirm no new warnings
-- [ ] T043 [US1] **Commit US1 work** with message "Add factory arp presets and preset generator tool (US1)"
+- [X] T043 [US1] **Commit US1 work** with message "Add factory arp presets and preset generator tool (US1)"
 
 ---
 
@@ -328,7 +328,7 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 
 ### 8.4 Commit
 
-- [ ] T092 [US6] **Commit US6 work** with message "Add preset change safety tests and fix any gaps (US6)"
+- [X] T092 [US6] **Commit US6 work** with message "Add preset change safety tests and fix any gaps (US6)"
 
 ---
 
@@ -364,36 +364,36 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 
 ### 10.1 Full Build & Regression Check
 
-- [ ] T098 Build full plugin (all targets): `"$CMAKE" --build build/windows-x64-release --config Release` -- fix any compilation errors or warnings
-- [ ] T099 Run full test suite: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure` -- verify zero regressions (all previously-passing tests still pass) -- covers FR-032, SC-010
-- [ ] T100 If any previously-passing test now fails, investigate and fix before continuing -- constitution forbids dismissing failures as "pre-existing"
+- [X] T098 Build full plugin (all targets): `"$CMAKE" --build build/windows-x64-release --config Release` -- fix any compilation errors or warnings
+- [X] T099 Run full test suite: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure` -- verify zero regressions (all previously-passing tests still pass) -- covers FR-032, SC-010
+- [X] T100 If any previously-passing test now fails, investigate and fix before continuing -- constitution forbids dismissing failures as "pre-existing"
 
 ### 10.2 Pluginval
 
-- [ ] T101 Run pluginval level 5 on Ruinae: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- covers FR-031, SC-009
-- [ ] T102 If pluginval fails, investigate and fix the issue (check for parameter count changes, preset scan errors, state round-trip issues) -- do not ship with a pluginval failure
+- [X] T101 Run pluginval level 5 on Ruinae: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- covers FR-031, SC-009
+- [X] T102 If pluginval fails, investigate and fix the issue (check for parameter count changes, preset scan errors, state round-trip issues) -- do not ship with a pluginval failure
 
 ### 10.3 Clang-Tidy Static Analysis
 
-- [ ] T103 Generate `compile_commands.json` for clang-tidy (requires Ninja preset): `"$CMAKE" --preset windows-ninja` (run from VS Developer PowerShell if not already done)
-- [ ] T104 Run clang-tidy on all modified files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
-- [ ] T105 Run clang-tidy on the new generator tool: manually add `tools/ruinae_preset_generator.cpp` to clang-tidy scope or run the `all` target
-- [ ] T106 Fix all clang-tidy errors (blocking); review warnings and fix where appropriate; add `// NOLINT(<reason>)` only for intentional suppressions with a documented reason
+- [X] T103 Generate `compile_commands.json` for clang-tidy (requires Ninja preset): `"$CMAKE" --preset windows-ninja` (run from VS Developer PowerShell if not already done)
+- [X] T104 Run clang-tidy on all modified files: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
+- [X] T105 Run clang-tidy on the new generator tool: manually add `tools/ruinae_preset_generator.cpp` to clang-tidy scope or run the `all` target
+- [X] T106 Fix all clang-tidy errors (blocking); review warnings and fix where appropriate; add `// NOLINT(<reason>)` only for intentional suppressions with a documented reason
 
 ### 10.4 Architecture Documentation Update
 
-- [ ] T107 [P] Update `specs/_architecture_/` to document any new patterns introduced by this phase: the `RuinaePresetState`+`serialize()` pattern in the generator, the 6 arp preset subcategories in `RuinaePresetConfig`, and the arp state round-trip guarantee
-- [ ] T108 [P] Verify no architecture docs reference out-of-date preset category names or serialization sequences
+- [X] T107 [P] Update `specs/_architecture_/` to document any new patterns introduced by this phase: the `RuinaePresetState`+`serialize()` pattern in the generator, the 6 arp preset subcategories in `RuinaePresetConfig`, and the arp state round-trip guarantee
+- [X] T108 [P] Verify no architecture docs reference out-of-date preset category names or serialization sequences
 
 ### 10.5 Compliance Table
 
-- [ ] T109 Open `specs/082-presets-polish/spec.md` Implementation Verification section and fill in every FR-xxx and SC-xxx row with actual evidence: file path + line number for each FR, test name + actual output for each SC -- do NOT fill from memory; re-read the code and re-run the tests for each row
-- [ ] T110 Mark overall status in spec.md as COMPLETE only if every requirement is MET; if any are NOT MET, document the gap honestly and discuss with user before claiming completion
+- [X] T109 Open `specs/082-presets-polish/spec.md` Implementation Verification section and fill in every FR-xxx and SC-xxx row with actual evidence: file path + line number for each FR, test name + actual output for each SC -- do NOT fill from memory; re-read the code and re-run the tests for each row
+- [X] T110 Mark overall status in spec.md as COMPLETE only if every requirement is MET; if any are NOT MET, document the gap honestly and discuss with user before claiming completion
 
 ### 10.6 Final Commit
 
-- [ ] T111 **Commit all polish and compliance work**: `git commit -m "Final polish, pluginval, clang-tidy, compliance table (Phase 12 complete)"`
-- [ ] T112 Verify `git status` is clean on the feature branch -- no uncommitted changes
+- [X] T111 **Commit all polish and compliance work**: `git commit -m "Final polish, pluginval, clang-tidy, compliance table (Phase 12 complete)"`
+- [X] T112 Verify `git status` is clean on the feature branch -- no uncommitted changes
 
 ---
 
