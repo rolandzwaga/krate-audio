@@ -4,7 +4,7 @@ Living inventory of components and APIs. Reference before writing specs to avoid
 
 > **Constitution Principle XIII**: Every spec implementation MUST update this document.
 
-**Last Updated**: 2026-02-26 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
+**Last Updated**: 2026-02-27 | **Namespace**: `Krate::DSP` | **Include**: `<krate/dsp/...>`
 
 ## Repository Structure
 
@@ -47,7 +47,7 @@ This architecture documentation is split into the following sections:
 | [Layer 2: DSP Processors](layer-2-processors.md) | EnvelopeFollower, Saturation, TubeStage, DiodeClipper, WavefolderProcessor, TapeSaturator, FuzzProcessor, BitcrusherProcessor, DynamicsProcessor, FormantPreserver, SpectralFreezeOscillator, ArpeggiatorCore |
 | [Layer 3: System Components](layer-3-systems.md) | DelayEngine, FeedbackNetwork, ModulationMatrix, ModulationEngine, CharacterProcessor, TapManager, GrainCloud, AmpChannel, OscParam/setParam dispatch pattern |
 | [Layer 4: User Features](layer-4-features.md) | Complete delay modes: Tape, BBD, Digital, PingPong, MultiTap, Reverse, Shimmer, Spectral, Freeze, Ducking, Granular |
-| [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components |
+| [Plugin Architecture](plugin-architecture.md) | VST3 components, parameter flow, state flow, UI components, preset browser integration registry |
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |
 | [Plugin State Persistence](plugin-state-persistence.md) | State version history, stream format, ModSource enum migration, backward compatibility |
 | [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, IArpLane, ArpLaneHeader (+ transform buttons), ArpLaneEditor, ArpModifierLane, ArpConditionLane, ArpLaneContainer, EuclideanDotDisplay, PlayheadTrailState, template conventions |

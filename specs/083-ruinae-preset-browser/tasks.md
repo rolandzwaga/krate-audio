@@ -128,7 +128,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 3.5 Commit (MANDATORY)
 
-- [ ] T029 [US1] Commit completed User Story 1 work (state management wiring and overlay lifecycle)
+- [X] T029 [US1] Commit completed User Story 1 work (state management wiring and overlay lifecycle)
 
 **Checkpoint**: User Story 1 complete - preset browser opens, 13 tabs show, factory presets load with full state including arp lanes
 
@@ -144,29 +144,29 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T030 [US2] Write test: `createCustomView("SavePresetButton", ...)` returns a non-null `CView*` (a `SavePresetButton` instance) with the correct rect derived from UIAttributes origin/size
-- [ ] T031 [US2] Write test: `createCustomView` returns `nullptr` for an unknown view name (no crash, no fallback)
-- [ ] T032 [US2] Write test: `openSavePresetDialog` is a no-op when `savePresetDialogView_` is null (no crash when called before `didOpen`)
-- [ ] T033 [US2] Build and verify new tests FAIL: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T030 [US2] Write test: `createCustomView("SavePresetButton", ...)` returns a non-null `CView*` (a `SavePresetButton` instance) with the correct rect derived from UIAttributes origin/size
+- [X] T031 [US2] Write test: `createCustomView` returns `nullptr` for an unknown view name (no crash, no fallback)
+- [X] T032 [US2] Write test: `openSavePresetDialog` is a no-op when `savePresetDialogView_` is null (no crash when called before `didOpen`)
+- [X] T033 [US2] Build and verify new tests FAIL: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T034 [US2] Add `SavePresetButton` class in anonymous namespace at the top of `plugins/ruinae/src/controller/controller.cpp`: extends `VSTGUI::CTextButton`, stores `Ruinae::Controller*`, overrides `onMouseDown` to call `controller_->openSavePresetDialog()` on left-click (follow contracts/controller-api.md "Anonymous Namespace Classes" and Disrumpo pattern at controller.cpp:1187-1210)
-- [ ] T035 [US2] Implement `createCustomView` in `plugins/ruinae/src/controller/controller.cpp`: handle `"SavePresetButton"` case reading origin/size from UIAttributes and returning a new `SavePresetButton`; return `nullptr` for all other names (follow contracts/controller-api.md "createCustomView Handler" exactly)
+- [X] T034 [US2] Add `SavePresetButton` class in anonymous namespace at the top of `plugins/ruinae/src/controller/controller.cpp`: extends `VSTGUI::CTextButton`, stores `Ruinae::Controller*`, overrides `onMouseDown` to call `controller_->openSavePresetDialog()` on left-click (follow contracts/controller-api.md "Anonymous Namespace Classes" and Disrumpo pattern at controller.cpp:1187-1210)
+- [X] T035 [US2] Implement `createCustomView` in `plugins/ruinae/src/controller/controller.cpp`: handle `"SavePresetButton"` case reading origin/size from UIAttributes and returning a new `SavePresetButton`; return `nullptr` for all other names (follow contracts/controller-api.md "createCustomView Handler" exactly)
 
 ### 4.3 Verify User Story 2
 
-- [ ] T036 [US2] Build `ruinae_tests` and verify zero errors/warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
-- [ ] T037 [US2] Run ruinae_tests and verify all User Story 2 tests pass (T030-T032): `build/windows-x64-release/bin/Release/ruinae_tests.exe "[preset browser]"`
-- [ ] T038 [US2] Run full ruinae_tests suite and verify zero regressions
+- [X] T036 [US2] Build `ruinae_tests` and verify zero errors/warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T037 [US2] Run ruinae_tests and verify all User Story 2 tests pass (T030-T032): `build/windows-x64-release/bin/Release/ruinae_tests.exe "[preset browser]"`
+- [X] T038 [US2] Run full ruinae_tests suite and verify zero regressions
 
 ### 4.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T039 [US2] Verify IEEE 754 compliance: new tests are UI wiring only and do not use IEEE 754 functions; confirm no `-fno-fast-math` changes needed
+- [X] T039 [US2] Verify IEEE 754 compliance: new tests are UI wiring only and do not use IEEE 754 functions; confirm no `-fno-fast-math` changes needed
 
 ### 4.5 Commit (MANDATORY)
 
-- [ ] T040 [US2] Commit completed User Story 2 work (SavePresetButton and createCustomView)
+- [X] T040 [US2] Commit completed User Story 2 work (SavePresetButton and createCustomView)
 
 **Checkpoint**: User Story 2 complete - Save button view class exists and createCustomView handles it
 
@@ -182,33 +182,33 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T041 [US3] Write test: `createCustomView("PresetBrowserButton", ...)` returns a non-null `CView*` with the correct rect derived from UIAttributes origin/size
-- [ ] T042 [US3] Write test: `createCustomView` handles both `"PresetBrowserButton"` and `"SavePresetButton"` in a single call sequence without crash or state corruption
-- [ ] T043 [US3] Write test: `openPresetBrowser` is a no-op when `presetBrowserView_` is null (no crash when called before `didOpen`)
-- [ ] T044 [US3] Build and verify new tests FAIL: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T041 [US3] Write test: `createCustomView("PresetBrowserButton", ...)` returns a non-null `CView*` with the correct rect derived from UIAttributes origin/size
+- [X] T042 [US3] Write test: `createCustomView` handles both `"PresetBrowserButton"` and `"SavePresetButton"` in a single call sequence without crash or state corruption
+- [X] T043 [US3] Write test: `openPresetBrowser` is a no-op when `presetBrowserView_` is null (no crash when called before `didOpen`)
+- [X] T044 [US3] Build and verify new tests FAIL: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T045 [US3] Add `PresetBrowserButton` class in anonymous namespace at the top of `plugins/ruinae/src/controller/controller.cpp`: extends `VSTGUI::CTextButton`, stores `Ruinae::Controller*`, overrides `onMouseDown` to call `controller_->openPresetBrowser()` on left-click (follow contracts/controller-api.md "Anonymous Namespace Classes" and Disrumpo pattern at controller.cpp:1159-1182)
-- [ ] T046 [US3] Extend `createCustomView` in `plugins/ruinae/src/controller/controller.cpp` to also handle `"PresetBrowserButton"` case reading origin/size from UIAttributes and returning a new `PresetBrowserButton` (add before the SavePresetButton case; follow contracts/controller-api.md "createCustomView Handler")
-- [ ] T047 [US3] Add `PresetBrowserButton` view element to the top bar `CViewContainer` in `plugins/ruinae/resources/editor.uidesc`: `<view custom-view-name="PresetBrowserButton" origin="460, 8" size="80, 25"/>` (follow contracts/controller-api.md "Top Bar Button Definitions" and research.md decision #4)
-- [ ] T048 [US3] Add `SavePresetButton` view element to the top bar `CViewContainer` in `plugins/ruinae/resources/editor.uidesc`: `<view custom-view-name="SavePresetButton" origin="550, 8" size="60, 25"/>` (follow contracts/controller-api.md "Top Bar Button Definitions")
+- [X] T045 [US3] Add `PresetBrowserButton` class in anonymous namespace at the top of `plugins/ruinae/src/controller/controller.cpp`: extends `VSTGUI::CTextButton`, stores `Ruinae::Controller*`, overrides `onMouseDown` to call `controller_->openPresetBrowser()` on left-click (follow contracts/controller-api.md "Anonymous Namespace Classes" and Disrumpo pattern at controller.cpp:1159-1182)
+- [X] T046 [US3] Extend `createCustomView` in `plugins/ruinae/src/controller/controller.cpp` to also handle `"PresetBrowserButton"` case reading origin/size from UIAttributes and returning a new `PresetBrowserButton` (add before the SavePresetButton case; follow contracts/controller-api.md "createCustomView Handler")
+- [X] T047 [US3] Add `PresetBrowserButton` view element to the top bar `CViewContainer` in `plugins/ruinae/resources/editor.uidesc`: `<view custom-view-name="PresetBrowserButton" origin="460, 8" size="80, 25"/>` (follow contracts/controller-api.md "Top Bar Button Definitions" and research.md decision #4)
+- [X] T048 [US3] Add `SavePresetButton` view element to the top bar `CViewContainer` in `plugins/ruinae/resources/editor.uidesc`: `<view custom-view-name="SavePresetButton" origin="550, 8" size="60, 25"/>` (follow contracts/controller-api.md "Top Bar Button Definitions")
 
 ### 5.3 Verify User Story 3
 
-- [ ] T049 [US3] Build full plugin (not just tests) to verify uidesc changes compile and link: `"$CMAKE" --build build/windows-x64-release --config Release`
-- [ ] T050 [US3] Build `ruinae_tests` and verify zero errors/warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
-- [ ] T051 [US3] Run ruinae_tests and verify all User Story 3 tests pass (T041-T043): `build/windows-x64-release/bin/Release/ruinae_tests.exe "[preset browser]"`
-- [ ] T052 [US3] Run full ruinae_tests suite and verify zero regressions: `build/windows-x64-release/bin/Release/ruinae_tests.exe`
-- [ ] T053 [US3] Run full shared_tests suite to verify no regressions in shared preset infrastructure: `build/windows-x64-release/bin/Release/shared_tests.exe`
+- [X] T049 [US3] Build full plugin (not just tests) to verify uidesc changes compile and link: `"$CMAKE" --build build/windows-x64-release --config Release`
+- [X] T050 [US3] Build `ruinae_tests` and verify zero errors/warnings: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests`
+- [X] T051 [US3] Run ruinae_tests and verify all User Story 3 tests pass (T041-T043): `build/windows-x64-release/bin/Release/ruinae_tests.exe "[preset browser]"`
+- [X] T052 [US3] Run full ruinae_tests suite and verify zero regressions: `build/windows-x64-release/bin/Release/ruinae_tests.exe`
+- [X] T053 [US3] Run full shared_tests suite to verify no regressions in shared preset infrastructure: `build/windows-x64-release/bin/Release/shared_tests.exe`
 
 ### 5.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T054 [US3] Verify IEEE 754 compliance: new tests are UI wiring only; confirm no `-fno-fast-math` changes needed
+- [X] T054 [US3] Verify IEEE 754 compliance: new tests are UI wiring only; confirm no `-fno-fast-math` changes needed
 
 ### 5.5 Commit (MANDATORY)
 
-- [ ] T055 [US3] Commit completed User Story 3 work (PresetBrowserButton, createCustomView, editor.uidesc button placements)
+- [X] T055 [US3] Commit completed User Story 3 work (PresetBrowserButton, createCustomView, editor.uidesc button placements)
 
 **Checkpoint**: User Story 3 complete - both buttons visible in top bar; search/delete/import accessible through shared PresetBrowserView
 
@@ -239,12 +239,12 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 7.1 Architecture Documentation Update
 
-- [ ] T066 Update `specs/_architecture_/` to document that Ruinae now uses the shared preset infrastructure: add Ruinae to any registry of plugins using `KratePluginsShared`, note the `createComponentStateStream` host-delegation pattern (vs Disrumpo's controller-side serialization), and document any Ruinae-specific integration gotchas (voice route skip, int8 FX enable flags, arp lane handling)
+- [X] T066 Update `specs/_architecture_/` to document that Ruinae now uses the shared preset infrastructure: add Ruinae to any registry of plugins using `KratePluginsShared`, note the `createComponentStateStream` host-delegation pattern (vs Disrumpo's controller-side serialization), and document any Ruinae-specific integration gotchas (voice route skip, int8 FX enable flags, arp lane handling)
 
 ### 7.2 Final Commit
 
-- [ ] T067 Commit architecture documentation updates
-- [ ] T068 Verify all spec work is committed to feature branch `083-ruinae-preset-browser`
+- [X] T067 Commit architecture documentation updates
+- [X] T068 Verify all spec work is committed to feature branch `083-ruinae-preset-browser`
 
 **Checkpoint**: Architecture documentation reflects Ruinae preset browser integration
 
@@ -258,7 +258,7 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T069 Run clang-tidy on all modified/new source files:
+- [X] T069 Run clang-tidy on all modified/new source files:
   ```bash
   # Windows (PowerShell)
   ./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
@@ -269,9 +269,9 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 ### 8.2 Address Findings
 
-- [ ] T070 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T071 Review warnings and fix where appropriate; for VST3/VSTGUI framework-required patterns (raw pointer ownership of frame-owned views, SDK callback signatures), add `// NOLINT(check-name) - reason` with a clear justification
-- [ ] T072 Document any suppressions in the commit message
+- [X] T070 Fix all errors reported by clang-tidy (blocking issues) -- 0 errors found
+- [X] T071 Review warnings and fix where appropriate; for VST3/VSTGUI framework-required patterns (raw pointer ownership of frame-owned views, SDK callback signatures), add `// NOLINT(check-name) - reason` with a clear justification -- 0 warnings found
+- [X] T072 Document any suppressions in the commit message -- no suppressions needed
 
 **Checkpoint**: Static analysis clean - ready for completion verification
 
@@ -287,17 +287,17 @@ This check prevents CI failures on macOS/Linux that pass locally on Windows.
 
 Before claiming this spec is complete, verify EVERY requirement:
 
-- [ ] T073 Review ALL FR-xxx requirements (FR-001 through FR-014) from `specs/083-ruinae-preset-browser/spec.md` against implementation; open each relevant file and confirm the code satisfies the requirement
-- [ ] T074 Review ALL SC-xxx success criteria (SC-001 through SC-006) and verify measurable targets are achieved; record actual measured values not assumptions
-- [ ] T075 Search for cheating patterns in new code:
-  - [ ] No `// placeholder` or `// TODO` comments in `controller.h`, `controller.cpp`, `editor.uidesc`, `preset_browser_test.cpp`
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T073 Review ALL FR-xxx requirements (FR-001 through FR-014) from `specs/083-ruinae-preset-browser/spec.md` against implementation; open each relevant file and confirm the code satisfies the requirement
+- [X] T074 Review ALL SC-xxx success criteria (SC-001 through SC-006) and verify measurable targets are achieved; record actual measured values not assumptions
+- [X] T075 Search for cheating patterns in new code:
+  - [X] No `// placeholder` or `// TODO` comments in `controller.h`, `controller.cpp`, `editor.uidesc`, `preset_browser_test.cpp`
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### 9.2 Fill Compliance Table in spec.md
 
-- [ ] T076 Update `specs/083-ruinae-preset-browser/spec.md` "Implementation Verification" section: for each FR-xxx row, record file path and line number of the implementing code; for each SC-xxx row, record the actual measured value and test name
-- [ ] T077 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T076 Update `specs/083-ruinae-preset-browser/spec.md` "Implementation Verification" section: for each FR-xxx row, record file path and line number of the implementing code; for each SC-xxx row, record the actual measured value and test name
+- [X] T077 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 9.3 Honest Self-Check
 
@@ -309,7 +309,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T078 All self-check questions answered "no" (or gaps documented honestly with user approval)
+- [X] T078 All self-check questions answered "no" (or gaps documented honestly with user approval)
 
 **Checkpoint**: Honest assessment complete - ready for final phase
 
@@ -321,12 +321,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 10.1 Final Commit
 
-- [ ] T079 Commit all remaining spec work to feature branch `083-ruinae-preset-browser`
-- [ ] T080 Verify all tests pass (ruinae_tests + shared_tests): `build/windows-x64-release/bin/Release/ruinae_tests.exe && build/windows-x64-release/bin/Release/shared_tests.exe`
+- [X] T079 Commit all remaining spec work to feature branch `083-ruinae-preset-browser`
+- [X] T080 Verify all tests pass (ruinae_tests + shared_tests): `build/windows-x64-release/bin/Release/ruinae_tests.exe && build/windows-x64-release/bin/Release/shared_tests.exe`
 
 ### 10.2 Completion Claim
 
-- [ ] T081 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T081 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete
 

@@ -261,18 +261,17 @@ TEST_CASE("Scroll offset clamps to 0 when content shrinks below viewport after c
     container.addLane(lane1);
     container.addLane(lane2);
 
-    // Content = 172, viewport = 390 -> max scroll = 0, so scrollOffset stays 0
-    // Manually set scrollOffset to 30 via setScrollOffset
-    // (since max scroll is 0, it would clamp immediately -- so use a smaller viewport first)
-    container.setViewportHeight(100.0f);
+    // Content = 172, view height = 390 -> max scroll = 0, so scrollOffset stays 0
+    // Shrink the view to make scrolling possible
+    container.setViewSize(CRect(0, 0, 500, 100));
     // Now max scroll = 172 - 100 = 72
     container.setScrollOffset(30.0f);
     REQUIRE(container.getScrollOffset() == Approx(30.0f).margin(0.01f));
 
-    // Restore viewport to 390
-    container.setViewportHeight(390.0f);
+    // Restore view to 390
+    container.setViewSize(CRect(0, 0, 500, 390));
 
-    // Collapse both lanes -> content = 32, viewport = 390 -> max scroll = 0
+    // Collapse both lanes -> content = 32, view height = 390 -> max scroll = 0
     lane1->setCollapsed(true);
     lane2->setCollapsed(true);
 
@@ -489,9 +488,9 @@ TEST_CASE("Container accepts mixed IArpLane types (ArpLaneEditor + ArpModifierLa
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(editorLane);
@@ -506,17 +505,17 @@ TEST_CASE("Container recalculateLayout uses IArpLane interface for mixed types",
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(editorLane);
     container.addLane(modifierLane);
     container.addLane(conditionLane);
 
-    // 86 + 60 + 44 = 190
-    REQUIRE(container.getTotalContentHeight() == Approx(190.0f).margin(0.01f));
+    // 86 + 79 + 63 = 228
+    REQUIRE(container.getTotalContentHeight() == Approx(228.0f).margin(0.01f));
 }
 
 TEST_CASE("Collapse callback from any mixed lane type triggers relayout",
@@ -524,9 +523,9 @@ TEST_CASE("Collapse callback from any mixed lane type triggers relayout",
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(editorLane);
@@ -536,8 +535,8 @@ TEST_CASE("Collapse callback from any mixed lane type triggers relayout",
     // Collapse modifier lane
     modifierLane->setCollapsed(true);
     // Modifier lane collapses to 16.0f header height
-    // Total: 86 + 16 + 44 = 146
-    REQUIRE(container.getTotalContentHeight() == Approx(146.0f).margin(0.01f));
+    // Total: 86 + 16 + 63 = 165
+    REQUIRE(container.getTotalContentHeight() == Approx(165.0f).margin(0.01f));
 
     // Collapse condition lane
     conditionLane->setCollapsed(true);
@@ -546,8 +545,8 @@ TEST_CASE("Collapse callback from any mixed lane type triggers relayout",
 
     // Expand modifier lane back
     modifierLane->setCollapsed(false);
-    // Total: 86 + 60 + 16 = 162
-    REQUIRE(container.getTotalContentHeight() == Approx(162.0f).margin(0.01f));
+    // Total: 86 + 79 + 16 = 181
+    REQUIRE(container.getTotalContentHeight() == Approx(181.0f).margin(0.01f));
 }
 
 TEST_CASE("getLane returns correct IArpLane for each mixed type",
@@ -555,9 +554,9 @@ TEST_CASE("getLane returns correct IArpLane for each mixed type",
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(editorLane);
@@ -574,8 +573,8 @@ TEST_CASE("getLane returns correct IArpLane for each mixed type",
 
     // Verify expanded heights correspond to the specific lane types
     REQUIRE(lane0->getExpandedHeight() == Approx(86.0f).margin(0.01f));
-    REQUIRE(lane1->getExpandedHeight() == Approx(60.0f).margin(0.01f));
-    REQUIRE(lane2->getExpandedHeight() == Approx(44.0f).margin(0.01f));
+    REQUIRE(lane1->getExpandedHeight() == Approx(79.0f).margin(0.01f));
+    REQUIRE(lane2->getExpandedHeight() == Approx(63.0f).margin(0.01f));
 
     // Verify getView returns a non-null CView for each
     REQUIRE(lane0->getView() != nullptr);
@@ -587,19 +586,19 @@ TEST_CASE("getLane returns correct IArpLane for each mixed type",
 // Collapse/Expand Integration Cycle Tests (T074)
 // ==============================================================================
 
-TEST_CASE("Full collapse/expand cycle: ArpModifierLane collapses to 16px, expands to 60px",
+TEST_CASE("Full collapse/expand cycle: ArpModifierLane collapses to 16px, expands to 79px",
           "[arp_lane_container][collapse_cycle][T074]") {
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
 
     container.addLane(editorLane);
     container.addLane(modifierLane);
 
-    // Initial state: both expanded -> 86 + 60 = 146
-    REQUIRE(container.getTotalContentHeight() == Approx(146.0f).margin(0.01f));
+    // Initial state: both expanded -> 86 + 79 = 165
+    REQUIRE(container.getTotalContentHeight() == Approx(165.0f).margin(0.01f));
 
     // Collapse modifier lane
     modifierLane->setCollapsed(true);
@@ -610,23 +609,23 @@ TEST_CASE("Full collapse/expand cycle: ArpModifierLane collapses to 16px, expand
     // Expand modifier lane back
     modifierLane->setCollapsed(false);
     REQUIRE_FALSE(modifierLane->isCollapsed());
-    // Modifier height restored to 60.0f -> total = 146
-    REQUIRE(container.getTotalContentHeight() == Approx(146.0f).margin(0.01f));
+    // Modifier height restored to 79.0f -> total = 165
+    REQUIRE(container.getTotalContentHeight() == Approx(165.0f).margin(0.01f));
 }
 
-TEST_CASE("Full collapse/expand cycle: ArpConditionLane collapses to 16px, expands to 44px",
+TEST_CASE("Full collapse/expand cycle: ArpConditionLane collapses to 16px, expands to 63px",
           "[arp_lane_container][collapse_cycle][T074]") {
     auto container = makeContainer();
 
     auto* editorLane = makeArpLane(86.0f);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(editorLane);
     container.addLane(conditionLane);
 
-    // Initial state: both expanded -> 86 + 44 = 130
-    REQUIRE(container.getTotalContentHeight() == Approx(130.0f).margin(0.01f));
+    // Initial state: both expanded -> 86 + 63 = 149
+    REQUIRE(container.getTotalContentHeight() == Approx(149.0f).margin(0.01f));
 
     // Collapse condition lane
     conditionLane->setCollapsed(true);
@@ -637,40 +636,40 @@ TEST_CASE("Full collapse/expand cycle: ArpConditionLane collapses to 16px, expan
     // Expand condition lane back
     conditionLane->setCollapsed(false);
     REQUIRE_FALSE(conditionLane->isCollapsed());
-    // Condition height restored to 44.0f -> total = 130
-    REQUIRE(container.getTotalContentHeight() == Approx(130.0f).margin(0.01f));
+    // Condition height restored to 63.0f -> total = 149
+    REQUIRE(container.getTotalContentHeight() == Approx(149.0f).margin(0.01f));
 }
 
 TEST_CASE("Collapse all new lane types individually, container recalculates each time",
           "[arp_lane_container][collapse_cycle][T074]") {
     auto container = makeContainer();
 
-    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modifierLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modifierLane->setNumSteps(8);
-    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* conditionLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     conditionLane->setNumSteps(8);
 
     container.addLane(modifierLane);
     container.addLane(conditionLane);
 
-    // Both expanded: 60 + 44 = 104
-    REQUIRE(container.getTotalContentHeight() == Approx(104.0f).margin(0.01f));
+    // Both expanded: 79 + 63 = 142
+    REQUIRE(container.getTotalContentHeight() == Approx(142.0f).margin(0.01f));
 
-    // Collapse modifier: 16 + 44 = 60
+    // Collapse modifier: 16 + 63 = 79
     modifierLane->setCollapsed(true);
-    REQUIRE(container.getTotalContentHeight() == Approx(60.0f).margin(0.01f));
+    REQUIRE(container.getTotalContentHeight() == Approx(79.0f).margin(0.01f));
 
     // Collapse condition: 16 + 16 = 32
     conditionLane->setCollapsed(true);
     REQUIRE(container.getTotalContentHeight() == Approx(32.0f).margin(0.01f));
 
-    // Expand modifier: 60 + 16 = 76
+    // Expand modifier: 79 + 16 = 95
     modifierLane->setCollapsed(false);
-    REQUIRE(container.getTotalContentHeight() == Approx(76.0f).margin(0.01f));
+    REQUIRE(container.getTotalContentHeight() == Approx(95.0f).margin(0.01f));
 
-    // Expand condition: 60 + 44 = 104
+    // Expand condition: 79 + 63 = 142
     conditionLane->setCollapsed(false);
-    REQUIRE(container.getTotalContentHeight() == Approx(104.0f).margin(0.01f));
+    REQUIRE(container.getTotalContentHeight() == Approx(142.0f).margin(0.01f));
 }
 
 // ==============================================================================
@@ -680,7 +679,7 @@ TEST_CASE("Collapse all new lane types individually, container recalculates each
 TEST_CASE("T087: ArpModifierLane and ArpLaneEditor step 0 content x-origin are equal (FR-049)",
           "[arp_lane_container][alignment][T087][FR-049]") {
     // Construct ArpModifierLane and ArpLaneEditor at the same width and step count
-    auto* modLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modLane->setNumSteps(8);
     auto* pitchLane = new ArpLaneEditor(CRect(0, 0, 500, 200), nullptr, -1);
     pitchLane->setLaneType(ArpLaneType::kPitch);
@@ -716,10 +715,10 @@ TEST_CASE("T088: All lane types have equal step origins and widths at same step 
     pitchLane->setLaneType(ArpLaneType::kPitch);
     pitchLane->setNumSteps(8);
 
-    auto* modLane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* modLane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     modLane->setNumSteps(8);
 
-    auto* condLane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* condLane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     condLane->setNumSteps(8);
 
     // --- Compute step content left origin for each lane type ---

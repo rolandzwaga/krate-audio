@@ -13,7 +13,7 @@ using Catch::Approx;
 
 // Helper: create a default 500x60 ArpModifierLane
 static ArpModifierLane* makeModifierLane(int numSteps = 16) {
-    auto* lane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* lane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     lane->setNumSteps(numSteps);
     return lane;
 }
@@ -31,14 +31,14 @@ TEST_CASE("ArpModifierLane default stepFlags all 0x01 (kStepActive)", "[arp_modi
 }
 
 TEST_CASE("ArpModifierLane numSteps defaults to 16", "[arp_modifier_lane][construction]") {
-    auto* lane = new ArpModifierLane(CRect(0, 0, 500, 60), nullptr, -1);
+    auto* lane = new ArpModifierLane(CRect(0, 0, 500, 79), nullptr, -1);
     REQUIRE(lane->getNumSteps() == 16);
     lane->forget();
 }
 
-TEST_CASE("ArpModifierLane getExpandedHeight = kBodyHeight + kHeight = 60.0f", "[arp_modifier_lane][construction]") {
+TEST_CASE("ArpModifierLane getExpandedHeight = kBodyHeight + kHeight = 79.0f", "[arp_modifier_lane][construction]") {
     auto* lane = makeModifierLane();
-    REQUIRE(lane->getExpandedHeight() == Approx(60.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(79.0f).margin(0.01f));
     lane->forget();
 }
 
@@ -303,7 +303,7 @@ TEST_CASE("ArpModifierLane collapse round-trip: collapse -> verify 16px -> expan
 
     // Initial state: expanded
     REQUIRE_FALSE(lane->isCollapsed());
-    REQUIRE(lane->getExpandedHeight() == Approx(60.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(79.0f).margin(0.01f));
     REQUIRE(lane->getCollapsedHeight() == Approx(16.0f).margin(0.01f));
 
     // Collapse
@@ -314,7 +314,7 @@ TEST_CASE("ArpModifierLane collapse round-trip: collapse -> verify 16px -> expan
     // Expand
     lane->setCollapsed(false);
     REQUIRE_FALSE(lane->isCollapsed());
-    REQUIRE(lane->getExpandedHeight() == Approx(60.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(79.0f).margin(0.01f));
 
     lane->forget();
 }

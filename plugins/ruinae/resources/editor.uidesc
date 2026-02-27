@@ -539,7 +539,7 @@
         <!-- ActionFxExpand Phaser/Harmonizer tags removed -->
 
         <!-- Envelope Expand/Collapse Chevrons (UI-only actions) -->
-        <!-- Env expand tags removed — envelopes always visible in persistent strip -->
+        <!-- Env expand tags removed — envelopes in Tab_Sound -->
 
         <!-- Settings Drawer Toggle + Click-Outside Overlay (UI-only actions) -->
         <control-tag name="ActionSettingsToggle" tag="10020"/>
@@ -2322,7 +2322,7 @@
     <!-- Tab Content Templates                                         -->
     <!-- ============================================================ -->
 
-    <template name="Tab_Mod" size="1400, 620" class="CViewContainer" transparent="true">
+    <template name="Tab_Mod" size="1400, 760" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
         <!-- Toolbar: Mod Source selector + Macro knobs                    -->
@@ -2390,7 +2390,7 @@
 
     </template>
 
-    <template name="Tab_Fx" size="1400, 620" class="CViewContainer" transparent="true">
+    <template name="Tab_Fx" size="1400, 760" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
         <!-- Global Filter strip                                           -->
@@ -3005,7 +3005,7 @@
 
     </template>
 
-    <template name="Tab_Seq" size="1400, 620" class="CViewContainer" transparent="true">
+    <template name="Tab_Seq" size="1400, 760" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
         <!-- TRANCE GATE (compressed to ~100px, FR-001, SC-006)            -->
@@ -3013,7 +3013,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 4"
-            size="1384, 100"
+            size="1384, 125"
             fieldset-title="TRANCE GATE"
             fieldset-color="trance-gate"
             fieldset-radius="4"
@@ -3022,40 +3022,40 @@
             transparent="true"
         >
             <!-- Toolbar row: Enable, Step count, Presets, Transform buttons -->
-            <view class="ToggleButton" origin="8, 2" size="40, 18"
+            <view class="ToggleButton" origin="8, 14" size="40, 18"
                   control-tag="TranceGateEnabled" default-value="0"
                   tooltip="Enable trance gate"
                   transparent="false"/>
-            <view class="CTextLabel" origin="56, 4" size="60, 14"
+            <view class="CTextLabel" origin="56, 16" size="60, 14"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true" title="Step count"/>
-            <view class="COptionMenu" origin="116, 2" size="56, 18"
+            <view class="COptionMenu" origin="116, 14" size="56, 18"
                   control-tag="TranceGateNumSteps" default-value="0.467"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Pattern preset dropdown -->
-            <view class="COptionMenu" origin="200, 2" size="110, 18"
+            <view class="COptionMenu" origin="200, 14" size="110, 18"
                   custom-id="preset-dropdown" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
             <!-- Transform buttons -->
-            <view class="ActionButton" origin="320, 0" size="22, 22"
+            <view class="ActionButton" origin="320, 12" size="22, 22"
                   control-tag="ActionTransformInvert" default-value="0"
                   icon-style="invert" tooltip="Invert pattern"
                   transparent="false"/>
-            <view class="ActionButton" origin="344, 0" size="22, 22"
+            <view class="ActionButton" origin="344, 12" size="22, 22"
                   control-tag="ActionTransformShiftLeft" default-value="0"
                   icon-style="shift-left" tooltip="Shift pattern left"
                   transparent="false"/>
-            <view class="ActionButton" origin="368, 0" size="22, 22"
+            <view class="ActionButton" origin="368, 12" size="22, 22"
                   control-tag="ActionTransformShiftRight" default-value="0"
                   icon-style="shift-right" tooltip="Shift pattern right"
                   transparent="false"/>
 
             <!-- Sync toggle -->
-            <view class="ToggleButton" origin="400, 2" size="50, 18"
+            <view class="ToggleButton" origin="400, 14" size="50, 18"
                   control-tag="TranceGateSync"
                   default-value="1.0"
                   title="Sync"
@@ -3067,7 +3067,7 @@
                   transparent="true"/>
 
             <!-- Rate (hidden when sync active) -->
-            <view class="CViewContainer" origin="458, 0" size="48, 24"
+            <view class="CViewContainer" origin="458, 12" size="48, 24"
                   custom-view-name="TranceGateRateGroup" transparent="true"
                   visible="false">
                 <view class="ArcKnob" origin="0, 0" size="20, 20"
@@ -3078,7 +3078,7 @@
                       text-alignment="center" transparent="true" title="Rate"/>
             </view>
             <!-- Note Value (visible when sync active) -->
-            <view class="CViewContainer" origin="458, 0" size="80, 24"
+            <view class="CViewContainer" origin="458, 12" size="80, 24"
                   custom-view-name="TranceGateNoteValueGroup" transparent="true">
                 <view class="COptionMenu" origin="0, 2" size="70, 18"
                       control-tag="TranceGateNoteValue"
@@ -3090,40 +3090,40 @@
             </view>
 
             <!-- Parameter knobs (compact 20x20) -->
-            <view class="ArcKnob" origin="546, 0" size="20, 20"
+            <view class="ArcKnob" origin="546, 12" size="20, 20"
                   control-tag="TranceGateDepth" default-value="0.5"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="538, 18" size="36, 10"
+            <view class="CTextLabel" origin="538, 30" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Depth"/>
-            <view class="ArcKnob" origin="586, 0" size="20, 20"
+            <view class="ArcKnob" origin="586, 12" size="20, 20"
                   control-tag="TranceGateAttack" default-value="0.2"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="578, 18" size="36, 10"
+            <view class="CTextLabel" origin="578, 30" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Attack"/>
-            <view class="ArcKnob" origin="626, 0" size="20, 20"
+            <view class="ArcKnob" origin="626, 12" size="20, 20"
                   control-tag="TranceGateRelease" default-value="0.3"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="618, 18" size="36, 10"
+            <view class="CTextLabel" origin="618, 30" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Release"/>
-            <view class="ArcKnob" origin="666, 0" size="20, 20"
+            <view class="ArcKnob" origin="666, 12" size="20, 20"
                   control-tag="TranceGatePhaseOffset" default-value="0.0"
                   arc-color="trance-gate" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="658, 18" size="36, 10"
+            <view class="CTextLabel" origin="658, 30" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
 
             <!-- Euclidean toggle + controls -->
-            <view class="ToggleButton" origin="1252, 2" size="22, 22"
+            <view class="ToggleButton" origin="1252, 14" size="22, 22"
                   control-tag="TranceGateEuclideanEnabled" default-value="0"
                   tooltip="Enable euclidean mode"
                   transparent="false"/>
-            <view class="CTextLabel" origin="1239, 22" size="52, 10"
+            <view class="CTextLabel" origin="1239, 34" size="52, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Euclidean"/>
-            <view class="CViewContainer" origin="1280, 0" size="100, 28"
+            <view class="CViewContainer" origin="1280, 12" size="100, 28"
                   custom-view-name="EuclideanControlsGroup" transparent="true">
                 <view class="ActionButton" origin="0, 0" size="22, 22"
                       control-tag="ActionEuclideanRegen" default-value="0"
@@ -3143,13 +3143,13 @@
                       text-alignment="center" transparent="true" title="Rotate"/>
             </view>
 
-            <!-- Step Pattern Editor (thin bar area, ~70px) -->
-            <view class="StepPatternEditor" origin="8, 28" size="1368, 70"
+            <!-- Step Pattern Editor -->
+            <view class="StepPatternEditor" origin="8, 42" size="1368, 81"
                   transparent="false"/>
         </view>
 
         <!-- 4px visual divider between Trance Gate and Arpeggiator (FR-003) -->
-        <view class="CViewContainer" origin="8, 104" size="1384, 4"
+        <view class="CViewContainer" origin="8, 129" size="1384, 4"
               background-color="#FFFFFF18" transparent="false"/>
 
         <!-- ============================================================ -->
@@ -3157,8 +3157,8 @@
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
-            origin="8, 108"
-            size="1384, 508"
+            origin="8, 133"
+            size="1384, 623"
             fieldset-title="ARPEGGIATOR"
             fieldset-color="arpeggiator"
             fieldset-radius="4"
@@ -3268,14 +3268,14 @@
                   text-alignment="center" transparent="true" title="Swing"/>
 
             <!-- ArpLaneContainer: arp lane viewport (FR-002, FR-014, FR-019) -->
-            <view class="ArpLaneContainer" origin="8, 86" size="1368, 340"
-                  viewport-height="390"
+            <view class="ArpLaneContainer" origin="8, 86" size="1368, 455"
+                  viewport-height="505"
                   transparent="false"/>
 
             <!-- ============================================================ -->
             <!-- BOTTOM BAR: Generative Controls (081-interaction-polish US6) -->
             <!-- ============================================================ -->
-            <view class="CViewContainer" origin="8, 428" size="1368, 74"
+            <view class="CViewContainer" origin="8, 543" size="1368, 74"
                   transparent="true">
 
                 <!-- EUCLIDEAN SECTION -->
@@ -3368,7 +3368,7 @@
     </template>
 
     <!-- Tab_Sound: contains all current UI content with adjusted coordinates -->
-    <template name="Tab_Sound" size="1400, 620" class="CViewContainer" transparent="true">
+    <template name="Tab_Sound" size="1400, 760" class="CViewContainer" transparent="true">
 
         <!-- Row background containers -->
         <view class="CViewContainer" origin="0, 0" size="1400, 140" transparent="true"/>
@@ -3753,59 +3753,12 @@
                   transparent="true"/>
         </view>
 
-    </template>
-
-    <!-- ================================================================ -->
-    <!-- Main Editor Template (1400x800)                                   -->
-    <!-- ================================================================ -->
-
-    <template name="editor" size="1400, 800" class="CViewContainer"
-              background-color="bg-main">
-
         <!-- ============================================================ -->
-        <!-- Top Bar (persistent across all tabs)                          -->
-        <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 0" size="1400, 40" transparent="true">
-
-            <!-- Plugin title -->
-            <view class="CTextLabel" origin="12, 6" size="100, 28"
-                  title="RUINAE"
-                  font="~ NormalFontVeryBig"
-                  font-color="text-light"
-                  text-alignment="left"
-                  transparent="true"/>
-
-            <!-- Tab selector (SOUND | MOD | FX | SEQ) -->
-            <view class="IconSegmentButton" origin="120, 6" size="320, 28"
-                  control-tag="MainTab"
-                  segment-names="SOUND,MOD,FX,SEQ"
-                  font="~ NormalFont"
-                  text-color="text-secondary"
-                  text-color-highlighted="text-light"
-                  frame-color="frame-dropdown"
-                  gradient="Default TextButton Gradient"
-                  gradient-highlighted="Default TextButton Gradient Highlighted"
-                  round-radius="4"
-                  transparent="true"/>
-
-        </view>
-
-        <!-- ============================================================ -->
-        <!-- Tab Content Area (UIViewSwitchContainer)                      -->
-        <!-- ============================================================ -->
-        <view class="UIViewSwitchContainer" origin="0, 40" size="1400, 620"
-              template-switch-control="MainTab"
-              template-names="Tab_Sound,Tab_Mod,Tab_Fx,Tab_Seq"
-              animation-style="fade"
-              animation-time="120"
-              transparent="true"/>
-
-        <!-- ============================================================ -->
-        <!-- Persistent Envelope Strip (visible on all tabs)               -->
+        <!-- ENVELOPES (Row 3)                                             -->
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
-            origin="8, 664"
+            origin="8, 274"
             size="1384, 132"
             fieldset-title="ENVELOPES"
             fieldset-color="envelopes"
@@ -3859,6 +3812,60 @@
                       text-color="text-secondary"/>
             </view>
         </view>
+
+    </template>
+
+    <!-- ================================================================ -->
+    <!-- Main Editor Template (1400x800)                                   -->
+    <!-- ================================================================ -->
+
+    <template name="editor" size="1400, 800" class="CViewContainer"
+              background-color="bg-main">
+
+        <!-- ============================================================ -->
+        <!-- Top Bar (persistent across all tabs)                          -->
+        <!-- ============================================================ -->
+        <view class="CViewContainer" origin="0, 0" size="1400, 40" transparent="true">
+
+            <!-- Plugin title -->
+            <view class="CTextLabel" origin="12, 6" size="100, 28"
+                  title="RUINAE"
+                  font="~ NormalFontVeryBig"
+                  font-color="text-light"
+                  text-alignment="left"
+                  transparent="true"/>
+
+            <!-- Tab selector (SOUND | MOD | FX | SEQ) -->
+            <view class="IconSegmentButton" origin="120, 6" size="320, 28"
+                  control-tag="MainTab"
+                  segment-names="SOUND,MOD,FX,SEQ"
+                  font="~ NormalFont"
+                  text-color="text-secondary"
+                  text-color-highlighted="text-light"
+                  frame-color="frame-dropdown"
+                  gradient="Default TextButton Gradient"
+                  gradient-highlighted="Default TextButton Gradient Highlighted"
+                  round-radius="4"
+                  transparent="true"/>
+
+            <!-- Presets button (Spec 083) -->
+            <view custom-view-name="PresetBrowserButton" origin="460, 8" size="80, 25"/>
+
+            <!-- Save button (Spec 083) -->
+            <view custom-view-name="SavePresetButton" origin="550, 8" size="60, 25"/>
+
+        </view>
+
+        <!-- ============================================================ -->
+        <!-- Tab Content Area (UIViewSwitchContainer)                      -->
+        <!-- ============================================================ -->
+        <view class="UIViewSwitchContainer" origin="0, 40" size="1400, 760"
+              template-switch-control="MainTab"
+              template-names="Tab_Sound,Tab_Mod,Tab_Fx,Tab_Seq"
+              animation-style="fade"
+              animation-time="120"
+              transparent="true"/>
+
 
         <!-- ============================================================ -->
         <!-- Settings Drawer Click-Outside Overlay                         -->

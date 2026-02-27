@@ -55,8 +55,8 @@ public:
     static constexpr int kRowCount = 4;
     static constexpr float kLeftMargin = 40.0f;
     static constexpr float kDotRadius = 4.0f;
-    static constexpr float kBodyHeight = 44.0f;
-    static constexpr float kRowHeight = 11.0f;  // kBodyHeight / kRowCount
+    static constexpr float kBodyHeight = 63.0f;
+    static constexpr float kRowHeight = 15.75f;  // kBodyHeight / kRowCount
 
     // Row definitions
     static constexpr const char* kRowLabels[4] = {"Rest", "Tie", "Slide", "Accent"};
@@ -442,8 +442,12 @@ public:
             if (!wasHovered)
                 setDirty(true);
         } else {
+            // Body area (dots) — show pointer cursor
+            float bodyTop = static_cast<float>(vs.top) + ArpLaneHeader::kHeight;
+            float bodyBottom = bodyTop + kBodyHeight;
+            bool inBody = where.y >= bodyTop && where.y < bodyBottom;
             if (auto* frame = getFrame())
-                frame->setCursor(VSTGUI::kCursorDefault);
+                frame->setCursor(inBody ? VSTGUI::kCursorHand : VSTGUI::kCursorDefault);
             if (wasHovered)
                 setDirty(true);
         }
@@ -470,9 +474,9 @@ private:
         VSTGUI::CRect bodyRect(bodyLeft, bodyTop, bodyRight, bodyBottom);
         context->drawRect(bodyRect, VSTGUI::kDrawFilled);
 
-        // Row labels in left margin (dimmed accent color)
-        VSTGUI::CColor labelColor = darkenColor(accentColor_, 0.5f);
-        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8.0);
+        // Row labels in left margin
+        VSTGUI::CColor labelColor = darkenColor(accentColor_, 0.8f);
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 10.0);
         context->setFont(font);
         context->setFontColor(labelColor);
 
@@ -492,7 +496,7 @@ private:
         float stepWidth = contentWidth / static_cast<float>(numSteps_);
 
         VSTGUI::CColor activeDotColor = accentColor_;
-        VSTGUI::CColor inactiveDotColor = darkenColor(accentColor_, 0.25f);
+        VSTGUI::CColor inactiveDotColor = darkenColor(accentColor_, 0.5f);
 
         for (int i = 0; i < numSteps_; ++i) {
             uint8_t flags = getStepFlags(i);
@@ -608,7 +612,7 @@ private:
         float miniDotRadius = 2.0f;
 
         VSTGUI::CColor activeDotColor = accentColor_;
-        VSTGUI::CColor dimDotColor = darkenColor(accentColor_, 0.25f);
+        VSTGUI::CColor dimDotColor = darkenColor(accentColor_, 0.5f);
 
         for (int i = 0; i < numSteps_; ++i) {
             uint8_t flags = getStepFlags(i);
@@ -647,7 +651,7 @@ private:
     VSTGUI::CColor accentColor_{192, 112, 124, 255};
     uint32_t stepFlagBaseParamId_ = 0;
     uint32_t playheadParamId_ = 0;
-    float expandedHeight_ = kBodyHeight + ArpLaneHeader::kHeight;  // 44.0f + 16.0f = 60.0f
+    float expandedHeight_ = kBodyHeight + ArpLaneHeader::kHeight;  // 63.0f + 16.0f = 79.0f
     ParameterCallback paramCallback_;
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;

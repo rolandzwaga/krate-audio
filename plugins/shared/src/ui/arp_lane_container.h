@@ -154,7 +154,8 @@ public:
     }
 
     [[nodiscard]] float getMaxScrollOffset() const {
-        return std::max(0.0f, totalContentHeight_ - viewportHeight_);
+        float visibleHeight = static_cast<float>(getViewSize().getHeight());
+        return std::max(0.0f, totalContentHeight_ - visibleHeight);
     }
 
     /// Apply a wheel scroll delta (deltaY from MouseWheelEvent).
