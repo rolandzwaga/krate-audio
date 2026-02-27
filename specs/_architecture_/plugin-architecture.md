@@ -595,8 +595,22 @@ Tools for generating factory presets at build time:
 |------|------|---------|
 | `preset_generator` | `tools/preset_generator.cpp` | Iterum factory presets |
 | `disrumpo_preset_generator` | `tools/disrumpo_preset_generator.cpp` | Disrumpo factory presets (120 across 11 categories) |
+| `ruinae_preset_generator` | `tools/ruinae_preset_generator.cpp` | Ruinae factory arp presets (14 across 6 arp categories) |
 
-Generate presets: `cmake --build build --target generate_disrumpo_presets`
+Generate presets:
+- `cmake --build build --target generate_disrumpo_presets`
+- `cmake --build build --target generate_ruinae_presets`
+
+#### RuinaePresetState + serialize() Pattern (Spec 082)
+
+The Ruinae preset generator uses a `RuinaePresetState` struct that mirrors the complete `Processor::getState()` serialization format. Each sub-struct (GlobalState, OscAState, ..., ArpState) holds default values matching the corresponding `*Params` struct initializers. The `serialize()` method writes all fields in the exact same order as `getState()`, producing binary-identical output for default presets.
+
+This pattern ensures that:
+1. Factory presets are bit-compatible with the plugin's state format without linking against the VST3 SDK
+2. Adding new parameters requires updating both `Processor::getState()`/`setState()` AND `RuinaePresetState::serialize()` in the generator
+3. Round-trip fidelity is validated by tests that load generated presets via `setState()` and verify all parameter values
+
+The same `BinaryWriter` + `writeVstPreset()` + `PresetDef` pattern is shared by all three generator tools.
 
 ### Disrumpo Preset Categories (11 + All)
 
@@ -613,6 +627,34 @@ Generate presets: `cmake --build build --target generate_disrumpo_presets`
 | Chaos | 10 | Chaos models (Lorenz, Rossler, Henon, Chua) |
 | Dynamic | 10 | Modulation-driven (envelope follower, transient) |
 | Lo-Fi | 10 | Degradation (bitcrush, sample reduce, aliasing) |
+
+### Ruinae Preset Categories (12 + All)
+
+**Synth categories** (6):
+
+| Category | Focus |
+|----------|-------|
+| Pads | Warm, evolving pad sounds |
+| Leads | Bright, cutting lead sounds |
+| Bass | Punchy low-end sounds |
+| Textures | Ambient, atmospheric sounds |
+| Rhythmic | Rhythmic, percussive sounds |
+| Experimental | Exotic, experimental sounds |
+
+**Arp categories** (6, added in Spec 082):
+
+| Category | Count | Focus |
+|----------|-------|-------|
+| Arp Classic | 3 | Standard arp modes (Up, Down, UpDown) with uniform patterns |
+| Arp Acid | 2 | TB-303-inspired patterns with slide/accent modifiers |
+| Arp Euclidean | 3 | Bjorklund-algorithm rhythmic patterns (tresillo, bossa, samba) |
+| Arp Polymetric | 2 | Lanes with different lengths for evolving polymetric patterns |
+| Arp Generative | 2 | Spice/humanize-driven probabilistic patterns |
+| Arp Performance | 2 | Fill conditions and probability-weighted step triggers |
+
+Each arp factory preset contains both a synth patch and an arp pattern. The "Arp " prefix distinguishes arp categories from synth categories in the preset browser.
+
+**Config**: `plugins/ruinae/src/preset/ruinae_preset_config.h` (`makeRuinaePresetConfig()` and `getRuinaeTabLabels()`)
 
 ---
 

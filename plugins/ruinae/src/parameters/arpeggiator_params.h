@@ -853,12 +853,36 @@ inline Steinberg::tresult formatArpParam(
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }
-            // Modifier lane steps: display as hex
+            // Modifier lane steps: display as human-readable flag abbreviations (FR-022)
             if (id >= kArpModifierLaneStep0Id && id <= kArpModifierLaneStep31Id) {
-                char8 text[32];
                 int step = std::clamp(
                     static_cast<int>(std::round(value * 255.0)), 0, 255);
-                snprintf(text, sizeof(text), "0x%02X", step);
+                // ArpStepFlags: kStepActive=0x01, kStepTie=0x02, kStepSlide=0x04, kStepAccent=0x08
+                constexpr int kActive = 0x01;
+                constexpr int kTie    = 0x02;
+                constexpr int kSlide  = 0x04;
+                constexpr int kAccent = 0x08;
+                if (!(step & kActive)) {
+                    UString(string, 128).fromAscii("REST");
+                    return kResultOk;
+                }
+                // Active step -- build abbreviation string from flags
+                char8 text[32];
+                text[0] = '\0';
+                if (step & kTie) {
+                    snprintf(text, sizeof(text), "TIE");
+                } else {
+                    bool hasSlide = (step & kSlide) != 0;
+                    bool hasAccent = (step & kAccent) != 0;
+                    if (hasSlide && hasAccent)
+                        snprintf(text, sizeof(text), "SL AC");
+                    else if (hasSlide)
+                        snprintf(text, sizeof(text), "SL");
+                    else if (hasAccent)
+                        snprintf(text, sizeof(text), "AC");
+                    else
+                        snprintf(text, sizeof(text), "--");
+                }
                 UString(string, 128).fromAscii(text);
                 return kResultOk;
             }

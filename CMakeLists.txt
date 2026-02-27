@@ -325,6 +325,23 @@ add_custom_target(generate_disrumpo_presets
     VERBATIM
 )
 
+add_executable(ruinae_preset_generator
+    tools/ruinae_preset_generator.cpp
+)
+target_compile_features(ruinae_preset_generator PRIVATE cxx_std_20)
+set_target_properties(ruinae_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Custom target to regenerate Ruinae factory arp presets on demand
+# Usage: cmake --build build --target generate_ruinae_presets
+add_custom_target(generate_ruinae_presets
+    COMMAND ruinae_preset_generator "${CMAKE_SOURCE_DIR}/plugins/ruinae/resources/presets"
+    DEPENDS ruinae_preset_generator
+    COMMENT "Generating Ruinae factory arp presets"
+    VERBATIM
+)
+
 # ==============================================================================
 # Control Testbench (UI Development Tool)
 # ==============================================================================

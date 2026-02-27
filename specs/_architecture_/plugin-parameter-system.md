@@ -95,7 +95,7 @@ Processor::setState()
 | **3280** | **Arpeggiator Fill Toggle** | **`arpeggiator_params.h`** | **1** |
 | **3290-3292** | **Arpeggiator Spice/Dice/Humanize** | **`arpeggiator_params.h`** | **3** |
 
-**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3239 (reserved gap before condition lane; reserved for use before Phase 9), 3273-3279 (reserved gap between condition step IDs and fill toggle; reserved for future condition-lane extensions), 3281-3289 (reserved), 3293-3299 (reserved for future arp phases)
+**Reserved gaps**: 3011-3019 (future base arp params), 3053-3059 (velocity lane metadata), 3093-3099 (gate lane metadata), 3133-3139 (reserved), 3173-3179 (reserved), 3182-3189 (reserved), 3223-3229 (reserved), 3234-3239 (reserved gap before condition lane), 3273-3279 (reserved gap between condition step IDs and fill toggle; reserved for future condition-lane extensions), 3281-3289 (reserved), 3294-3299 (reserved for future arp extensions)
 
 **Sentinel**: `kArpEndId = 3299`, `kNumParameters = 3300` (updated in Spec 074 to accommodate ratchet lane IDs 3190-3222; unchanged by Specs 075, 076, and 077)
 
@@ -769,7 +769,8 @@ Extend `ArpeggiatorParams` when adding new arpeggiator features:
 - **Phase 9 (Spice/Dice + Humanize)**: Spice/Dice/Humanize parameters added in 3290-3292 ID range (done -- see [Spice/Dice/Humanize Parameters section](#arpeggiator-spicedicehumanize-parameters-spec-077) below)
 - **Phase 9.5 (Ratchet Swing)**: Ratchet swing parameter added at ID 3293 (done -- see [Ratchet Swing Parameter section](#arpeggiator-ratchet-swing-parameter) below)
 - **Phase 10 (Modulation Integration)**: Expose arp params as modulation destinations (done -- no new parameter IDs; 5 arp params exposed as mod destinations via RuinaeModDest enum extension + processor-side mod offset application in `applyParamsToEngine()`; see [Arp Modulation Destination Pattern](plugin-architecture.md#arp-modulation-destination-pattern-spec-078))
-- **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes expected
+- **Phase 11 (Full Arp UI)**: UI changes only, no parameter pack changes (done -- see [Plugin UI Patterns](plugin-ui-patterns.md))
+- **Phase 12 (Factory Presets & Polish)**: No new parameters. Factory arp presets generated via `tools/ruinae_preset_generator.cpp` using `RuinaePresetState::serialize()` (done -- see [Factory Preset Generator](plugin-architecture.md#factory-preset-generator)). 6 arp preset subcategories added to `RuinaePresetConfig`. State round-trip verified for all arp fields.
 
 The sentinel `kArpEndId = 3299` accommodates future lane parameters and arp extensions without requiring an ID allocation change.
 
@@ -795,7 +796,10 @@ Follows the `trance_gate_params.h` pattern of registering per-step parameters in
 | 3060-3092 | Gate | 3060 | 3061 | 3092 | 33 |
 | 3093-3099 | *(reserved for gate lane metadata)* | - | - | - | 0 |
 | 3100-3132 | Pitch | 3100 | 3101 | 3132 | 33 |
-| 3133-3199 | *(reserved for future phases 5-8)* | - | - | - | 0 |
+| 3133-3139 | *(reserved)* | - | - | - | 0 |
+| 3140-3181 | Modifier (see [Modifier section](#arpeggiator-modifier-parameters-spec-073)) | 3140 | 3141 | 3181 | 35 |
+| 3182-3189 | *(reserved)* | - | - | - | 0 |
+| 3190-3222 | Ratchet (see [Ratchet section](#arpeggiator-ratchet-lane-parameters-spec-074)) | 3190 | 3191 | 3222 | 33 |
 
 **Note**: ID 3100 was formerly the `kNumParameters` sentinel value. The sentinel was simultaneously updated to 3200 when pitch lane IDs were allocated, so there is no collision.
 
@@ -1234,7 +1238,7 @@ Controlled randomization (Spice/Dice) and timing humanization for the arpeggiato
 | 3291 | Arp Dice | Discrete (int) | 0-1 | 0 (idle) | `kCanAutomate` |
 | 3292 | Arp Humanize | Continuous (float) | 0.0-1.0 | 0.0 (0%) | `kCanAutomate` |
 
-All 3 parameters have `kCanAutomate` and none have `kIsHidden` -- all are user-facing controls. The UI for Spice knob, Dice button, and Humanize knob is deferred to Phase 11 (Arpeggiator UI). IDs 3293-3299 are reserved for future phases.
+All 3 parameters have `kCanAutomate` and none have `kIsHidden` -- all are user-facing controls. The UI for Spice knob, Dice button, and Humanize knob was added in Phase 11 (Arpeggiator UI). IDs 3294-3299 are reserved for future arp extensions.
 
 ### Denormalization
 
