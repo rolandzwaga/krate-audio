@@ -281,23 +281,23 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 
 ### 7.1 Tests (Write FIRST -- Must FAIL before implementation)
 
-- [ ] T076 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Transport start resets arp to step 1"`: configure TestableProcessor with arp enabled, Basic Up 1/16 pattern, play 4 blocks (advancing the step counter), then simulate transport stop + restart (ctx.isPlaying=false for one block then ctx.isPlaying=true), verify the first note event after restart has the same pitch as the first note event from step 1 -- covers FR-023, SC-007
-- [ ] T077 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Transport stop sends all notes off"`: configure arp playing, collect note-on events for 2 blocks, then call `process()` with ctx.isPlaying=false, collect all events in that block, verify a note-off event exists for every note-on that had not already been followed by a note-off -- covers FR-024, SC-007
-- [ ] T078 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Rapid stop-start (within 2 blocks) clears state cleanly"`: play 2 blocks, stop transport (1 block), immediately start again (next block), verify no duplicate note-on events and the first event is from step 1 -- covers FR-026
-- [ ] T079 [US5] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp transport]"` -- if any fail, investigate `ArpeggiatorCore` transport handling and patch the gap
+- [X] T076 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Transport start resets arp to step 1"`: configure TestableProcessor with arp enabled, Basic Up 1/16 pattern, play 4 blocks (advancing the step counter), then simulate transport stop + restart (ctx.isPlaying=false for one block then ctx.isPlaying=true), verify the first note event after restart has the same pitch as the first note event from step 1 -- covers FR-023, SC-007
+- [X] T077 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Transport stop sends all notes off"`: configure arp playing, collect note-on events for 2 blocks, then call `process()` with ctx.isPlaying=false, collect all events in that block, verify a note-off event exists for every note-on that had not already been followed by a note-off -- covers FR-024, SC-007
+- [X] T078 [P] [US5] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Rapid stop-start (within 2 blocks) clears state cleanly"`: play 2 blocks, stop transport (1 block), immediately start again (next block), verify no duplicate note-on events and the first event is from step 1 -- covers FR-026
+- [X] T079 [US5] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp transport]"` -- if any fail, investigate `ArpeggiatorCore` transport handling and patch the gap
 
 ### 7.2 Fix Any Transport Gaps
 
-- [ ] T080 [US5] If T079 reveals transport handling gaps, update `ArpeggiatorCore` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` or `plugins/ruinae/src/processor/processor.cpp` to fix the failing scenario -- covers FR-023 through FR-026
-- [ ] T081 [US5] Re-run tests after any transport fixes: `ruinae_tests.exe "[arp transport]"` -- verify all pass
+- [X] T080 [US5] If T079 reveals transport handling gaps, update `ArpeggiatorCore` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` or `plugins/ruinae/src/processor/processor.cpp` to fix the failing scenario -- covers FR-023 through FR-026
+- [X] T081 [US5] Re-run tests after any transport fixes: `ruinae_tests.exe "[arp transport]"` -- verify all pass
 
 ### 7.3 Cross-Platform Verification
 
-- [ ] T082 [US5] Confirm `arp_integration_test.cpp` does not use `std::isnan`/`std::isfinite`/`std::isinf` without the `-fno-fast-math` guard; add to CMakeLists.txt if needed
+- [X] T082 [US5] Confirm `arp_integration_test.cpp` does not use `std::isnan`/`std::isfinite`/`std::isinf` without the `-fno-fast-math` guard; add to CMakeLists.txt if needed
 
 ### 7.4 Commit
 
-- [ ] T083 [US5] **Commit US5 work** with message "Add transport integration tests and fix any transport gaps (US5)"
+- [X] T083 [US5] **Commit US5 work** with message "Add transport integration tests and fix any transport gaps (US5)"
 
 ---
 
@@ -311,20 +311,20 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 
 ### 8.1 Tests (Write FIRST -- Must FAIL before implementation)
 
-- [ ] T084 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Preset change during playback flushes all notes within same block"`: start arp playing with preset A (length=16), collect note-on events, then within the next `process()` call simulate a preset state change (call `setState()` with preset B params before calling `process()`), verify that the output events for that block contain note-off for all currently-sounding notes before any new note-on events appear -- covers FR-027, SC-008
-- [ ] T085 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Preset change to shorter pattern does not cause index-out-of-bounds"`: start with pattern length=32, change to preset with pattern length=8, run 4 more process blocks, verify no assertion failures and all events are within valid note range -- covers FR-030
-- [ ] T086 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"All note-on events have matching note-off after preset change"`: play preset A for 3 blocks, change to preset B, play 3 more blocks, stop transport; collect all MIDI events over entire sequence; verify note-on count == note-off count with matching pitch+channel -- covers FR-028, SC-008
-- [ ] T087 [US6] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp preset change]"` -- if any fail, investigate the preset change handling in `processor.cpp` and `ArpeggiatorCore`
+- [X] T084 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Preset change during playback flushes all notes within same block"`: start arp playing with preset A (length=16), collect note-on events, then within the next `process()` call simulate a preset state change (call `setState()` with preset B params before calling `process()`), verify that the output events for that block contain note-off for all currently-sounding notes before any new note-on events appear -- covers FR-027, SC-008
+- [X] T085 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"Preset change to shorter pattern does not cause index-out-of-bounds"`: start with pattern length=32, change to preset with pattern length=8, run 4 more process blocks, verify no assertion failures and all events are within valid note range -- covers FR-030
+- [X] T086 [P] [US6] In `plugins/ruinae/tests/unit/processor/arp_integration_test.cpp`, add test `"All note-on events have matching note-off after preset change"`: play preset A for 3 blocks, change to preset B, play 3 more blocks, stop transport; collect all MIDI events over entire sequence; verify note-on count == note-off count with matching pitch+channel -- covers FR-028, SC-008
+- [X] T087 [US6] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp preset change]"` -- if any fail, investigate the preset change handling in `processor.cpp` and `ArpeggiatorCore`
 
 ### 8.2 Fix Any Preset Change Gaps
 
-- [ ] T088 [US6] If T087 reveals preset change gaps, update the note-off flush logic in `plugins/ruinae/src/processor/processor.cpp` (the section in `process()` that detects `setState()`-triggered parameter changes) or `ArpeggiatorCore::setEnabled()` to emit note-offs atomically within the same block before applying new state -- covers FR-027, FR-028
-- [ ] T089 [US6] If T087 reveals index-out-of-bounds from lane length changes, update `ArpLane` or the lane position clamping in `ArpeggiatorCore` to clamp step index to `newLength - 1` on length change -- covers FR-030
-- [ ] T090 [US6] Re-run tests: `ruinae_tests.exe "[arp preset change]"` -- verify all pass
+- [X] T088 [US6] If T087 reveals preset change gaps, update the note-off flush logic in `plugins/ruinae/src/processor/processor.cpp` (the section in `process()` that detects `setState()`-triggered parameter changes) or `ArpeggiatorCore::setEnabled()` to emit note-offs atomically within the same block before applying new state -- covers FR-027, FR-028
+- [X] T089 [US6] If T087 reveals index-out-of-bounds from lane length changes, update `ArpLane` or the lane position clamping in `ArpeggiatorCore` to clamp step index to `newLength - 1` on length change -- covers FR-030
+- [X] T090 [US6] Re-run tests: `ruinae_tests.exe "[arp preset change]"` -- verify all pass
 
 ### 8.3 Cross-Platform Verification
 
-- [ ] T091 [US6] Confirm `arp_integration_test.cpp` does not use `std::isnan`/`std::isfinite` without the `-fno-fast-math` guard in `plugins/ruinae/tests/CMakeLists.txt`
+- [X] T091 [US6] Confirm `arp_integration_test.cpp` does not use `std::isnan`/`std::isfinite` without the `-fno-fast-math` guard in `plugins/ruinae/tests/CMakeLists.txt`
 
 ### 8.4 Commit
 
@@ -342,17 +342,17 @@ Final Phase (Polish, clang-tidy, pluginval, compliance)
 
 ### 9.1 Tests (Write FIRST)
 
-- [ ] T093 [US7] Create `plugins/ruinae/tests/unit/arp_preset_e2e_test.cpp` with test `"E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending note sequence"`: (a) build a `RuinaePresetState` in test with Basic Up 1/16 settings (mode=Up, tempoSync=1, noteValue=7, gateLength=80%, octaveRange=1, velocity=0.8 uniform, modifier=kStepActive all, 8-step patterns); (b) serialize it using the same field order as `saveArpParams()` and call `setState()`; (c) send MIDI note-on events for C4 (60), E4 (64), G4 (67) into the processor; (d) run `process()` for blocks equivalent to 2 full arp cycles at 120 BPM, 1/16 rate, 44.1kHz, 512-sample blocks; (e) collect all emitted note events; (f) assert the first 8 note pitches match the expected ascending sequence; (g) assert all velocities are approximately 0.8 * 127. IMPORTANT: Before hardcoding the expected pitch sequence `[60, 64, 67, 60, 64, 67, 60, 64]`, first run `ArpeggiatorCore` with mode=Up and 3 held notes (C-E-G) against the actual implementation to confirm how it cycles through notes relative to the 8-step lane lengths. The exact repeating sequence depends on how `ArpeggiatorCore` wraps 3 held notes over the 8-step pattern; verify this against the implementation before encoding it as a hardcoded expected value in the test. Document the confirmed sequence as a comment in the test. -- covers SC-011
-- [ ] T094 [US7] Add `arp_preset_e2e_test.cpp` to the source list in `plugins/ruinae/tests/CMakeLists.txt`
-- [ ] T095 [US7] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp e2e]"` -- verify test passes
+- [X] T093 [US7] Create `plugins/ruinae/tests/unit/arp_preset_e2e_test.cpp` with test `"E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending note sequence"`: (a) build a `RuinaePresetState` in test with Basic Up 1/16 settings (mode=Up, tempoSync=1, noteValue=7, gateLength=80%, octaveRange=1, velocity=0.8 uniform, modifier=kStepActive all, 8-step patterns); (b) serialize it using the same field order as `saveArpParams()` and call `setState()`; (c) send MIDI note-on events for C4 (60), E4 (64), G4 (67) into the processor; (d) run `process()` for blocks equivalent to 2 full arp cycles at 120 BPM, 1/16 rate, 44.1kHz, 512-sample blocks; (e) collect all emitted note events; (f) assert the first 8 note pitches match the expected ascending sequence; (g) assert all velocities are approximately 0.8 * 127. IMPORTANT: Before hardcoding the expected pitch sequence `[60, 64, 67, 60, 64, 67, 60, 64]`, first run `ArpeggiatorCore` with mode=Up and 3 held notes (C-E-G) against the actual implementation to confirm how it cycles through notes relative to the 8-step lane lengths. The exact repeating sequence depends on how `ArpeggiatorCore` wraps 3 held notes over the 8-step pattern; verify this against the implementation before encoding it as a hardcoded expected value in the test. Document the confirmed sequence as a comment in the test. -- covers SC-011
+- [X] T094 [US7] Add `arp_preset_e2e_test.cpp` to the source list in `plugins/ruinae/tests/CMakeLists.txt`
+- [X] T095 [US7] Build and run: `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe "[arp e2e]"` -- verify test passes
 
 ### 9.2 Cross-Platform Verification
 
-- [ ] T096 [US7] Check `arp_preset_e2e_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage; add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed
+- [X] T096 [US7] Check `arp_preset_e2e_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage; add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed
 
 ### 9.3 Commit
 
-- [ ] T097 [US7] **Commit US7 work** with message "Add end-to-end arp preset playback test (SC-011)"
+- [X] T097 [US7] **Commit US7 work** with message "Add end-to-end arp preset playback test (SC-011)"
 
 ---
 
