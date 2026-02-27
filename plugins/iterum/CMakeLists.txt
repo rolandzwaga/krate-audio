@@ -151,6 +151,51 @@ if(SMTG_MAC)
         message(WARNING "[ITERUM] AUv2 builds require Xcode generator (-G Xcode)")
     endif()
 
+    # ==========================================================================
+    # Audio Unit v3 Support (macOS + Xcode only)
+    # ==========================================================================
+    option(SMTG_ENABLE_AUV3_BUILDS "Enable AudioUnit v3 builds" OFF)
+
+    if(XCODE AND SMTG_ENABLE_AUV3_BUILDS)
+        message(STATUS "[ITERUM] AudioUnit v3 build enabled")
+
+        list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
+        include(SMTG_AddVST3AuV3)
+
+        set(AUV3_SHARED "${CMAKE_SOURCE_DIR}/plugins/shared/resources/auv3")
+        set(AUV3_LOCAL  "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3")
+
+        set(auv3_app_sources
+            "${AUV3_SHARED}/macOS/Sources/AppDelegate.h"
+            "${AUV3_SHARED}/macOS/Sources/AppDelegate.m"
+            "${AUV3_SHARED}/macOS/Sources/ViewController.h"
+            "${AUV3_SHARED}/effect/ViewController.m"
+            "${AUV3_LOCAL}/audiounitconfig.h"
+        )
+
+        set(auv3_ui_resources
+            "${AUV3_SHARED}/effect/Main.storyboard"
+            "${AUV3_SHARED}/Shared/drumLoop.wav"
+        )
+
+        smtg_add_auv3_app(${PLUGIN_NAME}_AUV3
+            "macOS"
+            "${PLUGIN_NAME} AUv3"
+            "com.krateaudio.iterum.auv3"
+            "${AUV3_LOCAL}/audiounitconfig.h"
+            "${AUV3_LOCAL}/macOS/Iterum.entitlements"
+            "${auv3_app_sources}"
+            "${auv3_ui_resources}"
+            "${AUV3_SHARED}/macOS/Info.plist"
+            "${AUV3_SHARED}/Shared/Info.plist"
+            ${PLUGIN_NAME}
+        )
+
+        message(STATUS "[ITERUM] AudioUnit v3 target: ${PLUGIN_NAME}_AUV3")
+    elseif(SMTG_ENABLE_AUV3_BUILDS AND NOT XCODE)
+        message(WARNING "[ITERUM] AUv3 builds require Xcode generator (-G Xcode)")
+    endif()
+
 elseif(SMTG_WIN)
     target_sources(${PLUGIN_NAME}
         PRIVATE

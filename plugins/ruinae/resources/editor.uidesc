@@ -3759,7 +3759,7 @@
         <view
             class="FieldsetContainer"
             origin="8, 274"
-            size="1384, 132"
+            size="1384, 207"
             fieldset-title="ENVELOPES"
             fieldset-color="envelopes"
             fieldset-radius="4"
@@ -3768,48 +3768,123 @@
             transparent="true"
         >
             <!-- AMP Envelope -->
-            <view class="CViewContainer" origin="8, 14" size="440, 106"
+            <view class="CViewContainer" origin="8, 14" size="440, 181"
                   custom-view-name="EnvGroupAmp" transparent="true">
-                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                <view class="CTextLabel" origin="0, 30" size="14, 117"
                       font="~ NormalFontSmaller" font-color="amp-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="AMP"/>
-                <view class="ADSRDisplay" origin="16, 0" size="422, 106"
+                <view class="ADSRDisplay" origin="16, 0" size="422, 139"
                       control-tag="AmpEnvAttack"
                       fill-color="amp-env-fill" stroke-color="amp-env"
                       control-point-color="amp-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <!-- ADSR Knobs -->
+                <view class="ArcKnob" origin="55, 143" size="28, 28"
+                      control-tag="AmpEnvAttack"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="51, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="A"/>
+                <view class="ArcKnob" origin="161, 143" size="28, 28"
+                      control-tag="AmpEnvDecay"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="157, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="D"/>
+                <view class="ArcKnob" origin="267, 143" size="28, 28"
+                      control-tag="AmpEnvSustain"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="263, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="S"/>
+                <view class="ArcKnob" origin="373, 143" size="28, 28"
+                      control-tag="AmpEnvRelease"
+                      arc-color="amp-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="369, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="amp-env"
+                      text-alignment="center" transparent="true" title="R"/>
             </view>
 
             <!-- FILTER Envelope -->
-            <view class="CViewContainer" origin="456, 14" size="440, 106"
+            <view class="CViewContainer" origin="456, 14" size="440, 181"
                   custom-view-name="EnvGroupFilter" transparent="true">
-                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                <view class="CTextLabel" origin="0, 30" size="14, 117"
                       font="~ NormalFontSmaller" font-color="filter-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="FILTER"/>
-                <view class="ADSRDisplay" origin="16, 0" size="422, 106"
+                <view class="ADSRDisplay" origin="16, 0" size="422, 139"
                       control-tag="FilterEnvAttack"
                       fill-color="filter-env-fill" stroke-color="filter-env"
                       control-point-color="filter-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <!-- ADSR Knobs -->
+                <view class="ArcKnob" origin="55, 143" size="28, 28"
+                      control-tag="FilterEnvAttack"
+                      arc-color="filter-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="51, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="filter-env"
+                      text-alignment="center" transparent="true" title="A"/>
+                <view class="ArcKnob" origin="161, 143" size="28, 28"
+                      control-tag="FilterEnvDecay"
+                      arc-color="filter-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="157, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="filter-env"
+                      text-alignment="center" transparent="true" title="D"/>
+                <view class="ArcKnob" origin="267, 143" size="28, 28"
+                      control-tag="FilterEnvSustain"
+                      arc-color="filter-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="263, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="filter-env"
+                      text-alignment="center" transparent="true" title="S"/>
+                <view class="ArcKnob" origin="373, 143" size="28, 28"
+                      control-tag="FilterEnvRelease"
+                      arc-color="filter-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="369, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="filter-env"
+                      text-alignment="center" transparent="true" title="R"/>
             </view>
 
             <!-- MOD Envelope -->
-            <view class="CViewContainer" origin="904, 14" size="472, 106"
+            <view class="CViewContainer" origin="904, 14" size="472, 181"
                   custom-view-name="EnvGroupMod" transparent="true">
-                <view class="CTextLabel" origin="0, 30" size="14, 90"
+                <view class="CTextLabel" origin="0, 30" size="14, 117"
                       font="~ NormalFontSmaller" font-color="mod-env"
                       text-alignment="center" transparent="true"
                       text-rotation="270" title="MOD"/>
-                <view class="ADSRDisplay" origin="16, 0" size="454, 106"
+                <view class="ADSRDisplay" origin="16, 0" size="454, 139"
                       control-tag="ModEnvAttack"
                       fill-color="mod-env-fill" stroke-color="mod-env"
                       control-point-color="mod-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <!-- ADSR Knobs -->
+                <view class="ArcKnob" origin="59, 143" size="28, 28"
+                      control-tag="ModEnvAttack"
+                      arc-color="mod-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="55, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="mod-env"
+                      text-alignment="center" transparent="true" title="A"/>
+                <view class="ArcKnob" origin="173, 143" size="28, 28"
+                      control-tag="ModEnvDecay"
+                      arc-color="mod-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="169, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="mod-env"
+                      text-alignment="center" transparent="true" title="D"/>
+                <view class="ArcKnob" origin="287, 143" size="28, 28"
+                      control-tag="ModEnvSustain"
+                      arc-color="mod-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="283, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="mod-env"
+                      text-alignment="center" transparent="true" title="S"/>
+                <view class="ArcKnob" origin="401, 143" size="28, 28"
+                      control-tag="ModEnvRelease"
+                      arc-color="mod-env" guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="397, 171" size="28, 10"
+                      font="~ NormalFontSmaller" font-color="mod-env"
+                      text-alignment="center" transparent="true" title="R"/>
             </view>
         </view>
 

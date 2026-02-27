@@ -275,12 +275,17 @@ jobs:
           PLUGIN: ${{ needs.version.outputs.plugin }}
           PLUGIN_NAME: ${{ needs.version.outputs.plugin_name }}
         run: |
-          # Create staging directories for both VST3 and AU
+          # Create staging directories for VST3, AU, and AUv3
           mkdir -p staging/Library/Audio/Plug-Ins/VST3
           mkdir -p staging/Library/Audio/Plug-Ins/Components
           # Move VST3 and AU bundles to appropriate locations
           mv artifact/${PLUGIN_NAME}.vst3 staging/Library/Audio/Plug-Ins/VST3/
           mv artifact/${PLUGIN_NAME}.component staging/Library/Audio/Plug-Ins/Components/
+          # Stage AUv3 app if present
+          if [ -d "artifact/${PLUGIN_NAME} AUv3.app" ]; then
+            mkdir -p "staging/Applications"
+            mv "artifact/${PLUGIN_NAME} AUv3.app" "staging/Applications/"
+          fi
           # Create factory presets directory and copy freshly generated presets
           mkdir -p "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}"
           cp -r presets/* "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}/"

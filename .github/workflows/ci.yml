@@ -228,7 +228,7 @@ jobs:
       # Note: SMTG_ENABLE_AUV2_BUILDS enables Audio Unit v2 build via VST3 SDK AU wrapper
       # Note: SMTG_CODE_SIGN_IDENTITY_MAC="-" uses ad-hoc signing (no keychain required in CI)
       - name: Configure CMake
-        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
+        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
 
       - name: Build DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -242,17 +242,17 @@ jobs:
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
 
-      - name: Build Iterum, AU, and Validator
+      - name: Build Iterum, AU, AUv3, and Validator
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU validator --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU Iterum_AUV3 validator --parallel
 
-      - name: Build Disrumpo and AU
+      - name: Build Disrumpo, AU, and AUv3
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU Disrumpo_AUV3 --parallel
 
-      - name: Build Ruinae, AU, and Tests
+      - name: Build Ruinae, AU, AUv3, and Tests
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU ruinae_tests --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU Ruinae_AUV3 ruinae_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -307,6 +307,17 @@ jobs:
           sleep 2
           auval -v aumu Ruin KrAt
 
+      # Verify AUv3 bundle structure
+      - name: Verify AUv3 Bundle Structure
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          for PLUGIN in "Iterum" "Disrumpo" "Ruinae"; do
+            APP="build/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
+            test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+            test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in ${PLUGIN} AUv3"; exit 1; }
+            echo "[${PLUGIN}] AUv3 bundle OK"
+          done
+
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
         if: always()
@@ -320,6 +331,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.component
+            build/${{ env.BUILD_TYPE }}/Iterum AUv3.app
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifacts
@@ -330,6 +342,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component
+            build/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifacts
@@ -340,6 +353,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.component
+            build/${{ env.BUILD_TYPE }}/Ruinae AUv3.app
           if-no-files-found: warn
 
   # Linux build (optional per constitution - Platform Support Matrix)
