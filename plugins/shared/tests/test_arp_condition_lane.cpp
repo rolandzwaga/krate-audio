@@ -13,7 +13,7 @@ using Catch::Approx;
 
 // Helper: create a default 500x44 ArpConditionLane
 static ArpConditionLane* makeConditionLane(int numSteps = 8) {
-    auto* lane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* lane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     lane->setNumSteps(numSteps);
     return lane;
 }
@@ -31,14 +31,14 @@ TEST_CASE("ArpConditionLane default stepConditions all 0 (Always)", "[arp_condit
 }
 
 TEST_CASE("ArpConditionLane numSteps defaults to 8", "[arp_condition_lane][construction]") {
-    auto* lane = new ArpConditionLane(CRect(0, 0, 500, 44), nullptr, -1);
+    auto* lane = new ArpConditionLane(CRect(0, 0, 500, 63), nullptr, -1);
     REQUIRE(lane->getNumSteps() == 8);
     lane->forget();
 }
 
-TEST_CASE("ArpConditionLane getExpandedHeight = kBodyHeight + kHeight = 44.0f", "[arp_condition_lane][construction]") {
+TEST_CASE("ArpConditionLane getExpandedHeight = kBodyHeight + kHeight = 63.0f", "[arp_condition_lane][construction]") {
     auto* lane = makeConditionLane();
-    REQUIRE(lane->getExpandedHeight() == Approx(44.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(63.0f).margin(0.01f));
     lane->forget();
 }
 
@@ -287,7 +287,7 @@ TEST_CASE("ArpConditionLane collapse round-trip: collapse -> verify 16px -> expa
 
     // Initial state: expanded
     REQUIRE_FALSE(lane->isCollapsed());
-    REQUIRE(lane->getExpandedHeight() == Approx(44.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(63.0f).margin(0.01f));
     REQUIRE(lane->getCollapsedHeight() == Approx(16.0f).margin(0.01f));
 
     // Collapse
@@ -298,7 +298,7 @@ TEST_CASE("ArpConditionLane collapse round-trip: collapse -> verify 16px -> expa
     // Expand
     lane->setCollapsed(false);
     REQUIRE_FALSE(lane->isCollapsed());
-    REQUIRE(lane->getExpandedHeight() == Approx(44.0f).margin(0.01f));
+    REQUIRE(lane->getExpandedHeight() == Approx(63.0f).margin(0.01f));
 
     lane->forget();
 }

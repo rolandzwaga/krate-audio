@@ -48,6 +48,16 @@ Two classes with the same name in the same namespace = undefined behavior (garba
 | `KrateDSP` | `Krate::DSP` | Shared DSP primitives and processors |
 | `KratePluginsShared` | `Krate::Plugins` | Shared preset management and UI components |
 
+### Plugins Using KratePluginsShared
+
+| Plugin | Preset Config | State Stream Strategy | Spec |
+|--------|---------------|----------------------|------|
+| Iterum | `makeIterumPresetConfig()` | Host delegation | 010 |
+| Disrumpo | `makeDisrumpoPresetConfig()` | Controller-side serialization | 010 |
+| Ruinae | `makeRuinaePresetConfig()` | Host delegation | 083 |
+
+See [Plugin Architecture > Preset Browser Integration Registry](plugin-architecture.md#preset-browser-integration-registry) for details on state stream strategies and integration gotchas.
+
 ### Adding Preset Support to a New Plugin
 
 ```cpp

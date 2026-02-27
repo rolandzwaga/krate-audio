@@ -51,7 +51,7 @@ public:
     static constexpr int kMaxSteps = 32;
     static constexpr int kMinSteps = 2;
     static constexpr int kConditionCount = 18;
-    static constexpr float kBodyHeight = 28.0f;
+    static constexpr float kBodyHeight = 47.0f;
 
     /// Left margin for step content alignment across all arp lane types (FR-049).
     /// Must match ArpLaneEditor::kStepContentLeftMargin and ArpModifierLane::kLeftMargin.
@@ -525,11 +525,15 @@ public:
         }
 
         // Clear button hover if we moved off buttons
-        if (wasHovered) {
+        if (wasHovered)
             setDirty(true);
-            if (auto* frame = getFrame())
-                frame->setCursor(VSTGUI::kCursorDefault);
-        }
+
+        // Body area (dots) — show pointer cursor
+        float bodyTop = static_cast<float>(vs.top) + ArpLaneHeader::kHeight;
+        float bodyBottom = bodyTop + kBodyHeight;
+        bool inBody = where.y >= bodyTop && where.y < bodyBottom;
+        if (auto* frame = getFrame())
+            frame->setCursor(inBody ? VSTGUI::kCursorHand : VSTGUI::kCursorDefault);
 
         return VSTGUI::kMouseEventHandled;
     }
@@ -559,7 +563,7 @@ private:
         float contentWidth = bodyRight - contentLeft;
         float cellWidth = contentWidth / static_cast<float>(numSteps_);
 
-        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 8.0);
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 10.0);
         context->setFont(font);
 
         // Cell background colors
@@ -585,7 +589,7 @@ private:
             if (condIdx != 0) {
                 context->setFontColor(accentColor_);
             } else {
-                VSTGUI::CColor dimColor = darkenColor(accentColor_, 0.4f);
+                VSTGUI::CColor dimColor = darkenColor(accentColor_, 0.8f);
                 context->setFontColor(dimColor);
             }
 
@@ -664,7 +668,7 @@ private:
         float cellWidth = previewWidth / static_cast<float>(numSteps_);
 
         VSTGUI::CColor filledColor = accentColor_;
-        VSTGUI::CColor dimColor = darkenColor(accentColor_, 0.25f);
+        VSTGUI::CColor dimColor = darkenColor(accentColor_, 0.5f);
 
         for (int i = 0; i < numSteps_; ++i) {
             uint8_t condIdx = stepConditions_[static_cast<size_t>(i)];
@@ -698,7 +702,7 @@ private:
     VSTGUI::CColor accentColor_{124, 144, 176, 255};
     uint32_t stepConditionBaseParamId_ = 0;
     uint32_t playheadParamId_ = 0;
-    float expandedHeight_ = kBodyHeight + ArpLaneHeader::kHeight;  // 28.0f + 16.0f = 44.0f
+    float expandedHeight_ = kBodyHeight + ArpLaneHeader::kHeight;  // 47.0f + 16.0f = 63.0f
     ParameterCallback paramCallback_;
     EditCallback beginEditCallback_;
     EditCallback endEditCallback_;

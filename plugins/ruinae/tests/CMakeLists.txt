@@ -75,6 +75,9 @@ add_executable(ruinae_tests
     # Arp End-to-End Preset Playback Test (082-presets-polish)
     unit/arp_preset_e2e_test.cpp
 
+    # Preset Browser Tests (083-ruinae-preset-browser)
+    unit/controller/preset_browser_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

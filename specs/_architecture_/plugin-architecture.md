@@ -158,6 +158,68 @@ To add preset support to a new plugin:
 | `SavePresetDialogView` | Inline save dialog with name field and category selector |
 | `SearchDebouncer` | Debounced text input for search field |
 
+### Preset Browser Integration Registry
+
+All three Krate Audio plugins use the shared preset infrastructure:
+
+| Plugin | Config | Tab Count | Factory Presets | State Strategy | Spec |
+|--------|--------|-----------|-----------------|----------------|------|
+| Iterum | `makeIterumPresetConfig()` | 12 | 19 (11 delay categories) | Host delegation (`getComponentState()`) | 010 |
+| Disrumpo | `makeDisrumpoPresetConfig()` | 12 | 120 (11 distortion categories) | Controller-side serialization | 010 |
+| Ruinae | `makeRuinaePresetConfig()` | 13 | 14 (6 arp categories) | Host delegation (`getComponentState()`) | 083 |
+
+Each plugin wires `stateProvider` and `loadProvider` callbacks in `Controller::initialize()`, creates `PresetBrowserView` and `SavePresetDialogView` overlays in `didOpen()`, and nulls the view pointers in `willClose()`.
+
+### createComponentStateStream Patterns
+
+Two strategies exist for obtaining the serialized processor state in the controller:
+
+**Host delegation (Iterum, Ruinae):**
+```cpp
+Steinberg::MemoryStream* createComponentStateStream() {
+    auto handler = getComponentHandler();
+    FUnknownPtr<IComponent> component(handler);
+    if (!component) return nullptr;
+    auto* stream = new Steinberg::MemoryStream();
+    if (component->getState(stream) != kResultOk) { stream->release(); return nullptr; }
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+```
+Delegates to `IComponent::getState()` on the host component handler. Zero duplicated serialization code. Preferred for plugins with complex state (Ruinae has 37+ parameter packs, voice routes, and arp lane data).
+
+**Controller-side serialization (Disrumpo):**
+```cpp
+Steinberg::MemoryStream* createComponentStateStream() {
+    auto* stream = new Steinberg::MemoryStream();
+    IBStreamer streamer(stream, kLittleEndian);
+    streamer.writeInt32(kCurrentStateVersion);
+    // ... manually write every parameter from controller's cached values ...
+    return stream;
+}
+```
+Manually re-serializes all parameters from the controller's `getParamNormalized()` values. Works but creates 200-500 lines of duplicated serialization logic that must stay in sync with `Processor::getState()`. Used in Disrumpo where the pattern predates the host-delegation approach.
+
+**Recommendation:** Use host delegation for new integrations. It is strictly better: zero code duplication, always in sync with the processor's serialization format, and handles complex state (voice routes, arp lanes) without any controller-side knowledge.
+
+### Ruinae-Specific Integration Gotchas (Spec 083)
+
+Ruinae's `loadComponentStateWithNotify()` must handle three non-trivial serialization details that other plugins do not have:
+
+**1. Voice Route Skip (item 20 in serialization order):**
+The processor state contains 16 voice modulation routes (224 bytes) between the MonoMode params and the delay-enabled flag. These are processor-internal data not exposed as VST parameters. `loadComponentStateWithNotify()` must read and discard all 16 routes (each: int8 source, int8 dest, float amount, int8 curve, float smoothMs, int8 scale, int8 bypass, int8 active) to maintain stream position. Failing to skip these bytes will desynchronize all subsequent parameter reads.
+
+**2. int8 FX Enable Flags (items 21, 22, 24, 36):**
+Four FX enable flags (delay, reverb, phaser, harmonizer) are stored as `int8` between parameter packs rather than as part of a parameter pack. These must be read as `int8`, converted to `0.0` or `1.0`, and passed to `editParamWithNotify()`:
+```cpp
+int8 flag;
+streamer.readInt8(flag);
+editParamWithNotify(kDelayEnabledId, flag != 0 ? 1.0 : 0.0);
+```
+
+**3. Arpeggiator Lane Handling (item 37):**
+The arp parameter pack (`loadArpParamsToController`) includes base arp params (44 bytes), velocity/gate/pitch lanes (396 bytes), modifier lane (140 bytes), ratchet lane (132 bytes), Euclidean data (16 bytes), condition lane (136 bytes), spice/humanize (8 bytes), and ratchet swing (4 bytes). All arp data uses EOF-safe loading. The `loadArpParamsToController` template function handles all of this complexity -- it accepts any callable with signature `(ParamID, double)` and can be passed `editParamWithNotify` directly.
+
 ### StepPatternEditor (Spec 046)
 **Path:** [step_pattern_editor.h](../../plugins/shared/src/ui/step_pattern_editor.h) | **Since:** 0.1.0
 

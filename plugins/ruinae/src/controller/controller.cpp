@@ -18,6 +18,8 @@
 #include "ui/mod_heatmap.h"
 #include "ui/euclidean_dot_display.h"
 #include "ui/category_tab_bar.h"
+#include "ui/preset_browser_view.h"
+#include "ui/save_preset_dialog_view.h"
 
 // Parameter pack headers (for registration, display, and controller sync)
 #include "parameters/global_params.h"
@@ -53,7 +55,9 @@
 
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstcomponent.h"
 #include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/events.h"
 
 #include <cmath>
@@ -90,6 +94,62 @@ public:
         }
         VST3Editor::onMouseEvent(event, frame);
     }
+};
+
+// ==============================================================================
+// PresetBrowserButton: Opens the preset browser (Spec 083)
+// ==============================================================================
+class PresetBrowserButton : public VSTGUI::CTextButton {
+public:
+    PresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
+        : CTextButton(size, nullptr, -1, "Presets")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->openPresetBrowser();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Ruinae::Controller* controller_ = nullptr;
+};
+
+// ==============================================================================
+// SavePresetButton: Opens the save preset dialog (Spec 083)
+// ==============================================================================
+class SavePresetButton : public VSTGUI::CTextButton {
+public:
+    SavePresetButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
+        : CTextButton(size, nullptr, -1, "Save")
+        , controller_(controller)
+    {
+        setFrameColor(VSTGUI::CColor(80, 80, 85));
+        setTextColor(VSTGUI::CColor(255, 255, 255));
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->openSavePresetDialog();
+            return VSTGUI::kMouseEventHandled;
+        }
+        return CTextButton::onMouseDown(where, buttons);
+    }
+
+private:
+    Ruinae::Controller* controller_ = nullptr;
 };
 
 } // anonymous namespace
@@ -228,6 +288,16 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     // ==========================================================================
     presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
         makeRuinaePresetConfig(), nullptr, this);
+
+    // Wire state provider callback for preset saving (Spec 083, FR-003)
+    presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return this->createComponentStateStream();
+    });
+
+    // Wire load provider callback for preset loading (Spec 083, FR-003)
+    presetManager_->setLoadProvider([this](Steinberg::IBStream* state) -> bool {
+        return this->loadComponentStateWithNotify(state);
+    });
 
     return Steinberg::kResultTrue;
 }
@@ -1018,6 +1088,22 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             }
         }
     }
+
+    // Spec 083: Create preset browser and save dialog overlay views.
+    // Views are initially hidden and shown via openPresetBrowser()/openSavePresetDialog().
+    if (presetManager_) {
+        auto* frame = editor->getFrame();
+        if (frame) {
+            auto frameSize = frame->getViewSize();
+            presetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+                frameSize, presetManager_.get(), getRuinaeTabLabels());
+            frame->addView(presetBrowserView_);
+
+            savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(
+                frameSize, presetManager_.get());
+            frame->addView(savePresetDialogView_);
+        }
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1086,6 +1172,10 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
         // Clear clipboard on editor close (editor-scoped, per data-model.md)
         clipboard_.clear();
+
+        // Spec 083: Clear preset browser view pointers (views are owned by frame)
+        presetBrowserView_ = nullptr;
+        savePresetDialogView_ = nullptr;
 
         // 081-interaction-polish: notify processor that editor is closing (FR-012)
         {
@@ -1221,7 +1311,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct velocity lane (US1)
         velocityLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         velocityLane_->setLaneName("VEL");
         velocityLane_->setLaneType(Krate::Plugins::ArpLaneType::kVelocity);
         velocityLane_->setAccentColor(VSTGUI::CColor{208, 132, 92, 255});
@@ -1275,7 +1365,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct gate lane (US2)
         gateLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         gateLane_->setLaneName("GATE");
         gateLane_->setLaneType(Krate::Plugins::ArpLaneType::kGate);
         gateLane_->setAccentColor(VSTGUI::CColor{200, 164, 100, 255});
@@ -1329,7 +1419,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct pitch lane (080-specialized-lane-types, US5)
         pitchLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         pitchLane_->setLaneName("PITCH");
         pitchLane_->setLaneType(Krate::Plugins::ArpLaneType::kPitch);
         pitchLane_->setAccentColor(VSTGUI::CColor{108, 168, 160, 255});
@@ -1380,7 +1470,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct ratchet lane (080-specialized-lane-types, US5)
         ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
-            VSTGUI::CRect(0, 0, 500, 86), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         ratchetLane_->setLaneName("RATCH");
         ratchetLane_->setLaneType(Krate::Plugins::ArpLaneType::kRatchet);
         ratchetLane_->setAccentColor(VSTGUI::CColor{152, 128, 176, 255});
@@ -1431,7 +1521,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct modifier lane (080-specialized-lane-types, US5)
         modifierLane_ = new Krate::Plugins::ArpModifierLane(
-            VSTGUI::CRect(0, 0, 500, 60), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 79), nullptr, -1);
         modifierLane_->setLaneName("MOD");
         modifierLane_->setAccentColor(VSTGUI::CColor{192, 112, 124, 255});
         modifierLane_->setStepFlagBaseParamId(kArpModifierLaneStep0Id);
@@ -1482,7 +1572,7 @@ VSTGUI::CView* Controller::verifyView(
 
         // Construct condition lane (080-specialized-lane-types, US5)
         conditionLane_ = new Krate::Plugins::ArpConditionLane(
-            VSTGUI::CRect(0, 0, 500, 44), nullptr, -1);
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
         conditionLane_->setLaneName("COND");
         conditionLane_->setAccentColor(VSTGUI::CColor{124, 144, 176, 255});
         conditionLane_->setStepConditionBaseParamId(kArpConditionLaneStep0Id);
@@ -2497,6 +2587,9 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     xyMorphPad_ = nullptr;
     polyGroup_ = nullptr;
     monoGroup_ = nullptr;
+    ampEnvDisplay_ = nullptr;
+    filterEnvDisplay_ = nullptr;
+    modEnvDisplay_ = nullptr;
 
     // MOD tab residents
     modMatrixGrid_ = nullptr;
@@ -2539,8 +2632,6 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     arpNoteValueGroup_ = nullptr;
     presetDropdown_ = nullptr;
 
-    // NOTE: Envelope displays (ampEnvDisplay_, filterEnvDisplay_, modEnvDisplay_)
-    // are persistent (in editor template, not tab templates) — do NOT null them here.
 }
 
 void Controller::toggleSettingsDrawer() {
@@ -2835,6 +2926,168 @@ void Controller::wireCopyPasteCallbacks() {
         );
         lane->setPasteEnabled(clipboard_.hasData);
     }
+}
+
+// ==============================================================================
+// Preset Browser Methods (Spec 083)
+// ==============================================================================
+
+void Controller::openPresetBrowser() {
+    if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
+        presetBrowserView_->open("");
+    }
+}
+
+void Controller::closePresetBrowser() {
+    if (presetBrowserView_ && presetBrowserView_->isOpen()) {
+        presetBrowserView_->close();
+    }
+}
+
+void Controller::openSavePresetDialog() {
+    if (savePresetDialogView_ && !savePresetDialogView_->isOpen()) {
+        savePresetDialogView_->open("");
+    }
+}
+
+VSTGUI::CView* Controller::createCustomView(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::UIAttributes& attributes,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* /*editor*/) {
+
+    // Preset Browser Button (Spec 083)
+    if (std::strcmp(name, "PresetBrowserButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(80, 25);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new PresetBrowserButton(rect, this);
+    }
+
+    // Save Preset Button (Spec 083)
+    if (std::strcmp(name, "SavePresetButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 25);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new SavePresetButton(rect, this);
+    }
+
+    return nullptr;
+}
+
+Steinberg::MemoryStream* Controller::createComponentStateStream() {
+    // Delegate to host via IComponent::getState() -- does NOT re-serialize
+    // parameters from controller. Caller owns the returned stream.
+    Steinberg::FUnknownPtr<Steinberg::Vst::IComponent> component(getComponentHandler());
+    if (!component)
+        return nullptr;
+
+    auto* stream = new Steinberg::MemoryStream();
+    if (component->getState(stream) != Steinberg::kResultOk) {
+        stream->release();
+        return nullptr;
+    }
+
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+
+bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
+    if (!state)
+        return false;
+
+    Steinberg::IBStreamer streamer(state, kLittleEndian);
+
+    // Item 1: Read and validate version
+    Steinberg::int32 version = 0;
+    if (!streamer.readInt32(version) || version != 1)
+        return false;
+
+    // Lambda that calls editParamWithNotify instead of setParamNormalized
+    auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
+        editParamWithNotify(id, value);
+    };
+
+    // Items 2-19: Parameter packs in deterministic order (matching Processor::getState)
+    // Note: loadXxxParamsToController functions return void, matching setComponentState pattern
+    loadGlobalParamsToController(streamer, setParam);
+    loadOscAParamsToController(streamer, setParam);
+    loadOscBParamsToController(streamer, setParam);
+    loadMixerParamsToController(streamer, setParam);
+    loadFilterParamsToController(streamer, setParam);
+    loadDistortionParamsToController(streamer, setParam);
+    loadTranceGateParamsToController(streamer, setParam);
+    loadAmpEnvParamsToController(streamer, setParam);
+    loadFilterEnvParamsToController(streamer, setParam);
+    loadModEnvParamsToController(streamer, setParam);
+    loadLFO1ParamsToController(streamer, setParam);
+    loadLFO2ParamsToController(streamer, setParam);
+    loadChaosModParamsToController(streamer, setParam);
+    loadModMatrixParamsToController(streamer, setParam);
+    loadGlobalFilterParamsToController(streamer, setParam);
+    loadDelayParamsToController(streamer, setParam);
+    loadReverbParamsToController(streamer, setParam);
+    loadMonoModeParamsToController(streamer, setParam);
+
+    // Item 20: Voice routes (16 slots, processor-internal) -- read and DISCARD
+    for (int i = 0; i < 16; ++i) {
+        Steinberg::int8 dummy8 = 0;
+        float dummyF = 0;
+        if (!streamer.readInt8(dummy8) || !streamer.readInt8(dummy8) ||
+            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
+            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
+            !streamer.readInt8(dummy8) || !streamer.readInt8(dummy8))
+            return false;
+    }
+
+    // Items 21-22: FX enable flags (int8 -> 0.0/1.0)
+    Steinberg::int8 flag = 0;
+    if (!streamer.readInt8(flag)) return false;
+    editParamWithNotify(kDelayEnabledId, flag ? 1.0 : 0.0);
+    if (!streamer.readInt8(flag)) return false;
+    editParamWithNotify(kReverbEnabledId, flag ? 1.0 : 0.0);
+
+    // Item 23: Phaser params
+    loadPhaserParamsToController(streamer, setParam);
+
+    // Item 24: Phaser enable flag (int8 -> 0.0/1.0)
+    if (!streamer.readInt8(flag)) return false;
+    editParamWithNotify(kPhaserEnabledId, flag ? 1.0 : 0.0);
+
+    // Items 25-35: Remaining parameter packs
+    loadLFO1ExtendedParamsToController(streamer, setParam);
+    loadLFO2ExtendedParamsToController(streamer, setParam);
+    loadMacroParamsToController(streamer, setParam);
+    loadRunglerParamsToController(streamer, setParam);
+    loadSettingsParamsToController(streamer, setParam);
+    loadEnvFollowerParamsToController(streamer, setParam);
+    loadSampleHoldParamsToController(streamer, setParam);
+    loadRandomParamsToController(streamer, setParam);
+    loadPitchFollowerParamsToController(streamer, setParam);
+    loadTransientParamsToController(streamer, setParam);
+    loadHarmonizerParamsToController(streamer, setParam);
+
+    // Item 36: Harmonizer enable flag (int8 -> 0.0/1.0)
+    if (!streamer.readInt8(flag)) return false;
+    editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
+
+    // Item 37: Arp params (includes all lane step data)
+    loadArpParamsToController(streamer, setParam);
+
+    return true;
+}
+
+void Controller::editParamWithNotify(Steinberg::Vst::ParamID id,
+                                     Steinberg::Vst::ParamValue value) {
+    value = std::max(0.0, std::min(1.0, value));
+    beginEdit(id);
+    setParamNormalized(id, value);
+    performEdit(id, value);
+    endEdit(id);
 }
 
 } // namespace Ruinae

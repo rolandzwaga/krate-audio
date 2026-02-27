@@ -408,6 +408,16 @@ public:
         return static_cast<int>(voices_[voiceIndex].note.load(std::memory_order_relaxed));
     }
 
+    /// Update the MIDI note tracked for a voice (e.g. after a poly-legato glide).
+    /// Thread-safe (atomic write).
+    /// @param voiceIndex Voice slot index
+    /// @param note New MIDI note number (0-127)
+    void setVoiceNote(size_t voiceIndex, uint8_t note) noexcept {
+        if (voiceIndex >= kMaxVoices) return;
+        voices_[voiceIndex].note.store(static_cast<int8_t>(note),
+                                       std::memory_order_relaxed);
+    }
+
     /// Get voice lifecycle state. Thread-safe (atomic read, FR-039).
     /// @param voiceIndex Voice slot index
     /// @return Current VoiceState
