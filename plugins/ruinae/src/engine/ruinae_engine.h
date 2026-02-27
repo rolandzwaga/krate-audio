@@ -1464,6 +1464,7 @@ private:
         if (bestVoice >= 0) {
             float freq = noteProcessor_.getFrequency(note);
             voices_[static_cast<size_t>(bestVoice)].glideToFrequency(freq);
+            allocator_.setVoiceNote(static_cast<size_t>(bestVoice), note);
             noteOnTimestamps_[static_cast<size_t>(bestVoice)] = ++timestampCounter_;
         } else {
             // No active voice found, fall back to normal noteOn
