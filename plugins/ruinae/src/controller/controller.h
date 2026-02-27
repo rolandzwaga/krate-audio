@@ -129,6 +129,29 @@ public:
                                const VSTGUI::IUIDescription* description,
                                VSTGUI::VST3Editor* editor) override;
 
+    /// Create custom views (preset browser/save buttons)
+    VSTGUI::CView* createCustomView(
+        VSTGUI::UTF8StringPtr name,
+        const VSTGUI::UIAttributes& attributes,
+        const VSTGUI::IUIDescription* description,
+        VSTGUI::VST3Editor* editor) override;
+
+    // ===========================================================================
+    // Preset Browser (Spec 083)
+    // ===========================================================================
+
+    /// Open the preset browser overlay
+    void openPresetBrowser();
+
+    /// Close the preset browser overlay
+    void closePresetBrowser();
+
+    /// Open the save preset dialog overlay
+    void openSavePresetDialog();
+
+    /// Get the preset manager instance (for custom view buttons)
+    Krate::Plugins::PresetManager* getPresetManager() { return presetManager_.get(); }
+
     // ===========================================================================
     // IControlListener (for action buttons)
     // ===========================================================================
@@ -355,10 +378,38 @@ private:
     VSTGUI::CControl* diceButton_ = nullptr;
 
     // ==========================================================================
-    // Preset Browser
+    // Preset Browser (Spec 083)
     // ==========================================================================
 
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+
+    /// Preset browser overlay view (owned by frame, raw pointer)
+    Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+
+    /// Save preset dialog overlay view (owned by frame, raw pointer)
+    Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;
+
+protected:
+    // ==========================================================================
+    // Preset Loading Helpers (Spec 083)
+    // ==========================================================================
+    // Protected (not private) to enable test subclass access via `using` pattern.
+
+    /// Create a memory stream containing the current component state
+    /// Delegates to host via getComponentState() -- does NOT re-serialize
+    /// @return New MemoryStream (caller must release), or nullptr on failure
+    Steinberg::MemoryStream* createComponentStateStream();
+
+    /// Load component state from stream with host notification
+    /// Mirrors setComponentState() deserialization, but calls editParamWithNotify
+    /// @param state Stream containing component state in Processor::getState() format
+    /// @return true on success
+    bool loadComponentStateWithNotify(Steinberg::IBStream* state);
+
+    /// Edit a parameter with full host notification
+    /// Sequence: beginEdit -> setParamNormalized -> performEdit -> endEdit
+    void editParamWithNotify(Steinberg::Vst::ParamID id,
+                             Steinberg::Vst::ParamValue value);
 };
 
 } // namespace Ruinae
