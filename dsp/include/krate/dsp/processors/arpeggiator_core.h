@@ -247,7 +247,15 @@ public:
         // Latch Add: always add, never clear (pattern accumulates)
         // Latch Off: standard behavior (just add)
 
-        heldNotes_.noteOn(note, velocity);
+        // Scale quantize input (FR-009): snap note to nearest scale note
+        // before entering the held notes buffer.
+        uint8_t effectiveNote = note;
+        if (scaleQuantizeInput_ && scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
+            effectiveNote = static_cast<uint8_t>(
+                std::clamp(scaleHarmonizer_.quantizeToScale(static_cast<int>(note)), 0, 127));
+        }
+
+        heldNotes_.noteOn(effectiveNote, velocity);
 
         if (retriggerMode_ == ArpRetriggerMode::Note) {
             selector_.reset();

@@ -16403,3 +16403,147 @@ TEST_CASE("ArpeggiatorCore: ScaleMode_Pentatonic_Offset6_OctaveWrap",
     // +6 degrees from C4=60: octave 1, degree 1 -> D5=74
     CHECK(noteOns[1].note == 74);
 }
+
+// ---------------------------------------------------------------------------
+// 084-arp-scale-mode: Scale Quantize Input (User Story 3)
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_MajorC_CSharp4_SnapsToC4",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T049: quantize input ON, Major C: C#4 input -> C4 in held notes pool
+    // C# is equidistant from C and D (1 semitone each); ties snap to lower = C.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);
+    arp.noteOn(61, 100);  // C#4 -- should snap to C4=60
+
+    // Pitch offset 0, so output should be whatever is in the pool
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C#4=61 should have been snapped to C4=60 (nearest scale note, tie -> lower)
+    CHECK(noteOns[0].note == 60);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_OFF_MajorC_CSharp4_Passthrough",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T050: quantize input OFF, Major C: C#4 input -> C#4 in held notes pool (passthrough)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(false);  // OFF
+    arp.noteOn(61, 100);  // C#4 -- should pass through unchanged
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C#4=61 should pass through unchanged
+    CHECK(noteOns[0].note == 61);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_Chromatic_CSharp4_Passthrough",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T051: quantize input ON, Chromatic scale: C#4 passes through unchanged (FR-010)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Chromatic);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);  // ON, but Chromatic -> no effect
+    arp.noteOn(61, 100);  // C#4 -- should pass through unchanged
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // Chromatic scale: quantize input has no effect, C#4=61 passes through
+    CHECK(noteOns[0].note == 61);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_SwitchToChromaticStopsQuantization",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T052: switching Scale Type from non-Chromatic back to Chromatic while quantize
+    // is ON stops quantization (notes pass through).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+
+    // Start with Major scale and quantize ON
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);
+
+    // First note: C#4 should be quantized to C4
+    arp.noteOn(61, 100);
+
+    // Switch to Chromatic (quantize still ON, but should have no effect)
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Second note: C#4 should now pass through unchanged
+    arp.noteOn(61, 100);
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // The arp should have two notes in the pool: C4=60 (from first noteOn, quantized)
+    // and C#4=61 (from second noteOn, passthrough after switching to Chromatic).
+    // In Up mode, notes are played ascending: first 60, then 61.
+    REQUIRE(noteOns.size() >= 2);
+    CHECK(noteOns[0].note == 60);  // First note was quantized (Major was active)
+    CHECK(noteOns[1].note == 61);  // Second note passed through (Chromatic active)
+}
