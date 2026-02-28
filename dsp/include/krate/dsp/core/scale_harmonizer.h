@@ -11,6 +11,7 @@
 // Header-only implementation with constexpr lookup tables.
 //
 // Feature: 060-scale-interval-foundation
+// Extended: 084-arp-scale-mode (ScaleData, 16 ScaleTypes, variable-degree scales)
 // ==============================================================================
 
 #include <algorithm>
@@ -24,12 +25,25 @@
 namespace Krate::DSP {
 
 // =============================================================================
-// ScaleType Enum
+// ScaleData Struct (084-arp-scale-mode T007)
+// =============================================================================
+
+/// Fixed-size scale interval data for variable-length scales.
+/// Supports 5-note (pentatonic) through 12-note (chromatic) scales.
+/// Zero-padded beyond degreeCount for unused slots.
+struct ScaleData {
+    std::array<int, 12> intervals{};  ///< Semitone offsets from root (e.g., {0,2,4,5,7,9,11} for Major)
+    int degreeCount{0};               ///< Number of active degrees (5, 6, 7, 8, or 12)
+};
+
+// =============================================================================
+// ScaleType Enum (084-arp-scale-mode T008)
 // =============================================================================
 
 /// Scale types for diatonic harmonization.
-/// Each diatonic type (0-7) maps to a fixed array of 7 semitone offsets from root.
+/// Each type maps to a ScaleData entry with variable-length intervals.
 /// Chromatic (8) is a passthrough mode with no diatonic logic.
+/// Existing values (0-8) are stable; new values (9-15) appended for 084-arp-scale-mode.
 enum class ScaleType : uint8_t {
     Major = 0,           ///< Ionian: W-W-H-W-W-W-H  {0, 2, 4, 5, 7, 9, 11}
     NaturalMinor = 1,    ///< Aeolian: W-H-W-W-H-W-W  {0, 2, 3, 5, 7, 8, 10}
@@ -40,16 +54,21 @@ enum class ScaleType : uint8_t {
     Phrygian = 6,        ///< H-W-W-W-H-W-W  {0, 1, 3, 5, 7, 8, 10}
     Lydian = 7,          ///< W-W-W-H-W-W-H  {0, 2, 4, 6, 7, 9, 11}
     Chromatic = 8,       ///< All 12 semitones -- fixed shift, no diatonic logic
+    // New values appended for 084-arp-scale-mode
+    Locrian = 9,         ///< H-W-W-H-W-W-W  {0, 1, 3, 5, 6, 8, 10}
+    MajorPentatonic = 10,///< W-W-m3-W-m3    {0, 2, 4, 7, 9}
+    MinorPentatonic = 11,///< m3-W-W-m3-W    {0, 3, 5, 7, 10}
+    Blues = 12,          ///< m3-W-H-H-m3-W  {0, 3, 5, 6, 7, 10}
+    WholeTone = 13,      ///< W-W-W-W-W-W    {0, 2, 4, 6, 8, 10}
+    DiminishedWH = 14,   ///< W-H-W-H-W-H-W-H {0, 2, 3, 5, 6, 8, 9, 11}
+    DiminishedHW = 15,   ///< H-W-H-W-H-W-H-W {0, 1, 3, 4, 6, 7, 9, 10}
 };
 
-/// Total number of diatonic scale types (excludes Chromatic)
-inline constexpr int kNumDiatonicScales = 8;
+/// Total number of non-Chromatic scale types
+inline constexpr int kNumNonChromaticScales = 15;
 
 /// Total number of scale types including Chromatic
-inline constexpr int kNumScaleTypes = 9;
-
-/// Number of degrees in a diatonic scale
-inline constexpr int kDegreesPerScale = 7;
+inline constexpr int kNumScaleTypes = 16;
 
 /// Number of semitones in an octave
 inline constexpr int kSemitonesPerOctave = 12;
@@ -65,46 +84,69 @@ inline constexpr int kSemitonesPerOctave = 12;
 struct DiatonicInterval {
     int semitones;       ///< Actual semitone shift from input to target (can be negative)
     int targetNote;      ///< Absolute MIDI note of the target (0-127, clamped)
-    int scaleDegree;     ///< Target note's scale degree (0-6), or -1 in Chromatic mode
+    int scaleDegree;     ///< Target note's scale degree (0 to degreeCount-1), or -1 in Chromatic mode
     int octaveOffset;    ///< Number of complete octaves traversed by the diatonic interval
 };
 
 // =============================================================================
-// Internal Constexpr Data Tables
+// Internal Constexpr Data Tables (084-arp-scale-mode T009, T010, T011)
 // =============================================================================
 
 namespace detail {
 
-/// Scale interval tables: semitone offsets from root for each of the 8 diatonic scales.
-/// Indexed by ScaleType (0-7).
-inline constexpr std::array<std::array<int, 7>, 8> kScaleIntervals = {{
-    {0, 2, 4, 5, 7, 9, 11},  // Major (Ionian)
-    {0, 2, 3, 5, 7, 8, 10},  // NaturalMinor (Aeolian)
-    {0, 2, 3, 5, 7, 8, 11},  // HarmonicMinor
-    {0, 2, 3, 5, 7, 9, 11},  // MelodicMinor (ascending)
-    {0, 2, 3, 5, 7, 9, 10},  // Dorian
-    {0, 2, 4, 5, 7, 9, 10},  // Mixolydian
-    {0, 1, 3, 5, 7, 8, 10},  // Phrygian
-    {0, 2, 4, 6, 7, 9, 11},  // Lydian
+/// Scale interval tables: semitone offsets from root for all 16 scale types.
+/// Indexed by static_cast<int>(ScaleType). Each entry has intervals and degreeCount.
+/// Data from data-model.md E-003.
+inline constexpr std::array<ScaleData, 16> kScaleIntervals = {{
+    // Major (0):           7 degrees
+    {{0, 2, 4, 5, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    // NaturalMinor (1):    7 degrees
+    {{0, 2, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, 7},
+    // HarmonicMinor (2):   7 degrees
+    {{0, 2, 3, 5, 7, 8, 11, 0, 0, 0, 0, 0}, 7},
+    // MelodicMinor (3):    7 degrees
+    {{0, 2, 3, 5, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    // Dorian (4):          7 degrees
+    {{0, 2, 3, 5, 7, 9, 10, 0, 0, 0, 0, 0}, 7},
+    // Mixolydian (5):      7 degrees
+    {{0, 2, 4, 5, 7, 9, 10, 0, 0, 0, 0, 0}, 7},
+    // Phrygian (6):        7 degrees
+    {{0, 1, 3, 5, 7, 8, 10, 0, 0, 0, 0, 0}, 7},
+    // Lydian (7):          7 degrees
+    {{0, 2, 4, 6, 7, 9, 11, 0, 0, 0, 0, 0}, 7},
+    // Chromatic (8):      12 degrees
+    {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 12},
+    // Locrian (9):         7 degrees
+    {{0, 1, 3, 5, 6, 8, 10, 0, 0, 0, 0, 0}, 7},
+    // MajorPentatonic (10): 5 degrees
+    {{0, 2, 4, 7, 9, 0, 0, 0, 0, 0, 0, 0}, 5},
+    // MinorPentatonic (11): 5 degrees
+    {{0, 3, 5, 7, 10, 0, 0, 0, 0, 0, 0, 0}, 5},
+    // Blues (12):           6 degrees
+    {{0, 3, 5, 6, 7, 10, 0, 0, 0, 0, 0, 0}, 6},
+    // WholeTone (13):      6 degrees
+    {{0, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0}, 6},
+    // DiminishedWH (14):   8 degrees
+    {{0, 2, 3, 5, 6, 8, 9, 11, 0, 0, 0, 0}, 8},
+    // DiminishedHW (15):   8 degrees
+    {{0, 1, 3, 4, 6, 7, 9, 10, 0, 0, 0, 0}, 8},
 }};
 
-/// Chromatic degenerate intervals (for getScaleIntervals with Chromatic type)
-inline constexpr std::array<int, 7> kChromaticIntervals = {0, 1, 2, 3, 4, 5, 6};
-
 /// Build reverse lookup table for a given scale type at compile time.
-/// Maps each semitone offset (0-11) from root to nearest scale degree (0-6).
+/// Maps each semitone offset (0-11) from root to nearest scale degree.
+/// Uses degreeCount from kScaleIntervals instead of hardcoded 7.
 /// Tie-breaking: round down (prefer lower degree index).
 constexpr std::array<int, 12> buildReverseLookup(int scaleIndex) noexcept {
     std::array<int, 12> lookup = {};
-    const auto& intervals = kScaleIntervals[static_cast<size_t>(scaleIndex)];
+    const auto& scaleData = kScaleIntervals[static_cast<size_t>(scaleIndex)];
 
     for (int semitone = 0; semitone < 12; ++semitone) {
         int bestDegree = 0;
         int bestDistance = 12;  // larger than any possible distance
 
-        for (int d = 0; d < 7; ++d) {
+        for (int d = 0; d < scaleData.degreeCount; ++d) {
             // Compute circular semitone distance
-            int diff = semitone - intervals[static_cast<size_t>(d)];
+            int diff = semitone - scaleData.intervals[static_cast<size_t>(d)];
             // Use positive modulo for circular distance
             int forward = ((diff % 12) + 12) % 12;
             int backward = (((-diff) % 12) + 12) % 12;
@@ -123,16 +165,24 @@ constexpr std::array<int, 12> buildReverseLookup(int scaleIndex) noexcept {
     return lookup;
 }
 
-/// Precomputed reverse lookup tables for all 8 diatonic scales.
-inline constexpr std::array<std::array<int, 12>, 8> kReverseLookup = {{
-    buildReverseLookup(0),  // Major
-    buildReverseLookup(1),  // NaturalMinor
-    buildReverseLookup(2),  // HarmonicMinor
-    buildReverseLookup(3),  // MelodicMinor
-    buildReverseLookup(4),  // Dorian
-    buildReverseLookup(5),  // Mixolydian
-    buildReverseLookup(6),  // Phrygian
-    buildReverseLookup(7),  // Lydian
+/// Precomputed reverse lookup tables for all 16 scale types.
+inline constexpr std::array<std::array<int, 12>, 16> kReverseLookup = {{
+    buildReverseLookup(0),   // Major
+    buildReverseLookup(1),   // NaturalMinor
+    buildReverseLookup(2),   // HarmonicMinor
+    buildReverseLookup(3),   // MelodicMinor
+    buildReverseLookup(4),   // Dorian
+    buildReverseLookup(5),   // Mixolydian
+    buildReverseLookup(6),   // Phrygian
+    buildReverseLookup(7),   // Lydian
+    buildReverseLookup(8),   // Chromatic
+    buildReverseLookup(9),   // Locrian
+    buildReverseLookup(10),  // MajorPentatonic
+    buildReverseLookup(11),  // MinorPentatonic
+    buildReverseLookup(12),  // Blues
+    buildReverseLookup(13),  // WholeTone
+    buildReverseLookup(14),  // DiminishedWH
+    buildReverseLookup(15),  // DiminishedHW
 }};
 
 } // namespace detail
@@ -172,7 +222,7 @@ public:
     }
 
     /// Set the scale type.
-    /// @param type One of the 9 supported scale types.
+    /// @param type One of the 16 supported scale types.
     void setScale(ScaleType type) noexcept {
         scale_ = type;
     }
@@ -192,21 +242,22 @@ public:
     }
 
     // =========================================================================
-    // Core: Diatonic Interval Calculation
+    // Core: Diatonic Interval Calculation (084-arp-scale-mode T012)
     // =========================================================================
 
     /// Compute the diatonic interval for an input MIDI note.
     ///
-    /// For diatonic scales (Major through Lydian): Finds the input note's scale
-    /// degree (or nearest, for non-scale notes), applies the diatonic step
-    /// offset, and computes the semitone shift to the target scale degree.
+    /// For non-Chromatic scales: Finds the input note's scale degree (or nearest,
+    /// for non-scale notes), applies the diatonic step offset, and computes the
+    /// semitone shift to the target scale degree. Uses degreeCount for octave
+    /// wrapping instead of hardcoded 7.
     ///
     /// For Chromatic mode: Returns diatonicSteps directly as the semitone shift
     /// with scaleDegree = -1.
     ///
     /// @param inputMidiNote Input MIDI note number (0-127 typical, any int accepted)
     /// @param diatonicSteps Scale degrees to shift. +1 = "2nd above", +2 = "3rd above",
-    ///                      -2 = "3rd below", +7 = octave, 0 = unison.
+    ///                      -2 = "3rd below", +degreeCount = octave, 0 = unison.
     /// @return DiatonicInterval with semitone shift, target note, scale degree, octave offset
     [[nodiscard]] DiatonicInterval calculate(int inputMidiNote, int diatonicSteps) const noexcept {
         // Chromatic mode: passthrough, diatonicSteps = raw semitones
@@ -220,19 +271,20 @@ public:
             };
         }
 
+        int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
+        const auto& scaleData = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)];
+        const int degreeCount = scaleData.degreeCount;
+
         // Unison shortcut
         if (diatonicSteps == 0) {
             // Find the input's scale degree for the scaleDegree field
             int pitchClass = ((inputMidiNote % 12) + 12) % 12;
             int offset = ((pitchClass - rootNote_) % 12 + 12) % 12;
-            int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
             int inputDegree = detail::kReverseLookup[static_cast<size_t>(scaleIdx)][static_cast<size_t>(offset)];
             return DiatonicInterval{0, inputMidiNote, inputDegree, 0};
         }
 
         // Diatonic mode
-        int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
-        const auto& intervals = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)];
         const auto& reverseLookup = detail::kReverseLookup[static_cast<size_t>(scaleIdx)];
 
         // Step 1: Extract pitch class and compute offset from root
@@ -241,7 +293,7 @@ public:
 
         // Step 2: Find nearest scale degree via reverse lookup (O(1))
         int inputDegree = reverseLookup[static_cast<size_t>(offset)];
-        int inputSemitoneOffset = intervals[static_cast<size_t>(inputDegree)];
+        int inputSemitoneOffset = scaleData.intervals[static_cast<size_t>(inputDegree)];
 
         // Step 3: Compute target degree with octave wrapping
         // Use proper positive modulo for negative diatonicSteps
@@ -252,19 +304,18 @@ public:
         int targetDegree = 0;
 
         if (totalDegree >= 0) {
-            octaves = totalDegree / 7;
-            targetDegree = totalDegree % 7;
+            octaves = totalDegree / degreeCount;
+            targetDegree = totalDegree % degreeCount;
         } else {
             // For negative: need floor division behavior
-            // e.g., -1 / 7 should give octaves=-1, targetDegree=6
-            // C++ truncates toward zero, so: -1/7 = 0, -1%7 = -1
-            // We want: octaves = -1, targetDegree = 6
-            octaves = (totalDegree - 6) / 7;  // floor division
-            targetDegree = ((totalDegree % 7) + 7) % 7;
+            // e.g., -1 / degreeCount should give octaves=-1, targetDegree=degreeCount-1
+            // C++ truncates toward zero, so we need manual floor division
+            octaves = (totalDegree - (degreeCount - 1)) / degreeCount;  // floor division
+            targetDegree = ((totalDegree % degreeCount) + degreeCount) % degreeCount;
         }
 
         // Step 4: Look up target degree's semitone offset
-        int targetSemitoneOffset = intervals[static_cast<size_t>(targetDegree)];
+        int targetSemitoneOffset = scaleData.intervals[static_cast<size_t>(targetDegree)];
 
         // Step 5: Compute semitone shift
         int semitoneShift = targetSemitoneOffset - inputSemitoneOffset + octaves * 12;
@@ -303,13 +354,13 @@ public:
     }
 
     // =========================================================================
-    // Queries: Scale Membership and Quantization
+    // Queries: Scale Membership and Quantization (084-arp-scale-mode T013)
     // =========================================================================
 
     /// Get the scale degree of a MIDI note in the current key/scale.
     ///
     /// @param midiNote MIDI note number
-    /// @return Scale degree (0-6) if the note is in the scale, -1 if not.
+    /// @return Scale degree (0 to degreeCount-1) if the note is in the scale, -1 if not.
     ///         Always returns -1 in Chromatic mode.
     [[nodiscard]] int getScaleDegree(int midiNote) const noexcept {
         if (scale_ == ScaleType::Chromatic) return -1;
@@ -318,10 +369,10 @@ public:
         int offset = ((pitchClass - rootNote_) % 12 + 12) % 12;
 
         int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
-        const auto& intervals = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)];
+        const auto& scaleData = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)];
 
-        for (int d = 0; d < 7; ++d) {
-            if (intervals[static_cast<size_t>(d)] == offset) return d;
+        for (int d = 0; d < scaleData.degreeCount; ++d) {
+            if (scaleData.intervals[static_cast<size_t>(d)] == offset) return d;
         }
         return -1;
     }
@@ -343,21 +394,18 @@ public:
 
         int scaleIdx = static_cast<int>(static_cast<uint8_t>(scale_));
         int nearestDegree = detail::kReverseLookup[static_cast<size_t>(scaleIdx)][static_cast<size_t>(offset)];
-        int nearestOffset = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)][static_cast<size_t>(nearestDegree)];
+        int nearestOffset = detail::kScaleIntervals[static_cast<size_t>(scaleIdx)].intervals[static_cast<size_t>(nearestDegree)];
 
         int diff = nearestOffset - offset;  // snap direction: negative = down, positive = up
         return midiNote + diff;
     }
 
     // =========================================================================
-    // Static: Scale Data Access
+    // Static: Scale Data Access (084-arp-scale-mode T014)
     // =========================================================================
 
-    /// Get the 7 semitone offsets for a diatonic scale type.
-    [[nodiscard]] static constexpr std::array<int, 7> getScaleIntervals(ScaleType type) noexcept {
-        if (type == ScaleType::Chromatic) {
-            return detail::kChromaticIntervals;
-        }
+    /// Get the ScaleData (intervals and degreeCount) for a scale type.
+    [[nodiscard]] static constexpr ScaleData getScaleIntervals(ScaleType type) noexcept {
         return detail::kScaleIntervals[static_cast<size_t>(static_cast<uint8_t>(type))];
     }
 
