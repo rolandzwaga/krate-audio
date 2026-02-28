@@ -347,6 +347,32 @@ public:
     bool isEuclideanEnabled() const { return euclideanEnabled_; }
 
     // =========================================================================
+    // Scale Mode (084-arp-scale-mode)
+    // =========================================================================
+
+    /// Set the active scale type for popup suffix display.
+    /// 8 = Chromatic (shows "st"), any other value (shows "deg").
+    void setScaleType(int type) { scaleType_ = type; }
+
+    /// Get the active scale type.
+    [[nodiscard]] int getScaleType() const { return scaleType_; }
+
+    /// Format a level value as display text based on the current lane type.
+    /// Pitch lane shows "st" suffix when Chromatic, "deg" when non-Chromatic.
+    [[nodiscard]] std::string formatValueText(float level) const {
+        if (laneType_ == ArpLaneType::kPitch) {
+            int semitones = static_cast<int>(std::round((level - 0.5f) * 48.0f));
+            const char* suffix = (scaleType_ != 8) ? " deg" : " st";
+            if (semitones > 0)
+                return "+" + std::to_string(semitones) + suffix;
+            return std::to_string(semitones) + suffix;
+        }
+        // Velocity/Gate: show as percentage
+        int pct = static_cast<int>(std::round(level * 100.0f));
+        return std::to_string(pct) + "%";
+    }
+
+    // =========================================================================
     // Transform Operations (Phase 5, T046)
     // =========================================================================
 
@@ -919,19 +945,6 @@ private:
     // Value Popup Helpers
     // =========================================================================
 
-    /// Format a level value as display text based on the current lane type.
-    [[nodiscard]] std::string formatValueText(float level) const {
-        if (laneType_ == ArpLaneType::kPitch) {
-            int semitones = static_cast<int>(std::round((level - 0.5f) * 48.0f));
-            if (semitones > 0)
-                return "+" + std::to_string(semitones);
-            return std::to_string(semitones);
-        }
-        // Velocity/Gate: show as percentage
-        int pct = static_cast<int>(std::round(level * 100.0f));
-        return std::to_string(pct) + "%";
-    }
-
     /// Compute the popup Y position in local coords for the given level.
     [[nodiscard]] float getPopupY(float level) const {
         VSTGUI::CRect barArea = getBarArea();
@@ -1374,6 +1387,9 @@ private:
     int euclideanSteps_ = 8;
     int euclideanRotation_ = 0;
     bool euclideanEnabled_ = false;
+
+    // Scale mode (084-arp-scale-mode) -- 8 = Chromatic (default)
+    int scaleType_ = 8;
 
     // Discrete mode drag state
     bool discreteIsDragging_ = false;

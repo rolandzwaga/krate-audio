@@ -596,7 +596,7 @@ public:
         harmonizer_.setKey(std::clamp(rootNote, 0, 11));
     }
     void setHarmonizerScale(int scaleType) noexcept {
-        harmonizer_.setScale(static_cast<ScaleType>(std::clamp(scaleType, 0, 8)));
+        harmonizer_.setScale(static_cast<ScaleType>(std::clamp(scaleType, 0, 15)));
     }
     void setHarmonizerPitchShiftMode(int mode) noexcept {
         harmonizer_.setPitchShiftMode(static_cast<PitchMode>(std::clamp(mode, 0, 3)));

@@ -1058,10 +1058,16 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpModifierPlayheadId    = 3298,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
     kArpConditionPlayheadId   = 3299,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
 
-    kArpEndId = 3299,
+    // --- Scale Mode (084-arp-scale-mode, 3300-3302) ---
+    kArpScaleTypeId           = 3300,   // discrete: 0-15 (StringListParameter, 16 entries)
+    kArpRootNoteId            = 3301,   // discrete: 0-11 (StringListParameter, 12 entries)
+    kArpScaleQuantizeInputId  = 3302,   // discrete: 0-1 (toggle, default off)
+    // 3303-3399: reserved for future arp params
+
+    kArpEndId = 3302,
 
     // ==========================================================================
-    kNumParameters = 3300,
+    kNumParameters = 3303,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

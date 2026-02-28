@@ -288,11 +288,11 @@ public:
     ShimmerDelay() noexcept = default;
     ~ShimmerDelay() = default;
 
-    // Non-copyable, movable
+    // Non-copyable, non-movable (PitchShiftProcessor has deleted move ops)
     ShimmerDelay(const ShimmerDelay&) = delete;
     ShimmerDelay& operator=(const ShimmerDelay&) = delete;
-    ShimmerDelay(ShimmerDelay&&) noexcept = default;
-    ShimmerDelay& operator=(ShimmerDelay&&) noexcept = default;
+    ShimmerDelay(ShimmerDelay&&) = delete;
+    ShimmerDelay& operator=(ShimmerDelay&&) = delete;
 
     // =========================================================================
     // Lifecycle Methods

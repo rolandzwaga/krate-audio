@@ -113,25 +113,31 @@ TEST_CASE("ScaleHarmonizer setScale/getScale round-trips correctly",
 
 TEST_CASE("ScaleHarmonizer::getScaleIntervals returns correct values",
           "[scale-harmonizer][us1]") {
-    // Spot-check Major
+    // Spot-check Major (returns ScaleData after 084-arp-scale-mode refactoring)
     {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
+        constexpr auto scaleData = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
+        REQUIRE(scaleData.degreeCount == 7);
         constexpr std::array<int, 7> expected = {0, 2, 4, 5, 7, 9, 11};
-        REQUIRE(intervals == expected);
+        for (int i = 0; i < 7; ++i) {
+            REQUIRE(scaleData.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
+        }
     }
 
     // Spot-check NaturalMinor
     {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::NaturalMinor);
+        constexpr auto scaleData = ScaleHarmonizer::getScaleIntervals(ScaleType::NaturalMinor);
+        REQUIRE(scaleData.degreeCount == 7);
         constexpr std::array<int, 7> expected = {0, 2, 3, 5, 7, 8, 10};
-        REQUIRE(intervals == expected);
+        for (int i = 0; i < 7; ++i) {
+            REQUIRE(scaleData.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
+        }
     }
 
     // Verify it is callable as static constexpr
     {
-        constexpr auto majorIntervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
-        static_assert(majorIntervals[0] == 0, "Root must be 0");
-        static_assert(majorIntervals[2] == 4, "Major 3rd must be 4 semitones");
+        constexpr auto majorData = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
+        static_assert(majorData.intervals[0] == 0, "Root must be 0");
+        static_assert(majorData.intervals[2] == 4, "Major 3rd must be 4 semitones");
     }
 }
 
@@ -211,7 +217,7 @@ TEST_CASE("ScaleHarmonizer exhaustive multi-scale/multi-key correctness",
     int totalCases = 0;
 
     for (auto scaleType : scales) {
-        auto intervals = ScaleHarmonizer::getScaleIntervals(scaleType);
+        auto scaleData = ScaleHarmonizer::getScaleIntervals(scaleType);
 
         for (int rootKey = 0; rootKey < 12; ++rootKey) {
             ScaleHarmonizer harm;
@@ -221,7 +227,7 @@ TEST_CASE("ScaleHarmonizer exhaustive multi-scale/multi-key correctness",
             for (int steps : diatonicSteps) {
                 for (int degree = 0; degree < 7; ++degree) {
                     // Input MIDI note = root in octave 4 + scale offset for this degree
-                    int inputMidi = 60 + rootKey + intervals[static_cast<size_t>(degree)];
+                    int inputMidi = 60 + rootKey + scaleData.intervals[static_cast<size_t>(degree)];
 
                     // Compute expected target
                     int totalSteps = degree + steps;
@@ -229,8 +235,8 @@ TEST_CASE("ScaleHarmonizer exhaustive multi-scale/multi-key correctness",
                     int targetDegree = totalSteps % 7;
 
                     int expectedSemitones =
-                        intervals[static_cast<size_t>(targetDegree)]
-                        - intervals[static_cast<size_t>(degree)]
+                        scaleData.intervals[static_cast<size_t>(targetDegree)]
+                        - scaleData.intervals[static_cast<size_t>(degree)]
                         + octaves * 12;
 
                     int expectedTargetNote = inputMidi + expectedSemitones;
@@ -808,59 +814,68 @@ TEST_CASE("ScaleHarmonizer quantizeToScale snaps to nearest scale note",
 TEST_CASE("ScaleHarmonizer getScaleIntervals exhaustive truth table for all 8 diatonic scales",
           "[scale-harmonizer][us5]") {
     // Verify the exact semitone offsets for every diatonic scale type per FR-002
+    // After 084-arp-scale-mode, getScaleIntervals returns ScaleData instead of std::array<int, 7>
 
     SECTION("Major (Ionian) = {0, 2, 4, 5, 7, 9, 11}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Major);
         constexpr std::array<int, 7> expected = {0, 2, 4, 5, 7, 9, 11};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("NaturalMinor (Aeolian) = {0, 2, 3, 5, 7, 8, 10}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::NaturalMinor);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::NaturalMinor);
         constexpr std::array<int, 7> expected = {0, 2, 3, 5, 7, 8, 10};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("HarmonicMinor = {0, 2, 3, 5, 7, 8, 11}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::HarmonicMinor);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::HarmonicMinor);
         constexpr std::array<int, 7> expected = {0, 2, 3, 5, 7, 8, 11};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("MelodicMinor (ascending) = {0, 2, 3, 5, 7, 9, 11}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::MelodicMinor);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::MelodicMinor);
         constexpr std::array<int, 7> expected = {0, 2, 3, 5, 7, 9, 11};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("Dorian = {0, 2, 3, 5, 7, 9, 10}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Dorian);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Dorian);
         constexpr std::array<int, 7> expected = {0, 2, 3, 5, 7, 9, 10};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("Mixolydian = {0, 2, 4, 5, 7, 9, 10}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Mixolydian);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Mixolydian);
         constexpr std::array<int, 7> expected = {0, 2, 4, 5, 7, 9, 10};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("Phrygian = {0, 1, 3, 5, 7, 8, 10}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Phrygian);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Phrygian);
         constexpr std::array<int, 7> expected = {0, 1, 3, 5, 7, 8, 10};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
     SECTION("Lydian = {0, 2, 4, 6, 7, 9, 11}") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Lydian);
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Lydian);
         constexpr std::array<int, 7> expected = {0, 2, 4, 6, 7, 9, 11};
-        REQUIRE(intervals == expected);
+        REQUIRE(sd.degreeCount == 7);
+        for (int i = 0; i < 7; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == expected[static_cast<size_t>(i)]);
     }
 
-    SECTION("Chromatic returns {0, 1, 2, 3, 4, 5, 6} per FR-013") {
-        constexpr auto intervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Chromatic);
-        constexpr std::array<int, 7> expected = {0, 1, 2, 3, 4, 5, 6};
-        REQUIRE(intervals == expected);
+    SECTION("Chromatic = {0,1,2,3,4,5,6,7,8,9,10,11} with degreeCount 12") {
+        constexpr auto sd = ScaleHarmonizer::getScaleIntervals(ScaleType::Chromatic);
+        REQUIRE(sd.degreeCount == 12);
+        for (int i = 0; i < 12; ++i) REQUIRE(sd.intervals[static_cast<size_t>(i)] == i);
     }
 }
 
@@ -876,7 +891,7 @@ TEST_CASE("ScaleHarmonizer Dorian 3rd-above for all 7 degrees in all 12 root key
     // For each root key and each scale degree, compute the expected 3rd-above
     // interval from the Dorian interval table and verify calculate() matches.
 
-    constexpr auto dorianIntervals = ScaleHarmonizer::getScaleIntervals(ScaleType::Dorian);
+    constexpr auto dorianData = ScaleHarmonizer::getScaleIntervals(ScaleType::Dorian);
 
     for (int rootKey = 0; rootKey < 12; ++rootKey) {
         ScaleHarmonizer harm;
@@ -885,7 +900,7 @@ TEST_CASE("ScaleHarmonizer Dorian 3rd-above for all 7 degrees in all 12 root key
 
         for (int degree = 0; degree < 7; ++degree) {
             // Input MIDI note: root in octave 4 + scale offset for this degree
-            int inputMidi = 60 + rootKey + dorianIntervals[static_cast<size_t>(degree)];
+            int inputMidi = 60 + rootKey + dorianData.intervals[static_cast<size_t>(degree)];
 
             // Target degree for 3rd above
             int targetDegree = (degree + 2) % 7;
@@ -893,8 +908,8 @@ TEST_CASE("ScaleHarmonizer Dorian 3rd-above for all 7 degrees in all 12 root key
 
             // Expected semitone shift
             int expectedSemitones =
-                dorianIntervals[static_cast<size_t>(targetDegree)]
-                - dorianIntervals[static_cast<size_t>(degree)]
+                dorianData.intervals[static_cast<size_t>(targetDegree)]
+                - dorianData.intervals[static_cast<size_t>(degree)]
                 + octaves * 12;
 
             auto result = harm.calculate(inputMidi, +2);
@@ -1421,4 +1436,402 @@ TEST_CASE("ScaleHarmonizer all methods are noexcept",
     // - std::log2 (in frequencyToMidiNote, no allocations)
     // No std::string, std::vector, new/delete, or malloc/free anywhere.
     SUCCEED("All methods verified noexcept via static_assert; zero allocations confirmed by inspection");
+}
+
+// =============================================================================
+// 084-arp-scale-mode Phase 2: ScaleHarmonizer Refactoring Tests
+// =============================================================================
+
+// =============================================================================
+// T002: ScaleData struct layout, kScaleIntervals with 16 entries, kReverseLookup
+// =============================================================================
+
+TEST_CASE("ScaleData struct has correct layout",
+          "[scale-harmonizer][arp-scale-mode]") {
+    // ScaleData must have a 12-element intervals array and a degreeCount field
+    constexpr ScaleData majorData = {{0, 2, 4, 5, 7, 9, 11, 0, 0, 0, 0, 0}, 7};
+    REQUIRE(majorData.degreeCount == 7);
+    REQUIRE(majorData.intervals[0] == 0);
+    REQUIRE(majorData.intervals[6] == 11);
+    REQUIRE(majorData.intervals[7] == 0);  // zero-padded
+
+    // Pentatonic: 5 degrees
+    constexpr ScaleData pentData = {{0, 2, 4, 7, 9, 0, 0, 0, 0, 0, 0, 0}, 5};
+    REQUIRE(pentData.degreeCount == 5);
+    REQUIRE(pentData.intervals[4] == 9);
+    REQUIRE(pentData.intervals[5] == 0);  // zero-padded
+
+    // Chromatic: 12 degrees
+    constexpr ScaleData chromData = {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, 12};
+    REQUIRE(chromData.degreeCount == 12);
+}
+
+TEST_CASE("kScaleIntervals has 16 entries with correct data",
+          "[scale-harmonizer][arp-scale-mode]") {
+    // Verify the table has exactly 16 entries
+    REQUIRE(detail::kScaleIntervals.size() == 16);
+
+    // Verify degree counts for each scale type
+    REQUIRE(detail::kScaleIntervals[0].degreeCount == 7);   // Major
+    REQUIRE(detail::kScaleIntervals[1].degreeCount == 7);   // NaturalMinor
+    REQUIRE(detail::kScaleIntervals[2].degreeCount == 7);   // HarmonicMinor
+    REQUIRE(detail::kScaleIntervals[3].degreeCount == 7);   // MelodicMinor
+    REQUIRE(detail::kScaleIntervals[4].degreeCount == 7);   // Dorian
+    REQUIRE(detail::kScaleIntervals[5].degreeCount == 7);   // Mixolydian
+    REQUIRE(detail::kScaleIntervals[6].degreeCount == 7);   // Phrygian
+    REQUIRE(detail::kScaleIntervals[7].degreeCount == 7);   // Lydian
+    REQUIRE(detail::kScaleIntervals[8].degreeCount == 12);  // Chromatic
+    REQUIRE(detail::kScaleIntervals[9].degreeCount == 7);   // Locrian
+    REQUIRE(detail::kScaleIntervals[10].degreeCount == 5);  // MajorPentatonic
+    REQUIRE(detail::kScaleIntervals[11].degreeCount == 5);  // MinorPentatonic
+    REQUIRE(detail::kScaleIntervals[12].degreeCount == 6);  // Blues
+    REQUIRE(detail::kScaleIntervals[13].degreeCount == 6);  // WholeTone
+    REQUIRE(detail::kScaleIntervals[14].degreeCount == 8);  // DiminishedWH
+    REQUIRE(detail::kScaleIntervals[15].degreeCount == 8);  // DiminishedHW
+
+    // Spot-check specific interval data
+    // Major Pentatonic: {0, 2, 4, 7, 9}
+    REQUIRE(detail::kScaleIntervals[10].intervals[0] == 0);
+    REQUIRE(detail::kScaleIntervals[10].intervals[1] == 2);
+    REQUIRE(detail::kScaleIntervals[10].intervals[2] == 4);
+    REQUIRE(detail::kScaleIntervals[10].intervals[3] == 7);
+    REQUIRE(detail::kScaleIntervals[10].intervals[4] == 9);
+    REQUIRE(detail::kScaleIntervals[10].intervals[5] == 0);  // zero-padded
+
+    // Blues: {0, 3, 5, 6, 7, 10}
+    REQUIRE(detail::kScaleIntervals[12].intervals[0] == 0);
+    REQUIRE(detail::kScaleIntervals[12].intervals[1] == 3);
+    REQUIRE(detail::kScaleIntervals[12].intervals[2] == 5);
+    REQUIRE(detail::kScaleIntervals[12].intervals[3] == 6);
+    REQUIRE(detail::kScaleIntervals[12].intervals[4] == 7);
+    REQUIRE(detail::kScaleIntervals[12].intervals[5] == 10);
+
+    // DiminishedWH: {0, 2, 3, 5, 6, 8, 9, 11}
+    REQUIRE(detail::kScaleIntervals[14].intervals[0] == 0);
+    REQUIRE(detail::kScaleIntervals[14].intervals[7] == 11);
+}
+
+TEST_CASE("kReverseLookup has 16 entries",
+          "[scale-harmonizer][arp-scale-mode]") {
+    REQUIRE(detail::kReverseLookup.size() == 16);
+}
+
+TEST_CASE("kNumScaleTypes is 16 after extension",
+          "[scale-harmonizer][arp-scale-mode]") {
+    REQUIRE(kNumScaleTypes == 16);
+}
+
+TEST_CASE("kNumNonChromaticScales is 15",
+          "[scale-harmonizer][arp-scale-mode]") {
+    REQUIRE(kNumNonChromaticScales == 15);
+}
+
+// =============================================================================
+// T003: calculate() with variable-degree scales
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer calculate() with Major Pentatonic wraps at 5 degrees",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::MajorPentatonic);
+
+    // Major Pentatonic C: C(0), D(2), E(4), G(7), A(9)
+    // Degree +5 from C4(60) should wrap to next octave: C5(72)
+    auto result = harm.calculate(60, 5);
+    REQUIRE(result.targetNote == 72);
+    REQUIRE(result.semitones == 12);
+
+    // Degree +1 from C4 = D4 (62)
+    result = harm.calculate(60, 1);
+    REQUIRE(result.targetNote == 62);
+
+    // Degree +2 from C4 = E4 (64)
+    result = harm.calculate(60, 2);
+    REQUIRE(result.targetNote == 64);
+
+    // Degree +3 from C4 = G4 (67)
+    result = harm.calculate(60, 3);
+    REQUIRE(result.targetNote == 67);
+
+    // Degree +4 from C4 = A4 (69)
+    result = harm.calculate(60, 4);
+    REQUIRE(result.targetNote == 69);
+}
+
+TEST_CASE("ScaleHarmonizer calculate() with Blues wraps at 6 degrees",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::Blues);
+
+    // Blues C: C(0), Eb(3), F(5), Gb(6), G(7), Bb(10)
+    // Degree +6 from C4(60) = next octave C5(72)
+    auto result = harm.calculate(60, 6);
+    REQUIRE(result.targetNote == 72);
+    REQUIRE(result.semitones == 12);
+
+    // Degree +1 from C4 = Eb4 (63)
+    result = harm.calculate(60, 1);
+    REQUIRE(result.targetNote == 63);
+}
+
+TEST_CASE("ScaleHarmonizer calculate() with DiminishedWH wraps at 8 degrees",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::DiminishedWH);
+
+    // DiminishedWH C: C(0), D(2), Eb(3), F(5), Gb(6), Ab(8), A(9), B(11)
+    // Degree +8 = next octave C5(72)
+    auto result = harm.calculate(60, 8);
+    REQUIRE(result.targetNote == 72);
+    REQUIRE(result.semitones == 12);
+}
+
+TEST_CASE("ScaleHarmonizer calculate() with WholeTone has correct intervals",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+    harm.setScale(ScaleType::WholeTone);
+
+    // Whole Tone C: C(0), D(2), E(4), F#(6), G#(8), A#(10)
+    // Degree +1 = D4 (62), +2 = E4 (64), +3 = F#4 (66), +4 = G#4 (68), +5 = A#4 (70)
+    REQUIRE(harm.calculate(60, 1).targetNote == 62);
+    REQUIRE(harm.calculate(60, 2).targetNote == 64);
+    REQUIRE(harm.calculate(60, 3).targetNote == 66);
+    REQUIRE(harm.calculate(60, 4).targetNote == 68);
+    REQUIRE(harm.calculate(60, 5).targetNote == 70);
+
+    // Degree +6 = next octave C5 (72)
+    REQUIRE(harm.calculate(60, 6).targetNote == 72);
+}
+
+// =============================================================================
+// T004: quantizeToScale() and getScaleDegree() with all 7 new scale types
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer quantizeToScale with new scale types",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+
+    SECTION("Locrian C: {0,1,3,5,6,8,10}") {
+        harm.setScale(ScaleType::Locrian);
+        // C is in scale -> unchanged
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // C# (61) is in scale (semitone 1) -> unchanged
+        REQUIRE(harm.quantizeToScale(61) == 61);
+        // D (62) is NOT in scale. Nearest: Db=61(dist 1) or Eb=63(dist 1). Tie -> lower = Db
+        REQUIRE(harm.quantizeToScale(62) == 61);
+    }
+
+    SECTION("MajorPentatonic C: {0,2,4,7,9}") {
+        harm.setScale(ScaleType::MajorPentatonic);
+        // C -> C
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // C# (61) -> nearest: C=60(dist 1) or D=62(dist 1). Tie -> lower = C
+        REQUIRE(harm.quantizeToScale(61) == 60);
+        // D (62) -> D (in scale)
+        REQUIRE(harm.quantizeToScale(62) == 62);
+        // F (65) -> snaps to E=64(dist 1) or G=67(dist 2). Nearest = E
+        REQUIRE(harm.quantizeToScale(65) == 64);
+    }
+
+    SECTION("MinorPentatonic C: {0,3,5,7,10}") {
+        harm.setScale(ScaleType::MinorPentatonic);
+        // C -> C
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // D (62) -> nearest: C=60(dist 2) or Eb=63(dist 1). Nearest = Eb
+        REQUIRE(harm.quantizeToScale(62) == 63);
+    }
+
+    SECTION("Blues C: {0,3,5,6,7,10}") {
+        harm.setScale(ScaleType::Blues);
+        // C -> C
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // D (62) -> nearest: C=60(dist 2) or Eb=63(dist 1). Nearest = Eb
+        REQUIRE(harm.quantizeToScale(62) == 63);
+    }
+
+    SECTION("WholeTone C: {0,2,4,6,8,10}") {
+        harm.setScale(ScaleType::WholeTone);
+        // C -> C, D -> D (in scale)
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        REQUIRE(harm.quantizeToScale(62) == 62);
+        // C# (61) -> C=60(dist 1) or D=62(dist 1). Tie -> lower = C
+        REQUIRE(harm.quantizeToScale(61) == 60);
+    }
+
+    SECTION("DiminishedWH C: {0,2,3,5,6,8,9,11}") {
+        harm.setScale(ScaleType::DiminishedWH);
+        // C -> C
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // C# (61) -> C=60(dist 1) or D=62(dist 1). Tie -> lower = C
+        REQUIRE(harm.quantizeToScale(61) == 60);
+    }
+
+    SECTION("DiminishedHW C: {0,1,3,4,6,7,9,10}") {
+        harm.setScale(ScaleType::DiminishedHW);
+        // C -> C
+        REQUIRE(harm.quantizeToScale(60) == 60);
+        // D (62) -> nearest: Db=61(dist 1) or Eb=63(dist 1). Tie -> lower = Db
+        REQUIRE(harm.quantizeToScale(62) == 61);
+    }
+}
+
+TEST_CASE("ScaleHarmonizer getScaleDegree with new scale types",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+
+    SECTION("MajorPentatonic C: degree of C=0, D=1, E=2, G=3, A=4") {
+        harm.setScale(ScaleType::MajorPentatonic);
+        REQUIRE(harm.getScaleDegree(60) == 0);   // C
+        REQUIRE(harm.getScaleDegree(62) == 1);   // D
+        REQUIRE(harm.getScaleDegree(64) == 2);   // E
+        REQUIRE(harm.getScaleDegree(67) == 3);   // G
+        REQUIRE(harm.getScaleDegree(69) == 4);   // A
+        REQUIRE(harm.getScaleDegree(61) == -1);  // C# not in scale
+        REQUIRE(harm.getScaleDegree(63) == -1);  // Eb not in scale
+        REQUIRE(harm.getScaleDegree(65) == -1);  // F not in scale
+    }
+
+    SECTION("Blues C: degree of C=0, Eb=1, F=2, Gb=3, G=4, Bb=5") {
+        harm.setScale(ScaleType::Blues);
+        REQUIRE(harm.getScaleDegree(60) == 0);   // C
+        REQUIRE(harm.getScaleDegree(63) == 1);   // Eb
+        REQUIRE(harm.getScaleDegree(65) == 2);   // F
+        REQUIRE(harm.getScaleDegree(66) == 3);   // Gb
+        REQUIRE(harm.getScaleDegree(67) == 4);   // G
+        REQUIRE(harm.getScaleDegree(70) == 5);   // Bb
+        REQUIRE(harm.getScaleDegree(62) == -1);  // D not in scale
+    }
+
+    SECTION("DiminishedWH C: 8 degrees") {
+        harm.setScale(ScaleType::DiminishedWH);
+        REQUIRE(harm.getScaleDegree(60) == 0);   // C
+        REQUIRE(harm.getScaleDegree(62) == 1);   // D
+        REQUIRE(harm.getScaleDegree(63) == 2);   // Eb
+        REQUIRE(harm.getScaleDegree(65) == 3);   // F
+        REQUIRE(harm.getScaleDegree(66) == 4);   // Gb
+        REQUIRE(harm.getScaleDegree(68) == 5);   // Ab
+        REQUIRE(harm.getScaleDegree(69) == 6);   // A
+        REQUIRE(harm.getScaleDegree(71) == 7);   // B
+    }
+}
+
+// =============================================================================
+// T005: Backward compatibility - existing 9 scale types produce identical results
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer backward compat: existing 9 scales produce identical results",
+          "[scale-harmonizer][arp-scale-mode]") {
+    // Verify that the original 9 scale types (Major through Chromatic)
+    // produce the exact same results after the refactoring.
+
+    const std::array<ScaleType, 9> existingScales = {
+        ScaleType::Major, ScaleType::NaturalMinor, ScaleType::HarmonicMinor,
+        ScaleType::MelodicMinor, ScaleType::Dorian, ScaleType::Mixolydian,
+        ScaleType::Phrygian, ScaleType::Lydian, ScaleType::Chromatic,
+    };
+
+    // Expected intervals for each of the original 8 diatonic scales
+    const std::array<std::array<int, 7>, 8> expectedIntervals = {{
+        {0, 2, 4, 5, 7, 9, 11},  // Major
+        {0, 2, 3, 5, 7, 8, 10},  // NaturalMinor
+        {0, 2, 3, 5, 7, 8, 11},  // HarmonicMinor
+        {0, 2, 3, 5, 7, 9, 11},  // MelodicMinor
+        {0, 2, 3, 5, 7, 9, 10},  // Dorian
+        {0, 2, 4, 5, 7, 9, 10},  // Mixolydian
+        {0, 1, 3, 5, 7, 8, 10},  // Phrygian
+        {0, 2, 4, 6, 7, 9, 11},  // Lydian
+    }};
+
+    // Check that getScaleIntervals returns matching data for all 8 diatonic scales
+    for (int i = 0; i < 8; ++i) {
+        auto scaleData = ScaleHarmonizer::getScaleIntervals(existingScales[static_cast<size_t>(i)]);
+        REQUIRE(scaleData.degreeCount == 7);
+        for (int d = 0; d < 7; ++d) {
+            REQUIRE(scaleData.intervals[static_cast<size_t>(d)] == expectedIntervals[static_cast<size_t>(i)][static_cast<size_t>(d)]);
+        }
+    }
+
+    // Chromatic: degreeCount = 12
+    auto chromData = ScaleHarmonizer::getScaleIntervals(ScaleType::Chromatic);
+    REQUIRE(chromData.degreeCount == 12);
+    for (int i = 0; i < 12; ++i) {
+        REQUIRE(chromData.intervals[static_cast<size_t>(i)] == i);
+    }
+
+    // Verify calculate() still produces identical results for the original scales
+    // Test C Major 3rd above (a well-known reference)
+    ScaleHarmonizer harm;
+    harm.setKey(0);
+    harm.setScale(ScaleType::Major);
+
+    // C -> E (+4), D -> F (+3), E -> G (+3), F -> A (+4)
+    REQUIRE(harm.calculate(60, 2).semitones == 4);   // C -> E
+    REQUIRE(harm.calculate(62, 2).semitones == 3);   // D -> F
+    REQUIRE(harm.calculate(64, 2).semitones == 3);   // E -> G
+    REQUIRE(harm.calculate(65, 2).semitones == 4);   // F -> A
+
+    // Chromatic mode: passthrough
+    harm.setScale(ScaleType::Chromatic);
+    REQUIRE(harm.calculate(60, 5).targetNote == 65);
+    REQUIRE(harm.calculate(60, 5).semitones == 5);
+    REQUIRE(harm.calculate(60, -3).targetNote == 57);
+}
+
+// =============================================================================
+// T006: Negative degree wrapping with variable-size scales
+// =============================================================================
+
+TEST_CASE("ScaleHarmonizer negative degree wrapping with variable-size scales",
+          "[scale-harmonizer][arp-scale-mode]") {
+    ScaleHarmonizer harm;
+    harm.setKey(0);  // C
+
+    SECTION("Pentatonic (5-note): degree -1 from C4") {
+        harm.setScale(ScaleType::MajorPentatonic);
+        // Major Pentatonic C: C(0), D(2), E(4), G(7), A(9)
+        // Degree -1 from C4(60) = A3(57) = previous octave last degree
+        auto result = harm.calculate(60, -1);
+        REQUIRE(result.targetNote == 57);  // A3
+        REQUIRE(result.semitones == -3);
+    }
+
+    SECTION("Pentatonic (5-note): degree -5 from C4 = previous octave C3") {
+        harm.setScale(ScaleType::MajorPentatonic);
+        auto result = harm.calculate(60, -5);
+        REQUIRE(result.targetNote == 48);  // C3
+        REQUIRE(result.semitones == -12);
+    }
+
+    SECTION("Blues (6-note): degree -1 from C4") {
+        harm.setScale(ScaleType::Blues);
+        // Blues C: C(0), Eb(3), F(5), Gb(6), G(7), Bb(10)
+        // Degree -1 from C4(60) = Bb3(58)
+        auto result = harm.calculate(60, -1);
+        REQUIRE(result.targetNote == 58);  // Bb3
+        REQUIRE(result.semitones == -2);
+    }
+
+    SECTION("DiminishedWH (8-note): degree -1 from C4") {
+        harm.setScale(ScaleType::DiminishedWH);
+        // DiminishedWH C: C(0), D(2), Eb(3), F(5), Gb(6), Ab(8), A(9), B(11)
+        // Degree -1 from C4(60) = B3(59)
+        auto result = harm.calculate(60, -1);
+        REQUIRE(result.targetNote == 59);  // B3
+        REQUIRE(result.semitones == -1);
+    }
+
+    SECTION("7-note (Major): degree -1 from C4 still works correctly") {
+        harm.setScale(ScaleType::Major);
+        // Major C: C(0), D(2), E(4), F(5), G(7), A(9), B(11)
+        // Degree -1 from C4(60) = B3(59)
+        auto result = harm.calculate(60, -1);
+        REQUIRE(result.targetNote == 59);  // B3
+        REQUIRE(result.semitones == -1);
+    }
 }

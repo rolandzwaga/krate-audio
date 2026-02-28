@@ -903,6 +903,29 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Arp Scale Mode dimming (084-arp-scale-mode FR-011)
+    // Dim Root Note and Quantize Input when Scale Type is Chromatic (normalized 0.0)
+    if (tag == kArpScaleTypeId) {
+        bool isChromatic = (value < 0.01);
+        float alpha = isChromatic ? 0.35f : 1.0f;
+        if (arpRootNoteGroup_) {
+            arpRootNoteGroup_->setAlphaValue(alpha);
+            arpRootNoteGroup_->setMouseEnabled(!isChromatic);
+        }
+        if (arpQuantizeInputGroup_) {
+            arpQuantizeInputGroup_->setAlphaValue(alpha);
+            arpQuantizeInputGroup_->setMouseEnabled(!isChromatic);
+        }
+        // Update pitch lane popup suffix (FR-018)
+        if (pitchLane_) {
+            int uiIndex = std::clamp(
+                static_cast<int>(value * (kArpScaleTypeCount - 1) + 0.5),
+                0, kArpScaleTypeCount - 1);
+            int enumValue = kArpScaleDisplayOrder[static_cast<size_t>(uiIndex)];
+            pitchLane_->setScaleType(enumValue);
+        }
+    }
+
     // PW knob visual disable (068-osc-type-params FR-016)
     // Dim PW knob when PolyBLEP waveform is not Pulse (index 3)
     if (tag == kOscAWaveformId && oscAPWKnob_) {
@@ -1158,6 +1181,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         harmonizerVoiceRows_.fill(nullptr);
         oscAPWKnob_ = nullptr;
         oscBPWKnob_ = nullptr;
+        arpRootNoteGroup_ = nullptr;
+        arpQuantizeInputGroup_ = nullptr;
 
         // Settings drawer cleanup
         settingsDrawer_ = nullptr;
@@ -1474,6 +1499,19 @@ VSTGUI::CView* Controller::verifyView(
             int steps = std::clamp(
                 static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
             pitchLane_->setNumSteps(steps);
+        }
+
+        // Sync scale type for popup suffix (084-arp-scale-mode FR-018)
+        {
+            auto* scaleParam = getParameterObject(kArpScaleTypeId);
+            if (scaleParam) {
+                double scaleNorm = scaleParam->getNormalized();
+                int uiIndex = std::clamp(
+                    static_cast<int>(scaleNorm * (kArpScaleTypeCount - 1) + 0.5),
+                    0, kArpScaleTypeCount - 1);
+                int enumValue = kArpScaleDisplayOrder[static_cast<size_t>(uiIndex)];
+                pitchLane_->setScaleType(enumValue);
+            }
         }
 
         arpLaneContainer_->addLane(pitchLane_);
@@ -1957,6 +1995,21 @@ VSTGUI::CView* Controller::verifyView(
                 auto* param = getParameterObject(kArpEuclideanEnabledId);
                 bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
                 container->setVisible(enabled);
+            }
+            // Arp Scale Mode dimming groups (084-arp-scale-mode)
+            else if (*name == "ArpRootNoteGroup") {
+                arpRootNoteGroup_ = container;
+                auto* scaleParam = getParameterObject(kArpScaleTypeId);
+                bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
+                container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
+                container->setMouseEnabled(!isChromaticInit);
+            }
+            else if (*name == "ArpQuantizeInputGroup") {
+                arpQuantizeInputGroup_ = container;
+                auto* scaleParam = getParameterObject(kArpScaleTypeId);
+                bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
+                container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
+                container->setMouseEnabled(!isChromaticInit);
             }
         }
     }

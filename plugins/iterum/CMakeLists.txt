@@ -191,6 +191,21 @@ if(SMTG_MAC)
             ${PLUGIN_NAME}
         )
 
+        # Xcode generator doesn't resolve target_link_libraries into explicit
+        # build dependencies, causing "library not found" with parallel builds.
+        if(TARGET auv3_wrapper_macos AND AUV3_EXTENSION_TARGET)
+            add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
+        endif()
+
+        # ViewController.m imports ViewController.h from a sibling directory.
+        # Also need SDK root for public.sdk/source/vst/auv3wrapper includes.
+        if(AUV3_APP_TARGET)
+            target_include_directories(${AUV3_APP_TARGET} PRIVATE
+                "${AUV3_SHARED}/macOS/Sources"
+                "${vst3sdk_SOURCE_DIR}"
+            )
+        endif()
+
         message(STATUS "[ITERUM] AudioUnit v3 target: ${PLUGIN_NAME}_AUV3")
     elseif(SMTG_ENABLE_AUV3_BUILDS AND NOT XCODE)
         message(WARNING "[ITERUM] AUv3 builds require Xcode generator (-G Xcode)")
@@ -217,7 +232,7 @@ smtg_target_add_plugin_resources(${PLUGIN_NAME}
 option(VSTWORK_COPY_TO_VST3_FOLDER "Copy plugin to system VST3 folder after build" ON)
 
 if(VSTWORK_COPY_TO_VST3_FOLDER AND SMTG_WIN)
-    set(VST3_SYSTEM_FOLDER "C:/Program Files/Common Files/VST3")
+    set(VST3_SYSTEM_FOLDER "$ENV{LOCALAPPDATA}/Programs/Common/VST3")
     set(VST3_BUILD_OUTPUT "${CMAKE_BINARY_DIR}/VST3/$<CONFIG>/${PLUGIN_NAME}.vst3")
 
     add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD

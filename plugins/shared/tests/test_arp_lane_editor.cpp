@@ -951,3 +951,58 @@ TEST_CASE("handleDiscreteClick cycles through 1->2->3->4->1",
     editor.handleDiscreteClick(0);
     REQUIRE(editor.getDiscreteCount(0) == 1);
 }
+
+// ==============================================================================
+// Pitch Lane Scale-Aware Popup Suffix Tests (084-arp-scale-mode T066a)
+// ==============================================================================
+
+TEST_CASE("formatValueText: Chromatic (scaleType=8) pitch value uses ' st' suffix",
+          "[arp_lane_editor][scale-mode][popup]") {
+    auto editor = makePitchLaneEditor();
+    // Default scaleType_ is 8 (Chromatic) -- no setScaleType call needed
+
+    // +2 semitones: normalized = 0.5 + 2/48 = 0.5417
+    float normalized = 0.5f + 2.0f / 48.0f;
+    std::string text = editor.formatValueText(normalized);
+    REQUIRE(text == "+2 st");
+}
+
+TEST_CASE("formatValueText: Non-Chromatic (scaleType=0, Major) pitch value uses ' deg' suffix",
+          "[arp_lane_editor][scale-mode][popup]") {
+    auto editor = makePitchLaneEditor();
+    editor.setScaleType(0); // Major
+
+    // +2 degrees: normalized = 0.5 + 2/48 = 0.5417
+    float normalized = 0.5f + 2.0f / 48.0f;
+    std::string text = editor.formatValueText(normalized);
+    REQUIRE(text == "+2 deg");
+}
+
+TEST_CASE("formatValueText: Chromatic negative pitch value uses ' st' suffix",
+          "[arp_lane_editor][scale-mode][popup]") {
+    auto editor = makePitchLaneEditor();
+    // Default scaleType_ is 8 (Chromatic)
+
+    // -1 semitone: normalized = 0.5 + (-1)/48
+    float normalized = 0.5f + (-1.0f) / 48.0f;
+    std::string text = editor.formatValueText(normalized);
+    REQUIRE(text == "-1 st");
+}
+
+TEST_CASE("formatValueText: Non-Chromatic zero pitch shows '0 deg'",
+          "[arp_lane_editor][scale-mode][popup]") {
+    auto editor = makePitchLaneEditor();
+    editor.setScaleType(4); // Dorian
+
+    std::string text = editor.formatValueText(0.5f);
+    REQUIRE(text == "0 deg");
+}
+
+TEST_CASE("formatValueText: Chromatic zero pitch shows '0 st'",
+          "[arp_lane_editor][scale-mode][popup]") {
+    auto editor = makePitchLaneEditor();
+    // Default scaleType_ is 8 (Chromatic)
+
+    std::string text = editor.formatValueText(0.5f);
+    REQUIRE(text == "0 st");
+}

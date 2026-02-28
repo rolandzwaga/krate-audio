@@ -20,6 +20,7 @@
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/core/scale_harmonizer.h>
 #include <krate/dsp/core/transport_sync.h>
 #include <krate/dsp/primitives/arp_lane.h>
 #include <krate/dsp/primitives/held_note_buffer.h>
@@ -189,6 +190,11 @@ public:
         gateOverlay_.fill(1.0f);
         ratchetOverlay_.fill(1);
         conditionOverlay_.fill(static_cast<uint8_t>(TrigCondition::Always));
+
+        // 084-arp-scale-mode: default to Chromatic for backward compatibility (FR-004)
+        // ScaleHarmonizer defaults to Major, but the arp must default to Chromatic
+        // so existing presets/behavior are unchanged.
+        scaleHarmonizer_.setScale(ScaleType::Chromatic);
     }
 
     // =========================================================================
@@ -241,7 +247,15 @@ public:
         // Latch Add: always add, never clear (pattern accumulates)
         // Latch Off: standard behavior (just add)
 
-        heldNotes_.noteOn(note, velocity);
+        // Scale quantize input (FR-009): snap note to nearest scale note
+        // before entering the held notes buffer.
+        uint8_t effectiveNote = note;
+        if (scaleQuantizeInput_ && scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
+            effectiveNote = static_cast<uint8_t>(
+                std::clamp(scaleHarmonizer_.quantizeToScale(static_cast<int>(note)), 0, 127));
+        }
+
+        heldNotes_.noteOn(effectiveNote, velocity);
 
         if (retriggerMode_ == ArpRetriggerMode::Note) {
             selector_.reset();
@@ -572,6 +586,26 @@ public:
                 spiceDiceRng_.next() % static_cast<uint32_t>(TrigCondition::kCount));
         }
     }
+
+    // =========================================================================
+    // Scale Mode (084-arp-scale-mode)
+    // =========================================================================
+
+    /// Set the scale type for pitch lane interpretation.
+    /// When non-Chromatic, pitch lane values are interpreted as scale degree offsets.
+    /// When Chromatic, pitch lane values remain as semitone offsets (backward compatible).
+    /// Does NOT reset arp state; safe to call unconditionally every block.
+    void setScaleType(ScaleType type) noexcept { scaleHarmonizer_.setScale(type); }
+
+    /// Set the root note for the scale (0=C through 11=B).
+    /// Does NOT reset arp state; safe to call unconditionally every block.
+    void setRootNote(int rootNote) noexcept { scaleHarmonizer_.setKey(rootNote); }
+
+    /// Enable/disable input note quantization.
+    /// When enabled and scale is non-Chromatic, incoming noteOn pitches are
+    /// snapped to the nearest scale note before entering the note pool.
+    /// Does NOT reset arp state; safe to call unconditionally every block.
+    void setScaleQuantizeInput(bool enabled) noexcept { scaleQuantizeInput_ = enabled; }
 
     // =========================================================================
     // Transport Sync
@@ -1564,12 +1598,22 @@ private:
                 }
             }
 
-            // Apply pitch offset to all notes in this step (FR-017, FR-018)
+            // Apply pitch offset to all notes in this step (FR-005, FR-006, FR-008, 084-arp-scale-mode)
             for (size_t i = 0; i < result.count; ++i) {
-                int offsetNote = static_cast<int>(result.notes[i]) +
-                                 static_cast<int>(pitchOffset);
-                result.notes[i] = static_cast<uint8_t>(
-                    std::clamp(offsetNote, 0, 127));
+                if (scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0) {
+                    // Scale mode: interpret pitchOffset as scale degrees
+                    auto interval = scaleHarmonizer_.calculate(
+                        static_cast<int>(result.notes[i]),
+                        static_cast<int>(pitchOffset));
+                    result.notes[i] = static_cast<uint8_t>(
+                        std::clamp(interval.targetNote, 0, 127));
+                } else {
+                    // Chromatic mode or zero offset: direct semitone addition
+                    int offsetNote = static_cast<int>(result.notes[i]) +
+                                     static_cast<int>(pitchOffset);
+                    result.notes[i] = static_cast<uint8_t>(
+                        std::clamp(offsetNote, 0, 127));
+                }
             }
 
             // 077-spice-dice-humanize: Humanize offsets (FR-014, FR-022 steps 11-14)
@@ -2064,6 +2108,13 @@ private:
     // =========================================================================
 
     bool needsDisableNoteOff_ = false;
+
+    // =========================================================================
+    // Scale Mode (084-arp-scale-mode)
+    // =========================================================================
+
+    ScaleHarmonizer scaleHarmonizer_;       ///< Scale calculator for pitch lane and input quantization
+    bool scaleQuantizeInput_ = false;       ///< Whether to snap incoming notes to scale
 };
 
 } // namespace Krate::DSP

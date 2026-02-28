@@ -15803,8 +15803,8 @@ TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
     constexpr double kSampleRate = 44100.0;
     constexpr double kTempo = 120.0;
     constexpr size_t kBlockSize = 512;
-    constexpr size_t kStepDuration = 22050;  // 60/120 * 44100
-    constexpr size_t kBarDuration = 4 * kStepDuration;  // 88200
+    constexpr int32_t kStepDuration = 22050;  // 60/120 * 44100
+    constexpr int32_t kBarDuration = 4 * kStepDuration;  // 88200
 
     ArpeggiatorCore arp;
     arp.prepare(kSampleRate, kBlockSize);
@@ -15909,11 +15909,11 @@ TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
         // Split events into bar 1 and bar 2
         std::vector<ArpEvent> bar1Events, bar2Events;
         for (const auto& e : events) {
-            if (e.sampleOffset < static_cast<int32_t>(kBarDuration)) {
+            if (e.sampleOffset < kBarDuration) {
                 bar1Events.push_back(e);
             } else {
                 ArpEvent shifted = e;
-                shifted.sampleOffset -= static_cast<int32_t>(kBarDuration);
+                shifted.sampleOffset -= kBarDuration;
                 bar2Events.push_back(shifted);
             }
         }
@@ -16181,4 +16181,369 @@ TEST_CASE("ArpeggiatorCore: DAW loop fires all steps every iteration",
             CHECK(std::abs(loopStepOffsets[0][step] - loopStepOffsets[2][step]) <= 2);
         }
     }
+}
+
+// =============================================================================
+// 084-arp-scale-mode: Scale-Aware Pitch Lane (User Story 1)
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_ChromaticDefault_PitchOffset2_IsD4",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T018: Chromatic mode (default), pitch offset +2 on C4 = D4 (62)
+    // Default scale should be Chromatic, so +2 means +2 semitones
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 2);  // +2
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C4=60 + 2 semitones = D4=62
+    CHECK(noteOns[0].note == 62);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_MajorC_Offset2_IsE4",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T019a: Major scale, root C: offset +2 on C4 = E4 (+4 semitones)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 2);  // +2 degrees in Major = +4 semitones (C -> D -> E)
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C4=60 + 2 degrees in C Major = E4=64
+    CHECK(noteOns[0].note == 64);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_MajorC_Offset7_IsC5",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T019b: Major scale, root C: offset +7 on C4 = C5 (octave wrap)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 7);  // +7 degrees in Major = full octave
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C4=60 + 7 degrees in C Major = C5=72
+    CHECK(noteOns[0].note == 72);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_MajorC_OffsetNeg1_IsB3",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T019c: Major scale, root C: offset -1 on C4 = B3 (negative wrap)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, -1);  // -1 degree in Major = B3
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C4=60 - 1 degree in C Major = B3=59
+    CHECK(noteOns[0].note == 59);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_MinorPentatonicC_Offset1_IsEb4",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T020: Minor Pentatonic scale, root C: offset +1 on C4 = Eb4 (+3 semitones)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::MinorPentatonic);
+    arp.setRootNote(0);  // C
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 1);  // +1 degree in Minor Pentatonic {0,3,5,7,10}
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C4=60 + 1 degree in C Minor Pentatonic = Eb4=63
+    CHECK(noteOns[0].note == 63);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_MajorC_Offset24_ClampsMidi127",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T021: Major scale, root C: offset +24 on a note where result exceeds MIDI 127
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.noteOn(120, 100);  // Very high base note
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 24);  // +24 degrees -> many semitones
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // Result should be clamped to 127, not overflow
+    CHECK(noteOns[0].note <= 127);
+    CHECK(noteOns[0].note == 127);
+}
+
+TEST_CASE("ArpeggiatorCore: ScaleMode_Pentatonic_Offset6_OctaveWrap",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode]") {
+    // T022: Pentatonic scale (5-note), offset +6 wraps correctly into next octave
+    // Major Pentatonic: {0, 2, 4, 7, 9}, 5 degrees
+    // Offset +5 = next octave root (C5=72 from C4=60)
+    // Offset +6 = degree 1 of next octave = D5
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::MajorPentatonic);
+    arp.setRootNote(0);  // C
+    arp.noteOn(60, 100);  // C4
+
+    arp.pitchLane().setLength(2);
+    arp.pitchLane().setStep(0, 5);  // +5 in Major Pentatonic (5-note) = octave wrap = C5
+    arp.pitchLane().setStep(1, 6);  // +6 = degree 1 of next octave = D5
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 400);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 2);
+    // Major Pentatonic C: degrees 0=C, 1=D, 2=E, 3=G, 4=A
+    // +5 degrees from C4=60: octave 1, degree 0 -> C5=72
+    CHECK(noteOns[0].note == 72);
+    // +6 degrees from C4=60: octave 1, degree 1 -> D5=74
+    CHECK(noteOns[1].note == 74);
+}
+
+// ---------------------------------------------------------------------------
+// 084-arp-scale-mode: Scale Quantize Input (User Story 3)
+// ---------------------------------------------------------------------------
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_MajorC_CSharp4_SnapsToC4",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T049: quantize input ON, Major C: C#4 input -> C4 in held notes pool
+    // C# is equidistant from C and D (1 semitone each); ties snap to lower = C.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);
+    arp.noteOn(61, 100);  // C#4 -- should snap to C4=60
+
+    // Pitch offset 0, so output should be whatever is in the pool
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C#4=61 should have been snapped to C4=60 (nearest scale note, tie -> lower)
+    CHECK(noteOns[0].note == 60);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_OFF_MajorC_CSharp4_Passthrough",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T050: quantize input OFF, Major C: C#4 input -> C#4 in held notes pool (passthrough)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(false);  // OFF
+    arp.noteOn(61, 100);  // C#4 -- should pass through unchanged
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // C#4=61 should pass through unchanged
+    CHECK(noteOns[0].note == 61);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_Chromatic_CSharp4_Passthrough",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T051: quantize input ON, Chromatic scale: C#4 passes through unchanged (FR-010)
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Chromatic);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);  // ON, but Chromatic -> no effect
+    arp.noteOn(61, 100);  // C#4 -- should pass through unchanged
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    // Chromatic scale: quantize input has no effect, C#4=61 passes through
+    CHECK(noteOns[0].note == 61);
+}
+
+TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_SwitchToChromaticStopsQuantization",
+          "[processors][arpeggiator_core][arpeggiator][scale-mode][quantize-input]") {
+    // T052: switching Scale Type from non-Chromatic back to Chromatic while quantize
+    // is ON stops quantization (notes pass through).
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+
+    // Start with Major scale and quantize ON
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+    arp.setScaleQuantizeInput(true);
+
+    // First note: C#4 should be quantized to C4
+    arp.noteOn(61, 100);
+
+    // Switch to Chromatic (quantize still ON, but should have no effect)
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Second note: C#4 should now pass through unchanged
+    arp.noteOn(61, 100);
+
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, 0);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // The arp should have two notes in the pool: C4=60 (from first noteOn, quantized)
+    // and C#4=61 (from second noteOn, passthrough after switching to Chromatic).
+    // In Up mode, notes are played ascending: first 60, then 61.
+    REQUIRE(noteOns.size() >= 2);
+    CHECK(noteOns[0].note == 60);  // First note was quantized (Major was active)
+    CHECK(noteOns[1].note == 61);  // Second note passed through (Chromatic active)
 }

@@ -9,6 +9,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "parameters/arpeggiator_params.h"
+#include "parameters/dropdown_mappings.h"
 #include "plugin_ids.h"
 
 #include "base/source/fstreamer.h"
@@ -2067,9 +2068,9 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
         CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
     }
 
-    // Verify sentinels unchanged
-    CHECK(kArpEndId == 3299);
-    CHECK(kNumParameters == 3300);
+    // Verify sentinels (updated for 084-arp-scale-mode)
+    CHECK(kArpEndId == 3302);
+    CHECK(kNumParameters == 3303);
 }
 
 // T062: formatArpParam for Spice: percentage display
@@ -2626,4 +2627,177 @@ TEST_CASE("formatArpParam -- modifier step displays as human-readable flag abbre
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(str) == "TIE");
     }
+}
+
+// ==============================================================================
+// Scale Mode (084-arp-scale-mode) T029-T032
+// ==============================================================================
+
+// T029: handleArpParamChange: kArpScaleTypeId mapping
+TEST_CASE("handleArpParamChange: kArpScaleTypeId normalized mapping", "[arp-scale-mode]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    SECTION("normalized 0.0 -> UI index 0 -> Chromatic (enum 8)") {
+        handleArpParamChange(params, kArpScaleTypeId, 0.0);
+        CHECK(params.scaleType.load(std::memory_order_relaxed) == 8);
+    }
+
+    SECTION("normalized 1/15 -> UI index 1 -> Major (enum 0)") {
+        handleArpParamChange(params, kArpScaleTypeId, 1.0 / 15.0);
+        CHECK(params.scaleType.load(std::memory_order_relaxed) == 0);
+    }
+
+    SECTION("normalized 5/15 -> UI index 5 -> Dorian (enum 4)") {
+        handleArpParamChange(params, kArpScaleTypeId, 5.0 / 15.0);
+        CHECK(params.scaleType.load(std::memory_order_relaxed) == 4);
+    }
+
+    SECTION("normalized 1.0 -> UI index 15 -> DiminishedHW (enum 15)") {
+        handleArpParamChange(params, kArpScaleTypeId, 1.0);
+        CHECK(params.scaleType.load(std::memory_order_relaxed) == 15);
+    }
+
+    SECTION("kArpScaleDisplayOrder maps correctly for all 16 entries") {
+        for (int i = 0; i < kArpScaleTypeCount; ++i) {
+            double norm = static_cast<double>(i) / (kArpScaleTypeCount - 1);
+            handleArpParamChange(params, kArpScaleTypeId, norm);
+            CHECK(params.scaleType.load(std::memory_order_relaxed) == kArpScaleDisplayOrder[i]);
+        }
+    }
+}
+
+// T030: handleArpParamChange: kArpRootNoteId and kArpScaleQuantizeInputId
+TEST_CASE("handleArpParamChange: kArpRootNoteId and kArpScaleQuantizeInputId", "[arp-scale-mode]") {
+    using namespace Ruinae;
+    ArpeggiatorParams params;
+
+    SECTION("kArpRootNoteId normalized 0.0 -> rootNote=0 (C)") {
+        handleArpParamChange(params, kArpRootNoteId, 0.0);
+        CHECK(params.rootNote.load(std::memory_order_relaxed) == 0);
+    }
+
+    SECTION("kArpRootNoteId normalized 1.0 -> rootNote=11 (B)") {
+        handleArpParamChange(params, kArpRootNoteId, 1.0);
+        CHECK(params.rootNote.load(std::memory_order_relaxed) == 11);
+    }
+
+    SECTION("kArpRootNoteId normalized 0.5 -> rootNote ~5 or 6") {
+        handleArpParamChange(params, kArpRootNoteId, 0.5);
+        int val = params.rootNote.load(std::memory_order_relaxed);
+        CHECK(val >= 5);
+        CHECK(val <= 6);
+    }
+
+    SECTION("kArpScaleQuantizeInputId 0.0 -> false") {
+        handleArpParamChange(params, kArpScaleQuantizeInputId, 0.0);
+        CHECK(params.scaleQuantizeInput.load(std::memory_order_relaxed) == false);
+    }
+
+    SECTION("kArpScaleQuantizeInputId 1.0 -> true") {
+        handleArpParamChange(params, kArpScaleQuantizeInputId, 1.0);
+        CHECK(params.scaleQuantizeInput.load(std::memory_order_relaxed) == true);
+    }
+
+    SECTION("kArpScaleQuantizeInputId 0.49 -> false") {
+        handleArpParamChange(params, kArpScaleQuantizeInputId, 0.49);
+        CHECK(params.scaleQuantizeInput.load(std::memory_order_relaxed) == false);
+    }
+
+    SECTION("kArpScaleQuantizeInputId 0.5 -> true") {
+        handleArpParamChange(params, kArpScaleQuantizeInputId, 0.5);
+        CHECK(params.scaleQuantizeInput.load(std::memory_order_relaxed) == true);
+    }
+}
+
+// T031: Save/load round-trip preserves all 3 new scale parameter values
+TEST_CASE("saveArpParams/loadArpParams round-trip preserves scale params", "[arp-scale-mode]") {
+    using namespace Ruinae;
+    ArpeggiatorParams original;
+
+    // Set non-default values for all 3 scale params
+    original.scaleType.store(4, std::memory_order_relaxed);    // Dorian
+    original.rootNote.store(7, std::memory_order_relaxed);     // G
+    original.scaleQuantizeInput.store(true, std::memory_order_relaxed);
+
+    // Save to stream
+    Steinberg::MemoryStream memStream;
+    Steinberg::IBStreamer saveStreamer(&memStream, kLittleEndian);
+    saveArpParams(original, saveStreamer);
+
+    // Reset stream position and load
+    memStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer loadStreamer(&memStream, kLittleEndian);
+    ArpeggiatorParams loaded;
+    bool ok = loadArpParams(loaded, loadStreamer);
+
+    REQUIRE(ok);
+    CHECK(loaded.scaleType.load(std::memory_order_relaxed) == 4);
+    CHECK(loaded.rootNote.load(std::memory_order_relaxed) == 7);
+    CHECK(loaded.scaleQuantizeInput.load(std::memory_order_relaxed) == true);
+}
+
+// T032: Loading an old preset stream (no scale fields) keeps defaults (backward compat)
+TEST_CASE("loadArpParams: old preset without scale fields keeps defaults", "[arp-scale-mode]") {
+    using namespace Ruinae;
+    ArpeggiatorParams original;
+    // Leave all fields at defaults (the "old" preset)
+
+    // Save to stream WITHOUT the new scale fields
+    // We simulate this by saving normally (which includes scale fields)
+    // and then truncating the stream to only include the pre-scale data.
+    // Alternative: save with current code and load -- the new fields
+    // should be at the end; an old preset wouldn't have them.
+
+    // Better approach: create a stream that writes ONLY the old fields
+    // by saving with the current code and noting that old code would not
+    // write the scale fields. So we construct a stream from a fresh
+    // ArpeggiatorParams save and truncate before the scale fields.
+
+    // Actually, the simplest approach: save with the OLD format (before scale fields).
+    // We can do this by saving normally, then seeking back and setting a shorter length.
+    // But the memory stream doesn't easily support truncation.
+
+    // Instead: save with the current code (which writes scale fields at the end),
+    // then load from a DIFFERENT stream that has ONLY the old data.
+    // We'll build this by writing just the old data fields manually.
+
+    // Most pragmatic: save a full stream, note the position before new fields,
+    // then create a truncated copy.
+
+    Steinberg::MemoryStream fullStream;
+    Steinberg::IBStreamer fullStreamer(&fullStream, kLittleEndian);
+    saveArpParams(original, fullStreamer);
+
+    // The full stream contains everything. Now figure out how much data
+    // an "old" preset would have had (everything except the last 3 int32s
+    // for scaleType, rootNote, scaleQuantizeInput = 12 bytes).
+    Steinberg::int64 fullSize = 0;
+    fullStream.seek(0, Steinberg::IBStream::kIBSeekEnd, &fullSize);
+
+    // Old preset = fullSize - 12 bytes (3 * sizeof(int32))
+    Steinberg::int64 oldSize = fullSize - 3 * static_cast<Steinberg::int64>(sizeof(Steinberg::int32));
+
+    // Read the full data and create a truncated stream
+    std::vector<char> fullData(static_cast<size_t>(fullSize));
+    fullStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    Steinberg::int32 bytesRead = 0;
+    fullStream.read(fullData.data(), static_cast<Steinberg::int32>(fullSize), &bytesRead);
+
+    Steinberg::MemoryStream oldStream;
+    Steinberg::int32 bytesWritten = 0;
+    oldStream.write(fullData.data(), static_cast<Steinberg::int32>(oldSize), &bytesWritten);
+    oldStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    Steinberg::IBStreamer loadStreamer(&oldStream, kLittleEndian);
+    ArpeggiatorParams loaded;
+    bool ok = loadArpParams(loaded, loadStreamer);
+
+    // Must return true (backward compatible, NOT false)
+    REQUIRE(ok);
+
+    // Defaults: scaleType=8 (Chromatic), rootNote=0 (C), scaleQuantizeInput=false
+    CHECK(loaded.scaleType.load(std::memory_order_relaxed) == 8);
+    CHECK(loaded.rootNote.load(std::memory_order_relaxed) == 0);
+    CHECK(loaded.scaleQuantizeInput.load(std::memory_order_relaxed) == false);
 }

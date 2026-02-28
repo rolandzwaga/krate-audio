@@ -1611,6 +1611,22 @@ void Processor::applyParamsToEngine() {
     // --- Ratchet Swing (078-ratchet-swing) ---
     arpCore_.setRatchetSwing(arpParams_.ratchetSwing.load(std::memory_order_relaxed));
 
+    // --- Scale Mode (084-arp-scale-mode) ---
+    // These setters do NOT reset arp state, so they can be called unconditionally every block.
+    {
+        const auto scaleType = static_cast<Krate::DSP::ScaleType>(
+            arpParams_.scaleType.load(std::memory_order_relaxed));
+        arpCore_.setScaleType(scaleType);
+    }
+    {
+        const auto rootNote = arpParams_.rootNote.load(std::memory_order_relaxed);
+        arpCore_.setRootNote(rootNote);
+    }
+    {
+        const auto quantize = arpParams_.scaleQuantizeInput.load(std::memory_order_relaxed);
+        arpCore_.setScaleQuantizeInput(quantize);
+    }
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
 }

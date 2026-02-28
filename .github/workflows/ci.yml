@@ -227,8 +227,11 @@ jobs:
       # Note: PCH stays enabled on macOS - ccache handles it better than sccache
       # Note: SMTG_ENABLE_AUV2_BUILDS enables Audio Unit v2 build via VST3 SDK AU wrapper
       # Note: SMTG_CODE_SIGN_IDENTITY_MAC="-" uses ad-hoc signing (no keychain required in CI)
+      # Note: SMTG_DISABLE_CODE_SIGNING=ON works around Xcode 16+ passing -adhoc_codesign
+      #        directly to clang++ instead of via -Xlinker (VST3 SDK SMTG_CodeSign.cmake issue).
+      #        The SDK's Xcode 15+ post-build codesign workaround still runs independently.
       - name: Configure CMake
-        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
+        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
 
       - name: Build DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -312,7 +315,7 @@ jobs:
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           for PLUGIN in "Iterum" "Disrumpo" "Ruinae"; do
-            APP="build/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
+            APP="build/bin/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
             test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
             test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in ${PLUGIN} AUv3"; exit 1; }
             echo "[${PLUGIN}] AUv3 bundle OK"
@@ -331,7 +334,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.component
-            build/${{ env.BUILD_TYPE }}/Iterum AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Iterum AUv3.app
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifacts
@@ -342,7 +345,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component
-            build/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifacts
@@ -353,7 +356,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.component
-            build/${{ env.BUILD_TYPE }}/Ruinae AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Ruinae AUv3.app
           if-no-files-found: warn
 
   # Linux build (optional per constitution - Platform Support Matrix)

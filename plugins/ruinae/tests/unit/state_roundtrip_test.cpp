@@ -510,7 +510,7 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     proc2->setState(&loadStream);
 
     // Save and read the Euclidean section from the arp data.
-    // Arp section is the last 876 bytes of the state.
+    // Arp section is the last 888 bytes of the state.
     Steinberg::MemoryStream verifyStream;
     proc2->getState(&verifyStream);
     auto verifyData = extractStreamBytes(verifyStream);
@@ -518,9 +518,9 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     // Arp section layout: 11 base (44 bytes) + vel lane (132) + gate (132) +
     // pitch (132) + modifier (140) + ratchet (132) = 712 bytes before Euclidean.
     // Euclidean is 4 int32 = 16 bytes.
-    // Arp section total: 876 bytes.
+    // Arp section total: 888 bytes.
     // Euclidean offset within arp section: 712.
-    constexpr size_t kArpSectionSize = 876;
+    constexpr size_t kArpSectionSize = 888;
     constexpr size_t kEuclideanOffsetInArp = 712;
     REQUIRE(verifyData.size() > kArpSectionSize);
     size_t arpStart = verifyData.size() - kArpSectionSize;
@@ -566,7 +566,7 @@ TEST_CASE("Arp state round-trip preserves condition values",
     REQUIRE(data1 == data2);
 
     // Verify the condition values in the arp section
-    constexpr size_t kArpSectionSize = 876;
+    constexpr size_t kArpSectionSize = 888;
     // Condition lane offset within arp: 712 (Euclidean end) + 16 = 728
     constexpr size_t kCondOffsetInArp = 728;
     REQUIRE(data2.size() > kArpSectionSize);
@@ -611,7 +611,7 @@ TEST_CASE("Arp state round-trip preserves modifier bitmasks",
     REQUIRE(data1 == data2);
 
     // Verify bitmasks in the modifier section of the arp data
-    constexpr size_t kArpSectionSize = 876;
+    constexpr size_t kArpSectionSize = 888;
     // Modifier lane offset within arp: 44 (base) + 132 (vel) + 132 (gate) + 132 (pitch) = 440
     constexpr size_t kModOffsetInArp = 440;
     REQUIRE(data2.size() > kArpSectionSize);
@@ -652,12 +652,12 @@ TEST_CASE("Arp state round-trip preserves float values bit-identically",
     REQUIRE(data1 == data2);
 
     // Verify bit-identical floats using std::memcmp
-    // Arp section layout at end of state (876 bytes):
+    // Arp section layout at end of state (888 bytes):
     // Spice/humanize offset: after condition lane (728 + 4 + 32*4 + 4 = 864 bytes from arp start)
     // Actually: condition section = length(4) + 32*steps(128) + fillToggle(4) = 136 bytes
     // Condition starts at offset 728 in arp section, so ends at 728+136 = 864
     // Then spice(4) + humanize(4) + ratchetSwing(4) = 12 bytes at offset 864
-    constexpr size_t kArpSectionSize = 876;
+    constexpr size_t kArpSectionSize = 888;
     constexpr size_t kSpiceOffsetInArp = 864;
     REQUIRE(data2.size() > kArpSectionSize);
     size_t arpStart = data2.size() - kArpSectionSize;
@@ -689,8 +689,8 @@ TEST_CASE("Pre-arp preset loads with arp disabled",
     REQUIRE(proc1->getState(&fullStream) == Steinberg::kResultTrue);
     auto fullData = extractStreamBytes(fullStream);
 
-    // The arp section is the last 876 bytes of the state.
-    constexpr size_t kArpSectionSize = 876;
+    // The arp section is the last 888 bytes of the state.
+    constexpr size_t kArpSectionSize = 888;
     REQUIRE(fullData.size() > kArpSectionSize);
     size_t truncatedSize = fullData.size() - kArpSectionSize;
 
@@ -756,7 +756,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
 
     // Calculate the truncation point: keep everything before the arp section
     // plus only the 11 base arp params (44 bytes)
-    constexpr size_t kArpSectionSize = 876;
+    constexpr size_t kArpSectionSize = 888;
     constexpr size_t kArpBaseParamsSize = 44;  // 11 * 4 bytes
     REQUIRE(fullData.size() > kArpSectionSize);
     size_t arpStart = fullData.size() - kArpSectionSize;

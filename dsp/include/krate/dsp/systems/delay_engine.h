@@ -201,10 +201,6 @@ inline void DelayEngine::setDelayTimeMs(float ms) noexcept {
     if (ms > maxDelayMs_) {
         ms = maxDelayMs_;
     }
-    // Handle infinity
-    if (ms == std::numeric_limits<float>::infinity()) {
-        ms = maxDelayMs_;
-    }
 
     targetDelayMs_ = ms;
 }
