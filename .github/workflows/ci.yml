@@ -245,32 +245,17 @@ jobs:
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
 
-      # Build AUv3 targets separately to avoid Xcode parallel build race condition
-      # where -parallelizeTargets can link the AUv3 app extension before
-      # auv3_wrapper_macos static library finishes building.
-      - name: Build Iterum, AU, and Validator
+      - name: Build Iterum, AU, AUv3, and Validator
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU validator --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU Iterum_AUV3 validator --parallel
 
-      - name: Build Iterum AUv3
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum_AUV3 --parallel
-
-      - name: Build Disrumpo and AU
+      - name: Build Disrumpo, AU, and AUv3
         if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU Disrumpo_AUV3 --parallel
 
-      - name: Build Disrumpo AUv3
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo_AUV3 --parallel
-
-      - name: Build Ruinae, AU, and Tests
+      - name: Build Ruinae, AU, AUv3, and Tests
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU ruinae_tests --parallel
-
-      - name: Build Ruinae AUv3
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae_AUV3 --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU Ruinae_AUV3 ruinae_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
