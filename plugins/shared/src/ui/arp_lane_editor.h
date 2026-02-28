@@ -31,6 +31,7 @@
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
 #include "vstgui/uidescription/uiviewcreator.h"
@@ -504,8 +505,14 @@ public:
             return handleDiscreteMouseDown(where, buttons);
         }
 
-        // Delegate to base class for bar interaction
-        return StepPatternEditor::onMouseDown(where, buttons);
+        // Delegate to base class for bar interaction (velocity/gate)
+        auto result = StepPatternEditor::onMouseDown(where, buttons);
+        if (result == VSTGUI::kMouseEventHandled && isDragging_) {
+            int step = getStepFromPoint(where);
+            if (step >= 0)
+                showValuePopup(step, getStepLevel(step));
+        }
+        return result;
     }
 
     VSTGUI::CMouseEventResult onMouseExited(
@@ -551,8 +558,14 @@ public:
                 setDirty(true);
         }
 
-        // Delegate to base class for standard drag
-        return StepPatternEditor::onMouseMoved(where, buttons);
+        // Delegate to base class for standard drag (velocity/gate)
+        auto result = StepPatternEditor::onMouseMoved(where, buttons);
+        if (isDragging_ && laneType_ != ArpLaneType::kRatchet) {
+            int step = getStepFromPoint(where);
+            if (step >= 0)
+                updateValuePopup(step, getStepLevel(step));
+        }
+        return result;
     }
 
     VSTGUI::CMouseEventResult onMouseUp(
@@ -579,7 +592,19 @@ public:
             return VSTGUI::kMouseEventHandled;
         }
 
+        hideValuePopup();
+
         return StepPatternEditor::onMouseUp(where, buttons);
+    }
+
+    VSTGUI::CMouseEventResult onMouseCancel() override {
+        hideValuePopup();
+        return StepPatternEditor::onMouseCancel();
+    }
+
+    bool removed(VSTGUI::CView* parent) override {
+        hideValuePopup();
+        return StepPatternEditor::removed(parent);
     }
 
     CLASS_METHODS(ArpLaneEditor, StepPatternEditor)
@@ -856,6 +881,7 @@ private:
         float rawLevel = getLevelFromY(static_cast<float>(where.y));
         float snappedLevel = snapBipolarToSemitone(rawLevel);
         updateStepLevel(step, snappedLevel);
+        showValuePopup(step, snappedLevel);
 
         return VSTGUI::kMouseEventHandled;
     }
@@ -885,7 +911,134 @@ private:
         }
 
         lastDragStep_ = step;
+        updateValuePopup(step, snappedLevel);
         return VSTGUI::kMouseEventHandled;
+    }
+
+    // =========================================================================
+    // Value Popup Helpers
+    // =========================================================================
+
+    /// Format a level value as display text based on the current lane type.
+    [[nodiscard]] std::string formatValueText(float level) const {
+        if (laneType_ == ArpLaneType::kPitch) {
+            int semitones = static_cast<int>(std::round((level - 0.5f) * 48.0f));
+            if (semitones > 0)
+                return "+" + std::to_string(semitones);
+            return std::to_string(semitones);
+        }
+        // Velocity/Gate: show as percentage
+        int pct = static_cast<int>(std::round(level * 100.0f));
+        return std::to_string(pct) + "%";
+    }
+
+    /// Compute the popup Y position in local coords for the given level.
+    [[nodiscard]] float getPopupY(float level) const {
+        VSTGUI::CRect barArea = getBarArea();
+        float barHeight = static_cast<float>(barArea.getHeight());
+        if (laneType_ == ArpLaneType::kPitch) {
+            // Center line (zero-point for bipolar)
+            return static_cast<float>(barArea.top) + barHeight / 2.0f;
+        }
+        // Velocity/Gate: position at the current level Y
+        return static_cast<float>(barArea.top) + barHeight * (1.0f - level);
+    }
+
+    /// Show the value popup at the given step column.
+    void showValuePopup(int step, float level) {
+        auto* frame = getFrame();
+        if (!frame || valuePopup_)
+            return;
+
+        std::string text = formatValueText(level);
+
+        constexpr VSTGUI::CCoord kCharWidth = 7.0;
+        constexpr VSTGUI::CCoord kPaddingH = 12.0;
+        constexpr VSTGUI::CCoord kPopupHeight = 20.0;
+
+        auto popupWidth = static_cast<VSTGUI::CCoord>(text.size()) * kCharWidth + kPaddingH * 2;
+        popupWidth = std::max(popupWidth, 36.0);
+
+        VSTGUI::CRect barArea = getBarArea();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float stepCenterX = static_cast<float>(barArea.left) +
+            (static_cast<float>(step) + 0.5f) * stepWidth;
+        float popupY = getPopupY(level);
+
+        VSTGUI::CPoint pos(stepCenterX, popupY);
+        localToFrame(pos);
+
+        VSTGUI::CRect popupRect(
+            pos.x - popupWidth / 2.0,
+            pos.y - kPopupHeight / 2.0,
+            pos.x + popupWidth / 2.0,
+            pos.y + kPopupHeight / 2.0);
+
+        int32_t style = VSTGUI::CParamDisplay::kRoundRectStyle
+                      | VSTGUI::CParamDisplay::kNoFrame;
+        valuePopup_ = new VSTGUI::CTextLabel(popupRect, text.c_str(), nullptr, style);
+
+        auto* font = new VSTGUI::CFontDesc("", 11);
+        valuePopup_->setFont(font);
+        font->forget();
+
+        valuePopup_->setFontColor(VSTGUI::CColor(240, 240, 240));
+        valuePopup_->setBackColor(VSTGUI::CColor(30, 30, 30, 220));
+        valuePopup_->setRoundRectRadius(4.0);
+        valuePopup_->setHoriAlign(VSTGUI::kCenterText);
+        valuePopup_->setMouseEnabled(false);
+
+        frame->addView(valuePopup_);
+    }
+
+    /// Update the value popup text and reposition to the current step column.
+    void updateValuePopup(int step, float level) {
+        if (!valuePopup_)
+            return;
+
+        std::string text = formatValueText(level);
+        valuePopup_->setText(text.c_str());
+
+        constexpr VSTGUI::CCoord kCharWidth = 7.0;
+        constexpr VSTGUI::CCoord kPaddingH = 12.0;
+        constexpr VSTGUI::CCoord kPopupHeight = 20.0;
+
+        auto newWidth = static_cast<VSTGUI::CCoord>(text.size()) * kCharWidth + kPaddingH * 2;
+        newWidth = std::max(newWidth, 36.0);
+
+        VSTGUI::CRect barArea = getBarArea();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float stepCenterX = static_cast<float>(barArea.left) +
+            (static_cast<float>(step) + 0.5f) * stepWidth;
+        float popupY = getPopupY(level);
+
+        VSTGUI::CPoint pos(stepCenterX, popupY);
+        localToFrame(pos);
+
+        VSTGUI::CRect r(
+            pos.x - newWidth / 2.0,
+            pos.y - kPopupHeight / 2.0,
+            pos.x + newWidth / 2.0,
+            pos.y + kPopupHeight / 2.0);
+        valuePopup_->setViewSize(r);
+        valuePopup_->setMouseableArea(r);
+        valuePopup_->invalid();
+    }
+
+    /// Remove the value popup from the frame.
+    void hideValuePopup() {
+        if (!valuePopup_)
+            return;
+        auto* frame = getFrame();
+        if (frame)
+            frame->removeView(valuePopup_, true);
+        valuePopup_ = nullptr;
     }
 
     // =========================================================================
@@ -1229,6 +1382,9 @@ private:
     int discreteDragStartValue_ = 1;
     float discreteDragAccumY_ = 0.0f;
     bool discreteHasEnteredDrag_ = false;
+
+    // Value popup (owned by frame when visible)
+    VSTGUI::CTextLabel* valuePopup_ = nullptr;
 };
 
 // =============================================================================

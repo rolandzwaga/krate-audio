@@ -1060,12 +1060,19 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     lane->setPlayheadStep(step);
                 };
 
-                pollLanePlayhead(velocityLane_, kArpVelocityPlayheadId, 0);
-                pollLanePlayhead(gateLane_, kArpGatePlayheadId, 1);
-                pollLanePlayhead(pitchLane_, kArpPitchPlayheadId, 2);
-                pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
-                pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
-                pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
+                // Only poll playhead steps while transport is playing.
+                // When stopped, the parameter defaults to 0.0 which would
+                // falsely decode as step 0 and paint a ghost trail overlay.
+                bool transportPlaying = isTransportPlayingPtr_ &&
+                    isTransportPlayingPtr_->load(std::memory_order_relaxed);
+                if (transportPlaying) {
+                    pollLanePlayhead(velocityLane_, kArpVelocityPlayheadId, 0);
+                    pollLanePlayhead(gateLane_, kArpGatePlayheadId, 1);
+                    pollLanePlayhead(pitchLane_, kArpPitchPlayheadId, 2);
+                    pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
+                    pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
+                    pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
+                }
             }, 33); // ~30fps
 
         // trailTimer_ references the same poll timer for trail management
