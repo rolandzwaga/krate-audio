@@ -267,7 +267,7 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 - [X] T073 Build the full Ruinae plugin: `"$CMAKE" --build build/windows-x64-release --config Release --target Ruinae` — confirm zero compilation errors and zero warnings
 - [X] T074 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` — must pass all checks
-- [ ] T075 **Commit completed UI changes** (editor.uidesc controls, controller dimming, popup suffix)
+- [X] T075 **Commit completed UI changes** (editor.uidesc controls, controller dimming, popup suffix)
 
 **Checkpoint**: All 3 UI controls are present and functional. Root Note and Scale Quantize Input dim when Chromatic is selected. Pitch lane popups show "deg" suffix when non-Chromatic scale is active.
 
@@ -281,14 +281,14 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 ### N-1.0.1 Run Clang-Tidy Analysis
 
-- [ ] T076 [P] Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires Ninja build preset: `"$CMAKE" --preset windows-ninja` if not already done)
-- [ ] T077 [P] Run clang-tidy on Ruinae target: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
+- [X] T076 [P] Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` (requires Ninja build preset: `"$CMAKE" --preset windows-ninja` if not already done)
+- [X] T077 [P] Run clang-tidy on Ruinae target: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
 
 ### N-1.0.2 Address Findings
 
-- [ ] T078 Fix all clang-tidy errors (blocking issues) in modified files: `dsp/include/krate/dsp/core/scale_harmonizer.h`, `dsp/include/krate/dsp/processors/arpeggiator_core.h`, `plugins/ruinae/src/parameters/arpeggiator_params.h`, `plugins/ruinae/src/parameters/dropdown_mappings.h`, `plugins/ruinae/src/processor/processor.cpp`, `plugins/ruinae/src/controller/controller.cpp`, `plugins/shared/src/ui/arp_lane_editor.h`
-- [ ] T079 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comment for any intentionally ignored warning
-- [ ] T080 **Commit clang-tidy fixes**
+- [X] T078 Fix all clang-tidy errors (blocking issues) in modified files: `dsp/include/krate/dsp/core/scale_harmonizer.h`, `dsp/include/krate/dsp/processors/arpeggiator_core.h`, `plugins/ruinae/src/parameters/arpeggiator_params.h`, `plugins/ruinae/src/parameters/dropdown_mappings.h`, `plugins/ruinae/src/processor/processor.cpp`, `plugins/ruinae/src/controller/controller.cpp`, `plugins/shared/src/ui/arp_lane_editor.h`
+- [X] T079 Review clang-tidy warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comment for any intentionally ignored warning
+- [X] T080 **Commit clang-tidy fixes**
 
 **Checkpoint**: Static analysis clean — ready for completion verification.
 

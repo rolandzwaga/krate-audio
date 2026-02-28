@@ -15803,8 +15803,8 @@ TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
     constexpr double kSampleRate = 44100.0;
     constexpr double kTempo = 120.0;
     constexpr size_t kBlockSize = 512;
-    constexpr size_t kStepDuration = 22050;  // 60/120 * 44100
-    constexpr size_t kBarDuration = 4 * kStepDuration;  // 88200
+    constexpr int32_t kStepDuration = 22050;  // 60/120 * 44100
+    constexpr int32_t kBarDuration = 4 * kStepDuration;  // 88200
 
     ArpeggiatorCore arp;
     arp.prepare(kSampleRate, kBlockSize);
@@ -15909,11 +15909,11 @@ TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
         // Split events into bar 1 and bar 2
         std::vector<ArpEvent> bar1Events, bar2Events;
         for (const auto& e : events) {
-            if (e.sampleOffset < static_cast<int32_t>(kBarDuration)) {
+            if (e.sampleOffset < kBarDuration) {
                 bar1Events.push_back(e);
             } else {
                 ArpEvent shifted = e;
-                shifted.sampleOffset -= static_cast<int32_t>(kBarDuration);
+                shifted.sampleOffset -= kBarDuration;
                 bar2Events.push_back(shifted);
             }
         }

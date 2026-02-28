@@ -2000,14 +2000,14 @@ VSTGUI::CView* Controller::verifyView(
             else if (*name == "ArpRootNoteGroup") {
                 arpRootNoteGroup_ = container;
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
-                bool isChromaticInit = !scaleParam || scaleParam->getNormalized() < 0.01;
+                bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
             }
             else if (*name == "ArpQuantizeInputGroup") {
                 arpQuantizeInputGroup_ = container;
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
-                bool isChromaticInit = !scaleParam || scaleParam->getNormalized() < 0.01;
+                bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
             }
