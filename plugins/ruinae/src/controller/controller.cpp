@@ -1336,6 +1336,7 @@ VSTGUI::CView* Controller::verifyView(
         velocityLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
@@ -1390,6 +1391,7 @@ VSTGUI::CView* Controller::verifyView(
         gateLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
@@ -1443,6 +1445,7 @@ VSTGUI::CView* Controller::verifyView(
         pitchLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
@@ -1494,6 +1497,7 @@ VSTGUI::CView* Controller::verifyView(
         ratchetLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
@@ -1543,6 +1547,7 @@ VSTGUI::CView* Controller::verifyView(
         modifierLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });
@@ -1594,6 +1599,7 @@ VSTGUI::CView* Controller::verifyView(
         conditionLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
                 endEdit(paramId);
             });

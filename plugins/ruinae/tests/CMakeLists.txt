@@ -69,6 +69,9 @@ add_executable(ruinae_tests
     # Arp Lane Parameter Flow Tests (079-layout-framework)
     integration/arp_lane_param_flow_test.cpp
 
+    # Arp Step Count Dropdown Regression Tests
+    integration/arp_step_count_dropdown_test.cpp
+
     # Arp Performance & Stress Tests (082-presets-polish)
     unit/arp_performance_test.cpp
 
