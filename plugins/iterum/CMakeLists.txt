@@ -191,6 +191,12 @@ if(SMTG_MAC)
             ${PLUGIN_NAME}
         )
 
+        # Xcode generator doesn't resolve target_link_libraries into explicit
+        # build dependencies, causing "library not found" with parallel builds.
+        if(TARGET auv3_wrapper_macos AND AUV3_EXTENSION_TARGET)
+            add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
+        endif()
+
         message(STATUS "[ITERUM] AudioUnit v3 target: ${PLUGIN_NAME}_AUV3")
     elseif(SMTG_ENABLE_AUV3_BUILDS AND NOT XCODE)
         message(WARNING "[ITERUM] AUv3 builds require Xcode generator (-G Xcode)")
