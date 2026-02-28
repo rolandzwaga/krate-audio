@@ -186,6 +186,7 @@ private:
     Krate::DSP::ArpeggiatorCore arpCore_;
     std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
     bool wasTransportPlaying_{false};
+    bool hostSupportsTransport_{false}; ///< True once host reports kPlaying
     double prevProjectTimeMusic_{-1.0}; ///< For detecting backward PPQ jumps (DAW loop)
 
     // Previous arp param values -- only call setters that reset internal state
