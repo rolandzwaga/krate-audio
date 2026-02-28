@@ -378,6 +378,16 @@ private:
     VSTGUI::CControl* diceButton_ = nullptr;
 
     // ==========================================================================
+    // Scale Mode Dimming (084-arp-scale-mode)
+    // ==========================================================================
+
+    /// Root Note container (dimmed when Scale Type is Chromatic)
+    VSTGUI::CViewContainer* arpRootNoteGroup_ = nullptr;
+
+    /// Quantize Input container (dimmed when Scale Type is Chromatic)
+    VSTGUI::CViewContainer* arpQuantizeInputGroup_ = nullptr;
+
+    // ==========================================================================
     // Preset Browser (Spec 083)
     // ==========================================================================
 

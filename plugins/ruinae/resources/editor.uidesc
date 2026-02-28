@@ -346,6 +346,11 @@
         <control-tag name="ArpHumanize" tag="3292"/>
         <control-tag name="ArpRatchetSwing" tag="3293"/>
 
+        <!-- Arp Scale Mode (084-arp-scale-mode) -->
+        <control-tag name="ArpScaleType" tag="3300"/>
+        <control-tag name="ArpRootNote" tag="3301"/>
+        <control-tag name="ArpScaleQuantizeInput" tag="3302"/>
+
         <!-- Envelopes: Amp (ENV 1) -->
         <control-tag name="AmpEnvAttack" tag="700"/>
         <control-tag name="AmpEnvDecay" tag="701"/>
@@ -3219,6 +3224,39 @@
                   control-tag="ArpRetrigger" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <!-- Row 1 continued: Scale Mode (084-arp-scale-mode) -->
+            <view class="CTextLabel" origin="756, 16" size="36, 14"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true" title="Scale"/>
+            <view class="COptionMenu" origin="792, 14" size="130, 18"
+                  control-tag="ArpScaleType" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+            <view class="CViewContainer" origin="936, 12" size="100, 22"
+                  custom-view-name="ArpRootNoteGroup" transparent="true">
+                <view class="CTextLabel" origin="0, 4" size="28, 14"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="left" transparent="true" title="Root"/>
+                <view class="COptionMenu" origin="28, 2" size="56, 18"
+                      control-tag="ArpRootNote" default-value="0"
+                      font="~ NormalFontSmaller" font-color="text-menu"
+                      back-color="bg-dropdown" frame-color="frame-dropdown"/>
+            </view>
+
+            <view class="CViewContainer" origin="1048, 12" size="80, 22"
+                  custom-view-name="ArpQuantizeInputGroup" transparent="true">
+                <view class="ToggleButton" origin="0, 2" size="64, 18"
+                      control-tag="ArpScaleQuantizeInput" default-value="0"
+                      title="Quantize"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="arpeggiator"
+                      text-color="arpeggiator"
+                      tooltip="Quantize input notes to scale"
+                      transparent="true"/>
+            </view>
 
             <!-- Row 2 (y=46): Sync toggle, Rate/NoteValue, Gate Length, Swing knobs -->
             <view class="ToggleButton" origin="8, 50" size="50, 18"

@@ -185,20 +185,20 @@ This feature wires scale parameters into `applyParamsToEngine()` and modifies `A
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T049 [US3] Write failing unit test: quantize input ON, Major C: C#4 input -> C4 in held notes pool (snapped down) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T050 [US3] Write failing unit test: quantize input OFF, Major C: C#4 input -> C#4 in held notes pool (passthrough) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T051 [US3] Write failing unit test: quantize input ON, Chromatic scale: C#4 passes through unchanged (FR-010) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T052 [US3] Write failing unit test: switching Scale Type from non-Chromatic back to Chromatic while quantize is ON stops quantization (notes pass through) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T049 [US3] Write failing unit test: quantize input ON, Major C: C#4 input -> C4 in held notes pool (snapped down) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T050 [US3] Write failing unit test: quantize input OFF, Major C: C#4 input -> C#4 in held notes pool (passthrough) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T051 [US3] Write failing unit test: quantize input ON, Chromatic scale: C#4 passes through unchanged (FR-010) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T052 [US3] Write failing unit test: switching Scale Type from non-Chromatic back to Chromatic while quantize is ON stops quantization (notes pass through) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
 
 ### 5.2 Implement User Story 3
 
-- [ ] T053 [US3] Modify `ArpeggiatorCore::noteOn()` in `dsp/include/krate/dsp/processors/arpeggiator_core.h`: before calling `heldNotes_.noteOn()`, add the scale quantize input guard block using `scaleQuantizeInput_` and `scaleHarmonizer_.getScale() != ScaleType::Chromatic` to call `scaleHarmonizer_.quantizeToScale()` and substitute `effectiveNote` — following the exact code from `contracts/arpeggiator_core_api.md`; ensure all references to the original `note` variable within the latch/retrigger logic are updated to use `effectiveNote` where appropriate
+- [X] T053 [US3] Modify `ArpeggiatorCore::noteOn()` in `dsp/include/krate/dsp/processors/arpeggiator_core.h`: before calling `heldNotes_.noteOn()`, add the scale quantize input guard block using `scaleQuantizeInput_` and `scaleHarmonizer_.getScale() != ScaleType::Chromatic` to call `scaleHarmonizer_.quantizeToScale()` and substitute `effectiveNote` — following the exact code from `contracts/arpeggiator_core_api.md`; ensure all references to the original `note` variable within the latch/retrigger logic are updated to use `effectiveNote` where appropriate
 
 ### 5.3 Verify User Story 3
 
-- [ ] T054 [US3] Build `dsp_tests` and run the `[arpeggiator]` test suite: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "[arpeggiator]"` — all US3 tests must pass; all US1 tests must still pass
-- [ ] T055 [US3] Verify IEEE 754 compliance: check `dsp/tests/unit/processors/arpeggiator_core_test.cpp` for any new `std::isnan`/`std::isfinite`/`std::isinf` usage added in US3 tests; add to `-fno-fast-math` list if needed
-- [ ] T056 [US3] **Commit completed User Story 3 work** (quantized noteOn in ArpeggiatorCore)
+- [X] T054 [US3] Build `dsp_tests` and run the `[arpeggiator]` test suite: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "[arpeggiator]"` — all US3 tests must pass; all US1 tests must still pass
+- [X] T055 [US3] Verify IEEE 754 compliance: check `dsp/tests/unit/processors/arpeggiator_core_test.cpp` for any new `std::isnan`/`std::isfinite`/`std::isinf` usage added in US3 tests; add to `-fno-fast-math` list if needed
+- [X] T056 [US3] **Commit completed User Story 3 work** (quantized noteOn in ArpeggiatorCore)
 
 **Checkpoint**: Scale Quantize Input works end-to-end. Out-of-key notes are snapped to scale before entering the arp pool when enabled. Chromatic and disabled states are passthrough. All US1 tests still pass.
 
@@ -248,25 +248,25 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T066a Write failing unit tests for `formatValueText()` popup suffix in `plugins/shared/tests/ui/arp_lane_editor_test.cpp` (or equivalent shared test file): (a) when `scaleType_` is 8 (Chromatic), a pitch value of +2 produces text ending in " st" (e.g., "+2 st"); (b) when `scaleType_` is any non-8 value (e.g., 0 = Major), the same value produces text ending in " deg" (e.g., "+2 deg") — these tests must FAIL before T066/T067 are implemented
-- [ ] T066 Add `scaleType_` member (int, default 8 = Chromatic) and `setScaleType(int type)` setter to the pitch lane editor class in `plugins/shared/src/ui/arp_lane_editor.h`
-- [ ] T067 Modify `formatValueText()` for pitch lane mode in `plugins/shared/src/ui/arp_lane_editor.h`: when `scaleType_ != 8` use " deg" suffix; when `scaleType_ == 8` use " st" suffix (e.g., "+2 deg" vs "+2 st") — matching spec clarification FR-018
+- [X] T066a Write failing unit tests for `formatValueText()` popup suffix in `plugins/shared/tests/ui/arp_lane_editor_test.cpp` (or equivalent shared test file): (a) when `scaleType_` is 8 (Chromatic), a pitch value of +2 produces text ending in " st" (e.g., "+2 st"); (b) when `scaleType_` is any non-8 value (e.g., 0 = Major), the same value produces text ending in " deg" (e.g., "+2 deg") — these tests must FAIL before T066/T067 are implemented
+- [X] T066 Add `scaleType_` member (int, default 8 = Chromatic) and `setScaleType(int type)` setter to the pitch lane editor class in `plugins/shared/src/ui/arp_lane_editor.h`
+- [X] T067 Modify `formatValueText()` for pitch lane mode in `plugins/shared/src/ui/arp_lane_editor.h`: when `scaleType_ != 8` use " deg" suffix; when `scaleType_ == 8` use " st" suffix (e.g., "+2 deg" vs "+2 st") — matching spec clarification FR-018
 
 ### 7.2 UI Layout (editor.uidesc)
 
-- [ ] T068 Add Scale Type `COptionMenu` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpScaleTypeId` (3300) with all 16 option strings in display order (Chromatic first)
-- [ ] T069 Add Root Note `COptionMenu` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpRootNoteId` (3301) with all 12 note strings (C through B)
-- [ ] T070 Add Scale Quantize Input `COnOffButton` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpScaleQuantizeInputId` (3302)
+- [X] T068 Add Scale Type `COptionMenu` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpScaleTypeId` (3300) with all 16 option strings in display order (Chromatic first)
+- [X] T069 Add Root Note `COptionMenu` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpRootNoteId` (3301) with all 12 note strings (C through B)
+- [X] T070 Add Scale Quantize Input `COnOffButton` control in the arpeggiator section of `plugins/ruinae/resources/editor.uidesc` bound to tag `kArpScaleQuantizeInputId` (3302)
 
 ### 7.3 Controller Dimming Logic (controller.cpp)
 
-- [ ] T071 In `plugins/ruinae/src/controller/controller.cpp`, implement UI dimming: when Scale Type parameter changes to Chromatic (normalized value 0.0 = UI index 0), set alpha on Root Note dropdown and Scale Quantize Input toggle to 0.35 and disable mouse input; when non-Chromatic, set alpha to 1.0 and enable mouse input — using the IDependent pattern from the vst-guide skill
-- [ ] T072 In `plugins/ruinae/src/controller/controller.cpp`, when Scale Type parameter changes, call `setScaleType(enumValue)` on the pitch lane `ArpLaneEditor` view so popup labels immediately reflect the correct suffix
+- [X] T071 In `plugins/ruinae/src/controller/controller.cpp`, implement UI dimming: when Scale Type parameter changes to Chromatic (normalized value 0.0 = UI index 0), set alpha on Root Note dropdown and Scale Quantize Input toggle to 0.35 and disable mouse input; when non-Chromatic, set alpha to 1.0 and enable mouse input — using the IDependent pattern from the vst-guide skill
+- [X] T072 In `plugins/ruinae/src/controller/controller.cpp`, when Scale Type parameter changes, call `setScaleType(enumValue)` on the pitch lane `ArpLaneEditor` view so popup labels immediately reflect the correct suffix
 
 ### 7.4 Build and Verify UI
 
-- [ ] T073 Build the full Ruinae plugin: `"$CMAKE" --build build/windows-x64-release --config Release --target Ruinae` — confirm zero compilation errors and zero warnings
-- [ ] T074 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` — must pass all checks
+- [X] T073 Build the full Ruinae plugin: `"$CMAKE" --build build/windows-x64-release --config Release --target Ruinae` — confirm zero compilation errors and zero warnings
+- [X] T074 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` — must pass all checks
 - [ ] T075 **Commit completed UI changes** (editor.uidesc controls, controller dimming, popup suffix)
 
 **Checkpoint**: All 3 UI controls are present and functional. Root Note and Scale Quantize Input dim when Chromatic is selected. Pitch lane popups show "deg" suffix when non-Chromatic scale is active.
