@@ -5,6 +5,26 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-02-28
+
+### Added
+
+- **Arpeggiator Scale Mode** — Optional musical scale constraint for the arpeggiator
+  - 16 scale types: Chromatic, Major, Natural Minor, Harmonic Minor, Melodic Minor, Dorian, Phrygian, Lydian, Mixolydian, Locrian, Major Pentatonic, Minor Pentatonic, Blues, Whole Tone, Diminished (W-H), Diminished (H-W)
+  - 12 root notes (C through B)
+  - Pitch lane interprets step values as scale degree offsets when a non-Chromatic scale is active (e.g., +2 in C Major = E, not D)
+  - Correct octave wrapping for all scale sizes (5-12 notes)
+  - Scale Quantize Input toggle: snaps incoming MIDI notes to the nearest scale note before entering the arp pool
+  - Root Note and Scale Quantize Input controls dim when Chromatic is selected
+  - Pitch lane popup suffix changes from "st" to "deg" in scale mode
+  - Chromatic mode (default) is identical to pre-feature behavior
+
+- **Harmonizer scale extension** — Harmonizer dropdown now exposes all 16 scale types (was 9)
+
+### Changed
+
+- VST3 post-build copy destination changed from `C:/Program Files/Common Files/VST3` to `%LOCALAPPDATA%/Programs/Common/VST3` (no admin required)
+
 ## [0.9.0] - 2026-02-27
 
 ### Added
