@@ -76,6 +76,8 @@ struct BlockContext {
 
     bool isPlaying = false;           ///< Transport playing state
     int64_t transportPositionSamples = 0;  ///< Position in samples from song start
+    double projectTimeMusic = 0.0;   ///< Musical position in quarter notes (PPQ)
+    bool projectTimeMusicValid = false; ///< Whether projectTimeMusic is valid
 
     // =========================================================================
     // Methods (FR-008)

@@ -923,6 +923,16 @@ public:
         tranceGate_.setParams(params);
     }
 
+    /// @brief Sync this voice's trance gate timing to another voice's gate.
+    void syncTranceGateTo(const RuinaeVoice& other) noexcept {
+        tranceGate_.syncTo(other.tranceGate_);
+    }
+
+    /// @brief Sync trance gate to host musical position (PPQ).
+    void syncTranceGateToMusicalPosition(double ppq) noexcept {
+        tranceGate_.syncToMusicalPosition(ppq);
+    }
+
     void setTranceGateStep(int index, float level) noexcept {
         tranceGate_.setStep(index, level);
     }
@@ -941,6 +951,26 @@ public:
 
     [[nodiscard]] int getTranceGateCurrentStep() const noexcept {
         return tranceGate_.getCurrentStep();
+    }
+
+    [[nodiscard]] size_t getTranceGateSamplesPerStep() const noexcept {
+        return tranceGate_.getSamplesPerStep();
+    }
+
+    [[nodiscard]] double getTranceGateTempoBPM() const noexcept {
+        return tranceGate_.getTempoBPM();
+    }
+
+    [[nodiscard]] int getTranceGateNumSteps() const noexcept {
+        return tranceGate_.getNumSteps();
+    }
+
+    [[nodiscard]] bool getTranceGateTempoSync() const noexcept {
+        return tranceGate_.isTempoSync();
+    }
+
+    [[nodiscard]] size_t getTranceGateSampleCounter() const noexcept {
+        return tranceGate_.getSampleCounter();
     }
 
     // =========================================================================

@@ -545,6 +545,7 @@ TEST_CASE("E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending not
     events.addNoteOn(64, 0.8f);  // E4
     events.addNoteOn(67, 0.8f);  // G4
 
+    outputParams.clear();
     std::fill(outL.begin(), outL.end(), 0.0f);
     std::fill(outR.begin(), outR.end(), 0.0f);
     processor.process(data);
@@ -570,6 +571,19 @@ TEST_CASE("E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending not
     std::vector<int> stepTransitions;
     int lastObservedStep = -1;
     bool audioFound = false;
+
+    // Capture initial playhead from the noteOn block (step 0 fires immediately)
+    {
+        auto* velQueue = outputParams.findQueue(Ruinae::kArpVelocityPlayheadId);
+        if (velQueue && velQueue->hasPoints()) {
+            double lastValue = velQueue->getLastValue();
+            int step = static_cast<int>(std::round(lastValue * 32.0));
+            if (step != lastObservedStep) {
+                stepTransitions.push_back(step);
+                lastObservedStep = step;
+            }
+        }
+    }
 
     for (int block = 0; block < kNumBlocks; ++block) {
         outputParams.clear();
@@ -623,15 +637,17 @@ TEST_CASE("E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending not
     //   step 7 -> noteIndex 1 -> E4 (64)
     // Then cycle repeats.
     //
-    // The playhead step index directly maps to lane position. Since all lanes
-    // have length=8, the pattern repeats every 8 steps. The fact that we
-    // observe the correct 0-7 step cycle proves the arp is operating correctly
-    // with the parameters loaded via setState().
+    // The playhead reports velocityLane().currentStep(), which is the lane
+    // position AFTER advance(). When step N fires, the lane advances to N+1.
+    // So the reported playhead cycle is: 1,2,3,4,5,6,7,0, 1,2,3,4,5,6,7,0,...
+    // (step 0 fires first, position advances to 1; step 7 fires, wraps to 0).
+    //
+    // With 8-step lane length, the expected transition at index i is (i+1)%8.
     //
     // Verified against NoteSelector::advanceUp() implementation in
     // dsp/include/krate/dsp/primitives/held_note_buffer.h.
     for (size_t i = 0; i < 16; ++i) {
-        int expectedStep = static_cast<int>(i % 8);
+        int expectedStep = static_cast<int>((i + 1) % 8);
         INFO("Step transition " << i << ": expected lane step " << expectedStep
              << ", got " << stepTransitions[i]);
         CHECK(stepTransitions[i] == expectedStep);

@@ -15,7 +15,7 @@
 namespace Ruinae {
 
 // State version for trance gate serialization
-inline constexpr Steinberg::int32 kTranceGateStateVersion = 2;
+inline constexpr Steinberg::int32 kTranceGateStateVersion = 3;
 
 struct RuinaeTranceGateParams {
     std::atomic<bool> enabled{false};
@@ -37,6 +37,9 @@ struct RuinaeTranceGateParams {
 
     // Phase offset
     std::atomic<float> phaseOffset{0.0f};
+
+    // Retrigger depth: dip at step boundaries for audible step articulation
+    std::atomic<float> retriggerDepth{0.0f}; // 0=no dip, 1=full snap to 0
 
     RuinaeTranceGateParams() {
         for (auto& level : stepLevels) {
@@ -108,6 +111,11 @@ inline void handleTranceGateParamChange(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
                 std::memory_order_relaxed);
             break;
+        case kTranceGateRetriggerDepthId:
+            params.retriggerDepth.store(
+                std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                std::memory_order_relaxed);
+            break;
         default: {
             // Check if it's a step level parameter (668-699)
             if (id >= kTranceGateStepLevel0Id && id <= kTranceGateStepLevel31Id) {
@@ -164,6 +172,10 @@ inline void registerTranceGateParams(Steinberg::Vst::ParameterContainer& paramet
     // Phase offset
     parameters.addParameter(STR16("Gate Phase Offset"), STR16(""), 0, 0.0,
         ParameterInfo::kCanAutomate, kTranceGatePhaseOffsetId);
+
+    // Retrigger depth: step boundary articulation
+    parameters.addParameter(STR16("Gate Retrigger"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kTranceGateRetriggerDepthId);
 
     // 32 step level parameters (hidden from generic UI)
     for (int i = 0; i < 32; ++i) {
@@ -235,6 +247,12 @@ inline Steinberg::tresult formatTranceGateParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+        case kTranceGateRetriggerDepthId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         default: break;
     }
     // Step level params: show as percentage
@@ -269,6 +287,9 @@ inline void saveTranceGateParams(const RuinaeTranceGateParams& params, Steinberg
     for (int i = 0; i < 32; ++i) {
         streamer.writeFloat(params.stepLevels[static_cast<size_t>(i)].load(std::memory_order_relaxed));
     }
+
+    // v3: retrigger depth
+    streamer.writeFloat(params.retriggerDepth.load(std::memory_order_relaxed));
 }
 
 inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBStreamer& streamer) {
@@ -297,10 +318,10 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
     if (!streamer.readInt32(intVal)) return false;
     params.noteValue.store(intVal, std::memory_order_relaxed);
 
-    // Try to read v2 version marker
+    // Try to read v2+ version marker
     Steinberg::int32 versionMarker = 0;
-    if (streamer.readInt32(versionMarker) && versionMarker == kTranceGateStateVersion) {
-        // v2 format: numStepsRaw is actual step count
+    if (streamer.readInt32(versionMarker) && versionMarker >= 2) {
+        // v2+ format: numStepsRaw is actual step count
         params.numSteps.store(std::clamp(numStepsRaw, 2, 32), std::memory_order_relaxed);
 
         // Read Euclidean params
@@ -320,15 +341,24 @@ inline bool loadTranceGateParams(RuinaeTranceGateParams& params, Steinberg::IBSt
                     std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
             }
         }
+
+        // v3: retrigger depth
+        if (versionMarker >= 3) {
+            if (streamer.readFloat(floatVal))
+                params.retriggerDepth.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+        } else {
+            params.retriggerDepth.store(0.0f, std::memory_order_relaxed);
+        }
     } else {
         // v1 format: numStepsRaw is a dropdown index (0=8, 1=16, 2=32)
         params.numSteps.store(numStepsFromIndex(numStepsRaw), std::memory_order_relaxed);
 
-        // Initialize v2 fields to defaults
+        // Initialize v2+ fields to defaults
         params.euclideanEnabled.store(false, std::memory_order_relaxed);
         params.euclideanHits.store(4, std::memory_order_relaxed);
         params.euclideanRotation.store(0, std::memory_order_relaxed);
         params.phaseOffset.store(0.0f, std::memory_order_relaxed);
+        params.retriggerDepth.store(0.0f, std::memory_order_relaxed);
         for (auto& level : params.stepLevels) {
             level.store(1.0f, std::memory_order_relaxed);
         }
@@ -363,10 +393,10 @@ inline void loadTranceGateParamsToController(
     if (streamer.readInt32(intVal))
         setParam(kTranceGateNoteValueId, static_cast<double>(intVal) / (Parameters::kNoteValueDropdownCount - 1));
 
-    // Try to read v2 version marker
+    // Try to read v2+ version marker
     Steinberg::int32 versionMarker = 0;
-    if (streamer.readInt32(versionMarker) && versionMarker == kTranceGateStateVersion) {
-        // v2: numStepsRaw is actual step count
+    if (streamer.readInt32(versionMarker) && versionMarker >= 2) {
+        // v2+: numStepsRaw is actual step count
         int steps = std::clamp(numStepsRaw, 2, 32);
         setParam(kTranceGateNumStepsId, static_cast<double>(steps - 2) / 30.0);
 
@@ -383,6 +413,12 @@ inline void loadTranceGateParamsToController(
             if (streamer.readFloat(floatVal))
                 setParam(static_cast<Steinberg::Vst::ParamID>(kTranceGateStepLevel0Id + i),
                          static_cast<double>(floatVal));
+        }
+
+        // v3: retrigger depth
+        if (versionMarker >= 3) {
+            if (streamer.readFloat(floatVal))
+                setParam(kTranceGateRetriggerDepthId, static_cast<double>(floatVal));
         }
     } else {
         // v1: numStepsRaw is dropdown index

@@ -20,6 +20,7 @@
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/core/transport_sync.h>
 #include <krate/dsp/primitives/arp_lane.h>
 #include <krate/dsp/primitives/held_note_buffer.h>
 
@@ -210,6 +211,7 @@ public:
         swingStepCounter_ = 0;
         wasPlaying_ = false;
         firstStepPending_ = true;
+        transportLoopPending_ = false;
         currentArpNoteCount_ = 0;
         pendingNoteOffCount_ = 0;
         needsDisableNoteOff_ = false;
@@ -572,6 +574,52 @@ public:
     }
 
     // =========================================================================
+    // Transport Sync
+    // =========================================================================
+
+    /// @brief Notify the arp that the DAW transport has looped (PPQ jumped
+    /// backward). This triggers a clean restart: NoteOffs for sounding notes,
+    /// lane/selector reset, and immediate step 0 firing — all within the
+    /// same processBlock() call.
+    ///
+    /// Call from the processor when a backward PPQ jump is detected,
+    /// BEFORE calling processBlock().
+    void notifyTransportLoop() noexcept {
+        transportLoopPending_ = true;
+    }
+
+    /// @brief Sync arp step clock to host musical position (PPQ).
+    /// Call at block start when transport is playing and tempo sync is enabled.
+    /// Aligns sampleCounter_ so step boundaries lock to the musical grid.
+    /// Does NOT change which note the arp is playing (NoteSelector state is
+    /// preserved) — only the timing within the current step is adjusted.
+    ///
+    /// @note When at a step boundary (stepFraction == 0), sets
+    /// sampleCounter_ = currentStepDuration_ so the step fires immediately,
+    /// consistent with the firstStepPending_ approach.
+    void syncToMusicalPosition(double projectTimeMusic) noexcept {
+        if (!tempoSync_ || currentStepDuration_ == 0) return;
+
+        // For the arp, we only care about position within a single step
+        // (not a multi-step pattern), because the arp doesn't have a fixed
+        // pattern length — it advances through held notes via NoteSelector.
+        const auto pos = calculateMusicalStepPosition(
+            projectTimeMusic, noteValue_, noteModifier_, 1);
+
+        // pos.stepFraction is the fractional position within one step [0, 1)
+        const size_t newSampleCounter = static_cast<size_t>(
+            pos.stepFraction * static_cast<double>(currentStepDuration_));
+
+        // At a step boundary (fraction == 0), pre-load the counter to
+        // trigger an immediate step fire, matching firstStepPending_ behavior.
+        // During normal playback this is rare (block start rarely aligns
+        // with a step boundary); at loop restart it ensures step 0 fires.
+        sampleCounter_ = (newSampleCounter == 0)
+            ? currentStepDuration_
+            : newSampleCounter;
+    }
+
+    // =========================================================================
     // Processing (FR-019 through FR-024)
     // =========================================================================
 
@@ -648,6 +696,29 @@ public:
             return eventCount;
         }
 
+        // Handle transport loop (DAW cycle): emit NoteOffs for sounding
+        // notes, reset lanes/selector, and prepare for immediate step 0.
+        if (transportLoopPending_) {
+            transportLoopPending_ = false;
+            // Emit NoteOffs for all currently sounding arp notes
+            for (size_t i = 0; i < currentArpNoteCount_ && eventCount < maxEvents; ++i) {
+                outputEvents[eventCount++] = ArpEvent{
+                    ArpEvent::Type::NoteOff, currentArpNotes_[i], 0, 0};
+            }
+            currentArpNoteCount_ = 0;
+            pendingNoteOffCount_ = 0;
+            ratchetSubStepsRemaining_ = 0;
+            ratchetSubStepCounter_ = 0;
+            ratchetSubStepIndex_ = 0;
+            tieActive_ = false;
+            // Reset pattern state for clean restart
+            firstStepPending_ = true;
+            sampleCounter_ = 0;
+            selector_.reset();
+            swingStepCounter_ = 0;
+            resetLanes();
+        }
+
         // Handle transport restart (FR-023, FR-025): reset step counters
         // and lane positions so the arp restarts cleanly from step 1.
         if (!wasPlaying_) {
@@ -659,10 +730,13 @@ public:
             resetLanes();
         }
 
-        // (g) firstStepPending_: compute initial step duration before loop
+        // (g) firstStepPending_: compute initial step duration and trigger
+        // immediate first step by pre-loading the sample counter so the main
+        // loop fires a step at the current sample offset (FR-023, FR-025).
         if (firstStepPending_) {
             currentStepDuration_ = calculateStepDuration(ctx);
             firstStepPending_ = false;
+            sampleCounter_ = currentStepDuration_;
         }
 
         // Empty buffer with latch Off: emit NoteOff for current arp notes,
@@ -1967,6 +2041,7 @@ private:
     size_t swingStepCounter_ = 0;
     bool wasPlaying_ = false;
     bool firstStepPending_ = true;
+    bool transportLoopPending_ = false;
 
     // =========================================================================
     // Latch State

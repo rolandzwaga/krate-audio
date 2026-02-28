@@ -169,10 +169,10 @@ TEST_CASE("ArpeggiatorCore: reset zeroes timing but preserves config",
     auto events = collectEvents(arp, ctx, 50);
     auto noteOns = filterNoteOns(events);
 
-    // After reset, first NoteOn should fire after exactly one step duration
-    // 120 BPM, 1/8 note, 44100 Hz = 11025 samples
+    // After reset, first NoteOn should fire immediately (at sample 0)
+    // 120 BPM, 1/8 note, 44100 Hz = 11025 samples per step
     REQUIRE(noteOns.size() >= 1);
-    CHECK(noteOns[0].sampleOffset == 11025);
+    CHECK(noteOns[0].sampleOffset == 0);
 }
 
 // T009: Zero blockSize guard (FR-032, SC-010)
@@ -221,9 +221,9 @@ TEST_CASE("ArpeggiatorCore: zero blockSize returns 0 events with no state change
         auto events = collectEvents(arp, ctx, 30);
         auto noteOns = filterNoteOns(events);
 
-        // First NoteOn at 11025 samples (one full step duration)
+        // First NoteOn fires immediately at sample 0
         REQUIRE(noteOns.size() >= 1);
-        CHECK(noteOns[0].sampleOffset == 11025);
+        CHECK(noteOns[0].sampleOffset == 0);
     }
 }
 
@@ -248,7 +248,7 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at 120 BPM",
         arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
 
         // 120 BPM, 1/8 note: (60/120)*0.5*44100 = 11025 samples
-        // Need 101 steps * 11025 / 512 ~ 2182 blocks
+        // First step fires immediately at 0, then every 11025
         auto events = collectEvents(arp, ctx, 2300);
         auto noteOns = filterNoteOns(events);
 
@@ -256,7 +256,7 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at 120 BPM",
 
         // Verify all NoteOn events land at exact expected offsets
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>((i + 1) * 11025);
+            int32_t expected = static_cast<int32_t>(i * 11025);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -265,14 +265,14 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at 120 BPM",
         arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
 
         // 120 BPM, 1/16 note: (60/120)*0.25*44100 = 5512.5 -> 5512 samples
-        // Need 101 steps * 5512 / 512 ~ 1087 blocks
+        // First step fires immediately at 0, then every 5512
         auto events = collectEvents(arp, ctx, 1200);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 100);
 
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>((i + 1) * 5512);
+            int32_t expected = static_cast<int32_t>(i * 5512);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -298,13 +298,12 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at multiple tempos",
         ctx.tempoBPM = 60.0;
         ctx.isPlaying = true;
 
-        // 101 steps * 44100 / 512 ~ 8700 blocks
         auto events = collectEvents(arp, ctx, 8800);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 100);
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>((i + 1) * 44100);
+            int32_t expected = static_cast<int32_t>(i * 44100);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -318,13 +317,12 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at multiple tempos",
         ctx.tempoBPM = 120.0;
         ctx.isPlaying = true;
 
-        // 101 steps * 22050 / 512 ~ 4350 blocks
         auto events = collectEvents(arp, ctx, 4500);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 100);
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>((i + 1) * 22050);
+            int32_t expected = static_cast<int32_t>(i * 22050);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -339,13 +337,12 @@ TEST_CASE("ArpeggiatorCore: timing accuracy at multiple tempos",
         ctx.isPlaying = true;
 
         // (60/200)*0.5*44100 = 6615 samples
-        // 101 steps * 6615 / 512 ~ 1305 blocks
         auto events = collectEvents(arp, ctx, 1400);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 100);
         for (size_t i = 0; i < 100; ++i) {
-            int32_t expected = static_cast<int32_t>((i + 1) * 6615);
+            int32_t expected = static_cast<int32_t>(i * 6615);
             CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
         }
     }
@@ -371,13 +368,12 @@ TEST_CASE("ArpeggiatorCore: 1/8 triplet timing at 120 BPM",
 
     // 120 BPM, 1/8 triplet: getBeatsForNote = 0.5 * 0.6667 = 0.33333
     // (60/120) * 0.33333 * 44100 = 7350 samples
-    // 101 steps * 7350 / 512 ~ 1450 blocks
     auto events = collectEvents(arp, ctx, 1600);
     auto noteOns = filterNoteOns(events);
 
     REQUIRE(noteOns.size() >= 100);
     for (size_t i = 0; i < 100; ++i) {
-        int32_t expected = static_cast<int32_t>((i + 1) * 7350);
+        int32_t expected = static_cast<int32_t>(i * 7350);
         CHECK(std::abs(noteOns[i].sampleOffset - expected) <= 1);
     }
 }
@@ -394,9 +390,10 @@ TEST_CASE("ArpeggiatorCore: step boundary falls mid-block",
     arp.noteOn(52, 100);
 
     // Step duration = 11025 samples at 120 BPM 1/8 note
-    // First NoteOn at sample 11025. Block size 512.
+    // First NoteOn fires immediately at sample 0 in block 0.
+    // Second NoteOn at sample 11025. Block size 512.
     // 11025 / 512 = 21 blocks fully, remainder = 11025 - 21*512 = 11025 - 10752 = 273
-    // So NoteOn fires in block 21 at sampleOffset 273
+    // So second NoteOn fires in block 21 at sampleOffset 273
 
     BlockContext ctx;
     ctx.sampleRate = 44100.0;
@@ -406,14 +403,31 @@ TEST_CASE("ArpeggiatorCore: step boundary falls mid-block",
 
     std::array<ArpEvent, 64> buf;
 
-    // Process first 21 blocks (0..20) -- no events expected (still counting to 11025)
-    for (int b = 0; b < 21; ++b) {
+    // Block 0: first step fires immediately at offset 0
+    size_t count0 = arp.processBlock(ctx, buf);
+    REQUIRE(count0 >= 1);
+    bool foundFirst = false;
+    for (size_t i = 0; i < count0; ++i) {
+        if (buf[i].type == ArpEvent::Type::NoteOn) {
+            CHECK(buf[i].sampleOffset == 0);
+            foundFirst = true;
+            break;
+        }
+    }
+    CHECK(foundFirst);
+    ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
+
+    // Process blocks 1..20 -- no NoteOn expected (counting to 11025)
+    for (int b = 1; b < 21; ++b) {
         size_t count = arp.processBlock(ctx, buf);
-        CHECK(count == 0);
+        // May have NoteOff events from gate, but no new NoteOn
+        for (size_t i = 0; i < count; ++i) {
+            CHECK(buf[i].type != ArpEvent::Type::NoteOn);
+        }
         ctx.transportPositionSamples += static_cast<int64_t>(ctx.blockSize);
     }
 
-    // Block 21: step boundary at sample 273 within this block
+    // Block 21: second step boundary at sample 273 within this block
     size_t count = arp.processBlock(ctx, buf);
     REQUIRE(count >= 1);
 
@@ -1896,18 +1910,17 @@ TEST_CASE("ArpeggiatorCore: Retrigger Note -- resets pattern on noteOn",
         ctx.isPlaying = true;
 
         // Collect NoteOns. With swing 50%:
-        // Step 0 (even): duration = floor(11025 * 1.5) = 16537
-        // Step 1 (odd):  duration = floor(11025 * 0.5) = 5512
-        // First NoteOn at 16537, second at 16537+5512=22049
+        // Step 0 (even): fires immediately at 0, duration = floor(11025 * 1.5) = 16537
+        // Step 1 (odd):  at 16537, duration = floor(11025 * 0.5) = 5512
         // Need enough blocks to get at least 2 NoteOns
         auto events = collectEvents(arp, ctx, 500);
         auto noteOns = filterNoteOns(events);
 
         REQUIRE(noteOns.size() >= 2);
-        // First NoteOn at 16537, second at 22049
-        CHECK(noteOns[0].sampleOffset == 16537);
+        // First NoteOn fires immediately at 0
+        CHECK(noteOns[0].sampleOffset == 0);
         int32_t gap01 = noteOns[1].sampleOffset - noteOns[0].sampleOffset;
-        CHECK(gap01 == 5512);  // Odd step (shortened)
+        CHECK(gap01 == 5512);  // Odd step (shortened by swing)
 
         // After 2 NoteOns, swingStepCounter_=2 (even again).
         // Send a noteOn to retrigger -- should reset swingStepCounter_ to 0.
@@ -2894,8 +2907,8 @@ TEST_CASE("ArpeggiatorCore: Free rate mode -- step rate at 4 Hz and 0.5 Hz",
 
         REQUIRE(noteOns.size() >= 10);
 
-        // First NoteOn at 11025 (one full step after start)
-        CHECK(std::abs(noteOns[0].sampleOffset - 11025) <= 1);
+        // First NoteOn fires immediately at sample 0
+        CHECK(noteOns[0].sampleOffset == 0);
 
         // Verify consecutive NoteOns are spaced by exactly 11025 samples
         for (size_t i = 1; i < noteOns.size(); ++i) {
@@ -2929,8 +2942,8 @@ TEST_CASE("ArpeggiatorCore: Free rate mode -- step rate at 4 Hz and 0.5 Hz",
 
         REQUIRE(noteOns.size() >= 3);
 
-        // First NoteOn at 88200
-        CHECK(std::abs(noteOns[0].sampleOffset - 88200) <= 1);
+        // First NoteOn fires immediately at sample 0
+        CHECK(noteOns[0].sampleOffset == 0);
 
         // Verify spacing is exactly 88200
         for (size_t i = 1; i < noteOns.size(); ++i) {
@@ -3049,8 +3062,8 @@ TEST_CASE("ArpeggiatorCore: Free rate clamping",
 
         REQUIRE(noteOns.size() >= 2);
 
-        // First NoteOn should be at 88200 (0.5 Hz, not 0.1 Hz = 441000)
-        CHECK(std::abs(noteOns[0].sampleOffset - 88200) <= 1);
+        // First NoteOn fires immediately at 0 (clamped rate 0.5 Hz, step = 88200)
+        CHECK(noteOns[0].sampleOffset == 0);
 
         // Gap should be 88200
         if (noteOns.size() >= 2) {
@@ -3084,8 +3097,8 @@ TEST_CASE("ArpeggiatorCore: Free rate clamping",
 
         REQUIRE(noteOns.size() >= 5);
 
-        // First NoteOn at 882 (50 Hz, not 100 Hz = 441)
-        CHECK(std::abs(noteOns[0].sampleOffset - 882) <= 1);
+        // First NoteOn fires immediately at 0 (clamped rate 50 Hz, step = 882)
+        CHECK(noteOns[0].sampleOffset == 0);
 
         // Verify subsequent spacing is 882
         for (size_t i = 1; i < noteOns.size() && i < 5; ++i) {
@@ -3134,8 +3147,8 @@ TEST_CASE("ArpeggiatorCore: single note repeats at configured rate",
             CHECK(noteOns[i].note == 48);
         }
 
-        // Verify timing: first NoteOn at 11025, subsequent at 11025 intervals
-        CHECK(std::abs(noteOns[0].sampleOffset - 11025) <= 1);
+        // Verify timing: first NoteOn fires immediately, subsequent at 11025 intervals
+        CHECK(noteOns[0].sampleOffset == 0);
         for (size_t i = 1; i < noteOns.size(); ++i) {
             int32_t gap = noteOns[i].sampleOffset - noteOns[i - 1].sampleOffset;
             CHECK(std::abs(gap - 11025) <= 1);
@@ -5335,9 +5348,8 @@ TEST_CASE("ArpeggiatorCore: verify SC-002 baseline fixtures are readable",
         // Verify first event is C4 (note 60) with velocity 100
         REQUIRE(events[0].note == 60);
         REQUIRE(events[0].velocity == 100);
-        // First NoteOn fires after one step duration (1/8 note at 120 BPM =
-        // 11025 samples at 44100 Hz)
-        REQUIRE(events[0].sampleOffset == 11025);
+        // First NoteOn fires immediately at sample 0 (1/8 note at 120 BPM)
+        REQUIRE(events[0].sampleOffset == 0);
     }
 
     SECTION("140 BPM fixture readable") {
@@ -6027,9 +6039,8 @@ TEST_CASE("Tie_NoPrecedingNote_BehavesAsRest", "[processors][arpeggiator_core]")
     // Step 2: Active -> noteOn
     REQUIRE(noteOns.size() >= 1);
 
-    // First noteOn should be at step 2 boundary (22050 + 11025 = 33075)
-    // Actually the first step fires at offset 11025. Steps: 0=11025, 1=22050, 2=33075
-    CHECK(noteOns[0].sampleOffset == 33075);
+    // First step fires immediately. Steps: 0=0, 1=11025, 2=22050
+    CHECK(noteOns[0].sampleOffset == 22050);
     CHECK(noteOns[0].note == 60);
 }
 
@@ -6191,8 +6202,8 @@ TEST_CASE("Tie_SetsAndClearsTieActiveState", "[processors][arpeggiator_core]") {
     // Step 0: Tie with no preceding note -> silence (proving tieActive_ was reset)
     // Step 1: Active -> noteOn
     REQUIRE(noteOns2.size() >= 1);
-    // First noteOn should be at step 1 (22050), not step 0 (11025)
-    CHECK(noteOns2[0].sampleOffset == 22050);
+    // First step fires at 0 (tie = silence), step 1 fires at 11025
+    CHECK(noteOns2[0].sampleOffset == 11025);
 }
 
 // =============================================================================
@@ -9725,7 +9736,7 @@ TEST_CASE("EuclideanGating_Tresillo_E3_8",
     // Step 3: offset ~11025 + 3*11025 = ~44100
     // Step 6: offset ~11025 + 6*11025 = ~77175
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;  // first step fires at 1 duration
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately  // first step fires at 1 duration
 
     for (size_t i = 0; i < std::min(noteOns.size(), size_t{3}); ++i) {
         constexpr size_t kExpectedSteps[] = {0, 3, 6};
@@ -9877,7 +9888,7 @@ TEST_CASE("EuclideanGating_Cinquillo_E5_8",
     // Expect 5 noteOns per 8 steps in first cycle
     // First step fires at kStepDuration (arp counts one full duration before first fire)
     constexpr size_t kStepDuration = 11025;  // 120 BPM, eighth note
-    constexpr size_t kFirstStepOffset = kStepDuration;
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately
     size_t endOfCycle = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsInFirst8Steps = 0;
     for (const auto& e : noteOns) {
@@ -10208,8 +10219,9 @@ TEST_CASE("EuclideanRestStep_BreaksTieChain",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // Run enough blocks for 4+ steps
-    auto events = collectEvents(arp, ctx, 100);
+    // Run enough blocks for exactly 4 steps (steps at 0, 11025, 22050, 33075).
+    // Use 70 blocks = 35840 samples (> 33075, < 44100).
+    auto events = collectEvents(arp, ctx, 70);
     auto noteOns = filterNoteOns(events);
     auto noteOffs = filterNoteOffs(events);
 
@@ -10219,10 +10231,8 @@ TEST_CASE("EuclideanRestStep_BreaksTieChain",
     // Step 3: Euclidean rest -> noteOff emitted
 
     // Should have noteOns for steps 0 and 2
-    // First step fires at kStepDuration offset; use wide window for first cycle
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;
-    size_t endOfCycle = kFirstStepOffset + 4 * kStepDuration;
+    size_t endOfCycle = 4 * kStepDuration;
     size_t noteOnsIn4Steps = 0;
     for (const auto& e : noteOns) {
         if (std::cmp_less(e.sampleOffset, endOfCycle)) {
@@ -10246,7 +10256,7 @@ TEST_CASE("EuclideanRestStep_BreaksTieChain",
     // plus possible gate noteOffs from subsequent hits.
     CHECK(noteOffsIn4Steps >= 1);
 
-    // Over many cycles, noteOffs should match noteOns (no stuck notes)
+    // Over the 4-step window, noteOffs should match noteOns (no stuck notes)
     CHECK(noteOffs.size() >= noteOns.size());
 }
 
@@ -10325,7 +10335,7 @@ TEST_CASE("EuclideanHitStep_RatchetApplies",
     // With ratchet=2 and all Euclidean hits, each step produces 2 noteOns.
     // Over 8 steps = 16 noteOns minimum. First step fires at kStepDuration.
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately
     size_t endOfCycle = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
@@ -10468,7 +10478,7 @@ TEST_CASE("EuclideanRestStep_ModifierTie_TieChainBroken",
     // Step 2: Euclidean hit + Active -> new noteOn
     // Step 3: Euclidean rest -> noteOff
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately
     size_t endOfCycle = kFirstStepOffset + 4 * kStepDuration;
     size_t noteOnsIn4Steps = 0;
     for (const auto& e : noteOns) {
@@ -10521,9 +10531,9 @@ TEST_CASE("EuclideanChordMode_HitFiresAll_RestSilencesAll",
     auto events = collectEvents(arp, ctx, 100);
     auto noteOns = filterNoteOns(events);
 
-    // Step 0: Euclidean hit -> all 3 chord notes fire
-    // Step 1: Euclidean rest -> all 3 silenced (noteOffs)
-    // Step 2: Euclidean hit -> all 3 fire again
+    // Step 0 fires at 0: Euclidean hit -> all 3 chord notes fire
+    // Step 1 fires at kStepDuration: Euclidean rest -> all 3 silenced (noteOffs)
+    // Step 2 fires at 2*kStepDuration: Euclidean hit -> all 3 fire again
     constexpr size_t kStepDuration = 11025;
     size_t noteOnsIn2Steps = 0;
     for (const auto& e : noteOns) {
@@ -10533,16 +10543,18 @@ TEST_CASE("EuclideanChordMode_HitFiresAll_RestSilencesAll",
     }
     CHECK(noteOnsIn2Steps == 3);  // 3 chord notes on step 0
 
-    // Verify noteOffs are emitted at step 1 (rest)
+    // Verify noteOffs are emitted for step 0's notes (gate noteOffs or rest noteOffs).
+    // With step 0 at offset 0 and 80% gate, noteOffs fire at ~8820 (within [0, kStepDuration)).
+    // At step 1 (kStepDuration), the rest may emit additional noteOffs if notes still sound.
     auto noteOffs = filterNoteOffs(events);
-    size_t noteOffsAtStep1 = 0;
+    size_t noteOffsBeforeStep2 = 0;
     for (const auto& e : noteOffs) {
         size_t offset = static_cast<size_t>(e.sampleOffset);
-        if (offset >= kStepDuration && offset < 2 * kStepDuration) {
-            ++noteOffsAtStep1;
+        if (offset < 2 * kStepDuration) {
+            ++noteOffsBeforeStep2;
         }
     }
-    CHECK(noteOffsAtStep1 == 3);  // 3 chord notes silenced
+    CHECK(noteOffsBeforeStep2 == 3);  // 3 chord notes silenced
 }
 
 // T044: Position reset on retrigger (SC-012, FR-013)
@@ -10754,13 +10766,14 @@ TEST_CASE("EuclideanSwing_Orthogonal",
         CHECK(gap1 != gap2);
     }
 
-    // Count total noteOns per 8-step cycle to confirm Euclidean gating is correct
-    // The total time for 8 swung steps = 4*long + 4*short = 4*16537 + 4*5512 = 88196
-    // (approximately 8 * 11025 = 88200 with rounding)
-    constexpr size_t kApproxCycleDuration = 88200;
+    // Count total noteOns per 8-step cycle to confirm Euclidean gating is correct.
+    // With swing 50%, cycle = 4*short + 4*long = 4*5512 + 4*16537 = 88196.
+    // Use a window slightly less than the cycle to avoid catching the next cycle's
+    // first step (which fires at 88196 with the immediate-start behavior).
+    constexpr size_t kCycleWindow = 80000;
     size_t noteOnsInFirstCycle = 0;
     for (const auto& e : noteOns) {
-        if (std::cmp_less(e.sampleOffset, kApproxCycleDuration)) {
+        if (std::cmp_less(e.sampleOffset, kCycleWindow)) {
             ++noteOnsInFirstCycle;
         }
     }
@@ -10816,7 +10829,7 @@ TEST_CASE("EuclideanPolymetric_Steps5_VelocityLength3",
     // Step N fires at offset (N+1)*kStepDuration. Use window up to 16*kStepDuration
     // to capture all 15 steps.
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately
     size_t endOf15Steps = kFirstStepOffset + 15 * kStepDuration;
     size_t noteOnsIn15Steps = 0;
     for (const auto& e : noteOns) {
@@ -11024,7 +11037,7 @@ TEST_CASE("EuclideanPolymetric_ModifierInterplay",
     // First step fires at kStepDuration offset. Step N fires at (N+1)*kStepDuration.
     // Cycle 1 (steps 0-7) events fall within [kStepDuration, 9*kStepDuration).
     constexpr size_t kStepDuration = 11025;
-    constexpr size_t kFirstStepOffset = kStepDuration;
+    constexpr size_t kFirstStepOffset = 0;  // first step fires immediately
     size_t endOfCycle1 = kFirstStepOffset + 8 * kStepDuration;
     size_t noteOnsIn8Steps = 0;
     for (const auto& e : noteOns) {
@@ -12470,8 +12483,8 @@ TEST_CASE("LoopCount_NotResetOnDisable",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // Run 5 steps (at 120BPM 1/8 = 11025 samples; 5 * 11025 = 55125; ~108 blocks)
-    collectEvents(arp, ctx, 115);
+    // Run 5 steps (first at 0, then 11025, 22050, 33075, 44100; ~87 blocks)
+    collectEvents(arp, ctx, 90);
 
     // After 5 steps with lane length 3:
     // Condition lane advanced 5 times, position = 5 % 3 = 2
@@ -12811,7 +12824,9 @@ TEST_CASE("EvaluateCondition_Ratio_2_4_LoopPattern",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    auto events = collectEvents(arp, ctx, 360);
+    // 16 steps at 11025 samples/step. First fires at 0, last at 15*11025=165375.
+    // Need > 165375 and < 176400 samples. Use 340 blocks (174080).
+    auto events = collectEvents(arp, ctx, 340);
     auto noteOns = filterNoteOns(events);
 
     // 2 from Ratio_2_4 + 8 from Always = 10
@@ -12847,8 +12862,8 @@ TEST_CASE("EvaluateCondition_Ratio_1_3_LoopPattern",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // 18 steps * 11025 = 198450 samples / 512 = ~387 blocks
-    auto events = collectEvents(arp, ctx, 410);
+    // 18 steps: first at 0, last at 17*11025=187425. Use 370 blocks (189440).
+    auto events = collectEvents(arp, ctx, 370);
     auto noteOns = filterNoteOns(events);
 
     // 3 from Ratio_1_3 + 9 from Always = 12
@@ -12884,7 +12899,8 @@ TEST_CASE("EvaluateCondition_Ratio_3_3_LoopPattern",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    auto events = collectEvents(arp, ctx, 410);
+    // 18 steps: first at 0, last at 17*11025=187425. Use 370 blocks (189440).
+    auto events = collectEvents(arp, ctx, 370);
     auto noteOns = filterNoteOns(events);
 
     // 3 from Ratio_3_3 + 9 from Always = 12
@@ -12943,8 +12959,8 @@ TEST_CASE("EvaluateCondition_AllRatioConditions_12Loops",
             ctx.isPlaying = true;
             ctx.transportPositionSamples = 0;
 
-            // 24 steps * 11025 = 264600 / 512 = ~517 blocks
-            auto events = collectEvents(arp, ctx, 540);
+            // 24 steps: first at 0, last at 23*11025=253575. Use 500 blocks (256000).
+            auto events = collectEvents(arp, ctx, 500);
             auto noteOns = filterNoteOns(events);
 
             // Expected: tc.expectedFires from ratio step + 12 from Always step
@@ -13185,7 +13201,7 @@ TEST_CASE("FillToggle_TakesEffectAtNextStepBoundary",
     // At 120 BPM, 1/8 note = 11025 samples.
     // We'll process step-by-step using small block counts.
     // Each step: ~11025 samples / 512 = ~21.5 blocks.
-    // Use 22 blocks per step to safely process each step.
+    // Use 22 blocks per step for steps after the first.
     constexpr size_t kBlocksPerStep = 22;
 
     BlockContext ctx;
@@ -13195,8 +13211,8 @@ TEST_CASE("FillToggle_TakesEffectAtNextStepBoundary",
     ctx.isPlaying = true;
     ctx.transportPositionSamples = 0;
 
-    // Step 0: Always -> fires regardless of fill state
-    auto events0 = collectEvents(arp, ctx, kBlocksPerStep);
+    // Step 0: fires immediately at transport start. Process 1 block to capture it.
+    auto events0 = collectEvents(arp, ctx, 1);
     auto noteOns0 = filterNoteOns(events0);
     INFO("Step 0 (Always): noteOns = " << noteOns0.size());
     CHECK(noteOns0.size() == 1);
@@ -13259,9 +13275,9 @@ TEST_CASE("FillPattern_AlternatesVariants",
         ctx.isPlaying = true;
         ctx.transportPositionSamples = 0;
 
-        // 4 steps at 120 BPM, 1/8 = 11025 samples/step
-        // 4 * 11025 = 44100 / 512 = ~86 blocks. Use 90 for safety.
-        auto events = collectEvents(arp, ctx, 90);
+        // 4 steps: first at 0, last at 3*11025=33075. Need > 33075 and < 44100.
+        // Use 70 blocks (35840 samples).
+        auto events = collectEvents(arp, ctx, 70);
         auto noteOns = filterNoteOns(events);
 
         // Fill OFF: Always fires, Fill silent, NotFill fires, Always fires = 3 noteOns
@@ -13294,7 +13310,8 @@ TEST_CASE("FillPattern_AlternatesVariants",
         ctx.transportPositionSamples = 0;
 
         // 4 steps: Always fires, Fill fires, NotFill silent, Always fires = 3 noteOns
-        auto events = collectEvents(arp, ctx, 90);
+        // Use 70 blocks for exactly 4 steps (first at 0, last at 33075)
+        auto events = collectEvents(arp, ctx, 70);
         auto noteOns = filterNoteOns(events);
 
         INFO("Fill ON: noteOns = " << noteOns.size());
@@ -15718,5 +15735,450 @@ TEST_CASE("SpiceAndHumanize_EvaluationOrder_SpiceBeforeHumanize",
         double stddev = std::sqrt(sumSq / static_cast<double>(noteOns.size()));
         INFO("stddev=" << stddev);
         CHECK(stddev > 1.0);
+    }
+}
+
+// =============================================================================
+// Pattern Loop Regression: Ratchet shifts on DAW loop
+// =============================================================================
+// When the DAW loops a bar, the transport stops and restarts. The arp must fire
+// its first step immediately at the restart point so the ratchet pattern stays
+// aligned. Previously, the arp waited a full step duration before firing,
+// causing the ratchet to shift from step 1 to step 2 on the second loop.
+
+/// Helper: collect events for a given number of samples (not blocks).
+/// Advances transport position and processes in blockSize-aligned chunks.
+static std::vector<ArpEvent> collectEventsForSamples(
+    ArpeggiatorCore& arp, BlockContext& ctx, size_t totalSamples) {
+    std::vector<ArpEvent> allEvents;
+    std::array<ArpEvent, 128> blockEvents;
+    size_t samplesProcessed = 0;
+    while (samplesProcessed < totalSamples) {
+        size_t remaining = totalSamples - samplesProcessed;
+        size_t thisBlock = std::min(remaining, ctx.blockSize);
+        size_t savedBlockSize = ctx.blockSize;
+        ctx.blockSize = thisBlock;
+        size_t count = arp.processBlock(ctx, blockEvents);
+        for (size_t i = 0; i < count; ++i) {
+            ArpEvent evt = blockEvents[i];
+            evt.sampleOffset += static_cast<int32_t>(samplesProcessed);
+            allEvents.push_back(evt);
+        }
+        ctx.transportPositionSamples += static_cast<int64_t>(thisBlock);
+        samplesProcessed += thisBlock;
+        ctx.blockSize = savedBlockSize;
+    }
+    return allEvents;
+}
+
+/// Find ratchet steps: steps where more than 1 NoteOn occurs within a step duration
+/// window. Returns the absolute sample offsets of the FIRST NoteOn of each ratcheted step.
+static std::vector<int32_t> findRatchetStepOffsets(
+    const std::vector<ArpEvent>& events, size_t stepDuration) {
+    auto noteOns = filterNoteOns(events);
+    std::vector<int32_t> ratchetOffsets;
+    size_t i = 0;
+    while (i < noteOns.size()) {
+        // Count NoteOns within a step-duration window
+        int32_t windowStart = noteOns[i].sampleOffset;
+        size_t count = 1;
+        size_t j = i + 1;
+        while (j < noteOns.size() &&
+               noteOns[j].sampleOffset < windowStart + static_cast<int32_t>(stepDuration)) {
+            ++count;
+            ++j;
+        }
+        if (count > 1) {
+            ratchetOffsets.push_back(windowStart);
+        }
+        i = j;  // skip past this window
+    }
+    return ratchetOffsets;
+}
+
+TEST_CASE("ArpeggiatorCore: ratchet on step 0 stays aligned after DAW loop",
+          "[processors][arpeggiator_core][regression]") {
+    // Setup: 120 BPM, 4/4, quarter notes, 44100 Hz
+    // Step duration = 22050 samples, bar = 88200 samples
+    constexpr double kSampleRate = 44100.0;
+    constexpr double kTempo = 120.0;
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kStepDuration = 22050;  // 60/120 * 44100
+    constexpr size_t kBarDuration = 4 * kStepDuration;  // 88200
+
+    ArpeggiatorCore arp;
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setTempoSync(true);
+    arp.setNoteValue(NoteValue::Quarter, NoteModifier::None);
+
+    // Ratchet lane: 4 steps. Step 0 = 2 (ratchet x2), steps 1-3 = 1 (normal)
+    // Must set length FIRST since setStep clamps index to [0, length-1].
+    arp.ratchetLane().setLength(4);
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+    arp.ratchetLane().setStep(1, static_cast<uint8_t>(1));
+    arp.ratchetLane().setStep(2, static_cast<uint8_t>(1));
+    arp.ratchetLane().setStep(3, static_cast<uint8_t>(1));
+
+    // Hold 4 notes
+    arp.noteOn(60, 100);
+    arp.noteOn(64, 100);
+    arp.noteOn(67, 100);
+    arp.noteOn(71, 100);
+
+    SECTION("first step fires immediately at transport start") {
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+
+        auto events = collectEventsForSamples(arp, ctx, kBarDuration);
+        auto noteOns = filterNoteOns(events);
+
+        // The first NoteOn should fire at sample 0 (immediately at transport start),
+        // not delayed by a full step duration.
+        REQUIRE(noteOns.size() >= 1);
+        INFO("First NoteOn at sample offset " << noteOns[0].sampleOffset
+             << " (expected 0, not " << kStepDuration << ")");
+        CHECK(noteOns[0].sampleOffset == 0);
+    }
+
+    SECTION("ratchet aligns across DAW loop (transport stop+restart)") {
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+
+        // --- Bar 1: play one full bar ---
+        auto bar1Events = collectEventsForSamples(arp, ctx, kBarDuration);
+        auto bar1NoteOns = filterNoteOns(bar1Events);
+        auto bar1Ratchets = findRatchetStepOffsets(bar1Events, kStepDuration);
+
+        INFO("Bar 1: " << bar1NoteOns.size() << " NoteOns, "
+             << bar1Ratchets.size() << " ratcheted steps");
+        REQUIRE(bar1Ratchets.size() >= 1);
+        int32_t bar1RatchetOffset = bar1Ratchets[0];
+        INFO("Bar 1 first ratchet at sample " << bar1RatchetOffset);
+
+        // --- Simulate DAW loop: transport stops for 1 block ---
+        ctx.isPlaying = false;
+        {
+            std::array<ArpEvent, 128> stopEvents;
+            arp.processBlock(ctx, stopEvents);
+        }
+
+        // --- Bar 2: transport restarts at position 0 ---
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+
+        auto bar2Events = collectEventsForSamples(arp, ctx, kBarDuration);
+        auto bar2NoteOns = filterNoteOns(bar2Events);
+        auto bar2Ratchets = findRatchetStepOffsets(bar2Events, kStepDuration);
+
+        INFO("Bar 2: " << bar2NoteOns.size() << " NoteOns, "
+             << bar2Ratchets.size() << " ratcheted steps");
+        REQUIRE(bar2Ratchets.size() >= 1);
+        int32_t bar2RatchetOffset = bar2Ratchets[0];
+        INFO("Bar 2 first ratchet at sample " << bar2RatchetOffset);
+
+        // The ratchet should appear at the same relative position in both bars.
+        // With the bug, bar 1 has ratchet at ~0 (step 1) but bar 2 has it at
+        // ~kStepDuration (step 2) due to the first-step delay.
+        CHECK(bar1RatchetOffset == bar2RatchetOffset);
+    }
+
+    SECTION("ratchet aligns with retrigger=Beat across bar boundary") {
+        arp.setRetrigger(ArpRetriggerMode::Beat);
+
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+
+        // Play 2 full bars without transport stop
+        auto events = collectEventsForSamples(arp, ctx, 2 * kBarDuration);
+        auto noteOns = filterNoteOns(events);
+
+        // Split events into bar 1 and bar 2
+        std::vector<ArpEvent> bar1Events, bar2Events;
+        for (const auto& e : events) {
+            if (e.sampleOffset < static_cast<int32_t>(kBarDuration)) {
+                bar1Events.push_back(e);
+            } else {
+                ArpEvent shifted = e;
+                shifted.sampleOffset -= static_cast<int32_t>(kBarDuration);
+                bar2Events.push_back(shifted);
+            }
+        }
+
+        auto bar1Ratchets = findRatchetStepOffsets(bar1Events, kStepDuration);
+        auto bar2Ratchets = findRatchetStepOffsets(bar2Events, kStepDuration);
+
+        INFO("Bar 1 ratchets: " << bar1Ratchets.size()
+             << ", Bar 2 ratchets: " << bar2Ratchets.size());
+        REQUIRE(bar1Ratchets.size() >= 1);
+        REQUIRE(bar2Ratchets.size() >= 1);
+
+        INFO("Bar 1 ratchet at " << bar1Ratchets[0]
+             << ", Bar 2 ratchet at " << bar2Ratchets[0]);
+        // Both bars should have the ratchet at the same relative position
+        CHECK(bar1Ratchets[0] == bar2Ratchets[0]);
+    }
+}
+
+// =============================================================================
+// DAW Loop Integration Tests
+// =============================================================================
+// Tests verifying correct arp behavior across DAW loop boundaries.
+// Covers: notifyTransportLoop(), syncToMusicalPosition() fix,
+// step count consistency, NoteOff cleanup, multiple iterations.
+
+/// Helper: process exactly N samples through the arp, collecting events.
+/// Advances ctx.transportPositionSamples and ctx.projectTimeMusic.
+static std::vector<ArpEvent> processBarWithTransport(
+    ArpeggiatorCore& arp, BlockContext& ctx, size_t totalSamples)
+{
+    std::vector<ArpEvent> allEvents;
+    size_t samplesProcessed = 0;
+    while (samplesProcessed < totalSamples) {
+        size_t blockSamples = std::min(ctx.blockSize, totalSamples - samplesProcessed);
+        ctx.blockSize = blockSamples;
+        std::array<ArpEvent, 128> events;
+        size_t count = arp.processBlock(ctx, events);
+        for (size_t i = 0; i < count; ++i) {
+            ArpEvent e = events[i];
+            e.sampleOffset += static_cast<int32_t>(samplesProcessed);
+            allEvents.push_back(e);
+        }
+        samplesProcessed += blockSamples;
+        ctx.transportPositionSamples += static_cast<int64_t>(blockSamples);
+        ctx.projectTimeMusic +=
+            static_cast<double>(blockSamples) / ctx.sampleRate * (ctx.tempoBPM / 60.0);
+    }
+    ctx.blockSize = 512;  // restore default
+    return allEvents;
+}
+
+TEST_CASE("ArpeggiatorCore: DAW loop fires all steps every iteration",
+          "[processors][arpeggiator_core][daw_loop]") {
+    // 8-step pattern at 1/8 note, 120 BPM, 4/4 = exactly 1 bar per cycle.
+    // At 120 BPM, 1/8 = 0.5 beats = 0.25s = 11025 samples (integer!).
+    // 8 steps = 88200 samples = 1 bar at 4/4.
+    constexpr double kSampleRate = 44100.0;
+    constexpr double kTempo = 120.0;
+    constexpr size_t kBlockSize = 512;
+    constexpr size_t kStepDuration = 11025;
+    constexpr size_t kBarSamples = 8 * kStepDuration;  // 88200 = 1 bar
+    constexpr size_t kExpectedSteps = 8;
+
+    ArpeggiatorCore arp;
+    arp.prepare(kSampleRate, kBlockSize);
+    arp.setEnabled(true);
+    arp.setTempoSync(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+
+    // Hold 4 notes (C E G B)
+    arp.noteOn(60, 100);
+    arp.noteOn(64, 100);
+    arp.noteOn(67, 100);
+    arp.noteOn(71, 100);
+
+    // Set velocity lane to 8 steps so pattern = 8 steps = 1 bar
+    arp.velocityLane().setLength(kExpectedSteps);
+    arp.gateLane().setLength(kExpectedSteps);
+
+    SECTION("sync mode: all 8 steps fire in each of 3 loop iterations") {
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+        ctx.projectTimeMusic = 0.0;
+        ctx.projectTimeMusicValid = true;
+
+        for (int loop = 0; loop < 3; ++loop) {
+            INFO("Loop iteration " << loop);
+
+            auto events = processBarWithTransport(arp, ctx, kBarSamples);
+            auto noteOns = filterNoteOns(events);
+
+            INFO("NoteOns in loop " << loop << ": " << noteOns.size());
+            REQUIRE(noteOns.size() == kExpectedSteps);
+
+            // First NoteOn should be at or very near sample 0
+            CHECK(noteOns[0].sampleOffset <= 1);
+
+            // Simulate DAW loop: PPQ jumps back to 0
+            arp.notifyTransportLoop();
+            ctx.transportPositionSamples = 0;
+            ctx.projectTimeMusic = 0.0;
+            // syncToMusicalPosition is called by the processor before processBlock
+            arp.syncToMusicalPosition(0.0);
+        }
+    }
+
+    SECTION("free-rate mode: notifyTransportLoop resets pattern") {
+        arp.setTempoSync(false);
+        // 44100 / 11025 = 4 Hz gives exactly 11025 samples/step = same as 1/8
+        arp.setFreeRate(4.0f);
+
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+        ctx.projectTimeMusic = 0.0;
+        ctx.projectTimeMusicValid = false;  // free rate: no musical position
+
+        for (int loop = 0; loop < 3; ++loop) {
+            INFO("Loop iteration " << loop);
+
+            auto events = processBarWithTransport(arp, ctx, kBarSamples);
+            auto noteOns = filterNoteOns(events);
+
+            INFO("NoteOns in loop " << loop << ": " << noteOns.size());
+            REQUIRE(noteOns.size() == kExpectedSteps);
+
+            CHECK(noteOns[0].sampleOffset <= 1);
+
+            // Simulate DAW loop restart
+            arp.notifyTransportLoop();
+            ctx.transportPositionSamples = 0;
+            ctx.projectTimeMusic = 0.0;
+        }
+    }
+
+    SECTION("loop restart emits NoteOffs before new pattern") {
+        // Use 150% gate so the note is still sounding when we restart.
+        // Gate duration = 1.5 * 11025 = 16537 samples.
+        arp.setGateLength(150.0f);
+
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+        ctx.projectTimeMusic = 0.0;
+        ctx.projectTimeMusicValid = true;
+
+        // Process just 2 blocks (1024 samples) — step 0 fires immediately
+        // at sample 0, its NoteOff is at 16537, so the note is still active.
+        // This avoids any block-boundary edge cases.
+        auto bar1Events = processBarWithTransport(arp, ctx, 2 * kBlockSize);
+        auto bar1NoteOns = filterNoteOns(bar1Events);
+        INFO("NoteOns after 2 blocks: " << bar1NoteOns.size());
+        REQUIRE(bar1NoteOns.size() >= 1);
+
+        // Collect event types for diagnostics
+        size_t bar1NoteOffs = 0;
+        for (const auto& e : bar1Events) {
+            if (e.type == ArpEvent::Type::NoteOff) ++bar1NoteOffs;
+        }
+        INFO("NoteOffs after 2 blocks: " << bar1NoteOffs);
+        INFO("Total events after 2 blocks: " << bar1Events.size());
+
+        // Trigger loop restart while the note is still sounding
+        arp.notifyTransportLoop();
+        ctx.transportPositionSamples = 0;
+        ctx.projectTimeMusic = 0.0;
+        arp.syncToMusicalPosition(0.0);
+
+        // Process the restart block — should emit NoteOffs then new NoteOn
+        std::array<ArpEvent, 128> restartEvents;
+        ctx.blockSize = kBlockSize;
+        size_t count = arp.processBlock(ctx, restartEvents);
+
+        // Diagnostics: dump all restart events
+        INFO("Restart block event count: " << count);
+        for (size_t i = 0; i < count; ++i) {
+            const char* typeName = "Unknown";
+            switch (restartEvents[i].type) {
+                case ArpEvent::Type::NoteOn: typeName = "NoteOn"; break;
+                case ArpEvent::Type::NoteOff: typeName = "NoteOff"; break;
+                case ArpEvent::Type::kSkip: typeName = "Skip"; break;
+            }
+            INFO("  Event[" << i << "]: " << typeName
+                 << " note=" << (int)restartEvents[i].note
+                 << " offset=" << restartEvents[i].sampleOffset);
+        }
+
+        bool hasNoteOff = false;
+        bool hasNoteOn = false;
+        int32_t lastNoteOffOffset = -1;
+        int32_t firstNoteOnOffset = -1;
+        for (size_t i = 0; i < count; ++i) {
+            if (restartEvents[i].type == ArpEvent::Type::NoteOff) {
+                hasNoteOff = true;
+                lastNoteOffOffset = restartEvents[i].sampleOffset;
+            }
+            if (restartEvents[i].type == ArpEvent::Type::NoteOn && firstNoteOnOffset < 0) {
+                hasNoteOn = true;
+                firstNoteOnOffset = restartEvents[i].sampleOffset;
+            }
+        }
+
+        // NoteOffs must be emitted for cleanup
+        CHECK(hasNoteOff);
+        // New step 0 must fire in the same block
+        CHECK(hasNoteOn);
+        // NoteOff cleanup happens at offset 0, NoteOn at offset 0
+        CHECK(lastNoteOffOffset == 0);
+        CHECK(firstNoteOnOffset == 0);
+    }
+
+    SECTION("step timing is consistent across loop boundaries") {
+        BlockContext ctx;
+        ctx.sampleRate = kSampleRate;
+        ctx.blockSize = kBlockSize;
+        ctx.tempoBPM = kTempo;
+        ctx.isPlaying = true;
+        ctx.transportPositionSamples = 0;
+        ctx.projectTimeMusic = 0.0;
+        ctx.projectTimeMusicValid = true;
+
+        // Collect step offsets for 3 consecutive loops
+        std::vector<std::vector<int32_t>> loopStepOffsets;
+
+        for (int loop = 0; loop < 3; ++loop) {
+            auto events = processBarWithTransport(arp, ctx, kBarSamples);
+            auto noteOns = filterNoteOns(events);
+
+            std::vector<int32_t> offsets;
+            for (const auto& e : noteOns) {
+                offsets.push_back(e.sampleOffset);
+            }
+            loopStepOffsets.push_back(offsets);
+
+            // DAW loop
+            arp.notifyTransportLoop();
+            ctx.transportPositionSamples = 0;
+            ctx.projectTimeMusic = 0.0;
+            arp.syncToMusicalPosition(0.0);
+        }
+
+        // All loops should have the same number of steps
+        REQUIRE(loopStepOffsets[0].size() == kExpectedSteps);
+        REQUIRE(loopStepOffsets[1].size() == kExpectedSteps);
+        REQUIRE(loopStepOffsets[2].size() == kExpectedSteps);
+
+        // Step offsets should match across loops (within 2 samples for rounding)
+        for (size_t step = 0; step < kExpectedSteps; ++step) {
+            INFO("Step " << step << ": loop0=" << loopStepOffsets[0][step]
+                 << " loop1=" << loopStepOffsets[1][step]
+                 << " loop2=" << loopStepOffsets[2][step]);
+            CHECK(std::abs(loopStepOffsets[0][step] - loopStepOffsets[1][step]) <= 2);
+            CHECK(std::abs(loopStepOffsets[0][step] - loopStepOffsets[2][step]) <= 2);
+        }
     }
 }

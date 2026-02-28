@@ -33,6 +33,7 @@
 // DEBUG: Phaser signal path tracing (remove after debugging)
 // =============================================================================
 #define RUINAE_PHASER_DEBUG 0
+#define RUINAE_TGATE_DEBUG 0
 
 #if RUINAE_PHASER_DEBUG
 #include <cstdarg>
@@ -63,6 +64,38 @@ static void logPhaser(const char* fmt, ...) {
 }
 #else
 static void logPhaser(const char*, ...) {}
+#endif
+
+#if RUINAE_TGATE_DEBUG
+#include <cstdarg>
+#include <cstdio>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
+static int s_tgLogCounter = 0;  // NOLINT
+static int s_tgLastStep = -1;   // NOLINT
+
+static void logTGate(const char* fmt, ...) {
+    char buf[512];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+#ifdef _WIN32
+    OutputDebugStringA(buf);
+#else
+    fprintf(stderr, "%s", buf);
+#endif
+}
+#else
+[[maybe_unused]] static void logTGate(const char*, ...) {}
 #endif
 
 namespace Ruinae {
@@ -196,6 +229,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
             blockCtx.isPlaying = (pc->state & Steinberg::Vst::ProcessContext::kPlaying) != 0;
             if (pc->state & Steinberg::Vst::ProcessContext::kProjectTimeMusicValid) {
+                blockCtx.projectTimeMusic = pc->projectTimeMusic;
+                blockCtx.projectTimeMusicValid = true;
                 // Convert musical time (beats) to samples approximation
                 blockCtx.transportPositionSamples = static_cast<int64_t>(
                     pc->projectTimeMusic * (60.0 / blockCtx.tempoBPM) * blockCtx.sampleRate);
@@ -203,6 +238,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         engine_.setBlockContext(blockCtx);
+        engine_.setTempo(blockCtx.tempoBPM);
     }
 
     // Process MIDI events (FR-006: branches on arp enabled state)
@@ -226,6 +262,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         Krate::DSP::BlockContext arpCtx = blockCtx;
         arpCtx.isPlaying = true;
 
+        // Detect DAW transport loop (backward PPQ jump) and notify the arp
+        // so it cleanly restarts: NoteOffs, lane reset, immediate step 0.
+        // Works in both tempo-sync and free-rate modes.
+        if (blockCtx.projectTimeMusicValid && blockCtx.isPlaying) {
+            if (prevProjectTimeMusic_ >= 0.0 &&
+                blockCtx.projectTimeMusic < prevProjectTimeMusic_ - 0.01) {
+                arpCore_.notifyTransportLoop();
+            }
+            prevProjectTimeMusic_ = blockCtx.projectTimeMusic;
+        }
+
+        // Sync arp step clock to host musical position so transport
+        // rewind/reposition keeps the arp grid-locked.
+        if (blockCtx.projectTimeMusicValid && blockCtx.isPlaying) {
+            arpCore_.syncToMusicalPosition(blockCtx.projectTimeMusic);
+        }
+
         // Process arp block (processBlock takes std::span<ArpEvent>, returns event count)
         size_t numArpEvents = arpCore_.processBlock(arpCtx, arpEvents_);
 
@@ -233,6 +286,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
+#if RUINAE_TGATE_DEBUG
+                logTGate("[TGATE] >>> arp noteOn note=%d vel=%d legato=%d (gate will reset)\n", evt.note, evt.velocity, evt.legato ? 1 : 0);
+#endif
                 engine_.noteOn(evt.note, evt.velocity, evt.legato);
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
                 engine_.noteOff(evt.note);
@@ -322,6 +378,34 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
+
+#if RUINAE_TGATE_DEBUG
+    {
+        const int tgStep = engine_.getTranceGateCurrentStep();
+        const bool stepChanged = (tgStep != s_tgLastStep && tgStep >= 0);
+
+        // Log on step change or every 200 blocks
+        if (stepChanged || (s_tgLogCounter % 200 == 0 && tgStep >= 0)) {
+            const int tgNumSteps = engine_.getTranceGateNumSteps();
+            const size_t tgSamplesPerStep = engine_.getTranceGateSamplesPerStep();
+            const double tgTempo = engine_.getTranceGateTempoBPM();
+            const bool tgSync = engine_.getTranceGateTempoSync();
+            const size_t tgSampleCtr = engine_.getTranceGateSampleCounter();
+            const int voiceIdx = engine_.getTranceGateActiveVoiceIndex();
+
+            if (stepChanged) {
+                logTGate("[TGATE] STEP %d->%d | voice=%d numSteps=%d samplesPerStep=%zu tempo=%.1f sync=%d sampleCtr=%zu hostTempo=%.1f\n",
+                    s_tgLastStep, tgStep, voiceIdx, tgNumSteps, tgSamplesPerStep, tgTempo, tgSync ? 1 : 0, tgSampleCtr, tempoBPM_);
+            } else {
+                logTGate("[TGATE] periodic | step=%d/%d voice=%d samplesPerStep=%zu tempo=%.1f sync=%d sampleCtr=%zu hostTempo=%.1f\n",
+                    tgStep, tgNumSteps, voiceIdx, tgSamplesPerStep, tgTempo, tgSync ? 1 : 0, tgSampleCtr, tempoBPM_);
+            }
+        }
+
+        s_tgLastStep = tgStep;
+        ++s_tgLogCounter;
+    }
+#endif
 
     // Update morph pad modulated position for UI animation
     {
@@ -950,6 +1034,16 @@ void Processor::applyParamsToEngine() {
             tranceGateParams_.noteValue.load(std::memory_order_relaxed));
         tgp.noteValue = tgNoteMapping.note;
         tgp.noteModifier = tgNoteMapping.modifier;
+        tgp.retriggerDepth = tranceGateParams_.retriggerDepth.load(std::memory_order_relaxed);
+        tgp.perVoice = false;  // Trance gate runs as free-running clock, not reset on noteOn
+#if RUINAE_TGATE_DEBUG
+        if (s_tgLogCounter % 500 == 0) {
+            logTGate("[TGATE] params | numSteps=%d rateHz=%.2f tempoSync=%d noteVal=%d noteMod=%d depth=%.2f perVoice=%d hostTempo=%.1f\n",
+                tgp.numSteps, tgp.rateHz, tgp.tempoSync ? 1 : 0,
+                static_cast<int>(tgp.noteValue), static_cast<int>(tgp.noteModifier),
+                tgp.depth, tgp.perVoice ? 1 : 0, tempoBPM_);
+        }
+#endif
         engine_.setTranceGateParams(tgp);
 
         // Apply step levels to DSP engine
@@ -1557,6 +1651,9 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
                     if (arpEnabled) {
                         arpCore_.noteOn(pitch, velocity);
                     } else {
+#if RUINAE_TGATE_DEBUG
+                        logTGate("[TGATE] >>> noteOn pitch=%d vel=%d (gate will reset)\n", pitch, velocity);
+#endif
                         engine_.noteOn(pitch, velocity);
                     }
                 }

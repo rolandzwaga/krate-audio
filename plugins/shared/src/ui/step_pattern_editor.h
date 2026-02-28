@@ -154,6 +154,18 @@ public:
     void setPlaybackStep(int step) {
         if (step != playbackStep_) {
             playbackStep_ = step;
+
+            // Auto-scroll to keep the playback indicator visible when zoomed in
+            if (step >= 0 && step < numSteps_ && zoomLevel_ > 1.0f) {
+                int visible = getVisibleStepCount();
+                if (step < scrollOffset_) {
+                    scrollOffset_ = step;
+                } else if (step >= scrollOffset_ + visible) {
+                    scrollOffset_ = step - visible + 1;
+                }
+                clampZoomScroll();
+            }
+
             setDirty();
         }
     }

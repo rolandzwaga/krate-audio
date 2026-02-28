@@ -1537,6 +1537,291 @@ TEST_CASE("TranceGate - gate does not affect voice lifetime", "[trance_gate][edg
     REQUIRE(true);
 }
 
+// =============================================================================
+// Phase 9: Retrigger Depth
+// =============================================================================
+
+TEST_CASE("TranceGate - retrigger depth 0 keeps flat gain across consecutive on-steps",
+           "[trance_gate][retrigger]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 4;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.retriggerDepth = 0.0f;  // No retrigger (legacy behavior)
+    gate.setParams(params);
+
+    // All steps ON
+    for (int i = 0; i < 4; ++i) {
+        gate.setStep(i, 1.0f);
+    }
+
+    gate.reset();
+
+    // Process through multiple step boundaries
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+    // Skip attack ramp of first step
+    for (size_t i = 0; i < samplesPerStep / 2; ++i) {
+        (void)gate.process(1.0f);
+    }
+
+    // From here, gain should stay at 1.0 across step boundaries
+    float minGain = 1.0f;
+    for (size_t i = 0; i < samplesPerStep * 2; ++i) {
+        (void)gate.process(1.0f);
+        const float g = gate.getGateValue();
+        if (g < minGain) minGain = g;
+    }
+
+    // With retriggerDepth=0, gain stays flat at 1.0
+    REQUIRE(minGain > 0.99f);
+}
+
+TEST_CASE("TranceGate - retrigger depth 1 creates dip at step boundary",
+           "[trance_gate][retrigger]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 4;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.retriggerDepth = 1.0f;  // Full retrigger
+    gate.setParams(params);
+
+    // All steps ON
+    for (int i = 0; i < 4; ++i) {
+        gate.setStep(i, 1.0f);
+    }
+
+    gate.reset();
+
+    // Process past the first step boundary
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+    // Let the first step fully ramp up
+    for (size_t i = 0; i < samplesPerStep - 1; ++i) {
+        (void)gate.process(1.0f);
+    }
+
+    // Gain should be near 1.0 before the boundary
+    REQUIRE(gate.getGateValue() > 0.95f);
+
+    // Process one more sample to trigger step boundary
+    (void)gate.process(1.0f);
+
+    // The retrigger should have snapped gain down significantly
+    // (full retrigger = snap to 0, then attack ramp starts)
+    REQUIRE(gate.getGateValue() < 0.2f);
+}
+
+TEST_CASE("TranceGate - retrigger depth 0.5 creates partial dip",
+           "[trance_gate][retrigger]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 4;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.retriggerDepth = 0.5f;  // Half retrigger
+    gate.setParams(params);
+
+    // All steps ON
+    for (int i = 0; i < 4; ++i) {
+        gate.setStep(i, 1.0f);
+    }
+
+    gate.reset();
+
+    // Process to just before second step boundary
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+    for (size_t i = 0; i < samplesPerStep - 1; ++i) {
+        (void)gate.process(1.0f);
+    }
+
+    REQUIRE(gate.getGateValue() > 0.95f);
+
+    // Trigger step boundary
+    (void)gate.process(1.0f);
+
+    // With 0.5 retrigger, gain should dip to roughly 0.5 (of 1.0)
+    const float postBoundaryGain = gate.getGateValue();
+    REQUIRE(postBoundaryGain < 0.7f);
+    REQUIRE(postBoundaryGain > 0.3f);
+}
+
+TEST_CASE("TranceGate - retrigger does not affect transitions between different levels",
+           "[trance_gate][retrigger]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 2;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.retriggerDepth = 1.0f;
+    gate.setParams(params);
+
+    gate.setStep(0, 1.0f);
+    gate.setStep(1, 0.0f);  // Already going to 0
+
+    gate.reset();
+
+    // Process through one full cycle (1→0→1→0)
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+
+    // No crashes, no NaN
+    bool valid = true;
+    for (size_t i = 0; i < samplesPerStep * 4; ++i) {
+        const float output = gate.process(1.0f);
+        if (std::isnan(output) || std::isinf(output)) {
+            valid = false;
+            break;
+        }
+    }
+    REQUIRE(valid);
+}
+
+TEST_CASE("TranceGate - retrigger recovery ramp is smooth",
+           "[trance_gate][retrigger]") {
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 4;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.retriggerDepth = 1.0f;
+    gate.setParams(params);
+
+    for (int i = 0; i < 4; ++i) {
+        gate.setStep(i, 1.0f);
+    }
+
+    gate.reset();
+
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+
+    // Track max delta EXCLUDING the first sample after each step boundary.
+    // The retrigger snap creates an intentional gain dip at the boundary.
+    // The recovery ramp (attack smoother) should be smooth.
+    float prevGain = gate.getGateValue();
+    float maxRecoveryDelta = 0.0f;
+    size_t sampleInStep = 0;
+
+    for (size_t i = 0; i < samplesPerStep * 6; ++i) {
+        (void)gate.process(1.0f);
+        sampleInStep++;
+
+        if (sampleInStep >= samplesPerStep) {
+            sampleInStep = 0;
+        }
+
+        const float g = gate.getGateValue();
+
+        // Skip the boundary sample (sampleInStep == 0) — the snap is intentional
+        if (sampleInStep > 1) {
+            const float delta = std::abs(g - prevGain);
+            if (delta > maxRecoveryDelta) maxRecoveryDelta = delta;
+        }
+
+        prevGain = g;
+    }
+
+    // Recovery ramp max delta should be bounded by attack smoother coefficient.
+    // attackMs=2.0 at 44100Hz: max delta ≈ 1 - exp(-5000/(2*44100)) ≈ 0.055
+    REQUIRE(maxRecoveryDelta < 0.06f);
+}
+
+TEST_CASE("TranceGate - 32 steps cycles through all 32 positions",
+           "[trance_gate][regression]") {
+    // Regression test: verify that with numSteps=32, currentStep reaches all
+    // 32 positions (0-31) before wrapping. Simulates the processor's per-block
+    // setParams pattern.
+    TranceGate gate;
+    gate.prepare(44100.0);
+    gate.setTempo(120.0);
+
+    TranceGateParams params;
+    params.numSteps = 32;
+    params.noteValue = NoteValue::Sixteenth;
+    params.depth = 1.0f;
+    params.attackMs = 2.0f;
+    params.releaseMs = 10.0f;
+    params.tempoSync = true;
+    params.perVoice = true;
+    gate.setParams(params);
+
+    // Set all 32 steps to 1.0
+    for (int i = 0; i < 32; ++i) {
+        gate.setStep(i, 1.0f);
+    }
+
+    gate.reset();
+
+    const size_t samplesPerStep = expectedSamplesPerStep(120.0, NoteValue::Sixteenth,
+                                                          NoteModifier::None, 44100.0);
+
+    // Track which steps we visit
+    std::array<bool, 32> visited{};
+    int maxStepSeen = -1;
+
+    // Process enough samples to cycle through all 32 steps.
+    // Re-call setParams periodically (like the processor does every block).
+    constexpr size_t kBlockSize = 512;
+    const size_t totalSamples = samplesPerStep * 33; // just over one full cycle
+
+    for (size_t s = 0; s < totalSamples; s += kBlockSize) {
+        // Simulate processor: re-apply params each block
+        gate.setParams(params);
+        gate.setTempo(120.0);
+
+        size_t blockEnd = std::min(s + kBlockSize, totalSamples);
+        for (size_t i = s; i < blockEnd; ++i) {
+            (void)gate.process(1.0f);
+            int step = gate.getCurrentStep();
+            if (step >= 0 && step < 32) {
+                visited[static_cast<size_t>(step)] = true;
+                if (step > maxStepSeen) maxStepSeen = step;
+            }
+        }
+    }
+
+    // All 32 steps should have been visited
+    INFO("Max step seen: " << maxStepSeen);
+    for (int i = 0; i < 32; ++i) {
+        INFO("Step " << i << " visited: " << visited[static_cast<size_t>(i)]);
+        REQUIRE(visited[static_cast<size_t>(i)]);
+    }
+}
+
 TEST_CASE("TranceGate - processing overhead < 0.1% CPU", "[trance_gate][performance]") {
     TranceGate gate;
     gate.prepare(44100.0);

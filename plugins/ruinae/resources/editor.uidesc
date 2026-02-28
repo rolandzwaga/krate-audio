@@ -320,6 +320,7 @@
         <control-tag name="TranceGateEuclideanHits" tag="609"/>
         <control-tag name="TranceGateEuclideanRotation" tag="610"/>
         <control-tag name="TranceGatePhaseOffset" tag="611"/>
+        <control-tag name="TranceGateRetrigger" tag="612"/>
 
         <!-- Arpeggiator -->
         <control-tag name="ArpEnabled" tag="3000"/>
@@ -3114,6 +3115,12 @@
             <view class="CTextLabel" origin="658, 30" size="36, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Phase"/>
+            <view class="ArcKnob" origin="706, 12" size="20, 20"
+                  control-tag="TranceGateRetrigger" default-value="0.0"
+                  arc-color="trance-gate" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="698, 30" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Retrig"/>
 
             <!-- Euclidean toggle + controls -->
             <view class="ToggleButton" origin="1252, 14" size="22, 22"

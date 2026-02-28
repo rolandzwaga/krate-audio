@@ -541,3 +541,156 @@ TEST_CASE("Multiple TranceGate params in same block",
     INFO("Energy after all params: " << energy);
     CHECK(energy > 0.0);
 }
+
+// =============================================================================
+// Regression: Trance gate step must NOT reset on noteOn (perVoice=false)
+// =============================================================================
+// When multiple notes are played in sequence, the trance gate should continue
+// advancing through the pattern rather than restarting from step 0 each time.
+// This verifies the fix for the bug where the step indicator only reached
+// step ~8 with 32 steps at 1/8 note because each noteOn reset the gate.
+// =============================================================================
+
+#include "engine/ruinae_engine.h"
+
+TEST_CASE("TranceGate syncs to host transport position",
+          "[trance_gate][regression][integration]") {
+    using namespace Krate::DSP;
+
+    RuinaeEngine engine;
+    engine.prepare(48000.0, 512);
+
+    // Configure: 16 steps, 1/16th note, tempo sync
+    TranceGateParams tgp;
+    tgp.numSteps = 16;
+    tgp.tempoSync = true;
+    tgp.noteValue = NoteValue::Sixteenth;
+    tgp.noteModifier = NoteModifier::None;
+    tgp.depth = 1.0f;
+    tgp.perVoice = false;
+    engine.setTranceGateEnabled(true);
+    engine.setTranceGateParams(tgp);
+    engine.setTempo(120.0);
+    for (int i = 0; i < 32; ++i) {
+        engine.setTranceGateStep(i, 1.0f);
+    }
+
+    constexpr size_t kBlockSize = 512;
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+
+    // At 120 BPM, 1/16th note = 0.25 quarter notes per step
+    // 16 steps = 4.0 quarter notes = 1 bar in 4/4
+
+    // Simulate transport at bar 3, beat 2 = 10.0 quarter notes
+    // Step should be: fmod(10.0, 4.0) = 2.0 / 0.25 = step 8
+    BlockContext ctx;
+    ctx.sampleRate = 48000.0;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.projectTimeMusic = 10.0;  // bar 3, beat 2
+    ctx.projectTimeMusicValid = true;
+
+    engine.noteOn(60, 100);
+    engine.setBlockContext(ctx);
+    engine.setTempo(120.0);
+    engine.setTranceGateParams(tgp);
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    engine.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    int step = engine.getTranceGateCurrentStep();
+    INFO("At PPQ 10.0, step should be 8, got: " << step);
+    CHECK(step == 8);
+
+    // Reposition to start of song (PPQ 0.0) — step should jump to 0
+    ctx.projectTimeMusic = 0.0;
+    engine.setBlockContext(ctx);
+    engine.setTranceGateParams(tgp);
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    engine.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    step = engine.getTranceGateCurrentStep();
+    INFO("At PPQ 0.0, step should be 0, got: " << step);
+    CHECK(step == 0);
+
+    // Jump to PPQ 3.75 — last step of bar 1
+    // 3.75 / 0.25 = step 15
+    ctx.projectTimeMusic = 3.75;
+    engine.setBlockContext(ctx);
+    engine.setTranceGateParams(tgp);
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    engine.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    step = engine.getTranceGateCurrentStep();
+    INFO("At PPQ 3.75, step should be 15, got: " << step);
+    CHECK(step == 15);
+}
+
+TEST_CASE("TranceGate new voices sync to transport position (not step 0)",
+          "[trance_gate][regression][integration]") {
+    using namespace Krate::DSP;
+
+    RuinaeEngine engine;
+    engine.prepare(48000.0, 512);
+
+    TranceGateParams tgp;
+    tgp.numSteps = 32;
+    tgp.tempoSync = true;
+    tgp.noteValue = NoteValue::Eighth;
+    tgp.noteModifier = NoteModifier::None;
+    tgp.depth = 1.0f;
+    tgp.perVoice = false;
+    engine.setTranceGateEnabled(true);
+    engine.setTranceGateParams(tgp);
+    engine.setTempo(120.0);
+    for (int i = 0; i < 32; ++i) {
+        engine.setTranceGateStep(i, 1.0f);
+    }
+
+    constexpr size_t kBlockSize = 512;
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+
+    // At 120 BPM, 1/8 note = 0.5 quarter notes per step
+    // 32 steps = 16.0 quarter notes (4 bars)
+    // PPQ 5.0 → fmod(5.0, 16.0) = 5.0, step = floor(5.0/0.5) = 10
+
+    BlockContext ctx;
+    ctx.sampleRate = 48000.0;
+    ctx.blockSize = kBlockSize;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    ctx.projectTimeMusic = 5.0;
+    ctx.projectTimeMusicValid = true;
+
+    // Play first note (voice 0)
+    engine.noteOn(60, 100);
+    engine.setBlockContext(ctx);
+    engine.setTempo(120.0);
+    engine.setTranceGateParams(tgp);
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    engine.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    int step1 = engine.getTranceGateCurrentStep();
+    INFO("Voice 0 step at PPQ 5.0: " << step1);
+    CHECK(step1 == 10);
+
+    // Advance slightly and play a second note (allocates voice 1)
+    ctx.projectTimeMusic = 5.1;
+    engine.noteOn(64, 100);
+    engine.setBlockContext(ctx);
+    engine.setTranceGateParams(tgp);
+    std::fill(outL.begin(), outL.end(), 0.0f);
+    std::fill(outR.begin(), outR.end(), 0.0f);
+    engine.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    int step2 = engine.getTranceGateCurrentStep();
+    INFO("After second noteOn at PPQ 5.1, step: " << step2);
+    // Both voices should be around step 10 (not reset to 0)
+    CHECK(step2 == 10);
+}

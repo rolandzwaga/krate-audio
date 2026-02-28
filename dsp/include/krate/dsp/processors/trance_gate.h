@@ -22,6 +22,7 @@
 
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
+#include <krate/dsp/core/transport_sync.h>
 #include <krate/dsp/primitives/smoother.h>
 
 #include <algorithm>
@@ -63,6 +64,7 @@ struct TranceGateParams {
     NoteValue noteValue{NoteValue::Sixteenth};       ///< Step note value (tempo sync)
     NoteModifier noteModifier{NoteModifier::None};   ///< Step note modifier (tempo sync)
     bool perVoice{true};                             ///< true = reset on noteOn, false = free-run clock
+    float retriggerDepth{0.0f};                      ///< Step boundary dip [0.0, 1.0]: 0 = no dip, 1 = full snap to 0
 };
 
 // =============================================================================
@@ -159,6 +161,7 @@ public:
         params_.releaseMs = clampedRelease;
         params_.rateHz = std::clamp(params.rateHz, kMinRateHz, kMaxRateHz);
         params_.phaseOffset = std::clamp(params.phaseOffset, 0.0f, 1.0f);
+        params_.retriggerDepth = std::clamp(params.retriggerDepth, 0.0f, 1.0f);
 
         numSteps_ = params_.numSteps;
         rotationOffset_ = static_cast<int>(params_.phaseOffset * static_cast<float>(numSteps_));
@@ -243,6 +246,14 @@ public:
         if (sampleCounter_ >= samplesPerStep_) {
             sampleCounter_ = 0;
             currentStep_ = (currentStep_ + 1) % numSteps_;
+
+            // Retrigger: dip smoothers at step boundary for audible step separation
+            if (params_.retriggerDepth > 0.0f) {
+                const float currentVal = attackSmoother_.getCurrentValue();
+                const float dippedVal = currentVal * (1.0f - params_.retriggerDepth);
+                attackSmoother_.snapTo(dippedVal);
+                releaseSmoother_.snapTo(dippedVal);
+            }
         }
 
         // Read effective step with phase offset
@@ -302,6 +313,70 @@ public:
         return currentStep_;
     }
 
+    /// @brief Sync this gate's timing to another gate's position.
+    /// Used to keep newly allocated voices in phase with existing voices.
+    void syncTo(const TranceGate& other) noexcept {
+        currentStep_ = other.currentStep_;
+        sampleCounter_ = other.sampleCounter_;
+        // Snap smoothers to the current step's level to avoid transition artifacts
+        const int effectiveStep = (currentStep_ + rotationOffset_) % numSteps_;
+        const float level = pattern_[static_cast<size_t>(effectiveStep)];
+        attackSmoother_.snapTo(level);
+        releaseSmoother_.snapTo(level);
+        currentGainValue_ = 1.0f + (level - 1.0f) * params_.depth;
+    }
+
+    /// @brief Sync gate position directly from host musical time (PPQ).
+    /// Call at block start when transport is playing and tempo sync is enabled.
+    /// Calculates the correct step and sub-step position from the host's
+    /// projectTimeMusic, so transport start/stop/reposition/loop all work.
+    void syncToMusicalPosition(double projectTimeMusic) noexcept {
+        if (!params_.tempoSync || !prepared_) return;
+
+        const auto pos = calculateMusicalStepPosition(
+            projectTimeMusic, params_.noteValue, params_.noteModifier, numSteps_);
+
+        const size_t newSampleCounter = static_cast<size_t>(
+            pos.stepFraction * static_cast<double>(samplesPerStep_));
+
+        // Only snap smoothers if the step actually changed
+        if (pos.step != currentStep_) {
+            const int effectiveStep = (pos.step + rotationOffset_) % numSteps_;
+            const float level = pattern_[static_cast<size_t>(effectiveStep)];
+            attackSmoother_.snapTo(level);
+            releaseSmoother_.snapTo(level);
+            currentGainValue_ = 1.0f + (level - 1.0f) * params_.depth;
+        }
+
+        currentStep_ = pos.step;
+        sampleCounter_ = newSampleCounter;
+    }
+
+    /// @brief Get samples per step (debug).
+    [[nodiscard]] size_t getSamplesPerStep() const noexcept {
+        return samplesPerStep_;
+    }
+
+    /// @brief Get current tempo (debug).
+    [[nodiscard]] double getTempoBPM() const noexcept {
+        return tempoBPM_;
+    }
+
+    /// @brief Get number of active steps (debug).
+    [[nodiscard]] int getNumSteps() const noexcept {
+        return numSteps_;
+    }
+
+    /// @brief Get whether tempo sync is enabled (debug).
+    [[nodiscard]] bool isTempoSync() const noexcept {
+        return params_.tempoSync;
+    }
+
+    /// @brief Get sample counter within current step (debug).
+    [[nodiscard]] size_t getSampleCounter() const noexcept {
+        return sampleCounter_;
+    }
+
 private:
     // =========================================================================
     // Internal Helpers
@@ -325,6 +400,14 @@ private:
         if (sampleCounter_ >= samplesPerStep_) {
             sampleCounter_ = 0;
             currentStep_ = (currentStep_ + 1) % numSteps_;
+
+            // Retrigger: dip smoothers at step boundary for audible step separation
+            if (params_.retriggerDepth > 0.0f) {
+                const float currentVal = attackSmoother_.getCurrentValue();
+                const float dippedVal = currentVal * (1.0f - params_.retriggerDepth);
+                attackSmoother_.snapTo(dippedVal);
+                releaseSmoother_.snapTo(dippedVal);
+            }
         }
 
         const int effectiveStep = (currentStep_ + rotationOffset_) % numSteps_;

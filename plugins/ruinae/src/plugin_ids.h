@@ -293,6 +293,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kTranceGateEuclideanHitsId = 609,    // 0-32 integer
     kTranceGateEuclideanRotationId = 610, // 0-31 integer
     kTranceGatePhaseOffsetId = 611,       // 0.0-1.0 continuous
+    kTranceGateRetriggerDepthId = 612,    // 0.0-1.0 step boundary dip
 
     // Step level parameters: contiguous block of 32
     // Usage: kTranceGateStepLevel0Id + stepIndex

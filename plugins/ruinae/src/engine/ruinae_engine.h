@@ -707,6 +707,15 @@ public:
         ctx.tempoBPM = blockContext_.tempoBPM;
         ctx.isPlaying = blockContext_.isPlaying;
         ctx.transportPositionSamples = blockContext_.transportPositionSamples;
+        ctx.projectTimeMusic = blockContext_.projectTimeMusic;
+        ctx.projectTimeMusicValid = blockContext_.projectTimeMusicValid;
+
+        // Sync trance gates to host musical position (transport-locked)
+        if (tranceGateEnabled_ && ctx.isPlaying && ctx.projectTimeMusicValid) {
+            for (auto& voice : voices_) {
+                voice.syncTranceGateToMusicalPosition(ctx.projectTimeMusic);
+            }
+        }
 
         // Step 3: Process global modulation with previous block's output (FR-018)
         globalModEngine_.process(ctx, previousOutputL_.data(),
@@ -1129,6 +1138,7 @@ public:
     // --- Trance Gate ---
 
     void setTranceGateEnabled(bool enabled) noexcept {
+        tranceGateEnabled_ = enabled;
         for (auto& voice : voices_) { voice.setTranceGateEnabled(enabled); }
     }
 
@@ -1155,6 +1165,46 @@ public:
             }
         }
         return -1;
+    }
+
+    // Debug: get voice index of first active voice
+    [[nodiscard]] int getTranceGateActiveVoiceIndex() const noexcept {
+        for (size_t i = 0; i < voices_.size(); ++i) {
+            if (voices_[i].isActive()) return static_cast<int>(i);
+        }
+        return -1;
+    }
+
+    // Debug accessors for trance gate (first active voice)
+    [[nodiscard]] size_t getTranceGateSamplesPerStep() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) return voice.getTranceGateSamplesPerStep();
+        }
+        return 0;
+    }
+    [[nodiscard]] double getTranceGateTempoBPM() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) return voice.getTranceGateTempoBPM();
+        }
+        return 0.0;
+    }
+    [[nodiscard]] int getTranceGateNumSteps() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) return voice.getTranceGateNumSteps();
+        }
+        return 0;
+    }
+    [[nodiscard]] bool getTranceGateTempoSync() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) return voice.getTranceGateTempoSync();
+        }
+        return false;
+    }
+    [[nodiscard]] size_t getTranceGateSampleCounter() const noexcept {
+        for (const auto& voice : voices_) {
+            if (voice.isActive()) return voice.getTranceGateSampleCounter();
+        }
+        return 0;
     }
 
     // --- Amplitude Envelope ---
@@ -1423,6 +1473,15 @@ private:
     // =========================================================================
 
     void dispatchPolyNoteOn(uint8_t note, uint8_t velocity) noexcept {
+        // Find an active voice to sync trance gate from (before allocation changes state)
+        int syncSourceVoice = -1;
+        for (size_t i = 0; i < polyphonyCount_; ++i) {
+            if (voices_[i].isActive()) {
+                syncSourceVoice = static_cast<int>(i);
+                break;
+            }
+        }
+
         auto events = allocator_.noteOn(note, velocity);
 
         for (const auto& event : events) {
@@ -1433,6 +1492,12 @@ private:
                         static_cast<int>(event.velocity)).amplitude;
                     voices_[event.voiceIndex].noteOn(freq, vel);
                     noteOnTimestamps_[event.voiceIndex] = ++timestampCounter_;
+                    // Sync new voice's trance gate to existing active voice
+                    if (syncSourceVoice >= 0 &&
+                        syncSourceVoice != static_cast<int>(event.voiceIndex)) {
+                        voices_[event.voiceIndex].syncTranceGateTo(
+                            voices_[static_cast<size_t>(syncSourceVoice)]);
+                    }
                     break;
                 }
                 case VoiceEvent::Type::Steal: {
@@ -1847,6 +1912,7 @@ private:
     std::array<float, kMaxPolyphony> voicePanPositions_;
     int8_t monoVoiceNote_;
     bool userLegato_{false};    ///< Cached user legato setting for save/restore during arp slide
+    bool tranceGateEnabled_{false}; ///< Cached trance gate enabled state for processBlock sync
     BlockContext blockContext_{};
     float globalFilterCutoffHz_;
     float globalFilterResonance_;
