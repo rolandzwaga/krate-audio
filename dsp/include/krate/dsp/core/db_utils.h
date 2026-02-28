@@ -63,6 +63,13 @@ constexpr float kLn10 = 2.302585093f;
 /// 1 / ln(10), used for log10 calculation
 constexpr float kInvLn10 = 0.434294482f;
 
+// Suppress -Wnan-infinity-disabled for constexpr math functions that legitimately
+// use infinity. These are evaluated at compile time, not affected by -ffast-math.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnan-infinity-disabled"
+#endif
+
 /// Constexpr natural logarithm using series expansion
 /// Uses the identity: ln(x) = 2 * sum((z^(2n+1))/(2n+1)) where z = (x-1)/(x+1)
 /// Valid for x > 0
@@ -148,6 +155,10 @@ constexpr float constexprExp(float x) noexcept {
 constexpr float constexprPow10(float x) noexcept {
     return constexprExp(x * kLn10);
 }
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 /// Flush denormal values to zero for real-time safety.
 /// Denormalized floats can cause 100x CPU slowdowns on some processors.

@@ -55,6 +55,7 @@ public:
     void valueChanged(VSTGUI::CControl* control) override;
 
     // IKeyboardHook
+    using CViewContainer::onKeyboardEvent;
     void onKeyboardEvent(VSTGUI::KeyboardEvent& event, VSTGUI::CFrame* frame) override;
 
 private:

@@ -227,8 +227,11 @@ jobs:
       # Note: PCH stays enabled on macOS - ccache handles it better than sccache
       # Note: SMTG_ENABLE_AUV2_BUILDS enables Audio Unit v2 build via VST3 SDK AU wrapper
       # Note: SMTG_CODE_SIGN_IDENTITY_MAC="-" uses ad-hoc signing (no keychain required in CI)
+      # Note: SMTG_DISABLE_CODE_SIGNING=ON works around Xcode 16+ passing -adhoc_codesign
+      #        directly to clang++ instead of via -Xlinker (VST3 SDK SMTG_CodeSign.cmake issue).
+      #        The SDK's Xcode 15+ post-build codesign workaround still runs independently.
       - name: Configure CMake
-        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-"
+        run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
 
       - name: Build DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
