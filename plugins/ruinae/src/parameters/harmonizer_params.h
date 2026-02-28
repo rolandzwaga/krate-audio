@@ -163,7 +163,10 @@ inline void registerHarmonizerParams(Steinberg::Vst::ParameterContainer& paramet
         STR16("Harmonizer Scale"), kHarmonizerScaleId,
         {STR16("Major"), STR16("Natural Minor"), STR16("Harmonic Minor"),
          STR16("Melodic Minor"), STR16("Dorian"), STR16("Mixolydian"),
-         STR16("Phrygian"), STR16("Lydian"), STR16("Chromatic")}));
+         STR16("Phrygian"), STR16("Lydian"), STR16("Chromatic"),
+         STR16("Locrian"), STR16("Major Pentatonic"), STR16("Minor Pentatonic"),
+         STR16("Blues"), STR16("Whole Tone"),
+         STR16("Diminished (W-H)"), STR16("Diminished (H-W)")}));
 
     parameters.addParameter(createDropdownParameter(
         STR16("Pitch Shift Mode"), kHarmonizerPitchShiftModeId,

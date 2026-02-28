@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/dropdown_mappings.h"
 #include "controller/parameter_helpers.h"
 
 #include <krate/dsp/core/note_value.h>
@@ -91,6 +92,11 @@ struct ArpeggiatorParams {
 
     // --- Ratchet Swing (078-ratchet-swing) ---
     std::atomic<float> ratchetSwing{50.0f};    // 50-75%
+
+    // --- Scale Mode (084-arp-scale-mode) ---
+    std::atomic<int>  scaleType{8};               // ScaleType enum value (0-15, default 8 = Chromatic)
+    std::atomic<int>  rootNote{0};                // 0=C, 1=C#, ..., 11=B (default 0 = C)
+    std::atomic<bool> scaleQuantizeInput{false};  // Snap incoming notes to scale (default OFF)
 
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
@@ -299,6 +305,26 @@ inline void handleArpParamChange(
                 std::clamp(static_cast<float>(50.0 + value * 25.0), 50.0f, 75.0f),
                 std::memory_order_relaxed);
             break;
+
+        // --- Scale Mode (084-arp-scale-mode) ---
+        case kArpScaleTypeId: {
+            // UI index -> ScaleType enum via display order mapping
+            int uiIndex = std::clamp(
+                static_cast<int>(value * (kArpScaleTypeCount - 1) + 0.5),
+                0, kArpScaleTypeCount - 1);
+            params.scaleType.store(kArpScaleDisplayOrder[static_cast<size_t>(uiIndex)],
+                std::memory_order_relaxed);
+            return;
+        }
+        case kArpRootNoteId:
+            params.rootNote.store(
+                std::clamp(static_cast<int>(value * (kArpRootNoteCount - 1) + 0.5),
+                           0, kArpRootNoteCount - 1),
+                std::memory_order_relaxed);
+            return;
+        case kArpScaleQuantizeInputId:
+            params.scaleQuantizeInput.store(value >= 0.5, std::memory_order_relaxed);
+            return;
 
         default:
             // Velocity lane steps: 3021-3052
@@ -601,6 +627,30 @@ inline void registerArpParams(
     parameters.addParameter(STR16("Arp Ratchet Swing"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kArpRatchetSwingId);
 
+    // --- Scale Mode (084-arp-scale-mode) ---
+
+    // Scale Type: StringListParameter (16 entries), default index 0 = Chromatic
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Scale Type"), kArpScaleTypeId,
+        {STR16("Chromatic"), STR16("Major"), STR16("Natural Minor"),
+         STR16("Harmonic Minor"), STR16("Melodic Minor"),
+         STR16("Dorian"), STR16("Phrygian"), STR16("Lydian"),
+         STR16("Mixolydian"), STR16("Locrian"),
+         STR16("Major Pentatonic"), STR16("Minor Pentatonic"),
+         STR16("Blues"), STR16("Whole Tone"),
+         STR16("Diminished (W-H)"), STR16("Diminished (H-W)")}));
+
+    // Root Note: StringListParameter (12 entries), default index 0 = C
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Root Note"), kArpRootNoteId,
+        {STR16("C"), STR16("C#"), STR16("D"), STR16("D#"),
+         STR16("E"), STR16("F"), STR16("F#"), STR16("G"),
+         STR16("G#"), STR16("A"), STR16("A#"), STR16("B")}));
+
+    // Scale Quantize Input: Toggle (0 or 1), default off
+    parameters.addParameter(STR16("Arp Scale Quantize"), STR16(""), 1, 0.0,
+        ParameterInfo::kCanAutomate, kArpScaleQuantizeInputId);
+
     // --- Playhead Parameters (079-layout-framework + 080-specialized-lane-types) ---
     // Hidden, non-automatable. Written by processor, polled by controller.
     // NOT saved to preset state (transient playback position only).
@@ -824,6 +874,13 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
+        // --- Scale Mode (084-arp-scale-mode) ---
+        // Let StringListParameter handle display for these
+        case kArpScaleTypeId:
+        case kArpRootNoteId:
+        case kArpScaleQuantizeInputId:
+            return kResultFalse;
+
         default:
             // Velocity lane steps: display as percentage
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -988,6 +1045,11 @@ inline void saveArpParams(
 
     // --- Ratchet Swing (078-ratchet-swing) ---
     streamer.writeFloat(params.ratchetSwing.load(std::memory_order_relaxed));
+
+    // --- Scale Mode (084-arp-scale-mode) ---
+    streamer.writeInt32(params.scaleType.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.rootNote.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.scaleQuantizeInput.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
 // =============================================================================
@@ -1146,6 +1208,15 @@ inline bool loadArpParams(
     // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep default (50%)
     if (!streamer.readFloat(floatVal)) return true;
     params.ratchetSwing.store(std::clamp(floatVal, 50.0f, 75.0f), std::memory_order_relaxed);
+
+    // --- Scale Mode (084-arp-scale-mode) ---
+    // EOF-safe: if scale data is missing (pre-scale-mode preset), keep defaults
+    if (!streamer.readInt32(intVal)) return true;  // Old preset, keep defaults
+    params.scaleType.store(std::clamp(intVal, 0, 15), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return true;
+    params.rootNote.store(std::clamp(intVal, 0, 11), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return true;
+    params.scaleQuantizeInput.store(intVal != 0, std::memory_order_relaxed);
 
     return true;
 }
@@ -1340,6 +1411,19 @@ inline void loadArpParamsToController(
     // float [50, 75] -> normalized: (val - 50) / 25
     setParam(kArpRatchetSwingId,
         static_cast<double>((std::clamp(floatVal, 50.0f, 75.0f) - 50.0f) / 25.0f));
+
+    // --- Scale Mode (084-arp-scale-mode) ---
+    // EOF-safe: if scale data is missing (pre-scale-mode preset), keep controller defaults
+    Steinberg::int32 iv = 0;
+    if (streamer.readInt32(iv)) {
+        int enumVal = std::clamp(static_cast<int>(iv), 0, 15);
+        int uiIndex = kArpScaleEnumToDisplay[static_cast<size_t>(enumVal)];
+        setParam(kArpScaleTypeId, static_cast<double>(uiIndex) / (kArpScaleTypeCount - 1));
+    }
+    if (streamer.readInt32(iv))
+        setParam(kArpRootNoteId, static_cast<double>(std::clamp(static_cast<int>(iv), 0, 11)) / (kArpRootNoteCount - 1));
+    if (streamer.readInt32(iv))
+        setParam(kArpScaleQuantizeInputId, iv != 0 ? 1.0 : 0.0);
 }
 
 } // namespace Ruinae

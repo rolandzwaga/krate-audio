@@ -76,11 +76,11 @@ TEST_CASE("handleHarmonizerParamChange global params", "[harmonizer][params]") {
         CHECK(params.key.load() == 11);
     }
 
-    SECTION("scale: 0.0 -> 0, 1.0 -> 8") {
+    SECTION("scale: 0.0 -> 0, 1.0 -> 15") {
         handleHarmonizerParamChange(params, kHarmonizerScaleId, 0.0);
         CHECK(params.scale.load() == 0);
         handleHarmonizerParamChange(params, kHarmonizerScaleId, 1.0);
-        CHECK(params.scale.load() == 8);
+        CHECK(params.scale.load() == 15);
     }
 
     SECTION("pitchShiftMode: 0.0 -> 0, 1.0 -> 3") {

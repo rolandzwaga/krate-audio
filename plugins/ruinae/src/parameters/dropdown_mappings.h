@@ -21,6 +21,9 @@
 
 #include "pluginterfaces/base/ustring.h"
 
+#include <algorithm>
+#include <array>
+
 namespace Ruinae {
 
 // =============================================================================
@@ -441,15 +444,18 @@ inline const Steinberg::Vst::TChar* const kHarmonizerKeyStrings[] = {
 };
 
 // =============================================================================
-// Harmonizer: Scale dropdown (9 types, stepCount = 8)
+// Harmonizer: Scale dropdown (16 types, stepCount = 15)
 // =============================================================================
 
-inline constexpr int kHarmonizerScaleCount = 9;
+inline constexpr int kHarmonizerScaleCount = 16;
 
 inline const Steinberg::Vst::TChar* const kHarmonizerScaleStrings[] = {
     STR16("Major"), STR16("Natural Minor"), STR16("Harmonic Minor"),
     STR16("Melodic Minor"), STR16("Dorian"), STR16("Mixolydian"),
     STR16("Phrygian"), STR16("Lydian"), STR16("Chromatic"),
+    STR16("Locrian"), STR16("Major Pentatonic"), STR16("Minor Pentatonic"),
+    STR16("Blues"), STR16("Whole Tone"),
+    STR16("Diminished (W-H)"), STR16("Diminished (H-W)"),
 };
 
 // =============================================================================
@@ -591,6 +597,56 @@ inline const Steinberg::Vst::TChar* const kNoiseColorStrings[] = {
     STR16("Blue"),
     STR16("Violet"),
     STR16("Grey"),
+};
+
+// =============================================================================
+// Arp Scale Type: display order mapping (084-arp-scale-mode)
+// =============================================================================
+// The Arp Scale Type dropdown puts Chromatic first (UI index 0),
+// whereas the ScaleType enum has Chromatic at index 8.
+// These arrays map between UI order and enum order.
+
+inline constexpr int kArpScaleTypeCount = 16;
+inline constexpr int kArpRootNoteCount = 12;
+
+// Maps UI dropdown index to ScaleType enum value
+inline constexpr std::array<int, 16> kArpScaleDisplayOrder = {
+    8,   // 0: Chromatic
+    0,   // 1: Major
+    1,   // 2: Natural Minor
+    2,   // 3: Harmonic Minor
+    3,   // 4: Melodic Minor
+    4,   // 5: Dorian
+    6,   // 6: Phrygian
+    7,   // 7: Lydian
+    5,   // 8: Mixolydian
+    9,   // 9: Locrian
+    10,  // 10: Major Pentatonic
+    11,  // 11: Minor Pentatonic
+    12,  // 12: Blues
+    13,  // 13: Whole Tone
+    14,  // 14: Diminished (W-H)
+    15,  // 15: Diminished (H-W)
+};
+
+// Maps ScaleType enum value to UI dropdown index (inverse of above)
+inline constexpr std::array<int, 16> kArpScaleEnumToDisplay = {
+    1,   // Major(0) -> UI 1
+    2,   // NaturalMinor(1) -> UI 2
+    3,   // HarmonicMinor(2) -> UI 3
+    4,   // MelodicMinor(3) -> UI 4
+    5,   // Dorian(4) -> UI 5
+    8,   // Mixolydian(5) -> UI 8
+    6,   // Phrygian(6) -> UI 6
+    7,   // Lydian(7) -> UI 7
+    0,   // Chromatic(8) -> UI 0
+    9,   // Locrian(9) -> UI 9
+    10,  // MajorPentatonic(10) -> UI 10
+    11,  // MinorPentatonic(11) -> UI 11
+    12,  // Blues(12) -> UI 12
+    13,  // WholeTone(13) -> UI 13
+    14,  // DiminishedWH(14) -> UI 14
+    15,  // DiminishedHW(15) -> UI 15
 };
 
 } // namespace Ruinae
