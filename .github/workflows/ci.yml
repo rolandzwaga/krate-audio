@@ -315,7 +315,7 @@ jobs:
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           for PLUGIN in "Iterum" "Disrumpo" "Ruinae"; do
-            APP="build/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
+            APP="build/bin/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
             test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
             test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in ${PLUGIN} AUv3"; exit 1; }
             echo "[${PLUGIN}] AUv3 bundle OK"
@@ -334,7 +334,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Iterum.component
-            build/${{ env.BUILD_TYPE }}/Iterum AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Iterum AUv3.app
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifacts
@@ -345,7 +345,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Disrumpo.component
-            build/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifacts
@@ -356,7 +356,7 @@ jobs:
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.vst3
             build/VST3/${{ env.BUILD_TYPE }}/Ruinae.component
-            build/${{ env.BUILD_TYPE }}/Ruinae AUv3.app
+            build/bin/${{ env.BUILD_TYPE }}/Ruinae AUv3.app
           if-no-files-found: warn
 
   # Linux build (optional per constitution - Platform Support Matrix)
