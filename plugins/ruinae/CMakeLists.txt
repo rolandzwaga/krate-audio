@@ -224,7 +224,7 @@ smtg_target_add_plugin_resources(${PLUGIN_NAME}
 option(VSTWORK_COPY_TO_VST3_FOLDER "Copy plugin to system VST3 folder after build" ON)
 
 if(VSTWORK_COPY_TO_VST3_FOLDER AND SMTG_WIN)
-    set(VST3_SYSTEM_FOLDER "C:/Program Files/Common Files/VST3")
+    set(VST3_SYSTEM_FOLDER "$ENV{LOCALAPPDATA}/Programs/Common/VST3")
     set(VST3_BUILD_OUTPUT "${CMAKE_BINARY_DIR}/VST3/$<CONFIG>/${PLUGIN_NAME}.vst3")
 
     add_custom_command(TARGET ${PLUGIN_NAME} POST_BUILD
