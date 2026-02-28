@@ -204,6 +204,15 @@ if(SMTG_MAC)
             add_dependencies(${AUV3_EXTENSION_TARGET} auv3_wrapper_macos)
         endif()
 
+        # ViewController.m imports ViewController.h from a sibling directory.
+        # Also need SDK root for public.sdk/source/vst/auv3wrapper includes.
+        if(AUV3_APP_TARGET)
+            target_include_directories(${AUV3_APP_TARGET} PRIVATE
+                "${AUV3_SHARED}/macOS/Sources"
+                "${vst3sdk_SOURCE_DIR}"
+            )
+        endif()
+
         message(STATUS "[RUINAE] AudioUnit v3 target: ${PLUGIN_NAME}_AUV3")
     elseif(SMTG_ENABLE_AUV3_BUILDS AND NOT XCODE)
         message(WARNING "[RUINAE] AUv3 builds require Xcode generator (-G Xcode)")
