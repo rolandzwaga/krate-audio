@@ -152,6 +152,10 @@ section h2 {
 }
 
 /* Features */
+.features + .features {
+    margin-top: -2.5rem;
+}
+
 .features ul {
     list-style: none;
     display: grid;
@@ -177,6 +181,25 @@ section h2 {
     height: 8px;
     background: var(--color-accent);
     border-radius: 50%;
+}
+
+/* Signal Flow */
+.signal-flow-link {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.signal-flow-link:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(168, 85, 247, 0.15);
 }
 
 /* Installation */
