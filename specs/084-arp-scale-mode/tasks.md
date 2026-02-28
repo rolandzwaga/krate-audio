@@ -308,8 +308,8 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 ### N-2.2 Final Commit
 
-- [ ] T084 **Commit architecture documentation updates**
-- [ ] T085 Verify all spec work is committed to feature branch `084-arp-scale-mode`: run `git log --oneline -20` and confirm all phases are present
+- [X] T084 **Commit architecture documentation updates**
+- [X] T085 Verify all spec work is committed to feature branch `084-arp-scale-mode`: run `git log --oneline -20` and confirm all phases are present
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
@@ -323,14 +323,14 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 ### N-1.1 Requirements Verification
 
-- [ ] T086 **Review ALL FR-001 through FR-018** from `specs/084-arp-scale-mode/spec.md` against actual implementation: for each FR, open the implementing file, read the relevant code, and record the file path and line number
-- [ ] T087 **Review ALL SC-001 through SC-006** from `specs/084-arp-scale-mode/spec.md`: for each SC, run the specific test or measurement, record actual output, and compare against the spec threshold using real numbers (not paraphrased claims). For SC-004 specifically: the O(1) guarantee is structural (constexpr table reads, no allocation, Chromatic early-return); document this in the compliance table evidence column by citing `kScaleIntervals` as a `constexpr` array and `calculate()` as `noexcept` with no heap access — no runtime benchmark is required unless a performance regression is otherwise detected.
-- [ ] T088 Search for cheating patterns in all new code: confirm no `// placeholder`, `// TODO`, or `// stub` comments; no test thresholds relaxed from spec; no features quietly removed from scope
+- [X] T086 **Review ALL FR-001 through FR-018** from `specs/084-arp-scale-mode/spec.md` against actual implementation: for each FR, open the implementing file, read the relevant code, and record the file path and line number
+- [X] T087 **Review ALL SC-001 through SC-006** from `specs/084-arp-scale-mode/spec.md`: for each SC, run the specific test or measurement, record actual output, and compare against the spec threshold using real numbers (not paraphrased claims). For SC-004 specifically: the O(1) guarantee is structural (constexpr table reads, no allocation, Chromatic early-return); document this in the compliance table evidence column by citing `kScaleIntervals` as a `constexpr` array and `calculate()` as `noexcept` with no heap access — no runtime benchmark is required unless a performance regression is otherwise detected.
+- [X] T088 Search for cheating patterns in all new code: confirm no `// placeholder`, `// TODO`, or `// stub` comments; no test thresholds relaxed from spec; no features quietly removed from scope
 
 ### N-1.2 Fill Compliance Table in spec.md
 
-- [ ] T089 **Update the "Implementation Verification" section in `specs/084-arp-scale-mode/spec.md`**: fill in Status and Evidence for every FR-xxx and SC-xxx row with specific file paths, line numbers, test names, and actual measured values — no generic claims like "implemented" or "test passes"
-- [ ] T090 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T089 **Update the "Implementation Verification" section in `specs/084-arp-scale-mode/spec.md`**: fill in Status and Evidence for every FR-xxx and SC-xxx row with specific file paths, line numbers, test names, and actual measured values — no generic claims like "implemented" or "test passes"
+- [X] T090 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### N-1.3 Honest Self-Check
 
@@ -342,7 +342,7 @@ Answer these questions. If ANY answer is "yes", do NOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T091 **All self-check questions answered "no"** (or gaps documented honestly with user notification)
+- [X] T091 **All self-check questions answered "no"** (or gaps documented honestly with user notification)
 
 **Checkpoint**: Honest assessment complete — ready for final phase.
 
@@ -354,12 +354,12 @@ Answer these questions. If ANY answer is "yes", do NOT claim completion:
 
 ### N.1 Final Commit
 
-- [ ] T092 Run the full test suite one final time: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe` then `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe` — all tests must pass
-- [ ] T093 **Commit all remaining spec work** to feature branch `084-arp-scale-mode` if any uncommitted changes exist
+- [X] T092 Run the full test suite one final time: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe` then `"$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe` — all tests must pass
+- [X] T093 **Commit all remaining spec work** to feature branch `084-arp-scale-mode` if any uncommitted changes exist
 
 ### N.2 Completion Claim
 
-- [ ] T094 **Claim completion ONLY if all FR/SC requirements are MET** (or gaps explicitly approved by user) — reference the filled compliance table in spec.md
+- [X] T094 **Claim completion ONLY if all FR/SC requirements are MET** (or gaps explicitly approved by user) — reference the filled compliance table in spec.md
 
 **Checkpoint**: Spec implementation honestly complete.
 
