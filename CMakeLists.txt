@@ -188,6 +188,10 @@ add_subdirectory(${vst3sdk_SOURCE_DIR} ${PROJECT_BINARY_DIR}/vst3sdk)
 # The SDK only includes this under SMTG_ENABLE_VST3_PLUGIN_EXAMPLES, but our
 # plugins need auv3_wrapper_macos without pulling in all the example plugins.
 if(SMTG_MAC AND XCODE AND SMTG_ENABLE_AUV3_BUILDS)
+    # The auv3wrapper CMakeLists.txt expects SDK_ROOT and public_sdk_SOURCE_DIR
+    # (set internally by the SDK's top-level CMakeLists.txt).
+    set(SDK_ROOT "${vst3sdk_SOURCE_DIR}")
+    set(public_sdk_SOURCE_DIR "${vst3sdk_SOURCE_DIR}/public.sdk")
     list(APPEND CMAKE_MODULE_PATH "${vst3sdk_SOURCE_DIR}/cmake/modules")
     add_subdirectory(
         ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/auv3wrapper
