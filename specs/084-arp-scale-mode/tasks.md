@@ -302,9 +302,9 @@ No additional implementation needed beyond Phase 4 T038 (backward-compatible `lo
 
 ### N-2.1 Architecture Documentation Update
 
-- [ ] T081 Update `specs/_architecture_/layer-0-core.md` (or equivalent) with new `ScaleData` struct: purpose, fields, file location (`dsp/include/krate/dsp/core/scale_harmonizer.h`), valid degreeCount range, constexpr compatibility note
-- [ ] T082 Update `specs/_architecture_/layer-0-core.md` with the extended `ScaleType` enum: document the 7 new values (indices 9-15), the stable ordering guarantee for existing values, and the Arp UI display-order distinction
-- [ ] T083 Update `specs/_architecture_/layer-2-processors.md` (or equivalent) with `ArpeggiatorCore` scale mode API: document `setScaleType()`, `setRootNote()`, `setScaleQuantizeInput()` setters, and the Chromatic passthrough guarantee
+- [X] T081 Update `specs/_architecture_/layer-0-core.md` (or equivalent) with new `ScaleData` struct: purpose, fields, file location (`dsp/include/krate/dsp/core/scale_harmonizer.h`), valid degreeCount range, constexpr compatibility note
+- [X] T082 Update `specs/_architecture_/layer-0-core.md` with the extended `ScaleType` enum: document the 7 new values (indices 9-15), the stable ordering guarantee for existing values, and the Arp UI display-order distinction
+- [X] T083 Update `specs/_architecture_/layer-2-processors.md` (or equivalent) with `ArpeggiatorCore` scale mode API: document `setScaleType()`, `setRootNote()`, `setScaleQuantizeInput()` setters, and the Chromatic passthrough guarantee
 
 ### N-2.2 Final Commit
 

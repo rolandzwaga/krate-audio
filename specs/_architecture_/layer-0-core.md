@@ -736,25 +736,63 @@ inline void simpleCurveToBezier(float curveAmount,
 ---
 
 ## ScaleHarmonizer (Diatonic Interval Calculator)
-**Path:** [scale_harmonizer.h](../../dsp/include/krate/dsp/core/scale_harmonizer.h) | **Since:** 0.19.0
+**Path:** [scale_harmonizer.h](../../dsp/include/krate/dsp/core/scale_harmonizer.h) | **Since:** 0.19.0 | **Updated:** 084-arp-scale-mode
 
-Computes musically correct diatonic intervals for harmonizer effects. Given an input MIDI note, root key, scale type, and diatonic step count, returns the semitone shift that maintains scale-correctness. The algorithm uses precomputed constexpr lookup tables for O(1) performance with integer-only arithmetic.
+Computes musically correct diatonic intervals for harmonizer effects and arpeggiator scale mode. Given an input MIDI note, root key, scale type, and diatonic step count, returns the semitone shift that maintains scale-correctness. The algorithm uses precomputed constexpr lookup tables for O(1) performance with integer-only arithmetic. Supports variable-length scales (5 to 12 notes per octave) via the `ScaleData` struct.
+
+### ScaleData Struct
+
+```cpp
+struct ScaleData {
+    std::array<int, 12> intervals{};  // Semitone offsets from root (e.g., {0,2,4,5,7,9,11} for Major)
+    int degreeCount{0};               // Number of active degrees (5, 6, 7, 8, or 12)
+};
+```
+
+**Purpose:** Represents a musical scale as a fixed-capacity array of semitone intervals plus a degree count. Replaces the former fixed `std::array<int, 7>` per-scale representation, enabling variable-length scales (pentatonic = 5, blues = 6, diatonic = 7, diminished = 8, chromatic = 12).
+
+**Fields:**
+- `intervals`: Up to 12 semitone offsets from the root note. Only the first `degreeCount` entries are meaningful; remaining entries are zero-initialized.
+- `degreeCount`: Number of active scale degrees. Valid values: 5 (pentatonic), 6 (blues, whole tone), 7 (diatonic modes), 8 (diminished), 12 (chromatic). Used by `calculate()`, `buildReverseLookup()`, and `getScaleDegree()` for correct octave wrapping (e.g., `degree / degreeCount` instead of the former hardcoded `/ 7`).
+
+**Constexpr compatibility:** `ScaleData` is an aggregate type with no user-declared constructors, enabling `constexpr` initialization in the `kScaleIntervals` lookup table.
+
+**File location:** `dsp/include/krate/dsp/core/scale_harmonizer.h`, `Krate::DSP` namespace.
+
+**When to use:**
+- As the return type of `ScaleHarmonizer::getScaleIntervals()` for retrieving scale interval data.
+- Whenever code needs to inspect a scale's interval pattern or degree count.
 
 ### ScaleType Enum
 
 ```cpp
 enum class ScaleType : uint8_t {
-    Major = 0,           // Ionian:  {0, 2, 4, 5, 7, 9, 11}
-    NaturalMinor = 1,    // Aeolian: {0, 2, 3, 5, 7, 8, 10}
-    HarmonicMinor = 2,   //          {0, 2, 3, 5, 7, 8, 11}
-    MelodicMinor = 3,    // Asc:     {0, 2, 3, 5, 7, 9, 11}
-    Dorian = 4,          //          {0, 2, 3, 5, 7, 9, 10}
-    Mixolydian = 5,      //          {0, 2, 4, 5, 7, 9, 10}
-    Phrygian = 6,        //          {0, 1, 3, 5, 7, 8, 10}
-    Lydian = 7,          //          {0, 2, 4, 6, 7, 9, 11}
-    Chromatic = 8,       // Fixed shift passthrough, no diatonic logic
+    // Original 9 values (stable, indices 0-8 unchanged since 0.19.0)
+    Major = 0,           // Ionian:  {0, 2, 4, 5, 7, 9, 11}     (7 degrees)
+    NaturalMinor = 1,    // Aeolian: {0, 2, 3, 5, 7, 8, 10}     (7 degrees)
+    HarmonicMinor = 2,   //          {0, 2, 3, 5, 7, 8, 11}     (7 degrees)
+    MelodicMinor = 3,    // Asc:     {0, 2, 3, 5, 7, 9, 11}     (7 degrees)
+    Dorian = 4,          //          {0, 2, 3, 5, 7, 9, 10}     (7 degrees)
+    Mixolydian = 5,      //          {0, 2, 4, 5, 7, 9, 10}     (7 degrees)
+    Phrygian = 6,        //          {0, 1, 3, 5, 7, 8, 10}     (7 degrees)
+    Lydian = 7,          //          {0, 2, 4, 6, 7, 9, 11}     (7 degrees)
+    Chromatic = 8,       // All 12 semitones -- fixed shift, no diatonic logic (12 degrees)
+    // New values appended for 084-arp-scale-mode (indices 9-15)
+    Locrian = 9,         //          {0, 1, 3, 5, 6, 8, 10}     (7 degrees)
+    MajorPentatonic = 10,//          {0, 2, 4, 7, 9}             (5 degrees)
+    MinorPentatonic = 11,//          {0, 3, 5, 7, 10}            (5 degrees)
+    Blues = 12,          //          {0, 3, 5, 6, 7, 10}         (6 degrees)
+    WholeTone = 13,      //          {0, 2, 4, 6, 8, 10}         (6 degrees)
+    DiminishedWH = 14,   // W-H:     {0, 2, 3, 5, 6, 8, 9, 11}  (8 degrees)
+    DiminishedHW = 15,   // H-W:     {0, 1, 3, 4, 6, 7, 9, 10}  (8 degrees)
 };
+inline constexpr int kNumScaleTypes = 16;            // Total scale types
+inline constexpr int kNumNonChromaticScales = 15;    // All except Chromatic
 ```
+
+**Stable ordering guarantee:** Values 0-8 (Major through Chromatic) are unchanged from the original 0.19.0 definition. Existing serialized state (harmonizer presets) that stores integer scale type values continues to work without migration. New values are appended at indices 9-15.
+
+**Arp UI display-order distinction:** The Arp Scale Type dropdown in the Ruinae plugin uses a display-order mapping (`kArpScaleDisplayOrder` in `dropdown_mappings.h`) that places Chromatic first (UI index 0), followed by the remaining 15 scales in a musically logical order. The enum value order (Major=0 first) is used directly by the Harmonizer dropdown. This separation means UI index != enum value for the arp scale parameter; the mapping arrays in `dropdown_mappings.h` handle the conversion.
 
 ### DiatonicInterval Struct
 
@@ -762,7 +800,7 @@ enum class ScaleType : uint8_t {
 struct DiatonicInterval {
     int semitones;       // Actual semitone shift from input to target (can be negative)
     int targetNote;      // Absolute MIDI note of the target (0-127, clamped)
-    int scaleDegree;     // Target note's scale degree (0-6), or -1 in Chromatic mode
+    int scaleDegree;     // Target note's scale degree (0 to degreeCount-1), or -1 in Chromatic mode
     int octaveOffset;    // Number of complete octaves traversed by the diatonic interval
 };
 ```
@@ -786,20 +824,28 @@ class ScaleHarmonizer {
     [[nodiscard]] float getSemitoneShift(float inputFrequencyHz, int diatonicSteps) const noexcept;
 
     // Queries
-    [[nodiscard]] int getScaleDegree(int midiNote) const noexcept;   // Returns 0-6 or -1
+    [[nodiscard]] int getScaleDegree(int midiNote) const noexcept;   // Returns 0 to degreeCount-1 or -1
     [[nodiscard]] int quantizeToScale(int midiNote) const noexcept;  // Snaps to nearest scale note
 
-    // Static: scale data access
-    [[nodiscard]] static constexpr std::array<int, 7> getScaleIntervals(ScaleType type) noexcept;
+    // Static: scale data access (returns ScaleData with intervals and degreeCount)
+    [[nodiscard]] static constexpr ScaleData getScaleIntervals(ScaleType type) noexcept;
 };
 ```
 
+**API changes from 0.19.0 (084-arp-scale-mode):**
+- `getScaleIntervals()` return type changed from `std::array<int, 7>` to `ScaleData`. Callers that destructured the old return type must be updated.
+- `getScaleDegree()` returns 0 to `degreeCount-1` (was 0-6 when all scales had 7 degrees).
+- `calculate()` uses `ScaleData::degreeCount` for octave wrapping instead of the former hardcoded `/ 7` and `% 7` arithmetic. Negative degree wrapping is also generalized.
+- The former `kDegreesPerScale` constant has been removed. Use `kScaleIntervals[scaleIndex].degreeCount` instead.
+- Chromatic mode (ScaleType::Chromatic) remains a direct semitone passthrough with zero overhead, identical to pre-refactoring behavior.
+
 ### When to use
 
-- **Harmonizer effects:** Primary consumer. Computes the correct pitch shift for each voice of a multi-voice harmonizer to stay in key.
+- **Harmonizer effects:** Primary consumer. Computes the correct pitch shift for each voice of a multi-voice harmonizer to stay in key. Now supports all 16 scale types.
+- **Arpeggiator scale mode (Spec 084):** `ArpeggiatorCore` uses `calculate()` in `fireStep()` to convert pitch lane degree offsets to semitone intervals, and `quantizeToScale()` in `noteOn()` for optional input quantization.
 - **Scale-aware pitch quantization:** Use `quantizeToScale()` to snap arbitrary MIDI notes to the nearest scale degree.
 - **Scale membership queries:** Use `getScaleDegree()` to check if a note belongs to the current key/scale.
-- **UI scale display:** Use `getScaleIntervals()` to retrieve the semitone pattern for any scale type.
+- **UI scale display:** Use `getScaleIntervals()` to retrieve the `ScaleData` (interval pattern and degree count) for any scale type.
 
 ### When NOT to use
 
@@ -815,10 +861,11 @@ class ScaleHarmonizer {
 
 No Layer 1+ dependencies. Standard library: `<algorithm>`, `<array>`, `<cmath>`, `<cstdint>`.
 
-### Future consumers
+### Consumers
 
-- **HarmonizerEngine (Layer 3, Phase 4 of harmonizer roadmap):** Primary downstream consumer. Will use `ScaleHarmonizer` to compute intervals for multi-voice pitch shifting.
-- **UI scale selector (Phase 5):** May use `ScaleType` enum values for dropdown population.
+- **HarmonizerEngine (Layer 3):** Uses `ScaleHarmonizer` to compute intervals for multi-voice pitch shifting. Automatically benefits from the 7 new scale types (Spec 084).
+- **ArpeggiatorCore (Layer 2, Spec 084):** Uses `setScale()`, `setKey()`, `calculate()`, `quantizeToScale()`, and `getScale()` for scale-aware pitch lane and input quantization.
+- **Ruinae UI (Plugin layer):** Uses `ScaleType` enum values for dropdown population in both Harmonizer and Arp Scale Type controls.
 
 ---
 

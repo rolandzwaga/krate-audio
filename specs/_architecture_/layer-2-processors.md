@@ -5886,7 +5886,7 @@ class TranceGate {
 ## ArpeggiatorCore
 **Path:** [arpeggiator_core.h](../../dsp/include/krate/dsp/processors/arpeggiator_core.h) | **Since:** 0.11.0
 
-Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains six `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`, condition: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Conditional trig system (Spec 076) adds per-step condition evaluation (probability, A:B ratios, First-loop-only, Fill/NotFill) between Euclidean gating and modifier evaluation, creating patterns that evolve over multiple loops. Spice/Dice variation overlay (Spec 077) adds four parallel overlay arrays blended with original lane values via a Spice knob (0-100%), and a Humanize system adds per-step random timing/velocity/gate offsets via a dedicated PRNG. Header-only, zero heap allocation in all methods.
+Arpeggiator timing and event generation. Composes HeldNoteBuffer + NoteSelector (Layer 1) with integer sample-accurate timing to produce ArpEvent sequences. Contains six `ArpLane<T>` members (velocity: `float`, gate: `float`, pitch: `int8_t`, modifier: `uint8_t`, ratchet: `uint8_t`, condition: `uint8_t`) that advance independently on each arp step, enabling polymetric lane patterns. The ratchet lane (Spec 074) stores per-step subdivision counts (1-4); when a step has ratchet count N > 1, `fireStep()` emits the first sub-step and initializes sub-step tracking state, then `processBlock()` emits the remaining N-1 sub-steps via a `NextEvent::SubStep` event type in the jump-ahead loop. Euclidean timing mode (Spec 075) adds a pre-fire gating check in `fireStep()` using the existing `EuclideanPattern` class (Layer 0) to determine which steps fire notes (hits) and which are silent (rests). Conditional trig system (Spec 076) adds per-step condition evaluation (probability, A:B ratios, First-loop-only, Fill/NotFill) between Euclidean gating and modifier evaluation, creating patterns that evolve over multiple loops. Spice/Dice variation overlay (Spec 077) adds four parallel overlay arrays blended with original lane values via a Spice knob (0-100%), and a Humanize system adds per-step random timing/velocity/gate offsets via a dedicated PRNG. Scale mode (Spec 084) adds an optional `ScaleHarmonizer` (Layer 0) that interprets pitch lane offsets as scale degree offsets instead of chromatic semitones when a non-Chromatic scale is active, and optionally quantizes incoming MIDI notes to the nearest scale note before they enter the held note pool. Header-only, zero heap allocation in all methods.
 
 ```cpp
 enum class LatchMode : uint8_t { Off, Hold, Add };
@@ -5949,10 +5949,15 @@ class ArpeggiatorCore {
     void setAccentVelocity(int amount) noexcept;      // [0, 127] (Spec 073)
     void setSlideTime(float ms) noexcept;             // [0.0, 500.0] ms (Spec 073)
 
+    // Scale mode (Spec 084)
+    void setScaleType(ScaleType type) noexcept;        // Delegates to scaleHarmonizer_.setScale()
+    void setRootNote(int rootNote) noexcept;           // Delegates to scaleHarmonizer_.setKey()
+    void setScaleQuantizeInput(bool enabled) noexcept; // Enable/disable input note quantization
+
     // Lane accessors (Spec 072)
     ArpLane<float>& velocityLane() noexcept;          // Per-step velocity scaling [0,1]
     ArpLane<float>& gateLane() noexcept;              // Per-step gate multiplier [0.01,2.0]
-    ArpLane<int8_t>& pitchLane() noexcept;            // Per-step pitch offset [-24,+24] semitones
+    ArpLane<int8_t>& pitchLane() noexcept;            // Per-step pitch offset [-24,+24] semitones or scale degrees (Spec 084)
     const ArpLane<float>& velocityLane() const noexcept;
     const ArpLane<float>& gateLane() const noexcept;
     const ArpLane<int8_t>& pitchLane() const noexcept;
@@ -6010,6 +6015,7 @@ class ArpeggiatorCore {
 - Conditional triggers for evolving multi-loop patterns: probability (10/25/50/75/90%), A:B ratios (1:2 through 4:4), First-loop-only, Fill/NotFill performance toggle (Spec 076)
 - Spice/Dice controlled randomization: non-destructive variation overlay on velocity, gate, ratchet, and condition lanes with blend knob (0-100%) (Spec 077)
 - Humanize micro-timing: per-step random offsets for timing (+/-20ms), velocity (+/-15), and gate (+/-10%) for organic feel (Spec 077)
+- Scale mode: pitch lane interprets step values as scale degree offsets (instead of semitone offsets) when a non-Chromatic scale is active, with optional input note quantization to snap out-of-key notes to the nearest scale note (Spec 084)
 
 **Usage example:**
 
@@ -6389,6 +6395,55 @@ The complete evaluation order after all Spec 071-077 changes:
 
 All four seeds are distinct primes ensuring statistically independent sequences.
 
-**Memory:** ~1280 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes + Spice/Dice state: velocityOverlay_ 128 bytes + gateOverlay_ 128 bytes + ratchetOverlay_ 32 bytes + conditionOverlay_ 32 bytes + spice_ 4 bytes + humanize_ 4 bytes + spiceDiceRng_ 4 bytes + humanizeRng_ 4 bytes ~336 bytes). Header-only, real-time safe, single-threaded.
+**Scale mode integration (Spec 084):**
 
-**Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h, random.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
+Scale mode adds an optional musical scale constraint to the arpeggiator. When a non-Chromatic scale is active, the pitch lane interprets step values as scale degree offsets instead of chromatic semitone offsets, and incoming MIDI notes can optionally be quantized to the nearest scale note.
+
+*Scale mode state members:*
+- `scaleHarmonizer_` (`ScaleHarmonizer`): Layer 0 scale harmonizer instance. Stores the active scale type and root note. Default: Chromatic scale, root C (key=0). Used by `fireStep()` for degree-to-semitone conversion and by `noteOn()` for input quantization.
+- `scaleQuantizeInput_` (`bool`, default `false`): When `true` and scale is non-Chromatic, incoming MIDI notes in `noteOn()` are snapped to the nearest scale note via `scaleHarmonizer_.quantizeToScale()` before entering the held note pool.
+
+*Public setters:*
+- `setScaleType(ScaleType type) noexcept`: Delegates to `scaleHarmonizer_.setScale(type)`. Does NOT reset arp state (unlike `setMode()`/`setRetrigger()`). Can be called unconditionally every block in `applyParamsToEngine()`.
+- `setRootNote(int rootNote) noexcept`: Delegates to `scaleHarmonizer_.setKey(rootNote)`. Does NOT reset arp state. Can be called unconditionally every block.
+- `setScaleQuantizeInput(bool enabled) noexcept`: Sets `scaleQuantizeInput_` directly. Does NOT reset arp state. Can be called unconditionally every block.
+
+*Chromatic passthrough guarantee:*
+When `scaleHarmonizer_.getScale() == ScaleType::Chromatic` (the default), all scale mode code paths are bypassed:
+- `fireStep()`: Pitch offset is applied as a direct semitone addition (identical to pre-Spec-084 behavior).
+- `noteOn()`: Notes pass through to the held note pool unchanged, regardless of `scaleQuantizeInput_`.
+- Zero CPU overhead in Chromatic mode beyond the `getScale() != Chromatic` comparison.
+
+*`fireStep()` scale-aware pitch offset (evaluation step 11):*
+
+```cpp
+for (size_t i = 0; i < result.count; ++i) {
+    if (scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0) {
+        // Scale mode: interpret pitchOffset as scale degrees
+        auto interval = scaleHarmonizer_.calculate(
+            static_cast<int>(result.notes[i]),
+            static_cast<int>(pitchOffset));
+        result.notes[i] = static_cast<uint8_t>(
+            std::clamp(interval.targetNote, 0, 127));
+    } else {
+        // Chromatic mode or zero offset: direct semitone addition
+        int offsetNote = static_cast<int>(result.notes[i]) +
+                         static_cast<int>(pitchOffset);
+        result.notes[i] = static_cast<uint8_t>(
+            std::clamp(offsetNote, 0, 127));
+    }
+}
+```
+
+*`noteOn()` input quantization:*
+
+Before `heldNotes_.noteOn()`, when `scaleQuantizeInput_` is `true` and scale is non-Chromatic, the input MIDI note is replaced by `scaleHarmonizer_.quantizeToScale(note)`, snapping out-of-key notes to the nearest scale note. The effective (possibly quantized) note is used for all subsequent latch/retrigger logic.
+
+*Scale mode and other features:*
+- Scale mode composes naturally with all existing features (Euclidean, conditions, ratchet, Spice/Dice, Humanize).
+- The pitch offset conversion happens at evaluation step 11 (after accent, before humanize), so humanize velocity/gate offsets apply on top of scale-converted notes.
+- Chord mode: all notes in a chord receive the same pitch offset conversion (each note is individually passed through `scaleHarmonizer_.calculate()`).
+
+**Memory:** ~1300 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes + Spice/Dice state: velocityOverlay_ 128 bytes + gateOverlay_ 128 bytes + ratchetOverlay_ 32 bytes + conditionOverlay_ 32 bytes + spice_ 4 bytes + humanize_ 4 bytes + spiceDiceRng_ 4 bytes + humanizeRng_ 4 bytes ~336 bytes + Scale mode state: scaleHarmonizer_ ~16 bytes + scaleQuantizeInput_ 1 byte ~17 bytes). Header-only, real-time safe, single-threaded.
+
+**Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h, random.h, scale_harmonizer.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
