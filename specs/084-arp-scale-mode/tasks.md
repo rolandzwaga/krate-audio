@@ -108,22 +108,22 @@ This feature wires scale parameters into `applyParamsToEngine()` and modifies `A
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T018 [US1] Write failing unit test: Chromatic mode (default), pitch offset +2 on C4 = D4 in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T019 [US1] Write failing unit tests: Major scale, root C: offset +2 on C4 = E4 (+4 semitones); offset +7 on C4 = C5 (octave wrap); offset -1 on C4 = B3 (negative wrap) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T020 [US1] Write failing unit test: Minor Pentatonic scale, root C: offset +1 on C4 = Eb4 (+3 semitones) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T021 [US1] Write failing unit test: Major scale, root C: offset +24 on a note where result exceeds MIDI 127 is clamped to 127 in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
-- [ ] T022 [US1] Write failing unit test: Pentatonic scale, offset +6 wraps correctly (5-note octave wrapping) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T018 [US1] Write failing unit test: Chromatic mode (default), pitch offset +2 on C4 = D4 in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T019 [US1] Write failing unit tests: Major scale, root C: offset +2 on C4 = E4 (+4 semitones); offset +7 on C4 = C5 (octave wrap); offset -1 on C4 = B3 (negative wrap) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T020 [US1] Write failing unit test: Minor Pentatonic scale, root C: offset +1 on C4 = Eb4 (+3 semitones) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T021 [US1] Write failing unit test: Major scale, root C: offset +24 on a note where result exceeds MIDI 127 is clamped to 127 in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
+- [X] T022 [US1] Write failing unit test: Pentatonic scale, offset +6 wraps correctly (5-note octave wrapping) in `dsp/tests/unit/processors/arpeggiator_core_test.cpp`
 
 ### 3.2 Implement User Story 1
 
-- [ ] T023 [US1] Add `#include <krate/dsp/core/scale_harmonizer.h>` and new private members `ScaleHarmonizer scaleHarmonizer_` and `bool scaleQuantizeInput_ = false` to `ArpeggiatorCore` class in `dsp/include/krate/dsp/processors/arpeggiator_core.h`
-- [ ] T024 [US1] Add three public setters to `ArpeggiatorCore` in `dsp/include/krate/dsp/processors/arpeggiator_core.h`: `void setScaleType(ScaleType type) noexcept`, `void setRootNote(int rootNote) noexcept`, `void setScaleQuantizeInput(bool enabled) noexcept` — matching the signatures in `contracts/arpeggiator_core_api.md`
-- [ ] T025 [US1] Modify `ArpeggiatorCore::fireStep()` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` (lines 1567-1573): replace direct semitone addition with the scale-aware branch: when `scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0`, call `scaleHarmonizer_.calculate()` and use `interval.targetNote`; otherwise keep existing direct semitone addition — following the exact code from `contracts/arpeggiator_core_api.md`
+- [X] T023 [US1] Add `#include <krate/dsp/core/scale_harmonizer.h>` and new private members `ScaleHarmonizer scaleHarmonizer_` and `bool scaleQuantizeInput_ = false` to `ArpeggiatorCore` class in `dsp/include/krate/dsp/processors/arpeggiator_core.h`
+- [X] T024 [US1] Add three public setters to `ArpeggiatorCore` in `dsp/include/krate/dsp/processors/arpeggiator_core.h`: `void setScaleType(ScaleType type) noexcept`, `void setRootNote(int rootNote) noexcept`, `void setScaleQuantizeInput(bool enabled) noexcept` — matching the signatures in `contracts/arpeggiator_core_api.md`
+- [X] T025 [US1] Modify `ArpeggiatorCore::fireStep()` in `dsp/include/krate/dsp/processors/arpeggiator_core.h` (lines 1567-1573): replace direct semitone addition with the scale-aware branch: when `scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0`, call `scaleHarmonizer_.calculate()` and use `interval.targetNote`; otherwise keep existing direct semitone addition — following the exact code from `contracts/arpeggiator_core_api.md`
 
 ### 3.3 Verify User Story 1
 
-- [ ] T026 [US1] Build `dsp_tests` and run the `[arpeggiator]` test suite: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "[arpeggiator]"` — all new US1 tests must pass; all existing arpeggiator tests must still pass
-- [ ] T027 [US1] Verify IEEE 754 compliance: check `dsp/tests/unit/processors/arpeggiator_core_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed
+- [X] T026 [US1] Build `dsp_tests` and run the `[arpeggiator]` test suite: `"$CMAKE" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "[arpeggiator]"` — all new US1 tests must pass; all existing arpeggiator tests must still pass
+- [X] T027 [US1] Verify IEEE 754 compliance: check `dsp/tests/unit/processors/arpeggiator_core_test.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `dsp/tests/CMakeLists.txt` if needed
 - [ ] T028 [US1] **Commit completed User Story 1 work** (scale-aware fireStep in ArpeggiatorCore)
 
 **Checkpoint**: User Story 1 fully functional and tested. Playing C4 with C Major + offset +2 produces E4. Chromatic mode (default) is bit-identical to before this feature.
