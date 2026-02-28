@@ -413,8 +413,9 @@ protected:
     /// Load component state from stream with host notification
     /// Mirrors setComponentState() deserialization, but calls editParamWithNotify
     /// @param state Stream containing component state in Processor::getState() format
+    /// @param arpOnly If true, only arp parameters are applied; all others are read but discarded
     /// @return true on success
-    bool loadComponentStateWithNotify(Steinberg::IBStream* state);
+    bool loadComponentStateWithNotify(Steinberg::IBStream* state, bool arpOnly = false);
 
     /// Edit a parameter with full host notification
     /// Sequence: beginEdit -> setParamNormalized -> performEdit -> endEdit
