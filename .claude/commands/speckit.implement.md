@@ -70,6 +70,74 @@ Build an ordered list of phases with their section content (task lists).
 
 Only phases that produce **implementation code or tests** warrant compliance verification. Phases that only register files in build systems, create placeholders, or write documentation are lightweight: spawn `speckit-implement`, skip compliance verification, move on.
 
+### Phase Batching (Compliance Cost Optimization)
+
+Per-phase compliance verification is expensive (~2-3 minutes per agent spawn). To avoid wasting time on small phases, **batch consecutive small code phases** and verify them with a single comply agent.
+
+**Batching rule:** Count the `- [ ]` task lines in each phase.
+- Phase has **≤5 tasks**: accumulate into the current batch
+- Phase has **>5 tasks**: flush any pending batch (run one comply for the batch), then run this phase with its own comply agent
+- **Lightweight phases** are never batched — they skip comply entirely regardless of size
+- **Verification phases** are never batched — they have their own handling
+
+**How batching works in the execution loop:**
+1. Maintain a `batch` list (initially empty) and `batchPhaseNames` list
+2. For each code phase:
+   - Count its tasks
+   - If ≤5 tasks: spawn implement agent, add phase name to `batchPhaseNames`, continue to next phase (NO comply yet)
+   - If >5 tasks: first, if `batch` is non-empty, spawn ONE comply agent for all batched phases (list all phase names); then spawn implement + comply for this phase as normal
+3. After the last code phase: if `batch` is non-empty, flush it with ONE comply agent covering all remaining batched phases
+
+**Comply prompt for batched phases:**
+```
+Verify Phases {list of phase numbers} of spec {feature-name}.
+
+Feature dir: {FEATURE_DIR}/
+Mode: Phase Verification (Code Review Only)
+
+Read tasks.md (Phases {list} ONLY) and spec.md. For each task marked [X]:
+1. Read the code/file the task describes
+2. Verify it matches the task description
+3. Check for cheating: relaxed thresholds, placeholder/stub code, removed scope
+
+Do NOT run any commands. Keep the report concise — only elaborate on failures.
+```
+
+**Example** (ring modulator spec):
+```
+Phase 1 (3 tasks)  → lightweight, skip comply
+Phase 2 (11 tasks) → >5, implement + comply individually
+Phase 3 (19 tasks) → >5, implement + comply individually
+Phase 4 (5 tasks)  → ≤5, batch ─┐
+Phase 5 (4 tasks)  → ≤5, batch  ├─ ONE comply for Phases 4+5+6
+Phase 6 (3 tasks)  → ≤5, batch ─┘
+Phase 7 (4 tasks)  → ≤5, batch (flushed before verification phases)
+Phase 8+           → verification phases, handled specially
+```
+
+This would have saved ~8 minutes on the ring modulator spec (4 comply agents × ~2 min each replaced by 1).
+
+### Parallel Phase Detection
+
+After classifying phases and computing batch groups, identify **parallelizable phase groups** — consecutive code phases that touch completely disjoint file sets and can run simultaneously.
+
+**Detection rule:** For each pair of adjacent code phases, extract the file paths mentioned in their task descriptions (look for paths like `dsp/...`, `plugins/...`, `src/...`). Two phases are parallelizable if:
+- Their file sets have **zero overlap** (no shared files or directories)
+- Neither phase modifies shared infrastructure files (`CMakeLists.txt`, `plugin_ids.h`, `ruinae_types.h`, etc.)
+- Neither phase depends on output from the other (e.g., Phase B references types/APIs created in Phase A)
+
+**Grouping:** Consecutive parallelizable phases form a **parallel group**. A parallel group can contain 2-4 phases. Non-parallelizable phases break the group.
+
+**Conservative default:** If you cannot confidently determine disjointness from the task descriptions, do NOT parallelize — run sequentially. False parallelism causes merge conflicts and wasted work.
+
+**Example:**
+```
+Phase 2: DSP processor (dsp/include/.., dsp/tests/..)     ─┐
+Phase 3: UI template (plugins/ruinae/resources/editor..)   ─┤ parallel group
+Phase 4: Parameter docs (specs/_architecture_/..)          ─┘
+Phase 5: Voice integration (plugins/ruinae/src/engine/..)  → sequential (depends on Phase 2 output)
+```
+
 ## Step 3: Execute Phase Loop
 
 For each phase in order:
@@ -276,6 +344,71 @@ Update the "Implementation Verification" section of spec.md with:
 
 **Final Documentation / Architecture Docs**: Spawn `speckit-implement` to write the documentation. Do NOT spawn `speckit-comply` afterward — verifying documentation writing is wasteful. Mark the phase as PASS and move on.
 
+### 3d. Parallel Phase Execution
+
+When a parallel group is detected (see Step 2), execute all phases in the group simultaneously instead of sequentially.
+
+**How it works:**
+
+1. **Spawn implement agents in parallel** using `isolation: "worktree"` for each phase in the group. Each agent gets its own isolated copy of the repo:
+
+```
+Spawn agents simultaneously (single message with multiple Agent tool calls):
+
+Agent A (worktree): Implement Phase {N} of spec {feature-name}. [standard implement prompt]
+Agent B (worktree): Implement Phase {M} of spec {feature-name}. [standard implement prompt]
+```
+
+Each agent prompt is identical to the standard 3a prompt, with one addition:
+```
+WORKTREE NOTE: You are running in an isolated worktree. Only modify files
+relevant to YOUR phase. Do NOT touch files outside your phase's scope.
+```
+
+2. **Wait for ALL agents to return.** Check each agent's result:
+   - If any agent reports build/test failures, address those first (sequentially)
+   - Collect the list of files modified by each agent from their summaries
+
+3. **Merge changes back.** The worktree agents create branches with their changes. Merge them sequentially:
+```bash
+git merge <worktree-branch-A> --no-edit
+git merge <worktree-branch-B> --no-edit
+```
+
+If a merge conflict occurs (shouldn't happen with proper disjointness detection, but safety net):
+- Abort the merge: `git merge --abort`
+- Fall back to sequential execution for the conflicting phase
+- Report the conflict to the user
+
+4. **Build+test gate ONCE** after merging all parallel phases. This replaces the per-phase build+test that each worktree agent ran individually:
+   - Build the merged result
+   - Run all test executables
+   - If failures, spawn ONE implement agent to fix (it has all the merged code)
+
+5. **Comply verification** follows the normal batching rules — the parallel phases are treated as a batch for compliance purposes (ONE comply agent covers all phases in the parallel group).
+
+**Important constraints:**
+- Maximum **4 parallel agents** (more causes resource contention)
+- ALL agents in a parallel group must use `isolation: "worktree"` — never run parallel agents on the same working tree
+- If a phase has **>15 tasks**, do NOT parallelize it — large phases are complex and benefit from sequential focus
+- Lightweight phases can be included in parallel groups (they're typically small and independent)
+- Verification phases are NEVER parallelized
+
+**Example execution flow:**
+```
+Phase 1 (lightweight)  → sequential (setup, no comply)
+Phase 2 + Phase 3      → PARALLEL (disjoint: dsp/ vs resources/)
+  ├─ Agent A (worktree): Phase 2
+  └─ Agent B (worktree): Phase 3
+  → merge branches
+  → build+test once
+  → ONE comply for both
+Phase 4 (depends on 2) → sequential
+Phase 5+               → verification phases
+```
+
+**Time savings:** Each parallel group saves roughly the duration of one full implement agent cycle (~10-20 min depending on phase size), minus a small overhead for merging.
+
 ## Step 4: Final Report
 
 After all phases are complete, report to the user:
@@ -301,7 +434,7 @@ After all phases are complete, report to the user:
 ## Important Rules for the Orchestrator
 
 1. **NEVER run both agents in parallel** — implementation MUST complete before compliance starts
-2. **NEVER skip the comply agent for code phases** — every phase that writes implementation code or tests gets verified. Lightweight phases (setup/scaffolding, documentation) skip compliance verification.
+2. **Every code phase MUST be covered by a comply agent** — but small phases (≤5 tasks) can be batched and verified together by a single comply agent. Lightweight phases (setup/scaffolding, documentation) skip compliance entirely.
 3. **NEVER let the impl agent grade its own work** — that's the comply agent's job
 4. **Report progress to user** after each phase (phase name + PASS/FAIL)
 5. **Max 1 retry per phase** — don't loop endlessly on failures

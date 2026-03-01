@@ -295,9 +295,13 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     });
 
     // Wire load provider callback for preset loading (Spec 083, FR-003)
-    presetManager_->setLoadProvider([this](Steinberg::IBStream* state) -> bool {
-        return this->loadComponentStateWithNotify(state);
-    });
+    // Arp-only presets (subcategory starting with "Arp") load only arpeggiator params
+    presetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* state,
+               const Krate::Plugins::PresetInfo& info) -> bool {
+            bool arpOnly = info.subcategory.starts_with("Arp");
+            return this->loadComponentStateWithNotify(state, arpOnly);
+        });
 
     return Steinberg::kResultTrue;
 }
@@ -1276,6 +1280,7 @@ VSTGUI::CView* Controller::verifyView(
         // Wire performEdit callback (editor -> host)
         spe->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
 
@@ -1355,6 +1360,7 @@ VSTGUI::CView* Controller::verifyView(
         // Wire performEdit callback (editor -> host)
         velocityLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         velocityLane_->setBeginEditCallback(
@@ -1410,6 +1416,7 @@ VSTGUI::CView* Controller::verifyView(
         // Wire performEdit callback (editor -> host)
         gateLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         gateLane_->setBeginEditCallback(
@@ -1464,6 +1471,7 @@ VSTGUI::CView* Controller::verifyView(
 
         pitchLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         pitchLane_->setBeginEditCallback(
@@ -1529,6 +1537,7 @@ VSTGUI::CView* Controller::verifyView(
 
         ratchetLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         ratchetLane_->setBeginEditCallback(
@@ -1579,6 +1588,7 @@ VSTGUI::CView* Controller::verifyView(
 
         modifierLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         modifierLane_->setBeginEditCallback(
@@ -1631,6 +1641,7 @@ VSTGUI::CView* Controller::verifyView(
 
         conditionLane_->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         conditionLane_->setBeginEditCallback(
@@ -3062,7 +3073,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     return stream;
 }
 
-bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
+bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool arpOnly) {
     if (!state)
         return false;
 
@@ -3078,26 +3089,33 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         editParamWithNotify(id, value);
     };
 
+    // When loading an arp-only preset, synth parameters are read but not applied.
+    // The no-op lambda discards values while the stream position still advances.
+    using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
+    SetParamFunc synthSetter = arpOnly
+        ? SetParamFunc([](Steinberg::Vst::ParamID, double) {})
+        : SetParamFunc(setParam);
+
     // Items 2-19: Parameter packs in deterministic order (matching Processor::getState)
     // Note: loadXxxParamsToController functions return void, matching setComponentState pattern
-    loadGlobalParamsToController(streamer, setParam);
-    loadOscAParamsToController(streamer, setParam);
-    loadOscBParamsToController(streamer, setParam);
-    loadMixerParamsToController(streamer, setParam);
-    loadFilterParamsToController(streamer, setParam);
-    loadDistortionParamsToController(streamer, setParam);
-    loadTranceGateParamsToController(streamer, setParam);
-    loadAmpEnvParamsToController(streamer, setParam);
-    loadFilterEnvParamsToController(streamer, setParam);
-    loadModEnvParamsToController(streamer, setParam);
-    loadLFO1ParamsToController(streamer, setParam);
-    loadLFO2ParamsToController(streamer, setParam);
-    loadChaosModParamsToController(streamer, setParam);
-    loadModMatrixParamsToController(streamer, setParam);
-    loadGlobalFilterParamsToController(streamer, setParam);
-    loadDelayParamsToController(streamer, setParam);
-    loadReverbParamsToController(streamer, setParam);
-    loadMonoModeParamsToController(streamer, setParam);
+    loadGlobalParamsToController(streamer, synthSetter);
+    loadOscAParamsToController(streamer, synthSetter);
+    loadOscBParamsToController(streamer, synthSetter);
+    loadMixerParamsToController(streamer, synthSetter);
+    loadFilterParamsToController(streamer, synthSetter);
+    loadDistortionParamsToController(streamer, synthSetter);
+    loadTranceGateParamsToController(streamer, synthSetter);
+    loadAmpEnvParamsToController(streamer, synthSetter);
+    loadFilterEnvParamsToController(streamer, synthSetter);
+    loadModEnvParamsToController(streamer, synthSetter);
+    loadLFO1ParamsToController(streamer, synthSetter);
+    loadLFO2ParamsToController(streamer, synthSetter);
+    loadChaosModParamsToController(streamer, synthSetter);
+    loadModMatrixParamsToController(streamer, synthSetter);
+    loadGlobalFilterParamsToController(streamer, synthSetter);
+    loadDelayParamsToController(streamer, synthSetter);
+    loadReverbParamsToController(streamer, synthSetter);
+    loadMonoModeParamsToController(streamer, synthSetter);
 
     // Item 20: Voice routes (16 slots, processor-internal) -- read and DISCARD
     for (int i = 0; i < 16; ++i) {
@@ -3113,35 +3131,35 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // Items 21-22: FX enable flags (int8 -> 0.0/1.0)
     Steinberg::int8 flag = 0;
     if (!streamer.readInt8(flag)) return false;
-    editParamWithNotify(kDelayEnabledId, flag ? 1.0 : 0.0);
+    if (!arpOnly) editParamWithNotify(kDelayEnabledId, flag ? 1.0 : 0.0);
     if (!streamer.readInt8(flag)) return false;
-    editParamWithNotify(kReverbEnabledId, flag ? 1.0 : 0.0);
+    if (!arpOnly) editParamWithNotify(kReverbEnabledId, flag ? 1.0 : 0.0);
 
     // Item 23: Phaser params
-    loadPhaserParamsToController(streamer, setParam);
+    loadPhaserParamsToController(streamer, synthSetter);
 
     // Item 24: Phaser enable flag (int8 -> 0.0/1.0)
     if (!streamer.readInt8(flag)) return false;
-    editParamWithNotify(kPhaserEnabledId, flag ? 1.0 : 0.0);
+    if (!arpOnly) editParamWithNotify(kPhaserEnabledId, flag ? 1.0 : 0.0);
 
     // Items 25-35: Remaining parameter packs
-    loadLFO1ExtendedParamsToController(streamer, setParam);
-    loadLFO2ExtendedParamsToController(streamer, setParam);
-    loadMacroParamsToController(streamer, setParam);
-    loadRunglerParamsToController(streamer, setParam);
-    loadSettingsParamsToController(streamer, setParam);
-    loadEnvFollowerParamsToController(streamer, setParam);
-    loadSampleHoldParamsToController(streamer, setParam);
-    loadRandomParamsToController(streamer, setParam);
-    loadPitchFollowerParamsToController(streamer, setParam);
-    loadTransientParamsToController(streamer, setParam);
-    loadHarmonizerParamsToController(streamer, setParam);
+    loadLFO1ExtendedParamsToController(streamer, synthSetter);
+    loadLFO2ExtendedParamsToController(streamer, synthSetter);
+    loadMacroParamsToController(streamer, synthSetter);
+    loadRunglerParamsToController(streamer, synthSetter);
+    loadSettingsParamsToController(streamer, synthSetter);
+    loadEnvFollowerParamsToController(streamer, synthSetter);
+    loadSampleHoldParamsToController(streamer, synthSetter);
+    loadRandomParamsToController(streamer, synthSetter);
+    loadPitchFollowerParamsToController(streamer, synthSetter);
+    loadTransientParamsToController(streamer, synthSetter);
+    loadHarmonizerParamsToController(streamer, synthSetter);
 
     // Item 36: Harmonizer enable flag (int8 -> 0.0/1.0)
     if (!streamer.readInt8(flag)) return false;
-    editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
+    if (!arpOnly) editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
 
-    // Item 37: Arp params (includes all lane step data)
+    // Item 37: Arp params (includes all lane step data) - ALWAYS applied
     loadArpParamsToController(streamer, setParam);
 
     return true;

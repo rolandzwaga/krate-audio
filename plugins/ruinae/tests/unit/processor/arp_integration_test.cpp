@@ -840,10 +840,10 @@ TEST_CASE("ArpIntegration_DisableWhilePlaying_NoStuckNotes", "[arp][integration]
 // sounding notes, but preserves the held-note/latch buffer. When transport
 // restarts, the arp should resume producing audio from the latched notes.
 TEST_CASE("ArpIntegration_TransportStop_PreservesLatch", "[arp][integration][transition]") {
-    // The arp always runs when enabled (processor forces isPlaying=true).
-    // This test verifies that latched notes survive across the full lifecycle:
-    // play -> release keys (latch holds) -> transport stop -> transport restart.
-    // Audio should be continuous because the arp never pauses.
+    // In a DAW host (kPlaying reported), transport stop causes the arp to
+    // pause, but latched notes are preserved. When transport restarts, the
+    // arp resumes from the latched notes. Audio during stop comes from the
+    // amp envelope release tail of the last sounding note.
     ArpIntegrationFixture f;
 
     // Enable arp with latch mode = Hold (1)
@@ -987,8 +987,13 @@ TEST_CASE("ArpIntegration_EnableWithExistingHeldNote_NoStuckNotes", "[arp][integ
 
 TEST_CASE("ArpIntegration_FreeRate_WorksWithoutTransport",
           "[arp][integration][bug]") {
-    // Free-rate mode (tempoSync OFF) should work regardless of transport state.
+    // Free-rate mode (tempoSync OFF) should work in a simple host that never
+    // sets kPlaying. The processor detects this and forces isPlaying=true.
     ArpIntegrationFixture f;
+
+    // Simulate a simple host: stop transport BEFORE first process() call
+    // so hostSupportsTransport_ is never set.
+    f.setTransportPlaying(false);
 
     // Enable arp AND switch to free-rate mode (tempoSync OFF)
     ArpTestParamChanges params;
@@ -998,9 +1003,6 @@ TEST_CASE("ArpIntegration_FreeRate_WorksWithoutTransport",
     params.addChange(Ruinae::kArpFreeRateId, (8.0 - 0.5) / 49.5);  // denorm: 0.5 + norm*49.5 = 8 Hz
     f.processBlockWithParams(params);
     f.clearEvents();
-
-    // Stop transport
-    f.setTransportPlaying(false);
 
     // Send a chord (C4, E4, G4)
     f.events.addNoteOn(60, 0.8f);

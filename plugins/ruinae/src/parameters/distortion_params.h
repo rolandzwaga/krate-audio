@@ -8,6 +8,7 @@
 #include "base/source/fstreamer.h"
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 
 namespace Ruinae {
@@ -18,6 +19,8 @@ inline constexpr int kSpectralModeCount = 4;     // PerBinSaturate/MagnitudeOnly
 inline constexpr int kSpectralCurveCount = 9;    // 9 waveshape types
 inline constexpr int kFoldTypeCount = 3;         // Triangle/Sine/Lockhart
 inline constexpr int kTapeModelCount = 2;        // Simple/Hysteresis
+inline constexpr int kRingFreqModeCount = 2;     // Free/NoteTrack
+inline constexpr int kRingWaveformCount = 5;     // Sine/Triangle/Sawtooth/Square/Noise
 
 struct RuinaeDistortionParams {
     // Core params (legacy, order preserved for state compat)
@@ -49,6 +52,13 @@ struct RuinaeDistortionParams {
     std::atomic<int> tapeModel{0};        // 0-1
     std::atomic<float> tapeSaturation{0.5f}; // 0-1
     std::atomic<float> tapeBias{0.5f};    // 0-1 (maps to -1..+1 in voice)
+
+    // Ring Modulator type-specific
+    std::atomic<float> ringFreq{0.6882f};       // normalized log-mapped to 440 Hz
+    std::atomic<int> ringFreqMode{1};            // 0=Free, 1=NoteTrack
+    std::atomic<float> ringRatio{0.1111f};       // normalized linear-mapped to 2.0
+    std::atomic<int> ringWaveform{0};            // 0-4 (Sine/Tri/Saw/Sq/Noise)
+    std::atomic<float> ringStereoSpread{0.0f};   // 0-1
 };
 
 inline void handleDistortionParamChange(
@@ -121,6 +131,23 @@ inline void handleDistortionParamChange(
             params.tapeBias.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), std::memory_order_relaxed);
             break;
 
+        // Ring Modulator
+        case kDistortionRingFreqId:
+            params.ringFreq.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), std::memory_order_relaxed);
+            break;
+        case kDistortionRingFreqModeId:
+            params.ringFreqMode.store(std::clamp(static_cast<int>(value * (kRingFreqModeCount - 1) + 0.5), 0, kRingFreqModeCount - 1), std::memory_order_relaxed);
+            break;
+        case kDistortionRingRatioId:
+            params.ringRatio.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), std::memory_order_relaxed);
+            break;
+        case kDistortionRingWaveformId:
+            params.ringWaveform.store(std::clamp(static_cast<int>(value * (kRingWaveformCount - 1) + 0.5), 0, kRingWaveformCount - 1), std::memory_order_relaxed);
+            break;
+        case kDistortionRingStereoSpreadId:
+            params.ringStereoSpread.store(std::clamp(static_cast<float>(value), 0.0f, 1.0f), std::memory_order_relaxed);
+            break;
+
         default: break;
     }
 }
@@ -132,7 +159,8 @@ inline void registerDistortionParams(Steinberg::Vst::ParameterContainer& paramet
     parameters.addParameter(createDropdownParameter(
         STR16("Distortion Type"), kDistortionTypeId,
         {STR16("Clean"), STR16("Chaos Waveshaper"), STR16("Spectral"),
-         STR16("Granular"), STR16("Wavefolder"), STR16("Tape Saturator")}
+         STR16("Granular"), STR16("Wavefolder"), STR16("Tape Saturator"),
+         STR16("Ring Mod")}
     ));
     parameters.addParameter(STR16("Distortion Drive"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kDistortionDriveId);
@@ -191,6 +219,23 @@ inline void registerDistortionParams(Steinberg::Vst::ParameterContainer& paramet
         ParameterInfo::kCanAutomate, kDistortionTapeSaturationId);
     parameters.addParameter(STR16("Tape Bias"), STR16(""), 0, 0.5,
         ParameterInfo::kCanAutomate, kDistortionTapeBiasId);
+
+    // Ring Modulator type-specific
+    parameters.addParameter(STR16("Ring Freq"), STR16("Hz"), 0, 0.6882,
+        ParameterInfo::kCanAutomate, kDistortionRingFreqId);
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Ring Freq Mode"), kDistortionRingFreqModeId, 1,
+        {STR16("Free"), STR16("Note Track")}
+    ));
+    parameters.addParameter(STR16("Ring Ratio"), STR16(""), 0, 0.1111,
+        ParameterInfo::kCanAutomate, kDistortionRingRatioId);
+    parameters.addParameter(createDropdownParameter(
+        STR16("Ring Waveform"), kDistortionRingWaveformId,
+        {STR16("Sine"), STR16("Triangle"), STR16("Sawtooth"),
+         STR16("Square"), STR16("Noise")}
+    ));
+    parameters.addParameter(STR16("Ring Stereo Spread"), STR16("%"), 0, 0.0,
+        ParameterInfo::kCanAutomate, kDistortionRingStereoSpreadId);
 
     // UI-only: Distortion view mode tab (General/Type), ephemeral, not persisted
     auto* viewModeParam = new StringListParameter(
@@ -274,6 +319,31 @@ inline Steinberg::tresult formatDistortionParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+        case kDistortionRingFreqId: {
+            // Log map 0-1 to 0.1-20000 Hz
+            float hz = 0.1f * std::pow(200000.0f, static_cast<float>(value));
+            char8 text[32];
+            if (hz >= 1000.0f)
+                snprintf(text, sizeof(text), "%.1f kHz", hz / 1000.0f);
+            else
+                snprintf(text, sizeof(text), "%.1f Hz", hz);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kDistortionRingRatioId: {
+            // Linear map 0-1 to 0.25-16.0
+            float ratio = 0.25f + static_cast<float>(value) * 15.75f;
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.2fx", ratio);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kDistortionRingStereoSpreadId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
         default: break;
     }
     return kResultFalse;
@@ -305,6 +375,13 @@ inline void saveDistortionParams(const RuinaeDistortionParams& params, Steinberg
     streamer.writeInt32(params.tapeModel.load(std::memory_order_relaxed));
     streamer.writeFloat(params.tapeSaturation.load(std::memory_order_relaxed));
     streamer.writeFloat(params.tapeBias.load(std::memory_order_relaxed));
+
+    // Ring Modulator
+    streamer.writeFloat(params.ringFreq.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.ringFreqMode.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ringRatio.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.ringWaveform.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ringStereoSpread.load(std::memory_order_relaxed));
 }
 
 inline bool loadDistortionParams(RuinaeDistortionParams& params, Steinberg::IBStreamer& streamer) {
@@ -353,6 +430,18 @@ inline bool loadDistortionParams(RuinaeDistortionParams& params, Steinberg::IBSt
         params.tapeSaturation.store(floatVal, std::memory_order_relaxed);
     if (streamer.readFloat(floatVal))
         params.tapeBias.store(floatVal, std::memory_order_relaxed);
+
+    // Ring Modulator (optional - old presets won't have these)
+    if (streamer.readFloat(floatVal))
+        params.ringFreq.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.ringFreqMode.store(intVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.ringRatio.store(floatVal, std::memory_order_relaxed);
+    if (streamer.readInt32(intVal))
+        params.ringWaveform.store(intVal, std::memory_order_relaxed);
+    if (streamer.readFloat(floatVal))
+        params.ringStereoSpread.store(floatVal, std::memory_order_relaxed);
 
     return true;
 }
@@ -405,6 +494,18 @@ inline void loadDistortionParamsToController(
         setParam(kDistortionTapeSaturationId, static_cast<double>(floatVal));
     if (streamer.readFloat(floatVal))
         setParam(kDistortionTapeBiasId, static_cast<double>(floatVal));
+
+    // Ring Modulator (optional - old presets won't have these)
+    if (streamer.readFloat(floatVal))
+        setParam(kDistortionRingFreqId, static_cast<double>(floatVal));
+    if (streamer.readInt32(intVal))
+        setParam(kDistortionRingFreqModeId, static_cast<double>(intVal) / 1.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kDistortionRingRatioId, static_cast<double>(floatVal));
+    if (streamer.readInt32(intVal))
+        setParam(kDistortionRingWaveformId, static_cast<double>(intVal) / 4.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kDistortionRingStereoSpreadId, static_cast<double>(floatVal));
 }
 
 } // namespace Ruinae

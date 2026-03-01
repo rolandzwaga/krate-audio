@@ -47,6 +47,42 @@ digraph RuinaeSignalFlow {
     }
 
     // =========================================================================
+    // ARPEGGIATOR (Pre-Voice MIDI Processing)
+    // =========================================================================
+    subgraph cluster_arp {
+        label="ArpeggiatorCore  —  Per-Block MIDI Processing";
+        style=rounded;
+        color="#C07020";
+        bgcolor="#FDF3E8";
+        fontsize=13;
+        fontcolor="#804010";
+        penwidth=2;
+
+        arp_core [label="Arpeggiator\n(optional, pre-voice)\n\nModes: Up, Down, UpDown,\nRandom, Order, Chord\n\nOctave: 1-4, Sequential/PingPong/Random\nSwing, Spice, Humanize\nLatch, Euclidean, Scale Quantize\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
+
+        subgraph cluster_arp_lanes {
+            label="6 Modulation Lanes (1-32 steps each)";
+            style=dashed;
+            color="#C07020";
+            bgcolor="#F5E8D8";
+
+            arp_vel_lane [label="Velocity Lane\n[0, 1]", shape=box, fillcolor="#D0845C"];
+            arp_gate_lane [label="Gate Lane\n[0%, 200%]", shape=box, fillcolor="#C8A464"];
+            arp_pitch_lane [label="Pitch Lane\n[-24, +24] semi", shape=box, fillcolor="#6CA8A0"];
+            arp_ratchet_lane [label="Ratchet Lane\n[1, 4] repeats", shape=box, fillcolor="#9880B0"];
+            arp_mod_lane [label="Modifier Lane\nAccent, Slide, Skip\n(bit flags)", shape=box, fillcolor="#C0708C"];
+            arp_cond_lane [label="Condition Lane\n18 conditions\n(probability, fill, etc.)", shape=box, fillcolor="#7C90B0"];
+        }
+
+        arp_vel_lane -> arp_core [style=dashed, color="#804010"];
+        arp_gate_lane -> arp_core [style=dashed, color="#804010"];
+        arp_pitch_lane -> arp_core [style=dashed, color="#804010"];
+        arp_ratchet_lane -> arp_core [style=dashed, color="#804010"];
+        arp_mod_lane -> arp_core [style=dashed, color="#804010"];
+        arp_cond_lane -> arp_core [style=dashed, color="#804010"];
+    }
+
+    // =========================================================================
     // VOICE ALLOCATION
     // =========================================================================
     subgraph cluster_voice_alloc {
@@ -59,8 +95,12 @@ digraph RuinaeSignalFlow {
         mono_handler [label="Mono Handler\n(Voice 0 only)\nPortamento, Legato\nHigh/Low priority", shape=octagon, fillcolor="#7BAFD4"];
     }
 
-    midi_in -> voice_alloc [penwidth=2];
-    midi_in -> mono_handler [penwidth=2];
+    // MIDI routes through arp (when enabled) or directly to voice management
+    midi_in -> arp_core [penwidth=2, label="note on/off\n(when arp enabled)"];
+    arp_core -> voice_alloc [penwidth=2, label="arp events\n(NoteOn/Off/Skip)"];
+    arp_core -> mono_handler [penwidth=2, style=dashed, label="mono\n(arp events)"];
+    midi_in -> voice_alloc [penwidth=2, style=dashed, label="direct\n(arp disabled)"];
+    midi_in -> mono_handler [penwidth=2, style=dashed, label="direct\n(arp disabled)"];
 
     // =========================================================================
     // PER-VOICE PROCESSING (x16)
@@ -109,7 +149,7 @@ digraph RuinaeSignalFlow {
         }
 
         dc_block [label="DC Blocker", shape=box, fillcolor="#6AABEA"];
-        trance_gate [label="TranceGate\n16 steps, tempo-sync", shape=box, fillcolor="#6AABEA"];
+        trance_gate [label="TranceGate\n2-32 steps, tempo-sync\nEuclidean patterns", shape=box, fillcolor="#6AABEA"];
         vca [label="VCA\n(Amp Envelope)", shape=box, fillcolor="#6AABEA"];
 
         // --- Per-Voice Mod Sources ---
@@ -255,10 +295,13 @@ digraph RuinaeSignalFlow {
             delay [label="Active Delay Type\n• Digital (era/age/limiter/mod/wavefold)\n• Tape (motor/wear/saturation/splice/3 heads)\n• PingPong (L/R ratio, cross-feedback, width)\n• Granular (size/density/pitch spray/reverse)\n• Spectral (FFT per-bin, spread/tilt/freeze)\n\nLatency: 1024 samples (compensated)", shape=box, fillcolor="#C49EE0"];
         }
 
+        harmonizer [label="Harmonizer\nPitch-shifted voices (up to 4)\nHarmony modes, scale-aware\nFormant preserve, per-voice\ninterval/level/pan/delay/detune\n\nMono-in → Stereo-out\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];
+
         reverb [label="Reverb\n(Dattorro Plate)\nFull parameter set", shape=box, fillcolor="#C49EE0"];
 
         phaser -> delay [penwidth=2, color="#6B3B9F"];
-        delay -> reverb [penwidth=2, color="#6B3B9F"];
+        delay -> harmonizer [penwidth=2, color="#6B3B9F"];
+        harmonizer -> reverb [penwidth=2, color="#6B3B9F"];
     }
 
     gfilter -> phaser [penwidth=2, color="#2A5080"];
@@ -393,6 +436,7 @@ digraph RuinaeSignalFlow {
     audio_in -> gsample_hold [style=dashed, color="#A02050", label="(optional\naudio src)"];
 
     // Host tempo to tempo-synced components
+    host_tempo -> arp_core [style=dashed, color="#888888", label="BPM +\ntransport"];
     host_tempo -> glfo1 [style=dashed, color="#888888", label="BPM"];
     host_tempo -> glfo2 [style=dashed, color="#888888"];
     host_tempo -> trance_gate [style=dashed, color="#888888", label="BPM"];
@@ -423,11 +467,13 @@ digraph RuinaeSignalFlow {
 
         rates [label=<
             <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD ALIGN="LEFT"><B>Arpeggiator:</B></TD><TD ALIGN="LEFT">Per-block, before voice processing (MIDI → arp events → engine)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Per-Voice Mod:</B></TD><TD ALIGN="LEFT">Per-sample (every sample in block)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global Mod:</B></TD><TD ALIGN="LEFT">Per-block (once per process() call)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Audio chain:</B></TD><TD ALIGN="LEFT">Per-sample (voice) / Per-block (effects)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 10 destinations</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">32 routes × 12 sources → 8 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Interaction:</B></TD><TD ALIGN="LEFT">Global "AllVoice" dests are forwarded into per-voice processing</TD></TR>
             </TABLE>
         >];

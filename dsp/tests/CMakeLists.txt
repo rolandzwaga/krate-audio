@@ -173,6 +173,7 @@ add_executable(dsp_tests
     unit/processors/note_processor_test.cpp
     unit/processors/trance_gate_test.cpp
     unit/processors/arpeggiator_core_test.cpp
+    unit/processors/ring_modulator_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -465,6 +466,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/note_processor_test.cpp
         unit/processors/trance_gate_test.cpp
         unit/processors/arpeggiator_core_test.cpp
+        unit/processors/ring_modulator_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

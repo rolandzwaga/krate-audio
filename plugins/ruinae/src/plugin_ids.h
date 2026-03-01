@@ -275,6 +275,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kDistortionTapeSaturationId = 551, // 0-1
     kDistortionTapeBiasId = 552,       // 0-1 mapped to [-1, +1]
 
+    // Ring Modulator type-specific params
+    kDistortionRingFreqId = 560,           // 0-1 log-mapped to [0.1, 20000] Hz
+    kDistortionRingFreqModeId = 561,       // 0-1 (Free/NoteTrack)
+    kDistortionRingRatioId = 562,          // 0-1 mapped to [0.25, 16.0]
+    kDistortionRingWaveformId = 563,       // 0-4 (Sine/Triangle/Sawtooth/Square/Noise)
+    kDistortionRingStereoSpreadId = 564,   // 0-1
+
     kDistortionEndId = 599,
 
     // ==========================================================================

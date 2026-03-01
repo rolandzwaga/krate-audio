@@ -1135,6 +1135,35 @@ public:
         for (auto& voice : voices_) { voice.setDistortionTapeBias(normalized); }
     }
 
+    // --- Ring Modulator ---
+
+    void setDistortionRingFreq(float freqNormalized) noexcept {
+        if (detail::isNaN(freqNormalized) || detail::isInf(freqNormalized)) return;
+        // Denormalize: 0-1 log-mapped to 0.1-20000 Hz
+        const float hz = 0.1f * std::pow(200000.0f, std::clamp(freqNormalized, 0.0f, 1.0f));
+        for (auto& voice : voices_) { voice.setDistortionRingFreq(hz); }
+    }
+
+    void setDistortionRingFreqMode(int mode) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionRingFreqMode(mode); }
+    }
+
+    void setDistortionRingRatio(float ratioNormalized) noexcept {
+        if (detail::isNaN(ratioNormalized) || detail::isInf(ratioNormalized)) return;
+        // Denormalize: 0-1 linear-mapped to 0.25-16.0
+        const float ratio = 0.25f + std::clamp(ratioNormalized, 0.0f, 1.0f) * 15.75f;
+        for (auto& voice : voices_) { voice.setDistortionRingRatio(ratio); }
+    }
+
+    void setDistortionRingWaveform(int waveform) noexcept {
+        for (auto& voice : voices_) { voice.setDistortionRingWaveform(waveform); }
+    }
+
+    void setDistortionRingStereoSpread(float spread) noexcept {
+        if (detail::isNaN(spread) || detail::isInf(spread)) return;
+        for (auto& voice : voices_) { voice.setDistortionRingStereoSpread(spread); }
+    }
+
     // --- Trance Gate ---
 
     void setTranceGateEnabled(bool enabled) noexcept {

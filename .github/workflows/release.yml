@@ -534,6 +534,15 @@ jobs:
           # Copy plugin-specific assets
           cp -r plugins/${PLUGIN}/docs/assets _site/${PLUGIN}/ 2>/dev/null || true
 
+      - name: Generate Signal Flow Diagram
+        if: needs.version.outputs.plugin == 'ruinae'
+        run: |
+          if [ -f plugins/ruinae/docs/ruinae_signal_flow.dot ]; then
+            node tools/generate-signal-flow.js \
+              plugins/ruinae/docs/ruinae_signal_flow.dot \
+              _site/ruinae/signal-flow.html
+          fi
+
       - name: Generate Root Index
         env:
           REPO: ${{ github.repository }}

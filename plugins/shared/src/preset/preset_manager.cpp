@@ -190,7 +190,7 @@ bool PresetManager::loadPreset(const PresetInfo& preset) {
                 // Create a read-only stream for just the component state chunk
                 auto componentStream = Steinberg::owned(
                     new Steinberg::Vst::ReadOnlyBStream(stream, entry->offset, entry->size));
-                success = loadProvider_(componentStream);
+                success = loadProvider_(componentStream, preset);
                 if (!success) {
                     lastError_ = "Load provider failed to apply preset state";
                 }

@@ -37,6 +37,7 @@
 #include <krate/dsp/processors/formant_filter.h>
 #include <krate/dsp/processors/spectral_distortion.h>
 #include <krate/dsp/processors/granular_distortion.h>
+#include <krate/dsp/processors/ring_modulator.h>
 #include <krate/dsp/processors/tape_saturator.h>
 #include <krate/dsp/processors/trance_gate.h>
 #include <krate/dsp/processors/spectral_morph_filter.h>
@@ -911,6 +912,35 @@ public:
         if (distTape_) distTape_->setBias(bias);
     }
 
+    // --- Ring Modulator ---
+
+    void setDistortionRingFreq(float hz) noexcept {
+        if (detail::isNaN(hz) || detail::isInf(hz)) return;
+        ringMod_.setFrequency(hz);
+    }
+
+    void setDistortionRingFreqMode(int mode) noexcept {
+        ringMod_.setFreqMode(static_cast<RingModFreqMode>(std::clamp(mode, 0, 1)));
+    }
+
+    void setDistortionRingRatio(float ratio) noexcept {
+        if (detail::isNaN(ratio) || detail::isInf(ratio)) return;
+        ringMod_.setRatio(ratio);
+    }
+
+    void setDistortionRingWaveform(int waveform) noexcept {
+        ringMod_.setCarrierWaveform(static_cast<RingModCarrierWaveform>(std::clamp(waveform, 0, 4)));
+    }
+
+    void setDistortionRingStereoSpread(float spread) noexcept {
+        if (detail::isNaN(spread) || detail::isInf(spread)) return;
+        ringMod_.setStereoSpread(spread);
+    }
+
+    void setDistortionRingNoteFrequency(float hz) noexcept {
+        ringMod_.setNoteFrequency(hz);
+    }
+
     // =========================================================================
     // TranceGate Configuration (FR-016 through FR-019)
     // =========================================================================
@@ -1293,6 +1323,9 @@ private:
         distTape_ = std::make_unique<TapeSaturator>();
         distTape_->prepare(sampleRate_, maxBlockSize_);
         distTape_->setDrive(-24.0f + distortionDrive_ * 48.0f);
+
+        ringMod_.prepare(sampleRate_, maxBlockSize_);
+        ringMod_.setAmplitude(distortionDrive_);
     }
 
     /// @brief Reset the currently active distortion.
@@ -1309,6 +1342,9 @@ private:
                 break;
             case RuinaeDistortionType::TapeSaturator:
                 if (distTape_) distTape_->reset();
+                break;
+            case RuinaeDistortionType::RingModulator:
+                ringMod_.reset();
                 break;
             default: break; // Clean and Wavefolder: nothing to reset
         }
@@ -1331,6 +1367,9 @@ private:
                 break;
             case RuinaeDistortionType::TapeSaturator:
                 if (distTape_) distTape_->setDrive(-24.0f + drive * 48.0f);
+                break;
+            case RuinaeDistortionType::RingModulator:
+                ringMod_.setAmplitude(drive);
                 break;
             default: break; // Clean: no drive
         }
@@ -1363,6 +1402,9 @@ private:
             case RuinaeDistortionType::TapeSaturator:
                 if (distTape_) distTape_->process(buffer, numSamples);
                 break;
+            case RuinaeDistortionType::RingModulator:
+                ringMod_.processBlock(buffer, numSamples);
+                break;
             default: break;
         }
     }
@@ -1380,6 +1422,9 @@ private:
             * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f);
         oscA_.setFrequency(freqA);
         oscB_.setFrequency(freqB);
+
+        // Forward note frequency to ring modulator for NoteTrack mode (FR-016)
+        ringMod_.setNoteFrequency(noteFrequency_);
     }
 
     // =========================================================================
@@ -1467,6 +1512,7 @@ private:
     std::unique_ptr<GranularDistortion> distGranular_;
     Wavefolder distWavefolder_;  // Stateless, tiny — keep inline
     std::unique_ptr<TapeSaturator> distTape_;
+    RingModulator ringMod_;               // Value type (all sub-components are value types)
     RuinaeDistortionType distortionType_{RuinaeDistortionType::Clean};
     float distortionDrive_{0.0f};
     float distortionCharacter_{0.5f};

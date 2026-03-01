@@ -355,6 +355,7 @@ Before committing, check for these smells:
 | Existence Check | `hasNonZeroSamples()` as sole verification | Verify output is **correct** (notes, timing, values) |
 | Perfect Host | Fixture always sets kPlaying/kTempoValid | Also test with minimal/degraded host conditions |
 | Reset Trap | Setter called every block in applyParams | Change-detection guard + test with same-value-every-block |
+| Grep Flailing | Re-running test suite 20x with different grep patterns | Use `\| tail -5` once; Catch2 summary is always last line |
 
 ---
 
@@ -845,3 +846,65 @@ TEST_CASE("Calling setMode every block prevents note advance", "[integration][bu
 > setter every block with the same value and verifies multi-block behavior isn't broken.**
 >
 > See [INTEGRATION-TESTING.md](INTEGRATION-TESTING.md) for the setter side-effect table.
+
+---
+
+## 17. The Grep Flailing Loop (Agent Anti-Pattern)
+
+> **THIS WASTED 15+ MINUTES ON A SINGLE "DID TESTS PASS?" CHECK**
+>
+> Re-running the entire test suite repeatedly with different grep patterns to parse output is the single biggest time sink in automated implementation.
+
+### The Problem
+
+An agent needs to check if tests passed. Instead of reading the output correctly, it re-runs the full suite (6000+ tests, 30-60 seconds each) with increasingly desperate grep patterns:
+
+```bash
+# WRONG: Each of these re-runs the ENTIRE test suite (30-60 sec each!)
+dsp_tests.exe 2>&1 | grep -B 10 "FAILED"      # no output (grep doesn't match)
+dsp_tests.exe 2>&1 | grep -B 5 "FAILED:"       # try different pattern...
+dsp_tests.exe 2>&1 | grep "FAILED"             # try without context...
+dsp_tests.exe 2>&1 | grep "failed"             # try lowercase...
+dsp_tests.exe 2>&1 | grep -i "fail"            # try case-insensitive...
+dsp_tests.exe > /tmp/out.txt 2>&1; grep "fail"  # try redirect + grep...
+dsp_tests.exe 2>&1 | grep "test cases:"        # try different field...
+dsp_tests.exe --reporter compact 2>&1 | tail -3 # try different reporter...
+# ... 20 more attempts, 15+ minutes wasted
+```
+
+### Why This Happens
+
+The agent doesn't know Catch2's output format. The summary is **always the last line** of stdout:
+- **Pass:** `All tests passed (22065840 assertions in 6105 test cases)`
+- **Fail:** `test cases: 6105 | 6100 passed | 5 failed`
+
+### The Fix: One Command, Done
+
+```bash
+# CORRECT: Just read the last few lines. ONE run. 30 seconds total.
+dsp_tests.exe 2>&1 | tail -5
+```
+
+That's it. If the last line says "All tests passed", you're done. If it shows failures, the failure details are in the preceding output.
+
+### For Filtered Runs
+
+```bash
+# Run specific tests by name (positional argument, NOT -c flag)
+dsp_tests.exe "RingModulator*" 2>&1 | tail -5
+
+# Run tagged tests
+dsp_tests.exe "[.perf]" 2>&1 | tail -5
+
+# WRONG: -c filters SECTIONS, not test cases
+dsp_tests.exe -c "RingModulator*"  # This filters sections, not test names!
+```
+
+### The Rule
+
+> **NEVER re-run a test suite just to try a different grep pattern.**
+>
+> - Catch2 summary is ALWAYS the last line of output
+> - Use `| tail -5` to capture it
+> - ONE run per check. If you need more detail, read the FULL output from that same run.
+> - The suite has 6000+ tests. Each re-run costs 30-60 seconds. Running it 20 times wastes 15+ minutes for zero additional information.

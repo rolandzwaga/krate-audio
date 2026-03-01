@@ -159,6 +159,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Prepare arpeggiator (FR-008)
     arpCore_.prepare(sampleRate_, static_cast<size_t>(maxBlockSize_));
 
+    // Reset transport detection so the flag is re-learned if plugin moves between hosts
+    hostSupportsTransport_ = false;
+
     logPhaser("[RUINAE] setupProcessing: sampleRate=%.0f maxBlock=%d\n", sampleRate_, maxBlockSize_);
 
     return AudioEffect::setupProcessing(setup);
@@ -253,14 +256,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // The processBlock() call below drains them through the standard
         // routing loop, ensuring every note-on has a matching note-off.
 
-        // The arp must always advance when enabled, regardless of host
-        // transport state. Simple hosts (e.g., Plugin Buddy) may never set
-        // kPlaying, and even in DAWs the arp should be playable without
-        // pressing Play. We force isPlaying=true so ArpeggiatorCore's
-        // internal timing always runs. The arp uses tempoBPM (always
-        // available, default 120) for tempo-sync timing.
+        // Track whether the host ever reports kPlaying — if so, it supports
+        // transport and we should respect its stop state.
+        if (blockCtx.isPlaying) {
+            hostSupportsTransport_ = true;
+        }
+
         Krate::DSP::BlockContext arpCtx = blockCtx;
-        arpCtx.isPlaying = true;
+        // Simple hosts that never set kPlaying: force the arp to always run.
+        // DAW hosts that do set kPlaying: pass the real transport state
+        // through so ArpeggiatorCore can emit NoteOffs on transport stop.
+        if (!hostSupportsTransport_) {
+            arpCtx.isPlaying = true;
+        }
 
         // Detect DAW transport loop (backward PPQ jump) and notify the arp
         // so it cleanly restarts: NoteOffs, lane reset, immediate step 0.
@@ -1018,6 +1026,12 @@ void Processor::applyParamsToEngine() {
     engine_.setDistortionTapeModel(distortionParams_.tapeModel.load(std::memory_order_relaxed));
     engine_.setDistortionTapeSaturation(distortionParams_.tapeSaturation.load(std::memory_order_relaxed));
     engine_.setDistortionTapeBias(distortionParams_.tapeBias.load(std::memory_order_relaxed));
+
+    engine_.setDistortionRingFreq(distortionParams_.ringFreq.load(std::memory_order_relaxed));
+    engine_.setDistortionRingFreqMode(distortionParams_.ringFreqMode.load(std::memory_order_relaxed));
+    engine_.setDistortionRingRatio(distortionParams_.ringRatio.load(std::memory_order_relaxed));
+    engine_.setDistortionRingWaveform(distortionParams_.ringWaveform.load(std::memory_order_relaxed));
+    engine_.setDistortionRingStereoSpread(distortionParams_.ringStereoSpread.load(std::memory_order_relaxed));
 
     // --- Trance Gate ---
     engine_.setTranceGateEnabled(tranceGateParams_.enabled.load(std::memory_order_relaxed));
