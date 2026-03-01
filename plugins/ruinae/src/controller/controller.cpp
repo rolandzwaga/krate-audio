@@ -299,8 +299,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     presetManager_->setLoadProvider(
         [this](Steinberg::IBStream* state,
                const Krate::Plugins::PresetInfo& info) -> bool {
-            bool arpOnly = info.subcategory.size() >= 3 &&
-                           info.subcategory.substr(0, 3) == "Arp";
+            bool arpOnly = info.subcategory.starts_with("Arp");
             return this->loadComponentStateWithNotify(state, arpOnly);
         });
 

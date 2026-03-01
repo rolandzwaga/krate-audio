@@ -62,6 +62,7 @@ enum class RuinaeDistortionType : uint8_t {
     GranularDistortion,   ///< Granular micro-distortion (Layer 2)
     Wavefolder,           ///< Wavefolder with multiple stages (Layer 1)
     TapeSaturator,        ///< Tape saturation emulation (Layer 2)
+    RingModulator,        ///< Ring modulation with internal carrier (Layer 2)
     NumTypes              ///< Sentinel: total number of distortion types
 };
 

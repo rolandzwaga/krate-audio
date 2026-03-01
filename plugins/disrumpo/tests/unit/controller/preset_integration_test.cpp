@@ -247,7 +247,7 @@ TEST_CASE("Disrumpo PresetManager LoadProvider callback", "[disrumpo][preset][lo
 
     SECTION("load provider callback is invoked when loading preset") {
         bool loadProviderCalled = false;
-        manager.setLoadProvider([&loadProviderCalled](Steinberg::IBStream* /*state*/) -> bool {
+        manager.setLoadProvider([&loadProviderCalled](Steinberg::IBStream* /*state*/, const Krate::Plugins::PresetInfo& /*info*/) -> bool {
             loadProviderCalled = true;
             return true;
         });

@@ -305,6 +305,11 @@
         <control-tag name="DistortionTapeModel" tag="550"/>
         <control-tag name="DistortionTapeSaturation" tag="551"/>
         <control-tag name="DistortionTapeBias" tag="552"/>
+        <control-tag name="DistortionRingFreq" tag="560"/>
+        <control-tag name="DistortionRingFreqMode" tag="561"/>
+        <control-tag name="DistortionRingRatio" tag="562"/>
+        <control-tag name="DistortionRingWaveform" tag="563"/>
+        <control-tag name="DistortionRingStereoSpread" tag="564"/>
         <control-tag name="DistortionViewMode" tag="10017"/>
 
         <!-- Trance Gate -->
@@ -1319,7 +1324,7 @@
     <template name="Distortion_General" size="254, 88" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
               origin="0, 0" size="254, 88"
-              template-names="Dist_Clean,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active"
+              template-names="Dist_Clean,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active,Dist_General_Active"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
@@ -1345,7 +1350,7 @@
     <template name="Distortion_TypeSpecific" size="254, 88" class="CViewContainer" transparent="true">
         <view class="UIViewSwitchContainer"
               origin="0, 0" size="254, 88"
-              template-names="Dist_Clean,Dist_Chaos,Dist_Spectral,Dist_Granular,Dist_Wavefolder,Dist_Tape"
+              template-names="Dist_Clean,Dist_Chaos,Dist_Spectral,Dist_Granular,Dist_Wavefolder,Dist_Tape,Dist_RingMod"
               template-switch-control="DistortionType"
               transparent="true"/>
     </template>
@@ -1457,6 +1462,39 @@
         <view class="CTextLabel" origin="64, 64" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Bias"/>
+    </template>
+
+    <!-- Ring Mod: Waveform + Freq Mode dropdowns, Freq + Ratio + Spread knobs -->
+    <template name="Dist_RingMod" size="254, 88" class="CViewContainer" transparent="true">
+        <view class="COptionMenu" origin="8, 4" size="90, 18"
+              control-tag="DistortionRingWaveform" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+        <view class="COptionMenu" origin="104, 4" size="90, 18"
+              control-tag="DistortionRingFreqMode" default-value="0.5"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"/>
+
+        <view class="ArcKnob" origin="8, 28" size="36, 36"
+              control-tag="DistortionRingFreq" default-value="0.6882"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="0, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Freq"/>
+
+        <view class="ArcKnob" origin="72, 28" size="36, 36"
+              control-tag="DistortionRingRatio" default-value="0.1111"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="64, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Ratio"/>
+
+        <view class="ArcKnob" origin="136, 28" size="36, 36"
+              control-tag="DistortionRingStereoSpread" default-value="0.0"
+              arc-color="distortion" guide-color="knob-guide"/>
+        <view class="CTextLabel" origin="128, 64" size="52, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="center" transparent="true" title="Spread"/>
     </template>
 
     <!-- ================================================================== -->

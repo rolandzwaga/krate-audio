@@ -80,6 +80,7 @@ inline const Steinberg::Vst::TChar* const kDistortionTypeStrings[] = {
     STR16("Granular"),
     STR16("Wavefolder"),
     STR16("Tape Saturator"),
+    STR16("Ring Mod"),
 };
 
 // =============================================================================

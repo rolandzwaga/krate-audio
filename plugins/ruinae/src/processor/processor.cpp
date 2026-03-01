@@ -1027,6 +1027,12 @@ void Processor::applyParamsToEngine() {
     engine_.setDistortionTapeSaturation(distortionParams_.tapeSaturation.load(std::memory_order_relaxed));
     engine_.setDistortionTapeBias(distortionParams_.tapeBias.load(std::memory_order_relaxed));
 
+    engine_.setDistortionRingFreq(distortionParams_.ringFreq.load(std::memory_order_relaxed));
+    engine_.setDistortionRingFreqMode(distortionParams_.ringFreqMode.load(std::memory_order_relaxed));
+    engine_.setDistortionRingRatio(distortionParams_.ringRatio.load(std::memory_order_relaxed));
+    engine_.setDistortionRingWaveform(distortionParams_.ringWaveform.load(std::memory_order_relaxed));
+    engine_.setDistortionRingStereoSpread(distortionParams_.ringStereoSpread.load(std::memory_order_relaxed));
+
     // --- Trance Gate ---
     engine_.setTranceGateEnabled(tranceGateParams_.enabled.load(std::memory_order_relaxed));
     {

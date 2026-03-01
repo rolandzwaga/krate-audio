@@ -6447,3 +6447,120 @@ Before `heldNotes_.noteOn()`, when `scaleQuantizeInput_` is `true` and scale is 
 **Memory:** ~1300 bytes per instance (HeldNoteBuffer + NoteSelector + 32-entry pending NoteOff array + timing state + 6 ArpLane instances + modifier config + ratchet sub-step state: 10 scalar members + 2 x 32-byte arrays + Euclidean state: 6 scalar members ~24 bytes + Condition state: conditionLane_ ~40 bytes + loopCount_ 8 bytes + fillActive_ 1 byte + conditionRng_ 4 bytes ~53 bytes + Spice/Dice state: velocityOverlay_ 128 bytes + gateOverlay_ 128 bytes + ratchetOverlay_ 32 bytes + conditionOverlay_ 32 bytes + spice_ 4 bytes + humanize_ 4 bytes + spiceDiceRng_ 4 bytes + humanizeRng_ 4 bytes ~336 bytes + Scale mode state: scaleHarmonizer_ ~16 bytes + scaleQuantizeInput_ 1 byte ~17 bytes). Header-only, real-time safe, single-threaded.
 
 **Dependencies:** Layer 0 (block_context.h, note_value.h, euclidean_pattern.h, random.h, scale_harmonizer.h), Layer 1 (held_note_buffer.h: HeldNoteBuffer, NoteSelector, ArpMode, OctaveMode, ArpNoteResult; arp_lane.h: ArpLane)
+
+---
+
+## RingModulator
+**Path:** [ring_modulator.h](../../dsp/include/krate/dsp/processors/ring_modulator.h) | **Since:** 0.18.0 | **Spec:** [085-ring-mod-distortion](../085-ring-mod-distortion/spec.md)
+
+Four-quadrant ring modulator that multiplies an input signal by an internally generated carrier, producing sum and difference frequency sidebands. Implements `output[n] = input[n] * carrier[n] * amplitude`. Supports five carrier waveforms, two frequency modes (Free and Note Track), per-voice note frequency tracking, and a stereo spread API for forward compatibility.
+
+**Use when:**
+- Creating metallic, bell-like, or inharmonic timbres from pitched voices (ring modulation sidebands)
+- Building a note-tracking ring modulator where carrier frequency scales proportionally with played pitch
+- Need selectable carrier waveform density (Sine = fewest sidebands; Square/Sawtooth = dense harmonic series; Noise = broadband textural spread)
+- Want stereo spatial movement via independent left/right carrier frequencies offset symmetrically around a center frequency
+- Adding a ring modulator distortion slot to a synthesizer voice that already has a pre-allocated distortion switch pattern
+
+**Note:** The sine carrier uses the Gordon-Smith magic circle phasor (2 muls + 2 adds per sample, amplitude-stable, no `std::sin`/`std::cos` in the hot path). This pattern is shared with `FrequencyShifter`. If a third class requires a standalone Gordon-Smith sine oscillator, extract to a Layer 0 or Layer 1 utility at that point (extraction threshold: 3 users). Non-sine tonal waveforms (Triangle, Sawtooth, Square) use `PolyBlepOscillator` for band-limited generation. The Noise carrier uses `NoiseOscillator` with fixed `NoiseColor::White`. Carrier frequency changes are smoothed via a one-pole smoother (5 ms time constant, `kSmoothingTimeMs`) to prevent zipper noise on automation and note transitions. The stereo `processBlock` overload is provided for forward compatibility; the current Ruinae voice pipeline is mono and uses the mono overload.
+
+```cpp
+enum class RingModCarrierWaveform : uint8_t { Sine, Triangle, Sawtooth, Square, Noise };
+enum class RingModFreqMode : uint8_t { Free, NoteTrack };
+
+class RingModulator {
+    static constexpr float kMinFreqHz        = 0.1f;
+    static constexpr float kMaxFreqHz        = 20000.0f;
+    static constexpr float kMinRatio         = 0.25f;
+    static constexpr float kMaxRatio         = 16.0f;
+    static constexpr float kMaxSpreadOffsetHz = 50.0f;
+    static constexpr float kSmoothingTimeMs  = 5.0f;
+    static constexpr int   kRenormInterval   = 1024;  // Gordon-Smith periodic renormalization
+
+    // Lifecycle
+    void prepare(double sampleRate, size_t maxBlockSize) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Carrier configuration
+    void setCarrierWaveform(RingModCarrierWaveform wf) noexcept;  // Sine/Triangle/Sawtooth/Square/Noise
+    void setFreqMode(RingModFreqMode mode) noexcept;              // Free / NoteTrack
+
+    // Frequency control
+    void setFrequency(float hz) noexcept;        // Free mode: [0.1, 20000] Hz
+    void setNoteFrequency(float hz) noexcept;    // NoteTrack mode: current voice pitch (unclamped input)
+    void setRatio(float ratio) noexcept;         // NoteTrack mode: [0.25, 16.0], default 2.0
+
+    // Level and spread
+    void setAmplitude(float amplitude) noexcept; // [0.0, 1.0] carrier level (drive)
+    void setStereoSpread(float spread) noexcept; // [0.0, 1.0] L/R offset (+/-50 Hz max)
+
+    // Processing
+    void processBlock(float* buffer, size_t numSamples) noexcept;               // Mono
+    void processBlock(float* left, float* right, size_t numSamples) noexcept;   // Stereo
+};
+```
+
+| Carrier Waveform | Oscillator Backend | Sidebands per Input Harmonic | Character |
+|------------------|--------------------|------------------------------|-----------|
+| Sine | Gordon-Smith magic circle | 2 (sum + difference) | Clean, bell-like |
+| Triangle | PolyBlepOscillator | Odd harmonics only | Softer than square, hollow |
+| Sawtooth | PolyBlepOscillator | All harmonics | Dense, aggressive |
+| Square | PolyBlepOscillator | Odd harmonics only | Buzzy, hollow |
+| Noise | NoiseOscillator (White) | Broadband | Textural spread |
+
+| Frequency Mode | Carrier Frequency Formula | Ratio Knob Visible |
+|----------------|---------------------------|--------------------|
+| Free | `freqHz_` (direct Hz, user-set) | No |
+| NoteTrack | `clamp(noteFrequency_ * ratio_, kMinFreqHz, kMaxFreqHz)` | Yes |
+
+| Parameter | Default | Range | Notes |
+|-----------|---------|-------|-------|
+| frequency | 440 Hz | [0.1, 20000] Hz | Logarithmic taper for UI/automation |
+| freqMode | NoteTrack | Free / NoteTrack | Selects carrier frequency source |
+| ratio | 2.0 | [0.25, 16.0] | Applied only in NoteTrack mode |
+| waveform | Sine | Sine/Tri/Saw/Sq/Noise | Noise ignores frequency/ratio |
+| amplitude | 1.0 | [0.0, 1.0] | Maps linearly from drive parameter |
+| stereoSpread | 0.0 | [0.0, 1.0] | L = center - spread*50Hz, R = center + spread*50Hz |
+
+**Signal Chain (mono):** Input -> [Carrier oscillator (freq-smoothed)] -> [Multiply * amplitude] -> Output
+
+**Gordon-Smith phasor (inline, shared pattern with FrequencyShifter):**
+```
+epsilon = 2 * sin(pi * freq / sampleRate)
+s += epsilon * c
+c -= epsilon * s   // uses updated s
+// Renormalize every kRenormInterval samples:
+// norm = 2.0f - (s*s + c*c); s *= norm; c *= norm;
+```
+Initialize: `sinState = 0.0f, cosState = 1.0f` (zero output on first sample, click-free voice start).
+
+**Usage Example (basic ring modulation):**
+```cpp
+RingModulator rm;
+rm.prepare(44100.0, 512);
+rm.setCarrierWaveform(RingModCarrierWaveform::Sine);
+rm.setFreqMode(RingModFreqMode::Free);
+rm.setFrequency(200.0f);   // 200 Hz carrier
+rm.setAmplitude(1.0f);
+rm.processBlock(buffer, numSamples);
+// buffer now contains sidebands at (input +/- 200 Hz)
+```
+
+**Usage Example (note-tracking carrier):**
+```cpp
+rm.setFreqMode(RingModFreqMode::NoteTrack);
+rm.setRatio(2.0f);           // Carrier = 2x the played note
+rm.setNoteFrequency(440.0f); // Called on noteOn() and on every portamento update
+rm.processBlock(buffer, numSamples);
+// Carrier tracks 880 Hz; sidebands at 440 Hz and 1320 Hz
+```
+
+**Gotchas:**
+- `setNoteFrequency()` does NOT clamp the raw input value; clamping to `[kMinFreqHz, kMaxFreqHz]` is applied inside `computeEffectiveFrequency()` to the product `noteFrequency_ * ratio_`. Pass raw voice pitch without pre-clamping.
+- In NoteTrack mode, call `setNoteFrequency()` on BOTH `noteOn()` AND every portamento/glide frequency update tick; skipping the glide updates causes the carrier to jump to the target pitch rather than glide.
+- Noise carrier ignores `setFrequency()`, `setNoteFrequency()`, and `setRatio()`. The noise source runs without a frequency parameter; `freqSmoother_` still ticks internally but is not applied to the noise oscillator.
+- `prepare()` calls `snapTo()` on both smoothers after `configure()` so that re-preparing at a different sample rate produces no transient on the first `processBlock()` call.
+- The stereo `processBlock` overload maintains two independent Gordon-Smith/PolyBLEP/Noise oscillator instances (`sinState_`/`cosState_` for left, `sinStateR_`/`cosStateR_` for right) and two smoothers (`freqSmoother_` and `freqSmootherR_`).
+
+**Dependencies:** Layer 1 (polyblep_oscillator.h: PolyBlepOscillator, OscWaveform; noise_oscillator.h: NoiseOscillator; smoother.h: OnePoleSmoother)

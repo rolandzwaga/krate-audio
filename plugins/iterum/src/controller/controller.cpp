@@ -680,9 +680,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     });
 
     // Set load provider callback for preset loading
-    presetManager_->setLoadProvider([this](Steinberg::IBStream* state) -> bool {
-        return this->loadComponentStateWithNotify(state);
-    });
+    presetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* state,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            return this->loadComponentStateWithNotify(state);
+        });
 
     return Steinberg::kResultTrue;
 }

@@ -41,9 +41,10 @@ public:
     using StateProvider = std::function<Steinberg::IBStream*()>;
 
     /// Callback type for loading component state with host notification
-    /// Takes an IBStream containing component state, applies it via controller with performEdit
+    /// Takes an IBStream containing component state and the PresetInfo being loaded,
+    /// applies it via controller with performEdit
     /// @return true on success
-    using LoadProvider = std::function<bool(Steinberg::IBStream*)>;
+    using LoadProvider = std::function<bool(Steinberg::IBStream*, const PresetInfo&)>;
 
     /// Constructor
     /// @param config Plugin-specific configuration (processorUID, pluginName, etc.)
