@@ -5,6 +5,19 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-03-01
+
+### Added
+
+- **Ring Modulator distortion type** — New per-voice distortion with internal sine oscillator, waveform selection (Sine, Triangle, Square, Saw), fixed/ratio frequency modes, depth control, and stereo spread
+- **Ring Modulator DSP processor** (KrateDSP Layer 2) with DC offset removal
+
+### Changed
+
+- **UI layout: taller Row 1 and Row 2** — Added 25px height to each of the first two rows on the Sound tab for better visual spacing
+- **Knob label positioning** — Labels beneath ArcKnobs in oscillator, filter, and distortion sub-panels now render below the knob rather than overlapping it
+- **Sub-panel heights increased** — Oscillator type-specific panels (32→48px), filter/distortion sub-panels (88→113px) to use the added room
+
 ## [0.9.1] - 2026-02-28
 
 ### Added
