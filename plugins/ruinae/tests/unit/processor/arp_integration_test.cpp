@@ -17,6 +17,7 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -665,6 +666,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
 
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(loaded.setState(stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(&loaded);
 
     // Save state from the loaded processor to verify the arp data persisted
     auto stream2 = Steinberg::owned(new Steinberg::MemoryStream());

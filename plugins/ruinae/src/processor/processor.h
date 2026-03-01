@@ -55,6 +55,7 @@
 #include "ui/mod_matrix_types.h"
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "public.sdk/source/vst/utility/rttransfer.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 
 #include <array>
@@ -65,6 +66,12 @@ namespace Ruinae {
 
 // State version for serialization (pre-release; bump when format changes)
 constexpr Steinberg::int32 kCurrentStateVersion = 1;
+
+/// Serialized preset bytes for lock-free transfer from UI thread to audio thread.
+/// Used by RTTransferT to atomically hand off an entire preset state.
+struct PresetSnapshot {
+    std::vector<char> bytes;
+};
 
 // ==============================================================================
 // Processor Class
@@ -273,6 +280,19 @@ private:
 
     /// Whether the editor is open (gating skip event sends)
     std::atomic<bool> editorOpen_{false};
+
+    // ==========================================================================
+    // Crash-Proof Preset Loading (RTTransferT)
+    // ==========================================================================
+
+    /// Lock-free triple-buffer for transferring preset bytes from UI to audio thread
+    Steinberg::Vst::RTTransferT<PresetSnapshot> stateTransfer_;
+
+    /// Flag set by applyPresetSnapshot() to trigger voice route sync in process()
+    std::atomic<bool> needVoiceRouteSync_{false};
+
+    /// Apply a serialized preset snapshot on the audio thread (RT-safe)
+    void applyPresetSnapshot(const PresetSnapshot& snapshot);
 };
 
 } // namespace Ruinae

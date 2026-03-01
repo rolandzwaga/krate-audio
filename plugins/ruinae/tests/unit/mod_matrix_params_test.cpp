@@ -12,6 +12,7 @@
 #include "parameters/mod_matrix_params.h"
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -218,6 +219,7 @@ TEST_CASE("Mod matrix full processor state round-trip with detail params", "[mod
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     auto result = proc2->setState(&stream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save from proc2 and compare stream sizes
     Steinberg::MemoryStream stream2;

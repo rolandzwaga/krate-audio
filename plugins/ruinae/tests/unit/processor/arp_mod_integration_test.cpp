@@ -21,6 +21,7 @@
 #include "processor/processor.h"
 #include "plugin_ids.h"
 #include "parameters/dropdown_mappings.h"
+#include "drain_preset_transfer.h"
 
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -1484,6 +1485,7 @@ TEST_CASE("ArpModRouting_SaveLoadRoundtrip", "[arp_mod]") {
 
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(loaded.setState(stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(&loaded);
 
     // --- Step 4: Verify routing is intact by processing blocks and checking behavior ---
     // Send a chord through the loaded processor
@@ -1601,6 +1603,7 @@ TEST_CASE("Phase9Preset_NoArpModActive", "[arp_mod]") {
 
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(loaded.setState(stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(&loaded);
 
     // --- Step 4: Verify arp works normally without arp mod ---
     events.addNoteOn(60, 0.8f);
@@ -1738,6 +1741,7 @@ TEST_CASE("AllFiveArpDestinations_SaveLoadRoundtrip", "[arp_mod]") {
 
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(loaded.setState(stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(&loaded);
 
     // --- Verify all 5 routings survived by processing and checking for audio ---
     events.addNoteOn(60, 0.8f);

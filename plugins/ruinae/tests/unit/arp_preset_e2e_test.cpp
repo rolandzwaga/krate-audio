@@ -24,6 +24,7 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -487,6 +488,7 @@ TEST_CASE("E2E: Load Basic Up 1/16 state, feed C-E-G chord, verify ascending not
     loadStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     auto loadResult = processor.setState(&loadStream);
     REQUIRE(loadResult == Steinberg::kResultTrue);
+    drainPresetTransfer(&processor);
 
     // -------------------------------------------------------------------------
     // Step 3: Set up ProcessData with transport, audio buffers, and event list
@@ -684,6 +686,7 @@ TEST_CASE("E2E: Basic Up 1/16 timing offsets are consistent with 1/16 note rate"
         static_cast<Steinberg::int32>(stateBlob.size()), nullptr);
     loadStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(processor.setState(&loadStream) == Steinberg::kResultTrue);
+    drainPresetTransfer(&processor);
 
     static constexpr size_t kBlockSize = 512;
     std::vector<float> outL(kBlockSize, 0.0f);

@@ -2,1120 +2,31 @@
 // Factory Preset Generator for Ruinae
 // ==============================================================================
 // Generates .vstpreset files matching the Processor::getState() binary format.
-// Run this tool once during development to create factory arp presets.
+// Run this tool once during development to create factory presets.
 //
 // Reference: plugins/ruinae/src/processor/processor.cpp getState() (lines 488-559)
 // Reference: tools/disrumpo_preset_generator.cpp (established pattern)
 // ==============================================================================
 
+#include "ruinae_preset_format.h"
+
 #include <iostream>
 #include <fstream>
-#include <vector>
 #include <string>
 #include <filesystem>
 #include <cstdint>
 #include <cstring>
 #include <cmath>
 #include <algorithm>
-#include <array>
+
+using namespace RuinaeFormat;
 
 // ==============================================================================
-// Binary Writer (matches IBStreamer little-endian format)
-// ==============================================================================
-
-class BinaryWriter {
-public:
-    std::vector<uint8_t> data;
-
-    void writeInt32(int32_t val) {
-        auto bytes = reinterpret_cast<const uint8_t*>(&val);
-        data.insert(data.end(), bytes, bytes + 4);
-    }
-
-    void writeFloat(float val) {
-        auto bytes = reinterpret_cast<const uint8_t*>(&val);
-        data.insert(data.end(), bytes, bytes + 4);
-    }
-
-    void writeInt8(int8_t val) {
-        data.push_back(static_cast<uint8_t>(val));
-    }
-};
-
-// ==============================================================================
-// Constants
+// Constants (preset-generator-specific)
 // ==============================================================================
 
 // kProcessorUID(0xA3B7C1D5, 0x2E4F6A8B, 0x9C0D1E2F, 0x3A4B5C6D)
 const char kClassIdAscii[33] = "A3B7C1D52E4F6A8B9C0D1E2F3A4B5C6D";
-
-static constexpr int32_t kStateVersion = 1;
-
-// Trance gate state version marker (must match kTranceGateStateVersion = 2)
-static constexpr int32_t kTranceGateStateVersion = 2;
-
-// Note value default index (1/8 note = index 10)
-static constexpr int kNoteValueDefaultIndex = 10;
-
-// Arp step flags
-static constexpr int kStepActive = 0x01;
-static constexpr int kStepTie    = 0x02;
-static constexpr int kStepSlide  = 0x04;
-static constexpr int kStepAccent = 0x08;
-
-// ==============================================================================
-// Preset State Sub-Structs (defaults match *Params struct constructors)
-// ==============================================================================
-
-struct GlobalState {
-    float masterGain = 1.0f;
-    int32_t voiceMode = 0;
-    int32_t polyphony = 8;
-    int32_t softLimit = 1; // true
-    float width = 1.0f;
-    float spread = 0.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(masterGain);
-        w.writeInt32(voiceMode);
-        w.writeInt32(polyphony);
-        w.writeInt32(softLimit);
-        w.writeFloat(width);
-        w.writeFloat(spread);
-    }
-};
-
-struct OscState {
-    // Existing fields
-    int32_t type = 0;
-    float tuneSemitones = 0.0f;
-    float fineCents = 0.0f;
-    float level = 1.0f;
-    float phase = 0.0f;
-    // PolyBLEP / Wavetable
-    int32_t waveform = 1; // Sawtooth
-    float pulseWidth = 0.5f;
-    float phaseMod = 0.0f;
-    float freqMod = 0.0f;
-    // Phase Distortion
-    int32_t pdWaveform = 0;
-    float pdDistortion = 0.0f;
-    // Sync
-    float syncRatio = 2.0f;
-    int32_t syncWaveform = 1;
-    int32_t syncMode = 0;
-    float syncAmount = 1.0f;
-    float syncPulseWidth = 0.5f;
-    // Additive
-    int32_t additivePartials = 16;
-    float additiveTilt = 0.0f;
-    float additiveInharm = 0.0f;
-    // Chaos
-    int32_t chaosAttractor = 0;
-    float chaosAmount = 0.5f;
-    float chaosCoupling = 0.0f;
-    int32_t chaosOutput = 0;
-    // Particle
-    float particleScatter = 3.0f;
-    float particleDensity = 16.0f;
-    float particleLifetime = 200.0f;
-    int32_t particleSpawnMode = 0;
-    int32_t particleEnvType = 0;
-    float particleDrift = 0.0f;
-    // Formant
-    int32_t formantVowel = 0;
-    float formantMorph = 0.0f;
-    // Spectral Freeze
-    float spectralPitch = 0.0f;
-    float spectralTilt = 0.0f;
-    float spectralFormant = 0.0f;
-    // Noise
-    int32_t noiseColor = 0;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(type);
-        w.writeFloat(tuneSemitones);
-        w.writeFloat(fineCents);
-        w.writeFloat(level);
-        w.writeFloat(phase);
-        w.writeInt32(waveform);
-        w.writeFloat(pulseWidth);
-        w.writeFloat(phaseMod);
-        w.writeFloat(freqMod);
-        w.writeInt32(pdWaveform);
-        w.writeFloat(pdDistortion);
-        w.writeFloat(syncRatio);
-        w.writeInt32(syncWaveform);
-        w.writeInt32(syncMode);
-        w.writeFloat(syncAmount);
-        w.writeFloat(syncPulseWidth);
-        w.writeInt32(additivePartials);
-        w.writeFloat(additiveTilt);
-        w.writeFloat(additiveInharm);
-        w.writeInt32(chaosAttractor);
-        w.writeFloat(chaosAmount);
-        w.writeFloat(chaosCoupling);
-        w.writeInt32(chaosOutput);
-        w.writeFloat(particleScatter);
-        w.writeFloat(particleDensity);
-        w.writeFloat(particleLifetime);
-        w.writeInt32(particleSpawnMode);
-        w.writeInt32(particleEnvType);
-        w.writeFloat(particleDrift);
-        w.writeInt32(formantVowel);
-        w.writeFloat(formantMorph);
-        w.writeFloat(spectralPitch);
-        w.writeFloat(spectralTilt);
-        w.writeFloat(spectralFormant);
-        w.writeInt32(noiseColor);
-    }
-};
-
-struct MixerState {
-    int32_t mode = 0;
-    float position = 0.5f;
-    float tilt = 0.0f;
-    float shift = 0.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(mode);
-        w.writeFloat(position);
-        w.writeFloat(tilt);
-        w.writeFloat(shift);
-    }
-};
-
-struct FilterState {
-    int32_t type = 0;
-    float cutoffHz = 20000.0f;
-    float resonance = 0.1f;
-    float envAmount = 0.0f;
-    float keyTrack = 0.0f;
-    int32_t ladderSlope = 4;
-    float ladderDrive = 0.0f;
-    float formantMorph = 0.0f;
-    float formantGender = 0.0f;
-    float combDamping = 0.0f;
-    int32_t svfSlope = 1;
-    float svfDrive = 0.0f;
-    float svfGain = 0.0f;
-    int32_t envSubType = 0;
-    float envSensitivity = 0.0f;
-    float envDepth = 1.0f;
-    float envAttack = 10.0f;
-    float envRelease = 100.0f;
-    int32_t envDirection = 0;
-    float selfOscGlide = 0.0f;
-    float selfOscExtMix = 0.5f;
-    float selfOscShape = 0.0f;
-    float selfOscRelease = 500.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(type);
-        w.writeFloat(cutoffHz);
-        w.writeFloat(resonance);
-        w.writeFloat(envAmount);
-        w.writeFloat(keyTrack);
-        w.writeInt32(ladderSlope);
-        w.writeFloat(ladderDrive);
-        w.writeFloat(formantMorph);
-        w.writeFloat(formantGender);
-        w.writeFloat(combDamping);
-        w.writeInt32(svfSlope);
-        w.writeFloat(svfDrive);
-        w.writeFloat(svfGain);
-        w.writeInt32(envSubType);
-        w.writeFloat(envSensitivity);
-        w.writeFloat(envDepth);
-        w.writeFloat(envAttack);
-        w.writeFloat(envRelease);
-        w.writeInt32(envDirection);
-        w.writeFloat(selfOscGlide);
-        w.writeFloat(selfOscExtMix);
-        w.writeFloat(selfOscShape);
-        w.writeFloat(selfOscRelease);
-    }
-};
-
-struct DistortionState {
-    int32_t type = 0;
-    float drive = 0.0f;
-    float character = 0.5f;
-    float mix = 1.0f;
-    int32_t chaosModel = 0;
-    float chaosSpeed = 0.5f;
-    float chaosCoupling = 0.0f;
-    int32_t spectralMode = 0;
-    int32_t spectralCurve = 0;
-    float spectralBits = 1.0f;
-    float grainSize = 0.47f;
-    float grainDensity = 0.43f;
-    float grainVariation = 0.0f;
-    float grainJitter = 0.0f;
-    int32_t foldType = 0;
-    int32_t tapeModel = 0;
-    float tapeSaturation = 0.5f;
-    float tapeBias = 0.5f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(type);
-        w.writeFloat(drive);
-        w.writeFloat(character);
-        w.writeFloat(mix);
-        w.writeInt32(chaosModel);
-        w.writeFloat(chaosSpeed);
-        w.writeFloat(chaosCoupling);
-        w.writeInt32(spectralMode);
-        w.writeInt32(spectralCurve);
-        w.writeFloat(spectralBits);
-        w.writeFloat(grainSize);
-        w.writeFloat(grainDensity);
-        w.writeFloat(grainVariation);
-        w.writeFloat(grainJitter);
-        w.writeInt32(foldType);
-        w.writeInt32(tapeModel);
-        w.writeFloat(tapeSaturation);
-        w.writeFloat(tapeBias);
-    }
-};
-
-struct TranceGateState {
-    int32_t enabled = 0; // false
-    int32_t numSteps = 16;
-    float rateHz = 4.0f;
-    float depth = 1.0f;
-    float attackMs = 2.0f;
-    float releaseMs = 10.0f;
-    int32_t tempoSync = 1; // true
-    int32_t noteValue = kNoteValueDefaultIndex;
-    // v2 fields
-    int32_t euclideanEnabled = 0;
-    int32_t euclideanHits = 4;
-    int32_t euclideanRotation = 0;
-    float phaseOffset = 0.0f;
-    // 32 step levels (default 1.0)
-    float stepLevels[32]{};
-
-    TranceGateState() {
-        for (auto& level : stepLevels)
-            level = 1.0f;
-    }
-
-    void serialize(BinaryWriter& w) const {
-        // v1 fields
-        w.writeInt32(enabled);
-        w.writeInt32(numSteps);
-        w.writeFloat(rateHz);
-        w.writeFloat(depth);
-        w.writeFloat(attackMs);
-        w.writeFloat(releaseMs);
-        w.writeInt32(tempoSync);
-        w.writeInt32(noteValue);
-        // v2 marker and fields
-        w.writeInt32(kTranceGateStateVersion);
-        w.writeInt32(euclideanEnabled);
-        w.writeInt32(euclideanHits);
-        w.writeInt32(euclideanRotation);
-        w.writeFloat(phaseOffset);
-        // 32 step levels
-        for (int i = 0; i < 32; ++i)
-            w.writeFloat(stepLevels[i]);
-    }
-};
-
-struct EnvelopeState {
-    float attackMs;
-    float decayMs;
-    float sustain;
-    float releaseMs;
-    float attackCurve = 0.0f;
-    float decayCurve = 0.0f;
-    float releaseCurve = 0.0f;
-    float bezierEnabled = 0.0f;
-    float bezierAttackCp1X = 0.33f;
-    float bezierAttackCp1Y = 0.33f;
-    float bezierAttackCp2X = 0.67f;
-    float bezierAttackCp2Y = 0.67f;
-    float bezierDecayCp1X = 0.33f;
-    float bezierDecayCp1Y = 0.67f;
-    float bezierDecayCp2X = 0.67f;
-    float bezierDecayCp2Y = 0.33f;
-    float bezierReleaseCp1X = 0.33f;
-    float bezierReleaseCp1Y = 0.67f;
-    float bezierReleaseCp2X = 0.67f;
-    float bezierReleaseCp2Y = 0.33f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(attackMs);
-        w.writeFloat(decayMs);
-        w.writeFloat(sustain);
-        w.writeFloat(releaseMs);
-        w.writeFloat(attackCurve);
-        w.writeFloat(decayCurve);
-        w.writeFloat(releaseCurve);
-        w.writeFloat(bezierEnabled);
-        w.writeFloat(bezierAttackCp1X);
-        w.writeFloat(bezierAttackCp1Y);
-        w.writeFloat(bezierAttackCp2X);
-        w.writeFloat(bezierAttackCp2Y);
-        w.writeFloat(bezierDecayCp1X);
-        w.writeFloat(bezierDecayCp1Y);
-        w.writeFloat(bezierDecayCp2X);
-        w.writeFloat(bezierDecayCp2Y);
-        w.writeFloat(bezierReleaseCp1X);
-        w.writeFloat(bezierReleaseCp1Y);
-        w.writeFloat(bezierReleaseCp2X);
-        w.writeFloat(bezierReleaseCp2Y);
-    }
-};
-
-// AmpEnvParams: attack=10, decay=100, sustain=0.8, release=200
-// bezier cp defaults: same as EnvelopeState except attack cp1Y/cp2Y
-struct AmpEnvState : EnvelopeState {
-    AmpEnvState() {
-        attackMs = 10.0f;
-        decayMs = 100.0f;
-        sustain = 0.8f;
-        releaseMs = 200.0f;
-        // AmpEnv bezier defaults differ: attack cp1Y=0.33, cp2Y=0.67
-        bezierAttackCp1Y = 0.33f;
-        bezierAttackCp2Y = 0.67f;
-    }
-};
-
-// FilterEnvParams: attack=10, decay=200, sustain=0.5, release=300
-struct FilterEnvState : EnvelopeState {
-    FilterEnvState() {
-        attackMs = 10.0f;
-        decayMs = 200.0f;
-        sustain = 0.5f;
-        releaseMs = 300.0f;
-    }
-};
-
-// ModEnvParams: attack=10, decay=300, sustain=0.5, release=500
-struct ModEnvState : EnvelopeState {
-    ModEnvState() {
-        attackMs = 10.0f;
-        decayMs = 300.0f;
-        sustain = 0.5f;
-        releaseMs = 500.0f;
-    }
-};
-
-struct LFOBaseState {
-    float rateHz = 1.0f;
-    int32_t shape = 0;
-    float depth = 1.0f;
-    int32_t sync = 1; // true
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(rateHz);
-        w.writeInt32(shape);
-        w.writeFloat(depth);
-        w.writeInt32(sync);
-    }
-};
-
-struct LFOExtState {
-    float phaseOffset = 0.0f;
-    int32_t retrigger = 1; // true
-    int32_t noteValue = kNoteValueDefaultIndex;
-    int32_t unipolar = 0; // false
-    float fadeInMs = 0.0f;
-    float symmetry = 0.5f;
-    int32_t quantizeSteps = 0;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(phaseOffset);
-        w.writeInt32(retrigger);
-        w.writeInt32(noteValue);
-        w.writeInt32(unipolar);
-        w.writeFloat(fadeInMs);
-        w.writeFloat(symmetry);
-        w.writeInt32(quantizeSteps);
-    }
-};
-
-struct ChaosModState {
-    float rateHz = 1.0f;
-    int32_t type = 0;
-    float depth = 0.0f;
-    int32_t sync = 0; // false
-    int32_t noteValue = kNoteValueDefaultIndex;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(rateHz);
-        w.writeInt32(type);
-        w.writeFloat(depth);
-        w.writeInt32(sync);
-        w.writeInt32(noteValue);
-    }
-};
-
-struct ModMatrixSlotState {
-    int32_t source = 0;
-    int32_t dest = 0;
-    float amount = 0.0f;
-    int32_t curve = 0;
-    float smoothMs = 0.0f;
-    int32_t scale = 2;
-    int32_t bypass = 0;
-};
-
-struct ModMatrixState {
-    std::array<ModMatrixSlotState, 8> slots;
-
-    void serialize(BinaryWriter& w) const {
-        for (const auto& slot : slots) {
-            w.writeInt32(slot.source);
-            w.writeInt32(slot.dest);
-            w.writeFloat(slot.amount);
-            w.writeInt32(slot.curve);
-            w.writeFloat(slot.smoothMs);
-            w.writeInt32(slot.scale);
-            w.writeInt32(slot.bypass);
-        }
-    }
-};
-
-struct GlobalFilterState {
-    int32_t enabled = 0; // false
-    int32_t type = 0;
-    float cutoffHz = 1000.0f;
-    float resonance = 0.707f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(enabled);
-        w.writeInt32(type);
-        w.writeFloat(cutoffHz);
-        w.writeFloat(resonance);
-    }
-};
-
-struct DelayState {
-    // Common
-    int32_t type = 0;
-    float timeMs = 500.0f;
-    float feedback = 0.4f;
-    float mix = 0.5f;
-    int32_t sync = 1; // true
-    int32_t noteValue = kNoteValueDefaultIndex;
-    // Digital
-    int32_t digitalEra = 0;
-    float digitalAge = 0.0f;
-    int32_t digitalLimiter = 0;
-    float digitalModDepth = 0.0f;
-    float digitalModRateHz = 1.0f;
-    int32_t digitalModWaveform = 0;
-    float digitalWidth = 100.0f;
-    float digitalWavefoldAmt = 0.0f;
-    int32_t digitalWavefoldModel = 0;
-    float digitalWavefoldSym = 0.0f;
-    // Tape
-    float tapeInertiaMs = 300.0f;
-    float tapeWear = 0.0f;
-    float tapeSaturation = 0.5f;
-    float tapeAge = 0.0f;
-    int32_t tapeSpliceEnabled = 0; // false
-    float tapeSpliceIntensity = 0.0f;
-    int32_t tapeHead1Enabled = 1; // true
-    float tapeHead1Level = 0.0f;
-    float tapeHead1Pan = 0.0f;
-    int32_t tapeHead2Enabled = 1; // true
-    float tapeHead2Level = 0.0f;
-    float tapeHead2Pan = 0.0f;
-    int32_t tapeHead3Enabled = 1; // true
-    float tapeHead3Level = 0.0f;
-    float tapeHead3Pan = 0.0f;
-    // Granular
-    float granularSizeMs = 100.0f;
-    float granularDensity = 10.0f;
-    float granularPitch = 0.0f;
-    float granularPitchSpray = 0.0f;
-    int32_t granularPitchQuant = 0;
-    float granularPosSpray = 0.0f;
-    float granularReverseProb = 0.0f;
-    float granularPanSpray = 0.0f;
-    float granularJitter = 0.0f;
-    float granularTexture = 0.0f;
-    float granularWidth = 1.0f;
-    int32_t granularEnvelope = 0;
-    int32_t granularFreeze = 0; // false
-    // Spectral
-    int32_t spectralFFTSize = 1;
-    float spectralSpreadMs = 0.0f;
-    int32_t spectralDirection = 0;
-    int32_t spectralCurve = 0;
-    float spectralTilt = 0.0f;
-    float spectralDiffusion = 0.0f;
-    float spectralWidth = 0.0f;
-    int32_t spectralFreeze = 0; // false
-    // PingPong
-    int32_t pingPongRatio = 0;
-    float pingPongCrossFeed = 1.0f;
-    float pingPongWidth = 100.0f;
-    float pingPongModDepth = 0.0f;
-    float pingPongModRateHz = 1.0f;
-
-    void serialize(BinaryWriter& w) const {
-        // Common
-        w.writeInt32(type);
-        w.writeFloat(timeMs);
-        w.writeFloat(feedback);
-        w.writeFloat(mix);
-        w.writeInt32(sync);
-        w.writeInt32(noteValue);
-        // Digital
-        w.writeInt32(digitalEra);
-        w.writeFloat(digitalAge);
-        w.writeInt32(digitalLimiter);
-        w.writeFloat(digitalModDepth);
-        w.writeFloat(digitalModRateHz);
-        w.writeInt32(digitalModWaveform);
-        w.writeFloat(digitalWidth);
-        w.writeFloat(digitalWavefoldAmt);
-        w.writeInt32(digitalWavefoldModel);
-        w.writeFloat(digitalWavefoldSym);
-        // Tape
-        w.writeFloat(tapeInertiaMs);
-        w.writeFloat(tapeWear);
-        w.writeFloat(tapeSaturation);
-        w.writeFloat(tapeAge);
-        w.writeInt32(tapeSpliceEnabled);
-        w.writeFloat(tapeSpliceIntensity);
-        w.writeInt32(tapeHead1Enabled);
-        w.writeFloat(tapeHead1Level);
-        w.writeFloat(tapeHead1Pan);
-        w.writeInt32(tapeHead2Enabled);
-        w.writeFloat(tapeHead2Level);
-        w.writeFloat(tapeHead2Pan);
-        w.writeInt32(tapeHead3Enabled);
-        w.writeFloat(tapeHead3Level);
-        w.writeFloat(tapeHead3Pan);
-        // Granular
-        w.writeFloat(granularSizeMs);
-        w.writeFloat(granularDensity);
-        w.writeFloat(granularPitch);
-        w.writeFloat(granularPitchSpray);
-        w.writeInt32(granularPitchQuant);
-        w.writeFloat(granularPosSpray);
-        w.writeFloat(granularReverseProb);
-        w.writeFloat(granularPanSpray);
-        w.writeFloat(granularJitter);
-        w.writeFloat(granularTexture);
-        w.writeFloat(granularWidth);
-        w.writeInt32(granularEnvelope);
-        w.writeInt32(granularFreeze);
-        // Spectral
-        w.writeInt32(spectralFFTSize);
-        w.writeFloat(spectralSpreadMs);
-        w.writeInt32(spectralDirection);
-        w.writeInt32(spectralCurve);
-        w.writeFloat(spectralTilt);
-        w.writeFloat(spectralDiffusion);
-        w.writeFloat(spectralWidth);
-        w.writeInt32(spectralFreeze);
-        // PingPong
-        w.writeInt32(pingPongRatio);
-        w.writeFloat(pingPongCrossFeed);
-        w.writeFloat(pingPongWidth);
-        w.writeFloat(pingPongModDepth);
-        w.writeFloat(pingPongModRateHz);
-    }
-};
-
-struct ReverbState {
-    float size = 0.5f;
-    float damping = 0.5f;
-    float width = 1.0f;
-    float mix = 0.5f;
-    float preDelayMs = 0.0f;
-    float diffusion = 0.7f;
-    int32_t freeze = 0; // false
-    float modRateHz = 0.5f;
-    float modDepth = 0.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(size);
-        w.writeFloat(damping);
-        w.writeFloat(width);
-        w.writeFloat(mix);
-        w.writeFloat(preDelayMs);
-        w.writeFloat(diffusion);
-        w.writeInt32(freeze);
-        w.writeFloat(modRateHz);
-        w.writeFloat(modDepth);
-    }
-};
-
-struct MonoModeState {
-    int32_t priority = 0;
-    int32_t legato = 0; // false
-    float portamentoTimeMs = 0.0f;
-    int32_t portaMode = 0;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(priority);
-        w.writeInt32(legato);
-        w.writeFloat(portamentoTimeMs);
-        w.writeInt32(portaMode);
-    }
-};
-
-struct VoiceRouteState {
-    int8_t source = 0;
-    int8_t destination = 0;
-    float amount = 0.0f;
-    int8_t curve = 0;
-    float smoothMs = 0.0f;
-    int8_t scale = 2;
-    int8_t bypass = 0;
-    int8_t active = 0;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt8(source);
-        w.writeInt8(destination);
-        w.writeFloat(amount);
-        w.writeInt8(curve);
-        w.writeFloat(smoothMs);
-        w.writeInt8(scale);
-        w.writeInt8(bypass);
-        w.writeInt8(active);
-    }
-};
-
-struct PhaserState {
-    float rateHz = 0.5f;
-    float depth = 0.5f;
-    float feedback = 0.5f;
-    float mix = 0.5f;
-    int32_t stages = 1;
-    float centerFreqHz = 1000.0f;
-    float stereoSpread = 0.0f;
-    int32_t waveform = 0;
-    int32_t sync = 0; // false
-    int32_t noteValue = kNoteValueDefaultIndex;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(rateHz);
-        w.writeFloat(depth);
-        w.writeFloat(feedback);
-        w.writeFloat(mix);
-        w.writeInt32(stages);
-        w.writeFloat(centerFreqHz);
-        w.writeFloat(stereoSpread);
-        w.writeInt32(waveform);
-        w.writeInt32(sync);
-        w.writeInt32(noteValue);
-    }
-};
-
-struct MacroState {
-    float values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    void serialize(BinaryWriter& w) const {
-        for (int i = 0; i < 4; ++i)
-            w.writeFloat(values[i]);
-    }
-};
-
-struct RunglerState {
-    float osc1FreqHz = 2.0f;
-    float osc2FreqHz = 3.0f;
-    float depth = 0.0f;
-    float filter = 0.0f;
-    int32_t bits = 8;
-    int32_t loopMode = 0; // false
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(osc1FreqHz);
-        w.writeFloat(osc2FreqHz);
-        w.writeFloat(depth);
-        w.writeFloat(filter);
-        w.writeInt32(bits);
-        w.writeInt32(loopMode);
-    }
-};
-
-struct SettingsState {
-    float pitchBendRangeSemitones = 2.0f;
-    int32_t velocityCurve = 0;
-    float tuningReferenceHz = 440.0f;
-    int32_t voiceAllocMode = 1; // Oldest
-    int32_t voiceStealMode = 0; // Hard
-    int32_t gainCompensation = 1; // true
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(pitchBendRangeSemitones);
-        w.writeInt32(velocityCurve);
-        w.writeFloat(tuningReferenceHz);
-        w.writeInt32(voiceAllocMode);
-        w.writeInt32(voiceStealMode);
-        w.writeInt32(gainCompensation);
-    }
-};
-
-struct EnvFollowerState {
-    float sensitivity = 0.5f;
-    float attackMs = 10.0f;
-    float releaseMs = 100.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(sensitivity);
-        w.writeFloat(attackMs);
-        w.writeFloat(releaseMs);
-    }
-};
-
-struct SampleHoldState {
-    float rateHz = 4.0f;
-    int32_t sync = 0; // false
-    int32_t noteValue = kNoteValueDefaultIndex;
-    float slewMs = 0.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(rateHz);
-        w.writeInt32(sync);
-        w.writeInt32(noteValue);
-        w.writeFloat(slewMs);
-    }
-};
-
-struct RandomState {
-    float rateHz = 4.0f;
-    int32_t sync = 0; // false
-    int32_t noteValue = kNoteValueDefaultIndex;
-    float smoothness = 0.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(rateHz);
-        w.writeInt32(sync);
-        w.writeInt32(noteValue);
-        w.writeFloat(smoothness);
-    }
-};
-
-struct PitchFollowerState {
-    float minHz = 80.0f;
-    float maxHz = 2000.0f;
-    float confidence = 0.5f;
-    float speedMs = 50.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(minHz);
-        w.writeFloat(maxHz);
-        w.writeFloat(confidence);
-        w.writeFloat(speedMs);
-    }
-};
-
-struct TransientState {
-    float sensitivity = 0.5f;
-    float attackMs = 2.0f;
-    float decayMs = 50.0f;
-
-    void serialize(BinaryWriter& w) const {
-        w.writeFloat(sensitivity);
-        w.writeFloat(attackMs);
-        w.writeFloat(decayMs);
-    }
-};
-
-struct HarmonizerState {
-    int32_t harmonyMode = 0;
-    int32_t key = 0;
-    int32_t scale = 0;
-    int32_t pitchShiftMode = 0;
-    int32_t formantPreserve = 0; // false
-    int32_t numVoices = 4;
-    float dryLevelDb = 0.0f;
-    float wetLevelDb = -6.0f;
-    // Per-voice (4 voices)
-    int32_t voiceInterval[4] = {0, 0, 0, 0};
-    float voiceLevelDb[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float voicePan[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float voiceDelayMs[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    float voiceDetuneCents[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    void serialize(BinaryWriter& w) const {
-        w.writeInt32(harmonyMode);
-        w.writeInt32(key);
-        w.writeInt32(scale);
-        w.writeInt32(pitchShiftMode);
-        w.writeInt32(formantPreserve);
-        w.writeInt32(numVoices);
-        w.writeFloat(dryLevelDb);
-        w.writeFloat(wetLevelDb);
-        for (int v = 0; v < 4; ++v) {
-            w.writeInt32(voiceInterval[v]);
-            w.writeFloat(voiceLevelDb[v]);
-            w.writeFloat(voicePan[v]);
-            w.writeFloat(voiceDelayMs[v]);
-            w.writeFloat(voiceDetuneCents[v]);
-        }
-    }
-};
-
-struct ArpState {
-    // Base params (11 values)
-    int32_t enabled = 0; // false
-    int32_t mode = 0; // Up
-    int32_t octaveRange = 1;
-    int32_t octaveMode = 0; // Sequential
-    int32_t tempoSync = 1; // true
-    int32_t noteValue = kNoteValueDefaultIndex; // 1/8 note
-    float freeRate = 4.0f;
-    float gateLength = 80.0f;
-    float swing = 0.0f;
-    int32_t latchMode = 0; // Off
-    int32_t retrigger = 0; // Off
-
-    // Velocity lane
-    int32_t velocityLaneLength = 16;
-    float velocityLaneSteps[32]{};
-
-    // Gate lane
-    int32_t gateLaneLength = 16;
-    float gateLaneSteps[32]{};
-
-    // Pitch lane
-    int32_t pitchLaneLength = 16;
-    int32_t pitchLaneSteps[32]{}; // all 0
-
-    // Modifier lane
-    int32_t modifierLaneLength = 16;
-    int32_t modifierLaneSteps[32]{};
-    int32_t accentVelocity = 30;
-    float slideTime = 60.0f;
-
-    // Ratchet lane
-    int32_t ratchetLaneLength = 16;
-    int32_t ratchetLaneSteps[32]{};
-
-    // Euclidean
-    int32_t euclideanEnabled = 0;
-    int32_t euclideanHits = 4;
-    int32_t euclideanSteps = 8;
-    int32_t euclideanRotation = 0;
-
-    // Condition lane
-    int32_t conditionLaneLength = 16;
-    int32_t conditionLaneSteps[32]{}; // all 0 = Always
-    int32_t fillToggle = 0;
-
-    // Spice/Humanize
-    float spice = 0.0f;
-    float humanize = 0.0f;
-
-    // Ratchet swing
-    float ratchetSwing = 50.0f;
-
-    ArpState() {
-        // Velocity defaults to 1.0
-        for (auto& step : velocityLaneSteps)
-            step = 1.0f;
-        // Gate defaults to 1.0
-        for (auto& step : gateLaneSteps)
-            step = 1.0f;
-        // Pitch defaults to 0 (via zero-init)
-        // Modifier defaults to kStepActive (0x01)
-        for (auto& step : modifierLaneSteps)
-            step = kStepActive;
-        // Ratchet defaults to 1
-        for (auto& step : ratchetLaneSteps)
-            step = 1;
-        // Condition defaults to 0 (Always) via zero-init
-    }
-
-    void serialize(BinaryWriter& w) const {
-        // 11 base params
-        w.writeInt32(enabled);
-        w.writeInt32(mode);
-        w.writeInt32(octaveRange);
-        w.writeInt32(octaveMode);
-        w.writeInt32(tempoSync);
-        w.writeInt32(noteValue);
-        w.writeFloat(freeRate);
-        w.writeFloat(gateLength);
-        w.writeFloat(swing);
-        w.writeInt32(latchMode);
-        w.writeInt32(retrigger);
-
-        // Velocity lane
-        w.writeInt32(velocityLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeFloat(velocityLaneSteps[i]);
-
-        // Gate lane
-        w.writeInt32(gateLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeFloat(gateLaneSteps[i]);
-
-        // Pitch lane
-        w.writeInt32(pitchLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeInt32(pitchLaneSteps[i]);
-
-        // Modifier lane
-        w.writeInt32(modifierLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeInt32(modifierLaneSteps[i]);
-        w.writeInt32(accentVelocity);
-        w.writeFloat(slideTime);
-
-        // Ratchet lane
-        w.writeInt32(ratchetLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeInt32(ratchetLaneSteps[i]);
-
-        // Euclidean
-        w.writeInt32(euclideanEnabled);
-        w.writeInt32(euclideanHits);
-        w.writeInt32(euclideanSteps);
-        w.writeInt32(euclideanRotation);
-
-        // Condition lane
-        w.writeInt32(conditionLaneLength);
-        for (int i = 0; i < 32; ++i)
-            w.writeInt32(conditionLaneSteps[i]);
-        w.writeInt32(fillToggle);
-
-        // Spice/Humanize
-        w.writeFloat(spice);
-        w.writeFloat(humanize);
-
-        // Ratchet swing
-        w.writeFloat(ratchetSwing);
-    }
-};
-
-// ==============================================================================
-// Complete Ruinae Preset State
-// ==============================================================================
-
-struct RuinaePresetState {
-    GlobalState global;
-    OscState oscA;
-    OscState oscB;
-    MixerState mixer;
-    FilterState filter;
-    DistortionState distortion;
-    TranceGateState tranceGate;
-    AmpEnvState ampEnv;
-    FilterEnvState filterEnv;
-    ModEnvState modEnv;
-    LFOBaseState lfo1;
-    LFOBaseState lfo2;
-    ChaosModState chaosMod;
-    ModMatrixState modMatrix;
-    GlobalFilterState globalFilter;
-    DelayState delay;
-    ReverbState reverb;
-    MonoModeState monoMode;
-
-    // Voice routes (16 slots, inline in processor.cpp)
-    std::array<VoiceRouteState, 16> voiceRoutes;
-
-    // FX enable flags (inline in processor.cpp)
-    int8_t delayEnabled = 0; // false
-    int8_t reverbEnabled = 0; // false
-
-    // Phaser + enable
-    PhaserState phaser;
-    int8_t phaserEnabled = 0; // false
-
-    // Extended LFO params
-    LFOExtState lfo1Ext;
-    LFOExtState lfo2Ext;
-
-    // Macro and Rungler
-    MacroState macros;
-    RunglerState rungler;
-
-    // Settings
-    SettingsState settings;
-
-    // Mod source params
-    EnvFollowerState envFollower;
-    SampleHoldState sampleHold;
-    RandomState random;
-    PitchFollowerState pitchFollower;
-    TransientState transient;
-
-    // Harmonizer + enable
-    HarmonizerState harmonizer;
-    int8_t harmonizerEnabled = 0; // false
-
-    // Arpeggiator
-    ArpState arp;
-
-    std::vector<uint8_t> serialize() const {
-        BinaryWriter w;
-
-        // 1. State version
-        w.writeInt32(kStateVersion);
-
-        // 2-19. Synth parameter packs in order
-        global.serialize(w);
-        oscA.serialize(w);
-        oscB.serialize(w);
-        mixer.serialize(w);
-        filter.serialize(w);
-        distortion.serialize(w);
-        tranceGate.serialize(w);
-        ampEnv.serialize(w);
-        filterEnv.serialize(w);
-        modEnv.serialize(w);
-        lfo1.serialize(w);
-        lfo2.serialize(w);
-        chaosMod.serialize(w);
-        modMatrix.serialize(w);
-        globalFilter.serialize(w);
-        delay.serialize(w);
-        reverb.serialize(w);
-        monoMode.serialize(w);
-
-        // 20. Voice routes (16 x {i8, i8, f32, i8, f32, i8, i8, i8})
-        for (const auto& route : voiceRoutes)
-            route.serialize(w);
-
-        // 21. FX enable flags (2 x i8)
-        w.writeInt8(delayEnabled);
-        w.writeInt8(reverbEnabled);
-
-        // 22. Phaser params + enable
-        phaser.serialize(w);
-        w.writeInt8(phaserEnabled);
-
-        // 23-24. Extended LFO params
-        lfo1Ext.serialize(w);
-        lfo2Ext.serialize(w);
-
-        // 25-26. Macro and Rungler
-        macros.serialize(w);
-        rungler.serialize(w);
-
-        // 27. Settings
-        settings.serialize(w);
-
-        // 28-32. Mod source params
-        envFollower.serialize(w);
-        sampleHold.serialize(w);
-        random.serialize(w);
-        pitchFollower.serialize(w);
-        transient.serialize(w);
-
-        // 33. Harmonizer + enable
-        harmonizer.serialize(w);
-        w.writeInt8(harmonizerEnabled);
-
-        // 34. Arpeggiator
-        arp.serialize(w);
-
-        return w.data;
-    }
-};
 
 // ==============================================================================
 // VST3 Preset File Writer
@@ -1721,6 +632,1103 @@ std::vector<PresetDef> createAllPresets() {
         presets.push_back(std::move(p));
     }
 
+    // ==================== PAD Category (5 presets) ====================
+
+    // "Warm Analog" - Classic warm detuned pad
+    {
+        PresetDef p;
+        p.name = "Warm Analog";
+        p.category = "Pads";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.7f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 1; // Saw
+        s.oscB.fineCents = 8.0f; // Detune for warmth
+        s.oscB.level = 0.6f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 2500.0f;
+        s.filter.resonance = 0.3f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 300.0f;
+        s.ampEnv.decayMs = 800.0f;
+        s.ampEnv.sustain = 0.75f;
+        s.ampEnv.releaseMs = 1500.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.7f;
+        s.reverb.mix = 0.35f;
+        s.reverb.damping = 0.4f;
+        s.reverb.diffusion = 0.8f;
+        s.global.width = 1.4f;
+        s.global.spread = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Glass Shimmer" - Bright, airy additive pad
+    {
+        PresetDef p;
+        p.name = "Glass Shimmer";
+        p.category = "Pads";
+        auto& s = p.state;
+        s.oscA.type = 4; // Additive
+        s.oscA.level = 0.7f;
+        s.oscA.additivePartials = 32;
+        s.oscA.additiveTilt = 3.0f; // Slight brightness
+        s.oscB.type = 0; // PolyBLEP
+        s.oscB.waveform = 4; // Triangle
+        s.oscB.level = 0.4f;
+        s.oscB.tuneSemitones = 12.0f; // Octave up
+        s.mixer.position = 0.4f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 8000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 500.0f;
+        s.ampEnv.decayMs = 1000.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 2000.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.85f;
+        s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.3f;
+        s.reverb.modRateHz = 0.3f;
+        s.reverb.modDepth = 0.2f;
+        s.global.width = 1.6f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Spectral Drift" - Evolving spectral pad with LFO modulation
+    {
+        PresetDef p;
+        p.name = "Spectral Drift";
+        p.category = "Pads";
+        auto& s = p.state;
+        s.oscA.type = 8; // Spectral Freeze
+        s.oscA.level = 0.8f;
+        s.oscA.spectralTilt = 2.0f;
+        s.oscB.type = 0; // PolyBLEP
+        s.oscB.waveform = 0; // Sine
+        s.oscB.level = 0.3f;
+        s.oscB.tuneSemitones = 12.0f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.5f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 6000.0f;
+        s.filter.resonance = 0.2f;
+        s.ampEnv.attackMs = 600.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.8f;
+        s.ampEnv.releaseMs = 2500.0f;
+        // LFO1 slow morph
+        s.lfo1.rateHz = 0.15f;
+        s.lfo1.shape = 0; // Sine
+        s.lfo1.depth = 0.6f;
+        s.lfo1.sync = 0;
+        // Mod matrix: LFO1 -> All Voice Morph Pos
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
+        s.modMatrix.slots[0].amount = 0.5f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.2f;
+        s.delay.feedback = 0.3f;
+        s.delay.timeMs = 500.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.8f;
+        s.reverb.mix = 0.4f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Choir" - Voice-like formant pad
+    {
+        PresetDef p;
+        p.name = "Choir";
+        p.category = "Pads";
+        auto& s = p.state;
+        s.oscA.type = 7; // Formant
+        s.oscA.level = 0.8f;
+        s.oscA.formantVowel = 0; // A
+        s.oscA.formantMorph = 0.0f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 1; // Pink
+        s.oscB.level = 0.08f; // Subtle breath
+        s.mixer.position = 0.15f; // Mostly formant
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 5000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 400.0f;
+        s.ampEnv.decayMs = 600.0f;
+        s.ampEnv.sustain = 0.8f;
+        s.ampEnv.releaseMs = 1200.0f;
+        // LFO1 slowly morphs between vowels
+        s.lfo1.rateHz = 0.08f;
+        s.lfo1.shape = 1; // Triangle
+        s.lfo1.depth = 0.8f;
+        s.lfo1.sync = 0;
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
+        s.modMatrix.slots[0].amount = 0.4f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.75f;
+        s.reverb.mix = 0.3f;
+        s.reverb.damping = 0.5f;
+        s.global.polyphony = 8;
+        s.global.spread = 0.4f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Dark Matter" - Dark, evolving chaos pad
+    {
+        PresetDef p;
+        p.name = "Dark Matter";
+        p.category = "Pads";
+        auto& s = p.state;
+        s.oscA.type = 5; // Chaos
+        s.oscA.chaosAttractor = 0; // Lorenz
+        s.oscA.chaosAmount = 0.6f;
+        s.oscA.chaosCoupling = 0.3f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 2; // Brown
+        s.oscB.level = 0.15f;
+        s.mixer.position = 0.2f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 800.0f;
+        s.filter.resonance = 0.4f;
+        s.filter.ladderSlope = 4;
+        s.distortion.type = 5; // Tape Saturator
+        s.distortion.drive = 0.3f;
+        s.distortion.tapeSaturation = 0.4f;
+        s.ampEnv.attackMs = 800.0f;
+        s.ampEnv.decayMs = 1000.0f;
+        s.ampEnv.sustain = 0.6f;
+        s.ampEnv.releaseMs = 2000.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.9f;
+        s.reverb.mix = 0.45f;
+        s.reverb.damping = 0.6f;
+        s.reverb.diffusion = 0.85f;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== LEAD Category (5 presets) ====================
+
+    // "Supersaw" - Classic detuned supersaw lead
+    {
+        PresetDef p;
+        p.name = "Supersaw";
+        p.category = "Leads";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 1; // Saw
+        s.oscB.fineCents = 12.0f; // Thicker detune
+        s.oscB.level = 0.7f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 6000.0f;
+        s.filter.resonance = 0.2f;
+        s.filter.ladderSlope = 2; // 12dB for less aggressive roll-off
+        s.ampEnv.attackMs = 5.0f;
+        s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 300.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 30.0f;
+        s.global.width = 1.5f;
+        s.global.spread = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Sync Screamer" - Aggressive hard sync lead
+    {
+        PresetDef p;
+        p.name = "Sync Screamer";
+        p.category = "Leads";
+        auto& s = p.state;
+        s.oscA.type = 3; // Sync
+        s.oscA.syncRatio = 3.0f;
+        s.oscA.syncWaveform = 1; // Saw slave
+        s.oscA.syncMode = 0; // Hard sync
+        s.oscA.syncAmount = 1.0f;
+        s.oscA.level = 0.9f;
+        s.oscB.level = 0.0f; // Off
+        s.mixer.position = 0.0f; // Osc A only
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 4000.0f;
+        s.filter.resonance = 0.25f;
+        s.filter.envAmount = 24.0f; // Strong filter env
+        s.ampEnv.attackMs = 2.0f;
+        s.ampEnv.decayMs = 250.0f;
+        s.ampEnv.sustain = 0.6f;
+        s.ampEnv.releaseMs = 200.0f;
+        s.filterEnv.attackMs = 1.0f;
+        s.filterEnv.decayMs = 300.0f;
+        s.filterEnv.sustain = 0.2f;
+        s.filterEnv.releaseMs = 200.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 20.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Phase Lead" - Metallic phase distortion lead
+    {
+        PresetDef p;
+        p.name = "Phase Lead";
+        p.category = "Leads";
+        auto& s = p.state;
+        s.oscA.type = 2; // Phase Distortion
+        s.oscA.pdWaveform = 5; // ResSaw
+        s.oscA.pdDistortion = 0.6f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 2; // Phase Distortion
+        s.oscB.pdWaveform = 6; // ResTri
+        s.oscB.pdDistortion = 0.4f;
+        s.oscB.level = 0.5f;
+        s.oscB.tuneSemitones = 7.0f; // Fifth up
+        s.mixer.position = 0.4f;
+        s.filter.type = 2; // SVF BP
+        s.filter.cutoffHz = 3000.0f;
+        s.filter.resonance = 0.5f;
+        s.ampEnv.attackMs = 3.0f;
+        s.ampEnv.decayMs = 350.0f;
+        s.ampEnv.sustain = 0.65f;
+        s.ampEnv.releaseMs = 250.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.portamentoTimeMs = 15.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Harmonic Bell" - Bell-like additive lead
+    {
+        PresetDef p;
+        p.name = "Harmonic Bell";
+        p.category = "Leads";
+        auto& s = p.state;
+        s.oscA.type = 4; // Additive
+        s.oscA.additivePartials = 64;
+        s.oscA.additiveInharm = 0.4f; // Inharmonicity for bell character
+        s.oscA.additiveTilt = -3.0f; // Roll off highs slightly
+        s.oscA.level = 0.7f;
+        s.oscB.type = 0; // PolyBLEP
+        s.oscB.waveform = 0; // Sine
+        s.oscB.level = 0.4f;
+        s.oscB.tuneSemitones = 12.0f; // Octave up
+        s.mixer.position = 0.35f;
+        s.filter.type = 1; // SVF HP
+        s.filter.cutoffHz = 200.0f; // Remove rumble
+        s.filter.resonance = 0.1f;
+        s.ampEnv.attackMs = 1.0f;
+        s.ampEnv.decayMs = 2000.0f;
+        s.ampEnv.sustain = 0.15f; // Bell-like decay
+        s.ampEnv.releaseMs = 1500.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f;
+        s.reverb.mix = 0.35f;
+        s.reverb.damping = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Mono Scream" - Aggressive mono lead with wavefolder
+    {
+        PresetDef p;
+        p.name = "Mono Scream";
+        p.category = "Leads";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.9f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = 7.0f; // Fifth up
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 2000.0f;
+        s.filter.resonance = 0.6f;
+        s.filter.envAmount = 36.0f; // Big filter sweep
+        s.filter.ladderSlope = 4;
+        s.filter.ladderDrive = 6.0f;
+        s.distortion.type = 4; // Wavefolder
+        s.distortion.drive = 0.4f;
+        s.distortion.foldType = 1; // Sine fold
+        s.ampEnv.attackMs = 1.0f;
+        s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 150.0f;
+        s.filterEnv.attackMs = 1.0f;
+        s.filterEnv.decayMs = 300.0f;
+        s.filterEnv.sustain = 0.15f;
+        s.filterEnv.releaseMs = 200.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 40.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== BASS Category (5 presets) ====================
+
+    // "Sub Bass" - Deep, clean sub bass
+    {
+        PresetDef p;
+        p.name = "Sub Bass";
+        p.category = "Basses";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 0; // Sine
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.9f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 4; // Triangle
+        s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.2f; // Subtle harmonic content
+        s.mixer.position = 0.15f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 500.0f;
+        s.filter.resonance = 0.1f;
+        s.ampEnv.attackMs = 2.0f;
+        s.ampEnv.decayMs = 150.0f;
+        s.ampEnv.sustain = 0.85f;
+        s.ampEnv.releaseMs = 100.0f;
+        s.global.voiceMode = 1; // Mono
+        presets.push_back(std::move(p));
+    }
+
+    // "Reese" - Classic reese bass with phaser
+    {
+        PresetDef p;
+        p.name = "Reese";
+        p.category = "Basses";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 1; // Saw
+        s.oscB.tuneSemitones = -12.0f;
+        s.oscB.fineCents = 5.0f; // Slight detune
+        s.oscB.level = 0.75f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 3000.0f;
+        s.filter.resonance = 0.2f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 5.0f;
+        s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.8f;
+        s.ampEnv.releaseMs = 200.0f;
+        s.phaserEnabled = 1;
+        s.phaser.rateHz = 0.3f;
+        s.phaser.depth = 0.4f;
+        s.phaser.feedback = 0.5f;
+        s.phaser.mix = 0.35f;
+        s.phaser.stages = 2; // 6-stage phaser
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 20.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Acid Bass" - 303-style acid bass
+    {
+        PresetDef p;
+        p.name = "Acid Bass";
+        p.category = "Basses";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.9f;
+        s.oscB.level = 0.0f; // Single osc
+        s.mixer.position = 0.0f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 600.0f;
+        s.filter.resonance = 0.75f; // High resonance for squelch
+        s.filter.envAmount = 36.0f; // Strong filter env
+        s.filter.ladderSlope = 4;
+        s.filter.ladderDrive = 3.0f;
+        s.ampEnv.attackMs = 1.0f;
+        s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.4f;
+        s.ampEnv.releaseMs = 100.0f;
+        s.filterEnv.attackMs = 1.0f;
+        s.filterEnv.decayMs = 250.0f;
+        s.filterEnv.sustain = 0.05f;
+        s.filterEnv.releaseMs = 150.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        s.monoMode.portamentoTimeMs = 30.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "FM Bass" - Punchy digital FM-style bass
+    {
+        PresetDef p;
+        p.name = "FM Bass";
+        p.category = "Basses";
+        auto& s = p.state;
+        s.oscA.type = 2; // Phase Distortion
+        s.oscA.pdWaveform = 3; // DoubleSine
+        s.oscA.pdDistortion = 0.5f;
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; // PolyBLEP
+        s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.4f;
+        s.mixer.position = 0.3f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 4000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 1.0f;
+        s.ampEnv.decayMs = 300.0f;
+        s.ampEnv.sustain = 0.5f;
+        s.ampEnv.releaseMs = 100.0f;
+        s.global.voiceMode = 1; // Mono
+        presets.push_back(std::move(p));
+    }
+
+    // "Wobble" - Dubstep-style wobble bass with LFO on filter
+    {
+        PresetDef p;
+        p.name = "Wobble";
+        p.category = "Basses";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.6f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 2000.0f;
+        s.filter.resonance = 0.5f;
+        s.filter.ladderSlope = 4;
+        s.filter.ladderDrive = 4.0f;
+        s.ampEnv.attackMs = 2.0f;
+        s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.8f;
+        s.ampEnv.releaseMs = 150.0f;
+        // LFO1 modulating filter cutoff
+        s.lfo1.rateHz = 4.0f;
+        s.lfo1.shape = 0; // Sine
+        s.lfo1.depth = 1.0f;
+        s.lfo1.sync = 1; // Tempo sync
+        s.lfo1Ext.noteValue = 13; // 1/2 note for half-bar wobble
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 4;   // All Voice Filter Cutoff
+        s.modMatrix.slots[0].amount = 0.7f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== TEXTURE Category (5 presets) ====================
+
+    // "Particle Cloud" - Granular particle texture
+    {
+        PresetDef p;
+        p.name = "Particle Cloud";
+        p.category = "Textures";
+        auto& s = p.state;
+        s.oscA.type = 6; // Particle
+        s.oscA.particleScatter = 7.0f; // Wide scatter
+        s.oscA.particleDensity = 32.0f;
+        s.oscA.particleLifetime = 800.0f;
+        s.oscA.particleSpawnMode = 1; // Random
+        s.oscA.particleEnvType = 0; // Hann
+        s.oscA.particleDrift = 0.3f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 1; // Pink
+        s.oscB.level = 0.1f;
+        s.mixer.position = 0.15f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 4000.0f;
+        s.filter.resonance = 0.2f;
+        s.ampEnv.attackMs = 1000.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.85f;
+        s.ampEnv.releaseMs = 3000.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.9f;
+        s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.35f;
+        s.reverb.diffusion = 0.9f;
+        s.global.width = 1.8f;
+        s.global.spread = 0.5f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Chaos Wind" - Evolving chaotic texture
+    {
+        PresetDef p;
+        p.name = "Chaos Wind";
+        p.category = "Textures";
+        auto& s = p.state;
+        s.oscA.type = 5; // Chaos
+        s.oscA.chaosAttractor = 1; // Rossler
+        s.oscA.chaosAmount = 0.7f;
+        s.oscA.chaosCoupling = 0.4f;
+        s.oscA.chaosOutput = 1; // Y axis
+        s.oscA.level = 0.6f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 2; // Brown
+        s.oscB.level = 0.2f;
+        s.mixer.position = 0.25f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 3000.0f;
+        s.filter.resonance = 0.3f;
+        // LFO1 slowly sweeps filter
+        s.lfo1.rateHz = 0.1f;
+        s.lfo1.shape = 5; // Smooth Random
+        s.lfo1.depth = 0.7f;
+        s.lfo1.sync = 0;
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 4;   // All Voice Filter Cutoff
+        s.modMatrix.slots[0].amount = 0.5f;
+        s.ampEnv.attackMs = 800.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.9f;
+        s.ampEnv.releaseMs = 2500.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.25f;
+        s.delay.feedback = 0.4f;
+        s.delay.timeMs = 750.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.85f;
+        s.reverb.mix = 0.4f;
+        s.reverb.damping = 0.5f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Spectral Ghost" - Eerie spectral texture
+    {
+        PresetDef p;
+        p.name = "Spectral Ghost";
+        p.category = "Textures";
+        auto& s = p.state;
+        s.oscA.type = 8; // Spectral Freeze
+        s.oscA.spectralPitch = 5.0f; // Shifted up
+        s.oscA.spectralTilt = -4.0f; // Darker
+        s.oscA.level = 0.7f;
+        s.oscB.type = 4; // Additive
+        s.oscB.additivePartials = 48;
+        s.oscB.additiveTilt = -6.0f; // Very dark
+        s.oscB.additiveInharm = 0.3f;
+        s.oscB.level = 0.4f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.5f;
+        s.filter.type = 1; // SVF HP
+        s.filter.cutoffHz = 300.0f;
+        s.filter.resonance = 0.2f;
+        s.ampEnv.attackMs = 1500.0f;
+        s.ampEnv.decayMs = 800.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 3000.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.3f;
+        s.delay.feedback = 0.5f;
+        s.delay.timeMs = 600.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.95f;
+        s.reverb.mix = 0.5f;
+        s.reverb.damping = 0.2f;
+        s.reverb.modRateHz = 0.2f;
+        s.reverb.modDepth = 0.15f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Granular Fog" - Dense granular fog
+    {
+        PresetDef p;
+        p.name = "Granular Fog";
+        p.category = "Textures";
+        auto& s = p.state;
+        s.oscA.type = 6; // Particle
+        s.oscA.particleScatter = 5.0f;
+        s.oscA.particleDensity = 48.0f;
+        s.oscA.particleLifetime = 1500.0f; // Very long grains
+        s.oscA.particleSpawnMode = 1; // Random
+        s.oscA.particleEnvType = 2; // Blackman
+        s.oscA.particleDrift = 0.5f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 6; // Particle (different settings)
+        s.oscB.particleScatter = 10.0f; // Wider scatter
+        s.oscB.particleDensity = 16.0f;
+        s.oscB.particleLifetime = 500.0f;
+        s.oscB.particleSpawnMode = 2; // Clustered
+        s.oscB.particleEnvType = 0; // Hann
+        s.oscB.particleDrift = 0.7f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 5000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 1200.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.9f;
+        s.ampEnv.releaseMs = 3500.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.95f;
+        s.reverb.mix = 0.55f;
+        s.reverb.damping = 0.3f;
+        s.reverb.diffusion = 0.9f;
+        s.global.width = 2.0f;
+        s.global.spread = 0.6f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Metal Resonance" - Metallic resonant texture
+    {
+        PresetDef p;
+        p.name = "Metal Resonance";
+        p.category = "Textures";
+        auto& s = p.state;
+        s.oscA.type = 4; // Additive
+        s.oscA.additivePartials = 128;
+        s.oscA.additiveInharm = 0.6f; // High inharmonicity
+        s.oscA.additiveTilt = -2.0f;
+        s.oscA.level = 0.6f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 0; // White
+        s.oscB.level = 0.1f; // Subtle excitation
+        s.mixer.position = 0.15f;
+        s.filter.type = 6; // Comb filter
+        s.filter.cutoffHz = 800.0f;
+        s.filter.resonance = 0.7f;
+        s.filter.combDamping = 0.3f;
+        s.ampEnv.attackMs = 50.0f;
+        s.ampEnv.decayMs = 3000.0f;
+        s.ampEnv.sustain = 0.3f;
+        s.ampEnv.releaseMs = 2000.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.2f;
+        s.delay.feedback = 0.35f;
+        s.delay.timeMs = 300.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f;
+        s.reverb.mix = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== RHYTHMIC Category (5 presets) ====================
+
+    // "Trance Gate Pad" - Warm pad with trance gate rhythm
+    {
+        PresetDef p;
+        p.name = "Trance Gate Pad";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.7f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 1; // Saw
+        s.oscB.fineCents = 7.0f;
+        s.oscB.level = 0.6f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 3500.0f;
+        s.filter.resonance = 0.25f;
+        s.ampEnv.attackMs = 100.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.8f;
+        s.ampEnv.releaseMs = 600.0f;
+        // Trance gate: 16-step pattern
+        s.tranceGate.enabled = 1;
+        s.tranceGate.numSteps = 16;
+        s.tranceGate.tempoSync = 1;
+        s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 0.9f;
+        s.tranceGate.attackMs = 5.0f;
+        s.tranceGate.releaseMs = 30.0f;
+        // Classic trance gate pattern
+        float tgSteps[32]{};
+        tgSteps[0] = 1.0f; tgSteps[1] = 1.0f; tgSteps[2] = 0.0f; tgSteps[3] = 1.0f;
+        tgSteps[4] = 1.0f; tgSteps[5] = 0.0f; tgSteps[6] = 1.0f; tgSteps[7] = 0.0f;
+        tgSteps[8] = 1.0f; tgSteps[9] = 1.0f; tgSteps[10] = 0.0f; tgSteps[11] = 1.0f;
+        tgSteps[12] = 1.0f; tgSteps[13] = 0.0f; tgSteps[14] = 0.0f; tgSteps[15] = 1.0f;
+        for (int i = 0; i < 32; ++i) s.tranceGate.stepLevels[i] = tgSteps[i];
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.5f;
+        s.reverb.mix = 0.25f;
+        s.global.width = 1.4f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Pumping Lead" - Lead with sidechain-style pumping gate
+    {
+        PresetDef p;
+        p.name = "Pumping Lead";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.85f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 1; // Saw
+        s.oscB.fineCents = 10.0f;
+        s.oscB.level = 0.65f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 7000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 3.0f;
+        s.ampEnv.decayMs = 300.0f;
+        s.ampEnv.sustain = 0.75f;
+        s.ampEnv.releaseMs = 200.0f;
+        // Trance gate: 4-step pump pattern (sidechain simulation)
+        s.tranceGate.enabled = 1;
+        s.tranceGate.numSteps = 4;
+        s.tranceGate.tempoSync = 1;
+        s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 1.0f;
+        s.tranceGate.attackMs = 15.0f;
+        s.tranceGate.releaseMs = 80.0f;
+        s.tranceGate.stepLevels[0] = 0.0f; // Duck
+        s.tranceGate.stepLevels[1] = 0.7f;
+        s.tranceGate.stepLevels[2] = 1.0f;
+        s.tranceGate.stepLevels[3] = 0.9f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Stutter Bass" - Bass with fast gate stutter
+    {
+        PresetDef p;
+        p.name = "Stutter Bass";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.tuneSemitones = -12.0f;
+        s.oscA.level = 0.85f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = -12.0f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 3000.0f;
+        s.filter.resonance = 0.3f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 2.0f;
+        s.ampEnv.decayMs = 150.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 80.0f;
+        // Trance gate: 8-step stutter pattern
+        s.tranceGate.enabled = 1;
+        s.tranceGate.numSteps = 8;
+        s.tranceGate.tempoSync = 1;
+        s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 1.0f;
+        s.tranceGate.attackMs = 1.0f;
+        s.tranceGate.releaseMs = 5.0f;
+        s.tranceGate.stepLevels[0] = 1.0f; s.tranceGate.stepLevels[1] = 0.0f;
+        s.tranceGate.stepLevels[2] = 1.0f; s.tranceGate.stepLevels[3] = 0.0f;
+        s.tranceGate.stepLevels[4] = 1.0f; s.tranceGate.stepLevels[5] = 1.0f;
+        s.tranceGate.stepLevels[6] = 0.0f; s.tranceGate.stepLevels[7] = 1.0f;
+        s.global.voiceMode = 1; // Mono
+        presets.push_back(std::move(p));
+    }
+
+    // "Gate Strings" - String-like pad with rhythmic gate and delay
+    {
+        PresetDef p;
+        p.name = "Gate Strings";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.65f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 4; // Triangle
+        s.oscB.fineCents = 6.0f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.45f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 4000.0f;
+        s.filter.resonance = 0.15f;
+        s.ampEnv.attackMs = 200.0f;
+        s.ampEnv.decayMs = 600.0f;
+        s.ampEnv.sustain = 0.75f;
+        s.ampEnv.releaseMs = 800.0f;
+        // Trance gate: 8-step alternating levels
+        s.tranceGate.enabled = 1;
+        s.tranceGate.numSteps = 8;
+        s.tranceGate.tempoSync = 1;
+        s.tranceGate.noteValue = kNote1_8;
+        s.tranceGate.depth = 0.8f;
+        s.tranceGate.attackMs = 10.0f;
+        s.tranceGate.releaseMs = 50.0f;
+        s.tranceGate.stepLevels[0] = 1.0f; s.tranceGate.stepLevels[1] = 0.5f;
+        s.tranceGate.stepLevels[2] = 0.8f; s.tranceGate.stepLevels[3] = 0.3f;
+        s.tranceGate.stepLevels[4] = 1.0f; s.tranceGate.stepLevels[5] = 0.4f;
+        s.tranceGate.stepLevels[6] = 0.9f; s.tranceGate.stepLevels[7] = 0.2f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.25f;
+        s.delay.feedback = 0.3f;
+        s.delay.sync = 1;
+        s.delay.noteValue = kNote1_8;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.5f;
+        s.reverb.mix = 0.2f;
+        s.global.width = 1.3f;
+        s.global.spread = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Choppy Texture" - Textural sound with euclidean trance gate
+    {
+        PresetDef p;
+        p.name = "Choppy Texture";
+        p.category = "Rhythmic";
+        auto& s = p.state;
+        s.oscA.type = 6; // Particle
+        s.oscA.particleScatter = 4.0f;
+        s.oscA.particleDensity = 24.0f;
+        s.oscA.particleLifetime = 300.0f;
+        s.oscA.particleSpawnMode = 1; // Random
+        s.oscA.level = 0.7f;
+        s.oscB.type = 9; // Noise
+        s.oscB.noiseColor = 1; // Pink
+        s.oscB.level = 0.15f;
+        s.mixer.position = 0.2f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 5000.0f;
+        s.filter.resonance = 0.2f;
+        s.ampEnv.attackMs = 30.0f;
+        s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 500.0f;
+        // Trance gate with euclidean pattern E(5,8)
+        s.tranceGate.enabled = 1;
+        s.tranceGate.numSteps = 8;
+        s.tranceGate.tempoSync = 1;
+        s.tranceGate.noteValue = kNote1_16;
+        s.tranceGate.depth = 0.85f;
+        s.tranceGate.attackMs = 3.0f;
+        s.tranceGate.releaseMs = 20.0f;
+        s.tranceGate.euclideanEnabled = 1;
+        s.tranceGate.euclideanHits = 5;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.7f;
+        s.reverb.mix = 0.4f;
+        s.reverb.diffusion = 0.85f;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== EXPERIMENTAL Category (5 presets) ====================
+
+    // "Chaos Machine" - Double chaos oscillators with chaos distortion
+    {
+        PresetDef p;
+        p.name = "Chaos Machine";
+        p.category = "Experimental";
+        auto& s = p.state;
+        s.oscA.type = 5; // Chaos
+        s.oscA.chaosAttractor = 0; // Lorenz
+        s.oscA.chaosAmount = 0.8f;
+        s.oscA.chaosCoupling = 0.6f;
+        s.oscA.chaosOutput = 0; // X
+        s.oscA.level = 0.7f;
+        s.oscB.type = 5; // Chaos
+        s.oscB.chaosAttractor = 3; // Henon
+        s.oscB.chaosAmount = 0.5f;
+        s.oscB.chaosCoupling = 0.3f;
+        s.oscB.chaosOutput = 2; // Z
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 2; // SVF BP
+        s.filter.cutoffHz = 2000.0f;
+        s.filter.resonance = 0.4f;
+        s.distortion.type = 1; // Chaos Waveshaper
+        s.distortion.drive = 0.5f;
+        s.distortion.chaosModel = 0; // Lorenz
+        s.distortion.chaosSpeed = 0.7f;
+        s.distortion.chaosCoupling = 0.4f;
+        s.ampEnv.attackMs = 10.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.6f;
+        s.ampEnv.releaseMs = 800.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.3f;
+        s.delay.feedback = 0.45f;
+        s.delay.timeMs = 375.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f;
+        s.reverb.mix = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Formant Morph" - Morphing vowel sounds with formant filter
+    {
+        PresetDef p;
+        p.name = "Formant Morph";
+        p.category = "Experimental";
+        auto& s = p.state;
+        s.oscA.type = 7; // Formant
+        s.oscA.formantVowel = 0; // A
+        s.oscA.formantMorph = 0.0f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 7; // Formant
+        s.oscB.formantVowel = 3; // O
+        s.oscB.formantMorph = 2.0f; // Mid morph
+        s.oscB.level = 0.6f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 5; // Formant filter
+        s.filter.formantMorph = 0.0f;
+        s.filter.formantGender = 0.0f;
+        s.filter.cutoffHz = 5000.0f;
+        // LFO1 morphs formant osc
+        s.lfo1.rateHz = 0.2f;
+        s.lfo1.shape = 1; // Triangle
+        s.lfo1.depth = 1.0f;
+        s.lfo1.sync = 0;
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
+        s.modMatrix.slots[0].amount = 0.6f;
+        // LFO2 modulates filter
+        s.lfo2.rateHz = 0.08f;
+        s.lfo2.shape = 0; // Sine
+        s.lfo2.depth = 0.5f;
+        s.lfo2.sync = 0;
+        s.modMatrix.slots[1].source = 2; // LFO 2
+        s.modMatrix.slots[1].dest = 4;   // All Voice Filter Cutoff
+        s.modMatrix.slots[1].amount = 0.3f;
+        s.ampEnv.attackMs = 50.0f;
+        s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 500.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.5f;
+        s.reverb.mix = 0.25f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Bit Crusher" - Digital destruction with spectral distortion
+    {
+        PresetDef p;
+        p.name = "Bit Crusher";
+        p.category = "Experimental";
+        auto& s = p.state;
+        s.oscA.type = 0; // PolyBLEP
+        s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0;
+        s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = 7.0f; // Fifth
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 6000.0f;
+        s.filter.resonance = 0.2f;
+        s.distortion.type = 2; // Spectral Distortion
+        s.distortion.drive = 0.6f;
+        s.distortion.spectralMode = 3; // SpectralBitcrush
+        s.distortion.spectralCurve = 8; // BitReduce
+        s.distortion.spectralBits = 0.3f; // ~5 bits
+        s.ampEnv.attackMs = 3.0f;
+        s.ampEnv.decayMs = 300.0f;
+        s.ampEnv.sustain = 0.65f;
+        s.ampEnv.releaseMs = 200.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.2f;
+        s.delay.feedback = 0.3f;
+        s.delay.timeMs = 250.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Wavefold Madness" - Extreme wavefolding with sync oscillator
+    {
+        PresetDef p;
+        p.name = "Wavefold Madness";
+        p.category = "Experimental";
+        auto& s = p.state;
+        s.oscA.type = 3; // Sync
+        s.oscA.syncRatio = 5.0f; // High ratio for harmonics
+        s.oscA.syncWaveform = 1; // Saw slave
+        s.oscA.syncMode = 0; // Hard
+        s.oscA.syncAmount = 0.8f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; // PolyBLEP
+        s.oscB.waveform = 4; // Triangle
+        s.oscB.level = 0.4f;
+        s.mixer.position = 0.35f;
+        s.filter.type = 2; // SVF BP
+        s.filter.cutoffHz = 2500.0f;
+        s.filter.resonance = 0.35f;
+        s.distortion.type = 4; // Wavefolder
+        s.distortion.drive = 0.7f;
+        s.distortion.foldType = 2; // Lockhart
+        s.ampEnv.attackMs = 5.0f;
+        s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.6f;
+        s.ampEnv.releaseMs = 300.0f;
+        // LFO modulating distortion drive
+        s.lfo1.rateHz = 0.5f;
+        s.lfo1.shape = 1; // Triangle
+        s.lfo1.depth = 0.7f;
+        s.lfo1.sync = 0;
+        s.modMatrix.slots[0].source = 1; // LFO 1
+        s.modMatrix.slots[0].dest = 7;   // All Voice Spectral Tilt
+        s.modMatrix.slots[0].amount = 0.4f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.4f;
+        s.reverb.mix = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Rungler Noise" - Experimental noise with rungler modulation
+    {
+        PresetDef p;
+        p.name = "Rungler Noise";
+        p.category = "Experimental";
+        auto& s = p.state;
+        s.oscA.type = 9; // Noise
+        s.oscA.noiseColor = 3; // Blue
+        s.oscA.level = 0.5f;
+        s.oscB.type = 5; // Chaos
+        s.oscB.chaosAttractor = 2; // Chua
+        s.oscB.chaosAmount = 0.6f;
+        s.oscB.chaosCoupling = 0.5f;
+        s.oscB.level = 0.6f;
+        s.mixer.position = 0.5f;
+        s.filter.type = 0; // SVF LP
+        s.filter.cutoffHz = 3000.0f;
+        s.filter.resonance = 0.4f;
+        // Rungler active
+        s.rungler.depth = 0.6f;
+        s.rungler.osc1FreqHz = 3.0f;
+        s.rungler.osc2FreqHz = 5.0f;
+        s.rungler.bits = 6;
+        s.rungler.filter = 0.3f;
+        // Mod matrix: Rungler -> filter cutoff
+        s.modMatrix.slots[0].source = 10; // Rungler
+        s.modMatrix.slots[0].dest = 4;    // All Voice Filter Cutoff
+        s.modMatrix.slots[0].amount = 0.5f;
+        s.ampEnv.attackMs = 20.0f;
+        s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.7f;
+        s.ampEnv.releaseMs = 600.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.3f;
+        s.delay.feedback = 0.5f;
+        s.delay.timeMs = 333.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.7f;
+        s.reverb.mix = 0.35f;
+        presets.push_back(std::move(p));
+    }
+
     return presets;
 }
 
@@ -1741,7 +1749,7 @@ int main(int argc, char* argv[]) {
     int successCount = 0;
 
     std::cout << "Generating " << presets.size()
-              << " Ruinae factory arp presets..." << std::endl;
+              << " Ruinae factory presets..." << std::endl;
 
     for (const auto& preset : presets) {
         auto stateData = preset.state.serialize();

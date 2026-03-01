@@ -2482,12 +2482,7 @@
             <!-- Enable + Mix -->
             <view class="ToggleButton" origin="4, 16" size="60, 20"
                   control-tag="PhaserEnabled"
-                  default-value="1.0"
-                  title="Enable"
-                  title-position="right"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  text-color="master"
+                  default-value="0.0"
                   transparent="true"/>
             <view class="ArcKnob" origin="76, 14" size="28, 28"
                   control-tag="PhaserMix"
@@ -2604,12 +2599,7 @@
             <!-- Enable + Mix + Type + Sync -->
             <view class="ToggleButton" origin="4, 16" size="50, 20"
                   control-tag="DelayEnabled"
-                  default-value="1.0"
-                  title="Enable"
-                  title-position="right"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  text-color="master"
+                  default-value="0.0"
                   transparent="true"/>
             <view class="ArcKnob" origin="66, 14" size="28, 28"
                   control-tag="DelayMix"
@@ -2702,11 +2692,6 @@
             <view class="ToggleButton" origin="4, 16" size="80, 20"
                   control-tag="HarmonizerEnabled"
                   default-value="0.0"
-                  title="Enable"
-                  title-position="right"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  text-color="master"
                   transparent="true"/>
 
             <!-- Global controls row 1: Mode, Key, Scale, PitchMode -->
@@ -2963,12 +2948,7 @@
             <!-- Enable + Mix -->
             <view class="ToggleButton" origin="4, 16" size="60, 20"
                   control-tag="ReverbEnabled"
-                  default-value="1.0"
-                  title="Enable"
-                  title-position="right"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  text-color="master"
+                  default-value="0.0"
                   transparent="true"/>
             <view class="ArcKnob" origin="76, 14" size="28, 28"
                   control-tag="ReverbMix"

@@ -81,6 +81,13 @@ add_executable(ruinae_tests
     # Preset Browser Tests (083-ruinae-preset-browser)
     unit/controller/preset_browser_test.cpp
 
+    # Preset Format Compatibility Tests (generator ↔ processor)
+    unit/preset_format_compat_test.cpp
+
+    # Preset Safety Tests (RTTransferT crash-proof loading)
+    unit/preset_safety_test.cpp
+    integration/preset_switch_safety_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -107,7 +114,9 @@ target_link_libraries(ruinae_tests
 target_include_directories(ruinae_tests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/tools
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4
 )
@@ -134,6 +143,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
         unit/processor/arp_mod_integration_test.cpp
+        integration/preset_switch_safety_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

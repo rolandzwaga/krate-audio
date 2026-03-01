@@ -18,6 +18,7 @@
 #include "controller/controller.h"
 #include "plugin_ids.h"
 #include "parameters/arpeggiator_params.h"
+#include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -381,6 +382,7 @@ TEST_CASE("StepCount_PresetLoadRoundTrip_AllLanes",
     auto proc2 = makeTestProcessor();
     stream1.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(proc2->setState(&stream1) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save from restored processor
     Steinberg::MemoryStream stream2;

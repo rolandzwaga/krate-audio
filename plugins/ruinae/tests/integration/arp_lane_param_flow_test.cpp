@@ -14,6 +14,7 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -215,6 +216,7 @@ TEST_CASE("VelocityLane_StatePersistence_RoundTrip", "[arp][integration][state][
     auto proc2 = makeArpFlowProcessor();
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(proc2->setState(&stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // --- Step 4: Save state from restored processor ---
     Steinberg::MemoryStream stream2;
@@ -492,6 +494,7 @@ TEST_CASE("AllNewLanes_StatePersistence_RoundTrip", "[arp][integration][state][T
     auto proc2 = makeArpFlowProcessor();
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(proc2->setState(&stream) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // --- Step 4: Save from restored processor ---
     Steinberg::MemoryStream stream2;

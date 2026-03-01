@@ -11,6 +11,7 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -54,6 +55,7 @@ TEST_CASE("Unknown future version loads with defaults", "[state][migration]") {
     // Should return kResultTrue (fail closed with safe defaults)
     auto result = proc->setState(&stream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc.get());
 
     // Verify the processor still works (save state and check it's valid)
     Steinberg::MemoryStream outStream;
@@ -78,6 +80,7 @@ TEST_CASE("Empty stream loads with defaults", "[state][migration]") {
     // Should return kResultTrue (empty stream, keep defaults)
     auto result = proc->setState(&emptyStream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc.get());
 
     // Processor should still be functional
     Steinberg::MemoryStream outStream;
@@ -108,6 +111,7 @@ TEST_CASE("Truncated v1 stream loads partial defaults", "[state][migration]") {
     // Should return kResultTrue (truncated but handled gracefully)
     auto result = proc->setState(&stream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc.get());
 
     proc->terminate();
 }
@@ -127,6 +131,7 @@ TEST_CASE("setState does not crash on any stream content", "[state][migration]")
     garbageStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     auto result = proc->setState(&garbageStream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc.get());
 
     proc->terminate();
 }

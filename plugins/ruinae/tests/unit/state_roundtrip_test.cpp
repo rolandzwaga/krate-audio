@@ -12,6 +12,7 @@
 
 #include "processor/processor.h"
 #include "plugin_ids.h"
+#include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -148,6 +149,7 @@ TEST_CASE("State round-trip preserves default values", "[state][roundtrip]") {
     stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     auto loadResult = proc2->setState(&stream);
     REQUIRE(loadResult == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save again from proc2
     Steinberg::MemoryStream stream2;
@@ -193,6 +195,7 @@ TEST_CASE("State round-trip byte equivalence", "[state][roundtrip]") {
     auto proc2 = makeProcessor();
     stream1.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     proc2->setState(&stream1);
+    drainPresetTransfer(proc2.get());
 
     // Second save from proc2
     Steinberg::MemoryStream stream2;
@@ -259,6 +262,7 @@ TEST_CASE("State round-trip preserves non-default values", "[state][roundtrip]")
     auto proc2 = makeTestableProcessor();
     stream1.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(proc2->setState(&stream1) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save again from proc2
     Steinberg::MemoryStream stream2;
@@ -315,6 +319,7 @@ roundTripState(Ruinae::Processor* proc) {
     auto proc2 = makeProcessor();
     stream1.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(proc2->setState(&stream1) == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     Steinberg::MemoryStream stream2;
     REQUIRE(proc2->getState(&stream2) == Steinberg::kResultTrue);
@@ -508,6 +513,7 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     loadStream.write(data1.data(), static_cast<Steinberg::int32>(data1.size()), nullptr);
     loadStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     proc2->setState(&loadStream);
+    drainPresetTransfer(proc2.get());
 
     // Save and read the Euclidean section from the arp data.
     // Arp section is the last 888 bytes of the state.
@@ -704,6 +710,7 @@ TEST_CASE("Pre-arp preset loads with arp disabled",
     auto proc2 = makeProcessor();
     auto result = proc2->setState(&truncStream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save state from the loaded processor and verify the arp section has defaults
     Steinberg::MemoryStream savedStream;
@@ -772,6 +779,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
     auto proc2 = makeProcessor();
     auto result = proc2->setState(&partialStream);
     REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
 
     // Save and verify: base params loaded, lanes at defaults
     Steinberg::MemoryStream savedStream;
