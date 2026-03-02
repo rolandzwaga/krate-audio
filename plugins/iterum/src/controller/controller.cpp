@@ -711,6 +711,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+
     // Read global parameters (must match Processor::getState order)
     float gain = 0.5f;
     if (streamer.readFloat(gain)) {
@@ -741,6 +744,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     syncDigitalParamsToController(streamer, *this);   // Digital Delay (spec 026)
     syncPingPongParamsToController(streamer, *this);  // PingPong Delay (spec 027)
     syncMultiTapParamsToController(streamer, *this);  // MultiTap Delay (spec 028)
+
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
 
     return Steinberg::kResultTrue;
 }
@@ -1022,6 +1028,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 
     // Call base class - this is the ONLY thing that actually happens
     auto result = EditControllerEx1::setParamNormalized(id, value);
+
+    // During bulk parameter loads (preset switching), skip per-param view updates.
+    // syncAllViews() will do a single batch sync afterwards.
+    if (bulkParamLoad_)
+        return result;
 
     // NOTE: Conditional visibility for delay time controls is handled by
     // VisibilityController instances via IDependent mechanism (see didOpen).
@@ -2052,6 +2063,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         return false;
     }
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+
     Steinberg::IBStreamer streamer(state, kLittleEndian);
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
@@ -2083,7 +2097,33 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     loadPingPongParamsToController(streamer, setParamWithNotify);
     loadMultiTapParamsToController(streamer, setParamWithNotify);
 
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
+
     return true;
+}
+
+// ==============================================================================
+// Bulk Parameter Load - Batch View Sync
+// ==============================================================================
+// Called once after bulk parameter loads (setComponentState, loadComponentStateWithNotify)
+// to sync all custom views from current parameter state. Replaces thousands of
+// per-param invalidRect() calls with a single full-frame repaint.
+
+void Controller::syncAllViews() {
+    if (tapPatternEditor_) {
+        // Sync snap division
+        if (auto* snapParam = getParameterObject(kMultiTapSnapDivisionId)) {
+            int snapIndex = static_cast<int>(snapParam->getNormalized() * 21.0 + 0.5);
+            tapPatternEditor_->setSnapDivision(static_cast<SnapDivision>(snapIndex));
+        }
+
+        // Sync active tap count
+        if (auto* tapCountParam = getParameterObject(kMultiTapTapCountId)) {
+            int tapCount = static_cast<int>(2.0 + tapCountParam->getNormalized() * 14.0 + 0.5);
+            tapPatternEditor_->setActiveTapCount(static_cast<size_t>(tapCount));
+        }
+    }
 }
 
 } // namespace Iterum

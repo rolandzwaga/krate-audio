@@ -2571,6 +2571,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
         return Steinberg::kResultFalse;
     }
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+
     // Read global parameters
     float inputGain = 0.5f;
     float outputGain = 0.5f;
@@ -3070,6 +3073,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                     nodeTypeParam->getNormalized());
         }
     }
+
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
 
     return Steinberg::kResultOk;
 }
@@ -4725,6 +4731,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     if (!streamer.readInt32(version)) return false;
     if (version < 1) return false;
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+
     // Global parameters
     float inputGain = 0.5f;
     float outputGain = 0.5f;
@@ -5117,7 +5126,26 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         }
     }
 
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
+
     return true;
+}
+
+// ==============================================================================
+// Bulk Parameter Load - Batch View Sync
+// ==============================================================================
+// Called once after bulk parameter loads (setComponentState, loadComponentStateWithNotify)
+// to sync all custom views from current parameter state. Replaces thousands of
+// per-param invalidRect() calls with a single full-frame repaint.
+
+void Controller::syncAllViews() {
+    // Disrumpo's custom views (SpectrumDisplay, MorphPad, DynamicNodeSelector,
+    // SweepIndicator) are driven by FIFO pointers, timers, or IDependent-based
+    // controllers rather than per-param pushes in setParamNormalized.
+    // The FrameInvalidationGuard's full-frame repaint on destruction refreshes
+    // all tag-bound VSTGUI controls automatically.
+    // No additional custom view sync is needed at this time.
 }
 
 // ==============================================================================
