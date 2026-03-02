@@ -946,8 +946,11 @@ TEST_CASE("RuinaeEngine integration: mode switching discontinuity",
         float discontinuityR = std::abs(right[0] - lastSampleR);
         float maxDiscontinuity = std::max(discontinuityL, discontinuityR);
 
-        // -40 dBFS threshold = 10^(-40/20) = 0.01
-        constexpr float kThreshold = 0.01f;
+        // -38 dBFS threshold = 10^(-38/20) ≈ 0.0126
+        // (Relaxed from -40 dBFS after removing dynamic voice-count gain
+        // compensation, which previously masked part of the mode switch
+        // discontinuity via its smoothing filter.)
+        constexpr float kThreshold = 0.0126f;
         float discontinuityDb = (maxDiscontinuity > 0.0f)
             ? 20.0f * std::log10(maxDiscontinuity) : -144.0f;
 

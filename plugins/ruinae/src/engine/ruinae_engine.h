@@ -126,8 +126,6 @@ public:
         : mode_(VoiceMode::Poly)
         , polyphonyCount_(8)
         , masterGain_(1.0f)
-        , smoothedGainCompensation_(1.0f)
-        , gainCompensationEnabled_(true)
         , softLimitEnabled_(true)
         , globalFilterEnabled_(false)
         , stereoSpread_(0.0f)
@@ -188,8 +186,6 @@ public:
         timestampCounter_ = 0;
         noteOnTimestamps_.fill(0);
         monoVoiceNote_ = -1;
-        // Snap gain smoother: no voices active at prepare time
-        smoothedGainCompensation_ = 1.0f;
 
         // Recalculate pan positions
         recalculatePanPositions();
@@ -651,10 +647,12 @@ public:
         softLimitEnabled_ = enabled;
     }
 
-    /// @brief Enable/disable automatic 1/sqrt(N) gain compensation.
-    /// When disabled, active voice count does not affect output gain.
-    void setGainCompensationEnabled(bool enabled) noexcept {
-        gainCompensationEnabled_ = enabled;
+    /// @brief Legacy setter — gain compensation has been removed.
+    /// Kept for preset/settings compatibility (parameter is still serialized).
+    /// The engine now sums voices naturally and relies on the soft limiter.
+    void setGainCompensationEnabled([[maybe_unused]] bool enabled) noexcept {
+        // No-op: dynamic voice-count gain compensation removed to eliminate
+        // audible gain pumping artifacts when releasing voices finish.
     }
 
     // =========================================================================
@@ -674,7 +672,7 @@ public:
     /// 8.  Apply stereo width (Mid/Side)
     /// 9.  Apply global filter (if enabled)
     /// 10. Process effects chain in-place
-    /// 11. Apply master gain * gainCompensation
+    /// 11. Apply master gain
     /// 12. Apply soft limiter (if enabled)
     /// 13. Flush NaN/Inf to 0.0
     /// 14. Write to output
@@ -777,19 +775,13 @@ public:
         // Step 6: Process pitch bend smoother once per block
         [[maybe_unused]] auto bendValue = noteProcessor_.processPitchBend();
 
-        // Count active voices BEFORE processing (voices may finish mid-block,
-        // but they still contributed audio). Used for dynamic gain compensation.
-        uint32_t activeVoicesThisBlock = 0;
+        // Step 7: Process all voices (poly or mono)
         if (mode_ == VoiceMode::Poly) {
-            for (size_t i = 0; i < polyphonyCount_; ++i) {
-                if (voices_[i].isActive()) ++activeVoicesThisBlock;
-            }
             processBlockPoly(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
                              allVoiceTiltOffset, allVoiceResonanceOffset,
                              allVoiceFilterEnvAmtOffset);
         } else {
-            activeVoicesThisBlock = voices_[0].isActive() ? 1 : 0;
             processBlockMono(numSamples, allVoiceFilterCutoffOffset,
                              allVoiceMorphOffset, allVoiceTranceGateOffset,
                              allVoiceTiltOffset, allVoiceResonanceOffset,
@@ -816,21 +808,13 @@ public:
         effectsChain_.processBlock(mixBufferL_.data(), mixBufferR_.data(), numSamples);
 
         // Step 11-13: Apply master gain, soft limiter, NaN/Inf flush
-        // Dynamic gain compensation: 1/sqrt(activeVoices) keeps perceived
-        // loudness constant regardless of how many voices are sounding.
-        // With 0 or 1 active voice, no attenuation is needed.
-        float targetCompensation = 1.0f;
-        if (gainCompensationEnabled_ && activeVoicesThisBlock > 1) {
-            targetCompensation = 1.0f / std::sqrt(
-                static_cast<float>(activeVoicesThisBlock));
-        }
-        // Per-sample one-pole smoothing (~5ms at 44.1kHz) for click-free
-        // gain transitions when switching between poly and mono modes.
-        constexpr float kGainSmoothCoeff = 0.005f;
+        // No dynamic voice-count gain compensation — voices are summed
+        // naturally (like Surge and most professional synths). The soft
+        // limiter (tanh) at step 12 prevents clipping when many voices
+        // overlap. This avoids audible gain pumping artifacts that occur
+        // with 1/sqrt(N) compensation when releasing voices finish.
         for (size_t s = 0; s < numSamples; ++s) {
-            smoothedGainCompensation_ += kGainSmoothCoeff
-                * (targetCompensation - smoothedGainCompensation_);
-            const float effectiveGain = modulatedMasterGain * smoothedGainCompensation_;
+            const float effectiveGain = modulatedMasterGain;
             // Step 11: Master gain with compensation
             mixBufferL_[s] *= effectiveGain;
             mixBufferR_[s] *= effectiveGain;
@@ -1931,8 +1915,6 @@ private:
     VoiceMode mode_;
     size_t polyphonyCount_;
     float masterGain_;
-    float smoothedGainCompensation_; ///< Smoothed per-sample for click-free transitions
-    bool gainCompensationEnabled_;
     bool softLimitEnabled_;
     bool globalFilterEnabled_;
     float stereoSpread_;
