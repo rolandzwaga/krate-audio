@@ -1029,6 +1029,14 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Call base class - this is the ONLY thing that actually happens
     auto result = EditControllerEx1::setParamNormalized(id, value);
 
+    // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
+    // loads. The base class setParamNormalized triggers IDependent notifications
+    // which cause UIViewSwitchContainer to destroy old mode views. If we don't
+    // null the pointer, syncAllViews() will dereference freed memory.
+    if (id == kModeId) {
+        tapPatternEditor_ = nullptr;  // Lives inside MultiTap template only
+    }
+
     // During bulk parameter loads (preset switching), skip per-param view updates.
     // syncAllViews() will do a single batch sync afterwards.
     if (bulkParamLoad_)

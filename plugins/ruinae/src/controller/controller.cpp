@@ -558,6 +558,26 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // Let the base class handle its bookkeeping first
     auto result = EditControllerEx1::setParamNormalized(tag, value);
 
+    // CRITICAL: Pointer-nulling for view lifecycle must happen even during bulk
+    // loads. The base class setParamNormalized triggers IDependent notifications
+    // which cause UIViewSwitchContainer to destroy old tab views. If we skip
+    // onTabChanged(), the cached pointers become dangling and syncAllViews()
+    // will dereference freed memory (use-after-free -> ACCESS_VIOLATION).
+    if (tag == kMainTabTag) {
+        int newTab = static_cast<int>(std::round(value * 3.0));
+        onTabChanged(newTab);
+    }
+    if (tag == kOscATypeId && value > 0.01) {
+        oscAPWKnob_ = nullptr;
+    }
+    if (tag == kOscBTypeId && value > 0.01) {
+        oscBPWKnob_ = nullptr;
+    }
+    if (tag == kDistortionTypeId) {
+        spectralCurveDropdown_ = nullptr;
+        spectralBitsGroup_ = nullptr;
+    }
+
     // During bulk parameter loads (preset switching), skip per-param view updates.
     // syncAllViews() will do a single batch sync afterwards.
     if (bulkParamLoad_)
@@ -798,13 +818,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         int wf = static_cast<int>(value * 4.0 + 0.5);
         oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
     }
-    if (tag == kOscATypeId && value > 0.01) {
-        oscAPWKnob_ = nullptr;
-    }
-    if (tag == kOscBTypeId && value > 0.01) {
-        oscBPWKnob_ = nullptr;
-    }
-
     // Spectral distortion control dimming
     if (tag == kDistortionSpectralModeId) {
         int mode = std::clamp(
@@ -820,18 +833,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             spectralBitsGroup_->setMouseEnabled(isBitcrush);
         }
     }
-    // Distortion type switch: Dist_Spectral template destroyed by UIViewSwitchContainer
-    if (tag == kDistortionTypeId) {
-        spectralCurveDropdown_ = nullptr;
-        spectralBitsGroup_ = nullptr;
-    }
-
-    // Tab switch: null out pointers for views that live inside tab templates
-    if (tag == kMainTabTag) {
-        int newTab = static_cast<int>(std::round(value * 3.0));
-        onTabChanged(newTab);
-    }
-
     // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_ && !modulatedMorphXPtr_) {
         if (tag == kMixerPositionId) {
