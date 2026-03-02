@@ -32,6 +32,10 @@
         <color name="arpeggiator" rgba="#C87850ff"/>
         <color name="modulation" rgba="#5AC882ff"/>
         <color name="effects" rgba="#6E7078ff"/>
+        <color name="fx-phaser" rgba="#7C8CC8ff"/>
+        <color name="fx-delay" rgba="#5CA8B4ff"/>
+        <color name="fx-harmonizer" rgba="#9878B4ff"/>
+        <color name="fx-reverb" rgba="#6498C0ff"/>
         <color name="master" rgba="#C8C8CCff"/>
         <color name="global-filter" rgba="#C8649Cff"/>
 
@@ -1514,7 +1518,7 @@
 
         <view class="ArcKnob" origin="126, 4" size="28, 28"
               control-tag="DelayDigitalAge" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="120, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Age"/>
@@ -1529,7 +1533,7 @@
 
         <view class="ArcKnob" origin="340, 4" size="28, 28"
               control-tag="DelayDigitalWidth" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="334, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Width"/>
@@ -1545,21 +1549,21 @@
         <!-- Row B (y=56): ModDepth, ModRate, WavefoldAmt, WavefoldModel, WavefoldSym -->
         <view class="ArcKnob" origin="22, 56" size="28, 28"
               control-tag="DelayDigitalModDepth" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="12, 86" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Mod Dpt"/>
 
         <view class="ArcKnob" origin="126, 56" size="28, 28"
               control-tag="DelayDigitalModRate" default-value="0.091"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="118, 86" size="44, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Mod Rt"/>
 
         <view class="ArcKnob" origin="236, 56" size="28, 28"
               control-tag="DelayDigitalWavefoldAmt" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="228, 86" size="44, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Fold"/>
@@ -1574,7 +1578,7 @@
 
         <view class="ArcKnob" origin="472, 56" size="28, 28"
               control-tag="DelayDigitalWavefoldSym" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="462, 86" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Fold Sym"/>
@@ -1585,42 +1589,42 @@
         <!-- Row A (y=4): 6 knobs, ~96px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayTapeInertia" default-value="0.222"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="4, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Inertia"/>
 
         <view class="ArcKnob" origin="110, 4" size="28, 28"
               control-tag="DelayTapeWear" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="104, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Wear"/>
 
         <view class="ArcKnob" origin="206, 4" size="28, 28"
               control-tag="DelayTapeSaturation" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="200, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Sat"/>
 
         <view class="ArcKnob" origin="302, 4" size="28, 28"
               control-tag="DelayTapeAge" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="296, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Age"/>
 
         <view class="ArcKnob" origin="398, 4" size="28, 28"
               control-tag="DelayTapeSpliceEnabled" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="388, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Splice"/>
 
         <view class="ArcKnob" origin="494, 4" size="28, 28"
               control-tag="DelayTapeSpliceIntensity" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="484, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Spl Int"/>
@@ -1631,19 +1635,19 @@
               text-alignment="left" transparent="true" title="H1"/>
         <view class="ArcKnob" origin="28, 52" size="28, 28"
               control-tag="DelayTapeHead1Enabled" default-value="1.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="22, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="On"/>
         <view class="ArcKnob" origin="68, 52" size="28, 28"
               control-tag="DelayTapeHead1Level" default-value="0.941"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="62, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Level"/>
         <view class="ArcKnob" origin="108, 52" size="28, 28"
               control-tag="DelayTapeHead1Pan" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="102, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pan"/>
@@ -1653,19 +1657,19 @@
               text-alignment="left" transparent="true" title="H2"/>
         <view class="ArcKnob" origin="220, 52" size="28, 28"
               control-tag="DelayTapeHead2Enabled" default-value="1.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="214, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="On"/>
         <view class="ArcKnob" origin="260, 52" size="28, 28"
               control-tag="DelayTapeHead2Level" default-value="0.941"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="254, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Level"/>
         <view class="ArcKnob" origin="300, 52" size="28, 28"
               control-tag="DelayTapeHead2Pan" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="294, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pan"/>
@@ -1675,19 +1679,19 @@
               text-alignment="left" transparent="true" title="H3"/>
         <view class="ArcKnob" origin="412, 52" size="28, 28"
               control-tag="DelayTapeHead3Enabled" default-value="1.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="406, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="On"/>
         <view class="ArcKnob" origin="452, 52" size="28, 28"
               control-tag="DelayTapeHead3Level" default-value="0.941"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="446, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Level"/>
         <view class="ArcKnob" origin="492, 52" size="28, 28"
               control-tag="DelayTapeHead3Pan" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="486, 82" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pan"/>
@@ -1706,28 +1710,28 @@
 
         <view class="ArcKnob" origin="162, 20" size="28, 28"
               control-tag="DelayPingPongCrossFeed" default-value="1.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="154, 50" size="44, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="XFeed"/>
 
         <view class="ArcKnob" origin="280, 20" size="28, 28"
               control-tag="DelayPingPongWidth" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="274, 50" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Width"/>
 
         <view class="ArcKnob" origin="398, 20" size="28, 28"
               control-tag="DelayPingPongModDepth" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="388, 50" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Mod Dpt"/>
 
         <view class="ArcKnob" origin="516, 20" size="28, 28"
               control-tag="DelayPingPongModRate" default-value="0.091"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="508, 50" size="44, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Mod Rt"/>
@@ -1738,21 +1742,21 @@
         <!-- Row A (y=4): 7 items, ~84px spacing -->
         <view class="ArcKnob" origin="14, 4" size="28, 28"
               control-tag="DelayGranularSize" default-value="0.184"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="8, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Size"/>
 
         <view class="ArcKnob" origin="98, 4" size="28, 28"
               control-tag="DelayGranularDensity" default-value="0.091"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="88, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Density"/>
 
         <view class="ArcKnob" origin="182, 4" size="28, 28"
               control-tag="DelayGranularPitch" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="176, 34" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pitch"/>
@@ -1767,21 +1771,21 @@
 
         <view class="ArcKnob" origin="350, 4" size="28, 28"
               control-tag="DelayGranularPitchSpray" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="340, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pit Spr"/>
 
         <view class="ArcKnob" origin="434, 4" size="28, 28"
               control-tag="DelayGranularPosSpray" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="424, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pos Spr"/>
 
         <view class="ArcKnob" origin="518, 4" size="28, 28"
               control-tag="DelayGranularReverseProb" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="508, 34" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Reverse"/>
@@ -1789,28 +1793,28 @@
         <!-- Row B (y=56): 6 items, ~98px spacing -->
         <view class="ArcKnob" origin="14, 56" size="28, 28"
               control-tag="DelayGranularPanSpray" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="4, 86" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Pan Spr"/>
 
         <view class="ArcKnob" origin="112, 56" size="28, 28"
               control-tag="DelayGranularJitter" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="106, 86" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Jitter"/>
 
         <view class="ArcKnob" origin="210, 56" size="28, 28"
               control-tag="DelayGranularTexture" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="200, 86" size="48, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Texture"/>
 
         <view class="ArcKnob" origin="308, 56" size="28, 28"
               control-tag="DelayGranularWidth" default-value="1.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="302, 86" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Width"/>
@@ -1828,8 +1832,8 @@
               title="Freeze"
               title-position="right"
               font="~ NormalFontSmaller"
-              font-color="effects"
-              text-color="effects"
+              font-color="fx-delay"
+              text-color="fx-delay"
               tooltip="Freeze granular buffer"
               transparent="true"/>
     </template>
@@ -1847,7 +1851,7 @@
 
         <view class="ArcKnob" origin="172, 4" size="28, 28"
               control-tag="DelaySpectralSpread" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="164, 34" size="44, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Spread"/>
@@ -1871,21 +1875,21 @@
         <!-- Row B (y=56): 4 items -->
         <view class="ArcKnob" origin="40, 56" size="28, 28"
               control-tag="DelaySpectralTilt" default-value="0.5"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="34, 86" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Tilt"/>
 
         <view class="ArcKnob" origin="172, 56" size="28, 28"
               control-tag="DelaySpectralDiffusion" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="160, 86" size="52, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Diffusion"/>
 
         <view class="ArcKnob" origin="320, 56" size="28, 28"
               control-tag="DelaySpectralWidth" default-value="0.0"
-              arc-color="effects" guide-color="knob-guide"/>
+              arc-color="fx-delay" guide-color="knob-guide"/>
         <view class="CTextLabel" origin="314, 86" size="40, 10"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Width"/>
@@ -1895,8 +1899,8 @@
               title="Freeze"
               title-position="right"
               font="~ NormalFontSmaller"
-              font-color="effects"
-              text-color="effects"
+              font-color="fx-delay"
+              text-color="fx-delay"
               tooltip="Freeze spectral buffer"
               transparent="true"/>
     </template>
@@ -2464,7 +2468,7 @@
             origin="8, 56"
             size="688, 344"
             fieldset-title="PHASER"
-            fieldset-color="effects"
+            fieldset-color="fx-phaser"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
@@ -2478,7 +2482,7 @@
             <view class="ArcKnob" origin="76, 14" size="28, 28"
                   control-tag="PhaserMix"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-phaser"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="70, 44" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2491,15 +2495,15 @@
                   title="Sync"
                   title-position="right"
                   font="~ NormalFontSmaller"
-                  font-color="effects"
-                  text-color="effects"
+                  font-color="fx-phaser"
+                  text-color="fx-phaser"
                   transparent="true"/>
             <view class="CViewContainer" origin="196, 12" size="80, 40"
                   custom-view-name="PhaserRateGroup" transparent="true">
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
                       control-tag="PhaserRate"
                       default-value="0.0245"
-                      arc-color="effects"
+                      arc-color="fx-phaser"
                       guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="-6, 28" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2520,7 +2524,7 @@
             <view class="ArcKnob" origin="288, 14" size="28, 28"
                   control-tag="PhaserDepth"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-phaser"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="282, 44" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2528,7 +2532,7 @@
             <view class="ArcKnob" origin="338, 14" size="28, 28"
                   control-tag="PhaserFeedback"
                   default-value="0.75"
-                  arc-color="effects"
+                  arc-color="fx-phaser"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="330, 44" size="44, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2548,7 +2552,7 @@
             <view class="ArcKnob" origin="500, 14" size="28, 28"
                   control-tag="PhaserCenterFreq"
                   default-value="0.0909"
-                  arc-color="effects"
+                  arc-color="fx-phaser"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="490, 44" size="48, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2556,7 +2560,7 @@
             <view class="ArcKnob" origin="560, 14" size="28, 28"
                   control-tag="PhaserStereoSpread"
                   default-value="0.0"
-                  arc-color="effects"
+                  arc-color="fx-phaser"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="552, 44" size="44, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2581,7 +2585,7 @@
             origin="704, 56"
             size="688, 344"
             fieldset-title="DELAY"
-            fieldset-color="effects"
+            fieldset-color="fx-delay"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
@@ -2595,7 +2599,7 @@
             <view class="ArcKnob" origin="66, 14" size="28, 28"
                   control-tag="DelayMix"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-delay"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="60, 44" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2616,8 +2620,8 @@
                   title="Sync"
                   title-position="right"
                   font="~ NormalFontSmaller"
-                  font-color="effects"
-                  text-color="effects"
+                  font-color="fx-delay"
+                  text-color="fx-delay"
                   transparent="true"/>
 
             <!-- Time group (hidden when synced) -->
@@ -2626,7 +2630,7 @@
                 <view class="ArcKnob" origin="0, 0" size="28, 28"
                       control-tag="DelayTime"
                       default-value="0.1"
-                      arc-color="effects"
+                      arc-color="fx-delay"
                       guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="-6, 30" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2651,7 +2655,7 @@
             <view class="ArcKnob" origin="448, 14" size="28, 28"
                   control-tag="DelayFeedback"
                   default-value="0.333"
-                  arc-color="effects"
+                  arc-color="fx-delay"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="436, 44" size="52, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2673,7 +2677,7 @@
             origin="8, 408"
             size="688, 344"
             fieldset-title="HARMONIZER"
-            fieldset-color="effects"
+            fieldset-color="fx-harmonizer"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
@@ -2734,8 +2738,8 @@
                   title="Formant"
                   title-position="right"
                   font="~ NormalFontSmaller"
-                  font-color="effects"
-                  text-color="effects"
+                  font-color="fx-harmonizer"
+                  text-color="fx-harmonizer"
                   transparent="true"/>
             <view class="COptionMenu" origin="76, 58" size="60, 20"
                   control-tag="HarmonizerNumVoices"
@@ -2750,7 +2754,7 @@
             <view class="ArcKnob" origin="152, 56" size="28, 28"
                   control-tag="HarmonizerDryLevel"
                   default-value="0.909"
-                  arc-color="effects"
+                  arc-color="fx-harmonizer"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="146, 86" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2758,7 +2762,7 @@
             <view class="ArcKnob" origin="202, 56" size="28, 28"
                   control-tag="HarmonizerWetLevel"
                   default-value="0.818"
-                  arc-color="effects"
+                  arc-color="fx-harmonizer"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="196, 86" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2777,16 +2781,16 @@
                       transparent="false"/>
                 <view class="ArcKnob" origin="122, -2" size="22, 22"
                       control-tag="HarmonizerVoice1Level" default-value="0.909"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="158, -2" size="22, 22"
                       control-tag="HarmonizerVoice1Pan" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="194, -2" size="22, 22"
                       control-tag="HarmonizerVoice1Delay" default-value="0.0"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="230, -2" size="22, 22"
                       control-tag="HarmonizerVoice1Detune" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Interval"/>
@@ -2816,16 +2820,16 @@
                       transparent="false"/>
                 <view class="ArcKnob" origin="122, -2" size="22, 22"
                       control-tag="HarmonizerVoice2Level" default-value="0.909"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="158, -2" size="22, 22"
                       control-tag="HarmonizerVoice2Pan" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="194, -2" size="22, 22"
                       control-tag="HarmonizerVoice2Delay" default-value="0.0"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="230, -2" size="22, 22"
                       control-tag="HarmonizerVoice2Detune" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Interval"/>
@@ -2855,16 +2859,16 @@
                       transparent="false"/>
                 <view class="ArcKnob" origin="122, -2" size="22, 22"
                       control-tag="HarmonizerVoice3Level" default-value="0.909"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="158, -2" size="22, 22"
                       control-tag="HarmonizerVoice3Pan" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="194, -2" size="22, 22"
                       control-tag="HarmonizerVoice3Delay" default-value="0.0"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="230, -2" size="22, 22"
                       control-tag="HarmonizerVoice3Detune" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Interval"/>
@@ -2894,16 +2898,16 @@
                       transparent="false"/>
                 <view class="ArcKnob" origin="122, -2" size="22, 22"
                       control-tag="HarmonizerVoice4Level" default-value="0.909"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="158, -2" size="22, 22"
                       control-tag="HarmonizerVoice4Pan" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="194, -2" size="22, 22"
                       control-tag="HarmonizerVoice4Delay" default-value="0.0"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="ArcKnob" origin="230, -2" size="22, 22"
                       control-tag="HarmonizerVoice4Detune" default-value="0.5"
-                      arc-color="effects" guide-color="knob-guide"/>
+                      arc-color="fx-harmonizer" guide-color="knob-guide"/>
                 <view class="CTextLabel" origin="50, 22" size="60, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
                       text-alignment="center" transparent="true" title="Interval"/>
@@ -2930,7 +2934,7 @@
             origin="704, 408"
             size="688, 344"
             fieldset-title="REVERB"
-            fieldset-color="effects"
+            fieldset-color="fx-reverb"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
@@ -2944,7 +2948,7 @@
             <view class="ArcKnob" origin="76, 14" size="28, 28"
                   control-tag="ReverbMix"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="70, 44" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2954,7 +2958,7 @@
             <view class="ArcKnob" origin="4, 64" size="32, 32"
                   control-tag="ReverbSize"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="0, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2962,7 +2966,7 @@
             <view class="ArcKnob" origin="56, 64" size="32, 32"
                   control-tag="ReverbDamping"
                   default-value="0.5"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="52, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2970,7 +2974,7 @@
             <view class="ArcKnob" origin="108, 64" size="32, 32"
                   control-tag="ReverbWidth"
                   default-value="1.0"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="104, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2978,7 +2982,7 @@
             <view class="ArcKnob" origin="160, 64" size="32, 32"
                   control-tag="ReverbPreDelay"
                   default-value="0.0"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="156, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2986,7 +2990,7 @@
             <view class="ArcKnob" origin="212, 64" size="32, 32"
                   control-tag="ReverbDiffusion"
                   default-value="0.7"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="208, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -2994,7 +2998,7 @@
             <view class="ArcKnob" origin="284, 64" size="32, 32"
                   control-tag="ReverbModRate"
                   default-value="0.25"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="280, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3002,7 +3006,7 @@
             <view class="ArcKnob" origin="336, 64" size="32, 32"
                   control-tag="ReverbModDepth"
                   default-value="0.0"
-                  arc-color="effects"
+                  arc-color="fx-reverb"
                   guide-color="knob-guide"/>
             <view class="CTextLabel" origin="332, 98" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -3012,8 +3016,8 @@
                   title="Freeze"
                   title-position="right"
                   font="~ NormalFontSmaller"
-                  font-color="effects"
-                  text-color="effects"
+                  font-color="fx-reverb"
+                  text-color="fx-reverb"
                   tooltip="Freeze reverb tail"
                   transparent="true"/>
         </view>
