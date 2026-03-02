@@ -6,22 +6,6 @@
 
 namespace Krate::Plugins {
 
-// =============================================================================
-// DialogButton - Custom button that doesn't consume Enter/Escape events
-// =============================================================================
-class SaveDialogButton : public VSTGUI::CTextButton {
-public:
-    using CTextButton::CTextButton;
-
-    void onKeyboardEvent(VSTGUI::KeyboardEvent& event) override {
-        if (event.virt == VSTGUI::VirtualKey::Return ||
-            event.virt == VSTGUI::VirtualKey::Enter ||
-            event.virt == VSTGUI::VirtualKey::Escape) {
-            return;  // Skip, don't consume - let parent handle
-        }
-        CTextButton::onKeyboardEvent(event);
-    }
-};
 
 // =============================================================================
 // Layout Constants
@@ -197,18 +181,15 @@ void SavePresetDialogView::createDialogViews() {
         buttonsLeft, buttonY,
         buttonsLeft + kButtonWidth, buttonY + kButtonHeight
     );
-    saveButton_ = new SaveDialogButton(saveRect, this, kSavePresetDialogSaveTag, "Save");
-    saveButton_->setFrameColor(VSTGUI::CColor(60, 120, 180));
-    saveButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+    saveButton_ = new OutlineBrowserButton(saveRect, this, kSavePresetDialogSaveTag, "Save",
+        VSTGUI::CColor(60, 120, 180));
     dialogBox_->addView(saveButton_);
 
     auto cancelRect = VSTGUI::CRect(
         buttonsLeft + kButtonWidth + kButtonGap, buttonY,
         buttonsLeft + kButtonWidth * 2 + kButtonGap, buttonY + kButtonHeight
     );
-    cancelButton_ = new SaveDialogButton(cancelRect, this, kSavePresetDialogCancelTag, "Cancel");
-    cancelButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-    cancelButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+    cancelButton_ = new OutlineBrowserButton(cancelRect, this, kSavePresetDialogCancelTag, "Cancel");
     dialogBox_->addView(cancelButton_);
 }
 

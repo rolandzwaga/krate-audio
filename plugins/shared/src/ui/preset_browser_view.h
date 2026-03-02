@@ -19,7 +19,7 @@
 #include "vstgui/lib/events.h"
 #include "vstgui/lib/controls/ctextedit.h"
 #include "vstgui/lib/controls/ctextlabel.h"
-#include "vstgui/lib/controls/cbuttons.h"
+#include "outline_button.h"
 #include "vstgui/lib/controls/icontrollistener.h"
 #include "vstgui/lib/controls/itexteditlistener.h"
 #include "vstgui/lib/cvstguitimer.h"
@@ -103,10 +103,10 @@ private:
     CategoryTabBar* categoryTabBar_ = nullptr;
     VSTGUI::CDataBrowser* presetList_ = nullptr;
     VSTGUI::CTextEdit* searchField_ = nullptr;
-    VSTGUI::CTextButton* saveButton_ = nullptr;
-    VSTGUI::CTextButton* importButton_ = nullptr;
-    VSTGUI::CTextButton* deleteButton_ = nullptr;
-    VSTGUI::CTextButton* closeButton_ = nullptr;
+    OutlineBrowserButton* saveButton_ = nullptr;
+    OutlineBrowserButton* importButton_ = nullptr;
+    OutlineBrowserButton* deleteButton_ = nullptr;
+    OutlineBrowserButton* closeButton_ = nullptr;
 
     // Data source (owns this)
     PresetDataSource* dataSource_ = nullptr;
@@ -119,21 +119,21 @@ private:
     // Save dialog components (inline overlay)
     VSTGUI::CViewContainer* saveDialogOverlay_ = nullptr;
     VSTGUI::CTextEdit* saveDialogNameField_ = nullptr;
-    VSTGUI::CTextButton* saveDialogSaveButton_ = nullptr;
-    VSTGUI::CTextButton* saveDialogCancelButton_ = nullptr;
+    OutlineBrowserButton* saveDialogSaveButton_ = nullptr;
+    OutlineBrowserButton* saveDialogCancelButton_ = nullptr;
     bool saveDialogVisible_ = false;
 
     // Delete confirmation dialog components
     VSTGUI::CViewContainer* deleteDialogOverlay_ = nullptr;
     VSTGUI::CTextLabel* deleteDialogLabel_ = nullptr;
-    VSTGUI::CTextButton* deleteDialogConfirmButton_ = nullptr;
-    VSTGUI::CTextButton* deleteDialogCancelButton_ = nullptr;
+    OutlineBrowserButton* deleteDialogConfirmButton_ = nullptr;
+    OutlineBrowserButton* deleteDialogCancelButton_ = nullptr;
 
     // Overwrite confirmation dialog components
     VSTGUI::CViewContainer* overwriteDialogOverlay_ = nullptr;
     VSTGUI::CTextLabel* overwriteDialogLabel_ = nullptr;
-    VSTGUI::CTextButton* overwriteDialogConfirmButton_ = nullptr;
-    VSTGUI::CTextButton* overwriteDialogCancelButton_ = nullptr;
+    OutlineBrowserButton* overwriteDialogConfirmButton_ = nullptr;
+    OutlineBrowserButton* overwriteDialogCancelButton_ = nullptr;
     int overwriteTargetIndex_ = -1;
 
     void createChildViews();

@@ -18,7 +18,7 @@
 #include "vstgui/lib/events.h"
 #include "vstgui/lib/controls/ctextedit.h"
 #include "vstgui/lib/controls/ctextlabel.h"
-#include "vstgui/lib/controls/cbuttons.h"
+#include "outline_button.h"
 #include "vstgui/lib/controls/icontrollistener.h"
 
 namespace Krate::Plugins {
@@ -65,8 +65,8 @@ private:
     VSTGUI::CViewContainer* dialogBox_ = nullptr;
     VSTGUI::CTextLabel* titleLabel_ = nullptr;
     VSTGUI::CTextEdit* nameField_ = nullptr;
-    VSTGUI::CTextButton* saveButton_ = nullptr;
-    VSTGUI::CTextButton* cancelButton_ = nullptr;
+    OutlineBrowserButton* saveButton_ = nullptr;
+    OutlineBrowserButton* cancelButton_ = nullptr;
 
     // State
     std::string currentSubcategory_;

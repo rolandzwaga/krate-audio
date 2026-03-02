@@ -15,23 +15,6 @@
 
 namespace Krate::Plugins {
 
-// =============================================================================
-// DialogButton - Custom button that doesn't consume Enter/Escape events
-// =============================================================================
-
-class DialogButton : public VSTGUI::CTextButton {
-public:
-    using CTextButton::CTextButton;
-
-    void onKeyboardEvent(VSTGUI::KeyboardEvent& event) override {
-        if (event.virt == VSTGUI::VirtualKey::Return ||
-            event.virt == VSTGUI::VirtualKey::Enter ||
-            event.virt == VSTGUI::VirtualKey::Escape) {
-            return;  // Skip, don't consume
-        }
-        CTextButton::onKeyboardEvent(event);
-    }
-};
 
 // =============================================================================
 // Layout Constants
@@ -512,35 +495,27 @@ void PresetBrowserView::createChildViews() {
     auto buttonHeight = Layout::kButtonBarHeight - Layout::kInnerPadding;
     auto currentX = contentRect.left + Layout::kInnerPadding;
 
-    saveButton_ = new VSTGUI::CTextButton(
+    saveButton_ = new OutlineBrowserButton(
         VSTGUI::CRect(currentX, buttonY, currentX + Layout::kButtonWidth, buttonY + buttonHeight),
         this, kSaveButtonTag, "Save");
-    saveButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-    saveButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
     addView(saveButton_);
     currentX += Layout::kButtonWidth + Layout::kButtonSpacing;
 
-    importButton_ = new VSTGUI::CTextButton(
+    importButton_ = new OutlineBrowserButton(
         VSTGUI::CRect(currentX, buttonY, currentX + Layout::kButtonWidth, buttonY + buttonHeight),
         this, kImportButtonTag, "Import...");
-    importButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-    importButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
     addView(importButton_);
     currentX += Layout::kButtonWidth + Layout::kButtonSpacing;
 
-    deleteButton_ = new VSTGUI::CTextButton(
+    deleteButton_ = new OutlineBrowserButton(
         VSTGUI::CRect(currentX, buttonY, currentX + Layout::kButtonWidth, buttonY + buttonHeight),
-        this, kDeleteButtonTag, "Delete");
-    deleteButton_->setFrameColor(VSTGUI::CColor(120, 60, 60));
-    deleteButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+        this, kDeleteButtonTag, "Delete", VSTGUI::CColor(120, 60, 60));
     addView(deleteButton_);
 
-    closeButton_ = new VSTGUI::CTextButton(
+    closeButton_ = new OutlineBrowserButton(
         VSTGUI::CRect(contentRect.right - Layout::kInnerPadding - Layout::kButtonWidth, buttonY,
                        contentRect.right - Layout::kInnerPadding, buttonY + buttonHeight),
         this, kCloseButtonTag, "Close");
-    closeButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-    closeButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
     addView(closeButton_);
 
     // Dialog Overlays
@@ -632,19 +607,15 @@ void PresetBrowserView::createDialogViews() {
         auto buttonsWidth = kButtonWidth * 2 + kButtonGap;
         auto buttonsLeft = (kDialogWidth - buttonsWidth) / 2.0f;
 
-        saveDialogSaveButton_ = new VSTGUI::CTextButton(
+        saveDialogSaveButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft, buttonY, buttonsLeft + kButtonWidth, buttonY + kButtonHeight),
-            this, kSaveDialogSaveTag, "Save");
-        saveDialogSaveButton_->setFrameColor(VSTGUI::CColor(60, 120, 180));
-        saveDialogSaveButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+            this, kSaveDialogSaveTag, "Save", VSTGUI::CColor(60, 120, 180));
         saveDialogOverlay_->addView(saveDialogSaveButton_);
 
-        saveDialogCancelButton_ = new VSTGUI::CTextButton(
+        saveDialogCancelButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft + kButtonWidth + kButtonGap, buttonY,
                            buttonsLeft + kButtonWidth * 2 + kButtonGap, buttonY + kButtonHeight),
             this, kSaveDialogCancelTag, "Cancel");
-        saveDialogCancelButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-        saveDialogCancelButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
         saveDialogOverlay_->addView(saveDialogCancelButton_);
 
         addView(saveDialogOverlay_);
@@ -687,19 +658,15 @@ void PresetBrowserView::createDialogViews() {
         auto buttonsWidth = kButtonWidth * 2 + kButtonGap;
         auto buttonsLeft = (kDialogWidth - buttonsWidth) / 2.0f;
 
-        deleteDialogConfirmButton_ = new DialogButton(
+        deleteDialogConfirmButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft, buttonY, buttonsLeft + kButtonWidth, buttonY + kButtonHeight),
-            this, kDeleteDialogConfirmTag, "Delete");
-        deleteDialogConfirmButton_->setFrameColor(VSTGUI::CColor(180, 60, 60));
-        deleteDialogConfirmButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+            this, kDeleteDialogConfirmTag, "Delete", VSTGUI::CColor(180, 60, 60));
         deleteDialogOverlay_->addView(deleteDialogConfirmButton_);
 
-        deleteDialogCancelButton_ = new DialogButton(
+        deleteDialogCancelButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft + kButtonWidth + kButtonGap, buttonY,
                            buttonsLeft + kButtonWidth * 2 + kButtonGap, buttonY + kButtonHeight),
             this, kDeleteDialogCancelTag, "Cancel");
-        deleteDialogCancelButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-        deleteDialogCancelButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
         deleteDialogOverlay_->addView(deleteDialogCancelButton_);
 
         addView(deleteDialogOverlay_);
@@ -742,19 +709,15 @@ void PresetBrowserView::createDialogViews() {
         auto buttonsWidth = kButtonWidth * 2 + kButtonGap;
         auto buttonsLeft = (kDialogWidth - buttonsWidth) / 2.0f;
 
-        overwriteDialogConfirmButton_ = new DialogButton(
+        overwriteDialogConfirmButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft, buttonY, buttonsLeft + kButtonWidth, buttonY + kButtonHeight),
-            this, kOverwriteDialogConfirmTag, "Overwrite");
-        overwriteDialogConfirmButton_->setFrameColor(VSTGUI::CColor(180, 140, 60));
-        overwriteDialogConfirmButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
+            this, kOverwriteDialogConfirmTag, "Overwrite", VSTGUI::CColor(180, 140, 60));
         overwriteDialogOverlay_->addView(overwriteDialogConfirmButton_);
 
-        overwriteDialogCancelButton_ = new DialogButton(
+        overwriteDialogCancelButton_ = new OutlineBrowserButton(
             VSTGUI::CRect(buttonsLeft + kButtonWidth + kButtonGap, buttonY,
                            buttonsLeft + kButtonWidth * 2 + kButtonGap, buttonY + kButtonHeight),
             this, kOverwriteDialogCancelTag, "Cancel");
-        overwriteDialogCancelButton_->setFrameColor(VSTGUI::CColor(80, 80, 85));
-        overwriteDialogCancelButton_->setTextColor(VSTGUI::CColor(255, 255, 255));
         overwriteDialogOverlay_->addView(overwriteDialogCancelButton_);
 
         addView(overwriteDialogOverlay_);
