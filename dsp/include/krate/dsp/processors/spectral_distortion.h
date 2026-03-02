@@ -488,8 +488,8 @@ private:
         const float normFactor = 2.0f / static_cast<float>(fftSize_);
         const float invNormFactor = static_cast<float>(fftSize_) / 2.0f;
 
-        // Set waveshaper drive once (applied to normalized components)
-        waveshaper_.setDrive(1.0f);
+        // Use drive_ as waveshaper pre-gain so saturation intensity scales with drive
+        waveshaper_.setDrive(drive_);
 
         // Process bins using rectangular coordinates (real + imaginary)
         // This allows natural phase evolution through the nonlinear function
@@ -501,21 +501,15 @@ private:
             float normalizedReal = real * normFactor;
             float normalizedImag = imag * normFactor;
 
-            // FR-020: Apply drive and waveshaper to each component independently
+            // FR-020: Apply waveshaper with drive to each component independently
+            // The waveshaper applies drive internally: shape(drive * x)
             // This creates coupled magnitude/phase modification through the nonlinearity
-            float drivenReal = normalizedReal * drive_;
-            float drivenImag = normalizedImag * drive_;
-
-            float saturatedReal = waveshaper_.process(drivenReal);
-            float saturatedImag = waveshaper_.process(drivenImag);
-
-            // Undo drive scaling to maintain approximate unity gain
-            float newNormalizedReal = saturatedReal / drive_;
-            float newNormalizedImag = saturatedImag / drive_;
+            float saturatedReal = waveshaper_.process(normalizedReal);
+            float saturatedImag = waveshaper_.process(normalizedImag);
 
             // Denormalize back to spectral range
-            float newReal = newNormalizedReal * invNormFactor;
-            float newImag = newNormalizedImag * invNormFactor;
+            float newReal = saturatedReal * invNormFactor;
+            float newImag = saturatedImag * invNormFactor;
 
             // Flush denormals (FR-027)
             newReal = detail::flushDenormal(newReal);
@@ -552,6 +546,9 @@ private:
         const float normFactor = 2.0f / static_cast<float>(fftSize_);
         const float invNormFactor = static_cast<float>(fftSize_) / 2.0f;
 
+        // Use drive_ as waveshaper pre-gain so saturation intensity scales with drive
+        waveshaper_.setDrive(drive_);
+
         // Store phases, process magnitudes, restore phases
         for (std::size_t bin = startBin; bin < endBin; ++bin) {
             // Store original phase
@@ -562,14 +559,12 @@ private:
             // Normalize magnitude to [0, 1] range for waveshaper
             float normalizedMag = magnitude * normFactor;
 
-            // Apply waveshaping to normalized magnitude
-            float drivenMag = normalizedMag * drive_;
-            waveshaper_.setDrive(1.0f);
-            float saturatedMag = waveshaper_.process(drivenMag);
-            float newNormalizedMag = saturatedMag / drive_;
+            // Apply waveshaping with drive to normalized magnitude
+            // The waveshaper applies drive internally: shape(drive * x)
+            float saturatedMag = waveshaper_.process(normalizedMag);
 
             // Denormalize back to spectral magnitude range
-            float newMag = newNormalizedMag * invNormFactor;
+            float newMag = saturatedMag * invNormFactor;
 
             // Flush denormals (FR-027)
             newMag = detail::flushDenormal(newMag);
@@ -618,14 +613,13 @@ private:
             // Normalize magnitude to [0, 1] range for waveshaper
             float normalizedMag = magnitude * normFactor;
 
-            // Apply waveshaping with bin's drive
-            float drivenMag = normalizedMag * binDrive;
-            waveshaper_.setDrive(1.0f);
-            float saturatedMag = waveshaper_.process(drivenMag);
-            float newNormalizedMag = saturatedMag / binDrive;
+            // Apply waveshaping with per-bin drive
+            // The waveshaper applies drive internally: shape(drive * x)
+            waveshaper_.setDrive(binDrive);
+            float saturatedMag = waveshaper_.process(normalizedMag);
 
             // Denormalize back to spectral magnitude range
-            float newMag = newNormalizedMag * invNormFactor;
+            float newMag = saturatedMag * invNormFactor;
 
             // Flush denormals (FR-027)
             newMag = detail::flushDenormal(newMag);
@@ -657,19 +651,45 @@ private:
         const float levels = std::pow(2.0f, magnitudeBits_) - 1.0f;
         const float invLevels = 1.0f / levels;
 
+        // Per-frame peak normalization: find the maximum magnitude across all
+        // active bins, then quantize each bin relative to that peak. This is
+        // analogous to how PCM bit reduction works — the full bit depth spans
+        // the signal's dynamic range regardless of absolute FFT scale.
+        float peakMag = 0.0f;
+        for (std::size_t bin = startBin; bin < endBin; ++bin) {
+            peakMag = std::max(peakMag, inputSpectrum_.getMagnitude(bin));
+        }
+
+        // If frame is silent, pass through zeros
+        if (peakMag < 1e-20f) {
+            for (std::size_t bin = startBin; bin < endBin; ++bin) {
+                outputSpectrum_.setMagnitude(bin, 0.0f);
+                outputSpectrum_.setPhase(bin, inputSpectrum_.getPhase(bin));
+            }
+            return;
+        }
+
+        const float invPeakMag = 1.0f / peakMag;
+
         // Process bins with quantization
         for (std::size_t bin = startBin; bin < endBin; ++bin) {
             // Store original phase for exact restoration (SC-001a)
             float phase = inputSpectrum_.getPhase(bin);
             float magnitude = inputSpectrum_.getMagnitude(bin);
 
-            // Quantize magnitude: quantized = round(mag * levels) / levels
-            float quantized = std::round(magnitude * levels) * invLevels;
+            // Normalize to [0, 1] relative to frame peak
+            float normalizedMag = magnitude * invPeakMag;
+
+            // Quantize: snap to nearest of (levels+1) values: 0, 1/L, 2/L, ..., 1
+            float quantized = std::round(normalizedMag * levels) * invLevels;
+
+            // Denormalize back to original magnitude scale
+            float newMag = quantized * peakMag;
 
             // Flush denormals (FR-027)
-            quantized = detail::flushDenormal(quantized);
+            newMag = detail::flushDenormal(newMag);
 
-            outputSpectrum_.setMagnitude(bin, quantized);
+            outputSpectrum_.setMagnitude(bin, newMag);
             outputSpectrum_.setPhase(bin, phase);  // Exact phase restoration
         }
     }

@@ -1386,10 +1386,12 @@ private:
                 break;
             case RuinaeDistortionType::SpectralDistortion:
                 // NOT in-place: requires separate input/output buffers
+                // Use oscABuffer_ as scratch (free at distortion stage) to avoid
+                // clobbering distortionBuffer_ which holds the dry signal for wet/dry blend
                 if (distSpectral_) {
-                    distSpectral_->processBlock(buffer, distortionBuffer_.data(), numSamples);
-                    std::copy(distortionBuffer_.data(),
-                              distortionBuffer_.data() + numSamples,
+                    distSpectral_->processBlock(buffer, oscABuffer_.data(), numSamples);
+                    std::copy(oscABuffer_.data(),
+                              oscABuffer_.data() + numSamples,
                               buffer);
                 }
                 break;
