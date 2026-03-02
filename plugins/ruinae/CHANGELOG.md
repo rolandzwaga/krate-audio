@@ -5,6 +5,23 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-03-02
+
+### Added
+
+- **ARP Save Preset button** — "Save" button on the arpeggiator tab opens the ARP preset browser with the save dialog shown, defaulting to "Arp Classic" subcategory
+- **Shared OutlineBrowserButton** — Unified outline button component for preset browser and save dialog, replacing duplicated CTextButton/DialogButton classes
+
+### Changed
+
+- **Distinct FX tab section colors** — Each effect section (Phaser, Delay, Harmonizer, Reverb) now has its own accent color
+- **MOD tab layout** — Redistributed controls and fixed mod source dropdown display
+- **Preset browser filtering** — ARP presets hidden from synth preset browser via tab label filtering
+
+### Fixed
+
+- **CI AUv3 verify step** — No longer fails when only a subset of plugins changed
+
 ## [0.9.3] - 2026-03-02
 
 ### Added
