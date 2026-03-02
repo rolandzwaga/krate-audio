@@ -327,6 +327,15 @@ private:
     float settingsDrawerProgress_ = 0.0f;  // 0.0 = closed, 1.0 = open
     bool settingsDrawerTargetOpen_ = false;
 
+    /// Guard flag: when true, setParamNormalized() skips per-param view updates.
+    /// Set during bulk parameter loads (setComponentState, loadComponentStateWithNotify)
+    /// to avoid thousands of individual invalidRect() calls that crash VSTGUI.
+    bool bulkParamLoad_ = false;
+
+    /// Batch-sync all custom views from current parameter state.
+    /// Called once after bulk parameter loads instead of per-param updates.
+    void syncAllViews();
+
     // Playback position shared from processor via IMessage pointer
     std::atomic<int>* tranceGatePlaybackStepPtr_ = nullptr;
     std::atomic<bool>* isTransportPlayingPtr_ = nullptr;

@@ -300,6 +300,8 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         return Steinberg::kResultTrue; // Unknown version, keep defaults
     }
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         setParamNormalized(id, value);
     };
@@ -375,6 +377,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     // Arpeggiator params (FR-012) -- backward compat: silently returns on
     // truncated/old streams, leaving arp controller params at defaults
     loadArpParamsToController(streamer, setParam);
+
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
 
     return Steinberg::kResultTrue;
 }
@@ -551,6 +556,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 
     // Let the base class handle its bookkeeping first
     auto result = EditControllerEx1::setParamNormalized(tag, value);
+
+    // During bulk parameter loads (preset switching), skip per-param view updates.
+    // syncAllViews() will do a single batch sync afterwards.
+    if (bulkParamLoad_)
+        return result;
 
     // Push trance gate parameter changes to StepPatternEditor
     if (stepPatternEditor_) {
@@ -1801,6 +1811,246 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 
         default:
             break;
+    }
+}
+
+// ==============================================================================
+// Batch View Sync (bulk parameter load guard)
+// ==============================================================================
+// Called once after setComponentState() or loadComponentStateWithNotify() to
+// sync all custom views from current parameter state. Replaces thousands of
+// per-param invalidRect() calls with a single full-frame repaint.
+
+void Controller::syncAllViews() {
+    // Helper: read a normalized param value, return 0.0 if not found
+    auto paramNorm = [this](Steinberg::Vst::ParamID id) -> double {
+        auto* p = getParameterObject(id);
+        return p ? p->getNormalized() : 0.0;
+    };
+    // Helper: read normalized param → clamped int
+    auto paramInt = [&](Steinberg::Vst::ParamID id, double scale,
+                        double offset, int lo, int hi) -> int {
+        return std::clamp(
+            static_cast<int>(offset + std::round(paramNorm(id) * scale)),
+            lo, hi);
+    };
+
+    // ---- StepPatternEditor (trance gate) ----
+    if (stepPatternEditor_) {
+        for (int i = 0; i < 32; ++i) {
+            auto stepVal = static_cast<float>(
+                paramNorm(kTranceGateStepLevel0Id + static_cast<uint32_t>(i)));
+            stepPatternEditor_->setStepLevel(i, stepVal);
+        }
+        int numSteps = paramInt(kTranceGateNumStepsId, 30.0, 2.0, 2, 32);
+        stepPatternEditor_->setNumSteps(numSteps);
+        bool eucEnabled = paramNorm(kTranceGateEuclideanEnabledId) >= 0.5;
+        stepPatternEditor_->setEuclideanEnabled(eucEnabled);
+        int eucHits = paramInt(kTranceGateEuclideanHitsId, 32.0, 0.0, 0, 32);
+        stepPatternEditor_->setEuclideanHits(eucHits);
+        int eucRot = paramInt(kTranceGateEuclideanRotationId, 31.0, 0.0, 0, 31);
+        stepPatternEditor_->setEuclideanRotation(eucRot);
+        stepPatternEditor_->setPhaseOffset(
+            static_cast<float>(paramNorm(kTranceGatePhaseOffsetId)));
+
+        if (euclideanControlsGroup_)
+            euclideanControlsGroup_->setVisible(eucEnabled);
+    }
+
+    // ---- Arp lane editors (velocity, gate, pitch, ratchet, modifier, condition) ----
+    auto syncBarLane = [&](Krate::Plugins::ArpLaneEditor* lane,
+                           Steinberg::Vst::ParamID stepBase,
+                           Steinberg::Vst::ParamID lengthId) {
+        if (!lane) return;
+        for (int i = 0; i < 32; ++i) {
+            lane->setStepLevel(i, static_cast<float>(
+                paramNorm(stepBase + static_cast<uint32_t>(i))));
+        }
+        int steps = paramInt(lengthId, 31.0, 1.0, 1, 32);
+        lane->setNumSteps(steps);
+        lane->setDirty(true);
+    };
+    syncBarLane(velocityLane_, kArpVelocityLaneStep0Id, kArpVelocityLaneLengthId);
+    syncBarLane(gateLane_, kArpGateLaneStep0Id, kArpGateLaneLengthId);
+    syncBarLane(pitchLane_, kArpPitchLaneStep0Id, kArpPitchLaneLengthId);
+    syncBarLane(ratchetLane_, kArpRatchetLaneStep0Id, kArpRatchetLaneLengthId);
+
+    // Modifier lane (flags, not float levels)
+    if (modifierLane_) {
+        for (int i = 0; i < 32; ++i) {
+            auto flags = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(
+                    paramNorm(kArpModifierLaneStep0Id + static_cast<uint32_t>(i)) * 255.0)),
+                0, 255));
+            modifierLane_->setStepFlags(i, flags);
+        }
+        int steps = paramInt(kArpModifierLaneLengthId, 31.0, 1.0, 1, 32);
+        modifierLane_->setNumSteps(steps);
+        modifierLane_->setDirty(true);
+    }
+
+    // Condition lane (condition indices)
+    if (conditionLane_) {
+        for (int i = 0; i < 32; ++i) {
+            auto condIdx = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(
+                    paramNorm(kArpConditionLaneStep0Id + static_cast<uint32_t>(i)) * 17.0)),
+                0, 17));
+            conditionLane_->setStepCondition(i, condIdx);
+        }
+        int steps = paramInt(kArpConditionLaneLengthId, 31.0, 1.0, 1, 32);
+        conditionLane_->setNumSteps(steps);
+        conditionLane_->setDirty(true);
+    }
+
+    // ---- Arp Euclidean overlay + dot display ----
+    {
+        int arpEucHits = paramInt(kArpEuclideanHitsId, 32.0, 0.0, 0, 32);
+        int arpEucSteps = paramInt(kArpEuclideanStepsId, 30.0, 2.0, 2, 32);
+        int arpEucRot = paramInt(kArpEuclideanRotationId, 31.0, 0.0, 0, 31);
+        bool arpEucEnabled = paramNorm(kArpEuclideanEnabledId) >= 0.5;
+
+        if (euclideanDotDisplay_) {
+            euclideanDotDisplay_->setSteps(arpEucSteps);
+            euclideanDotDisplay_->setHits(arpEucHits);
+            euclideanDotDisplay_->setRotation(arpEucRot);
+        }
+
+        Krate::Plugins::IArpLane* lanes[] = {
+            velocityLane_, gateLane_, pitchLane_, ratchetLane_,
+            modifierLane_, conditionLane_};
+        for (auto* lane : lanes) {
+            if (lane) lane->setEuclideanOverlay(arpEucHits, arpEucSteps, arpEucRot, arpEucEnabled);
+        }
+
+        if (arpEuclideanGroup_)
+            arpEuclideanGroup_->setVisible(arpEucEnabled);
+    }
+
+    // ---- Visibility toggles (sync groups) ----
+    auto syncVisGroup = [&](Steinberg::Vst::ParamID syncId,
+                            VSTGUI::CView* freeGroup,
+                            VSTGUI::CView* syncGroup) {
+        double v = paramNorm(syncId);
+        if (freeGroup) freeGroup->setVisible(v < 0.5);
+        if (syncGroup) syncGroup->setVisible(v >= 0.5);
+    };
+    syncVisGroup(kLFO1SyncId, lfo1RateGroup_, lfo1NoteValueGroup_);
+    syncVisGroup(kLFO2SyncId, lfo2RateGroup_, lfo2NoteValueGroup_);
+    syncVisGroup(kChaosModSyncId, chaosRateGroup_, chaosNoteValueGroup_);
+    syncVisGroup(kSampleHoldSyncId, shRateGroup_, shNoteValueGroup_);
+    syncVisGroup(kRandomSyncId, randomRateGroup_, randomNoteValueGroup_);
+    syncVisGroup(kDelaySyncId, delayTimeGroup_, delayNoteValueGroup_);
+    syncVisGroup(kPhaserSyncId, phaserRateGroup_, phaserNoteValueGroup_);
+    syncVisGroup(kTranceGateTempoSyncId, tranceGateRateGroup_, tranceGateNoteValueGroup_);
+    syncVisGroup(kArpTempoSyncId, arpRateGroup_, arpNoteValueGroup_);
+
+    // Poly/Mono
+    {
+        double vm = paramNorm(kVoiceModeId);
+        if (polyGroup_) polyGroup_->setVisible(vm < 0.5);
+        if (monoGroup_) monoGroup_->setVisible(vm >= 0.5);
+    }
+
+    // ---- Harmonizer voice row dimming ----
+    {
+        double hv = paramNorm(kHarmonizerNumVoicesId);
+        int numVoices = static_cast<int>(hv * (kHarmonizerNumVoicesCount - 1) + 0.5) + 1;
+        for (int i = 0; i < 4; ++i) {
+            if (harmonizerVoiceRows_[static_cast<size_t>(i)]) {
+                harmonizerVoiceRows_[static_cast<size_t>(i)]->setAlphaValue(
+                    i < numVoices ? 1.0f : 0.3f);
+            }
+        }
+    }
+
+    // ---- Arp Scale Mode dimming ----
+    {
+        double scaleNorm = paramNorm(kArpScaleTypeId);
+        bool isChromatic = (scaleNorm < 0.01);
+        float alpha = isChromatic ? 0.35f : 1.0f;
+        if (arpRootNoteGroup_) {
+            arpRootNoteGroup_->setAlphaValue(alpha);
+            arpRootNoteGroup_->setMouseEnabled(!isChromatic);
+        }
+        if (arpQuantizeInputGroup_) {
+            arpQuantizeInputGroup_->setAlphaValue(alpha);
+            arpQuantizeInputGroup_->setMouseEnabled(!isChromatic);
+        }
+        if (pitchLane_) {
+            int uiIndex = std::clamp(
+                static_cast<int>(scaleNorm * (kArpScaleTypeCount - 1) + 0.5),
+                0, kArpScaleTypeCount - 1);
+            int enumValue = kArpScaleDisplayOrder[static_cast<size_t>(uiIndex)];
+            pitchLane_->setScaleType(enumValue);
+        }
+    }
+
+    // ---- PW knob dimming ----
+    if (oscAPWKnob_) {
+        int wf = static_cast<int>(paramNorm(kOscAWaveformId) * 4.0 + 0.5);
+        oscAPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+    }
+    if (oscBPWKnob_) {
+        int wf = static_cast<int>(paramNorm(kOscBWaveformId) * 4.0 + 0.5);
+        oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
+    }
+
+    // ---- Spectral distortion control dimming ----
+    {
+        double modeNorm = paramNorm(kDistortionSpectralModeId);
+        int mode = std::clamp(
+            static_cast<int>(modeNorm * (kSpectralModeCount - 1) + 0.5),
+            0, kSpectralModeCount - 1);
+        bool isBitcrush = (mode == 3);
+        if (spectralCurveDropdown_) {
+            spectralCurveDropdown_->setAlphaValue(isBitcrush ? 0.35f : 1.0f);
+            spectralCurveDropdown_->setMouseEnabled(!isBitcrush);
+        }
+        if (spectralBitsGroup_) {
+            spectralBitsGroup_->setAlphaValue(isBitcrush ? 1.0f : 0.35f);
+            spectralBitsGroup_->setMouseEnabled(isBitcrush);
+        }
+    }
+
+    // ---- XYMorphPad ----
+    if (xyMorphPad_ && !modulatedMorphXPtr_) {
+        xyMorphPad_->setMorphPosition(
+            static_cast<float>(paramNorm(kMixerPositionId)),
+            static_cast<float>(paramNorm(kMixerTiltId)));
+    }
+
+    // ---- ADSR Displays ----
+    syncAdsrDisplay(ampEnvDisplay_,
+        kAmpEnvAttackId, kAmpEnvAttackCurveId,
+        kAmpEnvBezierEnabledId, kAmpEnvBezierAttackCp1XId);
+    syncAdsrDisplay(filterEnvDisplay_,
+        kFilterEnvAttackId, kFilterEnvAttackCurveId,
+        kFilterEnvBezierEnabledId, kFilterEnvBezierAttackCp1XId);
+    syncAdsrDisplay(modEnvDisplay_,
+        kModEnvAttackId, kModEnvAttackCurveId,
+        kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
+
+    // ---- Mod Matrix Grid + Ring Indicators ----
+    if (modMatrixGrid_ && !suppressModMatrixSync_) {
+        syncModMatrixGrid();
+    }
+    rebuildRingIndicators();
+
+    // Sync destination knob base values to ring indicators
+    for (int i = 0; i < kMaxRingIndicators; ++i) {
+        if (ringIndicators_[static_cast<size_t>(i)]) {
+            auto* param = getParameterObject(kVoiceDestParamIds[static_cast<size_t>(i)]);
+            if (param) {
+                ringIndicators_[static_cast<size_t>(i)]->setBaseValue(
+                    static_cast<float>(param->getNormalized()));
+            }
+        }
+    }
+
+    // ---- Single full-frame repaint instead of thousands of invalidRects ----
+    if (activeEditor_ && activeEditor_->getFrame()) {
+        activeEditor_->getFrame()->invalid();
     }
 }
 

@@ -393,6 +393,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
     if (!streamer.readInt32(version) || version != 1)
         return false;
 
+    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+
     // Lambda that calls editParamWithNotify instead of setParamNormalized
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
@@ -469,6 +471,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
 
     // Item 37: Arp params (includes all lane step data) - ALWAYS applied
     loadArpParamsToController(streamer, setParam);
+
+    bulkParamLoad_ = false;  // Re-enable per-param view updates
+    syncAllViews();           // Single batch sync of all custom views
 
     return true;
 }
