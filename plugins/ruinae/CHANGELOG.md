@@ -5,6 +5,17 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-03-02
+
+### Added
+
+- **30 new synth presets** across 6 categories: Basses (5), Leads (5), Pads (5), Rhythmic (5), Textures (5), Experimental (5)
+- **Crash-proof preset loading** — RTTransferT lock-free triple-buffer safely transfers preset state to the audio thread, preventing data races on voiceRoutes during preset switches
+
+### Fixed
+
+- **Chaos oscillator producing inaudible DC output** — Lorenz, Rossler, and Chua attractors were evolving at sub-audio rates (0.3-10 Hz instead of 440 Hz) due to incorrect baseDt calibration. Recalibrated all three attractors and adjusted gain compensation. The Chaos Wind preset and all chaos-type oscillator presets now produce proper audible audio.
+
 ## [0.9.2] - 2026-03-01
 
 ### Added
