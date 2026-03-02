@@ -310,16 +310,30 @@ jobs:
           sleep 2
           auval -v aumu Ruin KrAt
 
-      # Verify AUv3 bundle structure
-      - name: Verify AUv3 Bundle Structure
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+      # Verify AUv3 bundle structure (per-plugin, matching build conditions)
+      - name: Verify Iterum AUv3 Bundle
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
-          for PLUGIN in "Iterum" "Disrumpo" "Ruinae"; do
-            APP="build/bin/${{ env.BUILD_TYPE }}/${PLUGIN} AUv3.app"
-            test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
-            test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in ${PLUGIN} AUv3"; exit 1; }
-            echo "[${PLUGIN}] AUv3 bundle OK"
-          done
+          APP="build/bin/${{ env.BUILD_TYPE }}/Iterum AUv3.app"
+          test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+          test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Iterum AUv3"; exit 1; }
+          echo "[Iterum] AUv3 bundle OK"
+
+      - name: Verify Disrumpo AUv3 Bundle
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          APP="build/bin/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app"
+          test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+          test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Disrumpo AUv3"; exit 1; }
+          echo "[Disrumpo] AUv3 bundle OK"
+
+      - name: Verify Ruinae AUv3 Bundle
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          APP="build/bin/${{ env.BUILD_TYPE }}/Ruinae AUv3.app"
+          test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+          test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Ruinae AUv3"; exit 1; }
+          echo "[Ruinae] AUv3 bundle OK"
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
