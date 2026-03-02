@@ -1908,88 +1908,88 @@
     <template name="ModSource_LFO1" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
         <!-- Rate (hidden when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="LFO1RateGroup" transparent="true">
-            <view class="ArcKnob" origin="4, 0" size="28, 28"
+            <view class="ArcKnob" origin="4, 8" size="36, 36"
                   control-tag="LFO1Rate" default-value="0.5"
                   arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rate"/>
         </view>
         <!-- Note Value (visible when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="LFO1NoteValueGroup" transparent="true"
               visible="false">
-            <view class="COptionMenu" origin="2, 6" size="32, 16"
+            <view class="COptionMenu" origin="2, 14" size="40, 18"
                   control-tag="LFO1NoteValue"
                   font="~ NormalFontSmaller" font-color="text-primary"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   round-rect-radius="2" frame-width="1"
                   min-value="0" max-value="1"
                   default-value="0.5"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Note"/>
         </view>
         <!-- Shape selector -->
         <view class="LfoShapeSelector"
-              origin="38, 0" size="36, 28"
+              origin="76, 8" size="40, 36"
               control-tag="LFO1Shape"
               lfo-color="modulation"
               min-value="0" max-value="1"/>
-        <view class="CTextLabel" origin="34, 28" size="44, 10"
+        <view class="CTextLabel" origin="70, 46" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
-        <view class="ArcKnob" origin="82, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="LFO1Depth" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 28" size="40, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Depth"/>
         <!-- Phase Offset -->
-        <view class="ArcKnob" origin="122, 0" size="28, 28"
+        <view class="ArcKnob" origin="204, 8" size="36, 36"
               control-tag="LFO1Phase" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="116, 28" size="40, 10"
+        <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Phase"/>
 
         <!-- Row 2: Sync | Retrigger | Unipolar -->
-        <view class="ToggleButton" origin="2, 42" size="36, 12"
+        <view class="ToggleButton" origin="14, 62" size="36, 12"
               control-tag="LFO1Sync" default-value="1.0"
               title="Sync"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
-        <view class="ToggleButton" origin="42, 42" size="46, 12"
+        <view class="ToggleButton" origin="78, 62" size="46, 12"
               control-tag="LFO1Retrigger" default-value="1.0"
               title="Retrig"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
-        <view class="ToggleButton" origin="92, 42" size="50, 12"
+        <view class="ToggleButton" origin="152, 62" size="50, 12"
               control-tag="LFO1Unipolar" default-value="0.0"
               title="Unipolar"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
 
         <!-- Row 3: Fade-in | Symmetry | Quantize -->
-        <view class="ArcKnob" origin="8, 60" size="28, 28"
+        <view class="ArcKnob" origin="12, 84" size="36, 36"
               control-tag="LFO1FadeIn" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 88" size="44, 10"
+        <view class="CTextLabel" origin="6, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Fade In"/>
-        <view class="ArcKnob" origin="58, 60" size="28, 28"
+        <view class="ArcKnob" origin="76, 84" size="36, 36"
               control-tag="LFO1Symmetry" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="48, 88" size="48, 10"
+        <view class="CTextLabel" origin="70, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Symmetry"/>
-        <view class="ArcKnob" origin="108, 60" size="28, 28"
+        <view class="ArcKnob" origin="140, 84" size="36, 36"
               control-tag="LFO1Quantize" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="100, 88" size="44, 10"
+        <view class="CTextLabel" origin="134, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Quantize"/>
     </template>
@@ -1997,88 +1997,88 @@
     <template name="ModSource_LFO2" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Shape | Depth | Phase -->
         <!-- Rate (hidden when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="LFO2RateGroup" transparent="true">
-            <view class="ArcKnob" origin="4, 0" size="28, 28"
+            <view class="ArcKnob" origin="4, 8" size="36, 36"
                   control-tag="LFO2Rate" default-value="0.5"
                   arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rate"/>
         </view>
         <!-- Note Value (visible when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="LFO2NoteValueGroup" transparent="true"
               visible="false">
-            <view class="COptionMenu" origin="2, 6" size="32, 16"
+            <view class="COptionMenu" origin="2, 14" size="40, 18"
                   control-tag="LFO2NoteValue"
                   font="~ NormalFontSmaller" font-color="text-primary"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   round-rect-radius="2" frame-width="1"
                   min-value="0" max-value="1"
                   default-value="0.5"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Note"/>
         </view>
         <!-- Shape selector -->
         <view class="LfoShapeSelector"
-              origin="38, 0" size="36, 28"
+              origin="76, 8" size="40, 36"
               control-tag="LFO2Shape"
               lfo-color="modulation"
               min-value="0" max-value="1"/>
-        <view class="CTextLabel" origin="34, 28" size="44, 10"
+        <view class="CTextLabel" origin="70, 46" size="52, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Shape"/>
         <!-- Depth -->
-        <view class="ArcKnob" origin="82, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="LFO2Depth" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 28" size="40, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Depth"/>
         <!-- Phase Offset -->
-        <view class="ArcKnob" origin="122, 0" size="28, 28"
+        <view class="ArcKnob" origin="204, 8" size="36, 36"
               control-tag="LFO2Phase" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="116, 28" size="40, 10"
+        <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Phase"/>
 
         <!-- Row 2: Sync | Retrigger | Unipolar -->
-        <view class="ToggleButton" origin="2, 42" size="36, 12"
+        <view class="ToggleButton" origin="14, 62" size="36, 12"
               control-tag="LFO2Sync" default-value="1.0"
               title="Sync"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
-        <view class="ToggleButton" origin="42, 42" size="46, 12"
+        <view class="ToggleButton" origin="78, 62" size="46, 12"
               control-tag="LFO2Retrigger" default-value="1.0"
               title="Retrig"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
-        <view class="ToggleButton" origin="92, 42" size="50, 12"
+        <view class="ToggleButton" origin="152, 62" size="50, 12"
               control-tag="LFO2Unipolar" default-value="0.0"
               title="Unipolar"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
 
         <!-- Row 3: Fade-in | Symmetry | Quantize -->
-        <view class="ArcKnob" origin="8, 60" size="28, 28"
+        <view class="ArcKnob" origin="12, 84" size="36, 36"
               control-tag="LFO2FadeIn" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 88" size="44, 10"
+        <view class="CTextLabel" origin="6, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Fade In"/>
-        <view class="ArcKnob" origin="58, 60" size="28, 28"
+        <view class="ArcKnob" origin="76, 84" size="36, 36"
               control-tag="LFO2Symmetry" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="48, 88" size="48, 10"
+        <view class="CTextLabel" origin="70, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Symmetry"/>
-        <view class="ArcKnob" origin="108, 60" size="28, 28"
+        <view class="ArcKnob" origin="140, 84" size="36, 36"
               control-tag="LFO2Quantize" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="100, 88" size="44, 10"
+        <view class="CTextLabel" origin="134, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Quantize"/>
     </template>
@@ -2086,50 +2086,50 @@
     <template name="ModSource_Chaos" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Row 1: Rate/NoteValue | Type | Depth -->
         <!-- Rate (hidden when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="ChaosRateGroup" transparent="true">
-            <view class="ArcKnob" origin="4, 0" size="28, 28"
+            <view class="ArcKnob" origin="4, 8" size="36, 36"
                   control-tag="ChaosRate" default-value="0.5"
                   arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rate"/>
         </view>
         <!-- Note Value (visible when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="ChaosNoteValueGroup" transparent="true"
               visible="false">
-            <view class="COptionMenu" origin="2, 6" size="32, 16"
+            <view class="COptionMenu" origin="2, 14" size="40, 18"
                   control-tag="ChaosNoteValue"
                   font="~ NormalFontSmaller" font-color="text-primary"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   round-rect-radius="2" frame-width="1"
                   min-value="0" max-value="1"
                   default-value="0.5"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Note"/>
         </view>
         <!-- Type dropdown (Lorenz/Rossler) -->
-        <view class="COptionMenu" origin="44, 4" size="60, 18"
+        <view class="COptionMenu" origin="76, 12" size="72, 22"
               control-tag="ChaosType" default-value="0"
               font="~ NormalFontSmaller" font-color="text-primary"
               back-color="bg-dropdown" frame-color="frame-dropdown"
               round-rect-radius="3" frame-width="1"
               text-alignment="center" transparent="false"/>
-        <view class="CTextLabel" origin="44, 28" size="60, 10"
+        <view class="CTextLabel" origin="70, 46" size="84, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Type"/>
         <!-- Depth -->
-        <view class="ArcKnob" origin="114, 0" size="28, 28"
+        <view class="ArcKnob" origin="168, 8" size="36, 36"
               control-tag="ChaosDepth" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="108, 28" size="40, 10"
+        <view class="CTextLabel" origin="162, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Depth"/>
 
         <!-- Row 2: Sync toggle -->
-        <view class="ToggleButton" origin="2, 42" size="36, 12"
+        <view class="ToggleButton" origin="14, 62" size="36, 12"
               control-tag="ChaosSync" default-value="0.0"
               title="Sync"
               on-color="modulation" off-color="toggle-off"
@@ -2138,68 +2138,68 @@
 
     <template name="ModSource_Macros" size="540, 400" class="CViewContainer" transparent="true">
         <!-- M1 -->
-        <view class="ArcKnob" origin="4, 0" size="28, 28"
+        <view class="ArcKnob" origin="12, 8" size="36, 36"
               control-tag="Macro1Value" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="4, 28" size="28, 10"
+        <view class="CTextLabel" origin="6, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="M1"/>
         <!-- M2 -->
-        <view class="ArcKnob" origin="42, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="Macro2Value" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="42, 28" size="28, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="M2"/>
         <!-- M3 -->
-        <view class="ArcKnob" origin="80, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="Macro3Value" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="80, 28" size="28, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="M3"/>
         <!-- M4 -->
-        <view class="ArcKnob" origin="118, 0" size="28, 28"
+        <view class="ArcKnob" origin="204, 8" size="36, 36"
               control-tag="Macro4Value" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="118, 28" size="28, 10"
+        <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="M4"/>
     </template>
     <template name="ModSource_Rungler" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Row 1: Osc1 Freq, Osc2 Freq, Depth, Filter -->
-        <view class="ArcKnob" origin="4, 0" size="28, 28"
+        <view class="ArcKnob" origin="12, 8" size="36, 36"
               control-tag="RunglerOsc1Freq" default-value="0.4337"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="4, 28" size="28, 10"
+        <view class="CTextLabel" origin="6, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Osc1"/>
-        <view class="ArcKnob" origin="42, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="RunglerOsc2Freq" default-value="0.4924"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="42, 28" size="28, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Osc2"/>
-        <view class="ArcKnob" origin="80, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="RunglerDepth" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="80, 28" size="28, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Depth"/>
-        <view class="ArcKnob" origin="118, 0" size="28, 28"
+        <view class="ArcKnob" origin="204, 8" size="36, 36"
               control-tag="RunglerFilter" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="118, 28" size="28, 10"
+        <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Filter"/>
         <!-- Row 2: Bits knob + Loop Mode toggle -->
-        <view class="ArcKnob" origin="4, 50" size="28, 28"
+        <view class="ArcKnob" origin="12, 84" size="36, 36"
               control-tag="RunglerBits" default-value="0.3333"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="4, 78" size="28, 10"
+        <view class="CTextLabel" origin="6, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Bits"/>
-        <view class="ToggleButton" origin="50, 54" size="40, 18"
+        <view class="ToggleButton" origin="76, 90" size="40, 18"
               control-tag="RunglerLoopMode" default-value="0"
               title="Loop"
               on-color="modulation" off-color="toggle-off"
@@ -2207,62 +2207,62 @@
     </template>
     <template name="ModSource_EnvFollower" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
-        <view class="ArcKnob" origin="4, 0" size="28, 28"
+        <view class="ArcKnob" origin="12, 8" size="36, 36"
               control-tag="EnvFollowerSensitivity" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 28" size="36, 10"
+        <view class="CTextLabel" origin="6, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Sens"/>
         <!-- Attack -->
-        <view class="ArcKnob" origin="48, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="EnvFollowerAttack" default-value="0.5406"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="44, 28" size="36, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Atk"/>
         <!-- Release -->
-        <view class="ArcKnob" origin="92, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="EnvFollowerRelease" default-value="0.5406"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="88, 28" size="36, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Rel"/>
     </template>
     <template name="ModSource_SampleHold" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="SHRateGroup" transparent="true">
-            <view class="ArcKnob" origin="4, 0" size="28, 28"
+            <view class="ArcKnob" origin="4, 8" size="36, 36"
                   control-tag="SampleHoldRate" default-value="0.702"
                   arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rate"/>
         </view>
         <!-- Note Value (visible when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="SHNoteValueGroup" transparent="true"
               visible="false">
-            <view class="COptionMenu" origin="2, 6" size="32, 16"
+            <view class="COptionMenu" origin="2, 14" size="40, 18"
                   control-tag="SampleHoldNoteValue"
                   font="~ NormalFontSmaller" font-color="text-primary"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   round-rect-radius="2" frame-width="1"
                   min-value="0" max-value="1"
                   default-value="0.5"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Note"/>
         </view>
         <!-- Slew -->
-        <view class="ArcKnob" origin="80, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="SampleHoldSlew" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 28" size="36, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Slew"/>
         <!-- Sync toggle -->
-        <view class="ToggleButton" origin="2, 42" size="36, 12"
+        <view class="ToggleButton" origin="14, 62" size="36, 12"
               control-tag="SampleHoldSync" default-value="0.0"
               title="Sync"
               on-color="modulation" off-color="toggle-off"
@@ -2270,39 +2270,39 @@
     </template>
     <template name="ModSource_Random" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="RandomRateGroup" transparent="true">
-            <view class="ArcKnob" origin="4, 0" size="28, 28"
+            <view class="ArcKnob" origin="4, 8" size="36, 36"
                   control-tag="RandomRate" default-value="0.702"
                   arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rate"/>
         </view>
         <!-- Note Value (visible when sync active) -->
-        <view class="CViewContainer" origin="0, 0" size="36, 38"
+        <view class="CViewContainer" origin="12, 0" size="44, 60"
               custom-view-name="RandomNoteValueGroup" transparent="true"
               visible="false">
-            <view class="COptionMenu" origin="2, 6" size="32, 16"
+            <view class="COptionMenu" origin="2, 14" size="40, 18"
                   control-tag="RandomNoteValue"
                   font="~ NormalFontSmaller" font-color="text-primary"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   round-rect-radius="2" frame-width="1"
                   min-value="0" max-value="1"
                   default-value="0.5"/>
-            <view class="CTextLabel" origin="0, 28" size="36, 10"
+            <view class="CTextLabel" origin="0, 46" size="44, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Note"/>
         </view>
         <!-- Smoothness -->
-        <view class="ArcKnob" origin="80, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="RandomSmoothness" default-value="0.0"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 28" size="36, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Smooth"/>
         <!-- Sync toggle -->
-        <view class="ToggleButton" origin="2, 42" size="36, 12"
+        <view class="ToggleButton" origin="14, 62" size="36, 12"
               control-tag="RandomSync" default-value="0.0"
               title="Sync"
               on-color="modulation" off-color="toggle-off"
@@ -2310,54 +2310,54 @@
     </template>
     <template name="ModSource_PitchFollower" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Min Hz -->
-        <view class="ArcKnob" origin="4, 0" size="28, 28"
+        <view class="ArcKnob" origin="12, 8" size="36, 36"
               control-tag="PitchFollowerMinHz" default-value="0.4307"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 28" size="36, 10"
+        <view class="CTextLabel" origin="6, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Min"/>
         <!-- Max Hz -->
-        <view class="ArcKnob" origin="42, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="PitchFollowerMaxHz" default-value="0.7153"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="38, 28" size="36, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Max"/>
         <!-- Confidence -->
-        <view class="ArcKnob" origin="80, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="PitchFollowerConfidence" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="76, 28" size="36, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Conf"/>
         <!-- Tracking Speed -->
-        <view class="ArcKnob" origin="118, 0" size="28, 28"
+        <view class="ArcKnob" origin="204, 8" size="36, 36"
               control-tag="PitchFollowerSpeed" default-value="0.1379"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="114, 28" size="36, 10"
+        <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Speed"/>
     </template>
     <template name="ModSource_Transient" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
-        <view class="ArcKnob" origin="4, 0" size="28, 28"
+        <view class="ArcKnob" origin="12, 8" size="36, 36"
               control-tag="TransientSensitivity" default-value="0.5"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 28" size="36, 10"
+        <view class="CTextLabel" origin="6, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Sens"/>
         <!-- Attack -->
-        <view class="ArcKnob" origin="48, 0" size="28, 28"
+        <view class="ArcKnob" origin="76, 8" size="36, 36"
               control-tag="TransientAttack" default-value="0.1579"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="44, 28" size="36, 10"
+        <view class="CTextLabel" origin="70, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Atk"/>
         <!-- Decay -->
-        <view class="ArcKnob" origin="92, 0" size="28, 28"
+        <view class="ArcKnob" origin="140, 8" size="36, 36"
               control-tag="TransientDecay" default-value="0.1667"
               arc-color="modulation" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="88, 28" size="36, 10"
+        <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Decay"/>
     </template>
@@ -2369,62 +2369,53 @@
     <template name="Tab_Mod" size="1400, 760" class="CViewContainer" transparent="true">
 
         <!-- ============================================================ -->
-        <!-- Toolbar: Mod Source selector + Macro knobs                    -->
+        <!-- Left: Modulation Sources fieldset                             -->
         <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 0" size="1400, 40" transparent="true">
+        <view
+            class="FieldsetContainer"
+            origin="8, 0"
+            size="540, 448"
+            fieldset-title="MODULATION SOURCES"
+            fieldset-color="modulation"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
             <!-- Mod Source dropdown -->
-            <view class="CTextLabel" origin="12, 10" size="100, 20"
-                  title="MOD SOURCE"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="left" transparent="true"/>
-            <view class="COptionMenu" origin="116, 8" size="160, 22"
+            <view class="COptionMenu" custom-view-name="ModSourceDropdown"
+                  origin="8, 18" size="160, 22"
                   control-tag="ModSourceViewMode" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-            <!-- Macro knobs in toolbar -->
-            <view class="ArcKnob" origin="1180, 6" size="28, 28"
-                  control-tag="Macro1Value" default-value="0.0"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="1174, 34" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="M1"/>
-            <view class="ArcKnob" origin="1228, 6" size="28, 28"
-                  control-tag="Macro2Value" default-value="0.0"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="1222, 34" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="M2"/>
-            <view class="ArcKnob" origin="1276, 6" size="28, 28"
-                  control-tag="Macro3Value" default-value="0.0"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="1270, 34" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="M3"/>
-            <view class="ArcKnob" origin="1324, 6" size="28, 28"
-                  control-tag="Macro4Value" default-value="0.0"
-                  arc-color="modulation" guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="1318, 34" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="M4"/>
+            <!-- Mod Source View (switched by dropdown) -->
+            <view class="UIViewSwitchContainer"
+                  origin="0, 46" size="540, 400"
+                  template-names="ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient"
+                  template-switch-control="ModSourceViewMode"
+                  transparent="true"/>
         </view>
 
         <!-- ============================================================ -->
-        <!-- Left: Mod Source View (switched by dropdown)                  -->
+        <!-- Right: Modulation Configuration fieldset                      -->
         <!-- ============================================================ -->
-        <view class="UIViewSwitchContainer"
-              origin="8, 48" size="540, 400"
-              template-names="ModSource_LFO1,ModSource_LFO2,ModSource_Chaos,ModSource_Macros,ModSource_Rungler,ModSource_EnvFollower,ModSource_SampleHold,ModSource_Random,ModSource_PitchFollower,ModSource_Transient"
-              template-switch-control="ModSourceViewMode"
-              transparent="true"/>
-
-        <!-- ============================================================ -->
-        <!-- Right: Mod Matrix (CategoryTabBar + ModMatrixGrid)            -->
-        <!-- ============================================================ -->
-        <view class="CategoryTabBar" origin="556, 48" size="836, 20"
-              transparent="false"/>
-        <view class="ModMatrixGrid" origin="556, 72" size="836, 376"
-              transparent="false"/>
+        <view
+            class="FieldsetContainer"
+            origin="556, 0"
+            size="836, 448"
+            fieldset-title="MODULATION CONFIGURATION"
+            fieldset-color="modulation"
+            fieldset-radius="4"
+            fieldset-line-width="1"
+            fieldset-font-size="10"
+            transparent="true"
+        >
+            <view class="CategoryTabBar" origin="8, 4" size="820, 20"
+                  transparent="true"/>
+            <view class="ModMatrixGrid" origin="8, 26" size="820, 416"
+                  transparent="false"/>
+        </view>
 
         <!-- ============================================================ -->
         <!-- Bottom: Mod Heatmap                                           -->

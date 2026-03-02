@@ -58,12 +58,70 @@
 #include "pluginterfaces/vst/ivstcomponent.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/cbuttons.h"
+#include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/lib/controls/ioptionmenulistener.h"
 #include "vstgui/lib/events.h"
 
 #include <cmath>
 #include <cstring>
 
 namespace {
+
+// COptionMenu subclass that escapes "&" -> "&&" only for the Win32 popup menu,
+// which interprets "&" as an accelerator prefix. The label and macOS/Linux popups
+// use the raw string directly, so we store single "&" and only escape around popup.
+class FixedOptionMenu : public VSTGUI::COptionMenu,
+                        public VSTGUI::OptionMenuListenerAdapter {
+public:
+    using COptionMenu::COptionMenu;
+
+    bool attached(VSTGUI::CView* parent) override {
+        if (COptionMenu::attached(parent)) {
+            registerOptionMenuListener(this);
+            return true;
+        }
+        return false;
+    }
+
+    bool removed(VSTGUI::CView* parent) override {
+        unregisterOptionMenuListener(this);
+        return COptionMenu::removed(parent);
+    }
+
+#ifdef _WIN32
+    void onOptionMenuPrePopup(VSTGUI::COptionMenu* menu) override {
+        // Escape "&" -> "&&" so Win32 HMENU shows literal ampersand
+        for (auto& item : *menu->getItems()) {
+            auto title = item->getTitle().getString();
+            std::string::size_type pos = 0;
+            bool modified = false;
+            while ((pos = title.find('&', pos)) != std::string::npos) {
+                title.insert(pos, 1, '&');
+                pos += 2;
+                modified = true;
+            }
+            if (modified)
+                item->setTitle(VSTGUI::UTF8String(title));
+        }
+    }
+
+    void onOptionMenuPostPopup(VSTGUI::COptionMenu* menu) override {
+        // Restore "&&" -> "&" after popup closes
+        for (auto& item : *menu->getItems()) {
+            auto title = item->getTitle().getString();
+            std::string::size_type pos = 0;
+            bool modified = false;
+            while ((pos = title.find("&&", pos)) != std::string::npos) {
+                title.erase(pos, 1);
+                pos += 1;
+                modified = true;
+            }
+            if (modified)
+                item->setTitle(VSTGUI::UTF8String(title));
+        }
+    }
+#endif
+};
 
 // Custom editor that intercepts right-clicks over StepPatternEditor.
 // VST3Editor::onMouseEvent consumes ALL right-clicks for context menus
@@ -247,7 +305,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
         modViewParam->appendString(STR16("Macros"));
         modViewParam->appendString(STR16("Rungler"));
         modViewParam->appendString(STR16("Env Follower"));
-        modViewParam->appendString(STR16("S&H"));
+        modViewParam->appendString(STR16("Sample & Hold"));
         modViewParam->appendString(STR16("Random"));
         modViewParam->appendString(STR16("Pitch Follower"));
         modViewParam->appendString(STR16("Transient"));
@@ -3051,6 +3109,16 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new SavePresetButton(rect, this);
+    }
+
+    // Mod source dropdown: COptionMenu subclass that unescapes && in closed label
+    if (std::strcmp(name, "ModSourceDropdown") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(160, 22);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new FixedOptionMenu(rect, nullptr, -1);
     }
 
     return nullptr;
