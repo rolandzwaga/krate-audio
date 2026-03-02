@@ -394,6 +394,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
         return false;
 
     bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
 
     // Lambda that calls editParamWithNotify instead of setParamNormalized
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {

@@ -2515,12 +2515,12 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.chaosAmount = 0.3f; s.oscA.chaosCoupling = 0.1f;
         s.oscA.tuneSemitones = -12.0f; s.oscA.level = 0.85f;
         s.oscB.type = 0; s.oscB.waveform = 0; // Sine
-        s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.4f;
-        s.mixer.position = 0.2f;
+        s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.5f;
+        s.mixer.position = 0.3f;
         s.filter.type = 4; s.filter.cutoffHz = 2000.0f; s.filter.resonance = 0.25f;
         s.filter.ladderSlope = 4;
         s.distortion.type = 5; // TapeSaturator
-        s.distortion.drive = 0.3f; s.distortion.tapeSaturation = 0.5f;
+        s.distortion.drive = 0.5f; s.distortion.tapeSaturation = 0.5f;
         s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 200.0f;
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 120.0f;
         s.global.voiceMode = 1;
@@ -3174,13 +3174,13 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.type = 5; // Chaos
         s.oscA.chaosAttractor = 0; // Lorenz
         s.oscA.chaosAmount = 0.4f; s.oscA.chaosCoupling = 0.15f;
-        s.oscA.tuneSemitones = -24.0f; s.oscA.level = 0.7f;
+        s.oscA.tuneSemitones = -24.0f; s.oscA.level = 0.8f;
         s.oscB.type = 9; s.oscB.noiseColor = 2; // Brown
-        s.oscB.level = 0.2f;
-        s.mixer.position = 0.2f;
-        s.filter.type = 4; s.filter.cutoffHz = 400.0f; s.filter.resonance = 0.4f;
+        s.oscB.level = 0.5f;
+        s.mixer.position = 0.35f;
+        s.filter.type = 4; s.filter.cutoffHz = 600.0f; s.filter.resonance = 0.4f;
         s.filter.ladderSlope = 4;
-        s.distortion.type = 5; s.distortion.drive = 0.3f;
+        s.distortion.type = 5; s.distortion.drive = 0.5f;
         s.distortion.tapeSaturation = 0.5f;
         s.ampEnv.attackMs = 1500.0f; s.ampEnv.decayMs = 800.0f;
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 3000.0f;
@@ -3685,8 +3685,8 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.chaosAttractor = 0; // Lorenz
         s.oscA.chaosAmount = 0.5f; s.oscA.chaosCoupling = 0.3f;
         s.oscA.level = 0.7f;
-        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.25f;
-        s.mixer.position = 0.2f;
+        s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.4f;
+        s.mixer.position = 0.3f;
         s.filter.type = 0; s.filter.cutoffHz = 5000.0f; s.filter.resonance = 0.2f;
         s.ampEnv.attackMs = 50.0f; s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 800.0f;

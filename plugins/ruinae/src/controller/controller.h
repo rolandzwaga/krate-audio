@@ -332,6 +332,28 @@ private:
     /// to avoid thousands of individual invalidRect() calls that crash VSTGUI.
     bool bulkParamLoad_ = false;
 
+    /// RAII guard that suppresses ALL VSTGUI invalidRect() calls during bulk
+    /// parameter loads by hiding the CFrame. CFrame::invalidRect() short-circuits
+    /// when isVisible() is false, preventing the IDependent notification chain
+    /// (Parameter::changed → ParameterChangeListener::update → CControl::setValue
+    /// → invalidRect) from accumulating hundreds of platform invalidation calls.
+    /// On destruction, restores visibility and triggers a single full-frame repaint.
+    struct FrameInvalidationGuard {
+        VSTGUI::CFrame* frame_ = nullptr;
+        explicit FrameInvalidationGuard(VSTGUI::VST3Editor* editor) {
+            if (editor) frame_ = editor->getFrame();
+            if (frame_) frame_->setVisible(false);
+        }
+        ~FrameInvalidationGuard() {
+            if (frame_) {
+                frame_->setVisible(true);
+                frame_->invalid();
+            }
+        }
+        FrameInvalidationGuard(const FrameInvalidationGuard&) = delete;
+        FrameInvalidationGuard& operator=(const FrameInvalidationGuard&) = delete;
+    };
+
     /// Batch-sync all custom views from current parameter state.
     /// Called once after bulk parameter loads instead of per-param updates.
     void syncAllViews();

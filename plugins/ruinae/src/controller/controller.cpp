@@ -301,6 +301,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     }
 
     bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
+    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
 
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         setParamNormalized(id, value);
