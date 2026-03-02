@@ -15,6 +15,7 @@
 #include "drain_preset_transfer.h"
 
 #include "public.sdk/source/common/memorystream.h"
+#include "public.sdk/source/vst/hosting/hostclasses.h"
 #include "base/source/fstreamer.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -437,4 +438,76 @@ TEST_CASE("Voice routes synced after preset snapshot",
 
     proc1->terminate();
     proc2->terminate();
+}
+
+TEST_CASE("Rapid preset switch with voice route updates produces finite output",
+          "[preset-safety][voice-routes][playback]") {
+    auto proc = makeTestableProcessor();
+
+    static constexpr Steinberg::int32 kBlockSize = 256;
+    std::vector<float> outL(kBlockSize, 0.0f);
+    std::vector<float> outR(kBlockSize, 0.0f);
+    TestEventList events;
+
+    // Create two presets with different settings
+    auto procA = makeTestableProcessor();
+    ParamChangeBatch changesA;
+    changesA.add(Ruinae::kOscATypeId, 0.0); // Saw
+    changesA.add(Ruinae::kOscALevelId, 1.0);
+    procA->processParameterChanges(&changesA);
+    auto presetA = captureState(procA.get());
+
+    auto procB = makeTestableProcessor();
+    ParamChangeBatch changesB;
+    changesB.add(Ruinae::kOscATypeId, 3.0 / 9.0); // Additive
+    changesB.add(Ruinae::kFilterCutoffId, 0.3);
+    procB->processParameterChanges(&changesB);
+    auto presetB = captureState(procB.get());
+
+    // Play notes
+    events.addNoteOn(60, 0.8f);
+    events.addNoteOn(64, 0.7f);
+    processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+    events.clear();
+
+    // Process a few blocks to get sound flowing
+    for (int i = 0; i < 3; ++i) {
+        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+    }
+
+    // Now: load preset A, send voice route update, load preset B, play more
+    loadState(proc.get(), presetA);
+    processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+
+    // Send voice route update via notify (simulates UI thread)
+    auto routeMsg = Steinberg::owned(new Steinberg::Vst::HostMessage());
+    routeMsg->setMessageID("VoiceModRouteUpdate");
+    auto* attrs = routeMsg->getAttributes();
+    attrs->setInt("slotIndex", 2);
+    attrs->setInt("source", 1);
+    attrs->setInt("destination", 0);
+    attrs->setFloat("amount", 0.5);
+    attrs->setInt("active", 1);
+    proc->notify(routeMsg);
+
+    loadState(proc.get(), presetB);
+
+    // Process several blocks after all the chaos — verify no NaN/Inf
+    bool anyBadSamples = false;
+    for (int i = 0; i < 10; ++i) {
+        std::fill(outL.begin(), outL.end(), 0.0f);
+        std::fill(outR.begin(), outR.end(), 0.0f);
+        processBlock(*proc, events, outL.data(), outR.data(), kBlockSize);
+        if (hasNanOrInf(outL.data(), kBlockSize) ||
+            hasNanOrInf(outR.data(), kBlockSize)) {
+            anyBadSamples = true;
+            break;
+        }
+    }
+
+    REQUIRE_FALSE(anyBadSamples);
+
+    procA->terminate();
+    procB->terminate();
+    proc->terminate();
 }

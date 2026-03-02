@@ -133,6 +133,79 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         }
     }
 
+    // Pre-allocate voice route sync message (Issue 1: avoid allocateMessage on audio thread)
+    voiceRouteSyncMsg_ = Steinberg::owned(allocateMessage());
+    if (voiceRouteSyncMsg_) {
+        voiceRouteSyncMsg_->setMessageID("VoiceModRouteState");
+        // Pre-warm the binary attribute with a dummy payload so the attribute
+        // list allocates storage once, not on every sendVoiceModRouteState().
+        static constexpr size_t kRouteDataBytes = 14 * Krate::Plugins::kMaxVoiceRoutes;
+        uint8_t dummy[kRouteDataBytes]{};
+        auto* attrs = voiceRouteSyncMsg_->getAttributes();
+        if (attrs) {
+            attrs->setBinary("routeData", dummy, kRouteDataBytes);
+            attrs->setInt("routeCount", 0);
+        }
+    }
+
+    // Pre-allocate one-time pointer messages (Issue 3: avoid allocateMessage on audio thread)
+    playbackMsg_ = Steinberg::owned(allocateMessage());
+    if (playbackMsg_) {
+        playbackMsg_->setMessageID("TranceGatePlayback");
+        auto* attrs = playbackMsg_->getAttributes();
+        if (attrs) {
+            attrs->setInt("stepPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&tranceGatePlaybackStep_)));
+            attrs->setInt("playingPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&isTransportPlaying_)));
+        }
+    }
+
+    envDisplayMsg_ = Steinberg::owned(allocateMessage());
+    if (envDisplayMsg_) {
+        envDisplayMsg_->setMessageID("EnvelopeDisplayState");
+        auto* attrs = envDisplayMsg_->getAttributes();
+        if (attrs) {
+            attrs->setInt("ampOutputPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&ampEnvDisplayOutput_)));
+            attrs->setInt("ampStagePtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&ampEnvDisplayStage_)));
+            attrs->setInt("filterOutputPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&filterEnvDisplayOutput_)));
+            attrs->setInt("filterStagePtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&filterEnvDisplayStage_)));
+            attrs->setInt("modOutputPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&modEnvDisplayOutput_)));
+            attrs->setInt("modStagePtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&modEnvDisplayStage_)));
+            attrs->setInt("voiceActivePtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&envVoiceActive_)));
+        }
+    }
+
+    morphPadModMsg_ = Steinberg::owned(allocateMessage());
+    if (morphPadModMsg_) {
+        morphPadModMsg_->setMessageID("MorphPadModulation");
+        auto* attrs = morphPadModMsg_->getAttributes();
+        if (attrs) {
+            attrs->setInt("morphXPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&modulatedMorphX_)));
+            attrs->setInt("morphYPtr",
+                static_cast<Steinberg::int64>(
+                    reinterpret_cast<intptr_t>(&modulatedMorphY_)));
+        }
+    }
+
     return Steinberg::kResultTrue;
 }
 
@@ -494,76 +567,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
-    // Send playback pointer message to controller (one-time setup)
-    if (!playbackMessageSent_) {
-        auto msg = Steinberg::owned(allocateMessage());
-        if (msg) {
-            msg->setMessageID("TranceGatePlayback");
-            auto* attrs = msg->getAttributes();
-            if (attrs) {
-                attrs->setInt("stepPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&tranceGatePlaybackStep_)));
-                attrs->setInt("playingPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&isTransportPlaying_)));
-                sendMessage(msg);
-                playbackMessageSent_ = true;
-            }
-        }
+    // Send playback pointer message to controller (one-time, pre-allocated)
+    if (!playbackMessageSent_ && playbackMsg_) {
+        sendMessage(playbackMsg_);
+        playbackMessageSent_ = true;
     }
 
-    // Send envelope display state pointers to controller (one-time setup)
-    if (!envDisplayMessageSent_) {
-        auto msg = Steinberg::owned(allocateMessage());
-        if (msg) {
-            msg->setMessageID("EnvelopeDisplayState");
-            auto* attrs = msg->getAttributes();
-            if (attrs) {
-                attrs->setInt("ampOutputPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&ampEnvDisplayOutput_)));
-                attrs->setInt("ampStagePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&ampEnvDisplayStage_)));
-                attrs->setInt("filterOutputPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&filterEnvDisplayOutput_)));
-                attrs->setInt("filterStagePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&filterEnvDisplayStage_)));
-                attrs->setInt("modOutputPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&modEnvDisplayOutput_)));
-                attrs->setInt("modStagePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&modEnvDisplayStage_)));
-                attrs->setInt("voiceActivePtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&envVoiceActive_)));
-                sendMessage(msg);
-                envDisplayMessageSent_ = true;
-            }
-        }
+    // Send envelope display state pointers to controller (one-time, pre-allocated)
+    if (!envDisplayMessageSent_ && envDisplayMsg_) {
+        sendMessage(envDisplayMsg_);
+        envDisplayMessageSent_ = true;
     }
 
-    // Send morph pad modulation pointers to controller (one-time setup)
-    if (!morphPadModMessageSent_) {
-        auto msg = Steinberg::owned(allocateMessage());
-        if (msg) {
-            msg->setMessageID("MorphPadModulation");
-            auto* attrs = msg->getAttributes();
-            if (attrs) {
-                attrs->setInt("morphXPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&modulatedMorphX_)));
-                attrs->setInt("morphYPtr",
-                    static_cast<Steinberg::int64>(
-                        reinterpret_cast<intptr_t>(&modulatedMorphY_)));
-                sendMessage(msg);
-                morphPadModMessageSent_ = true;
-            }
-        }
+    // Send morph pad modulation pointers to controller (one-time, pre-allocated)
+    if (!morphPadModMessageSent_ && morphPadModMsg_) {
+        sendMessage(morphPadModMsg_);
+        morphPadModMessageSent_ = true;
     }
 
     // Send voice route state to controller after a preset snapshot was applied
@@ -617,8 +636,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveReverbParams(reverbParams_, streamer);
     saveMonoModeParams(monoModeParams_, streamer);
 
-    // Voice routes (16 slots)
-    for (const auto& r : voiceRoutes_) {
+    // Voice routes (16 slots) — atomic load per field
+    for (const auto& ar : voiceRoutes_) {
+        auto r = ar.load();
         streamer.writeInt8(static_cast<Steinberg::int8>(r.source));
         streamer.writeInt8(static_cast<Steinberg::int8>(r.destination));
         streamer.writeFloat(r.amount);
@@ -674,9 +694,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
     //    Individual atomic writes are safe — worst case is one process() block
     //    with mixed old/new params (brief audio glitch, not a crash).
     //
-    // 2. Defer voiceRoutes_ (non-atomic struct array, the actual data race
-    //    that causes crashes) and engine/arp reset to the audio thread via
-    //    RTTransferT. This eliminates the UB from concurrent struct writes.
+    // 2. Defer engine/arp reset and voice route deserialization to the
+    //    audio thread via RTTransferT. Voice routes use per-field atomics
+    //    (AtomicVoiceModRoute) so writes are safe from any thread.
     // =========================================================================
 
     if (!state) return Steinberg::kResultTrue;
@@ -730,7 +750,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
 
-        // SKIP voiceRoutes_ here — deferred to audio thread (non-atomic, data race)
+        // SKIP voiceRoutes_ here — deferred to audio thread via RTTransferT
 
         // Skip past voiceRoutes bytes in the stream (16 routes x 8 fields)
         for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
@@ -798,7 +818,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // =========================================================================
     // Audio-thread-only operations for preset loading:
-    //   1. voiceRoutes_ (non-atomic struct array — the actual data race)
+    //   1. voiceRoutes_ deserialization (atomic store per field)
     //   2. engine_.reset() + arpCore_.reset() (kill stale voices)
     //   3. Force arp tracking re-application
     //
@@ -838,23 +858,28 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     if (!loadReverbParams(reverbParams_, streamer)) return;
     if (!loadMonoModeParams(monoModeParams_, streamer)) return;
 
-    // Voice routes — written ONLY on the audio thread (fixes the data race)
-    for (auto& r : voiceRoutes_) {
+    // Voice routes — atomic store per field (safe from any thread)
+    for (auto& ar : voiceRoutes_) {
+        Krate::Plugins::VoiceModRoute r{};
         Steinberg::int8 i8 = 0;
+        float f = 0.0f;
         if (!streamer.readInt8(i8)) break;
         r.source = static_cast<uint8_t>(i8);
         if (!streamer.readInt8(i8)) break;
         r.destination = static_cast<uint8_t>(i8);
-        if (!streamer.readFloat(r.amount)) break;
+        if (!streamer.readFloat(f)) break;
+        r.amount = f;
         if (!streamer.readInt8(i8)) break;
         r.curve = static_cast<uint8_t>(i8);
-        if (!streamer.readFloat(r.smoothMs)) break;
+        if (!streamer.readFloat(f)) break;
+        r.smoothMs = f;
         if (!streamer.readInt8(i8)) break;
         r.scale = static_cast<uint8_t>(i8);
         if (!streamer.readInt8(i8)) break;
         r.bypass = static_cast<uint8_t>(i8);
         if (!streamer.readInt8(i8)) break;
         r.active = static_cast<uint8_t>(i8);
+        ar.store(r);
     }
 
     // Reset DSP state to prevent stale voices/state from the old preset
@@ -1858,7 +1883,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        auto& route = voiceRoutes_[static_cast<size_t>(slotIndex)];
+        // Build local route, then atomic-store into the slot
+        auto route = voiceRoutes_[static_cast<size_t>(slotIndex)].load();
 
         Steinberg::int64 val = 0;
         double dval = 0.0;
@@ -1887,6 +1913,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (attrs->getInt("active", val) == Steinberg::kResultOk)
             route.active = static_cast<uint8_t>(val != 0 ? 1 : 0);
 
+        voiceRoutes_[static_cast<size_t>(slotIndex)].store(route);
+
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
 
@@ -1905,8 +1933,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
         if (slotIndex < 0 || slotIndex >= Krate::Plugins::kMaxVoiceRoutes)
             return Steinberg::kResultFalse;
 
-        // Deactivate the slot
-        voiceRoutes_[static_cast<size_t>(slotIndex)] = Krate::Plugins::VoiceModRoute{};
+        // Deactivate the slot (atomic store of default-constructed route)
+        voiceRoutes_[static_cast<size_t>(slotIndex)].store(Krate::Plugins::VoiceModRoute{});
 
         // Send authoritative state back to controller (T086)
         sendVoiceModRouteState();
@@ -1957,17 +1985,15 @@ void Processor::sendSkipEvent(int lane, int step) {
 // ==============================================================================
 
 void Processor::sendVoiceModRouteState() {
-    auto msg = Steinberg::owned(allocateMessage());
-    if (!msg) return;
+    if (!voiceRouteSyncMsg_) return;
 
-    msg->setMessageID("VoiceModRouteState");
-    auto* attrs = msg->getAttributes();
+    auto* attrs = voiceRouteSyncMsg_->getAttributes();
     if (!attrs) return;
 
-    // Count active routes
+    // Count active routes (atomic load per slot)
     Steinberg::int64 activeCount = 0;
-    for (const auto& r : voiceRoutes_) {
-        if (r.active != 0) ++activeCount;
+    for (const auto& ar : voiceRoutes_) {
+        if (ar.active.load(std::memory_order_relaxed) != 0) ++activeCount;
     }
     attrs->setInt("routeCount", activeCount);
 
@@ -1979,7 +2005,7 @@ void Processor::sendVoiceModRouteState() {
     uint8_t buffer[kTotalBytes]{};
 
     for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-        const auto& r = voiceRoutes_[static_cast<size_t>(i)];
+        auto r = voiceRoutes_[static_cast<size_t>(i)].load();
         auto* ptr = &buffer[static_cast<size_t>(i) * kBytesPerRoute];
 
         ptr[0] = r.source;
@@ -1993,7 +2019,7 @@ void Processor::sendVoiceModRouteState() {
     }
 
     attrs->setBinary("routeData", buffer, kTotalBytes);
-    sendMessage(msg);
+    sendMessage(voiceRouteSyncMsg_);
 }
 
 } // namespace Ruinae

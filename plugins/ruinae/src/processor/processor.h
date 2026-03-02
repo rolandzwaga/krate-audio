@@ -60,6 +60,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <vector>
 
 namespace Ruinae {
@@ -71,6 +72,50 @@ constexpr Steinberg::int32 kCurrentStateVersion = 1;
 /// Used by RTTransferT to atomically hand off an entire preset state.
 struct PresetSnapshot {
     std::vector<char> bytes;
+};
+
+// ==============================================================================
+// AtomicVoiceModRoute — per-field atomics for lock-free voice route access
+// ==============================================================================
+// Eliminates the data race where notify() (UI thread) writes voiceRoutes_
+// while process() (audio thread) reads them. Each field is individually atomic
+// with relaxed ordering (same pattern as all other parameter packs).
+
+struct AtomicVoiceModRoute {
+    std::atomic<uint8_t> source{0};
+    std::atomic<uint8_t> destination{0};
+    std::atomic<float> amount{0.0f};
+    std::atomic<uint8_t> curve{0};
+    std::atomic<float> smoothMs{0.0f};
+    std::atomic<uint8_t> scale{2};
+    std::atomic<uint8_t> bypass{0};
+    std::atomic<uint8_t> active{0};
+
+    /// Store all fields from a plain VoiceModRoute (UI thread writes)
+    void store(const Krate::Plugins::VoiceModRoute& r) {
+        source.store(r.source, std::memory_order_relaxed);
+        destination.store(r.destination, std::memory_order_relaxed);
+        amount.store(r.amount, std::memory_order_relaxed);
+        curve.store(r.curve, std::memory_order_relaxed);
+        smoothMs.store(r.smoothMs, std::memory_order_relaxed);
+        scale.store(r.scale, std::memory_order_relaxed);
+        bypass.store(r.bypass, std::memory_order_relaxed);
+        active.store(r.active, std::memory_order_relaxed);
+    }
+
+    /// Load all fields into a plain VoiceModRoute (audio thread reads)
+    Krate::Plugins::VoiceModRoute load() const {
+        Krate::Plugins::VoiceModRoute r;
+        r.source = source.load(std::memory_order_relaxed);
+        r.destination = destination.load(std::memory_order_relaxed);
+        r.amount = amount.load(std::memory_order_relaxed);
+        r.curve = curve.load(std::memory_order_relaxed);
+        r.smoothMs = smoothMs.load(std::memory_order_relaxed);
+        r.scale = scale.load(std::memory_order_relaxed);
+        r.bypass = bypass.load(std::memory_order_relaxed);
+        r.active = active.load(std::memory_order_relaxed);
+        return r;
+    }
 };
 
 // ==============================================================================
@@ -136,6 +181,18 @@ protected:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
     void applyParamsToEngine();
+
+    // ==========================================================================
+    // Pre-allocated IMessages (accessible to test subclass)
+    // ==========================================================================
+
+    /// Pre-allocated message for voice route state sync (Issue 1)
+    Steinberg::IPtr<Steinberg::Vst::IMessage> voiceRouteSyncMsg_;
+
+    /// Pre-allocated one-time pointer messages (Issue 3)
+    Steinberg::IPtr<Steinberg::Vst::IMessage> playbackMsg_;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> envDisplayMsg_;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> morphPadModMsg_;
 
 private:
     // ==========================================================================
@@ -261,8 +318,10 @@ private:
     // ==========================================================================
     // Voice Route State (communicated via IMessage, T085-T086)
     // ==========================================================================
+    // Per-field atomics eliminate data race between notify() (UI thread) and
+    // process() (audio thread). See AtomicVoiceModRoute above.
 
-    std::array<Krate::Plugins::VoiceModRoute, Krate::Plugins::kMaxVoiceRoutes>
+    std::array<AtomicVoiceModRoute, Krate::Plugins::kMaxVoiceRoutes>
         voiceRoutes_{};
 
     /// Send authoritative voice route state to controller

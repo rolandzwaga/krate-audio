@@ -88,6 +88,9 @@ add_executable(ruinae_tests
     unit/preset_safety_test.cpp
     integration/preset_switch_safety_test.cpp
 
+    # Voice Route RT Safety Tests (race condition fixes)
+    unit/vst/voice_route_rt_safety_test.cpp
+
     # Chaos Wind Preset Audio Test (silence bug investigation)
     integration/chaos_wind_audio_test.cpp
 
@@ -154,6 +157,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processor/arp_mod_integration_test.cpp
         integration/preset_switch_safety_test.cpp
         integration/chaos_wind_audio_test.cpp
+        unit/vst/voice_route_rt_safety_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
