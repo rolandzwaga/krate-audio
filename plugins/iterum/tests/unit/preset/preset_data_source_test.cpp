@@ -213,6 +213,69 @@ TEST_CASE("PresetDataSource combined filtering", "[preset][datasource][filter]")
 }
 
 // =============================================================================
+// Allowed Subcategories Filter Tests
+// =============================================================================
+
+TEST_CASE("PresetDataSource allowed subcategories filtering", "[preset][datasource][filter]") {
+    Krate::Plugins::PresetDataSource dataSource;
+
+    std::vector<Krate::Plugins::PresetInfo> presets = {
+        makePreset("Warm Pad", "Ambient", "Pads"),
+        makePreset("Acid Lead", "Aggressive", "Leads"),
+        makePreset("Deep Bass", "Low", "Bass"),
+        makePreset("Arp Classic 1", "Rhythmic", "Arp Classic"),
+        makePreset("Arp Acid 1", "Rhythmic", "Arp Acid")
+    };
+    dataSource.setPresets(presets);
+
+    SECTION("empty allowed list shows all presets (backward-compat)") {
+        dataSource.setAllowedSubcategories({});
+
+        REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(4) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(5) == nullptr);
+    }
+
+    SECTION("allowed list filters presets in All view") {
+        dataSource.setAllowedSubcategories({"Pads", "Leads", "Bass"});
+
+        REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(0)->name == "Warm Pad");
+        REQUIRE(dataSource.getPresetAtRow(1)->name == "Acid Lead");
+        REQUIRE(dataSource.getPresetAtRow(2)->name == "Deep Bass");
+        REQUIRE(dataSource.getPresetAtRow(3) == nullptr); // ARP presets excluded
+    }
+
+    SECTION("allowed list combines with subcategory filter") {
+        dataSource.setAllowedSubcategories({"Pads", "Leads", "Bass"});
+        dataSource.setSubcategoryFilter("Pads");
+
+        REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(0)->name == "Warm Pad");
+        REQUIRE(dataSource.getPresetAtRow(1) == nullptr);
+    }
+
+    SECTION("allowed list combines with search filter") {
+        dataSource.setAllowedSubcategories({"Pads", "Leads", "Bass"});
+        dataSource.setSearchFilter("acid");
+
+        // "Acid Lead" matches search + allowed; "Arp Acid 1" matches search but NOT allowed
+        REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(0)->name == "Acid Lead");
+        REQUIRE(dataSource.getPresetAtRow(1) == nullptr);
+    }
+
+    SECTION("allowed list with only ARP subcategories shows only ARP presets") {
+        dataSource.setAllowedSubcategories({"Arp Classic", "Arp Acid"});
+
+        REQUIRE(dataSource.getPresetAtRow(0) != nullptr);
+        REQUIRE(dataSource.getPresetAtRow(0)->name == "Arp Classic 1");
+        REQUIRE(dataSource.getPresetAtRow(1)->name == "Arp Acid 1");
+        REQUIRE(dataSource.getPresetAtRow(2) == nullptr);
+    }
+}
+
+// =============================================================================
 // Callback Tests
 // =============================================================================
 

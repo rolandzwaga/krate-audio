@@ -477,6 +477,20 @@ void PresetBrowserView::createChildViews() {
     );
 
     dataSource_ = new PresetDataSource();
+
+    // Derive allowed subcategories from tab labels (all entries except "All")
+    {
+        std::vector<std::string> allowed;
+        for (size_t i = 0; i < tabLabels_.size(); ++i) {
+            if (tabLabels_[i] != "All") {
+                allowed.push_back(tabLabels_[i]);
+            }
+        }
+        if (!allowed.empty()) {
+            dataSource_->setAllowedSubcategories(std::move(allowed));
+        }
+    }
+
     dataSource_->setSelectionCallback([this](int row) {
         onPresetSelected(row);
     });

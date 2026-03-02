@@ -28,6 +28,11 @@ void PresetDataSource::setSearchFilter(const std::string& query) {
     applyFilters();
 }
 
+void PresetDataSource::setAllowedSubcategories(std::vector<std::string> allowed) {
+    allowedSubcategories_ = std::move(allowed);
+    applyFilters();
+}
+
 const PresetInfo* PresetDataSource::getPresetAtRow(int row) const {
     if (row >= 0 && std::cmp_less(row, filteredPresets_.size())) {
         return &filteredPresets_[static_cast<size_t>(row)];
@@ -44,6 +49,18 @@ void PresetDataSource::applyFilters() {
         [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     for (const auto& preset : allPresets_) {
+        // Apply allowed subcategories filter
+        if (!allowedSubcategories_.empty()) {
+            bool found = false;
+            for (const auto& allowed : allowedSubcategories_) {
+                if (preset.subcategory == allowed) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) continue;
+        }
+
         // Apply subcategory filter
         if (!subcategoryFilter_.empty() && preset.subcategory != subcategoryFilter_) {
             continue;

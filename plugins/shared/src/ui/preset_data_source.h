@@ -27,6 +27,7 @@ public:
     void setPresets(const std::vector<PresetInfo>& presets);
     void setSubcategoryFilter(const std::string& subcategory);  // empty = All
     void setSearchFilter(const std::string& query);
+    void setAllowedSubcategories(std::vector<std::string> allowed);
     const PresetInfo* getPresetAtRow(int row) const;
 
     // IDataBrowserDelegate overrides
@@ -100,6 +101,7 @@ private:
     std::vector<PresetInfo> filteredPresets_;
     std::string subcategoryFilter_;  // empty = All
     std::string searchFilter_;
+    std::vector<std::string> allowedSubcategories_;
 
     SelectionCallback selectionCallback_;
     DoubleClickCallback doubleClickCallback_;
