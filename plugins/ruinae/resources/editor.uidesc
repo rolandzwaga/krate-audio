@@ -1396,15 +1396,19 @@
               back-color="bg-dropdown" frame-color="frame-dropdown"/>
         <view class="COptionMenu" origin="74, 4" size="62, 18"
               control-tag="DistortionSpectralCurve" default-value="0"
+              custom-view-name="SpectralCurveDropdown"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"/>
 
-        <view class="ArcKnob" origin="8, 28" size="36, 36"
-              control-tag="DistortionSpectralBits" default-value="1.0"
-              arc-color="distortion" guide-color="knob-guide"/>
-        <view class="CTextLabel" origin="0, 67" size="52, 12"
-              font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="center" transparent="true" title="Bits"/>
+        <view class="CViewContainer" origin="0, 28" size="52, 51"
+              custom-view-name="SpectralBitsGroup" transparent="true">
+            <view class="ArcKnob" origin="8, 0" size="36, 36"
+                  control-tag="DistortionSpectralBits" default-value="1.0"
+                  arc-color="distortion" guide-color="knob-guide"/>
+            <view class="CTextLabel" origin="0, 39" size="52, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Bits"/>
+        </view>
     </template>
 
     <!-- Granular Distortion: Size + Density + Variation + Jitter knobs -->

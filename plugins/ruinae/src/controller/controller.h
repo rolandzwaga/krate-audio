@@ -313,6 +313,11 @@ private:
     VSTGUI::CView* oscAPWKnob_ = nullptr;
     VSTGUI::CView* oscBPWKnob_ = nullptr;
 
+    // Spectral distortion control dimming
+    // These live inside Dist_Spectral which is inside a UIViewSwitchContainer.
+    VSTGUI::CView* spectralCurveDropdown_ = nullptr;
+    VSTGUI::CViewContainer* spectralBitsGroup_ = nullptr;
+
     // Settings drawer state
     VSTGUI::CViewContainer* settingsDrawer_ = nullptr;
     VSTGUI::CView* settingsOverlay_ = nullptr;

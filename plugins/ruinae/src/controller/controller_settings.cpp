@@ -47,6 +47,8 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     delayNoteValueGroup_ = nullptr;
     phaserRateGroup_ = nullptr;
     phaserNoteValueGroup_ = nullptr;
+    spectralCurveDropdown_ = nullptr;
+    spectralBitsGroup_ = nullptr;
 
     // SEQ tab residents
     stepPatternEditor_ = nullptr;

@@ -794,6 +794,27 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         oscBPWKnob_ = nullptr;
     }
 
+    // Spectral distortion control dimming
+    if (tag == kDistortionSpectralModeId) {
+        int mode = std::clamp(
+            static_cast<int>(value * (kSpectralModeCount - 1) + 0.5),
+            0, kSpectralModeCount - 1);
+        bool isBitcrush = (mode == 3);
+        if (spectralCurveDropdown_) {
+            spectralCurveDropdown_->setAlphaValue(isBitcrush ? 0.35f : 1.0f);
+            spectralCurveDropdown_->setMouseEnabled(!isBitcrush);
+        }
+        if (spectralBitsGroup_) {
+            spectralBitsGroup_->setAlphaValue(isBitcrush ? 1.0f : 0.35f);
+            spectralBitsGroup_->setMouseEnabled(isBitcrush);
+        }
+    }
+    // Distortion type switch: Dist_Spectral template destroyed by UIViewSwitchContainer
+    if (tag == kDistortionTypeId) {
+        spectralCurveDropdown_ = nullptr;
+        spectralBitsGroup_ = nullptr;
+    }
+
     // Tab switch: null out pointers for views that live inside tab templates
     if (tag == kMainTabTag) {
         int newTab = static_cast<int>(std::round(value * 3.0));
@@ -1015,6 +1036,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         oscBPWKnob_ = nullptr;
         arpRootNoteGroup_ = nullptr;
         arpQuantizeInputGroup_ = nullptr;
+        spectralCurveDropdown_ = nullptr;
+        spectralBitsGroup_ = nullptr;
 
         settingsDrawer_ = nullptr;
         settingsOverlay_ = nullptr;
@@ -1502,6 +1525,18 @@ VSTGUI::CView* Controller::verifyView(
                     int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
                     view->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
                 }
+            } else if (*viewName == "SpectralCurveDropdown") {
+                spectralCurveDropdown_ = view;
+                auto* modeParam = getParameterObject(kDistortionSpectralModeId);
+                int mode = 0;
+                if (modeParam) {
+                    mode = std::clamp(
+                        static_cast<int>(modeParam->getNormalized() * (kSpectralModeCount - 1) + 0.5),
+                        0, kSpectralModeCount - 1);
+                }
+                bool isBitcrush = (mode == 3);
+                view->setAlphaValue(isBitcrush ? 0.35f : 1.0f);
+                view->setMouseEnabled(!isBitcrush);
             }
         }
     }
@@ -1639,6 +1674,18 @@ VSTGUI::CView* Controller::verifyView(
                 bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
+            } else if (*name == "SpectralBitsGroup") {
+                spectralBitsGroup_ = container;
+                auto* modeParam = getParameterObject(kDistortionSpectralModeId);
+                int mode = 0;
+                if (modeParam) {
+                    mode = std::clamp(
+                        static_cast<int>(modeParam->getNormalized() * (kSpectralModeCount - 1) + 0.5),
+                        0, kSpectralModeCount - 1);
+                }
+                bool isBitcrush = (mode == 3);
+                container->setAlphaValue(isBitcrush ? 1.0f : 0.35f);
+                container->setMouseEnabled(isBitcrush);
             }
         }
     }
