@@ -118,8 +118,8 @@ struct AttractorConstants {
 inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Lorenz (FR-001)
     {
-        .dtMax = 0.001f,
-        .baseDt = 0.59f,  // Calibrated round 2: 0.22 * 2.68 (measured 164Hz at 440Hz target)
+        .dtMax = 0.005f,
+        .baseDt = 185.6f,  // Calibrated round 2: 64.9 * 2.86 (154Hz→440Hz)
         .referenceFrequency = 100.0f,
         .safeBound = 500.0f,
         .xScale = 20.0f,
@@ -133,7 +133,7 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     // Rossler (FR-002)
     {
         .dtMax = 0.002f,
-        .baseDt = 10.8f,  // Calibrated round 2: 1.10 * 9.78 (measured 45Hz at 440Hz target)
+        .baseDt = 491.4f,  // Calibrated: measured 9.67Hz at 440Hz target, correction 45.5x
         .referenceFrequency = 80.0f,
         .safeBound = 300.0f,
         .xScale = 12.0f,
@@ -146,8 +146,8 @@ inline constexpr AttractorConstants kAttractorConstants[kNumChaosAttractors] = {
     },
     // Chua (FR-003)
     {
-        .dtMax = 0.0005f,
-        .baseDt = 0.097f,  // Calibrated round 2: 0.44 / 4.56 (measured 2004Hz at 440Hz target)
+        .dtMax = 0.001f,
+        .baseDt = 449.3f,  // Calibrated round 2: 128.0 * 3.51 (125.5Hz→440Hz)
         .referenceFrequency = 120.0f,
         .safeBound = 50.0f,
         .xScale = 2.5f,
@@ -235,7 +235,7 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr size_t kMaxSubsteps = 100;
+    static constexpr size_t kMaxSubsteps = 200;
     static constexpr size_t kResetCooldownSamples = 100;
     static constexpr float kMinFrequency = 0.1f;
     static constexpr float kMaxFrequency = 20000.0f;

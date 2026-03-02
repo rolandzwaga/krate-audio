@@ -339,7 +339,7 @@ public:
         // See selectable_oscillator_test.cpp "RMS levels" test for verification.
         constexpr float kGain = []() constexpr {
             if constexpr (std::is_same_v<OscT, ChaosOscillator>)
-                return 10.0f;   // was 8.0; delta was -2.9 dB, now ~-1.0 dB
+                return 2.0f;    // recalibrated: chaos now produces audio-rate output
             else if constexpr (std::is_same_v<OscT, FormantOscillator>)
                 return 2.7f;    // delta was -8.6 dB → +8.6 dB compensation
             else if constexpr (std::is_same_v<OscT, ParticleOscillator>)

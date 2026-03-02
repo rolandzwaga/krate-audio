@@ -1217,3 +1217,99 @@ TEST_CASE("Duffing phase accumulator advances in attractor time", "[processors][
     REQUIRE(variation100Hz > 10.0f);
     REQUIRE(variation440Hz > 10.0f);
 }
+
+// =============================================================================
+// Audio-Rate Output Bug Fix Test
+// =============================================================================
+
+TEST_CASE("Chaos oscillator produces audio-rate output at 440Hz", "[processors][chaos][audio-rate]") {
+    constexpr double sampleRate = 44100.0;
+    constexpr float targetFreq = 440.0f;
+    constexpr size_t totalSamples = 88200;   // 2 seconds
+    constexpr size_t warmupSamples = 22050;  // 0.5s warmup for DC blocker settling
+
+    struct AttractorTestCase {
+        ChaosAttractor type;
+        const char* name;
+    };
+
+    // Skip Duffing — it uses direct phase increment (different mechanism)
+    AttractorTestCase cases[] = {
+        {ChaosAttractor::Lorenz, "Lorenz"},
+        {ChaosAttractor::Rossler, "Rossler"},
+        {ChaosAttractor::Chua, "Chua"},
+        {ChaosAttractor::VanDerPol, "VanDerPol"},
+    };
+
+    for (const auto& tc : cases) {
+        SECTION(tc.name) {
+            ChaosOscillator osc;
+            osc.prepare(sampleRate);
+            osc.setAttractor(tc.type);
+            osc.setFrequency(targetFreq);
+            osc.setChaos(1.0f);
+
+            // Generate samples
+            std::vector<float> allSamples(totalSamples);
+            for (size_t i = 0; i < totalSamples; ++i) {
+                allSamples[i] = osc.process();
+            }
+
+            // Analyze only post-warmup samples
+            const float* analysisStart = allSamples.data() + warmupSamples;
+            size_t analysisSamples = totalSamples - warmupSamples;
+
+            // Measure zero-crossing rate → estimated frequency
+            size_t zeroCrossings = 0;
+            for (size_t i = 1; i < analysisSamples; ++i) {
+                if ((analysisStart[i] > 0.0f && analysisStart[i - 1] <= 0.0f) ||
+                    (analysisStart[i] < 0.0f && analysisStart[i - 1] >= 0.0f)) {
+                    ++zeroCrossings;
+                }
+            }
+            double duration = static_cast<double>(analysisSamples) / sampleRate;
+            float estimatedFreq = static_cast<float>(zeroCrossings / (2.0 * duration));
+
+            // Measure AC RMS (subtract DC mean)
+            double sum = 0.0;
+            for (size_t i = 0; i < analysisSamples; ++i) {
+                sum += static_cast<double>(analysisStart[i]);
+            }
+            double mean = sum / static_cast<double>(analysisSamples);
+
+            double acSumSq = 0.0;
+            for (size_t i = 0; i < analysisSamples; ++i) {
+                double ac = static_cast<double>(analysisStart[i]) - mean;
+                acSumSq += ac * ac;
+            }
+            float acRms = static_cast<float>(
+                std::sqrt(acSumSq / static_cast<double>(analysisSamples)));
+
+            // Measure peak amplitude
+            float peak = 0.0f;
+            for (size_t i = 0; i < analysisSamples; ++i) {
+                float absVal = std::abs(analysisStart[i]);
+                if (absVal > peak) peak = absVal;
+            }
+
+            // DC level as fraction of peak
+            float dcFraction = (peak > 0.0f) ? static_cast<float>(std::abs(mean)) / peak : 0.0f;
+
+            INFO(tc.name << ": estimated freq = " << estimatedFreq << " Hz");
+            INFO(tc.name << ": AC RMS = " << acRms);
+            INFO(tc.name << ": peak = " << peak);
+            INFO(tc.name << ": DC fraction of peak = " << dcFraction);
+            INFO(tc.name << ": zero crossings = " << zeroCrossings);
+
+            // Assertions: output must be audible audio-rate content
+            // 1. Estimated frequency must be > 20 Hz (audio range)
+            REQUIRE(estimatedFreq > 20.0f);
+
+            // 2. AC RMS must show real oscillation energy
+            REQUIRE(acRms > 0.01f);
+
+            // 3. DC level should not dominate the signal
+            REQUIRE(dcFraction < 0.5f);
+        }
+    }
+}

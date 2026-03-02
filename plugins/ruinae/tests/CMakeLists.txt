@@ -88,6 +88,9 @@ add_executable(ruinae_tests
     unit/preset_safety_test.cpp
     integration/preset_switch_safety_test.cpp
 
+    # Chaos Wind Preset Audio Test (silence bug investigation)
+    integration/chaos_wind_audio_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -144,6 +147,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/controller_display_test.cpp
         unit/processor/arp_mod_integration_test.cpp
         integration/preset_switch_safety_test.cpp
+        integration/chaos_wind_audio_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
