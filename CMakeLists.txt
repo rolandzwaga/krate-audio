@@ -296,6 +296,27 @@ smtg_target_setup_universal_binary(hwy)
 smtg_target_setup_universal_binary(hwy_contrib)
 
 # ==============================================================================
+# pffft (SIMD-optimized FFT, marton78 fork, BSD license)
+# ==============================================================================
+# Auto-detects SIMD: SSE on x86/x64, NEON on ARM, scalar fallback.
+FetchContent_Declare(
+    pffft
+    GIT_REPOSITORY https://github.com/marton78/pffft.git
+    GIT_TAG v1.1.0
+)
+set(PFFFT_USE_TYPE_DOUBLE OFF CACHE BOOL "" FORCE)
+set(PFFFT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(PFFFT_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(PFFFT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+# INSTALL_PFFFT must stay ON because the pffft CMakeLists.txt unconditionally
+# references the pffft-targets export. Harmless — we never run cmake --install.
+set(INSTALL_PFFFT ON CACHE BOOL "" FORCE)
+set(INSTALL_PFDSP OFF CACHE BOOL "" FORCE)
+set(INSTALL_PFFASTCONV OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(pffft)
+smtg_target_setup_universal_binary(PFFFT)
+
+# ==============================================================================
 # KrateDSP Library (Shared by all plugins)
 # ==============================================================================
 add_subdirectory(dsp)

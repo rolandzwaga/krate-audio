@@ -24,7 +24,7 @@
 #include <cstddef>
 #include <memory>
 
-#include <pffft.h>
+#include <pffft/pffft.h>
 
 namespace Krate {
 namespace DSP {
