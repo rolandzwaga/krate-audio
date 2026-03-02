@@ -155,27 +155,108 @@ public:
 };
 
 // ==============================================================================
-// PresetBrowserButton: Opens the preset browser (Spec 083)
+// OutlineButton: Minimal outline-style button matching Ruinae dark theme
 // ==============================================================================
-class PresetBrowserButton : public VSTGUI::CTextButton {
+// Draws a rounded-rect outline with centered text. On hover, fills with a
+// subtle highlight. Subclasses override onClick() for specific actions.
+// ==============================================================================
+class OutlineButton : public VSTGUI::CView {
 public:
-    PresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : CTextButton(size, nullptr, -1, "Presets")
-        , controller_(controller)
-    {
-        setFrameColor(VSTGUI::CColor(80, 80, 85));
-        setTextColor(VSTGUI::CColor(255, 255, 255));
+    OutlineButton(const VSTGUI::CRect& size, std::string title,
+                  VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
+        : CView(size)
+        , title_(std::move(title))
+        , frameColor_(frameColor)
+    {}
+
+    void draw(VSTGUI::CDrawContext* context) override {
+        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
+        auto r = getViewSize();
+        // Inset by half a pixel so the 1px stroke sits cleanly inside
+        r.inset(0.5, 0.5);
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (path) {
+            constexpr double kRadius = 3.0;
+            path->addRoundRect(r, kRadius);
+
+            // Hover fill
+            if (hovered_) {
+                context->setFillColor(VSTGUI::CColor(255, 255, 255, 20));
+                context->drawGraphicsPath(path,
+                    VSTGUI::CDrawContext::kPathFilled);
+            }
+
+            // Outline
+            context->setFrameColor(frameColor_);
+            context->setLineWidth(1.0);
+            context->drawGraphicsPath(path,
+                VSTGUI::CDrawContext::kPathStroked);
+        }
+
+        // Text
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
+            *VSTGUI::kNormalFontSmaller);
+        context->setFont(font);
+        context->setFontColor(VSTGUI::CColor(192, 192, 192));
+        context->drawString(
+            VSTGUI::UTF8String(title_), getViewSize(),
+            VSTGUI::kCenterText);
+
+        setDirty(false);
+    }
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        hovered_ = true;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        hovered_ = false;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (buttons.isLeftButton() && controller_) {
-            controller_->openPresetBrowser();
-            return VSTGUI::kMouseEventHandled;
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& buttons) override {
+        if (buttons.isLeftButton()) {
+            onClick();
+            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
         }
-        return CTextButton::onMouseDown(where, buttons);
+        return VSTGUI::kMouseEventNotHandled;
+    }
+
+protected:
+    virtual void onClick() = 0;
+
+private:
+    std::string title_;
+    VSTGUI::CColor frameColor_;
+    bool hovered_ = false;
+};
+
+// ==============================================================================
+// PresetBrowserButton: Opens the preset browser (Spec 083)
+// ==============================================================================
+class PresetBrowserButton : public OutlineButton {
+public:
+    PresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
+        : OutlineButton(size, "Presets", VSTGUI::CColor(64, 64, 72))
+        , controller_(controller) {}
+
+protected:
+    void onClick() override {
+        if (controller_) controller_->openPresetBrowser();
     }
 
 private:
@@ -185,25 +266,51 @@ private:
 // ==============================================================================
 // SavePresetButton: Opens the save preset dialog (Spec 083)
 // ==============================================================================
-class SavePresetButton : public VSTGUI::CTextButton {
+class SavePresetButton : public OutlineButton {
 public:
     SavePresetButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : CTextButton(size, nullptr, -1, "Save")
-        , controller_(controller)
-    {
-        setFrameColor(VSTGUI::CColor(80, 80, 85));
-        setTextColor(VSTGUI::CColor(255, 255, 255));
+        : OutlineButton(size, "Save", VSTGUI::CColor(64, 64, 72))
+        , controller_(controller) {}
+
+protected:
+    void onClick() override {
+        if (controller_) controller_->openSavePresetDialog();
     }
 
-    VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (buttons.isLeftButton() && controller_) {
-            controller_->openSavePresetDialog();
-            return VSTGUI::kMouseEventHandled;
-        }
-        return CTextButton::onMouseDown(where, buttons);
+private:
+    Ruinae::Controller* controller_ = nullptr;
+};
+
+// ==============================================================================
+// ArpPresetBrowserButton: Opens the ARP preset browser
+// ==============================================================================
+class ArpPresetBrowserButton : public OutlineButton {
+public:
+    ArpPresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
+        : OutlineButton(size, "Presets", VSTGUI::CColor(200, 120, 80))
+        , controller_(controller) {}
+
+protected:
+    void onClick() override {
+        if (controller_) controller_->openArpPresetBrowser();
+    }
+
+private:
+    Ruinae::Controller* controller_ = nullptr;
+};
+
+// ==============================================================================
+// ArpSavePresetButton: Opens the ARP preset browser with save dialog
+// ==============================================================================
+class ArpSavePresetButton : public OutlineButton {
+public:
+    ArpSavePresetButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
+        : OutlineButton(size, "Save", VSTGUI::CColor(200, 120, 80))
+        , controller_(controller) {}
+
+protected:
+    void onClick() override {
+        if (controller_) controller_->openArpSavePresetDialog();
     }
 
 private:
@@ -1191,6 +1298,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 frameSize, presetManager_.get(), getRuinaeTabLabels());
             frame->addView(presetBrowserView_);
 
+            arpPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+                frameSize, presetManager_.get(), getRuinaeArpTabLabels());
+            frame->addView(arpPresetBrowserView_);
+
             savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(
                 frameSize, presetManager_.get());
             frame->addView(savePresetDialogView_);
@@ -1269,6 +1380,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
         // Spec 083: Clear preset browser view pointers (views are owned by frame)
         presetBrowserView_ = nullptr;
+        arpPresetBrowserView_ = nullptr;
         savePresetDialogView_ = nullptr;
 
         // 081-interaction-polish: notify processor that editor is closing (FR-012)
@@ -3069,6 +3181,8 @@ void Controller::wireCopyPasteCallbacks() {
 
 void Controller::openPresetBrowser() {
     if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
+        // Close ARP browser if open (mutual exclusion)
+        closeArpPresetBrowser();
         presetBrowserView_->open("");
     }
 }
@@ -3076,6 +3190,27 @@ void Controller::openPresetBrowser() {
 void Controller::closePresetBrowser() {
     if (presetBrowserView_ && presetBrowserView_->isOpen()) {
         presetBrowserView_->close();
+    }
+}
+
+void Controller::openArpPresetBrowser() {
+    if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
+        // Close synth browser if open (mutual exclusion)
+        closePresetBrowser();
+        arpPresetBrowserView_->open("");
+    }
+}
+
+void Controller::closeArpPresetBrowser() {
+    if (arpPresetBrowserView_ && arpPresetBrowserView_->isOpen()) {
+        arpPresetBrowserView_->close();
+    }
+}
+
+void Controller::openArpSavePresetDialog() {
+    if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
+        closePresetBrowser();
+        arpPresetBrowserView_->openWithSaveDialog("Arp Classic");
     }
 }
 
@@ -3099,6 +3234,26 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new PresetBrowserButton(rect, this);
+    }
+
+    // ARP Preset Browser Button
+    if (std::strcmp(name, "ArpPresetBrowserButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(80, 18);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new ArpPresetBrowserButton(rect, this);
+    }
+
+    // ARP Save Preset Button
+    if (std::strcmp(name, "ArpSavePresetButton") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(50, 18);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new ArpSavePresetButton(rect, this);
     }
 
     // Save Preset Button (Spec 083)

@@ -3271,6 +3271,10 @@
                       transparent="true"/>
             </view>
 
+            <!-- ARP Save/Presets buttons -->
+            <view custom-view-name="ArpSavePresetButton" origin="1230, 14" size="50, 18"/>
+            <view custom-view-name="ArpPresetBrowserButton" origin="1300, 14" size="60, 18"/>
+
             <!-- Row 2 (y=46): Sync toggle, Rate/NoteValue, Gate Length, Swing knobs -->
             <view class="ToggleButton" origin="8, 50" size="50, 18"
                   control-tag="ArpTempoSync"

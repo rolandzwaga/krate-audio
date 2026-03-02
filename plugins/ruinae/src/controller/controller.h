@@ -146,6 +146,15 @@ public:
     /// Close the preset browser overlay
     void closePresetBrowser();
 
+    /// Open the ARP preset browser overlay
+    void openArpPresetBrowser();
+
+    /// Close the ARP preset browser overlay
+    void closeArpPresetBrowser();
+
+    /// Open the ARP preset browser with save dialog shown
+    void openArpSavePresetDialog();
+
     /// Open the save preset dialog overlay
     void openSavePresetDialog();
 
@@ -395,6 +404,9 @@ private:
 
     /// Preset browser overlay view (owned by frame, raw pointer)
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+
+    /// ARP preset browser overlay view (owned by frame, raw pointer)
+    Krate::Plugins::PresetBrowserView* arpPresetBrowserView_ = nullptr;
 
     /// Save preset dialog overlay view (owned by frame, raw pointer)
     Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;
