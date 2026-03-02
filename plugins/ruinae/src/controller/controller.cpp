@@ -1,6 +1,17 @@
 // ==============================================================================
 // Edit Controller Implementation
 // ==============================================================================
+// Core controller methods: initialization, lifecycle, state management,
+// parameter sync, view wiring, and action button handling.
+//
+// Additional Controller methods are split across:
+//   controller_param_display.cpp  - getParamStringByValue/getParamValueByString
+//   controller_presets.cpp        - preset browser, custom views, state loading
+//   controller_adsr.cpp           - ADSR display wiring/sync
+//   controller_mod_matrix.cpp     - mod matrix grid & ring indicator wiring
+//   controller_arp.cpp            - arp skip events, copy/paste
+//   controller_settings.cpp       - settings drawer animation, tab changed
+// ==============================================================================
 
 #include "controller.h"
 #include "plugin_ids.h"
@@ -21,7 +32,7 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 
-// Parameter pack headers (for registration, display, and controller sync)
+// Parameter pack headers (for registration and controller sync)
 #include "parameters/global_params.h"
 #include "parameters/osc_a_params.h"
 #include "parameters/osc_b_params.h"
@@ -59,69 +70,12 @@
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/controls/cbuttons.h"
 #include "vstgui/lib/controls/coptionmenu.h"
-#include "vstgui/lib/controls/ioptionmenulistener.h"
 #include "vstgui/lib/events.h"
 
 #include <cmath>
 #include <cstring>
 
 namespace {
-
-// COptionMenu subclass that escapes "&" -> "&&" only for the Win32 popup menu,
-// which interprets "&" as an accelerator prefix. The label and macOS/Linux popups
-// use the raw string directly, so we store single "&" and only escape around popup.
-class FixedOptionMenu : public VSTGUI::COptionMenu,
-                        public VSTGUI::OptionMenuListenerAdapter {
-public:
-    using COptionMenu::COptionMenu;
-
-    bool attached(VSTGUI::CView* parent) override {
-        if (COptionMenu::attached(parent)) {
-            registerOptionMenuListener(this);
-            return true;
-        }
-        return false;
-    }
-
-    bool removed(VSTGUI::CView* parent) override {
-        unregisterOptionMenuListener(this);
-        return COptionMenu::removed(parent);
-    }
-
-#ifdef _WIN32
-    void onOptionMenuPrePopup(VSTGUI::COptionMenu* menu) override {
-        // Escape "&" -> "&&" so Win32 HMENU shows literal ampersand
-        for (auto& item : *menu->getItems()) {
-            auto title = item->getTitle().getString();
-            std::string::size_type pos = 0;
-            bool modified = false;
-            while ((pos = title.find('&', pos)) != std::string::npos) {
-                title.insert(pos, 1, '&');
-                pos += 2;
-                modified = true;
-            }
-            if (modified)
-                item->setTitle(VSTGUI::UTF8String(title));
-        }
-    }
-
-    void onOptionMenuPostPopup(VSTGUI::COptionMenu* menu) override {
-        // Restore "&&" -> "&" after popup closes
-        for (auto& item : *menu->getItems()) {
-            auto title = item->getTitle().getString();
-            std::string::size_type pos = 0;
-            bool modified = false;
-            while ((pos = title.find("&&", pos)) != std::string::npos) {
-                title.erase(pos, 1);
-                pos += 1;
-                modified = true;
-            }
-            if (modified)
-                item->setTitle(VSTGUI::UTF8String(title));
-        }
-    }
-#endif
-};
 
 // Custom editor that intercepts right-clicks over StepPatternEditor.
 // VST3Editor::onMouseEvent consumes ALL right-clicks for context menus
@@ -152,169 +106,6 @@ public:
         }
         VST3Editor::onMouseEvent(event, frame);
     }
-};
-
-// ==============================================================================
-// OutlineButton: Minimal outline-style button matching Ruinae dark theme
-// ==============================================================================
-// Draws a rounded-rect outline with centered text. On hover, fills with a
-// subtle highlight. Subclasses override onClick() for specific actions.
-// ==============================================================================
-class OutlineButton : public VSTGUI::CView {
-public:
-    OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
-        : CView(size)
-        , title_(std::move(title))
-        , frameColor_(frameColor)
-    {}
-
-    void draw(VSTGUI::CDrawContext* context) override {
-        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
-        auto r = getViewSize();
-        // Inset by half a pixel so the 1px stroke sits cleanly inside
-        r.inset(0.5, 0.5);
-
-        auto path = VSTGUI::owned(context->createGraphicsPath());
-        if (path) {
-            constexpr double kRadius = 3.0;
-            path->addRoundRect(r, kRadius);
-
-            // Hover fill
-            if (hovered_) {
-                context->setFillColor(VSTGUI::CColor(255, 255, 255, 20));
-                context->drawGraphicsPath(path,
-                    VSTGUI::CDrawContext::kPathFilled);
-            }
-
-            // Outline
-            context->setFrameColor(frameColor_);
-            context->setLineWidth(1.0);
-            context->drawGraphicsPath(path,
-                VSTGUI::CDrawContext::kPathStroked);
-        }
-
-        // Text
-        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
-            *VSTGUI::kNormalFontSmaller);
-        context->setFont(font);
-        context->setFontColor(VSTGUI::CColor(192, 192, 192));
-        context->drawString(
-            VSTGUI::UTF8String(title_), getViewSize(),
-            VSTGUI::kCenterText);
-
-        setDirty(false);
-    }
-
-    VSTGUI::CMouseEventResult onMouseEntered(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& /*buttons*/) override {
-        hovered_ = true;
-        if (auto* frame = getFrame())
-            frame->setCursor(VSTGUI::kCursorHand);
-        invalid();
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseExited(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& /*buttons*/) override {
-        hovered_ = false;
-        if (auto* frame = getFrame())
-            frame->setCursor(VSTGUI::kCursorDefault);
-        invalid();
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& buttons) override {
-        if (buttons.isLeftButton()) {
-            onClick();
-            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
-        }
-        return VSTGUI::kMouseEventNotHandled;
-    }
-
-protected:
-    virtual void onClick() = 0;
-
-private:
-    std::string title_;
-    VSTGUI::CColor frameColor_;
-    bool hovered_ = false;
-};
-
-// ==============================================================================
-// PresetBrowserButton: Opens the preset browser (Spec 083)
-// ==============================================================================
-class PresetBrowserButton : public OutlineButton {
-public:
-    PresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : OutlineButton(size, "Presets", VSTGUI::CColor(64, 64, 72))
-        , controller_(controller) {}
-
-protected:
-    void onClick() override {
-        if (controller_) controller_->openPresetBrowser();
-    }
-
-private:
-    Ruinae::Controller* controller_ = nullptr;
-};
-
-// ==============================================================================
-// SavePresetButton: Opens the save preset dialog (Spec 083)
-// ==============================================================================
-class SavePresetButton : public OutlineButton {
-public:
-    SavePresetButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : OutlineButton(size, "Save", VSTGUI::CColor(64, 64, 72))
-        , controller_(controller) {}
-
-protected:
-    void onClick() override {
-        if (controller_) controller_->openSavePresetDialog();
-    }
-
-private:
-    Ruinae::Controller* controller_ = nullptr;
-};
-
-// ==============================================================================
-// ArpPresetBrowserButton: Opens the ARP preset browser
-// ==============================================================================
-class ArpPresetBrowserButton : public OutlineButton {
-public:
-    ArpPresetBrowserButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : OutlineButton(size, "Presets", VSTGUI::CColor(200, 120, 80))
-        , controller_(controller) {}
-
-protected:
-    void onClick() override {
-        if (controller_) controller_->openArpPresetBrowser();
-    }
-
-private:
-    Ruinae::Controller* controller_ = nullptr;
-};
-
-// ==============================================================================
-// ArpSavePresetButton: Opens the ARP preset browser with save dialog
-// ==============================================================================
-class ArpSavePresetButton : public OutlineButton {
-public:
-    ArpSavePresetButton(const VSTGUI::CRect& size, Ruinae::Controller* controller)
-        : OutlineButton(size, "Save", VSTGUI::CColor(200, 120, 80))
-        , controller_(controller) {}
-
-protected:
-    void onClick() override {
-        if (controller_) controller_->openArpSavePresetDialog();
-    }
-
-private:
-    Ruinae::Controller* controller_ = nullptr;
 };
 
 } // anonymous namespace
@@ -353,8 +144,6 @@ static constexpr std::array<Steinberg::Vst::ParamID,
     kFilterResonanceId,       // 8: All Voice Resonance
     kFilterEnvAmountId,       // 9: All Voice Filter Env Amount
     // Arpeggiator destinations (078-modulation-integration)
-    // Note: index 10 always maps to kArpFreeRateId regardless of tempo-sync
-    // mode. Dynamic mode-aware indicator is deferred to Phase 11.
     kArpFreeRateId,           // 10: Arp Rate
     kArpGateLengthId,         // 11: Arp Gate Length
     kArpOctaveRangeId,        // 12: Arp Octave Range
@@ -609,90 +398,6 @@ Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString nam
     return nullptr;
 }
 
-Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
-    Steinberg::Vst::ParamID id,
-    Steinberg::Vst::ParamValue valueNormalized,
-    Steinberg::Vst::String128 string) {
-
-    // Route to appropriate parameter pack formatter by ID range
-    Steinberg::tresult result = Steinberg::kResultFalse;
-
-    if (id <= kGlobalEndId) {
-        result = formatGlobalParam(id, valueNormalized, string);
-    } else if (id >= kOscABaseId && id <= kOscAEndId) {
-        result = formatOscAParam(id, valueNormalized, string);
-    } else if (id >= kOscBBaseId && id <= kOscBEndId) {
-        result = formatOscBParam(id, valueNormalized, string);
-    } else if (id >= kMixerBaseId && id <= kMixerEndId) {
-        result = formatMixerParam(id, valueNormalized, string);
-    } else if (id >= kFilterBaseId && id <= kFilterEndId) {
-        result = formatFilterParam(id, valueNormalized, string);
-    } else if (id >= kDistortionBaseId && id <= kDistortionEndId) {
-        result = formatDistortionParam(id, valueNormalized, string);
-    } else if (id >= kTranceGateBaseId && id <= kTranceGateEndId) {
-        result = formatTranceGateParam(id, valueNormalized, string);
-    } else if (id >= kAmpEnvBaseId && id <= kAmpEnvEndId) {
-        result = formatAmpEnvParam(id, valueNormalized, string);
-    } else if (id >= kFilterEnvBaseId && id <= kFilterEnvEndId) {
-        result = formatFilterEnvParam(id, valueNormalized, string);
-    } else if (id >= kModEnvBaseId && id <= kModEnvEndId) {
-        result = formatModEnvParam(id, valueNormalized, string);
-    } else if (id >= kLFO1BaseId && id <= kLFO1EndId) {
-        result = formatLFO1Param(id, valueNormalized, string);
-    } else if (id >= kLFO2BaseId && id <= kLFO2EndId) {
-        result = formatLFO2Param(id, valueNormalized, string);
-    } else if (id >= kChaosModBaseId && id <= kChaosModEndId) {
-        result = formatChaosModParam(id, valueNormalized, string);
-    } else if (id >= kModMatrixBaseId && id <= kModMatrixEndId) {
-        result = formatModMatrixParam(id, valueNormalized, string);
-    } else if (id >= kGlobalFilterBaseId && id <= kGlobalFilterEndId) {
-        result = formatGlobalFilterParam(id, valueNormalized, string);
-    } else if (id >= kDelayBaseId && id <= kDelayEndId) {
-        result = formatDelayParam(id, valueNormalized, string);
-    } else if (id >= kReverbBaseId && id <= kReverbEndId) {
-        result = formatReverbParam(id, valueNormalized, string);
-    } else if (id >= kPhaserBaseId && id <= kPhaserEndId) {
-        result = formatPhaserParam(id, valueNormalized, string);
-    } else if (id >= kHarmonizerBaseId && id <= kHarmonizerEndId) {
-        result = formatHarmonizerParam(id, valueNormalized, string);
-    } else if (id >= kMonoBaseId && id <= kMonoEndId) {
-        result = formatMonoModeParam(id, valueNormalized, string);
-    } else if (id >= kMacroBaseId && id <= kMacroEndId) {
-        result = formatMacroParam(id, valueNormalized, string);
-    } else if (id >= kRunglerBaseId && id <= kRunglerEndId) {
-        result = formatRunglerParam(id, valueNormalized, string);
-    } else if (id >= kSettingsBaseId && id <= kSettingsEndId) {
-        result = formatSettingsParam(id, valueNormalized, string);
-    } else if (id >= kEnvFollowerBaseId && id <= kEnvFollowerEndId) {
-        result = formatEnvFollowerParam(id, valueNormalized, string);
-    } else if (id >= kSampleHoldBaseId && id <= kSampleHoldEndId) {
-        result = formatSampleHoldParam(id, valueNormalized, string);
-    } else if (id >= kRandomBaseId && id <= kRandomEndId) {
-        result = formatRandomParam(id, valueNormalized, string);
-    } else if (id >= kPitchFollowerBaseId && id <= kPitchFollowerEndId) {
-        result = formatPitchFollowerParam(id, valueNormalized, string);
-    } else if (id >= kTransientBaseId && id <= kTransientEndId) {
-        result = formatTransientParam(id, valueNormalized, string);
-    } else if (id >= kArpBaseId && id <= kArpEndId) {
-        result = formatArpParam(id, valueNormalized, string);
-    }
-
-    // Fall back to default implementation for unhandled parameters
-    // (StringListParameter handles its own formatting)
-    if (result != Steinberg::kResultOk) {
-        return EditControllerEx1::getParamStringByValue(id, valueNormalized, string);
-    }
-    return result;
-}
-
-Steinberg::tresult PLUGIN_API Controller::getParamValueByString(
-    Steinberg::Vst::ParamID id,
-    Steinberg::Vst::TChar* string,
-    Steinberg::Vst::ParamValue& valueNormalized) {
-    // Use default implementation for now
-    return EditControllerEx1::getParamValueByString(id, string, valueNormalized);
-}
-
 // ==============================================================================
 // IMessage: Receive processor messages
 // ==============================================================================
@@ -710,7 +415,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
         Steinberg::int64 playingPtr = 0;
 
         if (attrs->getInt("stepPtr", stepPtr) == Steinberg::kResultOk) {
-            // IMessage only supports int64 for pointer transport (VST3 SDK limitation)
             tranceGatePlaybackStepPtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(stepPtr));
         }
@@ -718,10 +422,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
             isTransportPlayingPtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(playingPtr));
         }
-
-        // Timer is created in didOpen() where VSTGUI frame is active.
-        // notify() may be called before the editor opens, so CVSTGUITimer
-        // created here would have no message loop to fire on.
 
         return Steinberg::kResultOk;
     }
@@ -782,8 +482,6 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
             modulatedMorphYPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
                 static_cast<intptr_t>(val));
         }
-
-        // Timer is created in didOpen() where VSTGUI frame is active.
 
         return Steinberg::kResultOk;
     }
@@ -887,7 +585,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             velocityLane_->setStepLevel(stepIndex, static_cast<float>(value));
             velocityLane_->setDirty(true);
         } else if (tag == kArpVelocityLaneLengthId) {
-            // Denormalize: RangeParameter 1-32, stepCount=31
             int steps = std::clamp(
                 static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             velocityLane_->setNumSteps(steps);
@@ -902,7 +599,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             gateLane_->setStepLevel(stepIndex, static_cast<float>(value));
             gateLane_->setDirty(true);
         } else if (tag == kArpGateLaneLengthId) {
-            // Denormalize: RangeParameter 1-32, stepCount=31
             int steps = std::clamp(
                 static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             gateLane_->setNumSteps(steps);
@@ -974,7 +670,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     // EuclideanDotDisplay and linear overlays on bar lanes
     if (tag == kArpEuclideanHitsId || tag == kArpEuclideanStepsId ||
         tag == kArpEuclideanRotationId || tag == kArpEuclideanEnabledId) {
-        // Read current values from parameter objects
         auto readInt = [this](Steinberg::Vst::ParamID pid, double scale,
                               double offset, int lo, int hi) -> int {
             auto* p = getParameterObject(pid);
@@ -996,7 +691,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             euclideanDotDisplay_->invalid();
         }
 
-        // Push to all lanes (bar lanes show overlay, others ignore it)
         Krate::Plugins::IArpLane* lanes[] = {
             velocityLane_, gateLane_, pitchLane_, ratchetLane_,
             modifierLane_, conditionLane_};
@@ -1004,7 +698,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             if (lane) lane->setEuclideanOverlay(hits, steps, rot, enabled);
         }
 
-        // 081-interaction-polish Phase 8: Toggle arp Euclidean bottom bar visibility
         if (tag == kArpEuclideanEnabledId && arpEuclideanGroup_) {
             arpEuclideanGroup_->setVisible(enabled);
         }
@@ -1023,38 +716,30 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (chaosRateGroup_) chaosRateGroup_->setVisible(value < 0.5);
         if (chaosNoteValueGroup_) chaosNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle S&H Rate/NoteValue visibility based on sync state
     if (tag == kSampleHoldSyncId) {
         if (shRateGroup_) shRateGroup_->setVisible(value < 0.5);
         if (shNoteValueGroup_) shNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle Random Rate/NoteValue visibility based on sync state
     if (tag == kRandomSyncId) {
         if (randomRateGroup_) randomRateGroup_->setVisible(value < 0.5);
         if (randomNoteValueGroup_) randomNoteValueGroup_->setVisible(value >= 0.5);
     }
-
-    // Toggle Delay Time/NoteValue visibility based on sync state
     if (tag == kDelaySyncId) {
         if (delayTimeGroup_) delayTimeGroup_->setVisible(value < 0.5);
         if (delayNoteValueGroup_) delayNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle Phaser Rate/NoteValue visibility based on sync state
     if (tag == kPhaserSyncId) {
         if (phaserRateGroup_) phaserRateGroup_->setVisible(value < 0.5);
         if (phaserNoteValueGroup_) phaserNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle TranceGate Rate/NoteValue visibility based on sync state
     if (tag == kTranceGateTempoSyncId) {
         if (tranceGateRateGroup_) tranceGateRateGroup_->setVisible(value < 0.5);
         if (tranceGateNoteValueGroup_) tranceGateNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle Arp Rate/NoteValue visibility based on sync state (FR-016)
     if (tag == kArpTempoSyncId) {
         if (arpRateGroup_) arpRateGroup_->setVisible(value < 0.5);
         if (arpNoteValueGroup_) arpNoteValueGroup_->setVisible(value >= 0.5);
     }
-    // Toggle Poly/Mono visibility based on voice mode
     if (tag == kVoiceModeId) {
         if (polyGroup_) polyGroup_->setVisible(value < 0.5);
         if (monoGroup_) monoGroup_->setVisible(value >= 0.5);
@@ -1073,7 +758,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     }
 
     // Arp Scale Mode dimming (084-arp-scale-mode FR-011)
-    // Dim Root Note and Quantize Input when Scale Type is Chromatic (normalized 0.0)
     if (tag == kArpScaleTypeId) {
         bool isChromatic = (value < 0.01);
         float alpha = isChromatic ? 0.35f : 1.0f;
@@ -1085,7 +769,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             arpQuantizeInputGroup_->setAlphaValue(alpha);
             arpQuantizeInputGroup_->setMouseEnabled(!isChromatic);
         }
-        // Update pitch lane popup suffix (FR-018)
         if (pitchLane_) {
             int uiIndex = std::clamp(
                 static_cast<int>(value * (kArpScaleTypeCount - 1) + 0.5),
@@ -1096,7 +779,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     }
 
     // PW knob visual disable (068-osc-type-params FR-016)
-    // Dim PW knob when PolyBLEP waveform is not Pulse (index 3)
     if (tag == kOscAWaveformId && oscAPWKnob_) {
         int wf = static_cast<int>(value * 4.0 + 0.5);
         oscAPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
@@ -1105,7 +787,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         int wf = static_cast<int>(value * 4.0 + 0.5);
         oscBPWKnob_->setAlphaValue(wf == 3 ? 1.0f : 0.3f);
     }
-    // Null PW knob pointers when osc type switches away from PolyBLEP (type 0)
     if (tag == kOscATypeId && value > 0.01) {
         oscAPWKnob_ = nullptr;
     }
@@ -1119,9 +800,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         onTabChanged(newTab);
     }
 
-    // Push mixer parameter changes to XYMorphPad.
-    // When processor modulation pointers are active, skip — the poll timer
-    // handles position updates (including unmodulated base position when offset=0).
+    // Push mixer parameter changes to XYMorphPad
     if (xyMorphPad_ && !modulatedMorphXPtr_) {
         if (tag == kMixerPositionId) {
             xyMorphPad_->setMorphPosition(
@@ -1144,7 +823,6 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
 
     // Push mod matrix parameter changes to ModMatrixGrid and ModRingIndicators
-    // Skip sync when the grid itself is the source (reentrancy guard)
     if (tag >= kModMatrixBaseId && tag <= kModMatrixDetailEndId) {
         if (modMatrixGrid_ && !suppressModMatrixSync_) {
             syncModMatrixGrid();
@@ -1173,9 +851,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     activeEditor_ = editor;
 
     // Create a unified UI poll timer (~30fps) for all processor→UI feedback.
-    // MUST be created here (not in notify()) because CVSTGUITimer requires an
-    // active VSTGUI frame with a message loop. notify() is called by the host
-    // before the editor opens, so timers created there never fire.
     if (!playbackPollTimer_) {
         playbackPollTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
             [this](VSTGUI::CVSTGUITimer*) {
@@ -1202,7 +877,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 if (isTransportPlayingPtr_) {
                     bool playing = isTransportPlayingPtr_->load(std::memory_order_relaxed);
                     if (wasTransportPlaying_ && !playing) {
-                        // Transport just stopped: clear all trail overlays
                         for (auto& ts : laneTrailStates_) ts.clear();
                         lastPolledSteps_.fill(-1);
                         if (velocityLane_) velocityLane_->clearOverlays();
@@ -1215,12 +889,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     wasTransportPlaying_ = playing;
                 }
 
-                // 079-layout-framework US5 + 081-interaction-polish US1:
-                // Poll arp lane playhead parameters, advance trail state,
-                // and push trail overlay data to each lane.
-                // The processor writes step indices as normalized values
-                // (stepIndex / 32.0). We decode and forward to each lane.
-                // Helper: poll one lane's playhead param, advance trail, push overlay
+                // Poll arp lane playhead parameters
                 auto pollLanePlayhead = [&](Krate::Plugins::IArpLane* lane,
                                             Steinberg::Vst::ParamID playheadParamId,
                                             int laneIdx) {
@@ -1233,7 +902,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     long rawStep = std::lround(normalized * kMaxArpSteps);
                     int32_t step = rawStep >= kMaxArpSteps ? -1 : static_cast<int32_t>(rawStep);
 
-                    // Advance trail if step changed
                     if (step != lastPolledSteps_[static_cast<size_t>(laneIdx)]) {
                         lastPolledSteps_[static_cast<size_t>(laneIdx)] = step;
                         if (step >= 0) {
@@ -1241,20 +909,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                         }
                     }
 
-                    // Clear passed skip overlays (FR-010)
                     laneTrailStates_[static_cast<size_t>(laneIdx)].clearPassedSkips();
 
-                    // Push trail state to lane for rendering
                     auto& ts = laneTrailStates_[static_cast<size_t>(laneIdx)];
                     lane->setTrailSteps(ts.steps, Krate::Plugins::PlayheadTrailState::kTrailAlphas);
-
-                    // Also keep the old setPlayheadStep for backward compat
                     lane->setPlayheadStep(step);
                 };
 
-                // Only poll playhead steps while transport is playing.
-                // When stopped, the parameter defaults to 0.0 which would
-                // falsely decode as step 0 and paint a ghost trail overlay.
                 bool transportPlaying = isTransportPlayingPtr_ &&
                     isTransportPlayingPtr_->load(std::memory_order_relaxed);
                 if (transportPlaying) {
@@ -1267,15 +928,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 }
             }, 33); // ~30fps
 
-        // trailTimer_ references the same poll timer for trail management
         trailTimer_ = playbackPollTimer_;
     }
 
-    // Reset trail states on editor open (fresh trail)
+    // Reset trail states on editor open
     for (auto& ts : laneTrailStates_) ts.clear();
     lastPolledSteps_.fill(-1);
 
-    // 081-interaction-polish: notify processor that editor is open (FR-012)
+    // Notify processor that editor is open (FR-012)
     {
         auto msg = Steinberg::owned(allocateMessage());
         if (msg) {
@@ -1288,8 +948,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         }
     }
 
-    // Spec 083: Create preset browser and save dialog overlay views.
-    // Views are initially hidden and shown via openPresetBrowser()/openSavePresetDialog().
+    // Create preset browser and save dialog overlay views
     if (presetManager_) {
         auto* frame = editor->getFrame();
         if (frame) {
@@ -1357,7 +1016,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         arpRootNoteGroup_ = nullptr;
         arpQuantizeInputGroup_ = nullptr;
 
-        // Settings drawer cleanup
         settingsDrawer_ = nullptr;
         settingsOverlay_ = nullptr;
         gearButton_ = nullptr;
@@ -1366,24 +1024,20 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         settingsDrawerProgress_ = 0.0f;
         settingsDrawerTargetOpen_ = false;
 
-        // Stop poll timer when editor closes (will be recreated in didOpen)
         playbackPollTimer_ = nullptr;
         trailTimer_ = nullptr;
 
-        // Clear trail state
         for (auto& ts : laneTrailStates_) ts.clear();
         lastPolledSteps_.fill(-1);
         wasTransportPlaying_ = false;
 
-        // Clear clipboard on editor close (editor-scoped, per data-model.md)
         clipboard_.clear();
 
-        // Spec 083: Clear preset browser view pointers (views are owned by frame)
         presetBrowserView_ = nullptr;
         arpPresetBrowserView_ = nullptr;
         savePresetDialogView_ = nullptr;
 
-        // 081-interaction-polish: notify processor that editor is closing (FR-012)
+        // Notify processor that editor is closing (FR-012)
         {
             auto msg = Steinberg::owned(allocateMessage());
             if (msg) {
@@ -1409,8 +1063,6 @@ VSTGUI::CView* Controller::verifyView(
     VSTGUI::VST3Editor* /*editor*/) {
 
     // Register as sub-listener for action buttons (transforms, Euclidean regen)
-    // NOTE: Excludes settings tags (10020, 10021) which are registered explicitly below.
-    // Double-registration causes valueChanged to be called twice, toggling drawer twice.
     auto* control = dynamic_cast<VSTGUI::CControl*>(view);
     if (control) {
         auto tag = control->getTag();
@@ -1418,9 +1070,6 @@ VSTGUI::CView* Controller::verifyView(
             tag <= static_cast<int32_t>(kActionEuclideanRegenTag)) {
             control->registerControlListener(this);
         }
-
-        // Euclidean controls container is now tracked via custom-view-name
-        // (see EuclideanControlsGroup in createCustomView section)
     }
 
     // Populate the pattern preset dropdown (identified by custom-id, no control-tag)
@@ -1443,29 +1092,19 @@ VSTGUI::CView* Controller::verifyView(
     auto* spe = dynamic_cast<Krate::Plugins::StepPatternEditor*>(view);
     if (spe) {
         stepPatternEditor_ = spe;
-
-        // Configure base parameter ID so editor knows which VST params to use
         spe->setStepLevelBaseParamId(kTranceGateStepLevel0Id);
 
-        // Wire performEdit callback (editor -> host)
         spe->setParameterCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 setParamNormalized(paramId, static_cast<double>(normalizedValue));
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
-
-        // Wire beginEdit/endEdit for gesture management
         spe->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-
+            [this](uint32_t paramId) { beginEdit(paramId); });
         spe->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
+            [this](uint32_t paramId) { endEdit(paramId); });
 
-        // Sync current parameter values to the editor
+        // Sync current parameter values
         for (int i = 0; i < 32; ++i) {
             auto paramId = static_cast<Steinberg::Vst::ParamID>(
                 kTranceGateStepLevel0Id + i);
@@ -1476,7 +1115,6 @@ VSTGUI::CView* Controller::verifyView(
             }
         }
 
-        // Sync numSteps
         auto* numStepsParam = getParameterObject(kTranceGateNumStepsId);
         if (numStepsParam) {
             double val = numStepsParam->getNormalized();
@@ -1485,7 +1123,6 @@ VSTGUI::CView* Controller::verifyView(
             spe->setNumSteps(steps);
         }
 
-        // Sync Euclidean params
         auto* euclEnabledParam = getParameterObject(kTranceGateEuclideanEnabledId);
         if (euclEnabledParam) {
             spe->setEuclideanEnabled(euclEnabledParam->getNormalized() >= 0.5);
@@ -1503,7 +1140,6 @@ VSTGUI::CView* Controller::verifyView(
             spe->setEuclideanRotation(rot);
         }
 
-        // Sync phase offset
         auto* phaseParam = getParameterObject(kTranceGatePhaseOffsetId);
         if (phaseParam) {
             spe->setPhaseOffset(
@@ -1516,7 +1152,47 @@ VSTGUI::CView* Controller::verifyView(
     if (arpContainer) {
         arpLaneContainer_ = arpContainer;
 
-        // Construct velocity lane (US1)
+        // Helper: wire standard callbacks for a bar-type lane
+        auto wireLaneCallbacks = [this](Krate::Plugins::ArpLaneEditor* lane) {
+            lane->setParameterCallback(
+                [this](uint32_t paramId, float normalizedValue) {
+                    setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                    performEdit(paramId, static_cast<double>(normalizedValue));
+                });
+            lane->setBeginEditCallback(
+                [this](uint32_t paramId) { beginEdit(paramId); });
+            lane->setEndEditCallback(
+                [this](uint32_t paramId) { endEdit(paramId); });
+            lane->setLengthParamCallback(
+                [this](uint32_t paramId, float normalizedValue) {
+                    beginEdit(paramId);
+                    setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                    performEdit(paramId, static_cast<double>(normalizedValue));
+                    endEdit(paramId);
+                });
+        };
+
+        // Helper: sync bar lane steps from current parameters
+        auto syncBarLane = [this](Krate::Plugins::ArpLaneEditor* lane,
+                                   uint32_t stepBaseId, uint32_t lengthId) {
+            for (int i = 0; i < 32; ++i) {
+                auto paramId = static_cast<Steinberg::Vst::ParamID>(stepBaseId + i);
+                auto* paramObj = getParameterObject(paramId);
+                if (paramObj) {
+                    lane->setStepLevel(i,
+                        static_cast<float>(paramObj->getNormalized()));
+                }
+            }
+            auto* lenParam = getParameterObject(lengthId);
+            if (lenParam) {
+                double val = lenParam->getNormalized();
+                int steps = std::clamp(
+                    static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+                lane->setNumSteps(steps);
+            }
+        };
+
+        // Construct velocity lane
         velocityLane_ = new Krate::Plugins::ArpLaneEditor(
             VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         velocityLane_->setLaneName("VEL");
@@ -1526,53 +1202,11 @@ VSTGUI::CView* Controller::verifyView(
         velocityLane_->setStepLevelBaseParamId(kArpVelocityLaneStep0Id);
         velocityLane_->setLengthParamId(kArpVelocityLaneLengthId);
         velocityLane_->setPlayheadParamId(kArpVelocityPlayheadId);
-
-        // Wire performEdit callback (editor -> host)
-        velocityLane_->setParameterCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-            });
-        velocityLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-        velocityLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
-        velocityLane_->setLengthParamCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                beginEdit(paramId);
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-                endEdit(paramId);
-            });
-
-        // Sync current parameter values to the velocity lane
-        for (int i = 0; i < 32; ++i) {
-            auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                kArpVelocityLaneStep0Id + i);
-            auto* paramObj = getParameterObject(paramId);
-            if (paramObj) {
-                velocityLane_->setStepLevel(i,
-                    static_cast<float>(paramObj->getNormalized()));
-            }
-        }
-
-        // Sync numSteps from velocity lane length parameter
-        auto* velLenParam = getParameterObject(kArpVelocityLaneLengthId);
-        if (velLenParam) {
-            double val = velLenParam->getNormalized();
-            int steps = std::clamp(
-                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
-            velocityLane_->setNumSteps(steps);
-        }
-
-        // Add velocity lane to container (container takes ownership)
+        wireLaneCallbacks(velocityLane_);
+        syncBarLane(velocityLane_, kArpVelocityLaneStep0Id, kArpVelocityLaneLengthId);
         arpLaneContainer_->addLane(velocityLane_);
 
-        // Construct gate lane (US2)
+        // Construct gate lane
         gateLane_ = new Krate::Plugins::ArpLaneEditor(
             VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         gateLane_->setLaneName("GATE");
@@ -1582,53 +1216,11 @@ VSTGUI::CView* Controller::verifyView(
         gateLane_->setStepLevelBaseParamId(kArpGateLaneStep0Id);
         gateLane_->setLengthParamId(kArpGateLaneLengthId);
         gateLane_->setPlayheadParamId(kArpGatePlayheadId);
-
-        // Wire performEdit callback (editor -> host)
-        gateLane_->setParameterCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-            });
-        gateLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-        gateLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
-        gateLane_->setLengthParamCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                beginEdit(paramId);
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-                endEdit(paramId);
-            });
-
-        // Sync current parameter values to the gate lane
-        for (int i = 0; i < 32; ++i) {
-            auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                kArpGateLaneStep0Id + i);
-            auto* paramObj = getParameterObject(paramId);
-            if (paramObj) {
-                gateLane_->setStepLevel(i,
-                    static_cast<float>(paramObj->getNormalized()));
-            }
-        }
-
-        // Sync numSteps from gate lane length parameter
-        auto* gateLenParam = getParameterObject(kArpGateLaneLengthId);
-        if (gateLenParam) {
-            double val = gateLenParam->getNormalized();
-            int steps = std::clamp(
-                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
-            gateLane_->setNumSteps(steps);
-        }
-
-        // Add gate lane to container below velocity lane
+        wireLaneCallbacks(gateLane_);
+        syncBarLane(gateLane_, kArpGateLaneStep0Id, kArpGateLaneLengthId);
         arpLaneContainer_->addLane(gateLane_);
 
-        // Construct pitch lane (080-specialized-lane-types, US5)
+        // Construct pitch lane
         pitchLane_ = new Krate::Plugins::ArpLaneEditor(
             VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         pitchLane_->setLaneName("PITCH");
@@ -1638,46 +1230,8 @@ VSTGUI::CView* Controller::verifyView(
         pitchLane_->setStepLevelBaseParamId(kArpPitchLaneStep0Id);
         pitchLane_->setLengthParamId(kArpPitchLaneLengthId);
         pitchLane_->setPlayheadParamId(kArpPitchPlayheadId);
-
-        pitchLane_->setParameterCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-            });
-        pitchLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-        pitchLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
-        pitchLane_->setLengthParamCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                beginEdit(paramId);
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-                endEdit(paramId);
-            });
-
-        // Sync current parameter values to the pitch lane
-        for (int i = 0; i < 32; ++i) {
-            auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                kArpPitchLaneStep0Id + i);
-            auto* paramObj = getParameterObject(paramId);
-            if (paramObj) {
-                pitchLane_->setStepLevel(i,
-                    static_cast<float>(paramObj->getNormalized()));
-            }
-        }
-
-        auto* pitchLenParam = getParameterObject(kArpPitchLaneLengthId);
-        if (pitchLenParam) {
-            double val = pitchLenParam->getNormalized();
-            int steps = std::clamp(
-                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
-            pitchLane_->setNumSteps(steps);
-        }
+        wireLaneCallbacks(pitchLane_);
+        syncBarLane(pitchLane_, kArpPitchLaneStep0Id, kArpPitchLaneLengthId);
 
         // Sync scale type for popup suffix (084-arp-scale-mode FR-018)
         {
@@ -1691,10 +1245,9 @@ VSTGUI::CView* Controller::verifyView(
                 pitchLane_->setScaleType(enumValue);
             }
         }
-
         arpLaneContainer_->addLane(pitchLane_);
 
-        // Construct ratchet lane (080-specialized-lane-types, US5)
+        // Construct ratchet lane
         ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
             VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
         ratchetLane_->setLaneName("RATCH");
@@ -1704,50 +1257,11 @@ VSTGUI::CView* Controller::verifyView(
         ratchetLane_->setStepLevelBaseParamId(kArpRatchetLaneStep0Id);
         ratchetLane_->setLengthParamId(kArpRatchetLaneLengthId);
         ratchetLane_->setPlayheadParamId(kArpRatchetPlayheadId);
-
-        ratchetLane_->setParameterCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-            });
-        ratchetLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-        ratchetLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
-        ratchetLane_->setLengthParamCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                beginEdit(paramId);
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-                endEdit(paramId);
-            });
-
-        // Sync current parameter values to the ratchet lane
-        for (int i = 0; i < 32; ++i) {
-            auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                kArpRatchetLaneStep0Id + i);
-            auto* paramObj = getParameterObject(paramId);
-            if (paramObj) {
-                ratchetLane_->setStepLevel(i,
-                    static_cast<float>(paramObj->getNormalized()));
-            }
-        }
-
-        auto* ratchetLenParam = getParameterObject(kArpRatchetLaneLengthId);
-        if (ratchetLenParam) {
-            double val = ratchetLenParam->getNormalized();
-            int steps = std::clamp(
-                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
-            ratchetLane_->setNumSteps(steps);
-        }
-
+        wireLaneCallbacks(ratchetLane_);
+        syncBarLane(ratchetLane_, kArpRatchetLaneStep0Id, kArpRatchetLaneLengthId);
         arpLaneContainer_->addLane(ratchetLane_);
 
-        // Construct modifier lane (080-specialized-lane-types, US5)
+        // Construct modifier lane
         modifierLane_ = new Krate::Plugins::ArpModifierLane(
             VSTGUI::CRect(0, 0, 500, 79), nullptr, -1);
         modifierLane_->setLaneName("MOD");
@@ -1762,13 +1276,9 @@ VSTGUI::CView* Controller::verifyView(
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         modifierLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
+            [this](uint32_t paramId) { beginEdit(paramId); });
         modifierLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
+            [this](uint32_t paramId) { endEdit(paramId); });
         modifierLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
@@ -1777,7 +1287,6 @@ VSTGUI::CView* Controller::verifyView(
                 endEdit(paramId);
             });
 
-        // Sync current parameter values to the modifier lane
         for (int i = 0; i < 32; ++i) {
             auto paramId = static_cast<Steinberg::Vst::ParamID>(
                 kArpModifierLaneStep0Id + i);
@@ -1789,7 +1298,6 @@ VSTGUI::CView* Controller::verifyView(
                 modifierLane_->setStepFlags(i, flags);
             }
         }
-
         auto* modLenParam = getParameterObject(kArpModifierLaneLengthId);
         if (modLenParam) {
             double val = modLenParam->getNormalized();
@@ -1797,10 +1305,9 @@ VSTGUI::CView* Controller::verifyView(
                 static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
             modifierLane_->setNumSteps(steps);
         }
-
         arpLaneContainer_->addLane(modifierLane_);
 
-        // Construct condition lane (080-specialized-lane-types, US5)
+        // Construct condition lane
         conditionLane_ = new Krate::Plugins::ArpConditionLane(
             VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
         conditionLane_->setLaneName("COND");
@@ -1815,13 +1322,9 @@ VSTGUI::CView* Controller::verifyView(
                 performEdit(paramId, static_cast<double>(normalizedValue));
             });
         conditionLane_->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
+            [this](uint32_t paramId) { beginEdit(paramId); });
         conditionLane_->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
+            [this](uint32_t paramId) { endEdit(paramId); });
         conditionLane_->setLengthParamCallback(
             [this](uint32_t paramId, float normalizedValue) {
                 beginEdit(paramId);
@@ -1830,7 +1333,6 @@ VSTGUI::CView* Controller::verifyView(
                 endEdit(paramId);
             });
 
-        // Sync current parameter values to the condition lane
         for (int i = 0; i < 32; ++i) {
             auto paramId = static_cast<Steinberg::Vst::ParamID>(
                 kArpConditionLaneStep0Id + i);
@@ -1842,7 +1344,6 @@ VSTGUI::CView* Controller::verifyView(
                 conditionLane_->setStepCondition(i, condIndex);
             }
         }
-
         auto* condLenParam = getParameterObject(kArpConditionLaneLengthId);
         if (condLenParam) {
             double val = condLenParam->getNormalized();
@@ -1850,14 +1351,9 @@ VSTGUI::CView* Controller::verifyView(
                 static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
             conditionLane_->setNumSteps(steps);
         }
-
         arpLaneContainer_->addLane(conditionLane_);
 
-        // =====================================================================
         // Wire transform callbacks for all 6 lanes (081-interaction-polish, T049)
-        // =====================================================================
-
-        // Helper: wire transform callback for an ArpLaneEditor (bar-type lane)
         auto wireBarLaneTransform = [this](
             Krate::Plugins::ArpLaneEditor* lane, uint32_t stepBaseParamId) {
             if (!lane) return;
@@ -1873,7 +1369,6 @@ VSTGUI::CView* Controller::verifyView(
                         setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
                         endEdit(paramId);
                     }
-                    // Update lane data to reflect new values
                     for (int32_t i = 0; i < len; ++i) {
                         lane->setNormalizedStepValue(i, newValues[static_cast<size_t>(i)]);
                     }
@@ -1886,7 +1381,6 @@ VSTGUI::CView* Controller::verifyView(
         wireBarLaneTransform(pitchLane_, kArpPitchLaneStep0Id);
         wireBarLaneTransform(ratchetLane_, kArpRatchetLaneStep0Id);
 
-        // Wire transform for modifier lane
         if (modifierLane_) {
             modifierLane_->setTransformCallback(
                 [this](int transformType) {
@@ -1901,7 +1395,6 @@ VSTGUI::CView* Controller::verifyView(
                         setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
                         endEdit(paramId);
                     }
-                    // Update lane data
                     for (int32_t i = 0; i < len; ++i) {
                         modifierLane_->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
@@ -1910,7 +1403,6 @@ VSTGUI::CView* Controller::verifyView(
                 });
         }
 
-        // Wire transform for condition lane
         if (conditionLane_) {
             conditionLane_->setTransformCallback(
                 [this](int transformType) {
@@ -1925,7 +1417,6 @@ VSTGUI::CView* Controller::verifyView(
                         setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
                         endEdit(paramId);
                     }
-                    // Update lane data
                     for (int32_t i = 0; i < len; ++i) {
                         conditionLane_->setNormalizedStepValue(i,
                             newValues[static_cast<size_t>(i)]);
@@ -1934,9 +1425,6 @@ VSTGUI::CView* Controller::verifyView(
                 });
         }
 
-        // =====================================================================
-        // Wire copy/paste callbacks for all 6 lanes (081-interaction-polish, T061)
-        // =====================================================================
         wireCopyPasteCallbacks();
     }
 
@@ -1947,7 +1435,6 @@ VSTGUI::CView* Controller::verifyView(
         xyPad->setController(this);
         xyPad->setSecondaryParamId(kMixerTiltId);
 
-        // Sync initial position from current parameter state
         auto* posParam = getParameterObject(kMixerPositionId);
         auto* tiltParam = getParameterObject(kMixerTiltId);
         float initX = posParam
@@ -1982,8 +1469,6 @@ VSTGUI::CView* Controller::verifyView(
             [this](int sourceIndex, int destIndex) {
                 selectModulationRoute(sourceIndex, destIndex);
             });
-
-        // Wire heatmap to ModMatrixGrid if available
         if (modMatrixGrid_) {
             modMatrixGrid_->setHeatmap(heatmap);
         }
@@ -2000,13 +1485,11 @@ VSTGUI::CView* Controller::verifyView(
     }
 
     // PW knob visual disable (068-osc-type-params FR-016)
-    // Capture PW knobs from PolyBLEP templates and apply initial alpha state
     {
         const auto* viewName = attributes.getAttributeValue("custom-view-name");
         if (viewName) {
             if (*viewName == "OscAPWKnob") {
                 oscAPWKnob_ = view;
-                // Apply initial alpha based on current waveform
                 auto* wfParam = getParameterObject(kOscAWaveformId);
                 if (wfParam) {
                     int wf = static_cast<int>(wfParam->getNormalized() * 4.0 + 0.5);
@@ -2028,17 +1511,10 @@ VSTGUI::CView* Controller::verifyView(
     if (container) {
         const auto* name = attributes.getAttributeValue("custom-view-name");
         if (name) {
-            // Harmonizer voice rows (for dimming based on NumVoices)
-            if (*name == "HarmonizerVoice1") {
-                harmonizerVoiceRows_[0] = container;
-            } else if (*name == "HarmonizerVoice2") {
-                harmonizerVoiceRows_[1] = container;
-            } else if (*name == "HarmonizerVoice3") {
-                harmonizerVoiceRows_[2] = container;
-            } else if (*name == "HarmonizerVoice4") {
-                harmonizerVoiceRows_[3] = container;
-            }
-            // LFO Rate groups (hidden when tempo sync is active)
+            if (*name == "HarmonizerVoice1") { harmonizerVoiceRows_[0] = container; }
+            else if (*name == "HarmonizerVoice2") { harmonizerVoiceRows_[1] = container; }
+            else if (*name == "HarmonizerVoice3") { harmonizerVoiceRows_[2] = container; }
+            else if (*name == "HarmonizerVoice4") { harmonizerVoiceRows_[3] = container; }
             else if (*name == "LFO1RateGroup") {
                 lfo1RateGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO1SyncId);
@@ -2049,9 +1525,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kLFO2SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(!syncOn);
-            }
-            // LFO Note Value groups (visible when tempo sync is active)
-            else if (*name == "LFO1NoteValueGroup") {
+            } else if (*name == "LFO1NoteValueGroup") {
                 lfo1NoteValueGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO1SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2061,9 +1535,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kLFO2SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Chaos Rate/NoteValue groups (toggled by sync state)
-            else if (*name == "ChaosRateGroup") {
+            } else if (*name == "ChaosRateGroup") {
                 chaosRateGroup_ = container;
                 auto* syncParam = getParameterObject(kChaosModSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2073,9 +1545,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kChaosModSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // S&H Rate/NoteValue groups (toggled by sync state)
-            else if (*name == "SHRateGroup") {
+            } else if (*name == "SHRateGroup") {
                 shRateGroup_ = container;
                 auto* syncParam = getParameterObject(kSampleHoldSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2085,9 +1555,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kSampleHoldSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Random Rate/NoteValue groups (toggled by sync state)
-            else if (*name == "RandomRateGroup") {
+            } else if (*name == "RandomRateGroup") {
                 randomRateGroup_ = container;
                 auto* syncParam = getParameterObject(kRandomSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2097,9 +1565,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kRandomSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Delay Time/NoteValue groups (toggled by sync state)
-            else if (*name == "DelayTimeGroup") {
+            } else if (*name == "DelayTimeGroup") {
                 delayTimeGroup_ = container;
                 auto* syncParam = getParameterObject(kDelaySyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2109,9 +1575,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kDelaySyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Phaser Rate/NoteValue groups (toggled by sync state)
-            else if (*name == "PhaserRateGroup") {
+            } else if (*name == "PhaserRateGroup") {
                 phaserRateGroup_ = container;
                 auto* syncParam = getParameterObject(kPhaserSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2121,9 +1585,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kPhaserSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // TranceGate Rate/NoteValue groups (toggled by sync state)
-            else if (*name == "TranceGateRateGroup") {
+            } else if (*name == "TranceGateRateGroup") {
                 tranceGateRateGroup_ = container;
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2133,9 +1595,7 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kTranceGateTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Arp Rate/NoteValue groups (toggled by sync state, FR-016)
-            else if (*name == "ArpRateGroup") {
+            } else if (*name == "ArpRateGroup") {
                 arpRateGroup_ = container;
                 auto* syncParam = getParameterObject(kArpTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -2145,16 +1605,12 @@ VSTGUI::CView* Controller::verifyView(
                 auto* syncParam = getParameterObject(kArpTempoSyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                 container->setVisible(syncOn);
-            }
-            // Euclidean controls group (hidden when euclidean mode is off)
-            else if (*name == "EuclideanControlsGroup") {
+            } else if (*name == "EuclideanControlsGroup") {
                 euclideanControlsGroup_ = container;
                 auto* param = getParameterObject(kTranceGateEuclideanEnabledId);
                 bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
                 container->setVisible(enabled);
-            }
-            // Poly/Mono visibility groups (toggled by voice mode)
-            else if (*name == "PolyGroup") {
+            } else if (*name == "PolyGroup") {
                 polyGroup_ = container;
                 auto* voiceModeParam = getParameterObject(kVoiceModeId);
                 bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
@@ -2164,28 +1620,20 @@ VSTGUI::CView* Controller::verifyView(
                 auto* voiceModeParam = getParameterObject(kVoiceModeId);
                 bool isMono = (voiceModeParam != nullptr) && voiceModeParam->getNormalized() >= 0.5;
                 container->setVisible(isMono);
-            }
-            // Settings drawer container
-            else if (*name == "SettingsDrawer") {
+            } else if (*name == "SettingsDrawer") {
                 settingsDrawer_ = container;
-            }
-            // Arp Euclidean group (knobs + dot display, hidden when disabled)
-            // 081-interaction-polish Phase 8 / US6
-            else if (*name == "ArpEuclideanGroup") {
+            } else if (*name == "ArpEuclideanGroup") {
                 arpEuclideanGroup_ = container;
                 auto* param = getParameterObject(kArpEuclideanEnabledId);
                 bool enabled = (param != nullptr) && param->getNormalized() >= 0.5;
                 container->setVisible(enabled);
-            }
-            // Arp Scale Mode dimming groups (084-arp-scale-mode)
-            else if (*name == "ArpRootNoteGroup") {
+            } else if (*name == "ArpRootNoteGroup") {
                 arpRootNoteGroup_ = container;
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
                 bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
                 container->setAlphaValue(isChromaticInit ? 0.35f : 1.0f);
                 container->setMouseEnabled(!isChromaticInit);
-            }
-            else if (*name == "ArpQuantizeInputGroup") {
+            } else if (*name == "ArpQuantizeInputGroup") {
                 arpQuantizeInputGroup_ = container;
                 auto* scaleParam = getParameterObject(kArpScaleTypeId);
                 bool isChromaticInit = (scaleParam == nullptr) || scaleParam->getNormalized() < 0.01;
@@ -2203,25 +1651,22 @@ VSTGUI::CView* Controller::verifyView(
             gearButton_ = ctrl;
             ctrl->registerControlListener(this);
         }
-        // Settings drawer: capture overlay and register as listener
         if (tag == static_cast<int32_t>(kActionSettingsOverlayTag)) {
             settingsOverlay_ = view;
             view->setVisible(false);
             ctrl->registerControlListener(this);
         }
-        // 081-interaction-polish Phase 8: Register Dice button as control listener
         if (tag == static_cast<int32_t>(kArpDiceTriggerId)) {
             diceButton_ = ctrl;
             ctrl->registerControlListener(this);
         }
     }
 
-    // 081-interaction-polish US5: Wire EuclideanDotDisplay
+    // Wire EuclideanDotDisplay
     auto* eucDotDisplay = dynamic_cast<Krate::Plugins::EuclideanDotDisplay*>(view);
     if (eucDotDisplay) {
         euclideanDotDisplay_ = eucDotDisplay;
 
-        // Sync current arp euclidean parameter values to the display
         auto* hitsParam = getParameterObject(kArpEuclideanHitsId);
         if (hitsParam) {
             int hits = std::clamp(
@@ -2231,7 +1676,6 @@ VSTGUI::CView* Controller::verifyView(
         }
         auto* stepsParam = getParameterObject(kArpEuclideanStepsId);
         if (stepsParam) {
-            // kArpEuclideanStepsId: discrete 2-32, stepCount=30
             int steps = std::clamp(
                 static_cast<int>(2.0 + std::round(stepsParam->getNormalized() * 30.0)),
                 2, 32);
@@ -2267,10 +1711,7 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         default: break;
     }
 
-    // 081-interaction-polish Phase 8 / US6: Dice trigger button
-    // The ActionButton fires beginEdit/setValue(1.0)/valueChanged/setValue(0.0)/endEdit.
-    // VST3Editor forwards the 1.0 to the host via performEdit. We additionally
-    // send performEdit(0.0) so the processor sees the 0->1->0 edge in one block.
+    // Dice trigger button
     if (tag == static_cast<int32_t>(kArpDiceTriggerId) &&
         control->getValue() >= 0.5f) {
         performEdit(kArpDiceTriggerId, 0.0);
@@ -2278,7 +1719,7 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         return;
     }
 
-    // Pattern preset dropdown (identified by pointer, no control-tag)
+    // Pattern preset dropdown
     if (control == presetDropdown_) {
         if (!stepPatternEditor_) return;
         int index = static_cast<int>(control->getValue());
@@ -2314,1087 +1755,6 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
         default:
             break;
     }
-}
-
-// ==============================================================================
-// ADSRDisplay Wiring
-// ==============================================================================
-
-void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
-    if (!display) return;
-
-    auto tag = display->getTag();
-
-    // Identify which envelope this display belongs to based on control-tag
-    Krate::Plugins::ADSRDisplay** displayPtr = nullptr;
-    uint32_t adsrBaseId = 0;
-    uint32_t curveBaseId = 0;
-    uint32_t bezierEnabledId = 0;
-    uint32_t bezierBaseId = 0;
-
-    if (tag == kAmpEnvAttackId) {
-        displayPtr = &ampEnvDisplay_;
-        adsrBaseId = kAmpEnvAttackId;
-        curveBaseId = kAmpEnvAttackCurveId;
-        bezierEnabledId = kAmpEnvBezierEnabledId;
-        bezierBaseId = kAmpEnvBezierAttackCp1XId;
-    } else if (tag == kFilterEnvAttackId) {
-        displayPtr = &filterEnvDisplay_;
-        adsrBaseId = kFilterEnvAttackId;
-        curveBaseId = kFilterEnvAttackCurveId;
-        bezierEnabledId = kFilterEnvBezierEnabledId;
-        bezierBaseId = kFilterEnvBezierAttackCp1XId;
-    } else if (tag == kModEnvAttackId) {
-        displayPtr = &modEnvDisplay_;
-        adsrBaseId = kModEnvAttackId;
-        curveBaseId = kModEnvAttackCurveId;
-        bezierEnabledId = kModEnvBezierEnabledId;
-        bezierBaseId = kModEnvBezierAttackCp1XId;
-    } else {
-        return; // Unknown tag - not an envelope display
-    }
-
-    *displayPtr = display;
-
-    // Configure parameter IDs
-    display->setAdsrBaseParamId(adsrBaseId);
-    display->setCurveBaseParamId(curveBaseId);
-    display->setBezierEnabledParamId(bezierEnabledId);
-    display->setBezierBaseParamId(bezierBaseId);
-
-    // Wire performEdit callback (display -> host)
-    display->setParameterCallback(
-        [this](uint32_t paramId, float normalizedValue) {
-            performEdit(paramId, static_cast<double>(normalizedValue));
-        });
-
-    // Wire beginEdit/endEdit for gesture management
-    display->setBeginEditCallback(
-        [this](uint32_t paramId) {
-            beginEdit(paramId);
-        });
-
-    display->setEndEditCallback(
-        [this](uint32_t paramId) {
-            endEdit(paramId);
-        });
-
-    // Sync current parameter values to the display
-    syncAdsrDisplay(display, adsrBaseId, curveBaseId, bezierEnabledId, bezierBaseId);
-
-    // Wire playback state pointers if already available
-    wireEnvDisplayPlayback();
-}
-
-void Controller::syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,
-                                  uint32_t adsrBaseId, uint32_t curveBaseId,
-                                  uint32_t bezierEnabledId, uint32_t bezierBaseId) {
-    if (!display) return;
-
-    // Sync ADSR time/level parameters
-    auto* attackParam = getParameterObject(adsrBaseId);
-    auto* decayParam = getParameterObject(adsrBaseId + 1);
-    auto* sustainParam = getParameterObject(adsrBaseId + 2);
-    auto* releaseParam = getParameterObject(adsrBaseId + 3);
-
-    if (attackParam) {
-        display->setAttackMs(envTimeFromNormalized(attackParam->getNormalized()));
-    }
-    if (decayParam) {
-        display->setDecayMs(envTimeFromNormalized(decayParam->getNormalized()));
-    }
-    if (sustainParam) {
-        display->setSustainLevel(static_cast<float>(sustainParam->getNormalized()));
-    }
-    if (releaseParam) {
-        display->setReleaseMs(envTimeFromNormalized(releaseParam->getNormalized()));
-    }
-
-    // Sync curve amounts
-    auto* attackCurveParam = getParameterObject(curveBaseId);
-    auto* decayCurveParam = getParameterObject(curveBaseId + 1);
-    auto* releaseCurveParam = getParameterObject(curveBaseId + 2);
-
-    if (attackCurveParam) {
-        display->setAttackCurve(envCurveFromNormalized(attackCurveParam->getNormalized()));
-    }
-    if (decayCurveParam) {
-        display->setDecayCurve(envCurveFromNormalized(decayCurveParam->getNormalized()));
-    }
-    if (releaseCurveParam) {
-        display->setReleaseCurve(envCurveFromNormalized(releaseCurveParam->getNormalized()));
-    }
-
-    // Sync Bezier enabled
-    auto* bezierEnabledParam = getParameterObject(bezierEnabledId);
-    if (bezierEnabledParam) {
-        display->setBezierEnabled(bezierEnabledParam->getNormalized() >= 0.5);
-    }
-
-    // Sync Bezier control points (12 consecutive values: 3 segments x 4 values)
-    for (int seg = 0; seg < 3; ++seg) {
-        for (int idx = 0; idx < 4; ++idx) {
-            auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                bezierBaseId + static_cast<uint32_t>(seg * 4 + idx));
-            auto* param = getParameterObject(paramId);
-            if (param) {
-                int handle = idx / 2;  // 0=cp1, 1=cp2
-                int axis = idx % 2;    // 0=x, 1=y
-                display->setBezierHandleValue(seg, handle, axis,
-                    static_cast<float>(param->getNormalized()));
-            }
-        }
-    }
-}
-
-void Controller::syncAdsrParamToDisplay(
-    Steinberg::Vst::ParamID tag, Steinberg::Vst::ParamValue value,
-    Krate::Plugins::ADSRDisplay* display,
-    uint32_t adsrBaseId, uint32_t curveBaseId,
-    uint32_t bezierEnabledId, uint32_t bezierBaseId) {
-
-    if (!display) return;
-
-    // ADSR time/level parameters
-    if (tag == adsrBaseId) {
-        display->setAttackMs(envTimeFromNormalized(value));
-    } else if (tag == adsrBaseId + 1) {
-        display->setDecayMs(envTimeFromNormalized(value));
-    } else if (tag == adsrBaseId + 2) {
-        display->setSustainLevel(static_cast<float>(value));
-    } else if (tag == adsrBaseId + 3) {
-        display->setReleaseMs(envTimeFromNormalized(value));
-    }
-    // Curve amounts
-    else if (tag == curveBaseId) {
-        display->setAttackCurve(envCurveFromNormalized(value));
-    } else if (tag == curveBaseId + 1) {
-        display->setDecayCurve(envCurveFromNormalized(value));
-    } else if (tag == curveBaseId + 2) {
-        display->setReleaseCurve(envCurveFromNormalized(value));
-    }
-    // Bezier enabled
-    else if (tag == bezierEnabledId) {
-        display->setBezierEnabled(value >= 0.5);
-    }
-    // Bezier control points (12 consecutive: 3 segments x 4 values)
-    else if (tag >= bezierBaseId && tag < bezierBaseId + 12) {
-        uint32_t offset = tag - bezierBaseId;
-        int seg = static_cast<int>(offset / 4);
-        int idx = static_cast<int>(offset % 4);
-        int handle = idx / 2;  // 0=cp1, 1=cp2
-        int axis = idx % 2;    // 0=x, 1=y
-        display->setBezierHandleValue(seg, handle, axis,
-            static_cast<float>(value));
-    }
-}
-
-void Controller::wireEnvDisplayPlayback() {
-    // Wire atomic pointers to each ADSRDisplay instance for playback visualization
-    if (ampEnvDisplay_ && ampEnvOutputPtr_ && ampEnvStagePtr_ && envVoiceActivePtr_) {
-        ampEnvDisplay_->setPlaybackStatePointers(
-            ampEnvOutputPtr_, ampEnvStagePtr_, envVoiceActivePtr_);
-    }
-    if (filterEnvDisplay_ && filterEnvOutputPtr_ && filterEnvStagePtr_ && envVoiceActivePtr_) {
-        filterEnvDisplay_->setPlaybackStatePointers(
-            filterEnvOutputPtr_, filterEnvStagePtr_, envVoiceActivePtr_);
-    }
-    if (modEnvDisplay_ && modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_) {
-        modEnvDisplay_->setPlaybackStatePointers(
-            modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
-    }
-}
-
-// ==============================================================================
-// ModMatrixGrid Wiring (T047, T048, T049)
-// ==============================================================================
-
-void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
-    if (!grid) return;
-
-    modMatrixGrid_ = grid;
-
-    // T048: Set ParameterCallback for direct parameter changes (T039-T041)
-    // Suppress sync: the grid is the source of truth during user interaction
-    grid->setParameterCallback(
-        [this](int32_t paramId, float normalizedValue) {
-            suppressModMatrixSync_ = true;
-            performEdit(static_cast<Steinberg::Vst::ParamID>(paramId),
-                        static_cast<double>(normalizedValue));
-            suppressModMatrixSync_ = false;
-        });
-
-    // T048: Set BeginEditCallback (T042)
-    grid->setBeginEditCallback(
-        [this](int32_t paramId) {
-            suppressModMatrixSync_ = true;
-            beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
-            suppressModMatrixSync_ = false;
-        });
-
-    // T048: Set EndEditCallback (T042)
-    grid->setEndEditCallback(
-        [this](int32_t paramId) {
-            suppressModMatrixSync_ = true;
-            endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
-            suppressModMatrixSync_ = false;
-        });
-
-    // T048: Set RouteChangedCallback (T049, T088)
-    grid->setRouteChangedCallback(
-        [this](int tab, int slot, const Krate::Plugins::ModRoute& route) {
-            if (tab == 0) {
-                // Global routes use VST params
-                auto sourceId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotSourceId(slot));
-                auto destId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotDestinationId(slot));
-                auto amountId = static_cast<Steinberg::Vst::ParamID>(
-                    Krate::Plugins::modSlotAmountId(slot));
-
-                // UI source index 0-11 maps to DSP ModSource 1-12 (skip None=0)
-                int dspSrcIdx = static_cast<int>(route.source) + 1;
-                int dstIdx = static_cast<int>(route.destination);
-
-                // Suppress sync-back: grid is the source of truth here
-                suppressModMatrixSync_ = true;
-
-                double srcNorm = (kModSourceCount > 1)
-                    ? static_cast<double>(dspSrcIdx) / static_cast<double>(kModSourceCount - 1)
-                    : 0.0;
-                setParamNormalized(sourceId, srcNorm);
-                beginEdit(sourceId);
-                performEdit(sourceId, srcNorm);
-                endEdit(sourceId);
-
-                double dstNorm = (kModDestCount > 1)
-                    ? static_cast<double>(dstIdx) / static_cast<double>(kModDestCount - 1)
-                    : 0.0;
-                setParamNormalized(destId, dstNorm);
-                beginEdit(destId);
-                performEdit(destId, dstNorm);
-                endEdit(destId);
-
-                double amtNorm = static_cast<double>((route.amount + 1.0f) / 2.0f);
-                setParamNormalized(amountId, amtNorm);
-                beginEdit(amountId);
-                performEdit(amountId, amtNorm);
-                endEdit(amountId);
-
-                suppressModMatrixSync_ = false;
-            } else {
-                // Voice routes use IMessage (T088)
-                auto msg = Steinberg::owned(allocateMessage());
-                if (msg) {
-                    msg->setMessageID("VoiceModRouteUpdate");
-                    auto* attrs = msg->getAttributes();
-                    if (attrs) {
-                        attrs->setInt("slotIndex", static_cast<Steinberg::int64>(slot));
-                        attrs->setInt("source", static_cast<Steinberg::int64>(route.source));
-                        attrs->setInt("destination", static_cast<Steinberg::int64>(route.destination));
-                        attrs->setFloat("amount", static_cast<double>(route.amount));
-                        attrs->setInt("curve", static_cast<Steinberg::int64>(route.curve));
-                        attrs->setFloat("smoothMs", static_cast<double>(route.smoothMs));
-                        attrs->setInt("scale", static_cast<Steinberg::int64>(route.scale));
-                        attrs->setInt("bypass", route.bypass ? 1 : 0);
-                        attrs->setInt("active", route.active ? 1 : 0);
-                        sendMessage(msg);
-                    }
-                }
-            }
-        });
-
-    // T048: Set RouteRemovedCallback (T088)
-    grid->setRouteRemovedCallback(
-        [this](int tab, [[maybe_unused]] int slot) {
-            if (tab == 0) {
-                // Grid has already shifted routes up after removal,
-                // so ALL slot parameters must be re-synced from the grid's
-                // current state — not just the removed slot.
-                suppressModMatrixSync_ = true;
-                pushAllGlobalRouteParams();
-                suppressModMatrixSync_ = false;
-            } else {
-                // Voice routes: send full re-sync via IMessage
-                for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
-                    auto route = modMatrixGrid_->getVoiceRoute(i);
-                    auto msg = Steinberg::owned(allocateMessage());
-                    if (msg) {
-                        msg->setMessageID("VoiceModRouteUpdate");
-                        auto* attrs = msg->getAttributes();
-                        if (attrs) {
-                            attrs->setInt("slotIndex", static_cast<Steinberg::int64>(i));
-                            attrs->setInt("source", static_cast<Steinberg::int64>(route.source));
-                            attrs->setInt("destination", static_cast<Steinberg::int64>(route.destination));
-                            attrs->setFloat("amount", static_cast<double>(route.amount));
-                            attrs->setInt("curve", static_cast<Steinberg::int64>(route.curve));
-                            attrs->setFloat("smoothMs", static_cast<double>(route.smoothMs));
-                            attrs->setInt("scale", static_cast<Steinberg::int64>(route.scale));
-                            attrs->setInt("bypass", route.bypass ? 1 : 0);
-                            attrs->setInt("active", route.active ? 1 : 0);
-                            sendMessage(msg);
-                        }
-                    }
-                }
-            }
-        });
-
-    // Sync initial state from current parameters to the grid
-    syncModMatrixGrid();
-}
-
-void Controller::syncModMatrixGrid() {
-    if (!modMatrixGrid_) return;
-
-    // Read current parameter values and build ModRoute for each slot
-    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
-        Krate::Plugins::ModRoute route;
-
-        // Source: DSP index 0-12 → UI index (dspIdx - 1), clamped to 0-11
-        auto* srcParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
-        int dspSrcIdx = 0;
-        if (srcParam) {
-            dspSrcIdx = static_cast<int>(
-                std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
-            int uiSrcIdx = std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
-            route.source = static_cast<uint8_t>(uiSrcIdx);
-        }
-
-        // Destination: DSP index 0-6 maps directly to global tab dest index
-        auto* dstParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
-        if (dstParam) {
-            int dstIdx = static_cast<int>(
-                std::round(dstParam->getNormalized() * (kModDestCount - 1)));
-            route.destination = static_cast<Krate::Plugins::ModDestination>(
-                std::clamp(dstIdx, 0, Krate::Plugins::kNumGlobalDestinations - 1));
-        }
-
-        // Amount
-        auto* amtParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotAmountId(i)));
-        if (amtParam) {
-            route.amount = static_cast<float>(amtParam->getNormalized() * 2.0 - 1.0);
-        }
-
-        // Detail params
-        auto* curveParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotCurveId(i)));
-        if (curveParam) {
-            route.curve = static_cast<uint8_t>(std::clamp(
-                static_cast<int>(std::round(curveParam->getNormalized() * 3.0)),
-                0, 3));
-        }
-
-        auto* smoothParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSmoothId(i)));
-        if (smoothParam) {
-            route.smoothMs = static_cast<float>(smoothParam->getNormalized() * 100.0);
-        }
-
-        auto* scaleParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotScaleId(i)));
-        if (scaleParam) {
-            route.scale = static_cast<uint8_t>(std::clamp(
-                static_cast<int>(std::round(scaleParam->getNormalized() * 4.0)),
-                0, 4));
-        }
-
-        auto* bypassParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotBypassId(i)));
-        if (bypassParam) {
-            route.bypass = bypassParam->getNormalized() >= 0.5;
-        }
-
-        // Route is active if DSP source is not None (0) — None means empty slot
-        route.active = (dspSrcIdx > 0);
-
-        modMatrixGrid_->setGlobalRoute(i, route);
-    }
-}
-
-// ==============================================================================
-// ModRingIndicator Wiring (T069, T070, T071, T072)
-// ==============================================================================
-
-void Controller::pushAllGlobalRouteParams() {
-    if (!modMatrixGrid_) return;
-
-    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
-        auto route = modMatrixGrid_->getGlobalRoute(i);
-
-        auto sourceId = static_cast<Steinberg::Vst::ParamID>(
-            Krate::Plugins::modSlotSourceId(i));
-        auto destId = static_cast<Steinberg::Vst::ParamID>(
-            Krate::Plugins::modSlotDestinationId(i));
-        auto amountId = static_cast<Steinberg::Vst::ParamID>(
-            Krate::Plugins::modSlotAmountId(i));
-
-        if (route.active) {
-            // UI source index 0-11 maps to DSP ModSource 1-12 (skip None=0)
-            int dspSrcIdx = static_cast<int>(route.source) + 1;
-            int dstIdx = static_cast<int>(route.destination);
-
-            double srcNorm = (kModSourceCount > 1)
-                ? static_cast<double>(dspSrcIdx) / static_cast<double>(kModSourceCount - 1)
-                : 0.0;
-            setParamNormalized(sourceId, srcNorm);
-            beginEdit(sourceId);
-            performEdit(sourceId, srcNorm);
-            endEdit(sourceId);
-
-            double dstNorm = (kModDestCount > 1)
-                ? static_cast<double>(dstIdx) / static_cast<double>(kModDestCount - 1)
-                : 0.0;
-            setParamNormalized(destId, dstNorm);
-            beginEdit(destId);
-            performEdit(destId, dstNorm);
-            endEdit(destId);
-
-            double amtNorm = static_cast<double>((route.amount + 1.0f) / 2.0f);
-            setParamNormalized(amountId, amtNorm);
-            beginEdit(amountId);
-            performEdit(amountId, amtNorm);
-            endEdit(amountId);
-        } else {
-            // Inactive slot: reset to defaults (source=None)
-            beginEdit(sourceId);
-            performEdit(sourceId, 0.0);
-            endEdit(sourceId);
-
-            beginEdit(destId);
-            performEdit(destId, 0.0);
-            endEdit(destId);
-
-            beginEdit(amountId);
-            performEdit(amountId, 0.5); // 0.5 normalized = 0.0 bipolar
-            endEdit(amountId);
-        }
-    }
-}
-
-// ==============================================================================
-// ModRingIndicator Wiring (T069, T070, T071, T072)
-// ==============================================================================
-
-void Controller::wireModRingIndicator(Krate::Plugins::ModRingIndicator* indicator) {
-    if (!indicator) return;
-
-    int destIdx = indicator->getDestinationIndex();
-    if (destIdx < 0 || destIdx >= kMaxRingIndicators) return;
-
-    ringIndicators_[static_cast<size_t>(destIdx)] = indicator;
-
-    // Wire controller for cross-component communication
-    indicator->setController(this);
-
-    // Wire removed callback so UIViewSwitchContainer template teardown
-    // nulls the cached pointer (prevents dangling pointer crashes)
-    indicator->setRemovedCallback(
-        [this, destIdx]() {
-            ringIndicators_[static_cast<size_t>(destIdx)] = nullptr;
-        });
-
-    // Wire click-to-select callback (FR-027, T070)
-    indicator->setSelectCallback(
-        [this](int sourceIndex, int destIndex) {
-            selectModulationRoute(sourceIndex, destIndex);
-        });
-
-    // Sync initial base value from destination knob parameter
-    if (static_cast<size_t>(destIdx) < kVoiceDestParamIds.size()) {
-        auto destParamId = kVoiceDestParamIds[static_cast<size_t>(destIdx)];
-        auto* param = getParameterObject(destParamId);
-        if (param) {
-            indicator->setBaseValue(static_cast<float>(param->getNormalized()));
-        }
-    }
-
-    // Sync initial arc state from current parameters
-    rebuildRingIndicators();
-}
-
-void Controller::selectModulationRoute(int sourceIndex, int destIndex) {
-    // Mediate selection to ModMatrixGrid (FR-027, T070)
-    if (modMatrixGrid_) {
-        modMatrixGrid_->selectRoute(sourceIndex, destIndex);
-    }
-}
-
-void Controller::onTabChanged([[maybe_unused]] int newTab) {
-    // UIViewSwitchContainer destroys views from the old template before
-    // instantiating the new one. All cached pointers to views that live
-    // inside tab templates become dangling. Null them here; verifyView()
-    // will re-populate when the new template is created.
-
-    // SOUND tab residents
-    oscAPWKnob_ = nullptr;
-    oscBPWKnob_ = nullptr;
-    xyMorphPad_ = nullptr;
-    polyGroup_ = nullptr;
-    monoGroup_ = nullptr;
-    ampEnvDisplay_ = nullptr;
-    filterEnvDisplay_ = nullptr;
-    modEnvDisplay_ = nullptr;
-
-    // MOD tab residents
-    modMatrixGrid_ = nullptr;
-    ringIndicators_.fill(nullptr);
-    lfo1RateGroup_ = nullptr;
-    lfo2RateGroup_ = nullptr;
-    lfo1NoteValueGroup_ = nullptr;
-    lfo2NoteValueGroup_ = nullptr;
-    chaosRateGroup_ = nullptr;
-    chaosNoteValueGroup_ = nullptr;
-    shRateGroup_ = nullptr;
-    shNoteValueGroup_ = nullptr;
-    randomRateGroup_ = nullptr;
-    randomNoteValueGroup_ = nullptr;
-
-    // FX tab residents
-    harmonizerVoiceRows_.fill(nullptr);
-    delayTimeGroup_ = nullptr;
-    delayNoteValueGroup_ = nullptr;
-    phaserRateGroup_ = nullptr;
-    phaserNoteValueGroup_ = nullptr;
-    // (FX detail/chevron pointers removed — panels always visible in Tab_Fx)
-
-    // SEQ tab residents
-    stepPatternEditor_ = nullptr;
-    arpLaneContainer_ = nullptr;
-    velocityLane_ = nullptr;
-    gateLane_ = nullptr;
-    pitchLane_ = nullptr;
-    ratchetLane_ = nullptr;
-    modifierLane_ = nullptr;
-    conditionLane_ = nullptr;
-    euclideanControlsGroup_ = nullptr;
-    euclideanDotDisplay_ = nullptr;
-    arpEuclideanGroup_ = nullptr;
-    diceButton_ = nullptr;
-    tranceGateRateGroup_ = nullptr;
-    tranceGateNoteValueGroup_ = nullptr;
-    arpRateGroup_ = nullptr;
-    arpNoteValueGroup_ = nullptr;
-    presetDropdown_ = nullptr;
-
-}
-
-void Controller::toggleSettingsDrawer() {
-    settingsDrawerTargetOpen_ = !settingsDrawerTargetOpen_;
-
-    // If timer already running (animation in progress), it will naturally
-    // reverse direction because we changed the target. No need to restart.
-    if (settingsAnimTimer_) return;
-
-    settingsAnimTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
-        [this](VSTGUI::CVSTGUITimer*) {
-            constexpr float kAnimDuration = 0.16f;   // 160ms
-            constexpr float kTimerInterval = 0.016f;  // ~60fps
-            constexpr float kStep = kTimerInterval / kAnimDuration;
-
-            if (settingsDrawerTargetOpen_) {
-                settingsDrawerProgress_ = std::min(settingsDrawerProgress_ + kStep, 1.0f);
-            } else {
-                settingsDrawerProgress_ = std::max(settingsDrawerProgress_ - kStep, 0.0f);
-            }
-
-            // Ease-out curve: 1 - (1-t)^2
-            float t = settingsDrawerProgress_;
-            float eased = 1.0f - (1.0f - t) * (1.0f - t);
-
-            // Map eased progress to x position
-            constexpr float kClosedX = 1400.0f;
-            constexpr float kOpenX = 1180.0f;
-            float x = kClosedX + (kOpenX - kClosedX) * eased;
-
-            if (settingsDrawer_) {
-                VSTGUI::CRect r = settingsDrawer_->getViewSize();
-                r.moveTo(VSTGUI::CPoint(x, 0));
-                settingsDrawer_->setViewSize(r);
-                settingsDrawer_->invalid();
-            }
-
-            // Check if animation is complete
-            bool done = settingsDrawerTargetOpen_
-                ? (settingsDrawerProgress_ >= 1.0f)
-                : (settingsDrawerProgress_ <= 0.0f);
-
-            if (done) {
-                settingsDrawerOpen_ = settingsDrawerTargetOpen_;
-                settingsAnimTimer_ = nullptr;
-
-                // Show/hide overlay
-                if (settingsOverlay_) {
-                    settingsOverlay_->setVisible(settingsDrawerOpen_);
-                }
-
-                // Update gear button state
-                if (gearButton_) {
-                    gearButton_->setValue(settingsDrawerOpen_ ? 1.0f : 0.0f);
-                    gearButton_->invalid();
-                }
-            }
-        }, 16);  // ~60fps
-
-    // Show overlay immediately when opening
-    if (settingsDrawerTargetOpen_ && settingsOverlay_) {
-        settingsOverlay_->setVisible(true);
-    }
-    // Hide overlay immediately when closing
-    if (!settingsDrawerTargetOpen_ && settingsOverlay_) {
-        settingsOverlay_->setVisible(false);
-    }
-}
-
-void Controller::rebuildRingIndicators() {
-    // Read all global routes and build ArcInfo lists per destination (T071)
-    // First, collect all active routes grouped by destination
-    using ArcInfo = Krate::Plugins::ModRingIndicator::ArcInfo;
-
-    // Build route data from current parameters
-    struct RouteData {
-        int sourceIndex = 0;
-        int destIndex = 0;
-        float amount = 0.0f;
-        bool bypass = false;
-        bool active = false;
-    };
-
-    std::array<RouteData, Krate::Plugins::kMaxGlobalRoutes> routes{};
-
-    for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
-        auto* srcParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
-        auto* dstParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotDestinationId(i)));
-        auto* amtParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotAmountId(i)));
-        auto* bypassParam = getParameterObject(
-            static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotBypassId(i)));
-
-        int dspSrcIdx = 0;
-        if (srcParam) {
-            dspSrcIdx = static_cast<int>(
-                std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
-            // DSP index → UI index (subtract 1, clamp to 0-11)
-            routes[static_cast<size_t>(i)].sourceIndex =
-                std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
-        }
-        if (dstParam) {
-            routes[static_cast<size_t>(i)].destIndex = static_cast<int>(
-                std::round(dstParam->getNormalized() * (kModDestCount - 1)));
-        }
-        if (amtParam) {
-            routes[static_cast<size_t>(i)].amount =
-                static_cast<float>(amtParam->getNormalized() * 2.0 - 1.0);
-        }
-        if (bypassParam) {
-            routes[static_cast<size_t>(i)].bypass = bypassParam->getNormalized() >= 0.5;
-        }
-
-        // Route is active if DSP source is not None (0)
-        routes[static_cast<size_t>(i)].active = (dspSrcIdx > 0);
-    }
-
-    // For each destination with a ring indicator, build the arc list.
-    // Ring indicators use voice dest indices (0-6) and sit on voice knobs.
-    // Match global routes to ring indicators via parameter ID so that
-    // e.g. global dest 4 (All Voice Filter Cutoff) shows on ring indicator 0
-    // (which sits on the per-voice filter cutoff knob).
-    for (int destIdx = 0; destIdx < kMaxRingIndicators; ++destIdx) {
-        auto* indicator = ringIndicators_[static_cast<size_t>(destIdx)];
-        if (!indicator) continue;
-
-        auto indicatorParamId = kVoiceDestParamIds[static_cast<size_t>(destIdx)];
-
-        std::vector<ArcInfo> arcs;
-        for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
-            const auto& r = routes[static_cast<size_t>(i)];
-            if (!r.active) continue;
-            if (r.destIndex < 0 ||
-                static_cast<size_t>(r.destIndex) >= kGlobalDestParamIds.size())
-                continue;
-            if (kGlobalDestParamIds[static_cast<size_t>(r.destIndex)] != indicatorParamId)
-                continue;
-
-            ArcInfo arc;
-            arc.amount = r.amount;
-            arc.color = Krate::Plugins::sourceColorForTab(0, r.sourceIndex);
-            arc.sourceIndex = r.sourceIndex;
-            arc.destIndex = r.destIndex;
-            arc.bypassed = r.bypass;
-            arcs.push_back(arc);
-        }
-
-        indicator->setArcs(arcs);
-    }
-}
-
-// ==============================================================================
-// Arp Skip Event Handler (Phase 11c - stub)
-// ==============================================================================
-
-void Controller::handleArpSkipEvent(int lane, int step) {
-    // 081-interaction-polish (FR-007, FR-008): route skip event to the lane
-    if (lane < 0 || lane >= kArpLaneCount) return;
-    if (step < 0 || step >= 32) return;
-
-    // Map lane index to IArpLane pointer
-    Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
-        velocityLane_, gateLane_, pitchLane_,
-        ratchetLane_, modifierLane_, conditionLane_
-    };
-
-    auto* targetLane = lanes[lane];
-    if (!targetLane) return;
-
-    targetLane->setSkippedStep(static_cast<int32_t>(step));
-
-    // Schedule repaint
-    auto* view = targetLane->getView();
-    if (view) {
-        view->invalid();
-    }
-}
-
-// ==============================================================================
-// Copy/Paste (Phase 11c, T059-T061)
-// ==============================================================================
-
-Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
-    Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
-        velocityLane_, gateLane_, pitchLane_,
-        ratchetLane_, modifierLane_, conditionLane_
-    };
-    if (index < 0 || index >= kArpLaneCount) return nullptr;
-    return lanes[index];
-}
-
-uint32_t Controller::getArpLaneStepBaseParamId(int index) {
-    static constexpr uint32_t kStepBaseIds[6] = {
-        kArpVelocityLaneStep0Id,
-        kArpGateLaneStep0Id,
-        kArpPitchLaneStep0Id,
-        kArpRatchetLaneStep0Id,
-        kArpModifierLaneStep0Id,
-        kArpConditionLaneStep0Id
-    };
-    if (index < 0 || index >= kArpLaneCount) return 0;
-    return kStepBaseIds[index];
-}
-
-uint32_t Controller::getArpLaneLengthParamId(int index) {
-    static constexpr uint32_t kLengthIds[6] = {
-        kArpVelocityLaneLengthId,
-        kArpGateLaneLengthId,
-        kArpPitchLaneLengthId,
-        kArpRatchetLaneLengthId,
-        kArpModifierLaneLengthId,
-        kArpConditionLaneLengthId
-    };
-    if (index < 0 || index >= kArpLaneCount) return 0;
-    return kLengthIds[index];
-}
-
-void Controller::onLaneCopy(int laneIndex) {
-    auto* lane = getArpLane(laneIndex);
-    if (!lane) return;
-
-    // Read all step values as normalized floats
-    int32_t len = lane->getActiveLength();
-    for (int32_t i = 0; i < len; ++i) {
-        clipboard_.values[static_cast<size_t>(i)] = lane->getNormalizedStepValue(i);
-    }
-    clipboard_.length = len;
-    clipboard_.sourceType = static_cast<Krate::Plugins::ClipboardLaneType>(
-        lane->getLaneTypeId());
-    clipboard_.hasData = true;
-
-    // Enable paste on all 6 lanes
-    for (int i = 0; i < kArpLaneCount; ++i) {
-        auto* l = getArpLane(i);
-        if (l) l->setPasteEnabled(true);
-    }
-}
-
-void Controller::onLanePaste(int targetLaneIndex) {
-    if (!clipboard_.hasData) return;
-
-    auto* lane = getArpLane(targetLaneIndex);
-    if (!lane) return;
-
-    uint32_t stepBaseId = getArpLaneStepBaseParamId(targetLaneIndex);
-    uint32_t lengthParamId = getArpLaneLengthParamId(targetLaneIndex);
-    if (stepBaseId == 0 || lengthParamId == 0) return;
-
-    // Paste each step value with proper VST3 edit protocol for undo support
-    for (int32_t i = 0; i < clipboard_.length; ++i) {
-        uint32_t paramId = stepBaseId + static_cast<uint32_t>(i);
-        float value = clipboard_.values[static_cast<size_t>(i)];
-
-        beginEdit(paramId);
-        performEdit(paramId, static_cast<double>(value));
-        setParamNormalized(paramId, static_cast<double>(value));
-        endEdit(paramId);
-
-        // Update lane visual state
-        lane->setNormalizedStepValue(i, value);
-    }
-
-    // Update target lane length to match clipboard length
-    if (clipboard_.length != lane->getActiveLength()) {
-        float normalizedLength = static_cast<float>(clipboard_.length - 1) / 31.0f;
-        beginEdit(lengthParamId);
-        performEdit(lengthParamId, static_cast<double>(normalizedLength));
-        setParamNormalized(lengthParamId, static_cast<double>(normalizedLength));
-        endEdit(lengthParamId);
-
-        lane->setLength(clipboard_.length);
-    }
-
-    // Schedule repaint
-    auto* view = lane->getView();
-    if (view) {
-        view->invalid();
-    }
-}
-
-void Controller::wireCopyPasteCallbacks() {
-    for (int i = 0; i < kArpLaneCount; ++i) {
-        auto* lane = getArpLane(i);
-        if (!lane) continue;
-
-        int laneIdx = i;
-        lane->setCopyPasteCallbacks(
-            [this, laneIdx]() { onLaneCopy(laneIdx); },
-            [this, laneIdx]() { onLanePaste(laneIdx); }
-        );
-        lane->setPasteEnabled(clipboard_.hasData);
-    }
-}
-
-// ==============================================================================
-// Preset Browser Methods (Spec 083)
-// ==============================================================================
-
-void Controller::openPresetBrowser() {
-    if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
-        // Close ARP browser if open (mutual exclusion)
-        closeArpPresetBrowser();
-        presetBrowserView_->open("");
-    }
-}
-
-void Controller::closePresetBrowser() {
-    if (presetBrowserView_ && presetBrowserView_->isOpen()) {
-        presetBrowserView_->close();
-    }
-}
-
-void Controller::openArpPresetBrowser() {
-    if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
-        // Close synth browser if open (mutual exclusion)
-        closePresetBrowser();
-        arpPresetBrowserView_->open("");
-    }
-}
-
-void Controller::closeArpPresetBrowser() {
-    if (arpPresetBrowserView_ && arpPresetBrowserView_->isOpen()) {
-        arpPresetBrowserView_->close();
-    }
-}
-
-void Controller::openArpSavePresetDialog() {
-    if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
-        closePresetBrowser();
-        arpPresetBrowserView_->openWithSaveDialog("Arp Classic");
-    }
-}
-
-void Controller::openSavePresetDialog() {
-    if (savePresetDialogView_ && !savePresetDialogView_->isOpen()) {
-        savePresetDialogView_->open("");
-    }
-}
-
-VSTGUI::CView* Controller::createCustomView(
-    VSTGUI::UTF8StringPtr name,
-    const VSTGUI::UIAttributes& attributes,
-    const VSTGUI::IUIDescription* /*description*/,
-    VSTGUI::VST3Editor* /*editor*/) {
-
-    // Preset Browser Button (Spec 083)
-    if (std::strcmp(name, "PresetBrowserButton") == 0) {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(80, 25);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new PresetBrowserButton(rect, this);
-    }
-
-    // ARP Preset Browser Button
-    if (std::strcmp(name, "ArpPresetBrowserButton") == 0) {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(80, 18);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new ArpPresetBrowserButton(rect, this);
-    }
-
-    // ARP Save Preset Button
-    if (std::strcmp(name, "ArpSavePresetButton") == 0) {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(50, 18);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new ArpSavePresetButton(rect, this);
-    }
-
-    // Save Preset Button (Spec 083)
-    if (std::strcmp(name, "SavePresetButton") == 0) {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(60, 25);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new SavePresetButton(rect, this);
-    }
-
-    // Mod source dropdown: COptionMenu subclass that unescapes && in closed label
-    if (std::strcmp(name, "ModSourceDropdown") == 0) {
-        VSTGUI::CPoint origin(0, 0);
-        VSTGUI::CPoint size(160, 22);
-        attributes.getPointAttribute("origin", origin);
-        attributes.getPointAttribute("size", size);
-        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
-        return new FixedOptionMenu(rect, nullptr, -1);
-    }
-
-    return nullptr;
-}
-
-Steinberg::MemoryStream* Controller::createComponentStateStream() {
-    // Delegate to host via IComponent::getState() -- does NOT re-serialize
-    // parameters from controller. Caller owns the returned stream.
-    Steinberg::FUnknownPtr<Steinberg::Vst::IComponent> component(getComponentHandler());
-    if (!component)
-        return nullptr;
-
-    auto* stream = new Steinberg::MemoryStream();
-    if (component->getState(stream) != Steinberg::kResultOk) {
-        stream->release();
-        return nullptr;
-    }
-
-    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
-    return stream;
-}
-
-bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool arpOnly) {
-    if (!state)
-        return false;
-
-    Steinberg::IBStreamer streamer(state, kLittleEndian);
-
-    // Item 1: Read and validate version
-    Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version) || version != 1)
-        return false;
-
-    // Lambda that calls editParamWithNotify instead of setParamNormalized
-    auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
-        editParamWithNotify(id, value);
-    };
-
-    // When loading an arp-only preset, synth parameters are read but not applied.
-    // The no-op lambda discards values while the stream position still advances.
-    using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
-    SetParamFunc synthSetter = arpOnly
-        ? SetParamFunc([](Steinberg::Vst::ParamID, double) {})
-        : SetParamFunc(setParam);
-
-    // Items 2-19: Parameter packs in deterministic order (matching Processor::getState)
-    // Note: loadXxxParamsToController functions return void, matching setComponentState pattern
-    loadGlobalParamsToController(streamer, synthSetter);
-    loadOscAParamsToController(streamer, synthSetter);
-    loadOscBParamsToController(streamer, synthSetter);
-    loadMixerParamsToController(streamer, synthSetter);
-    loadFilterParamsToController(streamer, synthSetter);
-    loadDistortionParamsToController(streamer, synthSetter);
-    loadTranceGateParamsToController(streamer, synthSetter);
-    loadAmpEnvParamsToController(streamer, synthSetter);
-    loadFilterEnvParamsToController(streamer, synthSetter);
-    loadModEnvParamsToController(streamer, synthSetter);
-    loadLFO1ParamsToController(streamer, synthSetter);
-    loadLFO2ParamsToController(streamer, synthSetter);
-    loadChaosModParamsToController(streamer, synthSetter);
-    loadModMatrixParamsToController(streamer, synthSetter);
-    loadGlobalFilterParamsToController(streamer, synthSetter);
-    loadDelayParamsToController(streamer, synthSetter);
-    loadReverbParamsToController(streamer, synthSetter);
-    loadMonoModeParamsToController(streamer, synthSetter);
-
-    // Item 20: Voice routes (16 slots, processor-internal) -- read and DISCARD
-    for (int i = 0; i < 16; ++i) {
-        Steinberg::int8 dummy8 = 0;
-        float dummyF = 0;
-        if (!streamer.readInt8(dummy8) || !streamer.readInt8(dummy8) ||
-            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
-            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
-            !streamer.readInt8(dummy8) || !streamer.readInt8(dummy8))
-            return false;
-    }
-
-    // Items 21-22: FX enable flags (int8 -> 0.0/1.0)
-    Steinberg::int8 flag = 0;
-    if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kDelayEnabledId, flag ? 1.0 : 0.0);
-    if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kReverbEnabledId, flag ? 1.0 : 0.0);
-
-    // Item 23: Phaser params
-    loadPhaserParamsToController(streamer, synthSetter);
-
-    // Item 24: Phaser enable flag (int8 -> 0.0/1.0)
-    if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kPhaserEnabledId, flag ? 1.0 : 0.0);
-
-    // Items 25-35: Remaining parameter packs
-    loadLFO1ExtendedParamsToController(streamer, synthSetter);
-    loadLFO2ExtendedParamsToController(streamer, synthSetter);
-    loadMacroParamsToController(streamer, synthSetter);
-    loadRunglerParamsToController(streamer, synthSetter);
-    loadSettingsParamsToController(streamer, synthSetter);
-    loadEnvFollowerParamsToController(streamer, synthSetter);
-    loadSampleHoldParamsToController(streamer, synthSetter);
-    loadRandomParamsToController(streamer, synthSetter);
-    loadPitchFollowerParamsToController(streamer, synthSetter);
-    loadTransientParamsToController(streamer, synthSetter);
-    loadHarmonizerParamsToController(streamer, synthSetter);
-
-    // Item 36: Harmonizer enable flag (int8 -> 0.0/1.0)
-    if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
-
-    // Item 37: Arp params (includes all lane step data) - ALWAYS applied
-    loadArpParamsToController(streamer, setParam);
-
-    return true;
-}
-
-void Controller::editParamWithNotify(Steinberg::Vst::ParamID id,
-                                     Steinberg::Vst::ParamValue value) {
-    value = std::max(0.0, std::min(1.0, value));
-    beginEdit(id);
-    setParamNormalized(id, value);
-    performEdit(id, value);
-    endEdit(id);
 }
 
 } // namespace Ruinae

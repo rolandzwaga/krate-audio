@@ -94,6 +94,12 @@ add_executable(ruinae_tests
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_adsr.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_arp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_mod_matrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_param_display.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_presets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_settings.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
     # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests
