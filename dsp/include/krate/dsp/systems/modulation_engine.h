@@ -160,6 +160,17 @@ public:
     }
 
     // =========================================================================
+    // Note Events
+    // =========================================================================
+
+    /// @brief Notify the modulation engine of a note-on event.
+    /// Retriggers LFOs (if retrigger is enabled) so their phase resets on each note.
+    void noteOn() noexcept {
+        lfo1_.retrigger();
+        lfo2_.retrigger();
+    }
+
+    // =========================================================================
     // Processing (FR-001, FR-005)
     // =========================================================================
 

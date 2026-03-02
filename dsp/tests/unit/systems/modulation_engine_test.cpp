@@ -232,6 +232,85 @@ TEST_CASE("LFO retrigger resets phase on transport start", "[systems][modulation
     REQUIRE(offset < 0.5f);
 }
 
+TEST_CASE("LFO retrigger resets phase on noteOn", "[systems][modulation_engine][us1][retrigger][regression]") {
+    auto engine = createEngine(44100.0);
+    engine.setLFO1Rate(1.0f);
+    engine.setLFO1Waveform(Waveform::Sawtooth);
+    engine.setLFO1Retrigger(true);
+
+    ModRouting routing;
+    routing.source = ModSource::LFO1;
+    routing.destParamId = 100;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    std::array<float, 512> silenceL = {};
+    std::array<float, 512> silenceR = {};
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.isPlaying = true;
+
+    // Advance the LFO well past its start position
+    for (size_t b = 0; b < 50; ++b) {
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+    }
+    float offsetBefore = engine.getModulationOffset(100);
+
+    // noteOn should retrigger the LFO back to start
+    engine.noteOn();
+    engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+    // After retrigger, sawtooth should be near the start of its ramp (-1)
+    float offsetAfter = engine.getModulationOffset(100);
+    // The sawtooth ramps -1 to +1. After 512 samples at 1Hz/44100,
+    // phase ~ 0.012, so the offset should be near the beginning
+    REQUIRE(offsetAfter < 0.0f);
+}
+
+TEST_CASE("LFO noteOn does not retrigger when retrigger is disabled", "[systems][modulation_engine][us1][retrigger][regression]") {
+    auto engine = createEngine(44100.0);
+    engine.setLFO1Rate(1.0f);
+    engine.setLFO1Waveform(Waveform::Sawtooth);
+    engine.setLFO1Retrigger(false);  // Retrigger disabled
+
+    ModRouting routing;
+    routing.source = ModSource::LFO1;
+    routing.destParamId = 100;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    std::array<float, 512> silenceL = {};
+    std::array<float, 512> silenceR = {};
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.isPlaying = true;
+
+    // Advance the LFO well past its start position
+    for (size_t b = 0; b < 50; ++b) {
+        engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+    }
+    float offsetBefore = engine.getModulationOffset(100);
+
+    // noteOn should NOT retrigger - LFO continues from current phase
+    engine.noteOn();
+    engine.process(ctx, silenceL.data(), silenceR.data(), 512);
+
+    float offsetAfter = engine.getModulationOffset(100);
+    // Phase should have continued from where it was, not jumped back to start.
+    // With retrigger disabled, the difference between before/after should be
+    // just one block of phase advancement (~0.012), not a large jump.
+    float phaseDelta = std::abs(offsetAfter - offsetBefore);
+    REQUIRE(phaseDelta < 0.1f);  // Continuous, no jump
+}
+
 // =============================================================================
 // US2: Routing Matrix Tests (FR-055 to FR-062, FR-085 to FR-088, SC-003-005)
 // =============================================================================

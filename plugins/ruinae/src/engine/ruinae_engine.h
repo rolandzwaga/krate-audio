@@ -250,6 +250,9 @@ public:
                 monoHandler_.setLegato(userLegato_);
             }
         } else {
+            // Retrigger global LFOs on non-legato note-on (if retrigger enabled)
+            globalModEngine_.noteOn();
+
             if (mode_ == VoiceMode::Poly) {
                 dispatchPolyNoteOn(note, velocity);
             } else {
