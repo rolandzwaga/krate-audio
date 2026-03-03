@@ -189,7 +189,7 @@ const html = `<!DOCTYPE html>
     </div>
 
     <script type="module">
-        import Viz from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
+        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
 
         const dotSource = \`${escapedDot}\`;
 
@@ -292,7 +292,7 @@ const html = `<!DOCTYPE html>
 
         // Render
         try {
-            const viz = await Viz.instance();
+            const viz = await instance();
             const svg = viz.renderSVGElement(dotSource);
             svg.style.width = "auto";
             svg.style.height = "auto";
