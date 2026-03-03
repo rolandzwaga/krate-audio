@@ -210,6 +210,8 @@ public:
         harmonizerFadeState_ = HarmonizerFadeState::Off;
         harmonizerFadeAlpha_ = 0.0f;
         harmonizerFadeIncrement_ = 0.0f;
+        harmonizerEnabled_ = false;
+        harmonizerNeedsPrime_ = false;
 
         // Reset compensation delays
         for (size_t i = 0; i < 2; ++i) {

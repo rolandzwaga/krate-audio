@@ -67,6 +67,8 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     tranceGateNoteValueGroup_ = nullptr;
     arpRateGroup_ = nullptr;
     arpNoteValueGroup_ = nullptr;
+    arpRootNoteGroup_ = nullptr;
+    arpQuantizeInputGroup_ = nullptr;
     presetDropdown_ = nullptr;
 }
 

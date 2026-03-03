@@ -407,6 +407,40 @@ if (tag >= kActionTransformInvertTag && tag <= kActionFxExpandHarmonizerTag &&
 
 ---
 
+### Pitfall 11: Cached View Pointers Not Nulled in onTabChanged() (Three-Point Sync Rule)
+
+**Problem:** When a controller caches raw pointers to custom views inside UIViewSwitchContainer tab templates, there are THREE places that must null those pointers in sync:
+
+1. **`onTabChanged()`** — called during preset loading when a tab parameter changes. UIViewSwitchContainer destroys old tab views; cached pointers must be nulled HERE to prevent `syncAllViews()` from dereferencing freed memory.
+2. **`willClose()`** — called when the editor window closes. All cached pointers must be nulled.
+3. **`verifyView()`** — caches the pointer when the view is created/shown.
+
+**The bug:** A new view pointer is added to `verifyView()` and `willClose()` but FORGOTTEN in `onTabChanged()`. During normal operation this is fine — views exist while the tab is open. But during preset switching:
+
+```
+loadComponentStateWithNotify()
+  → editParamWithNotify(kMainTabTag, newValue)
+    → setParamNormalized() → base class sends IDependent notification
+      → UIViewSwitchContainer destroys old tab, creates new tab
+      → onTabChanged() nulls most pointers... but misses the new one
+  → syncAllViews()
+    → accesses the dangling pointer → ACCESS_VIOLATION (use-after-free)
+```
+
+**This crash is intermittent** — it only happens when the old preset was on a different tab than the new preset, AND when the dangling pointer happens to hit freed memory. It may work 9 times out of 10.
+
+**Prevention checklist:**
+1. When adding a new cached view pointer to a tab template:
+   - Add to `verifyView()` ✓ (obvious, or the feature wouldn't work)
+   - Add to `willClose()` ✓ (usually remembered)
+   - **Add to `onTabChanged()`** ← THIS IS THE ONE THAT GETS FORGOTTEN
+2. Grep for all three locations when adding any new cached `CView*`, `CViewContainer*`, or custom view pointer
+3. Consider using a registry pattern or a single `nullAllTabPointers()` helper called from both `onTabChanged()` and `willClose()` to prevent drift
+
+**Real incident (2026-03-03):** `arpRootNoteGroup_` and `arpQuantizeInputGroup_` were cached in `verifyView()` and nulled in `willClose()` but missing from `onTabChanged()`. Loading a preset that switched tabs caused `syncAllViews()` to dereference the freed views → ACCESS_VIOLATION crash at an invalid vtable address.
+
+---
+
 ## Key Takeaways
 
 1. **Use the right parameter type** - `StringListParameter` for dropdowns, `RangeParameter` for ranges
@@ -420,3 +454,4 @@ if (tag >= kActionTransformInvertTag && tag <= kActionFxExpandHarmonizerTag &&
 9. **Proxy parameters need hidden controls** - UIViewSwitchContainer uses IControlListener on CControls, not IDependent on Parameters
 10. **Null cached view pointers on removal** - Views inside UIViewSwitchContainer templates get destroyed on every switch; wire `removed()` callbacks to null cached pointers
 11. **Tag ranges can overlap** - When extending range-based listener registration, verify the new range doesn't include tags already registered explicitly elsewhere; `registerControlListener()` does NOT deduplicate
+12. **Three-point sync for cached tab pointers** - Every cached pointer to a tab-resident view MUST be nulled in `onTabChanged()`, `willClose()`, AND cached in `verifyView()`. Missing any one causes use-after-free during preset switching
