@@ -6564,3 +6564,186 @@ rm.processBlock(buffer, numSamples);
 - The stereo `processBlock` overload maintains two independent Gordon-Smith/PolyBLEP/Noise oscillator instances (`sinState_`/`cosState_` for left, `sinStateR_`/`cosStateR_` for right) and two smoothers (`freqSmoother_` and `freqSmootherR_`).
 
 **Dependencies:** Layer 1 (polyblep_oscillator.h: PolyBlepOscillator, OscWaveform; noise_oscillator.h: NoiseOscillator; smoother.h: OnePoleSmoother)
+
+---
+
+## Harmonic Types (Shared Data Contracts)
+**Path:** [harmonic_types.h](../../dsp/include/krate/dsp/processors/harmonic_types.h) | **Since:** 0.15.0
+
+Core data types for the harmonic analysis-synthesis pipeline. These are the data contracts that flow between YinPitchDetector, PartialTracker, HarmonicModelBuilder, and HarmonicOscillatorBank.
+
+```cpp
+inline constexpr size_t kMaxPartials = 48;
+
+struct F0Estimate {
+    float frequency = 0.0f;    // Fundamental frequency in Hz (0 = unvoiced)
+    float confidence = 0.0f;   // YIN confidence [0, 1]
+    bool voiced = false;       // Whether a pitch was detected
+};
+
+struct Partial {
+    int harmonicIndex = 0;         // 1-based harmonic number (1 = fundamental)
+    float frequency = 0.0f;       // Absolute frequency in Hz
+    float amplitude = 0.0f;       // Linear amplitude
+    float phase = 0.0f;           // Phase in radians
+    float relativeFrequency = 0.0f; // Ratio to F0 (e.g., 2.01 for slightly sharp 2nd harmonic)
+    float inharmonicDeviation = 0.0f; // Cents deviation from perfect harmonic
+    float stability = 0.0f;       // Track stability [0, 1]
+    int age = 0;                   // Frames since track birth
+};
+
+struct HarmonicFrame {
+    float f0 = 0.0f;                              // Fundamental frequency in Hz
+    float f0Confidence = 0.0f;                     // YIN confidence
+    std::array<Partial, kMaxPartials> partials{};  // Active partials
+    int numPartials = 0;                           // Count of active partials
+    float spectralCentroid = 0.0f;                 // Brightness metric (Hz)
+    float brightness = 0.0f;                       // Normalized brightness [0, 1]
+    float noisiness = 0.0f;                        // Noise floor estimate [0, 1]
+    float globalAmplitude = 0.0f;                  // Overall amplitude scaling
+};
+```
+
+**When to use:**
+- `F0Estimate`: Return type from YinPitchDetector; input to PartialTracker and HarmonicModelBuilder
+- `Partial`: Individual tracked partial within a spectral frame
+- `HarmonicFrame`: Complete snapshot of harmonic state; output from HarmonicModelBuilder, input to HarmonicOscillatorBank
+- Any new analysis-synthesis pipeline component that needs to exchange harmonic data
+
+**Design notes:**
+- Fixed-size `std::array<Partial, 48>` ensures zero heap allocation on audio thread
+- All structs are aggregates with default member initializers (brace-initializable)
+- `kMaxPartials = 48` is shared across the entire pipeline
+
+---
+
+## YinPitchDetector
+**Path:** [yin_pitch_detector.h](../../dsp/include/krate/dsp/processors/yin_pitch_detector.h) | **Since:** 0.15.0
+
+Monophonic pitch detection using the YIN algorithm with FFT-accelerated autocorrelation, cumulative mean normalized difference function (CMNDF), parabolic interpolation for sub-sample accuracy, and hysteresis-based pitch stabilization.
+
+```cpp
+class YinPitchDetector {
+    // Construction - windowSize determines analysis resolution
+    explicit YinPitchDetector(size_t windowSize = 2048,
+                              float minF0 = 50.0f,
+                              float maxF0 = 2000.0f,
+                              float confidenceThreshold = 0.15f);
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Analysis - returns F0Estimate for the given audio window
+    [[nodiscard]] F0Estimate detect(const float* audioData, size_t numSamples) noexcept;
+};
+```
+
+**When to use:**
+- Any plugin needing monophonic pitch tracking (instrument tuners, pitch-correction, analysis-synthesis)
+- Input to PartialTracker for harmonic-number assignment
+- Pre-processing step for HarmonicModelBuilder pipeline
+
+**Algorithm steps:**
+1. FFT-accelerated autocorrelation of windowed audio
+2. Difference function and CMNDF computation
+3. Absolute threshold search on CMNDF for minimum below threshold
+4. Parabolic interpolation for sub-bin F0 accuracy
+5. Hysteresis band (5%) to suppress pitch jitter between frames
+
+**Dependencies:** Layer 0 (dsp_utils.h), Layer 1 (fft.h for FFT-accelerated autocorrelation, spectral_utils.h for parabolicInterpolation)
+
+---
+
+## PartialTracker
+**Path:** [partial_tracker.h](../../dsp/include/krate/dsp/processors/partial_tracker.h) | **Since:** 0.15.0
+
+Spectral peak detection with harmonic assignment and frame-to-frame track continuity. Detects peaks in an STFT magnitude spectrum, maps them to harmonic indices using an F0 estimate, and maintains persistent tracks across frames with birth/death lifecycle management.
+
+```cpp
+class PartialTracker {
+    static constexpr size_t kMaxPartials = 48;
+    static constexpr int kGracePeriodFrames = 3;
+
+    // Lifecycle
+    void prepare(size_t fftSize, double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Analysis - processes one STFT frame
+    void processFrame(const float* magnitudes, const float* phases,
+                      size_t numBins, float f0Hz) noexcept;
+
+    // Results
+    [[nodiscard]] const std::array<Partial, kMaxPartials>& getPartials() const noexcept;
+    [[nodiscard]] size_t getActiveCount() const noexcept;
+};
+```
+
+**When to use:**
+- Additive synthesis pipelines that need tracked partials from spectral data
+- Spectral effects that need harmonic/inharmonic classification
+- Any analysis chain producing `Partial` arrays for downstream consumption (e.g., HarmonicModelBuilder)
+
+**Algorithm steps:**
+1. Peak detection: local maxima in magnitude spectrum above noise floor
+2. Parabolic interpolation for sub-bin frequency/amplitude refinement
+3. Harmonic mapping: assign each peak to nearest harmonic of F0 (within tolerance)
+4. Track matching: Hungarian-style nearest-frequency matching to previous frame's partials
+5. Lifecycle management: birth (new peaks), continuation (matched), death (grace period expiry)
+
+**Dependencies:** Layer 0 (dsp_utils.h, math_constants.h), Layer 1 (spectral_utils.h for parabolicInterpolation)
+
+---
+
+## HarmonicOscillatorBank
+**Path:** [harmonic_oscillator_bank.h](../../dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h) | **Since:** 0.15.0
+
+48-oscillator additive synthesis bank using Gordon-Smith modified coupled form (MCF) oscillators with SoA (Structure of Arrays) layout for cache efficiency. Supports smooth frame crossfading, per-partial anti-aliasing, and inharmonicity control.
+
+```cpp
+class HarmonicOscillatorBank {
+    static constexpr float kDefaultCrossfadeTimeSec = 0.005f;  // 5ms frame crossfade
+    static constexpr float kAmpSmoothTimeSec = 0.002f;        // 2ms amplitude smoothing
+    static constexpr float kAntiAliasFadeStart = 0.85f;       // Fade begins at 85% Nyquist
+    static constexpr float kOutputClamp = 4.0f;               // Hard output limiter
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Frame loading - smooth crossfade from current state
+    void loadFrame(const HarmonicFrame& frame) noexcept;
+
+    // Pitch control - sets target F0 for all partials
+    void setTargetPitch(float pitchHz) noexcept;
+
+    // Inharmonicity control [0, 1] - 0 = perfectly harmonic, 1 = full analyzed deviation
+    void setInharmonicityAmount(float amount) noexcept;
+
+    // Processing
+    [[nodiscard]] float process() noexcept;                    // Single sample
+    void processBlock(float* output, size_t numSamples) noexcept; // Block
+
+    // State queries
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] float getTargetPitch() const noexcept;
+    [[nodiscard]] size_t getActivePartials() const noexcept;
+    [[nodiscard]] float getInharmonicityAmount() const noexcept;
+    [[nodiscard]] bool isFrameLoaded() const noexcept;
+};
+```
+
+**When to use:**
+- Any additive synthesis scenario with up to 48 partials
+- Resynthesis from analyzed harmonic frames (analysis-synthesis pipeline)
+- MIDI-driven playback of extracted timbres with pitch transposition
+
+**Key features:**
+- **MCF oscillators**: Gordon-Smith modified coupled form (2 muls + 2 adds per sample per partial, amplitude-stable)
+- **SoA layout**: All oscillator state stored in aligned `std::array<float, 48>` arrays for cache-line efficiency
+- **Anti-aliasing**: Partials above 85% Nyquist are faded out; partials above Nyquist are silenced
+- **Frame crossfade**: 5ms linear crossfade when loading new HarmonicFrame to avoid clicks
+- **Amplitude smoothing**: 2ms one-pole smoothing on per-partial amplitudes
+- **Periodic renormalization**: MCF oscillators renormalized every 256 samples to prevent amplitude drift
+
+**Dependencies:** Layer 0 (math_constants.h for kTwoPi, dsp_utils.h), harmonic_types.h (HarmonicFrame, Partial, kMaxPartials)

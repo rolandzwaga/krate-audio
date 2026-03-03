@@ -2370,3 +2370,47 @@ This avoids a 30-case switch statement and provides O(1) compile-time constant l
 - OscillatorAdapter<OscT> (Layer 3): template adapter with `if constexpr` dispatch
 - SelectableOscillator (Layer 3): runtime type-switching wrapper that forwards `setParam()`
 - All 10 oscillator types at Layers 1-2: the actual DSP targets of parameter dispatch
+
+---
+
+## HarmonicModelBuilder
+**Path:** [harmonic_model_builder.h](../../dsp/include/krate/dsp/systems/harmonic_model_builder.h) | **Since:** 0.15.0
+
+Converts raw partial measurements from PartialTracker into stable, smooth HarmonicFrames suitable for oscillator bank playback. Applies dual-rate exponential smoothing (fast attack / slow decay) on per-partial amplitudes, median filtering on F0 estimates, spectral centroid computation, and global amplitude smoothing.
+
+```cpp
+class HarmonicModelBuilder {
+    static constexpr float kFastSmoothTimeMs = 5.0f;       // Attack smoothing
+    static constexpr float kSlowSmoothTimeMs = 50.0f;      // Decay smoothing
+    static constexpr float kGlobalAmpSmoothTimeMs = 10.0f; // Global amplitude smoothing
+    static constexpr size_t kMedianWindowSize = 5;          // F0 median filter window
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Configuration
+    void setHopSize(size_t hopSize) noexcept;
+    void setResponsiveness(float responsiveness) noexcept;  // [0, 1] fast-to-slow blend
+
+    // Processing - builds one HarmonicFrame from tracked partials + F0
+    [[nodiscard]] HarmonicFrame build(
+        const std::array<Partial, 48>& partials,
+        size_t numPartials,
+        const F0Estimate& f0) noexcept;
+};
+```
+
+**When to use:**
+- Any pipeline that produces HarmonicFrames from spectral analysis output
+- Post-processing stage between PartialTracker and HarmonicOscillatorBank
+- Smoothing raw analysis data before resynthesis to eliminate frame-to-frame jitter
+
+**Processing pipeline:**
+1. **F0 median filtering**: 5-frame sliding window removes octave-jump outliers
+2. **Per-partial amplitude smoothing**: Dual-rate one-pole smoothers (fast for onsets, slow for decays)
+3. **Spectral centroid computation**: Weighted average frequency of all active partials for brightness metric
+4. **Global amplitude smoothing**: One-pole smoother on total RMS for stable loudness envelope
+5. **HarmonicFrame assembly**: Packages smoothed partials + metadata into output frame
+
+**Dependencies:** Layer 0 (math_constants.h), Layer 1 (smoother.h: OnePoleSmoother), Layer 2 (harmonic_types.h: F0Estimate, Partial, HarmonicFrame, kMaxPartials)
