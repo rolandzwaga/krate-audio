@@ -3380,7 +3380,7 @@ std::vector<PresetDef> createAllPresets() {
         s.oscA.additiveTilt = -2.0f; s.oscA.level = 0.7f;
         s.oscB.type = 0; s.oscB.waveform = 0; s.oscB.level = 0.3f;
         s.mixer.position = 0.2f;
-        s.filter.type = 1; s.filter.cutoffHz = 300.0f; s.filter.resonance = 0.1f;
+        s.filter.type = 0; s.filter.cutoffHz = 6000.0f; s.filter.resonance = 0.4f;
         s.ampEnv.attackMs = 1.0f; s.ampEnv.decayMs = 1500.0f;
         s.ampEnv.sustain = 0.15f; s.ampEnv.releaseMs = 1000.0f;
         s.tranceGate.enabled = 1;

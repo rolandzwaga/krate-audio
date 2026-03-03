@@ -443,9 +443,12 @@ private:
         spectralTilt_ = 0.0f;
         inharmonicity_ = 0.0f;
 
-        // Initialize partial arrays
-        partialAmplitudes_.fill(0.0f);
-        partialAmplitudes_[0] = 1.0f;  // Fundamental at full amplitude
+        // Initialize all partial amplitudes to 1.0 (full).
+        // numPartials_ controls how many are actually processed, and
+        // spectralTilt_ shapes relative levels. This ensures that
+        // increasing numPartials via setNumPartials() immediately
+        // activates partials with audible amplitude.
+        partialAmplitudes_.fill(1.0f);
 
         // Default ratios: partial N has ratio N
         for (size_t i = 0; i < kMaxPartials; ++i) {

@@ -100,6 +100,9 @@ add_executable(ruinae_tests
     # Cathedral_Organ Preset Envelope Analysis Test (phantom boost investigation)
     integration/cathedral_organ_envelope_test.cpp
 
+    # Euclidean_Bells Preset Level Analysis Test (faint output investigation)
+    integration/euclidean_bells_level_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -165,6 +168,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/chaos_wind_audio_test.cpp
         integration/abyssal_level_test.cpp
         integration/cathedral_organ_envelope_test.cpp
+        integration/euclidean_bells_level_test.cpp
         unit/vst/voice_route_rt_safety_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
