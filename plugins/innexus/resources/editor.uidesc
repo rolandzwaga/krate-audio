@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+    <!-- Innexus UI Description (placeholder) -->
+    <template name="editor" minSize="800, 600" maxSize="800, 600"
+              size="800, 600" background-color="#1a1a2e">
+    </template>
+</vstgui-ui-description>
