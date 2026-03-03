@@ -288,13 +288,13 @@ void Controller::closeArpPresetBrowser() {
 void Controller::openArpSavePresetDialog() {
     if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
         closePresetBrowser();
-        arpPresetBrowserView_->openWithSaveDialog("Arp Classic");
+        arpPresetBrowserView_->openWithSaveDialog("Arp User");
     }
 }
 
 void Controller::openSavePresetDialog() {
     if (savePresetDialogView_ && !savePresetDialogView_->isOpen()) {
-        savePresetDialogView_->open("");
+        savePresetDialogView_->open("Pads");
     }
 }
 

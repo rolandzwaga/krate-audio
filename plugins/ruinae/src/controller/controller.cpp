@@ -995,7 +995,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             frame->addView(arpPresetBrowserView_);
 
             savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(
-                frameSize, presetManager_.get());
+                frameSize, presetManager_.get(),
+                {"Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental"});
             frame->addView(savePresetDialogView_);
         }
     }

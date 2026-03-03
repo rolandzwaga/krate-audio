@@ -18,8 +18,12 @@
 #include "vstgui/lib/events.h"
 #include "vstgui/lib/controls/ctextedit.h"
 #include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "outline_button.h"
 #include "vstgui/lib/controls/icontrollistener.h"
+
+#include <string>
+#include <vector>
 
 namespace Krate::Plugins {
 
@@ -29,14 +33,16 @@ class PresetManager;
 enum SavePresetDialogTags {
     kSavePresetDialogSaveTag = 100,
     kSavePresetDialogCancelTag = 101,
-    kSavePresetDialogNameFieldTag = 102
+    kSavePresetDialogNameFieldTag = 102,
+    kSavePresetDialogCategoryTag = 103
 };
 
 class SavePresetDialogView : public VSTGUI::CViewContainer,
                               public VSTGUI::IControlListener,
                               public VSTGUI::IKeyboardHook {
 public:
-    SavePresetDialogView(const VSTGUI::CRect& size, PresetManager* presetManager);
+    SavePresetDialogView(const VSTGUI::CRect& size, PresetManager* presetManager,
+                         std::vector<std::string> categories = {});
     ~SavePresetDialogView() override;
 
     // Lifecycle
@@ -65,10 +71,13 @@ private:
     VSTGUI::CViewContainer* dialogBox_ = nullptr;
     VSTGUI::CTextLabel* titleLabel_ = nullptr;
     VSTGUI::CTextEdit* nameField_ = nullptr;
+    VSTGUI::CTextLabel* categoryLabel_ = nullptr;
+    VSTGUI::COptionMenu* categoryMenu_ = nullptr;
     OutlineBrowserButton* saveButton_ = nullptr;
     OutlineBrowserButton* cancelButton_ = nullptr;
 
     // State
+    std::vector<std::string> categories_;
     std::string currentSubcategory_;
     bool isOpen_ = false;
 

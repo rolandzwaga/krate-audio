@@ -21,7 +21,7 @@ inline Krate::Plugins::PresetManagerConfig makeRuinaePresetConfig() {
         /*.pluginCategoryDesc =*/ "Synth",
         /*.subcategoryNames =*/ {
             "Pads", "Leads", "Bass", "Textures", "Rhythmic", "Experimental",
-            "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
+            "Arp User", "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
             "Arp Generative", "Arp Performance"
         }
     };
@@ -39,7 +39,7 @@ inline std::vector<std::string> getRuinaeTabLabels() {
 inline std::vector<std::string> getRuinaeArpTabLabels() {
     return {
         "All",
-        "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
+        "Arp User", "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
         "Arp Generative", "Arp Performance"
     };
 }

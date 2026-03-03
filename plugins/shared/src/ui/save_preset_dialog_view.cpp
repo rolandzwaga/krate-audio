@@ -13,20 +13,25 @@ namespace Krate::Plugins {
 namespace {
     constexpr float kDialogWidth = 300.0f;
     constexpr float kDialogHeight = 140.0f;
+    constexpr float kDialogHeightWithCategory = 170.0f;
     constexpr float kPadding = 16.0f;
     constexpr float kFieldHeight = 26.0f;
     constexpr float kButtonWidth = 80.0f;
     constexpr float kButtonHeight = 28.0f;
     constexpr float kButtonGap = 12.0f;
+    constexpr float kCategoryRowY = 82.0f;
+    constexpr float kCategoryLabelWidth = 65.0f;
 }
 
 // =============================================================================
 // Construction / Destruction
 // =============================================================================
 
-SavePresetDialogView::SavePresetDialogView(const VSTGUI::CRect& size, PresetManager* presetManager)
+SavePresetDialogView::SavePresetDialogView(const VSTGUI::CRect& size, PresetManager* presetManager,
+                                           std::vector<std::string> categories)
     : CViewContainer(size)
     , presetManager_(presetManager)
+    , categories_(std::move(categories))
 {
     setBackgroundColor(VSTGUI::CColor(0, 0, 0, 180)); // Semi-transparent overlay
     setVisible(false);  // Start hidden, shown via open()
@@ -51,6 +56,19 @@ void SavePresetDialogView::open(const std::string& currentSubcategory) {
     // Reset name field and focus it
     if (nameField_) {
         nameField_->setText("New Preset");
+    }
+
+    // Pre-select category dropdown to match current subcategory
+    if (categoryMenu_ && !categories_.empty()) {
+        int32_t selectedIndex = 0;
+        for (size_t i = 0; i < categories_.size(); ++i) {
+            if (categories_[i] == currentSubcategory) {
+                selectedIndex = static_cast<int32_t>(i);
+                break;
+            }
+        }
+        categoryMenu_->setValue(static_cast<float>(selectedIndex));
+        categoryMenu_->invalid();
     }
 
     if (auto *frame = getFrame()) {
@@ -134,14 +152,16 @@ void SavePresetDialogView::valueChanged(VSTGUI::CControl* control) {
 
 void SavePresetDialogView::createDialogViews() {
     auto viewSize = getViewSize();
+    bool hasCategories = !categories_.empty();
+    float dialogHeight = hasCategories ? kDialogHeightWithCategory : kDialogHeight;
 
     // Center the dialog
     auto dialogLeft = (viewSize.getWidth() - kDialogWidth) / 2.0f;
-    auto dialogTop = (viewSize.getHeight() - kDialogHeight) / 2.0f;
+    auto dialogTop = (viewSize.getHeight() - dialogHeight) / 2.0f;
 
     auto dialogRect = VSTGUI::CRect(
         dialogLeft, dialogTop,
-        dialogLeft + kDialogWidth, dialogTop + kDialogHeight
+        dialogLeft + kDialogWidth, dialogTop + dialogHeight
     );
 
     dialogBox_ = new VSTGUI::CViewContainer(dialogRect);
@@ -172,8 +192,39 @@ void SavePresetDialogView::createDialogViews() {
     nameField_->setTextInset(VSTGUI::CPoint(6, 0));
     dialogBox_->addView(nameField_);
 
+    // Category dropdown (only when categories are provided)
+    if (hasCategories) {
+        auto labelRect = VSTGUI::CRect(
+            kPadding, kCategoryRowY,
+            kPadding + kCategoryLabelWidth, kCategoryRowY + kFieldHeight
+        );
+        categoryLabel_ = new VSTGUI::CTextLabel(labelRect, "Category:");
+        categoryLabel_->setFont(VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 12));
+        categoryLabel_->setFontColor(VSTGUI::CColor(200, 200, 200));
+        categoryLabel_->setBackColor(VSTGUI::CColor(0, 0, 0, 0));
+        categoryLabel_->setFrameColor(VSTGUI::CColor(0, 0, 0, 0));
+        categoryLabel_->setHoriAlign(VSTGUI::kLeftText);
+        dialogBox_->addView(categoryLabel_);
+
+        auto menuRect = VSTGUI::CRect(
+            kPadding + kCategoryLabelWidth, kCategoryRowY,
+            kDialogWidth - kPadding, kCategoryRowY + kFieldHeight
+        );
+        categoryMenu_ = new VSTGUI::COptionMenu(menuRect, this, kSavePresetDialogCategoryTag);
+        categoryMenu_->setFont(VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 12));
+        categoryMenu_->setFontColor(VSTGUI::CColor(255, 255, 255));
+        categoryMenu_->setBackColor(VSTGUI::CColor(30, 30, 35));
+        categoryMenu_->setFrameColor(VSTGUI::CColor(80, 80, 85));
+
+        for (const auto& cat : categories_) {
+            categoryMenu_->addEntry(cat.c_str());
+        }
+
+        dialogBox_->addView(categoryMenu_);
+    }
+
     // Buttons
-    auto buttonY = kDialogHeight - kPadding - kButtonHeight;
+    auto buttonY = dialogHeight - kPadding - kButtonHeight;
     auto buttonsWidth = kButtonWidth * 2 + kButtonGap;
     auto buttonsLeft = (kDialogWidth - buttonsWidth) / 2.0f;
 
@@ -221,6 +272,14 @@ void SavePresetDialogView::onSaveConfirm() {
 
     if (name.empty()) {
         name = "New Preset";
+    }
+
+    // Read selected category from dropdown (if present)
+    if (categoryMenu_ && !categories_.empty()) {
+        auto selectedIndex = static_cast<size_t>(categoryMenu_->getValue());
+        if (selectedIndex < categories_.size()) {
+            currentSubcategory_ = categories_[selectedIndex];
+        }
     }
 
     // Save via preset manager using string subcategory
