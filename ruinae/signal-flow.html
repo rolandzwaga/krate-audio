@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruinae - Signal Flow Diagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .breadcrumb {
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .breadcrumb .separator {
+            color: var(--color-border);
+            margin: 0 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .toolbar {
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-surface);
+            flex-shrink: 0;
+        }
+
+        .toolbar button {
+            padding: 0.375rem 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .toolbar .zoom-info {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-left: auto;
+        }
+
+        #diagram-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #diagram-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #diagram {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #diagram svg {
+            display: block;
+        }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        #error {
+            display: none;
+            padding: 2rem;
+            color: #f87171;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 1rem; gap: 1rem; }
+            .toolbar { padding: 0.5rem 1rem; }
+            h1 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <nav class="breadcrumb">
+            <a href="./">Ruinae</a>
+            <span class="separator">/</span>
+        </nav>
+        <h1>Signal Flow Diagram</h1>
+    </div>
+
+    <div class="toolbar">
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-fit" title="Fit to screen">Fit</button>
+        <button id="zoom-reset" title="Reset to 100%">1:1</button>
+        <span class="zoom-info" id="zoom-level">100%</span>
+    </div>
+
+    <div id="diagram-container">
+        <div id="loading">Loading diagram&hellip;</div>
+        <div id="error"></div>
+        <div id="diagram"></div>
+    </div>
+
+    <script type="module">
+        import Viz from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
+
+        const dotSource = `digraph RuinaeSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Per-voice modulation</TD></TR>
+            <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Global modulation</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Modulation routing / matrix</TD></TR>
+            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Effects chain</TD></TR>
+            <TR><TD>───▶</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - ▶</TD><TD ALIGN="LEFT">Modulation / control</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT SOURCES
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI\\n(Notes, Velocity,\\nAftertouch)", shape=house, fillcolor="#CCDDEE"];
+        audio_in [label="Audio Input\\n(Sidechain)", shape=house, fillcolor="#CCDDEE"];
+        host_tempo [label="Host Tempo\\n(BPM, Transport)", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    // =========================================================================
+    // ARPEGGIATOR (Pre-Voice MIDI Processing)
+    // =========================================================================
+    subgraph cluster_arp {
+        label="ArpeggiatorCore  —  Per-Block MIDI Processing";
+        style=rounded;
+        color="#C07020";
+        bgcolor="#FDF3E8";
+        fontsize=13;
+        fontcolor="#804010";
+        penwidth=2;
+
+        arp_core [label="Arpeggiator\\n(optional, pre-voice)\\n\\nModes: Up, Down, UpDown,\\nRandom, Order, Chord\\n\\nOctave: 1-4, Sequential/PingPong/Random\\nSwing, Spice, Humanize\\nLatch, Euclidean, Scale Quantize\\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
+
+        subgraph cluster_arp_lanes {
+            label="6 Modulation Lanes (1-32 steps each)";
+            style=dashed;
+            color="#C07020";
+            bgcolor="#F5E8D8";
+
+            arp_vel_lane [label="Velocity Lane\\n[0, 1]", shape=box, fillcolor="#D0845C"];
+            arp_gate_lane [label="Gate Lane\\n[0%, 200%]", shape=box, fillcolor="#C8A464"];
+            arp_pitch_lane [label="Pitch Lane\\n[-24, +24] semi", shape=box, fillcolor="#6CA8A0"];
+            arp_ratchet_lane [label="Ratchet Lane\\n[1, 4] repeats", shape=box, fillcolor="#9880B0"];
+            arp_mod_lane [label="Modifier Lane\\nAccent, Slide, Skip\\n(bit flags)", shape=box, fillcolor="#C0708C"];
+            arp_cond_lane [label="Condition Lane\\n18 conditions\\n(probability, fill, etc.)", shape=box, fillcolor="#7C90B0"];
+        }
+
+        arp_vel_lane -> arp_core [style=dashed, color="#804010"];
+        arp_gate_lane -> arp_core [style=dashed, color="#804010"];
+        arp_pitch_lane -> arp_core [style=dashed, color="#804010"];
+        arp_ratchet_lane -> arp_core [style=dashed, color="#804010"];
+        arp_mod_lane -> arp_core [style=dashed, color="#804010"];
+        arp_cond_lane -> arp_core [style=dashed, color="#804010"];
+    }
+
+    // =========================================================================
+    // VOICE ALLOCATION
+    // =========================================================================
+    subgraph cluster_voice_alloc {
+        label="Voice Management";
+        style=rounded;
+        color="#666666";
+        bgcolor="#E8EEF4";
+
+        voice_alloc [label="Voice Allocator\\n(16 voices)\\nOldest/Newest/High/Low\\nsteal modes", shape=octagon, fillcolor="#7BAFD4"];
+        mono_handler [label="Mono Handler\\n(Voice 0 only)\\nPortamento, Legato\\nHigh/Low priority", shape=octagon, fillcolor="#7BAFD4"];
+    }
+
+    // MIDI routes through arp (when enabled) or directly to voice management
+    midi_in -> arp_core [penwidth=2, label="note on/off\\n(when arp enabled)"];
+    arp_core -> voice_alloc [penwidth=2, label="arp events\\n(NoteOn/Off/Skip)"];
+    arp_core -> mono_handler [penwidth=2, style=dashed, label="mono\\n(arp events)"];
+    midi_in -> voice_alloc [penwidth=2, style=dashed, label="direct\\n(arp disabled)"];
+    midi_in -> mono_handler [penwidth=2, style=dashed, label="direct\\n(arp disabled)"];
+
+    // =========================================================================
+    // PER-VOICE PROCESSING (x16)
+    // =========================================================================
+    subgraph cluster_voice {
+        label="RuinaeVoice (x16)  —  Per-Sample Processing";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+        fontsize=13;
+        fontcolor="#2A5080";
+        penwidth=2;
+
+        // --- Oscillators ---
+        subgraph cluster_osc {
+            label="Oscillators";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DDE8F5";
+
+            osc_a [label="OSC A\\n(SelectableOscillator)\\n10 types:\\nSine, Saw, Square, Tri,\\nNoise, Additive, FM,\\nGranular, Wavetable,\\nParticle", shape=box, fillcolor="#6AABEA"];
+            osc_b [label="OSC B\\n(SelectableOscillator)\\n10 types", shape=box, fillcolor="#6AABEA"];
+        }
+
+        // --- Mixer ---
+        mixer [label="Mixer\\nCrossfadeMix: A*(1-pos) + B*pos\\nor SpectralMorph (1024-FFT)", shape=box, fillcolor="#6AABEA"];
+
+        // --- Filter ---
+        subgraph cluster_filter {
+            label="Voice Filter (6 types, pre-allocated)";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DDE8F5";
+
+            voice_filter [label="Active Filter\\n• SVF (8 sub-modes, 1-2 stages)\\n• Ladder (4-pole Moog)\\n• Formant (A-E-I-O-U morph)\\n• Comb (feedback, metallic)\\n• EnvFilter (auto-wah)\\n• SelfOsc (melodic ping)", shape=box, fillcolor="#6AABEA"];
+        }
+
+        // --- Distortion ---
+        subgraph cluster_dist {
+            label="Distortion (5 types, pre-allocated)";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DDE8F5";
+
+            distortion [label="Active Distortion\\n• Clean (bypass)\\n• ChaosWave (Lorenz attractor)\\n• Spectral (FFT-based)\\n• Granular (micro-distortion)\\n• Wavefolder (multistage)\\n• Tape Saturator", shape=box, fillcolor="#6AABEA"];
+        }
+
+        dc_block [label="DC Blocker", shape=box, fillcolor="#6AABEA"];
+        trance_gate [label="TranceGate\\n2-32 steps, tempo-sync\\nEuclidean patterns", shape=box, fillcolor="#6AABEA"];
+        vca [label="VCA\\n(Amp Envelope)", shape=box, fillcolor="#6AABEA"];
+
+        // --- Per-Voice Mod Sources ---
+        subgraph cluster_voice_mod_src {
+            label="Per-Voice Mod Sources (8)";
+            style=rounded;
+            color="#E8A838";
+            bgcolor="#FDF3E0";
+
+            env1 [label="ENV 1\\n(Amplitude)\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+            env2 [label="ENV 2\\n(Filter)\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+            env3 [label="ENV 3\\n(General Mod)\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+            voice_lfo [label="Voice LFO\\n[-1, +1]", shape=ellipse, fillcolor="#F5C878"];
+            gate_out [label="Gate Output\\n(TranceGate)\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+            velocity [label="Velocity\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+            keytrack [label="KeyTrack\\n(note-60)/60\\n[-1, +1]", shape=ellipse, fillcolor="#F5C878"];
+            aftertouch [label="Aftertouch\\n[0, 1]", shape=ellipse, fillcolor="#F5C878"];
+        }
+
+        // --- Voice Mod Router ---
+        subgraph cluster_voice_mod_router {
+            label="VoiceModRouter\\n(16 fixed routes max)";
+            style=rounded;
+            color="#6BBF6B";
+            bgcolor="#E5F5E5";
+            penwidth=2;
+
+            voice_router [label="computeOffsets()\\nper-sample\\n\\n8 sources → 10 destinations\\noffsets summed per dest\\namount per route", shape=diamond, fillcolor="#8ED08E"];
+        }
+
+        // --- Per-Voice Mod Destinations ---
+        subgraph cluster_voice_mod_dst {
+            label="Per-Voice Mod Destinations (10)";
+            style=rounded;
+            color="#6BBF6B";
+            bgcolor="#E5F5E5";
+
+            vd_filter_cut [label="FilterCutoff\\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_filter_res [label="FilterResonance\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_morph [label="MorphPosition\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_dist_drive [label="DistortionDrive\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_gate_depth [label="TranceGateDepth\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_a_pitch [label="OscA Pitch\\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_b_pitch [label="OscB Pitch\\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_a_level [label="OscA Level\\n(linear, clip [0,1])", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_b_level [label="OscB Level\\n(linear, clip [0,1])", shape=box, fillcolor="#A8DCA8"];
+            vd_spec_tilt [label="SpectralTilt\\n(dB/oct offset)", shape=box, fillcolor="#A8DCA8"];
+        }
+
+        // --- Audio flow within voice ---
+        osc_a -> mixer [penwidth=2, color="#2A5080"];
+        osc_b -> mixer [penwidth=2, color="#2A5080"];
+        mixer -> voice_filter [penwidth=2, color="#2A5080"];
+        voice_filter -> distortion [penwidth=2, color="#2A5080"];
+        distortion -> dc_block [penwidth=2, color="#2A5080"];
+        dc_block -> trance_gate [penwidth=2, color="#2A5080"];
+        trance_gate -> vca [penwidth=2, color="#2A5080"];
+
+        // --- Mod sources to router ---
+        env1 -> voice_router [style=dashed, color="#C88820"];
+        env2 -> voice_router [style=dashed, color="#C88820"];
+        env3 -> voice_router [style=dashed, color="#C88820"];
+        voice_lfo -> voice_router [style=dashed, color="#C88820"];
+        gate_out -> voice_router [style=dashed, color="#C88820"];
+        velocity -> voice_router [style=dashed, color="#C88820"];
+        keytrack -> voice_router [style=dashed, color="#C88820"];
+        aftertouch -> voice_router [style=dashed, color="#C88820"];
+
+        // --- Router to mod destinations ---
+        voice_router -> vd_filter_cut [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_filter_res [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_morph [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_dist_drive [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_gate_depth [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_a_pitch [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_b_pitch [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_a_level [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_b_level [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_spec_tilt [style=dashed, color="#3A8F3A"];
+
+        // --- Mod destinations to audio targets ---
+        vd_osc_a_pitch -> osc_a [style=dashed, color="#3A8F3A", constraint=false];
+        vd_osc_b_pitch -> osc_b [style=dashed, color="#3A8F3A", constraint=false];
+        vd_osc_a_level -> osc_a [style=dashed, color="#3A8F3A", constraint=false];
+        vd_osc_b_level -> osc_b [style=dashed, color="#3A8F3A", constraint=false];
+        vd_morph -> mixer [style=dashed, color="#3A8F3A", constraint=false];
+        vd_filter_cut -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
+        vd_filter_res -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
+        vd_dist_drive -> distortion [style=dashed, color="#3A8F3A", constraint=false];
+        vd_gate_depth -> trance_gate [style=dashed, color="#3A8F3A", constraint=false];
+        vd_spec_tilt -> distortion [style=dashed, color="#3A8F3A", constraint=false, label="(spectral\\ndist only)"];
+
+        // ENV1 directly to VCA (hardwired, not routed)
+        env1 -> vca [style=bold, color="#C88820", label="hardwired\\n(always)", constraint=false];
+    }
+
+    voice_alloc -> osc_a [lhead=cluster_voice, penwidth=2, label="note on/off\\nper voice"];
+    mono_handler -> osc_a [lhead=cluster_voice, penwidth=2, label="mono\\nvoice 0", style=dashed];
+
+    // =========================================================================
+    // VOICE SUMMING
+    // =========================================================================
+    voice_sum [label="Voice Summation\\n16 voices → Stereo L/R\\n(per-voice pan)\\n+ 1/√N gain compensation", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+    stereo_width [label="Stereo Width\\n(Mid/Side matrix)", shape=box, fillcolor="#4A90D9", fontcolor="white"];
+
+    vca -> voice_sum [penwidth=2, color="#2A5080"];
+    voice_sum -> stereo_width [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // GLOBAL FILTER
+    // =========================================================================
+    subgraph cluster_global_filter {
+        label="Global Filter (Stereo, optional)";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+
+        gfilter [label="2x SVF (L + R)\\n6 modes: LP, HP, BP,\\nNotch, Peak, LowShelf, HighShelf\\n\\nCutoff: 20-20kHz\\nResonance: 0.1-30 Q", shape=box, fillcolor="#6AABEA"];
+    }
+
+    stereo_width -> gfilter [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // EFFECTS CHAIN
+    // =========================================================================
+    subgraph cluster_effects {
+        label="RuinaeEffectsChain  —  Post-Voice Processing";
+        style=rounded;
+        color="#9B6BBF";
+        bgcolor="#F3ECF9";
+        fontsize=13;
+        fontcolor="#6B3B9F";
+        penwidth=2;
+
+        phaser [label="Phaser\\nTempo sync, center freq,\\nstereo spread, waveform,\\nfeedback", shape=box, fillcolor="#C49EE0"];
+
+        subgraph cluster_delay {
+            label="Delay (5 types, 30ms crossfade)";
+            style=dashed;
+            color="#9B6BBF";
+            bgcolor="#EAE0F2";
+
+            delay [label="Active Delay Type\\n• Digital (era/age/limiter/mod/wavefold)\\n• Tape (motor/wear/saturation/splice/3 heads)\\n• PingPong (L/R ratio, cross-feedback, width)\\n• Granular (size/density/pitch spray/reverse)\\n• Spectral (FFT per-bin, spread/tilt/freeze)\\n\\nLatency: 1024 samples (compensated)", shape=box, fillcolor="#C49EE0"];
+        }
+
+        harmonizer [label="Harmonizer\\nPitch-shifted voices (up to 4)\\nHarmony modes, scale-aware\\nFormant preserve, per-voice\\ninterval/level/pan/delay/detune\\n\\nMono-in → Stereo-out\\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];
+
+        reverb [label="Reverb\\n(Dattorro Plate)\\nFull parameter set", shape=box, fillcolor="#C49EE0"];
+
+        phaser -> delay [penwidth=2, color="#6B3B9F"];
+        delay -> harmonizer [penwidth=2, color="#6B3B9F"];
+        harmonizer -> reverb [penwidth=2, color="#6B3B9F"];
+    }
+
+    gfilter -> phaser [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // MASTER OUTPUT
+    // =========================================================================
+    subgraph cluster_master {
+        label="Master Output";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        master_gain [label="Master Gain\\n(0.0 – 2.0)", shape=box, fillcolor="#888888", fontcolor="white"];
+        soft_limiter [label="Soft Limiter\\ntanh(sample)", shape=box, fillcolor="#888888", fontcolor="white"];
+        nan_flush [label="NaN/Inf Flush\\n& Denormal Flush", shape=box, fillcolor="#888888", fontcolor="white"];
+        output [label="Audio Output\\nL / R", shape=invhouse, fillcolor="#CCDDEE"];
+
+        master_gain -> soft_limiter [penwidth=2];
+        soft_limiter -> nan_flush [penwidth=2];
+        nan_flush -> output [penwidth=2];
+    }
+
+    reverb -> master_gain [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // GLOBAL MODULATION ENGINE
+    // =========================================================================
+    subgraph cluster_global_mod {
+        label="Global Modulation Engine  —  Per-Block Processing";
+        style=rounded;
+        color="#D94A7A";
+        bgcolor="#FCEDF2";
+        fontsize=13;
+        fontcolor="#A02050";
+        penwidth=2;
+
+        // --- Global Mod Sources (12) ---
+        subgraph cluster_global_src {
+            label="Global Mod Sources (12)";
+            style=rounded;
+            color="#D94A7A";
+            bgcolor="#F9DDE6";
+
+            glfo1 [label="LFO 1\\ntempo-sync, phase,\\nretrigger, fade-in,\\nsymmetry, quantize", shape=ellipse, fillcolor="#E88AAA"];
+            glfo2 [label="LFO 2\\n(same features)", shape=ellipse, fillcolor="#E88AAA"];
+            genv_follow [label="Env Follower\\ntracks audio input\\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
+            grandom [label="Random\\nwhite noise\\n[-1, +1]", shape=ellipse, fillcolor="#E88AAA"];
+            gchaos [label="Chaos\\nLorenz, Logistic,\\nHenon, Rössler", shape=ellipse, fillcolor="#E88AAA"];
+            gsample_hold [label="Sample & Hold\\nsamples: Random,\\nLFO1, LFO2, audio", shape=ellipse, fillcolor="#E88AAA"];
+            gpitch_follow [label="Pitch Follower\\ntracks input pitch\\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
+            gtransient [label="Transient\\nDetector\\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
+            gmacro1 [label="Macro 1\\nuser knob\\nmin/max/curve", shape=ellipse, fillcolor="#E88AAA"];
+            gmacro2 [label="Macro 2", shape=ellipse, fillcolor="#E88AAA"];
+            gmacro3 [label="Macro 3", shape=ellipse, fillcolor="#E88AAA"];
+            gmacro4 [label="Macro 4", shape=ellipse, fillcolor="#E88AAA"];
+        }
+
+        // --- Global Mod Router ---
+        subgraph cluster_global_router {
+            label="Global Mod Matrix\\n(32 routes max)";
+            style=rounded;
+            color="#6BBF6B";
+            bgcolor="#E5F5E5";
+            penwidth=2;
+
+            global_router [label=<
+                <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD COLSPAN="2" BGCOLOR="#6BBF6B"><FONT COLOR="white"><B>Per-Route Processing</B></FONT></TD></TR>
+                <TR><TD ALIGN="LEFT">1.</TD><TD ALIGN="LEFT">rawVal = source.getOutput()</TD></TR>
+                <TR><TD ALIGN="LEFT">2.</TD><TD ALIGN="LEFT">curved = applyCurve(|rawVal|)</TD></TR>
+                <TR><TD ALIGN="LEFT">3.</TD><TD ALIGN="LEFT">scaled = curved × amount</TD></TR>
+                <TR><TD ALIGN="LEFT">4.</TD><TD ALIGN="LEFT">smoothed = smoother(scaled)</TD></TR>
+                <TR><TD ALIGN="LEFT">5.</TD><TD ALIGN="LEFT">offset[dest] += smoothed</TD></TR>
+                <TR><TD COLSPAN="2" BGCOLOR="#DDDDDD"><I>Curves: Linear, Exp(x²), S(smoothstep), Stepped(4)</I></TD></TR>
+                </TABLE>
+            >, shape=plaintext];
+        }
+
+        // --- Global Mod Destinations (8) ---
+        subgraph cluster_global_dst {
+            label="Global Mod Destinations (8)";
+            style=rounded;
+            color="#D94A7A";
+            bgcolor="#F9DDE6";
+
+            gd_gfilt_cut [label="GlobalFilterCutoff\\n±48 semitones\\n(exponential)", shape=box, fillcolor="#F0A0B8"];
+            gd_gfilt_res [label="GlobalFilterResonance\\n±10.0 Q\\n(linear)", shape=box, fillcolor="#F0A0B8"];
+            gd_master_vol [label="MasterVolume\\n±2.0 gain\\n(linear)", shape=box, fillcolor="#F0A0B8"];
+            gd_effect_mix [label="EffectMix\\n±1.0\\n(clamped [0,1])", shape=box, fillcolor="#F0A0B8"];
+
+            // "AllVoice" destinations bridge to per-voice
+            gd_all_filt_cut [label="AllVoice\\nFilterCutoff\\n±48 semitones", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+            gd_all_morph [label="AllVoice\\nMorphPosition\\n±1.0", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+            gd_all_gate_rate [label="AllVoice\\nTranceGateRate\\n±50 Hz", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+            gd_all_spec_tilt [label="AllVoice\\nSpectralTilt\\n±24 dB/oct", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+        }
+
+        // --- Sources to router ---
+        glfo1 -> global_router [style=dashed, color="#A02050"];
+        glfo2 -> global_router [style=dashed, color="#A02050"];
+        genv_follow -> global_router [style=dashed, color="#A02050"];
+        grandom -> global_router [style=dashed, color="#A02050"];
+        gchaos -> global_router [style=dashed, color="#A02050"];
+        gsample_hold -> global_router [style=dashed, color="#A02050"];
+        gpitch_follow -> global_router [style=dashed, color="#A02050"];
+        gtransient -> global_router [style=dashed, color="#A02050"];
+        gmacro1 -> global_router [style=dashed, color="#A02050"];
+        gmacro2 -> global_router [style=dashed, color="#A02050"];
+        gmacro3 -> global_router [style=dashed, color="#A02050"];
+        gmacro4 -> global_router [style=dashed, color="#A02050"];
+
+        // --- Router to destinations ---
+        global_router -> gd_gfilt_cut [style=dashed, color="#3A8F3A"];
+        global_router -> gd_gfilt_res [style=dashed, color="#3A8F3A"];
+        global_router -> gd_master_vol [style=dashed, color="#3A8F3A"];
+        global_router -> gd_effect_mix [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_filt_cut [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_morph [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_gate_rate [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_spec_tilt [style=dashed, color="#3A8F3A"];
+    }
+
+    // =========================================================================
+    // CROSS-SYSTEM CONNECTIONS
+    // =========================================================================
+
+    // Audio input to global mod sources
+    audio_in -> genv_follow [style=dashed, color="#A02050", label="audio\\nfeedback"];
+    audio_in -> gpitch_follow [style=dashed, color="#A02050"];
+    audio_in -> gtransient [style=dashed, color="#A02050"];
+    audio_in -> gsample_hold [style=dashed, color="#A02050", label="(optional\\naudio src)"];
+
+    // Host tempo to tempo-synced components
+    host_tempo -> arp_core [style=dashed, color="#888888", label="BPM +\\ntransport"];
+    host_tempo -> glfo1 [style=dashed, color="#888888", label="BPM"];
+    host_tempo -> glfo2 [style=dashed, color="#888888"];
+    host_tempo -> trance_gate [style=dashed, color="#888888", label="BPM"];
+    host_tempo -> phaser [style=dashed, color="#888888", label="BPM"];
+    host_tempo -> delay [style=dashed, color="#888888", label="BPM"];
+
+    // Global mod destinations → audio chain targets
+    gd_gfilt_cut -> gfilter [style=bold, color="#D94A7A", label="±48 semi\\n(exp)", constraint=false];
+    gd_gfilt_res -> gfilter [style=bold, color="#D94A7A", label="±10 Q", constraint=false];
+    gd_master_vol -> master_gain [style=bold, color="#D94A7A", label="±2.0", constraint=false];
+    gd_effect_mix -> delay [style=bold, color="#D94A7A", label="±1.0\\nmix", constraint=false];
+
+    // "AllVoice" destinations → forwarded into every voice
+    gd_all_filt_cut -> voice_filter [style=bold, color="#D94A7A", label="→ all 16 voices\\n±48 semi", constraint=false];
+    gd_all_morph -> mixer [style=bold, color="#D94A7A", label="→ all 16 voices\\n±1.0", constraint=false];
+    gd_all_gate_rate -> trance_gate [style=bold, color="#D94A7A", label="→ all 16 voices\\n±50 Hz", constraint=false];
+    gd_all_spec_tilt -> distortion [style=bold, color="#D94A7A", label="→ all 16 voices\\n±24 dB/oct", constraint=false];
+
+    // =========================================================================
+    // PROCESSING RATE ANNOTATIONS
+    // =========================================================================
+    subgraph cluster_rates {
+        label="Processing Rates";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+
+        rates [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD ALIGN="LEFT"><B>Arpeggiator:</B></TD><TD ALIGN="LEFT">Per-block, before voice processing (MIDI → arp events → engine)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Per-Voice Mod:</B></TD><TD ALIGN="LEFT">Per-sample (every sample in block)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Global Mod:</B></TD><TD ALIGN="LEFT">Per-block (once per process() call)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Audio chain:</B></TD><TD ALIGN="LEFT">Per-sample (voice) / Per-block (effects)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 10 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">32 routes × 12 sources → 8 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Interaction:</B></TD><TD ALIGN="LEFT">Global "AllVoice" dests are forwarded into per-voice processing</TD></TR>
+            </TABLE>
+        >];
+    }
+}
+`;
+
+        const container = document.getElementById("diagram-container");
+        const diagramEl = document.getElementById("diagram");
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error");
+        const zoomLevelEl = document.getElementById("zoom-level");
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function updateTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + "%";
+        }
+
+        function fitToScreen() {
+            const svg = diagramEl.querySelector("svg");
+            if (!svg) return;
+            const svgW = svg.viewBox.baseVal.width || svg.width.baseVal.value;
+            const svgH = svg.viewBox.baseVal.height || svg.height.baseVal.value;
+            const cW = container.clientWidth;
+            const cH = container.clientHeight;
+            scale = Math.min(cW / svgW, cH / svgH, 1) * 0.95;
+            panX = (cW - svgW * scale) / 2;
+            panY = (cH - svgH * scale) / 2;
+            updateTransform();
+        }
+
+        // Zoom controls
+        document.getElementById("zoom-in").addEventListener("click", () => {
+            scale = Math.min(scale * 1.25, 5);
+            updateTransform();
+        });
+        document.getElementById("zoom-out").addEventListener("click", () => {
+            scale = Math.max(scale / 1.25, 0.1);
+            updateTransform();
+        });
+        document.getElementById("zoom-fit").addEventListener("click", fitToScreen);
+        document.getElementById("zoom-reset").addEventListener("click", () => {
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const newScale = Math.min(Math.max(scale * factor, 0.1), 5);
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Pan with mouse drag
+        container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            container.classList.add("grabbing");
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            container.classList.remove("grabbing");
+        });
+
+        // Touch support for pan
+        let lastTouch = null;
+        container.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        container.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 1 && lastTouch) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                panX += dx;
+                panY += dy;
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateTransform();
+            }
+        }, { passive: false });
+        container.addEventListener("touchend", () => { lastTouch = null; });
+
+        // Render
+        try {
+            const viz = await Viz.instance();
+            const svg = viz.renderSVGElement(dotSource);
+            svg.style.width = "auto";
+            svg.style.height = "auto";
+            loadingEl.style.display = "none";
+            diagramEl.appendChild(svg);
+            fitToScreen();
+        } catch (err) {
+            loadingEl.style.display = "none";
+            errorEl.style.display = "block";
+            errorEl.textContent = "Failed to render diagram: " + err.message;
+        }
+    </script>
+</body>
+</html>
