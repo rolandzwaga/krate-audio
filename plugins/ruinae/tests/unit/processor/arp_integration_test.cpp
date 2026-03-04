@@ -682,7 +682,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         // Skip version int32
         Steinberg::int32 version = 0;
         REQUIRE(readStream.readInt32(version));
-        REQUIRE(version == 1);
+        REQUIRE(version == Ruinae::kCurrentStateVersion);
 
         // Skip all existing state data by reading it into throw-away structs.
         // Rather than skipping byte-by-byte, re-read using the same load functions

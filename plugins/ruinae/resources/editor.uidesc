@@ -359,6 +359,7 @@
         <control-tag name="ArpScaleType" tag="3300"/>
         <control-tag name="ArpRootNote" tag="3301"/>
         <control-tag name="ArpScaleQuantizeInput" tag="3302"/>
+        <control-tag name="ArpMidiOut" tag="3303"/>
 
         <!-- Envelopes: Amp (ENV 1) -->
         <control-tag name="AmpEnvAttack" tag="700"/>
@@ -3274,6 +3275,17 @@
                       tooltip="Quantize input notes to scale"
                       transparent="true"/>
             </view>
+
+            <!-- ARP MIDI Out toggle -->
+            <view class="ToggleButton" origin="1140, 14" size="72, 18"
+                  control-tag="ArpMidiOut" default-value="0"
+                  title="MIDI Out"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Output arpeggiator notes as MIDI"
+                  transparent="true"/>
 
             <!-- ARP Save/Presets buttons -->
             <view custom-view-name="ArpSavePresetButton" origin="1230, 14" size="50, 18"/>

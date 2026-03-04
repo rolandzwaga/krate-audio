@@ -65,9 +65,6 @@
 
 namespace Ruinae {
 
-// State version for serialization (pre-release; bump when format changes)
-constexpr Steinberg::int32 kCurrentStateVersion = 1;
-
 /// Serialized preset bytes for lock-free transfer from UI thread to audio thread.
 /// Used by RTTransferT to atomically hand off an entire preset state.
 struct PresetSnapshot {

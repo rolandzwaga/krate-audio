@@ -15,6 +15,10 @@
 
 namespace Ruinae {
 
+// State version for serialization (bump when format changes post-release)
+// Shared between Processor and Controller — lives here to avoid cross-includes.
+constexpr Steinberg::int32 kCurrentStateVersion = 2;
+
 // Processor Component ID
 // The audio processing component (runs on audio thread)
 static const Steinberg::FUID kProcessorUID(0xA3B7C1D5, 0x2E4F6A8B, 0x9C0D1E2F, 0x3A4B5C6D);
@@ -1069,12 +1073,13 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpScaleTypeId           = 3300,   // discrete: 0-15 (StringListParameter, 16 entries)
     kArpRootNoteId            = 3301,   // discrete: 0-11 (StringListParameter, 12 entries)
     kArpScaleQuantizeInputId  = 3302,   // discrete: 0-1 (toggle, default off)
-    // 3303-3399: reserved for future arp params
+    kArpMidiOutId             = 3303,   // discrete: 0-1 (toggle, default off)
+    // 3304-3399: reserved for future arp params
 
-    kArpEndId = 3302,
+    kArpEndId = 3303,
 
     // ==========================================================================
-    kNumParameters = 3303,
+    kNumParameters = 3304,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

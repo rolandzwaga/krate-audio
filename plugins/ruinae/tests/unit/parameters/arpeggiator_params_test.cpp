@@ -2068,9 +2068,9 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
         CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
     }
 
-    // Verify sentinels (updated for 084-arp-scale-mode)
-    CHECK(kArpEndId == 3302);
-    CHECK(kNumParameters == 3303);
+    // Verify sentinels (updated for arp-midi-out)
+    CHECK(kArpEndId == 3303);
+    CHECK(kNumParameters == 3304);
 }
 
 // T062: formatArpParam for Spice: percentage display
@@ -2800,4 +2800,60 @@ TEST_CASE("loadArpParams: old preset without scale fields keeps defaults", "[arp
     CHECK(loaded.scaleType.load(std::memory_order_relaxed) == 8);
     CHECK(loaded.rootNote.load(std::memory_order_relaxed) == 0);
     CHECK(loaded.scaleQuantizeInput.load(std::memory_order_relaxed) == false);
+}
+
+// ==============================================================================
+// State Version Gating: loadArpParams with version 1 skips midiOut
+// ==============================================================================
+
+TEST_CASE("ArpParams_LoadWithVersion1_SkipsMidiOut", "[arp][params][state][version]") {
+    using namespace Ruinae;
+
+    // Save full arp state with midiOut = true
+    ArpeggiatorParams original;
+    original.midiOut.store(true, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Load with stateVersion=1 — midiOut should NOT be read
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream, 1);
+        REQUIRE(ok);
+    }
+
+    // midiOut stays at default (false) because version 1 skips it
+    CHECK(loaded.midiOut.load(std::memory_order_relaxed) == false);
+}
+
+TEST_CASE("ArpParams_LoadWithVersion2_ReadsMidiOut", "[arp][params][state][version]") {
+    using namespace Ruinae;
+
+    // Save full arp state with midiOut = true
+    ArpeggiatorParams original;
+    original.midiOut.store(true, std::memory_order_relaxed);
+
+    auto stream = Steinberg::owned(new Steinberg::MemoryStream());
+    {
+        Steinberg::IBStreamer writeStream(stream, kLittleEndian);
+        saveArpParams(original, writeStream);
+    }
+
+    // Load with stateVersion=2 — midiOut should be read
+    ArpeggiatorParams loaded;
+    stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    {
+        Steinberg::IBStreamer readStream(stream, kLittleEndian);
+        bool ok = loadArpParams(loaded, readStream, 2);
+        REQUIRE(ok);
+    }
+
+    // midiOut should be true
+    CHECK(loaded.midiOut.load(std::memory_order_relaxed) == true);
 }

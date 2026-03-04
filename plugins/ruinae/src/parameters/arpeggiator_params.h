@@ -98,6 +98,9 @@ struct ArpeggiatorParams {
     std::atomic<int>  rootNote{0};                // 0=C, 1=C#, ..., 11=B (default 0 = C)
     std::atomic<bool> scaleQuantizeInput{false};  // Snap incoming notes to scale (default OFF)
 
+    // --- MIDI Output ---
+    std::atomic<bool> midiOut{false};              // Output arp notes as MIDI (default OFF)
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -324,6 +327,9 @@ inline void handleArpParamChange(
             return;
         case kArpScaleQuantizeInputId:
             params.scaleQuantizeInput.store(value >= 0.5, std::memory_order_relaxed);
+            return;
+        case kArpMidiOutId:
+            params.midiOut.store(value >= 0.5, std::memory_order_relaxed);
             return;
 
         default:
@@ -651,6 +657,11 @@ inline void registerArpParams(
     parameters.addParameter(STR16("Arp Scale Quantize"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kArpScaleQuantizeInputId);
 
+    // --- MIDI Output ---
+    // Toggle (0 or 1), default off
+    parameters.addParameter(STR16("Arp MIDI Out"), STR16(""), 1, 0.0,
+        ParameterInfo::kCanAutomate, kArpMidiOutId);
+
     // --- Playhead Parameters (079-layout-framework + 080-specialized-lane-types) ---
     // Hidden, non-automatable. Written by processor, polled by controller.
     // NOT saved to preset state (transient playback position only).
@@ -879,6 +890,7 @@ inline Steinberg::tresult formatArpParam(
         case kArpScaleTypeId:
         case kArpRootNoteId:
         case kArpScaleQuantizeInputId:
+        case kArpMidiOutId:
             return kResultFalse;
 
         default:
@@ -1050,6 +1062,9 @@ inline void saveArpParams(
     streamer.writeInt32(params.scaleType.load(std::memory_order_relaxed));
     streamer.writeInt32(params.rootNote.load(std::memory_order_relaxed));
     streamer.writeInt32(params.scaleQuantizeInput.load(std::memory_order_relaxed) ? 1 : 0);
+
+    // --- MIDI Output ---
+    streamer.writeInt32(params.midiOut.load(std::memory_order_relaxed) ? 1 : 0);
 }
 
 // =============================================================================
@@ -1060,7 +1075,8 @@ inline void saveArpParams(
 
 inline bool loadArpParams(
     ArpeggiatorParams& params,
-    Steinberg::IBStreamer& streamer)
+    Steinberg::IBStreamer& streamer,
+    Steinberg::int32 stateVersion = kCurrentStateVersion)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
@@ -1218,6 +1234,12 @@ inline bool loadArpParams(
     if (!streamer.readInt32(intVal)) return true;
     params.scaleQuantizeInput.store(intVal != 0, std::memory_order_relaxed);
 
+    // --- MIDI Output (version 2+) ---
+    if (stateVersion >= 2) {
+        if (!streamer.readInt32(intVal)) return true;
+        params.midiOut.store(intVal != 0, std::memory_order_relaxed);
+    }
+
     return true;
 }
 
@@ -1228,7 +1250,8 @@ inline bool loadArpParams(
 template<typename SetParamFunc>
 inline void loadArpParamsToController(
     Steinberg::IBStreamer& streamer,
-    SetParamFunc setParam)
+    SetParamFunc setParam,
+    Steinberg::int32 stateVersion = kCurrentStateVersion)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
@@ -1424,6 +1447,12 @@ inline void loadArpParamsToController(
         setParam(kArpRootNoteId, static_cast<double>(std::clamp(static_cast<int>(iv), 0, 11)) / (kArpRootNoteCount - 1));
     if (streamer.readInt32(iv))
         setParam(kArpScaleQuantizeInputId, iv != 0 ? 1.0 : 0.0);
+
+    // --- MIDI Output (version 2+) ---
+    if (stateVersion >= 2) {
+        if (streamer.readInt32(iv))
+            setParam(kArpMidiOutId, iv != 0 ? 1.0 : 0.0);
+    }
 }
 
 } // namespace Ruinae

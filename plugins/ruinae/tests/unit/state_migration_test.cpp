@@ -17,6 +17,7 @@
 #include "base/source/fstreamer.h"
 
 #include <cstring>
+#include <cstdint>
 #include <vector>
 
 // =============================================================================
@@ -114,6 +115,51 @@ TEST_CASE("Truncated v1 stream loads partial defaults", "[state][migration]") {
     drainPresetTransfer(proc.get());
 
     proc->terminate();
+}
+
+TEST_CASE("Version 1 state loads without midiOut field", "[state][migration][version]") {
+    // Save a default-state v2 stream from a fresh processor
+    auto proc = makeProcessor();
+    Steinberg::MemoryStream v2Stream;
+    REQUIRE(proc->getState(&v2Stream) == Steinberg::kResultTrue);
+
+    // Read the full v2 data
+    Steinberg::int64 v2Size = 0;
+    v2Stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &v2Size);
+    std::vector<uint8_t> v2Data(static_cast<size_t>(v2Size));
+    v2Stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    Steinberg::int32 bytesRead = 0;
+    v2Stream.read(v2Data.data(), static_cast<Steinberg::int32>(v2Size), &bytesRead);
+
+    // Patch version from 2 to 1 (first 4 bytes, little-endian int32)
+    Steinberg::int32 v1 = 1;
+    std::memcpy(v2Data.data(), &v1, sizeof(v1));
+
+    // Truncate last 4 bytes (the midiOut int32 that v1 wouldn't have)
+    auto v1Size = v2Data.size() - 4;
+    Steinberg::MemoryStream v1Stream;
+    Steinberg::int32 bytesWritten = 0;
+    v1Stream.write(v2Data.data(), static_cast<Steinberg::int32>(v1Size), &bytesWritten);
+    v1Stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    // Load the v1 stream into a fresh processor
+    auto proc2 = makeProcessor();
+    auto result = proc2->setState(&v1Stream);
+    REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
+
+    // Verify the processor still works by saving and checking version
+    Steinberg::MemoryStream outStream;
+    REQUIRE(proc2->getState(&outStream) == Steinberg::kResultTrue);
+
+    outStream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer outStreamer(&outStream, kLittleEndian);
+    Steinberg::int32 savedVersion = 0;
+    REQUIRE(outStreamer.readInt32(savedVersion));
+    REQUIRE(savedVersion == Ruinae::kCurrentStateVersion);
+
+    proc->terminate();
+    proc2->terminate();
 }
 
 TEST_CASE("setState does not crash on any stream content", "[state][migration]") {
