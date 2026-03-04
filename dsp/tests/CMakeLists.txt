@@ -60,6 +60,7 @@ add_executable(dsp_tests
     unit/primitives/oversampler_test.cpp
     unit/primitives/fft_test.cpp
     unit/primitives/spectral_buffer_test.cpp
+    unit/primitives/spectral_utils_tests.cpp
     unit/primitives/stft_test.cpp
     unit/primitives/bit_crusher_test.cpp
     unit/primitives/bit_crusher_symmetric_quantization_test.cpp
@@ -174,6 +175,11 @@ add_executable(dsp_tests
     unit/processors/trance_gate_test.cpp
     unit/processors/arpeggiator_core_test.cpp
     unit/processors/ring_modulator_test.cpp
+    unit/processors/harmonic_types_tests.cpp
+    unit/processors/yin_pitch_detector_tests.cpp
+    unit/processors/dual_stft_tests.cpp
+    unit/processors/partial_tracker_tests.cpp
+    unit/processors/harmonic_oscillator_bank_tests.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -208,6 +214,7 @@ add_executable(dsp_tests
     unit/systems/voice_mod_router_test.cpp
     unit/systems/ext_modulation_test.cpp
     unit/systems/harmonizer_engine_test.cpp
+    unit/systems/harmonic_model_builder_tests.cpp
 
     # Layer 4: Effects
     unit/effects/tape_delay_test.cpp
@@ -296,6 +303,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/primitives/biquad_test.cpp
         unit/primitives/fft_test.cpp
         unit/primitives/spectral_buffer_test.cpp
+        unit/primitives/spectral_utils_tests.cpp
         unit/primitives/stft_test.cpp
         unit/primitives/bit_crusher_test.cpp
         unit/primitives/bit_crusher_symmetric_quantization_test.cpp
@@ -467,6 +475,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/trance_gate_test.cpp
         unit/processors/arpeggiator_core_test.cpp
         unit/processors/ring_modulator_test.cpp
+        unit/processors/harmonic_types_tests.cpp
+        unit/processors/dual_stft_tests.cpp
+        unit/processors/partial_tracker_tests.cpp
+        unit/processors/harmonic_oscillator_bank_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

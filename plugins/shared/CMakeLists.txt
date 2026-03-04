@@ -31,6 +31,9 @@ add_library(KratePluginsShared STATIC
     src/midi/midi_cc_manager.h
     src/midi/midi_cc_manager.cpp
 
+    # MIDI Event Dispatcher (shared processEvents boilerplate)
+    src/midi/midi_event_dispatcher.h
+
     # Preset Management
     src/preset/preset_manager_config.h
     src/preset/preset_info.h

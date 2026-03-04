@@ -23,6 +23,7 @@ add_executable(shared_tests
     test_adsr_display.cpp
     test_oscillator_type_selector.cpp
     test_lfo_shape_selector.cpp
+    test_midi_event_dispatcher.cpp
 )
 
 target_link_libraries(shared_tests

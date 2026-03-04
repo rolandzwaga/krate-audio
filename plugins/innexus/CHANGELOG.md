@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-04
+
+### Added
+
+- **M1: Core Playable Instrument** — Complete analysis-synthesis pipeline for harmonic resynthesis of audio samples, playable via MIDI
+- **Pre-processing pipeline** — DC offset removal (IIR estimator with first-sample init), 4th-order Butterworth HPF at 30 Hz, noise gate (-60 dB default), transient suppression (10:1 ratio)
+- **YIN pitch detector** — FFT-accelerated autocorrelation (O(N log N)), CMNDF with parabolic interpolation, confidence gating (0.3 threshold), 2% frequency hysteresis, hold-previous on low confidence
+- **Dual-window STFT analysis** — Long window (4096/hop 2048) for frequency resolution, short window (1024/hop 512) for temporal resolution, both BlackmanHarris
+- **Partial tracker** — Spectral peak detection with parabolic interpolation, harmonic sieve (sqrt(n) tolerance), frame-to-frame matching by frequency proximity, birth/death with 4-frame grace period, 48-partial hard cap ranked by energy * stability
+- **Harmonic model builder** — L2 amplitude normalization, dual-timescale blending (5ms fast / 100ms slow), 5-frame median filter for impulse rejection, spectral centroid/brightness/noisiness descriptors, global amplitude tracking (10ms smoother)
+- **48-oscillator harmonic oscillator bank** — Gordon-Smith MCF (Modified Coupled Form), SoA layout with 32-byte alignment, anti-aliasing soft rolloff near Nyquist, phase-continuous frequency updates, 3ms crossfade on pitch jumps > 1 semitone, per-partial amplitude smoothing (~2ms), configurable inharmonicity (0-100%)
+- **Sample loading** — WAV/AIFF support via dr_wav, stereo-to-mono downmix, background analysis thread with atomic pointer swap (lock-free, zero audio-thread allocations)
+- **MIDI integration** — Note-on/off with monophonic last-note-priority, velocity scaling (global, not per-partial), pitch bend (+/-12 semitones), exponential release envelope with 20ms anti-click minimum, confidence-gated freeze with 7ms recovery crossfade
+- **State persistence** — Versioned binary state saves/restores all parameters and sample file path, triggers re-analysis on session reload
+- **Plugin parameters** — Release Time (20-5000ms, exponential mapping), Inharmonicity Amount (0-100%)
+
+### Performance
+
+- Oscillator bank: 0.28% CPU at 44.1 kHz stereo, 48 partials (target: < 0.5%)
+- Full plugin: < 5% CPU at 44.1 kHz stereo
+- Analysis: ~250ms for 10s mono file (target: < 10s)
+- YIN pitch error: 0.0% gross error rate (target: < 2%)
+
+## [0.1.0] - 2026-03-03
+
 ### Added
 
 - Initial plugin skeleton — VST3 entry point, processor, controller

@@ -51,13 +51,14 @@ constexpr float kTwoPi = 2.0f * kPi;
 **Path:** [window_functions.h](../../dsp/include/krate/dsp/core/window_functions.h) | **Since:** 0.0.7
 
 ```cpp
-enum class WindowType : uint8_t { Hann, Hamming, Blackman, Kaiser };
+enum class WindowType : uint8_t { Hann, Hamming, Blackman, Kaiser, BlackmanHarris };
 
 namespace Window {
     void generateHann(float* output, size_t size) noexcept;
     void generateHamming(float* output, size_t size) noexcept;
     void generateBlackman(float* output, size_t size) noexcept;
     void generateKaiser(float* output, size_t size, float beta) noexcept;
+    void generateBlackmanHarris(float* output, size_t size) noexcept;
     [[nodiscard]] bool verifyCOLA(const float* window, size_t size, size_t hopSize, float tolerance = 1e-6f) noexcept;
     [[nodiscard]] std::vector<float> generate(WindowType type, size_t size, float kaiserBeta = 9.0f);
 }
@@ -68,7 +69,12 @@ namespace Window {
 | Hann | -31dB | 50%/75% | General STFT |
 | Hamming | -42dB | 50%/75% | Better sidelobe rejection |
 | Blackman | -58dB | 75%+ | Low-leakage analysis |
+| BlackmanHarris | -92dB | 75%+ | High-dynamic-range spectral analysis (harmonic tracking, partial detection) |
 | Kaiser (β=9) | -80dB | 90%+ | Precision analysis |
+
+> **Added in 0.15.0 (Innexus M1):** `WindowType::BlackmanHarris` -- 4-term Blackman-Harris window with ~92 dB sidelobe rejection. Used by the dual-window STFT analysis pipeline for high-resolution harmonic analysis where sidelobe leakage between closely-spaced partials must be minimized.
+
+> **See also (Layer 1):** `spectral_utils.h` (`dsp/include/krate/dsp/primitives/spectral_utils.h`) now includes `parabolicInterpolation(float alpha, float beta, float gamma)` -- returns the sub-bin offset for a spectral peak given the magnitudes of three adjacent bins. Added in 0.15.0 for YinPitchDetector sub-sample F0 refinement and PartialTracker sub-bin frequency estimation.
 
 ---
 

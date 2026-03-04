@@ -48,6 +48,10 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Global
     kBypassId = 0,
     kMasterGainId = 1,
+
+    // Oscillator Bank (200-299)
+    kReleaseTimeId = 200,          // 20-5000ms, default 100ms
+    kInharmonicityAmountId = 201,  // 0-100%, default 100%
 };
 
 } // namespace Innexus

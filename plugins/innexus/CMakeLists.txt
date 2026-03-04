@@ -58,6 +58,11 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller.h
     src/controller/controller.cpp
 
+    # DSP (Analysis Pipeline)
+    src/dsp/sample_analysis.h
+    src/dsp/sample_analyzer.h
+    src/dsp/sample_analyzer.cpp
+
     # Shared
     src/plugin_ids.h
     src/version.h
@@ -76,6 +81,7 @@ target_link_libraries(${PLUGIN_NAME}
 target_include_directories(${PLUGIN_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/extern/dr_libs
 )
 
 # Configure version file
