@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-04
+
+### Added
+
+- **M3: Live Sidechain Mode** — Real-time continuous analysis from sidechain audio input, enabling performers to route live audio and play MIDI keys that inherit the live source's timbral character
+- **Sidechain audio input bus** — Stereo auxiliary input (kAux), automatically downmixed to mono for analysis
+- **Input Source parameter** — Switch between Sample and Sidechain modes with 20ms click-free crossfade
+- **Latency Mode parameter** — Low Latency (11.6ms, short STFT only) or High Precision (dual-window STFT, detects fundamentals down to 40 Hz)
+- **LiveAnalysisPipeline** — Real-time orchestration of PreProcessing, YIN, STFT, PartialTracker, HarmonicModelBuilder, and SpectralCoringEstimator with zero audio-thread allocations
+- **SpectralCoringEstimator** (KrateDSP Layer 2) — Lightweight residual estimation by zeroing harmonic bins and measuring inter-harmonic energy, adding zero additional analysis latency
+- **Confidence-gated freeze in sidechain mode** — Reuses existing freeze mechanism; activates within 2 STFT hops of silence, recovers with crossfade when signal returns
+- **Residual synthesis in sidechain mode** — Existing controls (Harmonic Level, Residual Level, Brightness, Transient Emphasis) work identically in both sample and sidechain modes
+- **State version 3** — Persists Input Source and Latency Mode parameters with backward compatibility for v1/v2 presets
+- **Early-out optimizations** — Silent sidechain skip (~95% CPU reduction when idle), residual skip when Residual Level is zero (~10% reduction)
+
+### Performance
+
+- Analysis pipeline: < 5% single-core CPU at 44.1 kHz (SC-003)
+- Analysis + synthesis: < 8% single-core CPU at 44.1 kHz (SC-004)
+- Analysis latency: 11.6ms hop + < 1ms processing overhead (SC-001)
+- Source crossfade: < -60 dB discontinuity (SC-005)
+
 ## [0.2.0] - 2026-03-04
 
 ### Added
