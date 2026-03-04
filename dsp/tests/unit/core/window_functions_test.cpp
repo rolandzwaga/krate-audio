@@ -237,3 +237,79 @@ TEST_CASE("generate factory function dispatches correctly", "[window][factory]")
         REQUIRE(window[256] == Approx(1.0f).margin(0.01f));
     }
 }
+
+// ==============================================================================
+// generateBlackmanHarris() Tests (T020 - Innexus Phase 3)
+// ==============================================================================
+
+TEST_CASE("generateBlackmanHarris produces correct window", "[window][blackmanharris][foundational]") {
+    std::vector<float> window(kTestWindowSize);
+    Window::generateBlackmanHarris(window.data(), window.size());
+
+    SECTION("first coefficient matches a0 = 0.35875") {
+        // The Blackman-Harris window at n=0 (periodic variant, divides by N):
+        // w[0] = a0 - a1*cos(0) + a2*cos(0) - a3*cos(0)
+        // w[0] = 0.35875 - 0.48829 + 0.14128 - 0.01168 = 0.00006
+        REQUIRE(window[0] == Approx(0.00006f).margin(0.001f));
+    }
+
+    SECTION("window is symmetric (periodic variant)") {
+        // Periodic variant: w[n] = w[N-n] for n=1..N-1
+        for (size_t n = 1; n < kTestWindowSize / 2; ++n) {
+            REQUIRE(window[n] == Approx(window[kTestWindowSize - n]).margin(1e-5f));
+        }
+    }
+
+    SECTION("peak is approximately 1.0 at center") {
+        float maxVal = *std::max_element(window.begin(), window.end());
+        REQUIRE(maxVal == Approx(1.0f).margin(0.01f));
+    }
+
+    SECTION("sidelobe rejection exceeds 90 dB") {
+        // For a 1024-point BlackmanHarris, compute DFT and check sidelobe level
+        // The theoretical sidelobe level of a 4-term Blackman-Harris window is ~-92 dB
+        const size_t fftSize = kTestWindowSize;
+        const size_t numBins = fftSize / 2 + 1;
+
+        // Compute magnitude spectrum using DFT
+        std::vector<float> magnitudes(numBins, 0.0f);
+        for (size_t k = 0; k < numBins; ++k) {
+            float realPart = 0.0f;
+            float imagPart = 0.0f;
+            for (size_t n = 0; n < fftSize; ++n) {
+                float angle = kTwoPi * static_cast<float>(k) * static_cast<float>(n) / static_cast<float>(fftSize);
+                realPart += window[n] * std::cos(angle);
+                imagPart -= window[n] * std::sin(angle);
+            }
+            magnitudes[k] = std::sqrt(realPart * realPart + imagPart * imagPart);
+        }
+
+        // Find main lobe peak (should be at bin 0)
+        float mainLobePeak = magnitudes[0];
+        REQUIRE(mainLobePeak > 0.0f);
+
+        // Find first sidelobe: skip the main lobe region (first ~8 bins for BH),
+        // then find the maximum
+        float sidelobePeak = 0.0f;
+        for (size_t k = 8; k < numBins; ++k) {
+            sidelobePeak = std::max(sidelobePeak, magnitudes[k]);
+        }
+
+        // Convert to dB
+        float sidelobeDb = 20.0f * std::log10(sidelobePeak / mainLobePeak);
+
+        // Blackman-Harris should have sidelobes below -90 dB
+        REQUIRE(sidelobeDb < -90.0f);
+    }
+}
+
+TEST_CASE("WindowType::BlackmanHarris enum compiles and dispatches via generate()", "[window][blackmanharris]") {
+    auto window = Window::generate(WindowType::BlackmanHarris, 512);
+    REQUIRE(window.size() == 512);
+
+    // BlackmanHarris at n=0 should be near zero (like Blackman)
+    REQUIRE(window[0] == Approx(0.0f).margin(0.01f));
+
+    // Center should be near 1.0
+    REQUIRE(window[256] == Approx(1.0f).margin(0.01f));
+}

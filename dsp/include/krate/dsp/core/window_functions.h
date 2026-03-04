@@ -51,10 +51,11 @@ inline constexpr float kDefaultCOLATolerance = 1e-6f;
 
 /// @brief Supported window function types for STFT analysis
 enum class WindowType : uint8_t {
-    Hann,       ///< Hann (Hanning) window - COLA at 50%/75% overlap
-    Hamming,    ///< Hamming window - COLA at 50%/75% overlap
-    Blackman,   ///< Blackman window - COLA at 50%/75% overlap
-    Kaiser      ///< Kaiser window - requires 90% overlap for COLA
+    Hann,           ///< Hann (Hanning) window - COLA at 50%/75% overlap
+    Hamming,        ///< Hamming window - COLA at 50%/75% overlap
+    Blackman,       ///< Blackman window - COLA at 50%/75% overlap
+    Kaiser,         ///< Kaiser window - requires 90% overlap for COLA
+    BlackmanHarris  ///< 4-term Blackman-Harris window - ~92 dB sidelobe rejection
 };
 
 // =============================================================================
@@ -169,6 +170,30 @@ inline void generateKaiser(float* output, size_t size, float beta) noexcept {
     }
 }
 
+/// @brief Fill buffer with 4-term Blackman-Harris window (periodic/DFT-even variant)
+/// @param output Destination buffer
+/// @param size Window size
+/// @note Formula: w[n] = 0.35875 - 0.48829*cos(2*pi*n/N) + 0.14128*cos(4*pi*n/N) - 0.01168*cos(6*pi*n/N)
+/// @note Sidelobe rejection: ~92 dB (superior to standard Blackman ~58 dB)
+/// @note Real-time safe if buffer is pre-allocated
+inline void generateBlackmanHarris(float* output, size_t size) noexcept {
+    if (output == nullptr || size == 0) return;
+
+    constexpr float a0 = 0.35875f;
+    constexpr float a1 = 0.48829f;
+    constexpr float a2 = 0.14128f;
+    constexpr float a3 = 0.01168f;
+
+    const float N = static_cast<float>(size);
+    for (size_t n = 0; n < size; ++n) {
+        const float phase = kTwoPi * static_cast<float>(n) / N;
+        output[n] = a0
+                  - a1 * std::cos(phase)
+                  + a2 * std::cos(2.0f * phase)
+                  - a3 * std::cos(3.0f * phase);
+    }
+}
+
 // -----------------------------------------------------------------------------
 // COLA Verification
 // -----------------------------------------------------------------------------
@@ -273,6 +298,9 @@ inline void generateKaiser(float* output, size_t size, float beta) noexcept {
             break;
         case WindowType::Kaiser:
             generateKaiser(window.data(), size, kaiserBeta);
+            break;
+        case WindowType::BlackmanHarris:
+            generateBlackmanHarris(window.data(), size);
             break;
     }
 

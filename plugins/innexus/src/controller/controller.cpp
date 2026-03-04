@@ -3,9 +3,11 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "parameters/innexus_params.h"
 #include "plugin_ids.h"
 
 #include "pluginterfaces/base/ibstream.h"
+#include "base/source/fstreamer.h"
 
 namespace Innexus {
 
@@ -28,6 +30,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate,
         kMasterGainId);
 
+    // M1 parameters
+    registerInnexusParams(parameters);
+
     return Steinberg::kResultOk;
 }
 
@@ -40,7 +45,7 @@ Steinberg::tresult PLUGIN_API Controller::terminate()
 }
 
 // ==============================================================================
-// Set Component State
+// Set Component State (FR-056: Restore controller parameters from processor state)
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Controller::setComponentState(
     Steinberg::IBStream* state)
@@ -48,7 +53,49 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     if (!state)
         return Steinberg::kResultFalse;
 
-    // TODO: Restore parameter values from processor state
+    Steinberg::IBStreamer streamer(state, kLittleEndian);
+
+    // Read version (must match Processor::getState format)
+    Steinberg::int32 version = 0;
+    if (!streamer.readInt32(version))
+        return Steinberg::kResultFalse;
+
+    if (version >= 1)
+    {
+        float floatVal = 0.0f;
+
+        // Read releaseTimeMs and convert to normalized for controller
+        if (streamer.readFloat(floatVal))
+        {
+            double normalized = releaseTimeToNormalized(
+                std::clamp(floatVal, 20.0f, 5000.0f));
+            setParamNormalized(kReleaseTimeId, normalized);
+        }
+
+        // Read inharmonicityAmount (0-1 maps directly to normalized)
+        if (streamer.readFloat(floatVal))
+        {
+            setParamNormalized(kInharmonicityAmountId,
+                static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+        }
+
+        // Read masterGain (0-1 maps directly to normalized)
+        if (streamer.readFloat(floatVal))
+        {
+            setParamNormalized(kMasterGainId,
+                static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+        }
+
+        // Read bypass
+        if (streamer.readFloat(floatVal))
+        {
+            setParamNormalized(kBypassId,
+                floatVal > 0.5f ? 1.0 : 0.0);
+        }
+
+        // Skip sample file path (controller does not need it)
+    }
+
     return Steinberg::kResultOk;
 }
 

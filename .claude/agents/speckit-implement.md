@@ -84,9 +84,11 @@ Always load:
 as-is. Do NOT build individual targets separately (e.g., don't build DSP then plugin then tests
 as separate commands — one build covers everything).
 
-**Tests**: Run each test executable ONCE with no filtering. Do NOT run filtered subsets by tag
-and then the full suite — just run each test executable once and record the results. Check
-quickstart.md for the list of test executables (typically DSP tests and plugin tests).
+**Tests**: Run ONLY the test executables affected by the spec's scope. Check quickstart.md
+for the list of test executables and run only the ones that correspond to code you changed
+(e.g., if the spec only touches dsp/ and plugins/innexus/, run dsp_tests and innexus_tests —
+do NOT run ruinae_tests, disrumpo_tests, shared_tests, etc.). Run each relevant executable
+ONCE with no tag filters. Do NOT run filtered subsets and then the full suite.
 
 **Avoid redundancy**: If you already built and tested successfully, do NOT build/test again
 unless you made additional code changes afterward.

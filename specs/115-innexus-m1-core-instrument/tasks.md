@@ -700,7 +700,7 @@ If any test file uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`, add 
 
 ### N-2.2 Commit Documentation
 
-- [ ] T115 **Commit architecture documentation**: `git commit -m "docs: update architecture docs with Innexus M1 DSP components (YIN, PartialTracker, HarmonicOscillatorBank, HarmonicModelBuilder)"`
+- [X] T115 **Commit architecture documentation**: `git commit -m "docs: update architecture docs with Innexus M1 DSP components (YIN, PartialTracker, HarmonicOscillatorBank, HarmonicModelBuilder)"`
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
@@ -714,17 +714,17 @@ If any test file uses `std::isnan()`, `std::isfinite()`, or `std::isinf()`, add 
 
 ### N.1 Requirements Verification
 
-- [ ] T116 **Review ALL FR-001 through FR-058** against implementation: for each requirement, open the implementation file, find the code, record file path and line number in the spec.md compliance table
-- [ ] T117 **Review ALL SC-001 through SC-010**: for each success criterion, copy actual measured value from Phase 12 tests; compare against spec threshold; record in compliance table
-- [ ] T118 **Search for cheating patterns** in all new code:
+- [X] T116 **Review ALL FR-001 through FR-058** against implementation: for each requirement, open the implementation file, find the code, record file path and line number in the spec.md compliance table
+- [X] T117 **Review ALL SC-001 through SC-010**: for each success criterion, copy actual measured value from Phase 12 tests; compare against spec threshold; record in compliance table
+- [X] T118 **Search for cheating patterns** in all new code:
   - No `// placeholder` or `// TODO` comments in implementation files
   - No test thresholds relaxed from spec requirements (e.g., verifying <5% instead of spec's <2% for SC-003)
   - No features quietly removed from scope
 
 ### N.2 Fill Compliance Table in spec.md
 
-- [ ] T119 **Update `specs/115-innexus-m1-core-instrument/spec.md` Implementation Verification table** with compliance status, file paths, line numbers, and actual measured values for every FR-xxx and SC-xxx row
-- [ ] T120 **Mark overall status honestly**: COMPLETE if all requirements met; NOT COMPLETE if any gaps remain; PARTIAL with documented evidence of what IS and IS NOT met
+- [X] T119 **Update `specs/115-innexus-m1-core-instrument/spec.md` Implementation Verification table** with compliance status, file paths, line numbers, and actual measured values for every FR-xxx and SC-xxx row
+- [X] T120 **Mark overall status honestly**: COMPLETE if all requirements met; NOT COMPLETE if any gaps remain; PARTIAL with documented evidence of what IS and IS NOT met
 
 ### N.3 Honest Self-Check
 
@@ -735,15 +735,15 @@ Answer these questions. If ANY is "yes", do NOT claim completion:
 3. Did you remove ANY features from scope without telling the user?
 4. Would the spec author consider this "done"?
 
-- [ ] T121 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
+- [X] T121 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
 
 ### N.4 Final Commit and Pluginval
 
-- [ ] T122 Verify all DSP tests pass: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
-- [ ] T123 Verify all Innexus tests pass: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
-- [ ] T124 Run final pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
-- [ ] T125 **Commit all remaining spec work**: `git commit -m "feat(innexus): complete M1 core playable instrument -- all 58 FRs and 10 SCs verified"`
-- [ ] T126 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T122 Verify all DSP tests pass: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
+- [X] T123 Verify all Innexus tests pass: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T124 Run final pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
+- [X] T125 **Commit all remaining spec work**: `git commit -m "feat(innexus): complete M1 core playable instrument -- all 58 FRs and 10 SCs verified"`
+- [X] T126 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete.
 

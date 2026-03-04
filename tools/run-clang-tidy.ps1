@@ -26,6 +26,7 @@
       'iterum'    - Iterum plugin source
       'disrumpo'  - Disrumpo plugin source
       'ruinae'    - Ruinae plugin source
+      'innexus'   - Innexus plugin source
       'all'       - Everything
     Default: all
 
@@ -56,7 +57,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0
@@ -174,6 +175,12 @@ switch ($Target) {
         $IncludeDirs += "plugins/ruinae/src"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "innexus" {
+        $SourceDirs += "plugins/innexus/src"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/innexus/src"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -181,10 +188,12 @@ switch ($Target) {
         $SourceDirs += "plugins/iterum/src"
         $SourceDirs += "plugins/disrumpo/src"
         $SourceDirs += "plugins/ruinae/src"
+        $SourceDirs += "plugins/innexus/src"
         $IncludeDirs += "dsp/include"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
         $IncludeDirs += "plugins/ruinae/src"
+        $IncludeDirs += "plugins/innexus/src"
         $IncludeDirs += "extern/vst3sdk"
     }
 }

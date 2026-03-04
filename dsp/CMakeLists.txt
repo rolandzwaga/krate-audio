@@ -116,6 +116,9 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/mono_handler.h
     include/krate/dsp/processors/note_processor.h
     include/krate/dsp/processors/arpeggiator_core.h
+    include/krate/dsp/processors/harmonic_types.h
+    include/krate/dsp/processors/yin_pitch_detector.h
+    include/krate/dsp/processors/partial_tracker.h
 )
 
 # Layer 3: Systems

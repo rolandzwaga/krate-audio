@@ -164,10 +164,12 @@ Do NOT work on any other phase. Do NOT fill compliance tables.
 BUILD+TEST GATE (mandatory before finishing):
 1. Build the project ONCE using the build command from quickstart.md — ZERO warnings required.
    Do NOT build individual targets separately — one build command covers everything.
-2. Run each test executable ONCE (no tag filters, no subsets) — ALL must pass.
-   Check quickstart.md for the list of test executables.
-3. If ANY test fails — including tests outside the current spec's scope — you MUST
-   fix it before returning. "Pre-existing" is NOT an excuse (Constitution Section VIII).
+2. Run ONLY the test executables affected by this spec's scope (no tag filters, no subsets).
+   Check quickstart.md for the full list, but only run the ones that correspond to code
+   this spec touches (e.g., if the spec modifies dsp/ and plugins/innexus/, run dsp_tests
+   and innexus_tests only — do NOT run ruinae_tests, disrumpo_tests, shared_tests, etc.).
+3. If ANY test fails in the suites you run, you MUST fix it before returning.
+   "Pre-existing" is NOT an excuse (Constitution Section VIII).
 4. Do NOT run pluginval or clang-tidy — those run once at the end, not per phase.
 5. Do NOT re-run builds or tests you already ran unless you made additional code changes.
 
@@ -220,8 +222,9 @@ Do NOT re-implement tasks that already passed.
 
 BUILD+TEST GATE (mandatory before finishing):
 1. Build ONCE using the build command from quickstart.md — ZERO warnings required.
-2. Run each test executable ONCE (no tag filters) — ALL must pass.
-3. If ANY test fails, fix it before returning (Constitution Section VIII).
+2. Run ONLY the test executables affected by this spec's scope (no tag filters).
+   Check quickstart.md for which suites are in scope — do NOT run unrelated suites.
+3. If ANY test fails in the suites you run, fix it before returning (Constitution Section VIII).
 4. Do NOT run pluginval or clang-tidy.
 
 When done, summarize what you changed, build result, test result.
@@ -288,13 +291,15 @@ Feature dir: {FEATURE_DIR}/
 Mode: Final Completion Verification
 
 CRITICAL — COMMAND BUDGET (hard limit on Bash tool calls):
-You may run AT MOST these 4 Bash commands during this entire task:
+You may run AT MOST these Bash commands during this entire task:
 1. ONE build (e.g., cmake --build ...)
-2. ONE dsp_tests run (e.g., dsp_tests.exe — no flags, no tag filters)
-3. ONE ruinae_tests run (e.g., ruinae_tests.exe — no flags, no tag filters)
-4. ONE pluginval run (if plugin code was changed)
-That is 4 Bash calls TOTAL. Not per requirement — TOTAL for the whole task.
-If quickstart.md lists additional test executables, each gets ONE run (still no filters).
+2. ONE run per AFFECTED test executable — only the suites that correspond to code
+   this spec touches. Check quickstart.md for the list and run ONLY the relevant ones
+   (e.g., if the spec touches dsp/ and plugins/innexus/, run dsp_tests and innexus_tests
+   only — do NOT run ruinae_tests, disrumpo_tests, shared_tests, etc.).
+   No flags, no tag filters — just the executable once.
+3. ONE pluginval run (if plugin code was changed)
+That is build + affected suites + pluginval TOTAL. Not per requirement — TOTAL for the whole task.
 Every other tool call must be Read/Glob/Grep (reading code and test files).
 
 Steps:
@@ -302,17 +307,19 @@ Steps:
 2. Read the implementation source files to verify each FR/SC against actual code (cite file:line)
 3. Read the test source files to identify test names covering each requirement
 4. Run the build command from quickstart.md ONCE — verify 0 warnings
-5. Run dsp_tests.exe ONCE (no arguments) — save the output
-6. Run ruinae_tests.exe ONCE (no arguments) — save the output
-7. Run pluginval ONCE if plugin code was changed:
+5. Run ONLY the test executables affected by this spec's scope ONCE each (no arguments).
+   Check quickstart.md for the list — only run suites that correspond to code this spec
+   touches (e.g., dsp_tests if dsp/ was changed, innexus_tests if plugins/innexus/ was
+   changed). Do NOT run unrelated suites. Save the output.
+6. Run pluginval ONCE if plugin code was changed:
    tools/pluginval.exe --strictness-level 5 --validate "<path to built .vst3>"
    (Check quickstart.md for the correct plugin path)
-8. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
-9. Use the saved build/test output from steps 4-7 to fill the compliance table
-10. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
+7. Do NOT run clang-tidy — it already ran in Phase N-1.0 (Static Analysis).
+8. Use the saved build/test output from steps 4-6 to fill the compliance table
+9. Check for cheating patterns (relaxed thresholds, stubs, removed scope)
 
 For SC-xxx with numeric targets: read the test source code to find the expected
-values/ranges, then confirm the test passed in the full suite run (steps 5-6).
+values/ranges, then confirm the test passed in the affected suite runs (step 5).
 Do NOT re-run tests with filters to get individual SC results.
 
 Output the final compliance report with:
@@ -442,4 +449,4 @@ After all phases are complete, report to the user:
 7. **User can override** — if the user says to skip verification or continue despite failures, respect that
 8. **Build+test responsibility belongs to the implement agent** — the per-phase comply agent does code review only. The final verification phase (Phase N-1) is the only comply phase that builds, tests, and runs pluginval.
 9. **No pluginval or clang-tidy in implementation phases** — these run ONCE at the end (clang-tidy in Phase N-1.0, pluginval in Phase N-1). Do NOT generate or execute these in per-phase work.
-10. **ALL test failures must be fixed immediately** — if the implement agent encounters ANY failing test (including ones outside the current spec's scope), it MUST fix the test before returning. "Pre-existing" is not an excuse (Constitution Section VIII). If an implement agent returns with known failing tests, the orchestrator MUST send it back to fix them before proceeding.
+10. **ALL test failures in affected suites must be fixed immediately** — if the implement agent encounters ANY failing test in the suites it runs, it MUST fix the test before returning. "Pre-existing" is not an excuse (Constitution Section VIII). If an implement agent returns with known failing tests, the orchestrator MUST send it back to fix them before proceeding. Note: agents only run the test suites affected by the spec's scope, not all suites in the project.

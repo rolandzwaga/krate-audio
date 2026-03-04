@@ -90,6 +90,35 @@ namespace DSP {
 }
 
 // =============================================================================
+// Parabolic Peak Interpolation
+// =============================================================================
+
+/// @brief Sub-bin parabolic interpolation for spectral peak detection
+/// @param left Magnitude of the bin to the left of the peak
+/// @param center Magnitude of the peak bin
+/// @param right Magnitude of the bin to the right of the peak
+/// @param centerBin The integer bin index of the center (peak) sample
+/// @return Interpolated sub-bin peak position
+/// @note Uses the standard 3-point parabolic interpolation formula:
+///       delta = 0.5 * (left - right) / (left - 2*center + right)
+///       The interpolated position is centerBin + delta.
+/// @note If the denominator is zero (flat or linear region), returns centerBin unchanged.
+/// @note Real-time safe, noexcept
+[[nodiscard]] inline float parabolicInterpolation(
+    float left,
+    float center,
+    float right,
+    float centerBin) noexcept
+{
+    const float denominator = left - 2.0f * center + right;
+    if (denominator == 0.0f) {
+        return centerBin;
+    }
+    const float delta = 0.5f * (left - right) / denominator;
+    return centerBin + delta;
+}
+
+// =============================================================================
 // Magnitude Interpolation
 // =============================================================================
 

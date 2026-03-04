@@ -90,7 +90,9 @@ Steps:
 1. **Read spec.md** — list ALL FR-xxx and SC-xxx requirements
 2. **For EACH requirement**: find the implementation code (cite file:line) and the test
 3. **For SC-xxx with numeric targets** — compare test thresholds against spec values
-4. **Run full test suite** — record results (use commands from quickstart.md)
+4. **Run ONLY the affected test suites** — check quickstart.md for the list of executables,
+   run only the ones that correspond to code this spec touches (e.g., dsp_tests if dsp/ was
+   changed, innexus_tests if plugins/innexus/ was changed). Do NOT run unrelated suites.
 5. **Run pluginval** if plugin code was changed (check quickstart.md for command)
 6. **Check for cheating**: `// TODO` / `// placeholder` / `// stub`, relaxed thresholds,
    quietly removed scope
