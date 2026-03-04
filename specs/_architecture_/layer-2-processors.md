@@ -6882,3 +6882,48 @@ class ResidualSynthesizer {
 - **Transient emphasis**: Boosts residual energy during detected transient frames
 
 **Dependencies:** Layer 0 (random.h for Xorshift32), Layer 1 (fft.h, stft.h for OverlapAdd, spectral_buffer.h), Layer 2 (residual_types.h)
+
+---
+
+## SpectralCoringEstimator
+**Path:** [spectral_coring_estimator.h](../../dsp/include/krate/dsp/processors/spectral_coring_estimator.h) | **Since:** 0.12.0
+
+Lightweight residual estimation via spectral coring for live sidechain mode. Estimates the stochastic (noise) component by identifying harmonic bins in the STFT spectrum and measuring energy in the remaining inter-harmonic bins. Zero additional analysis latency compared to full subtraction-based residual extraction (ResidualAnalyzer).
+
+```cpp
+class SpectralCoringEstimator {
+    // Lifecycle
+    void prepare(size_t fftSize, float sampleRate);
+    void reset();
+
+    // Residual estimation (real-time safe, noexcept)
+    [[nodiscard]] ResidualFrame estimateResidual(
+        const SpectralBuffer& spectrum,
+        const HarmonicFrame& frame) noexcept;
+
+    // Query
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] size_t fftSize() const noexcept;
+};
+```
+
+**When to use:**
+- Live sidechain mode where full subtraction-based residual extraction (ResidualAnalyzer) would add one frame of latency
+- Any context where zero-latency residual estimation is needed
+- Real-time residual estimation from STFT spectrum + HarmonicFrame without resynthesis/subtraction
+
+**Algorithm:**
+1. For each STFT bin (excluding DC), compute bin frequency from index and bin spacing
+2. Check if the bin is within `coringBandwidthBins_` (1.5 bins) of any active partial frequency from the HarmonicFrame
+3. If the bin is near a harmonic partial, skip it (coring); otherwise accumulate its squared magnitude into the corresponding residual band
+4. Residual bands use the same 16-band layout as ResidualFrame (`getResidualBandEdges()`)
+5. Take sqrt of accumulated energies to produce RMS-like band values
+6. Transient flag is always false (spectral coring does not detect transients)
+
+**Key features:**
+- **Zero additional latency**: No resynthesis step; operates directly on current STFT frame
+- **ResidualFrame compatible**: Output format matches ResidualAnalyzer, plugs directly into ResidualSynthesizer
+- **Real-time safe**: No allocations, no locks, no exceptions. All state is POD members
+- **Header-only**: Single header implementation, no .cpp file needed
+
+**Dependencies:** Layer 0 (none directly), Layer 1 (spectral_buffer.h), Layer 2 (harmonic_types.h, residual_types.h)

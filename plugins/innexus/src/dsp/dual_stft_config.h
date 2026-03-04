@@ -61,6 +61,21 @@ inline constexpr StftWindowConfig kShortWindowConfig{
 inline constexpr size_t kLongWindowNumBins = kLongWindowConfig.fftSize / 2 + 1;   // 2049
 inline constexpr size_t kShortWindowNumBins = kShortWindowConfig.fftSize / 2 + 1;  // 513
 
+// =============================================================================
+// Live Sidechain Latency Mode Constants (FR-005, FR-006)
+// =============================================================================
+
+// Low-latency mode: short window only, ~15-25ms latency, min F0 ~80-100 Hz
+inline constexpr size_t kLowLatencyShortFftSize = kShortWindowConfig.fftSize; // 1024
+inline constexpr size_t kLowLatencyHopSize = kShortWindowConfig.hopSize;      // 512
+
+// High-precision mode: dual window (short + long), ~50-100ms latency, min F0 ~40 Hz
+inline constexpr size_t kHighPrecisionLongFftSize = kLongWindowConfig.fftSize;  // 4096
+inline constexpr size_t kHighPrecisionLongHopSize = kLongWindowConfig.hopSize;  // 2048
+
+// YIN window size for high-precision mode (half of long FFT for bass detection down to ~40 Hz)
+inline constexpr size_t kHighPrecisionYinWindowSize = kLongWindowConfig.fftSize / 2; // 2048
+
 /// @brief Compute frequency resolution (Hz per bin) for a given FFT size and sample rate
 /// @param fftSize FFT size
 /// @param sampleRate Sample rate in Hz

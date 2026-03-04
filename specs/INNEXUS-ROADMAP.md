@@ -18,7 +18,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 **Milestones:**
 - **Milestone 1 (Phases 1–9):** Core playable instrument — sample analysis → MIDI-driven oscillator bank ✅ COMPLETE
 - **Milestone 2 (Phases 10–11):** Residual/noise model — deterministic + stochastic decomposition ✅ COMPLETE
-- **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis
+- **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis ✅ COMPLETE
 - **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering
 - **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration
 - **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending
@@ -423,7 +423,7 @@ Dependencies: Phase 10, fft.h, stft.h (OverlapAdd)
 
 ---
 
-### Phase 12: Live Sidechain Mode (Architecture Stage 3 alternate path)
+### Phase 12: Live Sidechain Mode (Architecture Stage 3 alternate path) ✅
 
 **Goal:** Enable real-time continuous analysis from sidechain input.
 
@@ -465,7 +465,7 @@ The oscillator bank is well within budget. The **analysis pipeline** (YIN + dual
 - Window size reduction — drop the long STFT window entirely (force low-latency mode)
 - F0 tracker duty cycling — run YIN every Nth frame, interpolate between updates
 
-**This completes Milestone 3: live sidechain analysis.**
+**This completes Milestone 3: live sidechain analysis.** ✅
 
 ---
 
@@ -678,7 +678,7 @@ Phase 1 (scaffold)
                                 └→ Phase 9 (MIDI + playback) ← MILESTONE 1
                                      └→ Phase 10 (residual analysis)
                                           └→ Phase 11 (residual synth) ← MILESTONE 2 ✅
-                                     └→ Phase 12 (live sidechain) ← MILESTONE 3
+                                     └→ Phase 12 (live sidechain) ← MILESTONE 3 ✅
                                      └→ Phase 13 (freeze/morph)
                                           └→ Phase 14 (harmonic filter) ← MILESTONE 4
                                           └→ Phase 15 (memory storage)
@@ -700,7 +700,7 @@ Each milestone is intended as one `speckit.specify` run:
 |-----------|--------|------------|
 | M1 | 1–9 | Core playable instrument (sample → analysis → MIDI synth) ✅ |
 | M2 | 10–11 | Residual/noise model (SMS decomposition) ✅ |
-| M3 | 12 | Live sidechain mode |
+| M3 | 12 | Live sidechain mode ✅ |
 | M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) |
 | M5 | 15–16 | Harmonic Memory (snapshot capture/recall) |
 | M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) |
