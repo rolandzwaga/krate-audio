@@ -62,6 +62,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/sample_analysis.h
     src/dsp/sample_analyzer.h
     src/dsp/sample_analyzer.cpp
+    src/dsp/live_analysis_pipeline.h
+    src/dsp/live_analysis_pipeline.cpp
 
     # Shared
     src/plugin_ids.h

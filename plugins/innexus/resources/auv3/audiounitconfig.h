@@ -20,8 +20,8 @@
 // 0.1.0 = (0 << 16) | (1 << 8) | 0 = 256
 #define kAUcomponentVersion       256
 
-// 02 == no inputs, stereo out (instrument)
-#define kSupportedNumChannels     02
+// 0222 == two configs: (0 in, 2 out) instrument + (2 in, 2 out) with sidechain
+#define kSupportedNumChannels     0222
 
 // No audio preview file for instruments
 // #define kAudioFileName          "drumLoop"

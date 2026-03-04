@@ -39,6 +39,10 @@ krate-audio/
 │   │   ├── src/              # Plugin source (engine, processor, controller)
 │   │   ├── tests/            # Plugin-specific tests
 │   │   └── resources/        # UI assets, presets, installers
+│   ├── innexus/              # Innexus - Harmonic analysis/resynthesis instrument
+│   │   ├── src/              # Plugin source (processor, controller, DSP)
+│   │   ├── tests/            # Plugin-specific tests
+│   │   └── resources/        # UI assets, AU/AUv3 config
 │   └── shared/               # Shared plugin components (UI controls, presets, MIDI)
 │       ├── src/ui/           # Reusable VSTGUI controls
 │       └── tests/            # Shared component tests
@@ -48,7 +52,8 @@ krate-audio/
 │
 ├── tests/                    # Shared test infrastructure
 ├── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
-└── extern/pffft/             # SIMD-optimized FFT library (BSD license)
+├── extern/pffft/             # SIMD-optimized FFT library (BSD license)
+└── (Google Highway)          # SIMD math acceleration (FetchContent, Apache-2.0)
 ```
 
 ## Plugins
@@ -69,6 +74,12 @@ A multiband morphing distortion VST3 plugin with a 4-band crossover network, smo
 
 A chaos/spectral hybrid synthesizer VST3 plugin featuring a modular synthesis engine with modulation matrix, multiple oscillator types, and an effects chain.
 
+[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/ruinae//) | [**Plugin README**](plugins/ruinae/README.md)
+
+### [Innexus](plugins/innexus/README.md)
+
+A harmonic analysis and resynthesis VST3/AU instrument. Analyzes audio samples or live sidechain input to extract harmonic content, then resynthesizes it as a playable instrument with independent control over harmonics, residual noise, and transients.
+
 ## KrateDSP Library
 
 The KrateDSP library provides reusable DSP components organized in a 5-layer architecture where each layer can only depend on layers below it:
@@ -76,9 +87,9 @@ The KrateDSP library provides reusable DSP components organized in a 5-layer arc
 | Layer | Directory | Components | Examples |
 |-------|-----------|------------|----------|
 | 0 | `core/` | Math utilities, constants | dB conversion, sigmoid functions, interpolation, window functions |
-| 1 | `primitives/` | 49 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT, oscillators |
-| 2 | `processors/` | 68 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank, particle oscillator |
-| 3 | `systems/` | 29 complex systems | Tape machine, amp channel, feedback networks, granular engine, synth voice, modulation matrix |
+| 1 | `primitives/` | 54 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT, oscillators |
+| 2 | `processors/` | 78 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank, particle oscillator, harmonic oscillator bank |
+| 3 | `systems/` | 32 complex systems | Tape machine, amp channel, feedback networks, granular engine, synth voice, modulation matrix |
 | 4 | `effects/` | 13 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD, reverb |
 
 ### Key Features
@@ -128,6 +139,7 @@ cmake --build build/windows-x64-release --target dsp_tests
 | Iterum plugin | `build/<preset>/VST3/Release/Iterum.vst3` |
 | Disrumpo plugin | `build/<preset>/VST3/Release/Disrumpo.vst3` |
 | Ruinae plugin | `build/<preset>/VST3/Release/Ruinae.vst3` |
+| Innexus plugin | `build/<preset>/VST3/Release/Innexus.vst3` |
 | DSP tests | `build/<preset>/dsp/tests/Release/dsp_tests` |
 | KrateDSP library | `build/<preset>/dsp/Release/KrateDSP.lib` |
 

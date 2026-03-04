@@ -3,6 +3,7 @@
 // ==============================================================================
 
 #include "processor.h"
+#include "dsp/dual_stft_config.h"
 
 #include "midi/midi_event_dispatcher.h"
 
@@ -56,6 +57,15 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
     // Stereo audio output
     addAudioOutput(STR16("Stereo Out"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // Sidechain audio input (FR-001: auxiliary stereo bus, NOT default-active)
+    // Must be inactive by default so AU wrapper can initialize without inputs.
+    // Host activates this bus when user routes audio to the sidechain.
+    addAudioInput(
+        STR16("Sidechain"),
+        Steinberg::Vst::SpeakerArr::kStereo,
+        Steinberg::Vst::BusTypes::kAux,
+        0 /* not default active */);
+
     return Steinberg::kResultOk;
 }
 
@@ -94,17 +104,25 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         // Prepare oscillator bank
         oscillatorBank_.prepare(sampleRate_);
 
-        // Prepare residual synthesizer if analysis is available
+        // Prepare residual synthesizer.
+        // Use sample analysis config if available, otherwise use short STFT config
+        // so it's ready for sidechain mode regardless of current input source.
+        // Always prepare here (not in process()) to avoid audio-thread allocation (FR-008).
         {
             const SampleAnalysis* analysis =
                 currentAnalysis_.load(std::memory_order_acquire);
-            if (analysis && !analysis->residualFrames.empty() &&
-                analysis->analysisFFTSize > 0 && analysis->analysisHopSize > 0)
-            {
-                residualSynth_.prepare(
-                    analysis->analysisFFTSize, analysis->analysisHopSize,
-                    static_cast<float>(sampleRate_));
-            }
+            const size_t fftSize =
+                (analysis && !analysis->residualFrames.empty() &&
+                 analysis->analysisFFTSize > 0)
+                    ? analysis->analysisFFTSize
+                    : kShortWindowConfig.fftSize;
+            const size_t hopSize =
+                (analysis && !analysis->residualFrames.empty() &&
+                 analysis->analysisHopSize > 0)
+                    ? analysis->analysisHopSize
+                    : kShortWindowConfig.hopSize;
+            residualSynth_.prepare(
+                fftSize, hopSize, static_cast<float>(sampleRate_));
         }
 
         // Configure parameter smoothers (FR-025: 5ms time constant)
@@ -144,6 +162,12 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         isFrozen_ = false;
         freezeRecoverySamplesRemaining_ = 0;
         freezeRecoveryOldLevel_ = 0.0f;
+
+        // Reset sidechain crossfade state
+        sourceCrossfadeSamplesRemaining_ = 0;
+        sourceCrossfadeOldLevel_ = 0.0f;
+        previousInputSource_ =
+            inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
     }
     else
     {
@@ -164,6 +188,18 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& newSetup)
 {
     sampleRate_ = newSetup.sampleRate;
+
+    // FR-011: source crossfade length = 20ms in samples
+    sourceCrossfadeLengthSamples_ = static_cast<int>(
+        0.020 * sampleRate_);
+    sourceCrossfadeLengthSamples_ = std::max(sourceCrossfadeLengthSamples_, 1);
+
+    // FR-003/FR-005: Prepare live analysis pipeline
+    auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
+        ? LatencyMode::HighPrecision
+        : LatencyMode::LowLatency;
+    liveAnalysis_.prepare(sampleRate_, currentMode);
+
     return AudioEffect::setupProcessing(newSetup);
 }
 
@@ -177,6 +213,69 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // --- Check for new analysis from background thread (FR-058) ---
     checkForNewAnalysis();
+
+    // --- Detect input source switch and trigger crossfade (FR-011) ---
+    {
+        int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+        if (currentSource != previousInputSource_)
+        {
+            // Source changed -- initiate crossfade
+            sourceCrossfadeOldLevel_ = noteActive_ ? oscillatorBank_.process() : 0.0f;
+            sourceCrossfadeSamplesRemaining_ = sourceCrossfadeLengthSamples_;
+            previousInputSource_ = currentSource;
+            // Note: residualSynth_ is always prepared in setActive() for sidechain mode.
+            // No prepare() call here to avoid heap allocation on audio thread (FR-008).
+        }
+    }
+
+    // --- Sidechain downmix to mono (FR-001, R-002) ---
+    const float* sidechainMono = nullptr;
+    {
+        int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+        if (currentSource == 1 && data.numInputs > 0)
+        {
+            const auto& scBus = data.inputs[0];
+            if (scBus.numChannels >= 2)
+            {
+                // Stereo downmix
+                auto count = std::min(data.numSamples,
+                    static_cast<Steinberg::int32>(sidechainBuffer_.size()));
+                for (Steinberg::int32 s = 0; s < count; ++s)
+                {
+                    sidechainBuffer_[static_cast<size_t>(s)] =
+                        (scBus.channelBuffers32[0][s] +
+                         scBus.channelBuffers32[1][s]) * 0.5f;
+                }
+                sidechainMono = sidechainBuffer_.data();
+            }
+            else if (scBus.numChannels == 1)
+            {
+                sidechainMono = scBus.channelBuffers32[0];
+            }
+        }
+    }
+    // Feed sidechain audio to live analysis pipeline (FR-003, FR-009)
+    {
+        int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+        if (currentSource == 1 && sidechainMono != nullptr)
+        {
+            // T091: Skip spectral coring when residual level is zero (~10% CPU reduction)
+            const bool residualActive =
+                residualLevel_.load(std::memory_order_relaxed) > 0.0f;
+            liveAnalysis_.setResidualEnabled(residualActive);
+
+            liveAnalysis_.pushSamples(
+                sidechainMono,
+                static_cast<size_t>(data.numSamples));
+
+            // Consume new frames if available
+            if (liveAnalysis_.hasNewFrame())
+            {
+                currentLiveFrame_ = liveAnalysis_.consumeFrame();
+                currentLiveResidualFrame_ = liveAnalysis_.consumeResidualFrame();
+            }
+        }
+    }
 
     // --- Read current analysis with acquire semantics (FR-058) ---
     const SampleAnalysis* analysis =
@@ -192,8 +291,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     auto numSamples = data.numSamples;
     auto** out = data.outputs[0].channelBuffers32;
 
-    // FR-055: If no analysis loaded, output silence
-    if (!analysis || analysis->frames.empty() || !noteActive_)
+    // Determine current input source
+    const int currentInputSource =
+        inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+    const bool isSidechainMode = (currentInputSource == 1);
+
+    // FR-055: If no analysis loaded (sample mode) or no note active, output silence
+    // In sidechain mode, we can synthesize even without a loaded sample analysis
+    // as long as a note is active and the live pipeline has produced a frame.
+    const bool hasSampleAnalysis = analysis && !analysis->frames.empty();
+    const bool hasLiveFrame = isSidechainMode && currentLiveFrame_.f0 > 0.0f;
+
+    if (!noteActive_ || (!hasSampleAnalysis && !hasLiveFrame))
     {
         for (Steinberg::int32 s = 0; s < numSamples; ++s)
         {
@@ -209,9 +318,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     oscillatorBank_.setInharmonicityAmount(inharm);
 
     // --- Compute hop size in samples for frame advancement ---
-    const size_t hopSizeInSamples = static_cast<size_t>(
-        analysis->hopTimeSec * static_cast<float>(sampleRate_) + 0.5f);
-    const size_t totalFrames = analysis->totalFrames;
+    // Guard: analysis may be nullptr in sidechain mode (no sample loaded)
+    const size_t hopSizeInSamples = analysis
+        ? static_cast<size_t>(
+            analysis->hopTimeSec * static_cast<float>(sampleRate_) + 0.5f)
+        : 0;
+    const size_t totalFrames = analysis ? analysis->totalFrames : 0;
 
     // --- Get master gain ---
     const float gain = masterGain_.load(std::memory_order_relaxed);
@@ -233,16 +345,63 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     transientEmphasisSmoother_.setTarget(transientEmpPlainTarget);
 
     // Check if residual synthesis is available
-    const bool hasResidual = !analysis->residualFrames.empty() &&
-                              residualSynth_.isPrepared();
+    const bool hasSampleResidual = hasSampleAnalysis &&
+                                    !analysis->residualFrames.empty() &&
+                                    residualSynth_.isPrepared();
+
+    // In sidechain mode, live residual is always available if the pipeline produces it
+    const bool hasLiveResidual = isSidechainMode && residualSynth_.isPrepared();
+
+    // For sidechain mode: if a new live frame arrived this block, load it into
+    // the oscillator bank and residual synth. This happens once per process() call
+    // (not per-sample) since the live pipeline produces frames at STFT hop rate.
+    if (isSidechainMode && currentLiveFrame_.f0 > 0.0f)
+    {
+        // Apply confidence-gated freeze (FR-010, FR-052) to live frames
+        float recoveryThreshold = isFrozen_
+            ? (kConfidenceThreshold + kConfidenceHysteresis)
+            : kConfidenceThreshold;
+
+        if (currentLiveFrame_.f0Confidence >= recoveryThreshold)
+        {
+            if (isFrozen_)
+            {
+                isFrozen_ = false;
+                freezeRecoveryOldLevel_ = oscillatorBank_.process();
+                freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
+            }
+            lastGoodFrame_ = currentLiveFrame_;
+
+            // Calculate target pitch with pitch bend
+            float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+            float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+            float targetPitch = basePitch * bendRatio;
+            oscillatorBank_.loadFrame(currentLiveFrame_, targetPitch);
+
+            // Load live residual frame (FR-016: same controls as sample mode)
+            if (residualSynth_.isPrepared())
+            {
+                residualSynth_.loadFrame(
+                    currentLiveResidualFrame_,
+                    brightnessSmoother_.getCurrentValue(),
+                    transientEmphasisSmoother_.getCurrentValue());
+            }
+        }
+        else
+        {
+            // FR-052: Hold last known-good frame
+            isFrozen_ = true;
+        }
+    }
 
     // --- Process each sample ---
     bool hasSoundOutput = false;
+    const bool hasResidual = isSidechainMode ? hasLiveResidual : hasSampleResidual;
 
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
-        // --- Frame advancement (FR-047) ---
-        if (hopSizeInSamples > 0 && totalFrames > 0)
+        // --- Frame advancement (FR-047) -- only in sample mode ---
+        if (!isSidechainMode && hopSizeInSamples > 0 && totalFrames > 0)
         {
             frameSampleCounter_++;
             if (frameSampleCounter_ >= hopSizeInSamples &&
@@ -255,7 +414,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 const auto& frame = analysis->getFrame(currentFrameIndex_);
 
                 // Confidence-gated freeze (FR-052) with hysteresis (FR-053)
-                // Use higher threshold for recovery to prevent oscillation
                 float recoveryThreshold = isFrozen_
                     ? (kConfidenceThreshold + kConfidenceHysteresis)
                     : kConfidenceThreshold;
@@ -264,24 +422,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 {
                     if (isFrozen_)
                     {
-                        // Recovery from freeze: capture current output level
-                        // and start crossfade (FR-053)
                         isFrozen_ = false;
                         freezeRecoveryOldLevel_ = oscillatorBank_.process();
-                        // Re-process will happen below, but we need the snapshot
-                        // before loading new frame
                         freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
                     }
                     lastGoodFrame_ = frame;
 
-                    // Calculate target pitch with pitch bend
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                     float targetPitch = basePitch * bendRatio;
                     oscillatorBank_.loadFrame(frame, targetPitch);
 
-                    // M2: Load residual frame (FR-017: synchronized advancement)
-                    if (hasResidual)
+                    if (hasSampleResidual)
                     {
                         residualSynth_.loadFrame(
                             analysis->getResidualFrame(currentFrameIndex_),
@@ -291,9 +443,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
                 else
                 {
-                    // FR-052: Hold last known-good frame
                     isFrozen_ = true;
-                    // Don't advance -- oscillator bank keeps current state
                 }
             }
         }
@@ -406,8 +556,11 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     const SampleAnalysis* analysis =
         currentAnalysis_.load(std::memory_order_acquire);
 
-    // FR-055: No sample loaded -> no sound
-    if (!analysis || analysis->frames.empty())
+    const bool isSidechainMode =
+        inputSource_.load(std::memory_order_relaxed) > 0.5f;
+
+    // FR-055: No sample loaded (sample mode) or no live frame (sidechain mode) -> no sound
+    if (!isSidechainMode && (!analysis || analysis->frames.empty()))
         return;
 
     // FR-054: Monophonic -- if note already active, capture current output
@@ -435,28 +588,49 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     currentFrameIndex_ = 0;
     frameSampleCounter_ = 0;
 
-    // Load initial frame
-    const auto& frame = analysis->getFrame(0);
-    lastGoodFrame_ = frame;
-
     // Calculate target pitch with pitch bend
     float basePitch = Krate::DSP::midiNoteToFrequency(noteNumber);
     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
     float targetPitch = basePitch * bendRatio;
 
-    // Reset oscillator bank for new note and load first frame
+    // Reset oscillator bank for new note
     oscillatorBank_.reset();
-    oscillatorBank_.loadFrame(frame, targetPitch);
 
-    // M2: Load initial residual frame (FR-017)
-    if (!analysis->residualFrames.empty() && residualSynth_.isPrepared())
+    if (isSidechainMode)
     {
-        residualSynth_.reset();
-        // Use current smoothed brightness/transient values for initial frame
-        residualSynth_.loadFrame(
-            analysis->getResidualFrame(0),
-            brightnessSmoother_.getCurrentValue(),
-            transientEmphasisSmoother_.getCurrentValue());
+        // Load current live frame if available
+        if (currentLiveFrame_.f0 > 0.0f)
+        {
+            lastGoodFrame_ = currentLiveFrame_;
+            oscillatorBank_.loadFrame(currentLiveFrame_, targetPitch);
+
+            // Load live residual frame
+            if (residualSynth_.isPrepared())
+            {
+                residualSynth_.reset();
+                residualSynth_.loadFrame(
+                    currentLiveResidualFrame_,
+                    brightnessSmoother_.getCurrentValue(),
+                    transientEmphasisSmoother_.getCurrentValue());
+            }
+        }
+    }
+    else
+    {
+        // Sample mode: load first frame from analysis
+        const auto& frame = analysis->getFrame(0);
+        lastGoodFrame_ = frame;
+        oscillatorBank_.loadFrame(frame, targetPitch);
+
+        // M2: Load initial residual frame (FR-017)
+        if (analysis && !analysis->residualFrames.empty() && residualSynth_.isPrepared())
+        {
+            residualSynth_.reset();
+            residualSynth_.loadFrame(
+                analysis->getResidualFrame(0),
+                brightnessSmoother_.getCurrentValue(),
+                transientEmphasisSmoother_.getCurrentValue());
+        }
     }
 }
 
@@ -622,6 +796,20 @@ void Processor::processParameterChanges(
                 transientEmphasis_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
+            case kInputSourceId:
+                inputSource_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kLatencyModeId:
+            {
+                auto newMode = static_cast<float>(value) > 0.5f
+                    ? LatencyMode::HighPrecision
+                    : LatencyMode::LowLatency;
+                latencyMode_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                liveAnalysis_.setLatencyMode(newMode);
+                break;
+            }
             default:
                 break;
             }
@@ -636,10 +824,18 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
     Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts)
 {
-    if (numIns == 0 && numOuts == 1 &&
-        outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
+    // Accept: 0 or 1 input (sidechain optional), 1 stereo output
+    if (numOuts != 1 || outputs[0] != Steinberg::Vst::SpeakerArr::kStereo)
+        return Steinberg::kResultFalse;
+
+    if (numIns == 0)
         return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
-    }
+
+    if (numIns == 1 &&
+        (inputs[0] == Steinberg::Vst::SpeakerArr::kStereo ||
+         inputs[0] == Steinberg::Vst::SpeakerArr::kMono))
+        return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
+
     return Steinberg::kResultFalse;
 }
 
@@ -664,8 +860,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M2: version 2 (FR-027)
-    streamer.writeInt32(2);
+    // Write state version -- M3: version 3 (sidechain parameters)
+    streamer.writeInt32(3);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -728,6 +924,12 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
         streamer.writeInt32(0); // analysisFFTSize
         streamer.writeInt32(0); // analysisHopSize
     }
+
+    // --- M3 parameters (sidechain) ---
+    streamer.writeInt32(static_cast<Steinberg::int32>(
+        inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0));
+    streamer.writeInt32(static_cast<Steinberg::int32>(
+        latencyMode_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0));
 
     return Steinberg::kResultOk;
 }
@@ -901,6 +1103,32 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
             residualLevel_.store(0.5f);      // plain 1.0
             residualBrightness_.store(0.5f); // plain 0.0 (neutral)
             transientEmphasis_.store(0.0f);  // plain 0.0 (no boost)
+        }
+
+        // --- M3 parameters (sidechain) ---
+        if (version >= 3)
+        {
+            Steinberg::int32 inputSourceInt = 0;
+            Steinberg::int32 latencyModeInt = 0;
+            if (streamer.readInt32(inputSourceInt))
+                inputSource_.store(inputSourceInt > 0 ? 1.0f : 0.0f);
+            if (streamer.readInt32(latencyModeInt))
+            {
+                latencyMode_.store(latencyModeInt > 0 ? 1.0f : 0.0f);
+                // T078: Apply loaded latency mode to the live analysis pipeline
+                auto restoredMode = latencyModeInt > 0
+                    ? LatencyMode::HighPrecision
+                    : LatencyMode::LowLatency;
+                liveAnalysis_.setLatencyMode(restoredMode);
+            }
+        }
+        else
+        {
+            // Default to sample mode, low latency
+            inputSource_.store(0.0f);   // Sample
+            latencyMode_.store(0.0f);   // LowLatency
+            // Ensure pipeline is in default low-latency mode
+            liveAnalysis_.setLatencyMode(LatencyMode::LowLatency);
         }
     }
 

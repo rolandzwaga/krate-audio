@@ -390,7 +390,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
 
     // Item 1: Read and validate version
     Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version) || version != 1)
+    if (!streamer.readInt32(version) || version < 1 || version > Ruinae::kCurrentStateVersion)
         return false;
 
     bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
@@ -471,7 +471,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
     if (!arpOnly) editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
 
     // Item 37: Arp params (includes all lane step data) - ALWAYS applied
-    loadArpParamsToController(streamer, setParam);
+    loadArpParamsToController(streamer, setParam, version);
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views

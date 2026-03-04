@@ -125,6 +125,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     // - Event input (MIDI notes)
     // - Stereo audio output (no audio input)
     addEventInput(STR16("Event Input"));
+    addEventOutput(STR16("MIDI Output"));
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
     // Pre-allocate skip event IMessages (Phase 11c, FR-012)
@@ -375,6 +376,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         size_t numArpEvents = arpCore_.processBlock(arpCtx, arpEvents_);
 
         // Route arp events to engine (FR-007)
+        const bool midiOutEnabled = arpParams_.midiOut.load(std::memory_order_relaxed);
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
@@ -382,8 +384,33 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 logTGate("[TGATE] >>> arp noteOn note=%d vel=%d legato=%d (gate will reset)\n", evt.note, evt.velocity, evt.legato ? 1 : 0);
 #endif
                 engine_.noteOn(evt.note, evt.velocity, evt.legato);
+                if (midiOutEnabled && data.outputEvents) {
+                    Steinberg::Vst::Event e{};
+                    e.busIndex = 0;
+                    e.sampleOffset = evt.sampleOffset;
+                    e.type = Steinberg::Vst::Event::kNoteOnEvent;
+                    e.noteOn.channel = 0;
+                    e.noteOn.pitch = evt.note;
+                    e.noteOn.velocity = evt.velocity / 127.0f;
+                    e.noteOn.tuning = 0.0f;
+                    e.noteOn.length = 0;
+                    e.noteOn.noteId = -1;
+                    data.outputEvents->addEvent(e);
+                }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
                 engine_.noteOff(evt.note);
+                if (midiOutEnabled && data.outputEvents) {
+                    Steinberg::Vst::Event e{};
+                    e.busIndex = 0;
+                    e.sampleOffset = evt.sampleOffset;
+                    e.type = Steinberg::Vst::Event::kNoteOffEvent;
+                    e.noteOff.channel = 0;
+                    e.noteOff.pitch = evt.note;
+                    e.noteOff.velocity = 0.0f;
+                    e.noteOff.noteId = -1;
+                    e.noteOff.tuning = 0.0f;
+                    data.outputEvents->addEvent(e);
+                }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::kSkip) {
                 // 081-interaction-polish: send skip event to controller (FR-007, FR-008)
                 // evt.note carries the step index (0-31)
@@ -729,7 +756,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         Steinberg::int32 version = 0;
         if (!streamer.readInt32(version))
             return Steinberg::kResultTrue;
-        if (version != 1)
+        if (version < 1 || version > kCurrentStateVersion)
             return Steinberg::kResultTrue;
 
         // Load all parameter packs into atomics (safe from any thread)
@@ -804,7 +831,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             harmonizerEnabled_.store(i8 != 0, std::memory_order_relaxed);
 
         // Arpeggiator params
-        loadArpParams(arpParams_, streamer);
+        loadArpParams(arpParams_, streamer, version);
     }
 
     // --- Phase 2: Defer voiceRoutes + engine/arp reset to audio thread ---
@@ -837,7 +864,7 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
 
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version)) return;
-    if (version != 1) return;
+    if (version < 1 || version > kCurrentStateVersion) return;
 
     // Skip past all atomic parameter packs to reach voiceRoutes_
     // (params were already applied in setState on the UI thread)

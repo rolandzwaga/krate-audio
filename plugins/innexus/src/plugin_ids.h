@@ -38,7 +38,7 @@ static constexpr auto kSubCategories = "Instrument|Synth";
 //   200-299:   Oscillator bank (Inharmonicity, partial count, etc.)
 //   300-399:   Musical control (Freeze, morph, harmonic filter, etc.)
 //   400-499:   Residual model (Mix, brightness, transient emphasis)
-//   500-599:   Harmonic Memory (Snapshot slots, capture, recall)
+//   500-599:   Sidechain / Live Analysis (M3)
 //   600-699:   Modulators (LFO targets, evolution engine)
 //   700-799:   Output (Stereo spread, voice management)
 // ==============================================================================
@@ -58,6 +58,28 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kResidualLevelId = 401,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
     kResidualBrightnessId = 402,   // plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.5)
     kTransientEmphasisId = 403,    // plain 0.0-2.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.0)
+
+    // Sidechain / Live Analysis (500-599) -- M3
+    kInputSourceId = 500,          // 0 = Sample, 1 = Sidechain (StringListParameter)
+    kLatencyModeId = 501,          // 0 = Low Latency, 1 = High Precision (StringListParameter)
+};
+
+// ==============================================================================
+// Input Source Enum (M3: Live Sidechain Mode)
+// ==============================================================================
+enum class InputSource : int
+{
+    Sample = 0,
+    Sidechain = 1
+};
+
+// ==============================================================================
+// Latency Mode Enum (M3: Live Sidechain Mode)
+// ==============================================================================
+enum class LatencyMode : int
+{
+    LowLatency = 0,
+    HighPrecision = 1
 };
 
 } // namespace Innexus

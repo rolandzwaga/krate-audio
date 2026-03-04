@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 1;
+static constexpr int32_t kStateVersion = 2;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -927,6 +927,9 @@ struct ArpState {
     int32_t rootNote = 0;           // 0=C, 1=C#, ..., 11=B
     int32_t scaleQuantizeInput = 0; // bool as int32
 
+    // MIDI output
+    int32_t midiOut = 0;            // bool as int32, default off
+
     ArpState() {
         // Velocity defaults to 1.0
         for (auto& step : velocityLaneSteps)
@@ -1008,6 +1011,9 @@ struct ArpState {
         w.writeInt32(scaleType);
         w.writeInt32(rootNote);
         w.writeInt32(scaleQuantizeInput);
+
+        // MIDI output
+        w.writeInt32(midiOut);
     }
 };
 

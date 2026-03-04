@@ -9,6 +9,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **Iterum**: Delay plugin at `plugins/iterum/`
 - **Disrumpo**: Multi-band distortion plugin at `plugins/disrumpo/`
 - **Ruinae**: Synthesizer plugin at `plugins/ruinae/`
+- **Innexus**: Harmonic analysis/resynthesis instrument at `plugins/innexus/` (AU type: `aumu`)
 - **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
@@ -37,6 +38,10 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 │   ├── ruinae/               # Ruinae synthesizer plugin
 │   │   ├── src/              # Plugin source
 │   │   └── tests/            # Plugin tests
+│   ├── innexus/              # Innexus harmonic resynthesis instrument
+│   │   ├── src/              # Plugin source
+│   │   ├── tests/            # Plugin tests
+│   │   └── resources/        # UI, AU/AUv3 config
 │   └── shared/               # Shared plugin infrastructure
 │       ├── src/              # Presets, UI components, MIDI, platform
 │       └── tests/            # Shared tests
@@ -236,6 +241,17 @@ plugins/ruinae/                   # Ruinae synthesizer plugin
 │   └── parameters/               # Per-section param helpers
 └── tests/
 
+plugins/innexus/                  # Innexus harmonic resynthesis instrument
+├── src/
+│   ├── entry.cpp, plugin_ids.h, version.h
+│   ├── processor/                # Audio processor (instrument: MIDI in, stereo out)
+│   ├── controller/               # UI controller
+│   ├── dsp/                      # Plugin-local DSP (sample analyzer, live analysis pipeline)
+│   └── parameters/               # Parameter registration helpers
+├── tests/
+│   └── unit/{processor,vst}/
+└── resources/                    # UI, AU/AUv3 config, win32 resources
+
 plugins/shared/                   # Shared plugin infrastructure
 ├── src/
 │   ├── preset/                   # Preset manager, data source, browser logic
@@ -321,6 +337,9 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 # Ruinae
 tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"
+
+# Innexus
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -380,6 +399,7 @@ build/windows-x64-release/bin/Release/dsp_tests.exe
 "$CMAKE" --build build/windows-x64-release --config Release --target plugin_tests    # Iterum
 "$CMAKE" --build build/windows-x64-release --config Release --target disrumpo_tests  # Disrumpo
 "$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests    # Ruinae
+"$CMAKE" --build build/windows-x64-release --config Release --target innexus_tests   # Innexus
 "$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
 
 # Run all tests via CTest
@@ -394,6 +414,7 @@ ctest --test-dir build/windows-x64-release -C Release --output-on-failure
 - `build/windows-x64-release/VST3/Release/Iterum.vst3/`
 - `build/windows-x64-release/VST3/Release/Disrumpo.vst3/`
 - `build/windows-x64-release/VST3/Release/Ruinae.vst3/`
+- `build/windows-x64-release/VST3/Release/Innexus.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -451,6 +472,7 @@ Use clang-tidy for static analysis to catch bugs, performance issues, and style 
 ./tools/run-clang-tidy.ps1 -Target iterum -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja
 
 # Apply automatic fixes (use with caution, review changes)
 ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
@@ -482,10 +504,12 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 | Add Iterum parameter | plugins/iterum/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Disrumpo parameter | plugins/disrumpo/src/plugin_ids.h → processor → controller → uidesc |
 | Add Ruinae parameter | plugins/ruinae/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Innexus parameter | plugins/innexus/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
 | Add Ruinae test | plugins/ruinae/tests/unit/ |
+| Add Innexus test | plugins/innexus/tests/unit/{processor,vst}/ |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |

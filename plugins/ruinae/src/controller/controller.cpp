@@ -296,7 +296,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         return Steinberg::kResultTrue; // Empty stream, keep defaults
     }
 
-    if (version != 1) {
+    if (version < 1 || version > Ruinae::kCurrentStateVersion) {
         return Steinberg::kResultTrue; // Unknown version, keep defaults
     }
 
@@ -377,7 +377,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
 
     // Arpeggiator params (FR-012) -- backward compat: silently returns on
     // truncated/old streams, leaving arp controller params at defaults
-    loadArpParamsToController(streamer, setParam);
+    loadArpParamsToController(streamer, setParam, version);
 
     bulkParamLoad_ = false;  // Re-enable per-param view updates
     syncAllViews();           // Single batch sync of all custom views

@@ -20,12 +20,19 @@ add_executable(innexus_tests
     # Residual integration tests (M2 Phases 10-11)
     unit/processor/residual_integration_tests.cpp
 
+    # Live analysis pipeline tests (M3 Phase 12)
+    unit/processor/live_analysis_pipeline_tests.cpp
+    unit/processor/sidechain_integration_tests.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
 
     # Sample analyzer implementation
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/sample_analyzer.cpp
+
+    # Live analysis pipeline implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/live_analysis_pipeline.cpp
 
     # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp

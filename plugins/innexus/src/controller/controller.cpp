@@ -78,6 +78,21 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(transientParam);
 
+    // M3 Sidechain parameters (FR-002, FR-004)
+    auto* inputSourceParam = new Steinberg::Vst::StringListParameter(
+        STR16("Input Source"), kInputSourceId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    inputSourceParam->appendString(STR16("Sample"));
+    inputSourceParam->appendString(STR16("Sidechain"));
+    parameters.addParameter(inputSourceParam);
+
+    auto* latencyModeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Latency Mode"), kLatencyModeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    latencyModeParam->appendString(STR16("Low Latency"));
+    latencyModeParam->appendString(STR16("High Precision"));
+    parameters.addParameter(latencyModeParam);
+
     return Steinberg::kResultOk;
 }
 
@@ -181,6 +196,53 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 double normalized = static_cast<double>(
                     std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
                 setParamNormalized(kTransientEmphasisId, normalized);
+            }
+        }
+
+        // Controller needs to skip residual frames data to reach M3 parameters
+        // The processor state contains residual frame data between M2 and M3 sections
+        if (version >= 2)
+        {
+            // Skip residual frames block (mirrors processor getState format)
+            Steinberg::int32 residualFrameCount = 0;
+            Steinberg::int32 analysisFFTSizeInt = 0;
+            Steinberg::int32 analysisHopSizeInt = 0;
+
+            if (streamer.readInt32(residualFrameCount) &&
+                streamer.readInt32(analysisFFTSizeInt) &&
+                streamer.readInt32(analysisHopSizeInt) &&
+                residualFrameCount > 0)
+            {
+                // Skip each frame: 16 floats (bandEnergies) + 1 float (totalEnergy) + 1 int8 (transientFlag)
+                for (Steinberg::int32 f = 0; f < residualFrameCount; ++f)
+                {
+                    for (size_t b = 0; b < 16; ++b) // kResidualBands = 16
+                    {
+                        float skipFloat = 0.0f;
+                        streamer.readFloat(skipFloat);
+                    }
+                    float skipFloat = 0.0f;
+                    streamer.readFloat(skipFloat); // totalEnergy
+                    Steinberg::int8 skipByte = 0;
+                    streamer.readInt8(skipByte); // transientFlag
+                }
+            }
+        }
+
+        // M3: Read sidechain parameters if version >= 3
+        if (version >= 3)
+        {
+            Steinberg::int32 inputSourceInt = 0;
+            Steinberg::int32 latencyModeInt = 0;
+            if (streamer.readInt32(inputSourceInt))
+            {
+                setParamNormalized(kInputSourceId,
+                    inputSourceInt > 0 ? 1.0 : 0.0);
+            }
+            if (streamer.readInt32(latencyModeInt))
+            {
+                setParamNormalized(kLatencyModeId,
+                    latencyModeInt > 0 ? 1.0 : 0.0);
             }
         }
     }

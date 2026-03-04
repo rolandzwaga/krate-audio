@@ -21,6 +21,7 @@
 #include "plugin_ids.h"
 #include "dsp/sample_analysis.h"
 #include "dsp/sample_analyzer.h"
+#include "dsp/live_analysis_pipeline.h"
 
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
@@ -31,6 +32,7 @@
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <string>
@@ -129,6 +131,18 @@ public:
         return transientEmphasis_.load(std::memory_order_relaxed);
     }
 
+    /// @brief Get current input source (TEST ONLY).
+    float getInputSource() const
+    {
+        return inputSource_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current latency mode (TEST ONLY).
+    float getLatencyMode() const
+    {
+        return latencyMode_.load(std::memory_order_relaxed);
+    }
+
     /// @brief Get current residual frame count from analysis (TEST ONLY).
     /// Returns 0 if no analysis is loaded or analysis has no residual frames.
     size_t getResidualFrameCount() const
@@ -136,6 +150,18 @@ public:
         const auto* analysis = currentAnalysis_.load(std::memory_order_acquire);
         if (!analysis) return 0;
         return analysis->residualFrames.size();
+    }
+
+    /// @brief Get source crossfade samples remaining (TEST ONLY).
+    int getSourceCrossfadeSamplesRemaining() const
+    {
+        return sourceCrossfadeSamplesRemaining_;
+    }
+
+    /// @brief Get source crossfade length in samples (TEST ONLY).
+    int getSourceCrossfadeLengthSamples() const
+    {
+        return sourceCrossfadeLengthSamples_;
     }
 
 private:
@@ -161,6 +187,10 @@ private:
     std::atomic<float> residualLevel_{0.5f};       // normalized, default = 1.0 plain
     std::atomic<float> residualBrightness_{0.5f};  // normalized, default = 0.0 plain = neutral
     std::atomic<float> transientEmphasis_{0.0f};   // normalized, default = 0.0 plain
+
+    // M3 Sidechain parameters (FR-002, FR-004)
+    std::atomic<float> inputSource_{0.0f};         // 0.0 = Sample, 1.0 = Sidechain
+    std::atomic<float> latencyMode_{0.0f};         // 0.0 = LowLatency, 1.0 = HighPrecision
 
     // =========================================================================
     // DSP Members (T081)
@@ -238,6 +268,31 @@ private:
     // =========================================================================
     static constexpr float kMinAntiClickMs = 20.0f; // 20ms minimum
     static constexpr float kAntiClickTimeSec = 0.020f; // 20ms crossfade for voice steal
+
+    // =========================================================================
+    // Sidechain Routing (FR-001, FR-011, FR-014)
+    // =========================================================================
+    /// Pre-allocated stereo-to-mono downmix buffer (max 8192 samples)
+    std::array<float, 8192> sidechainBuffer_{};
+
+    /// Crossfade state for input source switching (FR-011)
+    int sourceCrossfadeSamplesRemaining_ = 0;
+    int sourceCrossfadeLengthSamples_ = 0;
+    float sourceCrossfadeOldLevel_ = 0.0f;
+
+    /// Tracks previous input source to detect switches
+    int previousInputSource_ = 0; // 0 = Sample
+
+    // =========================================================================
+    // Live Analysis Pipeline (FR-003, FR-005, FR-008, FR-009)
+    // =========================================================================
+    LiveAnalysisPipeline liveAnalysis_;
+
+    /// Latest harmonic frame from live analysis
+    Krate::DSP::HarmonicFrame currentLiveFrame_{};
+
+    /// Latest residual frame from live analysis
+    Krate::DSP::ResidualFrame currentLiveResidualFrame_{};
 
     // =========================================================================
     // Processing State

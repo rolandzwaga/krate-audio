@@ -16,6 +16,10 @@
 //   kResidualLevelId (401): Residual output level, plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0
 //   kResidualBrightnessId (402): Spectral tilt, plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0
 //   kTransientEmphasisId (403): Transient boost, plain 0.0-2.0, normalized 0.0-1.0, default plain 0.0
+//
+// M3 Sidechain Parameters (registered in controller.cpp, handled in processor.cpp):
+//   kInputSourceId (500): Input source selector, StringListParameter: "Sample"/"Sidechain", default 0 (Sample)
+//   kLatencyModeId (501): Latency mode selector, StringListParameter: "Low Latency"/"High Precision", default 0 (LowLatency)
 // ==============================================================================
 
 #include "plugin_ids.h"
