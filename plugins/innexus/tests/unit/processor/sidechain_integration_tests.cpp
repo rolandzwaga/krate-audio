@@ -453,7 +453,9 @@ TEST_CASE("Sidechain: sidechain bus is registered as auxiliary audio input",
     REQUIRE(proc.getBusInfo(kAudio, kInput, 0, busInfo) == kResultOk);
     REQUIRE(busInfo.busType == BusTypes::kAux);
     REQUIRE(busInfo.channelCount == 2); // stereo
-    REQUIRE((busInfo.flags & BusInfo::kDefaultActive) != 0);
+    // Sidechain bus must NOT be default-active (AU wrapper requires inactive-by-default
+    // for auxiliary buses so auval can initialize the instrument without inputs)
+    REQUIRE((busInfo.flags & BusInfo::kDefaultActive) == 0);
 
     REQUIRE(proc.terminate() == kResultOk);
 }

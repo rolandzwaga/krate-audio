@@ -57,12 +57,14 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
     // Stereo audio output
     addAudioOutput(STR16("Stereo Out"), Steinberg::Vst::SpeakerArr::kStereo);
 
-    // Sidechain audio input (FR-001: auxiliary stereo bus, default active)
+    // Sidechain audio input (FR-001: auxiliary stereo bus, NOT default-active)
+    // Must be inactive by default so AU wrapper can initialize without inputs.
+    // Host activates this bus when user routes audio to the sidechain.
     addAudioInput(
         STR16("Sidechain"),
         Steinberg::Vst::SpeakerArr::kStereo,
         Steinberg::Vst::BusTypes::kAux,
-        Steinberg::Vst::BusInfo::kDefaultActive);
+        0 /* not default active */);
 
     return Steinberg::kResultOk;
 }
