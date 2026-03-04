@@ -16,7 +16,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 - Layer 4 / Plugin-local: 1 new file (full Innexus engine wiring all stages)
 
 **Milestones:**
-- **Milestone 1 (Phases 1–9):** Core playable instrument — sample analysis → MIDI-driven oscillator bank
+- **Milestone 1 (Phases 1–9):** Core playable instrument — sample analysis → MIDI-driven oscillator bank ✅ COMPLETE
 - **Milestone 2 (Phases 10–11):** Residual/noise model — deterministic + stochastic decomposition
 - **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis
 - **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering
@@ -80,7 +80,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 
 ## Implementation Phases
 
-### Phase 1: Plugin Scaffold & Build Integration
+### Phase 1: Plugin Scaffold & Build Integration ✅
 
 **Goal:** Create the Innexus plugin entry in the monorepo with an empty but buildable processor/controller pair.
 
@@ -103,7 +103,7 @@ Dependencies: VST3 SDK, shared plugin infrastructure
 
 ---
 
-### Phase 2: Pre-Processing Pipeline (Architecture Stage 1)
+### Phase 2: Pre-Processing Pipeline (Architecture Stage 1) ✅
 
 **Goal:** Prepare incoming audio for reliable harmonic extraction.
 
@@ -127,7 +127,7 @@ Dependencies: Phase 1
 
 ---
 
-### Phase 3: F0 Tracking — YIN Algorithm (Architecture Stage 2)
+### Phase 3: F0 Tracking — YIN Algorithm (Architecture Stage 2) ✅
 
 **Goal:** Implement real-time fundamental frequency estimation.
 
@@ -172,7 +172,7 @@ struct F0Estimate {
 
 ---
 
-### Phase 4: Multi-Resolution STFT Analysis (Architecture Stage 3, part 1)
+### Phase 4: Multi-Resolution STFT Analysis (Architecture Stage 3, part 1) ✅
 
 **Goal:** Run dual-window spectral analysis for the partial tracker.
 
@@ -202,7 +202,7 @@ Dependencies: Phase 2, existing STFT infrastructure
 
 ---
 
-### Phase 5: Partial Detection & Tracking (Architecture Stage 3, part 2)
+### Phase 5: Partial Detection & Tracking (Architecture Stage 3, part 2) ✅
 
 **Goal:** Detect spectral peaks, assign them to harmonic tracks, and maintain frame-to-frame continuity.
 
@@ -241,7 +241,7 @@ struct Partial {
 
 ---
 
-### Phase 6: Harmonic Model Builder (Architecture Stage 4)
+### Phase 6: Harmonic Model Builder (Architecture Stage 4) ✅
 
 **Goal:** Convert raw partial measurements into a stable, musically useful representation.
 
@@ -277,7 +277,7 @@ struct HarmonicFrame {
 
 ---
 
-### Phase 7: Harmonic Oscillator Bank (Architecture Stage 5)
+### Phase 7: Harmonic Oscillator Bank (Architecture Stage 5) ✅
 
 **Goal:** Synthesize audio from the harmonic model using Gordon-Smith MCF oscillators.
 
@@ -327,7 +327,7 @@ Recalculated on pitch change, not per sample.
 
 ---
 
-### Phase 8: Sample Mode Integration
+### Phase 8: Sample Mode Integration ✅
 
 **Goal:** Load an audio file, run it through the analysis pipeline, and store the resulting harmonic model for playback.
 
@@ -347,7 +347,7 @@ Dependencies: Phases 2–6
 
 ---
 
-### Phase 9: Basic MIDI Integration & Playback
+### Phase 9: Basic MIDI Integration & Playback ✅
 
 **Goal:** Wire MIDI input to the oscillator bank for a playable instrument.
 
@@ -367,7 +367,7 @@ Dependencies: Phase 7 (oscillator bank), Phase 8 (sample analysis)
 
 **Input assumption:** The analysis pipeline assumes monophonic source material — a single dominant fundamental frequency. Polyphonic input (chords, dense pads) will produce unreliable harmonic models because the harmonic sieve cannot disambiguate overlapping harmonic series.
 
-**This completes Milestone 1: the core playable instrument.**
+**This completes Milestone 1: the core playable instrument.** ✅
 
 ---
 
@@ -698,7 +698,7 @@ Each milestone is intended as one `speckit.specify` run:
 
 | Milestone | Phases | Spec Scope |
 |-----------|--------|------------|
-| M1 | 1–9 | Core playable instrument (sample → analysis → MIDI synth) |
+| M1 | 1–9 | Core playable instrument (sample → analysis → MIDI synth) ✅ |
 | M2 | 10–11 | Residual/noise model (SMS decomposition) |
 | M3 | 12 | Live sidechain mode |
 | M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) |
