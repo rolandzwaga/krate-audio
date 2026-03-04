@@ -60,6 +60,8 @@ tools/*.txt
 /plugins/disrumpo/src/version.h
 /plugins/ruinae/resources/win32resource.rc
 /plugins/ruinae/src/version.h
+/plugins/innexus/resources/win32resource.rc
+/plugins/innexus/src/version.h
 tmpclaude-*
 /compile_commands.json
 .cache/
