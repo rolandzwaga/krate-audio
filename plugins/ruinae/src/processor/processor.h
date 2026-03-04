@@ -169,6 +169,11 @@ public:
     // Factory
     // ===========================================================================
 
+    // --- MIDI Event Dispatcher Callbacks ---
+    // Used by Krate::Plugins::dispatchMidiEvents (midi_event_dispatcher.h)
+    void onNoteOn(int16_t pitch, float velocity);
+    void onNoteOff(int16_t pitch);
+
     static FUnknown* createInstance(void*) {
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }

@@ -4,9 +4,10 @@
 
 #include "processor.h"
 
+#include "midi/midi_event_dispatcher.h"
+
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
-#include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "pluginterfaces/base/ibstream.h"
 #include "base/source/fstreamer.h"
 
@@ -315,63 +316,27 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 // ==============================================================================
 void Processor::processEvents(Steinberg::Vst::IEventList* events)
 {
-    if (!events)
-        return;
+    Krate::Plugins::dispatchMidiEvents(events, *this);
+}
 
-    const Steinberg::int32 numEvents = events->getEventCount();
+// ==============================================================================
+// MIDI Dispatcher Callbacks
+// ==============================================================================
+void Processor::onNoteOn(int16_t pitch, float velocity)
+{
+    handleNoteOn(static_cast<int>(pitch), velocity);
+}
 
-    for (Steinberg::int32 i = 0; i < numEvents; ++i)
-    {
-        Steinberg::Vst::Event event{};
-        if (events->getEvent(i, event) != Steinberg::kResultTrue)
-            continue;
+void Processor::onNoteOff([[maybe_unused]] int16_t pitch)
+{
+    handleNoteOff(); // Monophonic: pitch ignored
+}
 
-        switch (event.type)
-        {
-        case Steinberg::Vst::Event::kNoteOnEvent:
-        {
-            // Velocity-0 noteOn is treated as noteOff per MIDI convention
-            if (event.noteOn.velocity <= 0.0f)
-            {
-                handleNoteOff();
-            }
-            else
-            {
-                handleNoteOn(
-                    event.noteOn.pitch,
-                    event.noteOn.velocity);
-            }
-            break;
-        }
-
-        case Steinberg::Vst::Event::kNoteOffEvent:
-        {
-            handleNoteOff();
-            break;
-        }
-
-        case Steinberg::Vst::Event::kLegacyMIDICCOutEvent:
-        {
-            // FR-051: Pitch bend handling (T084)
-            if (event.midiCCOut.controlNumber ==
-                Steinberg::Vst::ControllerNumbers::kPitchBend)
-            {
-                // Reconstruct 14-bit value from MSB (value) and LSB (value2)
-                int msb = static_cast<int>(event.midiCCOut.value) & 0x7F;
-                int lsb = static_cast<int>(event.midiCCOut.value2) & 0x7F;
-                int combined = (msb << 7) | lsb;
-                // Map 0-16383 to -1.0..+1.0
-                float normalized = (static_cast<float>(combined) - 8192.0f) / 8192.0f;
-                float bendSemitones = normalized * kPitchBendRangeSemitones;
-                handlePitchBend(bendSemitones);
-            }
-            break;
-        }
-
-        default:
-            break;
-        }
-    }
+void Processor::onPitchBend(float bipolar)
+{
+    float bendSemitones = Krate::DSP::pitchBendToSemitones(
+        bipolar, kPitchBendRangeSemitones);
+    handlePitchBend(bendSemitones);
 }
 
 // ==============================================================================

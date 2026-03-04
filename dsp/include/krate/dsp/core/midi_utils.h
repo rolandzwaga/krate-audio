@@ -170,5 +170,47 @@ enum class VelocityCurve : uint8_t {
     }
 }
 
+// ==============================================================================
+// Pitch Bend Utilities
+// ==============================================================================
+
+/// Decode 14-bit MIDI pitch bend MSB+LSB to bipolar [-1, +1].
+///
+/// Standard MIDI pitch bend encodes as 14-bit value: (MSB << 7) | LSB
+/// with center at 8192. This maps 0..16383 → -1.0..+1.0.
+///
+/// @param msb Pitch bend MSB (0-127, from midiCCOut.value)
+/// @param lsb Pitch bend LSB (0-127, from midiCCOut.value2)
+/// @return Bipolar value in [-1.0, +1.0], where 0.0 is center (MSB=64, LSB=0)
+///
+/// @note Real-time safe: no allocation, no exceptions
+/// @note Constexpr: usable at compile time
+///
+/// @example decodePitchBend(64, 0)   → 0.0   (center)
+/// @example decodePitchBend(127, 127) → ~+1.0 (max up)
+/// @example decodePitchBend(0, 0)    → -1.0  (max down)
+///
+[[nodiscard]] constexpr float decodePitchBend(int msb, int lsb) noexcept {
+    int combined = ((msb & 0x7F) << 7) | (lsb & 0x7F);
+    return (static_cast<float>(combined) - 8192.0f) / 8192.0f;
+}
+
+/// Convert bipolar pitch bend value [-1, +1] to semitones given a range.
+///
+/// @param bipolar Bipolar pitch bend value from decodePitchBend()
+/// @param rangeSemitones Pitch bend range in semitones (e.g. 2.0 for +/-2, 12.0 for +/-12)
+/// @return Pitch bend in semitones
+///
+/// @note Real-time safe: no allocation, no exceptions
+/// @note Constexpr: usable at compile time
+///
+/// @example pitchBendToSemitones(1.0, 12.0)  → 12.0
+/// @example pitchBendToSemitones(-1.0, 2.0)  → -2.0
+/// @example pitchBendToSemitones(0.0, 12.0)  → 0.0
+///
+[[nodiscard]] constexpr float pitchBendToSemitones(float bipolar, float rangeSemitones) noexcept {
+    return bipolar * rangeSemitones;
+}
+
 }  // namespace DSP
 }  // namespace Krate

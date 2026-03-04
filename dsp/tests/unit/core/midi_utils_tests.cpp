@@ -142,3 +142,69 @@ TEST_CASE("velocityToGain converts MIDI velocity to linear gain",
         REQUIRE(compiletimeGain == 1.0f);
     }
 }
+
+// ==============================================================================
+// decodePitchBend Tests
+// ==============================================================================
+
+TEST_CASE("decodePitchBend decodes 14-bit MIDI pitch bend to bipolar",
+          "[dsp][core][midi_utils][decodePitchBend]") {
+
+    SECTION("Center position (MSB=64, LSB=0) returns 0.0") {
+        REQUIRE(decodePitchBend(64, 0) == Approx(0.0f).margin(0.001f));
+    }
+
+    SECTION("Max up (MSB=127, LSB=127) returns approximately +1.0") {
+        // (127 << 7 | 127) = 16383, (16383 - 8192) / 8192 = 0.99988...
+        float result = decodePitchBend(127, 127);
+        REQUIRE(result == Approx(1.0f).margin(0.001f));
+    }
+
+    SECTION("Max down (MSB=0, LSB=0) returns -1.0") {
+        REQUIRE(decodePitchBend(0, 0) == Approx(-1.0f).margin(0.0001f));
+    }
+
+    SECTION("Half up (MSB=96, LSB=0) returns ~+0.5") {
+        // (96 << 7) = 12288, (12288 - 8192) / 8192 = 0.5
+        REQUIRE(decodePitchBend(96, 0) == Approx(0.5f).margin(0.001f));
+    }
+
+    SECTION("Half down (MSB=32, LSB=0) returns ~-0.5") {
+        // (32 << 7) = 4096, (4096 - 8192) / 8192 = -0.5
+        REQUIRE(decodePitchBend(32, 0) == Approx(-0.5f).margin(0.001f));
+    }
+
+    SECTION("Function is constexpr") {
+        constexpr float center = decodePitchBend(64, 0);
+        REQUIRE(center == Approx(0.0f).margin(0.001f));
+    }
+}
+
+// ==============================================================================
+// pitchBendToSemitones Tests
+// ==============================================================================
+
+TEST_CASE("pitchBendToSemitones converts bipolar to semitone offset",
+          "[dsp][core][midi_utils][pitchBendToSemitones]") {
+
+    SECTION("Full up with 12 semitone range returns 12.0") {
+        REQUIRE(pitchBendToSemitones(1.0f, 12.0f) == Approx(12.0f));
+    }
+
+    SECTION("Full down with 2 semitone range returns -2.0") {
+        REQUIRE(pitchBendToSemitones(-1.0f, 2.0f) == Approx(-2.0f));
+    }
+
+    SECTION("Center returns 0.0") {
+        REQUIRE(pitchBendToSemitones(0.0f, 12.0f) == Approx(0.0f));
+    }
+
+    SECTION("Half bend with 12 semitone range returns 6.0") {
+        REQUIRE(pitchBendToSemitones(0.5f, 12.0f) == Approx(6.0f));
+    }
+
+    SECTION("Function is constexpr") {
+        constexpr float result = pitchBendToSemitones(1.0f, 2.0f);
+        REQUIRE(result == Approx(2.0f));
+    }
+}

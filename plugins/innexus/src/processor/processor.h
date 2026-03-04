@@ -62,6 +62,12 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    // --- MIDI Event Dispatcher Callbacks ---
+    // Used by Krate::Plugins::dispatchMidiEvents (midi_event_dispatcher.h)
+    void onNoteOn(int16_t pitch, float velocity);
+    void onNoteOff(int16_t pitch);
+    void onPitchBend(float bipolar);
+
     // --- Public API for analysis (used by setState to trigger re-analysis) ---
     void loadSample(const std::string& filePath);
 

@@ -5,6 +5,8 @@
 #include "processor.h"
 #include "plugin_ids.h"
 
+#include "midi/midi_event_dispatcher.h"
+
 #include "base/source/fstreamer.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -1805,61 +1807,39 @@ void Processor::applyParamsToEngine() {
 // ==============================================================================
 
 void Processor::processEvents(Steinberg::Vst::IEventList* events) {
-    if (!events) {
-        return;
-    }
+    Krate::Plugins::dispatchMidiEvents(events, *this);
+}
 
-    const Steinberg::int32 numEvents = events->getEventCount();
+// ==============================================================================
+// MIDI Dispatcher Callbacks (FR-006)
+// ==============================================================================
+void Processor::onNoteOn(int16_t pitch, float velocity) {
+    auto midiPitch = static_cast<uint8_t>(pitch);
+    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
+
     const bool arpEnabled = arpParams_.enabled.load(std::memory_order_relaxed);
 
-    for (Steinberg::int32 i = 0; i < numEvents; ++i) {
-        Steinberg::Vst::Event event{};
-        if (events->getEvent(i, event) != Steinberg::kResultTrue) {
-            continue;
-        }
-
-        switch (event.type) {
-            case Steinberg::Vst::Event::kNoteOnEvent: {
-                // Velocity-0 noteOn is treated as noteOff per MIDI convention
-                auto pitch = static_cast<uint8_t>(event.noteOn.pitch);
-                auto velocity = static_cast<uint8_t>(
-                    event.noteOn.velocity * 127.0f + 0.5f);
-                if (velocity == 0) {
-                    // FR-006: velocity-0 note-on = note-off, respects arp branch
-                    if (arpEnabled) {
-                        arpCore_.noteOff(pitch);
-                    } else {
-                        engine_.noteOff(pitch);
-                    }
-                } else {
-                    // FR-006: route note-on based on arp enabled state
-                    if (arpEnabled) {
-                        arpCore_.noteOn(pitch, velocity);
-                    } else {
+    // FR-006: route note-on based on arp enabled state
+    if (arpEnabled) {
+        arpCore_.noteOn(midiPitch, midiVelocity);
+    } else {
 #if RUINAE_TGATE_DEBUG
-                        logTGate("[TGATE] >>> noteOn pitch=%d vel=%d (gate will reset)\n", pitch, velocity);
+        logTGate("[TGATE] >>> noteOn pitch=%d vel=%d (gate will reset)\n", midiPitch, midiVelocity);
 #endif
-                        engine_.noteOn(pitch, velocity);
-                    }
-                }
-                break;
-            }
+        engine_.noteOn(midiPitch, midiVelocity);
+    }
+}
 
-            case Steinberg::Vst::Event::kNoteOffEvent: {
-                // FR-006: route note-off based on arp enabled state
-                auto pitch = static_cast<uint8_t>(event.noteOff.pitch);
-                if (arpEnabled) {
-                    arpCore_.noteOff(pitch);
-                } else {
-                    engine_.noteOff(pitch);
-                }
-                break;
-            }
+void Processor::onNoteOff(int16_t pitch) {
+    auto midiPitch = static_cast<uint8_t>(pitch);
 
-            default:
-                // Ignore unsupported event types gracefully
-                break;
-        }
+    const bool arpEnabled = arpParams_.enabled.load(std::memory_order_relaxed);
+
+    // FR-006: route note-off based on arp enabled state
+    if (arpEnabled) {
+        arpCore_.noteOff(midiPitch);
+    } else {
+        engine_.noteOff(midiPitch);
     }
 }
 
