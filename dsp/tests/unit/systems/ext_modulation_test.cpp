@@ -402,7 +402,7 @@ TEST_CASE("ExtModulation: Rungler via Macro3 -> GlobalFilterCutoff",
 // =============================================================================
 
 TEST_CASE("ExtModulation: Global modulation engine performance < 0.5% CPU",
-          "[ext_modulation][performance][SC-002]") {
+          "[.perf][ext_modulation][performance][SC-002]") {
     TestEngineScaffold scaffold;
     scaffold.prepare();
 

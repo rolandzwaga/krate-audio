@@ -9,6 +9,9 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "base/source/fstreamer.h"
 
+#include <algorithm>
+#include <vector>
+
 namespace Innexus {
 
 // ==============================================================================
@@ -32,6 +35,48 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 
     // M1 parameters
     registerInnexusParams(parameters);
+
+    // M2 Residual parameters (FR-021, FR-024)
+    auto* harmonicLevelParam = new Steinberg::Vst::RangeParameter(
+        STR16("Harmonic Level"), kHarmonicLevelId,
+        STR16(""),
+        0.0,    // min plain
+        2.0,    // max plain
+        1.0,    // default plain
+        0,      // stepCount (continuous)
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(harmonicLevelParam);
+
+    auto* residualLevelParam = new Steinberg::Vst::RangeParameter(
+        STR16("Residual Level"), kResidualLevelId,
+        STR16(""),
+        0.0,    // min plain
+        2.0,    // max plain
+        1.0,    // default plain
+        0,      // stepCount (continuous)
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(residualLevelParam);
+
+    // M2 Residual shaping parameters (FR-022, FR-023)
+    auto* brightnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Residual Brightness"), kResidualBrightnessId,
+        STR16("%"),
+        -1.0,   // min plain
+        1.0,    // max plain
+        0.0,    // default plain (neutral)
+        0,      // stepCount (continuous)
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(brightnessParam);
+
+    auto* transientParam = new Steinberg::Vst::RangeParameter(
+        STR16("Transient Emphasis"), kTransientEmphasisId,
+        STR16("%"),
+        0.0,    // min plain
+        2.0,    // max plain
+        0.0,    // default plain (no boost)
+        0,      // stepCount (continuous)
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(transientParam);
 
     return Steinberg::kResultOk;
 }
@@ -94,6 +139,50 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         }
 
         // Skip sample file path (controller does not need it)
+        Steinberg::int32 pathLen = 0;
+        if (streamer.readInt32(pathLen) && pathLen > 0 && pathLen < 4096)
+        {
+            // Skip the path bytes
+            std::vector<char> pathBuf(static_cast<size_t>(pathLen));
+            Steinberg::int32 bytesRead = 0;
+            state->read(pathBuf.data(), pathLen, &bytesRead);
+        }
+
+        // M2: Read residual parameters if version >= 2 (FR-027)
+        if (version >= 2)
+        {
+            // Harmonic Level (plain 0.0-2.0, normalized = plain / 2.0)
+            if (streamer.readFloat(floatVal))
+            {
+                double normalized = static_cast<double>(
+                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+                setParamNormalized(kHarmonicLevelId, normalized);
+            }
+
+            // Residual Level (plain 0.0-2.0, normalized = plain / 2.0)
+            if (streamer.readFloat(floatVal))
+            {
+                double normalized = static_cast<double>(
+                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+                setParamNormalized(kResidualLevelId, normalized);
+            }
+
+            // Residual Brightness (plain -1.0 to +1.0, normalized = (plain + 1.0) / 2.0)
+            if (streamer.readFloat(floatVal))
+            {
+                double normalized = static_cast<double>(
+                    std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+                setParamNormalized(kResidualBrightnessId, normalized);
+            }
+
+            // Transient Emphasis (plain 0.0-2.0, normalized = plain / 2.0)
+            if (streamer.readFloat(floatVal))
+            {
+                double normalized = static_cast<double>(
+                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+                setParamNormalized(kTransientEmphasisId, normalized);
+            }
+        }
     }
 
     return Steinberg::kResultOk;

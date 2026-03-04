@@ -3944,7 +3944,7 @@ TEST_CASE("T031: HarmonizerEngine mode switch from PhaseVocoder to other modes (
 
 // T032: Benchmark test - PhaseVocoder 4-voice CPU measurement (SC-001)
 TEST_CASE("T032: HarmonizerEngine PhaseVocoder 4-voice shared-analysis benchmark (SC-001)",
-          "[systems][harmonizer][shared-analysis][benchmark][SC-001]") {
+          "[.perf][systems][harmonizer][shared-analysis][benchmark][SC-001]") {
     constexpr double sampleRate = 44100.0;
     constexpr std::size_t blockSize = 256;
     constexpr double blockDurationUs =

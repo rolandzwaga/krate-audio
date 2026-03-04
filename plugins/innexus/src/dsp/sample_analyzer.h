@@ -20,6 +20,8 @@
 
 #include "sample_analysis.h"
 
+#include <krate/dsp/processors/residual_analyzer.h>
+
 #include <atomic>
 #include <memory>
 #include <string>

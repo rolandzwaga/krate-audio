@@ -24,6 +24,8 @@
 
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
+#include <krate/dsp/processors/residual_synthesizer.h>
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
 
@@ -103,6 +105,39 @@ public:
         return masterGain_.load(std::memory_order_relaxed);
     }
 
+    /// @brief Get current harmonic level (TEST ONLY).
+    float getHarmonicLevel() const
+    {
+        return harmonicLevel_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current residual level (TEST ONLY).
+    float getResidualLevel() const
+    {
+        return residualLevel_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current residual brightness (TEST ONLY).
+    float getResidualBrightness() const
+    {
+        return residualBrightness_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current transient emphasis (TEST ONLY).
+    float getTransientEmphasis() const
+    {
+        return transientEmphasis_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current residual frame count from analysis (TEST ONLY).
+    /// Returns 0 if no analysis is loaded or analysis has no residual frames.
+    size_t getResidualFrameCount() const
+    {
+        const auto* analysis = currentAnalysis_.load(std::memory_order_acquire);
+        if (!analysis) return 0;
+        return analysis->residualFrames.size();
+    }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -121,10 +156,23 @@ private:
     std::atomic<float> releaseTimeMs_{100.0f};
     std::atomic<float> inharmonicityAmount_{1.0f};
 
+    // M2 Residual parameters (FR-021, FR-022, FR-023)
+    std::atomic<float> harmonicLevel_{0.5f};       // normalized, default = 1.0 plain
+    std::atomic<float> residualLevel_{0.5f};       // normalized, default = 1.0 plain
+    std::atomic<float> residualBrightness_{0.5f};  // normalized, default = 0.0 plain = neutral
+    std::atomic<float> transientEmphasis_{0.0f};   // normalized, default = 0.0 plain
+
     // =========================================================================
     // DSP Members (T081)
     // =========================================================================
     Krate::DSP::HarmonicOscillatorBank oscillatorBank_;
+    Krate::DSP::ResidualSynthesizer residualSynth_;
+
+    // Parameter smoothers (FR-025)
+    Krate::DSP::OnePoleSmoother harmonicLevelSmoother_;
+    Krate::DSP::OnePoleSmoother residualLevelSmoother_;
+    Krate::DSP::OnePoleSmoother brightnessSmoother_;
+    Krate::DSP::OnePoleSmoother transientEmphasisSmoother_;
 
     /// Atomic pointer for lock-free analysis transfer (FR-058)
     std::atomic<SampleAnalysis*> currentAnalysis_{nullptr};

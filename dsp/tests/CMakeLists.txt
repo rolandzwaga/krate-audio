@@ -180,6 +180,9 @@ add_executable(dsp_tests
     unit/processors/dual_stft_tests.cpp
     unit/processors/partial_tracker_tests.cpp
     unit/processors/harmonic_oscillator_bank_tests.cpp
+    unit/processors/residual_types_tests.cpp
+    unit/processors/residual_analyzer_tests.cpp
+    unit/processors/residual_synthesizer_tests.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -479,6 +482,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/dual_stft_tests.cpp
         unit/processors/partial_tracker_tests.cpp
         unit/processors/harmonic_oscillator_bank_tests.cpp
+        unit/processors/residual_types_tests.cpp
+        unit/processors/residual_analyzer_tests.cpp
+        unit/processors/residual_synthesizer_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
