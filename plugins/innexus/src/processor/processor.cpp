@@ -94,6 +94,29 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         // Prepare oscillator bank
         oscillatorBank_.prepare(sampleRate_);
 
+        // Prepare residual synthesizer if analysis is available
+        {
+            const SampleAnalysis* analysis =
+                currentAnalysis_.load(std::memory_order_acquire);
+            if (analysis && !analysis->residualFrames.empty() &&
+                analysis->analysisFFTSize > 0 && analysis->analysisHopSize > 0)
+            {
+                residualSynth_.prepare(
+                    analysis->analysisFFTSize, analysis->analysisHopSize,
+                    static_cast<float>(sampleRate_));
+            }
+        }
+
+        // Configure parameter smoothers (FR-025: 5ms time constant)
+        harmonicLevelSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
+        harmonicLevelSmoother_.snapTo(1.0f); // default plain value
+        residualLevelSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
+        residualLevelSmoother_.snapTo(1.0f); // default plain value
+        brightnessSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
+        brightnessSmoother_.snapTo(0.0f); // default plain value (neutral)
+        transientEmphasisSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
+        transientEmphasisSmoother_.snapTo(0.0f); // default plain value (no boost)
+
         // Compute freeze recovery length
         freezeRecoveryLengthSamples_ = static_cast<int>(
             kFreezeRecoveryTimeSec * static_cast<float>(sampleRate_));
@@ -125,6 +148,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
     else
     {
         oscillatorBank_.reset();
+        residualSynth_.reset();
 
         // SC-010: Clean up any pending deletions when deactivating
         cleanupPendingDeletion();
@@ -192,6 +216,26 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // --- Get master gain ---
     const float gain = masterGain_.load(std::memory_order_relaxed);
 
+    // --- M2: Get residual parameters and set smoother targets (FR-025) ---
+    const float harmLevelNorm = harmonicLevel_.load(std::memory_order_relaxed);
+    const float resLevelNorm = residualLevel_.load(std::memory_order_relaxed);
+    const float harmLevelPlain = harmLevelNorm * 2.0f;  // plain range 0-2
+    const float resLevelPlain = resLevelNorm * 2.0f;    // plain range 0-2
+    harmonicLevelSmoother_.setTarget(harmLevelPlain);
+    residualLevelSmoother_.setTarget(resLevelPlain);
+
+    // Brightness and transient emphasis: set smoother targets from atomics (FR-025)
+    const float brightnessNorm = residualBrightness_.load(std::memory_order_relaxed);
+    const float brightnessPlainTarget = brightnessNorm * 2.0f - 1.0f; // plain range -1 to +1
+    const float transientEmpNorm = transientEmphasis_.load(std::memory_order_relaxed);
+    const float transientEmpPlainTarget = transientEmpNorm * 2.0f;    // plain range 0 to 2
+    brightnessSmoother_.setTarget(brightnessPlainTarget);
+    transientEmphasisSmoother_.setTarget(transientEmpPlainTarget);
+
+    // Check if residual synthesis is available
+    const bool hasResidual = !analysis->residualFrames.empty() &&
+                              residualSynth_.isPrepared();
+
     // --- Process each sample ---
     bool hasSoundOutput = false;
 
@@ -235,6 +279,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                     float targetPitch = basePitch * bendRatio;
                     oscillatorBank_.loadFrame(frame, targetPitch);
+
+                    // M2: Load residual frame (FR-017: synchronized advancement)
+                    if (hasResidual)
+                    {
+                        residualSynth_.loadFrame(
+                            analysis->getResidualFrame(currentFrameIndex_),
+                            brightnessSmoother_.getCurrentValue(),
+                            transientEmphasisSmoother_.getCurrentValue());
+                    }
                 }
                 else
                 {
@@ -246,7 +299,16 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         // --- Generate oscillator bank output ---
-        float sample = oscillatorBank_.process();
+        float harmonicSample = oscillatorBank_.process();
+        float residualSample = hasResidual ? residualSynth_.process() : 0.0f;
+
+        // M2: Mix harmonic and residual (FR-028)
+        float harmLevel = harmonicLevelSmoother_.process();
+        float resLevel = residualLevelSmoother_.process();
+        // Advance brightness/transient smoothers per-sample (FR-025)
+        (void)brightnessSmoother_.process();
+        (void)transientEmphasisSmoother_.process();
+        float sample = harmonicSample * harmLevel + residualSample * resLevel;
 
         // --- Freeze recovery crossfade (FR-053) ---
         if (freezeRecoverySamplesRemaining_ > 0)
@@ -287,6 +349,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 inRelease_ = false;
                 releaseGain_ = 1.0f;
                 oscillatorBank_.reset();
+                residualSynth_.reset();
                 sample = 0.0f;
             }
         }
@@ -384,6 +447,17 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     // Reset oscillator bank for new note and load first frame
     oscillatorBank_.reset();
     oscillatorBank_.loadFrame(frame, targetPitch);
+
+    // M2: Load initial residual frame (FR-017)
+    if (!analysis->residualFrames.empty() && residualSynth_.isPrepared())
+    {
+        residualSynth_.reset();
+        // Use current smoothed brightness/transient values for initial frame
+        residualSynth_.loadFrame(
+            analysis->getResidualFrame(0),
+            brightnessSmoother_.getCurrentValue(),
+            transientEmphasisSmoother_.getCurrentValue());
+    }
 }
 
 // ==============================================================================
@@ -449,6 +523,15 @@ void Processor::checkForNewAnalysis()
     auto result = sampleAnalyzer_.takeResult();
     if (!result)
         return;
+
+    // M2: Prepare residual synth if new analysis has residual data
+    if (result->analysisFFTSize > 0 && result->analysisHopSize > 0 &&
+        !result->residualFrames.empty())
+    {
+        residualSynth_.prepare(
+            result->analysisFFTSize, result->analysisHopSize,
+            static_cast<float>(sampleRate_));
+    }
 
     // Publish new analysis with release semantics
     auto* newAnalysis = result.release();
@@ -523,6 +606,22 @@ void Processor::processParameterChanges(
                 inharmonicityAmount_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
+            case kHarmonicLevelId:
+                harmonicLevel_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kResidualLevelId:
+                residualLevel_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kResidualBrightnessId:
+                residualBrightness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kTransientEmphasisId:
+                transientEmphasis_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
             default:
                 break;
             }
@@ -565,10 +664,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version for future compatibility
-    streamer.writeInt32(1); // version 1
+    // Write state version -- M2: version 2 (FR-027)
+    streamer.writeInt32(2);
 
-    // Write parameter values
+    // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
     streamer.writeFloat(inharmonicityAmount_.load(std::memory_order_relaxed));
     streamer.writeFloat(masterGain_.load(std::memory_order_relaxed));
@@ -582,6 +681,52 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
         state->write(
             const_cast<char*>(loadedFilePath_.data()),
             pathLen, nullptr);
+    }
+
+    // --- M2 parameters (FR-027) ---
+    // Write plain parameter values for residual controls
+    const float harmLevelNorm = harmonicLevel_.load(std::memory_order_relaxed);
+    const float resLevelNorm = residualLevel_.load(std::memory_order_relaxed);
+    const float brightnessNorm = residualBrightness_.load(std::memory_order_relaxed);
+    const float transientEmpNorm = transientEmphasis_.load(std::memory_order_relaxed);
+
+    // Convert normalized to plain for persistence (data-model.md)
+    streamer.writeFloat(harmLevelNorm * 2.0f);           // plain 0.0-2.0
+    streamer.writeFloat(resLevelNorm * 2.0f);            // plain 0.0-2.0
+    streamer.writeFloat(brightnessNorm * 2.0f - 1.0f);   // plain -1.0 to +1.0
+    streamer.writeFloat(transientEmpNorm * 2.0f);        // plain 0.0-2.0
+
+    // --- M2 residual frames (FR-027) ---
+    const SampleAnalysis* analysis =
+        currentAnalysis_.load(std::memory_order_acquire);
+
+    if (analysis && !analysis->residualFrames.empty())
+    {
+        auto frameCount = static_cast<Steinberg::int32>(analysis->residualFrames.size());
+        streamer.writeInt32(frameCount);
+        streamer.writeInt32(static_cast<Steinberg::int32>(analysis->analysisFFTSize));
+        streamer.writeInt32(static_cast<Steinberg::int32>(analysis->analysisHopSize));
+
+        for (const auto& frame : analysis->residualFrames)
+        {
+            // 16 floats: bandEnergies
+            for (size_t b = 0; b < Krate::DSP::kResidualBands; ++b)
+            {
+                streamer.writeFloat(frame.bandEnergies[b]);
+            }
+            // 1 float: totalEnergy
+            streamer.writeFloat(frame.totalEnergy);
+            // 1 int8: transientFlag
+            streamer.writeInt8(frame.transientFlag ? static_cast<Steinberg::int8>(1)
+                                                    : static_cast<Steinberg::int8>(0));
+        }
+    }
+    else
+    {
+        // No residual data
+        streamer.writeInt32(0); // residualFrameCount = 0
+        streamer.writeInt32(0); // analysisFFTSize
+        streamer.writeInt32(0); // analysisHopSize
     }
 
     return Steinberg::kResultOk;
@@ -603,7 +748,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     {
         float floatVal = 0.0f;
 
-        // Read parameters
+        // --- M1 parameters (unchanged) ---
         if (streamer.readFloat(floatVal))
             releaseTimeMs_.store(std::clamp(floatVal, 20.0f, 5000.0f));
 
@@ -632,6 +777,130 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         else if (pathLen == 0)
         {
             loadedFilePath_.clear();
+        }
+
+        // --- M2 parameters and residual frames (FR-027) ---
+        if (version >= 2)
+        {
+            // Read 4 new plain parameter values and convert to normalized
+            if (streamer.readFloat(floatVal))
+            {
+                // harmonicLevel: plain 0.0-2.0, normalized = plain / 2.0
+                harmonicLevel_.store(
+                    std::clamp(floatVal, 0.0f, 2.0f) / 2.0f);
+            }
+
+            if (streamer.readFloat(floatVal))
+            {
+                // residualLevel: plain 0.0-2.0, normalized = plain / 2.0
+                residualLevel_.store(
+                    std::clamp(floatVal, 0.0f, 2.0f) / 2.0f);
+            }
+
+            if (streamer.readFloat(floatVal))
+            {
+                // brightness: plain -1.0 to +1.0, normalized = (plain + 1.0) / 2.0
+                residualBrightness_.store(
+                    (std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0f);
+            }
+
+            if (streamer.readFloat(floatVal))
+            {
+                // transientEmphasis: plain 0.0-2.0, normalized = plain / 2.0
+                transientEmphasis_.store(
+                    std::clamp(floatVal, 0.0f, 2.0f) / 2.0f);
+            }
+
+            // Read residual frames
+            Steinberg::int32 residualFrameCount = 0;
+            Steinberg::int32 analysisFFTSizeInt = 0;
+            Steinberg::int32 analysisHopSizeInt = 0;
+
+            if (streamer.readInt32(residualFrameCount) &&
+                streamer.readInt32(analysisFFTSizeInt) &&
+                streamer.readInt32(analysisHopSizeInt) &&
+                residualFrameCount > 0)
+            {
+                auto analysisFFTSize = static_cast<size_t>(analysisFFTSizeInt);
+                auto analysisHopSize = static_cast<size_t>(analysisHopSizeInt);
+
+                // Reconstruct analysis with residual frames
+                auto* analysis = currentAnalysis_.load(std::memory_order_acquire);
+                auto* newAnalysis = analysis
+                    ? new SampleAnalysis(*analysis)   // preserve harmonic data
+                    : new SampleAnalysis();
+
+                newAnalysis->analysisFFTSize = analysisFFTSize;
+                newAnalysis->analysisHopSize = analysisHopSize;
+                newAnalysis->residualFrames.clear();
+                newAnalysis->residualFrames.reserve(
+                    static_cast<size_t>(residualFrameCount));
+
+                bool readOk = true;
+                for (Steinberg::int32 f = 0; f < residualFrameCount && readOk; ++f)
+                {
+                    Krate::DSP::ResidualFrame frame;
+
+                    // Read 16 band energies
+                    for (size_t b = 0; b < Krate::DSP::kResidualBands; ++b)
+                    {
+                        if (!streamer.readFloat(floatVal))
+                        {
+                            readOk = false;
+                            break;
+                        }
+                        frame.bandEnergies[b] = std::max(floatVal, 0.0f);
+                    }
+                    if (!readOk) break;
+
+                    // Read totalEnergy
+                    if (!streamer.readFloat(floatVal))
+                    {
+                        readOk = false;
+                        break;
+                    }
+                    frame.totalEnergy = std::max(floatVal, 0.0f);
+
+                    // Read transientFlag (int8)
+                    Steinberg::int8 transientByte = 0;
+                    if (!streamer.readInt8(transientByte))
+                    {
+                        readOk = false;
+                        break;
+                    }
+                    frame.transientFlag = (transientByte != 0);
+
+                    newAnalysis->residualFrames.push_back(frame);
+                }
+
+                if (readOk && !newAnalysis->residualFrames.empty())
+                {
+                    // Prepare residual synth for playback
+                    if (analysisFFTSize > 0 && analysisHopSize > 0)
+                    {
+                        residualSynth_.prepare(
+                            analysisFFTSize, analysisHopSize,
+                            static_cast<float>(sampleRate_));
+                    }
+
+                    // Publish reconstructed analysis
+                    auto* old = currentAnalysis_.exchange(
+                        newAnalysis, std::memory_order_acq_rel);
+                    pendingDeletion_ = old;
+                }
+                else
+                {
+                    delete newAnalysis;
+                }
+            }
+        }
+        else
+        {
+            // Version 1: set residual parameters to defaults (normalized)
+            harmonicLevel_.store(0.5f);      // plain 1.0
+            residualLevel_.store(0.5f);      // plain 1.0
+            residualBrightness_.store(0.5f); // plain 0.0 (neutral)
+            transientEmphasis_.store(0.0f);  // plain 0.0 (no boost)
         }
     }
 

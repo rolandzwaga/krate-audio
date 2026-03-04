@@ -6747,3 +6747,138 @@ class HarmonicOscillatorBank {
 - **Periodic renormalization**: MCF oscillators renormalized every 256 samples to prevent amplitude drift
 
 **Dependencies:** Layer 0 (math_constants.h for kTwoPi, dsp_utils.h), harmonic_types.h (HarmonicFrame, Partial, kMaxPartials)
+
+---
+
+## ResidualFrame
+**Path:** [residual_types.h](../../dsp/include/krate/dsp/processors/residual_types.h) | **Since:** M2 (116-residual-noise-model)
+
+Per-frame representation of the stochastic (non-harmonic) component extracted during SMS (Sinusoidal + Noise Modeling) analysis. Produced by `ResidualAnalyzer` during offline sample analysis on the background thread. Consumed by `ResidualSynthesizer` during real-time playback on the audio thread. Time-aligned with `HarmonicFrame`: `residualFrames[i]` corresponds to `harmonicFrames[i]` for the same time position in the source sample.
+
+```cpp
+inline constexpr size_t kResidualBands = 16;
+
+struct ResidualFrame {
+    std::array<float, kResidualBands> bandEnergies{};  // Spectral envelope (RMS per band, log-spaced)
+    float totalEnergy = 0.0f;                          // Overall residual energy (RMS of magnitude spectrum)
+    bool transientFlag = false;                        // True if onset/transient detected in this frame
+};
+
+// Helpers
+[[nodiscard]] const std::array<float, kResidualBands>& getResidualBandCenters() noexcept;
+[[nodiscard]] const std::array<float, kResidualBands + 1>& getResidualBandEdges() noexcept;
+```
+
+**When to use:**
+- Storing offline residual analysis results alongside `HarmonicFrame` sequences
+- Feeding the `ResidualSynthesizer` for real-time noise resynthesis
+- Serializing/deserializing residual data for state persistence (save/load)
+- Morphing or snapshotting residual spectral envelopes (M4/M5 milestones)
+
+**Key features:**
+- **16 log-spaced bands**: Approximately ERB/Bark scale, from ~50 Hz to Nyquist, matching human auditory perception
+- **Default-constructed silence**: All-zero fields represent no residual content
+- **Transient flag**: Enables per-frame transient emphasis during resynthesis
+- **Sample-rate independent**: Band centers/edges stored as normalized frequency ratios (0.0 to 1.0 of Nyquist)
+
+**Dependencies:** Layer 0 (stdlib only: `<array>`, `<cstddef>`)
+
+---
+
+## ResidualAnalyzer
+**Path:** [residual_analyzer.h](../../dsp/include/krate/dsp/processors/residual_analyzer.h) | **Since:** M2 (116-residual-noise-model)
+
+Offline SMS spectral subtraction analysis. Extracts the residual (stochastic) component from an audio signal by subtracting resynthesized harmonics (from tracked `Partial` data) and characterizing the residual's spectral envelope and energy per frame. Operates on the background analysis thread only -- NOT real-time safe (uses `std::vector` allocations in `prepare()`).
+
+```cpp
+class ResidualAnalyzer {
+    // Lifecycle
+    void prepare(size_t fftSize, size_t hopSize, float sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Analysis (background thread only)
+    [[nodiscard]] ResidualFrame analyzeFrame(
+        const float* originalAudio,
+        size_t numSamples,
+        const HarmonicFrame& frame) noexcept;
+
+    // Query
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] size_t fftSize() const noexcept;
+    [[nodiscard]] size_t hopSize() const noexcept;
+};
+```
+
+**When to use:**
+- Background-thread sample analysis in the Innexus `SampleAnalyzer` pipeline
+- Any SMS-style analysis where harmonic partials are known and the stochastic residual must be extracted
+- Producing `ResidualFrame` sequences time-aligned with `HarmonicFrame` sequences
+
+**Key constraint:** NOT real-time safe. All analysis is precomputed during sample loading on a background thread. Do not call `analyzeFrame()` from the audio thread.
+
+**Algorithm (per frame):**
+1. Resynthesize harmonic signal from tracked `Partial` frequencies, amplitudes, and phases (direct sinusoidal synthesis, not the streaming `HarmonicOscillatorBank`)
+2. Subtract harmonics from original audio: `residual = original - harmonics`
+3. Apply Hann window to residual, then forward FFT
+4. Extract 16-band log-spaced spectral envelope (RMS per band)
+5. Compute total residual energy (RMS of magnitude spectrum)
+6. Detect transients via `SpectralTransientDetector` (spectral flux)
+7. Clamp all energies to >= 0 and return `ResidualFrame`
+
+**Dependencies:** Layer 0 (math_constants.h), Layer 1 (fft.h, spectral_buffer.h, spectral_transient_detector.h), Layer 2 (residual_types.h, harmonic_types.h)
+
+---
+
+## ResidualSynthesizer
+**Path:** [residual_synthesizer.h](../../dsp/include/krate/dsp/processors/residual_synthesizer.h) | **Since:** M2 (116-residual-noise-model)
+
+Real-time FFT-domain noise resynthesis from stored `ResidualFrame` data. Generates white noise, shapes it with the spectral envelope via FFT-domain multiplication, scales by frame energy, and outputs via overlap-add reconstruction. Operates on the audio thread -- fully real-time safe (all buffers pre-allocated in `prepare()`, zero allocations on audio thread).
+
+```cpp
+class ResidualSynthesizer {
+    static constexpr uint32_t kPrngSeed = 12345;
+
+    // Lifecycle
+    void prepare(size_t fftSize, size_t hopSize, float sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Frame loading (real-time safe)
+    void loadFrame(
+        const ResidualFrame& frame,
+        float brightness = 0.0f,
+        float transientEmphasis = 0.0f) noexcept;
+
+    // Audio output (real-time safe)
+    [[nodiscard]] float process() noexcept;               // Single sample
+    void processBlock(float* output, size_t numSamples) noexcept; // Block
+
+    // Query
+    [[nodiscard]] bool isPrepared() const noexcept;
+    [[nodiscard]] size_t fftSize() const noexcept;
+    [[nodiscard]] size_t hopSize() const noexcept;
+};
+```
+
+**When to use:**
+- Audio-thread playback of residual (noise) component from analyzed samples
+- Any scenario requiring FFT-domain spectral envelope shaping of white noise
+- Real-time resynthesis from `ResidualFrame` data (precomputed or live)
+
+**Key constraint:** Real-time safe. No memory allocations, no locks, no exceptions, no I/O on the audio thread. All buffers (`noiseBuffer_`, `envelopeBuffer_`, `outputBuffer_`, `spectralBuffer_`, `fft_`, `overlapAdd_`) are pre-allocated during `prepare()`.
+
+**Algorithm (per frame via `loadFrame()`):**
+1. Generate white noise (fftSize samples) from deterministic PRNG (Xorshift32, seed 12345)
+2. Forward FFT the noise
+3. Interpolate spectral envelope from 16 band energies to FFT-bin resolution
+4. Apply brightness tilt (spectral tilt parameter)
+5. Scale by frame energy with transient emphasis multiplier `(1.0 + transientEmphasis)`
+6. Multiply noise spectrum by envelope, feed to `OverlapAdd` for reconstruction
+7. Pull hop-size samples into output buffer for `process()`/`processBlock()`
+
+**Key features:**
+- **Deterministic output**: Fixed PRNG seed (12345) reset on `prepare()` ensures identical output across sessions
+- **OverlapAdd with synthesis window**: Hann window prevents boundary discontinuities
+- **Brightness tilt**: Spectral tilt parameter boosts high or low frequencies
+- **Transient emphasis**: Boosts residual energy during detected transient frames
+
+**Dependencies:** Layer 0 (random.h for Xorshift32), Layer 1 (fft.h, stft.h for OverlapAdd, spectral_buffer.h), Layer 2 (residual_types.h)

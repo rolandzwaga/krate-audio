@@ -39,6 +39,7 @@
 #include <krate/dsp/primitives/stft.h>
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/partial_tracker.h>
+#include <krate/dsp/processors/residual_analyzer.h>
 #include <krate/dsp/processors/yin_pitch_detector.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
 
@@ -211,15 +212,23 @@ void SampleAnalyzer::analyzeOnThread(
     modelBuilder.prepare(static_cast<double>(sampleRate));
     modelBuilder.setHopSize(static_cast<int>(kShortWindowConfig.hopSize));
 
+    // Residual analyzer (FR-009: runs on background thread, FR-010: never audio thread)
+    Krate::DSP::ResidualAnalyzer residualAnalyzer;
+    residualAnalyzer.prepare(
+        kShortWindowConfig.fftSize, kShortWindowConfig.hopSize, sampleRate);
+
     // --- Prepare output ---
     auto analysis = std::make_unique<SampleAnalysis>();
     analysis->sampleRate = sampleRate;
     analysis->hopTimeSec = static_cast<float>(kShortWindowConfig.hopSize) / sampleRate;
     analysis->filePath = std::move(filePath);
+    analysis->analysisFFTSize = kShortWindowConfig.fftSize;
+    analysis->analysisHopSize = kShortWindowConfig.hopSize;
 
     // Reserve expected frame count
     const size_t expectedFrames = totalSamples / kShortWindowConfig.hopSize;
     analysis->frames.reserve(expectedFrames + 1);
+    analysis->residualFrames.reserve(expectedFrames + 1);
 
     // --- Process audio in hop-sized chunks ---
     const size_t shortHop = kShortWindowConfig.hopSize;
@@ -307,6 +316,25 @@ void SampleAnalyzer::analyzeOnThread(
                 inputRms);
 
             analysis->frames.push_back(frame);
+
+            // Residual analysis: extract stochastic component (FR-009)
+            // Get the original audio segment for this frame
+            const size_t frameStart = (sampleIndex + blockSize >= kShortWindowConfig.fftSize)
+                ? sampleIndex + blockSize - kShortWindowConfig.fftSize
+                : 0;
+            const size_t frameSamples = std::min(kShortWindowConfig.fftSize,
+                                                  totalSamples - frameStart);
+            if (frameSamples >= kShortWindowConfig.fftSize)
+            {
+                auto residualFrame = residualAnalyzer.analyzeFrame(
+                    &audioData[frameStart], frameSamples, frame);
+                analysis->residualFrames.push_back(residualFrame);
+            }
+            else
+            {
+                // Not enough samples for a full frame -- push a silent residual frame
+                analysis->residualFrames.push_back(Krate::DSP::ResidualFrame{});
+            }
 
             shortHopCounter++;
         }

@@ -52,6 +52,12 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Oscillator Bank (200-299)
     kReleaseTimeId = 200,          // 20-5000ms, default 100ms
     kInharmonicityAmountId = 201,  // 0-100%, default 100%
+
+    // Residual Model (400-499) -- M2
+    kHarmonicLevelId = 400,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
+    kResidualLevelId = 401,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
+    kResidualBrightnessId = 402,   // plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.5)
+    kTransientEmphasisId = 403,    // plain 0.0-2.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.0)
 };
 
 } // namespace Innexus

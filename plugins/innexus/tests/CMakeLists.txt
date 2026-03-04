@@ -17,6 +17,9 @@ add_executable(innexus_tests
     # MIDI integration and state persistence tests (Phase 11)
     unit/processor/innexus_processor_tests.cpp
 
+    # Residual integration tests (M2 Phases 10-11)
+    unit/processor/residual_integration_tests.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
