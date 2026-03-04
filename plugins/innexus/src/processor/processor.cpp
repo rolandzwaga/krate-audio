@@ -50,10 +50,6 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
     if (result != Steinberg::kResultOk)
         return result;
 
-    // Sidechain audio input (for live analysis mode)
-    addAudioInput(STR16("Sidechain"), Steinberg::Vst::SpeakerArr::kStereo,
-                  Steinberg::Vst::BusTypes::kAux);
-
     // MIDI event input
     addEventInput(STR16("Event In"), 1);
 
@@ -532,6 +528,20 @@ void Processor::processParameterChanges(
             }
         }
     }
+}
+
+// ==============================================================================
+// Set Bus Arrangements (instrument: no audio inputs, stereo output only)
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
+    Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
+    Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts)
+{
+    if (numIns == 0 && numOuts == 1 &&
+        outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
+        return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
+    }
+    return Steinberg::kResultFalse;
 }
 
 // ==============================================================================

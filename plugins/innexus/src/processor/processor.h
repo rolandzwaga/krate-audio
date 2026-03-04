@@ -13,10 +13,9 @@
 // - NEVER use locks/mutexes
 // - Pre-allocate ALL buffers in setupProcessing()
 //
-// Innexus is an INSTRUMENT with SIDECHAIN:
-// - Sidechain audio input bus (for live analysis)
+// Innexus is an INSTRUMENT:
 // - MIDI event input bus
-// - Stereo audio output bus
+// - Stereo audio output bus (no audio inputs)
 // ==============================================================================
 
 #include "plugin_ids.h"
@@ -50,6 +49,9 @@ public:
         Steinberg::Vst::ProcessSetup& newSetup) override;
     Steinberg::tresult PLUGIN_API process(
         Steinberg::Vst::ProcessData& data) override;
+    Steinberg::tresult PLUGIN_API setBusArrangements(
+        Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
+        Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
     Steinberg::tresult PLUGIN_API canProcessSampleSize(
         Steinberg::int32 symbolicSampleSize) override;
 
