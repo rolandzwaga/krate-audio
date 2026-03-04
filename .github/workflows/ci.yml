@@ -278,9 +278,9 @@ jobs:
         if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU Ruinae_AUV3 ruinae_tests --parallel
 
-      - name: Build Innexus and Tests
+      - name: Build Innexus, AU, AUv3, and Tests
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus innexus_tests --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus Innexus_AU Innexus_AUV3 innexus_tests --parallel
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -339,6 +339,17 @@ jobs:
           sleep 2
           auval -v aumu Ruin KrAt
 
+      # Install AU and run auval validation for Innexus
+      - name: Run Innexus AU Validation
+        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          rm -rf ~/Library/Audio/Plug-Ins/Components/Innexus.component
+          cp -R build/VST3/${{ env.BUILD_TYPE }}/Innexus.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -v aumu Innx KrAt
+
       # Verify AUv3 bundle structure (per-plugin, matching build conditions)
       - name: Verify Iterum AUv3 Bundle
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -363,6 +374,14 @@ jobs:
           test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
           test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Ruinae AUv3"; exit 1; }
           echo "[Ruinae] AUv3 bundle OK"
+
+      - name: Verify Innexus AUv3 Bundle
+        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          APP="build/bin/${{ env.BUILD_TYPE }}/Innexus AUv3.app"
+          test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+          test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Innexus AUv3"; exit 1; }
+          echo "[Innexus] AUv3 bundle OK"
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
@@ -409,6 +428,8 @@ jobs:
           name: Innexus-macOS
           path: |
             build/VST3/${{ env.BUILD_TYPE }}/Innexus.vst3
+            build/VST3/${{ env.BUILD_TYPE }}/Innexus.component
+            build/bin/${{ env.BUILD_TYPE }}/Innexus AUv3.app
           if-no-files-found: warn
 
   # Linux build (optional per constitution - Platform Support Matrix)
