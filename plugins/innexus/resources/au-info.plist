@@ -47,6 +47,12 @@
 			<key>Outputs</key>
 			<string>2</string>
 		</dict>
+		<dict>
+			<key>Inputs</key>
+			<string>2</string>
+			<key>Outputs</key>
+			<string>2</string>
+		</dict>
 	</array>
 </dict>
 </plist>
