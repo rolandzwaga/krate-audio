@@ -1858,8 +1858,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M5: version 5 (harmonic memory slots)
-    streamer.writeInt32(5);
+    // Write state version -- M6: version 6 (creative extensions)
+    streamer.writeInt32(6);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -1975,6 +1975,35 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
             streamer.writeFloat(snap.brightness);
         }
     }
+
+    // --- M6 parameters (creative extensions) ---
+    // 31 normalized float values in data-model.md v6 state layout order
+    streamer.writeFloat(timbralBlend_.load(std::memory_order_relaxed));
+    streamer.writeFloat(stereoSpread_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionEnable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionSpeed_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionDepth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionMode_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Enable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Waveform_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Rate_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Depth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1RangeStart_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1RangeEnd_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Target_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Enable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Waveform_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Rate_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Depth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2RangeStart_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2RangeEnd_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Target_.load(std::memory_order_relaxed));
+    streamer.writeFloat(detuneSpread_.load(std::memory_order_relaxed));
+    streamer.writeFloat(blendEnable_.load(std::memory_order_relaxed));
+    for (int i = 0; i < 8; ++i)
+        streamer.writeFloat(blendSlotWeights_[static_cast<size_t>(i)].load(
+            std::memory_order_relaxed));
+    streamer.writeFloat(blendLiveWeight_.load(std::memory_order_relaxed));
 
     return Steinberg::kResultOk;
 }
@@ -2300,6 +2329,105 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
                 slot.occupied = false;
                 slot.snapshot = Krate::DSP::HarmonicSnapshot{};
             }
+        }
+
+        // --- M6 parameters (creative extensions) ---
+        if (version >= 6)
+        {
+            // Read 31 normalized float values in data-model.md v6 state layout order
+            if (streamer.readFloat(floatVal))
+                timbralBlend_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                stereoSpread_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionEnable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                evolutionSpeed_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionDepth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionMode_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Enable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                mod1Waveform_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Rate_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Depth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1RangeStart_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1RangeEnd_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Target_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Enable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                mod2Waveform_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Rate_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Depth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2RangeStart_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2RangeEnd_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Target_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                detuneSpread_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                blendEnable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            for (int i = 0; i < 8; ++i)
+            {
+                if (streamer.readFloat(floatVal))
+                    blendSlotWeights_[static_cast<size_t>(i)].store(
+                        std::clamp(floatVal, 0.0f, 1.0f));
+            }
+            if (streamer.readFloat(floatVal))
+                blendLiveWeight_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+            // Update evolution engine waypoints and blender weights after state load
+            evolutionEngine_.updateWaypoints(memorySlots_);
+            for (int i = 0; i < 8; ++i)
+                harmonicBlender_.setSlotWeight(
+                    i, blendSlotWeights_[static_cast<size_t>(i)].load(
+                        std::memory_order_relaxed));
+            harmonicBlender_.setLiveWeight(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+        }
+        else
+        {
+            // Default M6 values for v5 and older states
+            timbralBlend_.store(1.0f);
+            stereoSpread_.store(0.0f);
+            evolutionEnable_.store(0.0f);
+            evolutionSpeed_.store(0.0f);
+            evolutionDepth_.store(0.5f);
+            evolutionMode_.store(0.0f);
+            mod1Enable_.store(0.0f);
+            mod1Waveform_.store(0.0f);
+            mod1Rate_.store(0.0f);
+            mod1Depth_.store(0.0f);
+            mod1RangeStart_.store(0.0f);
+            mod1RangeEnd_.store(1.0f);
+            mod1Target_.store(0.0f);
+            mod2Enable_.store(0.0f);
+            mod2Waveform_.store(0.0f);
+            mod2Rate_.store(0.0f);
+            mod2Depth_.store(0.0f);
+            mod2RangeStart_.store(0.0f);
+            mod2RangeEnd_.store(1.0f);
+            mod2Target_.store(0.0f);
+            detuneSpread_.store(0.0f);
+            blendEnable_.store(0.0f);
+            for (auto& w : blendSlotWeights_)
+                w.store(0.0f);
+            blendLiveWeight_.store(0.0f);
+
+            // Update evolution engine waypoints for v5 state
+            evolutionEngine_.updateWaypoints(memorySlots_);
         }
     }
 

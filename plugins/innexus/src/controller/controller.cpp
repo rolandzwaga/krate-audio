@@ -593,6 +593,110 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             setParamNormalized(kMemoryCaptureId, 0.0);
             setParamNormalized(kMemoryRecallId, 0.0);
         }
+
+        // M6: Read creative extension parameters if version >= 6
+        if (version >= 6)
+        {
+            float m6Val = 0.0f;
+            // 31 normalized floats in data-model.md v6 state layout order
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kEvolutionEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kEvolutionSpeedId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kEvolutionDepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kEvolutionModeId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod1TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kMod2TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kDetuneSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight1Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight2Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight3Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight4Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight5Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight6Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight7Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendSlotWeight8Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+            if (streamer.readFloat(m6Val))
+                setParamNormalized(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        }
+        else
+        {
+            // Default M6 values for v5 and older states
+            setParamNormalized(kTimbralBlendId, 1.0);
+            setParamNormalized(kStereoSpreadId, 0.0);
+            setParamNormalized(kEvolutionEnableId, 0.0);
+            setParamNormalized(kEvolutionSpeedId, 0.0);
+            setParamNormalized(kEvolutionDepthId, 0.5);
+            setParamNormalized(kEvolutionModeId, 0.0);
+            setParamNormalized(kMod1EnableId, 0.0);
+            setParamNormalized(kMod1WaveformId, 0.0);
+            setParamNormalized(kMod1RateId, 0.0);
+            setParamNormalized(kMod1DepthId, 0.0);
+            setParamNormalized(kMod1RangeStartId, 0.0);
+            setParamNormalized(kMod1RangeEndId, 1.0);
+            setParamNormalized(kMod1TargetId, 0.0);
+            setParamNormalized(kMod2EnableId, 0.0);
+            setParamNormalized(kMod2WaveformId, 0.0);
+            setParamNormalized(kMod2RateId, 0.0);
+            setParamNormalized(kMod2DepthId, 0.0);
+            setParamNormalized(kMod2RangeStartId, 0.0);
+            setParamNormalized(kMod2RangeEndId, 1.0);
+            setParamNormalized(kMod2TargetId, 0.0);
+            setParamNormalized(kDetuneSpreadId, 0.0);
+            setParamNormalized(kBlendEnableId, 0.0);
+            setParamNormalized(kBlendSlotWeight1Id, 0.0);
+            setParamNormalized(kBlendSlotWeight2Id, 0.0);
+            setParamNormalized(kBlendSlotWeight3Id, 0.0);
+            setParamNormalized(kBlendSlotWeight4Id, 0.0);
+            setParamNormalized(kBlendSlotWeight5Id, 0.0);
+            setParamNormalized(kBlendSlotWeight6Id, 0.0);
+            setParamNormalized(kBlendSlotWeight7Id, 0.0);
+            setParamNormalized(kBlendSlotWeight8Id, 0.0);
+            setParamNormalized(kBlendLiveWeightId, 0.0);
+        }
     }
 
     return Steinberg::kResultOk;

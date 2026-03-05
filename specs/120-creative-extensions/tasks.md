@@ -260,21 +260,21 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 ### 7.1 Tests for State Persistence (Write FIRST -- Must FAIL)
 
-- [ ] T047 Write failing tests for v6 state round-trip in `plugins/innexus/tests/unit/vst/test_state_v6.cpp`: call `getState()`, then `setState()` on a new processor, verify all 31 M6 parameters match originals within 1e-6 tolerance (SC-009). Write test for loading v5 state: construct a minimal v5 binary blob (version=5 plus all M1-M5 fields), call `setState()`, verify all M6 parameters initialize to their spec defaults (timbralBlend=1.0, stereoSpread=0.0, all others=0.0), verify no crash or error (SC-009).
+- [X] T047 Write failing tests for v6 state round-trip in `plugins/innexus/tests/unit/vst/test_state_v6.cpp`: call `getState()`, then `setState()` on a new processor, verify all 31 M6 parameters match originals within 1e-6 tolerance (SC-009). Write test for loading v5 state: construct a minimal v5 binary blob (version=5 plus all M1-M5 fields), call `setState()`, verify all M6 parameters initialize to their spec defaults (timbralBlend=1.0, stereoSpread=0.0, all others=0.0), verify no crash or error (SC-009).
 
 ### 7.2 Implementation for State Persistence
 
-- [ ] T048 Extend `getState()` in `plugins/innexus/src/processor/processor.cpp`: after existing M5 fields, write version=6 marker and all 31 M6 normalized parameter values in the order defined in `data-model.md` state layout. Update version constant from 5 to 6.
+- [X] T048 Extend `getState()` in `plugins/innexus/src/processor/processor.cpp`: after existing M5 fields, write version=6 marker and all 31 M6 normalized parameter values in the order defined in `data-model.md` state layout. Update version constant from 5 to 6.
 
-- [ ] T049 Extend `setState()` in `plugins/innexus/src/processor/processor.cpp`: detect version number; if version < 6, skip reading M6 block and initialize all M6 atomics to defaults (`timbralBlend_=1.0`, all others=0.0); if version >= 6, read all 31 M6 fields and store into atomics. After loading, call `evolutionEngine_.updateWaypoints(memorySlots_)` and update blender weights. Depends on T003, T026, T043.
+- [X] T049 Extend `setState()` in `plugins/innexus/src/processor/processor.cpp`: detect version number; if version < 6, skip reading M6 block and initialize all M6 atomics to defaults (`timbralBlend_=1.0`, all others=0.0); if version >= 6, read all 31 M6 fields and store into atomics. After loading, call `evolutionEngine_.updateWaypoints(memorySlots_)` and update blender weights. Depends on T003, T026, T043.
 
 ### 7.3 Verify
 
-- [ ] T050 Build `innexus_tests` target, verify zero warnings, run `test_state_v6.cpp` tests. Verify SC-009 (round-trip tolerance 1e-6, v5 compatibility).
+- [X] T050 Build `innexus_tests` target, verify zero warnings, run `test_state_v6.cpp` tests. Verify SC-009 (round-trip tolerance 1e-6, v5 compatibility).
 
 ### 7.4 Commit
 
-- [ ] T051 **Commit state persistence work**: v6 state read/write, backward compatibility with v5, tests.
+- [X] T051 **Commit state persistence work**: v6 state read/write, backward compatibility with v5, tests.
 
 **Checkpoint**: State persistence complete. All 31 parameters survive save/load cycles. Old presets load cleanly.
 
