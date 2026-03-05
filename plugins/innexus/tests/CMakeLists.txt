@@ -39,6 +39,7 @@ add_executable(innexus_tests
     unit/processor/test_harmonic_modulator.cpp
     unit/processor/test_harmonic_blender.cpp
     unit/vst/test_state_v6.cpp
+    unit/processor/test_m6_pipeline_integration.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp

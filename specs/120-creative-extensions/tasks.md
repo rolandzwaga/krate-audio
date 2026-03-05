@@ -306,17 +306,17 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 **Purpose**: End-to-end pipeline integration test covering all features active simultaneously and full pluginval validation.
 
-- [ ] T055 Write full pipeline integration test in `plugins/innexus/tests/unit/processor/test_m6_pipeline_integration.cpp`: (a) enable all M6 features simultaneously (timbralBlend=0.5, stereoSpread=0.5, detuneSpread=0.5, evolutionEnabled=true, mod1Enabled=true, mod2Enabled=true), (b) advance 44100 samples and verify output is non-silent and non-NaN, (c) verify pipeline order: blend/evolution -> filter -> modulators -> oscillator (FR-049), (d) verify blendEnabled overrides evolutionEnabled (FR-052), (e) verify click-free parameter sweeps (SC-007): sweep each parameter from 0 to 1 at maximum rate and verify no sample-level discontinuities above -80 dBFS.
+- [X] T055 Write full pipeline integration test in `plugins/innexus/tests/unit/processor/test_m6_pipeline_integration.cpp`: (a) enable all M6 features simultaneously (timbralBlend=0.5, stereoSpread=0.5, detuneSpread=0.5, evolutionEnabled=true, mod1Enabled=true, mod2Enabled=true), (b) advance 44100 samples and verify output is non-silent and non-NaN, (c) verify pipeline order: blend/evolution -> filter -> modulators -> oscillator (FR-049), (d) verify blendEnabled overrides evolutionEnabled (FR-052), (e) verify click-free parameter sweeps (SC-007): sweep each parameter from 0 to 1 at maximum rate and verify no sample-level discontinuities above -80 dBFS.
 
-- [ ] T056 Run full pluginval validation:
+- [ ] T056 Run full pluginval validation (skipped -- will be run in Phase 11):
   ```bash
   tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"
   ```
   Verify all 5 strictness levels pass with all 31 new parameters registered.
 
-- [ ] T057 Run CPU benchmark to verify SC-008 using the following methodology: (1) Build Release target. (2) In `test_m6_pipeline_integration.cpp`, add a `[.perf]`-tagged benchmark that processes 44100 * 10 samples (10 seconds of audio) at 44.1 kHz with a 512-sample buffer, single voice, all M6 features active (stereo spread=0.5, detune=0.5, 2 modulators enabled, evolution enabled). (3) Measure wall-clock time of the processing loop using `std::chrono::high_resolution_clock`. Run 100 iterations, take the median. (4) Compute CPU% as `(median_time_per_10s / 10.0) * 100`. (5) Establish M5 baseline by running same benchmark with all M6 features disabled (spread=0, detune=0, mods disabled, evolution disabled). (6) Verify M6_active - M5_baseline < 1.0% and M6_active < 2.0% total. Record actual measured values in the compliance table.
+- [X] T057 Run CPU benchmark to verify SC-008 using the following methodology: (1) Build Release target. (2) In `test_m6_pipeline_integration.cpp`, add a `[.perf]`-tagged benchmark that processes 44100 * 10 samples (10 seconds of audio) at 44.1 kHz with a 512-sample buffer, single voice, all M6 features active (stereo spread=0.5, detune=0.5, 2 modulators enabled, evolution enabled). (3) Measure wall-clock time of the processing loop using `std::chrono::high_resolution_clock`. Run 100 iterations, take the median. (4) Compute CPU% as `(median_time_per_10s / 10.0) * 100`. (5) Establish M5 baseline by running same benchmark with all M6 features disabled (spread=0, detune=0, mods disabled, evolution disabled). (6) Verify M6_active - M5_baseline < 1.0% and M6_active < 2.0% total. Record actual measured values in the compliance table.
 
-- [ ] T058 Commit integration verification test and any fixes.
+- [X] T058 Commit integration verification test and any fixes.
 
 ---
 
