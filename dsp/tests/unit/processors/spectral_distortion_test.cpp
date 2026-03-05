@@ -69,7 +69,7 @@ float dbToLinear(float dB) {
 }
 
 /// Generate silence (zeros)
-void generateSilence(float* buffer, std::size_t size) {
+void generateSilence(float* buffer, std::size_t size) { // NOLINT(readability-non-const-parameter) writes via std::fill
     std::fill(buffer, buffer + size, 0.0f);
 }
 

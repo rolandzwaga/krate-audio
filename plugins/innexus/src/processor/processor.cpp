@@ -317,7 +317,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             // Source changed -- initiate crossfade
             if (noteActive_) {
-                float captL, captR;
+                float captL = 0.0f;
+                float captR = 0.0f;
                 oscillatorBank_.processStereo(captL, captR);
                 sourceCrossfadeOldLevel_ = (captL + captR) * 0.5f;
             } else {
@@ -682,7 +683,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             // FR-006: Initiate 10ms crossfade from frozen to live
             // Capture current oscillator output level for smooth crossfade
             if (noteActive_) {
-                float captL, captR;
+                float captL = 0.0f;
+                float captR = 0.0f;
                 oscillatorBank_.processStereo(captL, captR);
                 manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
             } else {
@@ -832,7 +834,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             if (isFrozen_)
             {
                 isFrozen_ = false;
-                float captL, captR;
+                float captL = 0.0f;
+                float captR = 0.0f;
                 oscillatorBank_.processStereo(captL, captR);
                 freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                 freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
@@ -1318,8 +1321,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             hasSoundOutput = true;
     }
 
-    data.outputs[0].silenceFlags = hasSoundOutput ? 0
-        : ((numOutputChannels >= 2) ? 0x3 : 0x1);
+    if (hasSoundOutput) {
+        data.outputs[0].silenceFlags = 0;
+    } else {
+        data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
+    }
 
     return Steinberg::kResultOk;
 }
@@ -1373,7 +1379,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     {
         // Capture last output sample before resetting for crossfade
         {
-            float captL, captR;
+            float captL = 0.0f;
+            float captR = 0.0f;
             oscillatorBank_.processStereo(captL, captR);
             antiClickOldLevel_ = (captL + captR) * 0.5f;
         }

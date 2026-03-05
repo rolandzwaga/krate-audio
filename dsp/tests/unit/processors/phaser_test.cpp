@@ -42,12 +42,12 @@ inline void generateSine(float* buffer, size_t size, float frequency, float samp
 }
 
 /// Generate a constant DC signal
-inline void generateDC(float* buffer, size_t size, float value = 1.0f) {
+inline void generateDC(float* buffer, size_t size, float value = 1.0f) { // NOLINT(readability-non-const-parameter) writes via std::fill
     std::fill(buffer, buffer + size, value);
 }
 
 /// Generate silence
-inline void generateSilence(float* buffer, size_t size) {
+inline void generateSilence(float* buffer, size_t size) { // NOLINT(readability-non-const-parameter) writes via std::fill
     std::fill(buffer, buffer + size, 0.0f);
 }
 
