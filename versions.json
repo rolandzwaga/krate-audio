@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "plugins": {
+    "Disrumpo": {
+      "version": "0.9.3",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/disrumpo/",
+      "release_notes": ""
+    },
+    "Innexus": {
+      "version": "0.3.1",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/innexus/",
+      "release_notes": ""
+    },
+    "Iterum": {
+      "version": "0.14.3",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/iterum/",
+      "release_notes": ""
+    },
+    "Ruinae": {
+      "version": "0.9.5",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/ruinae/",
+      "release_notes": ""
+    }
+  }
+}
