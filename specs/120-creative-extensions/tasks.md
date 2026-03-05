@@ -150,25 +150,25 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T023 [P] [US3] Write failing unit tests for `EvolutionEngine` class in `plugins/innexus/tests/unit/processor/test_evolution_engine.cpp`: test `prepare()` sets inverseSampleRate, test `updateWaypoints()` collects only occupied slots, test Cycle mode phase wraps at 1.0, test PingPong mode bounces direction at endpoints, test RandomWalk mode stays within [0, depth] range, test `getInterpolatedFrame()` returns false with <2 waypoints (edge case from spec), test phase is global and does not reset between notes (FR-020), test manual offset coexistence clamped to [0,1] (FR-021).
+- [X] T023 [P] [US3] Write failing unit tests for `EvolutionEngine` class in `plugins/innexus/tests/unit/processor/test_evolution_engine.cpp`: test `prepare()` sets inverseSampleRate, test `updateWaypoints()` collects only occupied slots, test Cycle mode phase wraps at 1.0, test PingPong mode bounces direction at endpoints, test RandomWalk mode stays within [0, depth] range, test `getInterpolatedFrame()` returns false with <2 waypoints (edge case from spec), test phase is global and does not reset between notes (FR-020), test manual offset coexistence clamped to [0,1] (FR-021).
 
-- [ ] T024 [P] [US3] Write failing integration tests for Evolution Engine in processor in `plugins/innexus/tests/unit/processor/test_evolution_engine.cpp`: inject 2 memory slots with distinct spectra, enable evolution, advance processor N samples, verify output frame changes (non-zero spectral drift), verify Evolution + ManualMorph interaction (FR-021), verify blendEnabled=true skips evolution (FR-022, FR-052).
+- [X] T024 [P] [US3] Write failing integration tests for Evolution Engine in processor in `plugins/innexus/tests/unit/processor/test_evolution_engine.cpp`: inject 2 memory slots with distinct spectra, enable evolution, advance processor N samples, verify output frame changes (non-zero spectral drift), verify Evolution + ManualMorph interaction (FR-021), verify blendEnabled=true skips evolution (FR-022, FR-052).
 
 ### 4.2 Implementation for User Story 3
 
-- [ ] T025 [US3] Implement `EvolutionEngine` class in `plugins/innexus/src/dsp/evolution_engine.h` matching the contract in `specs/120-creative-extensions/contracts/evolution_engine.h`: `prepare()`, `reset()`, `updateWaypoints()`, `setMode()`, `setSpeed()`, `setDepth()`, `setManualOffset()`, `advance()`, `getInterpolatedFrame()`, `getPosition()`, `getNumWaypoints()`. Use `lerpHarmonicFrame()` and `lerpResidualFrame()` for interpolation. Use `Xorshift32` for Random Walk. All methods `noexcept`, no heap allocations.
+- [X] T025 [US3] Implement `EvolutionEngine` class in `plugins/innexus/src/dsp/evolution_engine.h` matching the contract in `specs/120-creative-extensions/contracts/evolution_engine.h`: `prepare()`, `reset()`, `updateWaypoints()`, `setMode()`, `setSpeed()`, `setDepth()`, `setManualOffset()`, `advance()`, `getInterpolatedFrame()`, `getPosition()`, `getNumWaypoints()`. Use `lerpHarmonicFrame()` and `lerpResidualFrame()` for interpolation. Use `Xorshift32` for Random Walk. All methods `noexcept`, no heap allocations.
 
-- [ ] T026 [US3] Integrate `EvolutionEngine` into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `EvolutionEngine evolutionEngine_` member, call `evolutionEngine_.prepare(sampleRate)` in `setupProcessing()`, call `evolutionEngine_.updateWaypoints(memorySlots_)` when slots change (after capture/recall/state load). In frame selection pipeline: if `evolutionEnabled && !blendEnabled`, call `evolutionEngine_.advance()` each sample and `getInterpolatedFrame()` each frame to produce `currentFrame` (FR-022). Apply `clamp(evolutionPosition + manualOffset, 0.0, 1.0)` (FR-021). Apply smoothed speed and depth each frame (FR-023). Add `#include "dsp/evolution_engine.h"`. Depends on T003, T025.
+- [X] T026 [US3] Integrate `EvolutionEngine` into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `EvolutionEngine evolutionEngine_` member, call `evolutionEngine_.prepare(sampleRate)` in `setupProcessing()`, call `evolutionEngine_.updateWaypoints(memorySlots_)` when slots change (after capture/recall/state load). In frame selection pipeline: if `evolutionEnabled && !blendEnabled`, call `evolutionEngine_.advance()` each sample and `getInterpolatedFrame()` each frame to produce `currentFrame` (FR-022). Apply `clamp(evolutionPosition + manualOffset, 0.0, 1.0)` (FR-021). Apply smoothed speed and depth each frame (FR-023). Add `#include "dsp/evolution_engine.h"`. Depends on T003, T025.
 
 ### 4.3 Cross-Platform Verification
 
-- [ ] T027 [US3] Check `test_evolution_engine.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found.
+- [X] T027 [US3] Check `test_evolution_engine.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found.
 
-- [ ] T028 [US3] Build `innexus_tests` target, verify zero warnings, run tests and confirm all pass. Verify evolution produces measurable spectral centroid variation (SC-003 criterion: std deviation > 100 Hz across 10s of samples).
+- [X] T028 [US3] Build `innexus_tests` target, verify zero warnings, run tests and confirm all pass. Verify evolution produces measurable spectral centroid variation (SC-003 criterion: std deviation > 100 Hz across 10s of samples).
 
 ### 4.4 Commit
 
-- [ ] T029 [US3] **Commit completed User Story 3 work**: `evolution_engine.h`, processor integration, tests.
+- [X] T029 [US3] **Commit completed User Story 3 work**: `evolution_engine.h`, processor integration, tests.
 
 **Checkpoint**: US3 complete. Evolution Engine autonomously drifts timbre through waypoints. Tests verify SC-003.
 

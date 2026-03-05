@@ -145,15 +145,7 @@ enum class HarmonicFilterType : int
     HighHarmonics = 4
 };
 
-// ==============================================================================
-// Evolution Mode Enum (M6: Evolution Engine)
-// ==============================================================================
-enum class EvolutionMode : int
-{
-    Cycle = 0,
-    PingPong = 1,
-    RandomWalk = 2
-};
+// EvolutionMode enum is defined in dsp/evolution_engine.h (FR-017)
 
 // ==============================================================================
 // Modulator Waveform Enum (M6: Harmonic Modulators)

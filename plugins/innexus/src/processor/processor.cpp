@@ -274,6 +274,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         }
     }
 
+    // M6 FR-014: Prepare evolution engine
+    evolutionEngine_.prepare(sampleRate_);
+    evolutionEngine_.updateWaypoints(memorySlots_);
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -535,6 +539,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             memorySlots_[static_cast<size_t>(slot)].snapshot =
                 Krate::DSP::captureSnapshot(captureFrame, captureResidual);
             memorySlots_[static_cast<size_t>(slot)].occupied = true;
+
+            // M6: Update evolution waypoints after capture (FR-018)
+            evolutionEngine_.updateWaypoints(memorySlots_);
 
             // Auto-reset trigger (FR-006)
             memoryCapture_.store(0.0f, std::memory_order_relaxed);
@@ -858,6 +865,36 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
 
+    // =========================================================================
+    // M6: Evolution Engine (FR-014 to FR-023)
+    // When evolution is enabled AND blend is NOT enabled, the evolution engine
+    // overrides the normal morph/freeze frame selection path (FR-022).
+    // =========================================================================
+    const bool evolutionEnabled =
+        evolutionEnable_.load(std::memory_order_relaxed) > 0.5f;
+    const bool blendEnabled =
+        blendEnable_.load(std::memory_order_relaxed) > 0.5f;
+
+    // Update evolution engine parameters from smoothers (FR-023)
+    if (evolutionEnabled)
+    {
+        // Speed: denormalize from [0,1] to [0.01, 10.0] Hz
+        const float speedNorm = evolutionSpeed_.load(std::memory_order_relaxed);
+        const float speedPlain = 0.01f + speedNorm * (10.0f - 0.01f);
+        evolutionSpeedSmoother_.setTarget(speedPlain);
+
+        const float depthVal = evolutionDepth_.load(std::memory_order_relaxed);
+        evolutionDepthSmoother_.setTarget(depthVal);
+
+        const float modeNorm = evolutionMode_.load(std::memory_order_relaxed);
+        const int modeInt = std::clamp(static_cast<int>(std::round(modeNorm * 2.0f)), 0, 2);
+        evolutionEngine_.setMode(static_cast<EvolutionMode>(modeInt));
+
+        // Manual offset: use morphPosition as the offset (FR-021)
+        const float morphPos = morphPosition_.load(std::memory_order_relaxed);
+        evolutionEngine_.setManualOffset(morphPos);
+    }
+
     // --- M6: Update stereo spread and detune spread from smoothers ---
     stereoSpreadSmoother_.setTarget(stereoSpread_.load(std::memory_order_relaxed));
     detuneSpreadSmoother_.setTarget(detuneSpread_.load(std::memory_order_relaxed));
@@ -931,6 +968,65 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     isFrozen_ = true;
                 }
             }
+        }
+
+        // M6: Evolution Engine per-sample advance (FR-014, FR-022)
+        if (evolutionEnabled && !blendEnabled)
+        {
+            // Advance smoothers per sample
+            float evoSpeed = evolutionSpeedSmoother_.process();
+            float evoDepth = evolutionDepthSmoother_.process();
+            evolutionEngine_.setSpeed(evoSpeed);
+            evolutionEngine_.setDepth(evoDepth);
+
+            evolutionEngine_.advance();
+
+            // Load evolution-interpolated frame at each frame boundary
+            // (or on first sample of block if evolution just enabled)
+            // For simplicity, we load every sample (loadFrame is cheap compared to processing)
+            Krate::DSP::HarmonicFrame evoFrame{};
+            Krate::DSP::ResidualFrame evoResidual{};
+            if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual))
+            {
+                morphedFrame_ = evoFrame;
+                morphedResidualFrame_ = evoResidual;
+
+                // Apply timbral blend (cross-synthesis) to evolution output
+                if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                // Apply harmonic filter
+                if (currentFilterType_ != 0)
+                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+                float targetPitch = basePitch * bendRatio;
+                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+                if (residualSynth_.isPrepared())
+                {
+                    residualSynth_.loadFrame(
+                        morphedResidualFrame_,
+                        brightnessSmoother_.getCurrentValue(),
+                        transientEmphasisSmoother_.getCurrentValue());
+                }
+            }
+        }
+        else if (evolutionEnabled)
+        {
+            // Evolution is enabled but blend overrides it (FR-052)
+            // Still advance the engine to keep phase continuous
+            (void)evolutionSpeedSmoother_.process();
+            (void)evolutionDepthSmoother_.process();
+            evolutionEngine_.advance();
+        }
+        else
+        {
+            // Evolution disabled: just advance smoothers to keep them tracking
+            (void)evolutionSpeedSmoother_.process();
+            (void)evolutionDepthSmoother_.process();
         }
 
         // M6: Update stereo spread and detune per sample (smoothed)

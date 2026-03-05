@@ -22,6 +22,7 @@
 #include "dsp/sample_analysis.h"
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
+#include "dsp/evolution_engine.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
@@ -529,6 +530,11 @@ private:
     // M6: Pure Harmonic Reference (FR-004, R-004)
     // =========================================================================
     Krate::DSP::HarmonicFrame pureHarmonicFrame_{};
+
+    // =========================================================================
+    // M6: Evolution Engine (FR-014 to FR-023)
+    // =========================================================================
+    EvolutionEngine evolutionEngine_;
 
     // =========================================================================
     // Processing State
