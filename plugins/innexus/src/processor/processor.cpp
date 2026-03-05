@@ -214,6 +214,31 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     filterMask_.fill(1.0f);
     currentFilterType_ = 0;
 
+    // M6: Configure stereo/detune smoothers
+    const float sr = static_cast<float>(sampleRate_);
+    timbralBlendSmoother_.configure(5.0f, sr);
+    timbralBlendSmoother_.snapTo(timbralBlend_.load(std::memory_order_relaxed));
+    stereoSpreadSmoother_.configure(10.0f, sr);
+    stereoSpreadSmoother_.snapTo(stereoSpread_.load(std::memory_order_relaxed));
+    evolutionSpeedSmoother_.configure(5.0f, sr);
+    evolutionSpeedSmoother_.snapTo(evolutionSpeed_.load(std::memory_order_relaxed));
+    evolutionDepthSmoother_.configure(5.0f, sr);
+    evolutionDepthSmoother_.snapTo(evolutionDepth_.load(std::memory_order_relaxed));
+    mod1RateSmoother_.configure(5.0f, sr);
+    mod1RateSmoother_.snapTo(mod1Rate_.load(std::memory_order_relaxed));
+    mod1DepthSmoother_.configure(5.0f, sr);
+    mod1DepthSmoother_.snapTo(mod1Depth_.load(std::memory_order_relaxed));
+    mod2RateSmoother_.configure(5.0f, sr);
+    mod2RateSmoother_.snapTo(mod2Rate_.load(std::memory_order_relaxed));
+    mod2DepthSmoother_.configure(5.0f, sr);
+    mod2DepthSmoother_.snapTo(mod2Depth_.load(std::memory_order_relaxed));
+    detuneSpreadSmoother_.configure(5.0f, sr);
+    detuneSpreadSmoother_.snapTo(detuneSpread_.load(std::memory_order_relaxed));
+    for (auto& smoother : blendWeightSmootherArray_) {
+        smoother.configure(5.0f, sr);
+        smoother.snapTo(0.0f);
+    }
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -248,7 +273,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (currentSource != previousInputSource_)
         {
             // Source changed -- initiate crossfade
-            sourceCrossfadeOldLevel_ = noteActive_ ? oscillatorBank_.process() : 0.0f;
+            if (noteActive_) {
+                float captL, captR;
+                oscillatorBank_.processStereo(captL, captR);
+                sourceCrossfadeOldLevel_ = (captL + captR) * 0.5f;
+            } else {
+                sourceCrossfadeOldLevel_ = 0.0f;
+            }
             sourceCrossfadeSamplesRemaining_ = sourceCrossfadeLengthSamples_;
             previousInputSource_ = currentSource;
             // Note: residualSynth_ is always prepared in setActive() for sidechain mode.
@@ -318,7 +349,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // --- Output ---
     if (data.numOutputs < 1 || !data.outputs)
         return Steinberg::kResultOk;
-    if (data.outputs[0].numChannels < 2)
+    const int numOutputChannels = data.outputs[0].numChannels;
+    if (numOutputChannels < 1)
         return Steinberg::kResultOk;
 
     auto numSamples = data.numSamples;
@@ -326,7 +358,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultOk;
 
     auto** out = data.outputs[0].channelBuffers32;
-    if (!out || !out[0] || !out[1])
+    if (!out || !out[0] || (numOutputChannels >= 2 && !out[1]))
         return Steinberg::kResultOk;
 
 
@@ -372,8 +404,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 // FR-015: If already frozen (slot-to-slot recall), initiate crossfade
                 if (manualFreezeActive_)
                 {
-                    manualFreezeRecoveryOldLevel_ = noteActive_
-                        ? oscillatorBank_.process() : 0.0f;
+                    if (noteActive_) {
+                        float captL, captR;
+                        oscillatorBank_.processStereo(captL, captR);
+                        manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
+                    } else {
+                        manualFreezeRecoveryOldLevel_ = 0.0f;
+                    }
                     manualFreezeRecoverySamplesRemaining_ =
                         manualFreezeRecoveryLengthSamples_;
                 }
@@ -512,9 +549,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (Steinberg::int32 s = 0; s < numSamples; ++s)
         {
             out[0][s] = 0.0f;
-            out[1][s] = 0.0f;
+            if (numOutputChannels >= 2) out[1][s] = 0.0f;
         }
-        data.outputs[0].silenceFlags = 0x3;
+        data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
         return Steinberg::kResultOk;
     }
 
@@ -598,8 +635,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             // FR-006: Initiate 10ms crossfade from frozen to live
             // Capture current oscillator output level for smooth crossfade
-            manualFreezeRecoveryOldLevel_ = noteActive_
-                ? oscillatorBank_.process() : 0.0f;
+            if (noteActive_) {
+                float captL, captR;
+                oscillatorBank_.processStereo(captL, captR);
+                manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
+            } else {
+                manualFreezeRecoveryOldLevel_ = 0.0f;
+            }
             manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
             manualFreezeActive_ = false;
         }
@@ -726,7 +768,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             if (isFrozen_)
             {
                 isFrozen_ = false;
-                freezeRecoveryOldLevel_ = oscillatorBank_.process();
+                float captL, captR;
+                oscillatorBank_.processStereo(captL, captR);
+                freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                 freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
             }
             lastGoodFrame_ = currentLiveFrame_;
@@ -761,6 +805,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
 
+    // --- M6: Update stereo spread and detune spread from smoothers ---
+    stereoSpreadSmoother_.setTarget(stereoSpread_.load(std::memory_order_relaxed));
+    detuneSpreadSmoother_.setTarget(detuneSpread_.load(std::memory_order_relaxed));
+
     // --- Process each sample ---
     bool hasSoundOutput = false;
     const bool hasResidual = isSidechainMode ? hasLiveResidual : hasSampleResidual;
@@ -791,7 +839,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     if (isFrozen_)
                     {
                         isFrozen_ = false;
-                        freezeRecoveryOldLevel_ = oscillatorBank_.process();
+                        float captL, captR;
+                        oscillatorBank_.processStereo(captL, captR);
+                        freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                         freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
                     }
                     lastGoodFrame_ = frame;
@@ -824,8 +874,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
         }
 
-        // --- Generate oscillator bank output ---
-        float harmonicSample = oscillatorBank_.process();
+        // M6: Update stereo spread and detune per sample (smoothed)
+        oscillatorBank_.setStereoSpread(stereoSpreadSmoother_.process());
+        oscillatorBank_.setDetuneSpread(detuneSpreadSmoother_.process());
+
+        // --- Generate oscillator bank stereo output (M6: FR-007) ---
+        float harmonicL = 0.0f, harmonicR = 0.0f;
+        oscillatorBank_.processStereo(harmonicL, harmonicR);
         float residualSample = hasResidual ? residualSynth_.process() : 0.0f;
 
         // M2: Mix harmonic and residual (FR-028)
@@ -834,17 +889,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Advance brightness/transient smoothers per-sample (FR-025)
         (void)brightnessSmoother_.process();
         (void)transientEmphasisSmoother_.process();
-        float sample = harmonicSample * harmLevel + residualSample * resLevel;
+
+        // Residual is center-panned in both channels (FR-012)
+        float resContrib = residualSample * resLevel;
+        float sampleL = harmonicL * harmLevel + resContrib;
+        float sampleR = harmonicR * harmLevel + resContrib;
 
         // --- Freeze recovery crossfade (FR-053) ---
         if (freezeRecoverySamplesRemaining_ > 0)
         {
-            // Linear crossfade from frozen output level to new live output
             float fadeProgress = static_cast<float>(freezeRecoverySamplesRemaining_) /
                                  static_cast<float>(freezeRecoveryLengthSamples_);
-            // old * fadeProgress + new * (1 - fadeProgress)
-            sample = freezeRecoveryOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = freezeRecoveryOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = freezeRecoveryOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             freezeRecoverySamplesRemaining_--;
         }
 
@@ -853,9 +912,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             float fadeProgress = static_cast<float>(manualFreezeRecoverySamplesRemaining_) /
                                  static_cast<float>(manualFreezeRecoveryLengthSamples_);
-            // Blend from old frozen output level to new live output
-            sample = manualFreezeRecoveryOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = manualFreezeRecoveryOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = manualFreezeRecoveryOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             manualFreezeRecoverySamplesRemaining_--;
         }
 
@@ -864,20 +924,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             float fadeProgress = static_cast<float>(antiClickSamplesRemaining_) /
                                  static_cast<float>(antiClickLengthSamples_);
-            // Blend from old output level to new output
-            sample = antiClickOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = antiClickOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = antiClickOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             antiClickSamplesRemaining_--;
         }
 
         // --- Velocity scaling (FR-050): applied to summed output, NOT partials ---
-        sample *= velocityGain_;
+        sampleL *= velocityGain_;
+        sampleR *= velocityGain_;
 
         // --- Release envelope (FR-049) ---
         if (inRelease_)
         {
             releaseGain_ *= releaseDecayCoeff_;
-            sample *= releaseGain_;
+            sampleL *= releaseGain_;
+            sampleR *= releaseGain_;
 
             // Check if release has faded below threshold
             if (releaseGain_ < 1e-6f)
@@ -887,22 +950,30 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 releaseGain_ = 1.0f;
                 oscillatorBank_.reset();
                 residualSynth_.reset();
-                sample = 0.0f;
+                sampleL = 0.0f;
+                sampleR = 0.0f;
             }
         }
 
         // --- Master gain ---
-        sample *= gain;
+        sampleL *= gain;
+        sampleR *= gain;
 
-        // Write to both channels (mono -> stereo)
-        out[0][s] = sample;
-        out[1][s] = sample;
+        // Write stereo output (M6: FR-007), or sum to mono (FR-013)
+        if (numOutputChannels >= 2) {
+            out[0][s] = sampleL;
+            out[1][s] = sampleR;
+        } else {
+            // FR-013: mono output bus -- sum both channels
+            out[0][s] = sampleL + sampleR;
+        }
 
-        if (sample != 0.0f)
+        if (sampleL != 0.0f || sampleR != 0.0f)
             hasSoundOutput = true;
     }
 
-    data.outputs[0].silenceFlags = hasSoundOutput ? 0 : 0x3;
+    data.outputs[0].silenceFlags = hasSoundOutput ? 0
+        : ((numOutputChannels >= 2) ? 0x3 : 0x1);
 
     return Steinberg::kResultOk;
 }
@@ -955,7 +1026,11 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     if (noteActive_ && !inRelease_)
     {
         // Capture last output sample before resetting for crossfade
-        antiClickOldLevel_ = oscillatorBank_.process();
+        {
+            float captL, captR;
+            oscillatorBank_.processStereo(captL, captR);
+            antiClickOldLevel_ = (captL + captR) * 0.5f;
+        }
         antiClickSamplesRemaining_ = antiClickLengthSamples_;
     }
 
@@ -1237,6 +1312,110 @@ void Processor::processParameterChanges(
             case kMemoryRecallId:
                 memoryRecall_.store(static_cast<float>(value));
                 break;
+
+            // M6 Creative Extensions parameters
+            case kTimbralBlendId:
+                timbralBlend_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kStereoSpreadId:
+                stereoSpread_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionEnableId:
+                evolutionEnable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kEvolutionSpeedId:
+                evolutionSpeed_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionDepthId:
+                evolutionDepth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionModeId:
+                evolutionMode_.store(static_cast<float>(value));
+                break;
+            case kMod1EnableId:
+                mod1Enable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod1WaveformId:
+                mod1Waveform_.store(static_cast<float>(value));
+                break;
+            case kMod1RateId:
+                mod1Rate_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1DepthId:
+                mod1Depth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1RangeStartId:
+                mod1RangeStart_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1RangeEndId:
+                mod1RangeEnd_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1TargetId:
+                mod1Target_.store(static_cast<float>(value));
+                break;
+            case kMod2EnableId:
+                mod2Enable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod2WaveformId:
+                mod2Waveform_.store(static_cast<float>(value));
+                break;
+            case kMod2RateId:
+                mod2Rate_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2DepthId:
+                mod2Depth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2RangeStartId:
+                mod2RangeStart_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2RangeEndId:
+                mod2RangeEnd_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2TargetId:
+                mod2Target_.store(static_cast<float>(value));
+                break;
+            case kDetuneSpreadId:
+                detuneSpread_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kBlendEnableId:
+                blendEnable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kBlendSlotWeight1Id:
+            case kBlendSlotWeight2Id:
+            case kBlendSlotWeight3Id:
+            case kBlendSlotWeight4Id:
+            case kBlendSlotWeight5Id:
+            case kBlendSlotWeight6Id:
+            case kBlendSlotWeight7Id:
+            case kBlendSlotWeight8Id:
+            {
+                auto idx = paramQueue->getParameterId() - kBlendSlotWeight1Id;
+                blendSlotWeights_[idx].store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            }
+            case kBlendLiveWeightId:
+                blendLiveWeight_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }

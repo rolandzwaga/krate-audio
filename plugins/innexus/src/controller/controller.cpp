@@ -145,6 +145,194 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate,
         kMemoryRecallId);
 
+    // ==================================================================
+    // M6 Creative Extensions parameters (FR-043)
+    // ==================================================================
+
+    // Cross-Synthesis: Timbral Blend (FR-001)
+    auto* timbralBlendParam = new Steinberg::Vst::RangeParameter(
+        STR16("Timbral Blend"), kTimbralBlendId,
+        STR16("%"), 0.0, 1.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(timbralBlendParam);
+
+    // Stereo Spread (FR-006)
+    auto* stereoSpreadParam = new Steinberg::Vst::RangeParameter(
+        STR16("Stereo Spread"), kStereoSpreadId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(stereoSpreadParam);
+
+    // Evolution Engine (FR-014 to FR-017)
+    parameters.addParameter(STR16("Evolution Enable"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kEvolutionEnableId);
+
+    auto* evoSpeedParam = new Steinberg::Vst::RangeParameter(
+        STR16("Evolution Speed"), kEvolutionSpeedId,
+        STR16("Hz"), 0.01, 10.0, 0.1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(evoSpeedParam);
+
+    auto* evoDepthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Evolution Depth"), kEvolutionDepthId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(evoDepthParam);
+
+    auto* evoModeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Evolution Mode"), kEvolutionModeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    evoModeParam->appendString(STR16("Cycle"));
+    evoModeParam->appendString(STR16("PingPong"));
+    evoModeParam->appendString(STR16("Random Walk"));
+    parameters.addParameter(evoModeParam);
+
+    // Modulator 1 (FR-024)
+    parameters.addParameter(STR16("Mod 1 Enable"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMod1EnableId);
+
+    auto* mod1WaveParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 1 Waveform"), kMod1WaveformId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    mod1WaveParam->appendString(STR16("Sine"));
+    mod1WaveParam->appendString(STR16("Triangle"));
+    mod1WaveParam->appendString(STR16("Square"));
+    mod1WaveParam->appendString(STR16("Saw"));
+    mod1WaveParam->appendString(STR16("Random S&H"));
+    parameters.addParameter(mod1WaveParam);
+
+    auto* mod1RateParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 1 Rate"), kMod1RateId,
+        STR16("Hz"), 0.01, 20.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod1RateParam);
+
+    auto* mod1DepthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 1 Depth"), kMod1DepthId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod1DepthParam);
+
+    auto* mod1RangeStartParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 1 Range Start"), kMod1RangeStartId,
+        STR16(""), 1.0, 48.0, 1.0, 47,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod1RangeStartParam);
+
+    auto* mod1RangeEndParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 1 Range End"), kMod1RangeEndId,
+        STR16(""), 1.0, 48.0, 48.0, 47,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod1RangeEndParam);
+
+    auto* mod1TargetParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 1 Target"), kMod1TargetId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    mod1TargetParam->appendString(STR16("Amplitude"));
+    mod1TargetParam->appendString(STR16("Frequency"));
+    mod1TargetParam->appendString(STR16("Pan"));
+    parameters.addParameter(mod1TargetParam);
+
+    // Modulator 2 (FR-024)
+    parameters.addParameter(STR16("Mod 2 Enable"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMod2EnableId);
+
+    auto* mod2WaveParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 2 Waveform"), kMod2WaveformId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    mod2WaveParam->appendString(STR16("Sine"));
+    mod2WaveParam->appendString(STR16("Triangle"));
+    mod2WaveParam->appendString(STR16("Square"));
+    mod2WaveParam->appendString(STR16("Saw"));
+    mod2WaveParam->appendString(STR16("Random S&H"));
+    parameters.addParameter(mod2WaveParam);
+
+    auto* mod2RateParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 2 Rate"), kMod2RateId,
+        STR16("Hz"), 0.01, 20.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod2RateParam);
+
+    auto* mod2DepthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 2 Depth"), kMod2DepthId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod2DepthParam);
+
+    auto* mod2RangeStartParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 2 Range Start"), kMod2RangeStartId,
+        STR16(""), 1.0, 48.0, 1.0, 47,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod2RangeStartParam);
+
+    auto* mod2RangeEndParam = new Steinberg::Vst::RangeParameter(
+        STR16("Mod 2 Range End"), kMod2RangeEndId,
+        STR16(""), 1.0, 48.0, 48.0, 47,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(mod2RangeEndParam);
+
+    auto* mod2TargetParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 2 Target"), kMod2TargetId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    mod2TargetParam->appendString(STR16("Amplitude"));
+    mod2TargetParam->appendString(STR16("Frequency"));
+    mod2TargetParam->appendString(STR16("Pan"));
+    parameters.addParameter(mod2TargetParam);
+
+    // Detune Spread (FR-030)
+    auto* detuneSpreadParam = new Steinberg::Vst::RangeParameter(
+        STR16("Detune Spread"), kDetuneSpreadId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(detuneSpreadParam);
+
+    // Multi-Source Blend (FR-034 to FR-036)
+    parameters.addParameter(STR16("Blend Enable"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kBlendEnableId);
+
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 1 Weight"), kBlendSlotWeight1Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 2 Weight"), kBlendSlotWeight2Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 3 Weight"), kBlendSlotWeight3Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 4 Weight"), kBlendSlotWeight4Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 5 Weight"), kBlendSlotWeight5Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 6 Weight"), kBlendSlotWeight6Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 7 Weight"), kBlendSlotWeight7Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+    parameters.addParameter(new Steinberg::Vst::RangeParameter(
+        STR16("Blend Slot 8 Weight"), kBlendSlotWeight8Id,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate));
+
+    auto* blendLiveWeightParam = new Steinberg::Vst::RangeParameter(
+        STR16("Blend Live Weight"), kBlendLiveWeightId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(blendLiveWeightParam);
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 

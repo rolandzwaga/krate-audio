@@ -73,6 +73,46 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Sidechain / Live Analysis (500-599) -- M3
     kInputSourceId = 500,          // 0 = Sample, 1 = Sidechain (StringListParameter)
     kLatencyModeId = 501,          // 0 = Low Latency, 1 = High Precision (StringListParameter)
+
+    // Creative Extensions (600-699) -- M6
+    // Cross-Synthesis
+    kTimbralBlendId = 600,         // 0.0-1.0, default 1.0
+    // Stereo Output
+    kStereoSpreadId = 601,         // 0.0-1.0, default 0.0
+    // Evolution Engine
+    kEvolutionEnableId = 602,      // 0/1, default 0
+    kEvolutionSpeedId = 603,       // 0.01-10.0 Hz, default 0.1
+    kEvolutionDepthId = 604,       // 0.0-1.0, default 0.5
+    kEvolutionModeId = 605,        // 0-2 (Cycle/PingPong/RandomWalk), default 0
+    // Modulator 1
+    kMod1EnableId = 610,           // 0/1, default 0
+    kMod1WaveformId = 611,         // 0-4 (Sine/Triangle/Square/Saw/RandomSH), default 0
+    kMod1RateId = 612,             // 0.01-20.0 Hz, default 1.0
+    kMod1DepthId = 613,            // 0.0-1.0, default 0.0
+    kMod1RangeStartId = 614,       // 1-48, default 1
+    kMod1RangeEndId = 615,         // 1-48, default 48
+    kMod1TargetId = 616,           // 0-2 (Amplitude/Frequency/Pan), default 0
+    // Modulator 2
+    kMod2EnableId = 620,           // 0/1, default 0
+    kMod2WaveformId = 621,         // 0-4, default 0
+    kMod2RateId = 622,             // 0.01-20.0 Hz, default 1.0
+    kMod2DepthId = 623,            // 0.0-1.0, default 0.0
+    kMod2RangeStartId = 624,       // 1-48, default 1
+    kMod2RangeEndId = 625,         // 1-48, default 48
+    kMod2TargetId = 626,           // 0-2, default 0
+    // Detune
+    kDetuneSpreadId = 630,         // 0.0-1.0, default 0.0
+    // Multi-Source Blend
+    kBlendEnableId = 640,          // 0/1, default 0
+    kBlendSlotWeight1Id = 641,     // 0.0-1.0, default 0.0
+    kBlendSlotWeight2Id = 642,
+    kBlendSlotWeight3Id = 643,
+    kBlendSlotWeight4Id = 644,
+    kBlendSlotWeight5Id = 645,
+    kBlendSlotWeight6Id = 646,
+    kBlendSlotWeight7Id = 647,
+    kBlendSlotWeight8Id = 648,
+    kBlendLiveWeightId = 649,      // 0.0-1.0, default 0.0
 };
 
 // ==============================================================================
@@ -103,6 +143,38 @@ enum class HarmonicFilterType : int
     EvenOnly = 2,
     LowHarmonics = 3,
     HighHarmonics = 4
+};
+
+// ==============================================================================
+// Evolution Mode Enum (M6: Evolution Engine)
+// ==============================================================================
+enum class EvolutionMode : int
+{
+    Cycle = 0,
+    PingPong = 1,
+    RandomWalk = 2
+};
+
+// ==============================================================================
+// Modulator Waveform Enum (M6: Harmonic Modulators)
+// ==============================================================================
+enum class ModulatorWaveform : int
+{
+    Sine = 0,
+    Triangle = 1,
+    Square = 2,
+    Saw = 3,
+    RandomSH = 4
+};
+
+// ==============================================================================
+// Modulator Target Enum (M6: Harmonic Modulators)
+// ==============================================================================
+enum class ModulatorTarget : int
+{
+    Amplitude = 0,
+    Frequency = 1,
+    Pan = 2
 };
 
 } // namespace Innexus
