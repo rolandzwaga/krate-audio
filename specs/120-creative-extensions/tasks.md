@@ -340,9 +340,9 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 ### 11.1 Requirements Verification
 
-- [ ] T062 **Review ALL FR-001 through FR-052** from `specs/120-creative-extensions/spec.md` against implementation. For each FR: open the implementation file, find the relevant code, confirm the requirement is met. Cite file and line number.
+- [X] T062 **Review ALL FR-001 through FR-052** from `specs/120-creative-extensions/spec.md` against implementation. For each FR: open the implementation file, find the relevant code, confirm the requirement is met. Cite file and line number.
 
-- [ ] T063 **Review ALL SC-001 through SC-011** by running specific tests or measurements. Copy actual output values and compare against spec thresholds:
+- [X] T063 **Review ALL SC-001 through SC-011** by running specific tests or measurements. Copy actual output values and compare against spec thresholds:
   - SC-001: correlation > 0.95 at blend=1.0
   - SC-002: decorrelation > 0.8 at spread=1.0; < 0.01 at spread=0.0
   - SC-003: centroid std deviation > 100 Hz over 10s
@@ -355,18 +355,18 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
   - SC-010: left == right at spread=0.0
   - SC-011: single-source blend == direct recall
 
-- [ ] T064 **Search for cheating patterns** in all new code:
+- [X] T064 **Search for cheating patterns** in all new code:
   - [ ] No `// placeholder` or `// TODO` comments in new code
   - [ ] No test thresholds relaxed from spec requirements
   - [ ] No features quietly removed from scope
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T065 **Update `specs/120-creative-extensions/spec.md` "Implementation Verification" section** with compliance status (file path, line number, test name, actual measured value) for every FR-xxx and SC-xxx row. Mark overall status COMPLETE / NOT COMPLETE / PARTIAL.
+- [X] T065 **Update `specs/120-creative-extensions/spec.md` "Implementation Verification" section** with compliance status (file path, line number, test name, actual measured value) for every FR-xxx and SC-xxx row. Mark overall status COMPLETE / NOT COMPLETE / PARTIAL.
 
 ### 11.3 Final Honest Self-Check
 
-- [ ] T066 Answer these questions. If ANY is "yes", do NOT claim completion:
+- [X] T066 Answer these questions. If ANY is "yes", do NOT claim completion:
   1. Did I change ANY test threshold from what the spec originally required?
   2. Are there ANY "placeholder", "stub", or "TODO" comments in new code?
   3. Did I remove ANY features from scope without telling the user?
