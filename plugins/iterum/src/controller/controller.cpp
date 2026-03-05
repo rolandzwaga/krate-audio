@@ -8,9 +8,11 @@
 
 #include "preset/preset_manager.h"
 #include "preset/iterum_preset_config.h"
+#include "update/iterum_update_config.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/tap_pattern_editor.h"
+#include "ui/update_banner_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 
@@ -686,10 +688,14 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
             return this->loadComponentStateWithNotify(state);
         });
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeIterumUpdateConfig());
+
     return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
+    updateChecker_.reset();
     return EditControllerEx1::terminate();
 }
 
@@ -1348,6 +1354,28 @@ VSTGUI::CView* Controller::createCustomView(
         return patternEditor;
     }
 
+    // Update Banner
+    if (VSTGUI::UTF8StringView(name) == "UpdateBanner") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(100, 30);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        auto* banner = new Krate::Plugins::UpdateBannerView(rect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+
+    // Check for Updates button (manual trigger)
+    if (VSTGUI::UTF8StringView(name) == "CheckForUpdatesButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(120, 24);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
+    }
+
     return nullptr;
 }
 
@@ -1646,6 +1674,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         log.flush();
     }
 #endif
+
+    // Start update check and banner polling
+    if (updateChecker_) {
+        updateChecker_->checkForUpdate(false);
+    }
+    if (updateBannerView_) {
+        updateBannerView_->startPolling();
+    }
 }
 
 // Helper to safely deactivate a visibility controller
@@ -1734,6 +1770,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
     // TapPatternEditor is owned by the frame and will be cleaned up automatically
     tapPatternEditor_ = nullptr;
+
+    // Stop update banner polling (view is owned by frame)
+    if (updateBannerView_) {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;
+    }
 }
 
 // ==============================================================================

@@ -20,6 +20,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 #include "platform/accessibility_helper.h"
 #include "midi/midi_cc_manager.h"
 #include "controller/keyboard_shortcut_handler.h"
@@ -33,6 +34,7 @@
 namespace Krate::Plugins {
 class PresetBrowserView;
 class SavePresetDialogView;
+class UpdateBannerView;
 }
 
 namespace Disrumpo {
@@ -363,6 +365,10 @@ private:
     std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
     Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;  // Owned by frame
     Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;  // Owned by frame
+
+    // Update Checker
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;  // Owned by frame
 
     // ==========================================================================
     // Bulk Parameter Load Guard

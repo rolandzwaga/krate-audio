@@ -24,6 +24,8 @@ add_executable(shared_tests
     test_oscillator_type_selector.cpp
     test_lfo_shape_selector.cpp
     test_midi_event_dispatcher.cpp
+    test_version_compare.cpp
+    test_update_checker.cpp
 )
 
 target_link_libraries(shared_tests
@@ -33,6 +35,7 @@ target_link_libraries(shared_tests
         Catch2::Catch2
         sdk
         vstgui_support
+        nlohmann_json::nlohmann_json
 )
 
 target_include_directories(shared_tests

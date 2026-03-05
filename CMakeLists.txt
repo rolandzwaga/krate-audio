@@ -317,6 +317,34 @@ FetchContent_MakeAvailable(pffft)
 smtg_target_setup_universal_binary(PFFFT)
 
 # ==============================================================================
+# cpp-httplib (header-only HTTP/HTTPS client, MIT license)
+# ==============================================================================
+# Used for update checking. Requires Mbed TLS for HTTPS support.
+FetchContent_Declare(
+    httplib
+    GIT_REPOSITORY https://github.com/yhirose/cpp-httplib.git
+    GIT_TAG v0.18.3
+)
+set(HTTPLIB_REQUIRE_OPENSSL OFF CACHE BOOL "" FORCE)
+set(HTTPLIB_REQUIRE_ZLIB OFF CACHE BOOL "" FORCE)
+set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+set(HTTPLIB_COMPILE OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(httplib)
+
+# ==============================================================================
+# nlohmann/json (header-only JSON library, MIT license)
+# ==============================================================================
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+set(JSON_Install OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ==============================================================================
 # KrateDSP Library (Shared by all plugins)
 # ==============================================================================
 add_subdirectory(dsp)

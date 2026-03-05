@@ -9,9 +9,11 @@
 
 #include "controller.h"
 #include "plugin_ids.h"
+#include "version.h"
 #include "preset/ruinae_preset_config.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/update_banner_view.h"
 #include "vstgui/uidescription/uiattributes.h"
 
 // Parameter pack headers (for loadXxxParamsToController)
@@ -356,6 +358,38 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new FixedOptionMenu(rect, nullptr, -1);
+    }
+
+    // Update Banner
+    if (VSTGUI::UTF8StringView(name) == "UpdateBanner") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(100, 30);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        auto* banner = new Krate::Plugins::UpdateBannerView(rect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
+
+    // Check for Updates button (manual trigger)
+    if (VSTGUI::UTF8StringView(name) == "CheckForUpdatesButton") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(120, 24);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
+    }
+
+    // Version label (dynamic, reads VERSION_STR)
+    if (VSTGUI::UTF8StringView(name) == "VersionLabel") {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(60, 16);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new Krate::Plugins::VersionLabel(rect, VERSION_STR);
     }
 
     return nullptr;

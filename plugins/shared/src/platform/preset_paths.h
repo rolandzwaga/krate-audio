@@ -26,6 +26,12 @@ std::filesystem::path getUserPresetDirectory(const std::string& pluginName);
 /// Linux:    /usr/share/krate-audio/{pluginName}
 std::filesystem::path getFactoryPresetDirectory(const std::string& pluginName);
 
+/// Get application settings directory (writable, for update state, etc.)
+/// Windows:  %APPDATA%\Krate Audio\{pluginName}
+/// macOS:    ~/Library/Application Support/Krate Audio/{pluginName}
+/// Linux:    ~/.config/krate-audio/{pluginName}
+std::filesystem::path getAppSettingsDirectory(const std::string& pluginName);
+
 /// Ensure directory exists, creating it if necessary
 /// @return true if directory exists or was created
 bool ensureDirectoryExists(const std::filesystem::path& path);

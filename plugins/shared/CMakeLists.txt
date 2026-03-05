@@ -40,6 +40,16 @@ add_library(KratePluginsShared STATIC
     src/preset/preset_manager.h
     src/preset/preset_manager.cpp
 
+    # Update Checker
+    src/update/update_checker_config.h
+    src/update/version_compare.h
+    src/update/update_checker.h
+    src/update/update_checker.cpp
+    $<$<PLATFORM_ID:Darwin>:src/update/update_checker_mac.mm>
+
+    # Update Banner UI
+    src/ui/update_banner_view.h
+
     # UI Components
     src/ui/color_utils.h
     src/ui/arc_knob.h
@@ -81,7 +91,19 @@ target_link_libraries(KratePluginsShared
         sdk
         vstgui
         KrateDSP
+    PRIVATE
+        nlohmann_json::nlohmann_json
 )
+
+# Windows: link WinHTTP for update checker HTTPS support
+if(WIN32)
+    target_link_libraries(KratePluginsShared PRIVATE winhttp)
+endif()
+
+# Linux: use cpp-httplib for HTTP requests (httplib is header-only, just needs include)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(KratePluginsShared PRIVATE httplib::httplib)
+endif()
 
 # FR-025c: macOS AppKit framework for accessibility detection (NSWorkspace API)
 if(APPLE)

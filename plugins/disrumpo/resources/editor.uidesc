@@ -514,6 +514,7 @@
       <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo" font="title-font" font-color="text-primary" text-alignment="left"/>
       <view custom-view-name="PresetBrowserButton" origin="250, 12" size="80, 25"/>
       <view custom-view-name="SavePresetButton" origin="340, 12" size="60, 25"/>
+      <view custom-view-name="CheckForUpdatesButton" origin="420, 14" size="130, 22"/>
       <view class="CViewContainer" origin="700, 5" size="290, 40" transparent="true">
         <view class="CTextLabel" origin="0, 0" size="50, 15" title="Input" font="small-font" font-color="text-secondary" text-alignment="center"/>
         <view class="CKnob" origin="5, 15" size="40, 25" control-tag="InputGain" default-value="0.5" min-value="0" max-value="1" background-color="panel" handle-color="accent-primary"/>
@@ -842,6 +843,8 @@
         </view>
       </view>
     </view>
+    <!-- Update Banner (last child = paints on top of everything) -->
+    <view custom-view-name="UpdateBanner" origin="0, 0" size="1000, 60" autosize="left right"/>
   </template>
   <template name="TypeParams_SoftClip" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Soft Clip" font="section-font" font-color="text-primary" text-alignment="center"/>

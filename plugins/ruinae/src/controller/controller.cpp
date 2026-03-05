@@ -31,6 +31,8 @@
 #include "ui/category_tab_bar.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/update_banner_view.h"
+#include "update/ruinae_update_config.h"
 
 // Parameter pack headers (for registration and controller sync)
 #include "parameters/global_params.h"
@@ -257,6 +259,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
             return this->loadComponentStateWithNotify(state, arpOnly);
         });
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeRuinaeUpdateConfig());
+
     return Steinberg::kResultTrue;
 }
 
@@ -274,6 +279,7 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
     modEnvOutputPtr_ = nullptr;
     modEnvStagePtr_ = nullptr;
     envVoiceActivePtr_ = nullptr;
+    updateChecker_.reset();
     presetManager_.reset();
     return EditControllerEx1::terminate();
 }
@@ -1000,6 +1006,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             frame->addView(savePresetDialogView_);
         }
     }
+
+    // Start update check and banner polling
+    if (updateChecker_) {
+        updateChecker_->checkForUpdate(false);
+    }
+    if (updateBannerView_) {
+        updateBannerView_->startPolling();
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
@@ -1072,6 +1086,12 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         presetBrowserView_ = nullptr;
         arpPresetBrowserView_ = nullptr;
         savePresetDialogView_ = nullptr;
+
+        // Stop update banner polling (view is owned by frame)
+        if (updateBannerView_) {
+            updateBannerView_->stopPolling();
+            updateBannerView_ = nullptr;
+        }
 
         // Notify processor that editor is closing (FR-012)
         {

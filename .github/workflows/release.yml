@@ -594,6 +594,37 @@ jobs:
               f.write(html)
           PYEOF
 
+      - name: Generate Update Checker Endpoint
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          # Generate versions.json for the in-plugin update checker
+          # Reads each plugin's version.json and produces an aggregated endpoint
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+          const glob = require("child_process")
+            .execSync("ls plugins/*/version.json")
+            .toString().trim().split("\n");
+
+          const plugins = {};
+          for (const vj of glob) {
+            const data = JSON.parse(fs.readFileSync(vj, "utf8"));
+            const dir = path.basename(path.dirname(vj));
+            const repo = process.env.REPO;
+            plugins[data.name] = {
+              version: data.version,
+              download_url: `https://${repo.split("/")[0]}.github.io/${repo.split("/")[1]}/${dir}/`,
+              release_notes: ""
+            };
+          }
+
+          const output = { schema_version: 1, plugins };
+          fs.mkdirSync("_site", { recursive: true });
+          fs.writeFileSync("_site/versions.json", JSON.stringify(output, null, 2) + "\n");
+          console.log("Generated versions.json:", JSON.stringify(output, null, 2));
+          '
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:

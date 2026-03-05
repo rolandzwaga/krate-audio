@@ -50,6 +50,35 @@ std::filesystem::path getFactoryPresetDirectory(const std::string& pluginName) {
 #endif
 }
 
+std::filesystem::path getAppSettingsDirectory(const std::string& pluginName) {
+    namespace fs = std::filesystem;
+
+#ifdef _WIN32
+    const char* appData = std::getenv("APPDATA");
+    if (appData) {
+        return fs::path(appData) / "Krate Audio" / pluginName;
+    }
+    return {};
+#elif defined(__APPLE__)
+    const char* home = std::getenv("HOME");
+    if (home) {
+        return fs::path(home) / "Library" / "Application Support" / "Krate Audio" / pluginName;
+    }
+    return fs::path();
+#else
+    // Linux - XDG Base Directory Specification
+    const char* configHome = std::getenv("XDG_CONFIG_HOME");
+    if (configHome) {
+        return fs::path(configHome) / "krate-audio" / pluginName;
+    }
+    const char* home = std::getenv("HOME");
+    if (home) {
+        return fs::path(home) / ".config" / "krate-audio" / pluginName;
+    }
+    return fs::path();
+#endif
+}
+
 bool ensureDirectoryExists(const std::filesystem::path& path) {
     namespace fs = std::filesystem;
 

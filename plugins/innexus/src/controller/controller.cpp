@@ -5,6 +5,7 @@
 #include "controller.h"
 #include "parameters/innexus_params.h"
 #include "plugin_ids.h"
+#include "update/innexus_update_config.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "base/source/fstreamer.h"
@@ -93,6 +94,9 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     latencyModeParam->appendString(STR16("High Precision"));
     parameters.addParameter(latencyModeParam);
 
+    // Update checker
+    updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
+
     return Steinberg::kResultOk;
 }
 
@@ -101,6 +105,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Controller::terminate()
 {
+    updateChecker_.reset();
     return EditControllerEx1::terminate();
 }
 

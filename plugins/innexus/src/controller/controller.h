@@ -15,6 +15,9 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "update/update_checker.h"
+
+#include <memory>
 
 namespace Innexus {
 
@@ -34,6 +37,10 @@ public:
     {
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());
     }
+
+private:
+    // Update Checker (ready for when UI is added)
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
 };
 
 } // namespace Innexus

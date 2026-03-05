@@ -23,6 +23,7 @@
 #include "vstgui/lib/cviewcontainer.h"
 #include "parameters/arpeggiator_params.h"
 #include "preset/preset_manager.h"
+#include "update/update_checker.h"
 #include "ui/arp_lane.h"
 
 #include <array>
@@ -43,6 +44,7 @@ class ADSRDisplay;
 class ModMatrixGrid;
 class ModRingIndicator;
 class EuclideanDotDisplay;
+class UpdateBannerView;
 }
 
 namespace Ruinae {
@@ -446,6 +448,10 @@ private:
 
     /// Save preset dialog overlay view (owned by frame, raw pointer)
     Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;
+
+    // Update Checker
+    std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;  // Owned by frame
 
 protected:
     // ==========================================================================

@@ -4007,6 +4007,9 @@
             <!-- Save button (Spec 083) -->
             <view custom-view-name="SavePresetButton" origin="550, 8" size="60, 25"/>
 
+            <!-- Version label (dynamic, reads VERSION_STR at runtime) -->
+            <view custom-view-name="VersionLabel" origin="1330, 12" size="60, 16"/>
+
         </view>
 
         <!-- ============================================================ -->
@@ -4134,7 +4137,13 @@
                   on-color="master"
                   off-color="toggle-off"
                   transparent="true"/>
+
+            <!-- Check for Updates -->
+            <view custom-view-name="CheckForUpdatesButton" origin="16, 760" size="188, 22"/>
         </view>
+
+        <!-- Update Banner (last child = paints on top of everything) -->
+        <view custom-view-name="UpdateBanner" origin="0, 0" size="1400, 60" autosize="left right"/>
 
     </template>
 </vstgui-ui-description>
