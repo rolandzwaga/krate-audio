@@ -59,6 +59,12 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kResidualBrightnessId = 402,   // plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.5)
     kTransientEmphasisId = 403,    // plain 0.0-2.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.0)
 
+    // Musical Control (300-399) -- M4
+    kFreezeId = 300,               // 0.0 = off, 1.0 = on (toggle)
+    kMorphPositionId = 301,        // 0.0 to 1.0, default 0.0
+    kHarmonicFilterTypeId = 302,   // StringListParameter: 5 presets
+    kResponsivenessId = 303,       // 0.0 to 1.0, default 0.5
+
     // Sidechain / Live Analysis (500-599) -- M3
     kInputSourceId = 500,          // 0 = Sample, 1 = Sidechain (StringListParameter)
     kLatencyModeId = 501,          // 0 = Low Latency, 1 = High Precision (StringListParameter)
@@ -80,6 +86,18 @@ enum class LatencyMode : int
 {
     LowLatency = 0,
     HighPrecision = 1
+};
+
+// ==============================================================================
+// Harmonic Filter Type Enum (M4: Musical Control Layer)
+// ==============================================================================
+enum class HarmonicFilterType : int
+{
+    AllPass = 0,
+    OddOnly = 1,
+    EvenOnly = 2,
+    LowHarmonics = 3,
+    HighHarmonics = 4
 };
 
 } // namespace Innexus

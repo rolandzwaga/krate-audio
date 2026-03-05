@@ -5,6 +5,25 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-05
+
+### Added
+
+- **M4: Musical Control Layer** — Four new expressive parameters for real-time harmonic manipulation (Freeze, Morph, Harmonic Filter, Responsiveness)
+- **Harmonic Freeze** — Manual toggle captures current HarmonicFrame and ResidualFrame as a frozen timbral snapshot; oscillator bank plays from frozen state until disengaged; ≤10ms linear crossfade on disengage with no audible click (SC-001: <-60 dB); manual freeze overrides auto-freeze (FR-007); frozen state preserved across analysis source switches (FR-008)
+- **Morph Position** — Continuous 0.0–1.0 blend between frozen (State A) and live (State B) harmonic states; per-partial amplitude interpolation, relative frequency interpolation, residual band energy interpolation; handles unequal partial counts by fading missing partials to zero (FR-015); 7ms one-pole smoother for click-free automation (FR-017); no effect without freeze engaged (FR-016)
+- **Harmonic Filter Type** — Five timbral sculpting presets applied as per-partial amplitude masks after morph, before oscillator bank: All-Pass (identity), Odd Only, Even Only, Low Harmonics (clamp(8/n,0,1) rolloff), High Harmonics (fundamental attenuated ≥18 dB); does not affect residual (FR-027)
+- **Responsiveness** — 0.0–1.0 control forwarded to LiveAnalysisPipeline's HarmonicModelBuilder dual-timescale blend; default 0.5 produces identical behavior to M1/M3 default (SC-008); takes effect within one process block (FR-031); no effect in sample mode (FR-032)
+- **HarmonicFrameUtils** (KrateDSP Layer 2) — Four inline DSP utilities: `lerpHarmonicFrame`, `lerpResidualFrame`, `computeHarmonicMask`, `applyHarmonicMask`; real-time safe, header-only, handles unequal partial counts
+- **State version 4** — Persists all four M4 parameters (freeze, morph position, filter type, responsiveness) with backward compatibility for v1/v2/v3 presets
+- **Edge case robustness** — Freeze with no analysis loaded, morph with zero partials, rapid filter toggling during sustained notes, freeze during confidence-gate recovery, morph with very different F0 values (100 Hz vs 1000 Hz)
+
+### Performance
+
+- M4 processing overhead: negligible (<0.1% CPU at 44.1 kHz, SC-007)
+- Morph sweep: max frame-to-frame delta 2.07e-06 dB (SC-003)
+- Odd/Even filter attenuation: ∞ dB (exact zero mask, exceeds SC-005/SC-006 -60 dB requirement)
+
 ## [0.3.1] - 2026-03-05
 
 ### Added

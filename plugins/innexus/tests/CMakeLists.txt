@@ -24,6 +24,10 @@ add_executable(innexus_tests
     unit/processor/live_analysis_pipeline_tests.cpp
     unit/processor/sidechain_integration_tests.cpp
 
+    # Musical Control Layer tests (M4 Phases 13-14)
+    unit/processor/musical_control_tests.cpp
+    unit/vst/musical_control_vst_tests.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

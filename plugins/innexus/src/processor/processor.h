@@ -23,9 +23,11 @@
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
 
+#include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
+#include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
@@ -164,6 +166,96 @@ public:
         return sourceCrossfadeLengthSamples_;
     }
 
+    /// @brief Get manual freeze active state (TEST ONLY).
+    bool getManualFreezeActive() const { return manualFreezeActive_; }
+
+    /// @brief Get the frozen harmonic frame (TEST ONLY).
+    const Krate::DSP::HarmonicFrame& getManualFrozenFrame() const
+    {
+        return manualFrozenFrame_;
+    }
+
+    /// @brief Get the frozen residual frame (TEST ONLY).
+    const Krate::DSP::ResidualFrame& getManualFrozenResidualFrame() const
+    {
+        return manualFrozenResidualFrame_;
+    }
+
+    /// @brief Get manual freeze recovery length in samples (TEST ONLY).
+    int getManualFreezeRecoveryLengthSamples() const
+    {
+        return manualFreezeRecoveryLengthSamples_;
+    }
+
+    /// @brief Get manual freeze recovery samples remaining (TEST ONLY).
+    int getManualFreezeRecoverySamplesRemaining() const
+    {
+        return manualFreezeRecoverySamplesRemaining_;
+    }
+
+    /// @brief Get confidence-gate freeze recovery samples remaining (TEST ONLY).
+    int getConfidenceGateFreezeRecoverySamplesRemaining() const
+    {
+        return freezeRecoverySamplesRemaining_;
+    }
+
+    /// @brief Get freeze parameter value (TEST ONLY).
+    float getFreeze() const
+    {
+        return freeze_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get responsiveness parameter value (TEST ONLY).
+    float getResponsiveness() const
+    {
+        return responsiveness_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get morph position parameter value (TEST ONLY).
+    float getMorphPosition() const
+    {
+        return morphPosition_.load(std::memory_order_relaxed);
+    }
+
+    /// @brief Get current auto-freeze (confidence-gated) state (TEST ONLY).
+    bool getAutoFreezeActive() const { return isFrozen_; }
+
+    /// @brief Get morph position smoother (TEST ONLY).
+    const Krate::DSP::OnePoleSmoother& getMorphPositionSmoother() const
+    {
+        return morphPositionSmoother_;
+    }
+
+    /// @brief Get the morphed harmonic frame (TEST ONLY).
+    const Krate::DSP::HarmonicFrame& getMorphedFrame() const
+    {
+        return morphedFrame_;
+    }
+
+    /// @brief Get the morphed residual frame (TEST ONLY).
+    const Krate::DSP::ResidualFrame& getMorphedResidualFrame() const
+    {
+        return morphedResidualFrame_;
+    }
+
+    /// @brief Get current filter type (TEST ONLY).
+    int getCurrentFilterType() const { return currentFilterType_; }
+
+    /// @brief Get harmonic filter type from atomic parameter value (TEST ONLY).
+    /// Computes the discrete filter type (0-4) from the normalized atomic,
+    /// matching the logic in process().
+    int getHarmonicFilterTypeFromParam() const
+    {
+        const float filterNorm = harmonicFilterType_.load(std::memory_order_relaxed);
+        return std::clamp(static_cast<int>(std::round(filterNorm * 4.0f)), 0, 4);
+    }
+
+    /// @brief Get filter mask array (TEST ONLY).
+    const std::array<float, Krate::DSP::kMaxPartials>& getFilterMask() const
+    {
+        return filterMask_;
+    }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -191,6 +283,12 @@ private:
     // M3 Sidechain parameters (FR-002, FR-004)
     std::atomic<float> inputSource_{0.0f};         // 0.0 = Sample, 1.0 = Sidechain
     std::atomic<float> latencyMode_{0.0f};         // 0.0 = LowLatency, 1.0 = HighPrecision
+
+    // M4 Musical Control parameters (FR-001, FR-010, FR-019, FR-029)
+    std::atomic<float> freeze_{0.0f};              // 0.0 = off, 1.0 = on
+    std::atomic<float> morphPosition_{0.0f};       // 0.0 to 1.0
+    std::atomic<float> harmonicFilterType_{0.0f};  // normalized (0-4 mapped)
+    std::atomic<float> responsiveness_{0.5f};      // 0.0 to 1.0
 
     // =========================================================================
     // DSP Members (T081)
@@ -293,6 +391,35 @@ private:
 
     /// Latest residual frame from live analysis
     Krate::DSP::ResidualFrame currentLiveResidualFrame_{};
+
+    // =========================================================================
+    // Manual Freeze State (M4: FR-002, FR-003, FR-007)
+    // =========================================================================
+    bool manualFreezeActive_ = false;
+    Krate::DSP::HarmonicFrame manualFrozenFrame_{};
+    Krate::DSP::ResidualFrame manualFrozenResidualFrame_{};
+
+    /// Crossfade from frozen to live when manual freeze is disengaged (FR-006)
+    int manualFreezeRecoverySamplesRemaining_ = 0;
+    int manualFreezeRecoveryLengthSamples_ = 0;
+    float manualFreezeRecoveryOldLevel_ = 0.0f;
+    static constexpr float kManualFreezeRecoveryTimeSec = 0.010f; // 10ms
+
+    /// Tracks the previous freeze parameter value to detect transitions
+    bool previousFreezeState_ = false;
+
+    // =========================================================================
+    // Morph Interpolation (M4: FR-010 to FR-018)
+    // =========================================================================
+    Krate::DSP::OnePoleSmoother morphPositionSmoother_{};
+    Krate::DSP::HarmonicFrame morphedFrame_{};
+    Krate::DSP::ResidualFrame morphedResidualFrame_{};
+
+    // =========================================================================
+    // Harmonic Filter (M4: FR-019 to FR-028)
+    // =========================================================================
+    std::array<float, Krate::DSP::kMaxPartials> filterMask_{};
+    int currentFilterType_ = 0;
 
     // =========================================================================
     // Processing State
