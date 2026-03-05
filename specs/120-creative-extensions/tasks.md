@@ -284,19 +284,19 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 **Purpose**: Clang-tidy quality gate on all modified and new source files before final verification.
 
-- [ ] T052 Regenerate `compile_commands.json` if not already current:
+- [X] T052 Regenerate `compile_commands.json` if not already current:
   ```bash
   cmake --preset windows-ninja
   ```
   from VS Developer PowerShell (needed if new source files were added).
 
-- [ ] T053 Run clang-tidy on all modified targets:
+- [X] T053 Run clang-tidy on all modified targets:
   ```powershell
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
   ./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja
   ```
 
-- [ ] T054 Fix all clang-tidy errors (blocking). Review warnings and fix where appropriate. Add `// NOLINT(...)` with reason for any intentionally suppressed DSP-specific warnings.
+- [X] T054 Fix all clang-tidy errors (blocking). Review warnings and fix where appropriate. Add `// NOLINT(...)` with reason for any intentionally suppressed DSP-specific warnings.
 
 **Checkpoint**: Static analysis clean -- no errors, documented suppressions for any warnings.
 

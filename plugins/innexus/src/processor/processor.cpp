@@ -1082,19 +1082,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
             }
         }
-        else if (evolutionEnabled)
-        {
-            // Evolution is enabled but blend overrides it (FR-052)
-            // Still advance the engine to keep phase continuous
-            (void)evolutionSpeedSmoother_.process();
-            (void)evolutionDepthSmoother_.process();
-            evolutionEngine_.advance();
-        }
         else
         {
-            // Evolution disabled: just advance smoothers to keep them tracking
+            // Advance smoothers regardless to keep them tracking
             (void)evolutionSpeedSmoother_.process();
             (void)evolutionDepthSmoother_.process();
+            if (evolutionEnabled)
+            {
+                // Evolution is enabled but blend overrides it (FR-052)
+                // Still advance the engine to keep phase continuous
+                evolutionEngine_.advance();
+            }
         }
 
         // M6: Multi-Source Blending (FR-034 to FR-042, FR-052)
@@ -1226,7 +1224,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         // --- Generate oscillator bank stereo output (M6: FR-007) ---
-        float harmonicL = 0.0f, harmonicR = 0.0f;
+        float harmonicL = 0.0f;
+        float harmonicR = 0.0f;
         oscillatorBank_.processStereo(harmonicL, harmonicR);
         float residualSample = hasResidual ? residualSynth_.process() : 0.0f;
 
