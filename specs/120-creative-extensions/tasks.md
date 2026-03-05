@@ -324,11 +324,11 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 **Purpose**: Update living architecture documentation per Constitution Principle XIII.
 
-- [ ] T059 Update `specs/_architecture_/layer-2-processors.md` (or equivalent): add entries for `HarmonicOscillatorBank` stereo/detune extension (`processStereo()`, `setStereoSpread()`, `setDetuneSpread()`), include: purpose, new public API summary, file location `dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h`, when to use.
+- [X] T059 Update `specs/_architecture_/layer-2-processors.md` (or equivalent): add entries for `HarmonicOscillatorBank` stereo/detune extension (`processStereo()`, `setStereoSpread()`, `setDetuneSpread()`), include: purpose, new public API summary, file location `dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h`, when to use.
 
-- [ ] T060 Update `specs/_architecture_/innexus-plugin.md` (or equivalent): add entries for three new plugin-local DSP classes: `EvolutionEngine` (`plugins/innexus/src/dsp/evolution_engine.h`), `HarmonicModulator` (`plugins/innexus/src/dsp/harmonic_modulator.h`), `HarmonicBlender` (`plugins/innexus/src/dsp/harmonic_blender.h`). Include purpose, public API summary, pipeline position.
+- [X] T060 Update `specs/_architecture_/innexus-plugin.md` (or equivalent): add entries for three new plugin-local DSP classes: `EvolutionEngine` (`plugins/innexus/src/dsp/evolution_engine.h`), `HarmonicModulator` (`plugins/innexus/src/dsp/harmonic_modulator.h`), `HarmonicBlender` (`plugins/innexus/src/dsp/harmonic_blender.h`). Include purpose, public API summary, pipeline position.
 
-- [ ] T061 **Commit architecture documentation updates**.
+- [X] T061 **Commit architecture documentation updates**.
 
 **Checkpoint**: Architecture docs reflect all M6 functionality. Docs accurate for future milestone developers.
 
