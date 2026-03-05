@@ -5,6 +5,39 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-06
+
+### Added
+
+- **M6: Creative Extensions** — Five new creative features building on the M1–M5 harmonic analysis/synthesis foundation
+- **Cross-Synthesis Timbral Blend** (FR-001–FR-005) — Continuous 0.0–1.0 blend between a pure harmonic series (1/n rolloff, L2-normalized) and the analyzed source model; enables carrier-modulator performance with real-time source switching and click-free crossfade
+- **Stereo Partial Spread** (FR-006–FR-013) — Per-partial stereo distribution with odd partials panning left, even partials right; constant-power pan law; fundamental at 25% reduced spread; residual center-panned; mono output bus support
+- **Detune Spread** (FR-030–FR-032) — Per-partial frequency offset scaling with harmonic number for chorus-like richness; odd partials detune positive, even negative; fundamental excluded (<1 cent deviation)
+- **Evolution Engine** (FR-014–FR-023) — Autonomous timbral drift through occupied memory slot waypoints with Cycle, PingPong, and Random Walk modes; global phase (not per-note); manual morph offset coexistence clamped to [0,1]; smoothed speed/depth
+- **Harmonic Modulators** (FR-024–FR-029, FR-033) — Two independent LFO-driven per-partial modulators with 5 waveforms (Sine, Triangle, Square, Saw, Random S&H); targets amplitude (multiplicative unipolar), frequency (additive cents), or pan (offset bipolar); configurable partial range; overlapping ranges multiply amplitude / add frequency and pan; free-running phase initialized at prepare(), never reset on MIDI
+- **Multi-Source Blending** (FR-034–FR-042) — Normalized weighted sum across up to 8 memory slots plus 1 live source; empty slots contribute zero; all-zero weights produce silence; blend overrides both normal recall/freeze and evolution when enabled
+- **`processStereo()` API** (KrateDSP Layer 2) — New stereo output method on `HarmonicOscillatorBank` alongside existing mono `process()`; adds `setStereoSpread()`, `setDetuneSpread()`, `applyPanOffsets()`, `applyExternalFrequencyMultipliers()`
+- **EvolutionEngine** (plugin-local DSP) — `plugins/innexus/src/dsp/evolution_engine.h`; uses `lerpHarmonicFrame`/`lerpResidualFrame` for interpolation; Xorshift32 RNG for Random Walk
+- **HarmonicModulator** (plugin-local DSP) — `plugins/innexus/src/dsp/harmonic_modulator.h`; formula-based LFO (no wavetable, no heap); Xorshift32 for S&H
+- **HarmonicBlender** (plugin-local DSP) — `plugins/innexus/src/dsp/harmonic_blender.h`; weight normalization per R-006
+- **31 new parameters** (IDs 600–649) — Timbral Blend, Stereo Spread, Detune Spread, Evolution (enable/speed/depth/mode), Mod 1 & 2 (enable/waveform/rate/depth/range/target), Blend (enable/8 slot weights/live weight)
+- **State version 6** — Persists all 31 M6 parameters with backward compatibility for v1–v5 presets (M6 params initialize to spec defaults on older state load)
+- **Pipeline order** (FR-049) — Blend/cross-synthesis → Evolution → Harmonic Filter → Modulators → Oscillator bank
+
+### Performance
+
+- Stereo spread=0: bit-identical L/R output (SC-010)
+- Stereo spread=1.0: inter-channel decorrelation >0.8 (SC-002)
+- Timbral blend=1.0: correlation with source >0.95 (SC-001)
+- Evolution: spectral centroid std deviation 214 Hz over 10s (SC-003, threshold >100 Hz)
+- Modulator depth: within ±5% of configured value at 2 Hz (SC-004)
+- Detune spread: fundamental pitch deviation <1 cent (SC-005)
+- Blended centroid: within ±10% of arithmetic mean of sources (SC-006)
+- Parameter sweeps: no discontinuities above -80 dBFS (SC-007)
+- CPU overhead: <1% additional for all M6 features combined (SC-008)
+- State round-trip: 1e-6 tolerance (SC-009)
+- Single-source blend identical to direct recall (SC-011)
+
 ## [0.5.0] - 2026-03-05
 
 ### Added
