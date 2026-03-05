@@ -5,41 +5,49 @@
 add_executable(innexus_tests
     unit/test_main.cpp
 
+    # --- Unit tests (isolated DSP components) ---
+
     # VST3 validation and parameter tests
     unit/vst/innexus_vst_tests.cpp
-
-    # Pre-processing pipeline tests (Phase 2)
-    unit/processor/pre_processing_pipeline_tests.cpp
-
-    # Sample analyzer tests (Phase 10)
-    unit/processor/sample_analyzer_tests.cpp
-
-    # MIDI integration and state persistence tests (Phase 11)
-    unit/processor/innexus_processor_tests.cpp
-
-    # Residual integration tests (M2 Phases 10-11)
-    unit/processor/residual_integration_tests.cpp
-
-    # Live analysis pipeline tests (M3 Phase 12)
-    unit/processor/live_analysis_pipeline_tests.cpp
-    unit/processor/sidechain_integration_tests.cpp
-
-    # Musical Control Layer tests (M4 Phases 13-14)
-    unit/processor/musical_control_tests.cpp
     unit/vst/musical_control_vst_tests.cpp
-
-    # Harmonic Memory tests (M5 Phases 15-16)
-    unit/processor/harmonic_memory_tests.cpp
     unit/vst/harmonic_memory_vst_tests.cpp
+    unit/vst/test_state_v6.cpp
 
-    # M6 Creative Extensions tests (Phases 17-21)
-    unit/processor/test_stereo_spread_integration.cpp
-    unit/processor/test_cross_synthesis.cpp
-    unit/processor/test_evolution_engine.cpp
+    # DSP component unit tests
+    unit/processor/pre_processing_pipeline_tests.cpp
+    unit/processor/sample_analyzer_tests.cpp
+    unit/processor/live_analysis_pipeline_tests.cpp
     unit/processor/test_harmonic_modulator.cpp
     unit/processor/test_harmonic_blender.cpp
-    unit/vst/test_state_v6.cpp
-    unit/processor/test_m6_pipeline_integration.cpp
+
+    # --- Integration tests (real Processor, full pipeline) ---
+
+    # Core processor integration (MIDI, state, parameter application)
+    integration/innexus_processor_tests.cpp
+
+    # Residual pipeline integration (M2)
+    integration/residual_integration_tests.cpp
+
+    # Sidechain / live analysis integration (M3)
+    integration/sidechain_integration_tests.cpp
+
+    # Musical control integration (M4)
+    integration/musical_control_tests.cpp
+
+    # Harmonic memory integration (M5)
+    integration/harmonic_memory_tests.cpp
+
+    # Creative extensions integration (M6)
+    integration/test_cross_synthesis.cpp
+    integration/test_evolution_engine.cpp
+    integration/test_stereo_spread_integration.cpp
+    integration/test_m6_pipeline_integration.cpp
+
+    # Reset trap regression tests (per-block setter safety)
+    integration/reset_trap_tests.cpp
+
+    # Enable/disable while playing + degraded host conditions
+    integration/enable_disable_tests.cpp
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp

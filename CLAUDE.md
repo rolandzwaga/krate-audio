@@ -249,7 +249,8 @@ plugins/innexus/                  # Innexus harmonic resynthesis instrument
 │   ├── dsp/                      # Plugin-local DSP (sample analyzer, live analysis pipeline)
 │   └── parameters/               # Parameter registration helpers
 ├── tests/
-│   └── unit/{processor,vst}/
+│   ├── unit/{processor,vst}/     # Isolated DSP component & VST parameter tests
+│   └── integration/              # Full-processor pipeline integration tests
 └── resources/                    # UI, AU/AUv3 config, win32 resources
 
 plugins/shared/                   # Shared plugin infrastructure
@@ -509,7 +510,8 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
 | Add Ruinae test | plugins/ruinae/tests/unit/ |
-| Add Innexus test | plugins/innexus/tests/unit/{processor,vst}/ |
+| Add Innexus unit test | plugins/innexus/tests/unit/{processor,vst}/ |
+| Add Innexus integration test | plugins/innexus/tests/integration/ |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
