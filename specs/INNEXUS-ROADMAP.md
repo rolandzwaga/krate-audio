@@ -19,7 +19,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 - **Milestone 1 (Phases 1–9):** Core playable instrument — sample analysis → MIDI-driven oscillator bank ✅ COMPLETE
 - **Milestone 2 (Phases 10–11):** Residual/noise model — deterministic + stochastic decomposition ✅ COMPLETE
 - **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis ✅ COMPLETE
-- **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering
+- **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering ✅ COMPLETE
 - **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration
 - **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending
 - **Milestone 7 (Phase 22):** Plugin UI — full VSTGUI interface
@@ -469,7 +469,7 @@ The oscillator bank is well within budget. The **analysis pipeline** (YIN + dual
 
 ---
 
-### Phase 13: Musical Control Layer — Freeze & Morph (Architecture Stage 6, part 1)
+### Phase 13: Musical Control Layer — Freeze & Morph (Architecture Stage 6, part 1) ✅
 
 **Goal:** Add expressive harmonic manipulation controls.
 
@@ -490,7 +490,7 @@ Dependencies: Phases 6–7
 
 ---
 
-### Phase 14: Musical Control Layer — Harmonic Filtering (Architecture Stage 6, part 2)
+### Phase 14: Musical Control Layer — Harmonic Filtering (Architecture Stage 6, part 2) ✅
 
 **Goal:** Selective scaling of partial ranges for timbral sculpting.
 
@@ -506,7 +506,7 @@ effectiveAmp_n = amp_n * harmonicMask(n)
 - Presets: all-pass, odd-only, even-only, low harmonics, high harmonics
 - Stability vs Responsiveness tradeoff control (adjusts dual-timescale blend)
 
-**This completes Milestone 4: musical control layer.**
+**This completes Milestone 4: musical control layer.** ✅
 
 ---
 
@@ -679,8 +679,8 @@ Phase 1 (scaffold)
                                      └→ Phase 10 (residual analysis)
                                           └→ Phase 11 (residual synth) ← MILESTONE 2 ✅
                                      └→ Phase 12 (live sidechain) ← MILESTONE 3 ✅
-                                     └→ Phase 13 (freeze/morph)
-                                          └→ Phase 14 (harmonic filter) ← MILESTONE 4
+                                     └→ Phase 13 (freeze/morph) ✅
+                                          └→ Phase 14 (harmonic filter) ← MILESTONE 4 ✅
                                           └→ Phase 15 (memory storage)
                                                └→ Phase 16 (memory recall) ← MILESTONE 5
                                                └→ Phase 17 (cross-synthesis)
@@ -701,7 +701,7 @@ Each milestone is intended as one `speckit.specify` run:
 | M1 | 1–9 | Core playable instrument (sample → analysis → MIDI synth) ✅ |
 | M2 | 10–11 | Residual/noise model (SMS decomposition) ✅ |
 | M3 | 12 | Live sidechain mode ✅ |
-| M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) |
+| M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) ✅ |
 | M5 | 15–16 | Harmonic Memory (snapshot capture/recall) |
 | M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) |
 | M7 | 22 | Plugin UI |

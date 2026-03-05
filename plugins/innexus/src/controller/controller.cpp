@@ -94,6 +94,33 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     latencyModeParam->appendString(STR16("High Precision"));
     parameters.addParameter(latencyModeParam);
 
+    // M4 Musical Control parameters (FR-001, FR-010, FR-019, FR-029)
+    parameters.addParameter(STR16("Freeze"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kFreezeId);
+
+    auto* morphParam = new Steinberg::Vst::RangeParameter(
+        STR16("Morph Position"), kMorphPositionId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(morphParam);
+
+    auto* filterParam = new Steinberg::Vst::StringListParameter(
+        STR16("Harmonic Filter"), kHarmonicFilterTypeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    filterParam->appendString(STR16("All-Pass"));
+    filterParam->appendString(STR16("Odd Only"));
+    filterParam->appendString(STR16("Even Only"));
+    filterParam->appendString(STR16("Low Harmonics"));
+    filterParam->appendString(STR16("High Harmonics"));
+    parameters.addParameter(filterParam);
+
+    auto* respParam = new Steinberg::Vst::RangeParameter(
+        STR16("Responsiveness"), kResponsivenessId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(respParam);
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
@@ -249,6 +276,47 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 setParamNormalized(kLatencyModeId,
                     latencyModeInt > 0 ? 1.0 : 0.0);
             }
+        }
+
+        // M4: Read musical control parameters if version >= 4
+        if (version >= 4)
+        {
+            Steinberg::int8 freezeState = 0;
+            if (streamer.readInt8(freezeState))
+            {
+                setParamNormalized(kFreezeId,
+                    freezeState ? 1.0 : 0.0);
+            }
+
+            float morphPos = 0.0f;
+            if (streamer.readFloat(morphPos))
+            {
+                setParamNormalized(kMorphPositionId,
+                    static_cast<double>(std::clamp(morphPos, 0.0f, 1.0f)));
+            }
+
+            Steinberg::int32 filterType = 0;
+            if (streamer.readInt32(filterType))
+            {
+                setParamNormalized(kHarmonicFilterTypeId,
+                    static_cast<double>(std::clamp(
+                        static_cast<float>(filterType) / 4.0f, 0.0f, 1.0f)));
+            }
+
+            float resp = 0.5f;
+            if (streamer.readFloat(resp))
+            {
+                setParamNormalized(kResponsivenessId,
+                    static_cast<double>(std::clamp(resp, 0.0f, 1.0f)));
+            }
+        }
+        else
+        {
+            // Default M4 values for older states
+            setParamNormalized(kFreezeId, 0.0);
+            setParamNormalized(kMorphPositionId, 0.0);
+            setParamNormalized(kHarmonicFilterTypeId, 0.0);  // All-Pass
+            setParamNormalized(kResponsivenessId, 0.5);
         }
     }
 

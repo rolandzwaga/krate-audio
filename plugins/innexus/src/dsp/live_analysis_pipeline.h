@@ -73,6 +73,12 @@ public:
     /// ~10% CPU reduction when disabled.
     void setResidualEnabled(bool enabled) noexcept { residualEnabled_ = enabled; }
 
+    /// Set the responsiveness parameter on the internal HarmonicModelBuilder.
+    /// @param value Blend factor [0.0, 1.0] (0 = slow/stable, 1 = fast/responsive)
+    void setResponsiveness(float value) noexcept {
+        modelBuilder_.setResponsiveness(value);
+    }
+
     /// Feed mono sidechain audio samples into the pipeline.
     /// Internally accumulates and triggers analysis when enough data available.
     /// @param data Pointer to mono audio samples

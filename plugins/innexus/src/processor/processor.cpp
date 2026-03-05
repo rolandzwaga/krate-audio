@@ -163,6 +163,12 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         freezeRecoverySamplesRemaining_ = 0;
         freezeRecoveryOldLevel_ = 0.0f;
 
+        // Reset manual freeze state (M4)
+        manualFreezeActive_ = false;
+        manualFreezeRecoverySamplesRemaining_ = 0;
+        manualFreezeRecoveryOldLevel_ = 0.0f;
+        previousFreezeState_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
         // Reset sidechain crossfade state
         sourceCrossfadeSamplesRemaining_ = 0;
         sourceCrossfadeOldLevel_ = 0.0f;
@@ -194,6 +200,20 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         0.020 * sampleRate_);
     sourceCrossfadeLengthSamples_ = std::max(sourceCrossfadeLengthSamples_, 1);
 
+    // M4 FR-006: Manual freeze recovery crossfade length = 10ms in samples
+    manualFreezeRecoveryLengthSamples_ = static_cast<int>(
+        std::round(kManualFreezeRecoveryTimeSec * static_cast<float>(sampleRate_)));
+    manualFreezeRecoveryLengthSamples_ = std::max(manualFreezeRecoveryLengthSamples_, 1);
+
+    // M4 FR-017: Configure morph position smoother (7ms time constant)
+    morphPositionSmoother_.configure(7.0f, static_cast<float>(sampleRate_));
+    morphPositionSmoother_.snapTo(
+        morphPosition_.load(std::memory_order_relaxed));
+
+    // M4: Initialize filter mask to all-pass (1.0)
+    filterMask_.fill(1.0f);
+    currentFilterType_ = 0;
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -213,6 +233,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // --- Check for new analysis from background thread (FR-058) ---
     checkForNewAnalysis();
+
+    // --- Forward responsiveness to live analysis pipeline (FR-030, FR-031) ---
+    {
+        float resp = responsiveness_.load(std::memory_order_relaxed);
+        liveAnalysis_.setResponsiveness(resp);
+    }
 
     // --- Detect input source switch and trigger crossfade (FR-011) ---
     {
@@ -302,6 +328,31 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const bool hasSampleAnalysis = analysis && !analysis->frames.empty();
     const bool hasLiveFrame = isSidechainMode && currentLiveFrame_.f0 > 0.0f;
 
+    // M4/T108: Freeze transition detection must happen BEFORE the early return
+    // so that engaging freeze with no analysis still captures an empty frame.
+    // This block runs only when the early return would fire; the main freeze
+    // detection block handles the normal (has-analysis) case.
+    if (!noteActive_ || (!hasSampleAnalysis && !hasLiveFrame))
+    {
+        const bool currentFreezeState = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
+        if (currentFreezeState && !previousFreezeState_)
+        {
+            // Capture default-constructed empty frames
+            manualFrozenFrame_ = {};
+            manualFrozenResidualFrame_ = {};
+            manualFreezeActive_ = true;
+        }
+
+        if (!currentFreezeState && previousFreezeState_)
+        {
+            manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
+            manualFreezeActive_ = false;
+        }
+
+        previousFreezeState_ = currentFreezeState;
+    }
+
     if (!noteActive_ || (!hasSampleAnalysis && !hasLiveFrame))
     {
         for (Steinberg::int32 s = 0; s < numSamples; ++s)
@@ -352,10 +403,162 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // In sidechain mode, live residual is always available if the pipeline produces it
     const bool hasLiveResidual = isSidechainMode && residualSynth_.isPrepared();
 
+    // =========================================================================
+    // M4: Manual Freeze Detection (FR-001, FR-002, FR-003, FR-007, FR-008)
+    // =========================================================================
+    {
+        const bool currentFreezeState = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
+        // Detect freeze engagement transition (off -> on)
+        if (currentFreezeState && !previousFreezeState_)
+        {
+            // FR-002, FR-003: Capture current live frame as frozen state
+            // In sidechain mode, use currentLiveFrame_/currentLiveResidualFrame_
+            // In sample mode, use the current frame from analysis
+            if (isSidechainMode) // NOLINT(bugprone-branch-clone) branches assign different source values
+            {
+                manualFrozenFrame_ = currentLiveFrame_;
+                manualFrozenResidualFrame_ = currentLiveResidualFrame_;
+            }
+            else if (hasSampleAnalysis)
+            {
+                manualFrozenFrame_ = analysis->getFrame(currentFrameIndex_);
+                if (!analysis->residualFrames.empty())
+                    manualFrozenResidualFrame_ =
+                        analysis->getResidualFrame(currentFrameIndex_);
+                else
+                    manualFrozenResidualFrame_ = {};
+            }
+            else
+            {
+                // No analysis: capture empty/silent frames
+                manualFrozenFrame_ = {};
+                manualFrozenResidualFrame_ = {};
+            }
+            manualFreezeActive_ = true;
+        }
+
+        // Detect freeze disengage transition (on -> off)
+        if (!currentFreezeState && previousFreezeState_)
+        {
+            // FR-006: Initiate 10ms crossfade from frozen to live
+            // Capture current oscillator output level for smooth crossfade
+            manualFreezeRecoveryOldLevel_ = noteActive_
+                ? oscillatorBank_.process() : 0.0f;
+            manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
+            manualFreezeActive_ = false;
+        }
+
+        previousFreezeState_ = currentFreezeState;
+    }
+
+    // =========================================================================
+    // M4: Harmonic Filter mask recomputation (FR-019 to FR-025, T081)
+    // Recompute when filter type changes; mask is applied per-frame below.
+    // =========================================================================
+    {
+        const float filterNorm = harmonicFilterType_.load(std::memory_order_relaxed);
+        const int newFilterType = std::clamp(
+            static_cast<int>(std::round(filterNorm * 4.0f)), 0, 4);
+
+        if (newFilterType != currentFilterType_)
+        {
+            // Compute mask using a standard partials array with harmonicIndex = i+1.
+            // Since analysis partials always follow this convention, the mask is
+            // effectively a function of filterType alone and can be precomputed
+            // independently of the current frame.
+            std::array<Krate::DSP::Partial, Krate::DSP::kMaxPartials> stdPartials{};
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                stdPartials[i].harmonicIndex = static_cast<int>(i) + 1;
+
+            Krate::DSP::computeHarmonicMask(
+                newFilterType, stdPartials,
+                static_cast<int>(Krate::DSP::kMaxPartials), filterMask_);
+            currentFilterType_ = newFilterType;
+        }
+    }
+
+    // =========================================================================
+    // M4: Morph interpolation + load frames into osc bank
+    // When freeze active: morph between frozen (A) and live (B) frames
+    // When freeze inactive: pass-through live frame (FR-016)
+    // (FR-004, FR-005, FR-007, FR-010 to FR-018)
+    // =========================================================================
+    if (manualFreezeActive_ && noteActive_)
+    {
+        // Update morph position smoother (FR-017)
+        morphPositionSmoother_.setTarget(
+            morphPosition_.load(std::memory_order_relaxed));
+
+        // Determine which live frame to use as State B
+        Krate::DSP::HarmonicFrame liveFrame{};
+        Krate::DSP::ResidualFrame liveResidualFrame{};
+        if (isSidechainMode)
+        {
+            liveFrame = currentLiveFrame_;
+            liveResidualFrame = currentLiveResidualFrame_;
+        }
+        else if (hasSampleAnalysis)
+        {
+            liveFrame = analysis->getFrame(currentFrameIndex_);
+            if (!analysis->residualFrames.empty())
+                liveResidualFrame = analysis->getResidualFrame(currentFrameIndex_);
+        }
+
+        // Advance smoother by block size to get smoothed value (FR-017)
+        // Use advanceSamples for correct convergence at block-rate processing
+        morphPositionSmoother_.advanceSamples(
+            static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+        const float smoothedMorph = morphPositionSmoother_.getCurrentValue();
+
+        // Morph with early-out optimization (T061)
+        if (smoothedMorph < 1e-6f) // NOLINT(bugprone-branch-clone) branches assign different source values
+        {
+            // Fully frozen (morph = 0.0)
+            morphedFrame_ = manualFrozenFrame_;
+            morphedResidualFrame_ = manualFrozenResidualFrame_;
+        }
+        else if (smoothedMorph > 1.0f - 1e-6f)
+        {
+            // Fully live (morph = 1.0)
+            morphedFrame_ = liveFrame;
+            morphedResidualFrame_ = liveResidualFrame;
+        }
+        else
+        {
+            // Interpolate between frozen (A) and live (B)
+            morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                manualFrozenFrame_, liveFrame, smoothedMorph);
+            morphedResidualFrame_ = Krate::DSP::lerpResidualFrame(
+                manualFrozenResidualFrame_, liveResidualFrame, smoothedMorph);
+        }
+
+        // M4: Apply harmonic filter mask (FR-020, FR-026, T082)
+        // Filter is applied AFTER morph and BEFORE oscillator bank.
+        // Residual passes through unmodified (FR-027).
+        if (currentFilterType_ != 0) // Skip for All-Pass (early-out)
+            Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+        // Load morphed+filtered frame into oscillator bank
+        float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+        float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+        float targetPitch = basePitch * bendRatio;
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+        if (residualSynth_.isPrepared())
+        {
+            residualSynth_.loadFrame(
+                morphedResidualFrame_,
+                brightnessSmoother_.getCurrentValue(),
+                transientEmphasisSmoother_.getCurrentValue());
+        }
+    }
+
     // For sidechain mode: if a new live frame arrived this block, load it into
     // the oscillator bank and residual synth. This happens once per process() call
     // (not per-sample) since the live pipeline produces frames at STFT hop rate.
-    if (isSidechainMode && currentLiveFrame_.f0 > 0.0f)
+    // FR-007: Skip when manual freeze is active (manual takes priority)
+    if (!manualFreezeActive_ && isSidechainMode && currentLiveFrame_.f0 > 0.0f)
     {
         // Apply confidence-gated freeze (FR-010, FR-052) to live frames
         float recoveryThreshold = isFrozen_
@@ -372,17 +575,24 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
             lastGoodFrame_ = currentLiveFrame_;
 
+            // M4: Store live frame as morphed (no freeze = pass-through)
+            // and apply harmonic filter (FR-026, FR-027)
+            morphedFrame_ = currentLiveFrame_;
+            morphedResidualFrame_ = currentLiveResidualFrame_;
+            if (currentFilterType_ != 0)
+                Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
             // Calculate target pitch with pitch bend
             float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
             float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
             float targetPitch = basePitch * bendRatio;
-            oscillatorBank_.loadFrame(currentLiveFrame_, targetPitch);
+            oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
             // Load live residual frame (FR-016: same controls as sample mode)
             if (residualSynth_.isPrepared())
             {
                 residualSynth_.loadFrame(
-                    currentLiveResidualFrame_,
+                    morphedResidualFrame_,
                     brightnessSmoother_.getCurrentValue(),
                     transientEmphasisSmoother_.getCurrentValue());
             }
@@ -401,7 +611,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
         // --- Frame advancement (FR-047) -- only in sample mode ---
-        if (!isSidechainMode && hopSizeInSamples > 0 && totalFrames > 0)
+        // FR-007: Skip frame advancement when manual freeze is active
+        if (!manualFreezeActive_ && !isSidechainMode && hopSizeInSamples > 0 && totalFrames > 0)
         {
             frameSampleCounter_++;
             if (frameSampleCounter_ >= hopSizeInSamples &&
@@ -428,15 +639,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     }
                     lastGoodFrame_ = frame;
 
+                    // M4: Store frame as morphed (no freeze = pass-through)
+                    // and apply harmonic filter (FR-026)
+                    morphedFrame_ = frame;
+                    if (currentFilterType_ != 0)
+                        Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                     float targetPitch = basePitch * bendRatio;
-                    oscillatorBank_.loadFrame(frame, targetPitch);
+                    oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
                     if (hasSampleResidual)
                     {
+                        morphedResidualFrame_ =
+                            analysis->getResidualFrame(currentFrameIndex_);
                         residualSynth_.loadFrame(
-                            analysis->getResidualFrame(currentFrameIndex_),
+                            morphedResidualFrame_,
                             brightnessSmoother_.getCurrentValue(),
                             transientEmphasisSmoother_.getCurrentValue());
                     }
@@ -470,6 +689,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             sample = freezeRecoveryOldLevel_ * fadeProgress +
                      sample * (1.0f - fadeProgress);
             freezeRecoverySamplesRemaining_--;
+        }
+
+        // --- M4: Manual freeze recovery crossfade (FR-006) ---
+        if (manualFreezeRecoverySamplesRemaining_ > 0)
+        {
+            float fadeProgress = static_cast<float>(manualFreezeRecoverySamplesRemaining_) /
+                                 static_cast<float>(manualFreezeRecoveryLengthSamples_);
+            // Blend from old frozen output level to new live output
+            sample = manualFreezeRecoveryOldLevel_ * fadeProgress +
+                     sample * (1.0f - fadeProgress);
+            manualFreezeRecoverySamplesRemaining_--;
         }
 
         // --- Anti-click voice steal crossfade (FR-054) ---
@@ -602,14 +832,21 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         if (currentLiveFrame_.f0 > 0.0f)
         {
             lastGoodFrame_ = currentLiveFrame_;
-            oscillatorBank_.loadFrame(currentLiveFrame_, targetPitch);
+
+            // M4: Apply harmonic filter (FR-026)
+            morphedFrame_ = currentLiveFrame_;
+            morphedResidualFrame_ = currentLiveResidualFrame_;
+            if (currentFilterType_ != 0)
+                Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+            oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
             // Load live residual frame
             if (residualSynth_.isPrepared())
             {
                 residualSynth_.reset();
                 residualSynth_.loadFrame(
-                    currentLiveResidualFrame_,
+                    morphedResidualFrame_,
                     brightnessSmoother_.getCurrentValue(),
                     transientEmphasisSmoother_.getCurrentValue());
             }
@@ -620,14 +857,21 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         // Sample mode: load first frame from analysis
         const auto& frame = analysis->getFrame(0);
         lastGoodFrame_ = frame;
-        oscillatorBank_.loadFrame(frame, targetPitch);
+
+        // M4: Apply harmonic filter (FR-026)
+        morphedFrame_ = frame;
+        if (currentFilterType_ != 0)
+            Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
         // M2: Load initial residual frame (FR-017)
         if (analysis && !analysis->residualFrames.empty() && residualSynth_.isPrepared())
         {
+            morphedResidualFrame_ = analysis->getResidualFrame(0);
             residualSynth_.reset();
             residualSynth_.loadFrame(
-                analysis->getResidualFrame(0),
+                morphedResidualFrame_,
                 brightnessSmoother_.getCurrentValue(),
                 transientEmphasisSmoother_.getCurrentValue());
         }
@@ -810,6 +1054,21 @@ void Processor::processParameterChanges(
                 liveAnalysis_.setLatencyMode(newMode);
                 break;
             }
+            // M4 Musical Control parameters
+            case kFreezeId:
+                freeze_.store(static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMorphPositionId:
+                morphPosition_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kHarmonicFilterTypeId:
+                harmonicFilterType_.store(static_cast<float>(value));
+                break;
+            case kResponsivenessId:
+                responsiveness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
             default:
                 break;
             }
@@ -860,8 +1119,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M3: version 3 (sidechain parameters)
-    streamer.writeInt32(3);
+    // Write state version -- M4: version 4 (musical control parameters)
+    streamer.writeInt32(4);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -930,6 +1189,14 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
         inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0));
     streamer.writeInt32(static_cast<Steinberg::int32>(
         latencyMode_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0));
+
+    // --- M4 parameters (musical control) ---
+    streamer.writeInt8(freeze_.load(std::memory_order_relaxed) > 0.5f
+        ? static_cast<Steinberg::int8>(1) : static_cast<Steinberg::int8>(0));
+    streamer.writeFloat(morphPosition_.load(std::memory_order_relaxed));
+    streamer.writeInt32(static_cast<Steinberg::int32>(
+        std::round(harmonicFilterType_.load(std::memory_order_relaxed) * 4.0f)));
+    streamer.writeFloat(responsiveness_.load(std::memory_order_relaxed));
 
     return Steinberg::kResultOk;
 }
@@ -1129,6 +1396,35 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
             latencyMode_.store(0.0f);   // LowLatency
             // Ensure pipeline is in default low-latency mode
             liveAnalysis_.setLatencyMode(LatencyMode::LowLatency);
+        }
+
+        // --- M4 parameters (musical control) ---
+        if (version >= 4)
+        {
+            Steinberg::int8 freezeState = 0;
+            if (streamer.readInt8(freezeState))
+                freeze_.store(freezeState ? 1.0f : 0.0f);
+
+            float morphPos = 0.0f;
+            if (streamer.readFloat(morphPos))
+                morphPosition_.store(std::clamp(morphPos, 0.0f, 1.0f));
+
+            Steinberg::int32 filterType = 0;
+            if (streamer.readInt32(filterType))
+                harmonicFilterType_.store(
+                    std::clamp(static_cast<float>(filterType) / 4.0f, 0.0f, 1.0f));
+
+            float resp = 0.5f;
+            if (streamer.readFloat(resp))
+                responsiveness_.store(std::clamp(resp, 0.0f, 1.0f));
+        }
+        else
+        {
+            // Default M4 values for older states
+            freeze_.store(0.0f);
+            morphPosition_.store(0.0f);
+            harmonicFilterType_.store(0.0f);  // All-Pass
+            responsiveness_.store(0.5f);
         }
     }
 

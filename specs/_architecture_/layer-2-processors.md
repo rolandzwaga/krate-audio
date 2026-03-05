@@ -6927,3 +6927,67 @@ class SpectralCoringEstimator {
 - **Header-only**: Single header implementation, no .cpp file needed
 
 **Dependencies:** Layer 0 (none directly), Layer 1 (spectral_buffer.h), Layer 2 (harmonic_types.h, residual_types.h)
+
+---
+
+## HarmonicFrameUtils (Frame Interpolation and Harmonic Mask Utilities)
+**Path:** [harmonic_frame_utils.h](../../dsp/include/krate/dsp/processors/harmonic_frame_utils.h) | **Since:** M4 (118-musical-control-layer)
+
+Inline free functions for interpolating between HarmonicFrame/ResidualFrame pairs and computing per-partial amplitude masks. Used by the Musical Control Layer (freeze/morph/filter pipeline) and designed for reuse by future milestones (M5 Harmonic Memory, P4 Evolution Engine, P5 Harmonic Modulators, P6 Multi-Source Blending).
+
+```cpp
+namespace Krate::DSP {
+
+/// Interpolate between two HarmonicFrames (morph).
+/// Lerps amplitudes, relativeFrequencies, and metadata (f0, brightness, etc.).
+/// Phase is NOT interpolated (oscillator bank is phase-continuous).
+/// Missing partials (unequal numPartials) treated as zero amplitude with
+/// relativeFrequency defaulting to harmonicIndex.
+inline HarmonicFrame lerpHarmonicFrame(
+    const HarmonicFrame& a, const HarmonicFrame& b, float t) noexcept;
+
+/// Interpolate between two ResidualFrames.
+/// Per-band lerp of bandEnergies, lerp of totalEnergy.
+/// transientFlag from dominant source (b when t > 0.5, a otherwise).
+inline ResidualFrame lerpResidualFrame(
+    const ResidualFrame& a, const ResidualFrame& b, float t) noexcept;
+
+/// Compute per-partial amplitude mask for a harmonic filter type.
+/// filterType: 0=AllPass, 1=OddOnly, 2=EvenOnly, 3=LowHarmonics, 4=HighHarmonics
+/// Mask values: 1.0 = pass, 0.0 = attenuate.
+/// Takes int (not enum) to keep shared DSP free of plugin-local types.
+inline void computeHarmonicMask(
+    int filterType,
+    const std::array<Partial, kMaxPartials>& partials,
+    int numPartials,
+    std::array<float, kMaxPartials>& mask) noexcept;
+
+/// Apply a pre-computed mask to a frame's partial amplitudes in-place.
+/// Only modifies amplitude; all other partial fields are preserved.
+inline void applyHarmonicMask(
+    HarmonicFrame& frame,
+    const std::array<float, kMaxPartials>& mask) noexcept;
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Timbral morphing between two HarmonicFrame snapshots (frozen vs live, or any two analysis frames)
+- Residual morphing between two ResidualFrame snapshots (paired with harmonic morph)
+- Selective harmonic filtering (odd/even harmonics, low/high emphasis, or all-pass bypass)
+- Any future feature that needs per-partial amplitude masking or frame-to-frame interpolation
+
+**Filter type details:**
+- **AllPass (0)**: All mask values 1.0 (identity)
+- **OddOnly (1)**: Odd harmonicIndex = 1.0, even = 0.0
+- **EvenOnly (2)**: Even harmonicIndex = 1.0, odd = 0.0
+- **LowHarmonics (3)**: `clamp(8.0 / harmonicIndex, 0.0, 1.0)` -- gradual rolloff above 8th harmonic
+- **HighHarmonics (4)**: `clamp(harmonicIndex / 8.0, 0.0, 1.0)` -- gradual rolloff below 8th harmonic
+
+**Key features:**
+- **Real-time safe**: No allocations, no locks, no exceptions. All functions are `inline noexcept`
+- **Header-only**: Single header, no .cpp file needed
+- **Handles unequal partial counts**: `lerpHarmonicFrame` uses `max(a.numPartials, b.numPartials)` and treats missing partials as zero-amplitude
+- **Phase-continuous**: Phase is not interpolated; the oscillator bank maintains phase continuity across frame transitions
+
+**Dependencies:** Layer 2 (harmonic_types.h, residual_types.h)
