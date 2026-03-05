@@ -3,6 +3,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "dsp/harmonic_snapshot_json.h"
 #include "parameters/innexus_params.h"
 #include "plugin_ids.h"
 #include "update/innexus_update_config.h"
@@ -11,6 +12,7 @@
 #include "base/source/fstreamer.h"
 
 #include <algorithm>
+#include <fstream>
 #include <vector>
 
 namespace Innexus {
@@ -120,6 +122,28 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         STR16("%"), 0.0, 1.0, 0.5, 0,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(respParam);
+
+    // M5 Harmonic Memory parameters (FR-005, FR-006, FR-011)
+    auto* memorySlotParam = new Steinberg::Vst::StringListParameter(
+        STR16("Memory Slot"), kMemorySlotId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    memorySlotParam->appendString(STR16("Slot 1"));
+    memorySlotParam->appendString(STR16("Slot 2"));
+    memorySlotParam->appendString(STR16("Slot 3"));
+    memorySlotParam->appendString(STR16("Slot 4"));
+    memorySlotParam->appendString(STR16("Slot 5"));
+    memorySlotParam->appendString(STR16("Slot 6"));
+    memorySlotParam->appendString(STR16("Slot 7"));
+    memorySlotParam->appendString(STR16("Slot 8"));
+    parameters.addParameter(memorySlotParam);
+
+    parameters.addParameter(STR16("Memory Capture"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMemoryCaptureId);
+
+    parameters.addParameter(STR16("Memory Recall"), nullptr, 1, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMemoryRecallId);
 
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
@@ -318,9 +342,100 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             setParamNormalized(kHarmonicFilterTypeId, 0.0);  // All-Pass
             setParamNormalized(kResponsivenessId, 0.5);
         }
+
+        // M5: Read harmonic memory parameters if version >= 5
+        if (version >= 5)
+        {
+            // Read selected slot index and set parameter
+            Steinberg::int32 selectedSlot = 0;
+            if (streamer.readInt32(selectedSlot))
+            {
+                selectedSlot = std::clamp(selectedSlot,
+                    static_cast<Steinberg::int32>(0),
+                    static_cast<Steinberg::int32>(7));
+                setParamNormalized(kMemorySlotId,
+                    std::clamp(static_cast<double>(selectedSlot) / 7.0, 0.0, 1.0));
+            }
+
+            // Skip all 8 memory slots' binary snapshot data
+            // (controller does not store snapshot binary)
+            for (int s = 0; s < 8; ++s)
+            {
+                Steinberg::int8 occupiedByte = 0;
+                if (!streamer.readInt8(occupiedByte))
+                    break;
+
+                if (occupiedByte != 0)
+                {
+                    // Skip snapshot data: f0Reference (float) + numPartials (int32)
+                    // + 48*4 floats (relativeFreqs, normalizedAmps, phases, inharmonicDeviation)
+                    // + 16 floats (residualBands)
+                    // + 4 floats (residualEnergy, globalAmplitude, spectralCentroid, brightness)
+                    // Total: 1 float + 1 int32 + (48*4 + 16 + 4) floats = 1 + 1 + 212 = 213 reads
+                    float skipFloat = 0.0f;
+                    Steinberg::int32 skipInt = 0;
+
+                    streamer.readFloat(skipFloat);  // f0Reference
+                    streamer.readInt32(skipInt);     // numPartials
+
+                    // 48*4 = 192 floats for per-partial arrays
+                    for (int i = 0; i < 48 * 4; ++i)
+                        streamer.readFloat(skipFloat);
+
+                    // 16 floats for residualBands
+                    for (int i = 0; i < 16; ++i)
+                        streamer.readFloat(skipFloat);
+
+                    // 4 scalar floats
+                    streamer.readFloat(skipFloat);   // residualEnergy
+                    streamer.readFloat(skipFloat);   // globalAmplitude
+                    streamer.readFloat(skipFloat);   // spectralCentroid
+                    streamer.readFloat(skipFloat);   // brightness
+                }
+            }
+
+            // Momentary triggers always reset to 0 (FR-023, FR-030)
+            setParamNormalized(kMemoryCaptureId, 0.0);
+            setParamNormalized(kMemoryRecallId, 0.0);
+        }
+        else
+        {
+            // Default M5 values for older states
+            setParamNormalized(kMemorySlotId, 0.0);
+            setParamNormalized(kMemoryCaptureId, 0.0);
+            setParamNormalized(kMemoryRecallId, 0.0);
+        }
     }
 
     return Steinberg::kResultOk;
+}
+
+// ==============================================================================
+// Import Snapshot from JSON (FR-025, FR-029)
+// ==============================================================================
+bool Controller::importSnapshotFromJson(const std::string& filePath,
+                                        int slotIndex)
+{
+    // Read file
+    std::ifstream f(filePath);
+    if (!f.is_open()) return false;
+    const std::string json((std::istreambuf_iterator<char>(f)),
+                            std::istreambuf_iterator<char>());
+
+    // Parse
+    Krate::DSP::HarmonicSnapshot snap{};
+    if (!Innexus::jsonToSnapshot(json, snap)) return false;
+
+    // Dispatch to processor via IMessage (FR-029)
+    auto* msg = allocateMessage();
+    if (!msg) return false;
+    msg->setMessageID("HarmonicSnapshotImport");
+    auto* attrs = msg->getAttributes();
+    attrs->setInt("slotIndex", static_cast<Steinberg::int64>(slotIndex));
+    attrs->setBinary("snapshotData", &snap, sizeof(snap));
+    sendMessage(msg);
+    msg->release();
+    return true;
 }
 
 } // namespace Innexus

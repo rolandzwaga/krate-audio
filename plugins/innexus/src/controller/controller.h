@@ -18,6 +18,7 @@
 #include "update/update_checker.h"
 
 #include <memory>
+#include <string>
 
 namespace Innexus {
 
@@ -32,6 +33,18 @@ public:
     Steinberg::tresult PLUGIN_API terminate() override;
     Steinberg::tresult PLUGIN_API setComponentState(
         Steinberg::IBStream* state) override;
+
+    /// @brief Import a snapshot from a JSON file into a memory slot (FR-025, FR-029).
+    ///
+    /// Reads the file, parses JSON via jsonToSnapshot(), and dispatches the
+    /// snapshot to the processor via IMessage. Runs entirely off the audio thread.
+    /// The file dialog UI is deferred to Milestone 7; for M5 this is called
+    /// from tests or programmatically.
+    ///
+    /// @param filePath Path to the JSON file
+    /// @param slotIndex Target slot index (0-7)
+    /// @return true on success, false on any failure
+    bool importSnapshotFromJson(const std::string& filePath, int slotIndex);
 
     static Steinberg::FUnknown* createInstance(void*)
     {

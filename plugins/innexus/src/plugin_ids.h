@@ -65,6 +65,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kHarmonicFilterTypeId = 302,   // StringListParameter: 5 presets
     kResponsivenessId = 303,       // 0.0 to 1.0, default 0.5
 
+    // Harmonic Memory (304-399) -- M5
+    kMemorySlotId = 304,           // StringListParameter: "Slot 1" through "Slot 8"
+    kMemoryCaptureId = 305,        // Momentary trigger (stepCount=1)
+    kMemoryRecallId = 306,         // Momentary trigger (stepCount=1)
+
     // Sidechain / Live Analysis (500-599) -- M3
     kInputSourceId = 500,          // 0 = Sample, 1 = Sidechain (StringListParameter)
     kLatencyModeId = 501,          // 0 = Low Latency, 1 = High Precision (StringListParameter)

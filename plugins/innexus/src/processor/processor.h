@@ -25,6 +25,7 @@
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
+#include <krate/dsp/processors/harmonic_snapshot.h>
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
@@ -64,6 +65,10 @@ public:
     // --- IComponent ---
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
+
+    // --- IMessage handler (FR-029: JSON import via IMessage) ---
+    Steinberg::tresult PLUGIN_API notify(
+        Steinberg::Vst::IMessage* message) override;
 
     static Steinberg::FUnknown* createInstance(void*)
     {
@@ -256,6 +261,19 @@ public:
         return filterMask_;
     }
 
+    /// @brief Get a memory slot by index (TEST ONLY). Clamps to 0-7.
+    const Krate::DSP::MemorySlot& getMemorySlot(int index) const
+    {
+        return memorySlots_[static_cast<size_t>(std::clamp(index, 0, 7))];
+    }
+
+    /// @brief Get selected slot index from normalized parameter (TEST ONLY).
+    int getSelectedSlotIndex() const
+    {
+        float norm = memorySlot_.load(std::memory_order_relaxed);
+        return std::clamp(static_cast<int>(std::round(norm * 7.0f)), 0, 7);
+    }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -289,6 +307,13 @@ private:
     std::atomic<float> morphPosition_{0.0f};       // 0.0 to 1.0
     std::atomic<float> harmonicFilterType_{0.0f};  // normalized (0-4 mapped)
     std::atomic<float> responsiveness_{0.5f};      // 0.0 to 1.0
+
+    // M5 Harmonic Memory parameters (FR-005, FR-006, FR-011)
+    std::atomic<float> memorySlot_{0.0f};             // normalized 0-1, denorm to slot 0-7
+    std::atomic<float> memoryCapture_{0.0f};          // momentary trigger
+    std::atomic<float> memoryRecall_{0.0f};           // momentary trigger
+    float previousCaptureTrigger_ = 0.0f;
+    float previousRecallTrigger_ = 0.0f;
 
     // =========================================================================
     // DSP Members (T081)
@@ -420,6 +445,11 @@ private:
     // =========================================================================
     std::array<float, Krate::DSP::kMaxPartials> filterMask_{};
     int currentFilterType_ = 0;
+
+    // =========================================================================
+    // Harmonic Memory Slots (M5: FR-010)
+    // =========================================================================
+    std::array<Krate::DSP::MemorySlot, 8> memorySlots_{};
 
     // =========================================================================
     // Processing State

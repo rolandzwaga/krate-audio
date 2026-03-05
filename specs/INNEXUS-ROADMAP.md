@@ -20,7 +20,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 - **Milestone 2 (Phases 10–11):** Residual/noise model — deterministic + stochastic decomposition ✅ COMPLETE
 - **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis ✅ COMPLETE
 - **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering ✅ COMPLETE
-- **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration
+- **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration ✅ COMPLETE
 - **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending
 - **Milestone 7 (Phase 22):** Plugin UI — full VSTGUI interface
 
@@ -510,7 +510,7 @@ effectiveAmp_n = amp_n * harmonicMask(n)
 
 ---
 
-### Phase 15: Harmonic Memory — Capture & Storage (Architecture Section 15, Priority 1)
+### Phase 15: Harmonic Memory — Capture & Storage (Architecture Section 15, Priority 1) ✅
 
 **Goal:** Store harmonic snapshots as recallable timbral presets.
 
@@ -540,7 +540,7 @@ struct HarmonicSnapshot {
 
 ---
 
-### Phase 16: Harmonic Memory — Recall & Preset Integration
+### Phase 16: Harmonic Memory — Recall & Preset Integration ✅
 
 **Goal:** Load snapshots and play them as oscillator states from MIDI.
 
@@ -554,7 +554,7 @@ Dependencies: Phase 15
 - One-button capture from live analysis or frozen state
 - Integration with plugin preset system (snapshots stored within plugin state)
 
-**This completes Milestone 5: Harmonic Memory.**
+**This completes Milestone 5: Harmonic Memory.** ✅
 
 ---
 
@@ -681,8 +681,8 @@ Phase 1 (scaffold)
                                      └→ Phase 12 (live sidechain) ← MILESTONE 3 ✅
                                      └→ Phase 13 (freeze/morph) ✅
                                           └→ Phase 14 (harmonic filter) ← MILESTONE 4 ✅
-                                          └→ Phase 15 (memory storage)
-                                               └→ Phase 16 (memory recall) ← MILESTONE 5
+                                          └→ Phase 15 (memory storage) ✅
+                                               └→ Phase 16 (memory recall) ← MILESTONE 5 ✅
                                                └→ Phase 17 (cross-synthesis)
                                                └→ Phase 19 (evolution engine)
                                      └→ Phase 18 (stereo spread)
@@ -702,6 +702,6 @@ Each milestone is intended as one `speckit.specify` run:
 | M2 | 10–11 | Residual/noise model (SMS decomposition) ✅ |
 | M3 | 12 | Live sidechain mode ✅ |
 | M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) ✅ |
-| M5 | 15–16 | Harmonic Memory (snapshot capture/recall) |
+| M5 | 15–16 | Harmonic Memory (snapshot capture/recall) ✅ |
 | M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) |
 | M7 | 22 | Plugin UI |

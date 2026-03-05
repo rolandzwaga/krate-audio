@@ -231,8 +231,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // --- Handle parameter changes ---
     processParameterChanges(data.inputParameterChanges);
 
+
     // --- Check for new analysis from background thread (FR-058) ---
     checkForNewAnalysis();
+
 
     // --- Forward responsiveness to live analysis pipeline (FR-030, FR-031) ---
     {
@@ -258,10 +260,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const float* sidechainMono = nullptr;
     {
         int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
-        if (currentSource == 1 && data.numInputs > 0)
+        if (currentSource == 1 && data.numInputs > 0 && data.inputs)
         {
             const auto& scBus = data.inputs[0];
-            if (scBus.numChannels >= 2)
+            if (scBus.numChannels >= 2 &&
+                scBus.channelBuffers32 &&
+                scBus.channelBuffers32[0] && scBus.channelBuffers32[1])
             {
                 // Stereo downmix
                 auto count = std::min(data.numSamples,
@@ -274,7 +278,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 }
                 sidechainMono = sidechainBuffer_.data();
             }
-            else if (scBus.numChannels == 1)
+            else if (scBus.numChannels == 1 &&
+                     scBus.channelBuffers32 && scBus.channelBuffers32[0])
             {
                 sidechainMono = scBus.channelBuffers32[0];
             }
@@ -311,11 +316,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     processEvents(data.inputEvents);
 
     // --- Output ---
-    if (data.numOutputs < 1 || data.outputs[0].numChannels < 2)
+    if (data.numOutputs < 1 || !data.outputs)
+        return Steinberg::kResultOk;
+    if (data.outputs[0].numChannels < 2)
         return Steinberg::kResultOk;
 
     auto numSamples = data.numSamples;
+    if (numSamples <= 0)
+        return Steinberg::kResultOk;
+
     auto** out = data.outputs[0].channelBuffers32;
+    if (!out || !out[0] || !out[1])
+        return Steinberg::kResultOk;
+
 
     // Determine current input source
     const int currentInputSource =
@@ -327,6 +340,147 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // as long as a note is active and the live pipeline has produced a frame.
     const bool hasSampleAnalysis = analysis && !analysis->frames.empty();
     const bool hasLiveFrame = isSidechainMode && currentLiveFrame_.f0 > 0.0f;
+
+
+    // =========================================================================
+    // M5: Recall Trigger Detection (FR-011, FR-012, FR-013, FR-015)
+    // Fires at block start, BEFORE capture detection (T057).
+    // Must run before the early-return so recall works even with no note/analysis.
+    // =========================================================================
+    {
+        const float currentRecallTrigger =
+            memoryRecall_.load(std::memory_order_relaxed);
+
+        if (currentRecallTrigger > 0.5f && previousRecallTrigger_ <= 0.5f)
+        {
+            // Read selected slot index
+            const int slot = std::clamp(
+                static_cast<int>(std::round(
+                    memorySlot_.load(std::memory_order_relaxed) * 7.0f)),
+                0, 7);
+
+            // FR-013: Silently ignore recall on empty slot
+            if (memorySlots_[static_cast<size_t>(slot)].occupied)
+            {
+                // FR-012: Reconstruct frame from snapshot
+                Krate::DSP::HarmonicFrame tempHarmonicFrame{};
+                Krate::DSP::ResidualFrame tempResidualFrame{};
+                Krate::DSP::recallSnapshotToFrame(
+                    memorySlots_[static_cast<size_t>(slot)].snapshot,
+                    tempHarmonicFrame, tempResidualFrame);
+
+                // FR-015: If already frozen (slot-to-slot recall), initiate crossfade
+                if (manualFreezeActive_)
+                {
+                    manualFreezeRecoveryOldLevel_ = noteActive_
+                        ? oscillatorBank_.process() : 0.0f;
+                    manualFreezeRecoverySamplesRemaining_ =
+                        manualFreezeRecoveryLengthSamples_;
+                }
+
+                // FR-012: Load into freeze frame and engage freeze
+                manualFrozenFrame_ = tempHarmonicFrame;
+                manualFrozenResidualFrame_ = tempResidualFrame;
+                manualFreezeActive_ = true;
+
+                // Sync freeze state so the M4 freeze detection block
+                // correctly handles disengage when the user toggles
+                // the Freeze parameter off (FR-018).
+                freeze_.store(1.0f, std::memory_order_relaxed);
+                previousFreezeState_ = true;
+            }
+
+            // FR-011: Auto-reset trigger
+            memoryRecall_.store(0.0f, std::memory_order_relaxed);
+
+            // Notify host UI of the auto-reset (T059b)
+            if (data.outputParameterChanges)
+            {
+                Steinberg::int32 index = 0;
+                auto* queue = data.outputParameterChanges->addParameterData(
+                    kMemoryRecallId, index);
+                if (queue)
+                    queue->addPoint(0, 0.0, index);
+            }
+        }
+
+        previousRecallTrigger_ = currentRecallTrigger;
+    }
+
+
+    // =========================================================================
+    // M5: Capture Trigger Detection (FR-006, FR-007, FR-008, FR-009)
+    // Fires at block start, BEFORE any filter application (pre-filter capture).
+    // Must run before the early-return so capture works even with no note/analysis.
+    // =========================================================================
+    {
+        const float currentCaptureTrigger =
+            memoryCapture_.load(std::memory_order_relaxed);
+
+        if (currentCaptureTrigger > 0.5f && previousCaptureTrigger_ <= 0.5f)
+        {
+            // Determine capture source (FR-007)
+            Krate::DSP::HarmonicFrame captureFrame{};
+            Krate::DSP::ResidualFrame captureResidual{};
+
+            const float smoothedMorph =
+                morphPositionSmoother_.getCurrentValue();
+
+            if (manualFreezeActive_ && smoothedMorph > 1e-6f)
+            { // NOLINT(bugprone-branch-clone) branches assign from different sources
+                // (a) Freeze active + morph > 0: capture post-morph blended state (FR-008)
+                // morphedFrame_ contains the last-computed pre-filter morph result
+                captureFrame = morphedFrame_;
+                captureResidual = morphedResidualFrame_;
+            }
+            else if (manualFreezeActive_)
+            {
+                // (b) Freeze active + morph == 0: capture frozen frame
+                captureFrame = manualFrozenFrame_;
+                captureResidual = manualFrozenResidualFrame_;
+            }
+            else if (isSidechainMode)
+            {
+                // (c) Sidechain mode, no freeze: capture live analysis frame
+                captureFrame = currentLiveFrame_;
+                captureResidual = currentLiveResidualFrame_;
+            }
+            else if (hasSampleAnalysis)
+            {
+                // (d) Sample mode, no freeze: capture current sample frame
+                captureFrame = analysis->getFrame(currentFrameIndex_);
+                if (!analysis->residualFrames.empty())
+                    captureResidual =
+                        analysis->getResidualFrame(currentFrameIndex_);
+            }
+            // else: (e) No analysis -- captureFrame/captureResidual are default (empty)
+
+            // Store snapshot in selected slot (FR-010)
+            const int slot = std::clamp(
+                static_cast<int>(std::round(
+                    memorySlot_.load(std::memory_order_relaxed) * 7.0f)),
+                0, 7);
+            memorySlots_[static_cast<size_t>(slot)].snapshot =
+                Krate::DSP::captureSnapshot(captureFrame, captureResidual);
+            memorySlots_[static_cast<size_t>(slot)].occupied = true;
+
+            // Auto-reset trigger (FR-006)
+            memoryCapture_.store(0.0f, std::memory_order_relaxed);
+
+            // Notify host UI of the auto-reset so the Capture button
+            // reflects the reset state (T042b)
+            if (data.outputParameterChanges)
+            {
+                Steinberg::int32 index = 0;
+                auto* queue = data.outputParameterChanges->addParameterData(
+                    kMemoryCaptureId, index);
+                if (queue)
+                    queue->addPoint(0, 0.0, index);
+            }
+        }
+
+        previousCaptureTrigger_ = currentCaptureTrigger;
+    }
 
     // M4/T108: Freeze transition detection must happen BEFORE the early return
     // so that engaging freeze with no analysis still captures an empty frame.
@@ -403,6 +557,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // In sidechain mode, live residual is always available if the pipeline produces it
     const bool hasLiveResidual = isSidechainMode && residualSynth_.isPrepared();
 
+
     // =========================================================================
     // M4: Manual Freeze Detection (FR-001, FR-002, FR-003, FR-007, FR-008)
     // =========================================================================
@@ -415,8 +570,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             // FR-002, FR-003: Capture current live frame as frozen state
             // In sidechain mode, use currentLiveFrame_/currentLiveResidualFrame_
             // In sample mode, use the current frame from analysis
-            if (isSidechainMode) // NOLINT(bugprone-branch-clone) branches assign different source values
-            {
+            if (isSidechainMode)
+            { // NOLINT(bugprone-branch-clone) branches assign from different sources
                 manualFrozenFrame_ = currentLiveFrame_;
                 manualFrozenResidualFrame_ = currentLiveResidualFrame_;
             }
@@ -478,6 +633,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
+
     // =========================================================================
     // M4: Morph interpolation + load frames into osc bank
     // When freeze active: morph between frozen (A) and live (B) frames
@@ -512,8 +668,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         const float smoothedMorph = morphPositionSmoother_.getCurrentValue();
 
         // Morph with early-out optimization (T061)
-        if (smoothedMorph < 1e-6f) // NOLINT(bugprone-branch-clone) branches assign different source values
-        {
+        if (smoothedMorph < 1e-6f)
+        { // NOLINT(bugprone-branch-clone) branches assign from different sources
             // Fully frozen (morph = 0.0)
             morphedFrame_ = manualFrozenFrame_;
             morphedResidualFrame_ = manualFrozenResidualFrame_;
@@ -603,6 +759,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             isFrozen_ = true;
         }
     }
+
 
     // --- Process each sample ---
     bool hasSoundOutput = false;
@@ -1069,6 +1226,17 @@ void Processor::processParameterChanges(
                 responsiveness_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
+            // M5 Harmonic Memory parameters
+            case kMemorySlotId:
+                memorySlot_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMemoryCaptureId:
+                memoryCapture_.store(static_cast<float>(value));
+                break;
+            case kMemoryRecallId:
+                memoryRecall_.store(static_cast<float>(value));
+                break;
             default:
                 break;
             }
@@ -1119,8 +1287,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M4: version 4 (musical control parameters)
-    streamer.writeInt32(4);
+    // Write state version -- M5: version 5 (harmonic memory slots)
+    streamer.writeInt32(5);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -1197,6 +1365,45 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeInt32(static_cast<Steinberg::int32>(
         std::round(harmonicFilterType_.load(std::memory_order_relaxed) * 4.0f)));
     streamer.writeFloat(responsiveness_.load(std::memory_order_relaxed));
+
+    // --- M5 parameters (harmonic memory) ---
+    // Selected slot index (FR-020a)
+    const int selectedSlot = std::clamp(
+        static_cast<int>(std::round(memorySlot_.load(std::memory_order_relaxed) * 7.0f)),
+        0, 7);
+    streamer.writeInt32(static_cast<Steinberg::int32>(selectedSlot));
+
+    // Write all 8 memory slots (FR-020b)
+    for (int s = 0; s < 8; ++s)
+    {
+        const auto& slot = memorySlots_[static_cast<size_t>(s)];
+        streamer.writeInt8(slot.occupied ? static_cast<Steinberg::int8>(1)
+                                        : static_cast<Steinberg::int8>(0));
+
+        if (slot.occupied)
+        {
+            const auto& snap = slot.snapshot;
+            streamer.writeFloat(snap.f0Reference);
+            streamer.writeInt32(static_cast<Steinberg::int32>(snap.numPartials));
+
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                streamer.writeFloat(snap.relativeFreqs[i]);
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                streamer.writeFloat(snap.normalizedAmps[i]);
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                streamer.writeFloat(snap.phases[i]);
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                streamer.writeFloat(snap.inharmonicDeviation[i]);
+
+            for (size_t i = 0; i < Krate::DSP::kResidualBands; ++i)
+                streamer.writeFloat(snap.residualBands[i]);
+
+            streamer.writeFloat(snap.residualEnergy);
+            streamer.writeFloat(snap.globalAmplitude);
+            streamer.writeFloat(snap.spectralCentroid);
+            streamer.writeFloat(snap.brightness);
+        }
+    }
 
     return Steinberg::kResultOk;
 }
@@ -1426,9 +1633,150 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
             harmonicFilterType_.store(0.0f);  // All-Pass
             responsiveness_.store(0.5f);
         }
+
+        // --- M5 parameters (harmonic memory) ---
+        if (version >= 5)
+        {
+            // Read selected slot index (FR-022)
+            Steinberg::int32 selectedSlot = 0;
+            if (streamer.readInt32(selectedSlot))
+            {
+                selectedSlot = std::clamp(selectedSlot, static_cast<Steinberg::int32>(0),
+                                         static_cast<Steinberg::int32>(7));
+                memorySlot_.store(static_cast<float>(selectedSlot) / 7.0f,
+                                 std::memory_order_relaxed);
+            }
+
+            // Read all 8 memory slots (FR-022)
+            for (int s = 0; s < 8; ++s)
+            {
+                auto& slot = memorySlots_[static_cast<size_t>(s)];
+                Steinberg::int8 occupiedByte = 0;
+                if (!streamer.readInt8(occupiedByte))
+                {
+                    slot.occupied = false;
+                    continue;
+                }
+
+                slot.occupied = (occupiedByte != 0);
+                if (!slot.occupied)
+                    continue;
+
+                auto& snap = slot.snapshot;
+                bool readOk = true;
+
+                readOk = readOk && streamer.readFloat(floatVal);
+                if (readOk) snap.f0Reference = floatVal;
+
+                Steinberg::int32 numPartials = 0;
+                readOk = readOk && streamer.readInt32(numPartials);
+                if (readOk) snap.numPartials = static_cast<int>(
+                    std::clamp(numPartials, static_cast<Steinberg::int32>(0),
+                               static_cast<Steinberg::int32>(Krate::DSP::kMaxPartials)));
+
+                for (size_t i = 0; i < Krate::DSP::kMaxPartials && readOk; ++i)
+                {
+                    readOk = streamer.readFloat(floatVal);
+                    if (readOk) snap.relativeFreqs[i] = floatVal;
+                }
+                for (size_t i = 0; i < Krate::DSP::kMaxPartials && readOk; ++i)
+                {
+                    readOk = streamer.readFloat(floatVal);
+                    if (readOk) snap.normalizedAmps[i] = floatVal;
+                }
+                for (size_t i = 0; i < Krate::DSP::kMaxPartials && readOk; ++i)
+                {
+                    readOk = streamer.readFloat(floatVal);
+                    if (readOk) snap.phases[i] = floatVal;
+                }
+                for (size_t i = 0; i < Krate::DSP::kMaxPartials && readOk; ++i)
+                {
+                    readOk = streamer.readFloat(floatVal);
+                    if (readOk) snap.inharmonicDeviation[i] = floatVal;
+                }
+
+                for (size_t i = 0; i < Krate::DSP::kResidualBands && readOk; ++i)
+                {
+                    readOk = streamer.readFloat(floatVal);
+                    if (readOk) snap.residualBands[i] = floatVal;
+                }
+
+                readOk = readOk && streamer.readFloat(floatVal);
+                if (readOk) snap.residualEnergy = floatVal;
+
+                readOk = readOk && streamer.readFloat(floatVal);
+                if (readOk) snap.globalAmplitude = floatVal;
+
+                readOk = readOk && streamer.readFloat(floatVal);
+                if (readOk) snap.spectralCentroid = floatVal;
+
+                readOk = readOk && streamer.readFloat(floatVal);
+                if (readOk) snap.brightness = floatVal;
+
+                if (!readOk)
+                {
+                    slot.occupied = false;
+                    slot.snapshot = Krate::DSP::HarmonicSnapshot{};
+                }
+            }
+        }
+        else
+        {
+            // Default M5 values for v4 and older states (FR-021)
+            memorySlot_.store(0.0f, std::memory_order_relaxed);
+            for (auto& slot : memorySlots_)
+            {
+                slot.occupied = false;
+                slot.snapshot = Krate::DSP::HarmonicSnapshot{};
+            }
+        }
     }
 
     return Steinberg::kResultOk;
+}
+
+// ==============================================================================
+// notify() -- IMessage handler (FR-029: JSON import via IMessage)
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
+{
+    if (!message)
+        return Steinberg::kInvalidArgument;
+
+    if (strcmp(message->getMessageID(), "HarmonicSnapshotImport") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        // Read slot index
+        Steinberg::int64 slotIndex = 0;
+        if (attrs->getInt("slotIndex", slotIndex) != Steinberg::kResultOk)
+            return Steinberg::kResultFalse;
+
+        // Validate range 0-7
+        if (slotIndex < 0 || slotIndex >= 8)
+            return Steinberg::kResultFalse;
+
+        // Read binary snapshot data
+        const void* data = nullptr;
+        Steinberg::uint32 dataSize = 0;
+        if (attrs->getBinary("snapshotData", data, dataSize) != Steinberg::kResultOk)
+            return Steinberg::kResultFalse;
+
+        // Validate size matches HarmonicSnapshot struct
+        if (dataSize != sizeof(Krate::DSP::HarmonicSnapshot))
+            return Steinberg::kResultFalse;
+
+        // Fixed-size copy into pre-allocated slot (real-time safe: no allocation)
+        std::memcpy(&memorySlots_[static_cast<size_t>(slotIndex)].snapshot,
+                    data, sizeof(Krate::DSP::HarmonicSnapshot));
+        memorySlots_[static_cast<size_t>(slotIndex)].occupied = true;
+
+        return Steinberg::kResultOk;
+    }
+
+    return AudioEffect::notify(message);
 }
 
 } // namespace Innexus

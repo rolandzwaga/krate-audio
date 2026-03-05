@@ -28,6 +28,10 @@ add_executable(innexus_tests
     unit/processor/musical_control_tests.cpp
     unit/vst/musical_control_vst_tests.cpp
 
+    # Harmonic Memory tests (M5 Phases 15-16)
+    unit/processor/harmonic_memory_tests.cpp
+    unit/vst/harmonic_memory_vst_tests.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

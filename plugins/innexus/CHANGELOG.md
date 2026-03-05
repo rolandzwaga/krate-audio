@@ -5,6 +5,27 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-05
+
+### Added
+
+- **M5: Harmonic Memory** — Snapshot capture & recall system with 8 memory slots for storing and recalling harmonic timbres via MIDI
+- **HarmonicSnapshot** (KrateDSP Layer 2) — Core data structure storing L2-normalized amplitudes, relative frequencies, inharmonic deviations, phases, residual band energies, and metadata (f0, spectral centroid, brightness, global amplitude)
+- **Memory Slot parameter** — 8-slot selector (Slot 1–8) for targeting capture and recall operations
+- **Memory Capture trigger** — One-shot toggle captures current harmonic state into the selected slot with automatic source detection: post-morph blend (freeze+morph>0), frozen frame (freeze active), live sidechain analysis, sample analysis frame, or empty snapshot (no source)
+- **Memory Recall trigger** — One-shot toggle recalls the selected slot's snapshot into the oscillator bank with crossfade to frozen state; automatically engages freeze; click-free transition (SC-001: <-60 dB)
+- **Recall-to-freeze integration** — Recalled snapshots are loaded as the frozen frame, enabling immediate morph blending between recalled timbre and live analysis (FR-013, FR-014)
+- **State version 5** — Binary persistence of all 8 memory slots with per-slot occupied flags and full snapshot data; backward compatible with v1–v4 presets
+- **JSON export/import** — Human-readable snapshot serialization with full validation (field presence, range checks, array lengths); import via IMessage controller→processor pipeline (FR-025, FR-026)
+- **Edge case robustness** — Recall from empty slot (no-op), capture with no analysis (stores empty snapshot), rapid capture/recall cycling, slot switching during playback
+
+### Performance
+
+- Recall crossfade: max step <-60 dB relative to RMS (SC-001)
+- Capture/recall latency: <1 process block (SC-003)
+- JSON round-trip: lossless to float precision (SC-006)
+- Memory overhead: <64 KB for 8 slots (SC-005)
+
 ## [0.4.0] - 2026-03-05
 
 ### Added

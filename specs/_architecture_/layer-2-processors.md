@@ -6991,3 +6991,67 @@ inline void applyHarmonicMask(
 - **Phase-continuous**: Phase is not interpolated; the oscillator bank maintains phase continuity across frame transitions
 
 **Dependencies:** Layer 2 (harmonic_types.h, residual_types.h)
+
+---
+
+## HarmonicSnapshot (Normalized Timbral Snapshot Storage)
+**Path:** [harmonic_snapshot.h](../../dsp/include/krate/dsp/processors/harmonic_snapshot.h) | **Since:** M5 (119-harmonic-memory)
+
+Defines the `HarmonicSnapshot` and `MemorySlot` data structures for the Harmonic Memory system, plus bidirectional conversion functions between `HarmonicSnapshot` and `HarmonicFrame`/`ResidualFrame`.
+
+A `HarmonicSnapshot` stores a complete, self-contained representation of a timbral moment in normalized harmonic domain. Frequencies are stored as ratios relative to F0 (pitch-independent), amplitudes are L2-normalized (loudness-independent). Used for capture, recall, preset persistence, and future evolution/morphing between stored timbres.
+
+```cpp
+namespace Krate::DSP {
+
+/// Normalized timbral snapshot for Harmonic Memory.
+struct HarmonicSnapshot {
+    float f0Reference;                              // Source F0 at capture (informational)
+    int numPartials;                                // Active count (<= kMaxPartials)
+    std::array<float, kMaxPartials> relativeFreqs;  // freq_n / F0 ratios
+    std::array<float, kMaxPartials> normalizedAmps; // L2-normalized amplitudes
+    std::array<float, kMaxPartials> phases;         // Radians at capture (forward compat)
+    std::array<float, kMaxPartials> inharmonicDeviation; // relativeFreq - harmonicIndex
+    std::array<float, kResidualBands> residualBands;     // Spectral envelope of residual
+    float residualEnergy;                           // Overall residual level
+    float globalAmplitude;                          // Source loudness (informational)
+    float spectralCentroid;                         // Perceptual metadata
+    float brightness;                               // Perceptual metadata
+};
+
+/// Memory slot pairing a HarmonicSnapshot with an occupancy flag.
+struct MemorySlot {
+    HarmonicSnapshot snapshot;
+    bool occupied = false;
+};
+
+/// Capture: extract snapshot from current HarmonicFrame + ResidualFrame.
+/// L2-normalizes amplitudes. Real-time safe.
+inline HarmonicSnapshot captureSnapshot(
+    const HarmonicFrame& frame, const ResidualFrame& residual) noexcept;
+
+/// Recall: reconstruct HarmonicFrame + ResidualFrame from a stored snapshot.
+/// Sets f0Confidence=1, stability=1, age=1. Derives harmonicIndex from
+/// relativeFreqs - inharmonicDeviation. Real-time safe.
+inline void recallSnapshotToFrame(
+    const HarmonicSnapshot& snap,
+    HarmonicFrame& frame, ResidualFrame& residual) noexcept;
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Storing harmonic state for later playback (Harmonic Memory capture/recall)
+- Persisting timbral data in plugin state (state v5 serialization)
+- Exporting/importing timbral presets as JSON
+- Future: Evolution Engine (M6) drifting between stored snapshots
+- Future: Multi-Source Blending (M7) combining stored and live timbres
+
+**Key design decisions:**
+- **Normalized domain**: Frequencies as F0 ratios + L2-normalized amplitudes ensure pitch/loudness independence
+- **Redundant storage**: Both `relativeFreqs` and `inharmonicDeviation` stored for clarity and fast playback access
+- **Phases stored for forward compatibility**: Phase-reset-on-note-on mode deferred to future milestone; phases not read during M5 playback
+- **Pre-allocated slots**: 8 `MemorySlot` instances as member variables in Processor (~6.8 KB total), zero heap allocation during capture/recall
+- **L2 normalization guard**: Division-by-zero protected with `if (sumSquares > 0.0f)` check
+
+**Dependencies:** Layer 2 (harmonic_types.h, residual_types.h)
