@@ -239,6 +239,41 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         smoother.snapTo(0.0f);
     }
 
+    // M6 FR-004, R-004: Construct pure harmonic reference frame
+    // relativeFreq[n] = n+1 (1-indexed), rawAmp[n] = 1/(n+1), L2-normalized
+    {
+        pureHarmonicFrame_ = {};
+        pureHarmonicFrame_.numPartials = static_cast<int>(Krate::DSP::kMaxPartials);
+        pureHarmonicFrame_.f0 = 1.0f; // Placeholder; actual F0 comes from MIDI note
+        pureHarmonicFrame_.f0Confidence = 1.0f;
+        pureHarmonicFrame_.globalAmplitude = 1.0f;
+
+        // Build 1/n amplitude series and compute L2 norm
+        float sumSquares = 0.0f;
+        for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+        {
+            const float n = static_cast<float>(i + 1);
+            auto& p = pureHarmonicFrame_.partials[i];
+            p.harmonicIndex = static_cast<int>(i + 1);
+            p.relativeFrequency = n;
+            p.amplitude = 1.0f / n; // Raw 1/n amplitude (pre-normalization)
+            p.inharmonicDeviation = 0.0f;
+            p.stability = 1.0f;
+            p.age = 1;
+            p.phase = 0.0f;
+            p.frequency = n; // Placeholder
+            sumSquares += p.amplitude * p.amplitude;
+        }
+
+        // L2-normalize amplitudes
+        const float l2Norm = std::sqrt(sumSquares);
+        if (l2Norm > 0.0f)
+        {
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                pureHarmonicFrame_.partials[i].amplitude /= l2Norm;
+        }
+    }
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -676,6 +711,12 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
 
+    // --- M6: Update timbral blend smoother (FR-001, FR-005) ---
+    timbralBlendSmoother_.setTarget(timbralBlend_.load(std::memory_order_relaxed));
+    timbralBlendSmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+    const float smoothedTimbralBlend = timbralBlendSmoother_.getCurrentValue();
+
     // =========================================================================
     // M4: Morph interpolation + load frames into osc bank
     // When freeze active: morph between frozen (A) and live (B) frames
@@ -731,8 +772,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 manualFrozenResidualFrame_, liveResidualFrame, smoothedMorph);
         }
 
+        // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+        // Blend between pure harmonic reference and source model BEFORE filter.
+        if (smoothedTimbralBlend < 1.0f - 1e-6f)
+            morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
         // M4: Apply harmonic filter mask (FR-020, FR-026, T082)
-        // Filter is applied AFTER morph and BEFORE oscillator bank.
+        // Filter is applied AFTER morph+blend and BEFORE oscillator bank.
         // Residual passes through unmodified (FR-027).
         if (currentFilterType_ != 0) // Skip for All-Pass (early-out)
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
@@ -776,9 +823,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             lastGoodFrame_ = currentLiveFrame_;
 
             // M4: Store live frame as morphed (no freeze = pass-through)
-            // and apply harmonic filter (FR-026, FR-027)
             morphedFrame_ = currentLiveFrame_;
             morphedResidualFrame_ = currentLiveResidualFrame_;
+
+            // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+            if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                    pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+            // Apply harmonic filter (FR-026, FR-027)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
@@ -847,8 +900,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     lastGoodFrame_ = frame;
 
                     // M4: Store frame as morphed (no freeze = pass-through)
-                    // and apply harmonic filter (FR-026)
                     morphedFrame_ = frame;
+
+                    // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+                    if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                        morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                            pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                    // Apply harmonic filter (FR-026)
                     if (currentFilterType_ != 0)
                         Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
@@ -1065,9 +1124,18 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         {
             lastGoodFrame_ = currentLiveFrame_;
 
-            // M4: Apply harmonic filter (FR-026)
             morphedFrame_ = currentLiveFrame_;
             morphedResidualFrame_ = currentLiveResidualFrame_;
+
+            // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+            {
+                const float blend = timbralBlendSmoother_.getCurrentValue();
+                if (blend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, blend);
+            }
+
+            // M4: Apply harmonic filter (FR-026)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
@@ -1090,8 +1158,17 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         const auto& frame = analysis->getFrame(0);
         lastGoodFrame_ = frame;
 
-        // M4: Apply harmonic filter (FR-026)
         morphedFrame_ = frame;
+
+        // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+        {
+            const float blend = timbralBlendSmoother_.getCurrentValue();
+            if (blend < 1.0f - 1e-6f)
+                morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                    pureHarmonicFrame_, morphedFrame_, blend);
+        }
+
+        // M4: Apply harmonic filter (FR-026)
         if (currentFilterType_ != 0)
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 

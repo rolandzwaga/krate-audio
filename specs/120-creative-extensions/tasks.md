@@ -114,21 +114,21 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T016 [P] [US1] Write failing tests for cross-synthesis timbral blend in `plugins/innexus/tests/unit/processor/test_cross_synthesis.cpp`: test blend=1.0 output matches source model (SC-001, correlation > 0.95), test blend=0.0 output matches pure 1/n harmonic series, test blend=0.5 produces lerped values for both relativeFreq and normalizedAmp, test inharmonic deviation scales with blend (FR-002), test parameter smoother prevents clicks (SC-007). Also test FR-003 source switching: inject two distinct HarmonicFrames representing Slot A and Slot B, simulate a slot recall while a note is active, verify the processor triggers the existing crossfade mechanism (crossfadeRemaining_ > 0 after recall) and that output amplitude changes continuously over the crossfade window with no sample-level discontinuity > -80 dBFS (SC-007).
+- [X] T016 [P] [US1] Write failing tests for cross-synthesis timbral blend in `plugins/innexus/tests/unit/processor/test_cross_synthesis.cpp`: test blend=1.0 output matches source model (SC-001, correlation > 0.95), test blend=0.0 output matches pure 1/n harmonic series, test blend=0.5 produces lerped values for both relativeFreq and normalizedAmp, test inharmonic deviation scales with blend (FR-002), test parameter smoother prevents clicks (SC-007). Also test FR-003 source switching: inject two distinct HarmonicFrames representing Slot A and Slot B, simulate a slot recall while a note is active, verify the processor triggers the existing crossfade mechanism (crossfadeRemaining_ > 0 after recall) and that output amplitude changes continuously over the crossfade window with no sample-level discontinuity > -80 dBFS (SC-007).
 
-- [ ] T017 [P] [US1] Write failing test for pure harmonic reference construction in `plugins/innexus/tests/unit/processor/test_cross_synthesis.cpp`: verify L2-norm of normalizedAmps == 1.0 (+/- 1e-6), verify relativeFreqs[n] = n (1-indexed), verify inharmonicDeviation[n] = 0 for all n (FR-004, R-004).
+- [X] T017 [P] [US1] Write failing test for pure harmonic reference construction in `plugins/innexus/tests/unit/processor/test_cross_synthesis.cpp`: verify L2-norm of normalizedAmps == 1.0 (+/- 1e-6), verify relativeFreqs[n] = n (1-indexed), verify inharmonicDeviation[n] = 0 for all n (FR-004, R-004).
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T018 [US1] Build pure harmonic reference in `plugins/innexus/src/processor/processor.cpp` at `setupProcessing()` time: construct `pureHarmonicFrame_` with `relativeFreq_n = n`, `rawAmp_n = 1.0f / n`, L2-normalize amps, `inharmonicDeviation_n = 0`. Store as member `HarmonicFrame pureHarmonicFrame_` in `plugins/innexus/src/processor/processor.h` (FR-004, R-004). Depends on T003.
+- [X] T018 [US1] Build pure harmonic reference in `plugins/innexus/src/processor/processor.cpp` at `setupProcessing()` time: construct `pureHarmonicFrame_` with `relativeFreq_n = n`, `rawAmp_n = 1.0f / n`, L2-normalize amps, `inharmonicDeviation_n = 0`. Store as member `HarmonicFrame pureHarmonicFrame_` in `plugins/innexus/src/processor/processor.h` (FR-004, R-004). Depends on T003.
 
-- [ ] T019 [US1] Implement Timbral Blend pipeline step in `plugins/innexus/src/processor/processor.cpp`: after source frame selection and before harmonic filter, apply `if (timbralBlend < 1.0f - epsilon) { currentFrame = lerpHarmonicFrame(pureHarmonicFrame_, currentFrame, timbralBlend); }`. Use `timbralBlendSmoother_.process()` each frame for smoothed value (FR-001, FR-002, FR-005, FR-047). Depends on T003, T018.
+- [X] T019 [US1] Implement Timbral Blend pipeline step in `plugins/innexus/src/processor/processor.cpp`: after source frame selection and before harmonic filter, apply `if (timbralBlend < 1.0f - epsilon) { currentFrame = lerpHarmonicFrame(pureHarmonicFrame_, currentFrame, timbralBlend); }`. Use `timbralBlendSmoother_.process()` each frame for smoothed value (FR-001, FR-002, FR-005, FR-047). Depends on T003, T018.
 
 ### 3.3 Cross-Platform Verification
 
-- [ ] T020 [US1] Check `test_cross_synthesis.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found. Verify `Approx().margin()` used for floating-point comparisons.
+- [X] T020 [US1] Check `test_cross_synthesis.cpp` for `std::isnan`/`std::isfinite`/`std::isinf` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found. Verify `Approx().margin()` used for floating-point comparisons.
 
-- [ ] T021 [US1] Build `innexus_tests` target, verify zero warnings, run tests and confirm all pass. Verify SC-001 (correlation > 0.95 at blend=1.0).
+- [X] T021 [US1] Build `innexus_tests` target, verify zero warnings, run tests and confirm all pass. Verify SC-001 (correlation > 0.95 at blend=1.0).
 
 ### 3.4 Commit
 
