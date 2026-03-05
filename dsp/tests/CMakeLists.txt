@@ -186,6 +186,7 @@ add_executable(dsp_tests
     unit/processors/spectral_coring_estimator_tests.cpp
     unit/processors/harmonic_frame_utils_tests.cpp
     unit/processors/harmonic_snapshot_tests.cpp
+    unit/processors/test_harmonic_oscillator_bank_stereo.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -491,6 +492,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/spectral_coring_estimator_tests.cpp
         unit/processors/harmonic_frame_utils_tests.cpp
         unit/processors/harmonic_snapshot_tests.cpp
+        unit/processors/test_harmonic_oscillator_bank_stereo.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

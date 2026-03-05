@@ -214,6 +214,74 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     filterMask_.fill(1.0f);
     currentFilterType_ = 0;
 
+    // M6: Configure stereo/detune smoothers
+    const float sr = static_cast<float>(sampleRate_);
+    timbralBlendSmoother_.configure(5.0f, sr);
+    timbralBlendSmoother_.snapTo(timbralBlend_.load(std::memory_order_relaxed));
+    stereoSpreadSmoother_.configure(10.0f, sr);
+    stereoSpreadSmoother_.snapTo(stereoSpread_.load(std::memory_order_relaxed));
+    evolutionSpeedSmoother_.configure(5.0f, sr);
+    evolutionSpeedSmoother_.snapTo(evolutionSpeed_.load(std::memory_order_relaxed));
+    evolutionDepthSmoother_.configure(5.0f, sr);
+    evolutionDepthSmoother_.snapTo(evolutionDepth_.load(std::memory_order_relaxed));
+    mod1RateSmoother_.configure(5.0f, sr);
+    mod1RateSmoother_.snapTo(mod1Rate_.load(std::memory_order_relaxed));
+    mod1DepthSmoother_.configure(5.0f, sr);
+    mod1DepthSmoother_.snapTo(mod1Depth_.load(std::memory_order_relaxed));
+    mod2RateSmoother_.configure(5.0f, sr);
+    mod2RateSmoother_.snapTo(mod2Rate_.load(std::memory_order_relaxed));
+    mod2DepthSmoother_.configure(5.0f, sr);
+    mod2DepthSmoother_.snapTo(mod2Depth_.load(std::memory_order_relaxed));
+    detuneSpreadSmoother_.configure(5.0f, sr);
+    detuneSpreadSmoother_.snapTo(detuneSpread_.load(std::memory_order_relaxed));
+    for (auto& smoother : blendWeightSmootherArray_) {
+        smoother.configure(5.0f, sr);
+        smoother.snapTo(0.0f);
+    }
+
+    // M6 FR-004, R-004: Construct pure harmonic reference frame
+    // relativeFreq[n] = n+1 (1-indexed), rawAmp[n] = 1/(n+1), L2-normalized
+    {
+        pureHarmonicFrame_ = {};
+        pureHarmonicFrame_.numPartials = static_cast<int>(Krate::DSP::kMaxPartials);
+        pureHarmonicFrame_.f0 = 1.0f; // Placeholder; actual F0 comes from MIDI note
+        pureHarmonicFrame_.f0Confidence = 1.0f;
+        pureHarmonicFrame_.globalAmplitude = 1.0f;
+
+        // Build 1/n amplitude series and compute L2 norm
+        float sumSquares = 0.0f;
+        for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+        {
+            const float n = static_cast<float>(i + 1);
+            auto& p = pureHarmonicFrame_.partials[i];
+            p.harmonicIndex = static_cast<int>(i + 1);
+            p.relativeFrequency = n;
+            p.amplitude = 1.0f / n; // Raw 1/n amplitude (pre-normalization)
+            p.inharmonicDeviation = 0.0f;
+            p.stability = 1.0f;
+            p.age = 1;
+            p.phase = 0.0f;
+            p.frequency = n; // Placeholder
+            sumSquares += p.amplitude * p.amplitude;
+        }
+
+        // L2-normalize amplitudes
+        const float l2Norm = std::sqrt(sumSquares);
+        if (l2Norm > 0.0f)
+        {
+            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
+                pureHarmonicFrame_.partials[i].amplitude /= l2Norm;
+        }
+    }
+
+    // M6 FR-014: Prepare evolution engine
+    evolutionEngine_.prepare(sampleRate_);
+    evolutionEngine_.updateWaypoints(memorySlots_);
+
+    // M6 FR-024, FR-051: Prepare harmonic modulators (phase init to 0.0)
+    mod1_.prepare(sampleRate_);
+    mod2_.prepare(sampleRate_);
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -248,7 +316,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (currentSource != previousInputSource_)
         {
             // Source changed -- initiate crossfade
-            sourceCrossfadeOldLevel_ = noteActive_ ? oscillatorBank_.process() : 0.0f;
+            if (noteActive_) {
+                float captL = 0.0f;
+                float captR = 0.0f;
+                oscillatorBank_.processStereo(captL, captR);
+                sourceCrossfadeOldLevel_ = (captL + captR) * 0.5f;
+            } else {
+                sourceCrossfadeOldLevel_ = 0.0f;
+            }
             sourceCrossfadeSamplesRemaining_ = sourceCrossfadeLengthSamples_;
             previousInputSource_ = currentSource;
             // Note: residualSynth_ is always prepared in setActive() for sidechain mode.
@@ -318,7 +393,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // --- Output ---
     if (data.numOutputs < 1 || !data.outputs)
         return Steinberg::kResultOk;
-    if (data.outputs[0].numChannels < 2)
+    const int numOutputChannels = data.outputs[0].numChannels;
+    if (numOutputChannels < 1)
         return Steinberg::kResultOk;
 
     auto numSamples = data.numSamples;
@@ -326,7 +402,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         return Steinberg::kResultOk;
 
     auto** out = data.outputs[0].channelBuffers32;
-    if (!out || !out[0] || !out[1])
+    if (!out || !out[0] || (numOutputChannels >= 2 && !out[1]))
         return Steinberg::kResultOk;
 
 
@@ -372,8 +448,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 // FR-015: If already frozen (slot-to-slot recall), initiate crossfade
                 if (manualFreezeActive_)
                 {
-                    manualFreezeRecoveryOldLevel_ = noteActive_
-                        ? oscillatorBank_.process() : 0.0f;
+                    if (noteActive_) {
+                        float captL, captR;
+                        oscillatorBank_.processStereo(captL, captR);
+                        manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
+                    } else {
+                        manualFreezeRecoveryOldLevel_ = 0.0f;
+                    }
                     manualFreezeRecoverySamplesRemaining_ =
                         manualFreezeRecoveryLengthSamples_;
                 }
@@ -464,6 +545,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 Krate::DSP::captureSnapshot(captureFrame, captureResidual);
             memorySlots_[static_cast<size_t>(slot)].occupied = true;
 
+            // M6: Update evolution waypoints after capture (FR-018)
+            evolutionEngine_.updateWaypoints(memorySlots_);
+
             // Auto-reset trigger (FR-006)
             memoryCapture_.store(0.0f, std::memory_order_relaxed);
 
@@ -512,9 +596,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (Steinberg::int32 s = 0; s < numSamples; ++s)
         {
             out[0][s] = 0.0f;
-            out[1][s] = 0.0f;
+            if (numOutputChannels >= 2) out[1][s] = 0.0f;
         }
-        data.outputs[0].silenceFlags = 0x3;
+        data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
         return Steinberg::kResultOk;
     }
 
@@ -598,8 +682,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             // FR-006: Initiate 10ms crossfade from frozen to live
             // Capture current oscillator output level for smooth crossfade
-            manualFreezeRecoveryOldLevel_ = noteActive_
-                ? oscillatorBank_.process() : 0.0f;
+            if (noteActive_) {
+                float captL = 0.0f;
+                float captR = 0.0f;
+                oscillatorBank_.processStereo(captL, captR);
+                manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
+            } else {
+                manualFreezeRecoveryOldLevel_ = 0.0f;
+            }
             manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
             manualFreezeActive_ = false;
         }
@@ -633,6 +723,16 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
+
+    // --- M6: Update timbral blend smoother (FR-001, FR-005) ---
+    timbralBlendSmoother_.setTarget(timbralBlend_.load(std::memory_order_relaxed));
+    timbralBlendSmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+    const float smoothedTimbralBlend = timbralBlendSmoother_.getCurrentValue();
+
+    // M6: Read modulator enable flags (used in frame loading and per-sample loop)
+    const bool mod1Enabled = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+    const bool mod2Enabled = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
 
     // =========================================================================
     // M4: Morph interpolation + load frames into osc bank
@@ -689,13 +789,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 manualFrozenResidualFrame_, liveResidualFrame, smoothedMorph);
         }
 
+        // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+        // Blend between pure harmonic reference and source model BEFORE filter.
+        if (smoothedTimbralBlend < 1.0f - 1e-6f)
+            morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
         // M4: Apply harmonic filter mask (FR-020, FR-026, T082)
-        // Filter is applied AFTER morph and BEFORE oscillator bank.
+        // Filter is applied AFTER morph+blend and BEFORE oscillator bank.
         // Residual passes through unmodified (FR-027).
         if (currentFilterType_ != 0) // Skip for All-Pass (early-out)
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
         // Load morphed+filtered frame into oscillator bank
+        // M6 FR-025: Apply modulator amplitude modulation before loading
+        applyModulatorAmplitude(mod1Enabled, mod2Enabled);
         float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
         float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
         float targetPitch = basePitch * bendRatio;
@@ -726,17 +834,29 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             if (isFrozen_)
             {
                 isFrozen_ = false;
-                freezeRecoveryOldLevel_ = oscillatorBank_.process();
+                float captL = 0.0f;
+                float captR = 0.0f;
+                oscillatorBank_.processStereo(captL, captR);
+                freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                 freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
             }
             lastGoodFrame_ = currentLiveFrame_;
 
             // M4: Store live frame as morphed (no freeze = pass-through)
-            // and apply harmonic filter (FR-026, FR-027)
             morphedFrame_ = currentLiveFrame_;
             morphedResidualFrame_ = currentLiveResidualFrame_;
+
+            // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+            if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                    pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+            // Apply harmonic filter (FR-026, FR-027)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+            // M6 FR-025: Apply modulator amplitude modulation
+            applyModulatorAmplitude(mod1Enabled, mod2Enabled);
 
             // Calculate target pitch with pitch bend
             float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
@@ -760,6 +880,89 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
+
+    // =========================================================================
+    // M6: Evolution Engine (FR-014 to FR-023)
+    // When evolution is enabled AND blend is NOT enabled, the evolution engine
+    // overrides the normal morph/freeze frame selection path (FR-022).
+    // =========================================================================
+    const bool evolutionEnabled =
+        evolutionEnable_.load(std::memory_order_relaxed) > 0.5f;
+    const bool blendEnabled =
+        blendEnable_.load(std::memory_order_relaxed) > 0.5f;
+
+    // Update evolution engine parameters from smoothers (FR-023)
+    if (evolutionEnabled)
+    {
+        // Speed: denormalize from [0,1] to [0.01, 10.0] Hz
+        const float speedNorm = evolutionSpeed_.load(std::memory_order_relaxed);
+        const float speedPlain = 0.01f + speedNorm * (10.0f - 0.01f);
+        evolutionSpeedSmoother_.setTarget(speedPlain);
+
+        const float depthVal = evolutionDepth_.load(std::memory_order_relaxed);
+        evolutionDepthSmoother_.setTarget(depthVal);
+
+        const float modeNorm = evolutionMode_.load(std::memory_order_relaxed);
+        const int modeInt = std::clamp(static_cast<int>(std::round(modeNorm * 2.0f)), 0, 2);
+        evolutionEngine_.setMode(static_cast<EvolutionMode>(modeInt));
+
+        // Manual offset: use morphPosition as the offset (FR-021)
+        const float morphPos = morphPosition_.load(std::memory_order_relaxed);
+        evolutionEngine_.setManualOffset(morphPos);
+    }
+
+    // --- M6: Update stereo spread and detune spread from smoothers ---
+    stereoSpreadSmoother_.setTarget(stereoSpread_.load(std::memory_order_relaxed));
+    detuneSpreadSmoother_.setTarget(detuneSpread_.load(std::memory_order_relaxed));
+
+    // --- M6: Update modulator parameters (FR-024, FR-033) ---
+    if (mod1Enabled)
+    {
+        const float waveNorm = mod1Waveform_.load(std::memory_order_relaxed);
+        mod1_.setWaveform(static_cast<ModulatorWaveform>(
+            std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
+
+        const float rateNorm = mod1Rate_.load(std::memory_order_relaxed);
+        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        mod1RateSmoother_.setTarget(ratePlain);
+
+        const float depthVal = mod1Depth_.load(std::memory_order_relaxed);
+        mod1DepthSmoother_.setTarget(depthVal);
+
+        const float rangeStartNorm = mod1RangeStart_.load(std::memory_order_relaxed);
+        const float rangeEndNorm = mod1RangeEnd_.load(std::memory_order_relaxed);
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        mod1_.setRange(rangeStart, rangeEnd);
+
+        const float targetNorm = mod1Target_.load(std::memory_order_relaxed);
+        mod1_.setTarget(static_cast<ModulatorTarget>(
+            std::clamp(static_cast<int>(std::round(targetNorm * 2.0f)), 0, 2)));
+    }
+
+    if (mod2Enabled)
+    {
+        const float waveNorm = mod2Waveform_.load(std::memory_order_relaxed);
+        mod2_.setWaveform(static_cast<ModulatorWaveform>(
+            std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
+
+        const float rateNorm = mod2Rate_.load(std::memory_order_relaxed);
+        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        mod2RateSmoother_.setTarget(ratePlain);
+
+        const float depthVal = mod2Depth_.load(std::memory_order_relaxed);
+        mod2DepthSmoother_.setTarget(depthVal);
+
+        const float rangeStartNorm = mod2RangeStart_.load(std::memory_order_relaxed);
+        const float rangeEndNorm = mod2RangeEnd_.load(std::memory_order_relaxed);
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        mod2_.setRange(rangeStart, rangeEnd);
+
+        const float targetNorm = mod2Target_.load(std::memory_order_relaxed);
+        mod2_.setTarget(static_cast<ModulatorTarget>(
+            std::clamp(static_cast<int>(std::round(targetNorm * 2.0f)), 0, 2)));
+    }
 
     // --- Process each sample ---
     bool hasSoundOutput = false;
@@ -791,16 +994,27 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     if (isFrozen_)
                     {
                         isFrozen_ = false;
-                        freezeRecoveryOldLevel_ = oscillatorBank_.process();
+                        float captL, captR;
+                        oscillatorBank_.processStereo(captL, captR);
+                        freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                         freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
                     }
                     lastGoodFrame_ = frame;
 
                     // M4: Store frame as morphed (no freeze = pass-through)
-                    // and apply harmonic filter (FR-026)
                     morphedFrame_ = frame;
+
+                    // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+                    if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                        morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                            pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                    // Apply harmonic filter (FR-026)
                     if (currentFilterType_ != 0)
                         Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                    // M6 FR-025: Apply modulator amplitude modulation
+                    applyModulatorAmplitude(mod1Enabled, mod2Enabled);
 
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
@@ -824,8 +1038,198 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
         }
 
-        // --- Generate oscillator bank output ---
-        float harmonicSample = oscillatorBank_.process();
+        // M6: Evolution Engine per-sample advance (FR-014, FR-022)
+        if (evolutionEnabled && !blendEnabled)
+        {
+            // Advance smoothers per sample
+            float evoSpeed = evolutionSpeedSmoother_.process();
+            float evoDepth = evolutionDepthSmoother_.process();
+            evolutionEngine_.setSpeed(evoSpeed);
+            evolutionEngine_.setDepth(evoDepth);
+
+            evolutionEngine_.advance();
+
+            // Load evolution-interpolated frame at each frame boundary
+            // (or on first sample of block if evolution just enabled)
+            // For simplicity, we load every sample (loadFrame is cheap compared to processing)
+            Krate::DSP::HarmonicFrame evoFrame{};
+            Krate::DSP::ResidualFrame evoResidual{};
+            if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual))
+            {
+                morphedFrame_ = evoFrame;
+                morphedResidualFrame_ = evoResidual;
+
+                // Apply timbral blend (cross-synthesis) to evolution output
+                if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                // Apply harmonic filter
+                if (currentFilterType_ != 0)
+                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                // M6 FR-025: Apply modulator amplitude modulation
+                applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+
+                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+                float targetPitch = basePitch * bendRatio;
+                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+                if (residualSynth_.isPrepared())
+                {
+                    residualSynth_.loadFrame(
+                        morphedResidualFrame_,
+                        brightnessSmoother_.getCurrentValue(),
+                        transientEmphasisSmoother_.getCurrentValue());
+                }
+            }
+        }
+        else
+        {
+            // Advance smoothers regardless to keep them tracking
+            (void)evolutionSpeedSmoother_.process();
+            (void)evolutionDepthSmoother_.process();
+            if (evolutionEnabled)
+            {
+                // Evolution is enabled but blend overrides it (FR-052)
+                // Still advance the engine to keep phase continuous
+                evolutionEngine_.advance();
+            }
+        }
+
+        // M6: Multi-Source Blending (FR-034 to FR-042, FR-052)
+        // When blend is enabled, blender produces currentFrame, overriding
+        // both the normal recall/freeze path and the evolution path.
+        if (blendEnabled)
+        {
+            // Update blend weights from smoothers (FR-041)
+            for (int i = 0; i < 8; ++i)
+            {
+                blendWeightSmootherArray_[static_cast<size_t>(i)].setTarget(
+                    blendSlotWeights_[static_cast<size_t>(i)].load(std::memory_order_relaxed));
+                harmonicBlender_.setSlotWeight(
+                    i, blendWeightSmootherArray_[static_cast<size_t>(i)].process());
+            }
+            blendWeightSmootherArray_[8].setTarget(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+            harmonicBlender_.setLiveWeight(blendWeightSmootherArray_[8].process());
+
+            // Determine if live source is available
+            bool hasLiveSource = isSidechainMode &&
+                currentLiveFrame_.f0Confidence > 0.0f;
+
+            Krate::DSP::HarmonicFrame blendFrame{};
+            Krate::DSP::ResidualFrame blendResidual{};
+            if (harmonicBlender_.blend(memorySlots_,
+                    currentLiveFrame_, currentLiveResidualFrame_,
+                    hasLiveSource, blendFrame, blendResidual))
+            {
+                morphedFrame_ = blendFrame;
+                morphedResidualFrame_ = blendResidual;
+
+                // Apply timbral blend (cross-synthesis) to blended output
+                if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                // Apply harmonic filter
+                if (currentFilterType_ != 0)
+                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                // Apply modulator amplitude modulation
+                applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+
+                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+                float targetPitch = basePitch * bendRatio;
+                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+                if (residualSynth_.isPrepared())
+                {
+                    residualSynth_.loadFrame(
+                        morphedResidualFrame_,
+                        brightnessSmoother_.getCurrentValue(),
+                        transientEmphasisSmoother_.getCurrentValue());
+                }
+            }
+        }
+        else
+        {
+            // Blend disabled: advance smoothers to keep tracking
+            for (int i = 0; i < 8; ++i)
+            {
+                blendWeightSmootherArray_[static_cast<size_t>(i)].setTarget(
+                    blendSlotWeights_[static_cast<size_t>(i)].load(std::memory_order_relaxed));
+                (void)blendWeightSmootherArray_[static_cast<size_t>(i)].process();
+            }
+            blendWeightSmootherArray_[8].setTarget(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+            (void)blendWeightSmootherArray_[8].process();
+        }
+
+        // M6: Update stereo spread and detune per sample (smoothed)
+        oscillatorBank_.setStereoSpread(stereoSpreadSmoother_.process());
+        oscillatorBank_.setDetuneSpread(detuneSpreadSmoother_.process());
+
+        // M6: Advance harmonic modulators per sample (FR-029: free-running)
+        // Apply smoothed rate and depth each sample (FR-033)
+        if (mod1Enabled)
+        {
+            mod1_.setRate(mod1RateSmoother_.process());
+            mod1_.setDepth(mod1DepthSmoother_.process());
+            mod1_.advance();
+
+            // Apply frequency multipliers on top of detune (FR-026, FR-028)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> mult1{};
+                mod1_.getFrequencyMultipliers(mult1);
+                oscillatorBank_.applyExternalFrequencyMultipliers(mult1);
+            }
+
+            // Apply pan offsets (FR-027, FR-028)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> panOff1{};
+                mod1_.getPanOffsets(panOff1);
+                oscillatorBank_.applyPanOffsets(panOff1);
+            }
+        }
+        else
+        {
+            (void)mod1RateSmoother_.process();
+            (void)mod1DepthSmoother_.process();
+        }
+
+        if (mod2Enabled)
+        {
+            mod2_.setRate(mod2RateSmoother_.process());
+            mod2_.setDepth(mod2DepthSmoother_.process());
+            mod2_.advance();
+
+            // Apply frequency multipliers (FR-026, FR-028: additive with mod1)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> mult2{};
+                mod2_.getFrequencyMultipliers(mult2);
+                oscillatorBank_.applyExternalFrequencyMultipliers(mult2);
+            }
+
+            // Apply pan offsets (FR-027, FR-028: additive with mod1)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> panOff2{};
+                mod2_.getPanOffsets(panOff2);
+                oscillatorBank_.applyPanOffsets(panOff2);
+            }
+        }
+        else
+        {
+            (void)mod2RateSmoother_.process();
+            (void)mod2DepthSmoother_.process();
+        }
+
+        // --- Generate oscillator bank stereo output (M6: FR-007) ---
+        float harmonicL = 0.0f;
+        float harmonicR = 0.0f;
+        oscillatorBank_.processStereo(harmonicL, harmonicR);
         float residualSample = hasResidual ? residualSynth_.process() : 0.0f;
 
         // M2: Mix harmonic and residual (FR-028)
@@ -834,17 +1238,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Advance brightness/transient smoothers per-sample (FR-025)
         (void)brightnessSmoother_.process();
         (void)transientEmphasisSmoother_.process();
-        float sample = harmonicSample * harmLevel + residualSample * resLevel;
+
+        // Residual is center-panned in both channels (FR-012)
+        float resContrib = residualSample * resLevel;
+        float sampleL = harmonicL * harmLevel + resContrib;
+        float sampleR = harmonicR * harmLevel + resContrib;
 
         // --- Freeze recovery crossfade (FR-053) ---
         if (freezeRecoverySamplesRemaining_ > 0)
         {
-            // Linear crossfade from frozen output level to new live output
             float fadeProgress = static_cast<float>(freezeRecoverySamplesRemaining_) /
                                  static_cast<float>(freezeRecoveryLengthSamples_);
-            // old * fadeProgress + new * (1 - fadeProgress)
-            sample = freezeRecoveryOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = freezeRecoveryOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = freezeRecoveryOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             freezeRecoverySamplesRemaining_--;
         }
 
@@ -853,9 +1261,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             float fadeProgress = static_cast<float>(manualFreezeRecoverySamplesRemaining_) /
                                  static_cast<float>(manualFreezeRecoveryLengthSamples_);
-            // Blend from old frozen output level to new live output
-            sample = manualFreezeRecoveryOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = manualFreezeRecoveryOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = manualFreezeRecoveryOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             manualFreezeRecoverySamplesRemaining_--;
         }
 
@@ -864,20 +1273,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             float fadeProgress = static_cast<float>(antiClickSamplesRemaining_) /
                                  static_cast<float>(antiClickLengthSamples_);
-            // Blend from old output level to new output
-            sample = antiClickOldLevel_ * fadeProgress +
-                     sample * (1.0f - fadeProgress);
+            sampleL = antiClickOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = antiClickOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
             antiClickSamplesRemaining_--;
         }
 
         // --- Velocity scaling (FR-050): applied to summed output, NOT partials ---
-        sample *= velocityGain_;
+        sampleL *= velocityGain_;
+        sampleR *= velocityGain_;
 
         // --- Release envelope (FR-049) ---
         if (inRelease_)
         {
             releaseGain_ *= releaseDecayCoeff_;
-            sample *= releaseGain_;
+            sampleL *= releaseGain_;
+            sampleR *= releaseGain_;
 
             // Check if release has faded below threshold
             if (releaseGain_ < 1e-6f)
@@ -887,22 +1299,33 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 releaseGain_ = 1.0f;
                 oscillatorBank_.reset();
                 residualSynth_.reset();
-                sample = 0.0f;
+                sampleL = 0.0f;
+                sampleR = 0.0f;
             }
         }
 
         // --- Master gain ---
-        sample *= gain;
+        sampleL *= gain;
+        sampleR *= gain;
 
-        // Write to both channels (mono -> stereo)
-        out[0][s] = sample;
-        out[1][s] = sample;
+        // Write stereo output (M6: FR-007), or sum to mono (FR-013)
+        if (numOutputChannels >= 2) {
+            out[0][s] = sampleL;
+            out[1][s] = sampleR;
+        } else {
+            // FR-013: mono output bus -- sum both channels
+            out[0][s] = sampleL + sampleR;
+        }
 
-        if (sample != 0.0f)
+        if (sampleL != 0.0f || sampleR != 0.0f)
             hasSoundOutput = true;
     }
 
-    data.outputs[0].silenceFlags = hasSoundOutput ? 0 : 0x3;
+    if (hasSoundOutput) {
+        data.outputs[0].silenceFlags = 0;
+    } else {
+        data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
+    }
 
     return Steinberg::kResultOk;
 }
@@ -955,7 +1378,12 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     if (noteActive_ && !inRelease_)
     {
         // Capture last output sample before resetting for crossfade
-        antiClickOldLevel_ = oscillatorBank_.process();
+        {
+            float captL = 0.0f;
+            float captR = 0.0f;
+            oscillatorBank_.processStereo(captL, captR);
+            antiClickOldLevel_ = (captL + captR) * 0.5f;
+        }
         antiClickSamplesRemaining_ = antiClickLengthSamples_;
     }
 
@@ -990,11 +1418,27 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         {
             lastGoodFrame_ = currentLiveFrame_;
 
-            // M4: Apply harmonic filter (FR-026)
             morphedFrame_ = currentLiveFrame_;
             morphedResidualFrame_ = currentLiveResidualFrame_;
+
+            // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+            {
+                const float blend = timbralBlendSmoother_.getCurrentValue();
+                if (blend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, blend);
+            }
+
+            // M4: Apply harmonic filter (FR-026)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+            // M6 FR-025: Apply modulator amplitude modulation
+            {
+                const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+                const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
+                applyModulatorAmplitude(m1On, m2On);
+            }
 
             oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
@@ -1015,10 +1459,26 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         const auto& frame = analysis->getFrame(0);
         lastGoodFrame_ = frame;
 
-        // M4: Apply harmonic filter (FR-026)
         morphedFrame_ = frame;
+
+        // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
+        {
+            const float blend = timbralBlendSmoother_.getCurrentValue();
+            if (blend < 1.0f - 1e-6f)
+                morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                    pureHarmonicFrame_, morphedFrame_, blend);
+        }
+
+        // M4: Apply harmonic filter (FR-026)
         if (currentFilterType_ != 0)
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+        // M6 FR-025: Apply modulator amplitude modulation
+        {
+            const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+            const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
+            applyModulatorAmplitude(m1On, m2On);
+        }
 
         oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
@@ -1137,6 +1597,19 @@ void Processor::loadSample(const std::string& filePath)
 }
 
 // ==============================================================================
+// Apply Modulator Amplitude Modulation (FR-025, FR-028)
+// ==============================================================================
+void Processor::applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled)
+{
+    // FR-028: Two modulators on overlapping amplitude ranges multiply effects
+    // (sequential application = multiplicative)
+    if (mod1Enabled)
+        mod1_.applyAmplitudeModulation(morphedFrame_);
+    if (mod2Enabled)
+        mod2_.applyAmplitudeModulation(morphedFrame_);
+}
+
+// ==============================================================================
 // Process Parameter Changes
 // ==============================================================================
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static) -- accesses atomic members via includes clang-tidy can't resolve
@@ -1237,6 +1710,110 @@ void Processor::processParameterChanges(
             case kMemoryRecallId:
                 memoryRecall_.store(static_cast<float>(value));
                 break;
+
+            // M6 Creative Extensions parameters
+            case kTimbralBlendId:
+                timbralBlend_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kStereoSpreadId:
+                stereoSpread_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionEnableId:
+                evolutionEnable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kEvolutionSpeedId:
+                evolutionSpeed_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionDepthId:
+                evolutionDepth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEvolutionModeId:
+                evolutionMode_.store(static_cast<float>(value));
+                break;
+            case kMod1EnableId:
+                mod1Enable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod1WaveformId:
+                mod1Waveform_.store(static_cast<float>(value));
+                break;
+            case kMod1RateId:
+                mod1Rate_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1DepthId:
+                mod1Depth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1RangeStartId:
+                mod1RangeStart_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1RangeEndId:
+                mod1RangeEnd_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod1TargetId:
+                mod1Target_.store(static_cast<float>(value));
+                break;
+            case kMod2EnableId:
+                mod2Enable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod2WaveformId:
+                mod2Waveform_.store(static_cast<float>(value));
+                break;
+            case kMod2RateId:
+                mod2Rate_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2DepthId:
+                mod2Depth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2RangeStartId:
+                mod2RangeStart_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2RangeEndId:
+                mod2RangeEnd_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kMod2TargetId:
+                mod2Target_.store(static_cast<float>(value));
+                break;
+            case kDetuneSpreadId:
+                detuneSpread_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kBlendEnableId:
+                blendEnable_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kBlendSlotWeight1Id:
+            case kBlendSlotWeight2Id:
+            case kBlendSlotWeight3Id:
+            case kBlendSlotWeight4Id:
+            case kBlendSlotWeight5Id:
+            case kBlendSlotWeight6Id:
+            case kBlendSlotWeight7Id:
+            case kBlendSlotWeight8Id:
+            {
+                auto idx = paramQueue->getParameterId() - kBlendSlotWeight1Id;
+                blendSlotWeights_[idx].store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            }
+            case kBlendLiveWeightId:
+                blendLiveWeight_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
@@ -1287,8 +1864,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M5: version 5 (harmonic memory slots)
-    streamer.writeInt32(5);
+    // Write state version -- M6: version 6 (creative extensions)
+    streamer.writeInt32(6);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -1404,6 +1981,35 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
             streamer.writeFloat(snap.brightness);
         }
     }
+
+    // --- M6 parameters (creative extensions) ---
+    // 31 normalized float values in data-model.md v6 state layout order
+    streamer.writeFloat(timbralBlend_.load(std::memory_order_relaxed));
+    streamer.writeFloat(stereoSpread_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionEnable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionSpeed_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionDepth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(evolutionMode_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Enable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Waveform_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Rate_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Depth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1RangeStart_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1RangeEnd_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1Target_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Enable_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Waveform_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Rate_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Depth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2RangeStart_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2RangeEnd_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2Target_.load(std::memory_order_relaxed));
+    streamer.writeFloat(detuneSpread_.load(std::memory_order_relaxed));
+    streamer.writeFloat(blendEnable_.load(std::memory_order_relaxed));
+    for (int i = 0; i < 8; ++i)
+        streamer.writeFloat(blendSlotWeights_[static_cast<size_t>(i)].load(
+            std::memory_order_relaxed));
+    streamer.writeFloat(blendLiveWeight_.load(std::memory_order_relaxed));
 
     return Steinberg::kResultOk;
 }
@@ -1729,6 +2335,105 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
                 slot.occupied = false;
                 slot.snapshot = Krate::DSP::HarmonicSnapshot{};
             }
+        }
+
+        // --- M6 parameters (creative extensions) ---
+        if (version >= 6)
+        {
+            // Read 31 normalized float values in data-model.md v6 state layout order
+            if (streamer.readFloat(floatVal))
+                timbralBlend_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                stereoSpread_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionEnable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                evolutionSpeed_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionDepth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                evolutionMode_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Enable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                mod1Waveform_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Rate_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Depth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1RangeStart_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1RangeEnd_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod1Target_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Enable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            if (streamer.readFloat(floatVal))
+                mod2Waveform_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Rate_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Depth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2RangeStart_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2RangeEnd_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                mod2Target_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                detuneSpread_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                blendEnable_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+            for (int i = 0; i < 8; ++i)
+            {
+                if (streamer.readFloat(floatVal))
+                    blendSlotWeights_[static_cast<size_t>(i)].store(
+                        std::clamp(floatVal, 0.0f, 1.0f));
+            }
+            if (streamer.readFloat(floatVal))
+                blendLiveWeight_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+            // Update evolution engine waypoints and blender weights after state load
+            evolutionEngine_.updateWaypoints(memorySlots_);
+            for (int i = 0; i < 8; ++i)
+                harmonicBlender_.setSlotWeight(
+                    i, blendSlotWeights_[static_cast<size_t>(i)].load(
+                        std::memory_order_relaxed));
+            harmonicBlender_.setLiveWeight(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+        }
+        else
+        {
+            // Default M6 values for v5 and older states
+            timbralBlend_.store(1.0f);
+            stereoSpread_.store(0.0f);
+            evolutionEnable_.store(0.0f);
+            evolutionSpeed_.store(0.0f);
+            evolutionDepth_.store(0.5f);
+            evolutionMode_.store(0.0f);
+            mod1Enable_.store(0.0f);
+            mod1Waveform_.store(0.0f);
+            mod1Rate_.store(0.0f);
+            mod1Depth_.store(0.0f);
+            mod1RangeStart_.store(0.0f);
+            mod1RangeEnd_.store(1.0f);
+            mod1Target_.store(0.0f);
+            mod2Enable_.store(0.0f);
+            mod2Waveform_.store(0.0f);
+            mod2Rate_.store(0.0f);
+            mod2Depth_.store(0.0f);
+            mod2RangeStart_.store(0.0f);
+            mod2RangeEnd_.store(1.0f);
+            mod2Target_.store(0.0f);
+            detuneSpread_.store(0.0f);
+            blendEnable_.store(0.0f);
+            for (auto& w : blendSlotWeights_)
+                w.store(0.0f);
+            blendLiveWeight_.store(0.0f);
+
+            // Update evolution engine waypoints for v5 state
+            evolutionEngine_.updateWaypoints(memorySlots_);
         }
     }
 

@@ -256,3 +256,240 @@ attrs->setBinary("snapshotData", &snapshot, sizeof(HarmonicSnapshot));
 - **Transition detection**: Capture and Recall detect 0-to-1 transitions with `previousCaptureTrigger_`/`previousRecallTrigger_` tracking.
 - **Auto-reset triggers**: After firing, trigger parameters are reset to 0.0 and host is notified via `outputParameterChanges`.
 - **Copy semantics**: Recall copies snapshot data into `manualFrozenFrame_`; subsequent captures into the same slot do not alter the live freeze frame.
+
+---
+
+## M6 Creative Extensions (Evolution, Modulators, Blending, Cross-Synthesis, Stereo Spread)
+**Since:** M6 (120-creative-extensions)
+
+Adds five creative extension features: (1) cross-synthesis timbral blend, (2) stereo partial spread and detune in the oscillator bank, (3) autonomous evolution engine for timbral drift, (4) two independent harmonic LFO modulators, and (5) multi-source blending from weighted memory slots. Adds 31 new parameters (IDs 600-649) and extends state persistence to version 6.
+
+### Signal Chain Position (FR-049)
+
+```
+Source Selection (sample/live/recalled snapshot)
+    |
+    v
+[Multi-Source Blend] --- if blendEnabled: weighted sum of up to 8 slots + 1 live
+    |                     (overrides evolution and normal recall path, FR-052)
+    v
+[Evolution Engine] --- if evolutionEnabled && !blendEnabled: autonomous drift
+    |                   through occupied memory slot waypoints
+    v
+[Cross-Synthesis Timbral Blend] --- lerp between pure harmonic reference and
+    |                                 source model (blend=0: pure 1/n, blend=1: source)
+    v
+[Harmonic Filter] (M4, unchanged)
+    |
+    v
+[Harmonic Modulators] --- 2 independent LFOs modulate per-partial amp/freq/pan
+    |
+    v
+Oscillator Bank (processStereo with spread + detune) + Residual Synthesizer
+```
+
+### Parameters (IDs 600-649)
+
+| Parameter | ID | Type | Range | Default |
+|-----------|-----|------|-------|---------|
+| Timbral Blend | `kTimbralBlendId` (600) | RangeParameter | 0.0 - 1.0 | 1.0 |
+| Stereo Spread | `kStereoSpreadId` (601) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Evolution Enable | `kEvolutionEnableId` (602) | Toggle | 0/1 | 0 (off) |
+| Evolution Speed | `kEvolutionSpeedId` (603) | RangeParameter | 0.01 - 10.0 Hz | 0.1 |
+| Evolution Depth | `kEvolutionDepthId` (604) | RangeParameter | 0.0 - 1.0 | 0.5 |
+| Evolution Mode | `kEvolutionModeId` (605) | StringListParameter | Cycle/PingPong/Random Walk | Cycle |
+| Mod 1 Enable | `kMod1EnableId` (610) | Toggle | 0/1 | 0 (off) |
+| Mod 1 Waveform | `kMod1WaveformId` (611) | StringListParameter | Sine/Triangle/Square/Saw/Random S&H | Sine |
+| Mod 1 Rate | `kMod1RateId` (612) | RangeParameter | 0.01 - 20.0 Hz | 1.0 |
+| Mod 1 Depth | `kMod1DepthId` (613) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Mod 1 Range Start | `kMod1RangeStartId` (614) | RangeParameter | 1 - 48 | 1 |
+| Mod 1 Range End | `kMod1RangeEndId` (615) | RangeParameter | 1 - 48 | 48 |
+| Mod 1 Target | `kMod1TargetId` (616) | StringListParameter | Amplitude/Frequency/Pan | Amplitude |
+| Mod 2 Enable | `kMod2EnableId` (620) | Toggle | 0/1 | 0 (off) |
+| Mod 2 Waveform | `kMod2WaveformId` (621) | StringListParameter | (same as Mod 1) | Sine |
+| Mod 2 Rate | `kMod2RateId` (622) | RangeParameter | 0.01 - 20.0 Hz | 1.0 |
+| Mod 2 Depth | `kMod2DepthId` (623) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Mod 2 Range Start | `kMod2RangeStartId` (624) | RangeParameter | 1 - 48 | 1 |
+| Mod 2 Range End | `kMod2RangeEndId` (625) | RangeParameter | 1 - 48 | 48 |
+| Mod 2 Target | `kMod2TargetId` (626) | StringListParameter | Amplitude/Frequency/Pan | Amplitude |
+| Detune Spread | `kDetuneSpreadId` (630) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Blend Enable | `kBlendEnableId` (640) | Toggle | 0/1 | 0 (off) |
+| Blend Slot Weight 1-8 | `kBlendSlotWeight1Id`-`kBlendSlotWeight8Id` (641-648) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Blend Live Weight | `kBlendLiveWeightId` (649) | RangeParameter | 0.0 - 1.0 | 0.0 |
+
+### EvolutionEngine
+**Path:** [evolution_engine.h](../../plugins/innexus/src/dsp/evolution_engine.h) | **Since:** M6
+
+Autonomous timbral drift engine that drives a morph position through occupied memory slot waypoints. The phase is global (not per-note, FR-020) and free-running. Supports three traversal modes: Cycle (wrap), PingPong (bounce at endpoints), and RandomWalk (random drift within depth range using Xorshift32 RNG).
+
+```cpp
+namespace Innexus {
+
+enum class EvolutionMode : int { Cycle, PingPong, RandomWalk };
+
+class EvolutionEngine {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Configuration
+    void updateWaypoints(const std::array<Krate::DSP::MemorySlot, 8>& slots) noexcept;
+    void setMode(EvolutionMode mode) noexcept;
+    void setSpeed(float speedHz) noexcept;      // [0.01, 10.0] Hz
+    void setDepth(float depth) noexcept;        // [0.0, 1.0]
+    void setManualOffset(float offset) noexcept; // Coexists with manual morph (FR-021)
+
+    // Per-sample advance (audio thread)
+    void advance() noexcept;
+
+    // Frame interpolation (per analysis frame)
+    [[nodiscard]] bool getInterpolatedFrame(
+        const std::array<Krate::DSP::MemorySlot, 8>& slots,
+        Krate::DSP::HarmonicFrame& frame,
+        Krate::DSP::ResidualFrame& residual) const noexcept;
+
+    // Query
+    [[nodiscard]] float getPosition() const noexcept;
+    [[nodiscard]] int getNumWaypoints() const noexcept;
+};
+
+} // namespace Innexus
+```
+
+**When to use:**
+- Autonomous timbral animation between stored memory slot snapshots
+- "Evolving pad" effects where the timbre drifts continuously without user interaction
+- Creative performance: speed and depth are automatable, mode selectable at runtime
+
+**Pipeline position:** After source selection, before cross-synthesis timbral blend. Active only when `evolutionEnabled && !blendEnabled` (FR-022, FR-052). Uses `lerpHarmonicFrame()` and `lerpResidualFrame()` for waypoint interpolation (FR-019). Requires >= 2 occupied memory slots to produce output; returns false with < 2 waypoints.
+
+**Key constraints:** All methods `noexcept`, no heap allocations. Fixed-size `std::array<int, 8>` for waypoint indices. Phase does not reset on MIDI note events (FR-020). Manual offset coexistence: `effectivePos = clamp(phase * depth + manualOffset, 0, 1)` (FR-021).
+
+---
+
+### HarmonicModulator
+**Path:** [harmonic_modulator.h](../../plugins/innexus/src/dsp/harmonic_modulator.h) | **Since:** M6
+
+LFO-driven per-partial animation with configurable waveform, rate, depth, target partial range, and modulation target. Two independent instances are used in the processor (Modulator 1 and Modulator 2). The LFO is free-running (phase initialized to 0.0 in `prepare()`, never resets on MIDI note events per FR-029, FR-051).
+
+```cpp
+namespace Innexus {
+
+enum class ModulatorWaveform : int { Sine, Triangle, Square, Saw, RandomSH };
+enum class ModulatorTarget : int { Amplitude, Frequency, Pan };
+
+class HarmonicModulator {
+    static constexpr float kModMaxCents = 50.0f;  // Max frequency modulation range
+    static constexpr float kModMaxPan = 0.5f;     // Max pan modulation range
+
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Configuration
+    void setWaveform(ModulatorWaveform waveform) noexcept;
+    void setRate(float rateHz) noexcept;           // [0.01, 20.0] Hz
+    void setDepth(float depth) noexcept;           // [0.0, 1.0]
+    void setRange(int start, int end) noexcept;    // 1-based partial range [1, 48]
+    void setTarget(ModulatorTarget target) noexcept;
+
+    // Per-sample advance (audio thread)
+    void advance() noexcept;
+
+    // Modulation application (per analysis frame)
+    void applyAmplitudeModulation(Krate::DSP::HarmonicFrame& frame) const noexcept;
+    void getFrequencyMultipliers(std::array<float, kMaxPartials>& multipliers) const noexcept;
+    void getPanOffsets(std::array<float, kMaxPartials>& offsets) const noexcept;
+
+    // Query
+    [[nodiscard]] float getCurrentValue() const noexcept;      // Bipolar [-1, +1]
+    [[nodiscard]] float getCurrentValueUnipolar() const noexcept; // [0, 1]
+    [[nodiscard]] float getPhase() const noexcept;             // [0, 1)
+};
+
+} // namespace Innexus
+```
+
+**When to use:**
+- Per-partial amplitude animation (tremolo/shimmer effects on specific harmonic ranges)
+- Per-partial frequency animation (vibrato/detuning effects on partial subsets)
+- Per-partial pan animation (spatial movement of harmonic content)
+- Two modulators can overlap ranges: amplitude effects multiply, frequency/pan effects add (FR-028)
+
+**Pipeline position:** Applied after harmonic filter, before oscillator bank (FR-049 step 4). Amplitude modulation modifies `HarmonicFrame` amplitudes directly. Frequency multipliers are applied via `oscillatorBank_.applyExternalFrequencyMultipliers()`. Pan offsets are applied via `oscillatorBank_.applyPanOffsets()`.
+
+**Modulation formulas:**
+- Amplitude (FR-025): `effectiveAmp = modelAmp * (1 - depth + depth * lfoUnipolar)`
+- Frequency (FR-026): `multiplier = pow(2, depth * lfoBipolar * 50 / 1200)`
+- Pan (FR-027): `offset = depth * lfoBipolar * 0.5`
+
+**LFO waveforms (formula-based, no wavetable, no heap):**
+- Sine: `sin(2*pi*phase)`
+- Triangle: `4*|phase - 0.5| - 1` (phase=0: +1, phase=0.5: -1)
+- Square: `phase < 0.5 ? +1 : -1`
+- Saw: `2*phase - 1`
+- Random S&H: held random value (Xorshift32), updated on phase wrap
+
+---
+
+### HarmonicBlender
+**Path:** [harmonic_blender.h](../../plugins/innexus/src/dsp/harmonic_blender.h) | **Since:** M6
+
+Multi-source spectral blending from up to 8 stored memory slot snapshots plus 1 optional live analysis frame. Each source has an independent weight that is normalized internally before blending (FR-035). Empty slots contribute zero regardless of weight. When enabled, overrides both evolution and normal recall/freeze path (FR-052).
+
+```cpp
+namespace Innexus {
+
+class HarmonicBlender {
+    static constexpr int kNumSlots = 8;
+
+    // Weight configuration
+    void setSlotWeight(int slotIndex, float weight) noexcept;  // [0, 7], [0.0, 1.0]
+    void setLiveWeight(float weight) noexcept;                 // [0.0, 1.0]
+
+    // Blending (per analysis frame)
+    [[nodiscard]] bool blend(
+        const std::array<Krate::DSP::MemorySlot, 8>& slots,
+        const Krate::DSP::HarmonicFrame& liveFrame,
+        const Krate::DSP::ResidualFrame& liveResidual,
+        bool hasLiveSource,
+        Krate::DSP::HarmonicFrame& frame,
+        Krate::DSP::ResidualFrame& residual) const noexcept;
+
+    // Query (after blend() call)
+    [[nodiscard]] float getEffectiveSlotWeight(int slotIndex) const noexcept;
+    [[nodiscard]] float getEffectiveLiveWeight() const noexcept;
+};
+
+} // namespace Innexus
+```
+
+**When to use:**
+- Combining timbral characteristics from multiple stored snapshots into a single output
+- Live source mixing: blend real-time sidechain analysis with stored snapshots
+- Creative layering: weight different timbral snapshots to create hybrid timbres
+
+**Pipeline position:** First in the M6 pipeline (FR-049 step 1). When `blendEnabled`, the blended output replaces the normal source selection (freeze/recall/morph) and skips evolution (FR-052). The blended frame then flows through cross-synthesis, harmonic filter, modulators, and oscillator bank as normal.
+
+**Blending formula (FR-037):**
+- `blendedAmp_n = sum(effectiveWeight_i * sourceAmp_n_i)`
+- `blendedRelFreq_n = sum(effectiveWeight_i * sourceRelFreq_n_i)`
+- `blendedResidualBands_k = sum(effectiveWeight_i * sourceBands_k_i)`
+- Weight normalization (R-006): `effectiveWeight_i = weight_i / totalWeight`
+
+**Key constraints:** All methods `noexcept`, no heap allocations. Fixed-size arrays only. Missing partials (beyond a source's numPartials) contribute zero amplitude (FR-038). All-zero weights produce silence (FR-039, returns false). Single-source blend at weight=1.0 produces output identical to direct Memory Recall (SC-011).
+
+---
+
+### State Persistence (Version 6)
+
+State version bumped from 5 (M5) to 6. All 31 M6 parameter values appended after M5 data in normalized float format. Loading a v5 state initializes all M6 parameters to defaults (timbralBlend=1.0, stereoSpread=0.0, all others=0.0/off). Backward compatible.
+
+### Key Design Patterns
+
+- **Pre-allocated storage**: All M6 DSP classes (EvolutionEngine, HarmonicModulator, HarmonicBlender) use fixed-size arrays. Zero heap allocations on the audio thread.
+- **Atomic parameter exchange**: All 31 M6 parameters use `std::atomic<float>` for thread-safe communication from `processParameterChanges()` to `process()`.
+- **Parameter smoothing**: OnePoleSmoother (~5-10ms) on all continuous parameters to prevent clicks during automation (SC-007).
+- **Pipeline priority**: blendEnabled overrides evolutionEnabled (FR-052). Both override normal recall/freeze path.
+- **Frame-rate processing**: Evolution, modulators, and blending operate per analysis frame (~86 Hz at 44.1kHz/512 hop). Only evolution phase advance and modulator LFO advance are per-sample.
+- **Stereo output in KrateDSP**: `processStereo()` added to `HarmonicOscillatorBank` (Layer 2, shared DSP library) while plugin-local DSP (evolution, modulators, blender) stays in `plugins/innexus/src/dsp/` per FR-046.

@@ -22,6 +22,9 @@
 #include "dsp/sample_analysis.h"
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
+#include "dsp/evolution_engine.h"
+#include "dsp/harmonic_blender.h"
+#include "dsp/harmonic_modulator.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
@@ -274,6 +277,35 @@ public:
         return std::clamp(static_cast<int>(std::round(norm * 7.0f)), 0, 7);
     }
 
+    // M6 Test Accessors
+    float getTimbralBlend() const { return timbralBlend_.load(std::memory_order_relaxed); }
+    float getStereoSpread() const { return stereoSpread_.load(std::memory_order_relaxed); }
+    float getEvolutionEnable() const { return evolutionEnable_.load(std::memory_order_relaxed); }
+    float getEvolutionSpeed() const { return evolutionSpeed_.load(std::memory_order_relaxed); }
+    float getEvolutionDepth() const { return evolutionDepth_.load(std::memory_order_relaxed); }
+    float getEvolutionMode() const { return evolutionMode_.load(std::memory_order_relaxed); }
+    float getMod1Enable() const { return mod1Enable_.load(std::memory_order_relaxed); }
+    float getMod1Waveform() const { return mod1Waveform_.load(std::memory_order_relaxed); }
+    float getMod1Rate() const { return mod1Rate_.load(std::memory_order_relaxed); }
+    float getMod1Depth() const { return mod1Depth_.load(std::memory_order_relaxed); }
+    float getMod1RangeStart() const { return mod1RangeStart_.load(std::memory_order_relaxed); }
+    float getMod1RangeEnd() const { return mod1RangeEnd_.load(std::memory_order_relaxed); }
+    float getMod1Target() const { return mod1Target_.load(std::memory_order_relaxed); }
+    float getMod2Enable() const { return mod2Enable_.load(std::memory_order_relaxed); }
+    float getMod2Waveform() const { return mod2Waveform_.load(std::memory_order_relaxed); }
+    float getMod2Rate() const { return mod2Rate_.load(std::memory_order_relaxed); }
+    float getMod2Depth() const { return mod2Depth_.load(std::memory_order_relaxed); }
+    float getMod2RangeStart() const { return mod2RangeStart_.load(std::memory_order_relaxed); }
+    float getMod2RangeEnd() const { return mod2RangeEnd_.load(std::memory_order_relaxed); }
+    float getMod2Target() const { return mod2Target_.load(std::memory_order_relaxed); }
+    float getDetuneSpread() const { return detuneSpread_.load(std::memory_order_relaxed); }
+    float getBlendEnable() const { return blendEnable_.load(std::memory_order_relaxed); }
+    float getBlendSlotWeight(int index) const
+    {
+        return blendSlotWeights_[static_cast<size_t>(std::clamp(index, 0, 7))].load(std::memory_order_relaxed);
+    }
+    float getBlendLiveWeight() const { return blendLiveWeight_.load(std::memory_order_relaxed); }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -283,6 +315,7 @@ private:
     void updateReleaseDecayCoeff();
     void checkForNewAnalysis();
     void cleanupPendingDeletion();
+    void applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled);
 
     // =========================================================================
     // Parameter Atomics
@@ -315,6 +348,39 @@ private:
     float previousCaptureTrigger_ = 0.0f;
     float previousRecallTrigger_ = 0.0f;
 
+    // M6 Creative Extensions parameters (FR-043)
+    // Cross-Synthesis
+    std::atomic<float> timbralBlend_{1.0f};           // 0.0-1.0, default 1.0
+    // Stereo Output
+    std::atomic<float> stereoSpread_{0.0f};           // 0.0-1.0, default 0.0
+    // Evolution Engine
+    std::atomic<float> evolutionEnable_{0.0f};        // 0/1, default 0
+    std::atomic<float> evolutionSpeed_{0.0f};         // normalized, plain 0.01-10.0 Hz
+    std::atomic<float> evolutionDepth_{0.5f};         // 0.0-1.0, default 0.5
+    std::atomic<float> evolutionMode_{0.0f};          // normalized, 0-2
+    // Modulator 1
+    std::atomic<float> mod1Enable_{0.0f};             // 0/1
+    std::atomic<float> mod1Waveform_{0.0f};           // normalized, 0-4
+    std::atomic<float> mod1Rate_{0.0f};               // normalized, plain 0.01-20.0 Hz
+    std::atomic<float> mod1Depth_{0.0f};              // 0.0-1.0
+    std::atomic<float> mod1RangeStart_{0.0f};         // normalized, plain 1-48
+    std::atomic<float> mod1RangeEnd_{1.0f};           // normalized, plain 1-48
+    std::atomic<float> mod1Target_{0.0f};             // normalized, 0-2
+    // Modulator 2
+    std::atomic<float> mod2Enable_{0.0f};             // 0/1
+    std::atomic<float> mod2Waveform_{0.0f};           // normalized, 0-4
+    std::atomic<float> mod2Rate_{0.0f};               // normalized, plain 0.01-20.0 Hz
+    std::atomic<float> mod2Depth_{0.0f};              // 0.0-1.0
+    std::atomic<float> mod2RangeStart_{0.0f};         // normalized, plain 1-48
+    std::atomic<float> mod2RangeEnd_{1.0f};           // normalized, plain 1-48
+    std::atomic<float> mod2Target_{0.0f};             // normalized, 0-2
+    // Detune
+    std::atomic<float> detuneSpread_{0.0f};           // 0.0-1.0
+    // Multi-Source Blend
+    std::atomic<float> blendEnable_{0.0f};            // 0/1
+    std::array<std::atomic<float>, 8> blendSlotWeights_{}; // each 0.0-1.0
+    std::atomic<float> blendLiveWeight_{0.0f};        // 0.0-1.0
+
     // =========================================================================
     // DSP Members (T081)
     // =========================================================================
@@ -326,6 +392,18 @@ private:
     Krate::DSP::OnePoleSmoother residualLevelSmoother_;
     Krate::DSP::OnePoleSmoother brightnessSmoother_;
     Krate::DSP::OnePoleSmoother transientEmphasisSmoother_;
+
+    // M6 Parameter smoothers
+    Krate::DSP::OnePoleSmoother timbralBlendSmoother_;      // 5ms (FR-005)
+    Krate::DSP::OnePoleSmoother stereoSpreadSmoother_;      // 10ms (FR-011)
+    Krate::DSP::OnePoleSmoother evolutionSpeedSmoother_;    // 5ms (FR-023)
+    Krate::DSP::OnePoleSmoother evolutionDepthSmoother_;    // 5ms (FR-023)
+    Krate::DSP::OnePoleSmoother mod1RateSmoother_;          // 5ms (FR-033)
+    Krate::DSP::OnePoleSmoother mod1DepthSmoother_;         // 5ms (FR-033)
+    Krate::DSP::OnePoleSmoother mod2RateSmoother_;          // 5ms (FR-033)
+    Krate::DSP::OnePoleSmoother mod2DepthSmoother_;         // 5ms (FR-033)
+    Krate::DSP::OnePoleSmoother detuneSpreadSmoother_;      // 5ms (FR-033)
+    std::array<Krate::DSP::OnePoleSmoother, 9> blendWeightSmootherArray_; // 5ms (FR-041): [0-7]=slots, [8]=live
 
     /// Atomic pointer for lock-free analysis transfer (FR-058)
     std::atomic<SampleAnalysis*> currentAnalysis_{nullptr};
@@ -450,6 +528,27 @@ private:
     // Harmonic Memory Slots (M5: FR-010)
     // =========================================================================
     std::array<Krate::DSP::MemorySlot, 8> memorySlots_{};
+
+    // =========================================================================
+    // M6: Pure Harmonic Reference (FR-004, R-004)
+    // =========================================================================
+    Krate::DSP::HarmonicFrame pureHarmonicFrame_{};
+
+    // =========================================================================
+    // M6: Evolution Engine (FR-014 to FR-023)
+    // =========================================================================
+    EvolutionEngine evolutionEngine_;
+
+    // =========================================================================
+    // M6: Harmonic Modulators (FR-024 to FR-029, FR-051)
+    // =========================================================================
+    HarmonicModulator mod1_;
+    HarmonicModulator mod2_;
+
+    // =========================================================================
+    // M6: Harmonic Blender (FR-034 to FR-042)
+    // =========================================================================
+    HarmonicBlender harmonicBlender_;
 
     // =========================================================================
     // Processing State

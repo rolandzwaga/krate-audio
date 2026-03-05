@@ -63,7 +63,7 @@ void generateSineWave(float* buffer, std::size_t size, float frequency, double s
 }
 
 /// @brief Fill buffer with constant value
-void fillBuffer(float* buffer, std::size_t size, float value) {
+void fillBuffer(float* buffer, std::size_t size, float value) { // NOLINT(readability-non-const-parameter) writes via std::fill
     std::fill(buffer, buffer + size, value);
 }
 

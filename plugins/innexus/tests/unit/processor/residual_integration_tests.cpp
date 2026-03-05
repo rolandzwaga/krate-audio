@@ -1258,13 +1258,13 @@ TEST_CASE("ResidualIntegration: getState writes version 3 at offset 0 (FR-027, M
     TestStream stream;
     REQUIRE(proc.getState(&stream) == kResultOk);
 
-    // Read the first 4 bytes as int32 -- should be version 5 (M5 harmonic memory)
+    // Read the first 4 bytes as int32 -- should be version 6 (M6 creative extensions)
     REQUIRE(stream.rawData().size() >= 4);
     stream.resetReadPos();
     Steinberg::IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 5);
+    REQUIRE(version == 6);
 
     proc.setActive(false);
     proc.terminate();

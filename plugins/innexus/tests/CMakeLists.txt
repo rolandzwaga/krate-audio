@@ -32,6 +32,15 @@ add_executable(innexus_tests
     unit/processor/harmonic_memory_tests.cpp
     unit/vst/harmonic_memory_vst_tests.cpp
 
+    # M6 Creative Extensions tests (Phases 17-21)
+    unit/processor/test_stereo_spread_integration.cpp
+    unit/processor/test_cross_synthesis.cpp
+    unit/processor/test_evolution_engine.cpp
+    unit/processor/test_harmonic_modulator.cpp
+    unit/processor/test_harmonic_blender.cpp
+    unit/vst/test_state_v6.cpp
+    unit/processor/test_m6_pipeline_integration.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

@@ -21,7 +21,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 - **Milestone 3 (Phase 12):** Live sidechain mode — real-time continuous analysis ✅ COMPLETE
 - **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering ✅ COMPLETE
 - **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration ✅ COMPLETE
-- **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending
+- **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending ✅ COMPLETE
 - **Milestone 7 (Phase 22):** Plugin UI — full VSTGUI interface
 
 ---
@@ -558,7 +558,7 @@ Dependencies: Phase 15
 
 ---
 
-### Phase 17: Harmonic Cross-Synthesis (Architecture Section 15, Priority 2)
+### Phase 17: Harmonic Cross-Synthesis (Architecture Section 15, Priority 2) ✅
 
 **Goal:** Explicitly frame the carrier-modulator paradigm as a performance feature.
 
@@ -579,7 +579,7 @@ Dependencies: Phase 9 (MIDI playback), Phase 15–16 (Harmonic Memory)
 
 ---
 
-### Phase 18: Stereo Partial Spread (Architecture Section 15, Priority 3)
+### Phase 18: Stereo Partial Spread (Architecture Section 15, Priority 3) ✅
 
 **Goal:** Distribute partials across the stereo field for spatial width.
 
@@ -595,7 +595,7 @@ Dependencies: Phase 7 (oscillator bank)
 
 ---
 
-### Phase 19: Evolution Engine (Architecture Section 15, Priority 4)
+### Phase 19: Evolution Engine (Architecture Section 15, Priority 4) ✅
 
 **Goal:** Slow autonomous drift through stored harmonic snapshots.
 
@@ -611,7 +611,7 @@ Dependencies: Phase 15–16 (Harmonic Memory)
 
 ---
 
-### Phase 20: Harmonic Modulators (Architecture Section 15, Priority 5)
+### Phase 20: Harmonic Modulators (Architecture Section 15, Priority 5) ✅
 
 **Goal:** LFO modulation of individual partial groups.
 
@@ -626,7 +626,7 @@ Dependencies: Phase 7 (oscillator bank per-partial amplitude control)
 
 ---
 
-### Phase 21: Multi-Source Blending (Architecture Section 15, Priority 6)
+### Phase 21: Multi-Source Blending (Architecture Section 15, Priority 6) ✅
 
 **Goal:** Analyze multiple inputs simultaneously and interpolate between their spectra.
 
@@ -646,7 +646,7 @@ Dependencies: Phase 12 (live sidechain), Phase 15–16 (Harmonic Memory)
 - Multiple live analysis pipelines multiply CPU cost; consider limiting to 2 simultaneous live sources + N stored snapshots
 - Stored snapshots (from Harmonic Memory) are cheap to blend; live sources are expensive
 
-**This completes Milestone 6: creative extensions.**
+**This completes Milestone 6: creative extensions.** ✅
 
 ---
 
@@ -683,12 +683,12 @@ Phase 1 (scaffold)
                                           └→ Phase 14 (harmonic filter) ← MILESTONE 4 ✅
                                           └→ Phase 15 (memory storage) ✅
                                                └→ Phase 16 (memory recall) ← MILESTONE 5 ✅
-                                               └→ Phase 17 (cross-synthesis)
-                                               └→ Phase 19 (evolution engine)
-                                     └→ Phase 18 (stereo spread)
-                                     └→ Phase 20 (modulators)
+                                               └→ Phase 17 (cross-synthesis) ✅
+                                               └→ Phase 19 (evolution engine) ✅
+                                     └→ Phase 18 (stereo spread) ✅
+                                     └→ Phase 20 (modulators) ✅
                                      └→ Phase 21 (multi-source blending) ← needs Phase 12 + 16
-                                                                          ← MILESTONE 6
+                                                                          ← MILESTONE 6 ✅
                       └→ Phase 22 (UI) ← MILESTONE 7
 ```
 
@@ -703,5 +703,5 @@ Each milestone is intended as one `speckit.specify` run:
 | M3 | 12 | Live sidechain mode ✅ |
 | M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) ✅ |
 | M5 | 15–16 | Harmonic Memory (snapshot capture/recall) ✅ |
-| M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) |
+| M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) ✅ |
 | M7 | 22 | Plugin UI |

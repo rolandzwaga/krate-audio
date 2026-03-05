@@ -6696,23 +6696,25 @@ class PartialTracker {
 ---
 
 ## HarmonicOscillatorBank
-**Path:** [harmonic_oscillator_bank.h](../../dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h) | **Since:** 0.15.0
+**Path:** [harmonic_oscillator_bank.h](../../dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h) | **Since:** 0.15.0 | **Stereo/Detune extension:** M6 (120-creative-extensions)
 
-48-oscillator additive synthesis bank using Gordon-Smith modified coupled form (MCF) oscillators with SoA (Structure of Arrays) layout for cache efficiency. Supports smooth frame crossfading, per-partial anti-aliasing, and inharmonicity control.
+48-oscillator additive synthesis bank using Gordon-Smith modified coupled form (MCF) oscillators with SoA (Structure of Arrays) layout for cache efficiency. Supports smooth frame crossfading, per-partial anti-aliasing, inharmonicity control, stereo partial spread, and detune spread.
 
 ```cpp
 class HarmonicOscillatorBank {
-    static constexpr float kDefaultCrossfadeTimeSec = 0.005f;  // 5ms frame crossfade
+    static constexpr float kDefaultCrossfadeTimeSec = 0.003f;  // 3ms frame crossfade
     static constexpr float kAmpSmoothTimeSec = 0.002f;        // 2ms amplitude smoothing
-    static constexpr float kAntiAliasFadeStart = 0.85f;       // Fade begins at 85% Nyquist
-    static constexpr float kOutputClamp = 4.0f;               // Hard output limiter
+    static constexpr float kAntiAliasFadeStart = 0.8f;        // Fade begins at 80% Nyquist
+    static constexpr float kOutputClamp = 2.0f;               // Hard output limiter
+    static constexpr float kDetuneMaxCents = 15.0f;           // Max detune per partial at spread=1.0
+    static constexpr float kFundamentalSpreadScale = 0.25f;   // Fundamental partial spread reduction
 
     // Lifecycle
     void prepare(double sampleRate) noexcept;
     void reset() noexcept;
 
     // Frame loading - smooth crossfade from current state
-    void loadFrame(const HarmonicFrame& frame) noexcept;
+    void loadFrame(const HarmonicFrame& frame, float targetPitch) noexcept;
 
     // Pitch control - sets target F0 for all partials
     void setTargetPitch(float pitchHz) noexcept;
@@ -6720,14 +6722,26 @@ class HarmonicOscillatorBank {
     // Inharmonicity control [0, 1] - 0 = perfectly harmonic, 1 = full analyzed deviation
     void setInharmonicityAmount(float amount) noexcept;
 
+    // Stereo Spread (M6: FR-006 to FR-013)
+    void setStereoSpread(float spread) noexcept;              // [0, 1] odd left / even right
+    void setDetuneSpread(float spread) noexcept;              // [0, 1] chorus-like detune
+    [[nodiscard]] float getStereoSpread() const noexcept;
+    [[nodiscard]] float getDetuneSpread() const noexcept;
+
+    // External modulation hooks (M6: FR-026, FR-027)
+    void applyPanOffsets(const std::array<float, kMaxPartials>& offsets) noexcept;
+    void applyExternalFrequencyMultipliers(const std::array<float, kMaxPartials>& multipliers) noexcept;
+
     // Processing
-    [[nodiscard]] float process() noexcept;                    // Single sample
-    void processBlock(float* output, size_t numSamples) noexcept; // Block
+    [[nodiscard]] float process() noexcept;                                      // Single mono sample
+    void processBlock(float* output, size_t numSamples) noexcept;                // Mono block
+    void processStereo(float& left, float& right) noexcept;                      // Single stereo sample
+    void processStereoBlock(float* left, float* right, size_t numSamples) noexcept; // Stereo block
 
     // State queries
     [[nodiscard]] bool isPrepared() const noexcept;
     [[nodiscard]] float getTargetPitch() const noexcept;
-    [[nodiscard]] size_t getActivePartials() const noexcept;
+    [[nodiscard]] int getActivePartials() const noexcept;
     [[nodiscard]] float getInharmonicityAmount() const noexcept;
     [[nodiscard]] bool isFrameLoaded() const noexcept;
 };
@@ -6737,16 +6751,21 @@ class HarmonicOscillatorBank {
 - Any additive synthesis scenario with up to 48 partials
 - Resynthesis from analyzed harmonic frames (analysis-synthesis pipeline)
 - MIDI-driven playback of extracted timbres with pitch transposition
+- Stereo output with per-partial spatial positioning (use `processStereo()`)
+- Chorus-like richness via per-partial detuning (use `setDetuneSpread()`)
 
 **Key features:**
 - **MCF oscillators**: Gordon-Smith modified coupled form (2 muls + 2 adds per sample per partial, amplitude-stable)
 - **SoA layout**: All oscillator state stored in aligned `std::array<float, 48>` arrays for cache-line efficiency
-- **Anti-aliasing**: Partials above 85% Nyquist are faded out; partials above Nyquist are silenced
-- **Frame crossfade**: 5ms linear crossfade when loading new HarmonicFrame to avoid clicks
+- **Anti-aliasing**: Partials above 80% Nyquist are faded out; partials above Nyquist are silenced
+- **Frame crossfade**: 3ms linear crossfade when loading new HarmonicFrame to avoid clicks
 - **Amplitude smoothing**: 2ms one-pole smoothing on per-partial amplitudes
-- **Periodic renormalization**: MCF oscillators renormalized every 256 samples to prevent amplitude drift
+- **Periodic renormalization**: MCF oscillators renormalized every 16 samples to prevent amplitude drift
+- **Stereo spread** (M6): Odd partials pan left, even partials pan right, with constant-power pan law. Fundamental (partial 1) uses 25% reduced spread for bass mono compatibility (FR-009). At spread=0, left==right (mono center, SC-010).
+- **Detune spread** (M6): Per-partial frequency multiplier based on harmonic index. Odd partials detune positive, even negative. Fundamental is excluded (SC-005: < 1 cent deviation). Max 15 cents offset at spread=1.0.
+- **External modulation hooks** (M6): `applyPanOffsets()` and `applyExternalFrequencyMultipliers()` allow harmonic modulators to animate per-partial pan and frequency on top of the base spread/detune values.
 
-**Dependencies:** Layer 0 (math_constants.h for kTwoPi, dsp_utils.h), harmonic_types.h (HarmonicFrame, Partial, kMaxPartials)
+**Dependencies:** Layer 0 (math_constants.h, pitch_utils.h), harmonic_types.h (HarmonicFrame, Partial, kMaxPartials)
 
 ---
 
