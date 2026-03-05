@@ -147,26 +147,6 @@ enum class HarmonicFilterType : int
 
 // EvolutionMode enum is defined in dsp/evolution_engine.h (FR-017)
 
-// ==============================================================================
-// Modulator Waveform Enum (M6: Harmonic Modulators)
-// ==============================================================================
-enum class ModulatorWaveform : int
-{
-    Sine = 0,
-    Triangle = 1,
-    Square = 2,
-    Saw = 3,
-    RandomSH = 4
-};
-
-// ==============================================================================
-// Modulator Target Enum (M6: Harmonic Modulators)
-// ==============================================================================
-enum class ModulatorTarget : int
-{
-    Amplitude = 0,
-    Frequency = 1,
-    Pan = 2
-};
+// ModulatorWaveform and ModulatorTarget enums are defined in dsp/harmonic_modulator.h (FR-024)
 
 } // namespace Innexus

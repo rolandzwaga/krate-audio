@@ -186,29 +186,29 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T030 [P] [US4] Write failing unit tests for `HarmonicModulator` class in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: test `prepare()` resets phase to 0.0 (FR-051), test `advance()` increments phase by rate*inverseSampleRate, test phase wraps at 1.0 and updates S&H value, test amplitude modulation formula at depth=0 (no change), depth=1.0 (full sweep), depth=0.5 (proportional - SC-004), test frequency modulation produces multiplier = pow(2, depth*lfo*50/1200), test pan offset formula, test range start > end edge case handled gracefully.
+- [X] T030 [P] [US4] Write failing unit tests for `HarmonicModulator` class in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: test `prepare()` resets phase to 0.0 (FR-051), test `advance()` increments phase by rate*inverseSampleRate, test phase wraps at 1.0 and updates S&H value, test amplitude modulation formula at depth=0 (no change), depth=1.0 (full sweep), depth=0.5 (proportional - SC-004), test frequency modulation produces multiplier = pow(2, depth*lfo*50/1200), test pan offset formula, test range start > end edge case handled gracefully.
 
-- [ ] T031 [P] [US4] Write failing tests for all 5 LFO waveforms in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: Sine at phase=0 is 0, at phase=0.25 is 1, Triangle uses formula `4*|phase-0.5|-1` so at phase=0 is 1, at phase=0.5 is -1, at phase=1.0 is 1, Square at phase<0.5 is 1 at phase>=0.5 is -1, Saw at phase=0 is -1 at phase=1 is 1, RandomSH holds constant between wraps and changes on wrap.
+- [X] T031 [P] [US4] Write failing tests for all 5 LFO waveforms in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: Sine at phase=0 is 0, at phase=0.25 is 1, Triangle uses formula `4*|phase-0.5|-1` so at phase=0 is 1, at phase=0.5 is -1, at phase=1.0 is 1, Square at phase<0.5 is 1 at phase>=0.5 is -1, Saw at phase=0 is -1 at phase=1 is 1, RandomSH holds constant between wraps and changes on wrap.
 
-- [ ] T032 [P] [US4] Write failing tests for two-modulator overlap behavior in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: test overlapping amplitude ranges multiply effects (FR-028), test overlapping frequency ranges add effects, test partial outside range gets multiplier 1.0 / offset 0.0.
+- [X] T032 [P] [US4] Write failing tests for two-modulator overlap behavior in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: test overlapping amplitude ranges multiply effects (FR-028), test overlapping frequency ranges add effects, test partial outside range gets multiplier 1.0 / offset 0.0.
 
-- [ ] T033 [P] [US4] Write failing tests verifying LFO phase does not reset on note events in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: advance 1000 samples, record phase, simulate note-off/note-on, verify phase continues from recorded value (FR-029, FR-051).
+- [X] T033 [P] [US4] Write failing tests verifying LFO phase does not reset on note events in `plugins/innexus/tests/unit/processor/test_harmonic_modulator.cpp`: advance 1000 samples, record phase, simulate note-off/note-on, verify phase continues from recorded value (FR-029, FR-051).
 
 ### 5.2 Implementation for User Story 4
 
-- [ ] T034 [US4] Implement `HarmonicModulator` class in `plugins/innexus/src/dsp/harmonic_modulator.h` matching the contract in `specs/120-creative-extensions/contracts/harmonic_modulator.h`: `ModulatorWaveform` enum (Sine/Triangle/Square/Saw/RandomSH), `ModulatorTarget` enum (Amplitude/Frequency/Pan), all setter/getter methods, `advance()`, `applyAmplitudeModulation()`, `getFrequencyMultipliers()`, `getPanOffsets()`, `computeWaveform()`. Formula-based LFO (no wavetable, no heap) per R-002. S&H using `Xorshift32`. Phase initialized to 0.0 in `prepare()`. All `noexcept`.
+- [X] T034 [US4] Implement `HarmonicModulator` class in `plugins/innexus/src/dsp/harmonic_modulator.h` matching the contract in `specs/120-creative-extensions/contracts/harmonic_modulator.h`: `ModulatorWaveform` enum (Sine/Triangle/Square/Saw/RandomSH), `ModulatorTarget` enum (Amplitude/Frequency/Pan), all setter/getter methods, `advance()`, `applyAmplitudeModulation()`, `getFrequencyMultipliers()`, `getPanOffsets()`, `computeWaveform()`. Formula-based LFO (no wavetable, no heap) per R-002. S&H using `Xorshift32`. Phase initialized to 0.0 in `prepare()`. All `noexcept`.
 
-- [ ] T035 [US4] Integrate two `HarmonicModulator` instances into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `HarmonicModulator mod1_`, `mod2_` members, call `prepare()` in `setupProcessing()`, call `mod1_.advance()` / `mod2_.advance()` per sample. Per frame: if modulator enabled, apply amplitude/frequency/pan modulation after harmonic filter step in pipeline (FR-049 step 4). Two modulators on overlapping amplitude ranges multiply; overlapping frequency/pan ranges add (FR-028). Apply smoothed rate and depth. Add `#include "dsp/harmonic_modulator.h"`. Detune spread is already wired in T011 via `oscillatorBank_.setDetuneSpread()`, so verify the detune smoother is applied here. Depends on T003, T011, T034.
+- [X] T035 [US4] Integrate two `HarmonicModulator` instances into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `HarmonicModulator mod1_`, `mod2_` members, call `prepare()` in `setupProcessing()`, call `mod1_.advance()` / `mod2_.advance()` per sample. Per frame: if modulator enabled, apply amplitude/frequency/pan modulation after harmonic filter step in pipeline (FR-049 step 4). Two modulators on overlapping amplitude ranges multiply; overlapping frequency/pan ranges add (FR-028). Apply smoothed rate and depth. Add `#include "dsp/harmonic_modulator.h"`. Detune spread is already wired in T011 via `oscillatorBank_.setDetuneSpread()`, so verify the detune smoother is applied here. Depends on T003, T011, T034.
 
 ### 5.3 Cross-Platform Verification
 
-- [ ] T036 [US4] Check all modulator test files for `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found. Verify `Approx().margin()` used for waveform value comparisons.
+- [X] T036 [US4] Check all modulator test files for `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found. Verify `Approx().margin()` used for waveform value comparisons.
 
-- [ ] T037 [US4] Build `innexus_tests` target, verify zero warnings, run all tests. Verify SC-004 (amplitude modulation depth within +/-5% of configured depth at 2 Hz, measured over 500ms), verify SC-005 (Detune Spread at 1.0 preserves fundamental pitch < 1 cent deviation).
+- [X] T037 [US4] Build `innexus_tests` target, verify zero warnings, run all tests. Verify SC-004 (amplitude modulation depth within +/-5% of configured depth at 2 Hz, measured over 500ms), verify SC-005 (Detune Spread at 1.0 preserves fundamental pitch < 1 cent deviation).
 
 ### 5.4 Commit
 
-- [ ] T038 [US4] **Commit completed User Story 4 work**: `harmonic_modulator.h`, processor integration (two modulators), detune spread wired, tests.
+- [X] T038 [US4] **Commit completed User Story 4 work**: `harmonic_modulator.h`, processor integration (two modulators), detune spread wired, tests.
 
 **Checkpoint**: US4 complete. Two independent LFO modulators animate per-partial amplitude/frequency/pan. Detune spread adds chorus richness. Tests verify SC-004, SC-005.
 

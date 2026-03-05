@@ -278,6 +278,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     evolutionEngine_.prepare(sampleRate_);
     evolutionEngine_.updateWaypoints(memorySlots_);
 
+    // M6 FR-024, FR-051: Prepare harmonic modulators (phase init to 0.0)
+    mod1_.prepare(sampleRate_);
+    mod2_.prepare(sampleRate_);
+
     // FR-003/FR-005: Prepare live analysis pipeline
     auto currentMode = latencyMode_.load(std::memory_order_relaxed) > 0.5f
         ? LatencyMode::HighPrecision
@@ -724,6 +728,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         static_cast<size_t>(numSamples > 0 ? numSamples : 1));
     const float smoothedTimbralBlend = timbralBlendSmoother_.getCurrentValue();
 
+    // M6: Read modulator enable flags (used in frame loading and per-sample loop)
+    const bool mod1Enabled = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+    const bool mod2Enabled = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
+
     // =========================================================================
     // M4: Morph interpolation + load frames into osc bank
     // When freeze active: morph between frozen (A) and live (B) frames
@@ -792,6 +800,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
         // Load morphed+filtered frame into oscillator bank
+        // M6 FR-025: Apply modulator amplitude modulation before loading
+        applyModulatorAmplitude(mod1Enabled, mod2Enabled);
         float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
         float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
         float targetPitch = basePitch * bendRatio;
@@ -841,6 +851,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             // Apply harmonic filter (FR-026, FR-027)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+            // M6 FR-025: Apply modulator amplitude modulation
+            applyModulatorAmplitude(mod1Enabled, mod2Enabled);
 
             // Calculate target pitch with pitch bend
             float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
@@ -899,6 +912,55 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     stereoSpreadSmoother_.setTarget(stereoSpread_.load(std::memory_order_relaxed));
     detuneSpreadSmoother_.setTarget(detuneSpread_.load(std::memory_order_relaxed));
 
+    // --- M6: Update modulator parameters (FR-024, FR-033) ---
+    if (mod1Enabled)
+    {
+        const float waveNorm = mod1Waveform_.load(std::memory_order_relaxed);
+        mod1_.setWaveform(static_cast<ModulatorWaveform>(
+            std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
+
+        const float rateNorm = mod1Rate_.load(std::memory_order_relaxed);
+        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        mod1RateSmoother_.setTarget(ratePlain);
+
+        const float depthVal = mod1Depth_.load(std::memory_order_relaxed);
+        mod1DepthSmoother_.setTarget(depthVal);
+
+        const float rangeStartNorm = mod1RangeStart_.load(std::memory_order_relaxed);
+        const float rangeEndNorm = mod1RangeEnd_.load(std::memory_order_relaxed);
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        mod1_.setRange(rangeStart, rangeEnd);
+
+        const float targetNorm = mod1Target_.load(std::memory_order_relaxed);
+        mod1_.setTarget(static_cast<ModulatorTarget>(
+            std::clamp(static_cast<int>(std::round(targetNorm * 2.0f)), 0, 2)));
+    }
+
+    if (mod2Enabled)
+    {
+        const float waveNorm = mod2Waveform_.load(std::memory_order_relaxed);
+        mod2_.setWaveform(static_cast<ModulatorWaveform>(
+            std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
+
+        const float rateNorm = mod2Rate_.load(std::memory_order_relaxed);
+        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        mod2RateSmoother_.setTarget(ratePlain);
+
+        const float depthVal = mod2Depth_.load(std::memory_order_relaxed);
+        mod2DepthSmoother_.setTarget(depthVal);
+
+        const float rangeStartNorm = mod2RangeStart_.load(std::memory_order_relaxed);
+        const float rangeEndNorm = mod2RangeEnd_.load(std::memory_order_relaxed);
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        mod2_.setRange(rangeStart, rangeEnd);
+
+        const float targetNorm = mod2Target_.load(std::memory_order_relaxed);
+        mod2_.setTarget(static_cast<ModulatorTarget>(
+            std::clamp(static_cast<int>(std::round(targetNorm * 2.0f)), 0, 2)));
+    }
+
     // --- Process each sample ---
     bool hasSoundOutput = false;
     const bool hasResidual = isSidechainMode ? hasLiveResidual : hasSampleResidual;
@@ -947,6 +1009,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     // Apply harmonic filter (FR-026)
                     if (currentFilterType_ != 0)
                         Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                    // M6 FR-025: Apply modulator amplitude modulation
+                    applyModulatorAmplitude(mod1Enabled, mod2Enabled);
 
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
@@ -1000,6 +1065,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 if (currentFilterType_ != 0)
                     Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
+                // M6 FR-025: Apply modulator amplitude modulation
+                applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                 float targetPitch = basePitch * bendRatio;
@@ -1032,6 +1100,60 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // M6: Update stereo spread and detune per sample (smoothed)
         oscillatorBank_.setStereoSpread(stereoSpreadSmoother_.process());
         oscillatorBank_.setDetuneSpread(detuneSpreadSmoother_.process());
+
+        // M6: Advance harmonic modulators per sample (FR-029: free-running)
+        // Apply smoothed rate and depth each sample (FR-033)
+        if (mod1Enabled)
+        {
+            mod1_.setRate(mod1RateSmoother_.process());
+            mod1_.setDepth(mod1DepthSmoother_.process());
+            mod1_.advance();
+
+            // Apply frequency multipliers on top of detune (FR-026, FR-028)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> mult1{};
+                mod1_.getFrequencyMultipliers(mult1);
+                oscillatorBank_.applyExternalFrequencyMultipliers(mult1);
+            }
+
+            // Apply pan offsets (FR-027, FR-028)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> panOff1{};
+                mod1_.getPanOffsets(panOff1);
+                oscillatorBank_.applyPanOffsets(panOff1);
+            }
+        }
+        else
+        {
+            (void)mod1RateSmoother_.process();
+            (void)mod1DepthSmoother_.process();
+        }
+
+        if (mod2Enabled)
+        {
+            mod2_.setRate(mod2RateSmoother_.process());
+            mod2_.setDepth(mod2DepthSmoother_.process());
+            mod2_.advance();
+
+            // Apply frequency multipliers (FR-026, FR-028: additive with mod1)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> mult2{};
+                mod2_.getFrequencyMultipliers(mult2);
+                oscillatorBank_.applyExternalFrequencyMultipliers(mult2);
+            }
+
+            // Apply pan offsets (FR-027, FR-028: additive with mod1)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> panOff2{};
+                mod2_.getPanOffsets(panOff2);
+                oscillatorBank_.applyPanOffsets(panOff2);
+            }
+        }
+        else
+        {
+            (void)mod2RateSmoother_.process();
+            (void)mod2DepthSmoother_.process();
+        }
 
         // --- Generate oscillator bank stereo output (M6: FR-007) ---
         float harmonicL = 0.0f, harmonicR = 0.0f;
@@ -1235,6 +1357,13 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
             if (currentFilterType_ != 0)
                 Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
 
+            // M6 FR-025: Apply modulator amplitude modulation
+            {
+                const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+                const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
+                applyModulatorAmplitude(m1On, m2On);
+            }
+
             oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
             // Load live residual frame
@@ -1267,6 +1396,13 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
         // M4: Apply harmonic filter (FR-026)
         if (currentFilterType_ != 0)
             Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+        // M6 FR-025: Apply modulator amplitude modulation
+        {
+            const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
+            const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
+            applyModulatorAmplitude(m1On, m2On);
+        }
 
         oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
@@ -1382,6 +1518,19 @@ void Processor::loadSample(const std::string& filePath)
     {
         sampleAnalyzer_.startAnalysis(filePath);
     }
+}
+
+// ==============================================================================
+// Apply Modulator Amplitude Modulation (FR-025, FR-028)
+// ==============================================================================
+void Processor::applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled)
+{
+    // FR-028: Two modulators on overlapping amplitude ranges multiply effects
+    // (sequential application = multiplicative)
+    if (mod1Enabled)
+        mod1_.applyAmplitudeModulation(morphedFrame_);
+    if (mod2Enabled)
+        mod2_.applyAmplitudeModulation(morphedFrame_);
 }
 
 // ==============================================================================

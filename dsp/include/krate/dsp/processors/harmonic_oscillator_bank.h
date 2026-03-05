@@ -312,6 +312,44 @@ public:
     /// @brief Get the current detune spread value.
     [[nodiscard]] float getDetuneSpread() const noexcept { return detuneSpread_; }
 
+    /// @brief Apply external pan offsets to current pan positions (M6 FR-027).
+    ///
+    /// Adds the given offset to each partial's pan position and recomputes
+    /// the constant-power pan coefficients. Used by harmonic modulators for
+    /// per-partial pan animation.
+    ///
+    /// @param offsets Array of 48 bipolar offsets to add to pan positions
+    /// @note Real-time safe (called once per frame)
+    void applyPanOffsets(
+        const std::array<float, kMaxPartials>& offsets) noexcept
+    {
+        constexpr float kQuarterPi = kPi / 4.0f;
+
+        for (size_t i = 0; i < kMaxPartials; ++i)
+        {
+            float newPos = std::clamp(panPosition_[i] + offsets[i], -1.0f, 1.0f);
+            float angle = kQuarterPi + newPos * kQuarterPi;
+            panLeft_[i] = std::cos(angle);
+            panRight_[i] = std::sin(angle);
+        }
+    }
+
+    /// @brief Apply external frequency multipliers on top of detune (M6 FR-026).
+    ///
+    /// Multiplies the given multipliers with the existing detuneMultiplier_
+    /// for each partial. Used by harmonic modulators for frequency animation.
+    ///
+    /// @param multipliers Array of 48 frequency multipliers
+    /// @note Real-time safe (called once per frame)
+    void applyExternalFrequencyMultipliers(
+        const std::array<float, kMaxPartials>& multipliers) noexcept
+    {
+        for (size_t i = 0; i < kMaxPartials; ++i)
+        {
+            detuneMultiplier_[i] *= multipliers[i];
+        }
+    }
+
     /// @brief Generate a single stereo output sample (FR-007, FR-050).
     ///
     /// Each partial contributes to left and right channels based on its pan

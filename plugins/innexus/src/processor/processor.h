@@ -23,6 +23,7 @@
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
 #include "dsp/evolution_engine.h"
+#include "dsp/harmonic_modulator.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
@@ -313,6 +314,7 @@ private:
     void updateReleaseDecayCoeff();
     void checkForNewAnalysis();
     void cleanupPendingDeletion();
+    void applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled);
 
     // =========================================================================
     // Parameter Atomics
@@ -535,6 +537,12 @@ private:
     // M6: Evolution Engine (FR-014 to FR-023)
     // =========================================================================
     EvolutionEngine evolutionEngine_;
+
+    // =========================================================================
+    // M6: Harmonic Modulators (FR-024 to FR-029, FR-051)
+    // =========================================================================
+    HarmonicModulator mod1_;
+    HarmonicModulator mod2_;
 
     // =========================================================================
     // Processing State
