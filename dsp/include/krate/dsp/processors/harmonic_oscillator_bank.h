@@ -85,6 +85,12 @@ public:
     /// Output safety clamp
     static constexpr float kOutputClamp = 2.0f;
 
+    /// Maximum detune per partial in cents at spread=1.0 (FR-030)
+    static constexpr float kDetuneMaxCents = 15.0f;
+
+    /// Fundamental partial spread reduction factor (FR-009)
+    static constexpr float kFundamentalSpreadScale = 0.25f;
+
     // =========================================================================
     // Lifecycle
     // =========================================================================
@@ -155,6 +161,14 @@ public:
         crossfadeRemaining_ = 0;
         crossfadeOldLevel_ = 0.0f;
         renormCounter_ = 0;
+
+        // Reset stereo/detune arrays to center (mono)
+        panPosition_.fill(0.0f);
+        // At center pan (angle = pi/4): cos(pi/4) = sin(pi/4) = sqrt(2)/2
+        constexpr float kCenterGain = 0.7071067811865476f; // sqrt(2)/2
+        panLeft_.fill(kCenterGain);
+        panRight_.fill(kCenterGain);
+        detuneMultiplier_.fill(1.0f);
     }
 
     // =========================================================================
@@ -254,6 +268,174 @@ public:
         if (prepared_ && frameLoaded_) {
             recalculateFrequencies();
             recalculateAntiAliasing();
+        }
+    }
+
+    // =========================================================================
+    // Stereo Spread and Detune (M6: FR-006 to FR-013, FR-030 to FR-032)
+    // =========================================================================
+
+    /// @brief Set stereo spread amount (FR-006, FR-008, FR-009).
+    ///
+    /// Recalculates per-partial pan positions and pan coefficients.
+    /// Odd partials pan left, even partials pan right.
+    /// Fundamental (partial 1) uses reduced spread (25%) for bass mono compat (FR-009).
+    ///
+    /// Pan law: constant-power
+    ///   angle = pi/4 + panPosition * pi/4
+    ///   panLeft[n] = cos(angle)
+    ///   panRight[n] = sin(angle)
+    ///
+    /// @param spread Spread amount [0.0, 1.0]. 0.0 = mono center, 1.0 = max spread.
+    /// @note Real-time safe (called once per frame, not per sample)
+    void setStereoSpread(float spread) noexcept {
+        stereoSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        recalculatePanPositions();
+    }
+
+    /// @brief Set detune spread amount (FR-030, FR-031, FR-032).
+    ///
+    /// Computes per-partial frequency multipliers for chorus-like detuning.
+    /// Offset scales with harmonic number, alternating +/- by odd/even.
+    /// Fundamental is excluded from detune (SC-005: < 1 cent deviation).
+    ///
+    /// @param spread Detune amount [0.0, 1.0]. 0.0 = no detune, 1.0 = max.
+    /// @note Real-time safe (called once per frame, not per sample)
+    void setDetuneSpread(float spread) noexcept {
+        detuneSpread_ = std::clamp(spread, 0.0f, 1.0f);
+        recalculateDetuneMultipliers();
+    }
+
+    /// @brief Get the current stereo spread value.
+    [[nodiscard]] float getStereoSpread() const noexcept { return stereoSpread_; }
+
+    /// @brief Get the current detune spread value.
+    [[nodiscard]] float getDetuneSpread() const noexcept { return detuneSpread_; }
+
+    /// @brief Generate a single stereo output sample (FR-007, FR-050).
+    ///
+    /// Each partial contributes to left and right channels based on its pan
+    /// position. Pan positions are set by setStereoSpread() and updated per frame.
+    ///
+    /// When stereoSpread == 0.0, left == right (mono center, SC-010).
+    ///
+    /// @param[out] left Left channel output sample
+    /// @param[out] right Right channel output sample
+    /// @note Real-time safe
+    void processStereo(float& left, float& right) noexcept {
+        if (!prepared_ || !frameLoaded_) {
+            left = right = 0.0f;
+            return;
+        }
+
+        float sumL = 0.0f;
+        float sumR = 0.0f;
+        const int n = activePartials_;
+
+        ++renormCounter_;
+        const bool doRenorm = (renormCounter_ >= 16);
+        if (doRenorm) renormCounter_ = 0;
+
+        for (int i = 0; i < n; ++i) {
+            // Amplitude smoothing (FR-041)
+            float target = targetAmplitude_[i] * antiAliasGain_[i];
+            currentAmplitude_[i] += ampSmoothCoeff_ * (target - currentAmplitude_[i]);
+
+            // MCF oscillator
+            float s = sinState_[i];
+            float c = cosState_[i];
+            float eps = epsilon_[i] * detuneMultiplier_[i];
+
+            // Output: amplitude * sine * pan coefficients
+            float ampSample = s * currentAmplitude_[i];
+            sumL += ampSample * panLeft_[i];
+            sumR += ampSample * panRight_[i];
+
+            // Advance phasor: Gordon-Smith MCF (determinant = 1)
+            float sNew = s + eps * c;
+            float cNew = c - eps * sNew;
+
+            // Periodic renormalization
+            if (doRenorm) {
+                float mag2 = sNew * sNew + cNew * cNew;
+                if (mag2 > 0.0f) {
+                    float invMag = 1.0f / std::sqrt(mag2);
+                    sNew *= invMag;
+                    cNew *= invMag;
+                }
+            }
+
+            sinState_[i] = sNew;
+            cosState_[i] = cNew;
+        }
+
+        // Fade out residual partials beyond activePartials_
+        for (size_t i = static_cast<size_t>(n); i < kMaxPartials; ++i) {
+            if (currentAmplitude_[i] > 1e-8f) {
+                currentAmplitude_[i] += ampSmoothCoeff_ * (0.0f - currentAmplitude_[i]);
+
+                float s = sinState_[i];
+                float c = cosState_[i];
+                float eps = epsilon_[i] * detuneMultiplier_[i];
+                float ampSample = s * currentAmplitude_[i];
+                sumL += ampSample * panLeft_[i];
+                sumR += ampSample * panRight_[i];
+
+                float sNew = s + eps * c;
+                float cNew = c - eps * sNew;
+
+                if (doRenorm) {
+                    float mag2 = sNew * sNew + cNew * cNew;
+                    if (mag2 > 0.0f) {
+                        float invMag = 1.0f / std::sqrt(mag2);
+                        sNew *= invMag;
+                        cNew *= invMag;
+                    }
+                }
+
+                sinState_[i] = sNew;
+                cosState_[i] = cNew;
+            }
+        }
+
+        // Apply crossfade if active (FR-040)
+        if (crossfadeRemaining_ > 0) {
+            float fadeProgress = static_cast<float>(crossfadeRemaining_) /
+                                 static_cast<float>(crossfadeLengthSamples_);
+            sumL = crossfadeOldLevel_ * fadeProgress + sumL * (1.0f - fadeProgress);
+            sumR = crossfadeOldLevel_ * fadeProgress + sumR * (1.0f - fadeProgress);
+            --crossfadeRemaining_;
+        }
+
+        // Safety clamp
+        left = std::clamp(sumL, -kOutputClamp, kOutputClamp);
+        right = std::clamp(sumR, -kOutputClamp, kOutputClamp);
+
+        lastOutputSample_ = (left + right) * 0.5f;
+    }
+
+    /// @brief Generate a block of stereo output samples (FR-007).
+    ///
+    /// @param[out] leftOutput Left channel buffer (must hold numSamples)
+    /// @param[out] rightOutput Right channel buffer (must hold numSamples)
+    /// @param numSamples Number of samples to generate
+    /// @note Real-time safe
+    void processStereoBlock(float* leftOutput, float* rightOutput,
+                            size_t numSamples) noexcept {
+        if (leftOutput == nullptr || rightOutput == nullptr || numSamples == 0) {
+            return;
+        }
+
+        if (!prepared_) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                leftOutput[i] = 0.0f;
+                rightOutput[i] = 0.0f;
+            }
+            return;
+        }
+
+        for (size_t i = 0; i < numSamples; ++i) {
+            processStereo(leftOutput[i], rightOutput[i]);
         }
     }
 
@@ -459,6 +641,59 @@ private:
         }
     }
 
+    /// @brief Recalculate per-partial pan positions and coefficients.
+    ///
+    /// Odd partials pan left (negative), even partials pan right (positive).
+    /// Fundamental (partial 1) uses reduced spread (kFundamentalSpreadScale).
+    void recalculatePanPositions() noexcept {
+        constexpr float kQuarterPi = kPi / 4.0f;
+
+        for (size_t i = 0; i < kMaxPartials; ++i) {
+            int harmIdx = harmonicIndex_[i];
+            if (harmIdx <= 0) {
+                // Unused partial: center
+                panPosition_[i] = 0.0f;
+            } else {
+                // Odd harmonics (1,3,5,...) pan left (-), even (2,4,6,...) pan right (+)
+                float direction = (harmIdx % 2 == 1) ? -1.0f : 1.0f;
+                float effectiveSpread = stereoSpread_;
+
+                // FR-009: Fundamental (partial 1) uses reduced spread
+                if (harmIdx == 1) {
+                    effectiveSpread *= kFundamentalSpreadScale;
+                }
+
+                panPosition_[i] = direction * effectiveSpread;
+            }
+
+            // Constant-power pan law: angle = pi/4 + panPosition * pi/4
+            float angle = kQuarterPi + panPosition_[i] * kQuarterPi;
+            panLeft_[i] = std::cos(angle);
+            panRight_[i] = std::sin(angle);
+        }
+    }
+
+    /// @brief Recalculate per-partial detune frequency multipliers.
+    ///
+    /// Formula: detuneOffset_n = detuneSpread * n * kDetuneMaxCents * direction
+    ///          multiplier_n = pow(2.0, detuneOffset_n / 1200.0)
+    /// Fundamental (harmonic 1) is excluded (set to 1.0) to satisfy SC-005.
+    void recalculateDetuneMultipliers() noexcept {
+        for (size_t i = 0; i < kMaxPartials; ++i) {
+            int harmIdx = harmonicIndex_[i];
+            if (harmIdx <= 1 || detuneSpread_ <= 0.0f) {
+                // Fundamental or unused: no detune
+                detuneMultiplier_[i] = 1.0f;
+            } else {
+                // direction: +1 for odd, -1 for even
+                float direction = (harmIdx % 2 == 1) ? 1.0f : -1.0f;
+                float offsetCents = detuneSpread_ * static_cast<float>(harmIdx)
+                                    * kDetuneMaxCents * direction;
+                detuneMultiplier_[i] = std::pow(2.0f, offsetCents / 1200.0f);
+            }
+        }
+    }
+
     // =========================================================================
     // Members -- SoA layout, 32-byte aligned (FR-036)
     // =========================================================================
@@ -472,6 +707,12 @@ private:
     alignas(32) std::array<float, kMaxPartials> relativeFrequency_{};
     alignas(32) std::array<float, kMaxPartials> inharmonicDeviation_{};
 
+    // --- Stereo pan and detune arrays (M6 FR-006 to FR-013, FR-030 to FR-032) ---
+    alignas(32) std::array<float, kMaxPartials> panPosition_{};      ///< [-1, +1]
+    alignas(32) std::array<float, kMaxPartials> panLeft_{};           ///< cos(angle)
+    alignas(32) std::array<float, kMaxPartials> panRight_{};          ///< sin(angle)
+    alignas(32) std::array<float, kMaxPartials> detuneMultiplier_{};  ///< freq multiplier
+
     /// Harmonic index per partial (not float -- integer)
     std::array<int, kMaxPartials> harmonicIndex_{};
 
@@ -481,6 +722,10 @@ private:
     double sampleRate_ = 44100.0;          ///< Current sample rate
     float nyquist_ = 22050.0f;            ///< Nyquist frequency
     float inverseSampleRate_ = 1.0f / 44100.0f; ///< Precomputed 1/sampleRate
+
+    // --- Stereo/Detune state ---
+    float stereoSpread_ = 0.0f;           ///< Current stereo spread [0, 1]
+    float detuneSpread_ = 0.0f;           ///< Current detune spread [0, 1]
 
     // --- Smoothing ---
     float ampSmoothCoeff_ = 0.0f;         ///< One-pole amplitude smoothing coefficient
