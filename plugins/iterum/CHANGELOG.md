@@ -5,6 +5,14 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.3] - 2026-03-05
+
+### Added
+
+- **In-plugin update checker** — Automatically checks for new versions on editor open (24h cooldown) and shows a non-intrusive banner with download link when an update is available
+- **"Check for Updates" button** — Manual version check in the plugin header
+- Version display and dismiss functionality for update notifications
+
 ## [0.14.2] - 2026-03-02
 
 ### Fixed
