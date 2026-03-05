@@ -1097,6 +1097,76 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             (void)evolutionDepthSmoother_.process();
         }
 
+        // M6: Multi-Source Blending (FR-034 to FR-042, FR-052)
+        // When blend is enabled, blender produces currentFrame, overriding
+        // both the normal recall/freeze path and the evolution path.
+        if (blendEnabled)
+        {
+            // Update blend weights from smoothers (FR-041)
+            for (int i = 0; i < 8; ++i)
+            {
+                blendWeightSmootherArray_[static_cast<size_t>(i)].setTarget(
+                    blendSlotWeights_[static_cast<size_t>(i)].load(std::memory_order_relaxed));
+                harmonicBlender_.setSlotWeight(
+                    i, blendWeightSmootherArray_[static_cast<size_t>(i)].process());
+            }
+            blendWeightSmootherArray_[8].setTarget(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+            harmonicBlender_.setLiveWeight(blendWeightSmootherArray_[8].process());
+
+            // Determine if live source is available
+            bool hasLiveSource = isSidechainMode &&
+                currentLiveFrame_.f0Confidence > 0.0f;
+
+            Krate::DSP::HarmonicFrame blendFrame{};
+            Krate::DSP::ResidualFrame blendResidual{};
+            if (harmonicBlender_.blend(memorySlots_,
+                    currentLiveFrame_, currentLiveResidualFrame_,
+                    hasLiveSource, blendFrame, blendResidual))
+            {
+                morphedFrame_ = blendFrame;
+                morphedResidualFrame_ = blendResidual;
+
+                // Apply timbral blend (cross-synthesis) to blended output
+                if (smoothedTimbralBlend < 1.0f - 1e-6f)
+                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+
+                // Apply harmonic filter
+                if (currentFilterType_ != 0)
+                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+
+                // Apply modulator amplitude modulation
+                applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+
+                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+                float targetPitch = basePitch * bendRatio;
+                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+                if (residualSynth_.isPrepared())
+                {
+                    residualSynth_.loadFrame(
+                        morphedResidualFrame_,
+                        brightnessSmoother_.getCurrentValue(),
+                        transientEmphasisSmoother_.getCurrentValue());
+                }
+            }
+        }
+        else
+        {
+            // Blend disabled: advance smoothers to keep tracking
+            for (int i = 0; i < 8; ++i)
+            {
+                blendWeightSmootherArray_[static_cast<size_t>(i)].setTarget(
+                    blendSlotWeights_[static_cast<size_t>(i)].load(std::memory_order_relaxed));
+                (void)blendWeightSmootherArray_[static_cast<size_t>(i)].process();
+            }
+            blendWeightSmootherArray_[8].setTarget(
+                blendLiveWeight_.load(std::memory_order_relaxed));
+            (void)blendWeightSmootherArray_[8].process();
+        }
+
         // M6: Update stereo spread and detune per sample (smoothed)
         oscillatorBank_.setStereoSpread(stereoSpreadSmoother_.process());
         oscillatorBank_.setDetuneSpread(detuneSpreadSmoother_.process());

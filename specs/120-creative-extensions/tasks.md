@@ -226,27 +226,27 @@ After implementing test files, verify: if any test uses `std::isnan()`, `std::is
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T039 [P] [US5] Write failing unit tests for `HarmonicBlender` class in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: test equal-weight blend of 2 sources produces amplitude = 0.5*A + 0.5*B for each partial (FR-037), test weight normalization: three sources at [0.2, 0.3, 0.5] produce normalized sum (FR-035), test zero-weight source contributes nothing, test all-zero weights produces silence (FR-039), test partial count mismatch: source A with 24 partials contributes 0 for partials 25-48 (FR-038), test single-source at weight=1.0 produces output identical to source direct read (SC-011).
+- [X] T039 [P] [US5] Write failing unit tests for `HarmonicBlender` class in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: test equal-weight blend of 2 sources produces amplitude = 0.5*A + 0.5*B for each partial (FR-037), test weight normalization: three sources at [0.2, 0.3, 0.5] produce normalized sum (FR-035), test zero-weight source contributes nothing, test all-zero weights produces silence (FR-039), test partial count mismatch: source A with 24 partials contributes 0 for partials 25-48 (FR-038), test single-source at weight=1.0 produces output identical to source direct read (SC-011).
 
-- [ ] T040 [P] [US5] Write failing integration test for blend priority over evolution in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: enable both blendEnabled and evolutionEnabled, verify output comes from blended model not evolution (FR-052, FR-049 pipeline order).
+- [X] T040 [P] [US5] Write failing integration test for blend priority over evolution in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: enable both blendEnabled and evolutionEnabled, verify output comes from blended model not evolution (FR-052, FR-049 pipeline order).
 
-- [ ] T041 [P] [US5] Write failing integration test for live source blending in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: inject live analysis frame, set live weight=0.5 and slot weight=0.5, verify blended output is mean of live and slot data (FR-036, FR-037).
+- [X] T041 [P] [US5] Write failing integration test for live source blending in `plugins/innexus/tests/unit/processor/test_harmonic_blender.cpp`: inject live analysis frame, set live weight=0.5 and slot weight=0.5, verify blended output is mean of live and slot data (FR-036, FR-037).
 
 ### 6.2 Implementation for User Story 5
 
-- [ ] T042 [US5] Implement `HarmonicBlender` class in `plugins/innexus/src/dsp/harmonic_blender.h` matching the contract in `specs/120-creative-extensions/contracts/harmonic_blender.h`: `setSlotWeight(int, float)`, `setLiveWeight(float)`, `blend(slots, liveFrame, liveResidual, hasLiveSource, frame, residual)`, `getEffectiveSlotWeight(int)`, `getEffectiveLiveWeight()`. Weight normalization per R-006: `effectiveWeight_i = weight_i / totalWeight`. Empty slots (`!slot.occupied`) contribute zero regardless of weight. All `noexcept`, no heap allocations.
+- [X] T042 [US5] Implement `HarmonicBlender` class in `plugins/innexus/src/dsp/harmonic_blender.h` matching the contract in `specs/120-creative-extensions/contracts/harmonic_blender.h`: `setSlotWeight(int, float)`, `setLiveWeight(float)`, `blend(slots, liveFrame, liveResidual, hasLiveSource, frame, residual)`, `getEffectiveSlotWeight(int)`, `getEffectiveLiveWeight()`. Weight normalization per R-006: `effectiveWeight_i = weight_i / totalWeight`. Empty slots (`!slot.occupied`) contribute zero regardless of weight. All `noexcept`, no heap allocations.
 
-- [ ] T043 [US5] Integrate `HarmonicBlender` into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `HarmonicBlender harmonicBlender_` member. In the frame selection pipeline (FR-049): if `blendEnabled`, call `harmonicBlender_.blend(...)` to produce `currentFrame` and skip evolution. Apply smoothed slot weights and live weight each frame before calling `blend()`. Update blend weights in blender from smoothers each frame. Call `evolutionEngine_.updateWaypoints()` when blend disabled state changes (evolution needs current waypoints). Add `#include "dsp/harmonic_blender.h"`. Depends on T003, T025, T042.
+- [X] T043 [US5] Integrate `HarmonicBlender` into processor in `plugins/innexus/src/processor/processor.h` and `processor.cpp`: add `HarmonicBlender harmonicBlender_` member. In the frame selection pipeline (FR-049): if `blendEnabled`, call `harmonicBlender_.blend(...)` to produce `currentFrame` and skip evolution. Apply smoothed slot weights and live weight each frame before calling `blend()`. Update blend weights in blender from smoothers each frame. Call `evolutionEngine_.updateWaypoints()` when blend disabled state changes (evolution needs current waypoints). Add `#include "dsp/harmonic_blender.h"`. Depends on T003, T025, T042.
 
 ### 6.3 Cross-Platform Verification
 
-- [ ] T044 [US5] Check all blender test files for `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found.
+- [X] T044 [US5] Check all blender test files for `std::isnan`/`std::isfinite`/`std::isinf` and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if found.
 
-- [ ] T045 [US5] Build `innexus_tests` target, verify zero warnings, run all tests. Verify SC-006 (blended centroid within +/-10% of mean of two source centroids), verify SC-011 (single-source blend == direct recall).
+- [X] T045 [US5] Build `innexus_tests` target, verify zero warnings, run all tests. Verify SC-006 (blended centroid within +/-10% of mean of two source centroids), verify SC-011 (single-source blend == direct recall).
 
 ### 6.4 Commit
 
-- [ ] T046 [US5] **Commit completed User Story 5 work**: `harmonic_blender.h`, processor integration, blend priority logic, tests.
+- [X] T046 [US5] **Commit completed User Story 5 work**: `harmonic_blender.h`, processor integration, blend priority logic, tests.
 
 **Checkpoint**: US5 complete. Multi-source blending weights up to 8 stored snapshots + 1 live source. Tests verify SC-006, SC-011.
 

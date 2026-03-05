@@ -23,6 +23,7 @@
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
 #include "dsp/evolution_engine.h"
+#include "dsp/harmonic_blender.h"
 #include "dsp/harmonic_modulator.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
@@ -543,6 +544,11 @@ private:
     // =========================================================================
     HarmonicModulator mod1_;
     HarmonicModulator mod2_;
+
+    // =========================================================================
+    // M6: Harmonic Blender (FR-034 to FR-042)
+    // =========================================================================
+    HarmonicBlender harmonicBlender_;
 
     // =========================================================================
     // Processing State
