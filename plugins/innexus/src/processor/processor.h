@@ -318,6 +318,9 @@ public:
     float getFeedbackAmount() const { return feedbackAmount_.load(std::memory_order_relaxed); }
     float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_relaxed); }
 
+    /// @brief Get const reference to the feedback buffer (TEST ONLY, for SC-006 verification).
+    const std::array<float, 8192>& getFeedbackBuffer() const { return feedbackBuffer_; }
+
     /// @brief Send display data to controller via IMessage.
     /// Called at end of process() when output is produced.
     /// RT-Safety Note: allocateMessage() is called on the audio thread --

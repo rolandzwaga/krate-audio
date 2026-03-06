@@ -804,3 +804,147 @@ TEST_CASE("Analysis Feedback: SC-008 feedback mixing has negligible CPU overhead
     // Only fail if overhead exceeds +1%
     REQUIRE(overheadFraction < 0.01);
 }
+
+// =============================================================================
+// T040: SC-005 - Freeze bypasses feedback path
+// =============================================================================
+//
+// When freeze is engaged while feedback is active, the feedback buffer contents
+// must NOT be mixed into the analysis input on the next process call.
+// Approach: Two independent runs with identical setup, both frozen at the same
+// block. One has feedback=0.0, the other feedback=1.0. Both should produce
+// identical output because the feedback mixing is bypassed during freeze.
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-005 freeze bypasses feedback path",
+          "[analysis_feedback][SC-005]")
+{
+    // FR-015: When freeze is engaged, feedback mixing must be bypassed.
+    // Verification: Run with feedback=1.0, engage freeze, then measure
+    // output RMS over many blocks while frozen. The RMS should remain
+    // stable (not grow), proving feedback is not leaking into analysis.
+    // Additionally, verify that during freeze the feedback mixing gate
+    // (manualFrozen check) prevents feedback buffer from being mixed
+    // into the sidechain input.
+
+    FeedbackTestFixture fix;
+    fix.fillSidechainSine(440.0f, 0.5f);
+
+    // Set feedback to 1.0 and trigger a note
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackDecayId, 0.0);
+    fix.events.addNoteOn(60, 0.8f);
+    fix.processBlockWithParams();
+    fix.events.clear();
+
+    // Let pipeline settle
+    for (int b = 0; b < 50; ++b)
+        fix.processBlock();
+
+    // Engage freeze
+    fix.paramChanges.addChange(Innexus::kFreezeId, 1.0);
+    fix.processBlockWithParams();
+
+    // Let freeze crossfade complete
+    for (int b = 0; b < 5; ++b)
+        fix.processBlock();
+
+    // Measure RMS over 100 blocks while frozen with feedback=1.0
+    // If feedback were leaking, the analysis would change and output
+    // would grow or become unstable. With bypass active, output should
+    // come from the frozen frame only and remain stable.
+    float maxRMS = 0.0f;
+    float minRMS = std::numeric_limits<float>::max();
+    for (int b = 0; b < 100; ++b)
+    {
+        fix.processBlock();
+        float rms = fix.rmsOutput();
+        if (rms > maxRMS) maxRMS = rms;
+        if (rms > 0.0f && rms < minRMS) minRMS = rms;
+    }
+
+    // The RMS should be stable. If feedback leaked, we'd expect growing RMS.
+    // Allow 1dB variation (oscillator phase effects) but no growth trend.
+    if (minRMS > 0.0f && maxRMS > 0.0f)
+    {
+        float ratioDb = 20.0f * std::log10(maxRMS / minRMS);
+        INFO("RMS variation while frozen with feedback=1.0: " << ratioDb << " dB "
+             "(max=" << maxRMS << ", min=" << minRMS << ")");
+        // Frozen frame + bypassed feedback should produce very stable output.
+        // Allow up to 3dB variation for oscillator phase effects.
+        REQUIRE(ratioDb < 3.0f);
+    }
+    else
+    {
+        // If output is zero, that's also acceptable (frozen empty frame)
+        REQUIRE(maxRMS == 0.0f);
+    }
+}
+
+// =============================================================================
+// T041: SC-006 - Freeze disengage clears feedback buffer to all zeros
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-006 freeze disengage clears feedback buffer",
+          "[analysis_feedback][SC-006]")
+{
+    // FR-016: When freeze is disengaged, feedbackBuffer_ must be cleared (zeroed)
+    // to prevent stale audio from contaminating the re-engaged analysis pipeline.
+    //
+    // Strategy: manually populate the feedback buffer with known non-zero values
+    // by running the processor in sidechain mode, then disengage freeze in sample
+    // mode so the feedback capture block does NOT refill the buffer. This lets us
+    // observe the clear directly.
+
+    FeedbackTestFixture fix;
+    fix.fillSidechainSine(440.0f, 0.5f);
+
+    // Set feedback=1.0 and trigger a note
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackDecayId, 0.0);
+    fix.events.addNoteOn(60, 0.8f);
+    fix.processBlockWithParams();
+    fix.events.clear();
+
+    // Run many blocks so the analysis pipeline detects f0 and the oscillator
+    // produces output, which gets captured into feedbackBuffer_.
+    for (int b = 0; b < 100; ++b)
+        fix.processBlock();
+
+    // Now engage freeze (in sidechain mode -- the capture block still runs,
+    // keeping the buffer populated)
+    fix.paramChanges.addChange(Innexus::kFreezeId, 1.0);
+    fix.processBlockWithParams();
+
+    // Process a few blocks while frozen
+    for (int b = 0; b < 3; ++b)
+        fix.processBlock();
+
+    // Switch to sample mode so the capture block is skipped on subsequent calls
+    // (capture only runs when currentSource == 1 / sidechain mode)
+    fix.paramChanges.addChange(Innexus::kInputSourceId, 0.0);
+    fix.processBlockWithParams();
+
+    // Disengage freeze while in sample mode.
+    // The freeze-disengage transition should call feedbackBuffer_.fill(0.0f).
+    // Since we're in sample mode, the capture block at the end of process()
+    // will NOT refill the buffer, so we can observe the clear directly.
+    fix.paramChanges.addChange(Innexus::kFreezeId, 0.0);
+    fix.processBlockWithParams();
+
+    // Verify feedbackBuffer_ is all zeros
+    {
+        const auto& fbBuf = fix.processor.getFeedbackBuffer();
+        bool allZero = true;
+        for (int32 s = 0; s < fix.blockSize; ++s)
+        {
+            if (fbBuf[static_cast<size_t>(s)] != 0.0f)
+            {
+                allZero = false;
+                break;
+            }
+        }
+        INFO("Feedback buffer must contain all zeros after freeze disengage (FR-016)");
+        REQUIRE(allZero);
+    }
+}

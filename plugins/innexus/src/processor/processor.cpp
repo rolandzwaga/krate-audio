@@ -641,6 +641,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
             manualFreezeActive_ = false;
+
+            // Spec B FR-016: Clear feedback buffer on freeze disengage
+            feedbackBuffer_.fill(0.0f);
         }
 
         previousFreezeState_ = currentFreezeState;
@@ -747,6 +750,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
             manualFreezeRecoverySamplesRemaining_ = manualFreezeRecoveryLengthSamples_;
             manualFreezeActive_ = false;
+
+            // Spec B FR-016: Clear feedback buffer on freeze disengage
+            feedbackBuffer_.fill(0.0f);
         }
 
         previousFreezeState_ = currentFreezeState;

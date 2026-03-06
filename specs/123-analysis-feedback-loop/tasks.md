@@ -195,23 +195,23 @@ No new code for the safety stack — the 5 layers are already in place from earl
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T040 [US4] Write SC-005 test: engage freeze while feedback is active, verify feedback buffer contents are not mixed into analysis input on the next process call in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-015)
-- [ ] T041 [US4] Write SC-006 test: disengage freeze, verify `feedbackBuffer_` contains all zeros immediately after the process call that disengages freeze in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-016)
-- [ ] T042 Build and confirm T040–T041 tests FAIL
+- [X] T040 [US4] Write SC-005 test: engage freeze while feedback is active, verify feedback buffer contents are not mixed into analysis input on the next process call in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-015)
+- [X] T041 [US4] Write SC-006 test: disengage freeze, verify `feedbackBuffer_` contains all zeros immediately after the process call that disengages freeze in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-016)
+- [X] T042 Build and confirm T040–T041 tests FAIL
 
 ### 6.2 Implementation
 
-- [ ] T043 [US4] Add freeze bypass gate to the feedback mixing block in `plugins/innexus/src/processor/processor.cpp`: read `freeze_` atomic alongside `feedbackAmount_` and skip the feedback mixing loop when `manualFrozen == true` (FR-015; the mixing block from T022 already reads this flag per plan.md §3.A, confirm it is wired correctly)
-- [ ] T044 [US4] Add `feedbackBuffer_.fill(0.0f)` to the freeze-disengage transition block in `plugins/innexus/src/processor/processor.cpp` (at the existing `!currentFreezeState && previousFreezeState_` branch, per plan.md §3.C) (FR-016)
+- [X] T043 [US4] Add freeze bypass gate to the feedback mixing block in `plugins/innexus/src/processor/processor.cpp`: read `freeze_` atomic alongside `feedbackAmount_` and skip the feedback mixing loop when `manualFrozen == true` (FR-015; the mixing block from T022 already reads this flag per plan.md §3.A, confirm it is wired correctly)
+- [X] T044 [US4] Add `feedbackBuffer_.fill(0.0f)` to the freeze-disengage transition block in `plugins/innexus/src/processor/processor.cpp` (at the existing `!currentFreezeState && previousFreezeState_` branch, per plan.md §3.C) (FR-016)
 
 ### 6.3 Verify
 
-- [ ] T045 [US4] Build Release and run SC-005 and SC-006 tests, confirm they pass
-- [ ] T046 [US4] Run full innexus_tests to confirm no freeze regression in existing tests
+- [X] T045 [US4] Build Release and run SC-005 and SC-006 tests, confirm they pass
+- [X] T046 [US4] Run full innexus_tests to confirm no freeze regression in existing tests
 
 ### 6.4 Commit
 
-- [ ] T047 [US4] **Commit completed User Story 4 freeze interaction work** to branch `123-analysis-feedback-loop`
+- [X] T047 [US4] **Commit completed User Story 4 freeze interaction work** to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: Freeze engages/disengages cleanly with feedback. No frozen frame corruption.
 
