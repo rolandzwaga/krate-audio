@@ -296,18 +296,18 @@ The sample mode bypass is gated by the `currentSource == 1` (sidechain) check al
 
 ### 10.1 Requirements Verification
 
-- [ ] T061 **Review ALL FR-001 through FR-020** from `specs/123-analysis-feedback-loop/spec.md` against the actual implementation — open each relevant file, find the code, cite file and line number
-- [ ] T062 **Run all SC-xxx success criteria tests** and verify measurable targets are achieved: SC-001 (bit-identical at 0.0), SC-002 (convergence), SC-003 (decay time bounds), SC-004 (output ceiling), SC-005 (freeze bypass), SC-006 (buffer clear), SC-007 (sample mode), SC-008 (CPU overhead)
-- [ ] T063 **Search for cheating patterns**: grep new code for `// placeholder`, `// TODO`, `// FIXME`; verify no test thresholds were relaxed from spec values; verify no features were removed from scope
+- [X] T061 **Review ALL FR-001 through FR-020** from `specs/123-analysis-feedback-loop/spec.md` against the actual implementation — open each relevant file, find the code, cite file and line number
+- [X] T062 **Run all SC-xxx success criteria tests** and verify measurable targets are achieved: SC-001 (bit-identical at 0.0), SC-002 (convergence), SC-003 (decay time bounds), SC-004 (output ceiling), SC-005 (freeze bypass), SC-006 (buffer clear), SC-007 (sample mode), SC-008 (CPU overhead)
+- [X] T063 **Search for cheating patterns**: grep new code for `// placeholder`, `// TODO`, `// FIXME`; verify no test thresholds were relaxed from spec values; verify no features were removed from scope
 
 ### 10.2 Run Full Test Suite
 
-- [ ] T064 Run full innexus_tests suite: `cmake --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
-- [ ] T065 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
+- [X] T064 Run full innexus_tests suite: `cmake --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T065 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
 
 ### 10.3 Fill Compliance Table in spec.md
 
-- [ ] T066 **Update `specs/123-analysis-feedback-loop/spec.md` "Implementation Verification" section** — fill every FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL) and evidence (file path, line number, test name, measured value); mark overall status COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T066 **Update `specs/123-analysis-feedback-loop/spec.md` "Implementation Verification" section** — fill every FR-xxx and SC-xxx row with status (MET/NOT MET/PARTIAL) and evidence (file path, line number, test name, measured value); mark overall status COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 10.4 Honest Self-Check
 
@@ -319,12 +319,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T067 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
+- [X] T067 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
 
 ### 10.5 Final Commit
 
-- [ ] T068 **Commit spec.md compliance table update** to branch `123-analysis-feedback-loop`
-- [ ] T069 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T068 **Commit spec.md compliance table update** to branch `123-analysis-feedback-loop`
+- [X] T069 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete.
 

@@ -242,34 +242,34 @@ grep -r "applyDynamics" plugins/innexus/src/ # Found in harmonic_physics.h:230
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
+| FR-001 | MET | `processor.cpp:408-419` -- per-sample mixing formula: `sidechainBuffer_[s] = sidechainBuffer_[s] * (1.0f - fbAmount) + fbSample` where `fbSample = tanh(feedbackBuffer_[s] * fbAmount * 2.0f) * 0.5f`. Test `SC-001` passes. |
+| FR-002 | MET | `processor.cpp:1417-1453` -- mono output captured into `feedbackBuffer_` AFTER the per-sample synthesis loop: `(out[0][s] + out[1][s]) * 0.5f`. |
+| FR-003 | MET | `processor.cpp:390-428` -- feedback mixing occurs BEFORE `liveAnalysis_.pushSamples()` at line 427. |
+| FR-004 | MET | By design: output from block N is captured at `processor.cpp:1417-1453` and used in the mixing at `processor.cpp:408-419` of block N+1, introducing exactly one block of latency. |
+| FR-005 | MET | `processor.h:529` -- `std::array<float, 8192> feedbackBuffer_{}` pre-allocated. `processor.cpp:186` -- `feedbackBuffer_.fill(0.0f)` in `setActive()`. No audio-thread allocation. |
+| FR-006 | MET | `processor.cpp:1427-1438` -- captures `(out[0][s] + out[1][s]) * 0.5f` for stereo, or `out[0][s]` for mono. |
+| FR-007 | MET | `plugin_ids.h:124` -- `kAnalysisFeedbackId = 710`. `processor.h:413` -- `std::atomic<float> feedbackAmount_{0.0f}`. `processor.cpp:1986-1988` -- clamped store. `controller.cpp:488-492` -- `RangeParameter` registered with range 0.0-1.0, default 0.0. |
+| FR-008 | MET | `plugin_ids.h:125` -- `kAnalysisFeedbackDecayId = 711`. `processor.h:414` -- `std::atomic<float> feedbackDecay_{0.2f}`. `processor.cpp:1990-1992` -- clamped store. `controller.cpp:494-498` -- `RangeParameter` registered with range 0.0-1.0, default 0.2. |
+| FR-009 | MET | `processor.cpp:413-415` -- exact formula: `std::tanh(feedbackBuffer_[s] * fbAmount * 2.0f) * 0.5f`. Matches spec. |
+| FR-010 | MET | Existing `HarmonicPhysics::applyDynamics` in `harmonic_physics.h` -- energy budget normalization is unchanged and active. No modification needed per spec. |
+| FR-011 | MET | Existing `HarmonicOscillatorBank::kOutputClamp = 2.0f` -- unchanged, verified by SC-004 test. |
+| FR-012 | MET | Existing confidence gate at `processor.cpp:904-957` -- auto-freeze engages when `f0Confidence < kConfidenceThreshold`. No changes needed. |
+| FR-013 | MET | `processor.cpp:1441-1451` -- `decayCoeff = std::exp(-decayAmount * count / sampleRate_)` then `feedbackBuffer_[s] *= decayCoeff`. Matches spec formula exactly. |
+| FR-014 | MET | `processor.cpp:387-388` -- feedback mixing gated by `currentSource == 1`. `processor.cpp:1422` -- capture gated by `currentSource == 1`. Test `SC-007` passes. |
+| FR-015 | MET | `processor.cpp:395` -- `if (fbAmount > 0.0f && !manualFrozen)` -- feedback mixing is bypassed when freeze is active. Test `SC-005` passes. |
+| FR-016 | MET | `processor.cpp:646` -- `feedbackBuffer_.fill(0.0f)` in early-return freeze disengage path. `processor.cpp:755` -- `feedbackBuffer_.fill(0.0f)` in main freeze disengage path. Test `SC-006` passes. |
+| FR-017 | MET | `processor.cpp:2198-2200` -- getState writes both floats. `processor.cpp:2646-2657` -- setState reads both with clamping. Tests in `test_state_v8.cpp` pass. |
+| FR-018 | MET | `processor.cpp:186` -- `feedbackBuffer_.fill(0.0f)` in `setActive(true)`. Buffer is zeroed on each activation; never persisted. |
+| FR-019 | MET | `processor.cpp:395` -- early-out `if (fbAmount > 0.0f ...)` means when fbAmount=0.0, the entire mixing block is skipped. Test `SC-001` verifies bit-identical output. |
+| FR-020 | MET | `processor.cpp:2046` -- `streamer.writeInt32(8)` writes version 8. `processor.cpp:2648-2649` -- defaults set before version check. `processor.cpp:2651` -- `if (version >= 8)` reads v8 data. `controller.cpp:896-908` -- mirrors same logic. Tests `StateV8: getState writes version 8`, `StateV8: loading v7 state defaults FeedbackAmount to 0.0 and FeedbackDecay to 0.2` pass. |
+| SC-001 | MET | Test `"Analysis Feedback: SC-001 FeedbackAmount=0.0 is bit-identical to baseline"` -- compares sample-by-sample, requires `identical == true`. Test passes. |
+| SC-002 | MET | Test `"Analysis Feedback: SC-002 FeedbackAmount=1.0 silent sidechain converges"` -- measures RMS at 1-second intervals over 10 seconds, checks no interval exceeds t=0 by >3dB. Threshold: `rmsAtT0 * 1.4142f` (sqrt(2) = +3dB). Test passes. |
+| SC-003 | MET | Two tests: `"SC-003 decay=1.0 reaches silence within 10 seconds"` uses threshold `0.001f` (-60dBFS) at 44.1kHz/512 blocks. `"SC-003 decay=0.5 reaches silence within 60 seconds"` uses same threshold. Both pass. Thresholds match spec exactly. |
+| SC-004 | MET | Test `"Analysis Feedback: SC-004 output never exceeds kOutputClamp"` -- checks against `HarmonicOscillatorBank::kOutputClamp` (2.0f) across 4 parameter combinations over 200 blocks. Also checks for NaN. Test passes. |
+| SC-005 | MET | Test `"Analysis Feedback: SC-005 freeze bypasses feedback path"` -- engages freeze with feedback=1.0/decay=0.0, measures RMS stability over 100 blocks, requires <3dB variation. Test passes. |
+| SC-006 | MET | Test `"Analysis Feedback: SC-006 freeze disengage clears feedback buffer"` -- accesses `getFeedbackBuffer()` directly, verifies all samples == 0.0f after freeze disengage. Test passes. |
+| SC-007 | MET | Test `"Analysis Feedback: SC-007 sample mode ignores FeedbackAmount"` -- two independent runs in sample mode (fb=0.0 vs fb=1.0), bit-identical comparison. Test passes. |
+| SC-008 | MET | Test `"Analysis Feedback: SC-008 feedback mixing has negligible CPU overhead"` -- code-structure verification documented in test comment, timing check requires overhead < 1% (`overheadFraction < 0.01`). Test passes. |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -279,20 +279,19 @@ grep -r "applyDynamics" plugins/innexus/src/ # Found in harmonic_physics.h:230
 
 ### Completion Checklist
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
+Build: 0 warnings. Tests: 398 test cases, 1,065,385 assertions, all passed. Pluginval: PASS at strictness level 5.
 
-**Recommendation**: [What needs to happen to achieve completion]
+**Recommendation**: All 20 FR and 8 SC requirements are met. No gaps to address.
