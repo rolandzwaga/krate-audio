@@ -96,6 +96,14 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 - What happens when all five safety mechanisms engage simultaneously? They are layered and independent; simultaneous engagement produces a more aggressively bounded output, which is the correct behavior.
 - What happens when confidence drops due to feedback-induced garbage in the analysis? The existing confidence gate auto-freezes, preventing garbage harmonics from reaching the oscillator bank. This acts as a fifth safety layer.
 
+## Clarifications
+
+### Session 2026-03-06
+
+- Q: What formula should FR-013 use for per-block FeedbackDecay application? → A: Exponential time-based coefficient: `decayCoeff = exp(-decayAmount * blockSize / sampleRate); feedbackBuffer[s] *= decayCoeff`. Time-consistent and independent of block size/sample rate.
+- Q: What state version should this spec write, and how should setState handle older states? → A: Version 8 (sequential from Spec A's version 7). States with version < 8 default FeedbackAmount=0.0 and FeedbackDecay=0.2.
+- Q: What are the concrete measurable bounds for SC-003 ("reasonable time" was untestable)? → A: RMS below -60dBFS within 10 seconds at decay=1.0 and within 60 seconds at decay=0.5, measured at 44.1kHz with 512-sample blocks.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -123,7 +131,7 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 - **FR-010**: The existing per-frame energy budget normalization in the HarmonicPhysics dynamics processor (Spec A) MUST act as a secondary safety net, preventing the total harmonic energy from exceeding the frame's global amplitude budget.
 - **FR-011**: The existing hard output clamp (`HarmonicOscillatorBank::kOutputClamp = 2.0f`) MUST remain active as a tertiary safety net clamping the final synthesized output.
 - **FR-012**: The existing confidence gate in the live analysis pipeline MUST continue to function: if feedback produces garbage analysis frames, confidence drops and auto-freeze engages, preventing garbage harmonics from reaching the oscillator bank.
-- **FR-013**: The FeedbackDecay parameter MUST apply a per-block decay to the feedback buffer contents, reducing the stored signal energy over time. Higher decay values produce faster energy dissipation.
+- **FR-013**: The FeedbackDecay parameter MUST apply a per-block exponential decay to the feedback buffer contents using the formula: `decayCoeff = exp(-decayAmount * blockSize / sampleRate)`, then `feedbackBuffer[s] *= decayCoeff` for each sample (applied uniformly after capture). This formula is time-consistent: the effective decay rate is independent of block size and sample rate because the exponent normalizes by both. At decay=0.0 the coefficient approaches 1.0 (no attenuation); at decay=1.0 the coefficient produces rapid exponential decay to silence. Higher decay values produce faster energy dissipation.
 
 **Mode Restrictions:**
 
@@ -138,6 +146,7 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 
 - **FR-017**: Both FeedbackAmount and FeedbackDecay parameter values MUST be saved and restored with plugin state (setState/getState).
 - **FR-018**: The feedback buffer itself MUST NOT be persisted -- it is transient runtime state that starts empty (zeroed) on each activation.
+- **FR-020**: The plugin state version MUST be incremented to 8 (from Spec A's version 7). `getState()` MUST write version 8. `setState()` MUST handle backwards compatibility: when reading a state with version < 8, FeedbackAmount MUST default to 0.0 and FeedbackDecay MUST default to 0.2 (matching the parameter defaults), preserving identical behavior for presets saved before this spec.
 
 **No Regression:**
 
@@ -157,7 +166,7 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 
 - **SC-001**: With FeedbackAmount=0.0, the plugin output MUST be identical to the output of the current implementation (no regression). This is verified by comparing output buffers sample-by-sample.
 - **SC-002**: With FeedbackAmount=1.0 and silence as sidechain input, the synth output MUST converge to a stable state or decay to silence (not diverge). Output RMS measured over 10 seconds must not show an increasing trend.
-- **SC-003**: With FeedbackAmount=1.0, FeedbackDecay > 0, and no sidechain input, the output MUST decay to silence (RMS below -60dB) within a reasonable time proportional to the decay parameter.
+- **SC-003**: With FeedbackAmount=1.0, FeedbackDecay > 0, and no sidechain input, the output MUST decay to silence (RMS below -60dBFS) within the following bounds, measured at 44.1kHz with 512-sample blocks: decay=1.0 within 10 seconds; decay=0.5 within 60 seconds. These bounds follow from the exponential decay formula in FR-013. Tests MUST use these specific parameter values and block configuration.
 - **SC-004**: Output RMS MUST never exceed a defined ceiling (determined by the hard output clamp of 2.0 and the energy budget) regardless of feedback amount, decay, or input signal characteristics.
 - **SC-005**: Engaging freeze while feedback is active MUST result in the feedback path being bypassed within the same process() call. The frozen frame MUST remain unmodified.
 - **SC-006**: Disengaging freeze MUST clear the feedback buffer. Verified by confirming the feedback buffer contains all zeros after freeze disengage.
@@ -252,6 +261,7 @@ grep -r "applyDynamics" plugins/innexus/src/ # Found in harmonic_physics.h:230
 | FR-017 | | |
 | FR-018 | | |
 | FR-019 | | |
+| FR-020 | | |
 | SC-001 | | |
 | SC-002 | | |
 | SC-003 | | |
