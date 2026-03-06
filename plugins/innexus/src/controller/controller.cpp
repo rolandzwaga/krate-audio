@@ -15,6 +15,7 @@
 #include "controller/views/evolution_position_view.h"
 #include "controller/views/modulator_activity_view.h"
 #include "controller/modulator_sub_controller.h"
+#include "controller/sample_drop_target.h"
 #include "ui/update_banner_view.h"
 
 #include "vstgui/uidescription/uiattributes.h"
@@ -1103,6 +1104,18 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of sample load panel
     updateSampleLoadVisibility();
 
+    // Add drag-and-drop overlay to the frame (topmost child, transparent)
+    if (auto* frame = editor->getFrame())
+    {
+        auto frameSize = frame->getViewSize();
+        auto* overlay = new SampleDropOverlayView(
+            VSTGUI::CRect(0, 0, frameSize.getWidth(), frameSize.getHeight()), this);
+        overlay->setTransparency(true);
+        overlay->setMouseEnabled(true);
+        frame->addView(overlay);
+        sampleDropOverlay_ = overlay;
+    }
+
     // Start update banner polling
     if (updateBannerView_)
         updateBannerView_->startPolling();
@@ -1125,6 +1138,14 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     {
         updateBannerView_->stopPolling();
         updateBannerView_ = nullptr;
+    }
+
+    // Remove drag-and-drop overlay from frame
+    if (sampleDropOverlay_)
+    {
+        if (auto* frame = sampleDropOverlay_->getFrame())
+            frame->removeView(sampleDropOverlay_);
+        sampleDropOverlay_ = nullptr;
     }
 
     // Null all custom view pointers (VSTGUI owns the views)

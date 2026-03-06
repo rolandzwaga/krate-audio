@@ -119,6 +119,7 @@ private:
     // Sample load UI pointers (VSTGUI-owned, nulled in willClose)
     VSTGUI::CTextLabel* sampleFilenameLabel_ = nullptr;
     VSTGUI::CView* sampleLoadContainer_ = nullptr;
+    VSTGUI::CView* sampleDropOverlay_ = nullptr;
 
     // Cached sample filename for display across editor open/close
     std::string loadedSampleFilename_;

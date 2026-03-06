@@ -93,6 +93,7 @@ add_executable(innexus_tests
     unit/controller/test_modulator_activity_view.cpp
     unit/controller/test_modulator_sub_controller.cpp
     unit/controller/test_controller_ui.cpp
+    unit/controller/test_sample_drop.cpp
 
     # UI custom view implementations (needed by controller tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/harmonic_display_view.cpp
