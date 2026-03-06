@@ -281,8 +281,8 @@ The sample mode bypass is gated by the `currentSource == 1` (sidechain) check al
 
 ### 9.2 Final Commit
 
-- [ ] T059 **Commit architecture documentation updates** to branch `123-analysis-feedback-loop`
-- [ ] T060 Verify all spec work is committed: `git status` should show a clean working tree on branch `123-analysis-feedback-loop`
+- [X] T059 **Commit architecture documentation updates** to branch `123-analysis-feedback-loop`
+- [X] T060 Verify all spec work is committed: `git status` should show a clean working tree on branch `123-analysis-feedback-loop`
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
