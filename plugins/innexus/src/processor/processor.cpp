@@ -1244,6 +1244,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         float sampleL = harmonicL * harmLevel + resContrib;
         float sampleR = harmonicR * harmLevel + resContrib;
 
+        // --- Source switch crossfade (FR-011) ---
+        if (sourceCrossfadeSamplesRemaining_ > 0)
+        {
+            float fadeProgress = static_cast<float>(sourceCrossfadeSamplesRemaining_) /
+                                 static_cast<float>(sourceCrossfadeLengthSamples_);
+            sampleL = sourceCrossfadeOldLevel_ * fadeProgress +
+                      sampleL * (1.0f - fadeProgress);
+            sampleR = sourceCrossfadeOldLevel_ * fadeProgress +
+                      sampleR * (1.0f - fadeProgress);
+            sourceCrossfadeSamplesRemaining_--;
+        }
+
         // --- Freeze recovery crossfade (FR-053) ---
         if (freezeRecoverySamplesRemaining_ > 0)
         {

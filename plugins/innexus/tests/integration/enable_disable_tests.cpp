@@ -475,7 +475,10 @@ TEST_CASE("EnableDisable: Toggle sidechain mode while note is playing",
         f.processBlock(&params);
     }
 
-    // No crash, audio continues
+    // Crossfade should initiate
+    REQUIRE(f.processor.getSourceCrossfadeSamplesRemaining() > 0);
+
+    // Process blocks until crossfade completes
     bool anyNaN = false;
     for (int b = 0; b < 30; ++b)
     {
@@ -484,6 +487,7 @@ TEST_CASE("EnableDisable: Toggle sidechain mode while note is playing",
     }
 
     REQUIRE_FALSE(anyNaN);
+    REQUIRE(f.processor.getSourceCrossfadeSamplesRemaining() == 0);
 
     // Switch back to sample mode
     {
@@ -492,6 +496,8 @@ TEST_CASE("EnableDisable: Toggle sidechain mode while note is playing",
         f.processBlock(&params);
     }
 
+    REQUIRE(f.processor.getSourceCrossfadeSamplesRemaining() > 0);
+
     for (int b = 0; b < 30; ++b)
     {
         f.processBlock();
@@ -499,6 +505,7 @@ TEST_CASE("EnableDisable: Toggle sidechain mode while note is playing",
     }
 
     REQUIRE_FALSE(anyNaN);
+    REQUIRE(f.processor.getSourceCrossfadeSamplesRemaining() == 0);
 }
 
 TEST_CASE("EnableDisable: Enable evolution engine mid-note",
