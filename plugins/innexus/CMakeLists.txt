@@ -53,6 +53,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Processor (Audio Thread)
     src/processor/processor.h
     src/processor/processor.cpp
+    src/processor/processor_params.cpp
+    src/processor/processor_state.cpp
+    src/processor/processor_midi.cpp
+    src/processor/processor_messages.cpp
 
     # Controller (UI Thread)
     src/controller/controller.h

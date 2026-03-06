@@ -5,6 +5,30 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-03-06
+
+### Added
+
+- **Analysis Feedback Loop** — Self-evolving timbral system that feeds the synth's output back into its own analysis pipeline, creating emergent harmonic behavior
+- **Feedback Amount parameter** (ID 710) — Controls the mix ratio of synth output into the analysis input (0.0–1.0, default 0.0); at 0.0 the signal flow is bit-identical to pre-feedback behavior (SC-001); at higher values, harmonics self-reinforce creating resonant attractor states
+- **Feedback Decay parameter** (ID 711) — Per-block exponential entropy leak in the feedback buffer (0.0–1.0, default 0.2); formula `exp(-decay * blockSize / sampleRate)` provides time-consistent decay independent of block size and sample rate
+- **Soft limiter** — Per-sample `tanh(fb * amount * 2.0) * 0.5` bounds feedback signal to [-0.5, +0.5] before mixing with sidechain input
+- **5-layer safety stack** — Soft limiter (new) + energy budget normalization (existing) + hard output clamp at 2.0f (existing) + confidence gate auto-freeze (existing) + feedback decay (new); guarantees bounded output under all parameter combinations
+- **Freeze interaction** — Feedback path automatically bypassed when freeze is engaged (FR-015); feedback buffer cleared to zeros on freeze disengage to prevent stale audio contamination (FR-016)
+- **Sample mode bypass** — Feedback is gated to sidechain mode only; in sample mode, FeedbackAmount has no effect (FR-014)
+- **State version 8** — Persists both feedback parameters with backward compatibility for v1–v7 presets (defaults to FeedbackAmount=0.0, FeedbackDecay=0.2 on older state load)
+
+### Performance
+
+- Feedback=0.0: bit-identical output, no regression (SC-001)
+- Feedback=1.0 with silent input: converges, no interval exceeds t=0 RMS by >3dB over 10s (SC-002)
+- Decay=1.0: reaches -60dBFS silence within 10 seconds; decay=0.5: within 60 seconds (SC-003)
+- Output never exceeds kOutputClamp (2.0f) under any parameter combination (SC-004)
+- Freeze bypass verified within same process() call (SC-005)
+- Feedback buffer zeroed on freeze disengage (SC-006)
+- Sample mode: bit-identical regardless of FeedbackAmount (SC-007)
+- CPU overhead: <1% additional over baseline (SC-008)
+
 ## [0.8.0] - 2026-03-06
 
 ### Added

@@ -7,6 +7,7 @@
 #include "parameters/innexus_params.h"
 #include "plugin_ids.h"
 #include "update/innexus_update_config.h"
+#include "version.h"
 
 #include "controller/views/harmonic_display_view.h"
 #include "controller/views/confidence_indicator_view.h"
@@ -14,6 +15,7 @@
 #include "controller/views/evolution_position_view.h"
 #include "controller/views/modulator_activity_view.h"
 #include "controller/modulator_sub_controller.h"
+#include "ui/update_banner_view.h"
 
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/lib/controls/ctextlabel.h"
@@ -1041,6 +1043,19 @@ VSTGUI::CView* Controller::createCustomView(
         sampleFilenameLabel_ = label;
         return label;
     }
+    if (viewName == "VersionLabel")
+    {
+        auto* label = new VSTGUI::CTextLabel(viewRect);
+        label->setTransparency(true);
+        label->setText("Innexus v" VERSION_STR " | Krate Audio");
+        return label;
+    }
+    if (viewName == "UpdateBanner")
+    {
+        auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
+        updateBannerView_ = banner;
+        return banner;
+    }
 
     return nullptr;
 }
@@ -1087,6 +1102,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
 
     // Set initial visibility of sample load panel
     updateSampleLoadVisibility();
+
+    // Start update banner polling
+    if (updateBannerView_)
+        updateBannerView_->startPolling();
 }
 
 // ==============================================================================
@@ -1099,6 +1118,13 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     {
         displayTimer_->stop();
         displayTimer_ = nullptr;
+    }
+
+    // Stop update banner polling
+    if (updateBannerView_)
+    {
+        updateBannerView_->stopPolling();
+        updateBannerView_ = nullptr;
     }
 
     // Null all custom view pointers (VSTGUI owns the views)

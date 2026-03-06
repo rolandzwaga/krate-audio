@@ -69,6 +69,10 @@ add_executable(innexus_tests
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_params.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_midi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_messages.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
 
     # Sample analyzer implementation

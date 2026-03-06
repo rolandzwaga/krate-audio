@@ -25,6 +25,10 @@
 #include <memory>
 #include <string>
 
+namespace Krate::Plugins {
+class UpdateBannerView;
+}
+
 namespace Innexus {
 
 // Forward declarations for custom views
@@ -119,6 +123,9 @@ private:
     // Cached sample filename for display across editor open/close
     std::string loadedSampleFilename_;
     std::string loadedSampleFullPath_;
+
+    // Update banner view (VSTGUI-owned, nulled in willClose)
+    Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
 
     // Active editor pointer for visibility controllers
     VSTGUI::VST3Editor* activeEditor_ = nullptr;
