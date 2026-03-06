@@ -5,6 +5,39 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-03-06
+
+### Added
+
+- **M7: Plugin UI** — Full VSTGUI interface with custom views, display data pipeline, and modulator sub-controllers
+- **HarmonicDisplayView** — Real-time harmonic spectrum visualization showing per-partial amplitudes as vertical bars
+- **ConfidenceIndicatorView** — F0 confidence meter with color-coded thresholds (green/yellow/red)
+- **MemorySlotStatusView** — 8-slot grid showing occupied/empty/selected state for harmonic memory
+- **EvolutionPositionView** — Visual indicator of evolution engine's current interpolation position across memory slots
+- **ModulatorActivityView** — Per-modulator activity display showing LFO phase and depth
+- **ModulatorSubController** — VSTGUI sub-controller enabling per-modulator template instantiation with tag remapping
+- **DisplayData pipeline** (FR-048, FR-049) — Timer-driven IMessage updates from processor to controller at ~30 Hz for real-time UI feedback
+- **Sample Load button** — Custom CView-based file selector (WAV/AIFF) following cross-platform OutlineButton pattern; replaces broken CTextButton approach
+- **Sample filename display** — Shows loaded sample name in the UI, persisted across editor open/close
+
+### Fixed
+
+- **Sample Load button crash** — CTextButton with unregistered control-tag (998) caused heap corruption via VSTGUI's ParameterChangeListener system; replaced with tag-free custom CView
+- **Residual synthesizer output level** — Residual noise was ~600,000x louder than harmonic oscillator, drowning out pitched content; two issues fixed:
+  - Spectral envelope (band energies) were raw FFT magnitudes used as amplitude multipliers; now normalized to unit RMS for shape-only control
+  - `totalEnergy` was at FFT-domain scale; now divided by `fftSize` to convert to time-domain amplitude via Parseval's theorem
+- **Residual analyzer harmonic subtraction** — L2-normalized partial amplitudes scaled by `globalAmplitude` (RMS) for better time-domain amplitude matching during harmonic subtraction
+
+### Added (Tests)
+
+- **E2E sample load tests** — 5 end-to-end tests verifying the full WAV file -> SampleAnalyzer -> Processor -> pitched audio pipeline:
+  - SampleAnalyzer extracts f0 from sine WAV
+  - Resynthesized output matches MIDI note pitch
+  - Different MIDI notes produce different pitches (tuning verification)
+  - Multi-harmonic WAV preserves harmonic structure
+  - Output is tonal, not noise (spectral peak dominance)
+- Goertzel frequency detection and minimal WAV file writer test helpers
+
 ## [0.6.0] - 2026-03-06
 
 ### Added
