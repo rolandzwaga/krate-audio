@@ -227,19 +227,19 @@ No new code for the safety stack — the 5 layers are already in place from earl
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T048 [US5] Write SC-007 test: set input source to sample mode, compare output buffers with FeedbackAmount=0.0 vs FeedbackAmount=1.0, verify they are bit-identical in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-014)
-- [ ] T049 Build and confirm T048 test FAILS. If it passes before T050's implementation step is confirmed complete, document why (the `InputSource::Sidechain` gate in T022/T023 already enforces sample mode bypass) and mark the test as a regression guard going forward — a test that passes before implementation because the gate was already in place is still valid; it proves the gate functions correctly. Do not skip or remove the test.
+- [X] T048 [US5] Write SC-007 test: set input source to sample mode, compare output buffers with FeedbackAmount=0.0 vs FeedbackAmount=1.0, verify they are bit-identical in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-014)
+- [X] T049 Build and confirm T048 test FAILS. If it passes before T050's implementation step is confirmed complete, document why (the `InputSource::Sidechain` gate in T022/T023 already enforces sample mode bypass) and mark the test as a regression guard going forward — a test that passes before implementation because the gate was already in place is still valid; it proves the gate functions correctly. Do not skip or remove the test.
 
 ### 7.2 Implementation
 
 The sample mode bypass is gated by the `currentSource == 1` (sidechain) check already present in the mixing block (T022) and capture block (T023). No new code should be needed.
 
-- [ ] T050 [US5] Confirm the feedback mixing block and feedback capture block both check `InputSource::Sidechain` before executing; if any path is missing the guard, add it to `plugins/innexus/src/processor/processor.cpp` (FR-014)
+- [X] T050 [US5] Confirm the feedback mixing block and feedback capture block both check `InputSource::Sidechain` before executing; if any path is missing the guard, add it to `plugins/innexus/src/processor/processor.cpp` (FR-014)
 
 ### 7.3 Verify
 
-- [ ] T051 [US5] Build Release and run SC-007 test, confirm it passes
-- [ ] T052 [US5] Run full innexus_tests to confirm no regressions
+- [X] T051 [US5] Build Release and run SC-007 test, confirm it passes
+- [X] T052 [US5] Run full innexus_tests to confirm no regressions
 
 ### 7.4 Commit
 

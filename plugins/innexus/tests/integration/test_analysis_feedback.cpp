@@ -948,3 +948,85 @@ TEST_CASE("Analysis Feedback: SC-006 freeze disengage clears feedback buffer",
         REQUIRE(allZero);
     }
 }
+
+// =============================================================================
+// T048: SC-007 - Sample mode: FeedbackAmount has no effect on output
+// =============================================================================
+//
+// FR-014: Feedback MUST only be active in sidechain mode. In sample mode,
+// the feedback path MUST be completely bypassed regardless of FeedbackAmount.
+//
+// Strategy: Two independent runs in sample mode with identical setup.
+// Run 1: FeedbackAmount=0.0. Run 2: FeedbackAmount=1.0.
+// Both outputs must be bit-identical, proving feedback has no effect in
+// sample mode. The InputSource::Sidechain gate in the mixing block (T022)
+// and capture block (T023) already enforces this; this test is a regression
+// guard confirming that gate functions correctly.
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-007 sample mode ignores FeedbackAmount",
+          "[analysis_feedback][SC-007]")
+{
+    const int settleBlocks = 40;
+
+    // Run 1: Sample mode with FeedbackAmount=0.0
+    std::vector<float> outL_fb0;
+    std::vector<float> outR_fb0;
+    {
+        FeedbackTestFixture fix;
+
+        // Switch to sample mode (InputSource::Sample = 0)
+        fix.paramChanges.addChange(Innexus::kInputSourceId, 0.0);
+        fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 0.0);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+
+        // Let pipeline settle
+        for (int b = 0; b < settleBlocks; ++b)
+            fix.processBlock();
+
+        // Capture output
+        fix.processBlock();
+        outL_fb0 = fix.outL;
+        outR_fb0 = fix.outR;
+    }
+
+    // Run 2: Sample mode with FeedbackAmount=1.0
+    std::vector<float> outL_fb1;
+    std::vector<float> outR_fb1;
+    {
+        FeedbackTestFixture fix;
+
+        // Switch to sample mode (InputSource::Sample = 0)
+        fix.paramChanges.addChange(Innexus::kInputSourceId, 0.0);
+        fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+
+        // Let pipeline settle
+        for (int b = 0; b < settleBlocks; ++b)
+            fix.processBlock();
+
+        // Capture output
+        fix.processBlock();
+        outL_fb1 = fix.outL;
+        outR_fb1 = fix.outR;
+    }
+
+    // Outputs must be bit-identical
+    bool identical = true;
+    for (size_t i = 0; i < outL_fb0.size(); ++i)
+    {
+        if (outL_fb0[i] != outL_fb1[i] || outR_fb0[i] != outR_fb1[i])
+        {
+            identical = false;
+            break;
+        }
+    }
+
+    INFO("In sample mode, FeedbackAmount=0.0 and FeedbackAmount=1.0 "
+         "must produce bit-identical output (FR-014)");
+    REQUIRE(identical);
+}
