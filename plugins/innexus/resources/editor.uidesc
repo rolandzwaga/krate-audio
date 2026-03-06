@@ -106,6 +106,10 @@
     <control-tag name="Stability" tag="702"/>
     <control-tag name="Entropy" tag="703"/>
 
+    <!-- Analysis Feedback Loop (710-711) -->
+    <control-tag name="FeedbackAmount" tag="710"/>
+    <control-tag name="FeedbackDecay" tag="711"/>
+
     <!-- Template tags for modulator sub-controller remapping -->
     <control-tag name="Mod.Enable" tag="610"/>
     <control-tag name="Mod.Waveform" tag="611"/>
@@ -213,7 +217,7 @@
     <!-- FR-022, FR-023, FR-024, FR-025                                 -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 200" size="390, 140"
-          title="Musical Control" border-color="text-dim"
+          title="Musical Control" fieldset-title="Musical Control" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-022: Freeze toggle (prominent) -->
@@ -270,7 +274,7 @@
     <!-- FR-016 to FR-021                                                -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="400, 200" size="395, 140"
-          title="Oscillator / Residual" border-color="text-dim"
+          title="Oscillator / Residual" fieldset-title="Oscillator / Residual" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-016: Release Time -->
@@ -356,7 +360,7 @@
     <!-- MEMORY SECTION (Y 345-420) - FR-026 to FR-029                  -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 345" size="170, 115"
-          title="Memory" border-color="text-dim"
+          title="Memory" fieldset-title="Memory" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-026: Memory Slot selector -->
@@ -396,7 +400,7 @@
     <!-- CROSS-SYNTHESIS / STEREO (Y 345-420) - FR-030, FR-031          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="180, 345" size="145, 115"
-          title="Cross / Stereo" border-color="text-dim"
+          title="Cross / Stereo" fieldset-title="Cross / Stereo" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-030: Timbral Blend -->
@@ -430,7 +434,7 @@
     <!-- EVOLUTION SECTION (Y 345-470) - FR-032 to FR-036               -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="330, 345" size="200, 115"
-          title="Evolution" border-color="text-dim"
+          title="Evolution" fieldset-title="Evolution" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-032: Evolution Enable -->
@@ -489,7 +493,7 @@
     <!-- DETUNE SECTION (Y 345-420) - FR-041                            -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="535, 345" size="75, 115"
-          title="Detune" border-color="text-dim"
+          title="Detune" fieldset-title="Detune" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-041: Detune Spread -->
@@ -526,7 +530,7 @@
     <!-- BLEND SECTION (Y 465-585) - FR-042 to FR-045                   -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="405, 465" size="390, 130"
-          title="Blend" border-color="text-dim"
+          title="Blend" fieldset-title="Blend" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- FR-042: Blend Enable -->
@@ -652,68 +656,105 @@
     <!-- ============================================================== -->
     <!-- HARMONIC PHYSICS SECTION (Y 600-695)                           -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 600" size="790, 95"
-          title="Harmonic Physics" border-color="text-dim"
+    <view class="FieldsetContainer" origin="5, 600" size="540, 95"
+          title="Harmonic Physics" fieldset-title="Harmonic Physics" border-color="text-dim"
           title-font="section-font" title-color="text-secondary">
 
       <!-- Warmth -->
-      <view class="ArcKnob" origin="78, 18" size="42, 42"
+      <view class="ArcKnob" origin="35, 18" size="42, 42"
             control-tag="Warmth" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="73, 60" size="52, 12"
+      <view class="CParamDisplay" origin="30, 60" size="52, 12"
             control-tag="Warmth" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="73, 72" size="52, 10"
+      <view class="CTextLabel" origin="30, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Warmth"/>
 
       <!-- Coupling -->
-      <view class="ArcKnob" origin="275, 18" size="42, 42"
+      <view class="ArcKnob" origin="165, 18" size="42, 42"
             control-tag="Coupling" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="270, 60" size="52, 12"
+      <view class="CParamDisplay" origin="160, 60" size="52, 12"
             control-tag="Coupling" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="270, 72" size="52, 10"
+      <view class="CTextLabel" origin="160, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Coupling"/>
 
       <!-- Stability -->
-      <view class="ArcKnob" origin="473, 18" size="42, 42"
+      <view class="ArcKnob" origin="295, 18" size="42, 42"
             control-tag="Stability" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="468, 60" size="52, 12"
+      <view class="CParamDisplay" origin="290, 60" size="52, 12"
             control-tag="Stability" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="468, 72" size="52, 10"
+      <view class="CTextLabel" origin="290, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Stability"/>
 
       <!-- Entropy -->
-      <view class="ArcKnob" origin="670, 18" size="42, 42"
+      <view class="ArcKnob" origin="425, 18" size="42, 42"
             control-tag="Entropy" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="665, 60" size="52, 12"
+      <view class="CParamDisplay" origin="420, 60" size="52, 12"
             control-tag="Entropy" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="665, 72" size="52, 10"
+      <view class="CTextLabel" origin="420, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Entropy"/>
     </view>
 
-    <!-- Bottom credit line -->
-    <view class="CTextLabel" origin="615, 696" size="180, 14"
+    <!-- ============================================================== -->
+    <!-- ANALYSIS FEEDBACK SECTION (Y 600-695)                          -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="550, 600" size="245, 95"
+          title="Feedback" fieldset-title="Feedback" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- Feedback Amount -->
+      <view class="ArcKnob" origin="30, 18" size="42, 42"
+            control-tag="FeedbackAmount" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="25, 60" size="52, 12"
+            control-tag="FeedbackAmount" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="25, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Amount"/>
+
+      <!-- Feedback Decay -->
+      <view class="ArcKnob" origin="145, 18" size="42, 42"
+            control-tag="FeedbackDecay" default-value="0.2"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="140, 60" size="52, 12"
+            control-tag="FeedbackDecay" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="140, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Decay"/>
+    </view>
+
+    <!-- Bottom credit line (version from version.h) -->
+    <view class="CTextLabel" custom-view-name="VersionLabel"
+          origin="575, 696" size="220, 14"
           text-alignment="right" font="value-font"
-          font-color="text-dim" back-color="~ TransparentCColor"
-          title="Innexus | Krate Audio"/>
+          font-color="text-dim" back-color="~ TransparentCColor"/>
+
+    <!-- Update Banner (last child = highest z-index, paints on top of everything) -->
+    <view custom-view-name="UpdateBanner" origin="0, 0" size="800, 60" autosize="left right"/>
   </template>
 
   <!-- ================================================================== -->
@@ -721,7 +762,7 @@
   <!-- FR-037 to FR-040                                                    -->
   <!-- ================================================================== -->
   <template name="modulator_panel" class="FieldsetContainer" size="195, 130"
-            title="Modulator" border-color="text-dim"
+            title="Modulator" fieldset-title="Modulator" border-color="text-dim"
             title-font="section-font" title-color="text-secondary">
 
     <!-- Enable toggle -->

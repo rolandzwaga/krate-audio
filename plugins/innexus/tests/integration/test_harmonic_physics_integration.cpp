@@ -532,3 +532,144 @@ TEST_CASE("HarmonicPhysics Integration: each parameter independently affects out
         }
     }
 }
+
+// =============================================================================
+// Bug regression: small stability/entropy values cause massive volume drop
+// =============================================================================
+// The energy budget normalization in applyDynamics used globalAmplitude^2 as
+// the budget, but partial amplitudes are L2-normalized (sum of squares ≈ 1.0)
+// while globalAmplitude is the time-domain RMS (typically << 1.0). This caused
+// the normalization to crush all amplitudes when stability or entropy > 0.
+
+/// Create test analysis with L2-normalized partial amplitudes (mimics real pipeline).
+/// In the real plugin, HarmonicModelBuilder L2-normalizes partials so sum(amp^2) ≈ 1.0,
+/// while globalAmplitude tracks the much-smaller time-domain RMS.
+static Innexus::SampleAnalysis* makeL2NormalizedAnalysis(
+    int numFrames = 20,
+    float f0 = 440.0f,
+    int numPartials = 16,
+    float globalAmplitude = 0.1f)
+{
+    auto* analysis = new Innexus::SampleAnalysis();
+    analysis->sampleRate = 44100.0f;
+    analysis->hopTimeSec = 512.0f / 44100.0f;
+
+    for (int f = 0; f < numFrames; ++f)
+    {
+        Krate::DSP::HarmonicFrame frame{};
+        frame.f0 = f0;
+        frame.f0Confidence = 0.9f;
+        frame.numPartials = numPartials;
+        frame.globalAmplitude = globalAmplitude;
+        frame.spectralCentroid = 1200.0f;
+        frame.brightness = 0.5f;
+        frame.noisiness = 0.1f;
+
+        // Build raw amplitudes with 1/n rolloff, then L2-normalize
+        float sumSq = 0.0f;
+        for (int p = 0; p < numPartials; ++p)
+        {
+            auto& partial = frame.partials[static_cast<size_t>(p)];
+            partial.harmonicIndex = p + 1;
+            partial.frequency = f0 * static_cast<float>(p + 1);
+            partial.amplitude = 1.0f / static_cast<float>(p + 1);
+            partial.relativeFrequency = static_cast<float>(p + 1);
+            partial.inharmonicDeviation = 0.0f;
+            partial.stability = 1.0f;
+            partial.age = 10;
+            partial.phase = static_cast<float>(p) * 0.3f;
+            sumSq += partial.amplitude * partial.amplitude;
+        }
+        // L2-normalize: sum(amp^2) = 1.0
+        const float l2Norm = std::sqrt(sumSq);
+        for (int p = 0; p < numPartials; ++p)
+            frame.partials[static_cast<size_t>(p)].amplitude /= l2Norm;
+
+        analysis->frames.push_back(frame);
+    }
+
+    analysis->totalFrames = analysis->frames.size();
+    analysis->filePath = "test_l2_normalized.wav";
+    return analysis;
+}
+
+TEST_CASE("HarmonicPhysics Integration: small stability does not crush volume",
+          "[harmonic_physics][integration][regression]")
+{
+    // Uses L2-normalized amplitudes (sum of squares ≈ 1.0) with globalAmplitude=0.1,
+    // mimicking real pipeline conditions where the energy budget bug manifests.
+
+    // Capture baseline RMS with all physics params at 0
+    float baselineRms = 0.0f;
+    {
+        PhysicsTestFixture fix;
+        fix.injectAnalysis(makeL2NormalizedAnalysis());
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 40; ++b)
+            fix.processBlock();
+        fix.processBlock();
+        baselineRms = fix.rmsOutput();
+    }
+    REQUIRE(baselineRms > 1e-6f); // Sanity: baseline has audible output
+
+    // Now set stability to a small value (0.05) — volume should NOT drop
+    // significantly. Before the fix, this would cause ~90% volume drop
+    // because the energy budget (globalAmplitude^2 = 0.01) was far smaller
+    // than the L2-normalized partial energy (≈ 1.0).
+    float stabilityRms = 0.0f;
+    {
+        PhysicsTestFixture fix;
+        fix.injectAnalysis(makeL2NormalizedAnalysis());
+        fix.paramChanges.addChange(Innexus::kStabilityId, 0.05);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 40; ++b)
+            fix.processBlock();
+        fix.processBlock();
+        stabilityRms = fix.rmsOutput();
+    }
+
+    // Volume should be at least 50% of baseline (generous threshold).
+    // Before fix: stabilityRms was ~10% of baselineRms.
+    INFO("Baseline RMS: " << baselineRms << ", Stability=0.05 RMS: " << stabilityRms);
+    REQUIRE(stabilityRms > baselineRms * 0.5f);
+}
+
+TEST_CASE("HarmonicPhysics Integration: small entropy does not crush volume",
+          "[harmonic_physics][integration][regression]")
+{
+    float baselineRms = 0.0f;
+    {
+        PhysicsTestFixture fix;
+        fix.injectAnalysis(makeL2NormalizedAnalysis());
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 40; ++b)
+            fix.processBlock();
+        fix.processBlock();
+        baselineRms = fix.rmsOutput();
+    }
+    REQUIRE(baselineRms > 1e-6f);
+
+    // Small entropy (0.05) — volume should NOT drop significantly
+    float entropyRms = 0.0f;
+    {
+        PhysicsTestFixture fix;
+        fix.injectAnalysis(makeL2NormalizedAnalysis());
+        fix.paramChanges.addChange(Innexus::kEntropyId, 0.05);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 40; ++b)
+            fix.processBlock();
+        fix.processBlock();
+        entropyRms = fix.rmsOutput();
+    }
+
+    INFO("Baseline RMS: " << baselineRms << ", Entropy=0.05 RMS: " << entropyRms);
+    REQUIRE(entropyRms > baselineRms * 0.5f);
+}

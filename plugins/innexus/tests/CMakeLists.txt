@@ -26,6 +26,9 @@ add_executable(innexus_tests
     # State v7 tests (Spec A)
     unit/vst/test_state_v7.cpp
 
+    # State v8 tests (Spec B: Analysis Feedback Loop)
+    unit/vst/test_state_v8.cpp
+
     # --- Integration tests (real Processor, full pipeline) ---
 
     # Core processor integration (MIDI, state, parameter application)
@@ -52,6 +55,9 @@ add_executable(innexus_tests
     # Harmonic Physics integration tests (Spec A)
     integration/test_harmonic_physics_integration.cpp
 
+    # Analysis Feedback Loop integration tests (Spec B)
+    integration/test_analysis_feedback.cpp
+
     # Reset trap regression tests (per-block setter safety)
     integration/reset_trap_tests.cpp
 
@@ -63,6 +69,10 @@ add_executable(innexus_tests
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_params.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_state.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_midi.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_messages.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
 
     # Sample analyzer implementation

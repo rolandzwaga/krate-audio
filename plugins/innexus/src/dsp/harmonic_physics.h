@@ -299,11 +299,17 @@ private:
         }
 
         // FR-012: Energy budget normalization
-        // If sum-of-squares of agent amplitudes exceeds globalAmplitude^2, normalize down
-        const float globalAmp = frame.globalAmplitude;
-        if (globalAmp > 0.0f)
+        // Prevent agent amplitudes from exceeding the input frame's total energy.
+        // Uses the input partial sum-of-squares as the budget (not globalAmplitude,
+        // which is the time-domain RMS and is far smaller than L2-normalized partials).
         {
-            const float energyBudget = globalAmp * globalAmp;
+            float inputEnergy = 0.0f;
+            for (int i = 0; i < n; ++i)
+            {
+                const float a = frame.partials[static_cast<size_t>(i)].amplitude;
+                inputEnergy += a * a;
+            }
+
             float totalEnergy = 0.0f;
             for (int i = 0; i < n; ++i)
             {
@@ -311,9 +317,9 @@ private:
                 totalEnergy += a * a;
             }
 
-            if (totalEnergy > energyBudget)
+            if (inputEnergy > 0.0f && totalEnergy > inputEnergy)
             {
-                const float scale = std::sqrt(energyBudget / totalEnergy);
+                const float scale = std::sqrt(inputEnergy / totalEnergy);
                 for (int i = 0; i < n; ++i)
                     agents_.amplitude[static_cast<size_t>(i)] *= scale;
             }
