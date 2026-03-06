@@ -5,6 +5,28 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-03-06
+
+### Added
+
+- **Harmonic Physics** — Physics-based harmonic processing system making the harmonic model behave like a physical vibrating body rather than independent sine waves
+- **Warmth** (FR-001–FR-005) — Soft saturation via `tanh(drive * amp) / tanh(drive)` that compresses dominant partials and relatively boosts quiet ones; drive scales exponentially with parameter; output RMS guaranteed ≤ input RMS via energy normalization; bit-exact bypass at 0.0
+- **Harmonic Coupling** (FR-006–FR-011) — Nearest-neighbor energy sharing between harmonics creating spectral viscosity; sum-of-squares energy conservation within 0.001%; safe boundary handling; only amplitudes modified (frequencies/phases untouched); bit-exact bypass at 0.0
+- **Harmonic Dynamics Agent System** (FR-012–FR-019) — Per-partial stateful processing with `AgentState` (amplitude, velocity, persistence, energyShare arrays); stability controls inertia weighted by persistence; entropy controls natural decay rate; persistence grows for stable partials and decays for dramatic changes; energy budget normalization prevents runaway; first-frame initialization avoids ramp-from-zero artifacts; bit-exact bypass at stability=0, entropy=0
+- **HarmonicPhysics class** — Unified header-only class (`plugins/innexus/src/dsp/harmonic_physics.h`) with processing chain: Coupling → Warmth → Dynamics; called before every `oscillatorBank_.loadFrame()` site (7 call sites)
+- **4 new parameters** (IDs 700–703) — Warmth, Coupling, Stability, Entropy; all range [0.0, 1.0], default 0.0, 5ms one-pole smoothing
+- **State version 7** — Persists all 4 harmonic physics parameters with backward compatibility for v1–v6 presets (defaults to 0.0 on older state load)
+
+### Performance
+
+- Combined CPU overhead: 0.011% of one core at 48kHz/512-hop with 48 partials (SC-006, budget: <0.5%)
+- Bypass bit-exact at all param=0.0 (SC-001)
+- Energy conservation within 0.001% for coupling (SC-002)
+- Peak-to-average ratio reduction ≥50% for warmth (SC-003)
+- Stability inertia <5% change on sudden input shift (SC-004)
+- Entropy decay to <1% within 10 frames (SC-005)
+- Pluginval passes at strictness level 5 (SC-008)
+
 ## [0.7.0] - 2026-03-06
 
 ### Added

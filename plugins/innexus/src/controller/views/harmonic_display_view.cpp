@@ -76,7 +76,7 @@ void HarmonicDisplayView::draw(VSTGUI::CDrawContext* context)
     constexpr int kNumPartials = 48;
     constexpr float kGap = 1.0f;
 
-    float barAreaWidth = static_cast<float>(viewWidth) - 2.0f * kPadding;
+    float barAreaWidth = viewWidth - 2.0f * kPadding;
     float barWidth = (barAreaWidth - static_cast<float>(kNumPartials - 1) * kGap)
                      / static_cast<float>(kNumPartials);
 
@@ -91,7 +91,7 @@ void HarmonicDisplayView::draw(VSTGUI::CDrawContext* context)
     for (int i = 0; i < kNumPartials; ++i)
     {
         float barHeight = amplitudeToBarHeight(amplitudes_[i],
-                                               static_cast<float>(viewHeight) - 2.0f * kPadding);
+                                               viewHeight - 2.0f * kPadding);
         if (barHeight < 0.5f)
             continue;  // Skip bars below threshold
 

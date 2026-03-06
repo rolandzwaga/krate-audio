@@ -169,6 +169,13 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         manualFreezeRecoveryOldLevel_ = 0.0f;
         previousFreezeState_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
 
+        // Spec A: Snap harmonic physics smoothers and reset physics state
+        warmthSmoother_.snapTo(warmth_.load(std::memory_order_relaxed));
+        couplingSmoother_.snapTo(coupling_.load(std::memory_order_relaxed));
+        stabilitySmoother_.snapTo(stability_.load(std::memory_order_relaxed));
+        entropySmoother_.snapTo(entropy_.load(std::memory_order_relaxed));
+        harmonicPhysics_.reset();
+
         // Reset sidechain crossfade state
         sourceCrossfadeSamplesRemaining_ = 0;
         sourceCrossfadeOldLevel_ = 0.0f;
@@ -238,6 +245,17 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         smoother.configure(5.0f, sr);
         smoother.snapTo(0.0f);
     }
+
+    // Spec A: Configure harmonic physics smoothers and prepare physics processor
+    warmthSmoother_.configure(5.0f, sr);
+    warmthSmoother_.snapTo(warmth_.load(std::memory_order_relaxed));
+    couplingSmoother_.configure(5.0f, sr);
+    couplingSmoother_.snapTo(coupling_.load(std::memory_order_relaxed));
+    stabilitySmoother_.configure(5.0f, sr);
+    stabilitySmoother_.snapTo(stability_.load(std::memory_order_relaxed));
+    entropySmoother_.configure(5.0f, sr);
+    entropySmoother_.snapTo(entropy_.load(std::memory_order_relaxed));
+    harmonicPhysics_.prepare(sampleRate_, 512); // default hop size
 
     // M6 FR-004, R-004: Construct pure harmonic reference frame
     // relativeFreq[n] = n+1 (1-indexed), rawAmp[n] = 1/(n+1), L2-normalized
@@ -449,7 +467,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 if (manualFreezeActive_)
                 {
                     if (noteActive_) {
-                        float captL, captR;
+                        float captL = 0.0f;
+                        float captR = 0.0f;
                         oscillatorBank_.processStereo(captL, captR);
                         manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                     } else {
@@ -724,6 +743,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
 
+    // --- Spec A: Update harmonic physics smoothers ---
+    warmthSmoother_.setTarget(warmth_.load(std::memory_order_relaxed));
+    warmthSmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+    couplingSmoother_.setTarget(coupling_.load(std::memory_order_relaxed));
+    couplingSmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+    stabilitySmoother_.setTarget(stability_.load(std::memory_order_relaxed));
+    stabilitySmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+    entropySmoother_.setTarget(entropy_.load(std::memory_order_relaxed));
+    entropySmoother_.advanceSamples(
+        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
+
     // --- M6: Update timbral blend smoother (FR-001, FR-005) ---
     timbralBlendSmoother_.setTarget(timbralBlend_.load(std::memory_order_relaxed));
     timbralBlendSmoother_.advanceSamples(
@@ -804,6 +837,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         // Load morphed+filtered frame into oscillator bank
         // M6 FR-025: Apply modulator amplitude modulation before loading
         applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+        applyHarmonicPhysics();
         float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
         float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
         float targetPitch = basePitch * bendRatio;
@@ -857,6 +891,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
             // M6 FR-025: Apply modulator amplitude modulation
             applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+            applyHarmonicPhysics();
 
             // Calculate target pitch with pitch bend
             float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
@@ -994,7 +1029,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     if (isFrozen_)
                     {
                         isFrozen_ = false;
-                        float captL, captR;
+                        float captL = 0.0f;
+                        float captR = 0.0f;
                         oscillatorBank_.processStereo(captL, captR);
                         freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                         freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
@@ -1015,6 +1051,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
                     // M6 FR-025: Apply modulator amplitude modulation
                     applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+                    applyHarmonicPhysics();
 
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
@@ -1070,6 +1107,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
                 // M6 FR-025: Apply modulator amplitude modulation
                 applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+                applyHarmonicPhysics();
 
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
@@ -1139,6 +1177,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
                 // Apply modulator amplitude modulation
                 applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+                applyHarmonicPhysics();
 
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
@@ -1456,6 +1495,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
                 const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
                 applyModulatorAmplitude(m1On, m2On);
             }
+            applyHarmonicPhysics();
 
             oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
@@ -1496,6 +1536,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
             const bool m2On = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
             applyModulatorAmplitude(m1On, m2On);
         }
+        applyHarmonicPhysics();
 
         oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
@@ -1611,6 +1652,18 @@ void Processor::loadSample(const std::string& filePath)
     {
         sampleAnalyzer_.startAnalysis(filePath);
     }
+}
+
+// ==============================================================================
+// Apply Harmonic Physics (Spec A: FR-020, FR-021)
+// ==============================================================================
+void Processor::applyHarmonicPhysics() noexcept
+{
+    harmonicPhysics_.setWarmth(warmthSmoother_.getCurrentValue());
+    harmonicPhysics_.setCoupling(couplingSmoother_.getCurrentValue());
+    harmonicPhysics_.setStability(stabilitySmoother_.getCurrentValue());
+    harmonicPhysics_.setEntropy(entropySmoother_.getCurrentValue());
+    harmonicPhysics_.processFrame(morphedFrame_);
 }
 
 // ==============================================================================
@@ -1831,6 +1884,24 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Harmonic Physics (Spec A)
+            case kWarmthId:
+                warmth_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kCouplingId:
+                coupling_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kStabilityId:
+                stability_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kEntropyId:
+                entropy_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
@@ -1881,8 +1952,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- M6: version 6 (creative extensions)
-    streamer.writeInt32(6);
+    // Write state version -- Spec A: version 7 (harmonic physics)
+    streamer.writeInt32(7);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -2027,6 +2098,12 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
         streamer.writeFloat(blendSlotWeights_[static_cast<size_t>(i)].load(
             std::memory_order_relaxed));
     streamer.writeFloat(blendLiveWeight_.load(std::memory_order_relaxed));
+
+    // --- Spec A: Harmonic Physics parameters (v7) ---
+    streamer.writeFloat(warmth_.load(std::memory_order_relaxed));
+    streamer.writeFloat(coupling_.load(std::memory_order_relaxed));
+    streamer.writeFloat(stability_.load(std::memory_order_relaxed));
+    streamer.writeFloat(entropy_.load(std::memory_order_relaxed));
 
     return Steinberg::kResultOk;
 }
@@ -2452,6 +2529,25 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
             // Update evolution engine waypoints for v5 state
             evolutionEngine_.updateWaypoints(memorySlots_);
         }
+
+        // --- Spec A: Harmonic Physics parameters (v7) ---
+        // Default all physics params first, then overwrite from stream if v7+
+        warmth_.store(0.0f);
+        coupling_.store(0.0f);
+        stability_.store(0.0f);
+        entropy_.store(0.0f);
+
+        if (version >= 7)
+        {
+            if (streamer.readFloat(floatVal))
+                warmth_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                coupling_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                stability_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                entropy_.store(std::clamp(floatVal, 0.0f, 1.0f));
+        }
     }
 
     return Steinberg::kResultOk;
@@ -2574,8 +2670,8 @@ Steinberg::tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* messag
             || dataSize == 0)
             return Steinberg::kResultFalse;
 
-        std::string filePath(static_cast<const char*>(data),
-                             static_cast<size_t>(dataSize));
+        const std::string filePath(static_cast<const char*>(data),
+                                   static_cast<size_t>(dataSize));
         loadSample(filePath);
 
         // Notify controller that the sample was loaded (for filename display)

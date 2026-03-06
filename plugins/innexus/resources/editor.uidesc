@@ -100,6 +100,12 @@
     <control-tag name="BlendSlotWeight8" tag="648"/>
     <control-tag name="BlendLiveWeight" tag="649"/>
 
+    <!-- Harmonic Physics (700-703) -->
+    <control-tag name="Warmth" tag="700"/>
+    <control-tag name="Coupling" tag="701"/>
+    <control-tag name="Stability" tag="702"/>
+    <control-tag name="Entropy" tag="703"/>
+
     <!-- Template tags for modulator sub-controller remapping -->
     <control-tag name="Mod.Enable" tag="610"/>
     <control-tag name="Mod.Waveform" tag="611"/>
@@ -111,10 +117,10 @@
   </control-tags>
 
   <!-- ================================================================== -->
-  <!-- Main Editor Template (800x600)                                     -->
+  <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 600"
-            background-color="bg-primary" minSize="800, 600" maxSize="800, 600">
+  <template name="Editor" class="CViewContainer" size="800, 710"
+            background-color="bg-primary" minSize="800, 710" maxSize="800, 710">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -643,8 +649,68 @@
             title="Live"/>
     </view>
 
+    <!-- ============================================================== -->
+    <!-- HARMONIC PHYSICS SECTION (Y 600-695)                           -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 600" size="790, 95"
+          title="Harmonic Physics" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- Warmth -->
+      <view class="ArcKnob" origin="78, 18" size="42, 42"
+            control-tag="Warmth" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="73, 60" size="52, 12"
+            control-tag="Warmth" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="73, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Warmth"/>
+
+      <!-- Coupling -->
+      <view class="ArcKnob" origin="275, 18" size="42, 42"
+            control-tag="Coupling" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="270, 60" size="52, 12"
+            control-tag="Coupling" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="270, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Coupling"/>
+
+      <!-- Stability -->
+      <view class="ArcKnob" origin="473, 18" size="42, 42"
+            control-tag="Stability" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="468, 60" size="52, 12"
+            control-tag="Stability" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="468, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Stability"/>
+
+      <!-- Entropy -->
+      <view class="ArcKnob" origin="670, 18" size="42, 42"
+            control-tag="Entropy" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="665, 60" size="52, 12"
+            control-tag="Entropy" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="665, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Entropy"/>
+    </view>
+
     <!-- Bottom credit line -->
-    <view class="CTextLabel" origin="615, 570" size="180, 14"
+    <view class="CTextLabel" origin="615, 696" size="180, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"
           title="Innexus | Krate Audio"/>

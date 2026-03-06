@@ -759,3 +759,86 @@ The Controller extends `EditControllerEx1` and `VST3EditorDelegate` to provide:
 - **Template + sub-controller reuse**: Single modulator template in `editor.uidesc` instantiated twice with `ModulatorSubController` handling parameter tag remapping. Eliminates UI layout duplication.
 - **Vector-drawn shared components**: All standard controls use `Krate::Plugins::ArcKnob`, `ToggleButton`, `ActionButton`, `BipolarSlider`, and `FieldsetContainer` from `plugins/shared/src/ui/`. No bitmap assets required.
 - **Fixed 800x600 layout**: Innexus editor size is fixed at 800x600 pixels, defined in `editor.uidesc`.
+
+---
+
+## Spec A Harmonic Physics (Warmth, Coupling, Dynamics)
+**Since:** Spec A (122-harmonic-physics)
+
+Adds a physics-based harmonic processing system with three sub-processors that operate as HarmonicFrame transforms, modifying only partial amplitudes. The chain runs between the existing frame source pipeline (morph/filter/modulators) and `oscillatorBank_.loadFrame()`. All four parameters default to 0.0 for bit-exact bypass.
+
+### Signal Chain Position
+
+```
+[Harmonic Modulators] (M6, amplitude modulation applied)
+    |
+    v
+[Harmonic Physics: Coupling -> Warmth -> Dynamics]
+    |
+    v
+oscillatorBank_.loadFrame()
+```
+
+The `applyHarmonicPhysics()` method is called immediately before every `oscillatorBank_.loadFrame()` call site in the processor (7 sites total). This ensures physics transforms apply regardless of which code path produces the frame (sample playback, live analysis, freeze/recall, morph, evolution, blend).
+
+### Parameters (IDs 700-703)
+
+| Parameter | ID | Type | Range | Default |
+|-----------|-----|------|-------|---------|
+| Warmth | `kWarmthId` (700) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Coupling | `kCouplingId` (701) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Stability | `kStabilityId` (702) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Entropy | `kEntropyId` (703) | RangeParameter | 0.0 - 1.0 | 0.0 |
+
+### HarmonicPhysics
+**Path:** [harmonic_physics.h](../../plugins/innexus/src/dsp/harmonic_physics.h) | **Since:** Spec A
+
+Header-only physics-based harmonic processing system. Processes `HarmonicFrame` in-place, modifying only partial amplitudes. Follows the same plugin-local DSP pattern as `HarmonicModulator` and `EvolutionEngine`: header-only, `prepare()`/`reset()`/`processFrame()` interface.
+
+```cpp
+namespace Innexus {
+
+struct AgentState {
+    std::array<float, kMaxPartials> amplitude{};    // Per-partial tracked amplitude
+    std::array<float, kMaxPartials> velocity{};     // Per-partial rate of change
+    std::array<float, kMaxPartials> persistence{};  // Per-partial stability score [0, 1]
+    std::array<float, kMaxPartials> energyShare{};  // Per-partial energy allocation
+};
+
+class HarmonicPhysics {
+    // Lifecycle
+    void prepare(double sampleRate, int hopSize) noexcept;
+    void reset() noexcept;
+
+    // Per-frame processing (audio thread, real-time safe)
+    void processFrame(Krate::DSP::HarmonicFrame& frame) noexcept;
+
+    // Parameter setters
+    void setWarmth(float value) noexcept;     // [0.0, 1.0]
+    void setCoupling(float value) noexcept;   // [0.0, 1.0]
+    void setStability(float value) noexcept;  // [0.0, 1.0]
+    void setEntropy(float value) noexcept;    // [0.0, 1.0]
+};
+
+} // namespace Innexus
+```
+
+**Processing chain order** (inside `processFrame()`):
+1. **Coupling** (`applyCoupling`): Nearest-neighbor energy sharing between adjacent partials. Reads amplitudes into a temporary buffer, blends neighbors with coupling weight, normalizes by sum-of-squares to exactly conserve energy. Boundary partials handled safely.
+2. **Warmth** (`applyWarmth`): Tanh-based soft saturation of harmonic amplitudes using `amp_out[i] = tanh(drive * amp[i]) / tanh(drive)` with `drive = exp(warmth * ln(8))`. Compresses dominant partials and relatively boosts quiet ones. Output RMS never exceeds input RMS.
+3. **Dynamics** (`applyDynamics`): Per-partial stateful agent system with inertia (Stability) and decay (Entropy). Each partial has tracked amplitude, velocity, persistence, and energy share. Stability resists sudden amplitude changes weighted by persistence. Entropy causes unreinforced harmonics to fade. Energy budget normalization prevents total energy from exceeding input global amplitude.
+
+**When to use:**
+- Adding physics-based timbral shaping to the resynthesis output
+- Warmth for natural compression of harmonic spectra (taming dominant partials)
+- Coupling for spectral smoothing and energy redistribution between neighbors
+- Stability for inertia effects where partials resist sudden changes
+- Entropy for decay effects where unstable partials fade away
+
+**Key constraints:** All methods `noexcept`, no heap allocations. Fixed-size `std::array<float, kMaxPartials>` for agent state (SoA layout). Each sub-processor has an early-out bypass when its parameter is 0.0 (bit-exact). Frame-rate processing (~94 Hz at 48kHz/512 hop). Combined CPU overhead < 0.5% of a single core with 48 partials.
+
+**Dependencies:** `HarmonicFrame` and `Partial` from `dsp/include/krate/dsp/processors/harmonic_types.h`, `kMaxPartials` constant. No KrateDSP library dependencies beyond types.
+
+### State Persistence (Version 7)
+
+State version bumped from 6 (M6) to 7. Four new float values appended after M6 data: warmth, coupling, stability, entropy. Loading a v6 state initializes all 4 physics parameters to 0.0 (bit-exact bypass). Backward compatible.

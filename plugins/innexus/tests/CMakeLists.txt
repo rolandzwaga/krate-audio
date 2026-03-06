@@ -20,6 +20,12 @@ add_executable(innexus_tests
     unit/processor/test_harmonic_modulator.cpp
     unit/processor/test_harmonic_blender.cpp
 
+    # Harmonic Physics unit tests (Spec A)
+    unit/processor/test_harmonic_physics.cpp
+
+    # State v7 tests (Spec A)
+    unit/vst/test_state_v7.cpp
+
     # --- Integration tests (real Processor, full pipeline) ---
 
     # Core processor integration (MIDI, state, parameter application)
@@ -42,6 +48,9 @@ add_executable(innexus_tests
     integration/test_evolution_engine.cpp
     integration/test_stereo_spread_integration.cpp
     integration/test_m6_pipeline_integration.cpp
+
+    # Harmonic Physics integration tests (Spec A)
+    integration/test_harmonic_physics_integration.cpp
 
     # Reset trap regression tests (per-block setter safety)
     integration/reset_trap_tests.cpp
