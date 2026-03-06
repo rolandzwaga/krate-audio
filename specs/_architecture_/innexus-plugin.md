@@ -842,3 +842,119 @@ class HarmonicPhysics {
 ### State Persistence (Version 7)
 
 State version bumped from 6 (M6) to 7. Four new float values appended after M6 data: warmth, coupling, stability, entropy. Loading a v6 state initializes all 4 physics parameters to 0.0 (bit-exact bypass). Backward compatible.
+
+---
+
+## Spec B Analysis Feedback Loop (Self-Evolving Timbral System)
+**Since:** Spec B (123-analysis-feedback-loop)
+
+Feeds the synth's previous block output back into its own analysis pipeline input, creating self-reinforcing timbral resonances. At low feedback: subtle harmonic self-reinforcement. At high feedback: harmonics crystallize into attractor states with emergent tonal behavior. Two new parameters (FeedbackAmount, FeedbackDecay) and a pre-allocated feedback buffer. The feedback mixing occurs between the sidechain stereo-to-mono downmix and the `pushSamples()` call.
+
+### Signal Flow (Sidechain Mode with Feedback)
+
+```
+Sidechain In (stereo)
+    |
+    v
+Stereo-to-Mono Downmix -> sidechainBuffer_
+    |
+    v
+[Feedback Mixing] (Spec B, FR-001/FR-003)
+|  Per-sample soft-limited mixing:
+|    fbSample = tanh(feedbackBuffer_[s] * fbAmount * 2.0) * 0.5
+|    mixedInput[s] = sidechain[s] * (1 - fbAmount) + fbSample
+|  Bypassed when: fbAmount == 0, freeze active, or sample mode
+    |
+    v
+pushSamples(mixedInput, numSamples)
+    |
+    v
+LiveAnalysisPipeline (STFT, f0 detection, etc.)
+    |
+    v
+[Morph -> Filter -> Modulators -> Physics -> Oscillator Bank]
+    |
+    v
+Stereo Output
+    |
+    v
+[Feedback Capture] (FR-002/FR-006)
+|  feedbackBuffer_[s] = (outL[s] + outR[s]) * 0.5
+    |
+    v
+[Feedback Decay] (FR-013)
+|  decayCoeff = exp(-decayAmount * blockSize / sampleRate)
+|  feedbackBuffer_[s] *= decayCoeff
+    |
+    v
+feedbackBuffer_ ready for next block
+```
+
+### Parameters (IDs 710-711)
+
+| Parameter | ID | Type | Range | Default |
+|-----------|-----|------|-------|---------|
+| Feedback Amount | `kAnalysisFeedbackId` (710) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Feedback Decay | `kAnalysisFeedbackDecayId` (711) | RangeParameter | 0.0 - 1.0 | 0.2 |
+
+### Feedback Buffer Pattern
+
+The feedback buffer follows the same pre-allocation pattern as `sidechainBuffer_`:
+
+```cpp
+// Pre-allocated in processor.h (same size as sidechainBuffer_)
+std::array<float, 8192> feedbackBuffer_{};
+
+// Cleared in setActive() -- no allocation on audio thread (FR-005, FR-018)
+feedbackBuffer_.fill(0.0f);
+```
+
+The buffer stores a mono representation of the synth output (left+right averaged if stereo). It introduces exactly one block of latency: output from block N feeds into analysis input of block N+1. The buffer is transient runtime state -- never persisted in plugin state.
+
+### Soft Limiter Formula (FR-009)
+
+Per-sample tanh-based soft limiting bounds the feedback signal before mixing:
+
+```cpp
+fbSample = std::tanh(feedbackBuffer_[s] * fbAmount * 2.0f) * 0.5f;
+```
+
+The `* 2.0` amplifies the signal into tanh's nonlinear region; the `* 0.5` scales the output to [-0.5, +0.5]. This ensures the feedback contribution is always bounded regardless of the synth output level.
+
+### 5-Layer Safety Stack
+
+Five independent safety mechanisms prevent feedback divergence:
+
+| Layer | Mechanism | Location | Bounds |
+|-------|-----------|----------|--------|
+| 1 | **Soft limiter** (NEW) | Feedback mixing loop in `process()` | `tanh(x*2)*0.5` bounds feedback to [-0.5, +0.5] |
+| 2 | **Energy budget normalization** (existing) | `HarmonicPhysics::applyDynamics` | Total harmonic energy cannot exceed frame's global amplitude |
+| 3 | **Hard output clamp** (existing) | `HarmonicOscillatorBank::kOutputClamp = 2.0f` | Final output clamped to [-2.0, +2.0] |
+| 4 | **Confidence gate** (existing) | Auto-freeze in `processor.cpp` | Garbage analysis triggers auto-freeze, preventing garbage harmonics |
+| 5 | **Feedback decay** (NEW) | Per-block exponential decay in `process()` | `exp(-decay * blockSize / sampleRate)` leaks energy each block |
+
+The layers are independent and composable. Simultaneous engagement produces more aggressively bounded output. With FeedbackAmount=0.0, the feedback path is completely bypassed (early-out), producing bit-identical output to the pre-feedback implementation.
+
+### Freeze Interaction Contract (FR-015, FR-016)
+
+- **Freeze engaged**: Feedback mixing is automatically bypassed. The frozen harmonic frame remains unmodified. The `manualFrozen` flag (from `freeze_` atomic) gates the feedback mixing block.
+- **Freeze disengaged**: The feedback buffer is cleared to all zeros (`feedbackBuffer_.fill(0.0f)`) at the existing freeze-disengage transition (`!currentFreezeState && previousFreezeState_`). This prevents stale audio from contaminating the re-engaged analysis pipeline.
+- **FeedbackAmount changes during freeze**: Have no effect on the frozen frame. Changes take effect only after freeze is disengaged.
+
+Freeze state tracking for the feedback buffer uses `previousFreezeForFeedback_` (separate from the existing `previousFreezeState_` used for crossfade logic).
+
+### Mode Restriction (FR-014)
+
+Feedback is only active in sidechain mode (`InputSource::Sidechain`). Both the feedback mixing block and feedback capture block check `inputSource_ > 0.5f` (sidechain mode) before executing. In sample mode, the feedback path is completely bypassed regardless of FeedbackAmount.
+
+### State Persistence (Version 8)
+
+State version bumped from 7 (Spec A) to 8. Two new float values appended after Spec A data: FeedbackAmount, FeedbackDecay. Loading a v7 state initializes FeedbackAmount=0.0 and FeedbackDecay=0.2 (matching parameter defaults, preserving identical behavior for presets saved before this spec). Both values clamped to [0.0, 1.0] on read.
+
+### Key Design Patterns
+
+- **Pre-allocated storage**: Feedback buffer is a `std::array<float, 8192>` member, same pattern as `sidechainBuffer_`. Zero heap allocations on the audio thread.
+- **Atomic parameter exchange**: Both parameters use `std::atomic<float>` for thread-safe communication from `processParameterChanges()` to `process()`.
+- **Early-out bypass**: When `feedbackAmount == 0.0f`, the entire mixing loop is skipped. No overhead when feedback is disabled.
+- **Block-rate parameter reading**: Both parameters are read once per `process()` call. No per-sample smoothing needed (no zipper artifacts at block-rate transitions).
+- **In-place mixing**: Feedback is mixed directly into `sidechainBuffer_` before `pushSamples()`. If `sidechainMono` points to raw bus data (mono input case), it is first copied to `sidechainBuffer_` to avoid modifying the host's buffer.

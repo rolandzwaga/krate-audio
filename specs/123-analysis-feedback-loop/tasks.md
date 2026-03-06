@@ -243,7 +243,7 @@ The sample mode bypass is gated by the `currentSource == 1` (sidechain) check al
 
 ### 7.4 Commit
 
-- [ ] T053 [US5] **Commit completed User Story 5 sample mode bypass work** to branch `123-analysis-feedback-loop`
+- [X] T053 [US5] **Commit completed User Story 5 sample mode bypass work** to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: All 5 user stories implemented, tested, and committed.
 
@@ -257,13 +257,13 @@ The sample mode bypass is gated by the `currentSource == 1` (sidechain) check al
 
 ### 8.1 Run Clang-Tidy Analysis
 
-- [ ] T054 Regenerate compile_commands.json if needed (run from VS Developer PowerShell): `cmake --preset windows-ninja`
-- [ ] T055 Run clang-tidy on all modified and new source files: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja` (Windows) or `./tools/run-clang-tidy.sh --target innexus` (Linux/macOS)
+- [X] T054 Regenerate compile_commands.json if needed (run from VS Developer PowerShell): `cmake --preset windows-ninja`
+- [X] T055 Run clang-tidy on all modified and new source files: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja` (Windows) or `./tools/run-clang-tidy.sh --target innexus` (Linux/macOS)
 
 ### 8.2 Address Findings
 
-- [ ] T056 Fix all clang-tidy errors (blocking issues) in `plugins/innexus/src/processor/processor.h`, `plugins/innexus/src/processor/processor.cpp`, and `plugins/innexus/src/controller/controller.cpp`
-- [ ] T057 Review warnings and fix where appropriate; add `// NOLINT(<check>): <reason>` for any intentional suppressions (DSP-specific numeric code may require suppressions for magic number checks)
+- [X] T056 Fix all clang-tidy errors (blocking issues) in `plugins/innexus/src/processor/processor.h`, `plugins/innexus/src/processor/processor.cpp`, and `plugins/innexus/src/controller/controller.cpp`
+- [X] T057 Review warnings and fix where appropriate; add `// NOLINT(<check>): <reason>` for any intentional suppressions (DSP-specific numeric code may require suppressions for magic number checks)
 
 **Checkpoint**: Static analysis clean — ready for completion verification.
 
@@ -277,7 +277,7 @@ The sample mode bypass is gated by the `currentSource == 1` (sidechain) check al
 
 ### 9.1 Architecture Documentation Update
 
-- [ ] T058 Update `specs/_architecture_/` to record the analysis feedback loop addition: document the feedback buffer pattern (`std::array<float, 8192>` pre-allocated in `setActive()`), the soft limiter formula, the 5-layer safety stack, and the freeze interaction contract; add or update the Innexus processor entry in the relevant architecture section
+- [X] T058 Update `specs/_architecture_/` to record the analysis feedback loop addition: document the feedback buffer pattern (`std::array<float, 8192>` pre-allocated in `setActive()`), the soft limiter formula, the 5-layer safety stack, and the freeze interaction contract; add or update the Innexus processor entry in the relevant architecture section
 
 ### 9.2 Final Commit
 
