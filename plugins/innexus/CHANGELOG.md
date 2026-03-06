@@ -5,6 +5,12 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-03-07
+
+### Fixed
+
+- **Entropy volume drop** — Opening the Entropy knob caused immediate volume loss on steady-state harmonics (~27% at 0.3, ~46% at 0.5); entropy decay was applied to all partial amplitude every frame, even partials actively reinforced by input; now only decays the excess agent amplitude above input, preserving reinforced partials while still decaying ghost partials that lose input backing
+
 ## [0.9.1] - 2026-03-07
 
 ### Added
