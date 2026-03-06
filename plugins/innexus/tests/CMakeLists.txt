@@ -55,6 +55,9 @@ add_executable(innexus_tests
     # Harmonic Physics integration tests (Spec A)
     integration/test_harmonic_physics_integration.cpp
 
+    # Analysis Feedback Loop integration tests (Spec B)
+    integration/test_analysis_feedback.cpp
+
     # Reset trap regression tests (per-block setter safety)
     integration/reset_trap_tests.cpp
 

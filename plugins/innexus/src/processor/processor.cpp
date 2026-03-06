@@ -181,6 +181,10 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         sourceCrossfadeOldLevel_ = 0.0f;
         previousInputSource_ =
             inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+
+        // Spec B FR-005, FR-018: Reset feedback buffer on activation
+        feedbackBuffer_.fill(0.0f);
+        previousFreezeForFeedback_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
     }
     else
     {
@@ -383,6 +387,38 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
         if (currentSource == 1 && sidechainMono != nullptr)
         {
+            // Spec B FR-001, FR-003, FR-009, FR-014, FR-015: Mix feedback into
+            // sidechain input before pushing to analysis pipeline.
+            const float fbAmount = feedbackAmount_.load(std::memory_order_relaxed);
+            const bool manualFrozen = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
+            if (fbAmount > 0.0f && !manualFrozen)
+            {
+                // If sidechainMono points to raw bus data (mono case), copy to
+                // sidechainBuffer_ first so we can modify in-place.
+                if (sidechainMono != sidechainBuffer_.data())
+                {
+                    auto count = std::min(data.numSamples,
+                        static_cast<Steinberg::int32>(sidechainBuffer_.size()));
+                    std::memcpy(sidechainBuffer_.data(), sidechainMono,
+                        static_cast<size_t>(count) * sizeof(float));
+                    sidechainMono = sidechainBuffer_.data();
+                }
+
+                // FR-001, FR-009: Per-sample soft-limited feedback mixing
+                auto count = std::min(data.numSamples,
+                    static_cast<Steinberg::int32>(sidechainBuffer_.size()));
+                for (Steinberg::int32 s = 0; s < count; ++s)
+                {
+                    const float fbSample = std::tanh(
+                        feedbackBuffer_[static_cast<size_t>(s)]
+                        * fbAmount * 2.0f) * 0.5f;
+                    sidechainBuffer_[static_cast<size_t>(s)] =
+                        sidechainBuffer_[static_cast<size_t>(s)]
+                        * (1.0f - fbAmount) + fbSample;
+                }
+            }
+
             // T091: Skip spectral coring when residual level is zero (~10% CPU reduction)
             const bool residualActive =
                 residualLevel_.load(std::memory_order_relaxed) > 0.0f;
@@ -1370,6 +1406,44 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         if (sampleL != 0.0f || sampleR != 0.0f)
             hasSoundOutput = true;
+    }
+
+    // Spec B FR-002, FR-006, FR-014: Capture mono output into feedback buffer
+    // Only active in sidechain mode (InputSource::Sidechain)
+    {
+        const int currentSource =
+            inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
+        if (currentSource == 1)
+        {
+            const auto count = std::min(numSamples,
+                static_cast<Steinberg::int32>(feedbackBuffer_.size()));
+
+            if (numOutputChannels >= 2)
+            {
+                for (Steinberg::int32 s = 0; s < count; ++s)
+                {
+                    feedbackBuffer_[static_cast<size_t>(s)] =
+                        (out[0][s] + out[1][s]) * 0.5f;
+                }
+            }
+            else
+            {
+                for (Steinberg::int32 s = 0; s < count; ++s)
+                    feedbackBuffer_[static_cast<size_t>(s)] = out[0][s];
+            }
+
+            // FR-013: Apply per-block exponential decay
+            const float decayAmount =
+                feedbackDecay_.load(std::memory_order_relaxed);
+            if (decayAmount > 0.0f)
+            {
+                const float decayCoeff = std::exp(
+                    -decayAmount * static_cast<float>(count)
+                    / static_cast<float>(sampleRate_));
+                for (Steinberg::int32 s = 0; s < count; ++s)
+                    feedbackBuffer_[static_cast<size_t>(s)] *= decayCoeff;
+            }
+        }
     }
 
     if (hasSoundOutput) {

@@ -119,6 +119,10 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kCouplingId = 701,             // 0.0-1.0, default 0.0
     kStabilityId = 702,            // 0.0-1.0, default 0.0
     kEntropyId = 703,              // 0.0-1.0, default 0.0
+
+    // Analysis Feedback Loop (710-711) -- Spec B
+    kAnalysisFeedbackId = 710,     // 0.0-1.0, default 0.0
+    kAnalysisFeedbackDecayId = 711, // 0.0-1.0, default 0.2
 };
 
 // ==============================================================================

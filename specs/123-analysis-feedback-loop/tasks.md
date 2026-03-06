@@ -95,23 +95,23 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T016 Create `plugins/innexus/tests/integration/test_analysis_feedback.cpp` with test fixture that instantiates the Processor in sidechain mode
-- [ ] T017 [US1] Write SC-001 test: FeedbackAmount=0.0 produces output bit-identical to no-feedback baseline in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-019)
-- [ ] T018 [US1] Write SC-002 test: FeedbackAmount=1.0 with silent sidechain input, measure output RMS at 1-second intervals over 10 seconds and verify no interval's RMS exceeds the t=0 RMS by more than 3dB in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T019 [US1] Write SC-004 test: Output samples never exceed `HarmonicOscillatorBank::kOutputClamp` (2.0f) for any combination of FeedbackAmount/FeedbackDecay in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T020 Build and confirm T017–T019 tests FAIL
+- [X] T016 Create `plugins/innexus/tests/integration/test_analysis_feedback.cpp` with test fixture that instantiates the Processor in sidechain mode
+- [X] T017 [US1] Write SC-001 test: FeedbackAmount=0.0 produces output bit-identical to no-feedback baseline in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-019)
+- [X] T018 [US1] Write SC-002 test: FeedbackAmount=1.0 with silent sidechain input, measure output RMS at 1-second intervals over 10 seconds and verify no interval's RMS exceeds the t=0 RMS by more than 3dB in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [X] T019 [US1] Write SC-004 test: Output samples never exceed `HarmonicOscillatorBank::kOutputClamp` (2.0f) for any combination of FeedbackAmount/FeedbackDecay in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [X] T020 Build and confirm T017–T019 tests FAIL
 
 ### 3.2 Implementation
 
-- [ ] T021 [US1] Add feedback buffer clear in `setActive()` in `plugins/innexus/src/processor/processor.cpp`: `feedbackBuffer_.fill(0.0f)` (FR-005, FR-018)
-- [ ] T022 [US1] Add feedback mixing between the sidechain stereo-to-mono downmix and `pushSamples()` call in `plugins/innexus/src/processor/processor.cpp`: read `feedbackAmount_`, early-out when 0.0f, copy raw bus pointer to `sidechainBuffer_` if needed, per-sample loop applying `fbSample = tanh(feedbackBuffer_[s] * fbAmount * 2.0f) * 0.5f` and `sidechainBuffer_[s] = sidechainBuffer_[s] * (1.0f - fbAmount) + fbSample` (FR-001, FR-003, FR-009, FR-014)
-- [ ] T023 [US1] Add feedback capture after the per-sample output loop in `plugins/innexus/src/processor/processor.cpp`: in sidechain mode only, capture `(out[0][s] + out[1][s]) * 0.5f` (or mono if single channel) into `feedbackBuffer_` (FR-002, FR-006, FR-014)
-- [ ] T024 [US1] Add per-block exponential decay after capture in `plugins/innexus/src/processor/processor.cpp`: `decayCoeff = exp(-decayAmount * blockSize / sampleRate)`, multiply all `feedbackBuffer_` samples by `decayCoeff` (FR-013)
+- [X] T021 [US1] Add feedback buffer clear in `setActive()` in `plugins/innexus/src/processor/processor.cpp`: `feedbackBuffer_.fill(0.0f)` (FR-005, FR-018)
+- [X] T022 [US1] Add feedback mixing between the sidechain stereo-to-mono downmix and `pushSamples()` call in `plugins/innexus/src/processor/processor.cpp`: read `feedbackAmount_`, early-out when 0.0f, copy raw bus pointer to `sidechainBuffer_` if needed, per-sample loop applying `fbSample = tanh(feedbackBuffer_[s] * fbAmount * 2.0f) * 0.5f` and `sidechainBuffer_[s] = sidechainBuffer_[s] * (1.0f - fbAmount) + fbSample` (FR-001, FR-003, FR-009, FR-014)
+- [X] T023 [US1] Add feedback capture after the per-sample output loop in `plugins/innexus/src/processor/processor.cpp`: in sidechain mode only, capture `(out[0][s] + out[1][s]) * 0.5f` (or mono if single channel) into `feedbackBuffer_` (FR-002, FR-006, FR-014)
+- [X] T024 [US1] Add per-block exponential decay after capture in `plugins/innexus/src/processor/processor.cpp`: `decayCoeff = exp(-decayAmount * blockSize / sampleRate)`, multiply all `feedbackBuffer_` samples by `decayCoeff` (FR-013)
 
 ### 3.3 Verify
 
-- [ ] T025 [US1] Build Release and run innexus_tests to confirm SC-001, SC-002, SC-004 tests now pass
-- [ ] T026 [US1] Verify IEEE 754 compliance: check `test_analysis_feedback.cpp` for any `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if present
+- [X] T025 [US1] Build Release and run innexus_tests to confirm SC-001, SC-002, SC-004 tests now pass
+- [X] T026 [US1] Verify IEEE 754 compliance: check `test_analysis_feedback.cpp` for any `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if present
 
 ### 3.4 Commit
 

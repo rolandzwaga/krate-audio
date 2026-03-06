@@ -314,6 +314,10 @@ public:
     float getStability() const { return stability_.load(std::memory_order_relaxed); }
     float getEntropy() const { return entropy_.load(std::memory_order_relaxed); }
 
+    // Analysis Feedback Loop (Spec B) test accessors
+    float getFeedbackAmount() const { return feedbackAmount_.load(std::memory_order_relaxed); }
+    float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_relaxed); }
+
     /// @brief Send display data to controller via IMessage.
     /// Called at end of process() when output is produced.
     /// RT-Safety Note: allocateMessage() is called on the audio thread --
@@ -401,6 +405,10 @@ private:
     std::atomic<float> coupling_{0.0f};               // 0.0-1.0, default 0.0
     std::atomic<float> stability_{0.0f};              // 0.0-1.0, default 0.0
     std::atomic<float> entropy_{0.0f};                // 0.0-1.0, default 0.0
+
+    // Analysis Feedback Loop parameters (Spec B: 123-analysis-feedback-loop)
+    std::atomic<float> feedbackAmount_{0.0f};         // 0.0-1.0, default 0.0
+    std::atomic<float> feedbackDecay_{0.2f};          // 0.0-1.0, default 0.2
 
     // =========================================================================
     // DSP Members (T081)
@@ -510,6 +518,15 @@ private:
 
     /// Tracks previous input source to detect switches
     int previousInputSource_ = 0; // 0 = Sample
+
+    // =========================================================================
+    // Analysis Feedback Loop (Spec B: FR-005, FR-006, FR-016)
+    // =========================================================================
+    /// Pre-allocated mono feedback buffer sized to max block size (same as sidechainBuffer_)
+    std::array<float, 8192> feedbackBuffer_{};
+
+    /// Tracks previous freeze state for feedback buffer clear on disengage (FR-016)
+    bool previousFreezeForFeedback_ = false;
 
     // =========================================================================
     // Live Analysis Pipeline (FR-003, FR-005, FR-008, FR-009)
