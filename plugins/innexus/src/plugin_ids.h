@@ -113,6 +113,12 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kBlendSlotWeight7Id = 647,
     kBlendSlotWeight8Id = 648,
     kBlendLiveWeightId = 649,      // 0.0-1.0, default 0.0
+
+    // Harmonic Physics (700-703) -- Spec A
+    kWarmthId = 700,               // 0.0-1.0, default 0.0
+    kCouplingId = 701,             // 0.0-1.0, default 0.0
+    kStabilityId = 702,            // 0.0-1.0, default 0.0
+    kEntropyId = 703,              // 0.0-1.0, default 0.0
 };
 
 // ==============================================================================

@@ -459,6 +459,31 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(blendLiveWeightParam);
 
+    // Harmonic Physics (Spec A)
+    auto* warmthParam = new Steinberg::Vst::RangeParameter(
+        STR16("Warmth"), kWarmthId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(warmthParam);
+
+    auto* couplingParam = new Steinberg::Vst::RangeParameter(
+        STR16("Coupling"), kCouplingId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(couplingParam);
+
+    auto* stabilityParam = new Steinberg::Vst::RangeParameter(
+        STR16("Stability"), kStabilityId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(stabilityParam);
+
+    auto* entropyParam = new Steinberg::Vst::RangeParameter(
+        STR16("Entropy"), kEntropyId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(entropyParam);
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
@@ -831,6 +856,28 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             setParamNormalized(kBlendSlotWeight8Id, 0.0);
             setParamNormalized(kBlendLiveWeightId, 0.0);
         }
+
+        // --- Spec A: Harmonic Physics parameters (v7) ---
+        if (version >= 7)
+        {
+            float physVal = 0.0f;
+            if (streamer.readFloat(physVal))
+                setParamNormalized(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(physVal))
+                setParamNormalized(kCouplingId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(physVal))
+                setParamNormalized(kStabilityId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(physVal))
+                setParamNormalized(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+        }
+        else
+        {
+            // Default harmonic physics values for v6 and older states
+            setParamNormalized(kWarmthId, 0.0);
+            setParamNormalized(kCouplingId, 0.0);
+            setParamNormalized(kStabilityId, 0.0);
+            setParamNormalized(kEntropyId, 0.0);
+        }
     }
 
     return Steinberg::kResultOk;
@@ -975,7 +1022,7 @@ VSTGUI::CView* Controller::createCustomView(
 VSTGUI::IController* Controller::createSubController(
     VSTGUI::UTF8StringPtr name,
     const VSTGUI::IUIDescription* /*description*/,
-    VSTGUI::VST3Editor* editor)
+    [[maybe_unused]] VSTGUI::VST3Editor* editor)
 {
     if (!name)
         return nullptr;

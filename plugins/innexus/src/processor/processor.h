@@ -26,6 +26,7 @@
 #include "dsp/evolution_engine.h"
 #include "dsp/harmonic_blender.h"
 #include "dsp/harmonic_modulator.h"
+#include "dsp/harmonic_physics.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
@@ -307,6 +308,12 @@ public:
     }
     float getBlendLiveWeight() const { return blendLiveWeight_.load(std::memory_order_relaxed); }
 
+    // Harmonic Physics (Spec A) test accessors
+    float getWarmth() const { return warmth_.load(std::memory_order_relaxed); }
+    float getCoupling() const { return coupling_.load(std::memory_order_relaxed); }
+    float getStability() const { return stability_.load(std::memory_order_relaxed); }
+    float getEntropy() const { return entropy_.load(std::memory_order_relaxed); }
+
     /// @brief Send display data to controller via IMessage.
     /// Called at end of process() when output is produced.
     /// RT-Safety Note: allocateMessage() is called on the audio thread --
@@ -323,6 +330,7 @@ private:
     void checkForNewAnalysis();
     void cleanupPendingDeletion();
     void applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled);
+    void applyHarmonicPhysics() noexcept;
 
     // =========================================================================
     // Parameter Atomics
@@ -388,6 +396,12 @@ private:
     std::array<std::atomic<float>, 8> blendSlotWeights_{}; // each 0.0-1.0
     std::atomic<float> blendLiveWeight_{0.0f};        // 0.0-1.0
 
+    // Harmonic Physics parameters (Spec A: 122-harmonic-physics)
+    std::atomic<float> warmth_{0.0f};                 // 0.0-1.0, default 0.0
+    std::atomic<float> coupling_{0.0f};               // 0.0-1.0, default 0.0
+    std::atomic<float> stability_{0.0f};              // 0.0-1.0, default 0.0
+    std::atomic<float> entropy_{0.0f};                // 0.0-1.0, default 0.0
+
     // =========================================================================
     // DSP Members (T081)
     // =========================================================================
@@ -411,6 +425,12 @@ private:
     Krate::DSP::OnePoleSmoother mod2DepthSmoother_;         // 5ms (FR-033)
     Krate::DSP::OnePoleSmoother detuneSpreadSmoother_;      // 5ms (FR-033)
     std::array<Krate::DSP::OnePoleSmoother, 9> blendWeightSmootherArray_; // 5ms (FR-041): [0-7]=slots, [8]=live
+
+    // Harmonic Physics smoothers (Spec A: 122-harmonic-physics)
+    Krate::DSP::OnePoleSmoother warmthSmoother_;
+    Krate::DSP::OnePoleSmoother couplingSmoother_;
+    Krate::DSP::OnePoleSmoother stabilitySmoother_;
+    Krate::DSP::OnePoleSmoother entropySmoother_;
 
     /// Atomic pointer for lock-free analysis transfer (FR-058)
     std::atomic<SampleAnalysis*> currentAnalysis_{nullptr};
@@ -556,6 +576,11 @@ private:
     // M6: Harmonic Blender (FR-034 to FR-042)
     // =========================================================================
     HarmonicBlender harmonicBlender_;
+
+    // =========================================================================
+    // Harmonic Physics (Spec A: 122-harmonic-physics)
+    // =========================================================================
+    HarmonicPhysics harmonicPhysics_;
 
     // =========================================================================
     // Display Data (M7: FR-048)
