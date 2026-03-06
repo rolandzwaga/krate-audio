@@ -1258,13 +1258,13 @@ TEST_CASE("ResidualIntegration: getState writes version 3 at offset 0 (FR-027, M
     TestStream stream;
     REQUIRE(proc.getState(&stream) == kResultOk);
 
-    // Read the first 4 bytes as int32 -- should be version 7 (Spec A: harmonic physics)
+    // Read the first 4 bytes as int32 -- should be version 8 (Spec B: analysis feedback loop)
     REQUIRE(stream.rawData().size() >= 4);
     stream.resetReadPos();
     Steinberg::IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 7);
+    REQUIRE(version == 8);
 
     proc.setActive(false);
     proc.terminate();

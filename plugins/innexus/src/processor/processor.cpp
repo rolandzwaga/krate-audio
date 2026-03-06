@@ -1902,6 +1902,16 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Analysis Feedback Loop (Spec B)
+            case kAnalysisFeedbackId:
+                feedbackAmount_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kAnalysisFeedbackDecayId:
+                feedbackDecay_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
@@ -1952,8 +1962,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- Spec A: version 7 (harmonic physics)
-    streamer.writeInt32(7);
+    // Write state version -- Spec B: version 8 (analysis feedback loop)
+    streamer.writeInt32(8);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -2104,6 +2114,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(coupling_.load(std::memory_order_relaxed));
     streamer.writeFloat(stability_.load(std::memory_order_relaxed));
     streamer.writeFloat(entropy_.load(std::memory_order_relaxed));
+
+    // --- Spec B: Analysis Feedback Loop parameters (v8) ---
+    streamer.writeFloat(feedbackAmount_.load(std::memory_order_relaxed));
+    streamer.writeFloat(feedbackDecay_.load(std::memory_order_relaxed));
 
     return Steinberg::kResultOk;
 }
@@ -2547,6 +2561,19 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
                 stability_.store(std::clamp(floatVal, 0.0f, 1.0f));
             if (streamer.readFloat(floatVal))
                 entropy_.store(std::clamp(floatVal, 0.0f, 1.0f));
+        }
+
+        // --- Spec B: Analysis Feedback Loop parameters (v8) ---
+        // Default both params first, then overwrite from stream if v8+
+        feedbackAmount_.store(0.0f);
+        feedbackDecay_.store(0.2f);
+
+        if (version >= 8)
+        {
+            if (streamer.readFloat(floatVal))
+                feedbackAmount_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                feedbackDecay_.store(std::clamp(floatVal, 0.0f, 1.0f));
         }
     }
 

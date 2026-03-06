@@ -26,6 +26,9 @@ add_executable(innexus_tests
     # State v7 tests (Spec A)
     unit/vst/test_state_v7.cpp
 
+    # State v8 tests (Spec B: Analysis Feedback Loop)
+    unit/vst/test_state_v8.cpp
+
     # --- Integration tests (real Processor, full pipeline) ---
 
     # Core processor integration (MIDI, state, parameter application)

@@ -41,13 +41,13 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Why foundational**: `plugin_ids.h` must exist before any test or implementation file can reference `kAnalysisFeedbackId` or `kAnalysisFeedbackDecayId`. The atomic members must exist before the process loop can use them.
 
-- [ ] T001 Add `kAnalysisFeedbackId = 710` and `kAnalysisFeedbackDecayId = 711` to the `ParameterIds` enum in `plugins/innexus/src/plugin_ids.h` (after `kEntropyId = 703`, per plan.md §1)
-- [ ] T002 Add `std::atomic<float> feedbackAmount_{0.0f}` and `std::atomic<float> feedbackDecay_{0.2f}` atomics to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-007, FR-008)
-- [ ] T003 Add `std::array<float, 8192> feedbackBuffer_{}` and `bool previousFreezeForFeedback_ = false` to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-005, FR-006, FR-016)
-- [ ] T004 Add read-only test accessors `getFeedbackAmount()` and `getFeedbackDecay()` to `Processor` in `plugins/innexus/src/processor/processor.h`
-- [ ] T005 Add `case kAnalysisFeedbackId` and `case kAnalysisFeedbackDecayId` handling (clamped store to atomics) in `processParameterChanges()` in `plugins/innexus/src/processor/processor.cpp` (FR-007, FR-008)
-- [ ] T006 [P] Register `RangeParameter` for `kAnalysisFeedbackId` (range 0.0–1.0, default 0.0) and `kAnalysisFeedbackDecayId` (range 0.0–1.0, default 0.2) in `Controller::initialize()` in `plugins/innexus/src/controller/controller.cpp` (FR-007, FR-008)
-- [ ] T007 Build Release to verify no compilation errors or warnings before writing any tests: `cmake --build build/windows-x64-release --config Release --target innexus`
+- [X] T001 Add `kAnalysisFeedbackId = 710` and `kAnalysisFeedbackDecayId = 711` to the `ParameterIds` enum in `plugins/innexus/src/plugin_ids.h` (after `kEntropyId = 703`, per plan.md §1)
+- [X] T002 Add `std::atomic<float> feedbackAmount_{0.0f}` and `std::atomic<float> feedbackDecay_{0.2f}` atomics to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-007, FR-008)
+- [X] T003 Add `std::array<float, 8192> feedbackBuffer_{}` and `bool previousFreezeForFeedback_ = false` to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-005, FR-006, FR-016)
+- [X] T004 Add read-only test accessors `getFeedbackAmount()` and `getFeedbackDecay()` to `Processor` in `plugins/innexus/src/processor/processor.h`
+- [X] T005 Add `case kAnalysisFeedbackId` and `case kAnalysisFeedbackDecayId` handling (clamped store to atomics) in `processParameterChanges()` in `plugins/innexus/src/processor/processor.cpp` (FR-007, FR-008)
+- [X] T006 [P] Register `RangeParameter` for `kAnalysisFeedbackId` (range 0.0–1.0, default 0.0) and `kAnalysisFeedbackDecayId` (range 0.0–1.0, default 0.2) in `Controller::initialize()` in `plugins/innexus/src/controller/controller.cpp` (FR-007, FR-008)
+- [X] T007 Build Release to verify no compilation errors or warnings before writing any tests: `cmake --build build/windows-x64-release --config Release --target innexus`
 
 **Checkpoint**: Parameter IDs and processor members exist — test files can now be created.
 
@@ -63,23 +63,23 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T008 Create `plugins/innexus/tests/unit/vst/test_state_v8.cpp` with test cases for: (a) getState writes version 8, (b) setState round-trips FeedbackAmount and FeedbackDecay, (c) setState with version 7 blob defaults FeedbackAmount to 0.0 and FeedbackDecay to 0.2 (FR-017, FR-020)
-- [ ] T009 Build and confirm T008 tests FAIL (state version still 7, parameters not yet persisted)
+- [X] T008 Create `plugins/innexus/tests/unit/vst/test_state_v8.cpp` with test cases for: (a) getState writes version 8, (b) setState round-trips FeedbackAmount and FeedbackDecay, (c) setState with version 7 blob defaults FeedbackAmount to 0.0 and FeedbackDecay to 0.2 (FR-017, FR-020)
+- [X] T009 Build and confirm T008 tests FAIL (state version still 7, parameters not yet persisted)
 
 ### 2.2 Implementation
 
-- [ ] T010 Update `getState()` in `plugins/innexus/src/processor/processor.cpp` to write version 8 and append FeedbackAmount and FeedbackDecay floats after Spec A parameters (FR-017, FR-020)
-- [ ] T011 Update `setState()` in `plugins/innexus/src/processor/processor.cpp` to default both params when `version < 8`, then read them when `version >= 8` with clamping (FR-017, FR-020)
-- [ ] T012 Update `setComponentState()` in `plugins/innexus/src/controller/controller.cpp` to mirror the same version 8 logic so the controller receives correct values from saved state, including value clamping to [0.0, 1.0] when reading both `kAnalysisFeedbackId` and `kAnalysisFeedbackDecayId` (FR-017, FR-020)
+- [X] T010 Update `getState()` in `plugins/innexus/src/processor/processor.cpp` to write version 8 and append FeedbackAmount and FeedbackDecay floats after Spec A parameters (FR-017, FR-020)
+- [X] T011 Update `setState()` in `plugins/innexus/src/processor/processor.cpp` to default both params when `version < 8`, then read them when `version >= 8` with clamping (FR-017, FR-020)
+- [X] T012 Update `setComponentState()` in `plugins/innexus/src/controller/controller.cpp` to mirror the same version 8 logic so the controller receives correct values from saved state, including value clamping to [0.0, 1.0] when reading both `kAnalysisFeedbackId` and `kAnalysisFeedbackDecayId` (FR-017, FR-020)
 
 ### 2.3 Verify and Cross-Platform Check
 
-- [ ] T013 Build Release and run innexus_tests to confirm T008 tests now pass: `cmake --build build/windows-x64-release --config Release --target innexus_tests`
-- [ ] T014 Verify IEEE 754 compliance: check `test_state_v8.cpp` for any `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if present
+- [X] T013 Build Release and run innexus_tests to confirm T008 tests now pass: `cmake --build build/windows-x64-release --config Release --target innexus_tests`
+- [X] T014 Verify IEEE 754 compliance: check `test_state_v8.cpp` for any `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if present
 
 ### 2.4 Commit
 
-- [ ] T015 **Commit completed state v8 work** (T001–T014) to branch `123-analysis-feedback-loop`
+- [X] T015 **Commit completed state v8 work** (T001–T014) to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: State persistence fully functional and tested. Presets from version < 8 behave identically to before (FeedbackAmount=0.0, FeedbackDecay=0.2).
 

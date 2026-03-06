@@ -484,6 +484,19 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(entropyParam);
 
+    // Analysis Feedback Loop (Spec B)
+    auto* feedbackAmountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Feedback Amount"), kAnalysisFeedbackId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(feedbackAmountParam);
+
+    auto* feedbackDecayParam = new Steinberg::Vst::RangeParameter(
+        STR16("Feedback Decay"), kAnalysisFeedbackDecayId,
+        STR16("%"), 0.0, 1.0, 0.2, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(feedbackDecayParam);
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
@@ -877,6 +890,22 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             setParamNormalized(kCouplingId, 0.0);
             setParamNormalized(kStabilityId, 0.0);
             setParamNormalized(kEntropyId, 0.0);
+        }
+
+        // --- Spec B: Analysis Feedback Loop parameters (v8) ---
+        if (version >= 8)
+        {
+            float fbVal = 0.0f;
+            if (streamer.readFloat(fbVal))
+                setParamNormalized(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(fbVal))
+                setParamNormalized(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+        }
+        else
+        {
+            // Default feedback values for v7 and older states
+            setParamNormalized(kAnalysisFeedbackId, 0.0);
+            setParamNormalized(kAnalysisFeedbackDecayId, 0.2);
         }
     }
 
