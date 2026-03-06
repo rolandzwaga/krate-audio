@@ -469,16 +469,21 @@ TEST_CASE("HarmonicPhysics Integration: each parameter independently affects out
         const char* name;
         double value;
         bool needsVaryingInput;
+        // Entropy decays agent memory — it requires stability > 0 to create that memory.
+        // When testing entropy's effect, we pair it with a small stability baseline.
+        ParamID pairedId;
+        double pairedValue;
     };
 
     const ParamTest params[] = {
-        {Innexus::kWarmthId, "Warmth", 1.0, false},
-        {Innexus::kCouplingId, "Coupling", 0.8, false},
+        {Innexus::kWarmthId, "Warmth", 1.0, false, 0, 0.0},
+        {Innexus::kCouplingId, "Coupling", 0.8, false, 0, 0.0},
         // Stability and entropy need varying input to manifest their effect:
         // - Stability resists amplitude changes (only visible with changing input)
-        // - Entropy decays unreinforced partials (visible when amplitudes vary)
-        {Innexus::kStabilityId, "Stability", 1.0, true},
-        {Innexus::kEntropyId, "Entropy", 0.8, true},
+        // - Entropy decays unreinforced partials (agent memory exceeding input).
+        //   Requires stability > 0 to create that memory, so we pair with stability=0.3.
+        {Innexus::kStabilityId, "Stability", 1.0, true, 0, 0.0},
+        {Innexus::kEntropyId, "Entropy", 0.8, true, Innexus::kStabilityId, 0.3},
     };
 
     for (const auto& param : params)
@@ -487,11 +492,13 @@ TEST_CASE("HarmonicPhysics Integration: each parameter independently affects out
         {
             const bool vary = param.needsVaryingInput;
 
-            // Capture baseline (all physics params at 0)
+            // Capture baseline (all physics params at 0, or with paired param only)
             std::vector<float> baseline;
             {
                 PhysicsTestFixture fix;
                 fix.injectAnalysis(makePhysicsTestAnalysis(20, 440.0f, 16, 0.5f, vary));
+                if (param.pairedId != 0)
+                    fix.paramChanges.addChange(param.pairedId, param.pairedValue);
                 fix.events.addNoteOn(60, 0.8f);
                 fix.processBlockWithParams();
                 fix.events.clear();
@@ -505,6 +512,8 @@ TEST_CASE("HarmonicPhysics Integration: each parameter independently affects out
             fix.injectAnalysis(makePhysicsTestAnalysis(20, 440.0f, 16, 0.5f, vary));
 
             fix.paramChanges.addChange(param.id, param.value);
+            if (param.pairedId != 0)
+                fix.paramChanges.addChange(param.pairedId, param.pairedValue);
 
             fix.events.addNoteOn(60, 0.8f);
             fix.processBlockWithParams();
@@ -527,7 +536,7 @@ TEST_CASE("HarmonicPhysics Integration: each parameter independently affects out
             }
 
             INFO(param.name << " at " << param.value
-                 << " should produce different output than bypass");
+                 << " should produce different output than baseline");
             REQUIRE(differs);
         }
     }
@@ -672,4 +681,57 @@ TEST_CASE("HarmonicPhysics Integration: small entropy does not crush volume",
 
     INFO("Baseline RMS: " << baselineRms << ", Entropy=0.05 RMS: " << entropyRms);
     REQUIRE(entropyRms > baselineRms * 0.5f);
+}
+
+TEST_CASE("HarmonicPhysics Integration: moderate entropy does not crush volume",
+          "[harmonic_physics][integration][regression]")
+{
+    // Entropy=0.3 is a typical "slightly open knob" value.
+    // Before fix: entropy decays ALL partials every frame, even reinforced ones,
+    // causing runaway volume drop. The agent drifts from input, persistence
+    // can never grow, and entropy keeps crushing at full rate.
+
+    float baselineRms = 0.0f;
+    {
+        PhysicsTestFixture fix;
+        fix.injectAnalysis(makeL2NormalizedAnalysis());
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 40; ++b)
+            fix.processBlock();
+        fix.processBlock();
+        baselineRms = fix.rmsOutput();
+    }
+    REQUIRE(baselineRms > 1e-6f);
+
+    // Test several moderate entropy values with extended playback (200 blocks ≈ 2.3s)
+    const float entropyValues[] = {0.1f, 0.3f, 0.5f};
+    for (float entropy : entropyValues)
+    {
+        SECTION(std::string("Entropy=") + std::to_string(entropy))
+        {
+            float entropyRms = 0.0f;
+            {
+                PhysicsTestFixture fix;
+                fix.injectAnalysis(makeL2NormalizedAnalysis());
+                fix.paramChanges.addChange(Innexus::kEntropyId, static_cast<double>(entropy));
+                fix.events.addNoteOn(60, 0.8f);
+                fix.processBlockWithParams();
+                fix.events.clear();
+                for (int b = 0; b < 200; ++b)
+                    fix.processBlock();
+                fix.processBlock();
+                entropyRms = fix.rmsOutput();
+            }
+
+            // Volume should be at least 70% of baseline for moderate entropy.
+            // Entropy should only decay unreinforced partials, not crush
+            // partials that the input is actively reinforcing every frame.
+            INFO("Baseline RMS: " << baselineRms
+                 << ", Entropy=" << entropy << " RMS: " << entropyRms
+                 << ", Ratio: " << (entropyRms / baselineRms));
+            REQUIRE(entropyRms > baselineRms * 0.7f);
+        }
+    }
 }

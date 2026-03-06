@@ -293,9 +293,18 @@ private:
             // inertia=1 means keep agent, inertia=0 means follow input
             agentAmp = effectiveInertia * agentAmp + (1.0f - effectiveInertia) * inputAmp;
 
-            // (e) Apply entropy decay: agent amplitude *= (1 - entropy * (1 - persistence))
-            // Stable partials (high persistence) decay slower
-            agentAmp *= (1.0f - entropy_ * (1.0f - persistence));
+            // (e) Apply entropy decay only to unreinforced energy.
+            // When input actively reinforces a partial (agent <= input), no decay.
+            // When agent exceeds input (residual from previous frames), decay the excess.
+            // This prevents entropy from crushing steady-state partials while still
+            // decaying partials that lose their input backing (e.g., after note change).
+            if (agentAmp > inputAmp)
+            {
+                const float excess = agentAmp - inputAmp;
+                const float decayedExcess =
+                    excess * (1.0f - entropy_ * (1.0f - persistence));
+                agentAmp = inputAmp + decayedExcess;
+            }
         }
 
         // FR-012: Energy budget normalization
