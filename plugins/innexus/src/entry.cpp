@@ -17,6 +17,15 @@
 
 #include "public.sdk/source/main/pluginfactory.h"
 
+// Shared UI component registration — including these headers triggers
+// the inline global ViewCreator instances that register custom classes
+// (ArcKnob, ToggleButton, etc.) with VSTGUI's UIViewFactory.
+#include "ui/action_button.h"
+#include "ui/arc_knob.h"
+#include "ui/bipolar_slider.h"
+#include "ui/fieldset_container.h"
+#include "ui/toggle_button.h"
+
 // ==============================================================================
 // Plugin Factory Definition
 // ==============================================================================

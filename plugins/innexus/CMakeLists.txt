@@ -57,6 +57,19 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/display_data.h
+    src/controller/modulator_sub_controller.h
+    src/controller/modulator_sub_controller.cpp
+    src/controller/views/harmonic_display_view.h
+    src/controller/views/harmonic_display_view.cpp
+    src/controller/views/confidence_indicator_view.h
+    src/controller/views/confidence_indicator_view.cpp
+    src/controller/views/memory_slot_status_view.h
+    src/controller/views/memory_slot_status_view.cpp
+    src/controller/views/evolution_position_view.h
+    src/controller/views/evolution_position_view.cpp
+    src/controller/views/modulator_activity_view.h
+    src/controller/views/modulator_activity_view.cpp
 
     # DSP (Analysis Pipeline)
     src/dsp/sample_analysis.h

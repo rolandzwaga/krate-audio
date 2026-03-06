@@ -493,3 +493,269 @@ State version bumped from 5 (M5) to 6. All 31 M6 parameter values appended after
 - **Pipeline priority**: blendEnabled overrides evolutionEnabled (FR-052). Both override normal recall/freeze path.
 - **Frame-rate processing**: Evolution, modulators, and blending operate per analysis frame (~86 Hz at 44.1kHz/512 hop). Only evolution phase advance and modulator LFO advance are per-sample.
 - **Stereo output in KrateDSP**: `processStereo()` added to `HarmonicOscillatorBank` (Layer 2, shared DSP library) while plugin-local DSP (evolution, modulators, blender) stays in `plugins/innexus/src/dsp/` per FR-046.
+
+---
+
+## M7 Plugin UI (Display Data Pipeline, Custom Views, Modulator Sub-Controller)
+**Since:** M7 (121-plugin-ui)
+
+Full VSTGUI interface for Innexus: 800x600 fixed editor with 48 parameter controls, 5 custom `CView` subclasses for real-time display, a reusable modulator template with `DelegationController`-based sub-controller for tag remapping, and an `IMessage`-based processor-to-controller data pipeline with 30ms `CVSTGUITimer` polling.
+
+### Display Data Pipeline (Canonical Real-Time Display Update Strategy)
+
+The Innexus display data pipeline uses `IMessage` for processor-to-controller communication combined with a 30ms `CVSTGUITimer` for UI refresh. This is the canonical pattern for transferring real-time analysis data to custom views:
+
+1. **Processor** populates a `DisplayData` struct at the end of each `process()` call and sends it via `allocateMessage()`/`sendMessage()` with message ID `"InnexusDisplayData"`.
+2. **Controller** receives the message in `notify()`, deserializes the binary payload via `memcpy` into `cachedDisplayData_`.
+3. **Timer** (`CVSTGUITimer`, 30ms interval, started in `didOpen()`, stopped in `willClose()`) fires `onDisplayTimerFired()`, which distributes the cached data to all custom views via their `updateData()` methods and triggers `setDirty(true)` for VSTGUI redraw.
+4. **Frame counter** (`DisplayData::frameCounter`) prevents redundant view updates when no new analysis frames have arrived.
+
+### DisplayData
+**Path:** [display_data.h](../../plugins/innexus/src/controller/display_data.h) | **Since:** M7
+
+Flat POD struct transferred from Processor to Controller via IMessage binary payload. Contains all data needed by the 5 custom views.
+
+```cpp
+namespace Innexus {
+
+struct DisplayData
+{
+    float partialAmplitudes[48]{};    // Linear amplitudes [0.0, ~1.0]
+    uint8_t partialActive[48]{};      // 1 = active, 0 = filtered/attenuated
+    float f0 = 0.0f;                  // Fundamental frequency (Hz)
+    float f0Confidence = 0.0f;        // [0.0, 1.0]
+    uint8_t slotOccupied[8]{};        // 1 = memory slot occupied
+    float evolutionPosition = 0.0f;   // Combined morph position [0.0, 1.0]
+    float manualMorphPosition = 0.0f; // Manual knob value [0.0, 1.0]
+    float mod1Phase = 0.0f;           // LFO phase [0.0, 1.0]
+    float mod2Phase = 0.0f;           // LFO phase [0.0, 1.0]
+    bool mod1Active = false;          // Modulator 1 enabled & depth > 0
+    bool mod2Active = false;          // Modulator 2 enabled & depth > 0
+    uint32_t frameCounter = 0;        // Monotonic, incremented per new frame
+};
+
+} // namespace Innexus
+```
+
+**When to use:**
+- Any new custom view that needs real-time data from the processor should add fields to this struct and consume them in `onDisplayTimerFired()`.
+- The struct is `memcpy`-safe (POD). No pointers, no strings, no virtual functions.
+
+---
+
+### HarmonicDisplayView
+**Path:** [harmonic_display_view.h](../../plugins/innexus/src/controller/views/harmonic_display_view.h) / [harmonic_display_view.cpp](../../plugins/innexus/src/controller/views/harmonic_display_view.cpp) | **Since:** M7
+
+Custom `CView` subclass that renders 48 vertical bars representing harmonic partial amplitudes. Uses dB scaling via `amplitudeToBarHeight()` for perceptually uniform display. Active partials are drawn in the accent color; filtered/attenuated partials are dimmed.
+
+```cpp
+namespace Innexus {
+
+class HarmonicDisplayView : public VSTGUI::CView
+{
+    // Data injection (called from timer)
+    void updateData(const DisplayData& data);
+
+    // Rendering
+    void draw(VSTGUI::CDrawContext* context) override;
+
+    // Utility (public for testing)
+    static float amplitudeToBarHeight(float amp, float viewHeight);
+
+    // Test accessors
+    bool hasData() const;
+    float getAmplitude(int index) const;
+    bool isActive(int index) const;
+};
+
+} // namespace Innexus
+```
+
+**When to use:** Primary spectral visualization in the Innexus editor. Consumes `DisplayData::partialAmplitudes` and `DisplayData::partialActive`.
+
+---
+
+### ConfidenceIndicatorView
+**Path:** [confidence_indicator_view.h](../../plugins/innexus/src/controller/views/confidence_indicator_view.h) / [confidence_indicator_view.cpp](../../plugins/innexus/src/controller/views/confidence_indicator_view.cpp) | **Since:** M7
+
+Custom `CView` subclass that displays the fundamental frequency (F0) detection confidence as a color-coded horizontal bar with a note name label. Color transitions from red (low confidence) through yellow to green (high confidence) via `getConfidenceColor()`.
+
+```cpp
+namespace Innexus {
+
+class ConfidenceIndicatorView : public VSTGUI::CView
+{
+    // Data injection (called from timer)
+    void updateData(const DisplayData& data);
+
+    // Rendering
+    void draw(VSTGUI::CDrawContext* context) override;
+
+    // Utility (public for testing)
+    static VSTGUI::CColor getConfidenceColor(float confidence);
+    static std::string freqToNoteName(float freq);
+
+    // Test accessors
+    float getConfidence() const;
+    float getF0() const;
+};
+
+} // namespace Innexus
+```
+
+**When to use:** Displays pitch detection quality alongside the spectral display. Consumes `DisplayData::f0Confidence` and `DisplayData::f0`.
+
+---
+
+### MemorySlotStatusView
+**Path:** [memory_slot_status_view.h](../../plugins/innexus/src/controller/views/memory_slot_status_view.h) / [memory_slot_status_view.cpp](../../plugins/innexus/src/controller/views/memory_slot_status_view.cpp) | **Since:** M7
+
+Custom `CView` subclass that renders 8 circles indicating which memory slots are occupied. Filled circles = occupied, outlined circles = empty.
+
+```cpp
+namespace Innexus {
+
+class MemorySlotStatusView : public VSTGUI::CView
+{
+    // Data injection (called from timer)
+    void updateData(const DisplayData& data);
+
+    // Rendering
+    void draw(VSTGUI::CDrawContext* context) override;
+
+    // Test accessor
+    bool isSlotOccupied(int index) const;
+};
+
+} // namespace Innexus
+```
+
+**When to use:** Visual feedback for memory slot state in the Memory section. Consumes `DisplayData::slotOccupied`.
+
+---
+
+### EvolutionPositionView
+**Path:** [evolution_position_view.h](../../plugins/innexus/src/controller/views/evolution_position_view.h) / [evolution_position_view.cpp](../../plugins/innexus/src/controller/views/evolution_position_view.cpp) | **Since:** M7
+
+Custom `CView` subclass that renders a horizontal track with a playhead indicator showing the evolution engine position, plus an optional ghost indicator for the manual morph position.
+
+```cpp
+namespace Innexus {
+
+class EvolutionPositionView : public VSTGUI::CView
+{
+    // Data injection (called from timer)
+    void updateData(const DisplayData& data, bool evolutionActive);
+
+    // Rendering
+    void draw(VSTGUI::CDrawContext* context) override;
+
+    // Test accessors
+    float getPosition() const;
+    float getManualPosition() const;
+    bool getShowGhost() const;
+};
+
+} // namespace Innexus
+```
+
+**When to use:** Visual feedback for evolution engine traversal in the Evolution section. Consumes `DisplayData::evolutionPosition` and `DisplayData::manualMorphPosition`. The `evolutionActive` flag controls ghost indicator visibility.
+
+---
+
+### ModulatorActivityView
+**Path:** [modulator_activity_view.h](../../plugins/innexus/src/controller/views/modulator_activity_view.h) / [modulator_activity_view.cpp](../../plugins/innexus/src/controller/views/modulator_activity_view.cpp) | **Since:** M7
+
+Custom `CView` subclass that renders a pulsing circular indicator showing LFO activity for a single modulator. The pulse intensity follows the LFO phase. When inactive (disabled or depth=0), the indicator is dimmed.
+
+```cpp
+namespace Innexus {
+
+class ModulatorActivityView : public VSTGUI::CView
+{
+    // Configuration
+    void setModIndex(int index);
+
+    // Data injection (called from timer)
+    void updateData(float phase, bool active);
+
+    // Rendering
+    void draw(VSTGUI::CDrawContext* context) override;
+
+    // Test accessors
+    int getModIndex() const;
+    float getPhase() const;
+    bool isActive() const;
+};
+
+} // namespace Innexus
+```
+
+**When to use:** Visual feedback for modulator LFO state inside the modulator template. Two instances are used (one per modulator). Consumes `DisplayData::mod1Phase`/`mod2Phase` and `DisplayData::mod1Active`/`mod2Active`.
+
+---
+
+### ModulatorSubController
+**Path:** [modulator_sub_controller.h](../../plugins/innexus/src/controller/modulator_sub_controller.h) / [modulator_sub_controller.cpp](../../plugins/innexus/src/controller/modulator_sub_controller.cpp) | **Since:** M7
+
+`DelegationController` subclass that enables a single modulator template in `editor.uidesc` to be instantiated twice (for Modulator 1 and Modulator 2) with automatic parameter tag remapping. Created by `Controller::createSubController()` when the template name matches `"ModulatorController"`.
+
+```cpp
+namespace Innexus {
+
+class ModulatorSubController : public VSTGUI::DelegationController
+{
+    ModulatorSubController(int modIndex, VSTGUI::IController* parent);
+
+    // Tag remapping: resolves generic names (e.g., "Mod.Enable") to
+    // concrete parameter IDs based on modIndex (0 -> kMod1*, 1 -> kMod2*)
+    int32_t getTagForName(VSTGUI::UTF8StringPtr name,
+                          int32_t registeredTag) const override;
+
+    // Wires ModulatorActivityView with correct mod index
+    VSTGUI::CView* verifyView(VSTGUI::CView* view,
+                               const VSTGUI::UIAttributes& attrs,
+                               const VSTGUI::IUIDescription* desc) override;
+
+    int getModIndex() const;
+};
+
+} // namespace Innexus
+```
+
+**Tag remapping table:**
+
+| Template Tag Name | Mod 1 (modIndex=0) | Mod 2 (modIndex=1) |
+|---|---|---|
+| `Mod.Enable` | `kMod1EnableId` (610) | `kMod2EnableId` (620) |
+| `Mod.Waveform` | `kMod1WaveformId` (611) | `kMod2WaveformId` (621) |
+| `Mod.Rate` | `kMod1RateId` (612) | `kMod2RateId` (622) |
+| `Mod.Depth` | `kMod1DepthId` (613) | `kMod2DepthId` (623) |
+| `Mod.RangeStart` | `kMod1RangeStartId` (614) | `kMod2RangeStartId` (624) |
+| `Mod.RangeEnd` | `kMod1RangeEndId` (615) | `kMod2RangeEndId` (625) |
+| `Mod.Target` | `kMod1TargetId` (616) | `kMod2TargetId` (626) |
+
+**When to use:** Automatically created by the controller. The template definition in `editor.uidesc` uses generic `Mod.*` tag names that are resolved at runtime by this sub-controller. This pattern avoids duplicating the entire modulator UI layout for each modulator instance.
+
+### Controller UI Infrastructure
+**Path:** [controller.h](../../plugins/innexus/src/controller/controller.h) / [controller.cpp](../../plugins/innexus/src/controller/controller.cpp) | **Since:** M7
+
+The Controller extends `EditControllerEx1` and `VST3EditorDelegate` to provide:
+
+- `createView()`: Returns `VST3Editor` with `editor.uidesc`
+- `createCustomView()`: Instantiates the 5 custom views by `custom-view-name` attribute
+- `createSubController()`: Instantiates `ModulatorSubController` for `"ModulatorController"` sub-controller name
+- `didOpen()`: Starts 30ms `CVSTGUITimer` for display data polling
+- `willClose()`: Stops timer, nulls all custom view observation pointers
+- `notify()`: Receives `"InnexusDisplayData"` messages from Processor, deserializes into `cachedDisplayData_`
+- `onDisplayTimerFired()`: Distributes cached display data to all custom views
+
+**Observation pointer pattern:** The controller holds raw pointers to custom views (VSTGUI owns the view lifetime). These are set in `createCustomView()` and nulled in `willClose()` to prevent dangling pointer access.
+
+### Key Design Patterns
+
+- **IMessage + 30ms timer**: Canonical real-time display data update strategy for Innexus. Processor sends binary `DisplayData` via IMessage; controller caches it and distributes to views at ~33fps via timer callback. This avoids any audio thread blocking.
+- **Frame counter deduplication**: `DisplayData::frameCounter` is checked in `onDisplayTimerFired()` to skip redundant view updates when no new analysis frames have arrived since the last timer tick.
+- **Template + sub-controller reuse**: Single modulator template in `editor.uidesc` instantiated twice with `ModulatorSubController` handling parameter tag remapping. Eliminates UI layout duplication.
+- **Vector-drawn shared components**: All standard controls use `Krate::Plugins::ArcKnob`, `ToggleButton`, `ActionButton`, `BipolarSlider`, and `FieldsetContainer` from `plugins/shared/src/ui/`. No bitmap assets required.
+- **Fixed 800x600 layout**: Innexus editor size is fixed at 800x600 pixels, defined in `editor.uidesc`.

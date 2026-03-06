@@ -19,6 +19,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "controller/display_data.h"
 #include "dsp/sample_analysis.h"
 #include "dsp/sample_analyzer.h"
 #include "dsp/live_analysis_pipeline.h"
@@ -306,6 +307,12 @@ public:
     }
     float getBlendLiveWeight() const { return blendLiveWeight_.load(std::memory_order_relaxed); }
 
+    /// @brief Send display data to controller via IMessage.
+    /// Called at end of process() when output is produced.
+    /// RT-Safety Note: allocateMessage() is called on the audio thread --
+    /// this is the standard VST3 IMessage pattern used throughout the codebase.
+    void sendDisplayData(Steinberg::Vst::ProcessData& data);
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -549,6 +556,11 @@ private:
     // M6: Harmonic Blender (FR-034 to FR-042)
     // =========================================================================
     HarmonicBlender harmonicBlender_;
+
+    // =========================================================================
+    // Display Data (M7: FR-048)
+    // =========================================================================
+    DisplayData displayDataBuffer_{}; // Processor-side buffer, no atomic needed
 
     // =========================================================================
     // Processing State
