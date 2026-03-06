@@ -22,7 +22,7 @@ Innexus is a new VST3 instrument plugin in the Krate Audio monorepo. Its oscilla
 - **Milestone 4 (Phases 13–14):** Musical control layer — freeze, morph, harmonic filtering ✅ COMPLETE
 - **Milestone 5 (Phases 15–16):** Harmonic Memory — snapshot capture, recall, preset integration ✅ COMPLETE
 - **Milestone 6 (Phases 17–21):** Creative extensions — cross-synthesis, stereo spread, evolution engine, modulators, multi-source blending ✅ COMPLETE
-- **Milestone 7 (Phase 22):** Plugin UI — full VSTGUI interface
+- **Milestone 7 (Phase 22):** Plugin UI — full VSTGUI interface ✅ COMPLETE
 
 ---
 
@@ -650,7 +650,7 @@ Dependencies: Phase 12 (live sidechain), Phase 15–16 (Harmonic Memory)
 
 ---
 
-### Phase 22: Plugin UI
+### Phase 22: Plugin UI ✅
 
 **Goal:** Full VSTGUI interface for all Innexus controls.
 
@@ -660,7 +660,7 @@ Dependencies: All previous phases (or incremental as features land)
 
 **Scope:** Deferred to its own spec. UI design depends on which features are implemented and how they interact. Will follow VSTGUI cross-platform patterns established in Iterum/Disrumpo/Ruinae.
 
-**This completes Milestone 7: full plugin.**
+**This completes Milestone 7: full plugin.** ✅
 
 ---
 
@@ -689,7 +689,7 @@ Phase 1 (scaffold)
                                      └→ Phase 20 (modulators) ✅
                                      └→ Phase 21 (multi-source blending) ← needs Phase 12 + 16
                                                                           ← MILESTONE 6 ✅
-                      └→ Phase 22 (UI) ← MILESTONE 7
+                      └→ Phase 22 (UI) ← MILESTONE 7 ✅
 ```
 
 ## Milestone → Spec Mapping
@@ -704,4 +704,4 @@ Each milestone is intended as one `speckit.specify` run:
 | M4 | 13–14 | Musical control layer (freeze, morph, harmonic filter) ✅ |
 | M5 | 15–16 | Harmonic Memory (snapshot capture/recall) ✅ |
 | M6 | 17–21 | Creative extensions (cross-synthesis, stereo, evolution, modulators, multi-source blending) ✅ |
-| M7 | 22 | Plugin UI |
+| M7 | 22 | Plugin UI ✅ |

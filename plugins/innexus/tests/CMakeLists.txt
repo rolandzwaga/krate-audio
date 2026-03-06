@@ -49,6 +49,9 @@ add_executable(innexus_tests
     # Enable/disable while playing + degraded host conditions
     integration/enable_disable_tests.cpp
 
+    # End-to-end: WAV file → SampleAnalyzer → Processor → pitched audio
+    integration/sample_load_e2e_tests.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -62,6 +65,23 @@ add_executable(innexus_tests
     # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
+
+    # UI controller tests (M7)
+    unit/controller/test_harmonic_display_view.cpp
+    unit/controller/test_confidence_indicator_view.cpp
+    unit/controller/test_memory_slot_status_view.cpp
+    unit/controller/test_evolution_position_view.cpp
+    unit/controller/test_modulator_activity_view.cpp
+    unit/controller/test_modulator_sub_controller.cpp
+    unit/controller/test_controller_ui.cpp
+
+    # UI custom view implementations (needed by controller tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/harmonic_display_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/confidence_indicator_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/memory_slot_status_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/evolution_position_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/modulator_activity_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/modulator_sub_controller.cpp
 
     # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
     vstgui_test_stubs.cpp
