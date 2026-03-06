@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <numeric>
@@ -701,4 +702,105 @@ TEST_CASE("Analysis Feedback: SC-003 decay=0.5 reaches silence within 60 seconds
     INFO("Final RMS after 60 seconds with decay=0.5: " << finalRMS
          << " (threshold: " << threshold << ")");
     REQUIRE(finalRMS < threshold);
+}
+
+// =============================================================================
+// T035: SC-008 - Feedback mixing introduces negligible CPU overhead
+// =============================================================================
+//
+// Code-structure verification (part a):
+// The feedback mixing loop in processor.cpp (around line 408-418) contains ONLY:
+//   - std::tanh() (transcendental arithmetic)
+//   - float multiply (fbAmount * 2.0f, * 0.5f, * (1.0f - fbAmount))
+//   - float add (sidechain + fbSample)
+//   - array indexing into pre-allocated std::array<float, 8192>
+// No allocations, no system calls, no virtual dispatch, no locks, no exceptions.
+//
+// The feedback capture loop (around line 1411-1444) contains ONLY:
+//   - float add/multiply for stereo-to-mono averaging ((out[0] + out[1]) * 0.5f)
+//   - std::exp() for decay coefficient (once per block)
+//   - float multiply for decay application (feedbackBuffer[s] *= decayCoeff)
+//   - array indexing into pre-allocated std::array<float, 8192>
+// No allocations, no system calls, no virtual dispatch, no locks, no exceptions.
+//
+// Both loops are O(N) in block size with no branching per sample.
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-008 feedback mixing has negligible CPU overhead",
+          "[analysis_feedback][SC-008]")
+{
+    // Part (b): Coarse timing sanity check.
+    // Run 1000 blocks with feedback=0.0 (baseline) and 1000 blocks with
+    // feedback=1.0 (active). The average block time difference must be
+    // less than 1% of the baseline time.
+
+    const int kNumBlocks = 1000;
+
+    // --- Baseline: feedback=0.0 ---
+    double baselineAvgNs = 0.0;
+    {
+        FeedbackTestFixture fix;
+        fix.fillSidechainSine(440.0f, 0.5f);
+
+        // Set feedback to 0.0 (baseline)
+        fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 0.0);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+
+        // Warm up
+        for (int b = 0; b < 50; ++b)
+            fix.processBlock();
+
+        // Timed run
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int b = 0; b < kNumBlocks; ++b)
+            fix.processBlock();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        baselineAvgNs = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count())
+            / static_cast<double>(kNumBlocks);
+    }
+
+    // --- Active: feedback=1.0 ---
+    double activeAvgNs = 0.0;
+    {
+        FeedbackTestFixture fix;
+        fix.fillSidechainSine(440.0f, 0.5f);
+
+        // Set feedback to 1.0 (active)
+        fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+        fix.events.addNoteOn(60, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+
+        // Warm up
+        for (int b = 0; b < 50; ++b)
+            fix.processBlock();
+
+        // Timed run
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int b = 0; b < kNumBlocks; ++b)
+            fix.processBlock();
+        auto end = std::chrono::high_resolution_clock::now();
+
+        activeAvgNs = static_cast<double>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count())
+            / static_cast<double>(kNumBlocks);
+    }
+
+    // The overhead must be less than 1% of baseline
+    double overheadFraction = 0.0;
+    if (baselineAvgNs > 0.0)
+        overheadFraction = (activeAvgNs - baselineAvgNs) / baselineAvgNs;
+
+    INFO("Baseline avg block time: " << baselineAvgNs << " ns");
+    INFO("Active avg block time:   " << activeAvgNs << " ns");
+    INFO("Overhead fraction:       " << overheadFraction
+         << " (limit: 0.01 = 1%)");
+
+    // Allow negative overhead (active faster than baseline due to noise)
+    // Only fail if overhead exceeds +1%
+    REQUIRE(overheadFraction < 0.01);
 }

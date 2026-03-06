@@ -148,7 +148,7 @@ The per-block decay formula was implemented in T024. These tests verify the form
 
 ### 4.4 Commit
 
-- [ ] T034 [US2] **Commit completed User Story 2 decay verification work** to branch `123-analysis-feedback-loop`
+- [X] T034 [US2] **Commit completed User Story 2 decay verification work** to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: Decay times are correct and within spec bounds. Feedback energy dissipates predictably.
 
@@ -164,22 +164,22 @@ The per-block decay formula was implemented in T024. These tests verify the form
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T035 [US3] Write SC-008 test: (a) code-structure verification — review the feedback mixing loop body in `plugins/innexus/src/processor/processor.cpp` and document in a test comment that it contains only arithmetic operations (tanh, multiply, add) with no allocations, system calls, or virtual dispatch; (b) coarse timing sanity check — run 1000 process() blocks with feedback=1.0 and 1000 blocks with feedback=0.0, verify the average block time difference is less than 1% of baseline using wall-clock measurement in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T036 Build and confirm T035 test FAIL or produces a baseline measurement
+- [X] T035 [US3] Write SC-008 test: (a) code-structure verification — review the feedback mixing loop body in `plugins/innexus/src/processor/processor.cpp` and document in a test comment that it contains only arithmetic operations (tanh, multiply, add) with no allocations, system calls, or virtual dispatch; (b) coarse timing sanity check — run 1000 process() blocks with feedback=1.0 and 1000 blocks with feedback=0.0, verify the average block time difference is less than 1% of baseline using wall-clock measurement in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [X] T036 Build and confirm T035 test FAIL or produces a baseline measurement
 
 ### 5.2 Implementation
 
 No new code for the safety stack — the 5 layers are already in place from earlier phases and existing code (FR-010, FR-011, FR-012 require no changes per spec.md assumptions and plan.md §Safety Stack). This phase confirms they cooperate correctly.
 
-- [ ] T037 [US3] Build Release and run all integration tests (SC-001 through SC-004, SC-008) to confirm the full safety stack passes together
+- [X] T037 [US3] Build Release and run all integration tests (SC-001 through SC-004, SC-008) to confirm the full safety stack passes together
 
 ### 5.3 Verify
 
-- [ ] T038 [US3] Run full innexus_tests suite and confirm all tests pass with no regressions: `cmake --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T038 [US3] Run full innexus_tests suite and confirm all tests pass with no regressions: `cmake --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
 
 ### 5.4 Commit
 
-- [ ] T039 [US3] **Commit completed User Story 3 safety verification work** to branch `123-analysis-feedback-loop`
+- [X] T039 [US3] **Commit completed User Story 3 safety verification work** to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: All P1 user stories (US1, US2, US3) are complete, tested, and stable.
 
