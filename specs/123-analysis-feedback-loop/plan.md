@@ -96,8 +96,8 @@ No new classes or structs are introduced by this feature. The feedback buffer is
 | Dependency | Method/Member | Exact Signature (from header) | Verified? |
 |------------|---------------|-------------------------------|-----------|
 | `LiveAnalysisPipeline` | `pushSamples` | `void pushSamples(const float* samples, size_t numSamples)` | Yes |
-| `OnePoleSmoother` | `configure` | `void configure(float timeConstantMs, float sampleRate) noexcept` | Yes |
-| `OnePoleSmoother` | `snapTo` | `void snapTo(float value) noexcept` | Yes |
+| `OnePoleSmoother` | `configure` | `void configure(float timeConstantMs, float sampleRate) noexcept` | Yes (NOT USED — see Decision Log; listed for reference only) |
+| `OnePoleSmoother` | `snapTo` | `void snapTo(float value) noexcept` | Yes (NOT USED — see Decision Log; listed for reference only) |
 | `sidechainBuffer_` | (member) | `std::array<float, 8192> sidechainBuffer_{}` | Yes |
 | `HarmonicOscillatorBank` | `kOutputClamp` | `static constexpr float kOutputClamp = 2.0f` | Yes |
 
@@ -211,7 +211,7 @@ specs/123-analysis-feedback-loop/
 ```text
 plugins/innexus/
 +-- src/
-|   +-- plugin_ids.h                    # MOD: Add kFeedbackAmountId=710, kFeedbackDecayId=711
+|   +-- plugin_ids.h                    # MOD: Add kAnalysisFeedbackId=710, kAnalysisFeedbackDecayId=711
 |   +-- processor/
 |   |   +-- processor.h                 # MOD: Add feedback buffer, atomics, previousFreezeForFeedback_ flag
 |   |   +-- processor.cpp               # MOD: Feedback mixing in process(), state v7->v8, setActive() reset
@@ -298,8 +298,8 @@ Add to `ParameterIds` enum after `kEntropyId = 703`:
 
 ```cpp
 // Analysis Feedback Loop (710-711) -- Spec B
-kFeedbackAmountId = 710,           // 0.0-1.0, default 0.0
-kFeedbackDecayId = 711,            // 0.0-1.0, default 0.2
+kAnalysisFeedbackId = 710,           // 0.0-1.0, default 0.0
+kAnalysisFeedbackDecayId = 711,      // 0.0-1.0, default 0.2
 ```
 
 ### 2. Processor Members (processor.h)
@@ -333,6 +333,8 @@ float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_re
 ### 3. Process Loop Modifications (processor.cpp)
 
 **A. Feedback mixing -- between sidechain downmix and pushSamples() (line ~381-393)**
+
+Note: The roadmap (Innexus-emergent-harmonics-roadmap.md §Spec B) presents the soft limiter formula split across two lines (`fbSample = feedbackBuffer[s] * feedbackAmount` then `fbSample = tanh(fbSample * 2.0) * 0.5`). This is algebraically equivalent to the spec/plan formula (`fbSample = tanh(feedbackBuffer_[s] * feedbackAmount * 2.0f) * 0.5f`) — feedbackAmount is a scalar so the multiplication order is irrelevant. The spec/plan formula is canonical; the roadmap is an informal sketch.
 
 The current code at line 381-393:
 ```cpp
@@ -391,13 +393,13 @@ Modified to include feedback mixing:
 
 **B. Feedback capture -- after the per-sample output loop (after line ~1373)**
 
-After the per-sample loop writes to `out[0][s]` and `out[1][s]`, capture the mono output into the feedback buffer:
+After the per-sample loop writes to `out[0][s]` and `out[1][s]`, capture the mono output into the feedback buffer. The `currentSource == 1` check corresponds to `InputSource::Sidechain` (enum value 1, defined in `plugin_ids.h:127-131`). The `inputSource_` atomic stores a normalized float; the `> 0.5f` comparison is the existing pattern throughout the processor for integer-valued parameters stored as floats.
 
 ```cpp
 // Spec B FR-002, FR-006: Capture mono output into feedback buffer
 {
     const int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
-    if (currentSource == 1) // Only capture in sidechain mode (FR-014)
+    if (currentSource == 1) // Only capture in sidechain mode (InputSource::Sidechain, FR-014)
     {
         const auto count = std::min(numSamples,
             static_cast<Steinberg::int32>(feedbackBuffer_.size()));
@@ -461,13 +463,13 @@ Add after existing Spec A parameters (line ~485):
 ```cpp
 // Analysis Feedback Loop (Spec B)
 auto* feedbackAmountParam = new Steinberg::Vst::RangeParameter(
-    STR16("Feedback Amount"), kFeedbackAmountId,
+    STR16("Feedback Amount"), kAnalysisFeedbackId,
     STR16("%"), 0.0, 1.0, 0.0, 0,
     Steinberg::Vst::ParameterInfo::kCanAutomate);
 parameters.addParameter(feedbackAmountParam);
 
 auto* feedbackDecayParam = new Steinberg::Vst::RangeParameter(
-    STR16("Feedback Decay"), kFeedbackDecayId,
+    STR16("Feedback Decay"), kAnalysisFeedbackDecayId,
     STR16("%"), 0.0, 1.0, 0.2, 0,
     Steinberg::Vst::ParameterInfo::kCanAutomate);
 parameters.addParameter(feedbackDecayParam);
@@ -479,11 +481,11 @@ Add cases after kEntropyId handling (~line 1896):
 
 ```cpp
 // Analysis Feedback Loop (Spec B)
-case kFeedbackAmountId:
+case kAnalysisFeedbackId:
     feedbackAmount_.store(
         std::clamp(static_cast<float>(value), 0.0f, 1.0f));
     break;
-case kFeedbackDecayId:
+case kAnalysisFeedbackDecayId:
     feedbackDecay_.store(
         std::clamp(static_cast<float>(value), 0.0f, 1.0f));
     break;
@@ -544,7 +546,7 @@ if (version >= 8)
 **New files**: `tests/unit/vst/test_state_v8.cpp`
 
 Tasks:
-1. Add parameter IDs (kFeedbackAmountId=710, kFeedbackDecayId=711) to `plugin_ids.h`
+1. Add parameter IDs (kAnalysisFeedbackId=710, kAnalysisFeedbackDecayId=711) to `plugin_ids.h`
 2. Add atomics and feedback buffer to `processor.h`
 3. Add test accessors for feedback params
 4. Add processParameterChanges cases

@@ -39,14 +39,14 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Add the two new parameter IDs and Processor member declarations. Everything else depends on these.
 
-**Why foundational**: `plugin_ids.h` must exist before any test or implementation file can reference `kFeedbackAmountId` or `kFeedbackDecayId`. The atomic members must exist before the process loop can use them.
+**Why foundational**: `plugin_ids.h` must exist before any test or implementation file can reference `kAnalysisFeedbackId` or `kAnalysisFeedbackDecayId`. The atomic members must exist before the process loop can use them.
 
-- [ ] T001 Add `kFeedbackAmountId = 710` and `kFeedbackDecayId = 711` to the `ParameterIds` enum in `plugins/innexus/src/plugin_ids.h` (after `kEntropyId = 703`, per plan.md §1)
+- [ ] T001 Add `kAnalysisFeedbackId = 710` and `kAnalysisFeedbackDecayId = 711` to the `ParameterIds` enum in `plugins/innexus/src/plugin_ids.h` (after `kEntropyId = 703`, per plan.md §1)
 - [ ] T002 Add `std::atomic<float> feedbackAmount_{0.0f}` and `std::atomic<float> feedbackDecay_{0.2f}` atomics to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-007, FR-008)
 - [ ] T003 Add `std::array<float, 8192> feedbackBuffer_{}` and `bool previousFreezeForFeedback_ = false` to `Processor` in `plugins/innexus/src/processor/processor.h` (FR-005, FR-006, FR-016)
 - [ ] T004 Add read-only test accessors `getFeedbackAmount()` and `getFeedbackDecay()` to `Processor` in `plugins/innexus/src/processor/processor.h`
-- [ ] T005 Add `case kFeedbackAmountId` and `case kFeedbackDecayId` handling (clamped store to atomics) in `processParameterChanges()` in `plugins/innexus/src/processor/processor.cpp` (FR-007, FR-008)
-- [ ] T006 [P] Register `RangeParameter` for `kFeedbackAmountId` (range 0.0–1.0, default 0.0) and `kFeedbackDecayId` (range 0.0–1.0, default 0.2) in `Controller::initialize()` in `plugins/innexus/src/controller/controller.cpp` (FR-007, FR-008)
+- [ ] T005 Add `case kAnalysisFeedbackId` and `case kAnalysisFeedbackDecayId` handling (clamped store to atomics) in `processParameterChanges()` in `plugins/innexus/src/processor/processor.cpp` (FR-007, FR-008)
+- [ ] T006 [P] Register `RangeParameter` for `kAnalysisFeedbackId` (range 0.0–1.0, default 0.0) and `kAnalysisFeedbackDecayId` (range 0.0–1.0, default 0.2) in `Controller::initialize()` in `plugins/innexus/src/controller/controller.cpp` (FR-007, FR-008)
 - [ ] T007 Build Release to verify no compilation errors or warnings before writing any tests: `cmake --build build/windows-x64-release --config Release --target innexus`
 
 **Checkpoint**: Parameter IDs and processor members exist — test files can now be created.
@@ -70,7 +70,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 - [ ] T010 Update `getState()` in `plugins/innexus/src/processor/processor.cpp` to write version 8 and append FeedbackAmount and FeedbackDecay floats after Spec A parameters (FR-017, FR-020)
 - [ ] T011 Update `setState()` in `plugins/innexus/src/processor/processor.cpp` to default both params when `version < 8`, then read them when `version >= 8` with clamping (FR-017, FR-020)
-- [ ] T012 Update `setComponentState()` in `plugins/innexus/src/controller/controller.cpp` to mirror the same version 8 logic so the controller receives correct values from saved state (FR-017, FR-020)
+- [ ] T012 Update `setComponentState()` in `plugins/innexus/src/controller/controller.cpp` to mirror the same version 8 logic so the controller receives correct values from saved state, including value clamping to [0.0, 1.0] when reading both `kAnalysisFeedbackId` and `kAnalysisFeedbackDecayId` (FR-017, FR-020)
 
 ### 2.3 Verify and Cross-Platform Check
 
@@ -97,7 +97,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 - [ ] T016 Create `plugins/innexus/tests/integration/test_analysis_feedback.cpp` with test fixture that instantiates the Processor in sidechain mode
 - [ ] T017 [US1] Write SC-001 test: FeedbackAmount=0.0 produces output bit-identical to no-feedback baseline in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-019)
-- [ ] T018 [US1] Write SC-002 test: FeedbackAmount=1.0 with silent sidechain input, measure output RMS over 10 seconds does not show increasing trend in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [ ] T018 [US1] Write SC-002 test: FeedbackAmount=1.0 with silent sidechain input, measure output RMS at 1-second intervals over 10 seconds and verify no interval's RMS exceeds the t=0 RMS by more than 3dB in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
 - [ ] T019 [US1] Write SC-004 test: Output samples never exceed `HarmonicOscillatorBank::kOutputClamp` (2.0f) for any combination of FeedbackAmount/FeedbackDecay in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
 - [ ] T020 Build and confirm T017–T019 tests FAIL
 
@@ -127,13 +127,13 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Independent Test**: SC-003 with specific parameter values — after sidechain stops (silence), output RMS falls below -60dBFS within the specified time bounds.
 
-### 4.1 Write Failing Tests First
+### 4.1 Write Decay Verification Tests
 
-> **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
+> **Constitution Principle XII**: Tests MUST be written before verification begins. Note: because the decay formula was already implemented in T024, these tests may pass immediately if T024's formula is correct, or fail if it is wrong. Either outcome is informative. Write the tests before running T031.
 
 - [ ] T028 [US2] Write SC-003 test (decay=1.0 case): feed sidechain audio for 1 second with feedback=1.0, then set sidechain to silence and run for 10 seconds at 44.1kHz / 512-sample blocks, verify output RMS falls below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
 - [ ] T029 [US2] Write SC-003 test (decay=0.5 case): same setup, run for 60 seconds, verify output RMS below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T030 Build and confirm T028–T029 tests FAIL (or produce incorrect timing)
+- [ ] T030 Build and run T028–T029 tests; if they FAIL, proceed to T031; if they PASS, confirm T024's formula is correct and document (the formula from FR-013 was already implemented correctly)
 
 ### 4.2 Verify Decay Implementation is Correct
 
@@ -164,7 +164,7 @@ The per-block decay formula was implemented in T024. These tests verify the form
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T035 [US3] Write SC-008 test: measure per-block processing time with and without feedback active at feedback=1.0, verify the feedback path adds less than one multiply-add equivalent of overhead (document approach: can use cycle counter or wall-clock average across 1000 blocks) in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [ ] T035 [US3] Write SC-008 test: (a) code-structure verification — review the feedback mixing loop body in `plugins/innexus/src/processor/processor.cpp` and document in a test comment that it contains only arithmetic operations (tanh, multiply, add) with no allocations, system calls, or virtual dispatch; (b) coarse timing sanity check — run 1000 process() blocks with feedback=1.0 and 1000 blocks with feedback=0.0, verify the average block time difference is less than 1% of baseline using wall-clock measurement in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
 - [ ] T036 Build and confirm T035 test FAIL or produces a baseline measurement
 
 ### 5.2 Implementation
@@ -228,7 +228,7 @@ No new code for the safety stack — the 5 layers are already in place from earl
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
 - [ ] T048 [US5] Write SC-007 test: set input source to sample mode, compare output buffers with FeedbackAmount=0.0 vs FeedbackAmount=1.0, verify they are bit-identical in `plugins/innexus/tests/integration/test_analysis_feedback.cpp` (FR-014)
-- [ ] T049 Build and confirm T048 test FAIL (or passes trivially — if the `currentSource == 1` gate in T022 already handles this, verify it is correct and document)
+- [ ] T049 Build and confirm T048 test FAILS. If it passes before T050's implementation step is confirmed complete, document why (the `InputSource::Sidechain` gate in T022/T023 already enforces sample mode bypass) and mark the test as a regression guard going forward — a test that passes before implementation because the gate was already in place is still valid; it proves the gate functions correctly. Do not skip or remove the test.
 
 ### 7.2 Implementation
 
@@ -390,7 +390,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 - All file paths are relative to the monorepo root `F:\projects\iterum\`
 - Spec A prerequisite (122-harmonic-physics) is already merged — `HarmonicPhysics`, `kOutputClamp`, and energy budget normalization exist
 - Parameter IDs 700–703 are used by Spec A; 710–711 are reserved for this spec
-- `sidechainBuffer_` at `processor.h:503` is the sizing reference for `feedbackBuffer_` (both `std::array<float, 8192>`)
+- `sidechainBuffer_` at `processor.h:504` is the sizing reference for `feedbackBuffer_` (both `std::array<float, 8192>`)
 - The `std::tanh` soft limiter is a stdlib call — no custom DSP primitive needed
 - **MANDATORY**: Write tests that FAIL before implementing (Principle XII)
 - **MANDATORY**: Verify cross-platform IEEE 754 compliance for any test files using `std::isnan`/`std::isfinite`

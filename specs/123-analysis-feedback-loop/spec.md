@@ -122,8 +122,8 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 
 **Parameters:**
 
-- **FR-007**: System MUST expose a FeedbackAmount parameter (ID 710, range 0.0-1.0, default 0.0) that controls the mix ratio of synth output into the analysis input. At 0.0, no feedback occurs and the signal flow is identical to the current implementation.
-- **FR-008**: System MUST expose a FeedbackDecay parameter (ID 711, range 0.0-1.0, default 0.2) that applies an entropy leak to the feedback buffer, preventing infinite buildup of energy in the feedback path.
+- **FR-007**: System MUST expose a FeedbackAmount parameter (`kAnalysisFeedbackId` = 710, range 0.0-1.0, default 0.0) that controls the mix ratio of synth output into the analysis input. At 0.0, no feedback occurs and the signal flow is identical to the current implementation.
+- **FR-008**: System MUST expose a FeedbackDecay parameter (`kAnalysisFeedbackDecayId` = 711, range 0.0-1.0, default 0.2) that applies an entropy leak to the feedback buffer, preventing infinite buildup of energy in the feedback path.
 
 **Energy Limiting (Safety):**
 
@@ -165,13 +165,13 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 ### Measurable Outcomes
 
 - **SC-001**: With FeedbackAmount=0.0, the plugin output MUST be identical to the output of the current implementation (no regression). This is verified by comparing output buffers sample-by-sample.
-- **SC-002**: With FeedbackAmount=1.0 and silence as sidechain input, the synth output MUST converge to a stable state or decay to silence (not diverge). Output RMS measured over 10 seconds must not show an increasing trend.
+- **SC-002**: With FeedbackAmount=1.0 and silence as sidechain input, the synth output MUST converge to a stable state or decay to silence (not diverge). Output RMS measured at 1-second intervals over 10 seconds MUST NOT exceed the RMS measured at t=0 by more than 3dB at any interval.
 - **SC-003**: With FeedbackAmount=1.0, FeedbackDecay > 0, and no sidechain input, the output MUST decay to silence (RMS below -60dBFS) within the following bounds, measured at 44.1kHz with 512-sample blocks: decay=1.0 within 10 seconds; decay=0.5 within 60 seconds. These bounds follow from the exponential decay formula in FR-013. Tests MUST use these specific parameter values and block configuration.
-- **SC-004**: Output RMS MUST never exceed a defined ceiling (determined by the hard output clamp of 2.0 and the energy budget) regardless of feedback amount, decay, or input signal characteristics.
+- **SC-004**: Output RMS MUST never exceed a defined ceiling (determined by the hard output clamp of 2.0) regardless of feedback amount, decay, or input signal characteristics. This criterion verifies FR-011 (`HarmonicOscillatorBank::kOutputClamp`) as the outer bound. FR-010 (energy budget normalization in `HarmonicPhysics::applyDynamics`) acts as a secondary safety net but is not tested in isolation by this spec — it operates on frame amplitudes before synthesis, not on the final output samples directly.
 - **SC-005**: Engaging freeze while feedback is active MUST result in the feedback path being bypassed within the same process() call. The frozen frame MUST remain unmodified.
 - **SC-006**: Disengaging freeze MUST clear the feedback buffer. Verified by confirming the feedback buffer contains all zeros after freeze disengage.
 - **SC-007**: In sample mode, changing FeedbackAmount from 0.0 to 1.0 MUST produce no change in the output signal.
-- **SC-008**: The feedback mixing operation MUST add negligible computational overhead: less than one multiply-add per output sample (effectively zero measurable CPU impact compared to the baseline).
+- **SC-008**: The feedback mixing operation MUST NOT introduce allocations, system calls, virtual dispatch, or operations with super-linear complexity relative to block size. The inner mixing loop body MUST contain only arithmetic operations (tanh, multiply, add). Verification: code review confirms loop body complexity, plus a coarse timing sanity check that feedback-active processing adds less than 1% to baseline block time when averaged over 1000 blocks.
 
 ## Assumptions & Existing Components *(mandatory)*
 
@@ -195,12 +195,12 @@ A user working in sample mode (not sidechain mode) expects that the feedback par
 | `HarmonicOscillatorBank::kOutputClamp` | `dsp/include/krate/dsp/processors/harmonic_oscillator_bank.h:86` | Hard output clamp at 2.0f -- existing safety layer, no changes needed |
 | `HarmonicPhysics::applyDynamics` | `plugins/innexus/src/dsp/harmonic_physics.h:230-325` | Energy budget normalization -- existing secondary safety net, no changes needed |
 | `LiveAnalysisPipeline::pushSamples` | `plugins/innexus/src/dsp/live_analysis_pipeline.cpp:158` | Entry point for feeding audio into analysis -- the mixed feedback+sidechain signal will be fed here |
-| `Processor::sidechainBuffer_` | `plugins/innexus/src/processor/processor.h:503` | Existing sidechain downmix buffer -- reference for sizing/allocation pattern for new feedback buffer |
+| `Processor::sidechainBuffer_` | `plugins/innexus/src/processor/processor.h:504` | Existing sidechain downmix buffer -- reference for sizing/allocation pattern for new feedback buffer |
 | Confidence gate auto-freeze | `plugins/innexus/src/processor/processor.cpp:861` | Existing confidence-gated freeze mechanism -- acts as safety net if feedback produces garbage analysis |
 | Manual freeze handling | `plugins/innexus/src/processor/processor.cpp:596-611` | Existing freeze engage/disengage logic -- feedback bypass and buffer clear must integrate here |
 | Sidechain mono downmix | `plugins/innexus/src/processor/processor.cpp:352-380` | Existing stereo-to-mono downmix -- feedback mixing must occur between this and the `pushSamples()` call |
-| `InputSource` enum | `plugins/innexus/src/plugin_ids.h:126-130` | Existing mode enum -- used to gate feedback to sidechain-only |
-| `ParameterIds` enum | `plugins/innexus/src/plugin_ids.h:45-121` | Existing parameter ID registry -- new IDs 710-711 must be added here |
+| `InputSource` enum | `plugins/innexus/src/plugin_ids.h:127-131` | Existing mode enum (`InputSource::Sidechain = 1`) -- used to gate feedback to sidechain-only |
+| `ParameterIds` enum | `plugins/innexus/src/plugin_ids.h:46-122` | Existing parameter ID registry -- new IDs 710-711 must be added here |
 | Parameter atomics pattern | `plugins/innexus/src/processor/processor.h:399-402` | Existing `std::atomic<float>` pattern for warmth/coupling/stability/entropy -- same pattern for feedback params |
 
 **Initial codebase search for key terms:**
