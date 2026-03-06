@@ -7,7 +7,7 @@
 // and call process() with synthetic sidechain audio.
 //
 // Feature: 123-analysis-feedback-loop
-// Requirements: SC-001, SC-002, SC-004
+// Requirements: SC-001, SC-002, SC-003, SC-004
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -607,4 +607,98 @@ TEST_CASE("Analysis Feedback: SC-004 output never exceeds kOutputClamp",
             REQUIRE_FALSE(anyNaN);
         }
     }
+}
+
+// =============================================================================
+// T028: SC-003 - Decay=1.0: output RMS falls below -60dBFS within 10 seconds
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-003 decay=1.0 reaches silence within 10 seconds",
+          "[analysis_feedback][SC-003]")
+{
+    FeedbackTestFixture fix;
+
+    // Feed sidechain audio for 1 second to establish analysis state
+    fix.fillSidechainSine(440.0f, 0.5f);
+
+    // Set feedback=1.0, decay=1.0
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackDecayId, 1.0);
+
+    fix.events.addNoteOn(60, 0.8f);
+    fix.processBlockWithParams();
+    fix.events.clear();
+
+    // Feed sidechain audio for ~1 second
+    const int blocksPerSecond = static_cast<int>(kFbTestSampleRate)
+                                / kFbTestBlockSize;
+    for (int b = 1; b < blocksPerSecond; ++b)
+        fix.processBlock();
+
+    // Switch sidechain to silence
+    fix.fillSidechainSilence();
+
+    // Run for 10 seconds, measuring RMS at the end
+    const int totalSeconds = 10;
+    const int totalBlocks = totalSeconds * blocksPerSecond;
+
+    for (int b = 0; b < totalBlocks; ++b)
+        fix.processBlock();
+
+    // Measure RMS of the final block
+    float finalRMS = fix.rmsOutput();
+
+    // -60dBFS = 10^(-60/20) = 0.001
+    const float threshold = 0.001f;
+
+    INFO("Final RMS after 10 seconds with decay=1.0: " << finalRMS
+         << " (threshold: " << threshold << ")");
+    REQUIRE(finalRMS < threshold);
+}
+
+// =============================================================================
+// T029: SC-003 - Decay=0.5: output RMS falls below -60dBFS within 60 seconds
+// =============================================================================
+
+TEST_CASE("Analysis Feedback: SC-003 decay=0.5 reaches silence within 60 seconds",
+          "[analysis_feedback][SC-003]")
+{
+    FeedbackTestFixture fix;
+
+    // Feed sidechain audio for 1 second to establish analysis state
+    fix.fillSidechainSine(440.0f, 0.5f);
+
+    // Set feedback=1.0, decay=0.5
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackId, 1.0);
+    fix.paramChanges.addChange(Innexus::kAnalysisFeedbackDecayId, 0.5);
+
+    fix.events.addNoteOn(60, 0.8f);
+    fix.processBlockWithParams();
+    fix.events.clear();
+
+    // Feed sidechain audio for ~1 second
+    const int blocksPerSecond = static_cast<int>(kFbTestSampleRate)
+                                / kFbTestBlockSize;
+    for (int b = 1; b < blocksPerSecond; ++b)
+        fix.processBlock();
+
+    // Switch sidechain to silence
+    fix.fillSidechainSilence();
+
+    // Run for 60 seconds, measuring RMS at the end
+    const int totalSeconds = 60;
+    const int totalBlocks = totalSeconds * blocksPerSecond;
+
+    for (int b = 0; b < totalBlocks; ++b)
+        fix.processBlock();
+
+    // Measure RMS of the final block
+    float finalRMS = fix.rmsOutput();
+
+    // -60dBFS = 10^(-60/20) = 0.001
+    const float threshold = 0.001f;
+
+    INFO("Final RMS after 60 seconds with decay=0.5: " << finalRMS
+         << " (threshold: " << threshold << ")");
+    REQUIRE(finalRMS < threshold);
 }

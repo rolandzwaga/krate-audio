@@ -115,7 +115,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 3.4 Commit
 
-- [ ] T027 [US1] **Commit completed User Story 1 work** (feedback path core) to branch `123-analysis-feedback-loop`
+- [X] T027 [US1] **Commit completed User Story 1 work** (feedback path core) to branch `123-analysis-feedback-loop`
 
 **Checkpoint**: Core feedback signal flow works. Bit-identical at amount=0. Converges at amount=1. Hard clamp respected.
 
@@ -131,20 +131,20 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 > **Constitution Principle XII**: Tests MUST be written before verification begins. Note: because the decay formula was already implemented in T024, these tests may pass immediately if T024's formula is correct, or fail if it is wrong. Either outcome is informative. Write the tests before running T031.
 
-- [ ] T028 [US2] Write SC-003 test (decay=1.0 case): feed sidechain audio for 1 second with feedback=1.0, then set sidechain to silence and run for 10 seconds at 44.1kHz / 512-sample blocks, verify output RMS falls below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T029 [US2] Write SC-003 test (decay=0.5 case): same setup, run for 60 seconds, verify output RMS below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
-- [ ] T030 Build and run T028–T029 tests; if they FAIL, proceed to T031; if they PASS, confirm T024's formula is correct and document (the formula from FR-013 was already implemented correctly)
+- [X] T028 [US2] Write SC-003 test (decay=1.0 case): feed sidechain audio for 1 second with feedback=1.0, then set sidechain to silence and run for 10 seconds at 44.1kHz / 512-sample blocks, verify output RMS falls below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [X] T029 [US2] Write SC-003 test (decay=0.5 case): same setup, run for 60 seconds, verify output RMS below -60dBFS in `plugins/innexus/tests/integration/test_analysis_feedback.cpp`
+- [X] T030 Build and run T028–T029 tests; if they FAIL, proceed to T031; if they PASS, confirm T024's formula is correct and document (the formula from FR-013 was already implemented correctly)
 
 ### 4.2 Verify Decay Implementation is Correct
 
 The per-block decay formula was implemented in T024. These tests verify the formula constants are correct.
 
-- [ ] T031 [US2] Build Release and run SC-003 tests; if they fail, verify the decay coefficient formula in `plugins/innexus/src/processor/processor.cpp` matches `exp(-decayAmount * blockSize / sampleRate)` exactly as specified in FR-013 and the clarification for SC-003
+- [X] T031 [US2] Build Release and run SC-003 tests; if they fail, verify the decay coefficient formula in `plugins/innexus/src/processor/processor.cpp` matches `exp(-decayAmount * blockSize / sampleRate)` exactly as specified in FR-013 and the clarification for SC-003
 
 ### 4.3 Verify and Cross-Platform Check
 
-- [ ] T032 [US2] Confirm all SC-003 tests pass with correct time bounds
-- [ ] T033 [US2] Verify no new IEEE 754 function calls were introduced without `-fno-fast-math` guard
+- [X] T032 [US2] Confirm all SC-003 tests pass with correct time bounds
+- [X] T033 [US2] Verify no new IEEE 754 function calls were introduced without `-fno-fast-math` guard
 
 ### 4.4 Commit
 
