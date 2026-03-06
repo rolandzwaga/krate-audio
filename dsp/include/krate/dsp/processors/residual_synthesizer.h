@@ -111,8 +111,25 @@ public:
             applyBrightnessTilt(brightness);
         }
 
+        // Step 4b: Normalize envelope to unit RMS (shape only, no amplitude).
+        // Band energies are FFT-domain magnitudes. Normalizing ensures the
+        // envelope only controls spectral shape while energyScale controls level.
+        float envSumSq = 0.0f;
+        for (size_t k = 0; k < numBins_; ++k)
+            envSumSq += envelopeBuffer_[k] * envelopeBuffer_[k];
+        if (envSumSq > 1e-20f)
+        {
+            float invEnvRms = std::sqrt(static_cast<float>(numBins_) / envSumSq);
+            for (size_t k = 0; k < numBins_; ++k)
+                envelopeBuffer_[k] *= invEnvRms;
+        }
+
         // Step 5: Compute energy scale (FR-016, FR-023)
-        float energyScale = frame.totalEnergy;
+        // totalEnergy is RMS of FFT magnitudes (freq-domain).
+        // Convert to time-domain RMS via Parseval: time_rms ≈ freq_rms / sqrt(N).
+        // Additional /sqrt(N) accounts for the noise FFT magnitudes (~sqrt(N) per bin).
+        float energyScale = frame.totalEnergy
+            / static_cast<float>(fftSize_);
         if (frame.transientFlag && transientEmphasis > 0.0f)
         {
             energyScale *= (1.0f + transientEmphasis);

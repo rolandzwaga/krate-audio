@@ -8,14 +8,140 @@
 #include "plugin_ids.h"
 #include "update/innexus_update_config.h"
 
+#include "controller/views/harmonic_display_view.h"
+#include "controller/views/confidence_indicator_view.h"
+#include "controller/views/memory_slot_status_view.h"
+#include "controller/views/evolution_position_view.h"
+#include "controller/views/modulator_activity_view.h"
+#include "controller/modulator_sub_controller.h"
+
+#include "vstgui/uidescription/uiattributes.h"
+#include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/cfileselector.h"
+#include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cviewcontainer.h"
 #include "pluginterfaces/base/ibstream.h"
 #include "base/source/fstreamer.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
 namespace Innexus {
+
+// ==============================================================================
+// SampleLoadButton — custom CView button (no CControl / no parameter tag)
+// ==============================================================================
+// Follows the same pattern as Ruinae's PresetBrowserButton: a CView that
+// handles onMouseDown directly, avoiding VSTGUI's parameter binding machinery
+// which crashes when a CControl has a tag that doesn't map to a VST3 parameter.
+class SampleLoadButton : public VSTGUI::CView {
+public:
+    SampleLoadButton(const VSTGUI::CRect& size, Controller* controller)
+        : CView(size), controller_(controller) {}
+
+    void draw(VSTGUI::CDrawContext* context) override
+    {
+        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
+        auto r = getViewSize();
+        r.inset(0.5, 0.5);
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (path)
+        {
+            constexpr double kRadius = 3.0;
+            path->addRoundRect(r, kRadius);
+
+            if (hovered_)
+            {
+                context->setFillColor(VSTGUI::CColor(255, 255, 255, 20));
+                context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+            }
+
+            context->setFrameColor(VSTGUI::CColor(64, 64, 72));
+            context->setLineWidth(1.0);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+        }
+
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(*VSTGUI::kNormalFontSmaller);
+        context->setFont(font);
+        context->setFontColor(VSTGUI::CColor(192, 192, 192));
+        context->drawString(VSTGUI::UTF8String("Load"), getViewSize(), VSTGUI::kCenterText);
+        setDirty(false);
+    }
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override
+    {
+        hovered_ = true;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override
+    {
+        hovered_ = false;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton())
+        {
+            openFileSelector();
+            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+        }
+        return VSTGUI::kMouseEventNotHandled;
+    }
+
+private:
+    void openFileSelector()
+    {
+        auto* frame = getFrame();
+        if (!frame || !controller_)
+            return;
+
+        auto selector = VSTGUI::owned(
+            VSTGUI::CNewFileSelector::create(
+                frame, VSTGUI::CNewFileSelector::kSelectFile));
+        if (!selector)
+            return;
+
+        selector->setTitle("Load Sample");
+        VSTGUI::CFileExtension wavExt("WAV Audio", "wav");
+        VSTGUI::CFileExtension aiffExt("AIFF Audio", "aiff");
+        VSTGUI::CFileExtension aifExt("AIF Audio", "aif");
+        selector->addFileExtension(wavExt);
+        selector->addFileExtension(aiffExt);
+        selector->addFileExtension(aifExt);
+        selector->setDefaultExtension(wavExt);
+
+        auto* ctrl = controller_;
+        selector->run([ctrl](VSTGUI::CNewFileSelector* sel) {
+            if (sel->getNumSelectedFiles() > 0)
+            {
+                std::string fullPath(sel->getSelectedFile(0));
+                ctrl->onSampleFileSelected(fullPath);
+            }
+        });
+    }
+
+    Controller* controller_;
+    bool hovered_ = false;
+};
 
 // ==============================================================================
 // Initialize
@@ -397,14 +523,22 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 floatVal > 0.5f ? 1.0 : 0.0);
         }
 
-        // Skip sample file path (controller does not need it)
+        // Read sample file path for filename display
         Steinberg::int32 pathLen = 0;
         if (streamer.readInt32(pathLen) && pathLen > 0 && pathLen < 4096)
         {
-            // Skip the path bytes
             std::vector<char> pathBuf(static_cast<size_t>(pathLen));
             Steinberg::int32 bytesRead = 0;
             state->read(pathBuf.data(), pathLen, &bytesRead);
+            if (bytesRead == pathLen)
+            {
+                std::string fullPath(pathBuf.data(),
+                                     static_cast<size_t>(pathLen));
+                auto filename = std::filesystem::path(fullPath)
+                                    .filename().string();
+                loadedSampleFilename_ = filename;
+                loadedSampleFullPath_ = fullPath;
+            }
         }
 
         // M2: Read residual parameters if version >= 2 (FR-027)
@@ -728,6 +862,339 @@ bool Controller::importSnapshotFromJson(const std::string& filePath,
     sendMessage(msg);
     msg->release();
     return true;
+}
+
+// ==============================================================================
+// createView (T012: FR-047)
+// ==============================================================================
+Steinberg::IPlugView* PLUGIN_API Controller::createView(Steinberg::FIDString name)
+{
+    if (std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0)
+    {
+        return new VSTGUI::VST3Editor(this, "Editor", "editor.uidesc");
+    }
+    return nullptr;
+}
+
+// ==============================================================================
+// createCustomView (T030: FR-047)
+// ==============================================================================
+VSTGUI::CView* Controller::createCustomView(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::UIAttributes& attributes,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* /*editor*/)
+{
+    if (!name)
+        return nullptr;
+
+    const std::string viewName(name);
+
+    // Extract size from attributes for the CRect
+    VSTGUI::CPoint origin;
+    VSTGUI::CPoint size;
+    VSTGUI::CRect viewRect;
+    if (const auto* o = attributes.getAttributeValue("origin"))
+    {
+        double x = 0;
+        double y = 0;
+        if (std::sscanf(o->c_str(), "%lf, %lf", &x, &y) == 2)
+            origin = VSTGUI::CPoint(x, y);
+    }
+    if (const auto* s = attributes.getAttributeValue("size"))
+    {
+        double w = 0;
+        double h = 0;
+        if (std::sscanf(s->c_str(), "%lf, %lf", &w, &h) == 2)
+            size = VSTGUI::CPoint(w, h);
+    }
+    viewRect = VSTGUI::CRect(0, 0, size.x, size.y);
+
+    // FR-047: Create custom views by name
+    if (viewName == "HarmonicDisplay")
+    {
+        auto* view = new HarmonicDisplayView(viewRect);
+        harmonicDisplayView_ = view;
+        return view;
+    }
+    if (viewName == "ConfidenceIndicator")
+    {
+        auto* view = new ConfidenceIndicatorView(viewRect);
+        confidenceIndicatorView_ = view;
+        return view;
+    }
+    if (viewName == "MemorySlotStatus")
+    {
+        auto* view = new MemorySlotStatusView(viewRect);
+        memorySlotStatusView_ = view;
+        return view;
+    }
+    if (viewName == "EvolutionPosition")
+    {
+        auto* view = new EvolutionPositionView(viewRect);
+        evolutionPositionView_ = view;
+        return view;
+    }
+    if (viewName == "ModulatorActivity")
+    {
+        auto* view = new ModulatorActivityView(viewRect);
+        // Store pointer in the first available slot.
+        // Views are created in XML order: Mod1 first, Mod2 second.
+        // The sub-controller's verifyView() will set the modIndex on each.
+        if (!modActivityView0_)
+            modActivityView0_ = view;
+        else if (!modActivityView1_)
+            modActivityView1_ = view;
+        return view;
+    }
+    if (viewName == "SampleLoadButton")
+    {
+        return new SampleLoadButton(viewRect, this);
+    }
+    if (viewName == "SampleLoadContainer")
+    {
+        auto* container = new VSTGUI::CViewContainer(viewRect);
+        container->setTransparency(true);
+        sampleLoadContainer_ = container;
+        return container;
+    }
+    if (viewName == "SampleFilenameLabel")
+    {
+        auto* label = new VSTGUI::CTextLabel(viewRect);
+        label->setTransparency(true);
+        sampleFilenameLabel_ = label;
+        return label;
+    }
+
+    return nullptr;
+}
+
+// ==============================================================================
+// createSubController (T058: FR-046)
+// ==============================================================================
+VSTGUI::IController* Controller::createSubController(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* editor)
+{
+    if (!name)
+        return nullptr;
+
+    const std::string controllerName(name);
+
+    // FR-046: Modulator sub-controller for tag remapping
+    // VSTGUI takes ownership of the returned pointer (raw new is mandated)
+    // editor (VST3Editor*) is the IController parent for delegation
+    if (controllerName == "ModulatorController")
+        return new ModulatorSubController(modInstanceCounter_++, editor);
+
+    return nullptr;
+}
+
+// ==============================================================================
+// didOpen (T013: FR-049)
+// ==============================================================================
+void Controller::didOpen(VSTGUI::VST3Editor* editor)
+{
+    activeEditor_ = editor;
+
+    // Primary counter reset: ensures Mod 1 gets index 0, Mod 2 gets index 1
+    modInstanceCounter_ = 0;
+
+    // Create display update timer (30ms = ~33fps, exceeds SC-003 >= 10fps)
+    displayTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer*) { onDisplayTimerFired(); }, 30);
+
+    // Restore filename display if a sample was previously loaded
+    if (!loadedSampleFilename_.empty())
+        setSampleFilenameDisplay(loadedSampleFilename_, loadedSampleFullPath_);
+
+    // Set initial visibility of sample load panel
+    updateSampleLoadVisibility();
+}
+
+// ==============================================================================
+// willClose (T014: timer lifecycle)
+// ==============================================================================
+void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
+{
+    // Stop and release timer
+    if (displayTimer_)
+    {
+        displayTimer_->stop();
+        displayTimer_ = nullptr;
+    }
+
+    // Null all custom view pointers (VSTGUI owns the views)
+    harmonicDisplayView_ = nullptr;
+    confidenceIndicatorView_ = nullptr;
+    memorySlotStatusView_ = nullptr;
+    evolutionPositionView_ = nullptr;
+    modActivityView0_ = nullptr;
+    modActivityView1_ = nullptr;
+    sampleFilenameLabel_ = nullptr;
+    sampleLoadContainer_ = nullptr;
+
+    activeEditor_ = nullptr;
+
+    // Defensive counter reset
+    modInstanceCounter_ = 0;
+}
+
+// ==============================================================================
+// notify (T015: FR-048 IMessage protocol)
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Controller::notify(
+    Steinberg::Vst::IMessage* message)
+{
+    if (!message)
+        return Steinberg::kInvalidArgument;
+
+    // Display data from processor (FR-048)
+    if (std::strcmp(message->getMessageID(), "DisplayData") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        const void* data = nullptr;
+        Steinberg::uint32 dataSize = 0;
+        if (attrs->getBinary("data", data, dataSize) != Steinberg::kResultOk)
+            return Steinberg::kResultFalse;
+
+        // Validate size matches DisplayData struct
+        if (dataSize != sizeof(DisplayData))
+            return Steinberg::kResultFalse;
+
+        std::memcpy(&cachedDisplayData_, data, sizeof(DisplayData));
+        return Steinberg::kResultOk;
+    }
+
+    // Sample file loaded notification from processor
+    if (std::strcmp(message->getMessageID(), "SampleFileLoaded") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        const void* data = nullptr;
+        Steinberg::uint32 dataSize = 0;
+        if (attrs->getBinary("path", data, dataSize) == Steinberg::kResultOk
+            && dataSize > 0)
+        {
+            std::string fullPath(static_cast<const char*>(data),
+                                 static_cast<size_t>(dataSize));
+            auto filename = std::filesystem::path(fullPath)
+                                .filename().string();
+            loadedSampleFilename_ = filename;
+            loadedSampleFullPath_ = fullPath;
+            setSampleFilenameDisplay(filename, fullPath);
+        }
+        return Steinberg::kResultOk;
+    }
+
+    return EditControllerEx1::notify(message);
+}
+
+// ==============================================================================
+// onSampleFileSelected — called by SampleLoadSubController
+// ==============================================================================
+void Controller::onSampleFileSelected(const std::string& filePath)
+{
+    // Extract filename for display
+    auto filename = std::filesystem::path(filePath).filename().string();
+    loadedSampleFilename_ = filename;
+    loadedSampleFullPath_ = filePath;
+    setSampleFilenameDisplay(filename, filePath);
+
+    // Send file path to processor via IMessage
+    auto* msg = allocateMessage();
+    if (!msg)
+        return;
+    msg->setMessageID("LoadSampleFile");
+    auto* attrs = msg->getAttributes();
+    attrs->setBinary("path", filePath.data(),
+                     static_cast<Steinberg::uint32>(filePath.size()));
+    sendMessage(msg);
+    msg->release();
+}
+
+// ==============================================================================
+// setSampleFilenameDisplay
+// ==============================================================================
+void Controller::setSampleFilenameDisplay(const std::string& filename,
+                                          const std::string& fullPath)
+{
+    if (sampleFilenameLabel_)
+    {
+        sampleFilenameLabel_->setText(VSTGUI::UTF8String(filename));
+        sampleFilenameLabel_->setTooltipText(VSTGUI::UTF8String(fullPath));
+        sampleFilenameLabel_->invalid();
+    }
+}
+
+// ==============================================================================
+// updateSampleLoadVisibility
+// ==============================================================================
+void Controller::updateSampleLoadVisibility()
+{
+    if (!sampleLoadContainer_)
+        return;
+
+    // InputSource: 0 = Sample (show), 1 = Sidechain (hide)
+    auto* param = getParameterObject(kInputSourceId);
+    if (!param)
+        return;
+
+    bool isSampleMode = param->getNormalized() < 0.5;
+    sampleLoadContainer_->setVisible(isSampleMode);
+    if (sampleLoadContainer_->getParentView())
+        sampleLoadContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
+// onDisplayTimerFired (T016: FR-049)
+// ==============================================================================
+void Controller::onDisplayTimerFired()
+{
+    // Update sample load panel visibility (cheap check every 30ms)
+    updateSampleLoadVisibility();
+
+    // Check if we have new data (frame counter changed)
+    if (cachedDisplayData_.frameCounter == lastProcessedFrameCounter_)
+        return;
+
+    lastProcessedFrameCounter_ = cachedDisplayData_.frameCounter;
+
+    // Update each custom view with cached display data
+    if (harmonicDisplayView_)
+        harmonicDisplayView_->updateData(cachedDisplayData_);
+
+    if (confidenceIndicatorView_)
+        confidenceIndicatorView_->updateData(cachedDisplayData_);
+
+    if (memorySlotStatusView_)
+        memorySlotStatusView_->updateData(cachedDisplayData_);
+
+    if (evolutionPositionView_)
+    {
+        // Evolution is active when the enable parameter is on
+        // We approximate by checking if the position is non-zero
+        // or if the cached data shows it active
+        bool evolutionActive = cachedDisplayData_.evolutionPosition > 0.001f ||
+                               cachedDisplayData_.manualMorphPosition > 0.001f;
+        evolutionPositionView_->updateData(cachedDisplayData_, evolutionActive);
+    }
+
+    if (modActivityView0_)
+        modActivityView0_->updateData(
+            cachedDisplayData_.mod1Phase,
+            cachedDisplayData_.mod1Active);
+
+    if (modActivityView1_)
+        modActivityView1_->updateData(
+            cachedDisplayData_.mod2Phase,
+            cachedDisplayData_.mod2Active);
 }
 
 } // namespace Innexus

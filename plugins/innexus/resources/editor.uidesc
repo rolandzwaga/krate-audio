@@ -1,7 +1,733 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <vstgui-ui-description version="1">
-    <!-- Innexus UI Description (placeholder) -->
-    <template name="editor" minSize="800, 600" maxSize="800, 600"
-              size="800, 600" background-color="#1a1a2e">
-    </template>
+  <!-- ================================================================== -->
+  <!-- Innexus - Harmonic Resynthesis Instrument UI                       -->
+  <!-- FR-001: Fixed 800x600, dark background (#1a1a2e)                   -->
+  <!-- FR-004: All VSTGUI cross-platform controls, vector-drawn shared    -->
+  <!-- ================================================================== -->
+
+  <colors>
+    <color name="bg-primary" rgba="#1A1A2Eff"/>
+    <color name="bg-panel" rgba="#202030ff"/>
+    <color name="accent" rgba="#00BCD4ff"/>
+    <color name="text-primary" rgba="#E0E0F0ff"/>
+    <color name="text-secondary" rgba="#8888AAff"/>
+    <color name="text-dim" rgba="#555566ff"/>
+    <color name="bar-active" rgba="#00BCD4ff"/>
+    <color name="bar-attenuated" rgba="#333333ff"/>
+  </colors>
+
+  <fonts>
+    <font name="title-font" font-name="Arial" size="16" bold="true"/>
+    <font name="section-font" font-name="Arial" size="11" bold="true"/>
+    <font name="label-font" font-name="Arial" size="10"/>
+    <font name="value-font" font-name="Arial" size="9"/>
+  </fonts>
+
+  <!-- ================================================================== -->
+  <!-- Control Tags: all 48 parameters (SC-001)                           -->
+  <!-- ================================================================== -->
+  <control-tags>
+    <!-- Global -->
+    <control-tag name="Bypass" tag="0"/>
+    <control-tag name="MasterGain" tag="1"/>
+
+    <!-- UI-only tags removed: sample load uses custom views instead -->
+
+    <!-- Oscillator Bank (200-299) -->
+    <control-tag name="ReleaseTime" tag="200"/>
+    <control-tag name="InharmonicityAmount" tag="201"/>
+
+    <!-- Residual Model (400-499) -->
+    <control-tag name="HarmonicLevel" tag="400"/>
+    <control-tag name="ResidualLevel" tag="401"/>
+    <control-tag name="ResidualBrightness" tag="402"/>
+    <control-tag name="TransientEmphasis" tag="403"/>
+
+    <!-- Musical Control (300-399) -->
+    <control-tag name="Freeze" tag="300"/>
+    <control-tag name="MorphPosition" tag="301"/>
+    <control-tag name="HarmonicFilterType" tag="302"/>
+    <control-tag name="Responsiveness" tag="303"/>
+
+    <!-- Harmonic Memory (304-399) -->
+    <control-tag name="MemorySlot" tag="304"/>
+    <control-tag name="MemoryCapture" tag="305"/>
+    <control-tag name="MemoryRecall" tag="306"/>
+
+    <!-- Sidechain / Live Analysis (500-599) -->
+    <control-tag name="InputSource" tag="500"/>
+    <control-tag name="LatencyMode" tag="501"/>
+
+    <!-- Creative Extensions (600-699) -->
+    <control-tag name="TimbralBlend" tag="600"/>
+    <control-tag name="StereoSpread" tag="601"/>
+    <control-tag name="EvolutionEnable" tag="602"/>
+    <control-tag name="EvolutionSpeed" tag="603"/>
+    <control-tag name="EvolutionDepth" tag="604"/>
+    <control-tag name="EvolutionMode" tag="605"/>
+
+    <!-- Modulator 1 -->
+    <control-tag name="Mod1Enable" tag="610"/>
+    <control-tag name="Mod1Waveform" tag="611"/>
+    <control-tag name="Mod1Rate" tag="612"/>
+    <control-tag name="Mod1Depth" tag="613"/>
+    <control-tag name="Mod1RangeStart" tag="614"/>
+    <control-tag name="Mod1RangeEnd" tag="615"/>
+    <control-tag name="Mod1Target" tag="616"/>
+
+    <!-- Modulator 2 -->
+    <control-tag name="Mod2Enable" tag="620"/>
+    <control-tag name="Mod2Waveform" tag="621"/>
+    <control-tag name="Mod2Rate" tag="622"/>
+    <control-tag name="Mod2Depth" tag="623"/>
+    <control-tag name="Mod2RangeStart" tag="624"/>
+    <control-tag name="Mod2RangeEnd" tag="625"/>
+    <control-tag name="Mod2Target" tag="626"/>
+
+    <!-- Detune -->
+    <control-tag name="DetuneSpread" tag="630"/>
+
+    <!-- Multi-Source Blend -->
+    <control-tag name="BlendEnable" tag="640"/>
+    <control-tag name="BlendSlotWeight1" tag="641"/>
+    <control-tag name="BlendSlotWeight2" tag="642"/>
+    <control-tag name="BlendSlotWeight3" tag="643"/>
+    <control-tag name="BlendSlotWeight4" tag="644"/>
+    <control-tag name="BlendSlotWeight5" tag="645"/>
+    <control-tag name="BlendSlotWeight6" tag="646"/>
+    <control-tag name="BlendSlotWeight7" tag="647"/>
+    <control-tag name="BlendSlotWeight8" tag="648"/>
+    <control-tag name="BlendLiveWeight" tag="649"/>
+
+    <!-- Template tags for modulator sub-controller remapping -->
+    <control-tag name="Mod.Enable" tag="610"/>
+    <control-tag name="Mod.Waveform" tag="611"/>
+    <control-tag name="Mod.Rate" tag="612"/>
+    <control-tag name="Mod.Depth" tag="613"/>
+    <control-tag name="Mod.RangeStart" tag="614"/>
+    <control-tag name="Mod.RangeEnd" tag="615"/>
+    <control-tag name="Mod.Target" tag="616"/>
+  </control-tags>
+
+  <!-- ================================================================== -->
+  <!-- Main Editor Template (800x600)                                     -->
+  <!-- ================================================================== -->
+  <template name="Editor" class="CViewContainer" size="800, 600"
+            background-color="bg-primary" minSize="800, 600" maxSize="800, 600">
+
+    <!-- ============================================================== -->
+    <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
+    <!-- FR-007, FR-008                                                  -->
+    <!-- ============================================================== -->
+    <view class="CViewContainer" origin="0, 0" size="800, 50"
+          background-color="bg-panel">
+
+      <!-- Plugin title -->
+      <view class="CTextLabel" origin="10, 8" size="200, 16"
+            text-alignment="left" font="title-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            title="INNEXUS"/>
+      <view class="CTextLabel" origin="10, 26" size="200, 12"
+            text-alignment="left" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Harmonic Resynthesis"/>
+
+      <!-- FR-006: Master Gain -->
+      <view class="ArcKnob" origin="700, 4" size="42, 42"
+            control-tag="MasterGain" default-value="0.8"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="698, 38" size="46, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Gain"/>
+      <view class="CParamDisplay" origin="742, 14" size="50, 14"
+            control-tag="MasterGain" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="left"/>
+
+      <!-- FR-007: Input Source selector (2 segments) -->
+      <view class="CTextLabel" origin="250, 2" size="130, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Source"/>
+      <view class="CSegmentButton" origin="250, 12" size="130, 24"
+            control-tag="InputSource" default-value="0"
+            font="label-font" text-color="text-primary"
+            frame-color="text-dim" segment-names="Sample,Sidechain"
+            style="horizontal" round-radius="3"/>
+
+      <!-- Sample Load panel (visible only in Sample source mode) -->
+      <view class="CViewContainer" custom-view-name="SampleLoadContainer"
+            origin="390, 0" size="140, 50" transparent="true">
+        <view custom-view-name="SampleLoadButton" origin="0, 4" size="50, 20"/>
+        <view class="CTextLabel" custom-view-name="SampleFilenameLabel"
+              origin="0, 28" size="140, 14"
+              text-alignment="left" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              text-truncation="head" title=""/>
+      </view>
+
+      <!-- FR-008: Latency Mode selector (2 segments) -->
+      <view class="CTextLabel" origin="540, 2" size="150, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Latency"/>
+      <view class="CSegmentButton" origin="540, 12" size="150, 24"
+            control-tag="LatencyMode" default-value="0"
+            font="label-font" text-color="text-primary"
+            frame-color="text-dim" segment-names="Low Latency,High Precision"
+            style="horizontal" round-radius="3"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- DISPLAY SECTION (Y 50-200) - FR-009, FR-013                    -->
+    <!-- ============================================================== -->
+
+    <!-- FR-003: Analysis section -->
+    <view class="FieldsetContainer" origin="5, 52" size="520, 145"
+          title="Analysis" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary"/>
+
+    <!-- FR-009: Spectral Display (custom view) -->
+    <view class="CView" custom-view-name="HarmonicDisplay"
+          origin="10, 62" size="510, 130"/>
+
+    <!-- FR-003: F0 section -->
+    <view class="FieldsetContainer" origin="530, 52" size="265, 145"
+          title="F0 Confidence" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary"/>
+
+    <!-- FR-013: Confidence Indicator (custom view) -->
+    <view class="CView" custom-view-name="ConfidenceIndicator"
+          origin="535, 62" size="255, 130"/>
+
+    <!-- ============================================================== -->
+    <!-- MUSICAL CONTROL SECTION (Y 200-340, left half)                 -->
+    <!-- FR-022, FR-023, FR-024, FR-025                                 -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 200" size="390, 140"
+          title="Musical Control" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-022: Freeze toggle (prominent) -->
+      <view class="ToggleButton" origin="15, 22" size="50, 30"
+            control-tag="Freeze" default-value="0"
+            on-color="accent" off-color="text-dim"
+            title="FREEZE" title-position="center"/>
+      <view class="CTextLabel" origin="10, 54" size="60, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Freeze"/>
+
+      <!-- FR-023: Morph Position -->
+      <view class="ArcKnob" origin="80, 20" size="42, 42"
+            control-tag="MorphPosition" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="75, 62" size="52, 12"
+            control-tag="MorphPosition" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="75, 74" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Morph"/>
+
+      <!-- FR-025: Responsiveness -->
+      <view class="ArcKnob" origin="140, 20" size="42, 42"
+            control-tag="Responsiveness" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="135, 62" size="52, 12"
+            control-tag="Responsiveness" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="135, 74" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Response"/>
+
+      <!-- FR-024: Harmonic Filter Type (5 segments) -->
+      <view class="CSegmentButton" origin="10, 95" size="370, 24"
+            control-tag="HarmonicFilterType" default-value="0"
+            font="value-font" text-color="text-primary"
+            frame-color="text-dim"
+            segment-names="All-Pass,Odd Only,Even Only,Low Harm.,High Harm."
+            style="horizontal" round-radius="3"/>
+      <view class="CTextLabel" origin="10, 120" size="370, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Harmonic Filter"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- OSCILLATOR / RESIDUAL SECTION (Y 200-340, right half)          -->
+    <!-- FR-016 to FR-021                                                -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="400, 200" size="395, 140"
+          title="Oscillator / Residual" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-016: Release Time -->
+      <view class="ArcKnob" origin="15, 22" size="42, 42"
+            control-tag="ReleaseTime" default-value="0.023"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="10, 64" size="52, 12"
+            control-tag="ReleaseTime" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="10, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Release"/>
+
+      <!-- FR-017: Inharmonicity -->
+      <view class="ArcKnob" origin="75, 22" size="42, 42"
+            control-tag="InharmonicityAmount" default-value="1"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="70, 64" size="52, 12"
+            control-tag="InharmonicityAmount" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="70, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Inharm."/>
+
+      <!-- FR-018: Harmonic Level -->
+      <view class="ArcKnob" origin="140, 22" size="42, 42"
+            control-tag="HarmonicLevel" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="135, 64" size="52, 12"
+            control-tag="HarmonicLevel" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="135, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Harm. Lvl"/>
+
+      <!-- FR-019: Residual Level -->
+      <view class="ArcKnob" origin="200, 22" size="42, 42"
+            control-tag="ResidualLevel" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="195, 64" size="52, 12"
+            control-tag="ResidualLevel" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="195, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Res. Lvl"/>
+
+      <!-- FR-020: Residual Brightness (bipolar) -->
+      <view class="BipolarSlider" origin="265, 30" size="52, 28"
+            control-tag="ResidualBrightness" default-value="0.5"
+            active-color="accent"/>
+      <view class="CParamDisplay" origin="260, 64" size="62, 12"
+            control-tag="ResidualBrightness" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="260, 76" size="62, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Brightness"/>
+
+      <!-- FR-021: Transient Emphasis -->
+      <view class="ArcKnob" origin="335, 22" size="42, 42"
+            control-tag="TransientEmphasis" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="330, 64" size="52, 12"
+            control-tag="TransientEmphasis" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="330, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Transient"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- MEMORY SECTION (Y 345-420) - FR-026 to FR-029                  -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 345" size="170, 115"
+          title="Memory" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-026: Memory Slot selector -->
+      <view class="COptionMenu" origin="10, 20" size="100, 22"
+            control-tag="MemorySlot" default-value="0"
+            font="label-font" font-color="text-primary"
+            back-color="bg-panel" frame-color="text-dim"/>
+      <view class="CTextLabel" origin="10, 42" size="100, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Slot"/>
+
+      <!-- FR-027: Capture button -->
+      <view class="ActionButton" origin="10, 50" size="70, 24"
+            control-tag="MemoryCapture" default-value="0"
+            title="Capture"/>
+      <view class="CTextLabel" origin="10, 74" size="70, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Capture"/>
+
+      <!-- FR-028: Recall button -->
+      <view class="ActionButton" origin="85, 50" size="70, 24"
+            control-tag="MemoryRecall" default-value="0"
+            title="Recall"/>
+      <view class="CTextLabel" origin="85, 74" size="70, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Recall"/>
+
+      <!-- FR-029: Slot status display -->
+      <view class="CView" custom-view-name="MemorySlotStatus"
+            origin="15, 82" size="120, 20"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- CROSS-SYNTHESIS / STEREO (Y 345-420) - FR-030, FR-031          -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="180, 345" size="145, 115"
+          title="Cross / Stereo" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-030: Timbral Blend -->
+      <view class="ArcKnob" origin="10, 22" size="42, 42"
+            control-tag="TimbralBlend" default-value="1"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="5, 64" size="52, 12"
+            control-tag="TimbralBlend" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="5, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Blend"/>
+
+      <!-- FR-031: Stereo Spread -->
+      <view class="ArcKnob" origin="75, 22" size="42, 42"
+            control-tag="StereoSpread" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="70, 64" size="52, 12"
+            control-tag="StereoSpread" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="70, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Stereo"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- EVOLUTION SECTION (Y 345-470) - FR-032 to FR-036               -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="330, 345" size="200, 115"
+          title="Evolution" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-032: Evolution Enable -->
+      <view class="ToggleButton" origin="10, 22" size="28, 28"
+            control-tag="EvolutionEnable" default-value="0"
+            on-color="accent" off-color="text-dim"/>
+      <view class="CTextLabel" origin="5, 52" size="38, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Enable"/>
+
+      <!-- FR-033: Evolution Speed -->
+      <view class="ArcKnob" origin="48, 18" size="38, 38"
+            control-tag="EvolutionSpeed" default-value="0.009"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="43, 56" size="48, 12"
+            control-tag="EvolutionSpeed" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="43, 68" size="48, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Speed"/>
+
+      <!-- FR-034: Evolution Depth -->
+      <view class="ArcKnob" origin="100, 18" size="38, 38"
+            control-tag="EvolutionDepth" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="95, 56" size="48, 12"
+            control-tag="EvolutionDepth" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="95, 68" size="48, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Depth"/>
+
+      <!-- FR-035: Evolution Mode (3 segments) -->
+      <view class="CSegmentButton" origin="10, 82" size="130, 20"
+            control-tag="EvolutionMode" default-value="0"
+            font="value-font" text-color="text-primary"
+            frame-color="text-dim"
+            segment-names="Cycle,PingPong,Random Walk"
+            style="horizontal" round-radius="3"/>
+      <view class="CTextLabel" origin="10, 102" size="130, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Evol. Mode"/>
+
+      <!-- FR-036: Evolution Position (custom view) -->
+      <view class="CView" custom-view-name="EvolutionPosition"
+            origin="148, 20" size="40, 60"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- DETUNE SECTION (Y 345-420) - FR-041                            -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="535, 345" size="75, 115"
+          title="Detune" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-041: Detune Spread -->
+      <view class="ArcKnob" origin="14, 22" size="42, 42"
+            control-tag="DetuneSpread" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="9, 64" size="52, 12"
+            control-tag="DetuneSpread" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="9, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Spread"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- MODULATOR SECTIONS (Y 465-585) - FR-037 to FR-040, FR-046      -->
+    <!-- ============================================================== -->
+
+    <!-- Mod 1: Wrapper with sub-controller (FR-046) -->
+    <view class="CViewContainer" origin="5, 465" size="195, 130"
+          sub-controller="ModulatorController" background-color="~ TransparentCColor">
+      <view template="modulator_panel"/>
+    </view>
+
+    <!-- Mod 2: Wrapper with sub-controller (FR-046) -->
+    <view class="CViewContainer" origin="205, 465" size="195, 130"
+          sub-controller="ModulatorController" background-color="~ TransparentCColor">
+      <view template="modulator_panel"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- BLEND SECTION (Y 465-585) - FR-042 to FR-045                   -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="405, 465" size="390, 130"
+          title="Blend" border-color="text-dim"
+          title-font="section-font" title-color="text-secondary">
+
+      <!-- FR-042: Blend Enable -->
+      <view class="ToggleButton" origin="10, 20" size="28, 28"
+            control-tag="BlendEnable" default-value="0"
+            on-color="accent" off-color="text-dim"/>
+      <view class="CTextLabel" origin="5, 50" size="38, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Enable"/>
+
+      <!-- FR-043, FR-045: 8 Slot Weights (corresponding to memory slots) -->
+      <view class="ArcKnob" origin="48, 18" size="32, 32"
+            control-tag="BlendSlotWeight1" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="44, 50" size="40, 12"
+            control-tag="BlendSlotWeight1" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="48, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S1"/>
+
+      <view class="ArcKnob" origin="84, 18" size="32, 32"
+            control-tag="BlendSlotWeight2" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="80, 50" size="40, 12"
+            control-tag="BlendSlotWeight2" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="84, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S2"/>
+
+      <view class="ArcKnob" origin="120, 18" size="32, 32"
+            control-tag="BlendSlotWeight3" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="116, 50" size="40, 12"
+            control-tag="BlendSlotWeight3" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="120, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S3"/>
+
+      <view class="ArcKnob" origin="156, 18" size="32, 32"
+            control-tag="BlendSlotWeight4" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="152, 50" size="40, 12"
+            control-tag="BlendSlotWeight4" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="156, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S4"/>
+
+      <view class="ArcKnob" origin="192, 18" size="32, 32"
+            control-tag="BlendSlotWeight5" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="188, 50" size="40, 12"
+            control-tag="BlendSlotWeight5" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="192, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S5"/>
+
+      <view class="ArcKnob" origin="228, 18" size="32, 32"
+            control-tag="BlendSlotWeight6" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="224, 50" size="40, 12"
+            control-tag="BlendSlotWeight6" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="228, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S6"/>
+
+      <view class="ArcKnob" origin="264, 18" size="32, 32"
+            control-tag="BlendSlotWeight7" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="260, 50" size="40, 12"
+            control-tag="BlendSlotWeight7" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="264, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S7"/>
+
+      <view class="ArcKnob" origin="300, 18" size="32, 32"
+            control-tag="BlendSlotWeight8" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="296, 50" size="40, 12"
+            control-tag="BlendSlotWeight8" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="300, 62" size="32, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="S8"/>
+
+      <!-- FR-044: Live Weight -->
+      <view class="ArcKnob" origin="340, 18" size="38, 38"
+            control-tag="BlendLiveWeight" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="335, 56" size="48, 12"
+            control-tag="BlendLiveWeight" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="335, 68" size="48, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Live"/>
+    </view>
+
+    <!-- Bottom credit line -->
+    <view class="CTextLabel" origin="615, 570" size="180, 14"
+          text-alignment="right" font="value-font"
+          font-color="text-dim" back-color="~ TransparentCColor"
+          title="Innexus | Krate Audio"/>
+  </template>
+
+  <!-- ================================================================== -->
+  <!-- Modulator Panel Template (FR-046: single definition, used twice)   -->
+  <!-- FR-037 to FR-040                                                    -->
+  <!-- ================================================================== -->
+  <template name="modulator_panel" class="FieldsetContainer" size="195, 130"
+            title="Modulator" border-color="text-dim"
+            title-font="section-font" title-color="text-secondary">
+
+    <!-- Enable toggle -->
+    <view class="ToggleButton" origin="10, 18" size="24, 24"
+          control-tag="Mod.Enable" default-value="0"
+          on-color="accent" off-color="text-dim"/>
+    <view class="CTextLabel" origin="5, 42" size="34, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Enable"/>
+
+    <!-- Waveform selector -->
+    <view class="COptionMenu" origin="40, 20" size="90, 20"
+          control-tag="Mod.Waveform" default-value="0"
+          font="value-font" font-color="text-primary"
+          back-color="bg-panel" frame-color="text-dim"/>
+    <view class="CTextLabel" origin="40, 40" size="90, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Waveform"/>
+
+    <!-- Activity indicator (FR-038, FR-040) -->
+    <view class="CView" custom-view-name="ModulatorActivity"
+          origin="140, 18" size="25, 25"/>
+
+    <!-- Rate -->
+    <view class="ArcKnob" origin="10, 48" size="34, 34"
+          control-tag="Mod.Rate" default-value="0.052"
+          arc-color="accent"/>
+    <view class="CTextLabel" origin="6, 82" size="42, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Rate"/>
+
+    <!-- Depth -->
+    <view class="ArcKnob" origin="52, 48" size="34, 34"
+          control-tag="Mod.Depth" default-value="0"
+          arc-color="accent"/>
+    <view class="CTextLabel" origin="48, 82" size="42, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Depth"/>
+
+    <!-- Range Start -->
+    <view class="ArcKnob" origin="94, 48" size="34, 34"
+          control-tag="Mod.RangeStart" default-value="0"
+          arc-color="accent"/>
+    <view class="CTextLabel" origin="90, 82" size="42, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Start"/>
+
+    <!-- Range End -->
+    <view class="ArcKnob" origin="136, 48" size="34, 34"
+          control-tag="Mod.RangeEnd" default-value="1"
+          arc-color="accent"/>
+    <view class="CTextLabel" origin="132, 82" size="42, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="End"/>
+
+    <!-- Target selector (3 segments) -->
+    <view class="CSegmentButton" origin="10, 98" size="160, 20"
+          control-tag="Mod.Target" default-value="0"
+          font="value-font" text-color="text-primary"
+          frame-color="text-dim"
+          segment-names="Amp,Freq,Pan"
+          style="horizontal" round-radius="3"/>
+    <view class="CTextLabel" origin="10, 118" size="160, 10"
+          text-alignment="center" font="value-font"
+          font-color="text-secondary" back-color="~ TransparentCColor"
+          title="Target"/>
+  </template>
+
 </vstgui-ui-description>
