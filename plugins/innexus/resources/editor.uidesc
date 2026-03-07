@@ -12,6 +12,7 @@
     <color name="accent" rgba="#00BCD4ff"/>
     <color name="text-primary" rgba="#E0E0F0ff"/>
     <color name="text-secondary" rgba="#8888AAff"/>
+    <color name="text-fieldset" rgba="#C0C0E0ff"/>
     <color name="text-dim" rgba="#555566ff"/>
     <color name="bar-active" rgba="#00BCD4ff"/>
     <color name="bar-attenuated" rgba="#333333ff"/>
@@ -196,8 +197,8 @@
 
     <!-- FR-003: Analysis section -->
     <view class="FieldsetContainer" origin="5, 52" size="520, 145"
-          title="Analysis" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary"/>
+          title="Analysis" fieldset-title="Analysis" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset"/>
 
     <!-- FR-009: Spectral Display (custom view) -->
     <view class="CView" custom-view-name="HarmonicDisplay"
@@ -205,8 +206,8 @@
 
     <!-- FR-003: F0 section -->
     <view class="FieldsetContainer" origin="530, 52" size="265, 145"
-          title="F0 Confidence" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary"/>
+          title="F0 Confidence" fieldset-title="F0 Confidence" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset"/>
 
     <!-- FR-013: Confidence Indicator (custom view) -->
     <view class="CView" custom-view-name="ConfidenceIndicator"
@@ -217,8 +218,8 @@
     <!-- FR-022, FR-023, FR-024, FR-025                                 -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 200" size="390, 140"
-          title="Musical Control" fieldset-title="Musical Control" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Musical Control" fieldset-title="Musical Control" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-022: Freeze toggle (prominent) -->
       <view class="ToggleButton" origin="15, 22" size="50, 30"
@@ -274,8 +275,8 @@
     <!-- FR-016 to FR-021                                                -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="400, 200" size="395, 140"
-          title="Oscillator / Residual" fieldset-title="Oscillator / Residual" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Oscillator / Residual" fieldset-title="Oscillator / Residual" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-016: Release Time -->
       <view class="ArcKnob" origin="15, 22" size="42, 42"
@@ -360,8 +361,8 @@
     <!-- MEMORY SECTION (Y 345-420) - FR-026 to FR-029                  -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 345" size="170, 115"
-          title="Memory" fieldset-title="Memory" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Memory" fieldset-title="Memory" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-026: Memory Slot selector -->
       <view class="COptionMenu" origin="10, 20" size="100, 22"
@@ -400,8 +401,8 @@
     <!-- CROSS-SYNTHESIS / STEREO (Y 345-420) - FR-030, FR-031          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="180, 345" size="145, 115"
-          title="Cross / Stereo" fieldset-title="Cross / Stereo" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Cross / Stereo" fieldset-title="Cross / Stereo" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-030: Timbral Blend -->
       <view class="ArcKnob" origin="10, 22" size="42, 42"
@@ -434,8 +435,8 @@
     <!-- EVOLUTION SECTION (Y 345-470) - FR-032 to FR-036               -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="330, 345" size="200, 115"
-          title="Evolution" fieldset-title="Evolution" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Evolution" fieldset-title="Evolution" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-032: Evolution Enable -->
       <view class="ToggleButton" origin="10, 22" size="28, 28"
@@ -493,8 +494,8 @@
     <!-- DETUNE SECTION (Y 345-420) - FR-041                            -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="535, 345" size="75, 115"
-          title="Detune" fieldset-title="Detune" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Detune" fieldset-title="Detune" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-041: Detune Spread -->
       <view class="ArcKnob" origin="14, 22" size="42, 42"
@@ -530,8 +531,8 @@
     <!-- BLEND SECTION (Y 465-585) - FR-042 to FR-045                   -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="405, 465" size="390, 130"
-          title="Blend" fieldset-title="Blend" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Blend" fieldset-title="Blend" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- FR-042: Blend Enable -->
       <view class="ToggleButton" origin="10, 20" size="28, 28"
@@ -657,8 +658,8 @@
     <!-- HARMONIC PHYSICS SECTION (Y 600-695)                           -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 600" size="540, 95"
-          title="Harmonic Physics" fieldset-title="Harmonic Physics" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Harmonic Physics" fieldset-title="Harmonic Physics" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- Warmth -->
       <view class="ArcKnob" origin="35, 18" size="42, 42"
@@ -717,8 +718,8 @@
     <!-- ANALYSIS FEEDBACK SECTION (Y 600-695)                          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="550, 600" size="245, 95"
-          title="Feedback" fieldset-title="Feedback" border-color="text-dim"
-          title-font="section-font" title-color="text-secondary">
+          title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
 
       <!-- Feedback Amount -->
       <view class="ArcKnob" origin="30, 18" size="42, 42"
@@ -762,8 +763,8 @@
   <!-- FR-037 to FR-040                                                    -->
   <!-- ================================================================== -->
   <template name="modulator_panel" class="FieldsetContainer" size="195, 130"
-            title="Modulator" fieldset-title="Modulator" border-color="text-dim"
-            title-font="section-font" title-color="text-secondary">
+            title="Modulator" fieldset-title="Modulator" fieldset-color="text-dim"
+            fieldset-title-color="text-fieldset">
 
     <!-- Enable toggle -->
     <view class="ToggleButton" origin="10, 18" size="24, 24"

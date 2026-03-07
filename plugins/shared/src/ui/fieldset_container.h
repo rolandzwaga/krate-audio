@@ -51,7 +51,9 @@ public:
         , color_(other.color_)
         , cornerRadius_(other.cornerRadius_)
         , lineWidth_(other.lineWidth_)
-        , titleFontSize_(other.titleFontSize_) {}
+        , titleFontSize_(other.titleFontSize_)
+        , titleColor_(other.titleColor_)
+        , hasTitleColor_(other.hasTitleColor_) {}
 
     // =========================================================================
     // Color (single color for outline + title text)
@@ -59,6 +61,10 @@ public:
 
     void setColor(VSTGUI::CColor color) noexcept { color_ = color; setDirty(); }
     [[nodiscard]] VSTGUI::CColor getColor() const noexcept { return color_; }
+
+    void setTitleColor(VSTGUI::CColor color) noexcept { titleColor_ = color; hasTitleColor_ = true; setDirty(); }
+    [[nodiscard]] VSTGUI::CColor getTitleColor() const noexcept { return hasTitleColor_ ? titleColor_ : color_; }
+    [[nodiscard]] bool hasTitleColor() const noexcept { return hasTitleColor_; }
 
     // =========================================================================
     // Title
@@ -290,7 +296,7 @@ private:
 
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", titleFontSize_);
         context->setFont(font);
-        context->setFontColor(color_);
+        context->setFontColor(getTitleColor());
 
         VSTGUI::CCoord titleX = outlineRect.left + r + kTitlePaddingLeft;
         VSTGUI::CCoord titleWidth = getTitleWidth(context);
@@ -315,6 +321,8 @@ private:
     VSTGUI::CCoord cornerRadius_ = 4.0;
     VSTGUI::CCoord lineWidth_ = 1.0;
     VSTGUI::CCoord titleFontSize_ = 10.0;
+    VSTGUI::CColor titleColor_{0, 0, 0, 255};
+    bool hasTitleColor_ = false;
 };
 
 // =============================================================================
@@ -359,6 +367,12 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
                 attributes.getAttributeValue("fieldset-color"), color, description))
             container->setColor(color);
 
+        // Title color attribute
+        VSTGUI::CColor titleColor;
+        if (VSTGUI::UIViewCreator::stringToColor(
+                attributes.getAttributeValue("fieldset-title-color"), titleColor, description))
+            container->setTitleColor(titleColor);
+
         // Title string attribute
         if (auto val = attributes.getAttributeValue("fieldset-title"))
             container->setTitle(*val);
@@ -378,6 +392,7 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
     bool getAttributeNames(
         VSTGUI::IViewCreator::StringList& attributeNames) const override {
         attributeNames.emplace_back("fieldset-color");
+        attributeNames.emplace_back("fieldset-title-color");
         attributeNames.emplace_back("fieldset-title");
         attributeNames.emplace_back("fieldset-radius");
         attributeNames.emplace_back("fieldset-line-width");
@@ -388,6 +403,7 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
     AttrType getAttributeType(
         const std::string& attributeName) const override {
         if (attributeName == "fieldset-color") return kColorType;
+        if (attributeName == "fieldset-title-color") return kColorType;
         if (attributeName == "fieldset-title") return kStringType;
         if (attributeName == "fieldset-radius") return kFloatType;
         if (attributeName == "fieldset-line-width") return kFloatType;
@@ -406,6 +422,13 @@ struct FieldsetContainerCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "fieldset-color") {
             VSTGUI::UIViewCreator::colorToString(
                 container->getColor(), stringValue, desc);
+            return true;
+        }
+        if (attributeName == "fieldset-title-color") {
+            if (!container->hasTitleColor())
+                return false;
+            VSTGUI::UIViewCreator::colorToString(
+                container->getTitleColor(), stringValue, desc);
             return true;
         }
         if (attributeName == "fieldset-title") {
