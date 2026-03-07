@@ -25,9 +25,11 @@
 #include "preset/preset_manager.h"
 #include "update/update_checker.h"
 #include "ui/arp_lane.h"
+#include "ui/mod_matrix_types.h"
 
 #include <array>
 #include <atomic>
+#include <functional>
 #include <memory>
 
 namespace Krate::Plugins {
@@ -243,6 +245,13 @@ private:
     Krate::Plugins::XYMorphPad* xyMorphPad_ = nullptr;
     Krate::Plugins::ModMatrixGrid* modMatrixGrid_ = nullptr;
     bool suppressModMatrixSync_ = false;  // Reentrancy guard for grid→param→sync loop
+    bool suppressVoiceRouteSync_ = false; // Reentrancy guard for voice route IMessage round-trip
+
+    /// Cached voice routes for applying when the mod matrix grid is wired.
+    /// Voice routes arrive via IMessage from the processor, but the grid may
+    /// not exist yet (editor not open). Cache them here so wireModMatrixGrid()
+    /// can replay them.
+    std::array<Krate::Plugins::ModRoute, Krate::Plugins::kMaxVoiceRoutes> cachedVoiceRoutes_{};
 
     /// ModRingIndicator pointers indexed by voice destination index (up to 7)
     static constexpr int kMaxRingIndicators = 7;
@@ -475,6 +484,14 @@ protected:
     /// Sequence: beginEdit -> setParamNormalized -> performEdit -> endEdit
     void editParamWithNotify(Steinberg::Vst::ParamID id,
                              Steinberg::Vst::ParamValue value);
+
+    /// Shared state deserialization logic used by both setComponentState and
+    /// loadComponentStateWithNotify. The setter callback determines whether
+    /// params are applied silently (host init) or with host notification
+    /// (preset browser).
+    using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
+    bool loadStateCore(Steinberg::IBStreamer& streamer, Steinberg::int32 version,
+                       const SetParamFunc& setParam, bool arpOnly);
 };
 
 } // namespace Ruinae

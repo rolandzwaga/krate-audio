@@ -438,10 +438,13 @@ public:
                     amountDragStartX_ = where.x;
                     amountPreDragValue_ = route.amount;
 
-                    // Fire beginEdit (T042)
-                    int32_t amountId = modSlotAmountId(i);
-                    if (beginEditCallback_)
-                        beginEditCallback_(amountId);
+                    // Fire beginEdit for global routes only (T042)
+                    // Voice routes don't have VST params — they use IMessage.
+                    if (activeTab_ == 0) {
+                        int32_t amountId = modSlotAmountId(i);
+                        if (beginEditCallback_)
+                            beginEditCallback_(amountId);
+                    }
 
                     selectedSlot_ = i;
                     setDirty();
@@ -487,9 +490,12 @@ public:
                         smoothDragSlot_ = i;
                         smoothDragStartY_ = where.y;
                         smoothPreDragValue_ = route.smoothMs;
-                        int32_t smoothId = modSlotSmoothId(i);
-                        if (beginEditCallback_)
-                            beginEditCallback_(smoothId);
+                        // Fire beginEdit for global routes only
+                        if (activeTab_ == 0) {
+                            int32_t smoothId = modSlotSmoothId(i);
+                            if (beginEditCallback_)
+                                beginEditCallback_(smoothId);
+                        }
                         selectedSlot_ = i;
                         setDirty();
                         return VSTGUI::kMouseEventHandled;
@@ -548,11 +554,14 @@ public:
                 -1.0f, 1.0f);
             getMutableRouteForTab(activeTab_, amountDragSlot_).amount = newBipolar;
 
-            // Fire parameter callback (T041, T042)
-            int32_t amountId = modSlotAmountId(amountDragSlot_);
-            float normalized = (newBipolar + 1.0f) / 2.0f; // bipolar to normalized
-            if (paramCallback_)
-                paramCallback_(amountId, normalized);
+            // Fire parameter callback for global routes only (T041, T042)
+            // Voice routes communicate via fireRouteChanged → IMessage.
+            if (activeTab_ == 0) {
+                int32_t amountId = modSlotAmountId(amountDragSlot_);
+                float normalized = (newBipolar + 1.0f) / 2.0f; // bipolar to normalized
+                if (paramCallback_)
+                    paramCallback_(amountId, normalized);
+            }
 
             // Fire route changed callback + heatmap sync
             fireRouteChanged(activeTab_, amountDragSlot_,
@@ -577,11 +586,13 @@ public:
                 0.0f, 100.0f);
             getMutableRouteForTab(activeTab_, smoothDragSlot_).smoothMs = newSmooth;
 
-            // Fire parameter callback (T104)
-            int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
-            float normalized = newSmooth / 100.0f; // 0-100ms to 0-1
-            if (paramCallback_)
-                paramCallback_(smoothId, normalized);
+            // Fire parameter callback for global routes only (T104)
+            if (activeTab_ == 0) {
+                int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
+                float normalized = newSmooth / 100.0f; // 0-100ms to 0-1
+                if (paramCallback_)
+                    paramCallback_(smoothId, normalized);
+            }
 
             fireRouteChanged(activeTab_, smoothDragSlot_,
                 getRouteForTab(activeTab_, smoothDragSlot_));
@@ -597,20 +608,24 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
         if (amountDragSlot_ >= 0) {
-            // Fire endEdit (T042)
-            int32_t amountId = modSlotAmountId(amountDragSlot_);
-            if (endEditCallback_)
-                endEditCallback_(amountId);
+            // Fire endEdit for global routes only (T042)
+            if (activeTab_ == 0) {
+                int32_t amountId = modSlotAmountId(amountDragSlot_);
+                if (endEditCallback_)
+                    endEditCallback_(amountId);
+            }
 
             amountDragSlot_ = -1;
             return VSTGUI::kMouseEventHandled;
         }
 
         if (smoothDragSlot_ >= 0) {
-            // Fire endEdit for smooth (T104)
-            int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
-            if (endEditCallback_)
-                endEditCallback_(smoothId);
+            // Fire endEdit for smooth — global routes only (T104)
+            if (activeTab_ == 0) {
+                int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
+                if (endEditCallback_)
+                    endEditCallback_(smoothId);
+            }
 
             smoothDragSlot_ = -1;
             return VSTGUI::kMouseEventHandled;
@@ -624,14 +639,22 @@ public:
             // Restore pre-drag value
             getMutableRouteForTab(activeTab_, amountDragSlot_).amount = amountPreDragValue_;
 
-            // Fire endEdit
-            int32_t amountId = modSlotAmountId(amountDragSlot_);
-            if (paramCallback_) {
-                float normalized = (amountPreDragValue_ + 1.0f) / 2.0f;
-                paramCallback_(amountId, normalized);
+            // Fire endEdit — global routes only
+            if (activeTab_ == 0) {
+                int32_t amountId = modSlotAmountId(amountDragSlot_);
+                if (paramCallback_) {
+                    float normalized = (amountPreDragValue_ + 1.0f) / 2.0f;
+                    paramCallback_(amountId, normalized);
+                }
+                if (endEditCallback_)
+                    endEditCallback_(amountId);
             }
-            if (endEditCallback_)
-                endEditCallback_(amountId);
+
+            // Voice routes: fire route changed to revert the amount
+            if (activeTab_ == 1) {
+                fireRouteChanged(activeTab_, amountDragSlot_,
+                    getRouteForTab(activeTab_, amountDragSlot_));
+            }
 
             amountDragSlot_ = -1;
             setDirty();
@@ -640,13 +663,21 @@ public:
             // Restore pre-drag smooth value
             getMutableRouteForTab(activeTab_, smoothDragSlot_).smoothMs = smoothPreDragValue_;
 
-            int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
-            if (paramCallback_) {
-                float normalized = smoothPreDragValue_ / 100.0f;
-                paramCallback_(smoothId, normalized);
+            // Fire endEdit — global routes only
+            if (activeTab_ == 0) {
+                int32_t smoothId = modSlotSmoothId(smoothDragSlot_);
+                if (paramCallback_) {
+                    float normalized = smoothPreDragValue_ / 100.0f;
+                    paramCallback_(smoothId, normalized);
+                }
+                if (endEditCallback_)
+                    endEditCallback_(smoothId);
             }
-            if (endEditCallback_)
-                endEditCallback_(smoothId);
+
+            if (activeTab_ == 1) {
+                fireRouteChanged(activeTab_, smoothDragSlot_,
+                    getRouteForTab(activeTab_, smoothDragSlot_));
+            }
 
             smoothDragSlot_ = -1;
             setDirty();
@@ -881,12 +912,14 @@ private:
             auto& r = getMutableRouteForTab(tab, slot);
             r.curve = static_cast<uint8_t>(selected);
 
-            int32_t curveId = modSlotCurveId(slot);
-            float normalized = static_cast<float>(selected) /
-                static_cast<float>(numCurves - 1);
-            if (beginEditCallback_) beginEditCallback_(curveId);
-            if (paramCallback_) paramCallback_(curveId, normalized);
-            if (endEditCallback_) endEditCallback_(curveId);
+            if (tab == 0) {
+                int32_t curveId = modSlotCurveId(slot);
+                float normalized = static_cast<float>(selected) /
+                    static_cast<float>(numCurves - 1);
+                if (beginEditCallback_) beginEditCallback_(curveId);
+                if (paramCallback_) paramCallback_(curveId, normalized);
+                if (endEditCallback_) endEditCallback_(curveId);
+            }
             fireRouteChanged(tab, slot, r);
             setDirty();
         });
@@ -918,12 +951,14 @@ private:
             auto& r = getMutableRouteForTab(tab, slot);
             r.scale = static_cast<uint8_t>(selected);
 
-            int32_t scaleId = modSlotScaleId(slot);
-            float normalized = static_cast<float>(selected) /
-                static_cast<float>(numScales - 1);
-            if (beginEditCallback_) beginEditCallback_(scaleId);
-            if (paramCallback_) paramCallback_(scaleId, normalized);
-            if (endEditCallback_) endEditCallback_(scaleId);
+            if (tab == 0) {
+                int32_t scaleId = modSlotScaleId(slot);
+                float normalized = static_cast<float>(selected) /
+                    static_cast<float>(numScales - 1);
+                if (beginEditCallback_) beginEditCallback_(scaleId);
+                if (paramCallback_) paramCallback_(scaleId, normalized);
+                if (endEditCallback_) endEditCallback_(scaleId);
+            }
             fireRouteChanged(tab, slot, r);
             setDirty();
         });
@@ -962,12 +997,15 @@ private:
         int newIndex = (curveIndex + 1) % static_cast<int>(kCurveTypeNames.size());
         route.curve = static_cast<uint8_t>(newIndex);
 
-        int32_t curveId = modSlotCurveId(slot);
-        float normalized = static_cast<float>(newIndex) /
-            static_cast<float>(kCurveTypeNames.size() - 1);
-        if (beginEditCallback_) beginEditCallback_(curveId);
-        if (paramCallback_) paramCallback_(curveId, normalized);
-        if (endEditCallback_) endEditCallback_(curveId);
+        // Global routes: update VST params. Voice routes: IMessage only.
+        if (activeTab_ == 0) {
+            int32_t curveId = modSlotCurveId(slot);
+            float normalized = static_cast<float>(newIndex) /
+                static_cast<float>(kCurveTypeNames.size() - 1);
+            if (beginEditCallback_) beginEditCallback_(curveId);
+            if (paramCallback_) paramCallback_(curveId, normalized);
+            if (endEditCallback_) endEditCallback_(curveId);
+        }
 
         fireRouteChanged(activeTab_, slot, route);
         setDirty();
@@ -980,12 +1018,14 @@ private:
         int newIndex = (scaleIndex + 1) % static_cast<int>(kScaleNames.size());
         route.scale = static_cast<uint8_t>(newIndex);
 
-        int32_t scaleId = modSlotScaleId(slot);
-        float normalized = static_cast<float>(newIndex) /
-            static_cast<float>(kScaleNames.size() - 1);
-        if (beginEditCallback_) beginEditCallback_(scaleId);
-        if (paramCallback_) paramCallback_(scaleId, normalized);
-        if (endEditCallback_) endEditCallback_(scaleId);
+        if (activeTab_ == 0) {
+            int32_t scaleId = modSlotScaleId(slot);
+            float normalized = static_cast<float>(newIndex) /
+                static_cast<float>(kScaleNames.size() - 1);
+            if (beginEditCallback_) beginEditCallback_(scaleId);
+            if (paramCallback_) paramCallback_(scaleId, normalized);
+            if (endEditCallback_) endEditCallback_(scaleId);
+        }
 
         fireRouteChanged(activeTab_, slot, route);
         setDirty();
@@ -996,11 +1036,13 @@ private:
         auto& route = getMutableRouteForTab(activeTab_, slot);
         route.bypass = !route.bypass;
 
-        int32_t bypassId = modSlotBypassId(slot);
-        float normalized = route.bypass ? 1.0f : 0.0f;
-        if (beginEditCallback_) beginEditCallback_(bypassId);
-        if (paramCallback_) paramCallback_(bypassId, normalized);
-        if (endEditCallback_) endEditCallback_(bypassId);
+        if (activeTab_ == 0) {
+            int32_t bypassId = modSlotBypassId(slot);
+            float normalized = route.bypass ? 1.0f : 0.0f;
+            if (beginEditCallback_) beginEditCallback_(bypassId);
+            if (paramCallback_) paramCallback_(bypassId, normalized);
+            if (endEditCallback_) endEditCallback_(bypassId);
+        }
 
         fireRouteChanged(activeTab_, slot, route);
         setDirty();

@@ -291,102 +291,29 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
 Steinberg::tresult PLUGIN_API Controller::setComponentState(
     Steinberg::IBStream* state) {
 
-    if (!state) {
+    if (!state)
         return Steinberg::kResultFalse;
-    }
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
     Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version)) {
+    if (!streamer.readInt32(version))
         return Steinberg::kResultTrue; // Empty stream, keep defaults
-    }
 
-    if (version < 1 || version > Ruinae::kCurrentStateVersion) {
+    if (version < 1 || version > Ruinae::kCurrentStateVersion)
         return Steinberg::kResultTrue; // Unknown version, keep defaults
-    }
 
-    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
-    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+    bulkParamLoad_ = true;
+    FrameInvalidationGuard frameGuard(activeEditor_);
 
-    auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
+    SetParamFunc setParam = [this](Steinberg::Vst::ParamID id, double value) {
         setParamNormalized(id, value);
     };
 
-    // Load all parameter packs in deterministic order (matching Processor::getState)
-    loadGlobalParamsToController(streamer, setParam);
-    loadOscAParamsToController(streamer, setParam);
-    loadOscBParamsToController(streamer, setParam);
-    loadMixerParamsToController(streamer, setParam);
-    loadFilterParamsToController(streamer, setParam);
-    loadDistortionParamsToController(streamer, setParam);
-    loadTranceGateParamsToController(streamer, setParam);
-    loadAmpEnvParamsToController(streamer, setParam);
-    loadFilterEnvParamsToController(streamer, setParam);
-    loadModEnvParamsToController(streamer, setParam);
-    loadLFO1ParamsToController(streamer, setParam);
-    loadLFO2ParamsToController(streamer, setParam);
-    loadChaosModParamsToController(streamer, setParam);
-    loadModMatrixParamsToController(streamer, setParam);
-    loadGlobalFilterParamsToController(streamer, setParam);
-    loadDelayParamsToController(streamer, setParam);
-    loadReverbParamsToController(streamer, setParam);
-    loadMonoModeParamsToController(streamer, setParam);
+    loadStateCore(streamer, version, setParam, /*arpOnly=*/false);
 
-    // Skip voice routes (16 slots, processor-only data)
-    for (int i = 0; i < 16; ++i) {
-        Steinberg::int8 i8 = 0; float fv = 0;
-        streamer.readInt8(i8);   // source
-        streamer.readInt8(i8);   // destination
-        streamer.readFloat(fv);  // amount
-        streamer.readInt8(i8);   // curve
-        streamer.readFloat(fv);  // smoothMs
-        streamer.readInt8(i8);   // scale
-        streamer.readInt8(i8);   // bypass
-        streamer.readInt8(i8);   // active
-    }
-
-    // FX enable flags
-    Steinberg::int8 i8 = 0;
-    if (streamer.readInt8(i8))
-        setParam(kDelayEnabledId, i8 != 0 ? 1.0 : 0.0);
-    if (streamer.readInt8(i8))
-        setParam(kReverbEnabledId, i8 != 0 ? 1.0 : 0.0);
-
-    // Phaser params + enable flag
-    loadPhaserParamsToController(streamer, setParam);
-    if (streamer.readInt8(i8))
-        setParam(kPhaserEnabledId, i8 != 0 ? 1.0 : 0.0);
-
-    // Extended LFO params
-    loadLFO1ExtendedParamsToController(streamer, setParam);
-    loadLFO2ExtendedParamsToController(streamer, setParam);
-
-    // Macro and Rungler params
-    loadMacroParamsToController(streamer, setParam);
-    loadRunglerParamsToController(streamer, setParam);
-
-    // Settings params
-    loadSettingsParamsToController(streamer, setParam);
-
-    // Mod source params
-    loadEnvFollowerParamsToController(streamer, setParam);
-    loadSampleHoldParamsToController(streamer, setParam);
-    loadRandomParamsToController(streamer, setParam);
-    loadPitchFollowerParamsToController(streamer, setParam);
-    loadTransientParamsToController(streamer, setParam);
-
-    // Harmonizer params + enable flag
-    loadHarmonizerParamsToController(streamer, setParam);
-    if (streamer.readInt8(i8))
-        setParam(kHarmonizerEnabledId, i8 != 0 ? 1.0 : 0.0);
-
-    // Arpeggiator params (FR-012) -- backward compat: silently returns on
-    // truncated/old streams, leaving arp controller params at defaults
-    loadArpParamsToController(streamer, setParam, version);
-
-    bulkParamLoad_ = false;  // Re-enable per-param view updates
-    syncAllViews();           // Single batch sync of all custom views
+    bulkParamLoad_ = false;
+    syncAllViews();
 
     return Steinberg::kResultTrue;
 }
@@ -542,7 +469,8 @@ Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* messa
                 route.bypass = (ptr[12] != 0);
                 route.active = (ptr[13] != 0);
 
-                if (modMatrixGrid_) {
+                cachedVoiceRoutes_[static_cast<size_t>(i)] = route;
+                if (modMatrixGrid_ && !suppressVoiceRouteSync_) {
                     modMatrixGrid_->setVoiceRoute(i, route);
                 }
             }

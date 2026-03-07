@@ -129,6 +129,10 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 suppressModMatrixSync_ = false;
             } else {
                 // Voice routes use IMessage (T088)
+                // Suppress re-entrant VoiceModRouteState responses: VST3's
+                // sendMessage→notify chain is synchronous, so the processor's
+                // response would overwrite the grid during this callback.
+                suppressVoiceRouteSync_ = true;
                 auto msg = Steinberg::owned(allocateMessage());
                 if (msg) {
                     msg->setMessageID("VoiceModRouteUpdate");
@@ -146,6 +150,7 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                         sendMessage(msg);
                     }
                 }
+                suppressVoiceRouteSync_ = false;
             }
         });
 
@@ -160,7 +165,11 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                 pushAllGlobalRouteParams();
                 suppressModMatrixSync_ = false;
             } else {
-                // Voice routes: send full re-sync via IMessage
+                // Voice routes: send full re-sync via IMessage.
+                // Suppress re-entrant VoiceModRouteState responses — VST3's
+                // synchronous sendMessage→notify would overwrite the grid
+                // mid-loop, corrupting the shift-up operation.
+                suppressVoiceRouteSync_ = true;
                 for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
                     auto route = modMatrixGrid_->getVoiceRoute(i);
                     auto msg = Steinberg::owned(allocateMessage());
@@ -181,11 +190,17 @@ void Controller::wireModMatrixGrid(Krate::Plugins::ModMatrixGrid* grid) {
                         }
                     }
                 }
+                suppressVoiceRouteSync_ = false;
             }
         });
 
     // Sync initial state from current parameters to the grid
     syncModMatrixGrid();
+
+    // Apply cached voice routes (may have arrived before grid existed)
+    for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+        modMatrixGrid_->setVoiceRoute(i, cachedVoiceRoutes_[static_cast<size_t>(i)]);
+    }
 }
 
 void Controller::syncModMatrixGrid() {

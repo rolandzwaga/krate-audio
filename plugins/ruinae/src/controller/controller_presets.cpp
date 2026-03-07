@@ -13,6 +13,7 @@
 #include "preset/ruinae_preset_config.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "ui/mod_matrix_grid.h"
 #include "ui/update_banner_view.h"
 #include "vstgui/uidescription/uiattributes.h"
 
@@ -422,27 +423,36 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Item 1: Read and validate version
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version) || version < 1 || version > Ruinae::kCurrentStateVersion)
         return false;
 
-    bulkParamLoad_ = true;  // Suppress per-param view updates during bulk load
-    FrameInvalidationGuard frameGuard(activeEditor_);  // Suppress VSTGUI invalidRect
+    bulkParamLoad_ = true;
+    FrameInvalidationGuard frameGuard(activeEditor_);
 
-    // Lambda that calls editParamWithNotify instead of setParamNormalized
-    auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
+    SetParamFunc setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
     };
 
+    bool ok = loadStateCore(streamer, version, setParam, arpOnly);
+
+    bulkParamLoad_ = false;
+    syncAllViews();
+
+    return ok;
+}
+
+bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
+                               Steinberg::int32 version,
+                               const SetParamFunc& setParam,
+                               bool arpOnly) {
     // When loading an arp-only preset, synth parameters are read but not applied.
     // The no-op lambda discards values while the stream position still advances.
-    using SetParamFunc = std::function<void(Steinberg::Vst::ParamID, double)>;
     SetParamFunc synthSetter = arpOnly
         ? SetParamFunc([](Steinberg::Vst::ParamID, double) {})
-        : SetParamFunc(setParam);
+        : setParam;
 
-    // Items 2-19: Parameter packs in deterministic order (matching Processor::getState)
+    // Parameter packs in deterministic order (matching Processor::getState)
     loadGlobalParamsToController(streamer, synthSetter);
     loadOscAParamsToController(streamer, synthSetter);
     loadOscBParamsToController(streamer, synthSetter);
@@ -462,32 +472,47 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
     loadReverbParamsToController(streamer, synthSetter);
     loadMonoModeParamsToController(streamer, synthSetter);
 
-    // Item 20: Voice routes (16 slots, processor-internal) -- read and DISCARD
+    // Voice routes — cache and apply to grid
     for (int i = 0; i < 16; ++i) {
-        Steinberg::int8 dummy8 = 0;
-        float dummyF = 0;
-        if (!streamer.readInt8(dummy8) || !streamer.readInt8(dummy8) ||
-            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
-            !streamer.readFloat(dummyF) || !streamer.readInt8(dummy8) ||
-            !streamer.readInt8(dummy8) || !streamer.readInt8(dummy8))
+        Steinberg::int8 src = 0, dst = 0, curve = 0, scale = 0, bypass = 0, active = 0;
+        float amount = 0, smoothMs = 0;
+        if (!streamer.readInt8(src) || !streamer.readInt8(dst) ||
+            !streamer.readFloat(amount) || !streamer.readInt8(curve) ||
+            !streamer.readFloat(smoothMs) || !streamer.readInt8(scale) ||
+            !streamer.readInt8(bypass) || !streamer.readInt8(active))
             return false;
+
+        if (!arpOnly) {
+            Krate::Plugins::ModRoute route;
+            route.source = static_cast<uint8_t>(src);
+            route.destination = static_cast<Krate::Plugins::ModDestination>(dst);
+            route.amount = amount;
+            route.curve = static_cast<uint8_t>(curve);
+            route.smoothMs = smoothMs;
+            route.scale = static_cast<uint8_t>(scale);
+            route.bypass = (bypass != 0);
+            route.active = (active != 0);
+            cachedVoiceRoutes_[static_cast<size_t>(i)] = route;
+
+            if (modMatrixGrid_) {
+                modMatrixGrid_->setVoiceRoute(i, route);
+            }
+        }
     }
 
-    // Items 21-22: FX enable flags (int8 -> 0.0/1.0)
+    // FX enable flags (int8 -> 0.0/1.0)
     Steinberg::int8 flag = 0;
     if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kDelayEnabledId, flag ? 1.0 : 0.0);
+    synthSetter(kDelayEnabledId, flag ? 1.0 : 0.0);
     if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kReverbEnabledId, flag ? 1.0 : 0.0);
+    synthSetter(kReverbEnabledId, flag ? 1.0 : 0.0);
 
-    // Item 23: Phaser params
+    // Phaser params + enable flag
     loadPhaserParamsToController(streamer, synthSetter);
-
-    // Item 24: Phaser enable flag (int8 -> 0.0/1.0)
     if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kPhaserEnabledId, flag ? 1.0 : 0.0);
+    synthSetter(kPhaserEnabledId, flag ? 1.0 : 0.0);
 
-    // Items 25-35: Remaining parameter packs
+    // Extended LFO, Macro, Rungler, Settings, Mod sources
     loadLFO1ExtendedParamsToController(streamer, synthSetter);
     loadLFO2ExtendedParamsToController(streamer, synthSetter);
     loadMacroParamsToController(streamer, synthSetter);
@@ -500,15 +525,12 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state, bool a
     loadTransientParamsToController(streamer, synthSetter);
     loadHarmonizerParamsToController(streamer, synthSetter);
 
-    // Item 36: Harmonizer enable flag (int8 -> 0.0/1.0)
+    // Harmonizer enable flag
     if (!streamer.readInt8(flag)) return false;
-    if (!arpOnly) editParamWithNotify(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
+    synthSetter(kHarmonizerEnabledId, flag ? 1.0 : 0.0);
 
-    // Item 37: Arp params (includes all lane step data) - ALWAYS applied
+    // Arp params (includes all lane step data) - ALWAYS applied
     loadArpParamsToController(streamer, setParam, version);
-
-    bulkParamLoad_ = false;  // Re-enable per-param view updates
-    syncAllViews();           // Single batch sync of all custom views
 
     return true;
 }
