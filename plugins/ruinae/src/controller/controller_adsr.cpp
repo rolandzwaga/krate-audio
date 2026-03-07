@@ -61,6 +61,7 @@ void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display) {
     // Wire performEdit callback (display -> host)
     display->setParameterCallback(
         [this](uint32_t paramId, float normalizedValue) {
+            setParamNormalized(paramId, static_cast<double>(normalizedValue));
             performEdit(paramId, static_cast<double>(normalizedValue));
         });
 

@@ -5,6 +5,12 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-03-07
+
+### Fixed
+
+- **ADSR envelope edits not persisting when switching tabs** — Dragging envelope control points only called `performEdit` (sending values to the host/processor) but did not call `setParamNormalized` to update the controller's internal parameter state. Switching between envelope tabs and back would show stale pre-edit values. Now both calls are made, matching the pattern used by all other custom editors.
+
 ## [0.9.5] - 2026-03-05
 
 ### Added
