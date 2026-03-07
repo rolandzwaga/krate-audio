@@ -5,6 +5,22 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-03-08
+
+### Added
+
+- **Arpeggiator Pitch as global modulation source** — Arp pitch (last played arp note) is now available as a modulation source in the global mod matrix, enabling pitch-following effects like filter tracking or delay time modulation
+
+### Changed
+
+- **Enriched factory presets** — Deeper modulation routing across factory presets for more expressive out-of-the-box sound design
+
+### Fixed
+
+- **Voice mod routes disappearing on click** — Clicking any control in a voice modulation row caused all voice routes to vanish. Root cause: VST3's synchronous `sendMessage→notify` chain caused re-entrant `VoiceModRouteState` responses to overwrite the grid during callback execution
+- **Voice mod route delete button not working** — The remove button appeared to do nothing because the processor's synchronous response overwrote the grid mid-loop, undoing the shift-up operation
+- **Voice route interactions corrupting global mod parameters** — Voice route detail controls (curve, smooth, scale, bypass, amount) were incorrectly calling `beginEdit`/`performEdit`/`endEdit` on global mod matrix parameter IDs. Voice routes now communicate exclusively via IMessage
+
 ## [0.9.6] - 2026-03-07
 
 ### Fixed
@@ -19,6 +35,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **"Check for Updates" button** — Manual version check in the settings panel
 - **Version label** — Dynamic version display in the top bar
 - Version dismiss functionality for update notifications
+- **Category dropdown in quick-save preset dialog** — Preset save dialog now includes a category selector
+
+### Changed
+
+- **Removed dynamic voice-count gain compensation** — Eliminated phantom volume boost caused by gain scaling adjusting mid-note when voices overlapped
+
+### Fixed
+
+- **Harmonizer silent after preset load** — Use-after-free crash on preset switch fixed by nulling dangling view pointers
+- **Global LFO retrigger not firing on note-on** — LFO phase was not resetting when retrigger was enabled
+- **Near-silent chaos presets** — Chaos oscillator presets producing barely audible output due to incorrect gain staging
+- **VSTGUI crash during rapid preset switching** — Multiple use-after-free and null-pointer issues in view lifecycle during bulk parameter loads
+- **Preset loading race conditions** — RTTransferT lock-free transfer prevents data races on voice routes during preset switches
+- **Spectral distortion drive scaling and output buffer clobbering** — Drive parameter had incorrect range mapping; output buffer was being overwritten
+- **Inactive spectral distortion controls not dimmed** — Curve dropdown and bits controls now gray out based on spectral mode selection
+- **Bass presets missing from preset browser** — Category filtering excluded bass subcategory
+- **Euclidean Bells preset** — Opened filter and initialized all partials to full amplitude
 
 ## [0.9.4] - 2026-03-02
 
