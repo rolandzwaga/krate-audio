@@ -390,14 +390,14 @@ struct ArpIntegrationFixture {
     /// Enable the arp via parameter change
     void enableArp() {
         ArpTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         processBlockWithParams(params);
     }
 
     /// Disable the arp via parameter change
     void disableArp() {
         ArpTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 0.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 0.0);
         processBlockWithParams(params);
     }
 
@@ -534,7 +534,7 @@ TEST_CASE("ArpIntegration_PrepareCalledInSetupProcessing", "[arp][integration]")
     // Enable arp
     {
         ArpTestParamChanges arpEnable;
-        arpEnable.addChange(Ruinae::kArpEnabledId, 1.0);
+        arpEnable.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         data.inputParameterChanges = &arpEnable;
         processor.process(data);
         data.inputParameterChanges = &emptyParams;
@@ -606,7 +606,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
     // Set all 11 arp params to non-default values via parameter changes
     {
         ArpTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);           // enabled = true
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);           // enabled = true
         params.addChange(Ruinae::kArpModeId, 3.0 / 9.0);       // mode = 3 (DownUp)
         params.addChange(Ruinae::kArpOctaveRangeId, 2.0 / 3.0); // octaveRange = 3
         params.addChange(Ruinae::kArpOctaveModeId, 1.0);        // octaveMode = 1 (Interleaved)
@@ -751,7 +751,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         bool ok = Ruinae::loadArpParams(arpLoaded, readStream);
         REQUIRE(ok);
 
-        CHECK(arpLoaded.enabled.load() == true);
+        CHECK(arpLoaded.operatingMode.load() == Ruinae::kArpMIDI);
         CHECK(arpLoaded.mode.load() == 3);
         CHECK(arpLoaded.octaveRange.load() == 3);
         CHECK(arpLoaded.octaveMode.load() == 1);
@@ -851,7 +851,7 @@ TEST_CASE("ArpIntegration_TransportStop_PreservesLatch", "[arp][integration][tra
     // Enable arp with latch mode = Hold (1)
     {
         ArpTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpLatchModeId, 0.5); // 0.5 -> latch=1 (Hold)
         f.processBlockWithParams(params);
     }
@@ -999,7 +999,7 @@ TEST_CASE("ArpIntegration_FreeRate_WorksWithoutTransport",
 
     // Enable arp AND switch to free-rate mode (tempoSync OFF)
     ArpTestParamChanges params;
-    params.addChange(Ruinae::kArpEnabledId, 1.0);
+    params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     params.addChange(Ruinae::kArpTempoSyncId, 0.0);  // free-rate mode
     // Set freeRate to 8 Hz (fast enough to trigger within a few blocks)
     params.addChange(Ruinae::kArpFreeRateId, (8.0 - 0.5) / 49.5);  // denorm: 0.5 + norm*49.5 = 8 Hz
@@ -1157,7 +1157,7 @@ TEST_CASE("ArpIntegration_DefaultSettings_WorksWithoutTransport",
 
     // Enable arp with defaults (tempoSync=true, noteValue=1/8, 120 BPM)
     ArpTestParamChanges params;
-    params.addChange(Ruinae::kArpEnabledId, 1.0);
+    params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     f.processBlockWithParams(params);
     f.clearEvents();
 
@@ -1810,7 +1810,7 @@ TEST_CASE("ArpIntegration_SlidePassesLegatoToEngine",
     // Enable arp and set up modifier lane with Slide on step 1
     {
         ArpTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         // Set modifier lane length = 2
         params.addChange(Ruinae::kArpModifierLaneLengthId, 1.0 / 31.0);  // denorm: 1 + round(1/31 * 31) = 2
         // Step 0: Active (0x01) -> normalized 1.0/255.0
@@ -2045,7 +2045,7 @@ TEST_CASE("RatchetParams_Phase5BackwardCompat_DefaultsOnEOF", "[arp][integration
 
     // Create a Phase 5 preset (everything up to slide time, but NO ratchet data)
     ArpeggiatorParams phase5Params;
-    phase5Params.enabled.store(true, std::memory_order_relaxed);
+    phase5Params.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     phase5Params.mode.store(3, std::memory_order_relaxed);
     phase5Params.swing.store(25.0f, std::memory_order_relaxed);
 
@@ -2056,7 +2056,7 @@ TEST_CASE("RatchetParams_Phase5BackwardCompat_DefaultsOnEOF", "[arp][integration
     {
         Steinberg::IBStreamer writer(fullStream, kLittleEndian);
         // Write the Phase 5 format (all fields BEFORE ratchet)
-        writer.writeInt32(phase5Params.enabled.load() ? 1 : 0);
+        writer.writeInt32(phase5Params.operatingMode.load());
         writer.writeInt32(phase5Params.mode.load());
         writer.writeInt32(phase5Params.octaveRange.load());
         writer.writeInt32(phase5Params.octaveMode.load());
@@ -2101,7 +2101,7 @@ TEST_CASE("RatchetParams_Phase5BackwardCompat_DefaultsOnEOF", "[arp][integration
     }
 
     // Non-ratchet values should have loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 3);
     CHECK(loaded.swing.load() == Approx(25.0f).margin(0.01f));
 }
@@ -2117,7 +2117,7 @@ TEST_CASE("RatchetParams_CorruptStream_ReturnsFalse", "[arp][integration][ratche
         Steinberg::IBStreamer writer(stream, kLittleEndian);
         // Write full Phase 5 data first
         ArpeggiatorParams p;
-        writer.writeInt32(p.enabled.load() ? 1 : 0);
+        writer.writeInt32(p.operatingMode.load());
         writer.writeInt32(p.mode.load());
         writer.writeInt32(p.octaveRange.load());
         writer.writeInt32(p.octaveMode.load());
@@ -2449,7 +2449,7 @@ TEST_CASE("RatchetParams_ApplyEveryBlock_NoSubStepReset", "[arp][integration][ra
 
 // Helper: write a complete Phase 6 stream (everything through ratchet, NO Euclidean)
 static void writePhase6Stream(Steinberg::IBStreamer& writer, const Ruinae::ArpeggiatorParams& p) {
-    writer.writeInt32(p.enabled.load() ? 1 : 0);
+    writer.writeInt32(p.operatingMode.load());
     writer.writeInt32(p.mode.load());
     writer.writeInt32(p.octaveRange.load());
     writer.writeInt32(p.octaveMode.load());
@@ -2521,7 +2521,7 @@ TEST_CASE("EuclideanState_Phase6Backward_Compat", "[arp][integration][euclidean]
 
     // Create a Phase 6 stream (everything through ratchet, NO Euclidean data)
     ArpeggiatorParams phase6Params;
-    phase6Params.enabled.store(true, std::memory_order_relaxed);
+    phase6Params.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     phase6Params.mode.store(2, std::memory_order_relaxed);
 
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
@@ -2546,7 +2546,7 @@ TEST_CASE("EuclideanState_Phase6Backward_Compat", "[arp][integration][euclidean]
     CHECK(loaded.euclideanRotation.load() == 0);
 
     // Non-Euclidean values should have loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 2);
 }
 
@@ -2752,7 +2752,7 @@ TEST_CASE("ConditionState_Phase7Backward_Compat", "[arp][integration][condition]
 
     // Create a Phase 7 stream (everything through Euclidean, NO condition data)
     ArpeggiatorParams phase7Params;
-    phase7Params.enabled.store(true, std::memory_order_relaxed);
+    phase7Params.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     phase7Params.mode.store(2, std::memory_order_relaxed);
     phase7Params.euclideanEnabled.store(true, std::memory_order_relaxed);
     phase7Params.euclideanHits.store(5, std::memory_order_relaxed);
@@ -2780,7 +2780,7 @@ TEST_CASE("ConditionState_Phase7Backward_Compat", "[arp][integration][condition]
     CHECK(loaded.fillToggle.load() == false);
 
     // Non-condition values should have loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 2);
     CHECK(loaded.euclideanEnabled.load() == true);
     CHECK(loaded.euclideanHits.load() == 5);
@@ -3050,7 +3050,7 @@ TEST_CASE("SpiceHumanize_Phase8BackwardCompat_DefaultsApply",
 
     // Create a Phase 8 preset (everything through fillToggle, NO spice/humanize)
     ArpeggiatorParams phase8Params;
-    phase8Params.enabled.store(true, std::memory_order_relaxed);
+    phase8Params.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     phase8Params.mode.store(2, std::memory_order_relaxed);
 
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
@@ -3073,7 +3073,7 @@ TEST_CASE("SpiceHumanize_Phase8BackwardCompat_DefaultsApply",
     CHECK(loaded.humanize.load() == Approx(0.0f).margin(0.001f));
 
     // Non-spice values should have loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 2);
 }
 

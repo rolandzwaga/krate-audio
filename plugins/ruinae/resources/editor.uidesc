@@ -332,7 +332,7 @@
         <control-tag name="TranceGateRetrigger" tag="612"/>
 
         <!-- Arpeggiator -->
-        <control-tag name="ArpEnabled" tag="3000"/>
+        <control-tag name="ArpOperatingMode" tag="3000"/>
         <control-tag name="ArpMode" tag="3001"/>
         <control-tag name="ArpOctaveRange" tag="3002"/>
         <control-tag name="ArpOctaveMode" tag="3003"/>
@@ -3196,16 +3196,17 @@
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Row 1 (y=14): Enabled, Mode, Octave Range, Octave Mode -->
-            <view class="ToggleButton" origin="8, 14" size="40, 18"
-                  control-tag="ArpEnabled" default-value="0"
-                  tooltip="Enable arpeggiator"
-                  transparent="false"/>
+            <!-- Row 1 (y=14): Operating Mode, Pattern Mode, Octave Range, Octave Mode -->
+            <view class="COptionMenu" origin="8, 14" size="72, 18"
+                  control-tag="ArpOperatingMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Arp operating mode: Off, MIDI, Mod, MIDI+Mod"/>
 
-            <view class="CTextLabel" origin="56, 16" size="36, 14"
+            <view class="CTextLabel" origin="88, 16" size="48, 14"
                   font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="left" transparent="true" title="Mode"/>
-            <view class="COptionMenu" origin="92, 14" size="100, 18"
+                  text-alignment="left" transparent="true" title="Pattern"/>
+            <view class="COptionMenu" origin="136, 14" size="80, 18"
                   control-tag="ArpMode" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"/>

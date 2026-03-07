@@ -184,7 +184,7 @@ inline constexpr int kModSourceCount = Krate::Plugins::kNumGlobalSources + 1;
 inline constexpr int kModDestCount = Krate::Plugins::kNumGlobalDestinations;
 
 /// Populate a StringListParameter with source names from the central registry.
-/// Prepends "None" at index 0, then appends kGlobalSourceNames[0..12].
+/// Prepends "None" at index 0, then appends kGlobalSourceNames[0..13].
 inline void appendSourceStrings(Steinberg::Vst::StringListParameter* param) {
     Steinberg::Vst::String128 buf;
     Steinberg::UString(buf, 128).fromAscii("None");

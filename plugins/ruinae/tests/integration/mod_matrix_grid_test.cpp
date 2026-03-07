@@ -756,11 +756,11 @@ TEST_CASE("ModMatrixGrid: null heatmap does not crash", "[modmatrix][grid][heatm
 
 // T089: Source filtering - Global shows 12 sources, Voice shows 8
 TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][integration]") {
-    // Global sources = 13 (LFO1..Transient, including Rungler), Voice sources = 8 (Env1..Aftertouch)
-    REQUIRE(kNumGlobalSources == 13);
+    // Global sources = 14 (LFO1..Arp Pitch), Voice sources = 8 (Env1..Aftertouch)
+    REQUIRE(kNumGlobalSources == 14);
     REQUIRE(kNumVoiceSources == 8);
 
-    // Source cycling in global tab wraps at 13
+    // Source cycling in global tab wraps at 14
     ModMatrixGrid grid(VSTGUI::CRect(0, 0, 430, 250));
     grid.setRouteChangedCallback([](int, int, const ModRoute&) {});
     grid.setParameterCallback([](int32_t, float) {});
@@ -769,12 +769,12 @@ TEST_CASE("ModMatrixGrid: source count matches tab", "[modmatrix][grid][tab][int
 
     grid.addRoute();
 
-    // Set source to last global source (index 12 = Transient, after Rungler insertion)
+    // Set source to last global source (index 13 = Arp Pitch)
     ModRoute r;
     r.active = true;
-    r.source = 12; // last global source (Transient)
+    r.source = 13; // last global source (Arp Pitch)
     grid.setGlobalRoute(0, r);
-    REQUIRE(grid.getGlobalRoute(0).source == 12);
+    REQUIRE(grid.getGlobalRoute(0).source == 13);
 
     // Verify voice tab limits
     grid.setActiveTab(1);

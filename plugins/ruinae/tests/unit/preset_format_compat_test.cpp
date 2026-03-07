@@ -271,7 +271,7 @@ TEST_CASE("Sentinel values survive round-trip through processor",
     formatState.harmonizerEnabled = 0;
 
     // Arp (including scale mode fields that caused the original bug)
-    formatState.arp.enabled = 1;
+    formatState.arp.operatingMode = 1;
     formatState.arp.mode = 2;
     formatState.arp.octaveRange = 3;
     formatState.arp.scaleType = 3;

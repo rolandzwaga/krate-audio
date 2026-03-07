@@ -336,7 +336,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // Arp block processing (FR-007, FR-017, FR-018)
     // Must run after processEvents() and before engine_.processBlock()
-    if (arpParams_.enabled.load(std::memory_order_relaxed)) {
+    const int arpOpMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
+    const bool isArpRunning = (arpOpMode != kArpOff);
+    const bool isArpDispatchingNotes = (arpOpMode == kArpMIDI || arpOpMode == kArpMIDIMod);
+    const bool isArpModSource = (arpOpMode == kArpMod || arpOpMode == kArpMIDIMod);
+    if (isArpRunning) {
         // FR-017: setEnabled(false) queues cleanup note-offs internally.
         // The processBlock() call below drains them through the standard
         // routing loop, ensuring every note-on has a matching note-off.
@@ -380,36 +384,45 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         for (size_t i = 0; i < numArpEvents; ++i) {
             const auto& evt = arpEvents_[i];
             if (evt.type == Krate::DSP::ArpEvent::Type::NoteOn) {
+                // Capture pitch for mod source (normalized 0-1)
+                if (isArpModSource) {
+                    lastArpPitch_ = static_cast<float>(evt.note) / 127.0f;
+                }
+                // Only dispatch note events to engine in MIDI/MIDI+Mod modes
+                if (isArpDispatchingNotes) {
 #if RUINAE_TGATE_DEBUG
-                logTGate("[TGATE] >>> arp noteOn note=%d vel=%d legato=%d (gate will reset)\n", evt.note, evt.velocity, evt.legato ? 1 : 0);
+                    logTGate("[TGATE] >>> arp noteOn note=%d vel=%d legato=%d (gate will reset)\n", evt.note, evt.velocity, evt.legato ? 1 : 0);
 #endif
-                engine_.noteOn(evt.note, evt.velocity, evt.legato);
-                if (midiOutEnabled && data.outputEvents) {
-                    Steinberg::Vst::Event e{};
-                    e.busIndex = 0;
-                    e.sampleOffset = evt.sampleOffset;
-                    e.type = Steinberg::Vst::Event::kNoteOnEvent;
-                    e.noteOn.channel = 0;
-                    e.noteOn.pitch = evt.note;
-                    e.noteOn.velocity = evt.velocity / 127.0f;
-                    e.noteOn.tuning = 0.0f;
-                    e.noteOn.length = 0;
-                    e.noteOn.noteId = -1;
-                    data.outputEvents->addEvent(e);
+                    engine_.noteOn(evt.note, evt.velocity, evt.legato);
+                    if (midiOutEnabled && data.outputEvents) {
+                        Steinberg::Vst::Event e{};
+                        e.busIndex = 0;
+                        e.sampleOffset = evt.sampleOffset;
+                        e.type = Steinberg::Vst::Event::kNoteOnEvent;
+                        e.noteOn.channel = 0;
+                        e.noteOn.pitch = evt.note;
+                        e.noteOn.velocity = evt.velocity / 127.0f;
+                        e.noteOn.tuning = 0.0f;
+                        e.noteOn.length = 0;
+                        e.noteOn.noteId = -1;
+                        data.outputEvents->addEvent(e);
+                    }
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::NoteOff) {
-                engine_.noteOff(evt.note);
-                if (midiOutEnabled && data.outputEvents) {
-                    Steinberg::Vst::Event e{};
-                    e.busIndex = 0;
-                    e.sampleOffset = evt.sampleOffset;
-                    e.type = Steinberg::Vst::Event::kNoteOffEvent;
-                    e.noteOff.channel = 0;
-                    e.noteOff.pitch = evt.note;
-                    e.noteOff.velocity = 0.0f;
-                    e.noteOff.noteId = -1;
-                    e.noteOff.tuning = 0.0f;
-                    data.outputEvents->addEvent(e);
+                if (isArpDispatchingNotes) {
+                    engine_.noteOff(evt.note);
+                    if (midiOutEnabled && data.outputEvents) {
+                        Steinberg::Vst::Event e{};
+                        e.busIndex = 0;
+                        e.sampleOffset = evt.sampleOffset;
+                        e.type = Steinberg::Vst::Event::kNoteOffEvent;
+                        e.noteOff.channel = 0;
+                        e.noteOff.pitch = evt.note;
+                        e.noteOff.velocity = 0.0f;
+                        e.noteOff.noteId = -1;
+                        e.noteOff.tuning = 0.0f;
+                        data.outputEvents->addEvent(e);
+                    }
                 }
             } else if (evt.type == Krate::DSP::ArpEvent::Type::kSkip) {
                 // 081-interaction-polish: send skip event to controller (FR-007, FR-008)
@@ -494,6 +507,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Clear output buffers (engine writes into them)
     std::fill_n(outputL, numSamples, 0.0f);
     std::fill_n(outputR, numSamples, 0.0f);
+
+    // Feed arp pitch as External0 mod source (before mod engine processes)
+    if (isArpModSource) {
+        engine_.setExternalSourceValue(0, lastArpPitch_);
+    }
 
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
@@ -1590,9 +1608,10 @@ void Processor::applyParamsToEngine() {
     }
 
     // --- Arp Modulation (078-modulation-integration) ---
-    // Read mod offsets and apply to arp parameters when arp is enabled (FR-015).
-    // When disabled, skip mod reads for performance optimization.
-    if (arpParams_.enabled.load(std::memory_order_relaxed)) {
+    // Read mod offsets and apply to arp parameters when arp is running (FR-015).
+    // When off, skip mod reads for performance optimization.
+    const int arpOpModeParam = arpParams_.operatingMode.load(std::memory_order_relaxed);
+    if (arpOpModeParam != kArpOff) {
         const float rateOffset = engine_.getGlobalModOffset(
             RuinaeModDest::ArpRate);
         const float gateOffset = engine_.getGlobalModOffset(
@@ -1826,7 +1845,7 @@ void Processor::applyParamsToEngine() {
     }
 
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
-    arpCore_.setEnabled(arpParams_.enabled.load(std::memory_order_relaxed));
+    arpCore_.setEnabled(arpOpModeParam != kArpOff);
 }
 
 // ==============================================================================
@@ -1844,12 +1863,18 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
     auto midiPitch = static_cast<uint8_t>(pitch);
     auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
 
-    const bool arpEnabled = arpParams_.enabled.load(std::memory_order_relaxed);
+    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
 
-    // FR-006: route note-on based on arp enabled state
-    if (arpEnabled) {
+    // FR-006: route note-on based on arp operating mode
+    const bool arpRunning = (opMode != kArpOff);
+    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
+
+    if (arpRunning) {
+        // Feed note to arp core for pattern building
         arpCore_.noteOn(midiPitch, midiVelocity);
-    } else {
+    }
+    if (!arpDispatchesNotes) {
+        // Direct to engine: Off mode or Mod-only mode (voices play held notes)
 #if RUINAE_TGATE_DEBUG
         logTGate("[TGATE] >>> noteOn pitch=%d vel=%d (gate will reset)\n", midiPitch, midiVelocity);
 #endif
@@ -1860,12 +1885,15 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
 void Processor::onNoteOff(int16_t pitch) {
     auto midiPitch = static_cast<uint8_t>(pitch);
 
-    const bool arpEnabled = arpParams_.enabled.load(std::memory_order_relaxed);
+    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
 
-    // FR-006: route note-off based on arp enabled state
-    if (arpEnabled) {
+    const bool arpRunning = (opMode != kArpOff);
+    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
+
+    if (arpRunning) {
         arpCore_.noteOff(midiPitch);
-    } else {
+    }
+    if (!arpDispatchesNotes) {
         engine_.noteOff(midiPitch);
     }
 }

@@ -362,7 +362,7 @@ TEST_CASE("Arp-to-non-arp preset switch",
     // Create an arp-enabled preset
     auto arpProc = makeTestableProcessor();
     ParamChangeBatch arpChanges;
-    arpChanges.add(Ruinae::kArpEnabledId, 1.0);
+    arpChanges.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     arpChanges.add(Ruinae::kArpModeId, 0.0); // Up
     arpChanges.add(Ruinae::kArpTempoSyncId, 1.0);
     arpChanges.add(Ruinae::kOscALevelId, 1.0);
@@ -372,7 +372,7 @@ TEST_CASE("Arp-to-non-arp preset switch",
     // Create a non-arp preset
     auto noArpProc = makeTestableProcessor();
     ParamChangeBatch noArpChanges;
-    noArpChanges.add(Ruinae::kArpEnabledId, 0.0);
+    noArpChanges.add(Ruinae::kArpOperatingModeId, 0.0);
     noArpChanges.add(Ruinae::kOscALevelId, 0.8);
     noArpChanges.add(Ruinae::kFilterCutoffId, 0.5);
     noArpProc->processParameterChanges(&noArpChanges);

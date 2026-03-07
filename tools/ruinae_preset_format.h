@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 2;
+static constexpr int32_t kStateVersion = 3;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -870,7 +870,7 @@ struct HarmonizerState {
 
 struct ArpState {
     // Base params (11 values)
-    int32_t enabled = 0; // false
+    int32_t operatingMode = 0; // 0=Off, 1=MIDI, 2=Mod, 3=MIDI+Mod
     int32_t mode = 0; // Up
     int32_t octaveRange = 1;
     int32_t octaveMode = 0; // Sequential
@@ -949,7 +949,7 @@ struct ArpState {
 
     void serialize(BinaryWriter& w) const {
         // 11 base params
-        w.writeInt32(enabled);
+        w.writeInt32(operatingMode);
         w.writeInt32(mode);
         w.writeInt32(octaveRange);
         w.writeInt32(octaveMode);

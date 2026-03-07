@@ -324,14 +324,14 @@ struct ArpModFixture {
     /// Enable arp via parameter change
     void enableArp() {
         ArpModTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         processBlockWithParams(params);
     }
 
     /// Disable arp via parameter change
     void disableArp() {
         ArpModTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 0.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 0.0);
         processBlockWithParams(params);
     }
 
@@ -1460,7 +1460,7 @@ TEST_CASE("ArpModRouting_SaveLoadRoundtrip", "[arp_mod]") {
     // Apply params and process a few blocks to settle
     {
         ArpModTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpTempoSyncId, 0.0);
         params.addChange(Ruinae::kArpFreeRateId, normalizeFreeRate(4.0));
         auto slotBase = Ruinae::kModMatrixSlot0SourceId;
@@ -1582,7 +1582,7 @@ TEST_CASE("Phase9Preset_NoArpModActive", "[arp_mod]") {
     // Enable arp with defaults (no mod routing = Phase 9 preset equivalent)
     {
         ArpModTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpTempoSyncId, 0.0);
         params.addChange(Ruinae::kArpFreeRateId, normalizeFreeRate(4.0));
         processOnce(original, &params);
@@ -1688,7 +1688,7 @@ TEST_CASE("AllFiveArpDestinations_SaveLoadRoundtrip", "[arp_mod]") {
     // Slot 4: Macro1 -> ArpSpice with amount +0.6
     {
         ArpModTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpTempoSyncId, 0.0);
         params.addChange(Ruinae::kArpFreeRateId, normalizeFreeRate(4.0));
         params.addChange(Ruinae::kMacro1ValueId, 0.5);

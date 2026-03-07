@@ -195,14 +195,14 @@ void Controller::syncModMatrixGrid() {
     for (int i = 0; i < Krate::Plugins::kMaxGlobalRoutes; ++i) {
         Krate::Plugins::ModRoute route;
 
-        // Source: DSP index 0-12 → UI index (dspIdx - 1), clamped to 0-11
+        // Source: DSP index 0-14 → UI index (dspIdx - 1), clamped to 0-(kModSourceCount-2)
         auto* srcParam = getParameterObject(
             static_cast<Steinberg::Vst::ParamID>(Krate::Plugins::modSlotSourceId(i)));
         int dspSrcIdx = 0;
         if (srcParam) {
             dspSrcIdx = static_cast<int>(
                 std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
-            int uiSrcIdx = std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
+            int uiSrcIdx = std::clamp(dspSrcIdx - 1, 0, kModSourceCount - 2);
             route.source = static_cast<uint8_t>(uiSrcIdx);
         }
 
@@ -389,9 +389,9 @@ void Controller::rebuildRingIndicators() {
         if (srcParam) {
             dspSrcIdx = static_cast<int>(
                 std::round(srcParam->getNormalized() * (kModSourceCount - 1)));
-            // DSP index → UI index (subtract 1, clamp to 0-11)
+            // DSP index → UI index (subtract 1, clamp to valid source range)
             routes[static_cast<size_t>(i)].sourceIndex =
-                std::clamp(dspSrcIdx - 1, 0, Krate::Plugins::kNumGlobalSources - 1);
+                std::clamp(dspSrcIdx - 1, 0, kModSourceCount - 2);
         }
         if (dstParam) {
             routes[static_cast<size_t>(i)].destIndex = static_cast<int>(

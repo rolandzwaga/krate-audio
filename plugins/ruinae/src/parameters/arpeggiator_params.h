@@ -36,9 +36,17 @@ namespace Ruinae {
 // processParameterChanges) and the audio thread (reads plain values in
 // applyParamsToEngine).
 
+// Arp operating mode: determines how arp interacts with MIDI and mod engine
+enum ArpOperatingMode {
+    kArpOff = 0,      // Arp disabled, MIDI goes direct to engine
+    kArpMIDI = 1,     // Arp enabled, events dispatched to engine (classic behavior)
+    kArpMod = 2,      // Arp runs as modulation source only, MIDI goes direct to engine
+    kArpMIDIMod = 3   // Arp dispatches notes AND outputs pitch as mod source
+};
+
 struct ArpeggiatorParams {
     // Base arp params (Phase 3)
-    std::atomic<bool>  enabled{false};
+    std::atomic<int>   operatingMode{kArpOff};  // ArpOperatingMode (0-3)
     std::atomic<int>   mode{0};              // 0=Up..9=Chord
     std::atomic<int>   octaveRange{1};       // 1-4
     std::atomic<int>   octaveMode{0};        // 0=Sequential, 1=Interleaved
@@ -133,8 +141,11 @@ inline void handleArpParamChange(
     Steinberg::Vst::ParamValue value)
 {
     switch (id) {
-        case kArpEnabledId:
-            params.enabled.store(value >= 0.5, std::memory_order_relaxed);
+        case kArpOperatingModeId:
+            // StringListParameter: 0-1 -> 0-3 (4 entries, stepCount=3)
+            params.operatingMode.store(
+                std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                std::memory_order_relaxed);
             break;
         case kArpModeId:
             // StringListParameter: 0-1 -> 0-9 (10 entries, stepCount=9)
@@ -388,9 +399,10 @@ inline void registerArpParams(
 {
     using namespace Steinberg::Vst;
 
-    // Arp Enabled: Toggle (0 or 1), default off
-    parameters.addParameter(STR16("Arp Enabled"), STR16(""), 1, 0.0,
-        ParameterInfo::kCanAutomate, kArpEnabledId);
+    // Arp Operating Mode: StringListParameter (4 entries), default 0 (Off)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Operating Mode"), kArpOperatingModeId,
+        {STR16("Off"), STR16("MIDI"), STR16("Mod"), STR16("MIDI+Mod")}));
 
     // Arp Mode: StringListParameter (10 entries), default 0 (Up)
     parameters.addParameter(createDropdownParameter(
@@ -990,10 +1002,10 @@ inline void saveArpParams(
     const ArpeggiatorParams& params,
     Steinberg::IBStreamer& streamer)
 {
-    // 11 fields in order: enabled, mode, octaveRange, octaveMode, tempoSync,
+    // 11 fields in order: operatingMode, mode, octaveRange, octaveMode, tempoSync,
     // noteValue (all int32), freeRate, gateLength, swing (all float),
     // latchMode, retrigger (both int32)
-    streamer.writeInt32(params.enabled.load(std::memory_order_relaxed) ? 1 : 0);
+    streamer.writeInt32(params.operatingMode.load(std::memory_order_relaxed));
     streamer.writeInt32(params.mode.load(std::memory_order_relaxed));
     streamer.writeInt32(params.octaveRange.load(std::memory_order_relaxed));
     streamer.writeInt32(params.octaveMode.load(std::memory_order_relaxed));
@@ -1082,7 +1094,14 @@ inline bool loadArpParams(
     float floatVal = 0.0f;
 
     if (!streamer.readInt32(intVal)) return false;
-    params.enabled.store(intVal != 0, std::memory_order_relaxed);
+    if (stateVersion < 3) {
+        // v2 migration: old boolean enabled (0/1) -> operating mode (Off/MIDI)
+        params.operatingMode.store(intVal != 0 ? kArpMIDI : kArpOff,
+            std::memory_order_relaxed);
+    } else {
+        params.operatingMode.store(std::clamp(intVal, 0, 3),
+            std::memory_order_relaxed);
+    }
 
     if (!streamer.readInt32(intVal)) return false;
     params.mode.store(std::clamp(intVal, 0, 9), std::memory_order_relaxed);
@@ -1256,9 +1275,17 @@ inline void loadArpParamsToController(
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
-    // enabled (int32 -> bool -> normalized 0 or 1)
-    if (streamer.readInt32(intVal))
-        setParam(kArpEnabledId, intVal != 0 ? 1.0 : 0.0);
+    // operatingMode (int32 -> normalized: index / 3)
+    if (streamer.readInt32(intVal)) {
+        int mode;
+        if (stateVersion < 3) {
+            // v2 migration: old boolean enabled (0/1) -> operating mode (Off/MIDI)
+            mode = intVal != 0 ? kArpMIDI : kArpOff;
+        } else {
+            mode = std::clamp(intVal, 0, 3);
+        }
+        setParam(kArpOperatingModeId, static_cast<double>(mode) / 3.0);
+    }
     else return;
 
     // mode (int32 -> normalized: index / 9)

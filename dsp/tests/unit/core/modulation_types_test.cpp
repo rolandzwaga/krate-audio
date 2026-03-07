@@ -16,8 +16,8 @@ using namespace Krate::DSP;
 // ModSource Enum Tests
 // =============================================================================
 
-TEST_CASE("ModSource enum has 14 values", "[core][modulation_types]") {
-    REQUIRE(kModSourceCount == 14);
+TEST_CASE("ModSource enum has 18 values", "[core][modulation_types]") {
+    REQUIRE(kModSourceCount == 18);
     REQUIRE(static_cast<uint8_t>(ModSource::None) == 0);
     REQUIRE(static_cast<uint8_t>(ModSource::LFO1) == 1);
     REQUIRE(static_cast<uint8_t>(ModSource::LFO2) == 2);
@@ -32,6 +32,11 @@ TEST_CASE("ModSource enum has 14 values", "[core][modulation_types]") {
     REQUIRE(static_cast<uint8_t>(ModSource::SampleHold) == 11);
     REQUIRE(static_cast<uint8_t>(ModSource::PitchFollower) == 12);
     REQUIRE(static_cast<uint8_t>(ModSource::Transient) == 13);
+    REQUIRE(static_cast<uint8_t>(ModSource::External0) == 14);
+    REQUIRE(static_cast<uint8_t>(ModSource::External1) == 15);
+    REQUIRE(static_cast<uint8_t>(ModSource::External2) == 16);
+    REQUIRE(static_cast<uint8_t>(ModSource::External3) == 17);
+    REQUIRE(kMaxExternalSources == 4);
 }
 
 // =============================================================================

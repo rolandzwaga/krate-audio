@@ -41,7 +41,7 @@ static std::string toString128(const Steinberg::Vst::String128& str128) {
 
 TEST_CASE("ArpeggiatorParams struct has correct defaults", "[arp][params]") {
     Ruinae::ArpeggiatorParams params;
-    REQUIRE(params.enabled.load() == false);
+    REQUIRE(params.operatingMode.load() == Ruinae::kArpOff);
     REQUIRE(params.mode.load() == 0);
     REQUIRE(params.octaveRange.load() == 1);
     REQUIRE(params.octaveMode.load() == 0);
@@ -62,15 +62,15 @@ TEST_CASE("ArpParams_HandleParamChange_AllFields", "[arp][params][denorm]") {
     using namespace Ruinae;
     ArpeggiatorParams params;
 
-    SECTION("enabled: 0.0 -> false, 0.49 -> false, 0.5 -> true, 1.0 -> true") {
-        handleArpParamChange(params, kArpEnabledId, 0.0);
-        CHECK(params.enabled.load() == false);
-        handleArpParamChange(params, kArpEnabledId, 0.49);
-        CHECK(params.enabled.load() == false);
-        handleArpParamChange(params, kArpEnabledId, 0.5);
-        CHECK(params.enabled.load() == true);
-        handleArpParamChange(params, kArpEnabledId, 1.0);
-        CHECK(params.enabled.load() == true);
+    SECTION("operatingMode: 0.0 -> 0 (Off), 1/3 -> 1 (MIDI), 2/3 -> 2 (Mod), 1.0 -> 3 (MIDI+Mod)") {
+        handleArpParamChange(params, kArpOperatingModeId, 0.0);
+        CHECK(params.operatingMode.load() == 0);
+        handleArpParamChange(params, kArpOperatingModeId, 1.0 / 3.0);
+        CHECK(params.operatingMode.load() == 1);
+        handleArpParamChange(params, kArpOperatingModeId, 2.0 / 3.0);
+        CHECK(params.operatingMode.load() == 2);
+        handleArpParamChange(params, kArpOperatingModeId, 1.0);
+        CHECK(params.operatingMode.load() == 3);
     }
 
     SECTION("mode: 0.0 -> 0 (Up), 1.0 -> 9 (Chord), mid -> 5 (Diverge)") {
@@ -310,7 +310,7 @@ TEST_CASE("ArpParams_RegisterParams_AllPresent", "[arp][params][register]") {
 
     // All 11 parameter IDs that must be present
     constexpr ParamID expectedIds[] = {
-        kArpEnabledId,
+        kArpOperatingModeId,
         kArpModeId,
         kArpOctaveRangeId,
         kArpOctaveModeId,
@@ -342,7 +342,7 @@ TEST_CASE("ArpParams_SaveLoad_RoundTrip", "[arp][params][state]") {
 
     // Set all 11 fields to non-default values
     ArpeggiatorParams original;
-    original.enabled.store(true, std::memory_order_relaxed);
+    original.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     original.mode.store(3, std::memory_order_relaxed);            // DownUp
     original.octaveRange.store(3, std::memory_order_relaxed);     // 3 octaves
     original.octaveMode.store(1, std::memory_order_relaxed);      // Interleaved
@@ -371,7 +371,7 @@ TEST_CASE("ArpParams_SaveLoad_RoundTrip", "[arp][params][state]") {
     }
 
     // Verify each field matches
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 3);
     CHECK(loaded.octaveRange.load() == 3);
     CHECK(loaded.octaveMode.load() == 1);
@@ -401,7 +401,7 @@ TEST_CASE("ArpParams_LoadArpParams_BackwardCompatibility", "[arp][params][state]
         }
 
         // All fields remain at defaults
-        CHECK(params.enabled.load() == false);
+        CHECK(params.operatingMode.load() == kArpOff);
         CHECK(params.mode.load() == 0);
         CHECK(params.octaveRange.load() == 1);
         CHECK(params.octaveMode.load() == 0);
@@ -434,7 +434,7 @@ TEST_CASE("ArpParams_LoadArpParams_BackwardCompatibility", "[arp][params][state]
         }
 
         // The first 3 fields that were read successfully are stored
-        CHECK(params.enabled.load() == true);
+        CHECK(params.operatingMode.load() == kArpMIDI);
         CHECK(params.mode.load() == 5);
         CHECK(params.octaveRange.load() == 2);
         // Remaining fields stay at their defaults (octaveMode onward was not read)
@@ -488,9 +488,9 @@ TEST_CASE("ArpParams_LoadToController_NormalizesCorrectly", "[arp][params][state
     REQUIRE(calls.size() == 11);
 
     // Verify each normalized value
-    // enabled: true -> 1.0
-    CHECK(calls[0].id == kArpEnabledId);
-    CHECK(calls[0].value == Approx(1.0).margin(0.001));
+    // operatingMode: kArpMIDI (1) -> 1.0/3.0
+    CHECK(calls[0].id == kArpOperatingModeId);
+    CHECK(calls[0].value == Approx(1.0 / 3.0).margin(0.001));
 
     // mode: 3 -> 3/9 = 0.3333
     CHECK(calls[1].id == kArpModeId);
@@ -667,7 +667,7 @@ TEST_CASE("ArpVelParams_BackwardCompat", "[arp][params]") {
     }
 
     // Base params loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 0);
 
     // Velocity lane defaults preserved (no lane data in stream)
@@ -798,7 +798,7 @@ TEST_CASE("ArpGateParams_BackwardCompat", "[arp][params]") {
     }
 
     // Base params loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
 
     // Velocity lane loaded correctly
     CHECK(loaded.velocityLaneLength.load() == 1);
@@ -945,7 +945,7 @@ TEST_CASE("ArpPitchParams_BackwardCompat", "[arp][params]") {
     }
 
     // Base params loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
 
     // Velocity lane loaded correctly
     CHECK(loaded.velocityLaneLength.load() == 1);
@@ -971,7 +971,7 @@ TEST_CASE("LanePersistence_FullRoundTrip", "[arp][params]") {
     ArpeggiatorParams original;
 
     // Set non-default base arp params to make this a complete round-trip test
-    original.enabled.store(true, std::memory_order_relaxed);
+    original.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
     original.mode.store(2, std::memory_order_relaxed);
     original.gateLength.store(60.0f, std::memory_order_relaxed);
 
@@ -1442,7 +1442,7 @@ TEST_CASE("ModifierLane_BackwardCompat_Phase4Stream", "[arp][params][state][comp
     }
 
     // Base params loaded correctly
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
     CHECK(loaded.mode.load() == 0);
 
     // Modifier lane defaults preserved
@@ -2244,7 +2244,7 @@ TEST_CASE("PlayheadParams_ExcludedFromPresetState", "[arp][params][playhead][sta
 
     // Set some non-default arp params and save
     ArpeggiatorParams original;
-    original.enabled.store(true, std::memory_order_relaxed);
+    original.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
 
     auto stream = Steinberg::owned(new Steinberg::MemoryStream());
     {
@@ -2265,7 +2265,7 @@ TEST_CASE("PlayheadParams_ExcludedFromPresetState", "[arp][params][playhead][sta
     // transient parameter-only, not part of the serialized state).
     // We verify this indirectly: the save/load round-trip succeeds without any
     // playhead data, proving they are excluded from serialization.
-    CHECK(loaded.enabled.load() == true);
+    CHECK(loaded.operatingMode.load() == kArpMIDI);
 
     // Additionally verify the parameter IDs are correct constants
     CHECK(kArpVelocityPlayheadId == 3294);
@@ -2305,7 +2305,7 @@ TEST_CASE("All arp parameters have Arp prefix in display name", "[arp][param dis
     std::vector<ParamID> arpParamIds;
 
     // Base arp parameters (3000-3010)
-    for (ParamID id = kArpEnabledId; id <= kArpRetriggerId; ++id)
+    for (ParamID id = kArpOperatingModeId; id <= kArpRetriggerId; ++id)
         arpParamIds.push_back(id);
 
     // Velocity lane: length + 32 steps (3020-3052)

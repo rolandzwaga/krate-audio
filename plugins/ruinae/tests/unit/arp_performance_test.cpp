@@ -267,13 +267,13 @@ struct PerfTestFixture {
 
     void enableArp() {
         PerfTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         processBlockWithParams(params);
     }
 
     void disableArp() {
         PerfTestParamChanges params;
-        params.addChange(Ruinae::kArpEnabledId, 0.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 0.0);
         processBlockWithParams(params);
     }
 
@@ -348,7 +348,7 @@ TEST_CASE("Arp CPU overhead is less than 0.5% of a single core at 44.1kHz",
         // Enable arp with a moderate pattern (Basic Up 1/16)
         {
             PerfTestParamChanges params;
-            params.addChange(Ruinae::kArpEnabledId, 1.0);
+            params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
             params.addChange(Ruinae::kArpModeId, 0.0);              // Up
             params.addChange(Ruinae::kArpNoteValueId, 7.0 / 20.0);  // 1/16 (index 7)
             f.processBlockWithParams(params);
@@ -398,7 +398,7 @@ TEST_CASE("Stress test: 10 notes, ratchet=4 all steps, all lanes active, "
     {
         PerfTestParamChanges params;
         // Enable arp, mode = Up, rate = 1/32 (index 4)
-        params.addChange(Ruinae::kArpEnabledId, 1.0);
+        params.addChange(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
         params.addChange(Ruinae::kArpModeId, 0.0);              // Up
         params.addChange(Ruinae::kArpNoteValueId, 4.0 / 20.0);  // 1/32 (index 4)
 

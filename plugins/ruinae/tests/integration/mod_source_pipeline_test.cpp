@@ -583,7 +583,8 @@ TEST_CASE("Mod source pipeline: LFO1 modulates global filter cutoff (control tes
 TEST_CASE("Mod source pipeline: normalization round-trip for all sources",
           "[mod-source-pipeline][unit][normalization]") {
 
-    for (int srcEnum = 0; srcEnum < static_cast<int>(kModSourceCount); ++srcEnum) {
+    // Only test sources exposed in Ruinae's dropdown (0 to kModSourceCount-1)
+    for (int srcEnum = 0; srcEnum < Ruinae::kModSourceCount; ++srcEnum) {
         [[maybe_unused]] auto src = static_cast<ModSource>(srcEnum);
 
         // What the controller would compute
@@ -678,7 +679,8 @@ TEST_CASE("Mod source pipeline: handleModMatrixParamChange stores correct values
 TEST_CASE("Mod source pipeline: all sources stored correctly via handleModMatrixParamChange",
           "[mod-source-pipeline][unit][param-storage]") {
 
-    for (int srcEnum = 1; srcEnum < static_cast<int>(kModSourceCount); ++srcEnum) {
+    // Only test sources exposed in Ruinae's dropdown (1 to kModSourceCount-1)
+    for (int srcEnum = 1; srcEnum < Ruinae::kModSourceCount; ++srcEnum) {
         auto expected = static_cast<ModSource>(srcEnum);
         DYNAMIC_SECTION("Source enum " << srcEnum) {
             Ruinae::ModMatrixParams params;

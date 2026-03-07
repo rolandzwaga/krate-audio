@@ -477,6 +477,11 @@ public:
     void setTransientAttack(float ms) noexcept { globalModEngine_.setTransientAttack(ms); }
     void setTransientDecay(float ms) noexcept { globalModEngine_.setTransientDecay(ms); }
 
+    // External source slots (plugin-injectable modulation sources)
+    void setExternalSourceValue(uint8_t slot, float value) noexcept {
+        globalModEngine_.setExternalSourceValue(slot, value);
+    }
+
     // =========================================================================
     // Modulation State Query (for UI feedback)
     // =========================================================================

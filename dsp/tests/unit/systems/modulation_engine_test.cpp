@@ -1085,9 +1085,9 @@ TEST_CASE("Routing getters return set values", "[systems][modulation_engine][sta
 // Spec 057: ModSource enum count after Rungler insertion
 // =============================================================================
 
-TEST_CASE("ModSource enum count is 14 after Rungler insertion", "[systems][modulation_engine]") {
-    // Spec 057 (FR-009): Rungler inserted at position 10, kModSourceCount updated to 14
-    REQUIRE(kModSourceCount == 14);
+TEST_CASE("ModSource enum count is 18 after External source slots", "[systems][modulation_engine]") {
+    // Spec 057 (FR-009): Rungler at 10, External0-3 at 14-17, kModSourceCount = 18
+    REQUIRE(kModSourceCount == 18);
 }
 
 // =============================================================================
@@ -1210,4 +1210,114 @@ TEST_CASE("Rungler only processes when sourceActive_ is true", "[systems][modula
 
     // The value should not change since Rungler is not being processed
     REQUIRE(valueAfterProcessing == Approx(valueAfterClear).margin(0.0001f));
+}
+
+// =============================================================================
+// External Source Slot Tests
+// =============================================================================
+
+TEST_CASE("External source slot 0 returns set value via routing",
+          "[systems][modulation_engine][external]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::External0;
+    routing.destParamId = 0;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    engine.setExternalSourceValue(0, 0.5f);
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    std::array<float, 512> silence{};
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    REQUIRE(engine.getModulationOffset(0) == Approx(0.5f).margin(0.01f));
+}
+
+TEST_CASE("External source defaults to 0.0 when not set",
+          "[systems][modulation_engine][external]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::External0;
+    routing.destParamId = 0;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    // Don't call setExternalSourceValue
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    std::array<float, 512> silence{};
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    REQUIRE(engine.getModulationOffset(0) == Approx(0.0f).margin(0.001f));
+}
+
+TEST_CASE("External source slots are independent",
+          "[systems][modulation_engine][external]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting r0;
+    r0.source = ModSource::External0;
+    r0.destParamId = 0;
+    r0.amount = 1.0f;
+    r0.curve = ModCurve::Linear;
+    r0.active = true;
+    engine.setRouting(0, r0);
+
+    ModRouting r1;
+    r1.source = ModSource::External1;
+    r1.destParamId = 1;
+    r1.amount = 1.0f;
+    r1.curve = ModCurve::Linear;
+    r1.active = true;
+    engine.setRouting(1, r1);
+
+    engine.setExternalSourceValue(0, 0.3f);
+    engine.setExternalSourceValue(1, 0.7f);
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    std::array<float, 512> silence{};
+    engine.process(ctx, silence.data(), silence.data(), 512);
+
+    REQUIRE(engine.getModulationOffset(0) == Approx(0.3f).margin(0.01f));
+    REQUIRE(engine.getModulationOffset(1) == Approx(0.7f).margin(0.01f));
+}
+
+TEST_CASE("External source value persists across blocks (hold behavior)",
+          "[systems][modulation_engine][external]") {
+    auto engine = createEngine(44100.0);
+
+    ModRouting routing;
+    routing.source = ModSource::External0;
+    routing.destParamId = 0;
+    routing.amount = 1.0f;
+    routing.curve = ModCurve::Linear;
+    routing.active = true;
+    engine.setRouting(0, routing);
+
+    engine.setExternalSourceValue(0, 0.6f);
+
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.tempoBPM = 120.0;
+    std::array<float, 512> silence{};
+
+    // First block
+    engine.process(ctx, silence.data(), silence.data(), 512);
+    REQUIRE(engine.getModulationOffset(0) == Approx(0.6f).margin(0.01f));
+
+    // Second block WITHOUT setting value again — should hold
+    engine.process(ctx, silence.data(), silence.data(), 512);
+    REQUIRE(engine.getModulationOffset(0) == Approx(0.6f).margin(0.01f));
 }

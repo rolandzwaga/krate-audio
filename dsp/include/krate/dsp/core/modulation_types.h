@@ -47,11 +47,20 @@ enum class ModSource : uint8_t {
     Rungler = 10,       ///< Rungler (Benjolin chaotic oscillator)
     SampleHold = 11,    ///< Sample & Hold (renumbered from 10)
     PitchFollower = 12, ///< Pitch Follower (renumbered from 11)
-    Transient = 13      ///< Transient Detector (renumbered from 12)
+    Transient = 13,     ///< Transient Detector (renumbered from 12)
+
+    // External sources (plugin-injectable, e.g. arp pitch)
+    External0 = 14,     ///< External source slot 0
+    External1 = 15,     ///< External source slot 1
+    External2 = 16,     ///< External source slot 2
+    External3 = 17      ///< External source slot 3
 };
 
+/// Number of external source slots available.
+inline constexpr size_t kMaxExternalSources = 4;
+
 /// Total number of ModSource values (including None).
-inline constexpr uint8_t kModSourceCount = 14;
+inline constexpr uint8_t kModSourceCount = 18;
 
 // =============================================================================
 // Modulation Curve Enumeration (FR-058)

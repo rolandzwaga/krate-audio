@@ -27,9 +27,9 @@ namespace Krate::Plugins {
 // Global tab sources match DSP ModSource enum (skip None=0): LFO1..Transient
 // Voice tab sources match DSP VoiceModSource enum: Env1..Aftertouch
 
-/// Number of sources visible in the Global tab (DSP ModSource 1-13)
+/// Number of sources visible in the Global tab (DSP ModSource 1-14)
 /// Must match kGlobalSourceNames.size() — enforced by static_assert below.
-inline constexpr int kNumGlobalSources = 13;
+inline constexpr int kNumGlobalSources = 14;
 
 /// Number of sources visible in the Voice tab (DSP VoiceModSource 0-7)
 /// Must match kVoiceSourceNames.size() — enforced by static_assert below.
@@ -186,8 +186,8 @@ struct ModSourceName {
     const char* abbreviation;
 };
 
-/// Global tab sources (indices 0-12, matching DSP ModSource 1-13)
-inline constexpr std::array<ModSourceName, 13> kGlobalSourceNames = {{
+/// Global tab sources (indices 0-13, matching DSP ModSource 1-14)
+inline constexpr std::array<ModSourceName, 14> kGlobalSourceNames = {{
     {"LFO 1",           "LF1"},
     {"LFO 2",           "LF2"},
     {"Env Follower",    "EnvF"},
@@ -201,6 +201,7 @@ inline constexpr std::array<ModSourceName, 13> kGlobalSourceNames = {{
     {"Sample & Hold",   "S&H"},
     {"Pitch Follower",  "PFol"},
     {"Transient",       "Tran"},
+    {"Arp Pitch",       "ArpP"},
 }};
 
 /// Voice tab sources (indices 0-7, matching DSP VoiceModSource 0-7)

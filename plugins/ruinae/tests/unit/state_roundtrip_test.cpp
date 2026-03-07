@@ -343,7 +343,7 @@ TEST_CASE("Arp state round-trip preserves all lane values",
     ParamChangeBatch changes;
 
     // Enable arp
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     // Mode = Down (1): normalized = 1/9
     changes.add(Ruinae::kArpModeId, 1.0 / 9.0);
 
@@ -427,7 +427,7 @@ TEST_CASE("Arp state round-trip preserves all lane values",
     // Its saved state should be identical, proving dice isn't in the stream.
     auto proc3 = makeTestableProcessor();
     ParamChangeBatch changes2;
-    changes2.add(Ruinae::kArpEnabledId, 1.0);
+    changes2.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     changes2.add(Ruinae::kArpModeId, 1.0 / 9.0);
     changes2.add(Ruinae::kArpVelocityLaneLengthId, (8.0 - 1.0) / 31.0);
     for (int i = 0; i < 8; ++i) {
@@ -490,7 +490,7 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     auto proc = makeTestableProcessor();
 
     ParamChangeBatch changes;
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     changes.add(Ruinae::kArpEuclideanEnabledId, 1.0);
     // Hits=5: normalized = 5/32
     changes.add(Ruinae::kArpEuclideanHitsId, 5.0 / 32.0);
@@ -553,7 +553,7 @@ TEST_CASE("Arp state round-trip preserves condition values",
     auto proc = makeTestableProcessor();
 
     ParamChangeBatch changes;
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
 
     // Set condition lane to length=18 and include all 18 TrigCondition variants
     changes.add(Ruinae::kArpConditionLaneLengthId, (18.0 - 1.0) / 31.0);
@@ -599,7 +599,7 @@ TEST_CASE("Arp state round-trip preserves modifier bitmasks",
     auto proc = makeTestableProcessor();
 
     ParamChangeBatch changes;
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
 
     // Set modifier lane with specific bitmask combinations
     changes.add(Ruinae::kArpModifierLaneLengthId, (6.0 - 1.0) / 31.0);
@@ -645,7 +645,7 @@ TEST_CASE("Arp state round-trip preserves float values bit-identically",
 
     // Set specific float values: spice=0.73, humanize=0.42, ratchetSwing=62.0
     ParamChangeBatch changes;
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     changes.add(Ruinae::kArpSpiceId, 0.73);        // direct: normalized = raw
     changes.add(Ruinae::kArpHumanizeId, 0.42);      // direct: normalized = raw
     // ratchetSwing: raw 50-75, normalized = (val - 50) / 25
@@ -748,7 +748,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
 
     // Set non-default base arp params
     ParamChangeBatch changes;
-    changes.add(Ruinae::kArpEnabledId, 1.0);          // enabled = true
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);          // enabled = true
     changes.add(Ruinae::kArpModeId, 2.0 / 9.0);       // mode = UpDown (2)
     changes.add(Ruinae::kArpOctaveRangeId, 2.0 / 3.0); // octaveRange = 3
     changes.add(Ruinae::kArpTempoSyncId, 1.0);         // tempoSync = true

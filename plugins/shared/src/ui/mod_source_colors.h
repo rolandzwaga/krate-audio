@@ -27,7 +27,7 @@ namespace Krate::Plugins {
 // Global Tab Source Colors (13 entries, indexed to match kGlobalSourceNames)
 // ==============================================================================
 
-inline constexpr std::array<VSTGUI::CColor, 13> kGlobalSourceColors = {{
+inline constexpr std::array<VSTGUI::CColor, 14> kGlobalSourceColors = {{
     {60, 210, 100, 255},   // 0: LFO 1
     {90, 200, 130, 255},   // 1: LFO 2
     {220, 170, 60, 255},   // 2: Env Follower
@@ -41,6 +41,7 @@ inline constexpr std::array<VSTGUI::CColor, 13> kGlobalSourceColors = {{
     {80, 200, 200, 255},   // 10: Sample & Hold
     {80, 180, 160, 255},   // 11: Pitch Follower
     {220, 200, 60, 255},   // 12: Transient
+    {150, 120, 220, 255},  // 13: Arp Pitch
 }};
 
 // ==============================================================================

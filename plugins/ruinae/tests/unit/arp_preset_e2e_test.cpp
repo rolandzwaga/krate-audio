@@ -339,7 +339,7 @@ static std::vector<char> captureBasicUp116State() {
     E2EParamChanges changes;
 
     // Enable arp
-    changes.add(Ruinae::kArpEnabledId, 1.0);
+    changes.add(Ruinae::kArpOperatingModeId, 1.0 / 3.0);
     // Mode = Up (0): normalized = 0/9 = 0.0
     changes.add(Ruinae::kArpModeId, 0.0);
     // Octave range = 1: normalized = (1-1)/3 = 0.0

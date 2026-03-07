@@ -17,7 +17,7 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -812,7 +812,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // Arpeggiator Parameters (3000-3099)
     // ==========================================================================
     kArpBaseId = 3000,
-    kArpEnabledId = 3000,          // on/off toggle
+    kArpOperatingModeId = 3000,    // 4-entry list: Off/MIDI/Mod/MIDI+Mod
     kArpModeId = 3001,             // 10-entry list: Up/Down/UpDown/DownUp/Converge/Diverge/Random/Walk/AsPlayed/Chord
     kArpOctaveRangeId = 3002,      // 1-4 integer range
     kArpOctaveModeId = 3003,       // 2-entry list: Sequential/Interleaved

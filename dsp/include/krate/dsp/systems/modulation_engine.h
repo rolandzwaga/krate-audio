@@ -136,6 +136,7 @@ public:
         rungler_.reset();
         wasPlaying_ = false;
 
+        externalValues_.fill(0.0f);
         modOffsets_.fill(0.0f);
         modOffsetsStart_.fill(0.0f);
         modOffsetsEnd_.fill(0.0f);
@@ -535,6 +536,19 @@ public:
     void setRunglerLoopMode(bool loop) noexcept { rungler_.setLoopMode(loop); }
 
     // =========================================================================
+    // External Source Slots
+    // =========================================================================
+
+    /// @brief Set an external source value (e.g. arp pitch, plugin-specific).
+    /// @param slot External source slot index (0 to kMaxExternalSources-1)
+    /// @param value Source value (typically 0-1 unipolar)
+    void setExternalSourceValue(uint8_t slot, float value) noexcept {
+        if (slot < kMaxExternalSources) {
+            externalValues_[slot] = value;
+        }
+    }
+
+    // =========================================================================
     // Query
     // =========================================================================
 
@@ -666,6 +680,14 @@ private:
                 return pitchFollower_.getCurrentValue();
             case ModSource::Transient:
                 return transient_.getCurrentValue();
+            case ModSource::External0:
+                return externalValues_[0];
+            case ModSource::External1:
+                return externalValues_[1];
+            case ModSource::External2:
+                return externalValues_[2];
+            case ModSource::External3:
+                return externalValues_[3];
         }
         return 0.0f;
     }
@@ -804,6 +826,12 @@ private:
 
     // Transport state tracking for retrigger
     bool wasPlaying_ = false;
+
+    // =========================================================================
+    // External Sources
+    // =========================================================================
+
+    std::array<float, kMaxExternalSources> externalValues_ = {};
 
     // =========================================================================
     // Macros

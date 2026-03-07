@@ -137,8 +137,10 @@ TEST_CASE("UpdateChecker - JSON parsing", "[update]") {
     SECTION("empty response") {
         MockUpdateChecker checker(config, "");
         checker.checkForUpdate(true);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        CHECK_FALSE(checker.hasResult());
+        REQUIRE(waitForResult(checker));
+        // Empty response still signals completion (so UI doesn't stay in "Checking...")
+        // but should not report an update available
+        CHECK_FALSE(checker.getResult().updateAvailable);
     }
 }
 
