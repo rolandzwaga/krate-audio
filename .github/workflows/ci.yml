@@ -23,6 +23,12 @@ on:
       - '.github/workflows/ci.yml'
   workflow_call:
     # Allows this workflow to be called by release.yml
+    inputs:
+      plugin:
+        description: 'Plugin to build (empty = all)'
+        type: string
+        required: false
+        default: ''
 
 # Cancel in-progress runs when a new commit is pushed
 concurrency:
@@ -84,13 +90,29 @@ jobs:
         id: set-outputs
         run: |
           if [ "${{ github.event_name }}" = "workflow_call" ]; then
-            echo "dsp=true" >> $GITHUB_OUTPUT
-            echo "shared=true" >> $GITHUB_OUTPUT
-            echo "iterum=true" >> $GITHUB_OUTPUT
-            echo "disrumpo=true" >> $GITHUB_OUTPUT
-            echo "ruinae=true" >> $GITHUB_OUTPUT
-            echo "innexus=true" >> $GITHUB_OUTPUT
-            echo "infra=true" >> $GITHUB_OUTPUT
+            PLUGIN="${{ inputs.plugin }}"
+            if [ -z "$PLUGIN" ]; then
+              # No plugin specified — build everything (backward compatible)
+              echo "dsp=true" >> $GITHUB_OUTPUT
+              echo "shared=true" >> $GITHUB_OUTPUT
+              echo "iterum=true" >> $GITHUB_OUTPUT
+              echo "disrumpo=true" >> $GITHUB_OUTPUT
+              echo "ruinae=true" >> $GITHUB_OUTPUT
+              echo "innexus=true" >> $GITHUB_OUTPUT
+              echo "infra=true" >> $GITHUB_OUTPUT
+            else
+              # Only build the selected plugin (used by release.yml)
+              echo "dsp=false" >> $GITHUB_OUTPUT
+              echo "shared=false" >> $GITHUB_OUTPUT
+              echo "infra=false" >> $GITHUB_OUTPUT
+              for p in iterum disrumpo ruinae innexus; do
+                if [ "$p" = "$PLUGIN" ]; then
+                  echo "$p=true" >> $GITHUB_OUTPUT
+                else
+                  echo "$p=false" >> $GITHUB_OUTPUT
+                fi
+              done
+            fi
           else
             echo "dsp=${{ steps.filter.outputs.dsp }}" >> $GITHUB_OUTPUT
             echo "shared=${{ steps.filter.outputs.shared }}" >> $GITHUB_OUTPUT
