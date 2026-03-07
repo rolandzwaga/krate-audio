@@ -5,6 +5,16 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-03-07
+
+### Added
+
+- **Preset browser** — Browse and load factory presets via shared `PresetBrowserView` overlay with tabbed categories and search; buttons placed side-by-side in new Presets fieldset container next to Detune
+- **Preset save dialog** — Save user presets via shared `SavePresetDialogView` with name input and category selection
+- **35 factory presets** — Organized by input signal type across 7 categories: Voice (5), Strings (5), Keys (5), Brass and Winds (5), Drums and Perc (5), Pads and Drones (5), Found Sound (5)
+- **Preset generator tool** — `tools/innexus_preset_generator.cpp` generates `.vstpreset` files matching the v8 state format; `generate_innexus_presets` CMake target
+- **Full v8 state loading** — `loadComponentStateWithNotify()` parses the complete binary state format (v1–v8), skipping sample path/residual frames/memory slots, and applies all parameters via `beginEdit/performEdit/endEdit` for proper host notification
+
 ## [0.9.2] - 2026-03-07
 
 ### Fixed
