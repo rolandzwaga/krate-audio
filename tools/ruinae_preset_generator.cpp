@@ -88,7 +88,7 @@ struct PresetDef {
 // ==============================================================================
 
 void setArpEnabled(RuinaePresetState& s, bool enabled) {
-    s.arp.enabled = enabled ? 1 : 0;
+    s.arp.operatingMode = enabled ? 1 : 0;
 }
 
 void setArpMode(RuinaePresetState& s, int32_t mode) {
@@ -163,6 +163,87 @@ void setEuclidean(RuinaePresetState& s, bool enabled, int32_t hits,
     s.arp.euclideanHits = hits;
     s.arp.euclideanSteps = steps;
     s.arp.euclideanRotation = rotation;
+}
+
+// ==============================================================================
+// Mod Matrix & Voice Route Helpers
+// ==============================================================================
+
+// Global mod sources (indices into mod matrix source dropdown)
+static constexpr int kSrcNone         = 0;
+static constexpr int kSrcLFO1         = 1;
+static constexpr int kSrcLFO2         = 2;
+static constexpr int kSrcEnvFollower  = 3;
+static constexpr int kSrcRandom       = 4;
+static constexpr int kSrcMacro1       = 5;
+static constexpr int kSrcMacro2       = 6;
+static constexpr int kSrcMacro3       = 7;
+static constexpr int kSrcMacro4       = 8;
+static constexpr int kSrcChaos        = 9;
+static constexpr int kSrcRungler      = 10;
+static constexpr int kSrcSampleHold   = 11;
+static constexpr int kSrcPitchFollow  = 12;
+static constexpr int kSrcTransient    = 13;
+static constexpr int kSrcArpPitch     = 14;
+
+// Global mod destinations
+static constexpr int kDstGlobalFltCut   = 0;
+static constexpr int kDstGlobalFltRes   = 1;
+static constexpr int kDstMasterVol      = 2;
+static constexpr int kDstEffectMix      = 3;
+static constexpr int kDstAllFltCut      = 4;
+static constexpr int kDstAllMorphPos    = 5;
+static constexpr int kDstAllGateRate    = 6;
+static constexpr int kDstAllSpecTilt    = 7;
+static constexpr int kDstAllResonance   = 8;
+static constexpr int kDstAllFltEnvAmt   = 9;
+static constexpr int kDstArpRate        = 10;
+static constexpr int kDstArpGateLen     = 11;
+static constexpr int kDstArpOctRange    = 12;
+static constexpr int kDstArpSwing       = 13;
+static constexpr int kDstArpSpice       = 14;
+
+// Per-voice mod sources
+static constexpr int kVSrcEnv1       = 0;  // Amp Env
+static constexpr int kVSrcEnv2       = 1;  // Filter Env
+static constexpr int kVSrcEnv3       = 2;  // Mod Env
+static constexpr int kVSrcVoiceLFO   = 3;
+static constexpr int kVSrcGate       = 4;  // TranceGate output
+static constexpr int kVSrcVelocity   = 5;
+static constexpr int kVSrcKeyTrack   = 6;
+static constexpr int kVSrcAftertouch = 7;
+
+// Per-voice mod destinations
+static constexpr int kVDstFltCut     = 0;
+static constexpr int kVDstFltRes     = 1;
+static constexpr int kVDstMorphPos   = 2;
+static constexpr int kVDstDistDrive  = 3;
+static constexpr int kVDstGateDepth  = 4;
+static constexpr int kVDstOscAPitch  = 5;
+static constexpr int kVDstOscBPitch  = 6;
+static constexpr int kVDstSpecTilt   = 7;
+
+// Mod matrix curve types
+static constexpr int kCurveLinear = 0;
+static constexpr int kCurveExp    = 1;
+static constexpr int kCurveSCurve = 2;
+static constexpr int kCurveStepped = 3;
+
+void setModSlot(RuinaePresetState& s, int slot, int source, int dest,
+                float amount, int curve = 0, float smoothMs = 0.0f) {
+    s.modMatrix.slots[slot].source = source;
+    s.modMatrix.slots[slot].dest = dest;
+    s.modMatrix.slots[slot].amount = amount;
+    s.modMatrix.slots[slot].curve = curve;
+    s.modMatrix.slots[slot].smoothMs = smoothMs;
+}
+
+void setVoiceRoute(RuinaePresetState& s, int slot, int source, int dest,
+                   float amount) {
+    s.voiceRoutes[slot].source = static_cast<int8_t>(source);
+    s.voiceRoutes[slot].destination = static_cast<int8_t>(dest);
+    s.voiceRoutes[slot].amount = amount;
+    s.voiceRoutes[slot].active = 1;
 }
 
 // ==============================================================================
@@ -299,6 +380,9 @@ std::vector<PresetDef> createAllPresets() {
         setVelocityLane(p.state, 8, vel8);
         float gate8[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
         setGateLane(p.state, 8, gate8);
+        // Arp pitch subtly opens filter as notes ascend
+        setModSlot(p.state, 0, kSrcArpPitch, kDstAllFltCut, 0.3f);
+        setVoiceRoute(p.state, 0, kVSrcVelocity, kVDstFltCut, 0.3f);
         presets.push_back(std::move(p));
     }
 
@@ -374,6 +458,11 @@ std::vector<PresetDef> createAllPresets() {
             kStepActive                             // step 8
         };
         setModifierLane(p.state, 8, mod8, 100, 50.0f);
+        // Arp pitch drives filter for pitch-tracking acid squelch
+        setModSlot(p.state, 0, kSrcArpPitch, kDstAllFltCut, 0.5f, kCurveExp);
+        // Velocity adds resonance on accents
+        setVoiceRoute(p.state, 0, kVSrcVelocity, kVDstFltRes, 0.4f);
+        setVoiceRoute(p.state, 1, kVSrcVelocity, kVDstFltCut, 0.3f);
         presets.push_back(std::move(p));
     }
 
@@ -482,6 +571,12 @@ std::vector<PresetDef> createAllPresets() {
         // Ratchet lane length=4
         int32_t ratch4[] = {1, 1, 2, 1};
         setRatchetLane(p.state, 4, ratch4);
+        // Arp pitch → morph position for timbral polymetry
+        setModSlot(p.state, 0, kSrcArpPitch, kDstAllMorphPos, 0.4f, kCurveSCurve);
+        // LFO2 → spectral tilt for slow brightness evolution
+        p.state.lfo2.rateHz = 0.06f; p.state.lfo2.shape = 1; // Triangle
+        p.state.lfo2.depth = 0.5f; p.state.lfo2.sync = 0;
+        setModSlot(p.state, 1, kSrcLFO2, kDstAllSpecTilt, 0.3f);
         presets.push_back(std::move(p));
     }
 
@@ -667,6 +762,14 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.diffusion = 0.8f;
         s.global.width = 1.4f;
         s.global.spread = 0.3f;
+        // LFO2 slowly shifts spectral tilt for evolving brightness
+        s.lfo2.rateHz = 0.06f; s.lfo2.shape = 1; // Triangle
+        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        setModSlot(s, 0, kSrcLFO2, kDstAllSpecTilt, 0.35f);
+        // Velocity controls filter opening
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // Key tracking brightens higher notes
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.25f);
         presets.push_back(std::move(p));
     }
 
@@ -699,6 +802,12 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.modRateHz = 0.3f;
         s.reverb.modDepth = 0.2f;
         s.global.width = 1.6f;
+        // Key tracking morphs between additive and triangle across keyboard
+        setVoiceRoute(s, 0, kVSrcKeyTrack, kVDstMorphPos, 0.3f);
+        // Mod env adds shimmer bloom on attack
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstSpecTilt, 0.4f);
+        s.modEnv.attackMs = 200.0f; s.modEnv.decayMs = 1500.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 1000.0f;
         presets.push_back(std::move(p));
     }
 
@@ -730,9 +839,14 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.depth = 0.6f;
         s.lfo1.sync = 0;
         // Mod matrix: LFO1 -> All Voice Morph Pos
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
-        s.modMatrix.slots[0].amount = 0.5f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f);
+        // LFO2 drifts spectral tilt independently
+        s.lfo2.rateHz = 0.04f; s.lfo2.shape = 5; // Smooth Random
+        s.lfo2.depth = 0.6f; s.lfo2.sync = 0;
+        setModSlot(s, 1, kSrcLFO2, kDstAllSpecTilt, 0.4f);
+        // S&H adds glitchy resonance shifts
+        s.sampleHold.rateHz = 2.0f; s.sampleHold.slewMs = 80.0f;
+        setModSlot(s, 2, kSrcSampleHold, kDstAllResonance, 0.2f, kCurveExp);
         s.delayEnabled = 1;
         s.delay.mix = 0.2f;
         s.delay.feedback = 0.3f;
@@ -769,9 +883,14 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.shape = 1; // Triangle
         s.lfo1.depth = 0.8f;
         s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
-        s.modMatrix.slots[0].amount = 0.4f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.4f);
+        // Random gently shifts filter for breathy quality
+        s.random.rateHz = 3.0f; s.random.smoothness = 0.7f;
+        setModSlot(s, 1, kSrcRandom, kDstAllFltCut, 0.15f, kCurveLinear, 50.0f);
+        // Velocity controls vowel brightness via filter
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.35f);
+        // Aftertouch adds vibrato via voice LFO → OSC A pitch
+        setVoiceRoute(s, 1, kVSrcAftertouch, kVDstOscAPitch, 0.1f);
         s.reverbEnabled = 1;
         s.reverb.size = 0.75f;
         s.reverb.mix = 0.3f;
@@ -812,6 +931,18 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.mix = 0.45f;
         s.reverb.damping = 0.6f;
         s.reverb.diffusion = 0.85f;
+        // Chaos mod drives filter cutoff for evolving darkness
+        s.chaosMod.rateHz = 0.3f; s.chaosMod.type = 0; // Lorenz
+        s.chaosMod.depth = 0.6f;
+        setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.5f, kCurveExp, 100.0f);
+        // LFO1 slowly modulates morph position
+        s.lfo1.rateHz = 0.05f; s.lfo1.shape = 5; // Smooth Random
+        s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.3f);
+        // Rungler adds chaotic spectral tilt variation
+        s.rungler.osc1FreqHz = 1.5f; s.rungler.osc2FreqHz = 2.3f;
+        s.rungler.depth = 0.3f; s.rungler.bits = 5;
+        setModSlot(s, 2, kSrcRungler, kDstAllSpecTilt, 0.25f);
         presets.push_back(std::move(p));
     }
 
@@ -844,6 +975,13 @@ std::vector<PresetDef> createAllPresets() {
         s.monoMode.portamentoTimeMs = 30.0f;
         s.global.width = 1.5f;
         s.global.spread = 0.2f;
+        // Velocity opens filter, aftertouch adds morph movement
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        setVoiceRoute(s, 1, kVSrcAftertouch, kVDstMorphPos, 0.4f);
+        // Filter env for attack bite
+        s.filter.envAmount = 12.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 250.0f;
+        s.filterEnv.sustain = 0.0f; s.filterEnv.releaseMs = 200.0f;
         presets.push_back(std::move(p));
     }
 
@@ -876,6 +1014,11 @@ std::vector<PresetDef> createAllPresets() {
         s.global.voiceMode = 1; // Mono
         s.monoMode.legato = 1;
         s.monoMode.portamentoTimeMs = 20.0f;
+        // Voice routes: velocity drives filter, mod env sweeps sync ratio via pitch
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.6f);
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstOscAPitch, 0.3f);
+        s.modEnv.attackMs = 1.0f; s.modEnv.decayMs = 400.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 200.0f;
         presets.push_back(std::move(p));
     }
 
@@ -904,6 +1047,12 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.releaseMs = 250.0f;
         s.global.voiceMode = 1; // Mono
         s.monoMode.portamentoTimeMs = 15.0f;
+        // Velocity drives morph between the two PD waveforms
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.5f);
+        // Mod env sweeps filter for attack character
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstFltCut, 0.4f);
+        s.modEnv.attackMs = 1.0f; s.modEnv.decayMs = 350.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 200.0f;
         presets.push_back(std::move(p));
     }
 
@@ -934,6 +1083,10 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.6f;
         s.reverb.mix = 0.35f;
         s.reverb.damping = 0.3f;
+        // Velocity controls morph between additive and sine
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.4f);
+        // Key tracking shifts spectral tilt for natural bell response
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.35f);
         presets.push_back(std::move(p));
     }
 
@@ -1035,6 +1188,12 @@ std::vector<PresetDef> createAllPresets() {
         s.global.voiceMode = 1; // Mono
         s.monoMode.legato = 1;
         s.monoMode.portamentoTimeMs = 20.0f;
+        // LFO2 slowly drifts morph for movement
+        s.lfo2.rateHz = 0.08f; s.lfo2.shape = 0; // Sine
+        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        setModSlot(s, 0, kSrcLFO2, kDstAllMorphPos, 0.3f);
+        // Velocity opens filter for expressive playing
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.45f);
         presets.push_back(std::move(p));
     }
 
@@ -1067,6 +1226,10 @@ std::vector<PresetDef> createAllPresets() {
         s.global.voiceMode = 1; // Mono
         s.monoMode.legato = 1;
         s.monoMode.portamentoTimeMs = 30.0f;
+        // Velocity drives filter env amount for dynamic squelch
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.6f);
+        // Aftertouch opens resonance for performance control
+        setVoiceRoute(s, 1, kVSrcAftertouch, kVDstFltRes, 0.35f);
         presets.push_back(std::move(p));
     }
 
@@ -1127,9 +1290,17 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.depth = 1.0f;
         s.lfo1.sync = 1; // Tempo sync
         s.lfo1Ext.noteValue = 13; // 1/2 note for half-bar wobble
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 4;   // All Voice Filter Cutoff
-        s.modMatrix.slots[0].amount = 0.7f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.7f);
+        // LFO2 modulates morph position at different rate for complexity
+        s.lfo2.rateHz = 2.0f; s.lfo2.shape = 2; // Sawtooth
+        s.lfo2.depth = 0.6f; s.lfo2.sync = 1;
+        s.lfo2Ext.noteValue = kNote1_4; // Quarter note morph cycle
+        setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.5f);
+        // Chaos adds unpredictable resonance variation
+        s.chaosMod.rateHz = 1.5f; s.chaosMod.type = 0; s.chaosMod.depth = 0.3f;
+        setModSlot(s, 2, kSrcChaos, kDstAllResonance, 0.2f);
+        // Velocity controls wobble depth via filter env amount
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
         s.global.voiceMode = 1; // Mono
         s.monoMode.legato = 1;
         presets.push_back(std::move(p));
@@ -1196,9 +1367,14 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.shape = 5; // Smooth Random
         s.lfo1.depth = 0.7f;
         s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 4;   // All Voice Filter Cutoff
-        s.modMatrix.slots[0].amount = 0.5f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.5f);
+        // Chaos mod drives spectral tilt for timbral gusts
+        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; // Rossler
+        s.chaosMod.depth = 0.5f;
+        setModSlot(s, 1, kSrcChaos, kDstAllSpecTilt, 0.4f, kCurveExp, 80.0f);
+        // Random modulates morph position
+        s.random.rateHz = 0.8f; s.random.smoothness = 0.8f;
+        setModSlot(s, 2, kSrcRandom, kDstAllMorphPos, 0.3f, kCurveLinear, 60.0f);
         s.ampEnv.attackMs = 800.0f;
         s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.9f;
@@ -1362,6 +1538,17 @@ std::vector<PresetDef> createAllPresets() {
         tgSteps[8] = 1.0f; tgSteps[9] = 1.0f; tgSteps[10] = 0.0f; tgSteps[11] = 1.0f;
         tgSteps[12] = 1.0f; tgSteps[13] = 0.0f; tgSteps[14] = 0.0f; tgSteps[15] = 1.0f;
         for (int i = 0; i < 32; ++i) s.tranceGate.stepLevels[i] = tgSteps[i];
+        // LFO1 modulates filter cutoff in sync with gate
+        s.lfo1.rateHz = 2.0f; s.lfo1.shape = 2; // Sawtooth
+        s.lfo1.depth = 0.6f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = kNote1_4;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.4f);
+        // LFO2 slowly pans morph for stereo movement
+        s.lfo2.rateHz = 0.15f; s.lfo2.shape = 0; // Sine
+        s.lfo2.depth = 0.4f; s.lfo2.sync = 0;
+        setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.25f);
+        // Velocity controls gate depth
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstGateDepth, 0.4f);
         s.reverbEnabled = 1;
         s.reverb.size = 0.5f;
         s.reverb.mix = 0.25f;
@@ -1570,6 +1757,23 @@ std::vector<PresetDef> createAllPresets() {
         s.reverbEnabled = 1;
         s.reverb.size = 0.6f;
         s.reverb.mix = 0.3f;
+        // Multi-source modulation: chaos→filter, rungler→morph, S&H→resonance, random→tilt
+        s.chaosMod.rateHz = 2.0f; s.chaosMod.type = 1; // Rossler
+        s.chaosMod.depth = 0.7f;
+        setModSlot(s, 0, kSrcChaos, kDstAllFltCut, 0.6f, kCurveExp);
+        s.rungler.osc1FreqHz = 4.0f; s.rungler.osc2FreqHz = 7.0f;
+        s.rungler.depth = 0.5f; s.rungler.bits = 4;
+        setModSlot(s, 1, kSrcRungler, kDstAllMorphPos, 0.5f);
+        s.sampleHold.rateHz = 3.0f; s.sampleHold.slewMs = 30.0f;
+        setModSlot(s, 2, kSrcSampleHold, kDstAllResonance, 0.3f, kCurveStepped);
+        s.random.rateHz = 1.5f; s.random.smoothness = 0.3f;
+        setModSlot(s, 3, kSrcRandom, kDstAllSpecTilt, 0.4f);
+        // Velocity drives distortion
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstDistDrive, 0.5f);
+        // Mod env sweeps morph on attack
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstMorphPos, 0.4f);
+        s.modEnv.attackMs = 5.0f; s.modEnv.decayMs = 800.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 400.0f;
         presets.push_back(std::move(p));
     }
 
@@ -1597,17 +1801,22 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.shape = 1; // Triangle
         s.lfo1.depth = 1.0f;
         s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 5;   // All Voice Morph Pos
-        s.modMatrix.slots[0].amount = 0.6f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f);
         // LFO2 modulates filter
-        s.lfo2.rateHz = 0.08f;
-        s.lfo2.shape = 0; // Sine
-        s.lfo2.depth = 0.5f;
-        s.lfo2.sync = 0;
-        s.modMatrix.slots[1].source = 2; // LFO 2
-        s.modMatrix.slots[1].dest = 4;   // All Voice Filter Cutoff
-        s.modMatrix.slots[1].amount = 0.3f;
+        s.lfo2.rateHz = 0.08f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.3f);
+        // Random adds subtle spectral tilt variation
+        s.random.rateHz = 2.0f; s.random.smoothness = 0.6f;
+        setModSlot(s, 2, kSrcRandom, kDstAllSpecTilt, 0.25f);
+        // Macro1 controls overall brightness (set to neutral position)
+        s.macros.values[0] = 0.5f;
+        setModSlot(s, 3, kSrcMacro1, kDstGlobalFltCut, 0.4f);
+        // Velocity controls formant gender shift via filter cutoff
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.3f);
+        // Aftertouch morphs between vowels
+        setVoiceRoute(s, 1, kVSrcAftertouch, kVDstMorphPos, 0.5f);
+        // Key track shifts spectral tilt
+        setVoiceRoute(s, 2, kVSrcKeyTrack, kVDstSpecTilt, 0.3f);
         s.ampEnv.attackMs = 50.0f;
         s.ampEnv.decayMs = 400.0f;
         s.ampEnv.sustain = 0.7f;
@@ -1682,9 +1891,17 @@ std::vector<PresetDef> createAllPresets() {
         s.lfo1.shape = 1; // Triangle
         s.lfo1.depth = 0.7f;
         s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; // LFO 1
-        s.modMatrix.slots[0].dest = 7;   // All Voice Spectral Tilt
-        s.modMatrix.slots[0].amount = 0.4f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllSpecTilt, 0.4f);
+        // LFO2 modulates filter resonance for screaming peaks
+        s.lfo2.rateHz = 0.3f; s.lfo2.shape = 2; // Sawtooth
+        s.lfo2.depth = 0.6f; s.lfo2.sync = 0;
+        setModSlot(s, 1, kSrcLFO2, kDstAllResonance, 0.35f);
+        // Mod env sweeps morph position on each note
+        setVoiceRoute(s, 0, kVSrcEnv3, kVDstMorphPos, 0.5f);
+        s.modEnv.attackMs = 2.0f; s.modEnv.decayMs = 600.0f;
+        s.modEnv.sustain = 0.1f; s.modEnv.releaseMs = 300.0f;
+        // Velocity drives wavefolder intensity
+        setVoiceRoute(s, 1, kVSrcVelocity, kVDstDistDrive, 0.6f);
         s.reverbEnabled = 1;
         s.reverb.size = 0.4f;
         s.reverb.mix = 0.2f;
@@ -1715,10 +1932,15 @@ std::vector<PresetDef> createAllPresets() {
         s.rungler.osc2FreqHz = 5.0f;
         s.rungler.bits = 6;
         s.rungler.filter = 0.3f;
-        // Mod matrix: Rungler -> filter cutoff
-        s.modMatrix.slots[0].source = 10; // Rungler
-        s.modMatrix.slots[0].dest = 4;    // All Voice Filter Cutoff
-        s.modMatrix.slots[0].amount = 0.5f;
+        // Multi-source modulation: rungler→filter, S&H→morph, LFO1→tilt, chaos→resonance
+        setModSlot(s, 0, kSrcRungler, kDstAllFltCut, 0.5f);
+        s.sampleHold.rateHz = 5.0f; s.sampleHold.slewMs = 20.0f;
+        setModSlot(s, 1, kSrcSampleHold, kDstAllMorphPos, 0.4f, kCurveStepped);
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 5; // Smooth Random
+        s.lfo1.depth = 0.6f; s.lfo1.sync = 0;
+        setModSlot(s, 2, kSrcLFO1, kDstAllSpecTilt, 0.35f);
+        s.chaosMod.rateHz = 1.0f; s.chaosMod.type = 0; s.chaosMod.depth = 0.4f;
+        setModSlot(s, 3, kSrcChaos, kDstAllResonance, 0.25f, kCurveExp);
         s.ampEnv.attackMs = 20.0f;
         s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.7f;
@@ -1762,6 +1984,13 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.size = 0.75f; s.reverb.mix = 0.35f;
         s.reverb.damping = 0.4f; s.reverb.diffusion = 0.8f;
         s.global.width = 1.5f;
+        // LFO1 gently modulates effect mix for evolving depth
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 0, kSrcLFO1, kDstEffectMix, 0.2f);
+        // Velocity controls filter brightness
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        // Key tracking adjusts spectral tilt for natural response
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.3f);
         presets.push_back(std::move(p));
     }
 
@@ -1786,6 +2015,13 @@ std::vector<PresetDef> createAllPresets() {
         s.reverb.damping = 0.15f; s.reverb.diffusion = 0.9f;
         s.reverb.modRateHz = 0.2f; s.reverb.modDepth = 0.15f;
         s.global.width = 1.8f; s.global.spread = 0.4f;
+        // Random source slowly shifts morph for icy evolution
+        s.random.rateHz = 0.5f; s.random.smoothness = 0.9f;
+        setModSlot(s, 0, kSrcRandom, kDstAllMorphPos, 0.3f, kCurveLinear, 200.0f);
+        // LFO2 subtle resonance drift
+        s.lfo2.rateHz = 0.04f; s.lfo2.shape = 5; // Smooth Random
+        s.lfo2.depth = 0.3f; s.lfo2.sync = 0;
+        setModSlot(s, 1, kSrcLFO2, kDstAllResonance, 0.15f, kCurveLinear, 100.0f);
         presets.push_back(std::move(p));
     }
 
@@ -1835,8 +2071,16 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 700.0f; s.ampEnv.decayMs = 500.0f;
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 2000.0f;
         s.lfo1.rateHz = 0.1f; s.lfo1.shape = 0; s.lfo1.depth = 0.7f; s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; s.modMatrix.slots[0].dest = 5;
-        s.modMatrix.slots[0].amount = 0.5f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.5f);
+        // S&H modulates spectral tilt for quantum uncertainty
+        s.sampleHold.rateHz = 1.5f; s.sampleHold.slewMs = 150.0f;
+        setModSlot(s, 1, kSrcSampleHold, kDstAllSpecTilt, 0.35f, kCurveSCurve);
+        // Velocity controls particle scatter via morph position
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.3f);
+        // Mod env sweeps filter on attack for bloom
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstFltCut, 0.35f);
+        s.modEnv.attackMs = 500.0f; s.modEnv.decayMs = 2000.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 1500.0f;
         s.reverbEnabled = 1;
         s.reverb.size = 0.85f; s.reverb.mix = 0.4f; s.reverb.diffusion = 0.85f;
         s.global.width = 1.6f; s.global.spread = 0.4f;
@@ -1891,8 +2135,15 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.attackMs = 1000.0f; s.ampEnv.decayMs = 600.0f;
         s.ampEnv.sustain = 0.85f; s.ampEnv.releaseMs = 3000.0f;
         s.lfo1.rateHz = 0.05f; s.lfo1.shape = 0; s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
-        s.modMatrix.slots[0].source = 1; s.modMatrix.slots[0].dest = 4;
-        s.modMatrix.slots[0].amount = 0.4f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.4f);
+        // Chaos slowly modulates morph for spectral shifts
+        s.chaosMod.rateHz = 0.15f; s.chaosMod.type = 1; // Rossler
+        s.chaosMod.depth = 0.4f;
+        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.35f, kCurveExp, 150.0f);
+        // LFO2 modulates spectral tilt
+        s.lfo2.rateHz = 0.03f; s.lfo2.shape = 1; // Triangle
+        s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        setModSlot(s, 2, kSrcLFO2, kDstAllSpecTilt, 0.3f);
         s.reverbEnabled = 1;
         s.reverb.size = 0.95f; s.reverb.mix = 0.5f;
         s.reverb.damping = 0.2f; s.reverb.diffusion = 0.9f;
@@ -3414,8 +3665,16 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.8f; s.ampEnv.releaseMs = 100.0f;
         s.lfo1.rateHz = 2.0f; s.lfo1.shape = 0; s.lfo1.depth = 1.0f; s.lfo1.sync = 1;
         s.lfo1Ext.noteValue = kNote1_4;
-        s.modMatrix.slots[0].source = 1; s.modMatrix.slots[0].dest = 4;
-        s.modMatrix.slots[0].amount = 0.6f;
+        setModSlot(s, 0, kSrcLFO1, kDstAllFltCut, 0.6f);
+        // LFO2 → morph for timbral movement in the wobble
+        s.lfo2.rateHz = 1.0f; s.lfo2.shape = 1; // Triangle
+        s.lfo2.depth = 0.5f; s.lfo2.sync = 1;
+        s.lfo2Ext.noteValue = kNote1_8;
+        setModSlot(s, 1, kSrcLFO2, kDstAllMorphPos, 0.4f);
+        // Gate output modulates distortion drive for rhythmic crunch
+        setVoiceRoute(s, 0, kVSrcGate, kVDstDistDrive, 0.3f);
+        s.distortion.type = 5; // Tape Saturator
+        s.distortion.drive = 0.2f; s.distortion.tapeSaturation = 0.4f;
         s.tranceGate.enabled = 1;
         s.tranceGate.numSteps = 4;
         s.tranceGate.tempoSync = 1; s.tranceGate.noteValue = kNote1_16;
@@ -4066,6 +4325,461 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.sustain = 0.55f; s.ampEnv.releaseMs = 300.0f;
         s.delayEnabled = 1;
         s.delay.mix = 0.2f; s.delay.feedback = 0.3f; s.delay.timeMs = 250.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== ARP MODULATION Category ====================
+    // Presets showcasing the Arp Pitch as a global modulation source
+
+    // "Arp Filter Sweep" - Arp pitch drives filter opening: higher notes = brighter
+    {
+        PresetDef p;
+        p.name = "Arp Filter Sweep";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; // Saw
+        s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 2; // Square
+        s.oscB.fineCents = 6.0f; s.oscB.level = 0.5f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 4; // Ladder LP
+        s.filter.cutoffHz = 1200.0f; s.filter.resonance = 0.45f;
+        s.filter.ladderSlope = 4; s.filter.ladderDrive = 3.0f;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 200.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 150.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 200.0f;
+        s.filterEnv.sustain = 0.1f; s.filterEnv.releaseMs = 100.0f;
+        s.filter.envAmount = 18.0f;
+        // Arpeggiator: up pattern with pitch lane
+        s.arp.operatingMode = 1; // MIDI
+        s.arp.mode = 0; // Up
+        s.arp.octaveRange = 2;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_16;
+        s.arp.gateLength = 70.0f;
+        // Pitch lane: chromatic walk up and down
+        int32_t pitch8[] = {0, 2, 4, 7, 12, 7, 4, 2};
+        setPitchLane(s, 8, pitch8);
+        // ARP PITCH → filter cutoff (the star of the show)
+        setModSlot(s, 0, kSrcArpPitch, kDstAllFltCut, 0.7f, kCurveExp);
+        // LFO1 adds subtle morph movement
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        setModSlot(s, 1, kSrcLFO1, kDstAllMorphPos, 0.25f);
+        // Velocity drives filter env amount
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        s.delayEnabled = 1;
+        s.delay.type = 2; // PingPong
+        s.delay.mix = 0.2f; s.delay.feedback = 0.3f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.delay.pingPongWidth = 150.0f;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1;
+        presets.push_back(std::move(p));
+    }
+
+    // "Arp Morph Sequence" - Arp pitch morphs between osc A and B
+    {
+        PresetDef p;
+        p.name = "Arp Morph Sequence";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 7; // Formant (vowel A)
+        s.oscA.formantVowel = 0; s.oscA.level = 0.8f;
+        s.oscB.type = 4; // Additive
+        s.oscB.additivePartials = 24; s.oscB.additiveTilt = 2.0f;
+        s.oscB.level = 0.6f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.3f;
+        s.filter.type = 0; s.filter.cutoffHz = 5000.0f; s.filter.resonance = 0.2f;
+        s.ampEnv.attackMs = 5.0f; s.ampEnv.decayMs = 300.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 200.0f;
+        // Arp: UpDown with pitch lane for melodic variation
+        s.arp.operatingMode = 1;
+        s.arp.mode = 2; // UpDown
+        s.arp.octaveRange = 2;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_16;
+        s.arp.gateLength = 80.0f; s.arp.swing = 15.0f;
+        int32_t pitchM[] = {0, 3, 7, 12, 7, 3, 0, -5};
+        setPitchLane(s, 8, pitchM);
+        // ARP PITCH → morph position: pitch shapes timbre
+        setModSlot(s, 0, kSrcArpPitch, kDstAllMorphPos, 0.6f, kCurveSCurve);
+        // ARP PITCH → spectral tilt: higher = brighter
+        setModSlot(s, 1, kSrcArpPitch, kDstAllSpecTilt, 0.35f);
+        // LFO2 modulates filter slowly
+        s.lfo2.rateHz = 0.12f; s.lfo2.shape = 0; s.lfo2.depth = 0.5f; s.lfo2.sync = 0;
+        setModSlot(s, 2, kSrcLFO2, kDstAllFltCut, 0.3f);
+        // Velocity controls morph depth
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstMorphPos, 0.3f);
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.2f);
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f; s.reverb.mix = 0.25f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Arp Tilt Cascade" - Arp pitch controls spectral brightness
+    {
+        PresetDef p;
+        p.name = "Arp Tilt Cascade";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 4; // Additive
+        s.oscA.additivePartials = 48; s.oscA.additiveTilt = -2.0f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 0; s.oscB.waveform = 1; // Saw
+        s.oscB.level = 0.5f; s.oscB.fineCents = 4.0f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 0; s.filter.cutoffHz = 8000.0f; s.filter.resonance = 0.12f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.5f; s.ampEnv.releaseMs = 300.0f;
+        // Arp: converge pattern for interesting note order
+        s.arp.operatingMode = 1;
+        s.arp.mode = 4; // Converge
+        s.arp.octaveRange = 3;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_16;
+        s.arp.gateLength = 60.0f;
+        // Pitch lane with wider intervals
+        int32_t pitchC[] = {0, 5, -3, 7, -7, 12, 0, -12};
+        setPitchLane(s, 8, pitchC);
+        // Velocity lane for dynamic accent
+        float velC[] = {1.0f, 0.6f, 0.8f, 0.5f, 1.0f, 0.7f, 0.9f, 0.4f};
+        setVelocityLane(s, 8, velC);
+        // ARP PITCH → spectral tilt: cascading brightness
+        setModSlot(s, 0, kSrcArpPitch, kDstAllSpecTilt, 0.6f, kCurveExp);
+        // ARP PITCH → reverb mix: higher notes more spacious
+        setModSlot(s, 1, kSrcArpPitch, kDstEffectMix, 0.3f);
+        // LFO1 modulates filter cutoff
+        s.lfo1.rateHz = 0.15f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 2, kSrcLFO1, kDstAllFltCut, 0.25f);
+        // Mod env bloom
+        setVoiceRoute(s, 0, kVSrcEnv3, kVDstFltCut, 0.3f);
+        s.modEnv.attackMs = 2.0f; s.modEnv.decayMs = 500.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 300.0f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.7f; s.reverb.mix = 0.3f; s.reverb.damping = 0.35f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.15f; s.delay.feedback = 0.25f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        presets.push_back(std::move(p));
+    }
+
+    // "Arp Chaos Matrix" - 4+ mod sources including arp pitch, full mod showcase
+    {
+        PresetDef p;
+        p.name = "Arp Chaos Matrix";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 3; // Sync
+        s.oscA.syncRatio = 3.0f; s.oscA.syncWaveform = 1; // Saw
+        s.oscA.syncMode = 0; s.oscA.syncAmount = 0.8f;
+        s.oscA.level = 0.8f;
+        s.oscB.type = 5; // Chaos
+        s.oscB.chaosAttractor = 0; // Lorenz
+        s.oscB.chaosAmount = 0.5f; s.oscB.chaosOutput = 1;
+        s.oscB.level = 0.4f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.4f;
+        s.filter.type = 4; s.filter.cutoffHz = 2000.0f; s.filter.resonance = 0.4f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 300.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 200.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 250.0f;
+        s.filterEnv.sustain = 0.15f; s.filterEnv.releaseMs = 150.0f;
+        s.filter.envAmount = 24.0f;
+        // Arp: random walk with complex lanes
+        s.arp.operatingMode = 1;
+        s.arp.mode = 7; // Walk (random walk)
+        s.arp.octaveRange = 2;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_16;
+        s.arp.gateLength = 65.0f; s.arp.swing = 20.0f;
+        s.arp.spice = 0.4f; s.arp.humanize = 0.2f;
+        int32_t pitchX[] = {0, 3, -2, 5, 7, -4, 12, -7};
+        setPitchLane(s, 8, pitchX);
+        // Ratchet for rhythmic interest
+        int32_t ratchX[] = {1, 1, 2, 1, 1, 3, 1, 2};
+        setRatchetLane(s, 8, ratchX);
+        // FULL MOD MATRIX: 5 sources active
+        // Slot 0: ARP PITCH → filter cutoff
+        setModSlot(s, 0, kSrcArpPitch, kDstAllFltCut, 0.5f, kCurveExp);
+        // Slot 1: Chaos → morph position
+        s.chaosMod.rateHz = 2.0f; s.chaosMod.type = 0; s.chaosMod.depth = 0.6f;
+        setModSlot(s, 1, kSrcChaos, kDstAllMorphPos, 0.45f);
+        // Slot 2: LFO1 → spectral tilt
+        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 2; // Sawtooth
+        s.lfo1.depth = 0.7f; s.lfo1.sync = 1;
+        s.lfo1Ext.noteValue = kNote1_4;
+        setModSlot(s, 2, kSrcLFO1, kDstAllSpecTilt, 0.4f);
+        // Slot 3: Rungler → resonance
+        s.rungler.osc1FreqHz = 3.0f; s.rungler.osc2FreqHz = 5.5f;
+        s.rungler.depth = 0.4f; s.rungler.bits = 5;
+        setModSlot(s, 3, kSrcRungler, kDstAllResonance, 0.3f, kCurveStepped);
+        // Slot 4: ARP PITCH → arp gate length (self-modulation!)
+        setModSlot(s, 4, kSrcArpPitch, kDstArpGateLen, 0.25f);
+        // Voice routes for expression
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstDistDrive, 0.4f);
+        setVoiceRoute(s, 1, kVSrcEnv3, kVDstMorphPos, 0.3f);
+        s.modEnv.attackMs = 2.0f; s.modEnv.decayMs = 400.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 200.0f;
+        s.distortion.type = 4; // Wavefolder
+        s.distortion.drive = 0.3f; s.distortion.foldType = 1;
+        s.global.voiceMode = 1; // Mono
+        s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 15.0f;
+        s.delayEnabled = 1;
+        s.delay.type = 2; // PingPong
+        s.delay.mix = 0.2f; s.delay.feedback = 0.35f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        s.delay.pingPongWidth = 140.0f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Arp FX Depth" - Arp pitch modulates effects and gate
+    {
+        PresetDef p;
+        p.name = "Arp FX Depth";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.7f;
+        s.oscB.type = 0; s.oscB.waveform = 4; // Triangle
+        s.oscB.tuneSemitones = 12.0f; s.oscB.level = 0.4f;
+        s.mixer.position = 0.35f;
+        s.filter.type = 4; s.filter.cutoffHz = 4000.0f; s.filter.resonance = 0.25f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 10.0f; s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 400.0f;
+        // Arp: as-played with euclidean and swing
+        s.arp.operatingMode = 1;
+        s.arp.mode = 8; // AsPlayed
+        s.arp.octaveRange = 1;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_8;
+        s.arp.gateLength = 90.0f; s.arp.swing = 30.0f;
+        s.arp.euclideanEnabled = 1; s.arp.euclideanHits = 5;
+        s.arp.euclideanSteps = 8; s.arp.euclideanRotation = 1;
+        int32_t pitchF[] = {0, 4, 7, 12, 0, -3, 5, 10};
+        setPitchLane(s, 8, pitchF);
+        // Gate lane with dynamic lengths
+        float gateF[] = {1.0f, 0.5f, 1.5f, 0.3f, 1.0f, 0.7f, 1.2f, 0.4f};
+        setGateLane(s, 8, gateF);
+        // ARP PITCH → effect mix: higher notes = more delay/reverb
+        setModSlot(s, 0, kSrcArpPitch, kDstEffectMix, 0.5f, kCurveSCurve);
+        // ARP PITCH → arp spice: higher pitch = more humanization
+        setModSlot(s, 1, kSrcArpPitch, kDstArpSpice, 0.3f);
+        // LFO1 → filter cutoff
+        s.lfo1.rateHz = 0.3f; s.lfo1.shape = 0; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 2, kSrcLFO1, kDstAllFltCut, 0.3f);
+        // Macro1 as performance controller for morph
+        s.macros.values[0] = 0.3f;
+        setModSlot(s, 3, kSrcMacro1, kDstAllMorphPos, 0.6f);
+        // Voice routes
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstSpecTilt, 0.25f);
+        s.delayEnabled = 1;
+        s.delay.mix = 0.25f; s.delay.feedback = 0.35f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8D;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f; s.reverb.mix = 0.3f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Arp Self Modulator" - Arp pitch modulates its own rate and swing
+    {
+        PresetDef p;
+        p.name = "Arp Self Modulator";
+        p.category = "Arp Modulation";
+        auto& s = p.state;
+        s.oscA.type = 2; // Phase Distortion
+        s.oscA.pdWaveform = 5; // ResSaw
+        s.oscA.pdDistortion = 0.5f; s.oscA.level = 0.8f;
+        s.oscB.type = 0; s.oscB.waveform = 2; // Square
+        s.oscB.tuneSemitones = -12.0f; s.oscB.level = 0.4f;
+        s.mixer.position = 0.3f;
+        s.filter.type = 4; s.filter.cutoffHz = 3000.0f; s.filter.resonance = 0.35f;
+        s.filter.ladderSlope = 4; s.filter.ladderDrive = 2.0f;
+        s.filter.envAmount = 20.0f;
+        s.ampEnv.attackMs = 2.0f; s.ampEnv.decayMs = 250.0f;
+        s.ampEnv.sustain = 0.5f; s.ampEnv.releaseMs = 150.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 200.0f;
+        s.filterEnv.sustain = 0.1f; s.filterEnv.releaseMs = 100.0f;
+        // Arp: up-down with self-modulation
+        s.arp.operatingMode = 1;
+        s.arp.mode = 2; // UpDown
+        s.arp.octaveRange = 2;
+        s.arp.tempoSync = 1; s.arp.noteValue = kNote1_16;
+        s.arp.gateLength = 75.0f;
+        int32_t pitchS[] = {0, 2, 4, 5, 7, 9, 11, 12};
+        setPitchLane(s, 8, pitchS);
+        // Modifiers: slides on steps 4 and 8, accents on 1 and 5
+        int32_t modS[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive, kStepActive, kStepActive | kStepSlide
+        };
+        setModifierLane(s, 8, modS, 35, 80.0f);
+        // ARP PITCH → arp rate: higher notes = faster arpeggiation
+        setModSlot(s, 0, kSrcArpPitch, kDstArpRate, 0.3f, kCurveExp);
+        // ARP PITCH → arp swing: pitch affects groove
+        setModSlot(s, 1, kSrcArpPitch, kDstArpSwing, 0.25f);
+        // ARP PITCH → filter cutoff: brighter on high notes
+        setModSlot(s, 2, kSrcArpPitch, kDstAllFltCut, 0.4f, kCurveLinear);
+        // LFO1 → morph position
+        s.lfo1.rateHz = 0.2f; s.lfo1.shape = 1; s.lfo1.depth = 0.5f; s.lfo1.sync = 0;
+        setModSlot(s, 3, kSrcLFO1, kDstAllMorphPos, 0.3f);
+        // Voice routes
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.5f);
+        setVoiceRoute(s, 1, kVSrcAftertouch, kVDstFltRes, 0.3f);
+        s.global.voiceMode = 1;
+        s.monoMode.legato = 1; s.monoMode.portamentoTimeMs = 25.0f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.2f; s.delay.feedback = 0.3f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== MODULATION SHOWCASE Category ====================
+    // Presets demonstrating deep modulation routing
+
+    // "Modulation Maze" - Maximum modulation complexity
+    {
+        PresetDef p;
+        p.name = "Modulation Maze";
+        p.category = "Modulation";
+        auto& s = p.state;
+        s.oscA.type = 8; // Spectral Freeze
+        s.oscA.spectralTilt = 1.0f; s.oscA.spectralPitch = 0.0f;
+        s.oscA.level = 0.7f;
+        s.oscB.type = 6; // Particle
+        s.oscB.particleScatter = 5.0f; s.oscB.particleDensity = 20.0f;
+        s.oscB.particleLifetime = 400.0f; s.oscB.level = 0.5f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.5f;
+        s.filter.type = 4; s.filter.cutoffHz = 3000.0f; s.filter.resonance = 0.3f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 200.0f; s.ampEnv.decayMs = 800.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 1500.0f;
+        // Full 6-slot mod matrix
+        // LFO1 → morph position (slow evolve)
+        s.lfo1.rateHz = 0.08f; s.lfo1.shape = 5; // Smooth Random
+        s.lfo1.depth = 0.8f; s.lfo1.sync = 0;
+        s.lfo1Ext.fadeInMs = 2000.0f; // Fade in modulation
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.6f, kCurveSCurve);
+        // LFO2 → filter cutoff (different rate, creates beating)
+        s.lfo2.rateHz = 0.12f; s.lfo2.shape = 0; // Sine
+        s.lfo2.depth = 0.6f; s.lfo2.sync = 0;
+        s.lfo2Ext.fadeInMs = 3000.0f;
+        setModSlot(s, 1, kSrcLFO2, kDstAllFltCut, 0.4f);
+        // Chaos → spectral tilt
+        s.chaosMod.rateHz = 0.5f; s.chaosMod.type = 1; s.chaosMod.depth = 0.5f;
+        setModSlot(s, 2, kSrcChaos, kDstAllSpecTilt, 0.35f, kCurveExp, 100.0f);
+        // Random → resonance
+        s.random.rateHz = 1.5f; s.random.smoothness = 0.6f;
+        setModSlot(s, 3, kSrcRandom, kDstAllResonance, 0.2f, kCurveLinear, 50.0f);
+        // S&H → effect mix (stepped changes)
+        s.sampleHold.rateHz = 0.5f; s.sampleHold.slewMs = 200.0f;
+        setModSlot(s, 4, kSrcSampleHold, kDstEffectMix, 0.3f, kCurveStepped);
+        // Rungler → global filter cutoff
+        s.rungler.osc1FreqHz = 2.0f; s.rungler.osc2FreqHz = 3.5f;
+        s.rungler.depth = 0.3f; s.rungler.bits = 6;
+        setModSlot(s, 5, kSrcRungler, kDstGlobalFltCut, 0.25f);
+        // Voice routes: full expression
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstMorphPos, 0.3f);
+        setVoiceRoute(s, 2, kVSrcEnv3, kVDstSpecTilt, 0.35f);
+        setVoiceRoute(s, 3, kVSrcAftertouch, kVDstFltRes, 0.4f);
+        s.modEnv.attackMs = 300.0f; s.modEnv.decayMs = 2000.0f;
+        s.modEnv.sustain = 0.2f; s.modEnv.releaseMs = 1000.0f;
+        // Global filter for extra sculpting
+        s.globalFilter.enabled = 1;
+        s.globalFilter.type = 0; // LP
+        s.globalFilter.cutoffHz = 8000.0f; s.globalFilter.resonance = 1.5f;
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.8f; s.reverb.mix = 0.35f;
+        s.reverb.damping = 0.4f; s.reverb.diffusion = 0.85f;
+        s.delayEnabled = 1;
+        s.delay.type = 4; // Spectral
+        s.delay.mix = 0.2f; s.delay.feedback = 0.3f;
+        s.delay.spectralDiffusion = 0.6f; s.delay.spectralTilt = 0.3f;
+        s.global.width = 1.6f; s.global.spread = 0.35f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Velocity Canvas" - Rich velocity and expression mapping
+    {
+        PresetDef p;
+        p.name = "Velocity Canvas";
+        p.category = "Modulation";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.8f;
+        s.oscB.type = 4; // Additive
+        s.oscB.additivePartials = 32; s.oscB.additiveTilt = -2.0f;
+        s.oscB.level = 0.5f; s.oscB.tuneSemitones = 12.0f;
+        s.mixer.position = 0.4f;
+        s.filter.type = 4; s.filter.cutoffHz = 2000.0f; s.filter.resonance = 0.3f;
+        s.filter.ladderSlope = 4;
+        s.filter.envAmount = 30.0f;
+        s.ampEnv.attackMs = 5.0f; s.ampEnv.decayMs = 500.0f;
+        s.ampEnv.sustain = 0.6f; s.ampEnv.releaseMs = 400.0f;
+        s.filterEnv.attackMs = 1.0f; s.filterEnv.decayMs = 400.0f;
+        s.filterEnv.sustain = 0.1f; s.filterEnv.releaseMs = 300.0f;
+        // Heavy voice routing for maximum expression
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.7f);    // Velocity opens filter
+        setVoiceRoute(s, 1, kVSrcVelocity, kVDstMorphPos, 0.4f);   // Hard hit = more additive
+        setVoiceRoute(s, 2, kVSrcVelocity, kVDstDistDrive, 0.3f);  // Hard hit = distortion
+        setVoiceRoute(s, 3, kVSrcKeyTrack, kVDstFltCut, 0.5f);     // Higher = brighter
+        setVoiceRoute(s, 4, kVSrcKeyTrack, kVDstSpecTilt, 0.3f);   // Higher = tilted
+        setVoiceRoute(s, 5, kVSrcAftertouch, kVDstFltRes, 0.5f);   // Pressure = resonance
+        setVoiceRoute(s, 6, kVSrcAftertouch, kVDstMorphPos, 0.3f); // Pressure = morph
+        setVoiceRoute(s, 7, kVSrcEnv3, kVDstOscBPitch, 0.15f);     // Mod env pitch bloom
+        s.modEnv.attackMs = 3.0f; s.modEnv.decayMs = 300.0f;
+        s.modEnv.sustain = 0.0f; s.modEnv.releaseMs = 200.0f;
+        // Subtle wavefolder for grit on hard hits
+        s.distortion.type = 4; // Wavefolder
+        s.distortion.drive = 0.15f; s.distortion.foldType = 0; // Triangle
+        // LFO1 → subtle morph drift
+        s.lfo1.rateHz = 0.1f; s.lfo1.shape = 5; s.lfo1.depth = 0.3f; s.lfo1.sync = 0;
+        setModSlot(s, 0, kSrcLFO1, kDstAllMorphPos, 0.15f);
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.5f; s.reverb.mix = 0.2f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Macro Performer" - All 4 macros mapped for live performance
+    {
+        PresetDef p;
+        p.name = "Macro Performer";
+        p.category = "Modulation";
+        auto& s = p.state;
+        s.oscA.type = 0; s.oscA.waveform = 1; s.oscA.level = 0.7f;
+        s.oscB.type = 7; // Formant
+        s.oscB.formantVowel = 0; s.oscB.level = 0.6f;
+        s.mixer.mode = 1; // Spectral Morph
+        s.mixer.position = 0.3f;
+        s.filter.type = 4; s.filter.cutoffHz = 3000.0f; s.filter.resonance = 0.25f;
+        s.filter.ladderSlope = 4;
+        s.ampEnv.attackMs = 10.0f; s.ampEnv.decayMs = 400.0f;
+        s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 500.0f;
+        // Set macros to mid positions (ready to be tweaked)
+        s.macros.values[0] = 0.5f; // Macro 1: "Brightness"
+        s.macros.values[1] = 0.5f; // Macro 2: "Morph"
+        s.macros.values[2] = 0.3f; // Macro 3: "Space"
+        s.macros.values[3] = 0.0f; // Macro 4: "Chaos"
+        // Macro 1 → filter cutoff (brightness control)
+        setModSlot(s, 0, kSrcMacro1, kDstAllFltCut, 0.7f, kCurveExp);
+        // Macro 2 → morph position (timbral control)
+        setModSlot(s, 1, kSrcMacro2, kDstAllMorphPos, 0.8f);
+        // Macro 3 → effect mix (space/depth)
+        setModSlot(s, 2, kSrcMacro3, kDstEffectMix, 0.6f);
+        // Macro 4 → spectral tilt + resonance (chaos/edge)
+        setModSlot(s, 3, kSrcMacro4, kDstAllSpecTilt, 0.5f);
+        setModSlot(s, 4, kSrcMacro4, kDstAllResonance, 0.3f);
+        // LFO1 adds life
+        s.lfo1.rateHz = 0.15f; s.lfo1.shape = 1; s.lfo1.depth = 0.4f; s.lfo1.sync = 0;
+        setModSlot(s, 5, kSrcLFO1, kDstAllSpecTilt, 0.2f);
+        // Voice routes for keyboard expression
+        setVoiceRoute(s, 0, kVSrcVelocity, kVDstFltCut, 0.4f);
+        setVoiceRoute(s, 1, kVSrcKeyTrack, kVDstMorphPos, 0.25f);
+        setVoiceRoute(s, 2, kVSrcAftertouch, kVDstFltRes, 0.35f);
+        s.reverbEnabled = 1;
+        s.reverb.size = 0.6f; s.reverb.mix = 0.3f;
+        s.delayEnabled = 1;
+        s.delay.mix = 0.2f; s.delay.feedback = 0.3f;
+        s.delay.sync = 1; s.delay.noteValue = kNote1_8;
         presets.push_back(std::move(p));
     }
 
