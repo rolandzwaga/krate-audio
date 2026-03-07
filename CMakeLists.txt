@@ -407,6 +407,23 @@ add_custom_target(generate_ruinae_presets
     VERBATIM
 )
 
+add_executable(innexus_preset_generator
+    tools/innexus_preset_generator.cpp
+)
+target_compile_features(innexus_preset_generator PRIVATE cxx_std_20)
+set_target_properties(innexus_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Custom target to regenerate Innexus factory presets on demand
+# Usage: cmake --build build --target generate_innexus_presets
+add_custom_target(generate_innexus_presets
+    COMMAND innexus_preset_generator "${CMAKE_SOURCE_DIR}/plugins/innexus/resources/presets"
+    DEPENDS innexus_preset_generator
+    COMMENT "Generating Innexus factory presets (35 presets across 7 categories)"
+    VERBATIM
+)
+
 # ==============================================================================
 # Control Testbench (UI Development Tool)
 # ==============================================================================

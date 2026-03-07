@@ -512,6 +512,20 @@
     </view>
 
     <!-- ============================================================== -->
+    <!-- PRESET SECTION (next to Detune) - Browse & Save buttons        -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="615, 345" size="180, 115"
+          title="Presets" fieldset-title="Presets" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <view class="CView" custom-view-name="PresetBrowserButton"
+            origin="10, 40" size="75, 30"/>
+
+      <view class="CView" custom-view-name="SavePresetButton"
+            origin="95, 40" size="75, 30"/>
+    </view>
+
+    <!-- ============================================================== -->
     <!-- MODULATOR SECTIONS (Y 465-585) - FR-037 to FR-040, FR-046      -->
     <!-- ============================================================== -->
 

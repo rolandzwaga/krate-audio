@@ -6,6 +6,7 @@
 #include "dsp/harmonic_snapshot_json.h"
 #include "parameters/innexus_params.h"
 #include "plugin_ids.h"
+#include "preset/innexus_preset_config.h"
 #include "update/innexus_update_config.h"
 #include "version.h"
 
@@ -16,6 +17,8 @@
 #include "controller/views/modulator_activity_view.h"
 #include "controller/modulator_sub_controller.h"
 #include "controller/sample_drop_target.h"
+#include "ui/preset_browser_view.h"
+#include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
 
 #include "vstgui/uidescription/uiattributes.h"
@@ -24,6 +27,7 @@
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cviewcontainer.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
 
 #include <algorithm>
@@ -503,6 +507,18 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
+    // Preset manager
+    presetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        makeInnexusPresetConfig(), nullptr, this);
+    presetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return createComponentStateStream();
+    });
+    presetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* stream,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            return loadComponentStateWithNotify(stream);
+        });
+
     return Steinberg::kResultOk;
 }
 
@@ -511,6 +527,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Controller::terminate()
 {
+    presetManager_.reset();
     updateChecker_.reset();
     return EditControllerEx1::terminate();
 }
@@ -1051,6 +1068,10 @@ VSTGUI::CView* Controller::createCustomView(
         label->setText("Innexus v" VERSION_STR " | Krate Audio");
         return label;
     }
+    if (viewName == "PresetBrowserButton")
+        return createPresetButton(viewRect, true);
+    if (viewName == "SavePresetButton")
+        return createPresetButton(viewRect, false);
     if (viewName == "UpdateBanner")
     {
         auto* banner = new Krate::Plugins::UpdateBannerView(viewRect, updateChecker_.get());
@@ -1104,10 +1125,26 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of sample load panel
     updateSampleLoadVisibility();
 
-    // Add drag-and-drop overlay to the frame (topmost child, transparent)
+    // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
         auto frameSize = frame->getViewSize();
+
+        if (presetManager_) {
+            if (!presetBrowserView_) {
+                presetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+                    frameSize, presetManager_.get(), getInnexusTabLabels());
+                frame->addView(presetBrowserView_);
+            }
+            if (!savePresetDialogView_) {
+                savePresetDialogView_ = new Krate::Plugins::SavePresetDialogView(
+                    frameSize, presetManager_.get(),
+                    makeInnexusPresetConfig().subcategoryNames);
+                frame->addView(savePresetDialogView_);
+            }
+        }
+
+        // Add drag-and-drop overlay to the frame (topmost child, transparent)
         auto* overlay = new SampleDropOverlayView(
             VSTGUI::CRect(0, 0, frameSize.getWidth(), frameSize.getHeight()), this);
         overlay->setTransparency(true);
@@ -1149,6 +1186,8 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     }
 
     // Null all custom view pointers (VSTGUI owns the views)
+    presetBrowserView_ = nullptr;
+    savePresetDialogView_ = nullptr;
     harmonicDisplayView_ = nullptr;
     confidenceIndicatorView_ = nullptr;
     memorySlotStatusView_ = nullptr;

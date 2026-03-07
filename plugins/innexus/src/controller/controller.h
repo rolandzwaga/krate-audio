@@ -15,6 +15,7 @@
 // ==============================================================================
 
 #include "display_data.h"
+#include "preset/preset_manager.h"
 #include "update/update_checker.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -25,7 +26,13 @@
 #include <memory>
 #include <string>
 
+namespace Steinberg {
+class MemoryStream;
+}
+
 namespace Krate::Plugins {
+class PresetBrowserView;
+class SavePresetDialogView;
 class UpdateBannerView;
 }
 
@@ -83,6 +90,26 @@ public:
     void setSampleFilenameDisplay(const std::string& filename,
                                  const std::string& fullPath);
 
+    /// Open the preset browser overlay
+    void openPresetBrowser();
+    /// Close the preset browser overlay
+    void closePresetBrowser();
+    /// Open the save preset dialog overlay
+    void openSavePresetDialog();
+
+    /// Get the preset manager instance (for custom view buttons)
+    Krate::Plugins::PresetManager* getPresetManager() { return presetManager_.get(); }
+
+    /// Create a MemoryStream containing the current component state
+    Steinberg::MemoryStream* createComponentStateStream();
+
+    /// Load a component state stream, applying all parameters via performEdit
+    bool loadComponentStateWithNotify(Steinberg::IBStream* state);
+
+    /// Apply a single parameter with begin/perform/end edit notifications
+    void editParamWithNotify(Steinberg::Vst::ParamID id,
+                             Steinberg::Vst::ParamValue value);
+
     static Steinberg::FUnknown* createInstance(void*)
     {
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());
@@ -91,6 +118,9 @@ public:
 private:
     /// Timer callback for display updates (FR-049)
     void onDisplayTimerFired();
+
+    /// Factory for preset browser / save buttons (called from createCustomView)
+    VSTGUI::CView* createPresetButton(const VSTGUI::CRect& rect, bool isBrowse);
 
     /// Update sample load panel visibility based on InputSource parameter
     void updateSampleLoadVisibility();
@@ -124,6 +154,14 @@ private:
     // Cached sample filename for display across editor open/close
     std::string loadedSampleFilename_;
     std::string loadedSampleFullPath_;
+
+    // Preset manager
+    std::unique_ptr<Krate::Plugins::PresetManager> presetManager_;
+
+    // Preset browser overlay view (VSTGUI-owned, raw pointer)
+    Krate::Plugins::PresetBrowserView* presetBrowserView_ = nullptr;
+    // Save preset dialog overlay view (VSTGUI-owned, raw pointer)
+    Krate::Plugins::SavePresetDialogView* savePresetDialogView_ = nullptr;
 
     // Update banner view (VSTGUI-owned, nulled in willClose)
     Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
