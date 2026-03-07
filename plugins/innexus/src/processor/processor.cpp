@@ -144,6 +144,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
             kFreezeRecoveryTimeSec * static_cast<float>(sampleRate_));
         freezeRecoveryLengthSamples_ = std::max(freezeRecoveryLengthSamples_, 1);
 
+        // Reset spectral decay state on activation
+        spectralDecay_.deactivate();
+
         // Compute anti-click voice steal length (20ms)
         antiClickLengthSamples_ = static_cast<int>(
             kAntiClickTimeSec * static_cast<float>(sampleRate_));
@@ -314,6 +317,10 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
         : LatencyMode::LowLatency;
     liveAnalysis_.prepare(sampleRate_, currentMode);
 
+    // Prepare spectral decay envelope for frozen frame fade-out
+    spectralDecay_.prepare(sampleRate_, static_cast<size_t>(
+        newSetup.maxSamplesPerBlock > 0 ? newSetup.maxSamplesPerBlock : 512));
+
     return AudioEffect::setupProcessing(newSetup);
 }
 
@@ -359,6 +366,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // --- Sidechain downmix to mono (FR-001, R-002) ---
     const float* sidechainMono = nullptr;
+    bool newLiveFrameThisBlock = false;
     {
         int currentSource = inputSource_.load(std::memory_order_relaxed) > 0.5f ? 1 : 0;
         if (currentSource == 1 && data.numInputs > 0 && data.inputs)
@@ -433,7 +441,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 static_cast<size_t>(data.numSamples));
 
             // Consume new frames if available
-            if (liveAnalysis_.hasNewFrame())
+            newLiveFrameThisBlock = liveAnalysis_.hasNewFrame();
+            if (newLiveFrameThisBlock)
             {
                 currentLiveFrame_ = liveAnalysis_.consumeFrame();
                 currentLiveResidualFrame_ = liveAnalysis_.consumeResidualFrame();
@@ -473,7 +482,15 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // In sidechain mode, we can synthesize even without a loaded sample analysis
     // as long as a note is active and the live pipeline has produced a frame.
     const bool hasSampleAnalysis = analysis && !analysis->frames.empty();
-    const bool hasLiveFrame = isSidechainMode && currentLiveFrame_.f0 > 0.0f;
+    // A live frame is "available" if we have a valid pitch, OR we received
+    // a noise-gated frame (signal was present but now silent — need to enter
+    // confidence gate to trigger freeze + spectral decay), OR we're in an
+    // active spectral decay.
+    const bool hasLiveFrame = isSidechainMode &&
+        (currentLiveFrame_.f0 > 0.0f ||
+         (newLiveFrameThisBlock && currentLiveFrame_.f0Confidence == 0.0f &&
+          lastGoodFrame_.f0 > 0.0f) ||
+         (isFrozen_ && spectralDecay_.isActive()));
 
 
     // =========================================================================
@@ -902,18 +919,30 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // the oscillator bank and residual synth. This happens once per process() call
     // (not per-sample) since the live pipeline produces frames at STFT hop rate.
     // FR-007: Skip when manual freeze is active (manual takes priority)
-    if (!manualFreezeActive_ && isSidechainMode && currentLiveFrame_.f0 > 0.0f)
+    // A gated frame (f0=0, confidence=0) from the noise gate still enters this
+    // block so the confidence gate can trigger freeze + spectral decay.
+    const bool hasLiveF0 = currentLiveFrame_.f0 > 0.0f;
+    const bool gotGatedFrame = newLiveFrameThisBlock && !hasLiveF0;
+    if (!manualFreezeActive_ && isSidechainMode && (hasLiveF0 || gotGatedFrame))
     {
         // Apply confidence-gated freeze (FR-010, FR-052) to live frames
         float recoveryThreshold = isFrozen_
             ? (kConfidenceThreshold + kConfidenceHysteresis)
             : kConfidenceThreshold;
 
-        if (currentLiveFrame_.f0Confidence >= recoveryThreshold)
+        // During active spectral decay, also require sufficient input amplitude
+        // to recover. This prevents background noise from interrupting the decay
+        // with "spectral mush" frames.
+        const bool amplitudeOk = !spectralDecay_.isActive() ||
+            currentLiveFrame_.globalAmplitude >=
+                spectralDecay_.initialAmplitude() * kDecayRecoveryAmplitudeRatio;
+
+        if (currentLiveFrame_.f0Confidence >= recoveryThreshold && amplitudeOk)
         {
             if (isFrozen_)
             {
                 isFrozen_ = false;
+                spectralDecay_.deactivate();
                 float captL = 0.0f;
                 float captR = 0.0f;
                 oscillatorBank_.processStereo(captL, captR);
@@ -957,7 +986,33 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         else
         {
             // FR-052: Hold last known-good frame
+            bool wasFrozen = isFrozen_;
             isFrozen_ = true;
+
+            // Activate spectral decay on freeze transition
+            if (!wasFrozen)
+                spectralDecay_.activate(morphedFrame_);
+
+            // Apply per-partial spectral decay to the held frame each block.
+            // This produces a natural fade-out where higher partials die first.
+            if (spectralDecay_.isActive() && !spectralDecay_.isFullyDecayed())
+            {
+                spectralDecay_.processBlock(morphedFrame_);
+
+                // Re-load decayed frame into oscillator bank
+                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
+                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
+                float targetPitch = basePitch * bendRatio;
+                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+
+                if (residualSynth_.isPrepared())
+                {
+                    residualSynth_.loadFrame(
+                        morphedResidualFrame_,
+                        brightnessSmoother_.getCurrentValue(),
+                        transientEmphasisSmoother_.getCurrentValue());
+                }
+            }
         }
     }
 

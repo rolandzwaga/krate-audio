@@ -20,6 +20,9 @@ add_executable(innexus_tests
     unit/processor/test_harmonic_modulator.cpp
     unit/processor/test_harmonic_blender.cpp
 
+    # Spectral decay envelope unit tests
+    unit/processor/test_spectral_decay_envelope.cpp
+
     # Harmonic Physics unit tests (Spec A)
     unit/processor/test_harmonic_physics.cpp
 
@@ -60,6 +63,12 @@ add_executable(innexus_tests
 
     # Reset trap regression tests (per-block setter safety)
     integration/reset_trap_tests.cpp
+
+    # Sidechain signal end behavior (graceful decay)
+    integration/test_sidechain_signal_end.cpp
+
+    # Sidechain WAV quality diagnostics (real audio files)
+    integration/test_sidechain_wav_quality.cpp
 
     # Enable/disable while playing + degraded host conditions
     integration/enable_disable_tests.cpp

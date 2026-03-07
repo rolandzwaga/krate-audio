@@ -48,7 +48,9 @@ public:
     // =========================================================================
 
     /// Default noise gate threshold in dB (FR-007)
-    static constexpr float kDefaultNoiseGateThresholdDb = -60.0f;
+    /// -40 dB rejects low-level noise that would otherwise cause spurious
+    /// pitch detections during silence (especially with cross-synthesis blend).
+    static constexpr float kDefaultNoiseGateThresholdDb = -50.0f;
 
     /// DC estimator pole frequency in Hz (FR-005)
     /// Controls DC tracking speed. At 40 Hz, time constant = 4ms.
@@ -105,6 +107,7 @@ public:
         dcInitialized_ = false;
         highPass_.reset();
         slowEnvelope_.reset();
+        gated_ = false;
     }
 
     // =========================================================================
@@ -141,6 +144,9 @@ public:
     void setTransientSuppression(float amount) noexcept {
         transientSuppression_ = std::clamp(amount, 0.0f, 1.0f);
     }
+
+    /// Returns true if the last processBlock() call was gated (below threshold).
+    bool isGated() const noexcept { return gated_; }
 
 private:
     // =========================================================================
@@ -194,6 +200,7 @@ private:
     }
 
     /// Apply noise gate based on block RMS (FR-007).
+    /// Sets gated_ flag so downstream pipeline can skip analysis immediately.
     void applyNoiseGate(float* buffer, size_t numSamples) noexcept {
         float sumSquared = 0.0f;
         for (size_t i = 0; i < numSamples; ++i) {
@@ -205,6 +212,9 @@ private:
             for (size_t i = 0; i < numSamples; ++i) {
                 buffer[i] = 0.0f;
             }
+            gated_ = true;
+        } else {
+            gated_ = false;
         }
     }
 
@@ -226,7 +236,8 @@ private:
 
     // FR-007: Noise gate
     float noiseGateThresholdDb_ = kDefaultNoiseGateThresholdDb;
-    float noiseGateThresholdLinear_ = 0.001f;
+    float noiseGateThresholdLinear_ = 0.00316f; // -50 dB
+    bool gated_ = false;
 
     // Internal
     double sampleRate_ = 44100.0;

@@ -27,6 +27,7 @@
 #include "dsp/harmonic_blender.h"
 #include "dsp/harmonic_modulator.h"
 #include "dsp/harmonic_physics.h"
+#include "dsp/spectral_decay_envelope.h"
 
 #include <krate/dsp/processors/harmonic_frame_utils.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
@@ -486,6 +487,10 @@ private:
     // =========================================================================
     static constexpr float kConfidenceThreshold = 0.3f;
     static constexpr float kConfidenceHysteresis = 0.05f;
+    /// During spectral decay, new frame amplitude must exceed this fraction
+    /// of the original frozen frame amplitude to allow recovery.
+    /// Prevents noise from interrupting the fade-out.
+    static constexpr float kDecayRecoveryAmplitudeRatio = 0.1f;
 
     /// Last known-good frame for freeze
     Krate::DSP::HarmonicFrame lastGoodFrame_{};
@@ -496,6 +501,9 @@ private:
     int freezeRecoveryLengthSamples_ = 0;
     float freezeRecoveryOldLevel_ = 0.0f;
     static constexpr float kFreezeRecoveryTimeSec = 0.007f; // 7ms default
+
+    /// Per-partial spectral decay for natural fade-out when confidence gate freezes
+    SpectralDecayEnvelope spectralDecay_;
 
     // =========================================================================
     // Pitch Bend (FR-051)

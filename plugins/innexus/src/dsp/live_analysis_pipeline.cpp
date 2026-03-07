@@ -191,6 +191,27 @@ void LiveAnalysisPipeline::pushSamples(const float* data, size_t count)
         offset += chunkSize;
     }
 
+    // If the noise gate fired, skip STFT analysis entirely and emit a
+    // zero-confidence frame.  This prevents the overlapping STFT window
+    // from producing spurious pitch detections during silence.
+    if (preProcessing_.isGated())
+    {
+        // Drain any pending STFT hops so the internal ring buffer stays
+        // in sync, but discard the spectra.
+        while (shortStft_.canAnalyze())
+            shortStft_.analyze(shortSpectrum_);
+        if (longStftActive_)
+        {
+            while (longStft_.canAnalyze())
+                longStft_.analyze(longSpectrum_);
+        }
+
+        latestFrame_ = {};
+        latestResidualFrame_ = {};
+        newFrameAvailable_ = true;
+        return;
+    }
+
     // Check if short STFT has enough data for analysis
     while (shortStft_.canAnalyze())
     {
