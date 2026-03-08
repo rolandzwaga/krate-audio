@@ -123,9 +123,12 @@ Key rules:
   - Extract `globalAmplitude` per frame into contour vector
   - Find peak index
   - Compute Attack = peakIndex * hopTimeSec * 1000.0f ms
-  - O(1) rolling least-squares over 8-20 frame window (maintain n, sum_x, sum_y, sum_xy, sum_x2, mean, M2)
+  - O(1) rolling least-squares with fixed window size `kWindowSize=12` (within the valid 8–20 frame range per FR-002)
+  - Window grows from 0 to kWindowSize during grow-in phase (n tracks occupancy); thereafter slides by subtracting oldest and adding newest
+  - Maintain: n, sum_x, sum_y, sum_xy, sum_x2, mean, M2 (Welford online variance)
   - Steady-state: |slope| < 0.0005/frame AND variance < 0.002
-  - Compute Decay, Sustain, Release per data-model.md algorithm
+  - Compute Decay and Sustain per data-model.md algorithm
+  - Release = (totalFrames - 1 - steady_state_end) * hopTimeSec * 1000.0f; `steady_state_end` is the **last** steady-state frame index (inclusive, 0-based); default 100ms if no steady state found
   - Clamp all outputs to valid ranges ([1, 5000] ms for times, [0, 1] for sustain)
 
 - [ ] T016 [US1] Add `DetectedADSR detectedADSR{}` field to `SampleAnalysis` struct in `plugins/innexus/src/dsp/sample_analysis.h`
@@ -134,15 +137,16 @@ Key rules:
 
 - [ ] T018 [US1] In `Processor::checkForNewAnalysis()` in `plugins/innexus/src/processor/processor.cpp`: read `detectedADSR` from new analysis result, write Attack/Decay/Sustain/Release to corresponding atomics, send `IMessage` to Controller to update knob positions
 
-- [ ] T019 [US1] Wire `adsr_.gate(true)` in `Processor::handleNoteOn()` and `adsr_.gate(false)` in `Processor::handleNoteOff()` in `plugins/innexus/src/processor/processor.cpp` — use `RetriggerMode::Hard` to satisfy FR-012
+- [ ] T019 [US1] Wire `adsr_.gate(true)` in `Processor::handleNoteOn()` and `adsr_.gate(false)` in `Processor::handleNoteOff()` in `plugins/innexus/src/processor/processor.cpp` — call `adsr_.setRetriggerMode(RetriggerMode::Hard)` in `Processor::initialize()` or constructor **before** any gate calls to satisfy FR-012; verify `RetriggerMode::Hard` exists in `adsr_envelope.h`
 
-- [ ] T020 [US1] Call `adsr_.prepare(sampleRate)` in `Processor::prepare()` and/or `setActive()` in `plugins/innexus/src/processor/processor.cpp`
+- [ ] T020 [US1] Call `adsr_.prepare(sampleRate)` and `adsrAmountSmoother_.prepare(sampleRate)` in `Processor::prepare()` and/or `setActive()` in `plugins/innexus/src/processor/processor.cpp`. Both must be initialized before the first audio block to avoid incorrect smoother output.
 
 - [ ] T021 [US1] In `Processor::process()` in `plugins/innexus/src/processor/processor.cpp`:
-  - Read adsrAmount_ atomic; if Amount == 0.0 skip all ADSR processing (bit-exact bypass, SC-003)
-  - Otherwise: update envelope parameters from atomics (setAttack, setDecay, setSustain, setRelease, setAttackCurve, setDecayCurve, setReleaseCurve) with TimeScale applied to time params
+  - Read adsrAmount_ atomic; if Amount == 0.0 skip **all** ADSR processing including envelope tick (bit-exact bypass, SC-003)
+  - Otherwise: update envelope parameters from atomics — effective times = `param_time_ms * timeScale`, clamped to [1, 5000]ms per segment (clamping applies independently; when a segment hits the clamp boundary the ratio between segments may differ slightly from the unscaled ratio — this is acceptable per FR-010)
+  - Pass clamped times via setAttack, setDecay, setRelease; pass sustain directly (unscaled); pass curve amounts via setAttackCurve, setDecayCurve, setReleaseCurve
   - Smooth Amount via `adsrAmountSmoother_`
-  - Multiply each output sample by `mix(1.0f, adsr_.process(), smoothedAmount)` — lerp between 1.0 and envelope value
+  - Multiply each output sample by `lerp(1.0f, adsr_.process(), smoothedAmount)` where `lerp(a,b,t) = a*(1-t) + b*t` — at Amount=0.0 gain is always 1.0 (bypass), at Amount=1.0 gain equals raw envelope output, at intermediate values output is never fully silent (intentional per FR-008)
 
 - [ ] T022 [US1] Verify all tests in T012 and T013 now PASS. Fix any failures before continuing.
 
@@ -193,13 +197,14 @@ Key rules:
 - [ ] T029 [US2] Verify all 3 curve amounts (kAdsrAttackCurveId=726, kAdsrDecayCurveId=727, kAdsrReleaseCurveId=728) are correctly passed to `adsr_.setAttackCurve(float)`, `setDecayCurve(float)`, `setReleaseCurve(float)` (the float overloads, -1 to +1). These should already be wired from T021 — confirm and fix if missing.
 
 - [ ] T030 [US2] Wire `ADSRDisplay` in `Controller::createCustomView()` in `plugins/innexus/src/controller/controller.cpp`:
+  - Match on `custom-view-name` = `"ADSRDisplay"` (this string must match exactly what is written in `editor.uidesc` — agree on it here and in T031 before coding)
   - Call `setAdsrBaseParamId(720)` — expects 4 consecutive IDs: A=720, D=721, S=722, R=723
   - Call `setCurveBaseParamId(726)` — expects 3 consecutive IDs: AC=726, DC=727, RC=728
   - Call `setParameterCallback(...)`, `setBeginEditCallback(...)`, `setEndEditCallback(...)` to wire drag edits back to VST parameter system
   - Call `setPlaybackStatePointers(...)` to wire playback dot (use processor atomics for envelope output, stage, and active flag — expose via shared atomics or IMessage)
 
 - [ ] T031 [US2] Add `ADSRDisplay` custom view to `plugins/innexus/resources/editor.uidesc`:
-  - Use `custom-view-name` matching the string checked in `createCustomView()`
+  - Use `custom-view-name="ADSRDisplay"` (must match the string in T030's `createCustomView()` exactly — a mismatch causes the view to silently not be created)
   - Add 9 knob/control entries for Attack, Decay, Sustain, Release, Amount, Time Scale, Attack Curve, Decay Curve, Release Curve with correct parameter IDs (720-728)
   - Position and size appropriately within existing UI layout
 
@@ -249,9 +254,11 @@ Key rules:
 
 - [ ] T039 [US3] Extend memory slot recall in `Processor` (`plugins/innexus/src/processor/processor.cpp`): when recalling a slot, read all 9 ADSR fields from the slot, write to processor atomics, and send `IMessage` to Controller to update knob positions (FR-015)
 
-- [ ] T040 [US3] Extend morph interpolation in `EvolutionEngine::getInterpolatedFrame()` (or the morph calculation site) in `plugins/innexus/src/dsp/evolution_engine.h` (or `.cpp`): interpolate adsrAttackMs, adsrDecayMs, adsrReleaseMs using geometric mean (`std::exp((1-t)*std::log(a) + t*std::log(b))`); interpolate adsrSustainLevel, adsrAmount, adsrTimeScale, adsrAttackCurve, adsrDecayCurve, adsrReleaseCurve using linear interpolation (`a*(1-t) + b*t`) (FR-016, FR-017)
+- [ ] T040 [US3] Extend **morph engine** ADSR interpolation (FR-016): locate the morph calculation site (`HarmonicBlender` or wherever the host-driven slot morph is computed — distinct from the evolution engine) and add ADSR interpolation using the same rules: geometric mean for adsrAttackMs, adsrDecayMs, adsrReleaseMs (`std::exp((1-t)*std::log(a) + t*std::log(b))`); linear for adsrSustainLevel, adsrAmount, adsrTimeScale, adsrAttackCurve, adsrDecayCurve, adsrReleaseCurve (`a*(1-t) + b*t`). If the morph and evolution paths share the same interpolation function, verify T040b (below) is not needed.
 
-- [ ] T041 [US3] Wire interpolated ADSR values from `EvolutionEngine` back to processor atomics during evolution traversal — ensure processor reads interpolated values rather than stored slot values when evolution is active
+- [ ] T040b [US3] Extend **evolution engine** ADSR interpolation (FR-017): in `EvolutionEngine::getInterpolatedFrame()` in `plugins/innexus/src/dsp/evolution_engine.h` (or `.cpp`), apply the same geometric mean / linear interpolation rules as T040. If morph and evolution already share the same interpolation function, confirm both FR-016 and FR-017 are covered by that shared function and document accordingly.
+
+- [ ] T041 [US3] Wire interpolated ADSR values from both the morph engine (T040) and `EvolutionEngine` (T040b) back to processor atomics when morph/evolution is active — ensure processor reads interpolated values rather than the raw stored slot values during active morph or evolution
 
 - [ ] T042 [US3] Verify all tests in T035 and T036 now PASS. Fix any failures before continuing.
 
@@ -361,7 +368,9 @@ Key rules:
 - [ ] T061 [P] Run `innexus_tests` full suite and confirm zero test failures across all phases
 - [ ] T062 [P] Run pluginval at strictness level 5: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` and verify no failures
 - [ ] T063 Manually verify Amount=0.0 produces bit-exact bypass: compare processed audio with Amount=0.0 vs. no-ADSR reference (SC-003). Document test method in commit message.
+- [ ] T063b Measure SC-001 analysis overhead: time `SampleAnalyzer::analyzeOnThread()` with and without the `EnvelopeDetector::detect()` call on a representative sample (< 5 seconds, 44.1kHz). Verify that the ratio `(time_with_detection / time_without_detection) < 1.10` (i.e., <10% overhead). Record the actual measured values in the compliance table for SC-001.
 - [ ] T064 Manually verify smooth transitions: change Amount from 0.0 to 1.0 during active note, listen for clicks or discontinuities (SC-004). Confirm no amplitude jump > 0.01 per sample.
+- [ ] T064b Measure SC-005 CPU overhead: profile `Processor::process()` with ADSR active (Amount=1.0, note held) vs. bypassed (Amount=0.0). Verify the ADSR-only delta is <0.1% of a single core at 44.1kHz. Record the actual measured value in the compliance table for SC-005. (The plan projects ~0.01%, but record the actual measurement.)
 - [ ] T065 Verify all 9 parameters appear in host automation lane (load in a DAW or use pluginval automation test). Document as SC-007 evidence.
 - [ ] T066 [P] Audit all new code for: no `// placeholder`, `// TODO`, or `// FIXME` comments; no raw `new`/`delete`; no allocations in `process()` path; all atomics accessed with appropriate memory orders
 
