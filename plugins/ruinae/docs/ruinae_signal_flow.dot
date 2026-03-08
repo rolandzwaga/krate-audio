@@ -58,7 +58,7 @@ digraph RuinaeSignalFlow {
         fontcolor="#804010";
         penwidth=2;
 
-        arp_core [label="Arpeggiator\n(optional, pre-voice)\n\nModes: Up, Down, UpDown,\nRandom, Order, Chord\n\nOctave: 1-4, Sequential/PingPong/Random\nSwing, Spice, Humanize\nLatch, Euclidean, Scale Quantize\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
+        arp_core [label="Arpeggiator\n(optional, pre-voice)\n\nModes: Up, Down, UpDown, DownUp,\nConverge, Diverge, Random,\nWalk, AsPlayed, Chord\n\nOctave: 1-4, Sequential/Interleaved\nSwing, Spice, Humanize\nLatch, Euclidean, Scale Quantize\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
 
         subgraph cluster_arp_lanes {
             label="6 Modulation Lanes (1-32 steps each)";
@@ -121,7 +121,7 @@ digraph RuinaeSignalFlow {
             color="#4A90D9";
             bgcolor="#DDE8F5";
 
-            osc_a [label="OSC A\n(SelectableOscillator)\n10 types:\nSine, Saw, Square, Tri,\nNoise, Additive, FM,\nGranular, Wavetable,\nParticle", shape=box, fillcolor="#6AABEA"];
+            osc_a [label="OSC A\n(SelectableOscillator)\n10 types:\nPolyBLEP, Wavetable,\nPhase Dist, Sync, Additive,\nChaos, Particle, Formant,\nSpectral Freeze, Noise", shape=box, fillcolor="#6AABEA"];
             osc_b [label="OSC B\n(SelectableOscillator)\n10 types", shape=box, fillcolor="#6AABEA"];
         }
 
@@ -130,7 +130,7 @@ digraph RuinaeSignalFlow {
 
         // --- Filter ---
         subgraph cluster_filter {
-            label="Voice Filter (6 types, pre-allocated)";
+            label="Voice Filter (13 types, pre-allocated)";
             style=dashed;
             color="#4A90D9";
             bgcolor="#DDE8F5";
@@ -140,12 +140,12 @@ digraph RuinaeSignalFlow {
 
         // --- Distortion ---
         subgraph cluster_dist {
-            label="Distortion (5 types, pre-allocated)";
+            label="Distortion (7 types, pre-allocated)";
             style=dashed;
             color="#4A90D9";
             bgcolor="#DDE8F5";
 
-            distortion [label="Active Distortion\n• Clean (bypass)\n• ChaosWave (Lorenz attractor)\n• Spectral (FFT-based)\n• Granular (micro-distortion)\n• Wavefolder (multistage)\n• Tape Saturator", shape=box, fillcolor="#6AABEA"];
+            distortion [label="Active Distortion\n• Clean (bypass)\n• ChaosWave (Lorenz attractor)\n• Spectral (FFT-based)\n• Granular (micro-distortion)\n• Wavefolder (multistage)\n• Tape Saturator\n• Ring Modulator", shape=box, fillcolor="#6AABEA"];
         }
 
         dc_block [label="DC Blocker", shape=box, fillcolor="#6AABEA"];
@@ -177,12 +177,12 @@ digraph RuinaeSignalFlow {
             bgcolor="#E5F5E5";
             penwidth=2;
 
-            voice_router [label="computeOffsets()\nper-sample\n\n8 sources → 10 destinations\noffsets summed per dest\namount per route", shape=diamond, fillcolor="#8ED08E"];
+            voice_router [label="computeOffsets()\nper-sample\n\n8 sources → 8 destinations\noffsets summed per dest\namount per route", shape=diamond, fillcolor="#8ED08E"];
         }
 
         // --- Per-Voice Mod Destinations ---
         subgraph cluster_voice_mod_dst {
-            label="Per-Voice Mod Destinations (10)";
+            label="Per-Voice Mod Destinations (8)";
             style=rounded;
             color="#6BBF6B";
             bgcolor="#E5F5E5";
@@ -194,8 +194,6 @@ digraph RuinaeSignalFlow {
             vd_gate_depth [label="TranceGateDepth\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
             vd_osc_a_pitch [label="OscA Pitch\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
             vd_osc_b_pitch [label="OscB Pitch\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
-            vd_osc_a_level [label="OscA Level\n(linear, clip [0,1])", shape=box, fillcolor="#A8DCA8"];
-            vd_osc_b_level [label="OscB Level\n(linear, clip [0,1])", shape=box, fillcolor="#A8DCA8"];
             vd_spec_tilt [label="SpectralTilt\n(dB/oct offset)", shape=box, fillcolor="#A8DCA8"];
         }
 
@@ -226,15 +224,11 @@ digraph RuinaeSignalFlow {
         voice_router -> vd_gate_depth [style=dashed, color="#3A8F3A"];
         voice_router -> vd_osc_a_pitch [style=dashed, color="#3A8F3A"];
         voice_router -> vd_osc_b_pitch [style=dashed, color="#3A8F3A"];
-        voice_router -> vd_osc_a_level [style=dashed, color="#3A8F3A"];
-        voice_router -> vd_osc_b_level [style=dashed, color="#3A8F3A"];
         voice_router -> vd_spec_tilt [style=dashed, color="#3A8F3A"];
 
         // --- Mod destinations to audio targets ---
         vd_osc_a_pitch -> osc_a [style=dashed, color="#3A8F3A", constraint=false];
         vd_osc_b_pitch -> osc_b [style=dashed, color="#3A8F3A", constraint=false];
-        vd_osc_a_level -> osc_a [style=dashed, color="#3A8F3A", constraint=false];
-        vd_osc_b_level -> osc_b [style=dashed, color="#3A8F3A", constraint=false];
         vd_morph -> mixer [style=dashed, color="#3A8F3A", constraint=false];
         vd_filter_cut -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
         vd_filter_res -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
@@ -267,7 +261,7 @@ digraph RuinaeSignalFlow {
         color="#4A90D9";
         bgcolor="#EDF4FC";
 
-        gfilter [label="2x SVF (L + R)\n6 modes: LP, HP, BP,\nNotch, Peak, LowShelf, HighShelf\n\nCutoff: 20-20kHz\nResonance: 0.1-30 Q", shape=box, fillcolor="#6AABEA"];
+        gfilter [label="2x SVF (L + R)\n4 modes: LP, HP, BP, Notch\n\nCutoff: 20-20kHz\nResonance: 0.1-30 Q", shape=box, fillcolor="#6AABEA"];
     }
 
     stereo_width -> gfilter [penwidth=2, color="#2A5080"];
@@ -339,9 +333,9 @@ digraph RuinaeSignalFlow {
         fontcolor="#A02050";
         penwidth=2;
 
-        // --- Global Mod Sources (12) ---
+        // --- Global Mod Sources (14) ---
         subgraph cluster_global_src {
-            label="Global Mod Sources (12)";
+            label="Global Mod Sources (14)";
             style=rounded;
             color="#D94A7A";
             bgcolor="#F9DDE6";
@@ -351,9 +345,11 @@ digraph RuinaeSignalFlow {
             genv_follow [label="Env Follower\ntracks audio input\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             grandom [label="Random\nwhite noise\n[-1, +1]", shape=ellipse, fillcolor="#E88AAA"];
             gchaos [label="Chaos\nLorenz, Logistic,\nHenon, Rössler", shape=ellipse, fillcolor="#E88AAA"];
+            grungler [label="Rungler\nshift-register chaos\n[-1, +1]", shape=ellipse, fillcolor="#E88AAA"];
             gsample_hold [label="Sample & Hold\nsamples: Random,\nLFO1, LFO2, audio", shape=ellipse, fillcolor="#E88AAA"];
             gpitch_follow [label="Pitch Follower\ntracks input pitch\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             gtransient [label="Transient\nDetector\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
+            garp_pitch [label="Arp Pitch\ncurrent arp note\n[0, 1]", shape=ellipse, fillcolor="#E88AAA"];
             gmacro1 [label="Macro 1\nuser knob\nmin/max/curve", shape=ellipse, fillcolor="#E88AAA"];
             gmacro2 [label="Macro 2", shape=ellipse, fillcolor="#E88AAA"];
             gmacro3 [label="Macro 3", shape=ellipse, fillcolor="#E88AAA"];
@@ -362,7 +358,7 @@ digraph RuinaeSignalFlow {
 
         // --- Global Mod Router ---
         subgraph cluster_global_router {
-            label="Global Mod Matrix\n(32 routes max)";
+            label="Global Mod Matrix\n(8 routes max)";
             style=rounded;
             color="#6BBF6B";
             bgcolor="#E5F5E5";
@@ -381,9 +377,9 @@ digraph RuinaeSignalFlow {
             >, shape=plaintext];
         }
 
-        // --- Global Mod Destinations (8) ---
+        // --- Global Mod Destinations (15) ---
         subgraph cluster_global_dst {
-            label="Global Mod Destinations (8)";
+            label="Global Mod Destinations (15)";
             style=rounded;
             color="#D94A7A";
             bgcolor="#F9DDE6";
@@ -398,6 +394,15 @@ digraph RuinaeSignalFlow {
             gd_all_morph [label="AllVoice\nMorphPosition\n±1.0", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
             gd_all_gate_rate [label="AllVoice\nTranceGateRate\n±50 Hz", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
             gd_all_spec_tilt [label="AllVoice\nSpectralTilt\n±24 dB/oct", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+            gd_all_reso [label="AllVoice\nResonance", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+            gd_all_flt_env [label="AllVoice\nFlt Env Amt", shape=box, fillcolor="#F0C8A0", color="#E8A838", penwidth=2];
+
+            // Arpeggiator destinations
+            gd_arp_rate [label="Arp Rate", shape=box, fillcolor="#E8C8A0", color="#C07020", penwidth=2];
+            gd_arp_gate [label="Arp Gate\nLength", shape=box, fillcolor="#E8C8A0", color="#C07020", penwidth=2];
+            gd_arp_octave [label="Arp Octave\nRange", shape=box, fillcolor="#E8C8A0", color="#C07020", penwidth=2];
+            gd_arp_swing [label="Arp Swing", shape=box, fillcolor="#E8C8A0", color="#C07020", penwidth=2];
+            gd_arp_spice [label="Arp Spice", shape=box, fillcolor="#E8C8A0", color="#C07020", penwidth=2];
         }
 
         // --- Sources to router ---
@@ -406,9 +411,11 @@ digraph RuinaeSignalFlow {
         genv_follow -> global_router [style=dashed, color="#A02050"];
         grandom -> global_router [style=dashed, color="#A02050"];
         gchaos -> global_router [style=dashed, color="#A02050"];
+        grungler -> global_router [style=dashed, color="#A02050"];
         gsample_hold -> global_router [style=dashed, color="#A02050"];
         gpitch_follow -> global_router [style=dashed, color="#A02050"];
         gtransient -> global_router [style=dashed, color="#A02050"];
+        garp_pitch -> global_router [style=dashed, color="#A02050"];
         gmacro1 -> global_router [style=dashed, color="#A02050"];
         gmacro2 -> global_router [style=dashed, color="#A02050"];
         gmacro3 -> global_router [style=dashed, color="#A02050"];
@@ -423,6 +430,13 @@ digraph RuinaeSignalFlow {
         global_router -> gd_all_morph [style=dashed, color="#3A8F3A"];
         global_router -> gd_all_gate_rate [style=dashed, color="#3A8F3A"];
         global_router -> gd_all_spec_tilt [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_reso [style=dashed, color="#3A8F3A"];
+        global_router -> gd_all_flt_env [style=dashed, color="#3A8F3A"];
+        global_router -> gd_arp_rate [style=dashed, color="#3A8F3A"];
+        global_router -> gd_arp_gate [style=dashed, color="#3A8F3A"];
+        global_router -> gd_arp_octave [style=dashed, color="#3A8F3A"];
+        global_router -> gd_arp_swing [style=dashed, color="#3A8F3A"];
+        global_router -> gd_arp_spice [style=dashed, color="#3A8F3A"];
     }
 
     // =========================================================================
@@ -454,6 +468,13 @@ digraph RuinaeSignalFlow {
     gd_all_morph -> mixer [style=bold, color="#D94A7A", label="→ all 16 voices\n±1.0", constraint=false];
     gd_all_gate_rate -> trance_gate [style=bold, color="#D94A7A", label="→ all 16 voices\n±50 Hz", constraint=false];
     gd_all_spec_tilt -> distortion [style=bold, color="#D94A7A", label="→ all 16 voices\n±24 dB/oct", constraint=false];
+    gd_all_reso -> voice_filter [style=bold, color="#D94A7A", label="→ all 16 voices", constraint=false];
+    gd_all_flt_env -> voice_filter [style=bold, color="#D94A7A", label="→ all 16 voices", constraint=false];
+    gd_arp_rate -> arp_core [style=bold, color="#D94A7A", constraint=false];
+    gd_arp_gate -> arp_core [style=bold, color="#D94A7A", constraint=false];
+    gd_arp_octave -> arp_core [style=bold, color="#D94A7A", constraint=false];
+    gd_arp_swing -> arp_core [style=bold, color="#D94A7A", constraint=false];
+    gd_arp_spice -> arp_core [style=bold, color="#D94A7A", constraint=false];
 
     // =========================================================================
     // PROCESSING RATE ANNOTATIONS
@@ -471,8 +492,8 @@ digraph RuinaeSignalFlow {
             <TR><TD ALIGN="LEFT"><B>Per-Voice Mod:</B></TD><TD ALIGN="LEFT">Per-sample (every sample in block)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global Mod:</B></TD><TD ALIGN="LEFT">Per-block (once per process() call)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Audio chain:</B></TD><TD ALIGN="LEFT">Per-sample (voice) / Per-block (effects)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 10 destinations</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">32 routes × 12 sources → 8 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 8 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">8 routes × 14 sources → 15 destinations</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Interaction:</B></TD><TD ALIGN="LEFT">Global "AllVoice" dests are forwarded into per-voice processing</TD></TR>
             </TABLE>
