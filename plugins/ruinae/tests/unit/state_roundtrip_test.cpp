@@ -526,7 +526,7 @@ TEST_CASE("Arp state round-trip preserves Euclidean settings",
     // Euclidean is 4 int32 = 16 bytes.
     // Arp section total: 892 bytes (includes midiOut int32).
     // Euclidean offset within arp section: 712.
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     constexpr size_t kEuclideanOffsetInArp = 712;
     REQUIRE(verifyData.size() > kArpSectionSize);
     size_t arpStart = verifyData.size() - kArpSectionSize;
@@ -572,7 +572,7 @@ TEST_CASE("Arp state round-trip preserves condition values",
     REQUIRE(data1 == data2);
 
     // Verify the condition values in the arp section
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     // Condition lane offset within arp: 712 (Euclidean end) + 16 = 728
     constexpr size_t kCondOffsetInArp = 728;
     REQUIRE(data2.size() > kArpSectionSize);
@@ -617,7 +617,7 @@ TEST_CASE("Arp state round-trip preserves modifier bitmasks",
     REQUIRE(data1 == data2);
 
     // Verify bitmasks in the modifier section of the arp data
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     // Modifier lane offset within arp: 44 (base) + 132 (vel) + 132 (gate) + 132 (pitch) = 440
     constexpr size_t kModOffsetInArp = 440;
     REQUIRE(data2.size() > kArpSectionSize);
@@ -663,7 +663,7 @@ TEST_CASE("Arp state round-trip preserves float values bit-identically",
     // Actually: condition section = length(4) + 32*steps(128) + fillToggle(4) = 136 bytes
     // Condition starts at offset 728 in arp section, so ends at 728+136 = 864
     // Then spice(4) + humanize(4) + ratchetSwing(4) = 12 bytes at offset 864
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     constexpr size_t kSpiceOffsetInArp = 864;
     REQUIRE(data2.size() > kArpSectionSize);
     size_t arpStart = data2.size() - kArpSectionSize;
@@ -696,7 +696,7 @@ TEST_CASE("Pre-arp preset loads with arp disabled",
     auto fullData = extractStreamBytes(fullStream);
 
     // The arp section is the last 892 bytes of the state.
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     REQUIRE(fullData.size() > kArpSectionSize);
     size_t truncatedSize = fullData.size() - kArpSectionSize;
 
@@ -763,7 +763,7 @@ TEST_CASE("Partial arp preset loads base params and defaults rest",
 
     // Calculate the truncation point: keep everything before the arp section
     // plus only the 11 base arp params (44 bytes)
-    constexpr size_t kArpSectionSize = 892;
+    constexpr size_t kArpSectionSize = 1160;
     constexpr size_t kArpBaseParamsSize = 44;  // 11 * 4 bytes
     REQUIRE(fullData.size() > kArpSectionSize);
     size_t arpStart = fullData.size() - kArpSectionSize;

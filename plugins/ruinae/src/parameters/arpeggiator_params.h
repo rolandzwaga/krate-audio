@@ -109,6 +109,17 @@ struct ArpeggiatorParams {
     // --- MIDI Output ---
     std::atomic<bool> midiOut{false};              // Output arp notes as MIDI (default OFF)
 
+    // --- Chord Lane (arp-chord-lane) ---
+    std::atomic<int>   chordLaneLength{1};         // 1-32 (default 1)
+    std::array<std::atomic<int>, 32> chordLaneSteps{};  // 0-4 (ChordType, int for lock-free)
+
+    // --- Inversion Lane (arp-chord-lane) ---
+    std::atomic<int>   inversionLaneLength{1};     // 1-32 (default 1)
+    std::array<std::atomic<int>, 32> inversionLaneSteps{};  // 0-3 (InversionType, int for lock-free)
+
+    // --- Voicing Mode (arp-chord-lane) ---
+    std::atomic<int>   voicingMode{0};             // 0-3 (VoicingMode, default 0=Close)
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -343,6 +354,23 @@ inline void handleArpParamChange(
             params.midiOut.store(value >= 0.5, std::memory_order_relaxed);
             return;
 
+        // --- Chord Lane (arp-chord-lane) ---
+        case kArpChordLaneLengthId:
+            params.chordLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            return;
+        case kArpInversionLaneLengthId:
+            params.inversionLaneLength.store(
+                std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                std::memory_order_relaxed);
+            return;
+        case kArpVoicingModeId:
+            params.voicingMode.store(
+                std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                std::memory_order_relaxed);
+            return;
+
         default:
             // Velocity lane steps: 3021-3052
             if (id >= kArpVelocityLaneStep0Id && id <= kArpVelocityLaneStep31Id) {
@@ -382,6 +410,20 @@ inline void handleArpParamChange(
                 int step = std::clamp(
                     static_cast<int>(std::round(value * 17.0)), 0, 17);
                 params.conditionLaneSteps[id - kArpConditionLaneStep0Id].store(
+                    step, std::memory_order_relaxed);
+            }
+            // Chord lane steps: 3305-3336 (arp-chord-lane)
+            else if (id >= kArpChordLaneStep0Id && id <= kArpChordLaneStep31Id) {
+                int step = std::clamp(
+                    static_cast<int>(std::round(value * 4.0)), 0, 4);
+                params.chordLaneSteps[id - kArpChordLaneStep0Id].store(
+                    step, std::memory_order_relaxed);
+            }
+            // Inversion lane steps: 3338-3369 (arp-chord-lane)
+            else if (id >= kArpInversionLaneStep0Id && id <= kArpInversionLaneStep31Id) {
+                int step = std::clamp(
+                    static_cast<int>(std::round(value * 3.0)), 0, 3);
+                params.inversionLaneSteps[id - kArpInversionLaneStep0Id].store(
                     step, std::memory_order_relaxed);
             }
             break;
@@ -689,6 +731,59 @@ inline void registerArpParams(
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpModifierPlayheadId);
     parameters.addParameter(STR16("Arp Condition Playhead"), STR16(""), 0, 1.0,
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpConditionPlayheadId);
+
+    // --- Chord Lane (arp-chord-lane) ---
+
+    // Chord lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Chord Lane Len"), kArpChordLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Chord lane steps: RangeParameter 0-4, default 0 (None)
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Chord Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpChordLaneStep0Id + i),
+                STR16(""), 0, 4, 0, 4,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // --- Inversion Lane (arp-chord-lane) ---
+
+    // Inversion lane length: RangeParameter 1-32, default 1, stepCount 31
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Inv Lane Len"), kArpInversionLaneLengthId,
+                          STR16(""), 1, 32, 1, 31,
+                          ParameterInfo::kCanAutomate));
+
+    // Inversion lane steps: RangeParameter 0-3, default 0 (Root)
+    for (int i = 0; i < 32; ++i) {
+        char name[48];
+        snprintf(name, sizeof(name), "Arp Inv Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(name);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpInversionLaneStep0Id + i),
+                STR16(""), 0, 3, 0, 3,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // Voicing Mode: StringListParameter (4 entries), default 0 (Close)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Voicing"), kArpVoicingModeId,
+        {STR16("Close"), STR16("Drop-2"), STR16("Spread"), STR16("Random")}));
+
+    // Chord/Inversion playhead parameters (hidden, non-automatable)
+    parameters.addParameter(STR16("Arp Chord Playhead"), STR16(""), 0, 1.0,
+        ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpChordPlayheadId);
+    parameters.addParameter(STR16("Arp Inversion Playhead"), STR16(""), 0, 1.0,
+        ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpInversionPlayheadId);
 }
 
 // =============================================================================
@@ -903,6 +998,7 @@ inline Steinberg::tresult formatArpParam(
         case kArpRootNoteId:
         case kArpScaleQuantizeInputId:
         case kArpMidiOutId:
+        case kArpVoicingModeId:
             return kResultFalse;
 
         default:
@@ -987,6 +1083,26 @@ inline Steinberg::tresult formatArpParam(
                 int idx = std::clamp(
                     static_cast<int>(std::round(value * 17.0)), 0, 17);
                 UString(string, 128).fromAscii(kCondNames[idx]);
+                return kResultOk;
+            }
+            // Chord lane steps: display ChordType name (arp-chord-lane)
+            if (id >= kArpChordLaneStep0Id && id <= kArpChordLaneStep31Id) {
+                static const char* const kChordNames[] = {
+                    "None", "Dyad", "Triad", "7th", "9th"
+                };
+                int idx = std::clamp(
+                    static_cast<int>(std::round(value * 4.0)), 0, 4);
+                UString(string, 128).fromAscii(kChordNames[idx]);
+                return kResultOk;
+            }
+            // Inversion lane steps: display InversionType name (arp-chord-lane)
+            if (id >= kArpInversionLaneStep0Id && id <= kArpInversionLaneStep31Id) {
+                static const char* const kInvNames[] = {
+                    "Root", "1st", "2nd", "3rd"
+                };
+                int idx = std::clamp(
+                    static_cast<int>(std::round(value * 3.0)), 0, 3);
+                UString(string, 128).fromAscii(kInvNames[idx]);
                 return kResultOk;
             }
             break;
@@ -1077,6 +1193,21 @@ inline void saveArpParams(
 
     // --- MIDI Output ---
     streamer.writeInt32(params.midiOut.load(std::memory_order_relaxed) ? 1 : 0);
+
+    // --- Chord Lane (arp-chord-lane, version 4+) ---
+    streamer.writeInt32(params.chordLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.chordLaneSteps[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Inversion Lane (arp-chord-lane, version 4+) ---
+    streamer.writeInt32(params.inversionLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.inversionLaneSteps[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Voicing Mode (arp-chord-lane, version 4+) ---
+    streamer.writeInt32(params.voicingMode.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1257,6 +1388,26 @@ inline bool loadArpParams(
     if (stateVersion >= 2) {
         if (!streamer.readInt32(intVal)) return true;
         params.midiOut.store(intVal != 0, std::memory_order_relaxed);
+    }
+
+    // --- Chord Lane (arp-chord-lane, version 4+) ---
+    if (stateVersion >= 4) {
+        if (!streamer.readInt32(intVal)) return true;
+        params.chordLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(intVal)) return false;
+            params.chordLaneSteps[i].store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
+        }
+
+        if (!streamer.readInt32(intVal)) return true;
+        params.inversionLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(intVal)) return false;
+            params.inversionLaneSteps[i].store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+        }
+
+        if (!streamer.readInt32(intVal)) return true;
+        params.voicingMode.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
     }
 
     return true;
@@ -1479,6 +1630,31 @@ inline void loadArpParamsToController(
     if (stateVersion >= 2) {
         if (streamer.readInt32(iv))
             setParam(kArpMidiOutId, iv != 0 ? 1.0 : 0.0);
+    }
+
+    // --- Chord Lane (arp-chord-lane, version 4+) ---
+    if (stateVersion >= 4) {
+        if (!streamer.readInt32(iv)) return;
+        setParam(kArpChordLaneLengthId,
+            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParam(static_cast<Steinberg::Vst::ParamID>(kArpChordLaneStep0Id + i),
+                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
+        }
+
+        if (!streamer.readInt32(iv)) return;
+        setParam(kArpInversionLaneLengthId,
+            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParam(static_cast<Steinberg::Vst::ParamID>(kArpInversionLaneStep0Id + i),
+                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
+        }
+
+        if (!streamer.readInt32(iv)) return;
+        setParam(kArpVoicingModeId,
+            static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
     }
 }
 

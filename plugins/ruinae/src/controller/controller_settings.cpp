@@ -56,6 +56,8 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     velocityLane_ = nullptr;
     gateLane_ = nullptr;
     pitchLane_ = nullptr;
+    chordLane_ = nullptr;
+    inversionLane_ = nullptr;
     ratchetLane_ = nullptr;
     modifierLane_ = nullptr;
     conditionLane_ = nullptr;

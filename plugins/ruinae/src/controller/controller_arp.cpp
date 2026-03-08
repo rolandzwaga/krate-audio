@@ -11,6 +11,8 @@
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
+#include "ui/arp_chord_lane.h"
+#include "ui/arp_inversion_lane.h"
 
 namespace Ruinae {
 
@@ -22,7 +24,8 @@ void Controller::handleArpSkipEvent(int lane, int step) {
     // Map lane index to IArpLane pointer
     Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
         velocityLane_, gateLane_, pitchLane_,
-        ratchetLane_, modifierLane_, conditionLane_
+        ratchetLane_, modifierLane_, conditionLane_,
+        chordLane_, inversionLane_
     };
 
     auto* targetLane = lanes[lane];
@@ -40,33 +43,38 @@ void Controller::handleArpSkipEvent(int lane, int step) {
 Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
     Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
         velocityLane_, gateLane_, pitchLane_,
-        ratchetLane_, modifierLane_, conditionLane_
+        ratchetLane_, modifierLane_, conditionLane_,
+        chordLane_, inversionLane_
     };
     if (index < 0 || index >= kArpLaneCount) return nullptr;
     return lanes[index];
 }
 
 uint32_t Controller::getArpLaneStepBaseParamId(int index) {
-    static constexpr uint32_t kStepBaseIds[6] = {
+    static constexpr uint32_t kStepBaseIds[8] = {
         kArpVelocityLaneStep0Id,
         kArpGateLaneStep0Id,
         kArpPitchLaneStep0Id,
         kArpRatchetLaneStep0Id,
         kArpModifierLaneStep0Id,
-        kArpConditionLaneStep0Id
+        kArpConditionLaneStep0Id,
+        kArpChordLaneStep0Id,
+        kArpInversionLaneStep0Id
     };
     if (index < 0 || index >= kArpLaneCount) return 0;
     return kStepBaseIds[index];
 }
 
 uint32_t Controller::getArpLaneLengthParamId(int index) {
-    static constexpr uint32_t kLengthIds[6] = {
+    static constexpr uint32_t kLengthIds[8] = {
         kArpVelocityLaneLengthId,
         kArpGateLaneLengthId,
         kArpPitchLaneLengthId,
         kArpRatchetLaneLengthId,
         kArpModifierLaneLengthId,
-        kArpConditionLaneLengthId
+        kArpConditionLaneLengthId,
+        kArpChordLaneLengthId,
+        kArpInversionLaneLengthId
     };
     if (index < 0 || index >= kArpLaneCount) return 0;
     return kLengthIds[index];

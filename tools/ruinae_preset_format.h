@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 3;
+static constexpr int32_t kStateVersion = 4;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -930,6 +930,17 @@ struct ArpState {
     // MIDI output
     int32_t midiOut = 0;            // bool as int32, default off
 
+    // Chord lane (version 4+)
+    int32_t chordLaneLength = 1;
+    int32_t chordLaneSteps[32]{};   // all 0 = None
+
+    // Inversion lane (version 4+)
+    int32_t inversionLaneLength = 1;
+    int32_t inversionLaneSteps[32]{}; // all 0 = Root
+
+    // Voicing mode (version 4+)
+    int32_t voicingMode = 0;        // 0=Close
+
     ArpState() {
         // Velocity defaults to 1.0
         for (auto& step : velocityLaneSteps)
@@ -1014,6 +1025,19 @@ struct ArpState {
 
         // MIDI output
         w.writeInt32(midiOut);
+
+        // Chord lane (version 4+)
+        w.writeInt32(chordLaneLength);
+        for (int i = 0; i < 32; ++i)
+            w.writeInt32(chordLaneSteps[i]);
+
+        // Inversion lane (version 4+)
+        w.writeInt32(inversionLaneLength);
+        for (int i = 0; i < 32; ++i)
+            w.writeInt32(inversionLaneSteps[i]);
+
+        // Voicing mode (version 4+)
+        w.writeInt32(voicingMode);
     }
 };
 

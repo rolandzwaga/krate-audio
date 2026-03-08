@@ -22,6 +22,8 @@
 #include "ui/arp_lane_container.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
+#include "ui/arp_chord_lane.h"
+#include "ui/arp_inversion_lane.h"
 #include "ui/xy_morph_pad.h"
 #include "ui/adsr_display.h"
 #include "ui/mod_matrix_grid.h"
@@ -631,6 +633,38 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
+    // Push chord lane parameter changes (arp-chord-lane)
+    if (chordLane_) {
+        if (tag >= kArpChordLaneStep0Id && tag < kArpChordLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpChordLaneStep0Id);
+            auto chordIdx = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4));
+            chordLane_->setStepValue(stepIndex, chordIdx);
+            chordLane_->setDirty(true);
+        } else if (tag == kArpChordLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            chordLane_->setNumSteps(steps);
+            chordLane_->setDirty(true);
+        }
+    }
+
+    // Push inversion lane parameter changes (arp-chord-lane)
+    if (inversionLane_) {
+        if (tag >= kArpInversionLaneStep0Id && tag < kArpInversionLaneStep0Id + 32) {
+            int stepIndex = static_cast<int>(tag - kArpInversionLaneStep0Id);
+            auto invIdx = static_cast<uint8_t>(
+                std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3));
+            inversionLane_->setStepValue(stepIndex, invIdx);
+            inversionLane_->setDirty(true);
+        } else if (tag == kArpInversionLaneLengthId) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            inversionLane_->setNumSteps(steps);
+            inversionLane_->setDirty(true);
+        }
+    }
+
     // 081-interaction-polish US5: Push arp Euclidean parameter changes to
     // EuclideanDotDisplay and linear overlays on bar lanes
     if (tag == kArpEuclideanHitsId || tag == kArpEuclideanStepsId ||
@@ -658,7 +692,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 
         Krate::Plugins::IArpLane* lanes[] = {
             velocityLane_, gateLane_, pitchLane_, ratchetLane_,
-            modifierLane_, conditionLane_};
+            modifierLane_, conditionLane_, chordLane_, inversionLane_};
         for (auto* lane : lanes) {
             if (lane) lane->setEuclideanOverlay(hits, steps, rot, enabled);
         }
@@ -708,6 +742,11 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (tag == kVoiceModeId) {
         if (polyGroup_) polyGroup_->setVisible(value < 0.5);
         if (monoGroup_) monoGroup_->setVisible(value >= 0.5);
+        bool isMono = value >= 0.5;
+        if (chordLane_)
+            chordLane_->setDisabled(isMono, "Chord lane requires Poly voice mode");
+        if (inversionLane_)
+            inversionLane_->setDisabled(isMono, "Inversion lane requires Poly voice mode");
     }
 
     // Harmonizer voice row dimming based on NumVoices
@@ -852,6 +891,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                         if (ratchetLane_) ratchetLane_->clearOverlays();
                         if (modifierLane_) modifierLane_->clearOverlays();
                         if (conditionLane_) conditionLane_->clearOverlays();
+                        if (chordLane_) chordLane_->clearOverlays();
+                        if (inversionLane_) inversionLane_->clearOverlays();
                     }
                     wasTransportPlaying_ = playing;
                 }
@@ -892,6 +933,8 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     pollLanePlayhead(ratchetLane_, kArpRatchetPlayheadId, 3);
                     pollLanePlayhead(modifierLane_, kArpModifierPlayheadId, 4);
                     pollLanePlayhead(conditionLane_, kArpConditionPlayheadId, 5);
+                    pollLanePlayhead(chordLane_, kArpChordPlayheadId, 6);
+                    pollLanePlayhead(inversionLane_, kArpInversionPlayheadId, 7);
                 }
             }, 33); // ~30fps
 
@@ -954,6 +997,8 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         ratchetLane_ = nullptr;
         modifierLane_ = nullptr;
         conditionLane_ = nullptr;
+        chordLane_ = nullptr;
+        inversionLane_ = nullptr;
         presetDropdown_ = nullptr;
         xyMorphPad_ = nullptr;
         modMatrixGrid_ = nullptr;
@@ -1231,6 +1276,112 @@ VSTGUI::CView* Controller::verifyView(
         }
         arpLaneContainer_->addLane(pitchLane_);
 
+        // Construct chord lane (arp-chord-lane) — after pitch, before ratchet
+        chordLane_ = new Krate::Plugins::ArpChordLane(
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
+        chordLane_->setLaneName("CHORD");
+        chordLane_->setAccentColor(VSTGUI::CColor{168, 136, 200, 255});
+        chordLane_->setStepBaseParamId(kArpChordLaneStep0Id);
+        chordLane_->setLengthParamId(kArpChordLaneLengthId);
+        chordLane_->setPlayheadParamId(kArpChordPlayheadId);
+
+        chordLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        chordLane_->setBeginEditCallback(
+            [this](uint32_t paramId) { beginEdit(paramId); });
+        chordLane_->setEndEditCallback(
+            [this](uint32_t paramId) { endEdit(paramId); });
+        chordLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                endEdit(paramId);
+            });
+
+        // Sync chord lane from host parameters
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpChordLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                float normalized = static_cast<float>(paramObj->getNormalized());
+                auto chordIdx = static_cast<uint8_t>(
+                    std::clamp(static_cast<int>(std::round(normalized * 4.0f)), 0, 4));
+                chordLane_->setStepValue(i, chordIdx);
+            }
+        }
+        {
+            auto* lenParam = getParameterObject(kArpChordLaneLengthId);
+            if (lenParam) {
+                double val = lenParam->getNormalized();
+                int steps = std::clamp(
+                    static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+                chordLane_->setNumSteps(steps);
+            }
+        }
+        arpLaneContainer_->addLane(chordLane_);
+
+        // Construct inversion lane (arp-chord-lane) — after chord, before ratchet
+        inversionLane_ = new Krate::Plugins::ArpInversionLane(
+            VSTGUI::CRect(0, 0, 500, 63), nullptr, -1);
+        inversionLane_->setLaneName("INV");
+        inversionLane_->setAccentColor(VSTGUI::CColor{136, 168, 200, 255});
+        inversionLane_->setStepBaseParamId(kArpInversionLaneStep0Id);
+        inversionLane_->setLengthParamId(kArpInversionLaneLengthId);
+        inversionLane_->setPlayheadParamId(kArpInversionPlayheadId);
+
+        inversionLane_->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        inversionLane_->setBeginEditCallback(
+            [this](uint32_t paramId) { beginEdit(paramId); });
+        inversionLane_->setEndEditCallback(
+            [this](uint32_t paramId) { endEdit(paramId); });
+        inversionLane_->setLengthParamCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                beginEdit(paramId);
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                endEdit(paramId);
+            });
+
+        // Sync inversion lane from host parameters
+        for (int i = 0; i < 32; ++i) {
+            auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpInversionLaneStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                float normalized = static_cast<float>(paramObj->getNormalized());
+                auto invIdx = static_cast<uint8_t>(
+                    std::clamp(static_cast<int>(std::round(normalized * 3.0f)), 0, 3));
+                inversionLane_->setStepValue(i, invIdx);
+            }
+        }
+        {
+            auto* lenParam = getParameterObject(kArpInversionLaneLengthId);
+            if (lenParam) {
+                double val = lenParam->getNormalized();
+                int steps = std::clamp(
+                    static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+                inversionLane_->setNumSteps(steps);
+            }
+        }
+        arpLaneContainer_->addLane(inversionLane_);
+
+        // Sync disabled state from voice mode (chord/inversion require poly)
+        {
+            auto* vmParam = getParameterObject(kVoiceModeId);
+            bool isMono = vmParam && vmParam->getNormalized() >= 0.5;
+            chordLane_->setDisabled(isMono, "Chord lane requires Poly voice mode");
+            inversionLane_->setDisabled(isMono, "Inversion lane requires Poly voice mode");
+        }
+
         // Construct ratchet lane
         ratchetLane_ = new Krate::Plugins::ArpLaneEditor(
             VSTGUI::CRect(0, 0, 500, 105), nullptr, -1);
@@ -1337,7 +1488,7 @@ VSTGUI::CView* Controller::verifyView(
         }
         arpLaneContainer_->addLane(conditionLane_);
 
-        // Wire transform callbacks for all 6 lanes (081-interaction-polish, T049)
+        // Wire transform callbacks for all 8 lanes (081-interaction-polish, T049)
         auto wireBarLaneTransform = [this](
             Krate::Plugins::ArpLaneEditor* lane, uint32_t stepBaseParamId) {
             if (!lane) return;
@@ -1406,6 +1557,50 @@ VSTGUI::CView* Controller::verifyView(
                             newValues[static_cast<size_t>(i)]);
                     }
                     conditionLane_->setDirty(true);
+                });
+        }
+
+        if (chordLane_) {
+            chordLane_->setTransformCallback(
+                [this](int transformType) {
+                    auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                    auto newValues = chordLane_->computeTransform(type);
+                    int32_t len = chordLane_->getActiveLength();
+                    for (int32_t i = 0; i < len; ++i) {
+                        uint32_t paramId = kArpChordLaneStep0Id +
+                            static_cast<uint32_t>(i);
+                        beginEdit(paramId);
+                        performEdit(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        endEdit(paramId);
+                    }
+                    for (int32_t i = 0; i < len; ++i) {
+                        chordLane_->setNormalizedStepValue(i,
+                            newValues[static_cast<size_t>(i)]);
+                    }
+                    chordLane_->setDirty(true);
+                });
+        }
+
+        if (inversionLane_) {
+            inversionLane_->setTransformCallback(
+                [this](int transformType) {
+                    auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                    auto newValues = inversionLane_->computeTransform(type);
+                    int32_t len = inversionLane_->getActiveLength();
+                    for (int32_t i = 0; i < len; ++i) {
+                        uint32_t paramId = kArpInversionLaneStep0Id +
+                            static_cast<uint32_t>(i);
+                        beginEdit(paramId);
+                        performEdit(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        setParamNormalized(paramId, static_cast<double>(newValues[static_cast<size_t>(i)]));
+                        endEdit(paramId);
+                    }
+                    for (int32_t i = 0; i < len; ++i) {
+                        inversionLane_->setNormalizedStepValue(i,
+                            newValues[static_cast<size_t>(i)]);
+                    }
+                    inversionLane_->setDirty(true);
                 });
         }
 
@@ -1854,6 +2049,34 @@ void Controller::syncAllViews() {
         conditionLane_->setDirty(true);
     }
 
+    // Chord lane (chord type indices)
+    if (chordLane_) {
+        for (int i = 0; i < 32; ++i) {
+            auto chordIdx = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(
+                    paramNorm(kArpChordLaneStep0Id + static_cast<uint32_t>(i)) * 4.0)),
+                0, 4));
+            chordLane_->setStepValue(i, chordIdx);
+        }
+        int steps = paramInt(kArpChordLaneLengthId, 31.0, 1.0, 1, 32);
+        chordLane_->setNumSteps(steps);
+        chordLane_->setDirty(true);
+    }
+
+    // Inversion lane (inversion indices)
+    if (inversionLane_) {
+        for (int i = 0; i < 32; ++i) {
+            auto invIdx = static_cast<uint8_t>(std::clamp(
+                static_cast<int>(std::round(
+                    paramNorm(kArpInversionLaneStep0Id + static_cast<uint32_t>(i)) * 3.0)),
+                0, 3));
+            inversionLane_->setStepValue(i, invIdx);
+        }
+        int steps = paramInt(kArpInversionLaneLengthId, 31.0, 1.0, 1, 32);
+        inversionLane_->setNumSteps(steps);
+        inversionLane_->setDirty(true);
+    }
+
     // ---- Arp Euclidean overlay + dot display ----
     {
         int arpEucHits = paramInt(kArpEuclideanHitsId, 32.0, 0.0, 0, 32);
@@ -1869,7 +2092,7 @@ void Controller::syncAllViews() {
 
         Krate::Plugins::IArpLane* lanes[] = {
             velocityLane_, gateLane_, pitchLane_, ratchetLane_,
-            modifierLane_, conditionLane_};
+            modifierLane_, conditionLane_, chordLane_, inversionLane_};
         for (auto* lane : lanes) {
             if (lane) lane->setEuclideanOverlay(arpEucHits, arpEucSteps, arpEucRot, arpEucEnabled);
         }
@@ -1901,6 +2124,11 @@ void Controller::syncAllViews() {
         double vm = paramNorm(kVoiceModeId);
         if (polyGroup_) polyGroup_->setVisible(vm < 0.5);
         if (monoGroup_) monoGroup_->setVisible(vm >= 0.5);
+        bool isMono = vm >= 0.5;
+        if (chordLane_)
+            chordLane_->setDisabled(isMono, "Chord lane requires Poly voice mode");
+        if (inversionLane_)
+            inversionLane_->setDisabled(isMono, "Inversion lane requires Poly voice mode");
     }
 
     // ---- Harmonizer voice row dimming ----

@@ -17,6 +17,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <string>
 
 namespace Krate::Plugins {
 
@@ -76,7 +77,9 @@ enum class ClipboardLaneType {
     kPitch = 2,      // 0.0-1.0 normalized (represents -24..+24 semitones)
     kRatchet = 3,    // 0.0-1.0 normalized (represents 1-4 discrete)
     kModifier = 4,   // 0.0-1.0 normalized (represents bitmask 0-15)
-    kCondition = 5   // 0.0-1.0 normalized (represents index 0-17)
+    kCondition = 5,  // 0.0-1.0 normalized (represents index 0-17)
+    kChord = 6,      // 0.0-1.0 normalized (represents index 0-4: None/Dyad/Triad/7th/9th)
+    kInversion = 7   // 0.0-1.0 normalized (represents index 0-3: Root/1st/2nd/3rd)
 };
 
 struct LaneClipboard {
@@ -172,6 +175,16 @@ public:
     /// Non-bar lanes (ArpModifierLane, ArpConditionLane) ignore the overlay.
     virtual void setEuclideanOverlay(int hits, int steps, int rotation,
                                      bool enabled) = 0;
+
+    /// Set the lane as disabled with an overlay message.
+    /// When disabled, the lane is greyed out and mouse interaction is blocked.
+    virtual void setDisabled(bool disabled, const std::string& message = {}) {
+        (void)disabled; (void)message;
+        // Default no-op for lanes that don't support disabling
+    }
+
+    /// Whether the lane is currently disabled.
+    [[nodiscard]] virtual bool isDisabled() const { return false; }
 };
 
 } // namespace Krate::Plugins

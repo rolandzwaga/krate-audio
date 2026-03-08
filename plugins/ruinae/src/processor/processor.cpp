@@ -1844,6 +1844,32 @@ void Processor::applyParamsToEngine() {
         arpCore_.setScaleQuantizeInput(quantize);
     }
 
+    // --- Chord Lane (arp-chord-lane) ---
+    {
+        const auto chordLen = arpParams_.chordLaneLength.load(std::memory_order_relaxed);
+        arpCore_.chordLane().setLength(32);  // Expand first
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                arpParams_.chordLaneSteps[i].load(std::memory_order_relaxed), 0, 4);
+            arpCore_.chordLane().setStep(
+                static_cast<size_t>(i), static_cast<uint8_t>(val));
+        }
+        arpCore_.chordLane().setLength(static_cast<size_t>(chordLen));  // Shrink to actual
+    }
+    {
+        const auto invLen = arpParams_.inversionLaneLength.load(std::memory_order_relaxed);
+        arpCore_.inversionLane().setLength(32);  // Expand first
+        for (int i = 0; i < 32; ++i) {
+            int val = std::clamp(
+                arpParams_.inversionLaneSteps[i].load(std::memory_order_relaxed), 0, 3);
+            arpCore_.inversionLane().setStep(
+                static_cast<size_t>(i), static_cast<uint8_t>(val));
+        }
+        arpCore_.inversionLane().setLength(static_cast<size_t>(invLen));  // Shrink to actual
+    }
+    arpCore_.setVoicingMode(static_cast<Krate::DSP::VoicingMode>(
+        arpParams_.voicingMode.load(std::memory_order_relaxed)));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpOpModeParam != kArpOff);
 }

@@ -454,7 +454,10 @@ public:
         }
 
         // Left-click: open COptionMenu popup
-        VSTGUI::CRect menuRect(where.x, where.y, where.x + 1, where.y + 1);
+        VSTGUI::CPoint frameWhere(where);
+        localToFrame(frameWhere);
+        VSTGUI::CRect menuRect(frameWhere.x, frameWhere.y,
+                                frameWhere.x + 1, frameWhere.y + 1);
         auto* menu = new VSTGUI::COptionMenu(menuRect, nullptr, -1);
 
         for (int i = 0; i < kConditionCount; ++i) {
@@ -469,7 +472,7 @@ public:
 
         // Show popup
         menu->setListener(nullptr);
-        menu->popup(getFrame(), where);
+        menu->popup(getFrame(), frameWhere);
 
         int selectedIndex = menu->getCurrentIndex();
         if (selectedIndex >= 0 && selectedIndex < kConditionCount) {

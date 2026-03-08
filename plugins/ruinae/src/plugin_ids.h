@@ -17,7 +17,7 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 3;
+constexpr Steinberg::int32 kCurrentStateVersion = 4;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -1074,12 +1074,87 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpRootNoteId            = 3301,   // discrete: 0-11 (StringListParameter, 12 entries)
     kArpScaleQuantizeInputId  = 3302,   // discrete: 0-1 (toggle, default off)
     kArpMidiOutId             = 3303,   // discrete: 0-1 (toggle, default off)
-    // 3304-3399: reserved for future arp params
 
-    kArpEndId = 3303,
+    // --- Chord Lane (arp-chord-lane, 3304-3336) ---
+    kArpChordLaneLengthId     = 3304,   // discrete: 1-32
+    kArpChordLaneStep0Id      = 3305,   // discrete: 0-4 (None/Dyad/Triad/7th/9th)
+    kArpChordLaneStep1Id      = 3306,
+    kArpChordLaneStep2Id      = 3307,
+    kArpChordLaneStep3Id      = 3308,
+    kArpChordLaneStep4Id      = 3309,
+    kArpChordLaneStep5Id      = 3310,
+    kArpChordLaneStep6Id      = 3311,
+    kArpChordLaneStep7Id      = 3312,
+    kArpChordLaneStep8Id      = 3313,
+    kArpChordLaneStep9Id      = 3314,
+    kArpChordLaneStep10Id     = 3315,
+    kArpChordLaneStep11Id     = 3316,
+    kArpChordLaneStep12Id     = 3317,
+    kArpChordLaneStep13Id     = 3318,
+    kArpChordLaneStep14Id     = 3319,
+    kArpChordLaneStep15Id     = 3320,
+    kArpChordLaneStep16Id     = 3321,
+    kArpChordLaneStep17Id     = 3322,
+    kArpChordLaneStep18Id     = 3323,
+    kArpChordLaneStep19Id     = 3324,
+    kArpChordLaneStep20Id     = 3325,
+    kArpChordLaneStep21Id     = 3326,
+    kArpChordLaneStep22Id     = 3327,
+    kArpChordLaneStep23Id     = 3328,
+    kArpChordLaneStep24Id     = 3329,
+    kArpChordLaneStep25Id     = 3330,
+    kArpChordLaneStep26Id     = 3331,
+    kArpChordLaneStep27Id     = 3332,
+    kArpChordLaneStep28Id     = 3333,
+    kArpChordLaneStep29Id     = 3334,
+    kArpChordLaneStep30Id     = 3335,
+    kArpChordLaneStep31Id     = 3336,
+
+    // --- Inversion Lane (arp-chord-lane, 3337-3369) ---
+    kArpInversionLaneLengthId = 3337,   // discrete: 1-32
+    kArpInversionLaneStep0Id  = 3338,   // discrete: 0-3 (Root/1st/2nd/3rd)
+    kArpInversionLaneStep1Id  = 3339,
+    kArpInversionLaneStep2Id  = 3340,
+    kArpInversionLaneStep3Id  = 3341,
+    kArpInversionLaneStep4Id  = 3342,
+    kArpInversionLaneStep5Id  = 3343,
+    kArpInversionLaneStep6Id  = 3344,
+    kArpInversionLaneStep7Id  = 3345,
+    kArpInversionLaneStep8Id  = 3346,
+    kArpInversionLaneStep9Id  = 3347,
+    kArpInversionLaneStep10Id = 3348,
+    kArpInversionLaneStep11Id = 3349,
+    kArpInversionLaneStep12Id = 3350,
+    kArpInversionLaneStep13Id = 3351,
+    kArpInversionLaneStep14Id = 3352,
+    kArpInversionLaneStep15Id = 3353,
+    kArpInversionLaneStep16Id = 3354,
+    kArpInversionLaneStep17Id = 3355,
+    kArpInversionLaneStep18Id = 3356,
+    kArpInversionLaneStep19Id = 3357,
+    kArpInversionLaneStep20Id = 3358,
+    kArpInversionLaneStep21Id = 3359,
+    kArpInversionLaneStep22Id = 3360,
+    kArpInversionLaneStep23Id = 3361,
+    kArpInversionLaneStep24Id = 3362,
+    kArpInversionLaneStep25Id = 3363,
+    kArpInversionLaneStep26Id = 3364,
+    kArpInversionLaneStep27Id = 3365,
+    kArpInversionLaneStep28Id = 3366,
+    kArpInversionLaneStep29Id = 3367,
+    kArpInversionLaneStep30Id = 3368,
+    kArpInversionLaneStep31Id = 3369,
+
+    // --- Voicing & Playheads (arp-chord-lane, 3370-3372) ---
+    kArpVoicingModeId         = 3370,   // discrete: 0-3 (Close/Drop2/Spread/Random)
+    kArpChordPlayheadId       = 3371,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
+    kArpInversionPlayheadId   = 3372,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
+    // 3373-3399: reserved for future arp params
+
+    kArpEndId = 3372,
 
     // ==========================================================================
-    kNumParameters = 3304,
+    kNumParameters = 3373,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

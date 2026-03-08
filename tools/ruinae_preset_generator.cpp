@@ -157,6 +157,37 @@ void setConditionLane(RuinaePresetState& s, int32_t length,
     s.arp.fillToggle = fillToggle;
 }
 
+// Chord type constants
+static constexpr int32_t kChordNone  = 0;
+static constexpr int32_t kChordDyad  = 1;
+static constexpr int32_t kChordTriad = 2;
+static constexpr int32_t kChord7th   = 3;
+static constexpr int32_t kChord9th   = 4;
+
+// Inversion constants
+static constexpr int32_t kInvRoot = 0;
+static constexpr int32_t kInv1st  = 1;
+static constexpr int32_t kInv2nd  = 2;
+static constexpr int32_t kInv3rd  = 3;
+
+void setChordLane(RuinaePresetState& s, int32_t length,
+                  const int32_t* steps) {
+    s.arp.chordLaneLength = std::clamp(length, 1, 32);
+    for (int i = 0; i < length && i < 32; ++i)
+        s.arp.chordLaneSteps[i] = steps[i];
+}
+
+void setInversionLane(RuinaePresetState& s, int32_t length,
+                      const int32_t* steps) {
+    s.arp.inversionLaneLength = std::clamp(length, 1, 32);
+    for (int i = 0; i < length && i < 32; ++i)
+        s.arp.inversionLaneSteps[i] = steps[i];
+}
+
+void setVoicingMode(RuinaePresetState& s, int32_t mode) {
+    s.arp.voicingMode = mode;
+}
+
 void setEuclidean(RuinaePresetState& s, bool enabled, int32_t hits,
                   int32_t steps, int32_t rotation) {
     s.arp.euclideanEnabled = enabled ? 1 : 0;
@@ -728,6 +759,206 @@ std::vector<PresetDef> createAllPresets() {
         // Ratchet lane length=8 (values 1-4: 1,2,1,2,1,2,1,2)
         int32_t ratch8[] = {1, 2, 1, 2, 1, 2, 1, 2};
         setRatchetLane(p.state, 8, ratch8);
+        presets.push_back(std::move(p));
+    }
+
+    // ==================== Arp Chords Category (5 presets) ====================
+
+    // "Diatonic Triads" - Rising triads in C Major, classic arpeggiated chords
+    {
+        PresetDef p;
+        p.name = "Diatonic Triads";
+        p.category = "Arp Chords";
+        setSynthPad(p.state);
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 90.0f);
+        p.state.arp.octaveRange = 2;
+        // Scale: C Major for proper diatonic chord stacking
+        p.state.arp.scaleType = 0;  // Major
+        p.state.arp.rootNote = 0;   // C
+        // Chord lane: alternating triads and single notes
+        int32_t chords8[] = {
+            kChordTriad, kChordNone, kChordTriad, kChordNone,
+            kChordTriad, kChordNone, kChordTriad, kChordNone
+        };
+        setChordLane(p.state, 8, chords8);
+        // Velocity: strong on chord steps, softer on single notes
+        float vel8[] = {1.0f, 0.6f, 0.9f, 0.5f, 0.85f, 0.55f, 0.95f, 0.5f};
+        setVelocityLane(p.state, 8, vel8);
+        // Reverb for lush chord tails
+        p.state.reverbEnabled = 1;
+        p.state.reverb.size = 0.7f;
+        p.state.reverb.mix = 0.35f;
+        p.state.reverb.damping = 0.4f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Minor 7th Pulse" - Dark minor 7th chords with rhythmic gate
+    {
+        PresetDef p;
+        p.name = "Minor 7th Pulse";
+        p.category = "Arp Chords";
+        setSynthBass(p.state);
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeAsPlayed);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 60.0f);
+        // Scale: A Natural Minor
+        p.state.arp.scaleType = 1;  // NaturalMinor
+        p.state.arp.rootNote = 9;   // A
+        // Chord lane: 7th chords on downbeats, dyads on offbeats
+        int32_t chords8[] = {
+            kChord7th, kChordDyad, kChordNone, kChordDyad,
+            kChord7th, kChordNone, kChordDyad, kChordNone
+        };
+        setChordLane(p.state, 8, chords8);
+        // Inversion lane: vary voicings across steps
+        int32_t inv8[] = {
+            kInvRoot, kInv1st, kInvRoot, kInv2nd,
+            kInv1st, kInvRoot, kInv2nd, kInvRoot
+        };
+        setInversionLane(p.state, 8, inv8);
+        // Short staccato gate for pulse feel
+        float gate8[] = {0.8f, 0.4f, 0.3f, 0.4f, 0.8f, 0.3f, 0.5f, 0.3f};
+        setGateLane(p.state, 8, gate8);
+        // Delay for rhythmic depth
+        p.state.delayEnabled = 1;
+        p.state.delay.mix = 0.25f;
+        p.state.delay.feedback = 0.35f;
+        p.state.delay.sync = 1;
+        p.state.delay.noteValue = kNote1_8D;
+        presets.push_back(std::move(p));
+    }
+
+    // "Chord Cascade" - Polymetric chord/inversion evolving pattern
+    {
+        PresetDef p;
+        p.name = "Chord Cascade";
+        p.category = "Arp Chords";
+        setSynthPad(p.state);
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 85.0f);
+        p.state.arp.octaveRange = 2;
+        // Scale: D Dorian
+        p.state.arp.scaleType = 4;  // Dorian
+        p.state.arp.rootNote = 2;   // D
+        // Chord lane length=5 (polymetric against 7-step inversion)
+        int32_t chords5[] = {
+            kChordTriad, kChordDyad, kChord7th, kChordTriad, kChordNone
+        };
+        setChordLane(p.state, 5, chords5);
+        // Inversion lane length=7 (polymetric)
+        int32_t inv7[] = {
+            kInvRoot, kInv1st, kInv2nd, kInvRoot, kInv1st, kInv2nd, kInv3rd
+        };
+        setInversionLane(p.state, 7, inv7);
+        // Pitch lane length=3 for extra polymetry
+        int32_t pitch3[] = {0, 5, -3};
+        setPitchLane(p.state, 3, pitch3);
+        // Velocity 4 steps
+        float vel4[] = {0.9f, 0.6f, 0.8f, 0.5f};
+        setVelocityLane(p.state, 4, vel4);
+        // Reverb + delay for wash
+        p.state.reverbEnabled = 1;
+        p.state.reverb.size = 0.8f;
+        p.state.reverb.mix = 0.4f;
+        p.state.delayEnabled = 1;
+        p.state.delay.mix = 0.2f;
+        p.state.delay.feedback = 0.4f;
+        p.state.delay.sync = 1;
+        p.state.delay.noteValue = kNote1_8;
+        presets.push_back(std::move(p));
+    }
+
+    // "Spread Ninths" - Wide voicing 9th chords, ambient
+    {
+        PresetDef p;
+        p.name = "Spread Ninths";
+        p.category = "Arp Chords";
+        setSynthPad(p.state);
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_4);
+        setArpGateLength(p.state, 100.0f);
+        // Scale: F Lydian for bright 9th chords
+        p.state.arp.scaleType = 7;  // Lydian
+        p.state.arp.rootNote = 5;   // F
+        // Spread voicing for wide register
+        setVoicingMode(p.state, 2);  // Spread
+        // Chord lane: all 9th chords
+        int32_t chords4[] = {kChord9th, kChord9th, kChord7th, kChord9th};
+        setChordLane(p.state, 4, chords4);
+        // Inversion: cycle through
+        int32_t inv4[] = {kInvRoot, kInv1st, kInv2nd, kInvRoot};
+        setInversionLane(p.state, 4, inv4);
+        // Slow velocity swell
+        float vel4[] = {0.5f, 0.7f, 0.85f, 1.0f};
+        setVelocityLane(p.state, 4, vel4);
+        // Heavy reverb for ambient
+        p.state.reverbEnabled = 1;
+        p.state.reverb.size = 0.9f;
+        p.state.reverb.mix = 0.5f;
+        p.state.reverb.damping = 0.3f;
+        p.state.reverb.diffusion = 0.8f;
+        presets.push_back(std::move(p));
+    }
+
+    // "Stab Machine" - Rhythmic chord stabs with ratchets
+    {
+        PresetDef p;
+        p.name = "Stab Machine";
+        p.category = "Arp Chords";
+        setSynthBass(p.state);
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeAsPlayed);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 50.0f);
+        setArpSwing(p.state, 15.0f);
+        // Scale: G Mixolydian for funky dominant feel
+        p.state.arp.scaleType = 5;  // Mixolydian
+        p.state.arp.rootNote = 7;   // G
+        // Chord lane: stabs on strong beats, rests between
+        int32_t chords16[] = {
+            kChordTriad, kChordNone, kChordNone, kChordDyad,
+            kChordNone, kChordTriad, kChordNone, kChordNone,
+            kChordDyad, kChordNone, kChordNone, kChordTriad,
+            kChordNone, kChordDyad, kChordNone, kChordNone
+        };
+        setChordLane(p.state, 16, chords16);
+        // Inversion: root position on triads, 1st on dyads for tighter voicing
+        int32_t inv16[] = {
+            kInvRoot, kInvRoot, kInvRoot, kInv1st,
+            kInvRoot, kInvRoot, kInvRoot, kInvRoot,
+            kInv1st, kInvRoot, kInvRoot, kInv2nd,
+            kInvRoot, kInv1st, kInvRoot, kInvRoot
+        };
+        setInversionLane(p.state, 16, inv16);
+        // Ratchet for rhythmic interest
+        int32_t ratch8[] = {1, 1, 2, 1, 1, 1, 2, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Velocity: accented stabs
+        float vel16[] = {
+            1.0f, 0.4f, 0.3f, 0.8f,
+            0.3f, 0.95f, 0.3f, 0.3f,
+            0.75f, 0.3f, 0.3f, 0.9f,
+            0.3f, 0.7f, 0.3f, 0.3f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        // Delay for groove
+        p.state.delayEnabled = 1;
+        p.state.delay.mix = 0.2f;
+        p.state.delay.feedback = 0.3f;
+        p.state.delay.sync = 1;
+        p.state.delay.noteValue = kNote1_16D;
         presets.push_back(std::move(p));
     }
 

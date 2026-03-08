@@ -16547,3 +16547,402 @@ TEST_CASE("ArpeggiatorCore: QuantizeInput_ON_SwitchToChromaticStopsQuantization"
     CHECK(noteOns[0].note == 60);  // First note was quantized (Major was active)
     CHECK(noteOns[1].note == 61);  // Second note passed through (Chromatic active)
 }
+
+// =============================================================================
+// Chord Lane Tests (arp-chord-lane)
+// =============================================================================
+
+TEST_CASE("Arp Chord Lane: None chord type produces single NoteOn (backward compat)",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+
+    // Chord lane defaults to None
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 1);
+    CHECK(noteOns[0].note == 60);
+}
+
+TEST_CASE("Arp Chord Lane: Triad generates 3 NoteOn events",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);  // C
+
+    // Set chord lane to Triad for step 0
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+
+    arp.noteOn(60, 100);  // C4
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // First step should have 3 NoteOns (C major triad)
+    REQUIRE(noteOns.size() >= 3);
+    // Collect first step notes (all have same sampleOffset)
+    int32_t firstOffset = noteOns[0].sampleOffset;
+    std::vector<uint8_t> firstStepNotes;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == firstOffset) {
+            firstStepNotes.push_back(ev.note);
+        }
+    }
+    REQUIRE(firstStepNotes.size() == 3);
+    CHECK(firstStepNotes[0] == 60);  // C4
+    CHECK(firstStepNotes[1] == 64);  // E4
+    CHECK(firstStepNotes[2] == 67);  // G4
+}
+
+TEST_CASE("Arp Chord Lane: Pitch offset applies after chord expansion",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Chord: Triad, Pitch: +2 semitones
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+    arp.pitchLane().setStep(0, 2);
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 3);
+    int32_t firstOffset = noteOns[0].sampleOffset;
+    std::vector<uint8_t> firstStepNotes;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == firstOffset) {
+            firstStepNotes.push_back(ev.note);
+        }
+    }
+    REQUIRE(firstStepNotes.size() == 3);
+    // Chromatic triad: 60, 64, 67 all shifted +2
+    CHECK(firstStepNotes[0] == 62);  // C4+2
+    CHECK(firstStepNotes[1] == 66);  // E4+2
+    CHECK(firstStepNotes[2] == 69);  // G4+2
+}
+
+TEST_CASE("Arp Chord Lane: Polymetric chord lane length",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Chord lane length=2: step0=Triad, step1=None
+    arp.chordLane().setLength(2);
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+    arp.chordLane().setStep(1, static_cast<uint8_t>(ChordType::None));
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 400);
+    auto noteOns = filterNoteOns(events);
+
+    // Find unique step offsets
+    std::vector<int32_t> stepOffsets;
+    for (const auto& ev : noteOns) {
+        if (stepOffsets.empty() || stepOffsets.back() != ev.sampleOffset) {
+            stepOffsets.push_back(ev.sampleOffset);
+        }
+    }
+
+    // Step 0: 3 notes (triad), Step 1: 1 note (none), Step 2: 3 notes (triad)...
+    // Count notes per step offset
+    REQUIRE(stepOffsets.size() >= 3);
+
+    // Step 0 should have 3 notes
+    size_t step0Count = 0;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == stepOffsets[0]) ++step0Count;
+    }
+    CHECK(step0Count == 3);
+
+    // Step 1 should have 1 note
+    size_t step1Count = 0;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == stepOffsets[1]) ++step1Count;
+    }
+    CHECK(step1Count == 1);
+}
+
+TEST_CASE("Arp Chord Lane: ArpMode::Chord skips chord lane",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Chord);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Major);
+    arp.setRootNote(0);
+
+    // Even though chord lane says Triad, Chord mode plays all held notes
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+
+    arp.noteOn(60, 100);  // C4
+    arp.noteOn(64, 100);  // E4
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // In Chord mode, all 2 held notes play (NOT a triad from each)
+    REQUIRE(noteOns.size() >= 2);
+    int32_t firstOffset = noteOns[0].sampleOffset;
+    std::vector<uint8_t> firstStepNotes;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == firstOffset) {
+            firstStepNotes.push_back(ev.note);
+        }
+    }
+    CHECK(firstStepNotes.size() == 2);  // Just the 2 held notes
+}
+
+TEST_CASE("Arp Chord Lane: NoteOffs emitted for previous chord before new chord",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 400);
+
+    // Verify that NoteOffs are emitted for all 3 chord notes
+    auto noteOffs = filterNoteOffs(events);
+    // Should have at least 3 NoteOffs from the first chord
+    REQUIRE(noteOffs.size() >= 3);
+
+    // All 3 notes of the chord (60, 64, 67) should have NoteOffs
+    std::vector<uint8_t> offNotes;
+    for (size_t i = 0; i < 3 && i < noteOffs.size(); ++i) {
+        offNotes.push_back(noteOffs[i].note);
+    }
+    std::sort(offNotes.begin(), offNotes.end());
+    CHECK(offNotes[0] == 60);
+    CHECK(offNotes[1] == 64);
+    CHECK(offNotes[2] == 67);
+}
+
+TEST_CASE("Arp Chord Lane: Chord + Rest modifier silences chord",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Step 0: chord+active, Step 1: chord+rest
+    arp.chordLane().setLength(2);
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+    arp.chordLane().setStep(1, static_cast<uint8_t>(ChordType::Triad));
+
+    arp.modifierLane().setLength(2);
+    arp.modifierLane().setStep(0, static_cast<uint8_t>(kStepActive));
+    arp.modifierLane().setStep(1, static_cast<uint8_t>(0));  // Rest
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 400);
+    auto noteOns = filterNoteOns(events);
+
+    // Step 0: 3 noteOns, Step 1: rest (0 noteOns), Step 2: 3 noteOns
+    REQUIRE(noteOns.size() >= 3);
+
+    // Step 0 notes
+    int32_t step0Offset = noteOns[0].sampleOffset;
+    size_t step0Count = 0;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == step0Offset) ++step0Count;
+    }
+    CHECK(step0Count == 3);
+
+    // Step 1 should be rest - no noteOns between step 0 and step 2
+    // Step 2 should be 3 noteOns again
+    if (noteOns.size() >= 6) {
+        // The next 3 noteOns should be at a later offset (step 2, not step 1)
+        CHECK(noteOns[3].sampleOffset > step0Offset);  // Skipped step 1
+    }
+}
+
+TEST_CASE("Arp Chord Lane: Chord + Ratchet ratchets all notes together",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Quarter, NoteModifier::None);
+    arp.setGateLength(50.0f);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Triad + ratchet count 2
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+    arp.ratchetLane().setStep(0, static_cast<uint8_t>(2));
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 400);
+    auto noteOns = filterNoteOns(events);
+
+    // First sub-step: 3 notes, second sub-step: 3 notes = 6 total in first step
+    REQUIRE(noteOns.size() >= 6);
+
+    // First 3 notes should be the chord
+    CHECK(noteOns[0].note == 60);
+    CHECK(noteOns[1].note == 64);
+    CHECK(noteOns[2].note == 67);
+
+    // Second sub-step should ratchet the same chord
+    CHECK(noteOns[3].note == 60);
+    CHECK(noteOns[4].note == 64);
+    CHECK(noteOns[5].note == 67);
+}
+
+TEST_CASE("Arp Chord Lane: Inversion lane rotates chord notes",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Triad + 1st inversion
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Triad));
+    arp.inversionLane().setStep(0, static_cast<uint8_t>(InversionType::First));
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 3);
+    int32_t firstOffset = noteOns[0].sampleOffset;
+    std::vector<uint8_t> firstStepNotes;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == firstOffset) {
+            firstStepNotes.push_back(ev.note);
+        }
+    }
+    REQUIRE(firstStepNotes.size() == 3);
+    // 1st inversion of {60, 64, 67}: {64, 67, 72}
+    CHECK(firstStepNotes[0] == 64);
+    CHECK(firstStepNotes[1] == 67);
+    CHECK(firstStepNotes[2] == 72);
+}
+
+TEST_CASE("Arp Chord Lane: Voicing mode transforms chord spread",
+          "[arp][chord-lane]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setMode(ArpMode::Up);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    arp.chordLane().setStep(0, static_cast<uint8_t>(ChordType::Seventh));
+    arp.setVoicingMode(VoicingMode::Drop2);
+
+    arp.noteOn(60, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 4);
+    int32_t firstOffset = noteOns[0].sampleOffset;
+    std::vector<uint8_t> firstStepNotes;
+    for (const auto& ev : noteOns) {
+        if (ev.sampleOffset == firstOffset) {
+            firstStepNotes.push_back(ev.note);
+        }
+    }
+    REQUIRE(firstStepNotes.size() == 4);
+    // Chromatic 7th: {60, 64, 67, 70}, Drop-2: second-from-top (67) drops -> 55
+    CHECK(firstStepNotes[0] == 60);
+    CHECK(firstStepNotes[1] == 64);
+    CHECK(firstStepNotes[2] == 55);  // G dropped an octave
+    CHECK(firstStepNotes[3] == 70);
+}

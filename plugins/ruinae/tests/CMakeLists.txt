@@ -81,6 +81,9 @@ add_executable(ruinae_tests
     # Preset Browser Tests (083-ruinae-preset-browser)
     unit/controller/preset_browser_test.cpp
 
+    # Chord/Inversion Lane Disabled State Tests (arp-chord-lane)
+    unit/controller/chord_lane_disabled_test.cpp
+
     # Preset Format Compatibility Tests (generator ↔ processor)
     unit/preset_format_compat_test.cpp
 

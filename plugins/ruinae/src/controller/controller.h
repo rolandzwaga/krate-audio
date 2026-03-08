@@ -41,6 +41,8 @@ class ArpLaneEditor;
 class ArpLaneContainer;
 class ArpModifierLane;
 class ArpConditionLane;
+class ArpChordLane;
+class ArpInversionLane;
 class XYMorphPad;
 class ADSRDisplay;
 class ModMatrixGrid;
@@ -310,6 +312,8 @@ private:
     Krate::Plugins::ArpLaneEditor* ratchetLane_ = nullptr;
     Krate::Plugins::ArpModifierLane* modifierLane_ = nullptr;
     Krate::Plugins::ArpConditionLane* conditionLane_ = nullptr;
+    Krate::Plugins::ArpChordLane* chordLane_ = nullptr;
+    Krate::Plugins::ArpInversionLane* inversionLane_ = nullptr;
 
     /// Poly/Mono visibility groups - toggled by voice mode
     VSTGUI::CView* polyGroup_ = nullptr;
@@ -417,10 +421,10 @@ private:
     /// Trail polling timer (~30fps), drives playhead trail rendering in all lanes
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> trailTimer_;
 
-    /// Per-lane trail state (6 lanes: vel, gate, pitch, ratchet, modifier, condition)
-    static constexpr int kArpLaneCount = 6;
-    std::array<Krate::Plugins::PlayheadTrailState, 6> laneTrailStates_{};
-    std::array<int32_t, 6> lastPolledSteps_{-1, -1, -1, -1, -1, -1};
+    /// Per-lane trail state (8 lanes: vel, gate, pitch, ratchet, modifier, condition, chord, inversion)
+    static constexpr int kArpLaneCount = 8;
+    std::array<Krate::Plugins::PlayheadTrailState, 8> laneTrailStates_{};
+    std::array<int32_t, 8> lastPolledSteps_{-1, -1, -1, -1, -1, -1, -1, -1};
     bool wasTransportPlaying_ = false;  ///< Track transport state for stop→clear
 
     // ==========================================================================

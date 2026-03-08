@@ -5,6 +5,19 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-03-08
+
+### Added
+
+- **Arpeggiator Chord Lane** — New per-step chord type lane (None/Dyad/Triad/7th/9th) that generates chords by stacking diatonic scale degrees using the arp's scale harmonizer. Transforms the arpeggiator from a single-note sequencer into a harmonic sequencer
+- **Arpeggiator Inversion Lane** — Per-step chord inversion control (Root/1st/2nd/3rd) for voice-leading variety across the pattern
+- **Global Voicing Mode** — Close, Drop-2, Spread, and Random voicing options that control how chord notes are distributed across registers
+- **5 new "Arp Chords" factory presets** — Diatonic Triads, Minor 7th Pulse, Chord Cascade, Spread Ninths, Stab Machine
+
+### Fixed
+
+- **Condition lane popup menu positioning** — COptionMenu popups on condition, chord, and inversion lanes now appear at the clicked step instead of at an incorrect offset
+
 ## [0.9.7] - 2026-03-08
 
 ### Added

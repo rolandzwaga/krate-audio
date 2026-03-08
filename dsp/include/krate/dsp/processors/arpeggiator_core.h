@@ -17,6 +17,7 @@
 #pragma once
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/chord_generator.h>
 #include <krate/dsp/core/euclidean_pattern.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/random.h>
@@ -183,6 +184,10 @@ public:
         // but explicit set for clarity and consistency.
         conditionLane_.setStep(0, static_cast<uint8_t>(TrigCondition::Always));
 
+        // arp-chord-lane: initialize chord/inversion lane defaults
+        // ChordType::None (0) and InversionType::Root (0) = single note behavior.
+        // ArpLane<uint8_t> zero-initializes to 0, which is correct for both.
+
         // 077-spice-dice-humanize: initialize overlay arrays to identity (FR-002)
         // velocity = 1.0 (full passthrough), gate = 1.0 (full passthrough),
         // ratchet = 1 (no subdivision), condition = 0 (Always)
@@ -318,6 +323,7 @@ public:
     /// @brief Set arp mode, delegating to NoteSelector (FR-009).
     /// Also resets swingStepCounter_ to 0 so next step gets even timing.
     inline void setMode(ArpMode mode) noexcept {
+        arpMode_ = mode;
         selector_.setMode(mode);  // setMode() calls reset() internally
         swingStepCounter_ = 0;
     }
@@ -502,6 +508,32 @@ public:
     [[nodiscard]] const ArpLane<uint8_t>& conditionLane() const noexcept {
         return conditionLane_;
     }
+
+    // =========================================================================
+    // Chord Lane Accessors (arp-chord-lane)
+    // =========================================================================
+
+    /// @brief Access the chord type lane for reading/writing step values.
+    ArpLane<uint8_t>& chordLane() noexcept { return chordLane_; }
+
+    /// @brief Const access to the chord type lane.
+    [[nodiscard]] const ArpLane<uint8_t>& chordLane() const noexcept {
+        return chordLane_;
+    }
+
+    /// @brief Access the inversion lane for reading/writing step values.
+    ArpLane<uint8_t>& inversionLane() noexcept { return inversionLane_; }
+
+    /// @brief Const access to the inversion lane.
+    [[nodiscard]] const ArpLane<uint8_t>& inversionLane() const noexcept {
+        return inversionLane_;
+    }
+
+    /// @brief Set the global voicing mode.
+    void setVoicingMode(VoicingMode mode) noexcept { voicingMode_ = mode; }
+
+    /// @brief Get the current voicing mode.
+    [[nodiscard]] VoicingMode voicingMode() const noexcept { return voicingMode_; }
 
     // =========================================================================
     // Fill Mode (076-conditional-trigs, FR-020, FR-021)
@@ -1369,6 +1401,10 @@ private:
             uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
             uint8_t condValue = conditionLane_.advance();  // 076-conditional-trigs (FR-006)
 
+            // arp-chord-lane: advance chord and inversion lanes
+            uint8_t chordTypeVal = chordLane_.advance();
+            uint8_t inversionVal = inversionLane_.advance();
+
             // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
             if (spice_ > 0.0f) {
                 // Velocity: linear interpolation (FR-009)
@@ -1596,6 +1632,39 @@ private:
                     result.velocities[i] = static_cast<uint8_t>(
                         std::clamp(boosted, 1, 127));
                 }
+            }
+
+            // =================================================================
+            // arp-chord-lane: Chord expansion
+            // =================================================================
+            // Expand single-note result to chord BEFORE pitch offset.
+            // Skipped when ArpMode is Chord (already playing all held notes).
+            // Skipped when chord type is None (default single-note behavior).
+            auto chordType = static_cast<ChordType>(
+                std::clamp(static_cast<int>(chordTypeVal), 0,
+                           static_cast<int>(ChordType::kCount) - 1));
+            auto invType = static_cast<InversionType>(
+                std::clamp(static_cast<int>(inversionVal), 0,
+                           static_cast<int>(InversionType::kCount) - 1));
+
+            if (chordType != ChordType::None &&
+                arpMode_ != ArpMode::Chord &&
+                result.count == 1) {
+                // Generate chord from the single base note
+                ChordResult chord = generateChordNotes(
+                    result.notes[0], chordType, scaleHarmonizer_);
+                applyInversion(chord, invType);
+                applyVoicing(chord, voicingMode_,
+                    static_cast<uint32_t>(sampleCounter_ ^ swingStepCounter_));
+
+                // Expand result to contain all chord notes
+                // Use same velocity for all chord tones
+                uint8_t baseVelocity = result.velocities[0];
+                for (size_t ci = 0; ci < chord.count && ci < 32; ++ci) {
+                    result.notes[ci] = chord.notes[ci];
+                    result.velocities[ci] = baseVelocity;
+                }
+                result.count = chord.count < 32 ? chord.count : 32;
             }
 
             // Apply pitch offset to all notes in this step (FR-005, FR-006, FR-008, 084-arp-scale-mode)
@@ -1973,6 +2042,8 @@ private:
         ratchetSubStepIndex_ = 0;
         euclideanPosition_ = 0;            // 075-euclidean-timing: reset Euclidean position (FR-013)
         conditionLane_.reset();              // 076-conditional-trigs: reset condition lane position
+        chordLane_.reset();                  // arp-chord-lane: reset chord lane position
+        inversionLane_.reset();              // arp-chord-lane: reset inversion lane position
         loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
         // fillActive_ intentionally NOT reset (FR-022: performance control)
         // conditionRng_ intentionally NOT reset (FR-035: continuous randomness)
@@ -1998,6 +2069,14 @@ private:
     ArpLane<int8_t> pitchLane_;    ///< Semitone offset per step (default: length=1, step[0]=0)
     ArpLane<uint8_t> modifierLane_; ///< Bitmask per step (default: length=1, step[0]=kStepActive)
     ArpLane<uint8_t> ratchetLane_;  ///< Per-step ratchet count 1-4 (default: length=1, step[0]=1)
+
+    // =========================================================================
+    // Chord Lane Containers (arp-chord-lane)
+    // =========================================================================
+
+    ArpLane<uint8_t> chordLane_;     ///< Per-step ChordType (default: length=1, step[0]=0=None)
+    ArpLane<uint8_t> inversionLane_; ///< Per-step InversionType (default: length=1, step[0]=0=Root)
+    VoicingMode voicingMode_{VoicingMode::Close}; ///< Global voicing mode
 
     // =========================================================================
     // Modifier Configuration (073-per-step-mods)
@@ -2066,6 +2145,7 @@ private:
     // =========================================================================
 
     bool enabled_ = false;
+    ArpMode arpMode_ = ArpMode::Up;  ///< Cached arp mode for chord lane skip check
     LatchMode latchMode_ = LatchMode::Off;
     ArpRetriggerMode retriggerMode_ = ArpRetriggerMode::Off;
     bool tempoSync_ = true;

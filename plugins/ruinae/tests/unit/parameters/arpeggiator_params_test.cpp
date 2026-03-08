@@ -2068,9 +2068,9 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
         CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
     }
 
-    // Verify sentinels (updated for arp-midi-out)
-    CHECK(kArpEndId == 3303);
-    CHECK(kNumParameters == 3304);
+    // Verify sentinels (updated for arp-chord-lane)
+    CHECK(kArpEndId == 3372);
+    CHECK(kNumParameters == 3373);
 }
 
 // T062: formatArpParam for Spice: percentage display
@@ -2775,8 +2775,9 @@ TEST_CASE("loadArpParams: old preset without scale fields keeps defaults", "[arp
     Steinberg::int64 fullSize = 0;
     fullStream.seek(0, Steinberg::IBStream::kIBSeekEnd, &fullSize);
 
-    // Old preset = fullSize - 12 bytes (3 * sizeof(int32))
-    Steinberg::int64 oldSize = fullSize - 3 * static_cast<Steinberg::int64>(sizeof(Steinberg::int32));
+    // Old preset = fullSize minus scale fields (3 int32) + midiOut (1 int32) + chord data (67 int32)
+    // = 71 * sizeof(int32) = 284 bytes
+    Steinberg::int64 oldSize = fullSize - 71 * static_cast<Steinberg::int64>(sizeof(Steinberg::int32));
 
     // Read the full data and create a truncated stream
     std::vector<char> fullData(static_cast<size_t>(fullSize));
