@@ -17,6 +17,7 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <algorithm>
