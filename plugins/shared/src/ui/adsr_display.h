@@ -268,6 +268,15 @@ public:
         releaseParamId_ = baseId + 3;
     }
 
+    /// @brief Get the attack param ID (TEST ONLY, for wiring verification).
+    uint32_t getAttackParamId() const { return attackParamId_; }
+    /// @brief Get the decay param ID (TEST ONLY, for wiring verification).
+    uint32_t getDecayParamId() const { return decayParamId_; }
+    /// @brief Get the sustain param ID (TEST ONLY, for wiring verification).
+    uint32_t getSustainParamId() const { return sustainParamId_; }
+    /// @brief Get the release param ID (TEST ONLY, for wiring verification).
+    uint32_t getReleaseParamId() const { return releaseParamId_; }
+
     void setPeakLevelParamId(uint32_t paramId) {
         peakLevelParamId_ = paramId;
     }
@@ -277,6 +286,13 @@ public:
         decayCurveParamId_ = baseId + 1;
         releaseCurveParamId_ = baseId + 2;
     }
+
+    /// @brief Get the attack curve param ID (TEST ONLY, for wiring verification).
+    uint32_t getAttackCurveParamId() const { return attackCurveParamId_; }
+    /// @brief Get the decay curve param ID (TEST ONLY, for wiring verification).
+    uint32_t getDecayCurveParamId() const { return decayCurveParamId_; }
+    /// @brief Get the release curve param ID (TEST ONLY, for wiring verification).
+    uint32_t getReleaseCurveParamId() const { return releaseCurveParamId_; }
 
     void setBezierEnabledParamId(uint32_t paramId) {
         bezierEnabledParamId_ = paramId;

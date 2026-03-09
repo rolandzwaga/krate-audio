@@ -111,6 +111,17 @@
     <control-tag name="FeedbackAmount" tag="710"/>
     <control-tag name="FeedbackDecay" tag="711"/>
 
+    <!-- ADSR Envelope (720-728) -->
+    <control-tag name="AdsrAttack" tag="720"/>
+    <control-tag name="AdsrDecay" tag="721"/>
+    <control-tag name="AdsrSustain" tag="722"/>
+    <control-tag name="AdsrRelease" tag="723"/>
+    <control-tag name="AdsrAmount" tag="724"/>
+    <control-tag name="AdsrTimeScale" tag="725"/>
+    <control-tag name="AdsrAttackCurve" tag="726"/>
+    <control-tag name="AdsrDecayCurve" tag="727"/>
+    <control-tag name="AdsrReleaseCurve" tag="728"/>
+
     <!-- Template tags for modulator sub-controller remapping -->
     <control-tag name="Mod.Enable" tag="610"/>
     <control-tag name="Mod.Waveform" tag="611"/>
@@ -124,8 +135,8 @@
   <!-- ================================================================== -->
   <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 710"
-            background-color="bg-primary" minSize="800, 710" maxSize="800, 710">
+  <template name="Editor" class="CViewContainer" size="800, 820"
+            background-color="bg-primary" minSize="800, 820" maxSize="800, 820">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -762,9 +773,102 @@
             title="Decay"/>
     </view>
 
+    <!-- ============================================================== -->
+    <!-- ADSR ENVELOPE SECTION (Y 700-810)                              -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 700" size="790, 105"
+          title="ADSR Envelope" fieldset-title="ADSR Envelope" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <!-- ADSRDisplay custom view (T030/T031: interactive envelope visualization) -->
+      <view custom-view-name="ADSRDisplay" origin="5, 14" size="370, 86"/>
+
+      <!-- Attack -->
+      <view class="ArcKnob" origin="385, 14" size="34, 34"
+            control-tag="AdsrAttack" default-value="0.27"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="381, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Attack"/>
+
+      <!-- Decay -->
+      <view class="ArcKnob" origin="430, 14" size="34, 34"
+            control-tag="AdsrDecay" default-value="0.54"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="426, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Decay"/>
+
+      <!-- Sustain -->
+      <view class="ArcKnob" origin="475, 14" size="34, 34"
+            control-tag="AdsrSustain" default-value="1.0"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="471, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Sustain"/>
+
+      <!-- Release -->
+      <view class="ArcKnob" origin="520, 14" size="34, 34"
+            control-tag="AdsrRelease" default-value="0.54"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="516, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Release"/>
+
+      <!-- Amount -->
+      <view class="ArcKnob" origin="575, 14" size="34, 34"
+            control-tag="AdsrAmount" default-value="0"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="571, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Amount"/>
+
+      <!-- Time Scale -->
+      <view class="ArcKnob" origin="620, 14" size="34, 34"
+            control-tag="AdsrTimeScale" default-value="0.2"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="616, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Scale"/>
+
+      <!-- Attack Curve -->
+      <view class="ArcKnob" origin="665, 14" size="34, 34"
+            control-tag="AdsrAttackCurve" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="661, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="A Crv"/>
+
+      <!-- Decay Curve -->
+      <view class="ArcKnob" origin="710, 14" size="34, 34"
+            control-tag="AdsrDecayCurve" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="706, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="D Crv"/>
+
+      <!-- Release Curve -->
+      <view class="ArcKnob" origin="755, 14" size="34, 34"
+            control-tag="AdsrReleaseCurve" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CTextLabel" origin="751, 48" size="42, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="R Crv"/>
+
+    </view>
+
     <!-- Bottom credit line (version from version.h) -->
     <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 696" size="220, 14"
+          origin="575, 806" size="220, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"/>
 

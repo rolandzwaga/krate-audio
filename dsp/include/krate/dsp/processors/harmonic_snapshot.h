@@ -51,6 +51,17 @@ struct HarmonicSnapshot {
 struct MemorySlot {
     HarmonicSnapshot snapshot{};
     bool occupied = false;
+
+    // ADSR envelope parameters (Spec 124: FR-013, FR-014)
+    float adsrAttackMs = 10.0f;        ///< Attack time in ms [1, 5000]
+    float adsrDecayMs = 100.0f;        ///< Decay time in ms [1, 5000]
+    float adsrSustainLevel = 1.0f;     ///< Sustain level [0, 1]
+    float adsrReleaseMs = 100.0f;      ///< Release time in ms [1, 5000]
+    float adsrAmount = 0.0f;           ///< Envelope amount [0, 1] (0 = bypass)
+    float adsrTimeScale = 1.0f;        ///< Time scale multiplier [0.25, 4.0]
+    float adsrAttackCurve = 0.0f;      ///< Attack curve amount [-1, +1]
+    float adsrDecayCurve = 0.0f;       ///< Decay curve amount [-1, +1]
+    float adsrReleaseCurve = 0.0f;     ///< Release curve amount [-1, +1]
 };
 
 /// @brief Capture the current harmonic and residual state into a HarmonicSnapshot.

@@ -429,14 +429,14 @@ Key rules:
 
 ### 11.1 Requirements Verification
 
-- [ ] T074 **Review ALL FR-001 through FR-026** from `specs/124-adsr-envelope-detection/spec.md` against implementation — open each file, read the code, cite file+line for each FR
-- [ ] T075 **Review ALL SC-001 through SC-007** — run relevant tests or measure actual values, copy test output, compare against spec thresholds with real numbers
-- [ ] T076 **Search for cheating patterns**: no placeholder/TODO comments in new code, no relaxed test thresholds, no quietly removed features
+- [X] T074 **Review ALL FR-001 through FR-026** from `specs/124-adsr-envelope-detection/spec.md` against implementation — open each file, read the code, cite file+line for each FR
+- [X] T075 **Review ALL SC-001 through SC-007** — run relevant tests or measure actual values, copy test output, compare against spec thresholds with real numbers
+- [X] T076 **Search for cheating patterns**: no placeholder/TODO comments in new code, no relaxed test thresholds, no quietly removed features
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T077 **Update `specs/124-adsr-envelope-detection/spec.md` "Implementation Verification" section** with compliance status and concrete evidence (file paths, line numbers, test names, measured values) for every FR-xxx and SC-xxx row
-- [ ] T078 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T077 **Update `specs/124-adsr-envelope-detection/spec.md` "Implementation Verification" section** with compliance status and concrete evidence (file paths, line numbers, test names, measured values) for every FR-xxx and SC-xxx row
+- [X] T078 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 11.3 Honest Self-Check
 
@@ -448,12 +448,12 @@ Answer these questions — if ANY is "yes", do NOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T079 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
+- [X] T079 **All self-check questions answered "no"** (or gaps documented honestly in spec.md)
 
 ### 11.4 Final Commit
 
-- [ ] T080 **Commit final spec.md compliance table update**: `chore(innexus): fill spec 124 compliance table — ADSR envelope detection`
-- [ ] T081 **Verify all tests pass** on final commit: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T080 **Commit final spec.md compliance table update**: `chore(innexus): fill spec 124 compliance table — ADSR envelope detection`
+- [X] T081 **Verify all tests pass** on final commit: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
 
 **Checkpoint**: Spec implementation honestly complete.
 

@@ -244,6 +244,69 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // ADSR Envelope (Spec 124)
+            case kAdsrAttackId:
+            {
+                // Logarithmic mapping: 1-5000ms
+                constexpr float kMin = 1.0f;
+                constexpr float kMax = 5000.0f;
+                auto timeMs = kMin * std::pow(kMax / kMin, static_cast<float>(value));
+                adsrAttackMs_.store(std::clamp(timeMs, kMin, kMax));
+                break;
+            }
+            case kAdsrDecayId:
+            {
+                constexpr float kMin = 1.0f;
+                constexpr float kMax = 5000.0f;
+                auto timeMs = kMin * std::pow(kMax / kMin, static_cast<float>(value));
+                adsrDecayMs_.store(std::clamp(timeMs, kMin, kMax));
+                break;
+            }
+            case kAdsrSustainId:
+                adsrSustainLevel_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kAdsrReleaseId:
+            {
+                constexpr float kMin = 1.0f;
+                constexpr float kMax = 5000.0f;
+                auto timeMs = kMin * std::pow(kMax / kMin, static_cast<float>(value));
+                adsrReleaseMs_.store(std::clamp(timeMs, kMin, kMax));
+                break;
+            }
+            case kAdsrAmountId:
+                adsrAmount_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kAdsrTimeScaleId:
+            {
+                // Linear mapping: 0.25-4.0
+                constexpr float kMin = 0.25f;
+                constexpr float kMax = 4.0f;
+                auto plain = kMin + static_cast<float>(value) * (kMax - kMin);
+                adsrTimeScale_.store(std::clamp(plain, kMin, kMax));
+                break;
+            }
+            case kAdsrAttackCurveId:
+            {
+                // Linear mapping: -1.0 to +1.0
+                auto plain = -1.0f + static_cast<float>(value) * 2.0f;
+                adsrAttackCurve_.store(std::clamp(plain, -1.0f, 1.0f));
+                break;
+            }
+            case kAdsrDecayCurveId:
+            {
+                auto plain = -1.0f + static_cast<float>(value) * 2.0f;
+                adsrDecayCurve_.store(std::clamp(plain, -1.0f, 1.0f));
+                break;
+            }
+            case kAdsrReleaseCurveId:
+            {
+                auto plain = -1.0f + static_cast<float>(value) * 2.0f;
+                adsrReleaseCurve_.store(std::clamp(plain, -1.0f, 1.0f));
+                break;
+            }
+
             default:
                 break;
             }

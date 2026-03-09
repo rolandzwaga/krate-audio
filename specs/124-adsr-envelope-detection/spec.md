@@ -3,7 +3,7 @@
 **Feature Branch**: `124-adsr-envelope-detection`
 **Plugin**: Innexus
 **Created**: 2026-03-08
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Add automatic ADSR envelope detection to Innexus's sample analysis pipeline with editable parameters and global envelope application"
 
 ## Clarifications
@@ -208,43 +208,41 @@ A user saves a project with ADSR parameters configured. When reopening the proje
 
 ### Compliance Status
 
-*This section is EMPTY during specification phase and filled during implementation phase when /speckit.implement completes.*
-
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 |  |  |
-| FR-002 |  |  |
-| FR-003 |  |  |
-| FR-004 |  |  |
-| FR-005 |  |  |
-| FR-006 |  |  |
-| FR-007 |  |  |
-| FR-008 |  |  |
-| FR-009 |  |  |
-| FR-010 |  |  |
-| FR-011 |  |  |
-| FR-012 |  |  |
-| FR-013 |  |  |
-| FR-014 |  |  |
-| FR-015 |  |  |
-| FR-016 |  |  |
-| FR-017 |  |  |
-| FR-018 |  |  |
-| FR-019 |  |  |
-| FR-020 |  |  |
-| FR-021 |  |  |
-| FR-022 |  |  |
-| FR-023 |  |  |
-| FR-024 |  |  |
-| FR-025 |  |  |
-| FR-026 |  |  |
-| SC-001 |  |  |
-| SC-002 |  |  |
-| SC-003 |  |  |
-| SC-004 |  |  |
-| SC-005 |  |  |
-| SC-006 |  |  |
-| SC-007 |  |  |
+| FR-001 | MET | `envelope_detector.h:46-47` reads `HarmonicFrame.globalAmplitude`; `sample_analyzer.cpp:355` calls `EnvelopeDetector::detect(analysis->frames, ...)` |
+| FR-002 | MET | `envelope_detector.h:68-239` implements peak-finding + O(1) rolling least-squares; `kWindowSize=12` (line 248), `kSlopeThreshold=0.0005f` (line 252), `kVarianceThreshold=0.002f` (line 256); Welford variance + circular buffer sliding. Test `EnvelopeDetector: rolling least-squares detects steady-state region` passes |
+| FR-003 | MET | `processor.cpp:1760-1788` (`checkForNewAnalysis`) reads `detectedADSR` and stores to atomics + sends IMessage to controller |
+| FR-004 | MET | `plugin_ids.h:128` `kAdsrAttackId=720`; `controller.cpp:517-521` `RangeParameter 1-5000ms`; `processor_params.cpp:248-256` log mapping; test `ADSR VST: all 9 parameter IDs (720-728) are registered` passes |
+| FR-005 | MET | `plugin_ids.h:129` `kAdsrDecayId=721`; `controller.cpp:523-527` `RangeParameter 1-5000ms`; `processor_params.cpp:257-264` log mapping |
+| FR-006 | MET | `plugin_ids.h:130` `kAdsrSustainId=722`; `controller.cpp:529-533` `RangeParameter 0.0-1.0`; `processor_params.cpp:265-268` |
+| FR-007 | MET | `plugin_ids.h:131` `kAdsrReleaseId=723`; `controller.cpp:535-539` `RangeParameter 1-5000ms`; `processor_params.cpp:269-276` log mapping |
+| FR-008 | MET | `processor.cpp:1597-1602` implements `adsrGain = 1.0f - smoothedAmount + smoothedAmount * envVal` (lerp(1.0, envVal, amount)); test `ADSR Integration: Amount=1.0 shapes output with ADSR` passes |
+| FR-009 | MET | `processor.cpp:1593-1596` skips ALL ADSR processing when `!adsrActive`; `adsrActive` is false when `adsrAmountTarget==0.0 && smoother==0`; test `ADSR Integration: Amount=0.0 produces bit-exact bypass` passes with bit-exact comparison |
+| FR-010 | MET | `processor.cpp:504-509` computes `effAttack = clamp(adsrAttackMs * timeScale, 1, 5000)`; test `ADSR Integration: Time Scale=2.0 doubles effective times` and `Time Scale extremes clamp to [1, 5000]ms` both pass |
+| FR-011 | MET | `processor.cpp:1593-1603` applies ADSR gain as global multiplier after oscillator bank + residual output; monophonic single `adsr_` instance in `processor.h:476` |
+| FR-012 | MET | `processor.cpp:64-65` sets `RetriggerMode::Hard`; `processor_midi.cpp:88` calls `adsr_.gate(true)` on note-on; `processor_midi.cpp:197` calls `adsr_.gate(false)` on note-off; test `ADSR Integration: hard retrigger resets envelope on new note-on` passes |
+| FR-013 | MET | `harmonic_snapshot.h:55-64` `MemorySlot` has all 9 ADSR fields; test `Memory Slot ADSR: default slot has adsrAmount=0.0` passes |
+| FR-014 | MET | `processor.cpp:737-749` captures all 9 ADSR atomics into slot; test `Memory Slot ADSR: capture stores all 9 ADSR values` passes |
+| FR-015 | MET | `processor.cpp:617-658` recalls all 9 ADSR values from slot to atomics + sends IMessage; test `Memory Slot ADSR: recall restores all 9 ADSR values` passes |
+| FR-016 | MET | `harmonic_blender.h:200-276` `blendADSR()` uses `std::log/std::exp` for geometric mean on times, linear for sustain/amount/curves; `processor.cpp:1409-1422` wires blended ADSR back to atomics; test `Memory Slot ADSR: morph at t=0.5 uses geometric mean` passes |
+| FR-017 | MET | `evolution_engine.h:224-256` `interpolateSlotADSR()` uses geometric mean for time params, linear for sustain/curves; `processor.cpp:1328-1337` wires evolution ADSR to atomics; test `Memory Slot ADSR: evolution engine smooth ADSR interpolation` passes |
+| FR-018 | MET | `controller.cpp:1227-1238` creates `ADSRDisplay`, sets `setAdsrBaseParamId(720)`, `setCurveBaseParamId(726)`, wires callbacks and playback pointers; test `Controller::createCustomView returns non-null ADSRDisplay` and `ADSRDisplay receives correct base param IDs after wiring` both pass |
+| FR-019 | MET | `processor_state.cpp:27` writes version 9; `processor_state.cpp:183-208` writes 9 global ADSR floats + 72 per-slot ADSR floats |
+| FR-020 | MET | `processor_state.cpp:667-691` defaults all ADSR values for pre-v9 states: Amount=0.0, curves=0.0, times=10/100/100ms, sustain=1.0, timeScale=1.0; controller.cpp:1054-1074 also defaults v8 and older |
+| FR-021 | MET | `ADSREnvelope adsr_` is pre-allocated member of `Processor` (`processor.h:476`); `OnePoleSmoother adsrAmountSmoother_` likewise (`processor.h:477`); no allocations in `process()` path |
+| FR-022 | MET | `sample_analyzer.cpp:352-357` only calls `detect()` for file-based analysis; sidechain goes through `LiveAnalysisPipeline`; test `sidechain mode suppresses envelope detection (FR-022)` passes |
+| FR-023 | MET | `adsrAmountSmoother_` smooths Amount transitions (15ms, `processor.cpp:185`); test `Amount 0->1 transition has no large discontinuities` requires `maxGainDiscontinuity < 0.01f` and passes |
+| FR-024 | MET | `plugin_ids.h:134` `kAdsrAttackCurveId=726`; `controller.cpp:553-557` `RangeParameter -1.0 to +1.0`; `processor.cpp:517` calls `adsr_.setAttackCurve()` |
+| FR-025 | MET | `plugin_ids.h:135` `kAdsrDecayCurveId=727`; `controller.cpp:559-563` `RangeParameter -1.0 to +1.0`; `processor.cpp:518` calls `adsr_.setDecayCurve()` |
+| FR-026 | MET | `plugin_ids.h:136` `kAdsrReleaseCurveId=728`; `controller.cpp:565-569` `RangeParameter -1.0 to +1.0`; `processor.cpp:519` calls `adsr_.setReleaseCurve()` |
+| SC-001 | MET | Test `Phase 8 T063b: EnvelopeDetector::detect() adds <10% analysis overhead` passes; detect() < 1ms vs 100ms+ analysis baseline |
+| SC-002 | MET | Test `percussive contour yields short Attack and low Sustain` verifies Attack < 50ms, Sustain < 0.5; test `pad contour yields long Attack and high Sustain` verifies Attack > 50ms, Sustain > 0.7 |
+| SC-003 | MET | Test `Amount=0.0 produces bit-exact bypass` uses exact comparison (`outA[i] != outB[i]`) over 20 blocks; passes |
+| SC-004 | MET | Test `Amount 0->1 during active note has no gain jump > 0.01/sample` extracts envelope gain via test/ref ratio, requires `maxGainJump < 0.01f`; passes |
+| SC-005 | MET | Test `ADSR CPU overhead < 0.1% of single core` measures over 5000 blocks x 5 rounds, requires `overheadPercent < 0.1`; passes |
+| SC-006 | MET | `processor_state.cpp:667-691` defaults Amount=0.0 and curves=0.0 for v1-v8; test `v8 backward compatibility` passes |
+| SC-007 | MET | All 9 params registered with `kCanAutomate`; test `All 9 ADSR parameters respond to automation` passes; pluginval automation test passed |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -256,20 +254,21 @@ A user saves a project with ADSR parameters configured. When reopening the proje
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [x] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [x] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [x] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [x] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [x] No test thresholds relaxed from spec requirements
+- [x] No placeholder values or TODO comments in new code
+- [x] No features quietly removed from scope
+- [x] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
+Build result: 0 warnings in new code
+Test result: 473 test cases, 1,067,546 assertions, all passed
+Pluginval result: PASS (strictness 5)
 
-**Recommendation**: [What needs to happen to achieve completion]
+All 26 functional requirements and 7 success criteria are met with concrete evidence.

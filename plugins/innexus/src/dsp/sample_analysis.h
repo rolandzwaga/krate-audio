@@ -18,6 +18,8 @@
 // Reference: spec.md FR-046
 // ==============================================================================
 
+#include "envelope_detector.h"
+
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/residual_types.h>
 
@@ -39,6 +41,7 @@ struct SampleAnalysis {
     std::string filePath;                            ///< Source file path (for state persistence)
     size_t analysisFFTSize = 0;                      ///< Short-window FFT size used during analysis (M2)
     size_t analysisHopSize = 0;                      ///< Short-window hop size used during analysis (M2)
+    DetectedADSR detectedADSR{};                     ///< Auto-detected envelope parameters (Spec 124)
 
     /// @brief Get a frame by index, clamped to valid range.
     /// @param index Frame index

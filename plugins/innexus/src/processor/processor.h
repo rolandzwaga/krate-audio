@@ -35,6 +35,7 @@
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
+#include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
@@ -315,6 +316,22 @@ public:
     float getStability() const { return stability_.load(std::memory_order_relaxed); }
     float getEntropy() const { return entropy_.load(std::memory_order_relaxed); }
 
+    // ADSR Envelope (Spec 124) test accessors
+    float getAdsrAttackMs() const { return adsrAttackMs_.load(std::memory_order_relaxed); }
+    float getAdsrDecayMs() const { return adsrDecayMs_.load(std::memory_order_relaxed); }
+    float getAdsrSustainLevel() const { return adsrSustainLevel_.load(std::memory_order_relaxed); }
+    float getAdsrReleaseMs() const { return adsrReleaseMs_.load(std::memory_order_relaxed); }
+    float getAdsrAmount() const { return adsrAmount_.load(std::memory_order_relaxed); }
+    float getAdsrTimeScale() const { return adsrTimeScale_.load(std::memory_order_relaxed); }
+    float getAdsrAttackCurve() const { return adsrAttackCurve_.load(std::memory_order_relaxed); }
+    float getAdsrDecayCurve() const { return adsrDecayCurve_.load(std::memory_order_relaxed); }
+    float getAdsrReleaseCurve() const { return adsrReleaseCurve_.load(std::memory_order_relaxed); }
+
+    // ADSR Playback State (Spec 124: T048) test accessors
+    float getAdsrEnvelopeOutput() const { return adsrEnvelopeOutput_.load(std::memory_order_relaxed); }
+    int getAdsrStage() const { return adsrStage_.load(std::memory_order_relaxed); }
+    bool getAdsrActive() const { return adsrActive_.load(std::memory_order_relaxed); }
+
     // Analysis Feedback Loop (Spec B) test accessors
     float getFeedbackAmount() const { return feedbackAmount_.load(std::memory_order_relaxed); }
     float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_relaxed); }
@@ -414,6 +431,17 @@ private:
     std::atomic<float> feedbackAmount_{0.0f};         // 0.0-1.0, default 0.0
     std::atomic<float> feedbackDecay_{0.2f};          // 0.0-1.0, default 0.2
 
+    // ADSR Envelope parameters (Spec 124: 124-adsr-envelope-detection)
+    std::atomic<float> adsrAttackMs_{10.0f};          // plain ms, default 10ms
+    std::atomic<float> adsrDecayMs_{100.0f};          // plain ms, default 100ms
+    std::atomic<float> adsrSustainLevel_{1.0f};       // 0.0-1.0, default 1.0
+    std::atomic<float> adsrReleaseMs_{100.0f};        // plain ms, default 100ms
+    std::atomic<float> adsrAmount_{0.0f};             // 0.0-1.0, default 0.0 (bypass)
+    std::atomic<float> adsrTimeScale_{1.0f};          // 0.25-4.0, default 1.0
+    std::atomic<float> adsrAttackCurve_{0.0f};        // -1.0 to +1.0, default 0.0
+    std::atomic<float> adsrDecayCurve_{0.0f};         // -1.0 to +1.0, default 0.0
+    std::atomic<float> adsrReleaseCurve_{0.0f};       // -1.0 to +1.0, default 0.0
+
     // =========================================================================
     // DSP Members (T081)
     // =========================================================================
@@ -444,6 +472,19 @@ private:
     Krate::DSP::OnePoleSmoother stabilitySmoother_;
     Krate::DSP::OnePoleSmoother entropySmoother_;
 
+    // ADSR Envelope (Spec 124: 124-adsr-envelope-detection)
+    Krate::DSP::ADSREnvelope adsr_;
+    Krate::DSP::OnePoleSmoother adsrAmountSmoother_;
+
+    // ADSR Playback State atomics (Spec 124: T048)
+    // Updated per-block in process() for ADSRDisplay playback dot visualization.
+    std::atomic<float> adsrEnvelopeOutput_{0.0f};
+    std::atomic<int> adsrStage_{0};
+    std::atomic<bool> adsrActive_{false};
+
+    /// One-shot flag: send ADSR playback state pointers to controller (T049)
+    bool adsrPlaybackPtrsSent_ = false;
+
     /// Atomic pointer for lock-free analysis transfer (FR-058)
     std::atomic<SampleAnalysis*> currentAnalysis_{nullptr};
 
@@ -468,11 +509,17 @@ private:
     size_t currentFrameIndex_ = 0;
     size_t frameSampleCounter_ = 0;
 
+    // Sustain loop region (Spec 124): frames loop within [sustainLoopStart_, sustainLoopEnd_)
+    // when ADSR is in Sustain stage. Set from DetectedADSR on sample load.
+    int sustainLoopStart_ = 0;
+    int sustainLoopEnd_ = 0;
+
     // =========================================================================
     // Release Envelope (FR-049, FR-057)
     // =========================================================================
     float releaseGain_ = 1.0f;
     bool inRelease_ = false;
+    bool inAdsrRelease_ = false;  // ADSR handles release (skip old FR-049 release)
     float releaseDecayCoeff_ = 0.0f;
 
     // =========================================================================
