@@ -5,6 +5,22 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-03-09
+
+### Added
+
+- **ADSR envelope detection** — Auto-detects attack, decay, sustain, and release envelope from loaded samples using O(1) rolling least-squares steady-state detection; populates 9 user-editable parameters (Attack, Decay, Sustain, Release, Amount, TimeScale, Attack/Decay/Release Curve)
+- **ADSRDisplay visualization** — Custom VSTGUI view showing the detected/edited ADSR envelope shape with real-time playback dot tracking the current envelope stage and output level at ~30 fps
+- **Sustain frame looping** — Frame playback loops within the detected steady-state region while ADSR is in Sustain stage, enabling indefinite sustain when holding a key; on note-off, linear playback resumes through release frames
+- **Per-slot ADSR storage** — All 9 ADSR parameters stored per memory slot with geometric mean interpolation for time parameters during evolution/morph and linear interpolation for level/curve parameters
+- **ADSR Amount auto-enable** — Detection automatically sets Amount to 1.0 so the detected envelope is applied immediately; Amount=0.0 provides bit-exact bypass
+- **State version 9** — Persists 9 global ADSR parameters and 9 per-slot ADSR values (72 floats) with backward compatibility for v1–v8 presets
+
+### Fixed
+
+- **ADSR release replaces old release envelope** — When ADSR Amount > 0, the old FR-049 exponential release is skipped; ADSR release handles the full fade-out, preventing premature note cutoff and click artifacts at note end
+- **ADSRDisplay updates on all sources** — Display now updates correctly on sample load (DetectedADSR message), memory slot recall (RecalledADSR message), and manual knob changes (setParamNormalized override)
+
 ## [0.9.3] - 2026-03-07
 
 ### Added
