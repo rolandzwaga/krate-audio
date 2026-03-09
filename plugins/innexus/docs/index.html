@@ -54,7 +54,7 @@
             <ul>
                 <li>YIN pitch tracking with FFT-accelerated autocorrelation, confidence gating, and hysteresis</li>
                 <li>Multi-resolution STFT with dual windows for simultaneous low-frequency accuracy and low-latency tracking</li>
-                <li>Partial tracker with harmonic sieve, frame-to-frame matching, and birth/death management for up to 48 partials</li>
+                <li>Partial tracker with harmonic sieve, frame-to-frame matching, and birth/death management for up to 96 partials</li>
                 <li>Harmonic model builder with L2 normalization, dual-timescale blending, and spectral descriptors</li>
             </ul>
         </section>
@@ -62,7 +62,7 @@
         <section class="features">
             <h2>Synthesis</h2>
             <ul>
-                <li>48 Gordon-Smith MCF oscillators per voice with amplitude-stable magic circle phasors</li>
+                <li>Up to 96 Gordon-Smith MCF oscillators per voice with amplitude-stable magic circle phasors (configurable: 48, 64, 80, or 96)</li>
                 <li>Inharmonicity preservation from analyzed source material with user-adjustable blend</li>
                 <li>Residual/noise model (SMS decomposition) with spectral envelope shaping and transient emphasis</li>
                 <li>Anti-aliasing with soft Nyquist rolloff, phase-continuous model updates, and crossfade on discontinuities</li>
