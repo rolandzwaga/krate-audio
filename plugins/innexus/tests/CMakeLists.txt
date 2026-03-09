@@ -26,11 +26,21 @@ add_executable(innexus_tests
     # Harmonic Physics unit tests (Spec A)
     unit/processor/test_harmonic_physics.cpp
 
+    # ADSR Envelope Detection unit tests (Spec 124)
+    unit/processor/test_envelope_detector.cpp
+    unit/processor/test_memory_slot_adsr.cpp
+
     # State v7 tests (Spec A)
     unit/vst/test_state_v7.cpp
 
     # State v8 tests (Spec B: Analysis Feedback Loop)
     unit/vst/test_state_v8.cpp
+
+    # State v9 tests (Spec 124: ADSR Envelope Detection)
+    unit/vst/test_state_v9.cpp
+
+    # ADSR VST parameter registration tests (Spec 124: T026)
+    unit/vst/test_adsr_vst_params.cpp
 
     # --- Integration tests (real Processor, full pipeline) ---
 
@@ -60,6 +70,10 @@ add_executable(innexus_tests
 
     # Analysis Feedback Loop integration tests (Spec B)
     integration/test_analysis_feedback.cpp
+
+    # ADSR Envelope Detection integration tests (Spec 124)
+    integration/test_adsr_envelope.cpp
+    integration/test_adsr_phase8_verification.cpp
 
     # Reset trap regression tests (per-block setter safety)
     integration/reset_trap_tests.cpp
@@ -105,6 +119,7 @@ add_executable(innexus_tests
     unit/controller/test_modulator_sub_controller.cpp
     unit/controller/test_controller_ui.cpp
     unit/controller/test_sample_drop.cpp
+    unit/controller/test_adsr_display_wiring.cpp
 
     # UI custom view implementations (needed by controller tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/harmonic_display_view.cpp
@@ -140,6 +155,22 @@ target_include_directories(innexus_tests
 )
 
 target_compile_features(innexus_tests PRIVATE cxx_std_20)
+
+# Disable -ffast-math for files requiring IEEE 754 compliant NaN/Inf handling.
+# The VST3 SDK enables -ffast-math globally (see SMTG_PlatformToolset.cmake),
+# which breaks std::isnan / std::isinf. Only needed for GCC/Clang; MSVC is unaffected.
+if(NOT MSVC)
+    set_source_files_properties(
+        integration/test_adsr_envelope.cpp
+        integration/test_adsr_phase8_verification.cpp
+        integration/musical_control_tests.cpp
+        integration/enable_disable_tests.cpp
+        integration/reset_trap_tests.cpp
+        integration/sidechain_integration_tests.cpp
+        integration/test_sidechain_wav_quality.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+endif()
 
 # CTest Integration
 catch_discover_tests(innexus_tests REPORTER console)

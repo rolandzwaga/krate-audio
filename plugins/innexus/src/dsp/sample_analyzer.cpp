@@ -32,6 +32,7 @@
 #endif
 
 #include "sample_analyzer.h"
+#include "envelope_detector.h"
 #include "dual_stft_config.h"
 #include "pre_processing_pipeline.h"
 
@@ -344,6 +345,16 @@ void SampleAnalyzer::analyzeOnThread(
 
     // Finalize
     analysis->totalFrames = analysis->frames.size();
+
+    // Spec 124 FR-001, FR-002: Detect ADSR envelope from amplitude contour.
+    // This runs on the analysis thread (not audio thread), so allocation is safe.
+    // Note: sidechain mode (FR-022) is handled by the caller -- sidechain input
+    // goes through the live analysis pipeline, not through SampleAnalyzer.
+    if (!analysis->frames.empty() && analysis->hopTimeSec > 0.0f)
+    {
+        analysis->detectedADSR = EnvelopeDetector::detect(
+            analysis->frames, analysis->hopTimeSec);
+    }
 
     // Publish result
     result_ = std::move(analysis);

@@ -123,6 +123,17 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Analysis Feedback Loop (710-711) -- Spec B
     kAnalysisFeedbackId = 710,     // 0.0-1.0, default 0.0
     kAnalysisFeedbackDecayId = 711, // 0.0-1.0, default 0.2
+
+    // ADSR Envelope (720-728) -- Spec 124
+    kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
+    kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms
+    kAdsrSustainId = 722,          // RangeParameter: 0.0-1.0, linear, default 1.0
+    kAdsrReleaseId = 723,          // RangeParameter: 1-5000ms, log mapping, default 100ms
+    kAdsrAmountId = 724,           // RangeParameter: 0.0-1.0, linear, default 0.0
+    kAdsrTimeScaleId = 725,        // RangeParameter: 0.25-4.0, linear, default 1.0
+    kAdsrAttackCurveId = 726,      // RangeParameter: -1.0 to +1.0, linear, default 0.0
+    kAdsrDecayCurveId = 727,       // RangeParameter: -1.0 to +1.0, linear, default 0.0
+    kAdsrReleaseCurveId = 728,     // RangeParameter: -1.0 to +1.0, linear, default 0.0
 };
 
 // ==============================================================================

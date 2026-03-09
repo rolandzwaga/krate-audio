@@ -76,6 +76,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
     currentMidiNote_ = noteNumber;
     noteActive_ = true;
     inRelease_ = false;
+    inAdsrRelease_ = false;
     releaseGain_ = 1.0f;
     isFrozen_ = false;
     freezeRecoverySamplesRemaining_ = 0;
@@ -83,6 +84,9 @@ void Processor::handleNoteOn(int noteNumber, float velocity)
 
     // FR-050: Velocity scales global amplitude, NOT partial amplitudes
     velocityGain_ = velocity; // VST3 velocity is already 0.0-1.0
+
+    // Spec 124 FR-012: Gate ADSR envelope on note-on (hard retrigger)
+    adsr_.gate(true);
 
     // Start from first frame (FR-047)
     currentFrameIndex_ = 0;
@@ -190,11 +194,23 @@ void Processor::handleNoteOff()
     if (!noteActive_ || inRelease_)
         return;
 
-    // Enter release phase
-    inRelease_ = true;
+    // Spec 124 FR-012: Gate ADSR envelope off on note-off
+    adsr_.gate(false);
 
-    // FR-057: Enforce minimum 20ms anti-click fade
-    updateReleaseDecayCoeff();
+    // When ADSR Amount > 0, the ADSR release envelope handles the fade-out.
+    // Skip the old FR-049 release to avoid cutting the note prematurely.
+    const float adsrAmount = adsrAmount_.load(std::memory_order_relaxed);
+    if (adsrAmount <= 0.0f)
+    {
+        // No ADSR active — use the old FR-049 release envelope
+        inRelease_ = true;
+        updateReleaseDecayCoeff();
+    }
+    else
+    {
+        // ADSR handles release — mark that we're in ADSR release mode
+        inAdsrRelease_ = true;
+    }
 }
 
 // ==============================================================================

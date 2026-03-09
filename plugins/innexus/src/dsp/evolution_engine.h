@@ -157,11 +157,14 @@ public:
     /// @param slots The memory slot array (for snapshot data access)
     /// @param[out] frame Interpolated harmonic frame
     /// @param[out] residual Interpolated residual frame
+    /// @param[out] adsrOut Optional: if non-null, receives interpolated ADSR values
+    ///   using geometric mean for time params (A/D/R) and linear for others (FR-017)
     /// @return true if valid output produced, false if insufficient waypoints
     [[nodiscard]] bool getInterpolatedFrame(
         const std::array<Krate::DSP::MemorySlot, 8>& slots,
         Krate::DSP::HarmonicFrame& frame,
-        Krate::DSP::ResidualFrame& residual) const noexcept
+        Krate::DSP::ResidualFrame& residual,
+        Krate::DSP::MemorySlot* adsrOut = nullptr) const noexcept
     {
         if (numWaypoints_ < 2)
             return false;
@@ -195,6 +198,14 @@ public:
         frame = Krate::DSP::lerpHarmonicFrame(frameA, frameB, localT);
         residual = Krate::DSP::lerpResidualFrame(residualA, residualB, localT);
 
+        // Spec 124 FR-017: ADSR interpolation for evolution engine
+        if (adsrOut)
+        {
+            const auto& msA = slots[static_cast<size_t>(slotA)];
+            const auto& msB = slots[static_cast<size_t>(slotB)];
+            interpolateSlotADSR(msA, msB, localT, *adsrOut);
+        }
+
         return true;
     }
 
@@ -208,6 +219,41 @@ public:
     [[nodiscard]] int getNumWaypoints() const noexcept
     {
         return numWaypoints_;
+    }
+
+    /// @brief Interpolate ADSR fields between two MemorySlots (FR-016, FR-017).
+    ///
+    /// Uses geometric mean for time parameters (Attack, Decay, Release)
+    /// and linear interpolation for all others (Sustain, Amount, TimeScale, curves).
+    /// Geometric mean: exp((1-t)*log(a) + t*log(b))
+    /// Linear: a*(1-t) + b*t
+    static void interpolateSlotADSR(
+        const Krate::DSP::MemorySlot& a,
+        const Krate::DSP::MemorySlot& b,
+        float t,
+        Krate::DSP::MemorySlot& out) noexcept
+    {
+        const float oneMinusT = 1.0f - t;
+
+        // Geometric mean for time parameters (Attack, Decay, Release)
+        // Guard against zero/negative times by clamping to 1ms minimum
+        auto geomInterp = [oneMinusT, t](float va, float vb) {
+            float safeA = std::max(va, 1.0f);
+            float safeB = std::max(vb, 1.0f);
+            return std::exp(oneMinusT * std::log(safeA) + t * std::log(safeB));
+        };
+
+        out.adsrAttackMs = geomInterp(a.adsrAttackMs, b.adsrAttackMs);
+        out.adsrDecayMs = geomInterp(a.adsrDecayMs, b.adsrDecayMs);
+        out.adsrReleaseMs = geomInterp(a.adsrReleaseMs, b.adsrReleaseMs);
+
+        // Linear interpolation for Sustain, Amount, TimeScale, curves
+        out.adsrSustainLevel = oneMinusT * a.adsrSustainLevel + t * b.adsrSustainLevel;
+        out.adsrAmount = oneMinusT * a.adsrAmount + t * b.adsrAmount;
+        out.adsrTimeScale = oneMinusT * a.adsrTimeScale + t * b.adsrTimeScale;
+        out.adsrAttackCurve = oneMinusT * a.adsrAttackCurve + t * b.adsrAttackCurve;
+        out.adsrDecayCurve = oneMinusT * a.adsrDecayCurve + t * b.adsrDecayCurve;
+        out.adsrReleaseCurve = oneMinusT * a.adsrReleaseCurve + t * b.adsrReleaseCurve;
     }
 
 private:

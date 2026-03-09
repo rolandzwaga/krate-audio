@@ -186,7 +186,7 @@ static void writeV7StateBlob(V8TestStream& stream,
 // T008(a): getState writes version 8
 // ==============================================================================
 
-TEST_CASE("StateV8: getState writes version 8",
+TEST_CASE("StateV8: getState writes current version (9)",
           "[innexus][vst][state][v8][feedback]")
 {
     V8TestStream stream;
@@ -199,7 +199,7 @@ TEST_CASE("StateV8: getState writes version 8",
     IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 8);
+    REQUIRE(version == 9);
 
     proc->setActive(false);
     proc->terminate();

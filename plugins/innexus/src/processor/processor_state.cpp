@@ -23,8 +23,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- Spec B: version 8 (analysis feedback loop)
-    streamer.writeInt32(8);
+    // Write state version -- Spec 124: version 9 (ADSR envelope detection)
+    streamer.writeInt32(9);
 
     // --- M1 parameters (unchanged) ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -179,6 +179,33 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     // --- Spec B: Analysis Feedback Loop parameters (v8) ---
     streamer.writeFloat(feedbackAmount_.load(std::memory_order_relaxed));
     streamer.writeFloat(feedbackDecay_.load(std::memory_order_relaxed));
+
+    // --- Spec 124: ADSR Envelope Detection parameters (v9) ---
+    // 9 global ADSR floats (in parameter ID order: 720-728)
+    streamer.writeFloat(adsrAttackMs_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrDecayMs_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrSustainLevel_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrReleaseMs_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrAmount_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrTimeScale_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrAttackCurve_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrDecayCurve_.load(std::memory_order_relaxed));
+    streamer.writeFloat(adsrReleaseCurve_.load(std::memory_order_relaxed));
+
+    // Per-slot ADSR data (8 slots x 9 floats = 72 floats)
+    for (int i = 0; i < 8; ++i)
+    {
+        const auto& slot = memorySlots_[static_cast<size_t>(i)];
+        streamer.writeFloat(slot.adsrAttackMs);
+        streamer.writeFloat(slot.adsrDecayMs);
+        streamer.writeFloat(slot.adsrSustainLevel);
+        streamer.writeFloat(slot.adsrReleaseMs);
+        streamer.writeFloat(slot.adsrAmount);
+        streamer.writeFloat(slot.adsrTimeScale);
+        streamer.writeFloat(slot.adsrAttackCurve);
+        streamer.writeFloat(slot.adsrDecayCurve);
+        streamer.writeFloat(slot.adsrReleaseCurve);
+    }
 
     return Steinberg::kResultOk;
 }
@@ -635,6 +662,79 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
                 feedbackAmount_.store(std::clamp(floatVal, 0.0f, 1.0f));
             if (streamer.readFloat(floatVal))
                 feedbackDecay_.store(std::clamp(floatVal, 0.0f, 1.0f));
+        }
+
+        // --- Spec 124: ADSR Envelope Detection parameters (v9) ---
+        // Default all ADSR params first, then overwrite from stream if v9+
+        adsrAttackMs_.store(10.0f);
+        adsrDecayMs_.store(100.0f);
+        adsrSustainLevel_.store(1.0f);
+        adsrReleaseMs_.store(100.0f);
+        adsrAmount_.store(0.0f);
+        adsrTimeScale_.store(1.0f);
+        adsrAttackCurve_.store(0.0f);
+        adsrDecayCurve_.store(0.0f);
+        adsrReleaseCurve_.store(0.0f);
+
+        // Default per-slot ADSR data
+        for (auto& slot : memorySlots_)
+        {
+            slot.adsrAttackMs = 10.0f;
+            slot.adsrDecayMs = 100.0f;
+            slot.adsrSustainLevel = 1.0f;
+            slot.adsrReleaseMs = 100.0f;
+            slot.adsrAmount = 0.0f;
+            slot.adsrTimeScale = 1.0f;
+            slot.adsrAttackCurve = 0.0f;
+            slot.adsrDecayCurve = 0.0f;
+            slot.adsrReleaseCurve = 0.0f;
+        }
+
+        if (version >= 9)
+        {
+            // Global ADSR parameters
+            if (streamer.readFloat(floatVal))
+                adsrAttackMs_.store(std::clamp(floatVal, 1.0f, 5000.0f));
+            if (streamer.readFloat(floatVal))
+                adsrDecayMs_.store(std::clamp(floatVal, 1.0f, 5000.0f));
+            if (streamer.readFloat(floatVal))
+                adsrSustainLevel_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                adsrReleaseMs_.store(std::clamp(floatVal, 1.0f, 5000.0f));
+            if (streamer.readFloat(floatVal))
+                adsrAmount_.store(std::clamp(floatVal, 0.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                adsrTimeScale_.store(std::clamp(floatVal, 0.25f, 4.0f));
+            if (streamer.readFloat(floatVal))
+                adsrAttackCurve_.store(std::clamp(floatVal, -1.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                adsrDecayCurve_.store(std::clamp(floatVal, -1.0f, 1.0f));
+            if (streamer.readFloat(floatVal))
+                adsrReleaseCurve_.store(std::clamp(floatVal, -1.0f, 1.0f));
+
+            // Per-slot ADSR data
+            for (int i = 0; i < 8; ++i)
+            {
+                auto& slot = memorySlots_[static_cast<size_t>(i)];
+                if (streamer.readFloat(floatVal))
+                    slot.adsrAttackMs = std::clamp(floatVal, 1.0f, 5000.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrDecayMs = std::clamp(floatVal, 1.0f, 5000.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrSustainLevel = std::clamp(floatVal, 0.0f, 1.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrReleaseMs = std::clamp(floatVal, 1.0f, 5000.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrAmount = std::clamp(floatVal, 0.0f, 1.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrTimeScale = std::clamp(floatVal, 0.25f, 4.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrAttackCurve = std::clamp(floatVal, -1.0f, 1.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrDecayCurve = std::clamp(floatVal, -1.0f, 1.0f);
+                if (streamer.readFloat(floatVal))
+                    slot.adsrReleaseCurve = std::clamp(floatVal, -1.0f, 1.0f);
+            }
         }
     }
 

@@ -31,6 +31,7 @@ class MemoryStream;
 }
 
 namespace Krate::Plugins {
+class ADSRDisplay;
 class PresetBrowserView;
 class SavePresetDialogView;
 class UpdateBannerView;
@@ -57,6 +58,9 @@ public:
     Steinberg::tresult PLUGIN_API terminate() override;
     Steinberg::tresult PLUGIN_API setComponentState(
         Steinberg::IBStream* state) override;
+    Steinberg::tresult PLUGIN_API setParamNormalized(
+        Steinberg::Vst::ParamID id,
+        Steinberg::Vst::ParamValue value) override;
 
     // --- VST3EditorDelegate ---
     Steinberg::IPlugView* PLUGIN_API createView(
@@ -125,6 +129,9 @@ private:
     /// Update sample load panel visibility based on InputSource parameter
     void updateSampleLoadVisibility();
 
+    /// Push current ADSR parameter values to the ADSRDisplay view
+    void updateAdsrDisplayFromParams();
+
     // Update Checker
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
 
@@ -165,6 +172,15 @@ private:
 
     // Update banner view (VSTGUI-owned, nulled in willClose)
     Krate::Plugins::UpdateBannerView* updateBannerView_ = nullptr;
+
+    // ADSR display view (VSTGUI-owned, nulled in willClose)
+    Krate::Plugins::ADSRDisplay* adsrDisplayView_ = nullptr;
+
+    // ADSR playback state pointers from processor (Spec 124: T049)
+    // Received via IMessage from Processor::process() on first block.
+    std::atomic<float>* adsrOutputPtr_ = nullptr;
+    std::atomic<int>* adsrStagePtr_ = nullptr;
+    std::atomic<bool>* adsrActivePtr_ = nullptr;
 
     // Active editor pointer for visibility controllers
     VSTGUI::VST3Editor* activeEditor_ = nullptr;

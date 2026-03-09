@@ -17,6 +17,7 @@
 #include "controller/views/modulator_activity_view.h"
 #include "controller/modulator_sub_controller.h"
 #include "controller/sample_drop_target.h"
+#include "ui/adsr_display.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
@@ -31,6 +32,7 @@
 #include "base/source/fstreamer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -504,6 +506,68 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(feedbackDecayParam);
 
+    // ==================================================================
+    // ADSR Envelope parameters (Spec 124: 124-adsr-envelope-detection)
+    // ==================================================================
+    // Attack/Decay/Release: RangeParameter 1-5000ms (processor applies log mapping)
+    // Sustain/Amount: linear 0-1
+    // TimeScale: linear 0.25-4.0
+    // Curve amounts: linear -1.0 to +1.0
+
+    auto* adsrAttackParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Attack"), kAdsrAttackId,
+        STR16("ms"), 1.0, 5000.0, 10.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrAttackParam);
+
+    auto* adsrDecayParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Decay"), kAdsrDecayId,
+        STR16("ms"), 1.0, 5000.0, 100.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrDecayParam);
+
+    auto* adsrSustainParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Sustain"), kAdsrSustainId,
+        STR16(""), 0.0, 1.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrSustainParam);
+
+    auto* adsrReleaseParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Release"), kAdsrReleaseId,
+        STR16("ms"), 1.0, 5000.0, 100.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrReleaseParam);
+
+    auto* adsrAmountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Envelope Amount"), kAdsrAmountId,
+        STR16(""), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrAmountParam);
+
+    auto* adsrTimeScaleParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Time Scale"), kAdsrTimeScaleId,
+        STR16("x"), 0.25, 4.0, 1.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrTimeScaleParam);
+
+    auto* adsrAttackCurveParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Attack Curve"), kAdsrAttackCurveId,
+        STR16(""), -1.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrAttackCurveParam);
+
+    auto* adsrDecayCurveParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Decay Curve"), kAdsrDecayCurveId,
+        STR16(""), -1.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrDecayCurveParam);
+
+    auto* adsrReleaseCurveParam = new Steinberg::Vst::RangeParameter(
+        STR16("ADSR Release Curve"), kAdsrReleaseCurveId,
+        STR16(""), -1.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(adsrReleaseCurveParam);
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
@@ -529,6 +593,9 @@ Steinberg::tresult PLUGIN_API Controller::terminate()
 {
     presetManager_.reset();
     updateChecker_.reset();
+    adsrOutputPtr_ = nullptr;
+    adsrStagePtr_ = nullptr;
+    adsrActivePtr_ = nullptr;
     return EditControllerEx1::terminate();
 }
 
@@ -927,6 +994,85 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             setParamNormalized(kAnalysisFeedbackId, 0.0);
             setParamNormalized(kAnalysisFeedbackDecayId, 0.2);
         }
+
+        // --- Spec 124: ADSR Envelope Detection parameters (v9) ---
+        if (version >= 9)
+        {
+            // Log mapping inverse for time parameters: normalized = log(plain/min) / log(max/min)
+            constexpr double kMin = 1.0;
+            constexpr double kMax = 5000.0;
+            const double kLogRatio = std::log(kMax / kMin);
+            auto logNorm = [&](double plainMs) -> double {
+                double clamped = std::clamp(plainMs, kMin, kMax);
+                return std::log(clamped / kMin) / kLogRatio;
+            };
+
+            float adsrVal = 0.0f;
+            if (streamer.readFloat(adsrVal))
+                setParamNormalized(kAdsrAttackId, logNorm(static_cast<double>(adsrVal)));
+            if (streamer.readFloat(adsrVal))
+                setParamNormalized(kAdsrDecayId, logNorm(static_cast<double>(adsrVal)));
+            if (streamer.readFloat(adsrVal))
+                setParamNormalized(kAdsrSustainId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(adsrVal))
+                setParamNormalized(kAdsrReleaseId, logNorm(static_cast<double>(adsrVal)));
+            if (streamer.readFloat(adsrVal))
+                setParamNormalized(kAdsrAmountId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+            if (streamer.readFloat(adsrVal))
+            {
+                // TimeScale: linear 0.25-4.0 -> normalized 0-1
+                double norm = static_cast<double>(std::clamp(adsrVal, 0.25f, 4.0f) - 0.25f) / (4.0 - 0.25);
+                setParamNormalized(kAdsrTimeScaleId, norm);
+            }
+            if (streamer.readFloat(adsrVal))
+            {
+                // Curve: linear -1.0 to +1.0 -> normalized 0-1
+                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+                setParamNormalized(kAdsrAttackCurveId, norm);
+            }
+            if (streamer.readFloat(adsrVal))
+            {
+                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+                setParamNormalized(kAdsrDecayCurveId, norm);
+            }
+            if (streamer.readFloat(adsrVal))
+            {
+                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+                setParamNormalized(kAdsrReleaseCurveId, norm);
+            }
+
+            // Skip per-slot ADSR data (controller does not store slot data)
+            for (int s = 0; s < 8; ++s)
+            {
+                float skipFloat = 0.0f;
+                for (int f = 0; f < 9; ++f)
+                    streamer.readFloat(skipFloat);
+            }
+        }
+        else
+        {
+            // Default ADSR values for v8 and older states
+            // Amount=0.0 -> bit-exact bypass (FR-009)
+            setParamNormalized(kAdsrAmountId, 0.0);
+            // Curves=0.0 -> linear (FR-020)
+            setParamNormalized(kAdsrAttackCurveId, 0.5);  // normalized 0.5 = plain 0.0 for [-1, +1]
+            setParamNormalized(kAdsrDecayCurveId, 0.5);
+            setParamNormalized(kAdsrReleaseCurveId, 0.5);
+            // Times to defaults
+            constexpr double kMin = 1.0;
+            constexpr double kMax = 5000.0;
+            const double kLogRatio = std::log(kMax / kMin);
+            auto logNorm = [&](double plainMs) -> double {
+                double clamped = std::clamp(plainMs, kMin, kMax);
+                return std::log(clamped / kMin) / kLogRatio;
+            };
+            setParamNormalized(kAdsrAttackId, logNorm(10.0));
+            setParamNormalized(kAdsrDecayId, logNorm(100.0));
+            setParamNormalized(kAdsrSustainId, 1.0);
+            setParamNormalized(kAdsrReleaseId, logNorm(100.0));
+            // TimeScale=1.0 -> normalized = (1.0 - 0.25) / (4.0 - 0.25)
+            setParamNormalized(kAdsrTimeScaleId, (1.0 - 0.25) / (4.0 - 0.25));
+        }
     }
 
     return Steinberg::kResultOk;
@@ -1078,6 +1224,44 @@ VSTGUI::CView* Controller::createCustomView(
         updateBannerView_ = banner;
         return banner;
     }
+    if (viewName == "ADSRDisplay")
+    {
+        auto* display = new Krate::Plugins::ADSRDisplay(viewRect, nullptr, -1);
+
+        // T030: Wire ADSR parameter IDs (720-723 consecutive: A, D, S, R)
+        display->setAdsrBaseParamId(kAdsrAttackId);
+
+        // T030: Wire curve parameter IDs (726-728 consecutive: AC, DC, RC)
+        display->setCurveBaseParamId(kAdsrAttackCurveId);
+
+        // T030: Wire parameter edit callbacks for drag-to-edit
+        display->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                performEdit(paramId, static_cast<double>(normalizedValue));
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+            });
+        display->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(paramId);
+            });
+        display->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(paramId);
+            });
+
+        // Spec 124 T049: Wire playback state pointers if already received from processor
+        if (adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_) {
+            display->setPlaybackStatePointers(
+                adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
+        }
+
+        adsrDisplayView_ = display;
+
+        // Initialize display from current parameter values
+        updateAdsrDisplayFromParams();
+
+        return display;
+    }
 
     return nullptr;
 }
@@ -1196,6 +1380,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     modActivityView1_ = nullptr;
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
+    adsrDisplayView_ = nullptr;
 
     activeEditor_ = nullptr;
 
@@ -1255,7 +1440,216 @@ Steinberg::tresult PLUGIN_API Controller::notify(
         return Steinberg::kResultOk;
     }
 
+    // Spec 124 T018: Detected ADSR values from sample analysis
+    // Processor sends plain values; we convert to normalized and update knobs.
+    if (std::strcmp(message->getMessageID(), "DetectedADSR") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        // Logarithmic normalization for time parameters:
+        // plain = kMin * pow(kMax / kMin, norm) => norm = log(plain / kMin) / log(kMax / kMin)
+        constexpr double kMin = 1.0;
+        constexpr double kMax = 5000.0;
+        const double kLogRatio = std::log(kMax / kMin);
+
+        double attackMs = 10.0;
+        double decayMs = 100.0;
+        double sustainLevel = 1.0;
+        double releaseMs = 100.0;
+
+        attrs->getFloat("attackMs", attackMs);
+        attrs->getFloat("decayMs", decayMs);
+        attrs->getFloat("sustainLevel", sustainLevel);
+        attrs->getFloat("releaseMs", releaseMs);
+
+        // Clamp and normalize time params (log)
+        auto logNorm = [&](double plainMs) -> double {
+            double clamped = std::clamp(plainMs, kMin, kMax);
+            return std::log(clamped / kMin) / kLogRatio;
+        };
+
+        double amount = 0.0;
+        attrs->getFloat("amount", amount);
+
+        setParamNormalized(kAdsrAttackId, logNorm(attackMs));
+        setParamNormalized(kAdsrDecayId, logNorm(decayMs));
+        setParamNormalized(kAdsrSustainId,
+            std::clamp(sustainLevel, 0.0, 1.0));
+        setParamNormalized(kAdsrReleaseId, logNorm(releaseMs));
+        setParamNormalized(kAdsrAmountId, std::clamp(amount, 0.0, 1.0));
+
+        // Push detected values to ADSRDisplay visualization
+        updateAdsrDisplayFromParams();
+
+        return Steinberg::kResultOk;
+    }
+
+    // Spec 124: Recalled ADSR values from memory slot recall
+    if (std::strcmp(message->getMessageID(), "RecalledADSR") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        constexpr double kMin = 1.0;
+        constexpr double kMax = 5000.0;
+        const double kLogRatio = std::log(kMax / kMin);
+
+        auto logNorm = [&](double plainMs) -> double {
+            double clamped = std::clamp(plainMs, kMin, kMax);
+            return std::log(clamped / kMin) / kLogRatio;
+        };
+
+        double attackMs = 10.0, decayMs = 100.0, sustainLevel = 1.0,
+               releaseMs = 100.0, amount = 0.0, timeScale = 1.0,
+               attackCurve = 0.0, decayCurve = 0.0, releaseCurve = 0.0;
+
+        attrs->getFloat("attackMs", attackMs);
+        attrs->getFloat("decayMs", decayMs);
+        attrs->getFloat("sustainLevel", sustainLevel);
+        attrs->getFloat("releaseMs", releaseMs);
+        attrs->getFloat("amount", amount);
+        attrs->getFloat("timeScale", timeScale);
+        attrs->getFloat("attackCurve", attackCurve);
+        attrs->getFloat("decayCurve", decayCurve);
+        attrs->getFloat("releaseCurve", releaseCurve);
+
+        setParamNormalized(kAdsrAttackId, logNorm(attackMs));
+        setParamNormalized(kAdsrDecayId, logNorm(decayMs));
+        setParamNormalized(kAdsrSustainId, std::clamp(sustainLevel, 0.0, 1.0));
+        setParamNormalized(kAdsrReleaseId, logNorm(releaseMs));
+        setParamNormalized(kAdsrAmountId, std::clamp(amount, 0.0, 1.0));
+        setParamNormalized(kAdsrTimeScaleId,
+            std::clamp((timeScale - 0.25) / (4.0 - 0.25), 0.0, 1.0));
+        setParamNormalized(kAdsrAttackCurveId,
+            std::clamp((attackCurve + 1.0) / 2.0, 0.0, 1.0));
+        setParamNormalized(kAdsrDecayCurveId,
+            std::clamp((decayCurve + 1.0) / 2.0, 0.0, 1.0));
+        setParamNormalized(kAdsrReleaseCurveId,
+            std::clamp((releaseCurve + 1.0) / 2.0, 0.0, 1.0));
+
+        // Push recalled values to ADSRDisplay visualization
+        updateAdsrDisplayFromParams();
+
+        return Steinberg::kResultOk;
+    }
+
+    // Spec 124 T049: Receive ADSR playback state atomic pointers from processor
+    if (std::strcmp(message->getMessageID(), "ADSRPlaybackState") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (!attrs)
+            return Steinberg::kResultFalse;
+
+        Steinberg::int64 val = 0;
+
+        if (attrs->getInt("outputPtr", val) == Steinberg::kResultOk) {
+            adsrOutputPtr_ = reinterpret_cast<std::atomic<float>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("stagePtr", val) == Steinberg::kResultOk) {
+            adsrStagePtr_ = reinterpret_cast<std::atomic<int>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+        if (attrs->getInt("activePtr", val) == Steinberg::kResultOk) {
+            adsrActivePtr_ = reinterpret_cast<std::atomic<bool>*>( // NOLINT(performance-no-int-to-ptr)
+                static_cast<intptr_t>(val));
+        }
+
+        // Wire pointers to ADSRDisplay if already created
+        if (adsrDisplayView_ && adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_) {
+            adsrDisplayView_->setPlaybackStatePointers(
+                adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
+        }
+
+        return Steinberg::kResultOk;
+    }
+
     return EditControllerEx1::notify(message);
+}
+
+// ==============================================================================
+// updateAdsrDisplayFromParams — push current ADSR parameter values to display
+// ==============================================================================
+void Controller::updateAdsrDisplayFromParams()
+{
+    if (!adsrDisplayView_)
+        return;
+
+    // Read normalized values and convert to plain for the display
+    constexpr float kMin = 1.0f;
+    constexpr float kMax = 5000.0f;
+
+    auto normToLogMs = [&](Steinberg::Vst::ParamID id) -> float {
+        auto norm = static_cast<float>(getParamNormalized(id));
+        return kMin * std::pow(kMax / kMin, norm);
+    };
+
+    adsrDisplayView_->setAttackMs(normToLogMs(kAdsrAttackId));
+    adsrDisplayView_->setDecayMs(normToLogMs(kAdsrDecayId));
+    adsrDisplayView_->setSustainLevel(
+        static_cast<float>(getParamNormalized(kAdsrSustainId)));
+    adsrDisplayView_->setReleaseMs(normToLogMs(kAdsrReleaseId));
+
+    // Curve amounts: normalized [0,1] -> plain [-1,+1]
+    auto normToCurve = [&](Steinberg::Vst::ParamID id) -> float {
+        return static_cast<float>(getParamNormalized(id)) * 2.0f - 1.0f;
+    };
+
+    adsrDisplayView_->setAttackCurve(normToCurve(kAdsrAttackCurveId));
+    adsrDisplayView_->setDecayCurve(normToCurve(kAdsrDecayCurveId));
+    adsrDisplayView_->setReleaseCurve(normToCurve(kAdsrReleaseCurveId));
+}
+
+// ==============================================================================
+// setParamNormalized — forward ADSR param changes to ADSRDisplay
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
+    Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue value)
+{
+    auto result = EditControllerEx1::setParamNormalized(id, value);
+
+    // Forward ADSR parameter changes to the display view
+    if (result == Steinberg::kResultOk && adsrDisplayView_
+        && id >= kAdsrAttackId && id <= kAdsrReleaseCurveId)
+    {
+        constexpr float kMin = 1.0f;
+        constexpr float kMax = 5000.0f;
+        auto norm = static_cast<float>(value);
+
+        switch (id) {
+            case kAdsrAttackId:
+                adsrDisplayView_->setAttackMs(
+                    kMin * std::pow(kMax / kMin, norm));
+                break;
+            case kAdsrDecayId:
+                adsrDisplayView_->setDecayMs(
+                    kMin * std::pow(kMax / kMin, norm));
+                break;
+            case kAdsrSustainId:
+                adsrDisplayView_->setSustainLevel(norm);
+                break;
+            case kAdsrReleaseId:
+                adsrDisplayView_->setReleaseMs(
+                    kMin * std::pow(kMax / kMin, norm));
+                break;
+            case kAdsrAttackCurveId:
+                adsrDisplayView_->setAttackCurve(norm * 2.0f - 1.0f);
+                break;
+            case kAdsrDecayCurveId:
+                adsrDisplayView_->setDecayCurve(norm * 2.0f - 1.0f);
+                break;
+            case kAdsrReleaseCurveId:
+                adsrDisplayView_->setReleaseCurve(norm * 2.0f - 1.0f);
+                break;
+            default:
+                break;
+        }
+    }
+
+    return result;
 }
 
 // ==============================================================================

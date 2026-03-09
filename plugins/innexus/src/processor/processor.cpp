@@ -61,6 +61,9 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
     // Stereo audio output
     addAudioOutput(STR16("Stereo Out"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // Spec 124 FR-012: Explicitly set hard retrigger mode for ADSR envelope
+    adsr_.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
+
     // Sidechain audio input (FR-001: auxiliary stereo bus, NOT default-active)
     // Must be inactive by default so AU wrapper can initialize without inputs.
     // Host activates this bus when user routes audio to the sidechain.
@@ -158,6 +161,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         // Reset voice state
         noteActive_ = false;
         inRelease_ = false;
+        inAdsrRelease_ = false;
         releaseGain_ = 1.0f;
         currentMidiNote_ = -1;
         velocityGain_ = 1.0f;
@@ -175,6 +179,12 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         manualFreezeRecoverySamplesRemaining_ = 0;
         manualFreezeRecoveryOldLevel_ = 0.0f;
         previousFreezeState_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
+        // Spec 124: Prepare ADSR envelope and amount smoother
+        adsr_.prepare(static_cast<float>(sampleRate_));
+        adsr_.reset();
+        adsrAmountSmoother_.configure(15.0f, static_cast<float>(sampleRate_));
+        adsrAmountSmoother_.snapTo(adsrAmount_.load(std::memory_order_relaxed));
 
         // Spec A: Snap harmonic physics smoothers and reset physics state
         warmthSmoother_.snapTo(warmth_.load(std::memory_order_relaxed));
@@ -454,6 +464,65 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const SampleAnalysis* analysis =
         currentAnalysis_.load(std::memory_order_acquire);
 
+    // Spec 124 T049: Send ADSR playback state pointers to controller (one-time)
+    if (!adsrPlaybackPtrsSent_) {
+        auto* ptrMsg = allocateMessage();
+        if (ptrMsg) {
+            ptrMsg->setMessageID("ADSRPlaybackState");
+            auto* ptrAttrs = ptrMsg->getAttributes();
+            if (ptrAttrs) {
+                ptrAttrs->setInt("outputPtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&adsrEnvelopeOutput_)));
+                ptrAttrs->setInt("stagePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&adsrStage_)));
+                ptrAttrs->setInt("activePtr",
+                    static_cast<Steinberg::int64>(
+                        reinterpret_cast<intptr_t>(&adsrActive_)));
+            }
+            sendMessage(ptrMsg);
+            ptrMsg->release();
+            adsrPlaybackPtrsSent_ = true;
+        }
+    }
+
+    // --- Spec 124: ADSR envelope setup (MUST happen before MIDI events) ---
+    // Curve setters enable table processing mode. If called AFTER gate(true),
+    // the phase increment is never initialized for the table path, producing
+    // a stuck envelope. By updating ADSR parameters before processEvents,
+    // enterAttack() sees the correct useTableProcessing_ state.
+    const float adsrAmountTarget = adsrAmount_.load(std::memory_order_relaxed);
+    const bool adsrActive = (adsrAmountTarget > 0.0f) ||
+        (adsrAmountSmoother_.getCurrentValue() > 1e-7f);
+
+    if (adsrActive)
+    {
+        // Update envelope parameters from atomics
+        const float timeScale = adsrTimeScale_.load(std::memory_order_relaxed);
+
+        // Effective times = param * scale, clamped to [1, 5000]ms per segment
+        float effAttack = std::clamp(
+            adsrAttackMs_.load(std::memory_order_relaxed) * timeScale, 1.0f, 5000.0f);
+        float effDecay = std::clamp(
+            adsrDecayMs_.load(std::memory_order_relaxed) * timeScale, 1.0f, 5000.0f);
+        float effRelease = std::clamp(
+            adsrReleaseMs_.load(std::memory_order_relaxed) * timeScale, 1.0f, 5000.0f);
+
+        adsr_.setAttack(effAttack);
+        adsr_.setDecay(effDecay);
+        adsr_.setSustain(adsrSustainLevel_.load(std::memory_order_relaxed));
+        adsr_.setRelease(effRelease);
+
+        // Curve amounts (unscaled by timeScale)
+        adsr_.setAttackCurve(adsrAttackCurve_.load(std::memory_order_relaxed));
+        adsr_.setDecayCurve(adsrDecayCurve_.load(std::memory_order_relaxed));
+        adsr_.setReleaseCurve(adsrReleaseCurve_.load(std::memory_order_relaxed));
+
+        // Set smoother target for Amount
+        adsrAmountSmoother_.setTarget(adsrAmountTarget);
+    }
+
     // --- Process MIDI events ---
     processEvents(data.inputEvents);
 
@@ -545,6 +614,51 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 // the Freeze parameter off (FR-018).
                 freeze_.store(1.0f, std::memory_order_relaxed);
                 previousFreezeState_ = true;
+
+                // Spec 124 FR-015: Restore all 9 ADSR values from slot
+                {
+                    const auto& ms = memorySlots_[static_cast<size_t>(slot)];
+                    adsrAttackMs_.store(ms.adsrAttackMs, std::memory_order_relaxed);
+                    adsrDecayMs_.store(ms.adsrDecayMs, std::memory_order_relaxed);
+                    adsrSustainLevel_.store(ms.adsrSustainLevel, std::memory_order_relaxed);
+                    adsrReleaseMs_.store(ms.adsrReleaseMs, std::memory_order_relaxed);
+                    adsrAmount_.store(ms.adsrAmount, std::memory_order_relaxed);
+                    adsrTimeScale_.store(ms.adsrTimeScale, std::memory_order_relaxed);
+                    adsrAttackCurve_.store(ms.adsrAttackCurve, std::memory_order_relaxed);
+                    adsrDecayCurve_.store(ms.adsrDecayCurve, std::memory_order_relaxed);
+                    adsrReleaseCurve_.store(ms.adsrReleaseCurve, std::memory_order_relaxed);
+
+                    // Send IMessage to Controller to update ADSR knob positions
+                    auto* msg = allocateMessage();
+                    if (msg)
+                    {
+                        msg->setMessageID("RecalledADSR");
+                        auto* attrs = msg->getAttributes();
+                        if (attrs)
+                        {
+                            attrs->setFloat("attackMs",
+                                static_cast<double>(ms.adsrAttackMs));
+                            attrs->setFloat("decayMs",
+                                static_cast<double>(ms.adsrDecayMs));
+                            attrs->setFloat("sustainLevel",
+                                static_cast<double>(ms.adsrSustainLevel));
+                            attrs->setFloat("releaseMs",
+                                static_cast<double>(ms.adsrReleaseMs));
+                            attrs->setFloat("amount",
+                                static_cast<double>(ms.adsrAmount));
+                            attrs->setFloat("timeScale",
+                                static_cast<double>(ms.adsrTimeScale));
+                            attrs->setFloat("attackCurve",
+                                static_cast<double>(ms.adsrAttackCurve));
+                            attrs->setFloat("decayCurve",
+                                static_cast<double>(ms.adsrDecayCurve));
+                            attrs->setFloat("releaseCurve",
+                                static_cast<double>(ms.adsrReleaseCurve));
+                        }
+                        sendMessage(msg);
+                        msg->release();
+                    }
+                }
             }
 
             // FR-011: Auto-reset trigger
@@ -620,6 +734,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             memorySlots_[static_cast<size_t>(slot)].snapshot =
                 Krate::DSP::captureSnapshot(captureFrame, captureResidual);
             memorySlots_[static_cast<size_t>(slot)].occupied = true;
+
+            // Spec 124 FR-014: Store all 9 ADSR parameter values into the slot
+            {
+                auto& ms = memorySlots_[static_cast<size_t>(slot)];
+                ms.adsrAttackMs = adsrAttackMs_.load(std::memory_order_relaxed);
+                ms.adsrDecayMs = adsrDecayMs_.load(std::memory_order_relaxed);
+                ms.adsrSustainLevel = adsrSustainLevel_.load(std::memory_order_relaxed);
+                ms.adsrReleaseMs = adsrReleaseMs_.load(std::memory_order_relaxed);
+                ms.adsrAmount = adsrAmount_.load(std::memory_order_relaxed);
+                ms.adsrTimeScale = adsrTimeScale_.load(std::memory_order_relaxed);
+                ms.adsrAttackCurve = adsrAttackCurve_.load(std::memory_order_relaxed);
+                ms.adsrDecayCurve = adsrDecayCurve_.load(std::memory_order_relaxed);
+                ms.adsrReleaseCurve = adsrReleaseCurve_.load(std::memory_order_relaxed);
+            }
 
             // M6: Update evolution waypoints after capture (FR-018)
             evolutionEngine_.updateWaypoints(memorySlots_);
@@ -1117,6 +1245,16 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 frameSampleCounter_ = 0;
                 currentFrameIndex_++;
 
+                // Spec 124: Sustain loop — when ADSR is in Sustain stage and
+                // a valid loop region exists, wrap frame index back to loop start.
+                // This keeps the note alive indefinitely while the key is held.
+                if (adsrActive && sustainLoopStart_ < sustainLoopEnd_ &&
+                    adsr_.getStage() == Krate::DSP::ADSRStage::Sustain &&
+                    static_cast<int>(currentFrameIndex_) >= sustainLoopEnd_)
+                {
+                    currentFrameIndex_ = static_cast<size_t>(sustainLoopStart_);
+                }
+
                 // Get the new frame
                 const auto& frame = analysis->getFrame(currentFrameIndex_);
 
@@ -1192,10 +1330,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             // For simplicity, we load every sample (loadFrame is cheap compared to processing)
             Krate::DSP::HarmonicFrame evoFrame{};
             Krate::DSP::ResidualFrame evoResidual{};
-            if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual))
+            Krate::DSP::MemorySlot evoAdsrInterp{};
+            if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
             {
                 morphedFrame_ = evoFrame;
                 morphedResidualFrame_ = evoResidual;
+
+                // Spec 124 FR-017: Wire interpolated ADSR from evolution to processor atomics
+                adsrAttackMs_.store(evoAdsrInterp.adsrAttackMs, std::memory_order_relaxed);
+                adsrDecayMs_.store(evoAdsrInterp.adsrDecayMs, std::memory_order_relaxed);
+                adsrSustainLevel_.store(evoAdsrInterp.adsrSustainLevel, std::memory_order_relaxed);
+                adsrReleaseMs_.store(evoAdsrInterp.adsrReleaseMs, std::memory_order_relaxed);
+                adsrAmount_.store(evoAdsrInterp.adsrAmount, std::memory_order_relaxed);
+                adsrTimeScale_.store(evoAdsrInterp.adsrTimeScale, std::memory_order_relaxed);
+                adsrAttackCurve_.store(evoAdsrInterp.adsrAttackCurve, std::memory_order_relaxed);
+                adsrDecayCurve_.store(evoAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
+                adsrReleaseCurve_.store(evoAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
 
                 // Apply timbral blend (cross-synthesis) to evolution output
                 if (smoothedTimbralBlend < 1.0f - 1e-6f)
@@ -1266,6 +1416,21 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             {
                 morphedFrame_ = blendFrame;
                 morphedResidualFrame_ = blendResidual;
+
+                // Spec 124 FR-016: Wire blended ADSR from morph engine to processor atomics
+                Krate::DSP::MemorySlot blendAdsrInterp{};
+                if (harmonicBlender_.blendADSR(memorySlots_, blendAdsrInterp))
+                {
+                    adsrAttackMs_.store(blendAdsrInterp.adsrAttackMs, std::memory_order_relaxed);
+                    adsrDecayMs_.store(blendAdsrInterp.adsrDecayMs, std::memory_order_relaxed);
+                    adsrSustainLevel_.store(blendAdsrInterp.adsrSustainLevel, std::memory_order_relaxed);
+                    adsrReleaseMs_.store(blendAdsrInterp.adsrReleaseMs, std::memory_order_relaxed);
+                    adsrAmount_.store(blendAdsrInterp.adsrAmount, std::memory_order_relaxed);
+                    adsrTimeScale_.store(blendAdsrInterp.adsrTimeScale, std::memory_order_relaxed);
+                    adsrAttackCurve_.store(blendAdsrInterp.adsrAttackCurve, std::memory_order_relaxed);
+                    adsrDecayCurve_.store(blendAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
+                    adsrReleaseCurve_.store(blendAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
+                }
 
                 // Apply timbral blend (cross-synthesis) to blended output
                 if (smoothedTimbralBlend < 1.0f - 1e-6f)
@@ -1436,7 +1601,32 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         sampleL *= velocityGain_;
         sampleR *= velocityGain_;
 
+        // --- Spec 124: ADSR envelope gain (FR-008, FR-009, FR-011) ---
+        // Bit-exact bypass when Amount==0.0: skip ALL ADSR processing (SC-003)
+        if (adsrActive)
+        {
+            float envVal = adsr_.process();
+            float smoothedAmount = adsrAmountSmoother_.process();
+            // lerp(1.0, envVal, smoothedAmount) = 1.0*(1-amount) + envVal*amount
+            float adsrGain = 1.0f - smoothedAmount + smoothedAmount * envVal;
+            sampleL *= adsrGain;
+            sampleR *= adsrGain;
+
+            // When ADSR handles release, end note when envelope reaches Idle
+            if (inAdsrRelease_ &&
+                adsr_.getStage() == Krate::DSP::ADSRStage::Idle)
+            {
+                noteActive_ = false;
+                inAdsrRelease_ = false;
+                oscillatorBank_.reset();
+                residualSynth_.reset();
+                sampleL = 0.0f;
+                sampleR = 0.0f;
+            }
+        }
+
         // --- Release envelope (FR-049) ---
+        // Only used when ADSR Amount==0 (old behavior)
         if (inRelease_)
         {
             releaseGain_ *= releaseDecayCoeff_;
@@ -1523,6 +1713,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
     }
 
+    // Spec 124 T048: Update ADSR playback state atomics for ADSRDisplay visualization
+    adsrEnvelopeOutput_.store(adsr_.getOutput(), std::memory_order_relaxed);
+    adsrStage_.store(static_cast<int>(adsr_.getStage()), std::memory_order_relaxed);
+    adsrActive_.store(adsr_.isActive(), std::memory_order_relaxed);
+
     // M7: Send display data to controller (FR-048)
     // Only when producing output and processing samples (SC-008)
     if (data.numOutputs > 0 && numSamples > 0)
@@ -1584,6 +1779,47 @@ void Processor::checkForNewAnalysis()
         residualSynth_.prepare(
             result->analysisFFTSize, result->analysisHopSize,
             static_cast<float>(sampleRate_));
+    }
+
+    // Spec 124 FR-003: Auto-populate ADSR parameter values upon new sample load
+    {
+        const auto& adsr = result->detectedADSR;
+        adsrAttackMs_.store(adsr.attackMs, std::memory_order_relaxed);
+        adsrDecayMs_.store(adsr.decayMs, std::memory_order_relaxed);
+        adsrSustainLevel_.store(adsr.sustainLevel, std::memory_order_relaxed);
+        adsrReleaseMs_.store(adsr.releaseMs, std::memory_order_relaxed);
+
+        // Store sustain loop region frame indices for frame looping
+        sustainLoopStart_ = adsr.sustainStartFrame;
+        sustainLoopEnd_ = adsr.sustainEndFrame;
+
+        // Auto-enable ADSR when detection produces results — without this,
+        // Amount stays at 0.0 and the detected envelope is never applied.
+        adsrAmount_.store(1.0f, std::memory_order_relaxed);
+
+        // T018: Send IMessage to Controller to update ADSR knob positions.
+        // The controller converts plain values back to normalized for display.
+        auto* msg = allocateMessage();
+        if (msg)
+        {
+            msg->setMessageID("DetectedADSR");
+            auto* attrs = msg->getAttributes();
+            if (attrs)
+            {
+                // Send plain values; controller will normalize
+                attrs->setFloat("attackMs",
+                    static_cast<double>(adsr.attackMs));
+                attrs->setFloat("decayMs",
+                    static_cast<double>(adsr.decayMs));
+                attrs->setFloat("sustainLevel",
+                    static_cast<double>(adsr.sustainLevel));
+                attrs->setFloat("releaseMs",
+                    static_cast<double>(adsr.releaseMs));
+                attrs->setFloat("amount", 1.0);
+            }
+            sendMessage(msg);
+            msg->release();
+        }
     }
 
     // Publish new analysis with release semantics

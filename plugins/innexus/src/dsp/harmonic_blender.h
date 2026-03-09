@@ -197,6 +197,87 @@ public:
         return true;
     }
 
+    /// @brief Compute blended ADSR values from weighted slot sources (FR-016).
+    ///
+    /// Uses the same weights as the last blend() call. Time parameters use
+    /// weighted geometric mean (exp(sum(w_i * log(t_i)))). Linear parameters
+    /// (Sustain, Amount, TimeScale, curves) use weighted arithmetic mean.
+    ///
+    /// @param slots Array of 8 MemorySlot references
+    /// @param[out] adsrOut Receives interpolated ADSR values
+    /// @return true if valid output produced (at least one contributing slot)
+    [[nodiscard]] bool blendADSR(
+        const std::array<Krate::DSP::MemorySlot, 8>& slots,
+        Krate::DSP::MemorySlot& adsrOut) const noexcept
+    {
+        if (cachedTotalWeight_ <= 0.0f)
+            return false;
+
+        // Initialize outputs
+        adsrOut = Krate::DSP::MemorySlot{};
+
+        // Accumulators for geometric mean (log-space weighted sum)
+        float logAttack = 0.0f;
+        float logDecay = 0.0f;
+        float logRelease = 0.0f;
+
+        // Accumulators for linear weighted sum
+        float sustain = 0.0f;
+        float amount = 0.0f;
+        float timeScale = 0.0f;
+        float attackCurve = 0.0f;
+        float decayCurve = 0.0f;
+        float releaseCurve = 0.0f;
+
+        for (int i = 0; i < kNumSlots; ++i)
+        {
+            const float w = cachedEffectiveSlotWeights_[static_cast<size_t>(i)];
+            if (w <= 0.0f)
+                continue;
+
+            const auto& ms = slots[static_cast<size_t>(i)];
+
+            // Geometric mean in log-space for time params
+            logAttack += w * std::log(std::max(ms.adsrAttackMs, 1.0f));
+            logDecay += w * std::log(std::max(ms.adsrDecayMs, 1.0f));
+            logRelease += w * std::log(std::max(ms.adsrReleaseMs, 1.0f));
+
+            // Linear interpolation for level/ratio/curve params
+            sustain += w * ms.adsrSustainLevel;
+            amount += w * ms.adsrAmount;
+            timeScale += w * ms.adsrTimeScale;
+            attackCurve += w * ms.adsrAttackCurve;
+            decayCurve += w * ms.adsrDecayCurve;
+            releaseCurve += w * ms.adsrReleaseCurve;
+        }
+
+        // Live source does not carry ADSR values; its contribution is ignored
+        // for ADSR blending (only slot sources contribute ADSR).
+
+        // If live weight is the only contributor, use defaults
+        float slotWeightSum = 0.0f;
+        for (int i = 0; i < kNumSlots; ++i)
+            slotWeightSum += cachedEffectiveSlotWeights_[static_cast<size_t>(i)];
+
+        if (slotWeightSum <= 0.0f)
+            return false;
+
+        // Normalize by actual slot weight contribution
+        const float invSlotWeight = 1.0f / slotWeightSum;
+
+        adsrOut.adsrAttackMs = std::exp(logAttack * invSlotWeight);
+        adsrOut.adsrDecayMs = std::exp(logDecay * invSlotWeight);
+        adsrOut.adsrReleaseMs = std::exp(logRelease * invSlotWeight);
+        adsrOut.adsrSustainLevel = sustain * invSlotWeight;
+        adsrOut.adsrAmount = amount * invSlotWeight;
+        adsrOut.adsrTimeScale = timeScale * invSlotWeight;
+        adsrOut.adsrAttackCurve = attackCurve * invSlotWeight;
+        adsrOut.adsrDecayCurve = decayCurve * invSlotWeight;
+        adsrOut.adsrReleaseCurve = releaseCurve * invSlotWeight;
+
+        return true;
+    }
+
     /// @brief Get normalized effective weight for a slot.
     /// @param slotIndex Slot index [0, 7]
     /// @return Normalized weight (after dividing by total)

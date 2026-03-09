@@ -7038,10 +7038,22 @@ struct HarmonicSnapshot {
     float brightness;                               // Perceptual metadata
 };
 
-/// Memory slot pairing a HarmonicSnapshot with an occupancy flag.
+/// Memory slot pairing a HarmonicSnapshot with an occupancy flag
+/// and per-slot ADSR envelope parameters (Spec 124).
 struct MemorySlot {
     HarmonicSnapshot snapshot;
     bool occupied = false;
+
+    // ADSR envelope parameters (Spec 124: FR-013, FR-014)
+    float adsrAttackMs = 10.0f;        // Attack time in ms [1, 5000]
+    float adsrDecayMs = 100.0f;        // Decay time in ms [1, 5000]
+    float adsrSustainLevel = 1.0f;     // Sustain level [0, 1]
+    float adsrReleaseMs = 100.0f;      // Release time in ms [1, 5000]
+    float adsrAmount = 0.0f;           // Envelope amount [0, 1] (0 = bypass)
+    float adsrTimeScale = 1.0f;        // Time scale multiplier [0.25, 4.0]
+    float adsrAttackCurve = 0.0f;      // Attack curve amount [-1, +1]
+    float adsrDecayCurve = 0.0f;       // Decay curve amount [-1, +1]
+    float adsrReleaseCurve = 0.0f;     // Release curve amount [-1, +1]
 };
 
 /// Capture: extract snapshot from current HarmonicFrame + ResidualFrame.
@@ -7061,10 +7073,11 @@ inline void recallSnapshotToFrame(
 
 **When to use:**
 - Storing harmonic state for later playback (Harmonic Memory capture/recall)
-- Persisting timbral data in plugin state (state v5 serialization)
+- Persisting timbral data in plugin state (state v5+ serialization)
 - Exporting/importing timbral presets as JSON
-- Future: Evolution Engine (M6) drifting between stored snapshots
-- Future: Multi-Source Blending (M7) combining stored and live timbres
+- Evolution Engine (M6) drifting between stored snapshots
+- Multi-Source Blending (M6) combining stored and live timbres
+- Per-slot ADSR envelope storage (Spec 124) for capture/recall/morph of amplitude envelopes
 
 **Key design decisions:**
 - **Normalized domain**: Frequencies as F0 ratios + L2-normalized amplitudes ensure pitch/loudness independence
@@ -7072,5 +7085,7 @@ inline void recallSnapshotToFrame(
 - **Phases stored for forward compatibility**: Phase-reset-on-note-on mode deferred to future milestone; phases not read during M5 playback
 - **Pre-allocated slots**: 8 `MemorySlot` instances as member variables in Processor (~6.8 KB total), zero heap allocation during capture/recall
 - **L2 normalization guard**: Division-by-zero protected with `if (sumSquares > 0.0f)` check
+- **ADSR defaults preserve backward compatibility** (Spec 124): `adsrAmount=0.0` means slots captured before Spec 124 have no envelope shaping when recalled. All 9 ADSR fields use value-initialization defaults that produce neutral behavior.
+- **Geometric mean interpolation for time parameters** (Spec 124): When morphing or evolving between slots, ADSR time parameters (Attack, Decay, Release) use `exp((1-t)*log(a) + t*log(b))` for perceptually correct log-domain interpolation. Linear parameters (Sustain, Amount, TimeScale, curves) use standard `a*(1-t) + b*t`.
 
 **Dependencies:** Layer 2 (harmonic_types.h, residual_types.h)

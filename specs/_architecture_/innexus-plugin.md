@@ -958,3 +958,155 @@ State version bumped from 7 (Spec A) to 8. Two new float values appended after S
 - **Early-out bypass**: When `feedbackAmount == 0.0f`, the entire mixing loop is skipped. No overhead when feedback is disabled.
 - **Block-rate parameter reading**: Both parameters are read once per `process()` call. No per-sample smoothing needed (no zipper artifacts at block-rate transitions).
 - **In-place mixing**: Feedback is mixed directly into `sidechainBuffer_` before `pushSamples()`. If `sidechainMono` points to raw bus data (mono input case), it is first copied to `sidechainBuffer_` to avoid modifying the host's buffer.
+
+---
+
+## Spec 124 ADSR Envelope Detection (Amplitude Envelope Shaping)
+**Since:** Spec 124 (124-adsr-envelope-detection)
+
+Adds automatic ADSR envelope detection from analyzed sample amplitude contours, 9 user-editable envelope parameters, per-sample amplitude shaping in the audio output path, per-slot ADSR storage with geometric mean interpolation for morph/evolution, and an ADSRDisplay visualization. When Envelope Amount is 0.0, the ADSR path is completely bypassed (bit-exact).
+
+### Signal Chain Position
+
+```
+Oscillator Bank + Residual Synthesizer (existing output)
+    |
+    v
+[ADSR Envelope Shaping] (Spec 124)
+|  gain = lerp(1.0, adsr_.process(), smoothedAmount)
+|  output[s] *= gain
+|  Bypassed when: Amount == 0.0 (skip ALL ADSR processing including envelope tick)
+    |
+    v
+Final Stereo Output
+```
+
+The ADSR envelope is applied per-sample after the oscillator bank output. The `adsr_` instance is a monophonic `Krate::DSP::ADSREnvelope` member of the Processor. Gate is controlled by MIDI note-on (gate true) and note-off (gate false) with hard retrigger mode (new note-on during held note resets envelope to attack stage immediately).
+
+### Parameters (IDs 720-728)
+
+| Parameter | ID | Type | Range | Default |
+|-----------|-----|------|-------|---------|
+| Attack | `kAdsrAttackId` (720) | RangeParameter (log) | 1 - 5000 ms | 10 ms |
+| Decay | `kAdsrDecayId` (721) | RangeParameter (log) | 1 - 5000 ms | 100 ms |
+| Sustain | `kAdsrSustainId` (722) | RangeParameter | 0.0 - 1.0 | 1.0 |
+| Release | `kAdsrReleaseId` (723) | RangeParameter (log) | 1 - 5000 ms | 100 ms |
+| Amount | `kAdsrAmountId` (724) | RangeParameter | 0.0 - 1.0 | 0.0 |
+| Time Scale | `kAdsrTimeScaleId` (725) | RangeParameter | 0.25 - 4.0 | 1.0 |
+| Attack Curve | `kAdsrAttackCurveId` (726) | RangeParameter | -1.0 - +1.0 | 0.0 |
+| Decay Curve | `kAdsrDecayCurveId` (727) | RangeParameter | -1.0 - +1.0 | 0.0 |
+| Release Curve | `kAdsrReleaseCurveId` (728) | RangeParameter | -1.0 - +1.0 | 0.0 |
+
+**Note:** `kReleaseTimeId` (200) is the existing oscillator release fade parameter. The ADSR release is `kAdsrReleaseId` (723) -- a separate parameter.
+
+### EnvelopeDetector
+**Path:** [envelope_detector.h](../../plugins/innexus/src/dsp/envelope_detector.h) | **Since:** Spec 124
+
+Plugin-local DSP component that analyzes the amplitude contour of harmonic analysis frames and fits ADSR parameters using O(1) rolling least-squares steady-state detection. Called from `SampleAnalyzer::analyzeOnThread()` after frame analysis completes. Not called for sidechain input (sidechain mode bypasses detection).
+
+```cpp
+namespace Innexus {
+
+struct DetectedADSR {
+    float attackMs = 10.0f;      // Detected attack time (ms), clamped [1, 5000]
+    float decayMs = 100.0f;      // Detected decay time (ms), clamped [1, 5000]
+    float sustainLevel = 1.0f;   // Detected sustain level [0, 1] relative to peak
+    float releaseMs = 100.0f;    // Detected release time (ms), clamped [1, 5000]
+};
+
+class EnvelopeDetector {
+public:
+    // Static analysis function -- not real-time, runs on analysis thread
+    [[nodiscard]] static DetectedADSR detect(
+        const std::vector<Krate::DSP::HarmonicFrame>& frames,
+        float hopTimeSec) noexcept;
+
+private:
+    static constexpr int kWindowSize = 12;           // Rolling window size [8-20 valid range]
+    static constexpr float kSlopeThreshold = 0.0005f; // |slope| < threshold for steady state
+    static constexpr float kVarianceThreshold = 0.002f; // variance < threshold for steady state
+    static constexpr int kMinFrames = 4;              // Minimum frames for valid detection
+};
+
+} // namespace Innexus
+```
+
+**Detection algorithm:**
+1. Extract `globalAmplitude` per frame into amplitude contour vector
+2. Find peak index (attack endpoint)
+3. Compute Attack = peakIndex * hopTimeSec * 1000 ms
+4. Scan post-peak frames with O(1) rolling least-squares (fixed window of `kWindowSize=12` frames):
+   - Maintain running sums: n, sum_x, sum_y, sum_xy, sum_x2
+   - Welford online variance: mean, M2
+   - Steady-state condition: |slope| < 0.0005/frame AND variance < 0.002
+5. Compute Decay = (steadyStateStart - peakIndex) * hopTimeSec * 1000 ms
+6. Compute Sustain = mean amplitude in steady-state region / peak amplitude
+7. Compute Release = (totalFrames - 1 - steadyStateEnd) * hopTimeSec * 1000 ms
+8. Clamp all outputs: times to [1, 5000] ms, sustain to [0, 1]
+
+**When to use:**
+- Automatic ADSR parameter fitting from loaded audio sample analysis
+- Initial envelope detection that populates user-editable ADSR knobs
+- NOT for sidechain/live analysis (detection is suppressed in sidechain mode)
+
+**Key constraints:** Static method, not real-time. Allocates `std::vector` internally (runs on analysis thread, not audio thread). Returns sensible defaults for edge cases (empty frames, constant amplitude, very short contours).
+
+### ADSR Amplitude Shaping in Processor
+
+The processor applies per-sample ADSR envelope shaping after the oscillator bank output:
+
+```cpp
+// Per-sample gain computation
+float envGain = adsr_.process();
+float smoothedAmount = adsrAmountSmoother_.process(adsrAmount);
+float gain = 1.0f * (1.0f - smoothedAmount) + envGain * smoothedAmount;
+output[s] *= gain;
+```
+
+- **Amount=0.0**: `gain = 1.0` (bit-exact bypass, no envelope tick)
+- **Amount=1.0**: `gain = envGain` (full ADSR shaping)
+- **Intermediate Amount**: Linear blend, output is never fully silent (intentional)
+
+Effective envelope times are scaled: `effectiveTime = paramTime * timeScale`, clamped to [1, 5000] ms per segment independently.
+
+### Per-Slot ADSR Storage and Interpolation
+
+Each of the 8 `MemorySlot` instances stores 9 ADSR fields alongside the `HarmonicSnapshot` (see Layer 2 documentation for field details). Capture writes current processor ADSR atomics into the slot. Recall restores all 9 values to processor atomics and sends `IMessage` to update controller knobs.
+
+**Geometric mean interpolation pattern for morph/evolution:**
+
+Time parameters (Attack, Decay, Release) use geometric mean interpolation to preserve perceptual proportionality across logarithmic ranges:
+
+```cpp
+// Geometric mean for time parameters (morph factor t in [0, 1])
+float result = std::exp((1.0f - t) * std::log(a) + t * std::log(b));
+
+// Example: morph t=0.5 between Attack=10ms and Attack=500ms
+// result = exp(0.5 * log(10) + 0.5 * log(500)) = sqrt(10 * 500) = ~70.7ms
+```
+
+Linear parameters (Sustain, Amount, TimeScale, AttackCurve, DecayCurve, ReleaseCurve) use standard linear interpolation: `a * (1-t) + b * t`.
+
+This pattern is shared by both `HarmonicBlender::getBlendedAdsr()` (host-driven multi-source morph) and `EvolutionEngine::interpolateAdsr()` (autonomous evolution drift). Both use the same formula to ensure consistent interpolation behavior.
+
+### ADSRDisplay Visualization
+**Path:** [adsr_display.h](../../plugins/shared/src/ui/adsr_display.h) | **Since:** Spec 124
+
+Shared UI component (`Krate::Plugins::ADSRDisplay`, extends `CView`) that renders the ADSR envelope curve with draggable control points and an animated playback dot. Wired in `Controller::createCustomView()` with `custom-view-name="ADSRDisplay"`.
+
+- Base ADSR param IDs: 720 (A=720, D=721, S=722, R=723, consecutive)
+- Base curve param IDs: 726 (AC=726, DC=727, RC=728, consecutive)
+- Playback dot driven by processor atomics: `adsrEnvelopeOutput_` (float), `adsrStage_` (int), `adsrActive_` (bool)
+
+### State Persistence (Version 9)
+
+State version bumped from 8 (Spec B) to 9. Nine global ADSR float values appended after Spec B data (in parameter ID order: 720-728), followed by per-slot ADSR data for all 8 slots (9 floats per slot = 72 floats total). Loading a v1-v8 state initializes Envelope Amount=0.0 (bypass), all curve amounts=0.0, Attack=10ms, Decay=100ms, Sustain=1.0, Release=100ms, TimeScale=1.0. Backward compatible.
+
+### Key Design Patterns
+
+- **Bit-exact bypass**: When Amount=0.0, ALL ADSR processing is skipped -- no envelope tick, no multiply. Output is identical to pre-feature behavior.
+- **Monophonic envelope**: Single `ADSREnvelope` instance in Processor, not per-voice. Hard retrigger mode resets to attack on new note-on.
+- **Pre-allocated storage**: `ADSREnvelope` and `OnePoleSmoother` are member variables. Zero heap allocations on the audio thread.
+- **Atomic parameter exchange**: All 9 parameters use `std::atomic<float>` for thread-safe communication.
+- **Amount smoothing**: `OnePoleSmoother` (~5-10ms) on the Amount parameter prevents clicks during automation transitions.
+- **Geometric mean interpolation**: Time parameters use log-space weighted interpolation for perceptually correct morphing between slots. Shared formula between morph engine and evolution engine.
