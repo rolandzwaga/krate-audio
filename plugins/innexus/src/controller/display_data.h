@@ -13,8 +13,9 @@ namespace Innexus {
 
 struct DisplayData
 {
-    float partialAmplitudes[48]{};    // Linear amplitudes [0.0, ~1.0]
-    uint8_t partialActive[48]{};      // 1 = active, 0 = filtered/attenuated
+    float partialAmplitudes[96]{};    // Linear amplitudes [0.0, ~1.0]
+    uint8_t partialActive[96]{};      // 1 = active, 0 = filtered/attenuated
+    int activePartialCount = 48;       // How many bars the display should draw
     float f0 = 0.0f;                  // Fundamental frequency (Hz)
     float f0Confidence = 0.0f;        // [0.0, 1.0]
     uint8_t slotOccupied[8]{};        // 1 = memory slot occupied

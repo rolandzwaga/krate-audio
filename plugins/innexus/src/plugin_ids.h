@@ -52,6 +52,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Oscillator Bank (200-299)
     kReleaseTimeId = 200,          // 20-5000ms, default 100ms
     kInharmonicityAmountId = 201,  // 0-100%, default 100%
+    kPartialCountId = 202,         // StringListParameter: "48"/"64"/"80"/"96", default 0 (48)
 
     // Residual Model (400-499) -- M2
     kHarmonicLevelId = 400,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
@@ -89,16 +90,16 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kMod1WaveformId = 611,         // 0-4 (Sine/Triangle/Square/Saw/RandomSH), default 0
     kMod1RateId = 612,             // 0.01-20.0 Hz, default 1.0
     kMod1DepthId = 613,            // 0.0-1.0, default 0.0
-    kMod1RangeStartId = 614,       // 1-48, default 1
-    kMod1RangeEndId = 615,         // 1-48, default 48
+    kMod1RangeStartId = 614,       // 1-96, default 1
+    kMod1RangeEndId = 615,         // 1-96, default 96
     kMod1TargetId = 616,           // 0-2 (Amplitude/Frequency/Pan), default 0
     // Modulator 2
     kMod2EnableId = 620,           // 0/1, default 0
     kMod2WaveformId = 621,         // 0-4, default 0
     kMod2RateId = 622,             // 0.01-20.0 Hz, default 1.0
     kMod2DepthId = 623,            // 0.0-1.0, default 0.0
-    kMod2RangeStartId = 624,       // 1-48, default 1
-    kMod2RangeEndId = 625,         // 1-48, default 48
+    kMod2RangeStartId = 624,       // 1-96, default 1
+    kMod2RangeEndId = 625,         // 1-96, default 96
     kMod2TargetId = 626,           // 0-2, default 0
     // Detune
     kDetuneSpreadId = 630,         // 0.0-1.0, default 0.0

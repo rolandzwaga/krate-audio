@@ -161,9 +161,9 @@ TEST_CASE("HarmonicFrame default construction", "[dsp][harmonic_types][harmonic_
     REQUIRE(frame.globalAmplitude == 0.0f);
 }
 
-TEST_CASE("HarmonicFrame partials array has capacity 48", "[dsp][harmonic_types][harmonic_frame]") {
+TEST_CASE("HarmonicFrame partials array has capacity 96", "[dsp][harmonic_types][harmonic_frame]") {
     HarmonicFrame frame;
-    REQUIRE(frame.partials.size() == 48);
+    REQUIRE(frame.partials.size() == 96);
 }
 
 TEST_CASE("HarmonicFrame numPartials starts at 0", "[dsp][harmonic_types][harmonic_frame]") {
@@ -233,6 +233,6 @@ TEST_CASE("HarmonicFrame partials are default-initialized", "[dsp][harmonic_type
 // kMaxPartials constant
 // =============================================================================
 
-TEST_CASE("kMaxPartials constant equals 48", "[dsp][harmonic_types]") {
-    REQUIRE(kMaxPartials == 48);
+TEST_CASE("kMaxPartials constant equals 96", "[dsp][harmonic_types]") {
+    REQUIRE(kMaxPartials == 96);
 }

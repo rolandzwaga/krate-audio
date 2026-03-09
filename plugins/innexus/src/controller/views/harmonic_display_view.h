@@ -3,7 +3,7 @@
 // ==============================================================================
 // HarmonicDisplayView - Spectral Display Custom View
 // ==============================================================================
-// FR-009: 48-bar spectral display for harmonic partials
+// FR-009: Adaptive-bar spectral display for harmonic partials (up to 96)
 // FR-011: Empty/placeholder state when no analysis data
 // FR-012: Attenuated partials shown differently from active ones
 // ==============================================================================
@@ -29,12 +29,12 @@ public:
     bool hasData() const { return hasData_; }
     float getAmplitude(int index) const
     {
-        if (index >= 0 && index < 48) return amplitudes_[index];
+        if (index >= 0 && index < 96) return amplitudes_[index];
         return 0.0f;
     }
     bool isActive(int index) const
     {
-        if (index >= 0 && index < 48) return active_[index];
+        if (index >= 0 && index < 96) return active_[index];
         return false;
     }
 
@@ -42,8 +42,9 @@ public:
     static float amplitudeToBarHeight(float amp, float viewHeight);
 
 private:
-    float amplitudes_[48]{};
-    bool active_[48]{};
+    float amplitudes_[96]{};
+    bool active_[96]{};
+    int activeCount_ = 48;
     bool hasData_ = false;
 };
 

@@ -1429,73 +1429,31 @@ TEST_CASE("M5 State: partial slot occupancy round-trips correctly",
     }
 }
 
-// T065: Loading v4 state initializes all slots to empty (SC-005)
-TEST_CASE("M5 State: loading v4 state initializes all slots to empty (SC-005)",
+// T065: Loading state with empty slots (SC-005)
+TEST_CASE("M5 State: loading state with empty slots correctly initializes all slots (SC-005)",
           "[innexus][m5][state][sc005]")
 {
     M5TestStream stream;
 
-    // Create a v4 state (no M5 data) by saving from a processor
-    // that hasn't been updated to write v5 data yet.
-    // We'll simulate this by creating a processor, saving state,
-    // and then verifying a fresh processor loads it correctly.
-    //
-    // Since getState now writes v5 format, we need to create a v4 blob manually.
-    // Instead, we'll use a processor that writes the current format,
-    // then load it to verify backward-compatible behavior.
-    //
-    // Actually, a simpler approach: populate some slots in a fresh processor,
-    // save a v4-format state by writing manually. But that's complex.
-    //
-    // The simplest correct test: create a processor with NO slots populated,
-    // save its state (which will be v5 with all-empty slots), then load it.
-    // For TRUE v4 testing, we need to synthesize a v4 blob.
-    //
-    // Let's create a v4 state blob using a pre-update save. Since the code
-    // is being modified in this phase, we'll verify by setting the version
-    // check in setState. To test v4 compat, we produce a v4 blob by saving
-    // state from a processor that has M4 params set, but we need to control
-    // the version. Since we can't do that directly, we test indirectly:
-    // The setState code for version >= 5 reads memory data; for version < 5,
-    // it initializes slots to empty. We verify this path by loading a state
-    // that has only v4 data (missing the M5 tail).
-
-    // Approach: Save v5 state, truncate it to v4 length by saving from
-    // a processor with no M5 data and manually writing version 4.
-    // Actually, we'll just save from the current code. The version will be 5.
-    // To properly test v4, we'd need to produce the exact v4 binary.
-    //
-    // Best approach: save state from a fresh processor (no captures),
-    // then modify the version byte in the stream to 4 and truncate the M5 tail.
-    // But that's fragile.
-    //
-    // Most robust: Use the knowledge that setState handles version < 5 by
-    // defaulting all slots. Test with an actual old-format state.
-    // We can construct a minimal v4 state using IBStreamer directly.
-
-    // Write a minimal v4 state manually
+    // Write a complete v1 state with no occupied slots and custom M4 params
     {
         Steinberg::IBStreamer streamer(&stream, kLittleEndian);
 
-        // Version 4
-        streamer.writeInt32(4);
+        // Version 1
+        streamer.writeInt32(1);
 
         // M1 parameters
         streamer.writeFloat(100.0f);   // releaseTimeMs
         streamer.writeFloat(0.3f);     // inharmonicityAmount
         streamer.writeFloat(0.8f);     // masterGain
         streamer.writeFloat(0.0f);     // bypass
-
-        // Sample file path (empty)
-        streamer.writeInt32(0);
+        streamer.writeInt32(0);        // path length (empty)
 
         // M2 parameters
         streamer.writeFloat(1.0f);     // harmonicLevel (plain)
         streamer.writeFloat(1.0f);     // residualLevel (plain)
         streamer.writeFloat(0.0f);     // brightness (plain)
         streamer.writeFloat(0.0f);     // transientEmphasis (plain)
-
-        // Residual frames (none)
         streamer.writeInt32(0);        // frameCount
         streamer.writeInt32(0);        // fftSize
         streamer.writeInt32(0);        // hopSize
@@ -1509,9 +1467,46 @@ TEST_CASE("M5 State: loading v4 state initializes all slots to empty (SC-005)",
         streamer.writeFloat(0.3f);     // morphPosition
         streamer.writeInt32(1);        // harmonicFilterType (OddOnly)
         streamer.writeFloat(0.6f);     // responsiveness
+
+        // M5 parameters
+        streamer.writeInt32(0);        // selected slot
+        for (int s = 0; s < 8; ++s)
+            streamer.writeInt8(static_cast<Steinberg::int8>(0)); // unoccupied
+
+        // M6 parameters (31 floats)
+        streamer.writeFloat(1.0f);     // timbralBlend
+        streamer.writeFloat(0.0f);     // stereoSpread
+        for (int i = 0; i < 29; ++i)
+            streamer.writeFloat(0.0f);
+
+        // Harmonic Physics (4 floats)
+        for (int i = 0; i < 4; ++i) streamer.writeFloat(0.0f);
+
+        // Feedback (2 floats)
+        streamer.writeFloat(0.0f); streamer.writeFloat(0.2f);
+
+        // ADSR global (9 floats)
+        streamer.writeFloat(10.0f);  streamer.writeFloat(100.0f);
+        streamer.writeFloat(1.0f);   streamer.writeFloat(100.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(1.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(0.0f);
+        streamer.writeFloat(0.0f);
+
+        // Per-slot ADSR (8 x 9 = 72 floats)
+        for (int s = 0; s < 8; ++s)
+        {
+            streamer.writeFloat(10.0f);  streamer.writeFloat(100.0f);
+            streamer.writeFloat(1.0f);   streamer.writeFloat(100.0f);
+            streamer.writeFloat(0.0f);   streamer.writeFloat(1.0f);
+            streamer.writeFloat(0.0f);   streamer.writeFloat(0.0f);
+            streamer.writeFloat(0.0f);
+        }
+
+        // Partial Count
+        streamer.writeFloat(0.0f);
     }
 
-    // Load the v4 state into a fresh processor
+    // Load the state into a fresh processor
     {
         M5TestFixture fix;
         stream.resetReadPos();
@@ -1735,14 +1730,14 @@ TEST_CASE("M5 JSON: jsonToSnapshot with missing required fields returns false",
     REQUIRE(Innexus::jsonToSnapshot(json, snap) == false);
 }
 
-// T081: jsonToSnapshot with numPartials > 48 returns false
-TEST_CASE("M5 JSON: jsonToSnapshot with numPartials > 48 returns false",
+// T081: jsonToSnapshot with numPartials > 96 returns false
+TEST_CASE("M5 JSON: jsonToSnapshot with numPartials > 96 returns false",
           "[innexus][m5][json][us4]")
 {
     std::string json = R"({
         "version": 1,
         "f0Reference": 440.0,
-        "numPartials": 49,
+        "numPartials": 97,
         "relativeFreqs": [],
         "normalizedAmps": [],
         "phases": [],

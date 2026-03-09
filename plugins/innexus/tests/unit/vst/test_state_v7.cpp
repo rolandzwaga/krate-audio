@@ -101,73 +101,23 @@ static std::unique_ptr<Innexus::Processor> createAndSetupV7Processor()
     return proc;
 }
 
-/// Helper to build a v6 state blob (no harmonic physics data)
-static void writeV6StateBlob(V7TestStream& stream)
+/// Write v1 default tail: feedback, ADSR, partialCount (after physics)
+static void writeV1DefaultsAfterPhysics(IBStreamer& s)
 {
-    IBStreamer streamer(&stream, kLittleEndian);
-
-    // Version 6
-    streamer.writeInt32(6);
-
-    // M1 parameters
-    streamer.writeFloat(100.0f);     // releaseTimeMs
-    streamer.writeFloat(0.5f);       // inharmonicityAmount
-    streamer.writeFloat(0.8f);       // masterGain
-    streamer.writeFloat(0.0f);       // bypass
-    streamer.writeInt32(0);          // path length (empty)
-
-    // M2 parameters
-    streamer.writeFloat(1.0f);       // harmonicLevel (plain)
-    streamer.writeFloat(1.0f);       // residualLevel (plain)
-    streamer.writeFloat(0.0f);       // brightness (plain)
-    streamer.writeFloat(0.0f);       // transientEmphasis (plain)
-    streamer.writeInt32(0);          // residual frame count
-    streamer.writeInt32(0);          // fftSize
-    streamer.writeInt32(0);          // hopSize
-
-    // M3 parameters
-    streamer.writeInt32(0);          // inputSource
-    streamer.writeInt32(0);          // latencyMode
-
-    // M4 parameters
-    streamer.writeInt8(static_cast<int8>(0)); // freeze
-    streamer.writeFloat(0.0f);       // morphPosition
-    streamer.writeInt32(0);          // harmonicFilterType
-    streamer.writeFloat(0.5f);       // responsiveness
-
-    // M5 parameters
-    streamer.writeInt32(0);          // selected slot
-    for (int s = 0; s < 8; ++s)
-        streamer.writeInt8(static_cast<int8>(0)); // unoccupied
-
-    // M6 parameters (31 floats -- defaults)
-    streamer.writeFloat(1.0f);   // timbralBlend (default=1.0)
-    streamer.writeFloat(0.0f);   // stereoSpread
-    streamer.writeFloat(0.0f);   // evolutionEnable
-    streamer.writeFloat(0.0f);   // evolutionSpeed
-    streamer.writeFloat(0.5f);   // evolutionDepth (default=0.5)
-    streamer.writeFloat(0.0f);   // evolutionMode
-    streamer.writeFloat(0.0f);   // mod1Enable
-    streamer.writeFloat(0.0f);   // mod1Waveform
-    streamer.writeFloat(0.0f);   // mod1Rate
-    streamer.writeFloat(0.0f);   // mod1Depth
-    streamer.writeFloat(0.0f);   // mod1RangeStart
-    streamer.writeFloat(1.0f);   // mod1RangeEnd (default=1.0)
-    streamer.writeFloat(0.0f);   // mod1Target
-    streamer.writeFloat(0.0f);   // mod2Enable
-    streamer.writeFloat(0.0f);   // mod2Waveform
-    streamer.writeFloat(0.0f);   // mod2Rate
-    streamer.writeFloat(0.0f);   // mod2Depth
-    streamer.writeFloat(0.0f);   // mod2RangeStart
-    streamer.writeFloat(1.0f);   // mod2RangeEnd (default=1.0)
-    streamer.writeFloat(0.0f);   // mod2Target
-    streamer.writeFloat(0.0f);   // detuneSpread
-    streamer.writeFloat(0.0f);   // blendEnable
-    for (int i = 0; i < 8; ++i)
-        streamer.writeFloat(0.0f); // blendSlotWeights
-    streamer.writeFloat(0.0f);   // blendLiveWeight
-
-    // NO v7 data -- this is a v6 format blob
+    // Feedback
+    s.writeFloat(0.0f); s.writeFloat(0.2f);
+    // ADSR global
+    s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+    s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // ADSR per-slot (8 × 9)
+    for (int i = 0; i < 8; ++i) {
+        s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+        s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+        s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    }
+    // partialCount
+    s.writeFloat(0.0f);
 }
 
 // ==============================================================================
@@ -198,12 +148,12 @@ TEST_CASE("StateV7: save/load roundtrip preserves all 4 harmonic physics paramet
         procA->terminate();
     }
 
-    // Build a v7 state blob with known harmonic physics values
+    // Build a v1 state blob with known harmonic physics values
     {
         IBStreamer streamer(&stream, kLittleEndian);
 
-        // Version 7
-        streamer.writeInt32(7);
+        // Version 1
+        streamer.writeInt32(1);
 
         // M1 parameters
         streamer.writeFloat(100.0f);     // releaseTimeMs
@@ -263,11 +213,13 @@ TEST_CASE("StateV7: save/load roundtrip preserves all 4 harmonic physics paramet
             streamer.writeFloat(0.0f); // blendSlotWeights
         streamer.writeFloat(0.0f);   // blendLiveWeight
 
-        // v7: Harmonic Physics parameters
+        // Harmonic Physics parameters
         streamer.writeFloat(kWarmth);
         streamer.writeFloat(kCoupling);
         streamer.writeFloat(kStability);
         streamer.writeFloat(kEntropy);
+
+        writeV1DefaultsAfterPhysics(streamer);
     }
 
     // Load into processor B and verify all values restored
@@ -320,112 +272,18 @@ TEST_CASE("StateV7: getState/setState round-trip preserves harmonic physics valu
 }
 
 // ==============================================================================
-// T093: v6-to-v7 backward compatibility
+// Controller setComponentState test
 // ==============================================================================
 
-TEST_CASE("StateV7: loading v6 state defaults all harmonic physics params to 0.0",
-          "[innexus][vst][state][v7][harmonic_physics]")
-{
-    V7TestStream stream;
-    writeV6StateBlob(stream);
-
-    // Load v6 state into processor (which now expects v7)
-    {
-        auto proc = createAndSetupV7Processor();
-        stream.resetReadPos();
-        REQUIRE(proc->setState(&stream) == kResultOk);
-
-        constexpr float kTol = 1e-6f;
-
-        // All harmonic physics parameters should be at their defaults (0.0)
-        REQUIRE(proc->getWarmth() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getCoupling() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getStability() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getEntropy() == Approx(0.0f).margin(kTol));
-
-        // Verify existing v6 params are still loaded correctly
-        REQUIRE(proc->getMasterGain() == Approx(0.8f).margin(kTol));
-
-        proc->setActive(false);
-        proc->terminate();
-    }
-}
-
-TEST_CASE("StateV7: v6 state loaded after v7 state resets physics params to 0.0",
-          "[innexus][vst][state][v7][harmonic_physics]")
-{
-    V7TestStream streamV7;
-    V7TestStream streamV6;
-
-    // Build a v7 state with non-default physics values
-    {
-        IBStreamer streamer(&streamV7, kLittleEndian);
-
-        streamer.writeInt32(7);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-        // M6 (31 floats)
-        for (int i = 0; i < 31; ++i) streamer.writeFloat(0.0f);
-        // v7 physics
-        streamer.writeFloat(0.7f);   // warmth
-        streamer.writeFloat(0.3f);   // coupling
-        streamer.writeFloat(0.5f);   // stability
-        streamer.writeFloat(0.2f);   // entropy
-    }
-
-    // Build a v6 state
-    writeV6StateBlob(streamV6);
-
-    auto proc = createAndSetupV7Processor();
-
-    // Load v7 state first
-    streamV7.resetReadPos();
-    REQUIRE(proc->setState(&streamV7) == kResultOk);
-    // Verify non-default values were loaded
-    REQUIRE(proc->getWarmth() == Approx(0.7f).margin(1e-6f));
-    REQUIRE(proc->getCoupling() == Approx(0.3f).margin(1e-6f));
-
-    // Now load v6 state -- should reset physics params to 0.0
-    streamV6.resetReadPos();
-    REQUIRE(proc->setState(&streamV6) == kResultOk);
-
-    constexpr float kTol = 1e-6f;
-    REQUIRE(proc->getWarmth() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getCoupling() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getStability() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getEntropy() == Approx(0.0f).margin(kTol));
-
-    proc->setActive(false);
-    proc->terminate();
-}
-
-// ==============================================================================
-// Controller setComponentState v7 test
-// ==============================================================================
-
-TEST_CASE("StateV7: Controller setComponentState reads v7 harmonic physics params",
+TEST_CASE("StateV7: Controller setComponentState reads harmonic physics params",
           "[innexus][vst][state][v7][harmonic_physics]")
 {
     V7TestStream stream;
 
-    // Build a v7 state blob with known physics values
+    // Build a v1 state blob with known physics values
     {
         IBStreamer streamer(&stream, kLittleEndian);
-        streamer.writeInt32(7);
+        streamer.writeInt32(1);
         // M1
         streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
         streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
@@ -446,11 +304,13 @@ TEST_CASE("StateV7: Controller setComponentState reads v7 harmonic physics param
         streamer.writeFloat(1.0f);   // timbralBlend
         streamer.writeFloat(0.0f);   // stereoSpread
         for (int i = 0; i < 29; ++i) streamer.writeFloat(0.0f);
-        // v7 physics
+        // Physics
         streamer.writeFloat(0.7f);   // warmth
         streamer.writeFloat(0.3f);   // coupling
         streamer.writeFloat(0.5f);   // stability
         streamer.writeFloat(0.2f);   // entropy
+
+        writeV1DefaultsAfterPhysics(streamer);
     }
 
     Innexus::Controller controller;
@@ -472,27 +332,3 @@ TEST_CASE("StateV7: Controller setComponentState reads v7 harmonic physics param
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("StateV7: Controller setComponentState with v6 data defaults physics params",
-          "[innexus][vst][state][v7][harmonic_physics]")
-{
-    V7TestStream stream;
-    writeV6StateBlob(stream);
-
-    Innexus::Controller controller;
-    REQUIRE(controller.initialize(nullptr) == kResultOk);
-
-    stream.resetReadPos();
-    REQUIRE(controller.setComponentState(&stream) == kResultOk);
-
-    // Physics parameters should be at defaults (0.0)
-    REQUIRE(controller.getParamNormalized(Innexus::kWarmthId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kCouplingId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kStabilityId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kEntropyId)
-            == Approx(0.0).margin(0.001));
-
-    REQUIRE(controller.terminate() == kResultOk);
-}

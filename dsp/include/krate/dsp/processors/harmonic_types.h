@@ -18,7 +18,7 @@
 namespace Krate::DSP {
 
 /// Maximum number of tracked partials per frame (FR-026)
-inline constexpr size_t kMaxPartials = 48;
+inline constexpr size_t kMaxPartials = 96;
 
 /// Output of the YIN pitch detector for one analysis frame (FR-013).
 /// Contains estimated frequency in Hz, confidence (0-1), and voiced/unvoiced
@@ -53,7 +53,7 @@ struct HarmonicFrame {
     float f0 = 0.0f;                              ///< Fundamental frequency (Hz)
     float f0Confidence = 0.0f;                     ///< From YIN detector [0.0, 1.0]
     std::array<Partial, kMaxPartials> partials{};   ///< Active partials
-    int numPartials = 0;                           ///< Active count [0, 48]
+    int numPartials = 0;                           ///< Active count [0, 96]
     float spectralCentroid = 0.0f;                 ///< Amplitude-weighted mean freq (Hz)
     float brightness = 0.0f;                       ///< Perceptual brightness descriptor
     float noisiness = 0.0f;                        ///< Residual-to-harmonic ratio [0.0, 1.0]

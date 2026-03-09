@@ -38,6 +38,7 @@
     <!-- Oscillator Bank (200-299) -->
     <control-tag name="ReleaseTime" tag="200"/>
     <control-tag name="InharmonicityAmount" tag="201"/>
+    <control-tag name="PartialCount" tag="202"/>
 
     <!-- Residual Model (400-499) -->
     <control-tag name="HarmonicLevel" tag="400"/>
@@ -301,6 +302,16 @@
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Release"/>
+
+      <!-- Partial Count -->
+      <view class="COptionMenu" origin="15, 96" size="52, 20"
+            control-tag="PartialCount" default-value="0"
+            font="value-font" font-color="text-primary"
+            back-color="bg-panel" frame-color="text-dim"/>
+      <view class="CTextLabel" origin="15, 116" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Partials"/>
 
       <!-- FR-017: Inharmonicity -->
       <view class="ArcKnob" origin="75, 22" size="42, 42"

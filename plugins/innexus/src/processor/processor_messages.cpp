@@ -20,7 +20,7 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
         static_cast<int>(Krate::DSP::kMaxPartials));
 
     // Zero-initialize, then fill active partials from frame data
-    for (int i = 0; i < 48; ++i)
+    for (int i = 0; i < static_cast<int>(Krate::DSP::kMaxPartials); ++i)
     {
         displayDataBuffer_.partialAmplitudes[i] = 0.0f;
         displayDataBuffer_.partialActive[i] = 0;
@@ -31,6 +31,7 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
         displayDataBuffer_.partialActive[i] =
             (filterMask_[static_cast<size_t>(i)] > 0.5f) ? 1 : 0;
     }
+    displayDataBuffer_.activePartialCount = getActivePartialCount();
 
     displayDataBuffer_.f0 = frame.f0;
     displayDataBuffer_.f0Confidence = frame.f0Confidence;

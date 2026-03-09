@@ -52,7 +52,7 @@ namespace Krate::DSP {
 class PartialTracker {
 public:
     /// Maximum number of tracked partials (FR-026)
-    static constexpr size_t kMaxPartials = 48;
+    static constexpr size_t kMaxPartials = Krate::DSP::kMaxPartials;
 
     /// Number of frames a disappearing partial is held before death (FR-025)
     static constexpr int kGracePeriodFrames = 4;

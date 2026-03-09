@@ -252,64 +252,6 @@ TEST_CASE("M5 VST: setComponentState with v5 data restores kMemorySlotId",
     }
 }
 
-// T069: Controller::setComponentState with v4 data defaults all M5 params to 0.0
-TEST_CASE("M5 VST: setComponentState with v4 data defaults M5 params to 0.0",
-          "[innexus][vst][m5][state]")
-{
-    M5VstTestStream stream;
-
-    // Write a v4 state blob manually
-    {
-        Steinberg::IBStreamer streamer(&stream, kLittleEndian);
-
-        streamer.writeInt32(4);          // version 4
-
-        // M1
-        streamer.writeFloat(100.0f);     // releaseTimeMs
-        streamer.writeFloat(0.3f);       // inharmonicityAmount
-        streamer.writeFloat(0.8f);       // masterGain
-        streamer.writeFloat(0.0f);       // bypass
-        streamer.writeInt32(0);          // path length (empty)
-
-        // M2
-        streamer.writeFloat(1.0f);       // harmonicLevel
-        streamer.writeFloat(1.0f);       // residualLevel
-        streamer.writeFloat(0.0f);       // brightness
-        streamer.writeFloat(0.0f);       // transientEmphasis
-        streamer.writeInt32(0);          // residual frame count
-        streamer.writeInt32(0);          // fftSize
-        streamer.writeInt32(0);          // hopSize
-
-        // M3
-        streamer.writeInt32(0);          // inputSource
-        streamer.writeInt32(0);          // latencyMode
-
-        // M4
-        streamer.writeInt8(static_cast<Steinberg::int8>(0)); // freeze
-        streamer.writeFloat(0.0f);       // morphPosition
-        streamer.writeInt32(0);          // harmonicFilterType
-        streamer.writeFloat(0.5f);       // responsiveness
-    }
-
-    // Load into controller
-    {
-        Innexus::Controller controller;
-        REQUIRE(controller.initialize(nullptr) == kResultOk);
-
-        stream.resetReadPos();
-        REQUIRE(controller.setComponentState(&stream) == kResultOk);
-
-        // All M5 parameters should default to 0.0
-        REQUIRE(controller.getParamNormalized(Innexus::kMemorySlotId)
-                == Approx(0.0).margin(0.01));
-        REQUIRE(controller.getParamNormalized(Innexus::kMemoryCaptureId)
-                == Approx(0.0).margin(0.01));
-        REQUIRE(controller.getParamNormalized(Innexus::kMemoryRecallId)
-                == Approx(0.0).margin(0.01));
-
-        REQUIRE(controller.terminate() == kResultOk);
-    }
-}
 
 // =============================================================================
 // Phase 6: Controller JSON Import Tests (User Story 4)

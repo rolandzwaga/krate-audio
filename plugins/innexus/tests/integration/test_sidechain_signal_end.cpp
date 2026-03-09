@@ -102,12 +102,66 @@ static ProcessSetup makeSetup()
     return setup;
 }
 
+/// Write v1 default tail: M4 through partialCount with default values
+static void writeV1DefaultsFromM4(IBStreamer& s)
+{
+    // M4
+    s.writeInt8(static_cast<int8>(0));  // freeze
+    s.writeFloat(0.0f);                 // morphPosition
+    s.writeInt32(0);                    // harmonicFilterType
+    s.writeFloat(0.5f);                 // responsiveness
+    // M5
+    s.writeInt32(0);                    // selectedSlot
+    for (int i = 0; i < 8; ++i) s.writeInt8(static_cast<int8>(0));
+    // M6 (31 floats)
+    s.writeFloat(1.0f);  // timbralBlend
+    s.writeFloat(0.0f);  // stereoSpread
+    s.writeFloat(0.0f);  // evolutionEnable
+    s.writeFloat(0.0f);  // evolutionSpeed
+    s.writeFloat(0.5f);  // evolutionDepth
+    s.writeFloat(0.0f);  // evolutionMode
+    s.writeFloat(0.0f);  // mod1Enable
+    s.writeFloat(0.0f);  // mod1Waveform
+    s.writeFloat(0.0f);  // mod1Rate
+    s.writeFloat(0.0f);  // mod1Depth
+    s.writeFloat(0.0f);  // mod1RangeStart
+    s.writeFloat(1.0f);  // mod1RangeEnd
+    s.writeFloat(0.0f);  // mod1Target
+    s.writeFloat(0.0f);  // mod2Enable
+    s.writeFloat(0.0f);  // mod2Waveform
+    s.writeFloat(0.0f);  // mod2Rate
+    s.writeFloat(0.0f);  // mod2Depth
+    s.writeFloat(0.0f);  // mod2RangeStart
+    s.writeFloat(1.0f);  // mod2RangeEnd
+    s.writeFloat(0.0f);  // mod2Target
+    s.writeFloat(0.0f);  // detuneSpread
+    s.writeFloat(0.0f);  // blendEnable
+    for (int i = 0; i < 8; ++i) s.writeFloat(0.0f); // blendSlotWeights
+    s.writeFloat(0.0f);  // blendLiveWeight
+    // Physics
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // Feedback
+    s.writeFloat(0.0f); s.writeFloat(0.2f);
+    // ADSR global
+    s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+    s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // ADSR per-slot (8 × 9)
+    for (int i = 0; i < 8; ++i) {
+        s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+        s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+        s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    }
+    // partialCount
+    s.writeFloat(0.0f);
+}
+
 static void setSidechainMode(Innexus::Processor& proc)
 {
     SignalEndTestStream stateStream;
     IBStreamer streamer(&stateStream, kLittleEndian);
 
-    streamer.writeInt32(3);           // state version 3
+    streamer.writeInt32(1);           // state version 1
     streamer.writeFloat(100.0f);      // releaseTimeMs
     streamer.writeFloat(1.0f);        // inharmonicityAmount
     streamer.writeFloat(1.0f);        // masterGain (full)
@@ -116,10 +170,10 @@ static void setSidechainMode(Innexus::Processor& proc)
     streamer.writeInt32(0);           // pathLen (no file)
 
     // M2 parameters (plain values)
-    streamer.writeFloat(1.0f);        // harmonicLevel plain (0.5 norm * 2)
-    streamer.writeFloat(0.0f);        // residualLevel plain (0 - harmonics only)
-    streamer.writeFloat(0.0f);        // brightness plain (default)
-    streamer.writeFloat(0.0f);        // transientEmphasis plain (default)
+    streamer.writeFloat(1.0f);        // harmonicLevel plain
+    streamer.writeFloat(0.0f);        // residualLevel plain
+    streamer.writeFloat(0.0f);        // brightness plain
+    streamer.writeFloat(0.0f);        // transientEmphasis plain
 
     streamer.writeInt32(0);           // residualFrameCount
     streamer.writeInt32(0);           // analysisFFTSize
@@ -128,6 +182,8 @@ static void setSidechainMode(Innexus::Processor& proc)
     // M3 parameters
     streamer.writeInt32(1);           // inputSource = Sidechain
     streamer.writeInt32(0);           // latencyMode = LowLatency
+
+    writeV1DefaultsFromM4(streamer);
 
     stateStream.resetReadPos();
     proc.setState(&stateStream);

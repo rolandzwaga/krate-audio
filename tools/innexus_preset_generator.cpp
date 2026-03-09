@@ -116,9 +116,9 @@ static constexpr int32_t kFilterEvenOnly = 2;
 static constexpr int32_t kFilterLowPartials = 3;
 static constexpr int32_t kFilterHighPartials = 4;
 
-// Normalize a partial range value (1-48) to 0.0-1.0
+// Normalize a partial range value (1-96) to 0.0-1.0
 float normalizeRange(int partial) {
-    return static_cast<float>(std::clamp(partial, 1, 48) - 1) / 47.0f;
+    return static_cast<float>(std::clamp(partial, 1, 96) - 1) / 95.0f;
 }
 
 // Normalize an evolution speed (0.01-10.0 Hz log) to 0.0-1.0

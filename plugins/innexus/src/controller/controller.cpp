@@ -174,6 +174,16 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     // M1 parameters
     registerInnexusParams(parameters);
 
+    // Partial Count (oscillator bank range 200-299)
+    auto* partialCountParam = new Steinberg::Vst::StringListParameter(
+        STR16("Partial Count"), kPartialCountId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    partialCountParam->appendString(STR16("48"));
+    partialCountParam->appendString(STR16("64"));
+    partialCountParam->appendString(STR16("80"));
+    partialCountParam->appendString(STR16("96"));
+    parameters.addParameter(partialCountParam);
+
     // M2 Residual parameters (FR-021, FR-024)
     auto* harmonicLevelParam = new Steinberg::Vst::RangeParameter(
         STR16("Harmonic Level"), kHarmonicLevelId,
@@ -352,13 +362,13 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 
     auto* mod1RangeStartParam = new Steinberg::Vst::RangeParameter(
         STR16("Mod 1 Range Start"), kMod1RangeStartId,
-        STR16(""), 1.0, 48.0, 1.0, 47,
+        STR16(""), 1.0, 96.0, 1.0, 95,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(mod1RangeStartParam);
 
     auto* mod1RangeEndParam = new Steinberg::Vst::RangeParameter(
         STR16("Mod 1 Range End"), kMod1RangeEndId,
-        STR16(""), 1.0, 48.0, 48.0, 47,
+        STR16(""), 1.0, 96.0, 96.0, 95,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(mod1RangeEndParam);
 
@@ -399,13 +409,13 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
 
     auto* mod2RangeStartParam = new Steinberg::Vst::RangeParameter(
         STR16("Mod 2 Range Start"), kMod2RangeStartId,
-        STR16(""), 1.0, 48.0, 1.0, 47,
+        STR16(""), 1.0, 96.0, 1.0, 95,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(mod2RangeStartParam);
 
     auto* mod2RangeEndParam = new Steinberg::Vst::RangeParameter(
         STR16("Mod 2 Range End"), kMod2RangeEndId,
-        STR16(""), 1.0, 48.0, 48.0, 47,
+        STR16(""), 1.0, 96.0, 96.0, 95,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(mod2RangeEndParam);
 
@@ -615,28 +625,27 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     if (!streamer.readInt32(version))
         return Steinberg::kResultFalse;
 
-    if (version >= 1)
+    if (version != 1)
+        return Steinberg::kResultFalse;
+
+    float floatVal = 0.0f;
+
+    // --- M1 parameters ---
+    if (streamer.readFloat(floatVal))
     {
-        float floatVal = 0.0f;
+        double normalized = releaseTimeToNormalized(
+            std::clamp(floatVal, 20.0f, 5000.0f));
+        setParamNormalized(kReleaseTimeId, normalized);
+    }
 
-        // Read releaseTimeMs and convert to normalized for controller
-        if (streamer.readFloat(floatVal))
-        {
-            double normalized = releaseTimeToNormalized(
-                std::clamp(floatVal, 20.0f, 5000.0f));
-            setParamNormalized(kReleaseTimeId, normalized);
-        }
+    if (streamer.readFloat(floatVal))
+    {
+        setParamNormalized(kInharmonicityAmountId,
+            static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
+    }
 
-        // Read inharmonicityAmount (0-1 maps directly to normalized)
-        if (streamer.readFloat(floatVal))
-        {
-            setParamNormalized(kInharmonicityAmountId,
-                static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
-        }
-
-        // Read masterGain (0-1 maps directly to normalized)
-        if (streamer.readFloat(floatVal))
-        {
+    if (streamer.readFloat(floatVal))
+    {
             setParamNormalized(kMasterGainId,
                 static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
         }
@@ -666,413 +675,288 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
             }
         }
 
-        // M2: Read residual parameters if version >= 2 (FR-027)
-        if (version >= 2)
+    // --- M2 parameters (FR-027) ---
+    if (streamer.readFloat(floatVal))
+    {
+        double normalized = static_cast<double>(
+            std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+        setParamNormalized(kHarmonicLevelId, normalized);
+    }
+
+    if (streamer.readFloat(floatVal))
+    {
+        double normalized = static_cast<double>(
+            std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+        setParamNormalized(kResidualLevelId, normalized);
+    }
+
+    if (streamer.readFloat(floatVal))
+    {
+        double normalized = static_cast<double>(
+            std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+        setParamNormalized(kResidualBrightnessId, normalized);
+    }
+
+    if (streamer.readFloat(floatVal))
+    {
+        double normalized = static_cast<double>(
+            std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
+        setParamNormalized(kTransientEmphasisId, normalized);
+    }
+
+    // Skip residual frames block (mirrors processor getState format)
+    {
+        Steinberg::int32 residualFrameCount = 0;
+        Steinberg::int32 analysisFFTSizeInt = 0;
+        Steinberg::int32 analysisHopSizeInt = 0;
+
+        if (streamer.readInt32(residualFrameCount) &&
+            streamer.readInt32(analysisFFTSizeInt) &&
+            streamer.readInt32(analysisHopSizeInt) &&
+            residualFrameCount > 0)
         {
-            // Harmonic Level (plain 0.0-2.0, normalized = plain / 2.0)
-            if (streamer.readFloat(floatVal))
+            for (Steinberg::int32 f = 0; f < residualFrameCount; ++f)
             {
-                double normalized = static_cast<double>(
-                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-                setParamNormalized(kHarmonicLevelId, normalized);
-            }
-
-            // Residual Level (plain 0.0-2.0, normalized = plain / 2.0)
-            if (streamer.readFloat(floatVal))
-            {
-                double normalized = static_cast<double>(
-                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-                setParamNormalized(kResidualLevelId, normalized);
-            }
-
-            // Residual Brightness (plain -1.0 to +1.0, normalized = (plain + 1.0) / 2.0)
-            if (streamer.readFloat(floatVal))
-            {
-                double normalized = static_cast<double>(
-                    std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-                setParamNormalized(kResidualBrightnessId, normalized);
-            }
-
-            // Transient Emphasis (plain 0.0-2.0, normalized = plain / 2.0)
-            if (streamer.readFloat(floatVal))
-            {
-                double normalized = static_cast<double>(
-                    std::clamp(floatVal, 0.0f, 2.0f)) / 2.0;
-                setParamNormalized(kTransientEmphasisId, normalized);
-            }
-        }
-
-        // Controller needs to skip residual frames data to reach M3 parameters
-        // The processor state contains residual frame data between M2 and M3 sections
-        if (version >= 2)
-        {
-            // Skip residual frames block (mirrors processor getState format)
-            Steinberg::int32 residualFrameCount = 0;
-            Steinberg::int32 analysisFFTSizeInt = 0;
-            Steinberg::int32 analysisHopSizeInt = 0;
-
-            if (streamer.readInt32(residualFrameCount) &&
-                streamer.readInt32(analysisFFTSizeInt) &&
-                streamer.readInt32(analysisHopSizeInt) &&
-                residualFrameCount > 0)
-            {
-                // Skip each frame: 16 floats (bandEnergies) + 1 float (totalEnergy) + 1 int8 (transientFlag)
-                for (Steinberg::int32 f = 0; f < residualFrameCount; ++f)
+                for (size_t b = 0; b < 16; ++b)
                 {
-                    for (size_t b = 0; b < 16; ++b) // kResidualBands = 16
-                    {
-                        float skipFloat = 0.0f;
-                        streamer.readFloat(skipFloat);
-                    }
                     float skipFloat = 0.0f;
-                    streamer.readFloat(skipFloat); // totalEnergy
-                    Steinberg::int8 skipByte = 0;
-                    streamer.readInt8(skipByte); // transientFlag
+                    streamer.readFloat(skipFloat);
                 }
+                float skipFloat = 0.0f;
+                streamer.readFloat(skipFloat); // totalEnergy
+                Steinberg::int8 skipByte = 0;
+                streamer.readInt8(skipByte); // transientFlag
             }
         }
+    }
 
-        // M3: Read sidechain parameters if version >= 3
-        if (version >= 3)
+    // --- M3 parameters (sidechain) ---
+    {
+        Steinberg::int32 inputSourceInt = 0;
+        Steinberg::int32 latencyModeInt = 0;
+        if (streamer.readInt32(inputSourceInt))
+            setParamNormalized(kInputSourceId, inputSourceInt > 0 ? 1.0 : 0.0);
+        if (streamer.readInt32(latencyModeInt))
+            setParamNormalized(kLatencyModeId, latencyModeInt > 0 ? 1.0 : 0.0);
+    }
+
+    // --- M4 parameters (musical control) ---
+    {
+        Steinberg::int8 freezeState = 0;
+        if (streamer.readInt8(freezeState))
+            setParamNormalized(kFreezeId, freezeState ? 1.0 : 0.0);
+
+        float morphPos = 0.0f;
+        if (streamer.readFloat(morphPos))
+            setParamNormalized(kMorphPositionId,
+                static_cast<double>(std::clamp(morphPos, 0.0f, 1.0f)));
+
+        Steinberg::int32 filterType = 0;
+        if (streamer.readInt32(filterType))
+            setParamNormalized(kHarmonicFilterTypeId,
+                static_cast<double>(std::clamp(
+                    static_cast<float>(filterType) / 4.0f, 0.0f, 1.0f)));
+
+        float resp = 0.5f;
+        if (streamer.readFloat(resp))
+            setParamNormalized(kResponsivenessId,
+                static_cast<double>(std::clamp(resp, 0.0f, 1.0f)));
+    }
+
+    // --- M5 parameters (harmonic memory) ---
+    {
+        Steinberg::int32 selectedSlot = 0;
+        if (streamer.readInt32(selectedSlot))
         {
-            Steinberg::int32 inputSourceInt = 0;
-            Steinberg::int32 latencyModeInt = 0;
-            if (streamer.readInt32(inputSourceInt))
-            {
-                setParamNormalized(kInputSourceId,
-                    inputSourceInt > 0 ? 1.0 : 0.0);
-            }
-            if (streamer.readInt32(latencyModeInt))
-            {
-                setParamNormalized(kLatencyModeId,
-                    latencyModeInt > 0 ? 1.0 : 0.0);
-            }
+            selectedSlot = std::clamp(selectedSlot,
+                static_cast<Steinberg::int32>(0),
+                static_cast<Steinberg::int32>(7));
+            setParamNormalized(kMemorySlotId,
+                std::clamp(static_cast<double>(selectedSlot) / 7.0, 0.0, 1.0));
         }
 
-        // M4: Read musical control parameters if version >= 4
-        if (version >= 4)
+        // Skip all 8 memory slots' binary snapshot data
+        for (int s = 0; s < 8; ++s)
         {
-            Steinberg::int8 freezeState = 0;
-            if (streamer.readInt8(freezeState))
-            {
-                setParamNormalized(kFreezeId,
-                    freezeState ? 1.0 : 0.0);
-            }
+            Steinberg::int8 occupiedByte = 0;
+            if (!streamer.readInt8(occupiedByte))
+                break;
 
-            float morphPos = 0.0f;
-            if (streamer.readFloat(morphPos))
-            {
-                setParamNormalized(kMorphPositionId,
-                    static_cast<double>(std::clamp(morphPos, 0.0f, 1.0f)));
-            }
-
-            Steinberg::int32 filterType = 0;
-            if (streamer.readInt32(filterType))
-            {
-                setParamNormalized(kHarmonicFilterTypeId,
-                    static_cast<double>(std::clamp(
-                        static_cast<float>(filterType) / 4.0f, 0.0f, 1.0f)));
-            }
-
-            float resp = 0.5f;
-            if (streamer.readFloat(resp))
-            {
-                setParamNormalized(kResponsivenessId,
-                    static_cast<double>(std::clamp(resp, 0.0f, 1.0f)));
-            }
-        }
-        else
-        {
-            // Default M4 values for older states
-            setParamNormalized(kFreezeId, 0.0);
-            setParamNormalized(kMorphPositionId, 0.0);
-            setParamNormalized(kHarmonicFilterTypeId, 0.0);  // All-Pass
-            setParamNormalized(kResponsivenessId, 0.5);
-        }
-
-        // M5: Read harmonic memory parameters if version >= 5
-        if (version >= 5)
-        {
-            // Read selected slot index and set parameter
-            Steinberg::int32 selectedSlot = 0;
-            if (streamer.readInt32(selectedSlot))
-            {
-                selectedSlot = std::clamp(selectedSlot,
-                    static_cast<Steinberg::int32>(0),
-                    static_cast<Steinberg::int32>(7));
-                setParamNormalized(kMemorySlotId,
-                    std::clamp(static_cast<double>(selectedSlot) / 7.0, 0.0, 1.0));
-            }
-
-            // Skip all 8 memory slots' binary snapshot data
-            // (controller does not store snapshot binary)
-            for (int s = 0; s < 8; ++s)
-            {
-                Steinberg::int8 occupiedByte = 0;
-                if (!streamer.readInt8(occupiedByte))
-                    break;
-
-                if (occupiedByte != 0)
-                {
-                    // Skip snapshot data: f0Reference (float) + numPartials (int32)
-                    // + 48*4 floats (relativeFreqs, normalizedAmps, phases, inharmonicDeviation)
-                    // + 16 floats (residualBands)
-                    // + 4 floats (residualEnergy, globalAmplitude, spectralCentroid, brightness)
-                    // Total: 1 float + 1 int32 + (48*4 + 16 + 4) floats = 1 + 1 + 212 = 213 reads
-                    float skipFloat = 0.0f;
-                    Steinberg::int32 skipInt = 0;
-
-                    streamer.readFloat(skipFloat);  // f0Reference
-                    streamer.readInt32(skipInt);     // numPartials
-
-                    // 48*4 = 192 floats for per-partial arrays
-                    for (int i = 0; i < 48 * 4; ++i)
-                        streamer.readFloat(skipFloat);
-
-                    // 16 floats for residualBands
-                    for (int i = 0; i < 16; ++i)
-                        streamer.readFloat(skipFloat);
-
-                    // 4 scalar floats
-                    streamer.readFloat(skipFloat);   // residualEnergy
-                    streamer.readFloat(skipFloat);   // globalAmplitude
-                    streamer.readFloat(skipFloat);   // spectralCentroid
-                    streamer.readFloat(skipFloat);   // brightness
-                }
-            }
-
-            // Momentary triggers always reset to 0 (FR-023, FR-030)
-            setParamNormalized(kMemoryCaptureId, 0.0);
-            setParamNormalized(kMemoryRecallId, 0.0);
-        }
-        else
-        {
-            // Default M5 values for older states
-            setParamNormalized(kMemorySlotId, 0.0);
-            setParamNormalized(kMemoryCaptureId, 0.0);
-            setParamNormalized(kMemoryRecallId, 0.0);
-        }
-
-        // M6: Read creative extension parameters if version >= 6
-        if (version >= 6)
-        {
-            float m6Val = 0.0f;
-            // 31 normalized floats in data-model.md v6 state layout order
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kEvolutionEnableId, m6Val > 0.5f ? 1.0 : 0.0);
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kEvolutionSpeedId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kEvolutionDepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kEvolutionModeId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1EnableId, m6Val > 0.5f ? 1.0 : 0.0);
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod1TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2EnableId, m6Val > 0.5f ? 1.0 : 0.0);
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kMod2TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kDetuneSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendEnableId, m6Val > 0.5f ? 1.0 : 0.0);
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight1Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight2Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight3Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight4Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight5Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight6Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight7Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendSlotWeight8Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-            if (streamer.readFloat(m6Val))
-                setParamNormalized(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
-        }
-        else
-        {
-            // Default M6 values for v5 and older states
-            setParamNormalized(kTimbralBlendId, 1.0);
-            setParamNormalized(kStereoSpreadId, 0.0);
-            setParamNormalized(kEvolutionEnableId, 0.0);
-            setParamNormalized(kEvolutionSpeedId, 0.0);
-            setParamNormalized(kEvolutionDepthId, 0.5);
-            setParamNormalized(kEvolutionModeId, 0.0);
-            setParamNormalized(kMod1EnableId, 0.0);
-            setParamNormalized(kMod1WaveformId, 0.0);
-            setParamNormalized(kMod1RateId, 0.0);
-            setParamNormalized(kMod1DepthId, 0.0);
-            setParamNormalized(kMod1RangeStartId, 0.0);
-            setParamNormalized(kMod1RangeEndId, 1.0);
-            setParamNormalized(kMod1TargetId, 0.0);
-            setParamNormalized(kMod2EnableId, 0.0);
-            setParamNormalized(kMod2WaveformId, 0.0);
-            setParamNormalized(kMod2RateId, 0.0);
-            setParamNormalized(kMod2DepthId, 0.0);
-            setParamNormalized(kMod2RangeStartId, 0.0);
-            setParamNormalized(kMod2RangeEndId, 1.0);
-            setParamNormalized(kMod2TargetId, 0.0);
-            setParamNormalized(kDetuneSpreadId, 0.0);
-            setParamNormalized(kBlendEnableId, 0.0);
-            setParamNormalized(kBlendSlotWeight1Id, 0.0);
-            setParamNormalized(kBlendSlotWeight2Id, 0.0);
-            setParamNormalized(kBlendSlotWeight3Id, 0.0);
-            setParamNormalized(kBlendSlotWeight4Id, 0.0);
-            setParamNormalized(kBlendSlotWeight5Id, 0.0);
-            setParamNormalized(kBlendSlotWeight6Id, 0.0);
-            setParamNormalized(kBlendSlotWeight7Id, 0.0);
-            setParamNormalized(kBlendSlotWeight8Id, 0.0);
-            setParamNormalized(kBlendLiveWeightId, 0.0);
-        }
-
-        // --- Spec A: Harmonic Physics parameters (v7) ---
-        if (version >= 7)
-        {
-            float physVal = 0.0f;
-            if (streamer.readFloat(physVal))
-                setParamNormalized(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(physVal))
-                setParamNormalized(kCouplingId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(physVal))
-                setParamNormalized(kStabilityId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(physVal))
-                setParamNormalized(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
-        }
-        else
-        {
-            // Default harmonic physics values for v6 and older states
-            setParamNormalized(kWarmthId, 0.0);
-            setParamNormalized(kCouplingId, 0.0);
-            setParamNormalized(kStabilityId, 0.0);
-            setParamNormalized(kEntropyId, 0.0);
-        }
-
-        // --- Spec B: Analysis Feedback Loop parameters (v8) ---
-        if (version >= 8)
-        {
-            float fbVal = 0.0f;
-            if (streamer.readFloat(fbVal))
-                setParamNormalized(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(fbVal))
-                setParamNormalized(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
-        }
-        else
-        {
-            // Default feedback values for v7 and older states
-            setParamNormalized(kAnalysisFeedbackId, 0.0);
-            setParamNormalized(kAnalysisFeedbackDecayId, 0.2);
-        }
-
-        // --- Spec 124: ADSR Envelope Detection parameters (v9) ---
-        if (version >= 9)
-        {
-            // Log mapping inverse for time parameters: normalized = log(plain/min) / log(max/min)
-            constexpr double kMin = 1.0;
-            constexpr double kMax = 5000.0;
-            const double kLogRatio = std::log(kMax / kMin);
-            auto logNorm = [&](double plainMs) -> double {
-                double clamped = std::clamp(plainMs, kMin, kMax);
-                return std::log(clamped / kMin) / kLogRatio;
-            };
-
-            float adsrVal = 0.0f;
-            if (streamer.readFloat(adsrVal))
-                setParamNormalized(kAdsrAttackId, logNorm(static_cast<double>(adsrVal)));
-            if (streamer.readFloat(adsrVal))
-                setParamNormalized(kAdsrDecayId, logNorm(static_cast<double>(adsrVal)));
-            if (streamer.readFloat(adsrVal))
-                setParamNormalized(kAdsrSustainId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(adsrVal))
-                setParamNormalized(kAdsrReleaseId, logNorm(static_cast<double>(adsrVal)));
-            if (streamer.readFloat(adsrVal))
-                setParamNormalized(kAdsrAmountId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
-            if (streamer.readFloat(adsrVal))
-            {
-                // TimeScale: linear 0.25-4.0 -> normalized 0-1
-                double norm = static_cast<double>(std::clamp(adsrVal, 0.25f, 4.0f) - 0.25f) / (4.0 - 0.25);
-                setParamNormalized(kAdsrTimeScaleId, norm);
-            }
-            if (streamer.readFloat(adsrVal))
-            {
-                // Curve: linear -1.0 to +1.0 -> normalized 0-1
-                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-                setParamNormalized(kAdsrAttackCurveId, norm);
-            }
-            if (streamer.readFloat(adsrVal))
-            {
-                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-                setParamNormalized(kAdsrDecayCurveId, norm);
-            }
-            if (streamer.readFloat(adsrVal))
-            {
-                double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
-                setParamNormalized(kAdsrReleaseCurveId, norm);
-            }
-
-            // Skip per-slot ADSR data (controller does not store slot data)
-            for (int s = 0; s < 8; ++s)
+            if (occupiedByte != 0)
             {
                 float skipFloat = 0.0f;
-                for (int f = 0; f < 9; ++f)
+                Steinberg::int32 skipInt = 0;
+
+                streamer.readFloat(skipFloat);  // f0Reference
+                streamer.readInt32(skipInt);     // numPartials
+
+                // 96*4 floats for per-partial arrays
+                for (int i = 0; i < 96 * 4; ++i)
                     streamer.readFloat(skipFloat);
+
+                // 16 floats for residualBands
+                for (int i = 0; i < 16; ++i)
+                    streamer.readFloat(skipFloat);
+
+                // 4 scalar floats
+                streamer.readFloat(skipFloat);   // residualEnergy
+                streamer.readFloat(skipFloat);   // globalAmplitude
+                streamer.readFloat(skipFloat);   // spectralCentroid
+                streamer.readFloat(skipFloat);   // brightness
             }
         }
-        else
+
+        // Momentary triggers always reset to 0 (FR-023, FR-030)
+        setParamNormalized(kMemoryCaptureId, 0.0);
+        setParamNormalized(kMemoryRecallId, 0.0);
+    }
+
+    // --- M6 parameters (creative extensions) ---
+    {
+        float m6Val = 0.0f;
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kEvolutionEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kEvolutionSpeedId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kEvolutionDepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kEvolutionModeId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod1TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2EnableId, m6Val > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2WaveformId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2RateId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2DepthId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2RangeStartId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2RangeEndId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kMod2TargetId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kDetuneSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendEnableId, m6Val > 0.5f ? 1.0 : 0.0);
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight1Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight2Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight3Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight4Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight5Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight6Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight7Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendSlotWeight8Id, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        if (streamer.readFloat(m6Val))
+            setParamNormalized(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+    }
+
+    // --- Harmonic Physics parameters ---
+    {
+        float physVal = 0.0f;
+        if (streamer.readFloat(physVal))
+            setParamNormalized(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(physVal))
+            setParamNormalized(kCouplingId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(physVal))
+            setParamNormalized(kStabilityId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(physVal))
+            setParamNormalized(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
+    }
+
+    // --- Analysis Feedback Loop parameters ---
+    {
+        float fbVal = 0.0f;
+        if (streamer.readFloat(fbVal))
+            setParamNormalized(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(fbVal))
+            setParamNormalized(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
+    }
+
+    // --- ADSR Envelope Detection parameters ---
+    {
+        constexpr double kMin = 1.0;
+        constexpr double kMax = 5000.0;
+        const double kLogRatio = std::log(kMax / kMin);
+        auto logNorm = [&](double plainMs) -> double {
+            double clamped = std::clamp(plainMs, kMin, kMax);
+            return std::log(clamped / kMin) / kLogRatio;
+        };
+
+        float adsrVal = 0.0f;
+        if (streamer.readFloat(adsrVal))
+            setParamNormalized(kAdsrAttackId, logNorm(static_cast<double>(adsrVal)));
+        if (streamer.readFloat(adsrVal))
+            setParamNormalized(kAdsrDecayId, logNorm(static_cast<double>(adsrVal)));
+        if (streamer.readFloat(adsrVal))
+            setParamNormalized(kAdsrSustainId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(adsrVal))
+            setParamNormalized(kAdsrReleaseId, logNorm(static_cast<double>(adsrVal)));
+        if (streamer.readFloat(adsrVal))
+            setParamNormalized(kAdsrAmountId, static_cast<double>(std::clamp(adsrVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(adsrVal))
         {
-            // Default ADSR values for v8 and older states
-            // Amount=0.0 -> bit-exact bypass (FR-009)
-            setParamNormalized(kAdsrAmountId, 0.0);
-            // Curves=0.0 -> linear (FR-020)
-            setParamNormalized(kAdsrAttackCurveId, 0.5);  // normalized 0.5 = plain 0.0 for [-1, +1]
-            setParamNormalized(kAdsrDecayCurveId, 0.5);
-            setParamNormalized(kAdsrReleaseCurveId, 0.5);
-            // Times to defaults
-            constexpr double kMin = 1.0;
-            constexpr double kMax = 5000.0;
-            const double kLogRatio = std::log(kMax / kMin);
-            auto logNorm = [&](double plainMs) -> double {
-                double clamped = std::clamp(plainMs, kMin, kMax);
-                return std::log(clamped / kMin) / kLogRatio;
-            };
-            setParamNormalized(kAdsrAttackId, logNorm(10.0));
-            setParamNormalized(kAdsrDecayId, logNorm(100.0));
-            setParamNormalized(kAdsrSustainId, 1.0);
-            setParamNormalized(kAdsrReleaseId, logNorm(100.0));
-            // TimeScale=1.0 -> normalized = (1.0 - 0.25) / (4.0 - 0.25)
-            setParamNormalized(kAdsrTimeScaleId, (1.0 - 0.25) / (4.0 - 0.25));
+            double norm = static_cast<double>(std::clamp(adsrVal, 0.25f, 4.0f) - 0.25f) / (4.0 - 0.25);
+            setParamNormalized(kAdsrTimeScaleId, norm);
         }
+        if (streamer.readFloat(adsrVal))
+        {
+            double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+            setParamNormalized(kAdsrAttackCurveId, norm);
+        }
+        if (streamer.readFloat(adsrVal))
+        {
+            double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+            setParamNormalized(kAdsrDecayCurveId, norm);
+        }
+        if (streamer.readFloat(adsrVal))
+        {
+            double norm = static_cast<double>(std::clamp(adsrVal, -1.0f, 1.0f) + 1.0f) / 2.0;
+            setParamNormalized(kAdsrReleaseCurveId, norm);
+        }
+
+        // Skip per-slot ADSR data (controller does not store slot data)
+        for (int s = 0; s < 8; ++s)
+        {
+            float skipFloat = 0.0f;
+            for (int f = 0; f < 9; ++f)
+                streamer.readFloat(skipFloat);
+        }
+    }
+
+    // --- Partial Count parameter ---
+    {
+        float pcVal = 0.0f;
+        if (streamer.readFloat(pcVal))
+            setParamNormalized(kPartialCountId,
+                static_cast<double>(std::clamp(pcVal, 0.0f, 1.0f)));
     }
 
     return Steinberg::kResultOk;

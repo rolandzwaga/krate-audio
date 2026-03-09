@@ -1,7 +1,7 @@
 // ==============================================================================
 // HarmonicDisplayView Implementation
 // ==============================================================================
-// FR-009: 48-bar spectral display with dB scaling
+// FR-009: Adaptive-bar spectral display with dB scaling (up to 96 bars)
 // FR-011: Empty/placeholder state
 // FR-012: Active vs attenuated partial coloring
 // ==============================================================================
@@ -23,11 +23,12 @@ HarmonicDisplayView::HarmonicDisplayView(const VSTGUI::CRect& size)
 
 void HarmonicDisplayView::updateData(const DisplayData& data)
 {
-    for (int i = 0; i < 48; ++i)
+    for (int i = 0; i < 96; ++i)
     {
         amplitudes_[i] = data.partialAmplitudes[i];
         active_[i] = (data.partialActive[i] != 0);
     }
+    activeCount_ = std::clamp(data.activePartialCount, 1, 96);
     hasData_ = true;
     invalid();
 }
@@ -71,14 +72,14 @@ void HarmonicDisplayView::draw(VSTGUI::CDrawContext* context)
         return;
     }
 
-    // FR-009: Draw 48 vertical bars
+    // FR-009: Draw adaptive number of vertical bars
     constexpr float kPadding = 4.0f;
-    constexpr int kNumPartials = 48;
     constexpr float kGap = 1.0f;
 
+    const int numPartials = activeCount_;
     float barAreaWidth = viewWidth - 2.0f * kPadding;
-    float barWidth = (barAreaWidth - static_cast<float>(kNumPartials - 1) * kGap)
-                     / static_cast<float>(kNumPartials);
+    float barWidth = (barAreaWidth - static_cast<float>(numPartials - 1) * kGap)
+                     / static_cast<float>(numPartials);
 
     if (barWidth < 1.0f)
         barWidth = 1.0f;
@@ -88,7 +89,7 @@ void HarmonicDisplayView::draw(VSTGUI::CDrawContext* context)
     // Attenuated partial color: dark gray (#333333)
     VSTGUI::CColor attenuatedColor(51, 51, 51);
 
-    for (int i = 0; i < kNumPartials; ++i)
+    for (int i = 0; i < numPartials; ++i)
     {
         float barHeight = amplitudeToBarHeight(amplitudes_[i],
                                                viewHeight - 2.0f * kPadding);

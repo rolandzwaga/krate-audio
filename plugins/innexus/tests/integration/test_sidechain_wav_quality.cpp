@@ -196,8 +196,8 @@ static void loadEtherealSopranoSidechainState(Innexus::Processor& proc)
     WavTestStream stateStream;
     IBStreamer streamer(&stateStream, kLittleEndian);
 
-    // Version 8
-    streamer.writeInt32(8);
+    // Version 1
+    streamer.writeInt32(1);
 
     // M1 parameters
     streamer.writeFloat(400.0f);  // releaseTimeMs (Ethereal Soprano)
@@ -271,6 +271,19 @@ static void loadEtherealSopranoSidechainState(Innexus::Processor& proc)
     // Spec B: Analysis Feedback Loop
     streamer.writeFloat(0.0f);    // feedbackAmount
     streamer.writeFloat(0.2f);    // feedbackDecay
+
+    // ADSR global defaults
+    streamer.writeFloat(10.0f); streamer.writeFloat(100.0f); streamer.writeFloat(1.0f);
+    streamer.writeFloat(100.0f); streamer.writeFloat(0.0f); streamer.writeFloat(1.0f);
+    streamer.writeFloat(0.0f); streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
+    // ADSR per-slot defaults (8 × 9)
+    for (int i = 0; i < 8; ++i) {
+        streamer.writeFloat(10.0f); streamer.writeFloat(100.0f); streamer.writeFloat(1.0f);
+        streamer.writeFloat(100.0f); streamer.writeFloat(0.0f); streamer.writeFloat(1.0f);
+        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
+    }
+    // Partial count
+    streamer.writeFloat(0.0f);
 
     stateStream.resetReadPos();
     proc.setState(&stateStream);

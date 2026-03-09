@@ -110,8 +110,8 @@ public:
     }
 
     /// @brief Set target partial range (FR-024).
-    /// @param start First partial (1-based) [1, 48]
-    /// @param end Last partial (1-based) [1, 48]
+    /// @param start First partial (1-based) [1, 96]
+    /// @param end Last partial (1-based) [1, 96]
     void setRange(int start, int end) noexcept
     {
         rangeStart_ = start;
@@ -276,7 +276,7 @@ private:
     float rate_ = 1.0f;
     float depth_ = 0.0f;
     int rangeStart_ = 1;   // 1-based
-    int rangeEnd_ = 48;    // 1-based
+    int rangeEnd_ = 96;    // 1-based
     ModulatorWaveform waveform_ = ModulatorWaveform::Sine;
     ModulatorTarget target_ = ModulatorTarget::Amplitude;
     float inverseSampleRate_ = 1.0f / 44100.0f;

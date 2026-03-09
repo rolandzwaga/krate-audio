@@ -377,7 +377,7 @@ TEST_CASE("M6 pipeline order: filtered partials stay silent even with modulators
     fix.paramChanges.addChange(Innexus::kMod1DepthId, 1.0);
     fix.paramChanges.addChange(Innexus::kMod1RateId, 0.25);   // 5 Hz approx
     fix.paramChanges.addChange(Innexus::kMod1RangeStartId, 0.0);   // partial 1
-    fix.paramChanges.addChange(Innexus::kMod1RangeEndId, 1.0);     // partial 48
+    fix.paramChanges.addChange(Innexus::kMod1RangeEndId, 1.0);     // partial 96
     fix.paramChanges.addChange(Innexus::kStereoSpreadId, 0.0);
 
     fix.events.addNoteOn(60, 0.8f);

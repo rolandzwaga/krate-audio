@@ -813,6 +813,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     float inharm = inharmonicityAmount_.load(std::memory_order_relaxed);
     oscillatorBank_.setInharmonicityAmount(inharm);
 
+    // --- Active partial count from user parameter ---
+    const int activePartialCount = getActivePartialCount();
+
     // --- Compute hop size in samples for frame advancement ---
     // Guard: analysis may be nullptr in sidechain mode (no sample loaded)
     const size_t hopSizeInSamples = analysis
@@ -1032,6 +1035,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
         float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
         float targetPitch = basePitch * bendRatio;
+        morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
         oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
         if (residualSynth_.isPrepared())
@@ -1100,7 +1104,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
             float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
             float targetPitch = basePitch * bendRatio;
-            oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+            morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
             // Load live residual frame (FR-016: same controls as sample mode)
             if (residualSynth_.isPrepared())
@@ -1131,7 +1136,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                 float targetPitch = basePitch * bendRatio;
-                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
                 if (residualSynth_.isPrepared())
                 {
@@ -1195,8 +1201,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         const float rangeStartNorm = mod1RangeStart_.load(std::memory_order_relaxed);
         const float rangeEndNorm = mod1RangeEnd_.load(std::memory_order_relaxed);
-        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
-        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 95.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 95.0f));
         mod1_.setRange(rangeStart, rangeEnd);
 
         const float targetNorm = mod1Target_.load(std::memory_order_relaxed);
@@ -1219,8 +1225,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         const float rangeStartNorm = mod2RangeStart_.load(std::memory_order_relaxed);
         const float rangeEndNorm = mod2RangeEnd_.load(std::memory_order_relaxed);
-        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 47.0f));
-        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 47.0f));
+        const int rangeStart = 1 + static_cast<int>(std::round(rangeStartNorm * 95.0f));
+        const int rangeEnd = 1 + static_cast<int>(std::round(rangeEndNorm * 95.0f));
         mod2_.setRange(rangeStart, rangeEnd);
 
         const float targetNorm = mod2Target_.load(std::memory_order_relaxed);
@@ -1295,7 +1301,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                     float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                     float targetPitch = basePitch * bendRatio;
-                    oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+                    morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
                     if (hasSampleResidual)
                     {
@@ -1363,7 +1370,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                 float targetPitch = basePitch * bendRatio;
-                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
                 if (residualSynth_.isPrepared())
                 {
@@ -1448,7 +1456,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
                 float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
                 float targetPitch = basePitch * bendRatio;
-                oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
+                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
+        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
 
                 if (residualSynth_.isPrepared())
                 {

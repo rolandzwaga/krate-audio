@@ -327,6 +327,19 @@ public:
     float getAdsrDecayCurve() const { return adsrDecayCurve_.load(std::memory_order_relaxed); }
     float getAdsrReleaseCurve() const { return adsrReleaseCurve_.load(std::memory_order_relaxed); }
 
+    // Partial Count test accessor
+    float getPartialCount() const { return partialCount_.load(std::memory_order_relaxed); }
+
+    /// @brief Get active partial count from parameter (TEST ONLY).
+    /// Denormalizes to {48, 64, 80, 96}.
+    int getActivePartialCount() const
+    {
+        const float norm = partialCount_.load(std::memory_order_relaxed);
+        constexpr int kCounts[] = {48, 64, 80, 96};
+        int idx = std::clamp(static_cast<int>(std::round(norm * 3.0f)), 0, 3);
+        return kCounts[idx];
+    }
+
     // ADSR Playback State (Spec 124: T048) test accessors
     float getAdsrEnvelopeOutput() const { return adsrEnvelopeOutput_.load(std::memory_order_relaxed); }
     int getAdsrStage() const { return adsrStage_.load(std::memory_order_relaxed); }
@@ -364,6 +377,7 @@ private:
     std::atomic<float> masterGain_{1.0f};
     std::atomic<float> releaseTimeMs_{100.0f};
     std::atomic<float> inharmonicityAmount_{1.0f};
+    std::atomic<float> partialCount_{0.0f};          // normalized: 0=48, 1/3=64, 2/3=80, 1=96
 
     // M2 Residual parameters (FR-021, FR-022, FR-023)
     std::atomic<float> harmonicLevel_{0.5f};       // normalized, default = 1.0 plain
@@ -403,16 +417,16 @@ private:
     std::atomic<float> mod1Waveform_{0.0f};           // normalized, 0-4
     std::atomic<float> mod1Rate_{0.0f};               // normalized, plain 0.01-20.0 Hz
     std::atomic<float> mod1Depth_{0.0f};              // 0.0-1.0
-    std::atomic<float> mod1RangeStart_{0.0f};         // normalized, plain 1-48
-    std::atomic<float> mod1RangeEnd_{1.0f};           // normalized, plain 1-48
+    std::atomic<float> mod1RangeStart_{0.0f};         // normalized, plain 1-96
+    std::atomic<float> mod1RangeEnd_{1.0f};           // normalized, plain 1-96
     std::atomic<float> mod1Target_{0.0f};             // normalized, 0-2
     // Modulator 2
     std::atomic<float> mod2Enable_{0.0f};             // 0/1
     std::atomic<float> mod2Waveform_{0.0f};           // normalized, 0-4
     std::atomic<float> mod2Rate_{0.0f};               // normalized, plain 0.01-20.0 Hz
     std::atomic<float> mod2Depth_{0.0f};              // 0.0-1.0
-    std::atomic<float> mod2RangeStart_{0.0f};         // normalized, plain 1-48
-    std::atomic<float> mod2RangeEnd_{1.0f};           // normalized, plain 1-48
+    std::atomic<float> mod2RangeStart_{0.0f};         // normalized, plain 1-96
+    std::atomic<float> mod2RangeEnd_{1.0f};           // normalized, plain 1-96
     std::atomic<float> mod2Target_{0.0f};             // normalized, 0-2
     // Detune
     std::atomic<float> detuneSpread_{0.0f};           // 0.0-1.0

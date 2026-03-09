@@ -31,7 +31,7 @@ TEST_CASE("HarmonicDisplayView updateData with zero amplitudes sets hasData", "[
     view.updateData(data);
 
     REQUIRE(view.hasData() == true);
-    for (int i = 0; i < 48; ++i)
+    for (int i = 0; i < 96; ++i)
         REQUIRE(view.getAmplitude(i) == Approx(0.0f));
 }
 

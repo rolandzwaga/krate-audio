@@ -1221,7 +1221,7 @@ private:
     int32 readPos_ = 0;
 };
 
-// Helper: create a version 1 (M1) state blob manually
+// Helper: create a complete v1 state blob manually
 static void writeV1StateBlob(TestStream& stream,
                               float releaseMs = 100.0f,
                               float inharm = 1.0f,
@@ -1238,9 +1238,64 @@ static void writeV1StateBlob(TestStream& stream,
     auto pathLen = static_cast<int32>(filePath.size());
     streamer.writeInt32(pathLen);
     if (pathLen > 0)
-    {
         stream.write(const_cast<char*>(filePath.data()), pathLen, nullptr);
+
+    // M2 parameters (plain values)
+    streamer.writeFloat(1.0f);   // harmonicLevel
+    streamer.writeFloat(1.0f);   // residualLevel
+    streamer.writeFloat(0.0f);   // brightness
+    streamer.writeFloat(0.0f);   // transientEmphasis
+    streamer.writeInt32(0);      // residual frame count
+    streamer.writeInt32(0);      // fftSize
+    streamer.writeInt32(0);      // hopSize
+
+    // M3 parameters
+    streamer.writeInt32(0);      // inputSource
+    streamer.writeInt32(0);      // latencyMode
+
+    // M4 parameters
+    streamer.writeInt8(static_cast<Steinberg::int8>(0)); // freeze
+    streamer.writeFloat(0.0f);   // morphPosition
+    streamer.writeInt32(0);      // harmonicFilterType
+    streamer.writeFloat(0.5f);   // responsiveness
+
+    // M5 parameters
+    streamer.writeInt32(0);      // selected slot
+    for (int s = 0; s < 8; ++s)
+        streamer.writeInt8(static_cast<Steinberg::int8>(0)); // unoccupied
+
+    // M6 parameters (31 floats)
+    streamer.writeFloat(1.0f);   // timbralBlend
+    streamer.writeFloat(0.0f);   // stereoSpread
+    for (int i = 0; i < 29; ++i)
+        streamer.writeFloat(0.0f);
+
+    // Harmonic Physics (4 floats)
+    for (int i = 0; i < 4; ++i) streamer.writeFloat(0.0f);
+
+    // Feedback (2 floats)
+    streamer.writeFloat(0.0f);
+    streamer.writeFloat(0.2f);
+
+    // ADSR global (9 floats)
+    streamer.writeFloat(10.0f);  streamer.writeFloat(100.0f);
+    streamer.writeFloat(1.0f);   streamer.writeFloat(100.0f);
+    streamer.writeFloat(0.0f);   streamer.writeFloat(1.0f);
+    streamer.writeFloat(0.0f);   streamer.writeFloat(0.0f);
+    streamer.writeFloat(0.0f);
+
+    // Per-slot ADSR (8 x 9 = 72 floats)
+    for (int s = 0; s < 8; ++s)
+    {
+        streamer.writeFloat(10.0f);  streamer.writeFloat(100.0f);
+        streamer.writeFloat(1.0f);   streamer.writeFloat(100.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(1.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(0.0f);
+        streamer.writeFloat(0.0f);
     }
+
+    // Partial Count
+    streamer.writeFloat(0.0f);
 }
 
 TEST_CASE("ResidualIntegration: getState writes version 3 at offset 0 (FR-027, M3)",
@@ -1258,13 +1313,13 @@ TEST_CASE("ResidualIntegration: getState writes version 3 at offset 0 (FR-027, M
     TestStream stream;
     REQUIRE(proc.getState(&stream) == kResultOk);
 
-    // Read the first 4 bytes as int32 -- should be version 9 (Spec 124: ADSR envelope detection)
+    // Read the first 4 bytes as int32 -- should be version 1 (flat pre-release format)
     REQUIRE(stream.rawData().size() >= 4);
     stream.resetReadPos();
     Steinberg::IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 9);
+    REQUIRE(version == 1);
 
     proc.setActive(false);
     proc.terminate();
@@ -1439,10 +1494,9 @@ TEST_CASE("ResidualIntegration: setState v2 + process produces identical output 
     }
 }
 
-TEST_CASE("ResidualIntegration: setState v1 blob sets defaults and empty residual (FR-027 backward compat)",
+TEST_CASE("ResidualIntegration: setState with default blob sets default residual params",
           "[innexus][residual_integration][state]")
 {
-    // Create a version 1 state blob (M1 format)
     TestStream stream;
     writeV1StateBlob(stream, 100.0f, 1.0f, 1.0f, 0.0f, "");
 
@@ -1456,11 +1510,7 @@ TEST_CASE("ResidualIntegration: setState v1 blob sets defaults and empty residua
 
     REQUIRE(proc.setState(&stream) == kResultOk);
 
-    // Residual parameters should have defaults
-    // harmonicLevel: default normalized 0.5
-    // residualLevel: default normalized 0.5
-    // brightness: default normalized 0.5
-    // transientEmphasis: default normalized 0.0
+    // Residual parameters should have defaults (plain 1.0 -> normalized 0.5)
     REQUIRE(proc.getHarmonicLevel() == Catch::Approx(0.5f).margin(0.001f));
     REQUIRE(proc.getResidualLevel() == Catch::Approx(0.5f).margin(0.001f));
     REQUIRE(proc.getResidualBrightness() == Catch::Approx(0.5f).margin(0.001f));
@@ -1470,10 +1520,10 @@ TEST_CASE("ResidualIntegration: setState v1 blob sets defaults and empty residua
     proc.terminate();
 }
 
-TEST_CASE("ResidualIntegration: setState v1 blob + process produces harmonic-only output",
+TEST_CASE("ResidualIntegration: setState default blob + process produces harmonic-only output",
           "[innexus][residual_integration][state]")
 {
-    // Version 1 state: no residual frames, so process should produce harmonic-only
+    // Default state: no residual frames, so process should produce harmonic-only
     TestStream stream;
     writeV1StateBlob(stream, 100.0f, 1.0f, 1.0f, 0.0f, "");
 

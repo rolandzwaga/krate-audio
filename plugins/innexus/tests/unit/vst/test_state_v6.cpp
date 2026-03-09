@@ -1,9 +1,7 @@
 // ==============================================================================
-// M6 State Persistence Tests (v6 format)
+// M6 State Persistence Tests
 // ==============================================================================
-// Tests that getState()/setState() correctly persist all 31 M6 parameters
-// in version 6 format, and that loading a v5 state initializes M6 parameters
-// to their spec defaults.
+// Tests that getState()/setState() correctly persist all 31 M6 parameters.
 //
 // Feature: 120-creative-extensions
 // Requirements: FR-043, FR-044, SC-009
@@ -100,11 +98,32 @@ static std::unique_ptr<Innexus::Processor> createAndSetupProcessor()
     return proc;
 }
 
+/// Write v1 default tail: physics, feedback, ADSR, partialCount (after M6)
+static void writeV1DefaultsAfterM6(IBStreamer& s)
+{
+    // Physics
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // Feedback
+    s.writeFloat(0.0f); s.writeFloat(0.2f);
+    // ADSR global
+    s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+    s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // ADSR per-slot (8 × 9)
+    for (int i = 0; i < 8; ++i) {
+        s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+        s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+        s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    }
+    // partialCount
+    s.writeFloat(0.0f);
+}
+
 // ==============================================================================
-// T047: v6 state round-trip test -- SC-009 tolerance 1e-6
+// T047: state round-trip test -- SC-009 tolerance 1e-6
 // ==============================================================================
 
-TEST_CASE("M6 State: v6 round-trip preserves all 31 M6 parameters within 1e-6",
+TEST_CASE("M6 State: round-trip preserves all 31 M6 parameters within 1e-6",
           "[innexus][vst][m6][state]")
 {
     // Non-default values to verify round-trip
@@ -164,12 +183,12 @@ TEST_CASE("M6 State: v6 round-trip preserves all 31 M6 parameters within 1e-6",
         procA->terminate();
     }
 
-    // Build a v6 state blob manually with known M6 values
+    // Build a v1 state blob manually with known M6 values
     {
         IBStreamer streamer(&stream, kLittleEndian);
 
-        // Version 6
-        streamer.writeInt32(6);
+        // Version 1
+        streamer.writeInt32(1);
 
         // M1 parameters
         streamer.writeFloat(100.0f);     // releaseTimeMs (clamped 20-5000)
@@ -234,6 +253,8 @@ TEST_CASE("M6 State: v6 round-trip preserves all 31 M6 parameters within 1e-6",
         streamer.writeFloat(kBlendSlot7);
         streamer.writeFloat(kBlendSlot8);
         streamer.writeFloat(kBlendLive);
+
+        writeV1DefaultsAfterM6(streamer);
     }
 
     // Load into processor B and verify all values
@@ -324,188 +345,18 @@ TEST_CASE("M6 State: getState() then setState() round-trip preserves M6 values",
 }
 
 // ==============================================================================
-// T047: v5 backward compatibility test -- SC-009
+// Controller setComponentState test
 // ==============================================================================
 
-TEST_CASE("M6 State: loading v5 state initializes all M6 parameters to defaults",
+TEST_CASE("M6 State: Controller setComponentState reads M6 parameters",
           "[innexus][vst][m6][state]")
 {
     V6TestStream stream;
 
-    // Build a v5 state blob manually
+    // Build a v1 state blob
     {
         IBStreamer streamer(&stream, kLittleEndian);
-
-        // Version 5
-        streamer.writeInt32(5);
-
-        // M1 parameters
-        streamer.writeFloat(200.0f);     // releaseTimeMs
-        streamer.writeFloat(0.3f);       // inharmonicityAmount
-        streamer.writeFloat(0.7f);       // masterGain
-        streamer.writeFloat(0.0f);       // bypass
-        streamer.writeInt32(0);          // path length (empty)
-
-        // M2 parameters
-        streamer.writeFloat(1.0f);       // harmonicLevel (plain)
-        streamer.writeFloat(1.0f);       // residualLevel (plain)
-        streamer.writeFloat(0.0f);       // brightness (plain)
-        streamer.writeFloat(0.0f);       // transientEmphasis (plain)
-        streamer.writeInt32(0);          // residual frame count
-        streamer.writeInt32(0);          // fftSize
-        streamer.writeInt32(0);          // hopSize
-
-        // M3 parameters
-        streamer.writeInt32(0);          // inputSource
-        streamer.writeInt32(0);          // latencyMode
-
-        // M4 parameters
-        streamer.writeInt8(static_cast<int8>(0)); // freeze
-        streamer.writeFloat(0.0f);       // morphPosition
-        streamer.writeInt32(0);          // harmonicFilterType
-        streamer.writeFloat(0.5f);       // responsiveness
-
-        // M5 parameters
-        streamer.writeInt32(0);          // selected slot
-        for (int s = 0; s < 8; ++s)
-            streamer.writeInt8(static_cast<int8>(0)); // all unoccupied
-
-        // NO M6 data -- this is the v5 format
-    }
-
-    // Load into processor and verify M6 defaults
-    {
-        auto proc = createAndSetupProcessor();
-
-        // First set M6 params to non-default values to ensure setState resets them
-        // (The processor is freshly initialized so they already have defaults,
-        // but let's verify the v5 path explicitly sets them)
-
-        stream.resetReadPos();
-        REQUIRE(proc->setState(&stream) == kResultOk);
-
-        constexpr float kTol = 1e-6f;
-
-        // All M6 parameters should be at their spec defaults
-        REQUIRE(proc->getTimbralBlend() == Approx(1.0f).margin(kTol));
-        REQUIRE(proc->getStereoSpread() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getEvolutionEnable() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getEvolutionSpeed() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getEvolutionDepth() == Approx(0.5f).margin(kTol));
-        REQUIRE(proc->getEvolutionMode() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1Enable() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1Waveform() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1Rate() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1Depth() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1RangeStart() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod1RangeEnd() == Approx(1.0f).margin(kTol));
-        REQUIRE(proc->getMod1Target() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2Enable() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2Waveform() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2Rate() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2Depth() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2RangeStart() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getMod2RangeEnd() == Approx(1.0f).margin(kTol));
-        REQUIRE(proc->getMod2Target() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getDetuneSpread() == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getBlendEnable() == Approx(0.0f).margin(kTol));
-        for (int i = 0; i < 8; ++i)
-            REQUIRE(proc->getBlendSlotWeight(i) == Approx(0.0f).margin(kTol));
-        REQUIRE(proc->getBlendLiveWeight() == Approx(0.0f).margin(kTol));
-
-        proc->setActive(false);
-        proc->terminate();
-    }
-}
-
-TEST_CASE("M6 State: v5 state loads without crash when M6 params were previously non-default",
-          "[innexus][vst][m6][state]")
-{
-    V6TestStream streamV6;
-    V6TestStream streamV5;
-
-    // First load a v6 state with non-default M6 values
-    {
-        IBStreamer streamer(&streamV6, kLittleEndian);
-        streamer.writeInt32(6);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-        // M6 -- all set to 0.77 (non-default)
-        for (int i = 0; i < 31; ++i) streamer.writeFloat(0.77f);
-    }
-
-    // Build a v5 state
-    {
-        IBStreamer streamer(&streamV5, kLittleEndian);
-        streamer.writeInt32(5);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-    }
-
-    auto proc = createAndSetupProcessor();
-
-    // Load v6 state first
-    streamV6.resetReadPos();
-    REQUIRE(proc->setState(&streamV6) == kResultOk);
-    // Verify a non-default value was loaded
-    REQUIRE(proc->getTimbralBlend() == Approx(0.77f).margin(1e-6f));
-
-    // Now load v5 state -- should reset M6 to defaults
-    streamV5.resetReadPos();
-    REQUIRE(proc->setState(&streamV5) == kResultOk);
-
-    constexpr float kTol = 1e-6f;
-    REQUIRE(proc->getTimbralBlend() == Approx(1.0f).margin(kTol));
-    REQUIRE(proc->getStereoSpread() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getEvolutionEnable() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getBlendEnable() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getDetuneSpread() == Approx(0.0f).margin(kTol));
-
-    proc->setActive(false);
-    proc->terminate();
-}
-
-// ==============================================================================
-// Controller setComponentState v6 test
-// ==============================================================================
-
-TEST_CASE("M6 State: Controller setComponentState reads v6 M6 parameters",
-          "[innexus][vst][m6][state]")
-{
-    V6TestStream stream;
-
-    // Build a v6 state blob
-    {
-        IBStreamer streamer(&stream, kLittleEndian);
-        streamer.writeInt32(6);
+        streamer.writeInt32(1);
         // M1
         streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
         streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
@@ -554,6 +405,8 @@ TEST_CASE("M6 State: Controller setComponentState reads v6 M6 parameters",
         streamer.writeFloat(0.1f);   // blendSlot7
         streamer.writeFloat(0.85f);  // blendSlot8
         streamer.writeFloat(0.65f);  // blendLive
+
+        writeV1DefaultsAfterM6(streamer);
     }
 
     Innexus::Controller controller;
@@ -581,56 +434,3 @@ TEST_CASE("M6 State: Controller setComponentState reads v6 M6 parameters",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("M6 State: Controller setComponentState with v5 data defaults M6 params",
-          "[innexus][vst][m6][state]")
-{
-    V6TestStream stream;
-
-    // Build a v5 state blob
-    {
-        IBStreamer streamer(&stream, kLittleEndian);
-        streamer.writeInt32(5);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-    }
-
-    Innexus::Controller controller;
-    REQUIRE(controller.initialize(nullptr) == kResultOk);
-
-    stream.resetReadPos();
-    REQUIRE(controller.setComponentState(&stream) == kResultOk);
-
-    // M6 parameters should be at defaults
-    REQUIRE(controller.getParamNormalized(Innexus::kTimbralBlendId)
-            == Approx(1.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kStereoSpreadId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kEvolutionEnableId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kEvolutionDepthId)
-            == Approx(0.5).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kMod1EnableId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kDetuneSpreadId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kBlendEnableId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kBlendLiveWeightId)
-            == Approx(0.0).margin(0.001));
-
-    REQUIRE(controller.terminate() == kResultOk);
-}

@@ -198,7 +198,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
     // Read and validate version
     Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version) || version < 1 || version > 8)
+    if (!streamer.readInt32(version) || version != 1)
         return false;
 
     // Lambda that calls editParamWithNotify instead of setParamNormalized
@@ -231,22 +231,22 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         }
     }
 
-    // --- M2 parameters (version >= 2) ---
-    if (version >= 2) {
-        if (streamer.readFloat(floatVal))
-            setParam(kHarmonicLevelId,
-                static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
-        if (streamer.readFloat(floatVal))
-            setParam(kResidualLevelId,
-                static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
-        if (streamer.readFloat(floatVal))
-            setParam(kResidualBrightnessId,
-                static_cast<double>(std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0);
-        if (streamer.readFloat(floatVal))
-            setParam(kTransientEmphasisId,
-                static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
+    // --- M2 parameters ---
+    if (streamer.readFloat(floatVal))
+        setParam(kHarmonicLevelId,
+            static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kResidualLevelId,
+            static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kResidualBrightnessId,
+            static_cast<double>(std::clamp(floatVal, -1.0f, 1.0f) + 1.0f) / 2.0);
+    if (streamer.readFloat(floatVal))
+        setParam(kTransientEmphasisId,
+            static_cast<double>(std::clamp(floatVal, 0.0f, 2.0f)) / 2.0);
 
-        // Skip residual frames
+    // Skip residual frames
+    {
         Steinberg::int32 residualFrameCount = 0;
         Steinberg::int32 fftSize = 0;
         Steinberg::int32 hopSize = 0;
@@ -264,8 +264,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         }
     }
 
-    // --- M3 parameters (version >= 3) ---
-    if (version >= 3) {
+    // --- M3 parameters ---
+    {
         Steinberg::int32 intVal = 0;
         if (streamer.readInt32(intVal))
             setParam(kInputSourceId, intVal > 0 ? 1.0 : 0.0);
@@ -273,8 +273,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             setParam(kLatencyModeId, intVal > 0 ? 1.0 : 0.0);
     }
 
-    // --- M4 parameters (version >= 4) ---
-    if (version >= 4) {
+    // --- M4 parameters ---
+    {
         Steinberg::int8 freezeState = 0;
         if (streamer.readInt8(freezeState))
             setParam(kFreezeId, freezeState ? 1.0 : 0.0);
@@ -291,8 +291,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                 static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
     }
 
-    // --- M5 parameters (version >= 5) ---
-    if (version >= 5) {
+    // --- M5 parameters ---
+    {
         Steinberg::int32 selectedSlot = 0;
         if (streamer.readInt32(selectedSlot)) {
             selectedSlot = std::clamp(selectedSlot,
@@ -312,7 +312,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                 Steinberg::int32 skipInt = 0;
                 streamer.readFloat(skipFloat);  // f0Reference
                 streamer.readInt32(skipInt);     // numPartials
-                for (int i = 0; i < 48 * 4; ++i)
+                for (int i = 0; i < 96 * 4; ++i)
                     streamer.readFloat(skipFloat);
                 for (int i = 0; i < 16; ++i)
                     streamer.readFloat(skipFloat);
@@ -327,8 +327,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         setParam(kMemoryRecallId, 0.0);
     }
 
-    // --- M6 parameters (version >= 6) ---
-    if (version >= 6) {
+    // --- M6 parameters ---
+    {
         float m6Val = 0.0f;
         if (streamer.readFloat(m6Val))
             setParam(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
@@ -394,8 +394,8 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             setParam(kBlendLiveWeightId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
     }
 
-    // --- Spec A: Harmonic Physics (version >= 7) ---
-    if (version >= 7) {
+    // --- Harmonic Physics parameters ---
+    {
         float physVal = 0.0f;
         if (streamer.readFloat(physVal))
             setParam(kWarmthId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
@@ -407,14 +407,27 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
             setParam(kEntropyId, static_cast<double>(std::clamp(physVal, 0.0f, 1.0f)));
     }
 
-    // --- Spec B: Analysis Feedback Loop (version >= 8) ---
-    if (version >= 8) {
+    // --- Analysis Feedback Loop parameters ---
+    {
         float fbVal = 0.0f;
         if (streamer.readFloat(fbVal))
             setParam(kAnalysisFeedbackId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
         if (streamer.readFloat(fbVal))
             setParam(kAnalysisFeedbackDecayId, static_cast<double>(std::clamp(fbVal, 0.0f, 1.0f)));
     }
+
+    // --- ADSR Envelope Detection parameters ---
+    // Skip global ADSR (9 floats) + per-slot ADSR (8 x 9 = 72 floats) = 81 floats
+    {
+        float skipFloat = 0.0f;
+        for (int i = 0; i < 81; ++i)
+            streamer.readFloat(skipFloat);
+    }
+
+    // --- Partial Count parameter ---
+    if (streamer.readFloat(floatVal))
+        setParam(kPartialCountId,
+            static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
 
     return true;
 }

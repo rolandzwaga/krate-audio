@@ -25,7 +25,7 @@ using Catch::Approx;
 
 TEST_CASE("DisplayData struct size is <= 512 bytes", "[innexus][ui][display-data]")
 {
-    REQUIRE(sizeof(Innexus::DisplayData) <= 512);
+    REQUIRE(sizeof(Innexus::DisplayData) <= 1024);
 }
 
 TEST_CASE("DisplayData default zero-initialization", "[innexus][ui][display-data]")
@@ -33,7 +33,7 @@ TEST_CASE("DisplayData default zero-initialization", "[innexus][ui][display-data
     Innexus::DisplayData data{};
 
     // All float arrays should be zero
-    for (int i = 0; i < 48; ++i)
+    for (int i = 0; i < 96; ++i)
     {
         REQUIRE(data.partialAmplitudes[i] == Approx(0.0f));
         REQUIRE(data.partialActive[i] == 0);

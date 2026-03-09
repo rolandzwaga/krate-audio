@@ -5,6 +5,21 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-03-10
+
+### Added
+
+- **Configurable partial count** — User-facing option list (48 / 64 / 80 / 96) controlling how many partials the resynthesis engine processes; higher counts capture more spectral content for low-pitched sources at the cost of CPU; arrays always sized to 96 (new ceiling), parameter controls the runtime cap
+- **kPartialCountId parameter** (ID 250) — StringListParameter with 4 discrete steps; normalized mapping: 0→48, 1/3→64, 2/3→80, 1→96; default 48
+
+### Changed
+
+- **kMaxPartials bumped from 48 to 96** — All fixed-size partial arrays (HarmonicFrame, HarmonicOscillatorBank, PartialTracker, HarmonicSnapshot, display data, modulator ranges) now accommodate up to 96 partials
+- **Harmonic display adaptive bar count** — Display renders bars based on active partial count rather than fixed 48
+- **Modulator range extended** — Harmonic modulator partial range end updated from 48 to 96
+- **State version flattened** — Pre-release cleanup: collapsed v1–v10 versioned state format into a single flat v1 format; removed all backward-compatibility branches from setState/getState/setComponentState/preset loading; preset generator updated to match
+- **Factory presets regenerated** — All 35 factory presets regenerated with new flat v1 format and 96-partial arrays
+
 ## [0.9.4] - 2026-03-09
 
 ### Added

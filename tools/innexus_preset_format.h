@@ -45,8 +45,8 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 8;
-static constexpr size_t kMaxPartials = 48;
+static constexpr int32_t kStateVersion = 1;
+static constexpr size_t kMaxPartials = 96;
 static constexpr size_t kResidualBands = 16;
 
 // ==============================================================================
@@ -97,7 +97,7 @@ struct InnexusPresetState {
     float mod1Waveform = 0.0f;          // 0=Sine, 0.25=Tri, 0.5=Sq, 0.75=Saw, 1.0=RSH
     float mod1Rate = 0.0f;              // normalized
     float mod1Depth = 0.0f;
-    float mod1RangeStart = 0.0f;        // normalized (1-48 -> 0-1)
+    float mod1RangeStart = 0.0f;        // normalized (1-96 -> 0-1)
     float mod1RangeEnd = 1.0f;
     float mod1Target = 0.0f;            // 0=Amplitude, 0.5=Frequency, 1.0=Pan
     float mod2Enable = 0.0f;
@@ -121,6 +121,20 @@ struct InnexusPresetState {
     // --- Spec B: Analysis Feedback Loop ---
     float feedbackAmount = 0.0f;        // 0.0-1.0
     float feedbackDecay = 0.2f;         // 0.0-1.0
+
+    // --- ADSR Envelope Detection ---
+    float adsrAttackMs = 10.0f;         // 1-5000ms
+    float adsrDecayMs = 100.0f;         // 1-5000ms
+    float adsrSustainLevel = 1.0f;      // 0-1
+    float adsrReleaseMs = 100.0f;       // 1-5000ms
+    float adsrAmount = 0.0f;            // 0-1
+    float adsrTimeScale = 1.0f;         // 0.25-4.0
+    float adsrAttackCurve = 0.0f;       // -1 to +1
+    float adsrDecayCurve = 0.0f;        // -1 to +1
+    float adsrReleaseCurve = 0.0f;      // -1 to +1
+
+    // --- Partial Count ---
+    float partialCount = 0.0f;          // normalized: 0=48, 1/3=64, 2/3=80, 1=96
 
     std::vector<uint8_t> serialize() const {
         BinaryWriter w;
@@ -205,6 +219,33 @@ struct InnexusPresetState {
         // --- Spec B: Analysis Feedback Loop ---
         w.writeFloat(feedbackAmount);
         w.writeFloat(feedbackDecay);
+
+        // --- ADSR Envelope Detection ---
+        w.writeFloat(adsrAttackMs);
+        w.writeFloat(adsrDecayMs);
+        w.writeFloat(adsrSustainLevel);
+        w.writeFloat(adsrReleaseMs);
+        w.writeFloat(adsrAmount);
+        w.writeFloat(adsrTimeScale);
+        w.writeFloat(adsrAttackCurve);
+        w.writeFloat(adsrDecayCurve);
+        w.writeFloat(adsrReleaseCurve);
+
+        // Per-slot ADSR data (8 slots x 9 floats = 72 floats, all defaults)
+        for (int s = 0; s < 8; ++s) {
+            w.writeFloat(10.0f);   // adsrAttackMs
+            w.writeFloat(100.0f);  // adsrDecayMs
+            w.writeFloat(1.0f);    // adsrSustainLevel
+            w.writeFloat(100.0f);  // adsrReleaseMs
+            w.writeFloat(0.0f);    // adsrAmount
+            w.writeFloat(1.0f);    // adsrTimeScale
+            w.writeFloat(0.0f);    // adsrAttackCurve
+            w.writeFloat(0.0f);    // adsrDecayCurve
+            w.writeFloat(0.0f);    // adsrReleaseCurve
+        }
+
+        // --- Partial Count ---
+        w.writeFloat(partialCount);
 
         return w.data;
     }

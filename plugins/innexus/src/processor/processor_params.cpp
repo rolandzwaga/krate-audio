@@ -56,6 +56,9 @@ void Processor::processParameterChanges(
                 inharmonicityAmount_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
+            case kPartialCountId:
+                partialCount_.store(static_cast<float>(value));
+                break;
             case kHarmonicLevelId:
                 harmonicLevel_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));

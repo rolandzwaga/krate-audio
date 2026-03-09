@@ -1,10 +1,8 @@
 // ==============================================================================
-// State v8 Persistence Tests (Analysis Feedback Loop)
+// State Persistence Tests (Analysis Feedback Loop)
 // ==============================================================================
 // Tests that getState()/setState() correctly persist the 2 feedback loop
-// parameters (FeedbackAmount, FeedbackDecay) in version 8 format,
-// and that loading a v7 state initializes them to their spec defaults
-// (FeedbackAmount=0.0, FeedbackDecay=0.2).
+// parameters (FeedbackAmount, FeedbackDecay) in the flat v1 state format.
 //
 // Feature: 123-analysis-feedback-loop
 // Tasks: T008
@@ -29,7 +27,7 @@ using namespace Steinberg;
 using namespace Steinberg::Vst;
 using Catch::Approx;
 
-// Minimal IBStream implementation for state tests (same pattern as test_state_v7.cpp)
+// Minimal IBStream implementation for state tests
 class V8TestStream : public IBStream
 {
 public:
@@ -81,8 +79,6 @@ public:
 
     void resetReadPos() { readPos_ = 0; }
     [[nodiscard]] size_t size() const { return data_.size(); }
-
-    // Access raw data for version inspection
     [[nodiscard]] const std::vector<char>& data() const { return data_; }
 
 private:
@@ -90,8 +86,7 @@ private:
     int32 readPos_ = 0;
 };
 
-// Helper to create a processor, set it up, and activate it
-static std::unique_ptr<Innexus::Processor> createAndSetupV8Processor()
+static std::unique_ptr<Innexus::Processor> createAndSetupProcessor()
 {
     auto proc = std::make_unique<Innexus::Processor>();
     proc->initialize(nullptr);
@@ -105,20 +100,21 @@ static std::unique_ptr<Innexus::Processor> createAndSetupV8Processor()
     return proc;
 }
 
-/// Helper to build a v7 state blob (no feedback loop data)
-static void writeV7StateBlob(V8TestStream& stream,
-                             float warmth = 0.0f, float coupling = 0.0f,
-                             float stability = 0.0f, float entropy = 0.0f)
+/// Helper to build a complete v1 state blob with configurable feedback params
+static void writeV1StateBlob(V8TestStream& stream,
+                             float feedbackAmount = 0.0f,
+                             float feedbackDecay = 0.2f,
+                             float masterGain = 0.8f)
 {
     IBStreamer streamer(&stream, kLittleEndian);
 
-    // Version 7
-    streamer.writeInt32(7);
+    // Version 1
+    streamer.writeInt32(1);
 
     // M1 parameters
     streamer.writeFloat(100.0f);     // releaseTimeMs
     streamer.writeFloat(0.5f);       // inharmonicityAmount
-    streamer.writeFloat(0.8f);       // masterGain
+    streamer.writeFloat(masterGain); // masterGain
     streamer.writeFloat(0.0f);       // bypass
     streamer.writeInt32(0);          // path length (empty)
 
@@ -173,25 +169,51 @@ static void writeV7StateBlob(V8TestStream& stream,
         streamer.writeFloat(0.0f); // blendSlotWeights
     streamer.writeFloat(0.0f);   // blendLiveWeight
 
-    // v7: Harmonic Physics parameters
-    streamer.writeFloat(warmth);
-    streamer.writeFloat(coupling);
-    streamer.writeFloat(stability);
-    streamer.writeFloat(entropy);
+    // Harmonic Physics parameters
+    streamer.writeFloat(0.0f);   // warmth
+    streamer.writeFloat(0.0f);   // coupling
+    streamer.writeFloat(0.0f);   // stability
+    streamer.writeFloat(0.0f);   // entropy
 
-    // NO v8 data -- this is a v7 format blob
+    // Feedback Loop parameters
+    streamer.writeFloat(feedbackAmount);
+    streamer.writeFloat(feedbackDecay);
+
+    // ADSR global parameters (9 floats -- defaults)
+    streamer.writeFloat(10.0f);  // adsrAttackMs
+    streamer.writeFloat(100.0f); // adsrDecayMs
+    streamer.writeFloat(1.0f);   // adsrSustainLevel
+    streamer.writeFloat(100.0f); // adsrReleaseMs
+    streamer.writeFloat(0.0f);   // adsrAmount
+    streamer.writeFloat(1.0f);   // adsrTimeScale
+    streamer.writeFloat(0.0f);   // adsrAttackCurve
+    streamer.writeFloat(0.0f);   // adsrDecayCurve
+    streamer.writeFloat(0.0f);   // adsrReleaseCurve
+
+    // Per-slot ADSR data (8 slots x 9 floats)
+    for (int s = 0; s < 8; ++s)
+    {
+        streamer.writeFloat(10.0f);  streamer.writeFloat(100.0f);
+        streamer.writeFloat(1.0f);   streamer.writeFloat(100.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(1.0f);
+        streamer.writeFloat(0.0f);   streamer.writeFloat(0.0f);
+        streamer.writeFloat(0.0f);
+    }
+
+    // Partial Count parameter
+    streamer.writeFloat(0.0f);   // default = 48
 }
 
 // ==============================================================================
-// T008(a): getState writes version 8
+// T008(a): getState writes version 1
 // ==============================================================================
 
-TEST_CASE("StateV8: getState writes current version (9)",
+TEST_CASE("StateV8: getState writes current version (1)",
           "[innexus][vst][state][v8][feedback]")
 {
     V8TestStream stream;
 
-    auto proc = createAndSetupV8Processor();
+    auto proc = createAndSetupProcessor();
     REQUIRE(proc->getState(&stream) == kResultOk);
 
     // Read back the version from the raw stream
@@ -199,7 +221,7 @@ TEST_CASE("StateV8: getState writes current version (9)",
     IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 9);
+    REQUIRE(version == 1);
 
     proc->setActive(false);
     proc->terminate();
@@ -216,7 +238,7 @@ TEST_CASE("StateV8: getState/setState round-trip preserves feedback loop paramet
 
     // Processor A: save default state
     {
-        auto procA = createAndSetupV8Processor();
+        auto procA = createAndSetupProcessor();
         REQUIRE(procA->getState(&stream) == kResultOk);
         procA->setActive(false);
         procA->terminate();
@@ -224,7 +246,7 @@ TEST_CASE("StateV8: getState/setState round-trip preserves feedback loop paramet
 
     // Processor B: load state and verify feedback defaults preserved
     {
-        auto procB = createAndSetupV8Processor();
+        auto procB = createAndSetupProcessor();
         stream.resetReadPos();
         REQUIRE(procB->setState(&stream) == kResultOk);
 
@@ -244,67 +266,11 @@ TEST_CASE("StateV8: save/load roundtrip preserves non-default feedback values",
     constexpr float kFeedbackDecay = 0.6f;
 
     V8TestStream stream;
+    writeV1StateBlob(stream, kFeedbackAmount, kFeedbackDecay);
 
-    // Build a v8 state blob manually with specific feedback values
+    // Load into processor and verify all values restored
     {
-        // Start with a v7 blob helper, but we need v8 format.
-        // Build the entire blob manually.
-        IBStreamer streamer(&stream, kLittleEndian);
-
-        // Version 8
-        streamer.writeInt32(8);
-
-        // M1 parameters
-        streamer.writeFloat(100.0f);     // releaseTimeMs
-        streamer.writeFloat(0.5f);       // inharmonicityAmount
-        streamer.writeFloat(0.8f);       // masterGain
-        streamer.writeFloat(0.0f);       // bypass
-        streamer.writeInt32(0);          // path length (empty)
-
-        // M2 parameters
-        streamer.writeFloat(1.0f);       // harmonicLevel (plain)
-        streamer.writeFloat(1.0f);       // residualLevel (plain)
-        streamer.writeFloat(0.0f);       // brightness (plain)
-        streamer.writeFloat(0.0f);       // transientEmphasis (plain)
-        streamer.writeInt32(0);          // residual frame count
-        streamer.writeInt32(0);          // fftSize
-        streamer.writeInt32(0);          // hopSize
-
-        // M3 parameters
-        streamer.writeInt32(0);          // inputSource
-        streamer.writeInt32(0);          // latencyMode
-
-        // M4 parameters
-        streamer.writeInt8(static_cast<int8>(0)); // freeze
-        streamer.writeFloat(0.0f);       // morphPosition
-        streamer.writeInt32(0);          // harmonicFilterType
-        streamer.writeFloat(0.5f);       // responsiveness
-
-        // M5 parameters
-        streamer.writeInt32(0);          // selected slot
-        for (int s = 0; s < 8; ++s)
-            streamer.writeInt8(static_cast<int8>(0)); // unoccupied
-
-        // M6 parameters (31 floats)
-        streamer.writeFloat(1.0f);   // timbralBlend
-        streamer.writeFloat(0.0f);   // stereoSpread
-        for (int i = 0; i < 29; ++i)
-            streamer.writeFloat(0.0f);
-
-        // v7: Harmonic Physics parameters
-        streamer.writeFloat(0.0f);   // warmth
-        streamer.writeFloat(0.0f);   // coupling
-        streamer.writeFloat(0.0f);   // stability
-        streamer.writeFloat(0.0f);   // entropy
-
-        // v8: Feedback Loop parameters
-        streamer.writeFloat(kFeedbackAmount);
-        streamer.writeFloat(kFeedbackDecay);
-    }
-
-    // Load into processor B and verify all values restored
-    {
-        auto procB = createAndSetupV8Processor();
+        auto procB = createAndSetupProcessor();
         stream.resetReadPos();
         REQUIRE(procB->setState(&stream) == kResultOk);
 
@@ -318,133 +284,14 @@ TEST_CASE("StateV8: save/load roundtrip preserves non-default feedback values",
 }
 
 // ==============================================================================
-// T008(c): setState with version 7 blob defaults feedback params
+// Controller setComponentState test
 // ==============================================================================
 
-TEST_CASE("StateV8: loading v7 state defaults FeedbackAmount to 0.0 and FeedbackDecay to 0.2",
+TEST_CASE("StateV8: Controller setComponentState reads feedback params",
           "[innexus][vst][state][v8][feedback]")
 {
     V8TestStream stream;
-    writeV7StateBlob(stream);
-
-    auto proc = createAndSetupV8Processor();
-    stream.resetReadPos();
-    REQUIRE(proc->setState(&stream) == kResultOk);
-
-    constexpr float kTol = 1e-6f;
-
-    // Feedback params should be at their defaults
-    REQUIRE(proc->getFeedbackAmount() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getFeedbackDecay() == Approx(0.2f).margin(kTol));
-
-    // Verify existing v7 params are still loaded correctly
-    REQUIRE(proc->getMasterGain() == Approx(0.8f).margin(kTol));
-
-    proc->setActive(false);
-    proc->terminate();
-}
-
-TEST_CASE("StateV8: v7 state loaded after v8 state resets feedback params to defaults",
-          "[innexus][vst][state][v8][feedback]")
-{
-    V8TestStream streamV8;
-    V8TestStream streamV7;
-
-    // Build a v8 state blob with non-default feedback values
-    {
-        IBStreamer streamer(&streamV8, kLittleEndian);
-
-        streamer.writeInt32(8);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-        // M6 (31 floats)
-        for (int i = 0; i < 31; ++i) streamer.writeFloat(0.0f);
-        // v7 physics
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        // v8 feedback
-        streamer.writeFloat(0.9f);   // feedbackAmount
-        streamer.writeFloat(0.8f);   // feedbackDecay
-    }
-
-    // Build a v7 state
-    writeV7StateBlob(streamV7);
-
-    auto proc = createAndSetupV8Processor();
-
-    // Load v8 state first
-    streamV8.resetReadPos();
-    REQUIRE(proc->setState(&streamV8) == kResultOk);
-    // Verify non-default values were loaded
-    REQUIRE(proc->getFeedbackAmount() == Approx(0.9f).margin(1e-6f));
-    REQUIRE(proc->getFeedbackDecay() == Approx(0.8f).margin(1e-6f));
-
-    // Now load v7 state -- should reset feedback params to defaults
-    streamV7.resetReadPos();
-    REQUIRE(proc->setState(&streamV7) == kResultOk);
-
-    constexpr float kTol = 1e-6f;
-    REQUIRE(proc->getFeedbackAmount() == Approx(0.0f).margin(kTol));
-    REQUIRE(proc->getFeedbackDecay() == Approx(0.2f).margin(kTol));
-
-    proc->setActive(false);
-    proc->terminate();
-}
-
-// ==============================================================================
-// Controller setComponentState v8 test
-// ==============================================================================
-
-TEST_CASE("StateV8: Controller setComponentState reads v8 feedback params",
-          "[innexus][vst][state][v8][feedback]")
-{
-    V8TestStream stream;
-
-    // Build a v8 state blob with known feedback values
-    {
-        IBStreamer streamer(&stream, kLittleEndian);
-        streamer.writeInt32(8);
-        // M1
-        streamer.writeFloat(100.0f); streamer.writeFloat(0.5f);
-        streamer.writeFloat(0.8f);   streamer.writeFloat(0.0f);
-        streamer.writeInt32(0);
-        // M2
-        streamer.writeFloat(1.0f); streamer.writeFloat(1.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeInt32(0); streamer.writeInt32(0); streamer.writeInt32(0);
-        // M3
-        streamer.writeInt32(0); streamer.writeInt32(0);
-        // M4
-        streamer.writeInt8(static_cast<int8>(0));
-        streamer.writeFloat(0.0f); streamer.writeInt32(0); streamer.writeFloat(0.5f);
-        // M5
-        streamer.writeInt32(0);
-        for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
-        // M6 (31 floats)
-        streamer.writeFloat(1.0f);   // timbralBlend
-        streamer.writeFloat(0.0f);   // stereoSpread
-        for (int i = 0; i < 29; ++i) streamer.writeFloat(0.0f);
-        // v7 physics
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        streamer.writeFloat(0.0f); streamer.writeFloat(0.0f);
-        // v8 feedback
-        streamer.writeFloat(0.65f);  // feedbackAmount
-        streamer.writeFloat(0.4f);   // feedbackDecay
-    }
+    writeV1StateBlob(stream, 0.65f, 0.4f);
 
     Innexus::Controller controller;
     REQUIRE(controller.initialize(nullptr) == kResultOk);
@@ -461,23 +308,21 @@ TEST_CASE("StateV8: Controller setComponentState reads v8 feedback params",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("StateV8: Controller setComponentState with v7 data defaults feedback params",
+TEST_CASE("StateV8: Feedback parameters are at defaults in default state",
           "[innexus][vst][state][v8][feedback]")
 {
     V8TestStream stream;
-    writeV7StateBlob(stream);
+    writeV1StateBlob(stream);
 
-    Innexus::Controller controller;
-    REQUIRE(controller.initialize(nullptr) == kResultOk);
-
+    auto proc = createAndSetupProcessor();
     stream.resetReadPos();
-    REQUIRE(controller.setComponentState(&stream) == kResultOk);
+    REQUIRE(proc->setState(&stream) == kResultOk);
 
-    // Feedback parameters should be at defaults
-    REQUIRE(controller.getParamNormalized(Innexus::kAnalysisFeedbackId)
-            == Approx(0.0).margin(0.001));
-    REQUIRE(controller.getParamNormalized(Innexus::kAnalysisFeedbackDecayId)
-            == Approx(0.2).margin(0.001));
+    constexpr float kTol = 1e-6f;
+    REQUIRE(proc->getFeedbackAmount() == Approx(0.0f).margin(kTol));
+    REQUIRE(proc->getFeedbackDecay() == Approx(0.2f).margin(kTol));
+    REQUIRE(proc->getMasterGain() == Approx(0.8f).margin(kTol));
 
-    REQUIRE(controller.terminate() == kResultOk);
+    proc->setActive(false);
+    proc->terminate();
 }

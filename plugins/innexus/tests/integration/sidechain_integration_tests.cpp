@@ -126,6 +126,60 @@ static ProcessSetup makeSetup(double sampleRate = kTestSampleRate)
     return setup;
 }
 
+/// Write v1 default tail: M4 through partialCount with default values
+static void writeV1DefaultsFromM4(IBStreamer& s)
+{
+    // M4
+    s.writeInt8(static_cast<int8>(0));  // freeze
+    s.writeFloat(0.0f);                 // morphPosition
+    s.writeInt32(0);                    // harmonicFilterType
+    s.writeFloat(0.5f);                 // responsiveness
+    // M5
+    s.writeInt32(0);                    // selectedSlot
+    for (int i = 0; i < 8; ++i) s.writeInt8(static_cast<int8>(0));
+    // M6 (31 floats)
+    s.writeFloat(1.0f);  // timbralBlend
+    s.writeFloat(0.0f);  // stereoSpread
+    s.writeFloat(0.0f);  // evolutionEnable
+    s.writeFloat(0.0f);  // evolutionSpeed
+    s.writeFloat(0.5f);  // evolutionDepth
+    s.writeFloat(0.0f);  // evolutionMode
+    s.writeFloat(0.0f);  // mod1Enable
+    s.writeFloat(0.0f);  // mod1Waveform
+    s.writeFloat(0.0f);  // mod1Rate
+    s.writeFloat(0.0f);  // mod1Depth
+    s.writeFloat(0.0f);  // mod1RangeStart
+    s.writeFloat(1.0f);  // mod1RangeEnd
+    s.writeFloat(0.0f);  // mod1Target
+    s.writeFloat(0.0f);  // mod2Enable
+    s.writeFloat(0.0f);  // mod2Waveform
+    s.writeFloat(0.0f);  // mod2Rate
+    s.writeFloat(0.0f);  // mod2Depth
+    s.writeFloat(0.0f);  // mod2RangeStart
+    s.writeFloat(1.0f);  // mod2RangeEnd
+    s.writeFloat(0.0f);  // mod2Target
+    s.writeFloat(0.0f);  // detuneSpread
+    s.writeFloat(0.0f);  // blendEnable
+    for (int i = 0; i < 8; ++i) s.writeFloat(0.0f); // blendSlotWeights
+    s.writeFloat(0.0f);  // blendLiveWeight
+    // Physics
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // Feedback
+    s.writeFloat(0.0f); s.writeFloat(0.2f);
+    // ADSR global
+    s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+    s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+    s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    // ADSR per-slot (8 × 9)
+    for (int i = 0; i < 8; ++i) {
+        s.writeFloat(10.0f); s.writeFloat(100.0f); s.writeFloat(1.0f);
+        s.writeFloat(100.0f); s.writeFloat(0.0f); s.writeFloat(1.0f);
+        s.writeFloat(0.0f); s.writeFloat(0.0f); s.writeFloat(0.0f);
+    }
+    // partialCount
+    s.writeFloat(0.0f);
+}
+
 // =============================================================================
 // T018: Phase 2 - Parameter Registration Tests
 // =============================================================================
@@ -250,12 +304,11 @@ TEST_CASE("Sidechain: state v3 round-trip preserves non-default values",
     // Strategy: save state from a processor, then modify the stream directly.
     // Better strategy: write a v3 state manually using IBStreamer.
 
-    // Build a v3 state manually by writing the correct format.
+    // Build a v1 state manually.
     {
         IBStreamer streamer(&stream, kLittleEndian);
 
-        // Version 3
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
 
         // M1 parameters
         streamer.writeFloat(100.0f);  // releaseTimeMs
@@ -280,6 +333,8 @@ TEST_CASE("Sidechain: state v3 round-trip preserves non-default values",
         // M3 parameters
         streamer.writeInt32(1);       // inputSource = Sidechain
         streamer.writeInt32(1);       // latencyMode = HighPrecision
+
+        writeV1DefaultsFromM4(streamer);
     }
 
     // --- Load and verify ---
@@ -303,76 +358,16 @@ TEST_CASE("Sidechain: state v3 round-trip preserves non-default values",
     }
 }
 
-TEST_CASE("Sidechain: version 2 state loads with default sidechain params",
-          "[sidechain][state][backward-compat]")
-{
-    SidechainTestStream stream;
-
-    // Build a v2 state (no M3 data)
-    {
-        IBStreamer streamer(&stream, kLittleEndian);
-
-        // Version 2
-        streamer.writeInt32(2);
-
-        // M1 parameters
-        streamer.writeFloat(200.0f);  // releaseTimeMs
-        streamer.writeFloat(0.5f);    // inharmonicityAmount
-        streamer.writeFloat(0.7f);    // masterGain
-        streamer.writeFloat(0.0f);    // bypass
-
-        // File path (empty)
-        streamer.writeInt32(0);
-
-        // M2 parameters (plain values)
-        streamer.writeFloat(1.5f);    // harmonicLevel plain
-        streamer.writeFloat(1.2f);    // residualLevel plain
-        streamer.writeFloat(0.3f);    // brightness plain
-        streamer.writeFloat(0.5f);    // transientEmphasis plain
-
-        // Residual frames: 0 frames
-        streamer.writeInt32(0);       // residualFrameCount
-        streamer.writeInt32(0);       // analysisFFTSize
-        streamer.writeInt32(0);       // analysisHopSize
-
-        // NO M3 data (version 2)
-    }
-
-    // --- Load and verify defaults ---
-    {
-        stream.resetReadPos();
-
-        Innexus::Processor proc;
-        proc.initialize(nullptr);
-        auto setup = makeSetup();
-        proc.setupProcessing(setup);
-        proc.setActive(true);
-
-        REQUIRE(proc.setState(&stream) == kResultOk);
-
-        // M1 params should load correctly
-        REQUIRE(proc.getReleaseTimeMs() == Approx(200.0f).margin(0.5f));
-        REQUIRE(proc.getInharmonicityAmount() == Approx(0.5f).margin(0.001f));
-
-        // M3 params should default to Sample (0.0) and LowLatency (0.0)
-        REQUIRE(proc.getInputSource() == Approx(0.0f).margin(0.001f));
-        REQUIRE(proc.getLatencyMode() == Approx(0.0f).margin(0.001f));
-
-        proc.setActive(false);
-        proc.terminate();
-    }
-}
-
-TEST_CASE("Sidechain: controller setComponentState handles v3 sidechain params",
+TEST_CASE("Sidechain: controller setComponentState handles sidechain params",
           "[sidechain][controller][state]")
 {
     SidechainTestStream stream;
 
-    // Build a v3 state with sidechain=1, high precision=1
+    // Build a v1 state with sidechain=1, high precision=1
     {
         IBStreamer streamer(&stream, kLittleEndian);
 
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
 
         // M1 parameters
         streamer.writeFloat(100.0f);  // releaseTimeMs
@@ -397,6 +392,8 @@ TEST_CASE("Sidechain: controller setComponentState handles v3 sidechain params",
         // M3 parameters
         streamer.writeInt32(1);       // inputSource = Sidechain
         streamer.writeInt32(1);       // latencyMode = HighPrecision
+
+        writeV1DefaultsFromM4(streamer);
     }
 
     // --- Controller loads state ---
@@ -545,12 +542,12 @@ TEST_CASE("Sidechain: process with numInputs=0 and sidechain mode does not crash
     proc.setupProcessing(setup);
     proc.setActive(true);
 
-    // Set input source to Sidechain by loading a v3 state
+    // Set input source to Sidechain by loading a v1 state
     {
         SidechainTestStream stateStream;
         IBStreamer streamer(&stateStream, kLittleEndian);
 
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
         streamer.writeFloat(100.0f);  // releaseTimeMs
         streamer.writeFloat(1.0f);    // inharmonicityAmount
         streamer.writeFloat(0.8f);    // masterGain
@@ -565,6 +562,7 @@ TEST_CASE("Sidechain: process with numInputs=0 and sidechain mode does not crash
         streamer.writeInt32(0);       // analysisHopSize
         streamer.writeInt32(1);       // inputSource = Sidechain
         streamer.writeInt32(0);       // latencyMode = LowLatency
+        writeV1DefaultsFromM4(streamer);
 
         stateStream.resetReadPos();
         REQUIRE(proc.setState(&stateStream) == kResultOk);
@@ -649,7 +647,7 @@ TEST_CASE("Sidechain: source switch from Sample to Sidechain sets crossfade coun
         SidechainTestStream stateStream;
         IBStreamer streamer(&stateStream, kLittleEndian);
 
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
         streamer.writeFloat(100.0f);
         streamer.writeFloat(1.0f);
         streamer.writeFloat(0.8f);
@@ -664,6 +662,7 @@ TEST_CASE("Sidechain: source switch from Sample to Sidechain sets crossfade coun
         streamer.writeInt32(0);
         streamer.writeInt32(1);  // inputSource = Sidechain
         streamer.writeInt32(0);
+        writeV1DefaultsFromM4(streamer);
 
         stateStream.resetReadPos();
         REQUIRE(proc.setState(&stateStream) == kResultOk);
@@ -865,11 +864,11 @@ TEST_CASE("Sidechain US3: save state with HighPrecision, load restores HighPreci
 {
     SidechainTestStream stream;
 
-    // Build a v3 state with HighPrecision mode
+    // Build a v1 state with HighPrecision mode
     {
         IBStreamer streamer(&stream, kLittleEndian);
 
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
         // M1 parameters
         streamer.writeFloat(100.0f);  // releaseTimeMs
         streamer.writeFloat(1.0f);    // inharmonicityAmount
@@ -887,6 +886,8 @@ TEST_CASE("Sidechain US3: save state with HighPrecision, load restores HighPreci
         // M3 parameters
         streamer.writeInt32(0);       // inputSource = Sample
         streamer.writeInt32(1);       // latencyMode = HighPrecision
+
+        writeV1DefaultsFromM4(streamer);
     }
 
     // Load and verify the latency mode is restored
@@ -903,57 +904,6 @@ TEST_CASE("Sidechain US3: save state with HighPrecision, load restores HighPreci
 
         // Verify latency mode is HighPrecision (1.0)
         REQUIRE(proc.getLatencyMode() == Catch::Approx(1.0f).margin(0.001f));
-
-        proc.setActive(false);
-        proc.terminate();
-    }
-}
-
-// =============================================================================
-// Phase 6 - T075: Version 2 state defaults latency mode to LowLatency
-// =============================================================================
-
-TEST_CASE("Sidechain US3: version 2 state defaults latencyMode to LowLatency",
-          "[sidechain][latency-mode][state][backward-compat]")
-{
-    SidechainTestStream stream;
-
-    // Build a v2 state (no M3 data)
-    {
-        IBStreamer streamer(&stream, kLittleEndian);
-
-        streamer.writeInt32(2);
-        // M1 parameters
-        streamer.writeFloat(150.0f);  // releaseTimeMs
-        streamer.writeFloat(0.8f);    // inharmonicityAmount
-        streamer.writeFloat(0.6f);    // masterGain
-        streamer.writeFloat(0.0f);    // bypass
-        streamer.writeInt32(0);       // pathLen
-        // M2 parameters
-        streamer.writeFloat(1.0f);    // harmonicLevel
-        streamer.writeFloat(1.0f);    // residualLevel
-        streamer.writeFloat(0.0f);    // brightness
-        streamer.writeFloat(0.0f);    // transientEmphasis
-        streamer.writeInt32(0);       // residualFrameCount
-        streamer.writeInt32(0);       // analysisFFTSize
-        streamer.writeInt32(0);       // analysisHopSize
-        // NO M3 data
-    }
-
-    // Load and verify defaults
-    {
-        stream.resetReadPos();
-
-        Innexus::Processor proc;
-        proc.initialize(nullptr);
-        auto setup = makeSetup();
-        proc.setupProcessing(setup);
-        proc.setActive(true);
-
-        REQUIRE(proc.setState(&stream) == kResultOk);
-
-        // Should default to LowLatency (0.0)
-        REQUIRE(proc.getLatencyMode() == Catch::Approx(0.0f).margin(0.001f));
 
         proc.setActive(false);
         proc.terminate();
@@ -1042,7 +992,7 @@ static void setSidechainMode(Innexus::Processor& proc,
     SidechainTestStream stateStream;
     IBStreamer streamer(&stateStream, kLittleEndian);
 
-    streamer.writeInt32(3);
+    streamer.writeInt32(1);       // version
     streamer.writeFloat(100.0f);  // releaseTimeMs
     streamer.writeFloat(1.0f);    // inharmonicityAmount
     streamer.writeFloat(1.0f);    // masterGain (normalized = 1.0 -> full gain)
@@ -1051,13 +1001,9 @@ static void setSidechainMode(Innexus::Processor& proc,
     streamer.writeInt32(0);       // pathLen
 
     // M2 parameters (plain values)
-    // harmonicLevel: normalized -> plain = norm * 2
     streamer.writeFloat(harmonicLevel * 2.0f);    // harmonicLevel plain
-    // residualLevel: normalized -> plain = norm * 2
     streamer.writeFloat(residualLevel * 2.0f);    // residualLevel plain
-    // brightness: normalized -> plain = norm * 2 - 1
     streamer.writeFloat(brightness * 2.0f - 1.0f); // brightness plain
-    // transientEmphasis: normalized -> plain = norm * 2
     streamer.writeFloat(transientEmphasis * 2.0f);  // transientEmphasis plain
 
     streamer.writeInt32(0);       // residualFrameCount
@@ -1067,6 +1013,8 @@ static void setSidechainMode(Innexus::Processor& proc,
     // M3 parameters
     streamer.writeInt32(1);       // inputSource = Sidechain
     streamer.writeInt32(0);       // latencyMode = LowLatency
+
+    writeV1DefaultsFromM4(streamer);
 
     stateStream.resetReadPos();
     proc.setState(&stateStream);
@@ -1751,7 +1699,7 @@ TEST_CASE("Sidechain Phase 8: switching latency mode mid-analysis produces no Na
         SidechainTestStream stateStream;
         IBStreamer streamer(&stateStream, kLittleEndian);
 
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
         streamer.writeFloat(100.0f);
         streamer.writeFloat(1.0f);
         streamer.writeFloat(1.0f);
@@ -1766,6 +1714,7 @@ TEST_CASE("Sidechain Phase 8: switching latency mode mid-analysis produces no Na
         streamer.writeInt32(0);
         streamer.writeInt32(1);  // inputSource = Sidechain
         streamer.writeInt32(1);  // latencyMode = HighPrecision
+        writeV1DefaultsFromM4(streamer);
 
         stateStream.resetReadPos();
         proc.setState(&stateStream);
@@ -2038,7 +1987,7 @@ TEST_CASE("Sidechain Phase 8 SC-005: source switch crossfade produces no click",
     {
         SidechainTestStream stateStream;
         IBStreamer streamer(&stateStream, kLittleEndian);
-        streamer.writeInt32(3);
+        streamer.writeInt32(1);       // version
         streamer.writeFloat(100.0f);
         streamer.writeFloat(1.0f);
         streamer.writeFloat(1.0f);
@@ -2053,6 +2002,7 @@ TEST_CASE("Sidechain Phase 8 SC-005: source switch crossfade produces no click",
         streamer.writeInt32(0);
         streamer.writeInt32(1);  // inputSource = Sidechain
         streamer.writeInt32(0);
+        writeV1DefaultsFromM4(streamer);
         stateStream.resetReadPos();
         proc.setState(&stateStream);
     }
