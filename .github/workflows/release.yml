@@ -526,12 +526,15 @@ jobs:
 
           # Generate plugin page in its subdirectory
           mkdir -p _site/${PLUGIN}
+          # Escape sed special characters in replacement strings (& = matched text)
+          DESCRIPTION_ESC=$(printf '%s\n' "$DESCRIPTION" | sed 's/[&/\]/\\&/g')
+          PUBLISHER_ESC=$(printf '%s\n' "$PUBLISHER" | sed 's/[&/\]/\\&/g')
           sed -e "s|{{VERSION}}|$VERSION|g" \
               -e "s|{{TAG}}|$TAG|g" \
               -e "s|{{REPO}}|$REPO|g" \
               -e "s|{{NAME}}|$PLUGIN_NAME|g" \
-              -e "s|{{DESCRIPTION}}|$DESCRIPTION|g" \
-              -e "s|{{PUBLISHER}}|$PUBLISHER|g" \
+              -e "s|{{DESCRIPTION}}|$DESCRIPTION_ESC|g" \
+              -e "s|{{PUBLISHER}}|$PUBLISHER_ESC|g" \
               plugins/${PLUGIN}/docs/index.html > _site/${PLUGIN}/index.html
 
           # Copy plugin-specific assets
