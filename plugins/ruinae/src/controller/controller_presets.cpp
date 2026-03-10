@@ -264,7 +264,7 @@ void Controller::openPresetBrowser() {
     if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
         // Close ARP browser if open (mutual exclusion)
         closeArpPresetBrowser();
-        presetBrowserView_->open("");
+        presetBrowserView_->open();
     }
 }
 
@@ -278,7 +278,7 @@ void Controller::openArpPresetBrowser() {
     if (arpPresetBrowserView_ && !arpPresetBrowserView_->isOpen()) {
         // Close synth browser if open (mutual exclusion)
         closePresetBrowser();
-        arpPresetBrowserView_->open("");
+        arpPresetBrowserView_->open();
     }
 }
 

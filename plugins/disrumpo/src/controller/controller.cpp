@@ -4449,9 +4449,7 @@ VSTGUI::COptionMenu* Controller::createContextMenu(
 
 void Controller::openPresetBrowser() {
     if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
-        // Disrumpo doesn't have a single "mode" like Iterum's delay modes.
-        // Open with empty subcategory to show "All" tab.
-        presetBrowserView_->open("");
+        presetBrowserView_->open();
     }
 }
 

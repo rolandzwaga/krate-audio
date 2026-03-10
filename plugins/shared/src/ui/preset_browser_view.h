@@ -61,6 +61,7 @@ public:
     ~PresetBrowserView() override;
 
     // Lifecycle
+    void open();  // Reopen with last selected category tab
     void open(const std::string& currentSubcategory);
     void openWithSaveDialog(const std::string& currentSubcategory);
     void close();

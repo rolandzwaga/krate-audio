@@ -55,6 +55,11 @@ PresetBrowserView::~PresetBrowserView() {
 // Lifecycle
 // =============================================================================
 
+void PresetBrowserView::open() {
+    // Reopen with last selected category (preserved across close/open)
+    open(currentSubcategoryFilter_);
+}
+
 void PresetBrowserView::open(const std::string& currentSubcategory) {
     currentSubcategoryFilter_ = currentSubcategory;
     isOpen_ = true;

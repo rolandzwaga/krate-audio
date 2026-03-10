@@ -155,7 +155,7 @@ VSTGUI::CView* Controller::createPresetButton(const VSTGUI::CRect& rect, bool is
 
 void Controller::openPresetBrowser() {
     if (presetBrowserView_ && !presetBrowserView_->isOpen()) {
-        presetBrowserView_->open("");
+        presetBrowserView_->open();
     }
 }
 
