@@ -60,7 +60,7 @@ jobs:
       has_landing_page: ${{ steps.version.outputs.has_landing_page }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Read Version
         id: version
@@ -105,13 +105,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
       # Cache apt packages (same as CI Linux build)
       - name: Cache apt packages
-        uses: awalsh128/cache-apt-pkgs-action@latest
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >-
             ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
@@ -122,14 +122,14 @@ jobs:
 
       # Cache ccache data
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@v1.2.20
         with:
           key: linux-gcc-preset-generator
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       # Cache CMake FetchContent downloads
       - name: Cache FetchContent
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/_deps
           key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/disrumpo/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
@@ -170,7 +170,7 @@ jobs:
           ./build/bin/${{ steps.gen.outputs.binary }} generated-presets
 
       - name: Upload Presets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: factory-presets
           path: generated-presets/
@@ -186,17 +186,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Windows Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.version.outputs.plugin_name }}-Windows-x64
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: factory-presets
           path: presets
@@ -228,13 +228,13 @@ jobs:
             | Set-Content "plugins\${env:PLUGIN}\installers\windows\CHANGELOG.txt"
 
       - name: Build Installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.7
         with:
           path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/setup.iss
           options: /DVersion=${{ needs.version.outputs.version }}
 
       - name: Upload Installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: plugins/${{ needs.version.outputs.plugin }}/installers/windows/${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Windows-x64.exe
@@ -250,17 +250,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download macOS Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.version.outputs.plugin_name }}-macOS
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: factory-presets
           path: presets
@@ -309,7 +309,7 @@ jobs:
             "${PLUGIN_NAME}-${VERSION}-macOS.pkg"
 
       - name: Upload Installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-installer
           path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-macOS.pkg
@@ -325,17 +325,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download Linux Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.version.outputs.plugin_name }}-Linux-x64
           path: artifact
           github-token: ${{ github.token }}
 
       - name: Download Factory Presets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: factory-presets
           path: presets
@@ -375,7 +375,7 @@ jobs:
           tar -czvf ../${PLUGIN_NAME}-${VERSION}-Linux-x64.tar.gz *
 
       - name: Upload Archive
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-archive
           path: ${{ needs.version.outputs.plugin_name }}-${{ needs.version.outputs.version }}-Linux-x64.tar.gz
@@ -393,24 +393,24 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Full history needed for per-plugin changelog generation
 
       - name: Download Windows Installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: windows-installer
           path: installers
 
       - name: Download macOS Installer
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: macos-installer
           path: installers
 
       - name: Download Linux Archive
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: linux-archive
           path: installers
@@ -509,7 +509,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate Plugin Landing Page
         if: needs.version.outputs.has_landing_page == 'true'
