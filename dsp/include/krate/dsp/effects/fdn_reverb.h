@@ -525,12 +525,13 @@ private:
         float damping = std::clamp(params.damping, 0.0f, 1.0f);
 
         // Map roomSize to feedback gain (FR-017) using quadratic curve.
-        // Linear mapping causes audible echoes at moderate roomSize because
-        // short FDN delays (3-17ms) need lower feedback than long plate delays.
-        // Quadratic: fbGain = 0.60 + 0.37 * roomSize^2
-        // roomSize=0.0 -> 0.60, roomSize=0.5 -> 0.69, roomSize=0.7 -> 0.78,
-        // roomSize=0.9 -> 0.90, roomSize=1.0 -> 0.97
-        float fbGain = 0.60f + 0.37f * roomSize * roomSize;
+        // Linear mapping caused audible echo ringing at 65-70% roomSize because
+        // short FDN delays (3-17ms) amplify individual reflections at high gain.
+        // Too-low base (0.60) made reverb inaudible below 60%.
+        // Quadratic: fbGain = 0.78 + 0.17 * roomSize^2
+        // roomSize=0.0 -> 0.78, roomSize=0.5 -> 0.82, roomSize=0.7 -> 0.86,
+        // roomSize=0.9 -> 0.92, roomSize=1.0 -> 0.95
+        float fbGain = 0.78f + 0.17f * roomSize * roomSize;
 
         // Freeze mode (FR-018)
         freeze_ = params.freeze;
