@@ -470,6 +470,17 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     loadGlobalFilterParamsToController(streamer, synthSetter);
     loadDelayParamsToController(streamer, synthSetter);
     loadReverbParamsToController(streamer, synthSetter);
+    // Reverb type (125-dual-reverb, state version 5)
+    if (version >= 5) {
+        Steinberg::int32 reverbType = 0;
+        if (streamer.readInt32(reverbType)) {
+            // StringListParameter: normalized value = index / stepCount = index / 1
+            synthSetter(kReverbTypeId, static_cast<double>(reverbType));
+        }
+    } else {
+        // Backward compat: default to Plate
+        synthSetter(kReverbTypeId, 0.0);
+    }
     loadMonoModeParamsToController(streamer, synthSetter);
 
     // Voice routes — cache and apply to grid

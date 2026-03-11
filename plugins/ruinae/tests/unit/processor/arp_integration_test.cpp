@@ -704,6 +704,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         Ruinae::GlobalFilterParams gfp; Ruinae::loadGlobalFilterParams(gfp, readStream);
         Ruinae::RuinaeDelayParams dlp; Ruinae::loadDelayParams(dlp, readStream);
         Ruinae::RuinaeReverbParams rvp; Ruinae::loadReverbParams(rvp, readStream);
+        { Steinberg::int32 reverbType = 0; readStream.readInt32(reverbType); } // 125-dual-reverb
         Ruinae::MonoModeParams mop; Ruinae::loadMonoModeParams(mop, readStream);
 
         // Skip voice routes (16 slots x 8 fields)

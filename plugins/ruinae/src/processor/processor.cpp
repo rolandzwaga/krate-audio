@@ -681,6 +681,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveGlobalFilterParams(globalFilterParams_, streamer);
     saveDelayParams(delayParams_, streamer);
     saveReverbParams(reverbParams_, streamer);
+    // Reverb type (125-dual-reverb, state version 5)
+    streamer.writeInt32(reverbParams_.reverbType.load(std::memory_order_relaxed));
+
     saveMonoModeParams(monoModeParams_, streamer);
 
     // Voice routes (16 slots) — atomic load per field
@@ -795,6 +798,17 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
+        // Reverb type (125-dual-reverb, state version 5)
+        if (version >= 5) {
+            Steinberg::int32 reverbType = 0;
+            if (streamer.readInt32(reverbType)) {
+                reverbParams_.reverbType.store(
+                    static_cast<int32_t>(reverbType), std::memory_order_relaxed);
+            }
+        } else {
+            // Backward compat: version < 5 defaults to Plate (FR-028)
+            reverbParams_.reverbType.store(0, std::memory_order_relaxed);
+        }
         if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
 
         // SKIP voiceRoutes_ here — deferred to audio thread via RTTransferT
@@ -903,6 +917,14 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return;
     if (!loadDelayParams(delayParams_, streamer)) return;
     if (!loadReverbParams(reverbParams_, streamer)) return;
+    // Reverb type (125-dual-reverb, state version 5)
+    if (version >= 5) {
+        Steinberg::int32 reverbType = 0;
+        if (streamer.readInt32(reverbType)) {
+            reverbParams_.reverbType.store(
+                static_cast<int32_t>(reverbType), std::memory_order_relaxed);
+        }
+    }
     if (!loadMonoModeParams(monoModeParams_, streamer)) return;
 
     // Voice routes — atomic store per field (safe from any thread)
@@ -932,6 +954,11 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // Reset DSP state to prevent stale voices/state from the old preset
     engine_.reset();
     arpCore_.reset();
+
+    // Restore reverb type from loaded state (125-dual-reverb)
+    // Use setReverbTypeDirect to avoid triggering a crossfade on state load.
+    engine_.setReverbTypeDirect(
+        reverbParams_.reverbType.load(std::memory_order_relaxed));
 
     // Force arp tracking variables to sentinel values so that
     // applyParamsToEngine() will unconditionally re-apply all arp setters.
@@ -1456,6 +1483,7 @@ void Processor::applyParamsToEngine() {
         rp.modDepth = reverbParams_.modDepth.load(std::memory_order_relaxed);
         engine_.setReverbParams(rp);
     }
+    engine_.setReverbType(reverbParams_.reverbType.load(std::memory_order_relaxed));
 
     // --- Phaser ---
     engine_.setPhaserRate(phaserParams_.rateHz.load(std::memory_order_relaxed));

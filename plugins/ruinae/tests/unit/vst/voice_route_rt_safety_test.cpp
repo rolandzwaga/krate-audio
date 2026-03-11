@@ -177,6 +177,7 @@ std::vector<RouteSnapshot> extractRoutes(const std::vector<char>& stateBytes) {
     if (!loadGlobalFilterParams(gfp, streamer)) return {};
     if (!loadDelayParams(dlp, streamer)) return {};
     if (!loadReverbParams(rvp, streamer)) return {};
+    { Steinberg::int32 reverbType = 0; streamer.readInt32(reverbType); } // 125-dual-reverb
     if (!loadMonoModeParams(mop, streamer)) return {};
 
     // Now read voice routes

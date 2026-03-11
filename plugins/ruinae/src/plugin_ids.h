@@ -17,7 +17,7 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 4;
+constexpr Steinberg::int32 kCurrentStateVersion = 5;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -653,6 +653,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kReverbFreezeId = 1706,    // on/off
     kReverbModRateId = 1707,   // 0-2 Hz
     kReverbModDepthId = 1708,  // 0-1
+    kReverbTypeId = 1709,      // 0=Plate, 1=Hall (StringListParameter)
     kReverbEndId = 1799,
 
     // ==========================================================================
