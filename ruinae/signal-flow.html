@@ -229,10 +229,10 @@
         fontcolor="#804010";
         penwidth=2;
 
-        arp_core [label="Arpeggiator\\n(optional, pre-voice)\\n\\nModes: Up, Down, UpDown, DownUp,\\nConverge, Diverge, Random,\\nWalk, AsPlayed, Chord\\n\\nOctave: 1-4, Sequential/Interleaved\\nSwing, Spice, Humanize\\nLatch, Euclidean, Scale Quantize\\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
+        arp_core [label="Arpeggiator\\n(optional, pre-voice)\\n\\nModes: Up, Down, UpDown, DownUp,\\nConverge, Diverge, Random,\\nWalk, AsPlayed, Chord\\n\\nOctave: 1-4, Sequential/Interleaved\\nSwing, Spice, Humanize\\nLatch, Euclidean, Scale Quantize\\nTempo-sync or Free-rate\\nPer-step chords (Dyad–9th)\\nwith inversions (Root–3rd)", shape=box, fillcolor="#E8A060"];
 
         subgraph cluster_arp_lanes {
-            label="6 Modulation Lanes (1-32 steps each)";
+            label="8 Modulation Lanes (1-32 steps each)";
             style=dashed;
             color="#C07020";
             bgcolor="#F5E8D8";
@@ -243,6 +243,8 @@
             arp_ratchet_lane [label="Ratchet Lane\\n[1, 4] repeats", shape=box, fillcolor="#9880B0"];
             arp_mod_lane [label="Modifier Lane\\nAccent, Slide, Skip\\n(bit flags)", shape=box, fillcolor="#C0708C"];
             arp_cond_lane [label="Condition Lane\\n18 conditions\\n(probability, fill, etc.)", shape=box, fillcolor="#7C90B0"];
+            arp_chord_lane [label="Chord Lane\\nNone, Dyad, Triad,\\n7th, 9th", shape=box, fillcolor="#A0886C"];
+            arp_inv_lane [label="Inversion Lane\\nRoot, 1st, 2nd, 3rd", shape=box, fillcolor="#8CA07C"];
         }
 
         arp_vel_lane -> arp_core [style=dashed, color="#804010"];
@@ -251,6 +253,8 @@
         arp_ratchet_lane -> arp_core [style=dashed, color="#804010"];
         arp_mod_lane -> arp_core [style=dashed, color="#804010"];
         arp_cond_lane -> arp_core [style=dashed, color="#804010"];
+        arp_chord_lane -> arp_core [style=dashed, color="#804010"];
+        arp_inv_lane -> arp_core [style=dashed, color="#804010"];
     }
 
     // =========================================================================
@@ -348,12 +352,12 @@
             bgcolor="#E5F5E5";
             penwidth=2;
 
-            voice_router [label="computeOffsets()\\nper-sample\\n\\n8 sources → 8 destinations\\noffsets summed per dest\\namount per route", shape=diamond, fillcolor="#8ED08E"];
+            voice_router [label="computeOffsets()\\nper-sample\\n\\n8 sources → 10 destinations\\noffsets summed per dest\\namount per route", shape=diamond, fillcolor="#8ED08E"];
         }
 
         // --- Per-Voice Mod Destinations ---
         subgraph cluster_voice_mod_dst {
-            label="Per-Voice Mod Destinations (8)";
+            label="Per-Voice Mod Destinations (10)";
             style=rounded;
             color="#6BBF6B";
             bgcolor="#E5F5E5";
@@ -365,6 +369,8 @@
             vd_gate_depth [label="TranceGateDepth\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
             vd_osc_a_pitch [label="OscA Pitch\\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
             vd_osc_b_pitch [label="OscB Pitch\\n(semitone offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_a_level [label="OscA Level\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
+            vd_osc_b_level [label="OscB Level\\n(linear offset)", shape=box, fillcolor="#A8DCA8"];
             vd_spec_tilt [label="SpectralTilt\\n(dB/oct offset)", shape=box, fillcolor="#A8DCA8"];
         }
 
@@ -395,11 +401,15 @@
         voice_router -> vd_gate_depth [style=dashed, color="#3A8F3A"];
         voice_router -> vd_osc_a_pitch [style=dashed, color="#3A8F3A"];
         voice_router -> vd_osc_b_pitch [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_a_level [style=dashed, color="#3A8F3A"];
+        voice_router -> vd_osc_b_level [style=dashed, color="#3A8F3A"];
         voice_router -> vd_spec_tilt [style=dashed, color="#3A8F3A"];
 
         // --- Mod destinations to audio targets ---
         vd_osc_a_pitch -> osc_a [style=dashed, color="#3A8F3A", constraint=false];
         vd_osc_b_pitch -> osc_b [style=dashed, color="#3A8F3A", constraint=false];
+        vd_osc_a_level -> mixer [style=dashed, color="#3A8F3A", constraint=false, label="(osc A\\nlevel)"];
+        vd_osc_b_level -> mixer [style=dashed, color="#3A8F3A", constraint=false, label="(osc B\\nlevel)"];
         vd_morph -> mixer [style=dashed, color="#3A8F3A", constraint=false];
         vd_filter_cut -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
         vd_filter_res -> voice_filter [style=dashed, color="#3A8F3A", constraint=false];
@@ -462,7 +472,7 @@
 
         harmonizer [label="Harmonizer\\nPitch-shifted voices (up to 4)\\nHarmony modes, scale-aware\\nFormant preserve, per-voice\\ninterval/level/pan/delay/detune\\n\\nMono-in → Stereo-out\\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];
 
-        reverb [label="Reverb\\n(Dattorro Plate)\\nFull parameter set", shape=box, fillcolor="#C49EE0"];
+        reverb [label="Reverb\\n(2 types, 30ms crossfade)\\n• Dattorro Plate\\n• FDN (Feedback Delay Network)\\nFull parameter set", shape=box, fillcolor="#C49EE0"];
 
         phaser -> delay [penwidth=2, color="#6B3B9F"];
         delay -> harmonizer [penwidth=2, color="#6B3B9F"];
@@ -663,9 +673,9 @@
             <TR><TD ALIGN="LEFT"><B>Per-Voice Mod:</B></TD><TD ALIGN="LEFT">Per-sample (every sample in block)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global Mod:</B></TD><TD ALIGN="LEFT">Per-block (once per process() call)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Audio chain:</B></TD><TD ALIGN="LEFT">Per-sample (voice) / Per-block (effects)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 8 destinations</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 10 destinations</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">8 routes × 14 sources → 15 destinations</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional, reverb: Dattorro/FDN)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Interaction:</B></TD><TD ALIGN="LEFT">Global "AllVoice" dests are forwarded into per-voice processing</TD></TR>
             </TABLE>
         >];
