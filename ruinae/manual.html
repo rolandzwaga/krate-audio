@@ -1,0 +1,3101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruinae — User Manual</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base — matches Ruinae landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(168, 85, 247, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(168, 85, 247, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Ruinae</a>
+            </p>
+            <h1>Ruinae — User Manual</h1>
+            <p class="subtitle">Chaos/Spectral Hybrid Synthesizer</p>
+        </div>
+
+        <ul>
+        <li><a href="#introduction"
+        id="toc-introduction">Introduction</a>
+        <ul>
+        <li><a href="#quick-start" id="toc-quick-start">Quick
+        Start</a></li>
+        </ul></li>
+        <li><a href="#signal-flow" id="toc-signal-flow">Signal
+        Flow</a></li>
+        <li><a href="#top-bar" id="toc-top-bar">Top Bar</a></li>
+        <li><a href="#sound-tab" id="toc-sound-tab">Sound Tab</a>
+        <ul>
+        <li><a href="#osc-a" id="toc-osc-a">OSC A</a></li>
+        <li><a href="#spectral-morph" id="toc-spectral-morph">Spectral
+        Morph</a></li>
+        <li><a href="#osc-b" id="toc-osc-b">OSC B</a></li>
+        <li><a href="#master" id="toc-master">Master</a></li>
+        <li><a href="#filter" id="toc-filter">Filter</a></li>
+        <li><a href="#distortion"
+        id="toc-distortion">Distortion</a></li>
+        <li><a href="#envelopes" id="toc-envelopes">Envelopes</a></li>
+        </ul></li>
+        <li><a href="#mod-tab" id="toc-mod-tab">Mod Tab</a>
+        <ul>
+        <li><a href="#modulation-sources"
+        id="toc-modulation-sources">Modulation Sources</a></li>
+        <li><a href="#modulation-matrix"
+        id="toc-modulation-matrix">Modulation Matrix</a></li>
+        <li><a href="#mod-heatmap" id="toc-mod-heatmap">Mod
+        Heatmap</a></li>
+        </ul></li>
+        <li><a href="#fx-tab" id="toc-fx-tab">FX Tab</a>
+        <ul>
+        <li><a href="#global-filter" id="toc-global-filter">Global
+        Filter</a></li>
+        <li><a href="#phaser" id="toc-phaser">Phaser</a></li>
+        <li><a href="#delay" id="toc-delay">Delay</a></li>
+        <li><a href="#harmonizer"
+        id="toc-harmonizer">Harmonizer</a></li>
+        <li><a href="#reverb" id="toc-reverb">Reverb</a></li>
+        </ul></li>
+        <li><a href="#seq-tab" id="toc-seq-tab">SEQ Tab</a>
+        <ul>
+        <li><a href="#trance-gate" id="toc-trance-gate">Trance
+        Gate</a></li>
+        <li><a href="#arpeggiator"
+        id="toc-arpeggiator">Arpeggiator</a></li>
+        <li><a href="#step-lanes" id="toc-step-lanes">Step
+        Lanes</a></li>
+        </ul></li>
+        <li><a href="#settings" id="toc-settings">Settings</a></li>
+        <li><a href="#tips-techniques" id="toc-tips-techniques">Tips
+        &amp; Techniques</a>
+        <ul>
+        <li><a href="#layering-oscillators"
+        id="toc-layering-oscillators">Layering Oscillators</a></li>
+        <li><a href="#modulation-depth"
+        id="toc-modulation-depth">Modulation Depth</a></li>
+        <li><a href="#using-the-arpeggiator-as-a-modulator"
+        id="toc-using-the-arpeggiator-as-a-modulator">Using the
+        Arpeggiator as a Modulator</a></li>
+        <li><a href="#feedback-safety" id="toc-feedback-safety">Feedback
+        Safety</a></li>
+        <li><a href="#cpu-management" id="toc-cpu-management">CPU
+        Management</a></li>
+        </ul></li>
+        </ul>
+        <!-- IMG-01: Full screenshot of Ruinae with the Sound tab active, showing the complete plugin window -->
+        <figure>
+        <img src="images/IMG-01.png" alt="Ruinae Overview" />
+        <figcaption aria-hidden="true">Ruinae Overview</figcaption>
+        </figure>
+        <h2 id="introduction">Introduction</h2>
+        <p>Ruinae is a chaos/spectral hybrid synthesizer built for sound
+        designers, electronic musicians, and anyone who wants to explore
+        territory beyond conventional synthesis. It combines ten
+        distinct oscillator types — from classic analog-modeled
+        waveforms to chaotic attractors and particle clouds — with
+        spectral morphing, a flexible modulation system, and a deep
+        effects chain.</p>
+        <p>At its core, Ruinae is a 16-voice polyphonic instrument. Each
+        voice runs two oscillators through a mixer that can perform
+        either simple crossfading or FFT-based spectral morphing. The
+        signal then passes through a filter, distortion stage, optional
+        trance gate, and amplitude envelope before being summed to
+        stereo and fed through a global effects chain.</p>
+        <p>The interface is organized into four tabs:</p>
+        <ul>
+        <li><strong>SOUND</strong> — Oscillators, mixer, filter,
+        distortion, envelopes, and master controls</li>
+        <li><strong>MOD</strong> — Modulation sources (LFOs, chaos,
+        macros, and more) and an 8-slot modulation matrix</li>
+        <li><strong>FX</strong> — Phaser, delay, harmonizer, reverb, and
+        a global filter</li>
+        <li><strong>SEQ</strong> — Trance gate and a full-featured
+        32-step arpeggiator</li>
+        </ul>
+        <h3 id="quick-start">Quick Start</h3>
+        <ol type="1">
+        <li>Load a preset from the preset browser (click the preset name
+        in the top bar)</li>
+        <li>Play some notes — Ruinae defaults to polyphonic mode with 8
+        voices</li>
+        <li>Explore the Sound tab to shape the basic timbre</li>
+        <li>Head to the Mod tab to add movement</li>
+        <li>Use the FX tab for spatial processing</li>
+        <li>Try the SEQ tab for rhythmic patterns and arpeggiation</li>
+        </ol>
+        <hr />
+        <h2 id="signal-flow">Signal Flow</h2>
+        <p>Understanding the signal path helps you predict how changes
+        in one section affect the overall sound.</p>
+        <pre><code>Per Voice:
+  OSC A ──┐
+           ├──&gt; Mixer ──&gt; Filter ──&gt; Distortion ──&gt; DC Blocker ──&gt; Trance Gate ──&gt; VCA
+  OSC B ──┘     (Crossfade or                                      (Rhythmic      (Amp
+                 Spectral Morph)                                    gating)        Envelope)
+
+Global:
+  All Voices ──&gt; Stereo Pan + Sum ──&gt; Stereo Width ──&gt; Global Filter
+    ──&gt; Phaser ──&gt; Delay ──&gt; Harmonizer ──&gt; Reverb
+    ──&gt; Master Gain ──&gt; Soft Limiter ──&gt; Output</code></pre>
+        <p>Each voice produces a mono signal. Voices are panned and
+        summed to stereo, then processed through the shared effects
+        chain. Master gain is automatically compensated based on the
+        number of active voices (1/√N scaling) so the output level stays
+        consistent whether you play one note or a full chord.</p>
+        <hr />
+        <h2 id="top-bar">Top Bar</h2>
+        <!-- IMG-02: Close-up of the top bar showing the plugin title, tab selector, preset controls, and settings gear -->
+        <figure>
+        <img src="images/IMG-02.png" alt="Top Bar" />
+        <figcaption aria-hidden="true">Top Bar</figcaption>
+        </figure>
+        <p>The top bar is always visible regardless of which tab is
+        active.</p>
+        <ul>
+        <li><strong>RUINAE</strong> — Plugin title (left side)</li>
+        <li><strong>SOUND | MOD | FX | SEQ</strong> — Tab selector to
+        switch between the four main sections</li>
+        <li><strong>Preset Browser</strong> — Click the preset name to
+        browse and load presets. Use the left/right arrows to step
+        through presets sequentially.</li>
+        <li><strong>Save</strong> — Save the current settings as a
+        preset</li>
+        <li><strong>Settings Gear</strong> — Opens the settings drawer
+        (see <a href="#settings">Settings</a> below)</li>
+        <li><strong>Version</strong> — Current plugin version (right
+        side)</li>
+        </ul>
+        <hr />
+        <h2 id="sound-tab">Sound Tab</h2>
+        <p>The Sound tab is where you build the fundamental timbre. It’s
+        divided into three rows: sound sources (oscillators and mixer),
+        timbre shaping (filter and distortion), and dynamics
+        (envelopes).</p>
+        <!-- IMG-03: Full screenshot of the Sound tab showing all three rows -->
+        <figure>
+        <img src="images/IMG-03.png" alt="Sound Tab" />
+        <figcaption aria-hidden="true">Sound Tab</figcaption>
+        </figure>
+        <hr />
+        <h3 id="osc-a">OSC A</h3>
+        <!-- IMG-04: Close-up of the OSC A container, showing the type selector, main knobs, and type-specific parameter area -->
+        <figure>
+        <img src="images/IMG-04.png" alt="OSC A" />
+        <figcaption aria-hidden="true">OSC A</figcaption>
+        </figure>
+        <p>OSC A is the first of two oscillators in each voice. It
+        provides ten synthesis types, each with its own character and
+        set of controls.</p>
+        <h4 id="common-controls">Common Controls</h4>
+        <p>These four knobs are available regardless of which oscillator
+        type is selected:</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Tune</strong></td>
+        <td>-24 to +24 st</td>
+        <td>Coarse tuning in semitones relative to the played note</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Detune</strong></td>
+        <td>-100 to +100 ct</td>
+        <td>Fine tuning in cents for subtle detuning effects</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Level</strong></td>
+        <td>0–100%</td>
+        <td>Output level of this oscillator before the mixer</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Phase</strong></td>
+        <td>0–360°</td>
+        <td>Starting phase of the oscillator waveform on each note</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="oscillator-types">Oscillator Types</h4>
+        <p>Select the synthesis type from the dropdown menu at the top
+        of the OSC A container. Each type reveals a different set of
+        controls in the area below the common knobs.</p>
+        <h5 id="polyblep">PolyBLEP</h5>
+        <p>Classic analog-modeled waveforms using band-limited
+        polynomial synthesis. Clean, anti-aliased, and
+        CPU-efficient.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Waveform</strong></td>
+        <td>Sine, Triangle, Sawtooth, Square, or Pulse</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pulse Width</strong></td>
+        <td>Width of the pulse waveform (0.01–0.99). Only audible with
+        Pulse waveform. At 0.5, this produces a square wave.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Phase Mod</strong></td>
+        <td>Phase modulation depth — modulates the oscillator’s phase
+        for FM-like timbres</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Freq Mod</strong></td>
+        <td>Frequency modulation depth</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="wavetable">Wavetable</h5>
+        <p>Wavetable synthesis that scans through a table of waveforms
+        for evolving timbres.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Phase Mod</strong></td>
+        <td>Phase modulation depth</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Freq Mod</strong></td>
+        <td>Frequency modulation depth</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="phase-distortion">Phase Distortion</h5>
+        <p>Inspired by Casio CZ-series synthesis. Distorts the phase of
+        a waveform to create harmonically rich timbres from simple
+        starting shapes.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Waveform</strong></td>
+        <td>Base waveform to apply phase distortion to</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Distortion</strong></td>
+        <td>Amount of phase distortion — higher values create more
+        harmonics</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="sync">Sync</h5>
+        <p>Hard-sync oscillator where a slave oscillator is reset by a
+        master, creating the classic sync sweep sound.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Ratio</strong></td>
+        <td>Frequency ratio between master and slave oscillators</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Waveform</strong></td>
+        <td>Slave oscillator waveform shape</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mode</strong></td>
+        <td>Sync behavior mode</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Amount</strong></td>
+        <td>Blend between synced and free-running slave</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pulse Width</strong></td>
+        <td>Pulse width of the slave waveform</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="additive">Additive</h5>
+        <p>Builds sounds from individual harmonics (sine partials).
+        Great for bell-like, organ, and evolving pad sounds.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Partials</strong></td>
+        <td>Number of harmonic partials (more partials = richer
+        spectrum)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tilt</strong></td>
+        <td>Spectral tilt — controls the rolloff slope of higher
+        harmonics. Positive values brighten, negative values
+        darken.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Inharmonicity</strong></td>
+        <td>Stretches the harmonic series. At 0, partials are perfectly
+        harmonic. Higher values shift partials away from integer
+        multiples, creating bell-like or metallic tones.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="chaos">Chaos</h5>
+        <p>Generates audio from mathematical chaotic attractors — the
+        Lorenz and Rössler systems. These produce complex, unpredictable
+        waveforms that hover between tone and noise.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Attractor</strong></td>
+        <td>Selects the chaotic system (Lorenz or Rössler)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Amount</strong></td>
+        <td>Chaos intensity — how far the system is driven into chaotic
+        behavior</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Coupling</strong></td>
+        <td>How tightly the chaos output is coupled to the oscillator
+        frequency</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Output</strong></td>
+        <td>Which axis of the attractor to use as audio (X, Y, or Z —
+        each has a different character)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="particle">Particle</h5>
+        <p>A cloud of short-lived micro-oscillators (particles) that are
+        continuously spawned, creating granular textures from
+        oscillator-level synthesis.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Scatter</strong></td>
+        <td>How far particles deviate in pitch from the fundamental</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Density</strong></td>
+        <td>Number of particles spawned per second</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Lifetime</strong></td>
+        <td>How long each particle lives before fading out</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spawn Mode</strong></td>
+        <td>Pattern for spawning new particles</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Env Type</strong></td>
+        <td>Envelope shape applied to each particle’s amplitude</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Drift</strong></td>
+        <td>Amount of random pitch drift over each particle’s
+        lifetime</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="formant">Formant</h5>
+        <p>Generates vowel-like sounds by emphasizing formant
+        frequencies. Useful for vocal pads, choir textures, and talking
+        synth effects.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Vowel</strong></td>
+        <td>Selects the target vowel formant (A, E, I, O, U and blends
+        between them)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Morph</strong></td>
+        <td>Smoothly morphs between adjacent vowel shapes</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="spectral-freeze">Spectral Freeze</h5>
+        <p>Captures and freezes a spectral snapshot, then allows you to
+        manipulate the frozen spectrum in real time.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Pitch</strong></td>
+        <td>Pitch-shifts the frozen spectrum up or down</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Tilt</strong></td>
+        <td>Tilts the spectral balance (brightens or darkens the frozen
+        sound)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Formant</strong></td>
+        <td>Shifts formant positions independently of pitch</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="noise">Noise</h5>
+        <p>Generates various colors of noise, useful as a sound source
+        for percussive textures, wind effects, or as a modulation source
+        blended with the other oscillator.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Color</strong></td>
+        <td>Noise type: White (flat spectrum), Pink (-3dB/octave), Brown
+        (-6dB/octave), Blue (+3dB/octave), Violet (+6dB/octave), or Grey
+        (perceptually flat)</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="spectral-morph">Spectral Morph</h3>
+        <!-- IMG-05: Close-up of the Spectral Morph container, showing the XY morph pad with the blue-to-orange gradient, mode dropdown, and shift knob -->
+        <figure>
+        <img src="images/IMG-05.png" alt="Spectral Morph" />
+        <figcaption aria-hidden="true">Spectral Morph</figcaption>
+        </figure>
+        <p>The Spectral Morph section sits between the two oscillators
+        and controls how they are blended together. This is where
+        Ruinae’s hybrid character really shines.</p>
+        <h4 id="xy-morph-pad">XY Morph Pad</h4>
+        <p>The large 2D pad is the central mixing control:</p>
+        <ul>
+        <li><strong>X-axis (horizontal)</strong> — Mix Position: Blends
+        between OSC A (left) and OSC B (right)</li>
+        <li><strong>Y-axis (vertical)</strong> — Spectral Tilt: Tilts
+        the spectral balance of the mix. Moving up brightens the sound
+        by boosting high frequencies; moving down darkens it.</li>
+        </ul>
+        <p>Click and drag anywhere on the pad to set both parameters
+        simultaneously. The gradient coloring (blue on the left for OSC
+        A, orange on the right for OSC B) provides a visual
+        reference.</p>
+        <h4 id="controls">Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mode</strong></td>
+        <td><strong>Crossfade</strong>: Simple amplitude crossfade
+        between OSC A and B. <strong>Spectral Morph</strong>: FFT-based
+        morphing that blends the spectral content of both oscillators,
+        creating hybrid timbres impossible with simple mixing.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Shift</strong></td>
+        <td>Spectral frequency shift — shifts all frequencies up or down
+        by a fixed amount (not pitch-shifting). Creates inharmonic,
+        metallic textures.</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Tip:</strong> Spectral Morph mode is most interesting
+        when the two oscillators use different synthesis types. Try a
+        PolyBLEP sawtooth on OSC A and a Chaos attractor on OSC B, then
+        sweep the morph pad to find the sweet spot.</p>
+        <hr />
+        <h3 id="osc-b">OSC B</h3>
+        <!-- IMG-06: Close-up of the OSC B container (can be omitted if the layout is identical to OSC A — reference the OSC A screenshot instead) -->
+        <figure>
+        <img src="images/IMG-06.png" alt="OSC B" />
+        <figcaption aria-hidden="true">OSC B</figcaption>
+        </figure>
+        <p>OSC B is identical in structure to OSC A — it has the same
+        ten synthesis types and the same common controls (Tune, Detune,
+        Level, Phase). The two oscillators are independent: you can use
+        the same type on both or mix completely different synthesis
+        methods.</p>
+        <p><strong>Tip:</strong> For classic detuned pads, use the same
+        type on both oscillators with slightly different Detune values.
+        For more experimental sounds, combine contrasting types (e.g.,
+        Additive + Particle, or Formant + Chaos).</p>
+        <hr />
+        <h3 id="master">Master</h3>
+        <!-- IMG-07: Close-up of the Master container, showing the voice mode dropdown, output/width/spread knobs, and soft limit toggle -->
+        <figure>
+        <img src="images/IMG-07.png" alt="Master" />
+        <figcaption aria-hidden="true">Master</figcaption>
+        </figure>
+        <p>The Master section controls global voice behavior and output
+        characteristics.</p>
+        <h4 id="voice-mode">Voice Mode</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mode</strong></td>
+        <td><strong>Poly</strong>: Polyphonic — each note gets its own
+        voice. <strong>Mono</strong>: Monophonic — only one note sounds
+        at a time.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Polyphony</strong></td>
+        <td>(Poly mode only) Maximum number of simultaneous voices, from
+        1 to 16. Lower values save CPU.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="mono-mode-controls">Mono Mode Controls</h4>
+        <p>When Mono mode is selected, additional controls appear:</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Legato</strong></td>
+        <td>When enabled, overlapping notes don’t retrigger envelopes —
+        they just change the pitch. Creates smooth, connected
+        phrases.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Priority</strong></td>
+        <td>Which note wins when multiple keys are held: Last, Low, or
+        High</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Portamento</strong></td>
+        <td>Glide time between notes (0 = instant, higher = slower
+        glide)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Port. Mode</strong></td>
+        <td><strong>Always</strong>: Glide on every note.
+        <strong>Legato</strong>: Only glide when notes overlap.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="output-controls">Output Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Output</strong></td>
+        <td>Master output level</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Width</strong></td>
+        <td>Stereo width (0–200%). At 0% the output is mono, 100% is
+        normal stereo, above 100% exaggerates the stereo field.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Spread</strong></td>
+        <td>Voice stereo spread (0–100%). Distributes voices across the
+        stereo field. At 0%, all voices are centered.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Soft Limit</strong></td>
+        <td>When enabled, applies a gentle tanh saturation to prevent
+        harsh digital clipping on the master output. Recommended to keep
+        on.</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="filter">Filter</h3>
+        <!-- IMG-08: Close-up of the Filter container, showing the filter type dropdown, the general/type-specific toggle, and the parameter area. Show the General view. -->
+        <figure>
+        <img src="images/IMG-08.png" alt="Filter" />
+        <figcaption aria-hidden="true">Filter</figcaption>
+        </figure>
+        <p>The filter shapes the timbre of each voice after the
+        oscillators are mixed. Six filter types are available, each with
+        shared “general” parameters and type-specific controls.</p>
+        <p>Use the toggle button (gear icon) to switch between the
+        <strong>General</strong> view (common parameters) and the
+        <strong>Type-Specific</strong> view (parameters unique to the
+        selected filter type).</p>
+        <h4 id="general-parameters">General Parameters</h4>
+        <p>These apply to all filter types:</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Cutoff</strong></td>
+        <td>20–20,000 Hz</td>
+        <td>Filter cutoff frequency</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Resonance</strong></td>
+        <td>0–100%</td>
+        <td>Emphasis at the cutoff frequency. High values create a
+        ringing peak.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Env Amount</strong></td>
+        <td>-48 to +48 st</td>
+        <td>How much the Filter Envelope (ENV 2) modulates the cutoff
+        frequency, in semitones. Positive values open the filter with
+        the envelope; negative values close it.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Key Track</strong></td>
+        <td>0–100%</td>
+        <td>How much the cutoff follows the played note. At 100%, the
+        filter tracks the keyboard perfectly (useful for
+        self-oscillating filter melodies).</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="filter-types">Filter Types</h4>
+        <h5 id="svf-state-variable-filter">SVF (State Variable
+        Filter)</h5>
+        <p>A versatile 12dB/octave filter with multiple response
+        modes.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sub-Type</strong></td>
+        <td>Low Pass, High Pass, Band Pass, Notch, Peak, All Pass, Low
+        Shelf, or High Shelf</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="ladder">Ladder</h5>
+        <p>Modeled after the classic Moog-style transistor ladder
+        filter. Warm, fat, with a characteristic resonance that thins
+        the bass at high settings.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Slope</strong></td>
+        <td>Filter steepness: 1-pole (6dB), 2-pole (12dB), 3-pole
+        (18dB), or 4-pole (24dB/oct)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Drive</strong></td>
+        <td>Input drive (0–24 dB) — overdrives the filter input for
+        saturation</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="formant-1">Formant</h5>
+        <p>A filter that emphasizes vowel-like resonant peaks,
+        independent of the Formant oscillator type.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Morph</strong></td>
+        <td>Blends between vowel shapes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Gender</strong></td>
+        <td>Shifts formant frequencies up (feminine) or down
+        (masculine)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="comb">Comb</h5>
+        <p>A comb filter that creates metallic, pitched resonance
+        effects by feeding back a short delay.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Feedback</strong></td>
+        <td>Feedback amount — higher values create stronger resonant
+        peaks</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Damping</strong></td>
+        <td>High-frequency damping in the feedback path</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="envelope-filter">Envelope Filter</h5>
+        <p>An auto-wah style filter where the cutoff responds
+        dynamically to the input signal level.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sensitivity</strong></td>
+        <td>How responsive the filter is to input level changes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Speed</strong></td>
+        <td>How quickly the filter follows the input envelope</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="self-oscillating">Self-Oscillating</h5>
+        <p>A resonant filter pushed into self-oscillation — it generates
+        its own pitched tone at the cutoff frequency. The input signal
+        modulates this self-oscillation for unusual timbres.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Feedback</strong></td>
+        <td>Self-oscillation intensity</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Character</strong></td>
+        <td>Tonal character of the self-oscillation</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="distortion">Distortion</h3>
+        <!-- IMG-09: Close-up of the Distortion container, showing the type dropdown, general/type-specific toggle, and parameter area. Show the General view. -->
+        <figure>
+        <img src="images/IMG-09.png" alt="Distortion" />
+        <figcaption aria-hidden="true">Distortion</figcaption>
+        </figure>
+        <p>The distortion stage comes after the filter in each voice’s
+        signal path. Seven distortion types range from subtle warmth to
+        extreme spectral destruction.</p>
+        <p>Like the filter, use the toggle button to switch between
+        <strong>General</strong> and <strong>Type-Specific</strong>
+        views.</p>
+        <h4 id="general-parameters-1">General Parameters</h4>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Drive</strong></td>
+        <td>Distortion intensity (0–100%)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Character</strong></td>
+        <td>Reserved for future use</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend (0–100%). Allows parallel distortion.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="distortion-types">Distortion Types</h4>
+        <h5 id="clean">Clean</h5>
+        <p>Bypass — no distortion applied. Select this when you want a
+        clean signal path.</p>
+        <h5 id="chaos-1">Chaos</h5>
+        <p>Drives the signal through a chaotic waveshaper based on the
+        Lorenz or Rössler attractor system. Creates unpredictable,
+        evolving distortion.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Model</strong></td>
+        <td>Chaotic attractor type</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Speed</strong></td>
+        <td>Rate of chaotic evolution</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Coupling</strong></td>
+        <td>How tightly the input signal influences the chaotic
+        system</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="spectral">Spectral</h5>
+        <p>Applies distortion in the frequency domain using FFT
+        processing. Can create harmonics, spectral smearing, and
+        bit-reduction effects that are impossible with time-domain
+        waveshaping.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mode</strong></td>
+        <td>Spectral distortion algorithm</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Curve</strong></td>
+        <td>Shape of the spectral transfer function</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bits</strong></td>
+        <td>Spectral bit depth — lower values create stepped, lo-fi
+        spectral artifacts</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="granular">Granular</h5>
+        <p>Micro-grain distortion that chops the signal into tiny grains
+        and reassembles them with controlled randomness. Creates
+        textures ranging from subtle grit to complete
+        disintegration.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Size</strong></td>
+        <td>Grain size — smaller grains create more extreme effects</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Density</strong></td>
+        <td>Grain density (grains per second)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Variation</strong></td>
+        <td>Amount of random variation in grain parameters</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Jitter</strong></td>
+        <td>Timing randomness between grains</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="wavefolder">Wavefolder</h5>
+        <p>Folds the waveform back on itself when it exceeds a
+        threshold, adding rich odd and even harmonics. A classic
+        technique from West Coast synthesis.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Type</strong></td>
+        <td>Wavefolding algorithm/shape</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="tape">Tape</h5>
+        <p>Models the saturation characteristics of magnetic tape
+        recording. Adds warmth, compression, and subtle harmonics.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Model</strong></td>
+        <td>Tape machine type/era</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Saturation</strong></td>
+        <td>Tape saturation amount</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bias</strong></td>
+        <td>Tape bias setting — affects the harmonic character of the
+        saturation</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="ring-mod">Ring Mod</h5>
+        <p>Ring modulation multiplies the signal with an internal
+        oscillator, creating sum and difference frequencies for
+        metallic, bell-like, or atonal effects.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Frequency</strong></td>
+        <td>Ring modulator oscillator frequency</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mode</strong></td>
+        <td>Modulation mode</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Ratio</strong></td>
+        <td>Frequency ratio relative to the played note</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Waveform</strong></td>
+        <td>Modulator waveform shape</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Stereo Spread</strong></td>
+        <td>Stereo decorrelation between left and right channels</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="envelopes">Envelopes</h3>
+        <!-- IMG-10: Close-up of the Envelopes row showing all three envelope displays (AMP, FILTER, MOD) side by side with their ADSR knobs -->
+        <figure>
+        <img src="images/IMG-10.png" alt="Envelopes" />
+        <figcaption aria-hidden="true">Envelopes</figcaption>
+        </figure>
+        <p>Three ADSR envelopes control the dynamics and modulation of
+        each voice. Each envelope has the same set of controls but
+        serves a different purpose:</p>
+        <ul>
+        <li><strong>AMP (ENV 1)</strong> — Controls the volume contour
+        of each voice. This is always active.</li>
+        <li><strong>FILTER (ENV 2)</strong> — Modulates the filter
+        cutoff frequency. The amount is set by the Filter section’s Env
+        Amount knob.</li>
+        <li><strong>MOD (ENV 3)</strong> — A general-purpose envelope
+        available as a modulation source in the mod matrix.</li>
+        </ul>
+        <h4 id="controls-1">Controls</h4>
+        <p>Each envelope provides:</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>A (Attack)</strong></td>
+        <td>0–10,000 ms</td>
+        <td>Time from note-on to peak level</td>
+        </tr>
+        <tr class="even">
+        <td><strong>D (Decay)</strong></td>
+        <td>0–10,000 ms</td>
+        <td>Time from peak to sustain level</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>S (Sustain)</strong></td>
+        <td>0–100%</td>
+        <td>Level held while the note is sustained</td>
+        </tr>
+        <tr class="even">
+        <td><strong>R (Release)</strong></td>
+        <td>0–10,000 ms</td>
+        <td>Time from note-off to silence</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Each envelope also supports <strong>curve shaping</strong>
+        for the attack, decay, and release segments (accessible via
+        right-click or the envelope display), ranging from logarithmic
+        (fast initial response) to exponential (slow initial response).
+        An optional <strong>Bezier mode</strong> provides even finer
+        control over the envelope shape with draggable control points on
+        the visual display.</p>
+        <p><strong>Tip:</strong> For snappy plucks, use very short
+        attack (0–5 ms) and decay (50–200 ms) with zero sustain. For
+        pads, use longer attack (100–500 ms) and high sustain.</p>
+        <hr />
+        <h2 id="mod-tab">Mod Tab</h2>
+        <p>The Mod tab is where you bring your sound to life with
+        movement and variation. The left side houses ten different
+        modulation sources, and the right side provides an 8-slot
+        modulation matrix for routing those sources to destinations
+        throughout the synth.</p>
+        <!-- IMG-11: Full screenshot of the Mod tab showing the modulation sources panel on the left and the modulation matrix on the right -->
+        <figure>
+        <img src="images/IMG-11.png" alt="Mod Tab" />
+        <figcaption aria-hidden="true">Mod Tab</figcaption>
+        </figure>
+        <hr />
+        <h3 id="modulation-sources">Modulation Sources</h3>
+        <!-- IMG-12: Close-up of the Modulation Sources container with the source selector dropdown open, showing the list of available sources -->
+        <figure>
+        <img src="images/IMG-12.png" alt="Modulation Sources" />
+        <figcaption aria-hidden="true">Modulation Sources</figcaption>
+        </figure>
+        <p>Select a modulation source from the dropdown to view and edit
+        its parameters. Each source generates a control signal that can
+        be routed to any destination via the modulation matrix.</p>
+        <h4 id="lfo-1-lfo-2">LFO 1 &amp; LFO 2</h4>
+        <!-- IMG-13: Close-up of the LFO source view showing rate, shape, and other controls -->
+        <figure>
+        <img src="images/IMG-13.png" alt="LFO" />
+        <figcaption aria-hidden="true">LFO</figcaption>
+        </figure>
+        <p>Two independent low-frequency oscillators for cyclic
+        modulation (vibrato, tremolo, filter sweeps, etc.).</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>LFO speed. 0.01–50 Hz in free mode, or locked to tempo
+        divisions when synced.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Shape</strong></td>
+        <td>Waveform: Sine, Triangle, Sawtooth, Square, Sample &amp;
+        Hold (stepped random), or Smooth Random</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Depth</strong></td>
+        <td>Modulation intensity (0–100%)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock LFO rate to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced (e.g., 1/4 note, 1/8 note,
+        dotted, triplet)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Phase</strong></td>
+        <td>Starting phase offset (0–360°)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Retrigger</strong></td>
+        <td>When enabled, LFO restarts from its phase offset on each new
+        note</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Unipolar</strong></td>
+        <td>When enabled, LFO output ranges from 0 to +1 instead of -1
+        to +1</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Fade-In</strong></td>
+        <td>Time for the LFO to ramp up from zero after a note is
+        triggered. Useful for delayed vibrato.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Symmetry</strong></td>
+        <td>Skews the waveform — e.g., turns a triangle into a ramp</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Quantize</strong></td>
+        <td>Snaps the LFO output to discrete steps (0 = smooth, 2–16 =
+        number of steps)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="chaos-mod">Chaos Mod</h4>
+        <!-- IMG-14: Close-up of the Chaos modulation source view -->
+        <figure>
+        <img src="images/IMG-14.png" alt="Chaos Mod" />
+        <figcaption aria-hidden="true">Chaos Mod</figcaption>
+        </figure>
+        <p>A modulation source driven by a chaotic attractor system,
+        producing complex, non-repeating patterns that are more organic
+        than LFOs but more structured than random.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>Speed of the chaotic system’s evolution</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Type</strong></td>
+        <td>Attractor model (Lorenz or Rössler)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Depth</strong></td>
+        <td>Output intensity</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="macros">Macros</h4>
+        <!-- IMG-15: Close-up of the Macros source view showing the four macro knobs -->
+        <figure>
+        <img src="images/IMG-15.png" alt="Macros" />
+        <figcaption aria-hidden="true">Macros</figcaption>
+        </figure>
+        <p>Four user-assignable macro knobs that provide direct,
+        hands-on control. Assign a macro as a modulation source in the
+        matrix, then use the knob to manually sweep the modulation
+        amount in real time. Great for performance control and MIDI CC
+        mapping.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Macro 1–4</strong></td>
+        <td>Four independent control values (0–100%)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="rungler">Rungler</h4>
+        <!-- IMG-16: Close-up of the Rungler source view -->
+        <figure>
+        <img src="images/IMG-16.png" alt="Rungler" />
+        <figcaption aria-hidden="true">Rungler</figcaption>
+        </figure>
+        <p>Inspired by the Benjolin circuit, the Rungler is a
+        shift-register based pattern generator that produces
+        semi-random, repeating stepped patterns. It uses two internal
+        oscillators whose interaction feeds a digital shift
+        register.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Osc 1 Freq</strong></td>
+        <td>Frequency of the first internal oscillator</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Osc 2 Freq</strong></td>
+        <td>Frequency of the second internal oscillator</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Depth</strong></td>
+        <td>Output intensity</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Filter</strong></td>
+        <td>Low-pass filter on the Rungler output for smoothing</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bits</strong></td>
+        <td>Number of active bits in the shift register (fewer bits =
+        shorter, more repetitive patterns)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Loop Mode</strong></td>
+        <td>When enabled, the shift register loops instead of
+        evolving</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="envelope-follower">Envelope Follower</h4>
+        <!-- IMG-17: Close-up of the Envelope Follower source view -->
+        <figure>
+        <img src="images/IMG-17.png" alt="Envelope Follower" />
+        <figcaption aria-hidden="true">Envelope Follower</figcaption>
+        </figure>
+        <p>Tracks the amplitude of the audio input signal and converts
+        it to a modulation signal. Useful for making parameters respond
+        to playing dynamics.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sensitivity</strong></td>
+        <td>Input gain/sensitivity</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Attack</strong></td>
+        <td>How quickly the follower responds to rising levels</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Release</strong></td>
+        <td>How quickly the follower responds to falling levels</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="sample-hold">Sample &amp; Hold</h4>
+        <!-- IMG-18: Close-up of the Sample & Hold source view -->
+        <figure>
+        <img src="images/IMG-18.png" alt="Sample &amp; Hold" />
+        <figcaption aria-hidden="true">Sample &amp; Hold</figcaption>
+        </figure>
+        <p>Periodically samples a random value and holds it until the
+        next sample, creating stepped random modulation.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>How often a new random value is sampled</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Slew</strong></td>
+        <td>Smoothing between steps — at 0, transitions are instant
+        (classic S&amp;H). Higher values create smooth glides between
+        random values.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="random">Random</h4>
+        <!-- IMG-19: Close-up of the Random source view -->
+        <figure>
+        <img src="images/IMG-19.png" alt="Random" />
+        <figcaption aria-hidden="true">Random</figcaption>
+        </figure>
+        <p>Generates continuous random modulation, either smooth or
+        stepped.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>Speed of random change</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Smoothness</strong></td>
+        <td>Interpolation between random values. Low values produce
+        stepped output; high values produce smooth, wandering
+        modulation.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="pitch-follower">Pitch Follower</h4>
+        <!-- IMG-20: Close-up of the Pitch Follower source view -->
+        <figure>
+        <img src="images/IMG-20.png" alt="Pitch Follower" />
+        <figcaption aria-hidden="true">Pitch Follower</figcaption>
+        </figure>
+        <p>Tracks the pitch of the input signal and converts it to a
+        modulation signal. This allows parameters to respond to what
+        notes are being played.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Min Hz</strong></td>
+        <td>Lowest frequency to track</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Max Hz</strong></td>
+        <td>Highest frequency to track</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Confidence</strong></td>
+        <td>Detection confidence threshold — higher values require a
+        clearer pitch to generate output</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Speed</strong></td>
+        <td>How quickly the follower responds to pitch changes</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="transient-detector">Transient Detector</h4>
+        <!-- IMG-21: Close-up of the Transient Detector source view -->
+        <figure>
+        <img src="images/IMG-21.png" alt="Transient Detector" />
+        <figcaption aria-hidden="true">Transient Detector</figcaption>
+        </figure>
+        <p>Detects transient attacks in the signal and generates a
+        trigger/envelope in response. Useful for making parameters
+        respond to rhythmic articulation.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sensitivity</strong></td>
+        <td>Detection threshold — lower values detect softer
+        transients</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Attack</strong></td>
+        <td>Rise time of the generated envelope</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Decay</strong></td>
+        <td>Fall time of the generated envelope</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="modulation-matrix">Modulation Matrix</h3>
+        <!-- IMG-22: Close-up of the Modulation Configuration panel showing the 8-slot matrix with source, destination, and amount columns. Show at least 2-3 slots with active routings. -->
+        <figure>
+        <img src="images/IMG-22.png" alt="Modulation Matrix" />
+        <figcaption aria-hidden="true">Modulation Matrix</figcaption>
+        </figure>
+        <p>The modulation matrix provides 8 independent routing slots.
+        Each slot connects one source to one destination with a
+        configurable amount.</p>
+        <h4 id="per-slot-controls">Per-Slot Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Source</strong></td>
+        <td>The modulation signal to use (any of the 10 sources listed
+        above, plus the 3 envelopes, velocity, and arp lanes)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Destination</strong></td>
+        <td>The parameter to modulate (oscillator parameters, filter
+        cutoff/resonance, distortion drive, mixer position, trance gate,
+        effect parameters, and more)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Amount</strong></td>
+        <td>Modulation depth (0–100%)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Curve</strong></td>
+        <td>Shapes the modulation response (e.g., linear, exponential,
+        S-curve)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Smooth</strong></td>
+        <td>Low-pass filter on the modulation signal to reduce abrupt
+        changes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Scale</strong></td>
+        <td>Output scaling factor</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bypass</strong></td>
+        <td>Temporarily disable this routing without losing the
+        settings</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="available-sources">Available Sources</h4>
+        <p>LFO 1, LFO 2, Chaos, Macro 1–4, Envelope 1 (Amp), Envelope 2
+        (Filter), Envelope 3 (Mod), Envelope Follower, Sample &amp;
+        Hold, Random, Pitch Follower, Transient Detector, Rungler,
+        Velocity Lane, Gate Lane, Pitch Lane, Modifier Lane, Ratchet
+        Lane, Condition Lane, and the audio signal itself.</p>
+        <h4 id="key-destinations">Key Destinations</h4>
+        <p>Per-voice destinations: OSC A/B Pitch, OSC A/B Level, Filter
+        Cutoff, Filter Resonance, Morph Position, Spectral Tilt,
+        Distortion Drive, Trance Gate Depth</p>
+        <p>Global destinations: Global Filter Cutoff/Resonance, Master
+        Volume, Effect Mix, Arp Rate/Gate/Octave/Swing/Spice</p>
+        <p><strong>Tip:</strong> Use the category tabs at the top of the
+        matrix to filter destinations by section (oscillators, filter,
+        effects, etc.), making it easier to find the parameter you
+        want.</p>
+        <h3 id="mod-heatmap">Mod Heatmap</h3>
+        <!-- IMG-23: Close-up of the Mod Heatmap at the bottom of the Mod tab, ideally with some active modulation routing so the heatmap shows activity -->
+        <figure>
+        <img src="images/IMG-23.png" alt="Mod Heatmap" />
+        <figcaption aria-hidden="true">Mod Heatmap</figcaption>
+        </figure>
+        <p>The mod heatmap at the bottom of the tab provides a visual
+        overview of all active modulation routing. Brighter cells
+        indicate stronger modulation. This helps you quickly see which
+        parameters are being modulated and by how much.</p>
+        <hr />
+        <h2 id="fx-tab">FX Tab</h2>
+        <p>The FX tab contains the global effects chain that processes
+        the summed output of all voices. Effects are processed in a
+        fixed order: Phaser → Delay → Harmonizer → Reverb. Each effect
+        can be independently enabled or bypassed.</p>
+        <!-- IMG-24: Full screenshot of the FX tab showing all four effect sections and the global filter strip at the top -->
+        <figure>
+        <img src="images/IMG-24.png" alt="FX Tab" />
+        <figcaption aria-hidden="true">FX Tab</figcaption>
+        </figure>
+        <hr />
+        <h3 id="global-filter">Global Filter</h3>
+        <!-- IMG-25: Close-up of the global filter strip at the top of the FX tab -->
+        <figure>
+        <img src="images/IMG-25.png" alt="Global Filter" />
+        <figcaption aria-hidden="true">Global Filter</figcaption>
+        </figure>
+        <p>A stereo filter applied to the summed voice output before the
+        effects chain. Useful for broad tonal shaping or as a modulation
+        target for sweeping the entire mix.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle the global filter on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Type</strong></td>
+        <td>Filter response type</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cutoff</strong></td>
+        <td>Filter cutoff frequency</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Reso</strong></td>
+        <td>Resonance amount</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="phaser">Phaser</h3>
+        <!-- IMG-26: Close-up of the Phaser section -->
+        <figure>
+        <img src="images/IMG-26.png" alt="Phaser" />
+        <figcaption aria-hidden="true">Phaser</figcaption>
+        </figure>
+        <p>A stereo phaser effect that creates sweeping notches in the
+        frequency spectrum through a series of all-pass filter
+        stages.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle phaser on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>Sweep speed (0.01–20 Hz), or tempo-synced</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock rate to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Depth</strong></td>
+        <td>Sweep range</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Feedback</strong></td>
+        <td>Signal fed back through the phaser stages — higher values
+        create a more resonant, intense effect</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Stages</strong></td>
+        <td>Number of all-pass filter stages (2, 4, 6, 8, 10, or 12).
+        More stages = more notches = more complex character.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Center Freq</strong></td>
+        <td>Center frequency of the sweep range</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Stereo Spread</strong></td>
+        <td>Phase offset between left and right channels for stereo
+        width</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Waveform</strong></td>
+        <td>LFO shape: Sine, Triangle, Square, or Sawtooth</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="delay">Delay</h3>
+        <!-- IMG-27: Close-up of the Delay section showing the type dropdown and common controls. Show one of the type-specific views (e.g., Tape) -->
+        <figure>
+        <img src="images/IMG-27.png" alt="Delay" />
+        <figcaption aria-hidden="true">Delay</figcaption>
+        </figure>
+        <p>A versatile delay effect with five distinct delay types, each
+        with its own character and controls.</p>
+        <h4 id="common-parameters">Common Parameters</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle delay on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Type</strong></td>
+        <td>Select delay type: Digital, Tape, Ping-Pong, Granular, or
+        Spectral</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Time</strong></td>
+        <td>Delay time in milliseconds (or tempo-synced)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Feedback</strong></td>
+        <td>Amount of signal fed back into the delay (0–120%). Values
+        above 100% create runaway feedback — use with care.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock delay time to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Tempo division when synced</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="delay-types">Delay Types</h4>
+        <h5 id="digital">Digital</h5>
+        <!-- IMG-28: Close-up of the Digital delay type-specific controls (switch to type-specific view) -->
+        <figure>
+        <img src="images/IMG-28.png" alt="Digital Delay" />
+        <figcaption aria-hidden="true">Digital Delay</figcaption>
+        </figure>
+        <p>A clean or characterful digital delay with optional
+        modulation and waveshaping in the feedback path.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Era</strong></td>
+        <td>Digital model character (different eras of digital
+        hardware)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Age</strong></td>
+        <td>Component aging — adds subtle degradation</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Limiter</strong></td>
+        <td>Feedback path limiter character</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mod Depth</strong></td>
+        <td>Chorus-like modulation depth</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mod Rate</strong></td>
+        <td>Modulation speed</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mod Waveform</strong></td>
+        <td>Modulation LFO shape</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Width</strong></td>
+        <td>Stereo width (0–200%)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Wavefold Amount</strong></td>
+        <td>Wavefold distortion in the feedback path</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Wavefold Model</strong></td>
+        <td>Wavefold algorithm</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Wavefold Symmetry</strong></td>
+        <td>Symmetry of the wavefolding</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="tape-1">Tape</h5>
+        <!-- IMG-29: Close-up of the Tape delay type-specific controls showing the three tape head controls -->
+        <figure>
+        <img src="images/IMG-29.png" alt="Tape Delay" />
+        <figcaption aria-hidden="true">Tape Delay</figcaption>
+        </figure>
+        <p>Models the warm, wobbly character of analog tape echo
+        machines with three independent playback heads.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Motor Inertia</strong></td>
+        <td>Simulates the physical mass of the tape transport — affects
+        how the delay time responds to changes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Wear</strong></td>
+        <td>Tape wear/degradation amount</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Saturation</strong></td>
+        <td>Tape saturation in the feedback path</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Age</strong></td>
+        <td>Overall aging of the tape machine</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Splice</strong></td>
+        <td>Enable tape splice artifacts</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Splice Intensity</strong></td>
+        <td>Intensity of splice artifacts</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Each of the <strong>three tape heads</strong> has:</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enabled</strong></td>
+        <td>Toggle this head on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Level</strong></td>
+        <td>Playback level (-96 to +6 dB)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pan</strong></td>
+        <td>Stereo position (-100 to +100)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="ping-pong">Ping-Pong</h5>
+        <p>A stereo ping-pong delay that bounces the signal between left
+        and right channels.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>L/R Ratio</strong></td>
+        <td>Timing ratio between left and right taps</td>
+        </tr>
+        <tr class="even">
+        <td><strong>CrossFeed</strong></td>
+        <td>Amount of signal crossing between L and R channels</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Width</strong></td>
+        <td>Stereo spread</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mod Depth</strong></td>
+        <td>Delay time modulation depth</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mod Rate</strong></td>
+        <td>Modulation speed</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="granular-1">Granular</h5>
+        <!-- IMG-30: Close-up of the Granular delay type-specific controls -->
+        <figure>
+        <img src="images/IMG-30.png" alt="Granular Delay" />
+        <figcaption aria-hidden="true">Granular Delay</figcaption>
+        </figure>
+        <p>A granular delay that chops the delayed signal into grains
+        and reassembles them, allowing for pitch-shifting,
+        time-stretching, and textural effects in the delay path.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Size</strong></td>
+        <td>Grain size (10–500 ms)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Density</strong></td>
+        <td>Grains per second (1–100)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pitch</strong></td>
+        <td>Grain pitch transposition (-24 to +24 semitones)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pitch Spray</strong></td>
+        <td>Random pitch variation per grain</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pitch Quant</strong></td>
+        <td>Quantize grain pitch to a scale</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Position Spray</strong></td>
+        <td>Random variation in grain read position</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Reverse Prob</strong></td>
+        <td>Probability that a grain plays in reverse</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pan Spray</strong></td>
+        <td>Random stereo panning per grain</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Jitter</strong></td>
+        <td>Timing randomness</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Texture</strong></td>
+        <td>Tonal character of the grains</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Width</strong></td>
+        <td>Stereo width</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Envelope</strong></td>
+        <td>Grain amplitude envelope shape</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Freeze</strong></td>
+        <td>Freeze the delay buffer — new input is ignored, grains play
+        from frozen content</td>
+        </tr>
+        </tbody>
+        </table>
+        <h5 id="spectral-1">Spectral</h5>
+        <!-- IMG-31: Close-up of the Spectral delay type-specific controls -->
+        <figure>
+        <img src="images/IMG-31.png" alt="Spectral Delay" />
+        <figcaption aria-hidden="true">Spectral Delay</figcaption>
+        </figure>
+        <p>An FFT-based delay that operates in the frequency domain,
+        allowing different frequency bands to be delayed by different
+        amounts.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>FFT Size</strong></td>
+        <td>Analysis window size (512, 1024, 2048, or 4096). Larger =
+        better frequency resolution but more latency.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Spread</strong></td>
+        <td>Maximum delay spread across frequency bands (0–2000 ms)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Direction</strong></td>
+        <td>Whether low or high frequencies are delayed more</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Curve</strong></td>
+        <td>Shape of the delay-time-vs-frequency curve</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tilt</strong></td>
+        <td>Spectral balance tilt (-1 to +1)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Diffusion</strong></td>
+        <td>Smears the spectral content over time</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Width</strong></td>
+        <td>Stereo width</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Freeze</strong></td>
+        <td>Freeze the spectral buffer</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="harmonizer">Harmonizer</h3>
+        <!-- IMG-32: Close-up of the Harmonizer section showing the global controls and per-voice harmony settings -->
+        <figure>
+        <img src="images/IMG-32.png" alt="Harmonizer" />
+        <figcaption aria-hidden="true">Harmonizer</figcaption>
+        </figure>
+        <p>A polyphonic pitch-shifting harmonizer that adds up to four
+        harmony voices to the signal, with optional formant
+        preservation.</p>
+        <h4 id="global-controls">Global Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle harmonizer on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mode</strong></td>
+        <td><strong>Chromatic</strong>: Intervals are in semitones.
+        <strong>Scalic</strong>: Intervals follow a musical scale.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Key</strong></td>
+        <td>Musical key (C through B) — used with Scalic mode</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Scale</strong></td>
+        <td>Scale type (Major, Minor, etc.) — used with Scalic mode</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pitch Mode</strong></td>
+        <td>Pitch-shifting algorithm</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Formant Preserve</strong></td>
+        <td>When enabled, preserves vocal formants during pitch shifting
+        so voices sound natural rather than “chipmunk” at high
+        intervals</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Num Voices</strong></td>
+        <td>Number of harmony voices (1–4)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Dry Level</strong></td>
+        <td>Level of the unprocessed signal</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Wet Level</strong></td>
+        <td>Level of the harmonized voices</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="per-voice-controls">Per-Voice Controls</h4>
+        <p>Each of the four harmony voices has:</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Interval</strong></td>
+        <td>Pitch interval (semitones in Chromatic mode, scale degrees
+        in Scalic mode)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Level</strong></td>
+        <td>Volume of this harmony voice</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pan</strong></td>
+        <td>Stereo position</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Delay</strong></td>
+        <td>Timing offset from the dry signal</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Detune</strong></td>
+        <td>Fine pitch offset for a more natural, chorus-like
+        quality</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Tip:</strong> For a simple octave-up shimmer effect,
+        set one voice to +12 semitones with low wet level and some
+        reverb. For thick harmonies, use 3–4 voices in Scalic mode with
+        slight detune and pan spread on each.</p>
+        <hr />
+        <h3 id="reverb">Reverb</h3>
+        <!-- IMG-33: Close-up of the Reverb section showing type selector and all knobs -->
+        <figure>
+        <img src="images/IMG-33.png" alt="Reverb" />
+        <figcaption aria-hidden="true">Reverb</figcaption>
+        </figure>
+        <p>A stereo reverb with two algorithm types for spatial
+        processing.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle reverb on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Type</strong></td>
+        <td><strong>Plate</strong>: Bright, dense reflections inspired
+        by plate reverbs. <strong>Hall</strong>: Larger, more diffuse
+        space.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Size</strong></td>
+        <td>Room/plate size — controls the overall decay time</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Damping</strong></td>
+        <td>High-frequency absorption. Higher values create a darker,
+        more natural decay.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Width</strong></td>
+        <td>Stereo width of the reverb output</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mix</strong></td>
+        <td>Dry/wet blend</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pre-Delay</strong></td>
+        <td>Time before the first reflections arrive. Separates the dry
+        signal from the reverb tail for clarity.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Diffusion</strong></td>
+        <td>Density of early reflections. Higher values create a
+        smoother, more blended reverb.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Freeze</strong></td>
+        <td>Freeze the reverb tail — the current decay sustains
+        indefinitely while new input is muted. Great for ambient
+        textures.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mod Rate</strong></td>
+        <td>Internal modulation speed — subtle pitch modulation within
+        the reverb to reduce metallic artifacts</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mod Depth</strong></td>
+        <td>Intensity of internal modulation</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="seq-tab">SEQ Tab</h2>
+        <p>The SEQ tab contains two rhythm/pattern tools: the Trance
+        Gate (a rhythmic amplitude gate) and the Arpeggiator (a
+        full-featured step sequencer and note generator).</p>
+        <!-- IMG-34: Full screenshot of the SEQ tab showing the Trance Gate at the top and the Arpeggiator below -->
+        <figure>
+        <img src="images/IMG-34.png" alt="SEQ Tab" />
+        <figcaption aria-hidden="true">SEQ Tab</figcaption>
+        </figure>
+        <hr />
+        <h3 id="trance-gate">Trance Gate</h3>
+        <!-- IMG-35: Close-up of the Trance Gate section showing the step pattern editor, controls, and euclidean options -->
+        <figure>
+        <img src="images/IMG-35.png" alt="Trance Gate" />
+        <figcaption aria-hidden="true">Trance Gate</figcaption>
+        </figure>
+        <p>The Trance Gate is a rhythmic volume gate applied to each
+        voice. It modulates the amplitude in a repeating step pattern,
+        creating rhythmic chopping, stutter, and gating effects.</p>
+        <h4 id="controls-2">Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enable</strong></td>
+        <td>Toggle the trance gate on/off</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Steps</strong></td>
+        <td>Number of active steps in the pattern (2–32)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Preset</strong></td>
+        <td>Load a preset gate pattern</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Lock the gate rate to host tempo</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Rate</strong></td>
+        <td>Gate speed when not synced (0.1–50 Hz)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Note Value</strong></td>
+        <td>Step length when synced (e.g., 1/16 note)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Depth</strong></td>
+        <td>How deep the gating cuts — at 100%, silent steps are fully
+        silent; lower values just reduce the volume</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Attack</strong></td>
+        <td>Fade-in time for each gate opening (1–20 ms). Prevents
+        clicks.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Release</strong></td>
+        <td>Fade-out time for each gate closing (1–50 ms)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Phase</strong></td>
+        <td>Phase offset of the gate pattern</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Retrigger</strong></td>
+        <td>Reset the pattern on each new note</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="step-pattern-editor">Step Pattern Editor</h4>
+        <p>The visual step editor shows the gate pattern. Click on
+        individual steps to set their level (0–100%). Taller bars mean
+        louder; empty steps are gated.</p>
+        <h4 id="transform-buttons">Transform Buttons</h4>
+        <table>
+        <colgroup>
+        <col style="width: 38%" />
+        <col style="width: 61%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Button</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Invert</strong></td>
+        <td>Flips all step levels (loud becomes quiet, quiet becomes
+        loud)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Shift Left</strong></td>
+        <td>Rotates the pattern one step to the left</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Shift Right</strong></td>
+        <td>Rotates the pattern one step to the right</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="euclidean-mode">Euclidean Mode</h4>
+        <p>Enable the Euclidean toggle for algorithmically generated
+        patterns based on Euclidean rhythm theory (evenly distributing a
+        number of hits across a number of steps).</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Euclidean</strong></td>
+        <td>Toggle euclidean rhythm generation</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Regen</strong></td>
+        <td>Regenerate the euclidean pattern</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Hits</strong></td>
+        <td>Number of active hits to distribute (0–32)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Rotation</strong></td>
+        <td>Rotate the generated pattern</td>
+        </tr>
+        </tbody>
+        </table>
+        <p><strong>Tip:</strong> Euclidean rhythms with prime-number
+        step counts (5, 7, 11, 13) often produce the most interesting
+        patterns that don’t feel like straight 4/4 time.</p>
+        <hr />
+        <h3 id="arpeggiator">Arpeggiator</h3>
+        <!-- IMG-36: Close-up of the Arpeggiator controls row (top area) showing the mode, octave, latch, and other dropdowns -->
+        <figure>
+        <img src="images/IMG-36.png" alt="Arpeggiator Controls" />
+        <figcaption aria-hidden="true">Arpeggiator Controls</figcaption>
+        </figure>
+        <p>The Arpeggiator is a comprehensive step sequencer that can
+        generate note patterns from held chords, modulate parameters, or
+        both simultaneously. It features 32 steps with multiple
+        independent lanes for detailed per-step control.</p>
+        <h4 id="operating-modes">Operating Modes</h4>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Mode</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Off</strong></td>
+        <td>Arpeggiator is disabled</td>
+        </tr>
+        <tr class="even">
+        <td><strong>MIDI</strong></td>
+        <td>Generates MIDI note patterns from held notes</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mod</strong></td>
+        <td>Uses the lane data as modulation sources (routable via the
+        mod matrix) without generating notes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>MIDI+Mod</strong></td>
+        <td>Both note generation and modulation output
+        simultaneously</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="pattern-controls">Pattern Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mode</strong></td>
+        <td>Note order: Up, Down, Up-Down, Down-Up, Converge, Diverge,
+        Random, Walk, As Played, or Chord</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Octave Range</strong></td>
+        <td>How many octaves the pattern spans (1–4)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Oct Mode</strong></td>
+        <td><strong>Sequential</strong>: Complete each octave before
+        moving to the next. <strong>Interleaved</strong>: Alternate
+        between octaves.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Latch</strong></td>
+        <td><strong>Off</strong>: Notes play only while keys are held.
+        <strong>Hold</strong>: Pattern continues after keys are
+        released. <strong>Add</strong>: New notes are added to the held
+        pattern.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Retrigger</strong></td>
+        <td><strong>Off</strong>: Pattern runs continuously.
+        <strong>Note</strong>: Restart on new note.
+        <strong>Beat</strong>: Restart on beat.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="timing-controls">Timing Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Sync</strong></td>
+        <td>Lock arp rate to host tempo</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Rate</strong></td>
+        <td>Step rate when not synced (0.5–50 Hz)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>Step length when synced</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Gate Length</strong></td>
+        <td>Note duration as percentage of step length (1–200%)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Swing</strong></td>
+        <td>Timing shuffle (0–75%) — delays every other step for a
+        groovy, non-straight feel</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="performance-controls">Performance Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Spice</strong></td>
+        <td>Random variation amount (0–100%) — adds controlled
+        randomness to the pattern</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Humanize</strong></td>
+        <td>Random timing and velocity variation for a more human
+        feel</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Fill</strong></td>
+        <td>Temporarily activates a fill pattern variation</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Dice</strong></td>
+        <td>Randomize the current pattern — press to generate a new
+        random sequence</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="scale-controls">Scale Controls</h4>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Scale Type</strong></td>
+        <td>Musical scale to quantize notes to</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Root Note</strong></td>
+        <td>Root note of the scale</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Quantize Input</strong></td>
+        <td>When enabled, quantizes incoming MIDI notes to the selected
+        scale before arpeggiation</td>
+        </tr>
+        <tr class="even">
+        <td><strong>MIDI Out</strong></td>
+        <td>When enabled, the arpeggiator outputs MIDI notes that can be
+        recorded or sent to other instruments</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h3 id="step-lanes">Step Lanes</h3>
+        <!-- IMG-37: Close-up of the arpeggiator step lanes showing at least the velocity and pitch lanes with visible step data -->
+        <figure>
+        <img src="images/IMG-37.png" alt="Arpeggiator Step Lanes" />
+        <figcaption aria-hidden="true">Arpeggiator Step
+        Lanes</figcaption>
+        </figure>
+        <p>The arpeggiator’s power comes from its multiple independent
+        step lanes. Each lane has up to 32 steps and can have its own
+        independent length, creating polymetric patterns when lanes have
+        different lengths.</p>
+        <h4 id="velocity-lane">Velocity Lane</h4>
+        <p>Per-step velocity control (0–100%). Determines how hard each
+        note is played. Affects both the MIDI velocity and any
+        velocity-sensitive parameters.</p>
+        <h4 id="gate-lane">Gate Lane</h4>
+        <p>Per-step gate length (1–200%). Controls how long each
+        individual note is held, independent of the global gate length.
+        Values above 100% create overlapping (legato) notes.</p>
+        <h4 id="pitch-lane">Pitch Lane</h4>
+        <p>Per-step pitch transposition (-24 to +24 semitones). Adds a
+        pitch offset to each step, turning the arpeggiator into a
+        melodic sequencer.</p>
+        <h4 id="ratchet-lane">Ratchet Lane</h4>
+        <p>Per-step ratchet count (1–4). Determines how many times each
+        step is retriggered within its time slot. A ratchet of 2 plays
+        the note twice as fast, 3 plays triplets, etc.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Related Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Ratchet Swing</strong></td>
+        <td>Timing variation between ratcheted notes — adds a shuffle
+        feel to ratchets</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="modifier-lane">Modifier Lane</h4>
+        <p>Per-step modifier value (0–255). A general-purpose lane that
+        can represent accents, slides, or other per-step data.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Related Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Accent Velocity</strong></td>
+        <td>Velocity boost applied to accented steps</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Slide Time</strong></td>
+        <td>Portamento time for steps marked as slides</td>
+        </tr>
+        </tbody>
+        </table>
+        <h4 id="condition-lane">Condition Lane</h4>
+        <p>Per-step playback condition (18 condition types). Each step
+        can have a condition that determines whether it plays on a given
+        cycle — for example, “play only on even cycles” or “50%
+        probability.” This creates evolving patterns that don’t simply
+        repeat.</p>
+        <h4 id="chord-lane">Chord Lane</h4>
+        <p>Per-step chord type. Each step can trigger a chord instead of
+        a single note: None, Dyad, Triad, 7th, or 9th. Combined with the
+        Scale controls, this creates harmonically aware chord
+        progressions.</p>
+        <p><strong>Tip:</strong> Set different lane lengths for
+        polymetric sequences. For example, a 7-step pitch lane with a
+        16-step velocity lane creates a pattern that doesn’t fully
+        repeat for 112 steps (7 × 16).</p>
+        <hr />
+        <h2 id="settings">Settings</h2>
+        <!-- IMG-38: Screenshot of the settings drawer slid open from the right side of the plugin -->
+        <figure>
+        <img src="images/IMG-38.png" alt="Settings Drawer" />
+        <figcaption aria-hidden="true">Settings Drawer</figcaption>
+        </figure>
+        <p>Access the settings drawer by clicking the gear icon in the
+        top bar. These settings affect the plugin’s global behavior.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Setting</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Pitch Bend Range</strong></td>
+        <td>Range of the MIDI pitch bend wheel in semitones</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Velocity Curve</strong></td>
+        <td>How MIDI velocity maps to internal velocity (linear, soft,
+        hard, etc.)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tuning Reference</strong></td>
+        <td>Concert pitch reference frequency (default: 440 Hz)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Voice Allocation</strong></td>
+        <td>How new voices are assigned: Round Robin, Oldest, Lowest
+        Velocity, or Highest Note</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Voice Steal Mode</strong></td>
+        <td>Which voice is stolen when polyphony is exceeded</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Gain Compensation</strong></td>
+        <td>Automatic volume compensation based on active voice
+        count</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="tips-techniques">Tips &amp; Techniques</h2>
+        <h3 id="layering-oscillators">Layering Oscillators</h3>
+        <p>Use contrasting oscillator types for the richest results. A
+        tonal oscillator (PolyBLEP, Additive) layered with a textural
+        one (Particle, Chaos, Noise) gives you both pitch and character.
+        Use the Spectral Morph mode to blend them in the frequency
+        domain rather than just crossfading.</p>
+        <h3 id="modulation-depth">Modulation Depth</h3>
+        <p>Start with subtle modulation amounts and increase gradually.
+        It’s easier to add complexity than to dial it back. The Smooth
+        parameter in the mod matrix is your friend — it prevents
+        modulation from sounding jittery or harsh.</p>
+        <h3 id="using-the-arpeggiator-as-a-modulator">Using the
+        Arpeggiator as a Modulator</h3>
+        <p>Set the arpeggiator to <strong>Mod</strong> mode to use its
+        lanes as modulation sources without generating notes. Route the
+        Velocity Lane or Modifier Lane through the mod matrix to create
+        complex, rhythmic parameter automation that stays perfectly in
+        sync with your tempo.</p>
+        <h3 id="feedback-safety">Feedback Safety</h3>
+        <p>Ruinae allows delay feedback above 100%. This creates
+        self-oscillating, runaway effects that can get very loud. The
+        Soft Limiter (in the Master section) helps prevent damage, but
+        use high feedback values intentionally and with care.</p>
+        <h3 id="cpu-management">CPU Management</h3>
+        <p>If CPU usage is high, try reducing the polyphony count in the
+        Master section. Many sounds work well with 4–6 voices instead of
+        the default 8. Also, disable any effects you’re not using — each
+        active effect consumes resources even at 0% mix.</p>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Ruinae</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
