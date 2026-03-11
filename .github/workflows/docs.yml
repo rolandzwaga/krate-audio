@@ -1,0 +1,87 @@
+name: Deploy Manuals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/*/MANUAL.md'
+      - 'plugins/*/images/**'
+      - 'plugins/*/docs/manual-template.html'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy Manuals
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Pandoc
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pandoc
+
+      - name: Build Manuals
+        run: |
+          # Find all plugins with a MANUAL.md
+          for manual in plugins/*/MANUAL.md; do
+            [ -f "$manual" ] || continue
+            plugin_dir=$(dirname "$manual")
+            plugin=$(basename "$plugin_dir")
+
+            echo "Building manual for $plugin..."
+
+            # Check for a plugin-specific template, fall back to generic
+            template="$plugin_dir/docs/manual-template.html"
+            if [ ! -f "$template" ]; then
+              echo "  No template found at $template, skipping."
+              continue
+            fi
+
+            # Create output directory
+            mkdir -p "_site/$plugin"
+
+            # Strip the first H1 line (title is in the template header)
+            # then convert Markdown to HTML with Pandoc
+            sed '1{/^# /d}' "$manual" > "_build_manual.md"
+
+            pandoc "_build_manual.md" \
+              --from markdown \
+              --to html5 \
+              --template "$template" \
+              --toc \
+              --toc-depth=3 \
+              --no-highlight \
+              -o "_site/$plugin/manual.html"
+
+            rm -f "_build_manual.md"
+
+            echo "  Generated _site/$plugin/manual.html"
+
+            # Copy images if they exist
+            if [ -d "$plugin_dir/images" ]; then
+              cp -r "$plugin_dir/images" "_site/$plugin/"
+              echo "  Copied images to _site/$plugin/images/"
+            fi
+          done
+
+          # List what we built
+          echo ""
+          echo "Build output:"
+          find _site -type f | sort
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ./_site
+          keep_files: true
