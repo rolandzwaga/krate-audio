@@ -499,6 +499,7 @@
         <control-tag name="ReverbFreeze" tag="1706"/>
         <control-tag name="ReverbModRate" tag="1707"/>
         <control-tag name="ReverbModDepth" tag="1708"/>
+        <control-tag name="ReverbType" tag="1709"/>
 
         <!-- FX: Phaser -->
         <control-tag name="PhaserRate" tag="1900"/>
@@ -2958,6 +2959,16 @@
             <view class="CTextLabel" origin="70, 44" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Mix"/>
+            <view class="COptionMenu" origin="120, 18" size="120, 20"
+                  control-tag="ReverbType"
+                  font="~ NormalFontSmaller"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
+            <view class="CTextLabel" origin="120, 40" size="120, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Type"/>
 
             <!-- Reverb controls -->
             <view class="ArcKnob" origin="4, 64" size="32, 32"

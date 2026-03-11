@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 4;
+static constexpr int32_t kStateVersion = 5;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -1063,6 +1063,7 @@ struct RuinaePresetState {
     GlobalFilterState globalFilter;
     DelayState delay;
     ReverbState reverb;
+    int32_t reverbType = 0; // 0=Plate, 1=Hall (125-dual-reverb)
     MonoModeState monoMode;
 
     // Voice routes (16 slots, inline in processor.cpp)
@@ -1125,6 +1126,7 @@ struct RuinaePresetState {
         globalFilter.serialize(w);
         delay.serialize(w);
         reverb.serialize(w);
+        w.writeInt32(reverbType); // 125-dual-reverb: reverb type after reverb params
         monoMode.serialize(w);
 
         // 20. Voice routes (16 x {i8, i8, f32, i8, f32, i8, i8, i8})

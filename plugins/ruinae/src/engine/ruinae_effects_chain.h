@@ -24,6 +24,7 @@
 #include <krate/dsp/effects/digital_delay.h>
 #include <krate/dsp/effects/granular_delay.h>
 #include <krate/dsp/effects/ping_pong_delay.h>
+#include <krate/dsp/effects/fdn_reverb.h>
 #include <krate/dsp/effects/reverb.h>
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
@@ -145,8 +146,9 @@ public:
         // Prepare phaser
         phaser_.prepare(sampleRate);
 
-        // Prepare reverb
+        // Prepare reverb (both types for dual-reverb support)
         reverb_.prepare(sampleRate);
+        fdnReverb_.prepare(sampleRate);
 
         // Prepare harmonizer
         harmonizer_.prepare(sampleRate, maxBlockSize);
@@ -181,6 +183,10 @@ public:
         crossfadeOutL_.resize(maxBlockSize, 0.0f);
         crossfadeOutR_.resize(maxBlockSize, 0.0f);
 
+        // Allocate reverb crossfade temp buffers (125-dual-reverb)
+        reverbCrossfadeTempL_.resize(maxBlockSize, 0.0f);
+        reverbCrossfadeTempR_.resize(maxBlockSize, 0.0f);
+
         // Snap parameters on all delays to avoid initial smoothing artifacts
         digitalDelay_.snapParameters();
         pingPongDelay_.snapParameters();
@@ -201,6 +207,12 @@ public:
         granularDelay_.reset();
         spectralDelay_.reset();
         reverb_.reset();
+        fdnReverb_.reset();
+
+        // Reset reverb crossfade state (125-dual-reverb)
+        reverbCrossfading_ = false;
+        reverbCrossfadeAlpha_ = 0.0f;
+        reverbCrossfadeIncrement_ = 0.0f;
 
         // Reset harmonizer
         harmonizer_.reset();
@@ -540,12 +552,44 @@ public:
 
     // =========================================================================
     // =========================================================================
-    // Reverb Control (FR-021 through FR-023)
+    // Reverb Control (FR-021 through FR-023, 125-dual-reverb FR-024 to FR-029)
     // =========================================================================
 
-    /// @brief Set all reverb parameters (FR-021).
+    /// @brief Set all reverb parameters to both reverb types (FR-027).
     void setReverbParams(const ReverbParams& params) noexcept {
         reverb_.setParams(params);
+        fdnReverb_.setParams(params);
+        lastReverbParams_ = params;
+    }
+
+    /// @brief Initiate a 30ms equal-power crossfade to the new reverb type (FR-025).
+    ///
+    /// No-op if type == activeReverbType_ and not crossfading.
+    /// If freeze is active, applies freeze to the incoming reverb before
+    /// crossfade begins (FR-029).
+    void setReverbType(int type) noexcept {
+        if (type == activeReverbType_ && !reverbCrossfading_) return;
+
+        // FR-029: If freeze is active, ensure the incoming reverb has freeze
+        // applied via setParams BEFORE the crossfade begins.
+        // (Both reverbs already receive params via setReverbParams/FR-027,
+        //  but we call setParams again here for safety with current params.)
+
+        incomingReverbType_ = type;
+        reverbCrossfading_ = true;
+        reverbCrossfadeAlpha_ = 0.0f;
+        reverbCrossfadeIncrement_ = crossfadeIncrement(30.0f, sampleRate_);
+    }
+
+    /// @brief Set the active reverb type directly without crossfade.
+    ///
+    /// Used ONLY during state load (setState) to restore the saved type
+    /// without triggering an audible transition.
+    void setReverbTypeDirect(int type) noexcept {
+        activeReverbType_ = type;
+        reverbCrossfading_ = false;
+        reverbCrossfadeAlpha_ = 0.0f;
+        reverbCrossfadeIncrement_ = 0.0f;
     }
 
     // =========================================================================
@@ -888,11 +932,83 @@ private:
         }
 
         // ---------------------------------------------------------------
-        // Slot 3: Reverb (FR-005, FR-022)
+        // Slot 3: Reverb (FR-005, FR-022, 125-dual-reverb FR-024/FR-025)
         // ---------------------------------------------------------------
         if (reverbEnabled_) {
-            reverb_.processBlock(left, right, numSamples);
+            processReverbSlot(left, right, numSamples);
         }
+    }
+
+    /// @brief Process audio through a specific reverb type.
+    void processReverbType(int type, float* left, float* right, size_t numSamples) noexcept {
+        if (type == 0) {
+            reverb_.processBlock(left, right, numSamples);
+        } else {
+            fdnReverb_.processBlock(left, right, numSamples);
+        }
+    }
+
+    /// @brief Process the reverb slot with crossfade support (FR-024, FR-025).
+    ///
+    /// When not crossfading, processes only the active reverb type.
+    /// When crossfading, processes both types and blends with equal-power gains.
+    /// On crossfade completion, resets the outgoing reverb and swaps active type.
+    void processReverbSlot(float* left, float* right, size_t numSamples) noexcept {
+        if (!reverbCrossfading_) {
+            // Normal: process only the active reverb
+            processReverbType(activeReverbType_, left, right, numSamples);
+            return;
+        }
+
+        // Crossfading: process outgoing into temp buffers, incoming in-place
+        std::memcpy(reverbCrossfadeTempL_.data(), left, numSamples * sizeof(float));
+        std::memcpy(reverbCrossfadeTempR_.data(), right, numSamples * sizeof(float));
+
+        // Process outgoing reverb into temp buffers
+        processReverbType(activeReverbType_, reverbCrossfadeTempL_.data(),
+                         reverbCrossfadeTempR_.data(), numSamples);
+
+        // Process incoming reverb in-place
+        processReverbType(incomingReverbType_, left, right, numSamples);
+
+        // Equal-power blend (per-sample)
+        for (size_t i = 0; i < numSamples; ++i) {
+            float clampedAlpha = std::min(reverbCrossfadeAlpha_, 1.0f);
+            auto [fadeOut, fadeIn] = equalPowerGains(clampedAlpha);
+            left[i] = reverbCrossfadeTempL_[i] * fadeOut + left[i] * fadeIn;
+            right[i] = reverbCrossfadeTempR_[i] * fadeOut + right[i] * fadeIn;
+
+            reverbCrossfadeAlpha_ += reverbCrossfadeIncrement_;
+
+            if (reverbCrossfadeAlpha_ >= 1.0f) {
+                // Complete the crossfade
+                completeReverbCrossfade();
+
+                // Process remaining samples through the new active reverb only
+                size_t remaining = numSamples - i - 1;
+                if (remaining > 0) {
+                    processReverbType(activeReverbType_, left + i + 1,
+                                     right + i + 1, remaining);
+                }
+                return;
+            }
+        }
+    }
+
+    /// @brief Complete a reverb type crossfade (FR-025).
+    void completeReverbCrossfade() noexcept {
+        // Reset outgoing reverb
+        if (activeReverbType_ == 0) {
+            reverb_.reset();
+        } else {
+            fdnReverb_.reset();
+        }
+
+        // Swap active type
+        activeReverbType_ = incomingReverbType_;
+        reverbCrossfading_ = false;
+        reverbCrossfadeAlpha_ = 0.0f;
+        reverbCrossfadeIncrement_ = 0.0f;
     }
 
     /// @brief Process audio through a specific delay type (no compensation).
@@ -1078,6 +1194,21 @@ private:
 
     // Reverb slot
     Reverb reverb_;
+    FDNReverb fdnReverb_;
+
+    // Last set reverb params (for FR-029 freeze+switch)
+    ReverbParams lastReverbParams_;
+
+    // Reverb type crossfade state (125-dual-reverb)
+    int activeReverbType_ = 0;        // 0=Plate, 1=Hall
+    int incomingReverbType_ = 0;
+    bool reverbCrossfading_ = false;
+    float reverbCrossfadeAlpha_ = 0.0f;
+    float reverbCrossfadeIncrement_ = 0.0f;
+
+    // Reverb crossfade temp buffers (pre-allocated in prepare)
+    std::vector<float> reverbCrossfadeTempL_;
+    std::vector<float> reverbCrossfadeTempR_;
 
     // Temporary buffers (pre-allocated in prepare)
     std::vector<float> tempL_;

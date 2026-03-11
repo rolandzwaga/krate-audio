@@ -20,6 +20,7 @@ struct RuinaeReverbParams {
     std::atomic<bool> freeze{false};
     std::atomic<float> modRateHz{0.5f};   // 0-2 Hz
     std::atomic<float> modDepth{0.0f};    // 0-1
+    std::atomic<int32_t> reverbType{0};   // 0=Plate, 1=Hall
 };
 
 inline void handleReverbParamChange(
@@ -62,6 +63,10 @@ inline void handleReverbParamChange(
             params.modDepth.store(
                 std::clamp(static_cast<float>(value), 0.0f, 1.0f),
                 std::memory_order_relaxed); break;
+        case kReverbTypeId:
+            params.reverbType.store(
+                static_cast<int32_t>(std::round(value)),
+                std::memory_order_relaxed); break;
         default: break;
     }
 }
@@ -86,6 +91,13 @@ inline void registerReverbParams(Steinberg::Vst::ParameterContainer& parameters)
         ParameterInfo::kCanAutomate, kReverbModRateId);
     parameters.addParameter(STR16("Reverb Mod Depth"), STR16(""), 0, 0.0,
         ParameterInfo::kCanAutomate, kReverbModDepthId);
+
+    // Reverb Type selector (125-dual-reverb, FR-023)
+    auto* reverbTypeParam = new StringListParameter(
+        STR16("Reverb Type"), kReverbTypeId);
+    reverbTypeParam->appendString(STR16("Plate"));
+    reverbTypeParam->appendString(STR16("Hall"));
+    parameters.addParameter(reverbTypeParam);
 }
 
 inline Steinberg::tresult formatReverbParam(

@@ -14,16 +14,20 @@
 // - Multi-tap stereo output with mid-side width control
 // - Parameter smoothing for click-free transitions
 //
+// Optimizations (spec 125-dual-reverb):
+// - Gordon-Smith (magic circle) phasor replaces std::sin/std::cos LFO (FR-001)
+// - Block-rate parameter smoothing at 16-sample sub-blocks (FR-002, FR-003)
+// - Single contiguous delay buffer for all 13 delay lines (FR-004)
+// - Redundant flushDenormal() removed, FTZ/DAZ assumed (FR-005)
+//
 // Composes:
-// - DelayLine (Layer 1): Pre-delay, tank delays, allpass delay lines
 // - OnePoleLP (Layer 1): Bandwidth filter, damping filters
 // - DCBlocker (Layer 1): Tank DC blockers
-// - SchroederAllpass (Layer 1): Input diffusion stages
 // - OnePoleSmoother (Layer 1): Parameter smoothing
 //
-// Feature: 040-reverb
+// Feature: 040-reverb, 125-dual-reverb
 // Layer: 4 (Effects)
-// Reference: specs/040-reverb/spec.md
+// Reference: specs/040-reverb/spec.md, specs/125-dual-reverb/spec.md
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (noexcept, no allocations in process)
@@ -36,8 +40,8 @@
 #pragma once
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/interpolation.h>
 #include <krate/dsp/core/math_constants.h>
-#include <krate/dsp/primitives/comb_filter.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/one_pole.h>
@@ -46,6 +50,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <vector>
 
 namespace Krate {
 namespace DSP {
@@ -97,12 +102,23 @@ static constexpr float kBandwidthCoeff = 0.9995f;
 /// LFO max excursion in samples at reference rate (FR-017)
 static constexpr float kMaxExcursionRef = 8.0f;
 
-/// Output gain applied to tap sums (R8)
-/// Compensates for mono input sum (0.5x) and tap cancellation.
-static constexpr float kOutputGain = 3.0f;
+/// Output gain applied to tap sums (R8).
+/// The mono sum (0.5x) reduces input by half. In a well-diffused tank with
+/// 7 partially-decorrelated taps (4 additive, 3 subtractive, net sign = +1),
+/// the RMS sum ≈ sqrt(7) ≈ 2.65x a single tap. The gain is set to produce
+/// approximately unity RMS output for typical settings (roomSize=0.5, damping=0.5).
+/// Recalibrated after fixing the bandwidth filter coefficient derivation
+/// (was previously 3.0 when the filter incorrectly acted as a 3.8 Hz lowpass).
+static constexpr float kOutputGain = 0.6f;
 
 /// Parameter smoothing time in milliseconds (R4)
 static constexpr float kSmoothingTimeMs = 10.0f;
+
+/// Sub-block size for block-rate parameter smoothing (FR-002)
+static constexpr size_t kSubBlockSize = 16;
+
+/// Total number of delay sections in the contiguous buffer
+static constexpr size_t kNumDelaySections = 13;
 
 /// Scale a reference delay length to the operating sample rate (FR-010)
 [[nodiscard]] inline size_t scaleDelay(size_t refLength, double sampleRate) noexcept {
@@ -189,79 +205,112 @@ public:
         sampleRate_ = sampleRate;
 
         // -- Bandwidth filter (FR-012) --
-        // Compute equivalent cutoff Hz from coefficient 0.9995
-        // coeff = exp(-2*pi*fc/fs) => fc = -ln(coeff)*fs/(2*pi)
-        float bandwidthCutoffHz = static_cast<float>(
-            -std::log(static_cast<double>(kBandwidthCoeff)) * sampleRate / static_cast<double>(kTwoPi));
+        // Dattorro paper specifies bandwidth = 0.9995 as a mixing coefficient:
+        //   y[n] = bw * x[n] + (1-bw) * y[n-1]
+        // Our OnePoleLP uses y[n] = (1-a) * x[n] + a * y[n-1], so a = 1 - bw.
+        // Scale for sample rate: a_scaled = 1 - pow(1 - a_ref, refRate / sampleRate)
+        float aRef = 1.0f - kBandwidthCoeff;  // 0.0005 at reference rate
+        float aScaled = 1.0f - std::pow(1.0f - aRef,
+            static_cast<float>(kReferenceSampleRate / sampleRate));
         bandwidthFilter_.prepare(sampleRate);
-        bandwidthFilter_.setCutoff(bandwidthCutoffHz);
-
-        // -- Pre-delay (FR-011, R7) --
-        float maxPreDelaySec = 0.1f + 0.01f; // 100ms + margin
-        preDelay_.prepare(sampleRate, maxPreDelaySec);
-
-        // -- Input diffusion allpasses (FR-002, FR-003) --
-        for (int i = 0; i < 4; ++i) {
-            float maxSec = maxDelaySeconds(kInputDiffDelays[i], sampleRate);
-            inputDiffusion_[i].prepare(sampleRate, maxSec);
-            float delaySamples = static_cast<float>(
-                std::round(static_cast<double>(kInputDiffDelays[i]) * sampleRate / kReferenceSampleRate));
-            inputDiffusion_[i].setDelaySamples(delaySamples);
-        }
+        bandwidthFilter_.setCoefficient(aScaled);
 
         // -- LFO excursion scaling (FR-017) --
         maxExcursion_ = static_cast<float>(
             static_cast<double>(kMaxExcursionRef) * sampleRate / kReferenceSampleRate);
 
-        // -- Tank A delay lines (FR-006) --
-        // DD1: modulated allpass - needs extra room for LFO excursion
-        tankADD1Delay_.prepare(sampleRate,
-            maxDelaySeconds(kTankADD1Delay, sampleRate, maxExcursion_ + 2.0f));
+        // -- Allocate contiguous delay buffer (FR-004) --
+        // Section layout: [preDelay][inputDiff0..3][tankADD1][tankAPreDamp][tankADD2]
+        //                  [tankAPostDamp][tankBDD1][tankBPreDamp][tankBDD2][tankBPostDamp]
+        // Pre-delay: up to 100ms + margin
+        size_t preDelayMaxSamples = static_cast<size_t>(sampleRate * 0.11) + 16;
+
+        // Reference delay lengths to scale (13 sections total)
+        const size_t refDelays[kNumDelaySections] = {
+            0, // placeholder for pre-delay (sized differently)
+            kInputDiffDelays[0], kInputDiffDelays[1],
+            kInputDiffDelays[2], kInputDiffDelays[3],
+            kTankADD1Delay, kTankAPreDampDelay, kTankADD2Delay, kTankAPostDampDelay,
+            kTankBDD1Delay, kTankBPreDampDelay, kTankBDD2Delay, kTankBPostDampDelay
+        };
+
+        // Extra samples needed for modulation on DD1 delays
+        const float extraSamples[kNumDelaySections] = {
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            maxExcursion_ + 2.0f, 0.0f, 0.0f, 0.0f,
+            maxExcursion_ + 2.0f, 0.0f, 0.0f, 0.0f
+        };
+
+        totalBufferSize_ = 0;
+        for (size_t s = 0; s < kNumDelaySections; ++s) {
+            size_t maxSamples;
+            if (s == 0) {
+                // Pre-delay section
+                maxSamples = preDelayMaxSamples;
+            } else {
+                double scaled = static_cast<double>(refDelays[s]) * sampleRate / kReferenceSampleRate;
+                scaled += static_cast<double>(extraSamples[s]);
+                scaled += 16.0; // safety margin
+                maxSamples = static_cast<size_t>(scaled) + 1;
+            }
+            sectionSizes_[s] = nextPowerOf2(maxSamples);
+            sectionMasks_[s] = sectionSizes_[s] - 1;
+            sectionOffsets_[s] = totalBufferSize_;
+            totalBufferSize_ += sectionSizes_[s];
+        }
+
+        contiguousBuffer_.assign(totalBufferSize_, 0.0f);
+
+        // Reset write positions
+        for (auto& wp : writePos_) wp = 0;
+
+        // -- Compute scaled delay lengths --
+        for (int i = 0; i < 4; ++i) {
+            inputDiffDelaySamples_[i] = static_cast<float>(
+                std::round(static_cast<double>(kInputDiffDelays[i]) * sampleRate / kReferenceSampleRate));
+        }
+
         tankADD1Center_ = static_cast<float>(scaleDelay(kTankADD1Delay, sampleRate));
-
-        tankAPreDampDelay_.prepare(sampleRate,
-            maxDelaySeconds(kTankAPreDampDelay, sampleRate));
         tankAPreDampLen_ = scaleDelay(kTankAPreDampDelay, sampleRate);
-
-        tankADD2Delay_.prepare(sampleRate,
-            maxDelaySeconds(kTankADD2Delay, sampleRate));
         tankADD2Len_ = scaleDelay(kTankADD2Delay, sampleRate);
-
-        tankAPostDampDelay_.prepare(sampleRate,
-            maxDelaySeconds(kTankAPostDampDelay, sampleRate));
         tankAPostDampLen_ = scaleDelay(kTankAPostDampDelay, sampleRate);
 
-        // -- Tank B delay lines (FR-006) --
-        tankBDD1Delay_.prepare(sampleRate,
-            maxDelaySeconds(kTankBDD1Delay, sampleRate, maxExcursion_ + 2.0f));
         tankBDD1Center_ = static_cast<float>(scaleDelay(kTankBDD1Delay, sampleRate));
-
-        tankBPreDampDelay_.prepare(sampleRate,
-            maxDelaySeconds(kTankBPreDampDelay, sampleRate));
         tankBPreDampLen_ = scaleDelay(kTankBPreDampDelay, sampleRate);
-
-        tankBDD2Delay_.prepare(sampleRate,
-            maxDelaySeconds(kTankBDD2Delay, sampleRate));
         tankBDD2Len_ = scaleDelay(kTankBDD2Delay, sampleRate);
-
-        tankBPostDampDelay_.prepare(sampleRate,
-            maxDelaySeconds(kTankBPostDampDelay, sampleRate));
         tankBPostDampLen_ = scaleDelay(kTankBPostDampDelay, sampleRate);
-
-        // -- Damping filters --
-        tankADamping_.prepare(sampleRate);
-        tankBDamping_.prepare(sampleRate);
-
-        // -- DC blockers (FR-029: 5-20 Hz) --
-        // Use 5 Hz (minimum of spec range) to minimize energy drain during freeze
-        tankADCBlocker_.prepare(sampleRate, 5.0f);
-        tankBDCBlocker_.prepare(sampleRate, 5.0f);
 
         // -- Scaled output tap positions (FR-009) --
         for (int i = 0; i < 7; ++i) {
             leftTaps_[i] = scaleDelay(kLeftTapPositions[i], sampleRate);
             rightTaps_[i] = scaleDelay(kRightTapPositions[i], sampleRate);
         }
+
+        // Bounds-check taps against their source section delay lengths
+        // Left: [BPreDamp, BPreDamp, BDD2, BPostDamp, APreDamp, ADD2, APostDamp]
+        const size_t leftMaxLens[7] = {
+            tankBPreDampLen_, tankBPreDampLen_, tankBDD2Len_, tankBPostDampLen_,
+            tankAPreDampLen_, tankADD2Len_, tankAPostDampLen_
+        };
+        // Right: [APreDamp, APreDamp, ADD2, APostDamp, BPreDamp, BDD2, BPostDamp]
+        const size_t rightMaxLens[7] = {
+            tankAPreDampLen_, tankAPreDampLen_, tankADD2Len_, tankAPostDampLen_,
+            tankBPreDampLen_, tankBDD2Len_, tankBPostDampLen_
+        };
+        for (int i = 0; i < 7; ++i) {
+            if (leftMaxLens[i] > 0)
+                leftTaps_[i] = std::min(leftTaps_[i], leftMaxLens[i] - 1);
+            if (rightMaxLens[i] > 0)
+                rightTaps_[i] = std::min(rightTaps_[i], rightMaxLens[i] - 1);
+        }
+
+        // -- Damping filters --
+        tankADamping_.prepare(sampleRate);
+        tankBDamping_.prepare(sampleRate);
+
+        // -- DC blockers (FR-029: 5-20 Hz) --
+        tankADCBlocker_.prepare(sampleRate, 5.0f);
+        tankBDCBlocker_.prepare(sampleRate, 5.0f);
 
         // -- Parameter smoothers --
         const float sr = static_cast<float>(sampleRate);
@@ -277,7 +326,7 @@ public:
 
         // -- Initialize smoother targets to defaults --
         ReverbParams defaultParams;
-        float defaultDecay = 0.75f + defaultParams.roomSize * 0.2495f;
+        float defaultDecay = 0.50f + defaultParams.roomSize * 0.40f;
         float defaultDampCutoff = 200.0f * std::pow(100.0f, 1.0f - defaultParams.damping);
 
         decaySmoother_.snapTo(defaultDecay);
@@ -297,19 +346,22 @@ public:
         tankBDamping_.setCutoff(defaultDampCutoff);
 
         // -- Set initial input diffusion coefficients --
-        inputDiffusion_[0].setCoefficient(defaultParams.diffusion * 0.75f);
-        inputDiffusion_[1].setCoefficient(defaultParams.diffusion * 0.75f);
-        inputDiffusion_[2].setCoefficient(defaultParams.diffusion * 0.625f);
-        inputDiffusion_[3].setCoefficient(defaultParams.diffusion * 0.625f);
+        inputDiffCoeff1_ = defaultParams.diffusion * 0.75f;
+        inputDiffCoeff2_ = defaultParams.diffusion * 0.625f;
 
-        // -- LFO state --
-        lfoPhase_ = 0.0f;
-        lfoPhaseIncrement_ = static_cast<float>(
-            kTwoPi * static_cast<double>(defaultParams.modRate) / sampleRate);
+        // -- Gordon-Smith LFO state (FR-001) --
+        // Initialize at phase 0: sin=0, cos=1
+        sinState_ = 0.0f;
+        cosState_ = 1.0f;
+        lfoEpsilon_ = 2.0f * static_cast<float>(std::sin(
+            kPi * static_cast<double>(defaultParams.modRate) / sampleRate));
 
         // -- Tank state --
         tankAOut_ = 0.0f;
         tankBOut_ = 0.0f;
+
+        // -- Input diffusion allpass state --
+        for (auto& s : inputDiffState_) s = 0.0f;
 
         prepared_ = true;
     }
@@ -319,17 +371,11 @@ public:
     /// Clears delay lines, filter states, LFO phase, and tank feedback.
     /// Does not deallocate memory.
     void reset() noexcept {
-        // Delay lines
-        preDelay_.reset();
-        for (auto& ap : inputDiffusion_) ap.reset();
-        tankADD1Delay_.reset();
-        tankAPreDampDelay_.reset();
-        tankADD2Delay_.reset();
-        tankAPostDampDelay_.reset();
-        tankBDD1Delay_.reset();
-        tankBPreDampDelay_.reset();
-        tankBDD2Delay_.reset();
-        tankBPostDampDelay_.reset();
+        // Zero-fill contiguous buffer
+        std::fill(contiguousBuffer_.begin(), contiguousBuffer_.end(), 0.0f);
+
+        // Reset write positions
+        for (auto& wp : writePos_) wp = 0;
 
         // Filters
         bandwidthFilter_.reset();
@@ -342,8 +388,12 @@ public:
         tankAOut_ = 0.0f;
         tankBOut_ = 0.0f;
 
-        // LFO
-        lfoPhase_ = 0.0f;
+        // Input diffusion allpass state
+        for (auto& s : inputDiffState_) s = 0.0f;
+
+        // LFO - reinitialize at phase 0 (FR-001)
+        sinState_ = 0.0f;
+        cosState_ = 1.0f;
     }
 
     // =========================================================================
@@ -368,8 +418,12 @@ public:
         float modDepth = std::clamp(params.modDepth, 0.0f, 1.0f);
 
         // -- RoomSize to decay mapping (FR-011) --
-        // Linear: roomSize 0→0.75, 0.5→0.875, 1.0→0.9995
-        float targetDecay = 0.75f + roomSize * 0.2495f;
+        // With correct near-transparent bandwidth filter, the tank receives full
+        // input energy. Decay is applied 4x per complete loop (2x in each tank),
+        // so small changes near 1.0 have enormous effect on RT60.
+        // Range [0.50, 0.90] → RT60 ~[2s, 12s] for musically useful plate reverb.
+        // (Was [0.75, 0.9995] when bandwidth filter incorrectly blocked input.)
+        float targetDecay = 0.50f + roomSize * 0.40f;
 
         // -- Damping to cutoff Hz mapping (FR-011, FR-013) --
         float targetDampCutoff = 200.0f * std::pow(100.0f, 1.0f - damping);
@@ -379,7 +433,6 @@ public:
         if (freeze_) {
             targetDecay = 1.0f;
             inputGainSmoother_.setTarget(0.0f);
-            // Set damping to Nyquist (bypass filtering)
             float nyquist = static_cast<float>(sampleRate_) * 0.495f;
             dampingSmoother_.setTarget(nyquist);
         } else {
@@ -400,9 +453,21 @@ public:
         diffusion1Smoother_.setTarget(diffusion * 0.75f);
         diffusion2Smoother_.setTarget(diffusion * 0.625f);
 
-        // -- LFO rate --
-        lfoPhaseIncrement_ = static_cast<float>(
-            kTwoPi * static_cast<double>(modRate) / sampleRate_);
+        // -- LFO rate (FR-001: Gordon-Smith epsilon) --
+        float newEpsilon = 2.0f * static_cast<float>(std::sin(
+            kPi * static_cast<double>(modRate) / sampleRate_));
+        if (newEpsilon != lfoEpsilon_) {
+            // Renormalize phasor states to unit circle when epsilon changes
+            // to prevent amplitude drift (Gordon-Smith phasor is only
+            // amplitude-stable when epsilon is constant)
+            float r2 = sinState_ * sinState_ + cosState_ * cosState_;
+            if (r2 > 0.0f) {
+                float invR = 1.0f / std::sqrt(r2);
+                sinState_ *= invR;
+                cosState_ *= invR;
+            }
+            lfoEpsilon_ = newEpsilon;
+        }
     }
 
     // =========================================================================
@@ -435,219 +500,94 @@ public:
         const float modDepth = modDepthSmoother_.process();
 
         // In freeze mode, snap decay to exactly 1.0 and inputGain to exactly 0.0
-        // once the smoothers are close enough. This prevents slow energy drain
-        // from the smoother never reaching exactly 1.0 (FR-015).
         if (freeze_) {
             if (decay > 0.999f) decay = 1.0f;
             if (inputGain < 0.001f) inputGain = 0.0f;
         }
 
-        // -- Apply damping cutoff to tank filters --
-        tankADamping_.setCutoff(dampCutoff);
-        tankBDamping_.setCutoff(dampCutoff);
-
-        // -- Apply input diffusion coefficients --
-        inputDiffusion_[0].setCoefficient(diff1);
-        inputDiffusion_[1].setCoefficient(diff1);
-        inputDiffusion_[2].setCoefficient(diff2);
-        inputDiffusion_[3].setCoefficient(diff2);
-
-        // -- Step 4: Sum to mono (FR-001) --
-        float mono = (left + right) * 0.5f;
-
-        // -- Step 5: Bandwidth filter (FR-012) --
-        mono = bandwidthFilter_.process(mono);
-
-        // -- Step 6: Pre-delay (FR-011) --
-        preDelay_.write(mono);
-        float preDelayed = preDelay_.readLinear(std::max(0.0f, preDelaySamples));
-
-        // -- Step 7: Input diffusion (FR-002, FR-003) --
-        float diffused = preDelayed;
-        // Skip diffusion when coefficients are near zero (optimization)
-        if (diff1 > 0.001f || diff2 > 0.001f) {
-            diffused = inputDiffusion_[0].process(diffused);
-            diffused = inputDiffusion_[1].process(diffused);
-            diffused = inputDiffusion_[2].process(diffused);
-            diffused = inputDiffusion_[3].process(diffused);
+        // -- Apply damping cutoff to tank filters (only when changed) --
+        if (dampCutoff != cachedDampCutoff_) {
+            tankADamping_.setCutoff(dampCutoff);
+            tankBDamping_.setCutoff(dampCutoff);
+            cachedDampCutoff_ = dampCutoff;
         }
 
-        // Apply input gain (for freeze: gain -> 0.0)
-        diffused *= inputGain;
+        // -- Store input diffusion coefficients --
+        inputDiffCoeff1_ = diff1;
+        inputDiffCoeff2_ = diff2;
 
-        // -- Step 8: LFO computation (FR-017, FR-018) --
-        float lfoA = 0.0f;
-        float lfoB = 0.0f;
-        if (modDepth > 0.0001f) {
-            lfoA = std::sin(lfoPhase_) * modDepth * maxExcursion_;
-            lfoB = std::cos(lfoPhase_) * modDepth * maxExcursion_;  // 90-degree offset
-        }
-
-        // -- Step 9: Tank A processing (FR-004, FR-005) --
-        {
-            // Tank A input: diffused + decay * tankBOut_
-            float tankAInput = diffused + decay * tankBOut_;
-
-            // Decay Diffusion 1 (modulated allpass, coeff = -0.70) (FR-007)
-            float dd1Delay = tankADD1Center_ + lfoA;
-            dd1Delay = std::max(1.0f, dd1Delay);
-            float dd1Delayed = tankADD1Delay_.readLinear(dd1Delay);  // FR-019: linear interp
-            float dd1Coeff = -kDecayDiffusion1;
-            float dd1Out = dd1Coeff * tankAInput + dd1Delayed;
-            tankADD1Delay_.write(tankAInput + (-dd1Coeff) * dd1Out);
-
-            // Pre-damping delay
-            tankAPreDampDelay_.write(dd1Out);
-            float preDamped = tankAPreDampDelay_.read(tankAPreDampLen_);
-
-            // Damping filter - bypass during freeze to preserve energy (FR-015)
-            float damped = (freeze_ && decay >= 1.0f) ? preDamped
-                                                       : tankADamping_.process(preDamped);
-
-            // Decay gain
-            damped *= decay;
-
-            // Decay Diffusion 2 (allpass, coeff = 0.50) (FR-007)
-            float dd2Delayed = tankADD2Delay_.readLinear(static_cast<float>(tankADD2Len_));
-            float dd2Coeff = kDecayDiffusion2;
-            float dd2Out = -dd2Coeff * damped + dd2Delayed;
-            tankADD2Delay_.write(damped + dd2Coeff * dd2Out);
-
-            // Post-damping delay
-            tankAPostDampDelay_.write(dd2Out);
-            float postDamped = tankAPostDampDelay_.read(tankAPostDampLen_);
-
-            // DC blocker (FR-029) - bypass during freeze to preserve energy
-            if (freeze_ && decay >= 1.0f) {
-                tankAOut_ = postDamped;
-            } else {
-                tankAOut_ = tankADCBlocker_.process(postDamped);
-            }
-            tankAOut_ = detail::flushDenormal(tankAOut_);  // FR-028
-        }
-
-        // -- Step 10: Tank B processing (FR-004, FR-005) --
-        {
-            // Tank B input: diffused + decay * tankAOut_
-            float tankBInput = diffused + decay * tankAOut_;
-
-            // Decay Diffusion 1 (modulated allpass, coeff = -0.70) (FR-007)
-            float dd1Delay = tankBDD1Center_ + lfoB;
-            dd1Delay = std::max(1.0f, dd1Delay);
-            float dd1Delayed = tankBDD1Delay_.readLinear(dd1Delay);
-            float dd1Coeff = -kDecayDiffusion1;
-            float dd1Out = dd1Coeff * tankBInput + dd1Delayed;
-            tankBDD1Delay_.write(tankBInput + (-dd1Coeff) * dd1Out);
-
-            // Pre-damping delay
-            tankBPreDampDelay_.write(dd1Out);
-            float preDamped = tankBPreDampDelay_.read(tankBPreDampLen_);
-
-            // Damping filter - bypass during freeze to preserve energy (FR-015)
-            float damped = (freeze_ && decay >= 1.0f) ? preDamped
-                                                       : tankBDamping_.process(preDamped);
-
-            // Decay gain
-            damped *= decay;
-
-            // Decay Diffusion 2 (allpass, coeff = 0.50) (FR-007)
-            float dd2Delayed = tankBDD2Delay_.readLinear(static_cast<float>(tankBDD2Len_));
-            float dd2Coeff = kDecayDiffusion2;
-            float dd2Out = -dd2Coeff * damped + dd2Delayed;
-            tankBDD2Delay_.write(damped + dd2Coeff * dd2Out);
-
-            // Post-damping delay
-            tankBPostDampDelay_.write(dd2Out);
-            float postDamped = tankBPostDampDelay_.read(tankBPostDampLen_);
-
-            // DC blocker (FR-029) - bypass during freeze to preserve energy
-            if (freeze_ && decay >= 1.0f) {
-                tankBOut_ = postDamped;
-            } else {
-                tankBOut_ = tankBDCBlocker_.process(postDamped);
-            }
-            tankBOut_ = detail::flushDenormal(tankBOut_);  // FR-028
-        }
-
-        // -- Step 11: Output tap computation (FR-008, FR-009) --
-        float yL = 0.0f;
-        float yR = 0.0f;
-
-        // Left output taps (Table 2)
-        // [0] +tap(Tank B pre-damp, 266)
-        yL += kLeftTapSigns[0] *
-              tankBPreDampDelay_.read(leftTaps_[0]);
-        // [1] +tap(Tank B pre-damp, 2974)
-        yL += kLeftTapSigns[1] *
-              tankBPreDampDelay_.read(leftTaps_[1]);
-        // [2] -tap(Tank B DD2, 1913)
-        yL += kLeftTapSigns[2] *
-              tankBDD2Delay_.read(leftTaps_[2]);
-        // [3] +tap(Tank B post-damp, 1996)
-        yL += kLeftTapSigns[3] *
-              tankBPostDampDelay_.read(leftTaps_[3]);
-        // [4] -tap(Tank A pre-damp, 1990)
-        yL += kLeftTapSigns[4] *
-              tankAPreDampDelay_.read(leftTaps_[4]);
-        // [5] -tap(Tank A DD2, 187)
-        yL += kLeftTapSigns[5] *
-              tankADD2Delay_.read(leftTaps_[5]);
-        // [6] +tap(Tank A post-damp, 1066)
-        yL += kLeftTapSigns[6] *
-              tankAPostDampDelay_.read(leftTaps_[6]);
-
-        // Right output taps (Table 2)
-        // [0] +tap(Tank A pre-damp, 353)
-        yR += kRightTapSigns[0] *
-              tankAPreDampDelay_.read(rightTaps_[0]);
-        // [1] +tap(Tank A pre-damp, 3627)
-        yR += kRightTapSigns[1] *
-              tankAPreDampDelay_.read(rightTaps_[1]);
-        // [2] -tap(Tank A DD2, 1228)
-        yR += kRightTapSigns[2] *
-              tankADD2Delay_.read(rightTaps_[2]);
-        // [3] +tap(Tank A post-damp, 2673)
-        yR += kRightTapSigns[3] *
-              tankAPostDampDelay_.read(rightTaps_[3]);
-        // [4] -tap(Tank B pre-damp, 2111)
-        yR += kRightTapSigns[4] *
-              tankBPreDampDelay_.read(rightTaps_[4]);
-        // [5] -tap(Tank B DD2, 335)
-        yR += kRightTapSigns[5] *
-              tankBDD2Delay_.read(rightTaps_[5]);
-        // [6] +tap(Tank B post-damp, 121)
-        yR += kRightTapSigns[6] *
-              tankBPostDampDelay_.read(rightTaps_[6]);
-
-        // Apply output gain (R8)
-        yL *= kOutputGain;
-        yR *= kOutputGain;
-
-        // -- Step 12: Stereo width processing (FR-011a) --
-        float mid = 0.5f * (yL + yR);
-        float side = 0.5f * (yL - yR);
-        float wetL = mid + width * side;
-        float wetR = mid - width * side;
-
-        // -- Step 13: Dry/wet mix (FR-011) --
-        // Equal-power crossfade preserves perceived volume when dry and wet
-        // signals are decorrelated (which they always are for reverb).
-        const float dryGain = std::cos(mix * kHalfPi);
-        const float wetGain = std::sin(mix * kHalfPi);
-        left = dryGain * dryL + wetGain * wetL;
-        right = dryGain * dryR + wetGain * wetR;
-
-        // -- Step 14: Advance LFO phase --
-        lfoPhase_ += lfoPhaseIncrement_;
-        if (lfoPhase_ >= kTwoPi) {
-            lfoPhase_ -= kTwoPi;
-        }
+        // Process one sample with the core algorithm
+        processOneSample(left, right, dryL, dryR, decay, mix, width,
+                         inputGain, preDelaySamples, modDepth);
     }
 
     /// @brief Process a block of stereo samples in-place (FR-024).
+    ///
+    /// Uses 16-sample sub-blocks for block-rate parameter smoothing (FR-002).
+    /// Parameter changes arriving via setParams() are latched at the next
+    /// sub-block boundary (FR-002, FR-003).
     void processBlock(float* left, float* right, size_t numSamples) noexcept {
-        for (size_t i = 0; i < numSamples; ++i) {
-            process(left[i], right[i]);
+        using namespace reverb_detail;
+
+        if (!prepared_) return;
+
+        size_t offset = 0;
+        while (offset < numSamples) {
+            const size_t blockLen = std::min(kSubBlockSize, numSamples - offset);
+
+            // -- Update smoothers once per sub-block (FR-002) --
+            float decay = decaySmoother_.process();
+            const float dampCutoff = dampingSmoother_.process();
+            const float mix = mixSmoother_.process();
+            const float width = widthSmoother_.process();
+            float inputGain = inputGainSmoother_.process();
+            const float preDelaySamples = preDelaySmoother_.process();
+            const float diff1 = diffusion1Smoother_.process();
+            const float diff2 = diffusion2Smoother_.process();
+            const float modDepth = modDepthSmoother_.process();
+
+            // Advance smoothers for remaining sub-block samples (FR-002)
+            if (blockLen > 1) {
+                decaySmoother_.advanceSamples(blockLen - 1);
+                dampingSmoother_.advanceSamples(blockLen - 1);
+                mixSmoother_.advanceSamples(blockLen - 1);
+                widthSmoother_.advanceSamples(blockLen - 1);
+                inputGainSmoother_.advanceSamples(blockLen - 1);
+                preDelaySmoother_.advanceSamples(blockLen - 1);
+                diffusion1Smoother_.advanceSamples(blockLen - 1);
+                diffusion2Smoother_.advanceSamples(blockLen - 1);
+                modDepthSmoother_.advanceSamples(blockLen - 1);
+            }
+
+            // In freeze mode, snap values
+            if (freeze_) {
+                if (decay > 0.999f) decay = 1.0f;
+                if (inputGain < 0.001f) inputGain = 0.0f;
+            }
+
+            // -- Update filter coefficients once per sub-block (FR-003) --
+            tankADamping_.setCutoff(dampCutoff);
+            tankBDamping_.setCutoff(dampCutoff);
+            inputDiffCoeff1_ = diff1;
+            inputDiffCoeff2_ = diff2;
+
+            // -- Process sub-block samples with held values --
+            for (size_t i = 0; i < blockLen; ++i) {
+                float& l = left[offset + i];
+                float& r = right[offset + i];
+
+                // NaN/Inf input validation
+                if (detail::isNaN(l) || detail::isInf(l)) l = 0.0f;
+                if (detail::isNaN(r) || detail::isInf(r)) r = 0.0f;
+
+                const float dryL = l;
+                const float dryR = r;
+
+                processOneSample(l, r, dryL, dryR, decay, mix, width,
+                                 inputGain, preDelaySamples, modDepth);
+            }
+
+            offset += blockLen;
         }
     }
 
@@ -660,7 +600,267 @@ public:
         return prepared_;
     }
 
+    /// @brief Get the total contiguous delay buffer size in samples (FR-004).
+    [[nodiscard]] size_t totalBufferSize() const noexcept {
+        return totalBufferSize_;
+    }
+
 private:
+    // =========================================================================
+    // Contiguous buffer helpers (FR-004)
+    // =========================================================================
+
+    /// Section indices into the contiguous buffer
+    enum Section : size_t {
+        kPreDelay = 0,
+        kInputDiff0 = 1,
+        kInputDiff1 = 2,
+        kInputDiff2 = 3,
+        kInputDiff3 = 4,
+        kTankADD1 = 5,
+        kTankAPreDamp = 6,
+        kTankADD2 = 7,
+        kTankAPostDamp = 8,
+        kTankBDD1 = 9,
+        kTankBPreDamp = 10,
+        kTankBDD2 = 11,
+        kTankBPostDamp = 12
+    };
+
+    /// Write a sample to a section
+    void bufWrite(Section s, float sample) noexcept {
+        contiguousBuffer_[sectionOffsets_[s] + writePos_[s]] = sample;
+        writePos_[s] = (writePos_[s] + 1) & sectionMasks_[s];
+    }
+
+    /// Read from a section at a fixed integer delay.
+    /// read(0) returns the most recently written sample (like DelayLine::read(0)).
+    [[nodiscard]] float bufRead(Section s, size_t delaySamples) const noexcept {
+        // writePos_ points to the NEXT write slot; most recent write is at writePos_ - 1
+        size_t readPos = (writePos_[s] - 1 - delaySamples) & sectionMasks_[s];
+        return contiguousBuffer_[sectionOffsets_[s] + readPos];
+    }
+
+    /// Read from a section with linear interpolation (for pre-delay)
+    [[nodiscard]] float bufReadLinear(Section s, float delaySamples) const noexcept {
+        float floored = std::floor(delaySamples);
+        size_t delayInt = static_cast<size_t>(floored);
+        float frac = delaySamples - floored;
+        float a = bufRead(s, delayInt);
+        float b = bufRead(s, delayInt + 1);
+        return a + frac * (b - a);
+    }
+
+    /// Cubic Hermite (Catmull-Rom) interpolated read for modulated delay lines.
+    /// Reduces HF loss compared to linear interpolation in recirculating paths.
+    [[nodiscard]] float bufReadCubic(Section s, float delaySamples) const noexcept {
+        float floored = std::floor(delaySamples);
+        size_t delayInt = static_cast<size_t>(floored);
+        float frac = delaySamples - floored;
+        float ym1 = bufRead(s, delayInt > 0 ? delayInt - 1 : 0);
+        float y0  = bufRead(s, delayInt);
+        float y1  = bufRead(s, delayInt + 1);
+        float y2  = bufRead(s, delayInt + 2);
+        return Interpolation::cubicHermiteInterpolate(ym1, y0, y1, y2, frac);
+    }
+
+    // =========================================================================
+    // Core sample processing (shared between process() and processBlock())
+    // =========================================================================
+
+    void processOneSample(float& left, float& right,
+                          float dryL, float dryR,
+                          float decay, float mix, float width,
+                          float inputGain, float preDelaySamples,
+                          float modDepth) noexcept {
+        using namespace reverb_detail;
+
+        // -- Sum to mono (FR-001) --
+        float mono = (left + right) * 0.5f;
+
+        // -- Bandwidth filter (FR-012) --
+        mono = bandwidthFilter_.process(mono);
+
+        // -- Pre-delay (FR-011) --
+        bufWrite(kPreDelay, mono);
+        float preDelayed = bufReadLinear(kPreDelay, std::max(0.0f, preDelaySamples));
+
+        // -- Input diffusion (FR-002, FR-003) --
+        // Always process allpasses to keep buffer state fresh. When coefficients
+        // are near zero, allpasses become pure delays (cheap, no stale audio).
+        float diffused = preDelayed;
+        diffused = processAllpass(kInputDiff0, diffused, inputDiffCoeff1_,
+                                  inputDiffDelaySamples_[0]);
+        diffused = processAllpass(kInputDiff1, diffused, inputDiffCoeff1_,
+                                  inputDiffDelaySamples_[1]);
+        diffused = processAllpass(kInputDiff2, diffused, inputDiffCoeff2_,
+                                  inputDiffDelaySamples_[2]);
+        diffused = processAllpass(kInputDiff3, diffused, inputDiffCoeff2_,
+                                  inputDiffDelaySamples_[3]);
+
+        // Apply input gain (for freeze: gain -> 0.0)
+        diffused *= inputGain;
+
+        // -- LFO computation (FR-001: Gordon-Smith magic circle) --
+        float lfoA = 0.0f;
+        float lfoB = 0.0f;
+        if (modDepth > 0.0001f) {
+            lfoA = sinState_ * modDepth * maxExcursion_;
+            lfoB = cosState_ * modDepth * maxExcursion_;
+        }
+
+        // -- Tank A processing (FR-004, FR-005) --
+        {
+            float tankAInput = diffused + decay * tankBOut_;
+
+            // Decay Diffusion 1 (modulated allpass, coeff = -0.70)
+            float dd1Delay = tankADD1Center_ + lfoA;
+            dd1Delay = std::max(1.0f, dd1Delay);
+            float dd1Delayed = bufReadCubic(kTankADD1, dd1Delay);
+            float dd1Coeff = -kDecayDiffusion1;
+            float dd1Out = dd1Coeff * tankAInput + dd1Delayed;
+            bufWrite(kTankADD1, tankAInput + (-dd1Coeff) * dd1Out);
+
+            // Pre-damping delay
+            bufWrite(kTankAPreDamp, dd1Out);
+            float preDamped = bufRead(kTankAPreDamp, tankAPreDampLen_);
+
+            // Damping filter - bypass during freeze to preserve energy
+            float damped = freeze_ ? preDamped
+                                   : tankADamping_.process(preDamped);
+            damped *= decay;
+
+            // Decay Diffusion 2 (allpass, coeff = 0.50)
+            float dd2Delayed = bufRead(kTankADD2, tankADD2Len_);
+            float dd2Coeff = kDecayDiffusion2;
+            float dd2Out = -dd2Coeff * damped + dd2Delayed;
+            bufWrite(kTankADD2, damped + dd2Coeff * dd2Out);
+
+            // Post-damping delay
+            bufWrite(kTankAPostDamp, dd2Out);
+            float postDamped = bufRead(kTankAPostDamp, tankAPostDampLen_);
+
+            // DC blocker - bypass during freeze to preserve energy
+            if (freeze_) {
+                tankAOut_ = postDamped;
+            } else {
+                tankAOut_ = tankADCBlocker_.process(postDamped);
+            }
+            // FR-005: flushDenormal() removed -- FTZ/DAZ assumed at process entry
+        }
+
+        // -- Tank B processing (FR-004, FR-005) --
+        {
+            float tankBInput = diffused + decay * tankAOut_;
+
+            // Decay Diffusion 1 (modulated allpass, coeff = -0.70)
+            float dd1Delay = tankBDD1Center_ + lfoB;
+            dd1Delay = std::max(1.0f, dd1Delay);
+            float dd1Delayed = bufReadCubic(kTankBDD1, dd1Delay);
+            float dd1Coeff = -kDecayDiffusion1;
+            float dd1Out = dd1Coeff * tankBInput + dd1Delayed;
+            bufWrite(kTankBDD1, tankBInput + (-dd1Coeff) * dd1Out);
+
+            // Pre-damping delay
+            bufWrite(kTankBPreDamp, dd1Out);
+            float preDamped = bufRead(kTankBPreDamp, tankBPreDampLen_);
+
+            // Damping filter - bypass during freeze to preserve energy
+            float damped = freeze_ ? preDamped
+                                   : tankBDamping_.process(preDamped);
+            damped *= decay;
+
+            // Decay Diffusion 2 (allpass, coeff = 0.50)
+            float dd2Delayed = bufRead(kTankBDD2, tankBDD2Len_);
+            float dd2Coeff = kDecayDiffusion2;
+            float dd2Out = -dd2Coeff * damped + dd2Delayed;
+            bufWrite(kTankBDD2, damped + dd2Coeff * dd2Out);
+
+            // Post-damping delay
+            bufWrite(kTankBPostDamp, dd2Out);
+            float postDamped = bufRead(kTankBPostDamp, tankBPostDampLen_);
+
+            // DC blocker - bypass during freeze to preserve energy
+            if (freeze_) {
+                tankBOut_ = postDamped;
+            } else {
+                tankBOut_ = tankBDCBlocker_.process(postDamped);
+            }
+            // FR-005: flushDenormal() removed -- FTZ/DAZ assumed at process entry
+        }
+
+        // -- Output tap computation (FR-008, FR-009) --
+        float yL = 0.0f;
+        float yR = 0.0f;
+
+        // Left output taps (Table 2)
+        yL += kLeftTapSigns[0] * bufRead(kTankBPreDamp, leftTaps_[0]);
+        yL += kLeftTapSigns[1] * bufRead(kTankBPreDamp, leftTaps_[1]);
+        yL += kLeftTapSigns[2] * bufRead(kTankBDD2, leftTaps_[2]);
+        yL += kLeftTapSigns[3] * bufRead(kTankBPostDamp, leftTaps_[3]);
+        yL += kLeftTapSigns[4] * bufRead(kTankAPreDamp, leftTaps_[4]);
+        yL += kLeftTapSigns[5] * bufRead(kTankADD2, leftTaps_[5]);
+        yL += kLeftTapSigns[6] * bufRead(kTankAPostDamp, leftTaps_[6]);
+
+        // Right output taps (Table 2)
+        yR += kRightTapSigns[0] * bufRead(kTankAPreDamp, rightTaps_[0]);
+        yR += kRightTapSigns[1] * bufRead(kTankAPreDamp, rightTaps_[1]);
+        yR += kRightTapSigns[2] * bufRead(kTankADD2, rightTaps_[2]);
+        yR += kRightTapSigns[3] * bufRead(kTankAPostDamp, rightTaps_[3]);
+        yR += kRightTapSigns[4] * bufRead(kTankBPreDamp, rightTaps_[4]);
+        yR += kRightTapSigns[5] * bufRead(kTankBDD2, rightTaps_[5]);
+        yR += kRightTapSigns[6] * bufRead(kTankBPostDamp, rightTaps_[6]);
+
+        // Apply output gain (R8)
+        yL *= kOutputGain;
+        yR *= kOutputGain;
+
+        // -- Stereo width processing (FR-011a) --
+        float mid = 0.5f * (yL + yR);
+        float side = 0.5f * (yL - yR);
+        float wetL = mid + width * side;
+        float wetR = mid - width * side;
+
+        // -- Dry/wet mix (FR-011) --
+        const float dryGain = std::cos(mix * kHalfPi);
+        const float wetGain = std::sin(mix * kHalfPi);
+        left = dryGain * dryL + wetGain * wetL;
+        right = dryGain * dryR + wetGain * wetR;
+
+        // -- Advance Gordon-Smith LFO (FR-001) --
+        float newSin = sinState_ + lfoEpsilon_ * cosState_;
+        float newCos = cosState_ - lfoEpsilon_ * newSin;
+        sinState_ = newSin;
+        cosState_ = newCos;
+    }
+
+    // =========================================================================
+    // Input diffusion allpass helper
+    // =========================================================================
+
+    /// Process one sample through a Schroeder allpass using contiguous buffer section.
+    /// Matches the topology from comb_filter.h SchroederAllpass:
+    /// w[n] = x[n] + g * w[n-D], y[n] = -g * x[n] + w[n-D]
+    /// Read-before-write with D-1 offset to match DelayLine semantics.
+    /// Note: The D-1 offset causes an off-by-one for sub-1-sample delays, but
+    /// Dattorro's minimum delay length is 107 samples at ref rate (~173 at 48kHz),
+    /// so this limitation never applies in practice.
+    [[nodiscard]] float processAllpass(Section s, float input, float coeff,
+                                        float delaySamples) noexcept {
+        // Read before write (like SchroederAllpass), using D-1 offset
+        size_t readDelay = static_cast<size_t>(std::max(0.0f, delaySamples - 1.0f));
+        float delayedW = bufRead(s, readDelay);
+
+        // y[n] = -g * x[n] + w[n-D]
+        float output = -coeff * input + delayedW;
+
+        // w[n] = x[n] + g * y[n]
+        float writeValue = input + coeff * output;
+
+        bufWrite(s, writeValue);
+        return output;
+    }
+
     // =========================================================================
     // Configuration
     // =========================================================================
@@ -669,31 +869,32 @@ private:
     bool freeze_ = false;
 
     // =========================================================================
+    // Contiguous delay buffer (FR-004)
+    // =========================================================================
+    std::vector<float> contiguousBuffer_;
+    size_t totalBufferSize_ = 0;
+    size_t sectionSizes_[reverb_detail::kNumDelaySections] = {};
+    size_t sectionMasks_[reverb_detail::kNumDelaySections] = {};
+    size_t sectionOffsets_[reverb_detail::kNumDelaySections] = {};
+    size_t writePos_[reverb_detail::kNumDelaySections] = {};
+
+    // =========================================================================
     // Input section
     // =========================================================================
     OnePoleLP bandwidthFilter_;
-    DelayLine preDelay_;
-    SchroederAllpass inputDiffusion_[4];
+    float inputDiffDelaySamples_[4] = {};
+    float inputDiffCoeff1_ = 0.0f;
+    float inputDiffCoeff2_ = 0.0f;
+    float inputDiffState_[4] = {};  // unused now, kept for potential future use
 
     // =========================================================================
-    // Tank A
+    // Damping & DC blocking
     // =========================================================================
-    DelayLine tankADD1Delay_;       ///< Decay diffusion 1 (standalone for tap access + LFO)
-    DelayLine tankAPreDampDelay_;   ///< Pre-damping delay
-    OnePoleLP tankADamping_;        ///< Damping lowpass filter
-    DelayLine tankADD2Delay_;       ///< Decay diffusion 2 (standalone for tap access)
-    DelayLine tankAPostDampDelay_;  ///< Post-damping delay
-    DCBlocker tankADCBlocker_;      ///< DC blocker
-
-    // =========================================================================
-    // Tank B
-    // =========================================================================
-    DelayLine tankBDD1Delay_;       ///< Decay diffusion 1 (standalone for tap access + LFO)
-    DelayLine tankBPreDampDelay_;   ///< Pre-damping delay
-    OnePoleLP tankBDamping_;        ///< Damping lowpass filter
-    DelayLine tankBDD2Delay_;       ///< Decay diffusion 2 (standalone for tap access)
-    DelayLine tankBPostDampDelay_;  ///< Post-damping delay
-    DCBlocker tankBDCBlocker_;      ///< DC blocker
+    OnePoleLP tankADamping_;
+    OnePoleLP tankBDamping_;
+    DCBlocker tankADCBlocker_;
+    DCBlocker tankBDCBlocker_;
+    float cachedDampCutoff_ = 0.0f;  ///< Cached damping cutoff to avoid redundant setCutoff
 
     // =========================================================================
     // Tank state variables
@@ -721,10 +922,11 @@ private:
     size_t rightTaps_[7] = {};
 
     // =========================================================================
-    // LFO state
+    // Gordon-Smith LFO state (FR-001)
     // =========================================================================
-    float lfoPhase_ = 0.0f;
-    float lfoPhaseIncrement_ = 0.0f;
+    float sinState_ = 0.0f;
+    float cosState_ = 1.0f;
+    float lfoEpsilon_ = 0.0f;
     float maxExcursion_ = 0.0f;
 
     // =========================================================================

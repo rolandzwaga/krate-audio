@@ -599,6 +599,8 @@ public:
     void setDelayPingPongModRate(float hz) noexcept { effectsChain_.setDelayPingPongModRate(hz); }
 
     void setReverbParams(const ReverbParams& params) noexcept { effectsChain_.setReverbParams(params); }
+    void setReverbType(int type) noexcept { effectsChain_.setReverbType(type); }
+    void setReverbTypeDirect(int type) noexcept { effectsChain_.setReverbTypeDirect(type); }
 
     // Phaser
     void setPhaserEnabled(bool enabled) noexcept { effectsChain_.setPhaserEnabled(enabled); }

@@ -106,6 +106,9 @@ add_executable(ruinae_tests
     # Euclidean_Bells Preset Level Analysis Test (faint output investigation)
     integration/euclidean_bells_level_test.cpp
 
+    # Reverb Type Selection Tests (125-dual-reverb)
+    unit/processor/reverb_type_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -173,6 +176,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/cathedral_organ_envelope_test.cpp
         integration/euclidean_bells_level_test.cpp
         unit/vst/voice_route_rt_safety_test.cpp
+        unit/processor/reverb_type_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

@@ -5,6 +5,20 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-03-11
+
+### Fixed
+
+- **Dattorro plate reverb bandwidth filter** — Filter coefficient derivation was inverted, producing a 3.8 Hz lowpass instead of the near-transparent filter specified in the Dattorro paper. The reverb now has proper frequency response and much richer sound
+- **Plate reverb decay range** — Recalibrated roomSize-to-decay mapping from [0.75, 0.9995] to [0.50, 0.90] to give musically useful RT60 range (~2-12 seconds) with the corrected bandwidth filter. Previously roomSize=100% produced a 42-minute tail
+- **Plate reverb output gain** — Reduced from 3.0 to 0.6 to compensate for correct bandwidth filter energy levels
+- **Tank modulation interpolation** — Upgraded DD1 modulated allpass reads from linear to cubic Hermite interpolation, reducing HF loss in the recirculating tank
+- **LFO amplitude drift on rate changes** — Gordon-Smith phasor now renormalized to the unit circle when modulation rate changes, preventing amplitude drift
+- **Input diffusion stale buffers** — Diffusion allpasses are now always processed (even at diffusion=0) to prevent stale audio bursts when re-enabling diffusion
+- **DD2 integer delay read** — Fixed unnecessary linear interpolation on integer-length delays
+- **Output tap bounds checking** — Tap positions are now clamped against section lengths in prepare() to prevent buffer overruns at unusual sample rates
+- **Per-sample damping overhead** — Damping filter coefficient now cached to avoid redundant exp() calls when cutoff hasn't changed
+
 ## [0.9.8] - 2026-03-08
 
 ### Added

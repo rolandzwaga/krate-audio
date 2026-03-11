@@ -681,6 +681,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     saveGlobalFilterParams(globalFilterParams_, streamer);
     saveDelayParams(delayParams_, streamer);
     saveReverbParams(reverbParams_, streamer);
+    // Reverb type (125-dual-reverb, state version 5)
+    streamer.writeInt32(reverbParams_.reverbType.load(std::memory_order_relaxed));
+
     saveMonoModeParams(monoModeParams_, streamer);
 
     // Voice routes (16 slots) — atomic load per field
@@ -795,6 +798,17 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadDelayParams(delayParams_, streamer)) return Steinberg::kResultTrue;
         if (!loadReverbParams(reverbParams_, streamer)) return Steinberg::kResultTrue;
+        // Reverb type (125-dual-reverb, state version 5)
+        if (version >= 5) {
+            Steinberg::int32 reverbType = 0;
+            if (streamer.readInt32(reverbType)) {
+                reverbParams_.reverbType.store(
+                    static_cast<int32_t>(reverbType), std::memory_order_relaxed);
+            }
+        } else {
+            // Backward compat: version < 5 defaults to Plate (FR-028)
+            reverbParams_.reverbType.store(0, std::memory_order_relaxed);
+        }
         if (!loadMonoModeParams(monoModeParams_, streamer)) return Steinberg::kResultTrue;
 
         // SKIP voiceRoutes_ here — deferred to audio thread via RTTransferT
@@ -903,6 +917,14 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     if (!loadGlobalFilterParams(globalFilterParams_, streamer)) return;
     if (!loadDelayParams(delayParams_, streamer)) return;
     if (!loadReverbParams(reverbParams_, streamer)) return;
+    // Reverb type (125-dual-reverb, state version 5)
+    if (version >= 5) {
+        Steinberg::int32 reverbType = 0;
+        if (streamer.readInt32(reverbType)) {
+            reverbParams_.reverbType.store(
+                static_cast<int32_t>(reverbType), std::memory_order_relaxed);
+        }
+    }
     if (!loadMonoModeParams(monoModeParams_, streamer)) return;
 
     // Voice routes — atomic store per field (safe from any thread)
@@ -932,6 +954,11 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     // Reset DSP state to prevent stale voices/state from the old preset
     engine_.reset();
     arpCore_.reset();
+
+    // Restore reverb type from loaded state (125-dual-reverb)
+    // Use setReverbTypeDirect to avoid triggering a crossfade on state load.
+    engine_.setReverbTypeDirect(
+        reverbParams_.reverbType.load(std::memory_order_relaxed));
 
     // Force arp tracking variables to sentinel values so that
     // applyParamsToEngine() will unconditionally re-apply all arp setters.
@@ -1010,16 +1037,20 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleModMatrixParamChange(modMatrixParams_, paramId, value);
         } else if (paramId >= kGlobalFilterBaseId && paramId <= kGlobalFilterEndId) {
             handleGlobalFilterParamChange(globalFilterParams_, paramId, value);
-        } else if (paramId == kDelayEnabledId) {
-            delayEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-        } else if (paramId == kReverbEnabledId) {
-            reverbEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-        } else if (paramId == kPhaserEnabledId) {
-            phaserEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-            logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
-                value, (value >= 0.5) ? 1 : 0);
-        } else if (paramId == kHarmonizerEnabledId) {
-            harmonizerEnabled_.store(value >= 0.5, std::memory_order_relaxed);
+        } else if (paramId == kDelayEnabledId || paramId == kReverbEnabledId
+                   || paramId == kPhaserEnabledId || paramId == kHarmonizerEnabledId) {
+            const bool enabled = value >= 0.5;
+            if (paramId == kDelayEnabledId)
+                delayEnabled_.store(enabled, std::memory_order_relaxed);
+            else if (paramId == kReverbEnabledId)
+                reverbEnabled_.store(enabled, std::memory_order_relaxed);
+            else if (paramId == kPhaserEnabledId) {
+                phaserEnabled_.store(enabled, std::memory_order_relaxed);
+                logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
+                    value, enabled ? 1 : 0);
+            } else {
+                harmonizerEnabled_.store(enabled, std::memory_order_relaxed);
+            }
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
@@ -1375,12 +1406,11 @@ void Processor::applyParamsToEngine() {
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(
         delayParams_.type.load(std::memory_order_relaxed)));
-    if (delayParams_.sync.load(std::memory_order_relaxed)) {
-        engine_.setDelayTime(dropdownToDelayMs(
-            delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_));
-    } else {
-        engine_.setDelayTime(delayParams_.timeMs.load(std::memory_order_relaxed));
-    }
+    engine_.setDelayTime(
+        delayParams_.sync.load(std::memory_order_relaxed)
+            ? dropdownToDelayMs(
+                  delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_)
+            : delayParams_.timeMs.load(std::memory_order_relaxed));
     engine_.setDelayFeedback(delayParams_.feedback.load(std::memory_order_relaxed));
     engine_.setDelayMix(delayParams_.mix.load(std::memory_order_relaxed));
 
@@ -1456,6 +1486,7 @@ void Processor::applyParamsToEngine() {
         rp.modDepth = reverbParams_.modDepth.load(std::memory_order_relaxed);
         engine_.setReverbParams(rp);
     }
+    engine_.setReverbType(reverbParams_.reverbType.load(std::memory_order_relaxed));
 
     // --- Phaser ---
     engine_.setPhaserRate(phaserParams_.rateHz.load(std::memory_order_relaxed));
@@ -1885,6 +1916,7 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
 // ==============================================================================
 // MIDI Dispatcher Callbacks (FR-006)
 // ==============================================================================
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
 void Processor::onNoteOn(int16_t pitch, float velocity) {
     auto midiPitch = static_cast<uint8_t>(pitch);
     auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
@@ -1908,6 +1940,7 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
     }
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
 void Processor::onNoteOff(int16_t pitch) {
     auto midiPitch = static_cast<uint8_t>(pitch);
 

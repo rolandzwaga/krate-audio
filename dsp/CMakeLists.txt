@@ -9,6 +9,7 @@
 add_library(KrateDSP STATIC
     include/krate/dsp/core/dsp_utils.cpp
     include/krate/dsp/core/spectral_simd.cpp
+    include/krate/dsp/effects/fdn_reverb_simd.cpp
 )
 
 # Public include directory for consumers
@@ -150,6 +151,7 @@ set(KRATE_DSP_EFFECTS_HEADERS
     include/krate/dsp/effects/reverse_delay.h
     include/krate/dsp/effects/shimmer_delay.h
     include/krate/dsp/effects/spectral_delay.h
+    include/krate/dsp/effects/fdn_reverb.h
     include/krate/dsp/effects/reverb.h
     include/krate/dsp/effects/tape_delay.h
 )
