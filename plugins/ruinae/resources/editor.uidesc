@@ -3726,17 +3726,6 @@
                   tooltip="Voice Mode"
                   transparent="false"/>
 
-            <!-- Gear icon (toggles settings drawer) -->
-            <view class="ToggleButton" origin="92, 14" size="18, 18"
-                  control-tag="ActionSettingsToggle"
-                  icon-style="gear"
-                  on-color="master"
-                  off-color="text-secondary"
-                  icon-size="0.65"
-                  stroke-width="1.5"
-                  tooltip="Settings"
-                  transparent="true"/>
-
             <!-- Row 2: Polyphony dropdown (visible when Voice Mode = Poly) -->
             <view class="CViewContainer" origin="8, 36" size="120, 18"
                   custom-view-name="PolyGroup" transparent="true">
@@ -4018,6 +4007,17 @@
 
             <!-- Save button (Spec 083) -->
             <view custom-view-name="SavePresetButton" origin="550, 8" size="60, 25"/>
+
+            <!-- Gear icon (toggles settings drawer) -->
+            <view class="ToggleButton" origin="1308, 11" size="18, 18"
+                  control-tag="ActionSettingsToggle"
+                  icon-style="gear"
+                  on-color="master"
+                  off-color="text-secondary"
+                  icon-size="0.65"
+                  stroke-width="1.5"
+                  tooltip="Settings"
+                  transparent="true"/>
 
             <!-- Version label (dynamic, reads VERSION_STR at runtime) -->
             <view custom-view-name="VersionLabel" origin="1330, 12" size="60, 16"/>
