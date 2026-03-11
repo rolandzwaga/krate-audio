@@ -40,6 +40,7 @@
 #pragma once
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/interpolation.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/delay_line.h>
@@ -101,9 +102,14 @@ static constexpr float kBandwidthCoeff = 0.9995f;
 /// LFO max excursion in samples at reference rate (FR-017)
 static constexpr float kMaxExcursionRef = 8.0f;
 
-/// Output gain applied to tap sums (R8)
-/// Compensates for mono input sum (0.5x) and tap cancellation.
-static constexpr float kOutputGain = 3.0f;
+/// Output gain applied to tap sums (R8).
+/// The mono sum (0.5x) reduces input by half. In a well-diffused tank with
+/// 7 partially-decorrelated taps (4 additive, 3 subtractive, net sign = +1),
+/// the RMS sum ≈ sqrt(7) ≈ 2.65x a single tap. The gain is set to produce
+/// approximately unity RMS output for typical settings (roomSize=0.5, damping=0.5).
+/// Recalibrated after fixing the bandwidth filter coefficient derivation
+/// (was previously 3.0 when the filter incorrectly acted as a 3.8 Hz lowpass).
+static constexpr float kOutputGain = 0.6f;
 
 /// Parameter smoothing time in milliseconds (R4)
 static constexpr float kSmoothingTimeMs = 10.0f;
@@ -199,12 +205,15 @@ public:
         sampleRate_ = sampleRate;
 
         // -- Bandwidth filter (FR-012) --
-        // Compute equivalent cutoff Hz from coefficient 0.9995
-        // coeff = exp(-2*pi*fc/fs) => fc = -ln(coeff)*fs/(2*pi)
-        float bandwidthCutoffHz = static_cast<float>(
-            -std::log(static_cast<double>(kBandwidthCoeff)) * sampleRate / static_cast<double>(kTwoPi));
+        // Dattorro paper specifies bandwidth = 0.9995 as a mixing coefficient:
+        //   y[n] = bw * x[n] + (1-bw) * y[n-1]
+        // Our OnePoleLP uses y[n] = (1-a) * x[n] + a * y[n-1], so a = 1 - bw.
+        // Scale for sample rate: a_scaled = 1 - pow(1 - a_ref, refRate / sampleRate)
+        float aRef = 1.0f - kBandwidthCoeff;  // 0.0005 at reference rate
+        float aScaled = 1.0f - std::pow(1.0f - aRef,
+            static_cast<float>(kReferenceSampleRate / sampleRate));
         bandwidthFilter_.prepare(sampleRate);
-        bandwidthFilter_.setCutoff(bandwidthCutoffHz);
+        bandwidthFilter_.setCoefficient(aScaled);
 
         // -- LFO excursion scaling (FR-017) --
         maxExcursion_ = static_cast<float>(
@@ -277,6 +286,24 @@ public:
             rightTaps_[i] = scaleDelay(kRightTapPositions[i], sampleRate);
         }
 
+        // Bounds-check taps against their source section delay lengths
+        // Left: [BPreDamp, BPreDamp, BDD2, BPostDamp, APreDamp, ADD2, APostDamp]
+        const size_t leftMaxLens[7] = {
+            tankBPreDampLen_, tankBPreDampLen_, tankBDD2Len_, tankBPostDampLen_,
+            tankAPreDampLen_, tankADD2Len_, tankAPostDampLen_
+        };
+        // Right: [APreDamp, APreDamp, ADD2, APostDamp, BPreDamp, BDD2, BPostDamp]
+        const size_t rightMaxLens[7] = {
+            tankAPreDampLen_, tankAPreDampLen_, tankADD2Len_, tankAPostDampLen_,
+            tankBPreDampLen_, tankBDD2Len_, tankBPostDampLen_
+        };
+        for (int i = 0; i < 7; ++i) {
+            if (leftMaxLens[i] > 0)
+                leftTaps_[i] = std::min(leftTaps_[i], leftMaxLens[i] - 1);
+            if (rightMaxLens[i] > 0)
+                rightTaps_[i] = std::min(rightTaps_[i], rightMaxLens[i] - 1);
+        }
+
         // -- Damping filters --
         tankADamping_.prepare(sampleRate);
         tankBDamping_.prepare(sampleRate);
@@ -299,7 +326,7 @@ public:
 
         // -- Initialize smoother targets to defaults --
         ReverbParams defaultParams;
-        float defaultDecay = 0.75f + defaultParams.roomSize * 0.2495f;
+        float defaultDecay = 0.50f + defaultParams.roomSize * 0.40f;
         float defaultDampCutoff = 200.0f * std::pow(100.0f, 1.0f - defaultParams.damping);
 
         decaySmoother_.snapTo(defaultDecay);
@@ -391,7 +418,12 @@ public:
         float modDepth = std::clamp(params.modDepth, 0.0f, 1.0f);
 
         // -- RoomSize to decay mapping (FR-011) --
-        float targetDecay = 0.75f + roomSize * 0.2495f;
+        // With correct near-transparent bandwidth filter, the tank receives full
+        // input energy. Decay is applied 4x per complete loop (2x in each tank),
+        // so small changes near 1.0 have enormous effect on RT60.
+        // Range [0.50, 0.90] → RT60 ~[2s, 12s] for musically useful plate reverb.
+        // (Was [0.75, 0.9995] when bandwidth filter incorrectly blocked input.)
+        float targetDecay = 0.50f + roomSize * 0.40f;
 
         // -- Damping to cutoff Hz mapping (FR-011, FR-013) --
         float targetDampCutoff = 200.0f * std::pow(100.0f, 1.0f - damping);
@@ -422,8 +454,20 @@ public:
         diffusion2Smoother_.setTarget(diffusion * 0.625f);
 
         // -- LFO rate (FR-001: Gordon-Smith epsilon) --
-        lfoEpsilon_ = 2.0f * static_cast<float>(std::sin(
+        float newEpsilon = 2.0f * static_cast<float>(std::sin(
             kPi * static_cast<double>(modRate) / sampleRate_));
+        if (newEpsilon != lfoEpsilon_) {
+            // Renormalize phasor states to unit circle when epsilon changes
+            // to prevent amplitude drift (Gordon-Smith phasor is only
+            // amplitude-stable when epsilon is constant)
+            float r2 = sinState_ * sinState_ + cosState_ * cosState_;
+            if (r2 > 0.0f) {
+                float invR = 1.0f / std::sqrt(r2);
+                sinState_ *= invR;
+                cosState_ *= invR;
+            }
+            lfoEpsilon_ = newEpsilon;
+        }
     }
 
     // =========================================================================
@@ -461,9 +505,12 @@ public:
             if (inputGain < 0.001f) inputGain = 0.0f;
         }
 
-        // -- Apply damping cutoff to tank filters --
-        tankADamping_.setCutoff(dampCutoff);
-        tankBDamping_.setCutoff(dampCutoff);
+        // -- Apply damping cutoff to tank filters (only when changed) --
+        if (dampCutoff != cachedDampCutoff_) {
+            tankADamping_.setCutoff(dampCutoff);
+            tankBDamping_.setCutoff(dampCutoff);
+            cachedDampCutoff_ = dampCutoff;
+        }
 
         // -- Store input diffusion coefficients --
         inputDiffCoeff1_ = diff1;
@@ -594,7 +641,7 @@ private:
         return contiguousBuffer_[sectionOffsets_[s] + readPos];
     }
 
-    /// Read from a section with linear interpolation (for LFO-modulated and pre-delay)
+    /// Read from a section with linear interpolation (for pre-delay)
     [[nodiscard]] float bufReadLinear(Section s, float delaySamples) const noexcept {
         float floored = std::floor(delaySamples);
         size_t delayInt = static_cast<size_t>(floored);
@@ -602,6 +649,19 @@ private:
         float a = bufRead(s, delayInt);
         float b = bufRead(s, delayInt + 1);
         return a + frac * (b - a);
+    }
+
+    /// Cubic Hermite (Catmull-Rom) interpolated read for modulated delay lines.
+    /// Reduces HF loss compared to linear interpolation in recirculating paths.
+    [[nodiscard]] float bufReadCubic(Section s, float delaySamples) const noexcept {
+        float floored = std::floor(delaySamples);
+        size_t delayInt = static_cast<size_t>(floored);
+        float frac = delaySamples - floored;
+        float ym1 = bufRead(s, delayInt > 0 ? delayInt - 1 : 0);
+        float y0  = bufRead(s, delayInt);
+        float y1  = bufRead(s, delayInt + 1);
+        float y2  = bufRead(s, delayInt + 2);
+        return Interpolation::cubicHermiteInterpolate(ym1, y0, y1, y2, frac);
     }
 
     // =========================================================================
@@ -626,17 +686,17 @@ private:
         float preDelayed = bufReadLinear(kPreDelay, std::max(0.0f, preDelaySamples));
 
         // -- Input diffusion (FR-002, FR-003) --
+        // Always process allpasses to keep buffer state fresh. When coefficients
+        // are near zero, allpasses become pure delays (cheap, no stale audio).
         float diffused = preDelayed;
-        if (inputDiffCoeff1_ > 0.001f || inputDiffCoeff2_ > 0.001f) {
-            diffused = processAllpass(kInputDiff0, diffused, inputDiffCoeff1_,
-                                      inputDiffDelaySamples_[0]);
-            diffused = processAllpass(kInputDiff1, diffused, inputDiffCoeff1_,
-                                      inputDiffDelaySamples_[1]);
-            diffused = processAllpass(kInputDiff2, diffused, inputDiffCoeff2_,
-                                      inputDiffDelaySamples_[2]);
-            diffused = processAllpass(kInputDiff3, diffused, inputDiffCoeff2_,
-                                      inputDiffDelaySamples_[3]);
-        }
+        diffused = processAllpass(kInputDiff0, diffused, inputDiffCoeff1_,
+                                  inputDiffDelaySamples_[0]);
+        diffused = processAllpass(kInputDiff1, diffused, inputDiffCoeff1_,
+                                  inputDiffDelaySamples_[1]);
+        diffused = processAllpass(kInputDiff2, diffused, inputDiffCoeff2_,
+                                  inputDiffDelaySamples_[2]);
+        diffused = processAllpass(kInputDiff3, diffused, inputDiffCoeff2_,
+                                  inputDiffDelaySamples_[3]);
 
         // Apply input gain (for freeze: gain -> 0.0)
         diffused *= inputGain;
@@ -656,7 +716,7 @@ private:
             // Decay Diffusion 1 (modulated allpass, coeff = -0.70)
             float dd1Delay = tankADD1Center_ + lfoA;
             dd1Delay = std::max(1.0f, dd1Delay);
-            float dd1Delayed = bufReadLinear(kTankADD1, dd1Delay);
+            float dd1Delayed = bufReadCubic(kTankADD1, dd1Delay);
             float dd1Coeff = -kDecayDiffusion1;
             float dd1Out = dd1Coeff * tankAInput + dd1Delayed;
             bufWrite(kTankADD1, tankAInput + (-dd1Coeff) * dd1Out);
@@ -666,12 +726,12 @@ private:
             float preDamped = bufRead(kTankAPreDamp, tankAPreDampLen_);
 
             // Damping filter - bypass during freeze to preserve energy
-            float damped = (freeze_ && decay >= 1.0f) ? preDamped
-                                                       : tankADamping_.process(preDamped);
+            float damped = freeze_ ? preDamped
+                                   : tankADamping_.process(preDamped);
             damped *= decay;
 
             // Decay Diffusion 2 (allpass, coeff = 0.50)
-            float dd2Delayed = bufReadLinear(kTankADD2, static_cast<float>(tankADD2Len_));
+            float dd2Delayed = bufRead(kTankADD2, tankADD2Len_);
             float dd2Coeff = kDecayDiffusion2;
             float dd2Out = -dd2Coeff * damped + dd2Delayed;
             bufWrite(kTankADD2, damped + dd2Coeff * dd2Out);
@@ -681,7 +741,7 @@ private:
             float postDamped = bufRead(kTankAPostDamp, tankAPostDampLen_);
 
             // DC blocker - bypass during freeze to preserve energy
-            if (freeze_ && decay >= 1.0f) {
+            if (freeze_) {
                 tankAOut_ = postDamped;
             } else {
                 tankAOut_ = tankADCBlocker_.process(postDamped);
@@ -696,7 +756,7 @@ private:
             // Decay Diffusion 1 (modulated allpass, coeff = -0.70)
             float dd1Delay = tankBDD1Center_ + lfoB;
             dd1Delay = std::max(1.0f, dd1Delay);
-            float dd1Delayed = bufReadLinear(kTankBDD1, dd1Delay);
+            float dd1Delayed = bufReadCubic(kTankBDD1, dd1Delay);
             float dd1Coeff = -kDecayDiffusion1;
             float dd1Out = dd1Coeff * tankBInput + dd1Delayed;
             bufWrite(kTankBDD1, tankBInput + (-dd1Coeff) * dd1Out);
@@ -706,12 +766,12 @@ private:
             float preDamped = bufRead(kTankBPreDamp, tankBPreDampLen_);
 
             // Damping filter - bypass during freeze to preserve energy
-            float damped = (freeze_ && decay >= 1.0f) ? preDamped
-                                                       : tankBDamping_.process(preDamped);
+            float damped = freeze_ ? preDamped
+                                   : tankBDamping_.process(preDamped);
             damped *= decay;
 
             // Decay Diffusion 2 (allpass, coeff = 0.50)
-            float dd2Delayed = bufReadLinear(kTankBDD2, static_cast<float>(tankBDD2Len_));
+            float dd2Delayed = bufRead(kTankBDD2, tankBDD2Len_);
             float dd2Coeff = kDecayDiffusion2;
             float dd2Out = -dd2Coeff * damped + dd2Delayed;
             bufWrite(kTankBDD2, damped + dd2Coeff * dd2Out);
@@ -721,7 +781,7 @@ private:
             float postDamped = bufRead(kTankBPostDamp, tankBPostDampLen_);
 
             // DC blocker - bypass during freeze to preserve energy
-            if (freeze_ && decay >= 1.0f) {
+            if (freeze_) {
                 tankBOut_ = postDamped;
             } else {
                 tankBOut_ = tankBDCBlocker_.process(postDamped);
@@ -782,6 +842,9 @@ private:
     /// Matches the topology from comb_filter.h SchroederAllpass:
     /// w[n] = x[n] + g * w[n-D], y[n] = -g * x[n] + w[n-D]
     /// Read-before-write with D-1 offset to match DelayLine semantics.
+    /// Note: The D-1 offset causes an off-by-one for sub-1-sample delays, but
+    /// Dattorro's minimum delay length is 107 samples at ref rate (~173 at 48kHz),
+    /// so this limitation never applies in practice.
     [[nodiscard]] float processAllpass(Section s, float input, float coeff,
                                         float delaySamples) noexcept {
         // Read before write (like SchroederAllpass), using D-1 offset
@@ -831,6 +894,7 @@ private:
     OnePoleLP tankBDamping_;
     DCBlocker tankADCBlocker_;
     DCBlocker tankBDCBlocker_;
+    float cachedDampCutoff_ = 0.0f;  ///< Cached damping cutoff to avoid redundant setCutoff
 
     // =========================================================================
     // Tank state variables

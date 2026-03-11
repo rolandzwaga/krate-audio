@@ -37,7 +37,13 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)  // structure padded due to alignas (intentional for SIMD)
+#endif
+
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/interpolation.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/effects/reverb.h>  // ReverbParams
 #include <krate/dsp/primitives/delay_line.h>  // nextPowerOf2, DelayLine
@@ -64,6 +70,10 @@ void fdnApplyHadamardSIMD(float* data, size_t numChannels) noexcept;
 
 /// SIMD-accelerated Householder feedback matrix
 void fdnApplyHouseholderSIMD(float* data, size_t numChannels) noexcept;
+
+/// SIMD-accelerated feedback gain + input injection: data[i] = data[i] * gains[i] + input
+void fdnApplyFeedbackSIMD(float* data, const float* gains,
+                           float input, size_t numChannels) noexcept;
 
 // =============================================================================
 // FDN Reverb Constants
@@ -117,6 +127,7 @@ public:
     FDNReverb() noexcept = default;
 
     /// @brief Prepare for processing. Allocates all buffers. (FR-020)
+    /// @note Must be called from a non-real-time thread (allocates memory).
     /// @param sampleRate Sample rate in Hz [8000, 192000]
     void prepare(double sampleRate) noexcept {
         using namespace fdn_detail;
@@ -145,20 +156,26 @@ public:
         }
         delayBuffer_.assign(totalDelayBufferSize_, 0.0f);
 
-        // -- Diffuser delay lengths (FR-008) --
-        // Use short prime delays scaled from 48kHz reference for each step
-        // Steps use progressively longer delays for cascaded diffusion
-        static constexpr size_t kDiffRefDelays[kNumDiffuserSteps] = {13, 19, 29, 37};
+        // -- Per-channel diffuser delay lengths (FR-008) --
+        // Each channel within a step has a distinct prime delay for improved
+        // temporal diffusion and decorrelation.
+        static constexpr size_t kDiffRefDelays[kNumDiffuserSteps][kNumChannels] = {
+            {13, 17, 19, 23, 29, 31, 37, 41},       // Step 0: ~0.27-0.85ms
+            {43, 47, 53, 59, 61, 67, 71, 73},       // Step 1: ~0.90-1.52ms
+            {79, 83, 89, 97, 101, 103, 107, 109},   // Step 2: ~1.65-2.27ms
+            {113, 127, 131, 137, 139, 149, 151, 157} // Step 3: ~2.35-3.27ms
+        };
 
         totalDiffuserBufferSize_ = 0;
         for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
-            size_t scaled = static_cast<size_t>(
-                std::round(static_cast<double>(kDiffRefDelays[step]) * sampleRate / kReferenceSampleRate));
-            scaled = std::max(scaled, size_t(1));
-            diffuserDelayLengths_[step] = scaled;
-
             for (size_t ch = 0; ch < kNumChannels; ++ch) {
                 size_t idx = step * kNumChannels + ch;
+                size_t scaled = static_cast<size_t>(
+                    std::round(static_cast<double>(kDiffRefDelays[step][ch])
+                               * sampleRate / kReferenceSampleRate));
+                scaled = std::max(scaled, size_t(1));
+                diffuserDelayLengths_[idx] = scaled;
+
                 size_t secSize = nextPowerOf2(scaled + 4);
                 diffuserSectionSizes_[idx] = secSize;
                 diffuserSectionMasks_[idx] = secSize - 1;
@@ -185,6 +202,9 @@ public:
         }
         lfoEpsilon_ = 0.0f;
         lfoMaxExcursion_ = 0.0f;
+
+        // -- DC blocker coefficient: ~40Hz -3dB point at any sample rate --
+        dcBlockR_ = 1.0f - (250.0f / static_cast<float>(sampleRate));
 
         // -- Initialize parameters to defaults --
         ReverbParams defaultParams;
@@ -260,19 +280,18 @@ public:
         // -- Step 3: Read delay outputs (output taps) --
         alignas(32) float delReads[kNumChannels];
         for (size_t i = 0; i < kNumChannels; ++i) {
-            // For modulated channels (4-7), apply LFO excursion
             float delayF = static_cast<float>(delayLengths_[i]);
-            for (size_t j = 0; j < kNumModulatedChannels; ++j) {
-                if (lfoModChannels_[j] == i) {
-                    delayF += lfoSinState_[j] * lfoMaxExcursion_;
-                    delayF = std::max(1.0f, delayF);
-                    break;
-                }
+            delayF += lfoExcursionPerChannel_[i];
+            delayF = std::max(1.0f, delayF);
+            // Cubic interpolation for modulated channels, linear for fixed
+            if (lfoExcursionPerChannel_[i] != 0.0f) {
+                delReads[i] = delayBufReadCubic(i, delayF);
+            } else {
+                delReads[i] = delayBufReadLinear(i, delayF);
             }
-            delReads[i] = delayBufReadLinear(i, delayF);
         }
 
-        // -- Step 4: One-pole damping filters (FR-011) --
+        // -- Step 4: One-pole damping filters with Jot absorption (FR-011) --
         // In freeze mode, bypass damping to preserve energy
         if (freeze_) {
             for (size_t i = 0; i < kNumChannels; ++i) {
@@ -282,6 +301,7 @@ public:
             for (size_t i = 0; i < kNumChannels; ++i) {
                 filterStates_[i] = filterCoeffs_[i] * delReads[i]
                                  + (1.0f - filterCoeffs_[i]) * filterStates_[i];
+                filterStates_[i] *= filterGainDC_[i];
             }
         }
 
@@ -295,14 +315,16 @@ public:
         } else {
             for (size_t i = 0; i < kNumChannels; ++i) {
                 float filtered = filterStates_[i];
-                dcBlockY_[i] = filtered - dcBlockX_[i] + 0.9999f * dcBlockY_[i];
+                dcBlockY_[i] = filtered - dcBlockX_[i] + dcBlockR_ * dcBlockY_[i];
                 dcBlockX_[i] = filtered;
                 processed[i] = dcBlockY_[i];
             }
         }
 
         // -- Step 6: Hadamard diffuser in feedback path (FR-008) --
-        // Apply 4 cascaded Hadamard steps to the processed delay outputs
+        // Apply 4 cascaded Hadamard steps to the processed delay outputs.
+        // Note: Diffusion continues during freeze mode intentionally —
+        // this creates an evolving frozen texture which is musically desirable.
         for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
             applyDiffuserStep(processed, step);
         }
@@ -320,12 +342,13 @@ public:
             delayBufWrite(i, processed[i]);
         }
 
-        // -- Step 10: Advance LFO (Gordon-Smith phasor) --
+        // -- Step 10: Advance LFO (Gordon-Smith phasor) + pre-compute excursions --
         for (size_t j = 0; j < kNumModulatedChannels; ++j) {
             float newSin = lfoSinState_[j] + lfoEpsilon_ * lfoCosState_[j];
             float newCos = lfoCosState_[j] - lfoEpsilon_ * newSin;
             lfoSinState_[j] = newSin;
             lfoCosState_[j] = newCos;
+            lfoExcursionPerChannel_[lfoModChannels_[j]] = newSin * lfoMaxExcursion_;
         }
 
         // -- Step 11: Stereo output from delay reads --
@@ -377,9 +400,11 @@ public:
             // Snapshot filter coefficients for this sub-block
             alignas(32) float subBlockFilterCoeffs[kNumChannels];
             alignas(32) float subBlockFeedbackGains[kNumChannels];
+            alignas(32) float subBlockFilterGainDC[kNumChannels];
             for (size_t i = 0; i < kNumChannels; ++i) {
                 subBlockFilterCoeffs[i] = filterCoeffs_[i];
                 subBlockFeedbackGains[i] = feedbackGains_[i];
+                subBlockFilterGainDC[i] = filterGainDC_[i];
             }
 
             // Compute dry/wet gains once per sub-block (avoids per-sample trig)
@@ -411,14 +436,13 @@ public:
                 alignas(32) float delReads[kNumChannels];
                 for (size_t i = 0; i < kNumChannels; ++i) {
                     float delayF = static_cast<float>(delayLengths_[i]);
-                    for (size_t j = 0; j < kNumModulatedChannels; ++j) {
-                        if (lfoModChannels_[j] == i) {
-                            delayF += lfoSinState_[j] * subBlockLfoMaxExcursion;
-                            delayF = std::max(1.0f, delayF);
-                            break;
-                        }
+                    delayF += lfoExcursionPerChannel_[i];
+                    delayF = std::max(1.0f, delayF);
+                    if (lfoExcursionPerChannel_[i] != 0.0f) {
+                        delReads[i] = delayBufReadCubic(i, delayF);
+                    } else {
+                        delReads[i] = delayBufReadLinear(i, delayF);
                     }
-                    delReads[i] = delayBufReadLinear(i, delayF);
                 }
 
                 // -- Step 4: One-pole damping filters via SIMD (FR-011, FR-015a) --
@@ -432,13 +456,17 @@ public:
                     fdnApplyFilterBankSIMD(delReads, filterStates_,
                                            subBlockFilterCoeffs,
                                            processed, kNumChannels);
+                    // Apply per-channel Jot DC gain after filter bank
+                    for (size_t i = 0; i < kNumChannels; ++i) {
+                        processed[i] *= subBlockFilterGainDC[i];
+                    }
                 }
 
                 // -- Step 5: DC blockers (FR-012) --
                 if (!subBlockFreeze) {
                     for (size_t i = 0; i < kNumChannels; ++i) {
                         dcBlockY_[i] = processed[i] - dcBlockX_[i]
-                                     + 0.9999f * dcBlockY_[i];
+                                     + dcBlockR_ * dcBlockY_[i];
                         dcBlockX_[i] = processed[i];
                         processed[i] = dcBlockY_[i];
                     }
@@ -447,8 +475,9 @@ public:
                 // -- Step 6: Hadamard diffuser via SIMD (FR-008, FR-015b) --
                 for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
                     for (size_t ch = 0; ch < kNumChannels; ++ch) {
+                        size_t idx = step * kNumChannels + ch;
                         float delayed = diffuserBufRead(step, ch,
-                                                        diffuserDelayLengths_[step]);
+                                                        diffuserDelayLengths_[idx]);
                         diffuserBufWrite(step, ch, processed[ch]);
                         processed[ch] = delayed;
                     }
@@ -458,18 +487,16 @@ public:
                 // -- Step 7: Householder feedback via SIMD (FR-010, FR-015c) --
                 fdnApplyHouseholderSIMD(processed, kNumChannels);
 
-                // -- Step 8: Apply feedback gains and add new input --
-                for (size_t i = 0; i < kNumChannels; ++i) {
-                    processed[i] = processed[i] * subBlockFeedbackGains[i]
-                                 + preDelayed;
-                }
+                // -- Step 8: Apply feedback gains and add new input (SIMD) --
+                fdnApplyFeedbackSIMD(processed, subBlockFeedbackGains,
+                                      preDelayed, kNumChannels);
 
                 // -- Step 9: Write to delay lines --
                 for (size_t i = 0; i < kNumChannels; ++i) {
                     delayBufWrite(i, processed[i]);
                 }
 
-                // -- Step 10: Advance LFO --
+                // -- Step 10: Advance LFO + pre-compute excursions --
                 for (size_t j = 0; j < kNumModulatedChannels; ++j) {
                     float newSin = lfoSinState_[j]
                                  + subBlockLfoEpsilon * lfoCosState_[j];
@@ -477,6 +504,8 @@ public:
                                  - subBlockLfoEpsilon * newSin;
                     lfoSinState_[j] = newSin;
                     lfoCosState_[j] = newCos;
+                    lfoExcursionPerChannel_[lfoModChannels_[j]] =
+                        newSin * subBlockLfoMaxExcursion;
                 }
 
                 // -- Step 11: Stereo output from delay reads --
@@ -524,13 +553,8 @@ private:
         float roomSize = std::clamp(params.roomSize, 0.0f, 1.0f);
         float damping = std::clamp(params.damping, 0.0f, 1.0f);
 
-        // Map roomSize to feedback gain (FR-017) using quadratic curve.
-        // Linear mapping caused audible echo ringing at 65-70% roomSize because
-        // short FDN delays (3-17ms) amplify individual reflections at high gain.
-        // Too-low base (0.60) made reverb inaudible below 60%.
-        // Quadratic: fbGain = 0.78 + 0.17 * roomSize^2
-        // roomSize=0.0 -> 0.78, roomSize=0.5 -> 0.82, roomSize=0.7 -> 0.86,
-        // roomSize=0.9 -> 0.92, roomSize=1.0 -> 0.95
+        // Map roomSize to base feedback gain (FR-017) using quadratic curve.
+        // This bounds the overall loop gain for stability.
         float fbGain = 0.78f + 0.17f * roomSize * roomSize;
 
         // Freeze mode (FR-018)
@@ -543,13 +567,36 @@ private:
             feedbackGains_[i] = fbGain;
         }
 
-        // Map damping to one-pole coefficient
-        // damping=0 -> 20kHz (bright), damping=1 -> 200Hz (dark)
-        float dampCutoffHz = 200.0f * std::pow(100.0f, 1.0f - damping);
-        float coeff = 1.0f - std::exp(-kTwoPi * dampCutoffHz / static_cast<float>(sampleRate_));
-        coeff = std::clamp(coeff, 0.0f, 1.0f);
+        // Jot's per-delay-line absorption: each delay line gets a correction
+        // factor (filterGainDC_) that compensates for length differences, so
+        // all channels achieve the same effective T60. The base fbGain bounds
+        // overall loop gain for stability; filterGainDC_ corrects per-channel.
+        //
+        // T60_dc derived from roomSize: 0.5s (small) to 10s (large)
+        float t60dc = 0.5f + roomSize * 9.5f;
+        // T60_nyq derived from damping: shorter than T60_dc for HF absorption
+        // damping=0 -> T60_nyq = T60_dc (bright), damping=1 -> T60_nyq = T60_dc/20 (dark)
+        float t60nyq = t60dc * std::pow(0.05f, damping);
+
+        float sr = static_cast<float>(sampleRate_);
         for (size_t i = 0; i < kNumChannels; ++i) {
-            filterCoeffs_[i] = coeff;
+            float mi = static_cast<float>(delayLengths_[i]);
+            // Per-channel ideal gain at DC and Nyquist (Jot formula)
+            float gDC = std::pow(10.0f, -3.0f * mi / (t60dc * sr));
+            float gNyq = std::pow(10.0f, -3.0f * mi / (t60nyq * sr));
+            // filterGainDC_ = correction ratio: ideal Jot gain / base fbGain
+            // Clamped to [0, 1] to never amplify beyond base loop gain
+            filterGainDC_[i] = (fbGain > 1e-10f)
+                ? std::clamp(gDC / fbGain, 0.0f, 1.0f)
+                : 1.0f;
+            // Derive one-pole coefficient from DC/Nyquist gain ratio
+            // At DC: H(1) = 1.0 (pass-through), gain applied via filterGainDC_
+            // At Nyquist: H(-1) = coeff / (2 - coeff)
+            // We want gNyq/gDC = coeff / (2 - coeff)
+            float ratio = (gDC > 1e-10f) ? (gNyq / gDC) : 1.0f;
+            ratio = std::clamp(ratio, 0.0f, 1.0f);
+            float coeff = 2.0f * ratio / (1.0f + ratio);
+            filterCoeffs_[i] = std::clamp(coeff, 0.001f, 1.0f);
         }
 
         // Store parameters
@@ -563,8 +610,23 @@ private:
         // LFO rate (FR-013: Gordon-Smith epsilon)
         float modRate = std::clamp(params.modRate, 0.0f, 2.0f);
         float modDepth = std::clamp(params.modDepth, 0.0f, 1.0f);
-        lfoEpsilon_ = 2.0f * static_cast<float>(std::sin(
+        float newEpsilon = 2.0f * static_cast<float>(std::sin(
             kPi * static_cast<double>(modRate) / sampleRate_));
+        if (newEpsilon != lfoEpsilon_) {
+            // Renormalize phasor states to unit circle when epsilon changes
+            // to prevent amplitude drift (Gordon-Smith phasor is only
+            // amplitude-stable when epsilon is constant)
+            for (size_t j = 0; j < kNumModulatedChannels; ++j) {
+                float r2 = lfoSinState_[j] * lfoSinState_[j]
+                          + lfoCosState_[j] * lfoCosState_[j];
+                if (r2 > 0.0f) {
+                    float invR = 1.0f / std::sqrt(r2);
+                    lfoSinState_[j] *= invR;
+                    lfoCosState_[j] *= invR;
+                }
+            }
+            lfoEpsilon_ = newEpsilon;
+        }
         // Max excursion: 5% of longest delay
         lfoMaxExcursion_ = modDepth * (static_cast<float>(delayLengths_[kNumChannels - 1]) * 0.05f);
     }
@@ -592,6 +654,19 @@ private:
         float a = delayBufRead(channel, delayInt);
         float b = delayBufRead(channel, delayInt + 1);
         return a + frac * (b - a);
+    }
+
+    /// Cubic Hermite (Catmull-Rom) interpolated read for modulated delay lines.
+    /// Reduces HF loss compared to linear interpolation in recirculating paths.
+    [[nodiscard]] float delayBufReadCubic(size_t channel, float delaySamples) const noexcept {
+        float floored = std::floor(delaySamples);
+        size_t delayInt = static_cast<size_t>(floored);
+        float frac = delaySamples - floored;
+        float ym1 = delayBufRead(channel, delayInt > 0 ? delayInt - 1 : 0);
+        float y0  = delayBufRead(channel, delayInt);
+        float y1  = delayBufRead(channel, delayInt + 1);
+        float y2  = delayBufRead(channel, delayInt + 2);
+        return Interpolation::cubicHermiteInterpolate(ym1, y0, y1, y2, frac);
     }
 
     // =========================================================================
@@ -656,7 +731,8 @@ private:
     /// Diffuser step: read from diffuser delay, apply Hadamard, write back (FR-008)
     void applyDiffuserStep(float x[kNumChannels], size_t stepIndex) noexcept {
         for (size_t ch = 0; ch < kNumChannels; ++ch) {
-            float delayed = diffuserBufRead(stepIndex, ch, diffuserDelayLengths_[stepIndex]);
+            size_t idx = stepIndex * kNumChannels + ch;
+            float delayed = diffuserBufRead(stepIndex, ch, diffuserDelayLengths_[idx]);
             diffuserBufWrite(stepIndex, ch, x[ch]);
             x[ch] = delayed;
         }
@@ -690,6 +766,7 @@ private:
     float mix_ = 0.3f;
     float width_ = 1.0f;
     float preDelaySamples_ = 0.0f;
+    float dcBlockR_ = 0.9999f;  // DC blocker coefficient, computed in prepare()
 
     // =========================================================================
     // SoA state arrays (FR-014) - alignas(32) for SIMD
@@ -697,6 +774,7 @@ private:
     alignas(32) float delayOutputs_[kNumChannels] = {};
     alignas(32) float filterStates_[kNumChannels] = {};
     alignas(32) float filterCoeffs_[kNumChannels] = {};
+    alignas(32) float filterGainDC_[kNumChannels] = {};  // Per-channel DC gain (Jot absorption)
     alignas(32) float dcBlockX_[kNumChannels] = {};
     alignas(32) float dcBlockY_[kNumChannels] = {};
     alignas(32) float feedbackGains_[kNumChannels] = {};
@@ -717,7 +795,7 @@ private:
     // =========================================================================
     std::vector<float> diffuserBuffer_;
     size_t totalDiffuserBufferSize_ = 0;
-    size_t diffuserDelayLengths_[kNumDiffuserSteps] = {};
+    size_t diffuserDelayLengths_[kNumDiffuserSteps * kNumChannels] = {};
     size_t diffuserSectionSizes_[kNumDiffuserSteps * kNumChannels] = {};
     size_t diffuserSectionMasks_[kNumDiffuserSteps * kNumChannels] = {};
     size_t diffuserSectionOffsets_[kNumDiffuserSteps * kNumChannels] = {};
@@ -733,6 +811,7 @@ private:
     // =========================================================================
     alignas(32) float lfoSinState_[kNumModulatedChannels] = {};
     alignas(32) float lfoCosState_[kNumModulatedChannels] = {};
+    alignas(32) float lfoExcursionPerChannel_[kNumChannels] = {};  // Pre-computed per-channel LFO
     float lfoEpsilon_ = 0.0f;
     size_t lfoModChannels_[kNumModulatedChannels] = {};
     float lfoMaxExcursion_ = 0.0f;
@@ -740,3 +819,7 @@ private:
 
 } // namespace DSP
 } // namespace Krate
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif

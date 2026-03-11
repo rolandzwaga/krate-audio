@@ -18,6 +18,7 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/db_utils.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 
@@ -74,6 +75,15 @@ public:
     void setCutoff(float hz) noexcept {
         cutoffHz_ = clampCutoff(hz);
         updateCoefficient();
+    }
+
+    /// @brief Set the filter coefficient directly, bypassing frequency conversion.
+    ///
+    /// Useful when the coefficient is known analytically (e.g., Dattorro bandwidth
+    /// filter where the paper specifies a mixing coefficient, not a cutoff frequency).
+    /// @param a Filter coefficient in [0, 1) range
+    void setCoefficient(float a) noexcept {
+        coefficient_ = std::clamp(a, 0.0f, 0.9999999f);
     }
 
     /// @brief Get the current cutoff frequency.

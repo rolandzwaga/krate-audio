@@ -78,6 +78,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <string>
 
 namespace {
 
@@ -1702,11 +1703,18 @@ VSTGUI::CView* Controller::verifyView(
     if (container) {
         const auto* name = attributes.getAttributeValue("custom-view-name");
         if (name) {
-            if (*name == "HarmonizerVoice1") { harmonizerVoiceRows_[0] = container; }
-            else if (*name == "HarmonizerVoice2") { harmonizerVoiceRows_[1] = container; }
-            else if (*name == "HarmonizerVoice3") { harmonizerVoiceRows_[2] = container; }
-            else if (*name == "HarmonizerVoice4") { harmonizerVoiceRows_[3] = container; }
-            else if (*name == "LFO1RateGroup") {
+            bool matchedVoiceRow = false;
+            for (int vi = 0; vi < 4; ++vi) {
+                // Match "HarmonizerVoice1" through "HarmonizerVoice4"
+                std::string voiceName = "HarmonizerVoice" + std::to_string(vi + 1);
+                if (*name == voiceName) {
+                    harmonizerVoiceRows_[vi] = container;
+                    matchedVoiceRow = true;
+                    break;
+                }
+            }
+            if (!matchedVoiceRow) {
+            if (*name == "LFO1RateGroup") {
                 lfo1RateGroup_ = container;
                 auto* syncParam = getParameterObject(kLFO1SyncId);
                 bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
@@ -1843,6 +1851,7 @@ VSTGUI::CView* Controller::verifyView(
                 container->setAlphaValue(isBitcrush ? 1.0f : 0.35f);
                 container->setMouseEnabled(isBitcrush);
             }
+            }  // if (!matchedVoiceRow)
         }
     }
 

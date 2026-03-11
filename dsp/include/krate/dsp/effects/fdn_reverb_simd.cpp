@@ -81,16 +81,17 @@ void ApplyFilterBankSIMDImpl(const float* HWY_RESTRICT inputs,
 // NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
 void ApplyHadamardSIMDImpl(float* HWY_RESTRICT data,
                            [[maybe_unused]] size_t numChannels) {
-    // Butterfly stages are scalar (data-dependent shuffles not SIMD-friendly)
-    // Stage 1: stride = 4
-    for (size_t i = 0; i < 4; ++i) {
-        float a = data[i];
-        float b = data[i + 4];
-        data[i] = a + b;
-        data[i + 4] = a - b;
+    const hn::FixedTag<float, 4> d4;
+
+    // Stage 1: stride = 4 (SIMD: lo[0:3] +/- hi[4:7])
+    {
+        auto lo = hn::Load(d4, data);
+        auto hi = hn::Load(d4, data + 4);
+        hn::Store(hn::Add(lo, hi), d4, data);
+        hn::Store(hn::Sub(lo, hi), d4, data + 4);
     }
 
-    // Stage 2: stride = 2
+    // Stage 2: stride = 2 (scalar — requires interleaved pairs)
     for (size_t k = 0; k < 8; k += 4) {
         for (size_t i = 0; i < 2; ++i) {
             float a = data[k + i];
@@ -100,7 +101,7 @@ void ApplyHadamardSIMDImpl(float* HWY_RESTRICT data,
         }
     }
 
-    // Stage 3: stride = 1
+    // Stage 3: stride = 1 (scalar — adjacent pairs)
     for (size_t k = 0; k < 8; k += 2) {
         float a = data[k];
         float b = data[k + 1];
@@ -110,7 +111,6 @@ void ApplyHadamardSIMDImpl(float* HWY_RESTRICT data,
 
     // SIMD normalization: 2x 4-wide multiply by 1/sqrt(8)
     constexpr float kNorm = 0.35355339059327373f;
-    const hn::FixedTag<float, 4> d4;
     const auto norm = hn::Set(d4, kNorm);
     hn::Store(hn::Mul(hn::Load(d4, data), norm), d4, data);
     hn::Store(hn::Mul(hn::Load(d4, data + 4), norm), d4, data + 4);
@@ -142,6 +142,33 @@ void ApplyHouseholderSIMDImpl(float* HWY_RESTRICT data,
     hn::Store(hn::Sub(hi, scaled), d4, data + 4);
 }
 
+// -----------------------------------------------------------------------------
+// ApplyFeedbackSIMD: feedback gain + input injection (FR-015)
+// data[i] = data[i] * gains[i] + input
+// -----------------------------------------------------------------------------
+
+// NOLINTNEXTLINE(misc-use-internal-linkage) exported via HWY_EXPORT
+void ApplyFeedbackSIMDImpl(float* HWY_RESTRICT data,
+                            const float* HWY_RESTRICT gains,
+                            float input,
+                            size_t numChannels) {
+    const hn::ScalableTag<float> d;
+    const size_t N = hn::Lanes(d);
+    const auto inputVec = hn::Set(d, input);
+
+    size_t i = 0;
+    for (; i + N <= numChannels; i += N) {
+        const auto val = hn::Load(d, data + i);
+        const auto gain = hn::Load(d, gains + i);
+        hn::Store(hn::MulAdd(val, gain, inputVec), d, data + i);
+    }
+
+    // Scalar tail
+    for (; i < numChannels; ++i) {
+        data[i] = data[i] * gains[i] + input;
+    }
+}
+
 }  // namespace HWY_NAMESPACE
 }  // namespace DSP
 }  // namespace Krate
@@ -154,29 +181,37 @@ HWY_AFTER_NAMESPACE();
 
 #if HWY_ONCE
 
-namespace Krate {
-namespace DSP {
+namespace Krate::DSP {  // NOLINT(modernize-concat-nested-namespaces) already concatenated; false positive under HWY_ONCE guard
 
 HWY_EXPORT(ApplyFilterBankSIMDImpl);
 HWY_EXPORT(ApplyHadamardSIMDImpl);
 HWY_EXPORT(ApplyHouseholderSIMDImpl);
+HWY_EXPORT(ApplyFeedbackSIMDImpl);
 
-void fdnApplyFilterBankSIMD(const float* inputs, float* states,
-                            const float* coeffs, float* outputs,
-                            size_t numChannels) noexcept {
+void fdnApplyFilterBankSIMD(  // NOLINT(misc-use-internal-linkage) Highway HWY_DYNAMIC_DISPATCH requires external linkage
+    const float* inputs, float* states,
+    const float* coeffs, float* outputs,
+    size_t numChannels) noexcept {
     HWY_DYNAMIC_DISPATCH(ApplyFilterBankSIMDImpl)(inputs, states, coeffs,
                                                    outputs, numChannels);
 }
 
-void fdnApplyHadamardSIMD(float* data, size_t numChannels) noexcept {
+void fdnApplyHadamardSIMD(  // NOLINT(misc-use-internal-linkage) Highway HWY_DYNAMIC_DISPATCH requires external linkage
+    float* data, size_t numChannels) noexcept {
     HWY_DYNAMIC_DISPATCH(ApplyHadamardSIMDImpl)(data, numChannels);
 }
 
-void fdnApplyHouseholderSIMD(float* data, size_t numChannels) noexcept {
+void fdnApplyHouseholderSIMD(  // NOLINT(misc-use-internal-linkage) Highway HWY_DYNAMIC_DISPATCH requires external linkage
+    float* data, size_t numChannels) noexcept {
     HWY_DYNAMIC_DISPATCH(ApplyHouseholderSIMDImpl)(data, numChannels);
 }
 
-}  // namespace DSP
-}  // namespace Krate
+void fdnApplyFeedbackSIMD(  // NOLINT(misc-use-internal-linkage) Highway HWY_DYNAMIC_DISPATCH requires external linkage
+    float* data, const float* gains,
+    float input, size_t numChannels) noexcept {
+    HWY_DYNAMIC_DISPATCH(ApplyFeedbackSIMDImpl)(data, gains, input, numChannels);
+}
+
+}  // namespace Krate::DSP
 
 #endif  // HWY_ONCE

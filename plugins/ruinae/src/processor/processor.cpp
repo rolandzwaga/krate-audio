@@ -1037,16 +1037,20 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleModMatrixParamChange(modMatrixParams_, paramId, value);
         } else if (paramId >= kGlobalFilterBaseId && paramId <= kGlobalFilterEndId) {
             handleGlobalFilterParamChange(globalFilterParams_, paramId, value);
-        } else if (paramId == kDelayEnabledId) {
-            delayEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-        } else if (paramId == kReverbEnabledId) {
-            reverbEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-        } else if (paramId == kPhaserEnabledId) {
-            phaserEnabled_.store(value >= 0.5, std::memory_order_relaxed);
-            logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
-                value, (value >= 0.5) ? 1 : 0);
-        } else if (paramId == kHarmonizerEnabledId) {
-            harmonizerEnabled_.store(value >= 0.5, std::memory_order_relaxed);
+        } else if (paramId == kDelayEnabledId || paramId == kReverbEnabledId
+                   || paramId == kPhaserEnabledId || paramId == kHarmonizerEnabledId) {
+            const bool enabled = value >= 0.5;
+            if (paramId == kDelayEnabledId)
+                delayEnabled_.store(enabled, std::memory_order_relaxed);
+            else if (paramId == kReverbEnabledId)
+                reverbEnabled_.store(enabled, std::memory_order_relaxed);
+            else if (paramId == kPhaserEnabledId) {
+                phaserEnabled_.store(enabled, std::memory_order_relaxed);
+                logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
+                    value, enabled ? 1 : 0);
+            } else {
+                harmonizerEnabled_.store(enabled, std::memory_order_relaxed);
+            }
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
@@ -1402,12 +1406,11 @@ void Processor::applyParamsToEngine() {
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(
         delayParams_.type.load(std::memory_order_relaxed)));
-    if (delayParams_.sync.load(std::memory_order_relaxed)) {
-        engine_.setDelayTime(dropdownToDelayMs(
-            delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_));
-    } else {
-        engine_.setDelayTime(delayParams_.timeMs.load(std::memory_order_relaxed));
-    }
+    engine_.setDelayTime(
+        delayParams_.sync.load(std::memory_order_relaxed)
+            ? dropdownToDelayMs(
+                  delayParams_.noteValue.load(std::memory_order_relaxed), tempoBPM_)
+            : delayParams_.timeMs.load(std::memory_order_relaxed));
     engine_.setDelayFeedback(delayParams_.feedback.load(std::memory_order_relaxed));
     engine_.setDelayMix(delayParams_.mix.load(std::memory_order_relaxed));
 
@@ -1913,6 +1916,7 @@ void Processor::processEvents(Steinberg::Vst::IEventList* events) {
 // ==============================================================================
 // MIDI Dispatcher Callbacks (FR-006)
 // ==============================================================================
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
 void Processor::onNoteOn(int16_t pitch, float velocity) {
     auto midiPitch = static_cast<uint8_t>(pitch);
     auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
@@ -1936,6 +1940,7 @@ void Processor::onNoteOn(int16_t pitch, float velocity) {
     }
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static) accesses members arpParams_, arpCore_, engine_
 void Processor::onNoteOff(int16_t pitch) {
     auto midiPitch = static_cast<uint8_t>(pitch);
 
