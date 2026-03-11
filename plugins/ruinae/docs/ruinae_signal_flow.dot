@@ -58,10 +58,10 @@ digraph RuinaeSignalFlow {
         fontcolor="#804010";
         penwidth=2;
 
-        arp_core [label="Arpeggiator\n(optional, pre-voice)\n\nModes: Up, Down, UpDown, DownUp,\nConverge, Diverge, Random,\nWalk, AsPlayed, Chord\n\nOctave: 1-4, Sequential/Interleaved\nSwing, Spice, Humanize\nLatch, Euclidean, Scale Quantize\nTempo-sync or Free-rate", shape=box, fillcolor="#E8A060"];
+        arp_core [label="Arpeggiator\n(optional, pre-voice)\n\nModes: Up, Down, UpDown, DownUp,\nConverge, Diverge, Random,\nWalk, AsPlayed, Chord\n\nOctave: 1-4, Sequential/Interleaved\nSwing, Spice, Humanize\nLatch, Euclidean, Scale Quantize\nTempo-sync or Free-rate\nPer-step chords (Dyad–9th)\nwith inversions (Root–3rd)", shape=box, fillcolor="#E8A060"];
 
         subgraph cluster_arp_lanes {
-            label="6 Modulation Lanes (1-32 steps each)";
+            label="8 Modulation Lanes (1-32 steps each)";
             style=dashed;
             color="#C07020";
             bgcolor="#F5E8D8";
@@ -72,6 +72,8 @@ digraph RuinaeSignalFlow {
             arp_ratchet_lane [label="Ratchet Lane\n[1, 4] repeats", shape=box, fillcolor="#9880B0"];
             arp_mod_lane [label="Modifier Lane\nAccent, Slide, Skip\n(bit flags)", shape=box, fillcolor="#C0708C"];
             arp_cond_lane [label="Condition Lane\n18 conditions\n(probability, fill, etc.)", shape=box, fillcolor="#7C90B0"];
+            arp_chord_lane [label="Chord Lane\nNone, Dyad, Triad,\n7th, 9th", shape=box, fillcolor="#A0886C"];
+            arp_inv_lane [label="Inversion Lane\nRoot, 1st, 2nd, 3rd", shape=box, fillcolor="#8CA07C"];
         }
 
         arp_vel_lane -> arp_core [style=dashed, color="#804010"];
@@ -80,6 +82,8 @@ digraph RuinaeSignalFlow {
         arp_ratchet_lane -> arp_core [style=dashed, color="#804010"];
         arp_mod_lane -> arp_core [style=dashed, color="#804010"];
         arp_cond_lane -> arp_core [style=dashed, color="#804010"];
+        arp_chord_lane -> arp_core [style=dashed, color="#804010"];
+        arp_inv_lane -> arp_core [style=dashed, color="#804010"];
     }
 
     // =========================================================================
