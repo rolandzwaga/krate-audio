@@ -233,11 +233,11 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Verify code quality with clang-tidy before final verification.
 
-- [ ] T068 Generate `compile_commands.json` with Ninja preset if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (run from VS Developer PowerShell if needed)
-- [ ] T069 Run clang-tidy on DSP targets (new and modified files): `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
-- [ ] T070 Run clang-tidy on Ruinae plugin target: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
-- [ ] T071 Fix all clang-tidy errors (blocking); review warnings and add `// NOLINT(rule): reason` comments for intentional suppressions in SIMD/DSP code where appropriate
-- [ ] T072 Rebuild and re-run all tests after any clang-tidy fixes: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests ruinae_tests && build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -3 && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -3`
+- [X] T068 Generate `compile_commands.json` with Ninja preset if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (run from VS Developer PowerShell if needed)
+- [X] T069 Run clang-tidy on DSP targets (new and modified files): `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T070 Run clang-tidy on Ruinae plugin target: `./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja`
+- [X] T071 Fix all clang-tidy errors (blocking); review warnings and add `// NOLINT(rule): reason` comments for intentional suppressions in SIMD/DSP code where appropriate
+- [X] T072 Rebuild and re-run all tests after any clang-tidy fixes: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests ruinae_tests && build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -3 && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -3`
 
 ---
 
@@ -247,20 +247,20 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 9.1 Requirements Verification
 
-- [ ] T073 Review ALL FR-001 through FR-006 (Dattorro optimizations): open `dsp/include/krate/dsp/effects/reverb.h`, confirm each requirement is satisfied, record file path and line numbers in `spec.md` compliance table
-- [ ] T074 Review ALL FR-007 through FR-022 (FDN reverb): open `dsp/include/krate/dsp/effects/fdn_reverb.h` and `fdn_reverb_simd.cpp`, confirm each requirement is satisfied with file path and line numbers in `spec.md`
-- [ ] T075 Review ALL FR-023 through FR-029 (Ruinae integration): open `plugin_ids.h`, `reverb_params.h`, `ruinae_effects_chain.h`, `processor.cpp`, `controller.cpp`, confirm each requirement is satisfied with evidence in `spec.md`; for FR-029 (freeze+switch), also verify the T046B test passes and confirm freeze is applied to the incoming reverb before crossfade starts
-- [ ] T076 Verify SC-001 (15%+ CPU reduction for Dattorro): run perf benchmark, record actual before/after numbers in `spec.md`; if not met, profile and optimize before proceeding
-- [ ] T077 Verify SC-002 (FDN <2% CPU for 512 samples at 44.1kHz): run perf benchmark, record actual measured value in `spec.md`; if not met, profile SIMD kernels before proceeding
-- [ ] T078 Verify SC-003 (no audible clicks on type switch): run the click-detection test from T043; record pass/fail and measured max amplitude delta in `spec.md`
-- [ ] T079 Verify SC-004 (stability for all params/rates/10s): run T063 results; record pass/fail in `spec.md`
-- [ ] T080 Verify SC-005 (NED >= 0.8 within 50ms): run the NED test from T021; record actual NED value at 50ms in `spec.md`
-- [ ] T081 Verify SC-006 (backward-compatible state load): run T045 test; confirm version-4 state loads correctly with Plate default; record evidence in `spec.md`
-- [ ] T082 Verify SC-007 (decay correlates with roomSize): run T064 results; record T60 values at each roomSize in `spec.md`
+- [X] T073 Review ALL FR-001 through FR-006 (Dattorro optimizations): open `dsp/include/krate/dsp/effects/reverb.h`, confirm each requirement is satisfied, record file path and line numbers in `spec.md` compliance table
+- [X] T074 Review ALL FR-007 through FR-022 (FDN reverb): open `dsp/include/krate/dsp/effects/fdn_reverb.h` and `fdn_reverb_simd.cpp`, confirm each requirement is satisfied with file path and line numbers in `spec.md`
+- [X] T075 Review ALL FR-023 through FR-029 (Ruinae integration): open `plugin_ids.h`, `reverb_params.h`, `ruinae_effects_chain.h`, `processor.cpp`, `controller.cpp`, confirm each requirement is satisfied with evidence in `spec.md`; for FR-029 (freeze+switch), also verify the T046B test passes and confirm freeze is applied to the incoming reverb before crossfade starts
+- [X] T076 Verify SC-001 (15%+ CPU reduction for Dattorro): run perf benchmark, record actual before/after numbers in `spec.md`; if not met, profile and optimize before proceeding
+- [X] T077 Verify SC-002 (FDN <2% CPU for 512 samples at 44.1kHz): run perf benchmark, record actual measured value in `spec.md`; if not met, profile SIMD kernels before proceeding
+- [X] T078 Verify SC-003 (no audible clicks on type switch): run the click-detection test from T043; record pass/fail and measured max amplitude delta in `spec.md`
+- [X] T079 Verify SC-004 (stability for all params/rates/10s): run T063 results; record pass/fail in `spec.md`
+- [X] T080 Verify SC-005 (NED >= 0.8 within 50ms): run the NED test from T021; record actual NED value at 50ms in `spec.md`
+- [X] T081 Verify SC-006 (backward-compatible state load): run T045 test; confirm version-4 state loads correctly with Plate default; record evidence in `spec.md`
+- [X] T082 Verify SC-007 (decay correlates with roomSize): run T064 results; record T60 values at each roomSize in `spec.md`
 
 ### 9.2 Fill Compliance Table
 
-- [ ] T083 Update the "Implementation Verification" section in `specs/125-dual-reverb/spec.md` with MET/NOT MET/PARTIAL/DEFERRED status and specific evidence (file paths, line numbers, test names, actual measured values) for every FR-xxx and SC-xxx row -- NO generic claims, every row must cite specific evidence
+- [X] T083 Update the "Implementation Verification" section in `specs/125-dual-reverb/spec.md` with MET/NOT MET/PARTIAL/DEFERRED status and specific evidence (file paths, line numbers, test names, actual measured values) for every FR-xxx and SC-xxx row -- NO generic claims, every row must cite specific evidence
 
 ### 9.3 Honest Self-Check
 
@@ -272,16 +272,16 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T084 Confirm all self-check questions answered "no" (or gaps documented honestly in `spec.md`)
+- [X] T084 Confirm all self-check questions answered "no" (or gaps documented honestly in `spec.md`)
 
 ---
 
 ## Phase 10: Final Completion
 
-- [ ] T085 Run full test suite one final time and confirm all tests pass: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
-- [ ] T086 Run pluginval final verification: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
-- [ ] T087 Commit any remaining cleanup with message: `chore(125-dual-reverb): final cleanup, compliance table complete`
-- [ ] T088 Claim completion ONLY if all requirements in the compliance table are MET (or gaps explicitly approved by user)
+- [X] T085 Run full test suite one final time and confirm all tests pass: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
+- [X] T086 Run pluginval final verification: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"`
+- [X] T087 Commit any remaining cleanup with message: `chore(125-dual-reverb): final cleanup, compliance table complete`
+- [X] T088 Claim completion ONLY if all requirements in the compliance table are MET (or gaps explicitly approved by user)
 
 ---
 
