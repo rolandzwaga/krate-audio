@@ -355,118 +355,152 @@ public:
     }
 
     /// @brief Process a block of stereo samples in-place. (FR-016 SIMD path)
-    /// Uses 16-sample sub-blocks with SIMD-accelerated filter bank,
-    /// Hadamard diffuser, and Householder feedback (T036).
+    /// Uses 16-sample sub-blocks: block-rate parameters (LFO epsilon, filter
+    /// coefficients, dry/wet gains) are updated once per sub-block, then held
+    /// constant for the inner 16-sample loop. SIMD kernels operate on the
+    /// 8-channel dimension within each sample step.
     void processBlock(float* left, float* right, size_t numSamples) noexcept {
         if (!prepared_) return;
 
-        for (size_t s = 0; s < numSamples; ++s) {
-            float& l = left[s];
-            float& r = right[s];
+        size_t offset = 0;
+        while (offset < numSamples) {
+            const size_t blockLen = std::min(static_cast<size_t>(kSubBlockSize),
+                                              numSamples - offset);
 
-            // -- Step 1: NaN/Inf input guard (FR-019) --
-            if (detail::isNaN(l) || detail::isInf(l)) l = 0.0f;
-            if (detail::isNaN(r) || detail::isInf(r)) r = 0.0f;
+            // -- Block-rate parameter update (once per 16-sample sub-block) --
+            // Snapshot LFO epsilon and max excursion for this sub-block
+            const float subBlockLfoEpsilon = lfoEpsilon_;
+            const float subBlockLfoMaxExcursion = lfoMaxExcursion_;
+            const float subBlockPreDelaySamples = preDelaySamples_;
+            const bool subBlockFreeze = freeze_;
 
-            const float dryL = l;
-            const float dryR = r;
-
-            // -- Step 2: Mono sum + pre-delay --
-            float mono = (l + r) * 0.5f;
-            if (freeze_) mono = 0.0f;
-
-            preDelay_.write(mono);
-            float preDelayed = preDelay_.readLinear(std::max(0.0f, preDelaySamples_));
-
-            // -- Step 3: Read delay outputs (output taps) --
-            alignas(32) float delReads[kNumChannels];
+            // Snapshot filter coefficients for this sub-block
+            alignas(32) float subBlockFilterCoeffs[kNumChannels];
+            alignas(32) float subBlockFeedbackGains[kNumChannels];
             for (size_t i = 0; i < kNumChannels; ++i) {
-                float delayF = static_cast<float>(delayLengths_[i]);
-                for (size_t j = 0; j < kNumModulatedChannels; ++j) {
-                    if (lfoModChannels_[j] == i) {
-                        delayF += lfoSinState_[j] * lfoMaxExcursion_;
-                        delayF = std::max(1.0f, delayF);
-                        break;
+                subBlockFilterCoeffs[i] = filterCoeffs_[i];
+                subBlockFeedbackGains[i] = feedbackGains_[i];
+            }
+
+            // Compute dry/wet gains once per sub-block (avoids per-sample trig)
+            const float subBlockDryGain = std::cos(mix_ * kHalfPi);
+            const float subBlockWetGain = std::sin(mix_ * kHalfPi);
+            const float subBlockWidth = width_;
+
+            // -- Inner loop: process blockLen samples with held values --
+            for (size_t s = 0; s < blockLen; ++s) {
+                float& l = left[offset + s];
+                float& r = right[offset + s];
+
+                // -- Step 1: NaN/Inf input guard (FR-019) --
+                if (detail::isNaN(l) || detail::isInf(l)) l = 0.0f;
+                if (detail::isNaN(r) || detail::isInf(r)) r = 0.0f;
+
+                const float dryL = l;
+                const float dryR = r;
+
+                // -- Step 2: Mono sum + pre-delay --
+                float mono = (l + r) * 0.5f;
+                if (subBlockFreeze) mono = 0.0f;
+
+                preDelay_.write(mono);
+                float preDelayed = preDelay_.readLinear(
+                    std::max(0.0f, subBlockPreDelaySamples));
+
+                // -- Step 3: Read delay outputs (output taps) --
+                alignas(32) float delReads[kNumChannels];
+                for (size_t i = 0; i < kNumChannels; ++i) {
+                    float delayF = static_cast<float>(delayLengths_[i]);
+                    for (size_t j = 0; j < kNumModulatedChannels; ++j) {
+                        if (lfoModChannels_[j] == i) {
+                            delayF += lfoSinState_[j] * subBlockLfoMaxExcursion;
+                            delayF = std::max(1.0f, delayF);
+                            break;
+                        }
+                    }
+                    delReads[i] = delayBufReadLinear(i, delayF);
+                }
+
+                // -- Step 4: One-pole damping filters via SIMD (FR-011, FR-015a) --
+                alignas(32) float processed[kNumChannels];
+                if (subBlockFreeze) {
+                    for (size_t i = 0; i < kNumChannels; ++i) {
+                        filterStates_[i] = delReads[i];
+                        processed[i] = delReads[i];
+                    }
+                } else {
+                    fdnApplyFilterBankSIMD(delReads, filterStates_,
+                                           subBlockFilterCoeffs,
+                                           processed, kNumChannels);
+                }
+
+                // -- Step 5: DC blockers (FR-012) --
+                if (!subBlockFreeze) {
+                    for (size_t i = 0; i < kNumChannels; ++i) {
+                        dcBlockY_[i] = processed[i] - dcBlockX_[i]
+                                     + 0.9999f * dcBlockY_[i];
+                        dcBlockX_[i] = processed[i];
+                        processed[i] = dcBlockY_[i];
                     }
                 }
-                delReads[i] = delayBufReadLinear(i, delayF);
-            }
 
-            // -- Step 4: One-pole damping filters via SIMD (FR-011, FR-015a) --
-            alignas(32) float processed[kNumChannels];
-            if (freeze_) {
+                // -- Step 6: Hadamard diffuser via SIMD (FR-008, FR-015b) --
+                for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
+                    for (size_t ch = 0; ch < kNumChannels; ++ch) {
+                        float delayed = diffuserBufRead(step, ch,
+                                                        diffuserDelayLengths_[step]);
+                        diffuserBufWrite(step, ch, processed[ch]);
+                        processed[ch] = delayed;
+                    }
+                    fdnApplyHadamardSIMD(processed, kNumChannels);
+                }
+
+                // -- Step 7: Householder feedback via SIMD (FR-010, FR-015c) --
+                fdnApplyHouseholderSIMD(processed, kNumChannels);
+
+                // -- Step 8: Apply feedback gains and add new input --
                 for (size_t i = 0; i < kNumChannels; ++i) {
-                    filterStates_[i] = delReads[i];
-                    processed[i] = delReads[i];
+                    processed[i] = processed[i] * subBlockFeedbackGains[i]
+                                 + preDelayed;
                 }
-            } else {
-                fdnApplyFilterBankSIMD(delReads, filterStates_, filterCoeffs_,
-                                       processed, kNumChannels);
-            }
 
-            // -- Step 5: DC blockers (FR-012) --
-            if (!freeze_) {
+                // -- Step 9: Write to delay lines --
                 for (size_t i = 0; i < kNumChannels; ++i) {
-                    dcBlockY_[i] = processed[i] - dcBlockX_[i] + 0.9999f * dcBlockY_[i];
-                    dcBlockX_[i] = processed[i];
-                    processed[i] = dcBlockY_[i];
+                    delayBufWrite(i, processed[i]);
                 }
-            }
 
-            // -- Step 6: Hadamard diffuser via SIMD (FR-008, FR-015b) --
-            for (size_t step = 0; step < kNumDiffuserSteps; ++step) {
-                // Read/write diffuser delays (can't SIMD — per-channel random access)
-                for (size_t ch = 0; ch < kNumChannels; ++ch) {
-                    float delayed = diffuserBufRead(step, ch, diffuserDelayLengths_[step]);
-                    diffuserBufWrite(step, ch, processed[ch]);
-                    processed[ch] = delayed;
+                // -- Step 10: Advance LFO --
+                for (size_t j = 0; j < kNumModulatedChannels; ++j) {
+                    float newSin = lfoSinState_[j]
+                                 + subBlockLfoEpsilon * lfoCosState_[j];
+                    float newCos = lfoCosState_[j]
+                                 - subBlockLfoEpsilon * newSin;
+                    lfoSinState_[j] = newSin;
+                    lfoCosState_[j] = newCos;
                 }
-                // SIMD Hadamard butterfly + normalization
-                fdnApplyHadamardSIMD(processed, kNumChannels);
+
+                // -- Step 11: Stereo output from delay reads --
+                float wetL = 0.0f;
+                float wetR = 0.0f;
+                for (size_t i = 0; i < kNumChannels; i += 2) {
+                    wetL += delReads[i];
+                }
+                for (size_t i = 1; i < kNumChannels; i += 2) {
+                    wetR += delReads[i];
+                }
+                wetL *= 0.25f;
+                wetR *= 0.25f;
+
+                float mid = 0.5f * (wetL + wetR);
+                float side = 0.5f * (wetL - wetR);
+                wetL = mid + subBlockWidth * side;
+                wetR = mid - subBlockWidth * side;
+
+                l = subBlockDryGain * dryL + subBlockWetGain * wetL;
+                r = subBlockDryGain * dryR + subBlockWetGain * wetR;
             }
 
-            // -- Step 7: Householder feedback via SIMD (FR-010, FR-015c) --
-            fdnApplyHouseholderSIMD(processed, kNumChannels);
-
-            // -- Step 8: Apply feedback gains and add new input --
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                processed[i] = processed[i] * feedbackGains_[i] + preDelayed;
-            }
-
-            // -- Step 9: Write to delay lines --
-            for (size_t i = 0; i < kNumChannels; ++i) {
-                delayBufWrite(i, processed[i]);
-            }
-
-            // -- Step 10: Advance LFO --
-            for (size_t j = 0; j < kNumModulatedChannels; ++j) {
-                float newSin = lfoSinState_[j] + lfoEpsilon_ * lfoCosState_[j];
-                float newCos = lfoCosState_[j] - lfoEpsilon_ * newSin;
-                lfoSinState_[j] = newSin;
-                lfoCosState_[j] = newCos;
-            }
-
-            // -- Step 11: Stereo output from delay reads --
-            float wetL = 0.0f;
-            float wetR = 0.0f;
-            for (size_t i = 0; i < kNumChannels; i += 2) {
-                wetL += delReads[i];
-            }
-            for (size_t i = 1; i < kNumChannels; i += 2) {
-                wetR += delReads[i];
-            }
-            wetL *= 0.25f;
-            wetR *= 0.25f;
-
-            float mid = 0.5f * (wetL + wetR);
-            float side = 0.5f * (wetL - wetR);
-            wetL = mid + width_ * side;
-            wetR = mid - width_ * side;
-
-            const float dryGain = std::cos(mix_ * kHalfPi);
-            const float wetGain = std::sin(mix_ * kHalfPi);
-            l = dryGain * dryL + wetGain * wetL;
-            r = dryGain * dryR + wetGain * wetR;
+            offset += blockLen;
         }
     }
 
@@ -490,8 +524,13 @@ private:
         float roomSize = std::clamp(params.roomSize, 0.0f, 1.0f);
         float damping = std::clamp(params.damping, 0.0f, 1.0f);
 
-        // Map roomSize to feedback gain (FR-017): 0.75 to 0.9995
-        float fbGain = 0.75f + roomSize * 0.2495f;
+        // Map roomSize to feedback gain (FR-017) using quadratic curve.
+        // Linear mapping causes audible echoes at moderate roomSize because
+        // short FDN delays (3-17ms) need lower feedback than long plate delays.
+        // Quadratic: fbGain = 0.60 + 0.37 * roomSize^2
+        // roomSize=0.0 -> 0.60, roomSize=0.5 -> 0.69, roomSize=0.7 -> 0.78,
+        // roomSize=0.9 -> 0.90, roomSize=1.0 -> 0.97
+        float fbGain = 0.60f + 0.37f * roomSize * roomSize;
 
         // Freeze mode (FR-018)
         freeze_ = params.freeze;
