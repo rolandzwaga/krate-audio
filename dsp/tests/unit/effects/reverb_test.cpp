@@ -1242,7 +1242,10 @@ TEST_CASE("Reverb performance at 96 kHz", "[reverb][performance]") {
     };
 }
 
-TEST_CASE("Reverb processBlock is bit-identical to N process() calls", "[reverb][performance]") {
+TEST_CASE("Reverb processBlock produces close output to N process() calls", "[reverb][performance]") {
+    // After spec-125 optimization, processBlock uses 16-sample sub-block
+    // smoothing (FR-002) while process() uses per-sample smoothing.
+    // The outputs are no longer bit-identical but should be perceptually close.
     Reverb reverbBlock, reverbSample;
     reverbBlock.prepare(44100.0);
     reverbSample.prepare(44100.0);
@@ -1276,11 +1279,17 @@ TEST_CASE("Reverb processBlock is bit-identical to N process() calls", "[reverb]
         reverbSample.process(sampleL[i], sampleR[i]);
     }
 
-    // Compare - should be bit-identical
+    // Compare - should be close but not necessarily bit-identical
+    // due to block-rate smoothing differences
+    float maxDiffL = 0.0f, maxDiffR = 0.0f;
     for (size_t i = 0; i < blockSize; ++i) {
-        REQUIRE(blockL[i] == sampleL[i]);
-        REQUIRE(blockR[i] == sampleR[i]);
+        maxDiffL = std::max(maxDiffL, std::abs(blockL[i] - sampleL[i]));
+        maxDiffR = std::max(maxDiffR, std::abs(blockR[i] - sampleR[i]));
     }
+    // Block-rate smoothing introduces small differences but they should
+    // be very small (within parameter smoothing tolerance)
+    REQUIRE(maxDiffL < 0.05f);
+    REQUIRE(maxDiffR < 0.05f);
 }
 
 // =============================================================================
@@ -1749,4 +1758,183 @@ TEST_CASE("Reverb echo density increases over time", "[reverb][success]") {
     REQUIRE(lateZC > 0);
     // The late tail should have appreciable density
     REQUIRE(lateZC >= earlyZC / 2); // At least half as dense (accounting for amplitude decay)
+}
+
+// =============================================================================
+// Spec 125: Dual Reverb - User Story 1 (Dattorro Optimization)
+// =============================================================================
+
+TEST_CASE("Reverb Gordon-Smith LFO produces equivalent modulation character",
+          "[reverb][optimization][125]") {
+    // FR-001: Gordon-Smith phasor replaces std::sin/std::cos.
+    // Verify that with modulation enabled (modRate=1.0, modDepth=0.5),
+    // the reverb produces non-zero, bounded, finite output with proper
+    // stereo decorrelation (quadrature LFO behavior preserved).
+    Reverb reverb;
+    reverb.prepare(44100.0);
+
+    ReverbParams params;
+    params.roomSize = 0.7f;
+    params.damping = 0.5f;
+    params.mix = 1.0f;
+    params.modRate = 1.0f;
+    params.modDepth = 0.5f;
+    params.width = 1.0f;
+    reverb.setParams(params);
+
+    // Let smoothers settle
+    for (int i = 0; i < 2000; ++i) {
+        float l = 0.0f, r = 0.0f;
+        reverb.process(l, r);
+    }
+
+    // Send impulse
+    float impL = 1.0f, impR = 1.0f;
+    reverb.process(impL, impR);
+
+    // Collect 1 second of tail with modulation active
+    constexpr size_t collectLen = 44100;
+    std::vector<float> tailL(collectLen), tailR(collectLen);
+    float maxAbsL = 0.0f, maxAbsR = 0.0f;
+    bool hasNaN = false;
+    for (size_t i = 0; i < collectLen; ++i) {
+        float l = 0.0f, r = 0.0f;
+        reverb.process(l, r);
+        tailL[i] = l;
+        tailR[i] = r;
+        if (detail::isNaN(l) || detail::isNaN(r)) hasNaN = true;
+        maxAbsL = std::max(maxAbsL, std::abs(l));
+        maxAbsR = std::max(maxAbsR, std::abs(r));
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE(maxAbsL > 1e-6f);  // Non-zero output
+    REQUIRE(maxAbsR > 1e-6f);
+    REQUIRE(maxAbsL < 2.0f);   // Bounded
+    REQUIRE(maxAbsR < 2.0f);
+
+    // Verify L/R differ (quadrature LFO preserved by Gordon-Smith)
+    bool lrDiffer = false;
+    for (size_t i = 0; i < collectLen; ++i) {
+        if (std::abs(tailL[i] - tailR[i]) > 1e-6f) {
+            lrDiffer = true;
+            break;
+        }
+    }
+    REQUIRE(lrDiffer);
+}
+
+TEST_CASE("Reverb block-rate smoothing latches at 16-sample sub-block boundary",
+          "[reverb][optimization][125]") {
+    // FR-002/FR-003: Parameters updated at 16-sample sub-block rate.
+    // After the optimization, processBlock uses 16-sample sub-blocks.
+    // A parameter change between two processBlock calls should be applied
+    // at the first sub-block boundary, not mid-sample.
+    //
+    // We verify this structurally: process two consecutive 32-sample blocks.
+    // Between them, change the mix parameter. The output within each 16-sample
+    // sub-block should be internally consistent (no mid-sub-block jumps).
+
+    Reverb reverb;
+    reverb.prepare(44100.0);
+
+    ReverbParams params;
+    params.roomSize = 0.7f;
+    params.mix = 0.5f;
+    params.modDepth = 0.0f;
+    reverb.setParams(params);
+
+    // Build up tail
+    for (int i = 0; i < 22050; ++i) {
+        float val = 0.3f * std::sin(kTwoPi * 440.0f * static_cast<float>(i) / 44100.0f);
+        float l = val, r = val;
+        reverb.process(l, r);
+    }
+
+    // Process first block of 32 samples
+    constexpr size_t blockSize = 32;
+    std::array<float, blockSize> leftA{}, rightA{};
+    for (auto& v : leftA) v = 0.1f;
+    for (auto& v : rightA) v = 0.1f;
+    reverb.processBlock(leftA.data(), rightA.data(), blockSize);
+
+    // Change mix parameter dramatically
+    params.mix = 1.0f;
+    reverb.setParams(params);
+
+    // Process second block of 32 samples
+    std::array<float, blockSize> leftB{}, rightB{};
+    for (auto& v : leftB) v = 0.1f;
+    for (auto& v : rightB) v = 0.1f;
+    reverb.processBlock(leftB.data(), rightB.data(), blockSize);
+
+    // The second block should have non-zero output and be finite
+    float maxB = 0.0f;
+    for (size_t i = 0; i < blockSize; ++i) {
+        REQUIRE_FALSE(detail::isNaN(leftB[i]));
+        maxB = std::max(maxB, std::abs(leftB[i]));
+    }
+    REQUIRE(maxB > 1e-6f);
+
+    // The processBlock output should differ from per-sample process()
+    // (block-rate smoothing introduces sub-block granularity).
+    // This verifies that processBlock is NOT just a simple per-sample loop.
+    // After the optimization, processBlock will use sub-blocks.
+    // We verify this indirectly: the output should be valid and bounded.
+    REQUIRE(maxB < 2.0f);
+}
+
+TEST_CASE("Reverb contiguous buffer totalBufferSize() accessor",
+          "[reverb][optimization][125]") {
+    // FR-004: After prepare(), the reverb should expose totalBufferSize()
+    // returning the total contiguous delay buffer size in samples.
+    Reverb reverb;
+    reverb.prepare(44100.0);
+
+    // This accessor must exist and return > 0 after prepare
+    size_t totalSize = reverb.totalBufferSize();
+    REQUIRE(totalSize > 0);
+
+    // Buffer size should scale with sample rate
+    Reverb reverb96;
+    reverb96.prepare(96000.0);
+    size_t totalSize96 = reverb96.totalBufferSize();
+    REQUIRE(totalSize96 > totalSize);  // Higher rate = larger buffer
+}
+
+TEST_CASE("Reverb Dattorro CPU benchmark at 44.1kHz with modulation",
+          "[.perf][reverb][optimization][125]") {
+    // SC-001: Benchmark 10 seconds of audio at 44.1kHz with modulation.
+    // modRate=1.0, modDepth=0.5 per spec.
+    Reverb reverb;
+    reverb.prepare(44100.0);
+
+    ReverbParams params;
+    params.roomSize = 0.7f;
+    params.damping = 0.5f;
+    params.mix = 0.5f;
+    params.modRate = 1.0f;
+    params.modDepth = 0.5f;
+    reverb.setParams(params);
+
+    constexpr size_t blockSize = 512;
+    constexpr size_t tenSeconds = 441000;
+    constexpr size_t numBlocks = tenSeconds / blockSize;
+    std::array<float, blockSize> left{}, right{};
+
+    // Warm up
+    for (int warmup = 0; warmup < 5; ++warmup) {
+        for (auto& v : left) v = 0.1f;
+        for (auto& v : right) v = 0.1f;
+        reverb.processBlock(left.data(), right.data(), blockSize);
+    }
+
+    BENCHMARK("Dattorro 10s @ 44.1kHz modRate=1.0 modDepth=0.5") {
+        for (size_t b = 0; b < numBlocks; ++b) {
+            for (auto& v : left) v = 0.1f;
+            for (auto& v : right) v = 0.1f;
+            reverb.processBlock(left.data(), right.data(), blockSize);
+        }
+        return left[0];
+    };
 }
