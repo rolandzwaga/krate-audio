@@ -202,7 +202,7 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T060 [US3] Commit all User Story 3 work with message: `feat(ruinae): add reverb type selector (Plate/Hall) with equal-power crossfade and state v5 (FR-023 to FR-029)`
+- [X] T060 [US3] Commit all User Story 3 work with message: `feat(ruinae): add reverb type selector (Plate/Hall) with equal-power crossfade and state v5 (FR-023 to FR-029)`
 
 **Checkpoint**: Dual reverb system is fully integrated into Ruinae. Users can switch between Plate and Hall reverb types with smooth transitions. State saves and loads correctly with backward compatibility.
 
@@ -212,10 +212,10 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Run the full test suite across all targets, verify all success criteria, and confirm no regressions.
 
-- [ ] T061 [P] Build and run all DSP tests to confirm no regressions from the Dattorro optimization: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
-- [ ] T062 [P] Build and run all Ruinae tests to confirm no regressions from plugin integration: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
-- [ ] T063 SC-004 stability sweep: run the full parameter combination stability test (roomSize 0.0/0.5/1.0, damping 0.0/0.5/1.0, freeze on/off) at sample rates 8000, 44100, 96000, 192000 Hz for 10 seconds each for both reverb types; confirm no NaN/Inf/unbounded growth; record results in `spec.md`
-- [ ] T064 SC-007 verification: for both Dattorro and FDN reverbs, measure T60 decay time at roomSize=0.2, 0.5, 0.8; confirm each larger roomSize produces a longer decay time; record measured T60 values in `spec.md`
+- [X] T061 [P] Build and run all DSP tests to confirm no regressions from the Dattorro optimization: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
+- [X] T062 [P] Build and run all Ruinae tests to confirm no regressions from plugin integration: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
+- [X] T063 SC-004 stability sweep: run the full parameter combination stability test (roomSize 0.0/0.5/1.0, damping 0.0/0.5/1.0, freeze on/off) at sample rates 8000, 44100, 96000, 192000 Hz for 10 seconds each for both reverb types; confirm no NaN/Inf/unbounded growth; record results in `spec.md`
+- [X] T064 SC-007 verification: for both Dattorro and FDN reverbs, measure T60 decay time at roomSize=0.2, 0.5, 0.8; confirm each larger roomSize produces a longer decay time; record measured T60 values in `spec.md`
 
 ---
 
@@ -223,9 +223,9 @@ Skills auto-load when needed (testing-guide, vst-guide) - no manual context veri
 
 **Purpose**: Update living architecture documentation before spec completion (Constitution Principle XIII).
 
-- [ ] T065 [P] Update `specs/_architecture_/layer-4-effects.md` (or equivalent Layer 4 section): add an entry for `FDNReverb` with purpose ("8-channel FDN hall reverb with SIMD acceleration"), public API summary, file location (`dsp/include/krate/dsp/effects/fdn_reverb.h`), when to use it (vs Dattorro plate), and note that it accepts the same `ReverbParams` interface
-- [ ] T066 [P] Update `specs/_architecture_/layer-4-effects.md` (or equivalent): update the `Reverb` (Dattorro) entry to note the optimizations added (Gordon-Smith LFO, block-rate smoothing, contiguous buffer), referencing spec 125
-- [ ] T067 Commit architecture documentation: `docs(architecture): add FDNReverb entry, update Dattorro optimization notes (spec-125)`
+- [X] T065 [P] Update `specs/_architecture_/layer-4-effects.md` (or equivalent Layer 4 section): add an entry for `FDNReverb` with purpose ("8-channel FDN hall reverb with SIMD acceleration"), public API summary, file location (`dsp/include/krate/dsp/effects/fdn_reverb.h`), when to use it (vs Dattorro plate), and note that it accepts the same `ReverbParams` interface
+- [X] T066 [P] Update `specs/_architecture_/layer-4-effects.md` (or equivalent): update the `Reverb` (Dattorro) entry to note the optimizations added (Gordon-Smith LFO, block-rate smoothing, contiguous buffer), referencing spec 125
+- [X] T067 Commit architecture documentation: `docs(architecture): add FDNReverb entry, update Dattorro optimization notes (spec-125)`
 
 ---
 
