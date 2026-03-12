@@ -191,45 +191,53 @@ public:
     // =========================================================================
 
     void setAttackMs(float ms) {
+        if (isDragging_) return; // Avoid feedback loop during drag
         attackMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
         recalculateLayout();
         setDirty();
     }
 
     void setDecayMs(float ms) {
+        if (isDragging_) return;
         decayMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
         recalculateLayout();
         setDirty();
     }
 
     void setSustainLevel(float level) {
+        if (isDragging_) return;
         sustainLevel_ = std::clamp(level, 0.0f, 1.0f);
         recalculateLayout();
         setDirty();
     }
 
     void setReleaseMs(float ms) {
+        if (isDragging_) return;
         releaseMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
         recalculateLayout();
         setDirty();
     }
 
     void setPeakLevel(float level) {
+        if (isDragging_) return;
         peakLevel_ = std::clamp(level, 0.01f, 1.0f);
         setDirty();
     }
 
     void setAttackCurve(float curve) {
+        if (isDragging_) return;
         attackCurve_ = std::clamp(curve, -1.0f, 1.0f);
         setDirty();
     }
 
     void setDecayCurve(float curve) {
+        if (isDragging_) return;
         decayCurve_ = std::clamp(curve, -1.0f, 1.0f);
         setDirty();
     }
 
     void setReleaseCurve(float curve) {
+        if (isDragging_) return;
         releaseCurve_ = std::clamp(curve, -1.0f, 1.0f);
         setDirty();
     }

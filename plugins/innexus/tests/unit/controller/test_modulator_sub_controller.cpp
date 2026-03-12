@@ -66,6 +66,8 @@ TEST_CASE("ModulatorSubController resolves all Mod tags for index 0",
     REQUIRE(sc.getTagForName("Mod.RangeStart", -1) == 614);
     REQUIRE(sc.getTagForName("Mod.RangeEnd", -1) == 615);
     REQUIRE(sc.getTagForName("Mod.Target", -1) == 616);
+    REQUIRE(sc.getTagForName("Mod.RateSync", -1) == 617);
+    REQUIRE(sc.getTagForName("Mod.NoteValue", -1) == 618);
 }
 
 TEST_CASE("ModulatorSubController resolves all Mod tags for index 1",
@@ -80,6 +82,44 @@ TEST_CASE("ModulatorSubController resolves all Mod tags for index 1",
     REQUIRE(sc.getTagForName("Mod.RangeStart", -1) == 624);
     REQUIRE(sc.getTagForName("Mod.RangeEnd", -1) == 625);
     REQUIRE(sc.getTagForName("Mod.Target", -1) == 626);
+    REQUIRE(sc.getTagForName("Mod.RateSync", -1) == 627);
+    REQUIRE(sc.getTagForName("Mod.NoteValue", -1) == 628);
+}
+
+TEST_CASE("ModulatorSubController index 0 resolves Mod.RateSync to kMod1RateSyncId (617)",
+          "[innexus][ui][sub-controller]")
+{
+    Innexus::ModulatorSubController sc(0, nullptr);
+    int32_t tag = sc.getTagForName("Mod.RateSync", -1);
+    REQUIRE(tag == static_cast<int32_t>(Innexus::kMod1RateSyncId));
+    REQUIRE(tag == 617);
+}
+
+TEST_CASE("ModulatorSubController index 1 resolves Mod.RateSync to kMod2RateSyncId (627)",
+          "[innexus][ui][sub-controller]")
+{
+    Innexus::ModulatorSubController sc(1, nullptr);
+    int32_t tag = sc.getTagForName("Mod.RateSync", -1);
+    REQUIRE(tag == static_cast<int32_t>(Innexus::kMod2RateSyncId));
+    REQUIRE(tag == 627);
+}
+
+TEST_CASE("ModulatorSubController index 0 resolves Mod.NoteValue to kMod1NoteValueId (618)",
+          "[innexus][ui][sub-controller]")
+{
+    Innexus::ModulatorSubController sc(0, nullptr);
+    int32_t tag = sc.getTagForName("Mod.NoteValue", -1);
+    REQUIRE(tag == static_cast<int32_t>(Innexus::kMod1NoteValueId));
+    REQUIRE(tag == 618);
+}
+
+TEST_CASE("ModulatorSubController index 1 resolves Mod.NoteValue to kMod2NoteValueId (628)",
+          "[innexus][ui][sub-controller]")
+{
+    Innexus::ModulatorSubController sc(1, nullptr);
+    int32_t tag = sc.getTagForName("Mod.NoteValue", -1);
+    REQUIRE(tag == static_cast<int32_t>(Innexus::kMod2NoteValueId));
+    REQUIRE(tag == 628);
 }
 
 TEST_CASE("ModulatorSubController returns registeredTag for unrecognized name",

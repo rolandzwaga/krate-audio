@@ -14,6 +14,7 @@
 #include "vstgui/uidescription/delegationcontroller.h"
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/uidescription/iuidescription.h"
+#include "vstgui/lib/controls/ccontrol.h"
 
 #include <cstring>
 
@@ -29,6 +30,13 @@ public:
         : DelegationController(parent)
         , modIndex_(modIndex)
     {
+    }
+
+    ~ModulatorSubController() override
+    {
+        // Unregister as sub-listener to avoid dangling pointer
+        if (syncToggle_)
+            syncToggle_->unregisterControlListener(this);
     }
 
     int32_t getTagForName(VSTGUI::UTF8StringPtr name,
@@ -61,6 +69,12 @@ public:
         if (std::strcmp(name, "Mod.Target") == 0)
             return static_cast<int32_t>(kMod1TargetId) + offset;
 
+        if (std::strcmp(name, "Mod.RateSync") == 0)
+            return static_cast<int32_t>(kMod1RateSyncId) + offset;
+
+        if (std::strcmp(name, "Mod.NoteValue") == 0)
+            return static_cast<int32_t>(kMod1NoteValueId) + offset;
+
         // Unrecognized: delegate to parent if available, otherwise return as-is
         if (controller)
             return DelegationController::getTagForName(name, registeredTag);
@@ -71,10 +85,30 @@ public:
                                const VSTGUI::UIAttributes& attrs,
                                const VSTGUI::IUIDescription* desc) override;
 
+    void valueChanged(VSTGUI::CControl* control) override;
+
     int getModIndex() const { return modIndex_; }
 
 private:
     int modIndex_ = 0;
+
+    /// Sync the Rate knob's displayed value with its current tag's parameter.
+    void syncRateKnobValue();
+
+    /// Pointer to the Rate knob. VSTGUI-owned, not ours.
+    VSTGUI::CControl* rateKnob_ = nullptr;
+
+    /// The free-running rate param ID (kMod1RateId or kMod2RateId)
+    int32_t freeRateTag_ = -1;
+
+    /// The note value param ID (kMod1NoteValueId or kMod2NoteValueId)
+    int32_t noteValueTag_ = -1;
+
+    /// The sync toggle param ID (kMod1RateSyncId or kMod2RateSyncId)
+    int32_t syncTag_ = -1;
+
+    /// Pointer to sync toggle control (for unregistering sub-listener)
+    VSTGUI::CControl* syncToggle_ = nullptr;
 };
 
 } // namespace Innexus

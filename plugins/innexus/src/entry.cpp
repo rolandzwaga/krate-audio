@@ -22,6 +22,7 @@
 // (ArcKnob, ToggleButton, etc.) with VSTGUI's UIViewFactory.
 #include "ui/action_button.h"
 #include "ui/arc_knob.h"
+#include "ui/syncable_arc_knob.h"
 #include "ui/bipolar_slider.h"
 #include "ui/fieldset_container.h"
 #include "ui/toggle_button.h"

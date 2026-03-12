@@ -100,7 +100,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kMod2DepthId = 623,            // 0.0-1.0, default 0.0
     kMod2RangeStartId = 624,       // 1-96, default 1
     kMod2RangeEndId = 625,         // 1-96, default 96
+    kMod1RateSyncId = 617,         // Bool (stepCount=1), default 1.0 (synced)
+    kMod1NoteValueId = 618,        // StringList (21 entries), default index 10 (1/8)
     kMod2TargetId = 626,           // 0-2, default 0
+    kMod2RateSyncId = 627,         // Bool (stepCount=1), default 1.0 (synced)
+    kMod2NoteValueId = 628,        // StringList (21 entries), default index 10 (1/8)
     // Detune
     kDetuneSpreadId = 630,         // 0.0-1.0, default 0.0
     // Multi-Source Blend

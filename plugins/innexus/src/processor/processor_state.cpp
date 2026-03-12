@@ -200,6 +200,12 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     // --- Partial Count parameter ---
     streamer.writeFloat(partialCount_.load(std::memory_order_relaxed));
 
+    // --- Modulator Tempo Sync parameters ---
+    streamer.writeFloat(mod1RateSync_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod1NoteValue_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2RateSync_.load(std::memory_order_relaxed));
+    streamer.writeFloat(mod2NoteValue_.load(std::memory_order_relaxed));
+
     return Steinberg::kResultOk;
 }
 
@@ -580,6 +586,16 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     // --- Partial Count parameter ---
     if (streamer.readFloat(floatVal))
         partialCount_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Modulator Tempo Sync parameters (graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        mod1RateSync_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+    if (streamer.readFloat(floatVal))
+        mod1NoteValue_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        mod2RateSync_.store(floatVal > 0.5f ? 1.0f : 0.0f);
+    if (streamer.readFloat(floatVal))
+        mod2NoteValue_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     return Steinberg::kResultOk;
 }

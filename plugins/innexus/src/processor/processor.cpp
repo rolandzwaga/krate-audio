@@ -17,6 +17,7 @@
 
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/midi_utils.h>
+#include <krate/dsp/core/note_value.h>
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/sigmoid.h>
 
@@ -342,6 +343,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // --- Handle parameter changes ---
     processParameterChanges(data.inputParameterChanges);
 
+    // Cache host tempo for modulator sync
+    if (data.processContext &&
+        (data.processContext->state & Steinberg::Vst::ProcessContext::kTempoValid)) {
+        tempoBPM_ = data.processContext->tempo;
+    }
 
     // --- Check for new analysis from background thread (FR-058) ---
     checkForNewAnalysis();
@@ -1192,9 +1198,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         mod1_.setWaveform(static_cast<ModulatorWaveform>(
             std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
 
-        const float rateNorm = mod1Rate_.load(std::memory_order_relaxed);
-        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
-        mod1RateSmoother_.setTarget(ratePlain);
+        float mod1RatePlain;
+        if (mod1RateSync_.load(std::memory_order_relaxed) > 0.5f)
+        {
+            const float noteNorm = mod1NoteValue_.load(std::memory_order_relaxed);
+            const int noteIdx = std::clamp(static_cast<int>(std::round(noteNorm * 20.0f)), 0, 20);
+            const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
+            const float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            mod1RatePlain = static_cast<float>(tempoBPM_ / (60.0 * static_cast<double>(beats)));
+            mod1RatePlain = std::clamp(mod1RatePlain, 0.01f, 100.0f);
+        }
+        else
+        {
+            const float rateNorm = mod1Rate_.load(std::memory_order_relaxed);
+            mod1RatePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        }
+        mod1RateSmoother_.setTarget(mod1RatePlain);
 
         const float depthVal = mod1Depth_.load(std::memory_order_relaxed);
         mod1DepthSmoother_.setTarget(depthVal);
@@ -1216,9 +1235,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         mod2_.setWaveform(static_cast<ModulatorWaveform>(
             std::clamp(static_cast<int>(std::round(waveNorm * 4.0f)), 0, 4)));
 
-        const float rateNorm = mod2Rate_.load(std::memory_order_relaxed);
-        const float ratePlain = 0.01f + rateNorm * (20.0f - 0.01f);
-        mod2RateSmoother_.setTarget(ratePlain);
+        float mod2RatePlain;
+        if (mod2RateSync_.load(std::memory_order_relaxed) > 0.5f)
+        {
+            const float noteNorm = mod2NoteValue_.load(std::memory_order_relaxed);
+            const int noteIdx = std::clamp(static_cast<int>(std::round(noteNorm * 20.0f)), 0, 20);
+            const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
+            const float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            mod2RatePlain = static_cast<float>(tempoBPM_ / (60.0 * static_cast<double>(beats)));
+            mod2RatePlain = std::clamp(mod2RatePlain, 0.01f, 100.0f);
+        }
+        else
+        {
+            const float rateNorm = mod2Rate_.load(std::memory_order_relaxed);
+            mod2RatePlain = 0.01f + rateNorm * (20.0f - 0.01f);
+        }
+        mod2RateSmoother_.setTarget(mod2RatePlain);
 
         const float depthVal = mod2Depth_.load(std::memory_order_relaxed);
         mod2DepthSmoother_.setTarget(depthVal);

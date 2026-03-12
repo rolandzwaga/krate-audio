@@ -5,6 +5,7 @@
 #include "controller.h"
 #include "dsp/harmonic_snapshot_json.h"
 #include "parameters/innexus_params.h"
+#include "parameters/note_value_ui.h"
 #include "plugin_ids.h"
 #include "preset/innexus_preset_config.h"
 #include "update/innexus_update_config.h"
@@ -16,6 +17,7 @@
 #include "controller/views/evolution_position_view.h"
 #include "controller/views/modulator_activity_view.h"
 #include "controller/modulator_sub_controller.h"
+#include "controller/adsr_expanded_overlay.h"
 #include "controller/sample_drop_target.h"
 #include "ui/adsr_display.h"
 #include "ui/preset_browser_view.h"
@@ -148,6 +150,81 @@ private:
         });
     }
 
+    Controller* controller_;
+    bool hovered_ = false;
+};
+
+// ==============================================================================
+// ADSRExpandButton — CView button that opens the expanded ADSR overlay
+// ==============================================================================
+class ADSRExpandButton : public VSTGUI::CView {
+public:
+    ADSRExpandButton(const VSTGUI::CRect& size, Controller* controller)
+        : CView(size), controller_(controller) {}
+
+    void draw(VSTGUI::CDrawContext* context) override
+    {
+        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
+        auto r = getViewSize();
+        r.inset(0.5, 0.5);
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (path) {
+            constexpr double kRadius = 3.0;
+            path->addRoundRect(r, kRadius);
+
+            if (hovered_) {
+                context->setFillColor(VSTGUI::CColor(255, 255, 255, 20));
+                context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+            }
+
+            context->setFrameColor(VSTGUI::CColor(85, 85, 102));
+            context->setLineWidth(1.0);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+        }
+
+        // Draw expand arrows icon (four outward arrows)
+        auto center = r.getCenter();
+        auto iconFont = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11);
+        context->setFont(iconFont);
+        context->setFontColor(VSTGUI::CColor(192, 192, 192));
+        context->drawString(VSTGUI::UTF8String("Expand"), getViewSize(),
+                            VSTGUI::kCenterText);
+
+        setDirty(false);
+    }
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint&, const VSTGUI::CButtonState&) override
+    {
+        hovered_ = true;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint&, const VSTGUI::CButtonState&) override
+    {
+        hovered_ = false;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint&, const VSTGUI::CButtonState& buttons) override
+    {
+        if (buttons.isLeftButton() && controller_) {
+            controller_->openAdsrExpandedOverlay();
+            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
+        }
+        return VSTGUI::kMouseEventNotHandled;
+    }
+
+private:
     Controller* controller_;
     bool hovered_ = false;
 };
@@ -380,6 +457,20 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     mod1TargetParam->appendString(STR16("Pan"));
     parameters.addParameter(mod1TargetParam);
 
+    // Mod 1 Rate Sync (tempo sync toggle)
+    parameters.addParameter(STR16("Mod 1 Rate Sync"), nullptr, 1, 1.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMod1RateSyncId);
+
+    // Mod 1 Note Value (tempo sync note value dropdown, default index 10 = 1/8)
+    auto* mod1NoteValParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 1 Note Value"), kMod1NoteValueId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    for (int i = 0; i < Parameters::kNoteValueDropdownCount; ++i)
+        mod1NoteValParam->appendString(Parameters::kNoteValueDropdownStrings[i]);
+    mod1NoteValParam->getInfo().defaultNormalizedValue = 10.0 / 20.0; // 1/8 note
+    parameters.addParameter(mod1NoteValParam);
+
     // Modulator 2 (FR-024)
     parameters.addParameter(STR16("Mod 2 Enable"), nullptr, 1, 0,
         Steinberg::Vst::ParameterInfo::kCanAutomate,
@@ -426,6 +517,20 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     mod2TargetParam->appendString(STR16("Frequency"));
     mod2TargetParam->appendString(STR16("Pan"));
     parameters.addParameter(mod2TargetParam);
+
+    // Mod 2 Rate Sync (tempo sync toggle)
+    parameters.addParameter(STR16("Mod 2 Rate Sync"), nullptr, 1, 1.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate,
+        kMod2RateSyncId);
+
+    // Mod 2 Note Value (tempo sync note value dropdown, default index 10 = 1/8)
+    auto* mod2NoteValParam = new Steinberg::Vst::StringListParameter(
+        STR16("Mod 2 Note Value"), kMod2NoteValueId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    for (int i = 0; i < Parameters::kNoteValueDropdownCount; ++i)
+        mod2NoteValParam->appendString(Parameters::kNoteValueDropdownStrings[i]);
+    mod2NoteValParam->getInfo().defaultNormalizedValue = 10.0 / 20.0; // 1/8 note
+    parameters.addParameter(mod2NoteValParam);
 
     // Detune Spread (FR-030)
     auto* detuneSpreadParam = new Steinberg::Vst::RangeParameter(
@@ -1108,42 +1213,14 @@ VSTGUI::CView* Controller::createCustomView(
         updateBannerView_ = banner;
         return banner;
     }
+    if (viewName == "ADSRExpandButton")
+        return createAdsrExpandButton(viewRect);
     if (viewName == "ADSRDisplay")
     {
         auto* display = new Krate::Plugins::ADSRDisplay(viewRect, nullptr, -1);
-
-        // T030: Wire ADSR parameter IDs (720-723 consecutive: A, D, S, R)
-        display->setAdsrBaseParamId(kAdsrAttackId);
-
-        // T030: Wire curve parameter IDs (726-728 consecutive: AC, DC, RC)
-        display->setCurveBaseParamId(kAdsrAttackCurveId);
-
-        // T030: Wire parameter edit callbacks for drag-to-edit
-        display->setParameterCallback(
-            [this](uint32_t paramId, float normalizedValue) {
-                performEdit(paramId, static_cast<double>(normalizedValue));
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-            });
-        display->setBeginEditCallback(
-            [this](uint32_t paramId) {
-                beginEdit(paramId);
-            });
-        display->setEndEditCallback(
-            [this](uint32_t paramId) {
-                endEdit(paramId);
-            });
-
-        // Spec 124 T049: Wire playback state pointers if already received from processor
-        if (adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_) {
-            display->setPlaybackStatePointers(
-                adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
-        }
-
+        wireAdsrDisplay(display);
         adsrDisplayView_ = display;
-
-        // Initialize display from current parameter values
         updateAdsrDisplayFromParams();
-
         return display;
     }
 
@@ -1212,6 +1289,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             }
         }
 
+        // Create ADSR expanded overlay (initially hidden)
+        if (!adsrExpandedOverlay_) {
+            adsrExpandedOverlay_ = new ADSRExpandedOverlayView(frameSize);
+            wireAdsrDisplay(adsrExpandedOverlay_->getDisplay());
+            adsrExpandedOverlay_->setCloseCallback([this] { closeAdsrExpandedOverlay(); });
+            frame->addView(adsrExpandedOverlay_);
+        }
+
         // Add drag-and-drop overlay to the frame (topmost child, transparent)
         auto* overlay = new SampleDropOverlayView(
             VSTGUI::CRect(0, 0, frameSize.getWidth(), frameSize.getHeight()), this);
@@ -1265,6 +1350,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
+    adsrExpandedOverlay_ = nullptr;
 
     activeEditor_ = nullptr;
 
@@ -1462,20 +1548,20 @@ void Controller::updateAdsrDisplayFromParams()
     if (!adsrDisplayView_)
         return;
 
-    // Read normalized values and convert to plain for the display
+    // Read normalized values and convert to plain ms using log mapping
+    // This matches the processor's denormalization: ms = kMin * pow(kMax/kMin, norm)
     constexpr float kMin = 1.0f;
     constexpr float kMax = 5000.0f;
-
-    auto normToLogMs = [&](Steinberg::Vst::ParamID id) -> float {
+    auto normToMs = [&](Steinberg::Vst::ParamID id) -> float {
         auto norm = static_cast<float>(getParamNormalized(id));
         return kMin * std::pow(kMax / kMin, norm);
     };
 
-    adsrDisplayView_->setAttackMs(normToLogMs(kAdsrAttackId));
-    adsrDisplayView_->setDecayMs(normToLogMs(kAdsrDecayId));
+    adsrDisplayView_->setAttackMs(normToMs(kAdsrAttackId));
+    adsrDisplayView_->setDecayMs(normToMs(kAdsrDecayId));
     adsrDisplayView_->setSustainLevel(
         static_cast<float>(getParamNormalized(kAdsrSustainId)));
-    adsrDisplayView_->setReleaseMs(normToLogMs(kAdsrReleaseId));
+    adsrDisplayView_->setReleaseMs(normToMs(kAdsrReleaseId));
 
     // Curve amounts: normalized [0,1] -> plain [-1,+1]
     auto normToCurve = [&](Steinberg::Vst::ParamID id) -> float {
@@ -1495,42 +1581,15 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 {
     auto result = EditControllerEx1::setParamNormalized(id, value);
 
-    // Forward ADSR parameter changes to the display view
-    if (result == Steinberg::kResultOk && adsrDisplayView_
+    // Forward ADSR parameter changes to both display views
+    if (result == Steinberg::kResultOk
         && id >= kAdsrAttackId && id <= kAdsrReleaseCurveId)
     {
-        constexpr float kMin = 1.0f;
-        constexpr float kMax = 5000.0f;
         auto norm = static_cast<float>(value);
+        forwardAdsrParamToDisplay(adsrDisplayView_, id, norm);
 
-        switch (id) {
-            case kAdsrAttackId:
-                adsrDisplayView_->setAttackMs(
-                    kMin * std::pow(kMax / kMin, norm));
-                break;
-            case kAdsrDecayId:
-                adsrDisplayView_->setDecayMs(
-                    kMin * std::pow(kMax / kMin, norm));
-                break;
-            case kAdsrSustainId:
-                adsrDisplayView_->setSustainLevel(norm);
-                break;
-            case kAdsrReleaseId:
-                adsrDisplayView_->setReleaseMs(
-                    kMin * std::pow(kMax / kMin, norm));
-                break;
-            case kAdsrAttackCurveId:
-                adsrDisplayView_->setAttackCurve(norm * 2.0f - 1.0f);
-                break;
-            case kAdsrDecayCurveId:
-                adsrDisplayView_->setDecayCurve(norm * 2.0f - 1.0f);
-                break;
-            case kAdsrReleaseCurveId:
-                adsrDisplayView_->setReleaseCurve(norm * 2.0f - 1.0f);
-                break;
-            default:
-                break;
-        }
+        if (adsrExpandedOverlay_)
+            forwardAdsrParamToDisplay(adsrExpandedOverlay_->getDisplay(), id, norm);
     }
 
     return result;
@@ -1635,6 +1694,135 @@ void Controller::onDisplayTimerFired()
         modActivityView1_->updateData(
             cachedDisplayData_.mod2Phase,
             cachedDisplayData_.mod2Active);
+}
+
+// ==============================================================================
+// createAdsrExpandButton — factory for the ADSR expand button
+// ==============================================================================
+VSTGUI::CView* Controller::createAdsrExpandButton(const VSTGUI::CRect& rect)
+{
+    return new ADSRExpandButton(rect, this);
+}
+
+// ==============================================================================
+// wireAdsrDisplay — wire parameter callbacks to an ADSRDisplay instance
+// ==============================================================================
+void Controller::wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display)
+{
+    if (!display)
+        return;
+
+    display->setAdsrBaseParamId(kAdsrAttackId);
+    display->setCurveBaseParamId(kAdsrAttackCurveId);
+
+    display->setParameterCallback(
+        [this](uint32_t paramId, float normalizedValue) {
+            // ADSRDisplay uses cube-root normalization for time params:
+            //   norm_cube = cbrt(ms / 10000)
+            // The processor expects log normalization:
+            //   norm_log = log(ms / kMin) / log(kMax / kMin)
+            // Convert cube-root → ms → log for time parameters.
+            double corrected = static_cast<double>(normalizedValue);
+            if (paramId == kAdsrAttackId || paramId == kAdsrDecayId
+                || paramId == kAdsrReleaseId) {
+                constexpr float kMin = 1.0f;
+                constexpr float kMax = 5000.0f;
+                // Cube-root → plain ms
+                float ms = normalizedValue * normalizedValue * normalizedValue * 10000.0f;
+                ms = std::clamp(ms, kMin, kMax);
+                // Plain ms → log-normalized
+                corrected = static_cast<double>(
+                    std::log(ms / kMin) / std::log(kMax / kMin));
+            }
+            performEdit(paramId, corrected);
+            setParamNormalized(paramId, corrected);
+        });
+    display->setBeginEditCallback(
+        [this](uint32_t paramId) { beginEdit(paramId); });
+    display->setEndEditCallback(
+        [this](uint32_t paramId) { endEdit(paramId); });
+
+    if (adsrOutputPtr_ && adsrStagePtr_ && adsrActivePtr_)
+        display->setPlaybackStatePointers(adsrOutputPtr_, adsrStagePtr_, adsrActivePtr_);
+}
+
+// ==============================================================================
+// forwardAdsrParamToDisplay — forward a single ADSR parameter to a display
+// ==============================================================================
+void Controller::forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
+                                           Steinberg::Vst::ParamID id,
+                                           float norm)
+{
+    if (!display)
+        return;
+
+    // Time params use log mapping: ms = kMin * pow(kMax/kMin, norm)
+    // This matches the processor's denormalization in processParameterChanges.
+    constexpr float kMin = 1.0f;
+    constexpr float kMax = 5000.0f;
+
+    switch (id) {
+        case kAdsrAttackId:
+            display->setAttackMs(kMin * std::pow(kMax / kMin, norm));
+            break;
+        case kAdsrDecayId:
+            display->setDecayMs(kMin * std::pow(kMax / kMin, norm));
+            break;
+        case kAdsrSustainId:
+            display->setSustainLevel(norm);
+            break;
+        case kAdsrReleaseId:
+            display->setReleaseMs(kMin * std::pow(kMax / kMin, norm));
+            break;
+        case kAdsrAttackCurveId:
+            display->setAttackCurve(norm * 2.0f - 1.0f);
+            break;
+        case kAdsrDecayCurveId:
+            display->setDecayCurve(norm * 2.0f - 1.0f);
+            break;
+        case kAdsrReleaseCurveId:
+            display->setReleaseCurve(norm * 2.0f - 1.0f);
+            break;
+        default:
+            break;
+    }
+}
+
+// ==============================================================================
+// openAdsrExpandedOverlay / closeAdsrExpandedOverlay
+// ==============================================================================
+void Controller::openAdsrExpandedOverlay()
+{
+    if (adsrExpandedOverlay_ && !adsrExpandedOverlay_->isOpen()) {
+        // Sync expanded display with current parameter values
+        if (auto* display = adsrExpandedOverlay_->getDisplay()) {
+            constexpr float kMin = 1.0f;
+            constexpr float kMax = 5000.0f;
+            auto normToMs = [&](Steinberg::Vst::ParamID id) -> float {
+                auto norm = static_cast<float>(getParamNormalized(id));
+                return kMin * std::pow(kMax / kMin, norm);
+            };
+            auto normToCurve = [&](Steinberg::Vst::ParamID id) -> float {
+                return static_cast<float>(getParamNormalized(id)) * 2.0f - 1.0f;
+            };
+
+            display->setAttackMs(normToMs(kAdsrAttackId));
+            display->setDecayMs(normToMs(kAdsrDecayId));
+            display->setSustainLevel(
+                static_cast<float>(getParamNormalized(kAdsrSustainId)));
+            display->setReleaseMs(normToMs(kAdsrReleaseId));
+            display->setAttackCurve(normToCurve(kAdsrAttackCurveId));
+            display->setDecayCurve(normToCurve(kAdsrDecayCurveId));
+            display->setReleaseCurve(normToCurve(kAdsrReleaseCurveId));
+        }
+        adsrExpandedOverlay_->open();
+    }
+}
+
+void Controller::closeAdsrExpandedOverlay()
+{
+    if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen())
+        adsrExpandedOverlay_->close();
 }
 
 } // namespace Innexus

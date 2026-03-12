@@ -42,6 +42,9 @@ add_executable(innexus_tests
     # ADSR VST parameter registration tests (Spec 124: T026)
     unit/vst/test_adsr_vst_params.cpp
 
+    # State v10 tests (Modulator Tempo Sync)
+    unit/vst/test_state_v10.cpp
+
     # --- Integration tests (real Processor, full pipeline) ---
 
     # Core processor integration (MIDI, state, parameter application)
@@ -70,6 +73,9 @@ add_executable(innexus_tests
 
     # Analysis Feedback Loop integration tests (Spec B)
     integration/test_analysis_feedback.cpp
+
+    # Modulator Tempo Sync integration tests
+    integration/test_modulator_sync.cpp
 
     # ADSR Envelope Detection integration tests (Spec 124)
     integration/test_adsr_envelope.cpp

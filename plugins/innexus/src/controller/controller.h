@@ -40,6 +40,7 @@ class UpdateBannerView;
 namespace Innexus {
 
 // Forward declarations for custom views
+class ADSRExpandedOverlayView;
 class HarmonicDisplayView;
 class ConfidenceIndicatorView;
 class MemorySlotStatusView;
@@ -101,6 +102,10 @@ public:
     /// Open the save preset dialog overlay
     void openSavePresetDialog();
 
+    /// Open/close the expanded ADSR envelope overlay
+    void openAdsrExpandedOverlay();
+    void closeAdsrExpandedOverlay();
+
     /// Get the preset manager instance (for custom view buttons)
     Krate::Plugins::PresetManager* getPresetManager() { return presetManager_.get(); }
 
@@ -126,11 +131,22 @@ private:
     /// Factory for preset browser / save buttons (called from createCustomView)
     VSTGUI::CView* createPresetButton(const VSTGUI::CRect& rect, bool isBrowse);
 
+    /// Factory for ADSR expand button (called from createCustomView)
+    VSTGUI::CView* createAdsrExpandButton(const VSTGUI::CRect& rect);
+
     /// Update sample load panel visibility based on InputSource parameter
     void updateSampleLoadVisibility();
 
-    /// Push current ADSR parameter values to the ADSRDisplay view
+    /// Push current ADSR parameter values to the ADSRDisplay view(s)
     void updateAdsrDisplayFromParams();
+
+    /// Helper: wire an ADSRDisplay instance with parameter callbacks
+    void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
+
+    /// Helper: forward a single ADSR parameter change to a display
+    void forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
+                                   Steinberg::Vst::ParamID id,
+                                   float norm);
 
     // Update Checker
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
@@ -175,6 +191,9 @@ private:
 
     // ADSR display view (VSTGUI-owned, nulled in willClose)
     Krate::Plugins::ADSRDisplay* adsrDisplayView_ = nullptr;
+
+    // ADSR expanded overlay (VSTGUI-owned, nulled in willClose)
+    ADSRExpandedOverlayView* adsrExpandedOverlay_ = nullptr;
 
     // ADSR playback state pointers from processor (Spec 124: T049)
     // Received via IMessage from Processor::process() on first block.

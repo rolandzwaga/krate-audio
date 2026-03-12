@@ -295,6 +295,8 @@ public:
     float getMod1RangeStart() const { return mod1RangeStart_.load(std::memory_order_relaxed); }
     float getMod1RangeEnd() const { return mod1RangeEnd_.load(std::memory_order_relaxed); }
     float getMod1Target() const { return mod1Target_.load(std::memory_order_relaxed); }
+    float getMod1RateSync() const { return mod1RateSync_.load(std::memory_order_relaxed); }
+    float getMod1NoteValue() const { return mod1NoteValue_.load(std::memory_order_relaxed); }
     float getMod2Enable() const { return mod2Enable_.load(std::memory_order_relaxed); }
     float getMod2Waveform() const { return mod2Waveform_.load(std::memory_order_relaxed); }
     float getMod2Rate() const { return mod2Rate_.load(std::memory_order_relaxed); }
@@ -302,6 +304,8 @@ public:
     float getMod2RangeStart() const { return mod2RangeStart_.load(std::memory_order_relaxed); }
     float getMod2RangeEnd() const { return mod2RangeEnd_.load(std::memory_order_relaxed); }
     float getMod2Target() const { return mod2Target_.load(std::memory_order_relaxed); }
+    float getMod2RateSync() const { return mod2RateSync_.load(std::memory_order_relaxed); }
+    float getMod2NoteValue() const { return mod2NoteValue_.load(std::memory_order_relaxed); }
     float getDetuneSpread() const { return detuneSpread_.load(std::memory_order_relaxed); }
     float getBlendEnable() const { return blendEnable_.load(std::memory_order_relaxed); }
     float getBlendSlotWeight(int index) const
@@ -420,6 +424,8 @@ private:
     std::atomic<float> mod1RangeStart_{0.0f};         // normalized, plain 1-96
     std::atomic<float> mod1RangeEnd_{1.0f};           // normalized, plain 1-96
     std::atomic<float> mod1Target_{0.0f};             // normalized, 0-2
+    std::atomic<float> mod1RateSync_{1.0f};            // 0/1, default 1 (synced)
+    std::atomic<float> mod1NoteValue_{0.5f};           // normalized, default index 10/20=0.5
     // Modulator 2
     std::atomic<float> mod2Enable_{0.0f};             // 0/1
     std::atomic<float> mod2Waveform_{0.0f};           // normalized, 0-4
@@ -428,6 +434,8 @@ private:
     std::atomic<float> mod2RangeStart_{0.0f};         // normalized, plain 1-96
     std::atomic<float> mod2RangeEnd_{1.0f};           // normalized, plain 1-96
     std::atomic<float> mod2Target_{0.0f};             // normalized, 0-2
+    std::atomic<float> mod2RateSync_{1.0f};            // 0/1, default 1 (synced)
+    std::atomic<float> mod2NoteValue_{0.5f};           // normalized, default index 10/20=0.5
     // Detune
     std::atomic<float> detuneSpread_{0.0f};           // 0.0-1.0
     // Multi-Source Blend
@@ -680,6 +688,7 @@ private:
     // Processing State
     // =========================================================================
     double sampleRate_ = 44100.0;
+    double tempoBPM_ = 120.0;   // host tempo for modulator sync
     std::string loadedFilePath_; // for state persistence (FR-056)
 };
 

@@ -25,6 +25,17 @@
     <font name="value-font" font-name="Arial" size="9"/>
   </fonts>
 
+  <gradients>
+    <gradient name="segment-bg">
+      <color-stop rgba="#2A2A3Aff" start="0"/>
+      <color-stop rgba="#252535ff" start="1"/>
+    </gradient>
+    <gradient name="segment-bg-selected">
+      <color-stop rgba="#00899Eff" start="0"/>
+      <color-stop rgba="#007A8Dff" start="1"/>
+    </gradient>
+  </gradients>
+
   <!-- ================================================================== -->
   <!-- Control Tags: all 48 parameters (SC-001)                           -->
   <!-- ================================================================== -->
@@ -131,6 +142,8 @@
     <control-tag name="Mod.RangeStart" tag="614"/>
     <control-tag name="Mod.RangeEnd" tag="615"/>
     <control-tag name="Mod.Target" tag="616"/>
+    <control-tag name="Mod.RateSync" tag="617"/>
+    <control-tag name="Mod.NoteValue" tag="618"/>
   </control-tags>
 
   <!-- ================================================================== -->
@@ -176,8 +189,11 @@
             title="Source"/>
       <view class="CSegmentButton" origin="250, 12" size="130, 24"
             control-tag="InputSource" default-value="0"
-            font="label-font" text-color="text-primary"
-            frame-color="text-dim" segment-names="Sample,Sidechain"
+            font="label-font" text-color="text-secondary"
+            text-color-highlighted="text-primary"
+            frame-color="text-dim" gradient="segment-bg"
+            gradient-highlighted="segment-bg-selected"
+            segment-names="Sample,Sidechain"
             style="horizontal" round-radius="3"/>
 
       <!-- Sample Load panel (visible only in Sample source mode) -->
@@ -198,8 +214,11 @@
             title="Latency"/>
       <view class="CSegmentButton" origin="540, 12" size="150, 24"
             control-tag="LatencyMode" default-value="0"
-            font="label-font" text-color="text-primary"
-            frame-color="text-dim" segment-names="Low Latency,High Precision"
+            font="label-font" text-color="text-secondary"
+            text-color-highlighted="text-primary"
+            frame-color="text-dim" gradient="segment-bg"
+            gradient-highlighted="segment-bg-selected"
+            segment-names="Low Latency,High Precision"
             style="horizontal" round-radius="3"/>
     </view>
 
@@ -272,8 +291,10 @@
       <!-- FR-024: Harmonic Filter Type (5 segments) -->
       <view class="CSegmentButton" origin="10, 95" size="370, 24"
             control-tag="HarmonicFilterType" default-value="0"
-            font="value-font" text-color="text-primary"
-            frame-color="text-dim"
+            font="value-font" text-color="text-secondary"
+            text-color-highlighted="text-primary"
+            frame-color="text-dim" gradient="segment-bg"
+            gradient-highlighted="segment-bg-selected"
             segment-names="All-Pass,Odd Only,Even Only,Low Harm.,High Harm."
             style="horizontal" round-radius="3"/>
       <view class="CTextLabel" origin="10, 120" size="370, 10"
@@ -416,7 +437,7 @@
 
       <!-- FR-029: Slot status display -->
       <view class="CView" custom-view-name="MemorySlotStatus"
-            origin="15, 82" size="120, 20"/>
+            origin="15, 92" size="120, 20"/>
     </view>
 
     <!-- ============================================================== -->
@@ -496,13 +517,15 @@
             title="Depth"/>
 
       <!-- FR-035: Evolution Mode (3 segments) -->
-      <view class="CSegmentButton" origin="10, 82" size="130, 20"
+      <view class="CSegmentButton" origin="10, 82" size="180, 20"
             control-tag="EvolutionMode" default-value="0"
-            font="value-font" text-color="text-primary"
-            frame-color="text-dim"
+            font="value-font" text-color="text-secondary"
+            text-color-highlighted="text-primary"
+            frame-color="text-dim" gradient="segment-bg"
+            gradient-highlighted="segment-bg-selected"
             segment-names="Cycle,PingPong,Random Walk"
             style="horizontal" round-radius="3"/>
-      <view class="CTextLabel" origin="10, 102" size="130, 10"
+      <view class="CTextLabel" origin="10, 102" size="180, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Evol. Mode"/>
@@ -792,7 +815,7 @@
           fieldset-title-color="text-fieldset">
 
       <!-- ADSRDisplay custom view (T030/T031: interactive envelope visualization) -->
-      <view custom-view-name="ADSRDisplay" origin="5, 14" size="370, 86"/>
+      <view class="CView" custom-view-name="ADSRDisplay" origin="10, 24" size="365, 76"/>
 
       <!-- Attack -->
       <view class="ArcKnob" origin="385, 14" size="34, 34"
@@ -802,6 +825,9 @@
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Attack"/>
+
+      <!-- Expand button to open full-width ADSR overlay (below Attack knob) -->
+      <view class="CView" custom-view-name="ADSRExpandButton" origin="381, 80" size="42, 14"/>
 
       <!-- Decay -->
       <view class="ArcKnob" origin="430, 14" size="34, 34"
@@ -918,38 +944,42 @@
     <view class="CView" custom-view-name="ModulatorActivity"
           origin="140, 18" size="25, 25"/>
 
-    <!-- Rate -->
-    <view class="ArcKnob" origin="10, 48" size="34, 34"
-          control-tag="Mod.Rate" default-value="0.052"
+    <!-- Rate knob + Sync toggle button -->
+    <view class="ArcKnob" origin="10, 50" size="29, 29"
+          control-tag="Mod.Rate" default-value="0.5"
           arc-color="accent"/>
-    <view class="CTextLabel" origin="6, 82" size="42, 10"
+    <view class="CTextLabel" origin="6, 79" size="37, 10"
           text-alignment="center" font="value-font"
           font-color="text-secondary" back-color="~ TransparentCColor"
           title="Rate"/>
+    <view class="ToggleButton" origin="8, 89" size="33, 9"
+          control-tag="Mod.RateSync" default-value="1"
+          title="sync" font="value-font"
+          on-color="accent" off-color="text-dim"/>
 
     <!-- Depth -->
-    <view class="ArcKnob" origin="52, 48" size="34, 34"
+    <view class="ArcKnob" origin="52, 50" size="29, 29"
           control-tag="Mod.Depth" default-value="0"
           arc-color="accent"/>
-    <view class="CTextLabel" origin="48, 82" size="42, 10"
+    <view class="CTextLabel" origin="48, 79" size="37, 10"
           text-alignment="center" font="value-font"
           font-color="text-secondary" back-color="~ TransparentCColor"
           title="Depth"/>
 
     <!-- Range Start -->
-    <view class="ArcKnob" origin="94, 48" size="34, 34"
+    <view class="ArcKnob" origin="94, 50" size="29, 29"
           control-tag="Mod.RangeStart" default-value="0"
           arc-color="accent"/>
-    <view class="CTextLabel" origin="90, 82" size="42, 10"
+    <view class="CTextLabel" origin="90, 79" size="37, 10"
           text-alignment="center" font="value-font"
           font-color="text-secondary" back-color="~ TransparentCColor"
           title="Start"/>
 
     <!-- Range End -->
-    <view class="ArcKnob" origin="136, 48" size="34, 34"
+    <view class="ArcKnob" origin="136, 50" size="29, 29"
           control-tag="Mod.RangeEnd" default-value="1"
           arc-color="accent"/>
-    <view class="CTextLabel" origin="132, 82" size="42, 10"
+    <view class="CTextLabel" origin="132, 79" size="37, 10"
           text-alignment="center" font="value-font"
           font-color="text-secondary" back-color="~ TransparentCColor"
           title="End"/>
@@ -957,8 +987,10 @@
     <!-- Target selector (3 segments) -->
     <view class="CSegmentButton" origin="10, 98" size="160, 20"
           control-tag="Mod.Target" default-value="0"
-          font="value-font" text-color="text-primary"
-          frame-color="text-dim"
+          font="value-font" text-color="text-secondary"
+          text-color-highlighted="text-primary"
+          frame-color="text-dim" gradient="segment-bg"
+          gradient-highlighted="segment-bg-selected"
           segment-names="Amp,Freq,Pan"
           style="horizontal" round-radius="3"/>
     <view class="CTextLabel" origin="10, 118" size="160, 10"

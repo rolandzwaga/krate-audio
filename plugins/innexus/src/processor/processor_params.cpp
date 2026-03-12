@@ -166,6 +166,14 @@ void Processor::processParameterChanges(
             case kMod1TargetId:
                 mod1Target_.store(static_cast<float>(value));
                 break;
+            case kMod1RateSyncId:
+                mod1RateSync_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod1NoteValueId:
+                mod1NoteValue_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
             case kMod2EnableId:
                 mod2Enable_.store(
                     static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
@@ -191,6 +199,14 @@ void Processor::processParameterChanges(
                 break;
             case kMod2TargetId:
                 mod2Target_.store(static_cast<float>(value));
+                break;
+            case kMod2RateSyncId:
+                mod2RateSync_.store(
+                    static_cast<float>(value) > 0.5f ? 1.0f : 0.0f);
+                break;
+            case kMod2NoteValueId:
+                mod2NoteValue_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
             case kDetuneSpreadId:
                 detuneSpread_.store(

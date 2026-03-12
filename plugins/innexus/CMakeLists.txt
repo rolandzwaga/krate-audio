@@ -75,6 +75,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/views/evolution_position_view.cpp
     src/controller/views/modulator_activity_view.h
     src/controller/views/modulator_activity_view.cpp
+    src/controller/adsr_expanded_overlay.h
 
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
@@ -85,6 +86,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/sample_analyzer.cpp
     src/dsp/live_analysis_pipeline.h
     src/dsp/live_analysis_pipeline.cpp
+
+    # Parameters
+    src/parameters/note_value_ui.h
 
     # Shared
     src/plugin_ids.h

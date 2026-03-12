@@ -207,6 +207,22 @@ public:
 
     CLASS_METHODS(ArcKnob, CKnobBase)
 
+protected:
+    // =========================================================================
+    // Shared Helpers (accessible to subclasses)
+    // =========================================================================
+
+    /// Navigate view hierarchy to get the VST3 EditController.
+    [[nodiscard]] Steinberg::Vst::EditController* getEditController() const {
+        auto* frame = getFrame();
+        if (!frame)
+            return nullptr;
+        auto* editor = dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(frame->getEditor());
+        if (!editor)
+            return nullptr;
+        return editor->getController();
+    }
+
 private:
     // =========================================================================
     // Angle Helpers
@@ -371,17 +387,6 @@ private:
     // =========================================================================
     // Value Popup Helpers
     // =========================================================================
-
-    /// Navigate view hierarchy to get the VST3 EditController.
-    [[nodiscard]] Steinberg::Vst::EditController* getEditController() const {
-        auto* frame = getFrame();
-        if (!frame)
-            return nullptr;
-        auto* editor = dynamic_cast<Steinberg::Vst::VSTGUIEditor*>(frame->getEditor());
-        if (!editor)
-            return nullptr;
-        return editor->getController();
-    }
 
     /// Get the formatted parameter value string via EditController.
     /// Falls back to percentage display if controller is unavailable.
