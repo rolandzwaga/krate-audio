@@ -286,7 +286,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
 #if RUINAE_PHASER_DEBUG
     if (s_logCounter % 200 == 0) {
-        bool pEn = phaserEnabled_.load(std::memory_order_relaxed);
+        bool pEn = modulationType_.load(std::memory_order_relaxed) == 1; // Phaser
         float pRate = phaserParams_.rateHz.load(std::memory_order_relaxed);
         float pDepth = phaserParams_.depth.load(std::memory_order_relaxed);
         float pMix = phaserParams_.mix.load(std::memory_order_relaxed);
@@ -703,9 +703,14 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     streamer.writeInt8(delayEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
     streamer.writeInt8(reverbEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
 
-    // Phaser params + enable flag
+    // Phaser params + modulation type (replaces legacy phaserEnabled_ int8)
     savePhaserParams(phaserParams_, streamer);
-    streamer.writeInt8(phaserEnabled_.load(std::memory_order_relaxed) ? 1 : 0);
+    // Write modulationType as int8 for backward compatibility with state format:
+    // 0 = None (legacy: phaser disabled), 1 = Phaser (legacy: phaser enabled), 2 = Flanger (new)
+    streamer.writeInt8(static_cast<Steinberg::int8>(modulationType_.load(std::memory_order_relaxed)));
+
+    // Flanger params (version 6+)
+    saveFlangerParams(flangerParams_, streamer);
 
     // Extended LFO params
     saveLFO1ExtendedParams(lfo1Params_, streamer);
@@ -836,8 +841,26 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
         // Phaser params + enable flag
         loadPhaserParams(phaserParams_, streamer);
-        if (streamer.readInt8(i8))
-            phaserEnabled_.store(i8 != 0, std::memory_order_relaxed);
+        // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
+        // New format: 0 = None, 1 = Phaser, 2 = Flanger
+        // Default to Phaser (1) for very old presets with no byte (FR-011)
+        const int modType = streamer.readInt8(i8) ? static_cast<int>(i8) : 1;
+        modulationType_.store(modType, std::memory_order_relaxed);
+
+        // Flanger params (version 6+)
+        if (version >= 6) {
+            loadFlangerParams(flangerParams_, streamer);
+        } else {
+            // Old preset: no flanger data, reset to defaults
+            flangerParams_.rateHz.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.depth.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.feedback.store(0.0f, std::memory_order_relaxed);
+            flangerParams_.mix.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.stereoSpread.store(90.0f, std::memory_order_relaxed);
+            flangerParams_.waveform.store(1, std::memory_order_relaxed);
+            flangerParams_.sync.store(false, std::memory_order_relaxed);
+            flangerParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
+        }
 
         // Extended LFO params
         loadLFO1ExtendedParams(lfo1Params_, streamer);
@@ -1038,23 +1061,68 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         } else if (paramId >= kGlobalFilterBaseId && paramId <= kGlobalFilterEndId) {
             handleGlobalFilterParamChange(globalFilterParams_, paramId, value);
         } else if (paramId == kDelayEnabledId || paramId == kReverbEnabledId
-                   || paramId == kPhaserEnabledId || paramId == kHarmonizerEnabledId) {
+                   || paramId == kHarmonizerEnabledId) {
             const bool enabled = value >= 0.5;
-            if (paramId == kDelayEnabledId)
+            if (paramId == kDelayEnabledId) // NOLINT(bugprone-branch-clone): each branch stores to a different atomic
                 delayEnabled_.store(enabled, std::memory_order_relaxed);
             else if (paramId == kReverbEnabledId)
                 reverbEnabled_.store(enabled, std::memory_order_relaxed);
-            else if (paramId == kPhaserEnabledId) {
-                phaserEnabled_.store(enabled, std::memory_order_relaxed);
-                logPhaser("[RUINAE][PARAM] kPhaserEnabledId received: raw=%.4f -> enabled=%d\n",
-                    value, enabled ? 1 : 0);
-            } else {
+            else
                 harmonizerEnabled_.store(enabled, std::memory_order_relaxed);
-            }
+        } else if (paramId == kModulationTypeId) {
+            // ModulationType: 0=None, 1=Phaser, 2=Flanger (discrete 3-step param)
+            const int modType = static_cast<int>(std::round(value * 2.0));
+            modulationType_.store(modType, std::memory_order_relaxed);
+            engine_.effectsChain().startModCrossfade(
+                static_cast<Krate::DSP::ModulationType>(modType));
         } else if (paramId >= kDelayBaseId && paramId <= kDelayEndId) {
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
             handleReverbParamChange(reverbParams_, paramId, value);
+        } else if (paramId >= kFlangerRateId && paramId <= kFlangerEndId) {
+            // Store to atomic param struct for state save/load
+            handleFlangerParamChange(flangerParams_, paramId, value);
+            // Flanger parameter dispatch (direct to DSP object)
+            switch (paramId) { // NOLINT(bugprone-branch-clone): each case dispatches to a different setter with different value scaling
+                case kFlangerRateId:
+                    engine_.effectsChain().flanger().setRate(
+                        std::clamp(static_cast<float>(0.05 + value * 4.95), 0.05f, 5.0f));
+                    break;
+                case kFlangerDepthId:
+                    engine_.effectsChain().flanger().setDepth(
+                        static_cast<float>(value));
+                    break;
+                case kFlangerFeedbackId:
+                    engine_.effectsChain().flanger().setFeedback(
+                        static_cast<float>(value * 2.0 - 1.0));
+                    break;
+                case kFlangerMixId:
+                    engine_.effectsChain().flanger().setMix(
+                        static_cast<float>(value));
+                    break;
+                case kFlangerStereoSpreadId:
+                    engine_.effectsChain().flanger().setStereoSpread(
+                        static_cast<float>(value * 360.0));
+                    break;
+                case kFlangerWaveformId:
+                    engine_.effectsChain().flanger().setWaveform(
+                        static_cast<Krate::DSP::Waveform>(
+                            std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1)));
+                    break;
+                case kFlangerSyncId:
+                    engine_.effectsChain().flanger().setTempoSync(value > 0.5);
+                    break;
+                case kFlangerNoteValueId: {
+                    const int noteIdx = std::clamp(
+                        static_cast<int>(value * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5),
+                        0, Krate::DSP::kNoteValueDropdownCount - 1);
+                    auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
+                    engine_.effectsChain().flanger().setNoteValue(mapping.note, mapping.modifier);
+                    break;
+                }
+                default:
+                    break;
+            }
         } else if (paramId >= kPhaserBaseId && paramId <= kPhaserEndId) {
             handlePhaserParamChange(phaserParams_, paramId, value);
             logPhaser("[RUINAE][PARAM] phaser param %d received: raw=%.4f\n", paramId, value);
@@ -1401,7 +1469,8 @@ void Processor::applyParamsToEngine() {
     // --- FX Enable ---
     engine_.setDelayEnabled(delayEnabled_.load(std::memory_order_relaxed));
     engine_.setReverbEnabled(reverbEnabled_.load(std::memory_order_relaxed));
-    engine_.setPhaserEnabled(phaserEnabled_.load(std::memory_order_relaxed));
+    engine_.effectsChain().setModulationType(
+        static_cast<Krate::DSP::ModulationType>(modulationType_.load(std::memory_order_relaxed)));
 
     // --- Delay ---
     engine_.setDelayType(static_cast<RuinaeDelayType>(

@@ -513,6 +513,17 @@
         <control-tag name="PhaserSync" tag="1908"/>
         <control-tag name="PhaserNoteValue" tag="1909"/>
 
+        <!-- FX: Flanger -->
+        <control-tag name="FlangerRate" tag="1910"/>
+        <control-tag name="FlangerDepth" tag="1911"/>
+        <control-tag name="FlangerFeedback" tag="1912"/>
+        <control-tag name="FlangerMix" tag="1913"/>
+        <control-tag name="FlangerStereoSpread" tag="1914"/>
+        <control-tag name="FlangerWaveform" tag="1915"/>
+        <control-tag name="FlangerSync" tag="1916"/>
+        <control-tag name="FlangerNoteValue" tag="1917"/>
+        <control-tag name="ModulationType" tag="1918"/>
+
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionTransformInvert" tag="10006"/>
         <control-tag name="ActionTransformShiftRight" tag="10007"/>
@@ -2467,120 +2478,223 @@
         </view>
 
         <!-- ============================================================ -->
-        <!-- PHASER (top-left)                                             -->
+        <!-- MODULATION (top-left) — None / Phaser / Flanger              -->
         <!-- ============================================================ -->
         <view
             class="FieldsetContainer"
             origin="8, 56"
             size="688, 344"
-            fieldset-title="PHASER"
+            fieldset-title="MODULATION"
             fieldset-color="fx-phaser"
             fieldset-radius="4"
             fieldset-line-width="1"
             fieldset-font-size="10"
             transparent="true"
         >
-            <!-- Enable + Mix -->
-            <view class="ToggleButton" origin="4, 16" size="60, 20"
-                  control-tag="PhaserEnabled"
+            <!-- Modulation Type selector -->
+            <view class="COptionMenu" origin="4, 16" size="90, 20"
+                  control-tag="ModulationType"
                   default-value="0.0"
-                  transparent="true"/>
-            <view class="ArcKnob" origin="76, 14" size="28, 28"
-                  control-tag="PhaserMix"
-                  default-value="0.5"
-                  arc-color="fx-phaser"
-                  guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="70, 44" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Mix"/>
-
-            <!-- Sync + Rate/NoteValue -->
-            <view class="ToggleButton" origin="136, 16" size="50, 20"
-                  control-tag="PhaserSync"
-                  default-value="0.0"
-                  title="Sync"
-                  title-position="right"
                   font="~ NormalFontSmaller"
-                  font-color="fx-phaser"
-                  text-color="fx-phaser"
-                  transparent="true"/>
-            <view class="CViewContainer" origin="196, 12" size="80, 40"
-                  custom-view-name="PhaserRateGroup" transparent="true">
-                <view class="ArcKnob" origin="0, 0" size="28, 28"
-                      control-tag="PhaserRate"
-                      default-value="0.0245"
+                  font-color="master"
+                  back-color="bg-dropdown"
+                  frame-color="frame-dropdown-dim"
+                  transparent="false"/>
+
+            <!-- ======== No Modulation (ModulationType=None) ======== -->
+            <view class="CViewContainer" origin="0, 40" size="688, 60"
+                  custom-view-name="NoModulationGroup" transparent="true">
+                <view class="CTextLabel" origin="100, 10" size="200, 20"
+                      font="~ NormalFont" font-color="text-secondary"
+                      text-alignment="center" transparent="true"
+                      title="No modulation"/>
+            </view>
+
+            <!-- ======== Phaser Controls (ModulationType=Phaser) ======== -->
+            <view class="CViewContainer" origin="0, 0" size="688, 100"
+                  custom-view-name="PhaserControlsGroup" transparent="true">
+                <!-- Mix -->
+                <view class="ArcKnob" origin="110, 14" size="28, 28"
+                      control-tag="PhaserMix"
+                      default-value="0.5"
                       arc-color="fx-phaser"
                       guide-color="knob-guide"/>
-                <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                <view class="CTextLabel" origin="104, 44" size="40, 10"
                       font="~ NormalFontSmaller" font-color="text-secondary"
-                      text-alignment="center" transparent="true" title="Rate"/>
-            </view>
-            <view class="CViewContainer" origin="196, 12" size="80, 40"
-                  custom-view-name="PhaserNoteValueGroup" transparent="true">
-                <view class="COptionMenu" origin="0, 4" size="80, 20"
-                      control-tag="PhaserNoteValue"
+                      text-alignment="center" transparent="true" title="Mix"/>
+
+                <!-- Sync + Rate/NoteValue -->
+                <view class="ToggleButton" origin="170, 16" size="50, 20"
+                      control-tag="PhaserSync"
+                      default-value="0.0"
+                      title="Sync"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="fx-phaser"
+                      text-color="fx-phaser"
+                      transparent="true"/>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="PhaserRateGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="PhaserRate"
+                          default-value="0.0245"
+                          arc-color="fx-phaser"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="PhaserNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="PhaserNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+
+                <!-- Depth + Feedback -->
+                <view class="ArcKnob" origin="322, 14" size="28, 28"
+                      control-tag="PhaserDepth"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="316, 44" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+                <view class="ArcKnob" origin="372, 14" size="28, 28"
+                      control-tag="PhaserFeedback"
+                      default-value="0.75"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="364, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Feedback"/>
+
+                <!-- Stages + Center + Spread + Waveform -->
+                <view class="COptionMenu" origin="434, 18" size="80, 20"
+                      control-tag="PhaserStages"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       back-color="bg-dropdown"
                       frame-color="frame-dropdown-dim"
                       transparent="false"/>
+                <view class="CTextLabel" origin="434, 40" size="80, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Stages"/>
+                <view class="ArcKnob" origin="534, 14" size="28, 28"
+                      control-tag="PhaserCenterFreq"
+                      default-value="0.0909"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="524, 44" size="48, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Center"/>
+                <view class="ArcKnob" origin="594, 14" size="28, 28"
+                      control-tag="PhaserStereoSpread"
+                      default-value="0.0"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="586, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Spread"/>
+                <view class="COptionMenu" origin="4, 64" size="90, 20"
+                      control-tag="PhaserWaveform"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="4, 86" size="90, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Waveform"/>
             </view>
 
-            <!-- Depth + Feedback -->
-            <view class="ArcKnob" origin="288, 14" size="28, 28"
-                  control-tag="PhaserDepth"
-                  default-value="0.5"
-                  arc-color="fx-phaser"
-                  guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="282, 44" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Depth"/>
-            <view class="ArcKnob" origin="338, 14" size="28, 28"
-                  control-tag="PhaserFeedback"
-                  default-value="0.75"
-                  arc-color="fx-phaser"
-                  guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="330, 44" size="44, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Feedback"/>
+            <!-- ======== Flanger Controls (ModulationType=Flanger) ======== -->
+            <view class="CViewContainer" origin="0, 0" size="688, 100"
+                  custom-view-name="FlangerControlsGroup" transparent="true">
+                <!-- Mix -->
+                <view class="ArcKnob" origin="110, 14" size="28, 28"
+                      control-tag="FlangerMix"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="104, 44" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Mix"/>
 
-            <!-- Stages + Center + Spread + Waveform -->
-            <view class="COptionMenu" origin="400, 18" size="80, 20"
-                  control-tag="PhaserStages"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  back-color="bg-dropdown"
-                  frame-color="frame-dropdown-dim"
-                  transparent="false"/>
-            <view class="CTextLabel" origin="400, 40" size="80, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Stages"/>
-            <view class="ArcKnob" origin="500, 14" size="28, 28"
-                  control-tag="PhaserCenterFreq"
-                  default-value="0.0909"
-                  arc-color="fx-phaser"
-                  guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="490, 44" size="48, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Center"/>
-            <view class="ArcKnob" origin="560, 14" size="28, 28"
-                  control-tag="PhaserStereoSpread"
-                  default-value="0.0"
-                  arc-color="fx-phaser"
-                  guide-color="knob-guide"/>
-            <view class="CTextLabel" origin="552, 44" size="44, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Spread"/>
-            <view class="COptionMenu" origin="4, 64" size="90, 20"
-                  control-tag="PhaserWaveform"
-                  font="~ NormalFontSmaller"
-                  font-color="master"
-                  back-color="bg-dropdown"
-                  frame-color="frame-dropdown-dim"
-                  transparent="false"/>
-            <view class="CTextLabel" origin="4, 86" size="90, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Waveform"/>
+                <!-- Sync + Rate/NoteValue -->
+                <view class="ToggleButton" origin="170, 16" size="50, 20"
+                      control-tag="FlangerSync"
+                      default-value="0.0"
+                      title="Sync"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="fx-phaser"
+                      text-color="fx-phaser"
+                      transparent="true"/>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="FlangerRateGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="FlangerRate"
+                          default-value="0.0909"
+                          arc-color="fx-phaser"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="FlangerNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="FlangerNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+
+                <!-- Depth + Feedback -->
+                <view class="ArcKnob" origin="322, 14" size="28, 28"
+                      control-tag="FlangerDepth"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="316, 44" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+                <view class="ArcKnob" origin="372, 14" size="28, 28"
+                      control-tag="FlangerFeedback"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="364, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Feedback"/>
+
+                <!-- Spread + Waveform -->
+                <view class="ArcKnob" origin="434, 14" size="28, 28"
+                      control-tag="FlangerStereoSpread"
+                      default-value="0.25"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="426, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Spread"/>
+                <view class="COptionMenu" origin="4, 64" size="90, 20"
+                      control-tag="FlangerWaveform"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="4, 86" size="90, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Waveform"/>
+            </view>
         </view>
 
         <!-- ============================================================ -->

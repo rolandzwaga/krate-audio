@@ -328,7 +328,7 @@ TEST_CASE("Mod source pipeline: each source produces modulation via param pipeli
             // Disable effects to isolate filter behavior
             setupParams.addChange(Ruinae::kDelayEnabledId, 0.0);
             setupParams.addChange(Ruinae::kReverbEnabledId, 0.0);
-            setupParams.addChange(Ruinae::kPhaserEnabledId, 0.0);
+            setupParams.addChange(Ruinae::kModulationTypeId, 0.0);  // None
             f.processWithParams(setupParams);
 
             // -----------------------------------------------------------
@@ -456,7 +456,7 @@ TEST_CASE("Mod source pipeline: Macro1 DC source modulates global filter cutoff"
     setupParams.addChange(Ruinae::kGlobalFilterResonanceId, 0.3);
     setupParams.addChange(Ruinae::kDelayEnabledId, 0.0);
     setupParams.addChange(Ruinae::kReverbEnabledId, 0.0);
-    setupParams.addChange(Ruinae::kPhaserEnabledId, 0.0);
+    setupParams.addChange(Ruinae::kModulationTypeId, 0.0);  // None
     f.processWithParams(setupParams);
 
     // Play a note
@@ -524,7 +524,7 @@ TEST_CASE("Mod source pipeline: LFO1 modulates global filter cutoff (control tes
     setupParams.addChange(Ruinae::kGlobalFilterResonanceId, 0.3);
     setupParams.addChange(Ruinae::kDelayEnabledId, 0.0);
     setupParams.addChange(Ruinae::kReverbEnabledId, 0.0);
-    setupParams.addChange(Ruinae::kPhaserEnabledId, 0.0);
+    setupParams.addChange(Ruinae::kModulationTypeId, 0.0);  // None
     f.processWithParams(setupParams);
 
     // Play a note

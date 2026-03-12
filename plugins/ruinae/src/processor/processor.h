@@ -38,6 +38,7 @@
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
+#include "parameters/flanger_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -227,12 +228,13 @@ private:
     // FX Enable (1500-1502)
     std::atomic<bool> delayEnabled_{false};
     std::atomic<bool> reverbEnabled_{false};
-    std::atomic<bool> phaserEnabled_{false};
+    std::atomic<int> modulationType_{0};  // ModulationType: 0=None, 1=Phaser, 2=Flanger
     std::atomic<bool> harmonizerEnabled_{false};
 
     RuinaeDelayParams delayParams_;
     RuinaeReverbParams reverbParams_;
     RuinaePhaserParams phaserParams_;
+    RuinaeFlangerParams flangerParams_;
     RuinaeHarmonizerParams harmonizerParams_;
     MonoModeParams monoModeParams_;
     MacroParams macroParams_;

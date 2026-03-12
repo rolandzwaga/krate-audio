@@ -532,6 +532,10 @@ public:
     // Effects Chain (FR-026, FR-027, FR-028)
     // =========================================================================
 
+    /// @brief Direct access to the effects chain (for modulation type crossfade).
+    RuinaeEffectsChain& effectsChain() noexcept { return effectsChain_; }
+    [[nodiscard]] const RuinaeEffectsChain& effectsChain() const noexcept { return effectsChain_; }
+
     void setDelayEnabled(bool enabled) noexcept { effectsChain_.setDelayEnabled(enabled); }
     void setReverbEnabled(bool enabled) noexcept { effectsChain_.setReverbEnabled(enabled); }
 
@@ -1421,6 +1425,7 @@ public:
         blockContext_.tempoBPM = bpm;
         effectsChain_.setDelayTempo(bpm);
         effectsChain_.setPhaserTempo(static_cast<float>(bpm));
+        effectsChain_.flanger().setTempo(bpm);
         // Forward tempo to all voices' trance gates
         for (auto& voice : voices_) {
             voice.setTranceGateTempo(bpm);

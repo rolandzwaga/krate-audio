@@ -232,7 +232,7 @@ TEST_CASE("Sentinel values survive round-trip through processor",
     // FX enable flags
     formatState.delayEnabled = 1;
     formatState.reverbEnabled = 0;
-    formatState.phaserEnabled = 1;
+    formatState.modulationType = 1;
 
     // Phaser
     formatState.phaser.rateHz = 1.5f;

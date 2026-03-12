@@ -24,7 +24,7 @@ krate-audio/
 │   │   ├── processors/       # Layer 2: Composed processors (filters, saturation, dynamics)
 │   │   ├── systems/          # Layer 3: Complex systems (feedback networks, character)
 │   │   └── effects/          # Layer 4: Complete effect algorithms
-│   └── tests/                # DSP unit tests (5400+ test cases)
+│   └── tests/                # DSP unit tests (6300+ test cases)
 │
 ├── plugins/
 │   ├── iterum/               # Iterum - Delay plugin with 11 modes
@@ -48,9 +48,13 @@ krate-audio/
 │       └── tests/            # Shared component tests
 │
 ├── tools/
-│   └── control_testbench/    # Standalone app for testing custom VSTGUI controls
+│   ├── control_testbench/    # Standalone app for testing custom VSTGUI controls
+│   ├── pluginval.exe         # Plugin validation tool
+│   ├── run-clang-tidy.*      # Static analysis runners (ps1/sh)
+│   ├── *_preset_generator.*  # Preset generation utilities
+│   └── *.js                  # Dev helpers (crash dump analysis, signal flow)
 │
-├── tests/                    # Shared test infrastructure
+├── tests/                    # Shared test infrastructure & benchmarks
 ├── extern/vst3sdk/           # Steinberg VST3 SDK (submodule)
 ├── extern/pffft/             # SIMD-optimized FFT library (BSD license)
 └── (Google Highway)          # SIMD math acceleration (FetchContent, Apache-2.0)
@@ -70,15 +74,17 @@ A multiband morphing distortion VST3 plugin with a 4-band crossover network, smo
 
 [**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/disrumpo//) | [**Plugin README**](plugins/disrumpo/README.md)
 
-### Ruinae
+### [Ruinae](plugins/ruinae/README.md)
 
-A chaos/spectral hybrid synthesizer VST3 plugin featuring a modular synthesis engine with modulation matrix, multiple oscillator types, and an effects chain.
+A chaos/spectral hybrid synthesizer blending 10 oscillator types — from classic PolyBLEP and wavetable to chaos attractors, particle clouds, and spectral freeze — with a deep modulation matrix, full arpeggiator, and a 4-effect chain (phaser, delay, harmonizer, reverb).
 
 [**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/ruinae//) | [**Plugin README**](plugins/ruinae/README.md)
 
 ### [Innexus](plugins/innexus/README.md)
 
 A harmonic analysis and resynthesis VST3/AU instrument. Analyzes audio samples or live sidechain input to extract harmonic content, then resynthesizes it as a playable instrument with independent control over harmonics, residual noise, and transients.
+
+[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/innexus//) | [**Plugin README**](plugins/innexus/README.md)
 
 ## KrateDSP Library
 
@@ -88,16 +94,16 @@ The KrateDSP library provides reusable DSP components organized in a 5-layer arc
 |-------|-----------|------------|----------|
 | 0 | `core/` | Math utilities, constants | dB conversion, sigmoid functions, interpolation, window functions |
 | 1 | `primitives/` | 54 basic DSP blocks | Biquad, SVF, ladder filter, delay lines, LFOs, FFT/STFT, oscillators |
-| 2 | `processors/` | 78 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank, particle oscillator, harmonic oscillator bank |
+| 2 | `processors/` | 81 composed processors | Filters (formant, phaser, spectral morph), saturation, resonator bank, particle oscillator, harmonic oscillator bank |
 | 3 | `systems/` | 32 complex systems | Tape machine, amp channel, feedback networks, granular engine, synth voice, modulation matrix |
-| 4 | `effects/` | 13 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD, reverb |
+| 4 | `effects/` | 14 complete algorithms | Tape delay, granular delay, shimmer, spectral, BBD, reverb, flanger |
 
 ### Key Features
 
 - **Real-Time Safe** - No allocations in audio processing, lock-free operations
 - **Modern C++20** - RAII, constexpr, concepts, value semantics
 - **Cross-Platform** - Windows, macOS (Intel & Apple Silicon), Linux
-- **Extensively Tested** - 6500+ test cases across 300+ test files, spectral analysis, and approval testing
+- **Extensively Tested** - 6300+ DSP test cases across 380+ test files, spectral analysis, and approval testing
 - **SIMD-Optimized FFT** - pffft backend with SSE (x86/x64) and NEON (ARM) acceleration
 - **Composable Anti-Aliasing** - Oversampling applied at appropriate abstraction levels
 - **Physical Modeling** - Resonator banks, formant filters, waveguide primitives
@@ -129,7 +135,7 @@ ctest --preset linux-release
 
 # Run DSP tests only
 cmake --build build/windows-x64-release --target dsp_tests
-./build/windows-x64-release/dsp/tests/Release/dsp_tests
+./build/windows-x64-release/bin/Release/dsp_tests
 ```
 
 ### Build Outputs
@@ -140,7 +146,8 @@ cmake --build build/windows-x64-release --target dsp_tests
 | Disrumpo plugin | `build/<preset>/VST3/Release/Disrumpo.vst3` |
 | Ruinae plugin | `build/<preset>/VST3/Release/Ruinae.vst3` |
 | Innexus plugin | `build/<preset>/VST3/Release/Innexus.vst3` |
-| DSP tests | `build/<preset>/dsp/tests/Release/dsp_tests` |
+| DSP tests | `build/<preset>/bin/Release/dsp_tests` |
+| Plugin tests | `build/<preset>/bin/Release/<plugin>_tests` |
 | KrateDSP library | `build/<preset>/dsp/Release/KrateDSP.lib` |
 
 ## Technical Highlights
