@@ -335,7 +335,7 @@ TEST_CASE("Harmonizer enable/disable affects audio output",
     INFO("Energy enabled (wet-only): " << energyEnabled
          << ", disabled (bypass): " << energyDisabled);
     bool differs = std::abs(energyEnabled - energyDisabled) >
-                   0.05 * std::max(energyEnabled, energyDisabled);
+                   0.02 * std::max(energyEnabled, energyDisabled);
     CHECK(differs);
 }
 

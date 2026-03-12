@@ -17,6 +17,9 @@ add_executable(ruinae_tests
     # Harmonizer Parameter Tests (067-ruinae-harmonizer)
     unit/harmonizer_params_test.cpp
 
+    # Flanger Parameter Tests (126-ruinae-flanger)
+    unit/parameters/flanger_params_test.cpp
+
     # Oscillator Type-Specific Parameter Tests (068-osc-type-params)
     unit/parameters/osc_params_test.cpp
     unit/parameters/osc_state_test.cpp

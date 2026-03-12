@@ -53,7 +53,8 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1600-1699: Delay Effect (Type, Time, Feedback, Mix, Sync, ...)
 //   1700-1799: Reverb (Size, Damping, Width, Mix, PreDelay, ...)
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
-//   1900-1999: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
+//   1900-1909: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
+//   1910-1919: Flanger (Rate, Depth, Feedback, Mix, StereoSpread, Waveform, Sync, NoteValue, ModulationType)
 //   2000-2099: Macros (Macro 1-4 values)
 //   2100-2199: Rungler (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
 //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
@@ -92,7 +93,8 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   1600-1699: Delay
     //   1700-1799: Reverb
     //   1800-1899: Mono Mode
-    //   1900-1999: Phaser
+    //   1900-1909: Phaser
+    //   1910-1919: Flanger
     //   2000-2099: Macros
     //   2100-2199: Rungler
     //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
@@ -563,7 +565,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     // ==========================================================================
     kDelayEnabledId = 1500,    // on/off (default: on)
     kReverbEnabledId = 1501,   // on/off (default: on)
-    kPhaserEnabledId = 1502,   // on/off (default: on)
+    kPhaserEnabledId = 1502,   // DEPRECATED: Use kModulationTypeId (1918) instead. Kept for state migration only.
     kHarmonizerEnabledId = 1503, // on/off (default: off)
 
     // ==========================================================================
@@ -681,6 +683,22 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kPhaserSyncId = 1908,           // on/off
     kPhaserNoteValueId = 1909,      // Note value (dropdown)
     kPhaserEndId = 1999,
+
+    // ==========================================================================
+    // Flanger Parameters (1910-1919)
+    // ==========================================================================
+    // Shares the 1900-1999 range with Phaser (Phaser uses 1900-1909).
+    // The Flanger is a mutually exclusive alternative in the modulation slot.
+    kFlangerRateId = 1910,              // 0.05-5.0 Hz (default 0.5 Hz)
+    kFlangerDepthId = 1911,             // 0-1 (default 0.5)
+    kFlangerFeedbackId = 1912,          // -1 to +1 (default 0.0)
+    kFlangerMixId = 1913,              // 0-1 (default 0.5), true dry/wet crossfade
+    kFlangerStereoSpreadId = 1914,     // 0-360 degrees (default 90)
+    kFlangerWaveformId = 1915,         // Sine/Triangle (dropdown, default Triangle)
+    kFlangerSyncId = 1916,             // on/off (default off)
+    kFlangerNoteValueId = 1917,        // Note value (dropdown)
+    kModulationTypeId = 1918,          // None/Phaser/Flanger (default None for fresh instances)
+    kFlangerEndId = 1919,
 
     // ==========================================================================
     // Macro Parameters (2000-2099)
