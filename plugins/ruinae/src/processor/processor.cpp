@@ -1062,6 +1062,48 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             handleDelayParamChange(delayParams_, paramId, value);
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
             handleReverbParamChange(reverbParams_, paramId, value);
+        } else if (paramId >= kFlangerRateId && paramId <= kFlangerEndId) {
+            // Flanger parameter dispatch (direct to DSP object)
+            switch (paramId) {
+                case kFlangerRateId:
+                    engine_.effectsChain().flanger().setRate(
+                        std::clamp(static_cast<float>(0.05 + value * 4.95), 0.05f, 5.0f));
+                    break;
+                case kFlangerDepthId:
+                    engine_.effectsChain().flanger().setDepth(
+                        static_cast<float>(value));
+                    break;
+                case kFlangerFeedbackId:
+                    engine_.effectsChain().flanger().setFeedback(
+                        static_cast<float>(value * 2.0 - 1.0));
+                    break;
+                case kFlangerMixId:
+                    engine_.effectsChain().flanger().setMix(
+                        static_cast<float>(value));
+                    break;
+                case kFlangerStereoSpreadId:
+                    engine_.effectsChain().flanger().setStereoSpread(
+                        static_cast<float>(value * 360.0));
+                    break;
+                case kFlangerWaveformId:
+                    engine_.effectsChain().flanger().setWaveform(
+                        static_cast<Krate::DSP::Waveform>(
+                            std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1)));
+                    break;
+                case kFlangerSyncId:
+                    engine_.effectsChain().flanger().setTempoSync(value > 0.5);
+                    break;
+                case kFlangerNoteValueId: {
+                    const int noteIdx = std::clamp(
+                        static_cast<int>(value * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5),
+                        0, Krate::DSP::kNoteValueDropdownCount - 1);
+                    auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
+                    engine_.effectsChain().flanger().setNoteValue(mapping.note, mapping.modifier);
+                    break;
+                }
+                default:
+                    break;
+            }
         } else if (paramId >= kPhaserBaseId && paramId <= kPhaserEndId) {
             handlePhaserParamChange(phaserParams_, paramId, value);
             logPhaser("[RUINAE][PARAM] phaser param %d received: raw=%.4f\n", paramId, value);

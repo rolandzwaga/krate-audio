@@ -841,3 +841,273 @@ TEST_CASE("Flanger feedback clamp: feedback=1.0 does not cause instability", "[f
     REQUIRE_FALSE(hasNaN);
     REQUIRE(maxMagnitude < 2.0f);
 }
+
+// =============================================================================
+// User Story 5: Tempo Sync
+// =============================================================================
+
+// Helper: measure LFO period by counting samples between successive upward
+// zero-crossings of the left-channel output. We feed a constant input so the
+// output variation comes only from the LFO sweeping the delay time. The
+// "zero-crossing" here is relative to the DC mean of the output, so we first
+// compute the mean then detect crossings.
+// Strategy: Feed periodic impulses through the flanger at mix=1.0 (wet only)
+// with feedback=0. Each impulse produces exactly one echo at the current LFO
+// delay position. By spacing impulses far apart (every 200 samples = ~4.5ms,
+// which exceeds the max delay of 4ms), each echo is cleanly separable.
+// We record the position of each echo's peak, which tracks the LFO waveform.
+// The period of the peak-position oscillation gives us the LFO period.
+static float measureFlangerLfoPeriodSamples(Flanger& flanger, [[maybe_unused]] double sampleRate, size_t totalSamples) {
+    constexpr size_t kBlockSize = 4096;
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+
+    // Space impulses 250 samples apart (> max delay of ~176 samples at 44.1kHz)
+    constexpr size_t kImpulseSpacing = 250;
+
+    // Collect delay measurements: for each impulse, find the peak echo position
+    // which directly maps to the LFO-controlled delay time
+    std::vector<float> delayPositions;
+
+    size_t sampleCounter = 0;
+    size_t remaining = totalSamples;
+    // Buffer to accumulate output for peak finding
+    std::vector<float> output;
+    output.reserve(totalSamples);
+
+    while (remaining > 0) {
+        size_t blockLen = std::min(remaining, kBlockSize);
+        for (size_t i = 0; i < blockLen; ++i) {
+            size_t globalIdx = sampleCounter + i;
+            // Place impulse every kImpulseSpacing samples
+            left[i] = (globalIdx % kImpulseSpacing == 0) ? 1.0f : 0.0f;
+            right[i] = left[i];
+        }
+        flanger.processStereo(left.data(), right.data(), blockLen);
+        for (size_t i = 0; i < blockLen; ++i) {
+            output.push_back(left[i]);
+        }
+        sampleCounter += blockLen;
+        remaining -= blockLen;
+    }
+
+    // For each impulse, find the peak echo within its window
+    for (size_t impulseIdx = 1; impulseIdx < totalSamples / kImpulseSpacing; ++impulseIdx) {
+        size_t impulsePos = impulseIdx * kImpulseSpacing;
+        // Search for the peak in the response window after the impulse
+        // (the echo appears 1-200 samples after the impulse position)
+        size_t searchStart = impulsePos + 1;
+        size_t searchEnd = std::min(impulsePos + kImpulseSpacing, output.size());
+
+        float maxVal = 0.0f;
+        size_t maxPos = searchStart;
+        for (size_t j = searchStart; j < searchEnd; ++j) {
+            float absVal = std::abs(output[j]);
+            if (absVal > maxVal) {
+                maxVal = absVal;
+                maxPos = j;
+            }
+        }
+
+        // Only record if there was a clear echo (above noise floor)
+        if (maxVal > 0.01f) {
+            delayPositions.push_back(static_cast<float>(maxPos - impulsePos));
+        }
+    }
+
+    // Now delayPositions[] traces the LFO waveform (delay in samples over time).
+    // Find its period by detecting upward zero-crossings relative to its mean.
+    if (delayPositions.size() < 10) {
+        return 0.0f;
+    }
+
+    // Skip first 15% as warmup
+    size_t startIdx = delayPositions.size() * 15 / 100;
+
+    // Compute mean delay
+    double sum = 0.0;
+    for (size_t i = startIdx; i < delayPositions.size(); ++i) {
+        sum += static_cast<double>(delayPositions[i]);
+    }
+    float meanDelay = static_cast<float>(sum / static_cast<double>(delayPositions.size() - startIdx));
+
+    // Find upward zero-crossings of (delay - meanDelay)
+    std::vector<size_t> crossings;
+    for (size_t i = startIdx + 1; i < delayPositions.size(); ++i) {
+        float prev = delayPositions[i - 1] - meanDelay;
+        float curr = delayPositions[i] - meanDelay;
+        if (prev <= 0.0f && curr > 0.0f) {
+            crossings.push_back(i);
+        }
+    }
+
+    if (crossings.size() < 2) {
+        return 0.0f;
+    }
+
+    // Average period in impulse-spacing units, then convert to samples
+    double totalPeriod = 0.0;
+    for (size_t i = 1; i < crossings.size(); ++i) {
+        totalPeriod += static_cast<double>(crossings[i] - crossings[i - 1]);
+    }
+    double avgPeriodInImpulses = totalPeriod / static_cast<double>(crossings.size() - 1);
+
+    // Convert from impulse indices to samples
+    return static_cast<float>(avgPeriodInImpulses * static_cast<double>(kImpulseSpacing));
+}
+
+TEST_CASE("Flanger tempo sync off: LFO runs at setRate frequency", "[flanger][temposync]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(2.0f);   // 2 Hz -> period = 0.5s = 22050 samples
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+    flanger.setStereoSpread(0.0f);
+    flanger.setTempoSync(false);
+
+    // Process 3 seconds to get at least 6 full cycles
+    constexpr size_t N = 44100 * 3;
+    float period = measureFlangerLfoPeriodSamples(flanger, 44100.0, N);
+
+    // Expected: 44100 / 2.0 = 22050 samples per cycle
+    float expectedPeriod = 44100.0f / 2.0f;
+    REQUIRE(period == Approx(expectedPeriod).margin(expectedPeriod * 0.01f));
+}
+
+TEST_CASE("Flanger tempo sync on: quarter note at 120 BPM = 0.5s period", "[flanger][temposync]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+    flanger.setStereoSpread(0.0f);
+
+    // Enable tempo sync: quarter note at 120 BPM
+    // Quarter note = 1 beat. At 120 BPM, 1 beat = 0.5s = 22050 samples
+    flanger.setTempoSync(true);
+    flanger.setNoteValue(Krate::DSP::NoteValue::Quarter, Krate::DSP::NoteModifier::None);
+    flanger.setTempo(120.0);
+
+    constexpr size_t N = 44100 * 3;
+    float period = measureFlangerLfoPeriodSamples(flanger, 44100.0, N);
+
+    float expectedPeriod = 44100.0f * 0.5f; // 22050 samples
+    REQUIRE(period == Approx(expectedPeriod).margin(expectedPeriod * 0.01f));
+}
+
+TEST_CASE("Flanger tempo sync: tempo change 120 -> 140 BPM adjusts period", "[flanger][temposync]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+    flanger.setStereoSpread(0.0f);
+
+    // Start at 120 BPM, quarter note
+    flanger.setTempoSync(true);
+    flanger.setNoteValue(Krate::DSP::NoteValue::Quarter, Krate::DSP::NoteModifier::None);
+    flanger.setTempo(120.0);
+
+    // Warm up at 120 BPM for 1 second
+    {
+        constexpr size_t kWarmup = 44100;
+        constexpr size_t kBlockSize = 4096;
+        std::array<float, kBlockSize> left{};
+        std::array<float, kBlockSize> right{};
+        size_t remaining = kWarmup;
+        while (remaining > 0) {
+            size_t blockLen = std::min(remaining, kBlockSize);
+            for (size_t i = 0; i < blockLen; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+            flanger.processStereo(left.data(), right.data(), blockLen);
+            remaining -= blockLen;
+        }
+    }
+
+    // Change to 140 BPM
+    flanger.setTempo(140.0);
+
+    // Quarter note at 140 BPM = 60/140 = 0.4286s
+    constexpr size_t N = 44100 * 3;
+    float period = measureFlangerLfoPeriodSamples(flanger, 44100.0, N);
+
+    float expectedPeriod = 44100.0f * (60.0f / 140.0f); // ~18900 samples
+    REQUIRE(period == Approx(expectedPeriod).margin(expectedPeriod * 0.01f));
+}
+
+TEST_CASE("Flanger tempo sync: sync enabled with default tempo does not crash", "[flanger][temposync]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+
+    // Enable sync but don't explicitly set tempo (should use default 120 BPM)
+    flanger.setTempoSync(true);
+    flanger.setNoteValue(Krate::DSP::NoteValue::Quarter, Krate::DSP::NoteModifier::None);
+
+    constexpr size_t N = 44100;
+    constexpr size_t kBlockSize = 4096;
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+
+    bool hasNaN = false;
+    size_t remaining = N;
+    while (remaining > 0) {
+        size_t blockLen = std::min(remaining, kBlockSize);
+        for (size_t i = 0; i < blockLen; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+        flanger.processStereo(left.data(), right.data(), blockLen);
+        for (size_t i = 0; i < blockLen; ++i) {
+            if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+                hasNaN = true;
+            }
+        }
+        remaining -= blockLen;
+    }
+    REQUIRE_FALSE(hasNaN);
+}
+
+TEST_CASE("Flanger tempo sync: switching sync on/off does not produce NaN", "[flanger][temposync]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(1.0f);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.5f);
+    flanger.setTempo(120.0);
+    flanger.setNoteValue(Krate::DSP::NoteValue::Eighth, Krate::DSP::NoteModifier::None);
+
+    constexpr size_t kBlockSize = 512;
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+
+    bool hasNaN = false;
+
+    // Process with sync off
+    for (size_t i = 0; i < kBlockSize; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+    flanger.processStereo(left.data(), right.data(), kBlockSize);
+
+    // Switch sync on
+    flanger.setTempoSync(true);
+    for (size_t i = 0; i < kBlockSize; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+    flanger.processStereo(left.data(), right.data(), kBlockSize);
+
+    // Switch sync off
+    flanger.setTempoSync(false);
+    for (size_t i = 0; i < kBlockSize; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+    flanger.processStereo(left.data(), right.data(), kBlockSize);
+
+    // Switch sync on again
+    flanger.setTempoSync(true);
+    for (size_t i = 0; i < kBlockSize; ++i) { left[i] = 0.5f; right[i] = 0.5f; }
+    flanger.processStereo(left.data(), right.data(), kBlockSize);
+
+    // Check all outputs for NaN
+    // (We check after the last block but NaN would propagate through feedback)
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+            hasNaN = true;
+        }
+    }
+    REQUIRE_FALSE(hasNaN);
+}

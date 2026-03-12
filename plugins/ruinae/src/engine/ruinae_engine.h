@@ -1425,6 +1425,7 @@ public:
         blockContext_.tempoBPM = bpm;
         effectsChain_.setDelayTempo(bpm);
         effectsChain_.setPhaserTempo(static_cast<float>(bpm));
+        effectsChain_.flanger().setTempo(bpm);
         // Forward tempo to all voices' trance gates
         for (auto& voice : voices_) {
             voice.setTranceGateTempo(bpm);
