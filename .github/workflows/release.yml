@@ -510,6 +510,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Generate Plugin Landing Page
         if: needs.version.outputs.has_landing_page == 'true'
@@ -559,8 +561,9 @@ jobs:
           cp docs/assets/style.css _site/assets/
 
           # Generate plugin cards from all version.json files and fill root template
+          # Version comes from git tags — plugins without a tag show no version badge
           python3 << 'PYEOF'
-          import json, glob, os
+          import json, glob, os, subprocess
 
           plugins = []
           for vj in sorted(glob.glob('plugins/*/version.json')):
@@ -571,6 +574,17 @@ jobs:
               # Only link to plugins that have a landing page
               has_page = os.path.isfile(f'plugins/{plugin_dir}/docs/index.html')
               data['has_page'] = has_page
+              # Get version from latest git tag
+              plugin_lower = data['name'].lower()
+              try:
+                  tag = subprocess.check_output(
+                      f'git tag -l "{plugin_lower}/v*" --sort=-v:refname | head -1',
+                      shell=True, text=True
+                  ).strip()
+              except Exception:
+                  tag = ''
+              if tag:
+                  data['version'] = tag.split('/v')[-1]
               plugins.append(data)
 
           cards = '\n'.join([
@@ -604,12 +618,12 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           # Generate versions.json for the in-plugin update checker
-          # Reads each plugin's version.json and produces an aggregated endpoint
+          # Version comes exclusively from git tags — plugins without a release tag are skipped
           node -e '
           const fs = require("fs");
           const path = require("path");
-          const glob = require("child_process")
-            .execSync("ls plugins/*/version.json")
+          const { execSync } = require("child_process");
+          const glob = execSync("ls plugins/*/version.json")
             .toString().trim().split("\n");
 
           const plugins = {};
@@ -617,8 +631,22 @@ jobs:
             const data = JSON.parse(fs.readFileSync(vj, "utf8"));
             const dir = path.basename(path.dirname(vj));
             const repo = process.env.REPO;
+
+            // Get version from latest git tag (e.g. "ruinae/v0.9.9" -> "0.9.9")
+            const pluginLower = data.name.toLowerCase();
+            let tag = "";
+            try {
+              tag = execSync(`git tag -l "${pluginLower}/v*" --sort=-v:refname | head -1`)
+                .toString().trim();
+            } catch {}
+            if (!tag) {
+              console.log(`  No release tag for ${data.name} — skipping`);
+              continue;
+            }
+            const version = tag.replace(/.*\/v/, "");
+
             plugins[data.name] = {
-              version: data.version,
+              version,
               download_url: `https://${repo.split("/")[0]}.github.io/${repo.split("/")[1]}/${dir}/`,
               release_notes: ""
             };
