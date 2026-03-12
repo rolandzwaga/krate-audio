@@ -523,6 +523,15 @@
         <control-tag name="FlangerSync" tag="1916"/>
         <control-tag name="FlangerNoteValue" tag="1917"/>
         <control-tag name="ModulationType" tag="1918"/>
+        <control-tag name="ChorusRate" tag="1920"/>
+        <control-tag name="ChorusDepth" tag="1921"/>
+        <control-tag name="ChorusFeedback" tag="1922"/>
+        <control-tag name="ChorusMix" tag="1923"/>
+        <control-tag name="ChorusStereoSpread" tag="1924"/>
+        <control-tag name="ChorusVoices" tag="1925"/>
+        <control-tag name="ChorusWaveform" tag="1926"/>
+        <control-tag name="ChorusSync" tag="1927"/>
+        <control-tag name="ChorusNoteValue" tag="1928"/>
 
         <!-- UI action button tags (not VST parameters) -->
         <control-tag name="ActionTransformInvert" tag="10006"/>
@@ -2686,6 +2695,100 @@
                       text-alignment="center" transparent="true" title="Spread"/>
                 <view class="COptionMenu" origin="4, 64" size="90, 20"
                       control-tag="FlangerWaveform"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="4, 86" size="90, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Waveform"/>
+            </view>
+
+            <!-- ======== Chorus Controls (ModulationType=Chorus) ======== -->
+            <view class="CViewContainer" origin="0, 0" size="688, 100"
+                  custom-view-name="ChorusControlsGroup" transparent="true">
+                <!-- Mix -->
+                <view class="ArcKnob" origin="110, 14" size="28, 28"
+                      control-tag="ChorusMix"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="104, 44" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Mix"/>
+
+                <!-- Sync + Rate/NoteValue -->
+                <view class="ToggleButton" origin="170, 16" size="50, 20"
+                      control-tag="ChorusSync"
+                      default-value="0.0"
+                      title="Sync"
+                      title-position="right"
+                      font="~ NormalFontSmaller"
+                      font-color="fx-phaser"
+                      text-color="fx-phaser"
+                      transparent="true"/>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="ChorusRateGroup" transparent="true">
+                    <view class="ArcKnob" origin="0, 0" size="28, 28"
+                          control-tag="ChorusRate"
+                          default-value="0.04523"
+                          arc-color="fx-phaser"
+                          guide-color="knob-guide"/>
+                    <view class="CTextLabel" origin="-6, 28" size="40, 10"
+                          font="~ NormalFontSmaller" font-color="text-secondary"
+                          text-alignment="center" transparent="true" title="Rate"/>
+                </view>
+                <view class="CViewContainer" origin="230, 12" size="80, 40"
+                      custom-view-name="ChorusNoteValueGroup" transparent="true">
+                    <view class="COptionMenu" origin="0, 4" size="80, 20"
+                          control-tag="ChorusNoteValue"
+                          font="~ NormalFontSmaller"
+                          font-color="master"
+                          back-color="bg-dropdown"
+                          frame-color="frame-dropdown-dim"
+                          transparent="false"/>
+                </view>
+
+                <!-- Depth + Feedback -->
+                <view class="ArcKnob" origin="322, 14" size="28, 28"
+                      control-tag="ChorusDepth"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="316, 44" size="40, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Depth"/>
+                <view class="ArcKnob" origin="372, 14" size="28, 28"
+                      control-tag="ChorusFeedback"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="364, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Feedback"/>
+
+                <!-- Spread + Voices + Waveform -->
+                <view class="ArcKnob" origin="434, 14" size="28, 28"
+                      control-tag="ChorusStereoSpread"
+                      default-value="0.5"
+                      arc-color="fx-phaser"
+                      guide-color="knob-guide"/>
+                <view class="CTextLabel" origin="426, 44" size="44, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Spread"/>
+                <view class="COptionMenu" origin="494, 18" size="60, 20"
+                      control-tag="ChorusVoices"
+                      font="~ NormalFontSmaller"
+                      font-color="master"
+                      back-color="bg-dropdown"
+                      frame-color="frame-dropdown-dim"
+                      transparent="false"/>
+                <view class="CTextLabel" origin="494, 40" size="60, 10"
+                      font="~ NormalFontSmaller" font-color="text-secondary"
+                      text-alignment="center" transparent="true" title="Voices"/>
+                <view class="COptionMenu" origin="4, 64" size="90, 20"
+                      control-tag="ChorusWaveform"
                       font="~ NormalFontSmaller"
                       font-color="master"
                       back-color="bg-dropdown"

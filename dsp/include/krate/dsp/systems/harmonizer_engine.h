@@ -538,12 +538,27 @@ public:
         }
 
         // Step 6-7: Per-sample dry/wet blend (FR-017 steps 6-7)
+        // Scale wet bus by 1/sqrt(N) for gain-neutral voice stacking,
+        // where N is the number of audible (non-muted) voices.
+        // N voices of uncorrelated signal sum to sqrt(N) in power, so
+        // dividing by sqrt(N) keeps perceived loudness constant regardless
+        // of voice count. Single voice (N<=1) remains at unity.
+        int audibleVoices = 0;
+        for (int v = 0; v < numActiveVoices_; ++v) {
+            if (voices_[static_cast<std::size_t>(v)].linearGain > 0.0f) {
+                ++audibleVoices;
+            }
+        }
+        const float voiceCountScale = (audibleVoices > 1)
+            ? 1.0f / std::sqrt(static_cast<float>(audibleVoices))
+            : 1.0f;
+
         for (std::size_t s = 0; s < numSamples; ++s) {
             float dryGain = dryLevelSmoother_.process();
             float wetGain = wetLevelSmoother_.process();
 
-            outputL[s] = wetGain * outputL[s] + dryGain * input[s];
-            outputR[s] = wetGain * outputR[s] + dryGain * input[s];
+            outputL[s] = wetGain * voiceCountScale * outputL[s] + dryGain * input[s];
+            outputR[s] = wetGain * voiceCountScale * outputR[s] + dryGain * input[s];
         }
     }
 

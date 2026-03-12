@@ -270,7 +270,7 @@ static FlangerStateExtract extractFlangerFromState(Steinberg::MemoryStream& stat
     return result;
 }
 
-/// Build a version-5 state from a version-6 state by removing flanger params
+/// Build a version-5 state from a version-7 state by removing flanger + chorus params
 /// and patching the version number to 5.
 static std::vector<char> buildV5StateFromV6(Steinberg::MemoryStream& v6Stream) {
     Steinberg::int64 totalSize = 0;
@@ -336,22 +336,25 @@ static std::vector<char> buildV5StateFromV6(Steinberg::MemoryStream& v6Stream) {
     Steinberg::int64 flangerStart = 0;
     parseStream.tell(&flangerStart);
 
-    // Flanger params: 4 floats + 1 float + 3 int32 = 5*4 + 3*4 = 32 bytes
+    // Flanger params: 5 floats + 3 int32 = 32 bytes
+    // Chorus params: 5 floats + 4 int32 = 36 bytes
     constexpr size_t kFlangerParamBytes = 5 * 4 + 3 * 4; // 32 bytes
+    constexpr size_t kChorusParamBytes = 5 * 4 + 4 * 4; // 36 bytes
+    constexpr size_t kStripBytes = kFlangerParamBytes + kChorusParamBytes; // 68 bytes
 
-    // Build v5 state: everything before flanger params + everything after
+    // Build v5 state: everything before flanger params + everything after chorus params
     std::vector<char> v5Bytes;
-    v5Bytes.reserve(static_cast<size_t>(totalSize) - kFlangerParamBytes);
+    v5Bytes.reserve(static_cast<size_t>(totalSize) - kStripBytes);
 
     // Copy everything before flanger params
     v5Bytes.insert(v5Bytes.end(), v6Bytes.begin(),
                    v6Bytes.begin() + static_cast<ptrdiff_t>(flangerStart));
-    // Skip flanger param bytes
+    // Skip flanger + chorus param bytes
     v5Bytes.insert(v5Bytes.end(),
-                   v6Bytes.begin() + static_cast<ptrdiff_t>(flangerStart) + kFlangerParamBytes,
+                   v6Bytes.begin() + static_cast<ptrdiff_t>(flangerStart) + kStripBytes,
                    v6Bytes.end());
 
-    // Patch version from 6 to 5
+    // Patch version to 5
     Steinberg::int32 v5Version = 5;
     std::memcpy(v5Bytes.data(), &v5Version, sizeof(v5Version));
 
@@ -460,7 +463,7 @@ TEST_CASE("Flanger state round-trip preserves all parameters", "[flanger_state][
     batch.add(Ruinae::kFlangerStereoSpreadId, 0.5);
     batch.add(Ruinae::kFlangerWaveformId, 0.0); // Sine
     batch.add(Ruinae::kFlangerSyncId, 1.0);
-    batch.add(Ruinae::kModulationTypeId, 1.0); // Flanger = 2
+    batch.add(Ruinae::kModulationTypeId, 2.0 / 3.0); // Flanger = 2 (normalized: 2/3)
 
     processFlangerBlock(proc1.get(), 512, &batch);
 
@@ -519,7 +522,7 @@ TEST_CASE("Old preset with phaserEnabled=1 migrates to modulationType=Phaser", "
 
     // Set modulationType to Phaser (1)
     FlangerStateParamChangeBatch batch;
-    batch.add(Ruinae::kModulationTypeId, 0.5); // Phaser = 1, normalized = 1/2 = 0.5
+    batch.add(Ruinae::kModulationTypeId, 1.0 / 3.0); // Phaser = 1 (normalized: 1/3)
 
     processFlangerBlock(proc1.get(), 512, &batch);
 
@@ -585,7 +588,7 @@ TEST_CASE("Flanger params default when loaded from version 5 state", "[flanger_s
     // Set flanger params to non-default values so we have a valid v6 state
     FlangerStateParamChangeBatch batch;
     batch.add(Ruinae::kFlangerRateId, 0.8);
-    batch.add(Ruinae::kModulationTypeId, 0.5); // Phaser
+    batch.add(Ruinae::kModulationTypeId, 1.0 / 3.0); // Phaser
     processFlangerBlock(proc1.get(), 512, &batch);
 
     Steinberg::MemoryStream v6Stream;

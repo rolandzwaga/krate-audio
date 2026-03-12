@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 6;
+static constexpr int32_t kStateVersion = 7;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -744,6 +744,30 @@ struct FlangerState {
     }
 };
 
+struct ChorusState {
+    float rateHz = 0.5f;
+    float depth = 0.5f;
+    float feedback = 0.0f;
+    float mix = 0.5f;
+    float stereoSpread = 180.0f;
+    int32_t voices = 2;
+    int32_t waveform = 1; // Triangle
+    int32_t sync = 0; // false
+    int32_t noteValue = kNoteValueDefaultIndex;
+
+    void serialize(BinaryWriter& w) const {
+        w.writeFloat(rateHz);
+        w.writeFloat(depth);
+        w.writeFloat(feedback);
+        w.writeFloat(mix);
+        w.writeFloat(stereoSpread);
+        w.writeInt32(voices);
+        w.writeInt32(waveform);
+        w.writeInt32(sync);
+        w.writeInt32(noteValue);
+    }
+};
+
 struct MacroState {
     float values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
@@ -1097,10 +1121,13 @@ struct RuinaePresetState {
 
     // Phaser + modulation type (was phaserEnabled in v5)
     PhaserState phaser;
-    int8_t modulationType = 0; // 0=None, 1=Phaser, 2=Flanger
+    int8_t modulationType = 0; // 0=None, 1=Phaser, 2=Flanger, 3=Chorus
 
     // Flanger params (v6+)
     FlangerState flanger;
+
+    // Chorus params (v7+)
+    ChorusState chorus;
 
     // Extended LFO params
     LFOExtState lfo1Ext;
@@ -1168,6 +1195,9 @@ struct RuinaePresetState {
 
         // 22b. Flanger params (v6+)
         flanger.serialize(w);
+
+        // 22c. Chorus params (v7+)
+        chorus.serialize(w);
 
         // 23-24. Extended LFO params
         lfo1Ext.serialize(w);

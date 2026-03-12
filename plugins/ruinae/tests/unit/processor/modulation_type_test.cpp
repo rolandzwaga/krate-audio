@@ -261,7 +261,7 @@ TEST_CASE("Switching modulation type to None produces finite output", "[modulati
 
     // Start with Phaser enabled
     ModParamChangeBatch initBatch;
-    initBatch.add(Ruinae::kModulationTypeId, 0.5); // Phaser = 1 (normalized: 1/2 = 0.5)
+    initBatch.add(Ruinae::kModulationTypeId, 1.0 / 3.0); // Phaser = 1 (normalized: 1/3)
 
     std::vector<float> outL, outR;
 
@@ -303,7 +303,7 @@ TEST_CASE("Switching Phaser to Flanger produces finite output during crossfade",
 
     // Start with Phaser
     ModParamChangeBatch initBatch;
-    initBatch.add(Ruinae::kModulationTypeId, 0.5); // Phaser
+    initBatch.add(Ruinae::kModulationTypeId, 1.0 / 3.0); // Phaser
 
     std::vector<float> outL, outR;
     ModMockEventList noteOnEvents;
@@ -317,7 +317,7 @@ TEST_CASE("Switching Phaser to Flanger produces finite output during crossfade",
 
     // Switch to Flanger
     ModParamChangeBatch switchBatch;
-    switchBatch.add(Ruinae::kModulationTypeId, 1.0); // Flanger = 2 (normalized: 2/2 = 1.0)
+    switchBatch.add(Ruinae::kModulationTypeId, 2.0 / 3.0); // Flanger = 2 (normalized: 2/3)
 
     // Process during crossfade (~1323 samples at 44.1kHz for 30ms)
     processModBlockWithEvents(proc.get(), 2048, outL, outR, &switchBatch, &emptyEvents);
@@ -337,7 +337,7 @@ TEST_CASE("Switching Flanger to None produces finite output", "[modulation_type]
 
     // Start with Flanger
     ModParamChangeBatch initBatch;
-    initBatch.add(Ruinae::kModulationTypeId, 1.0); // Flanger
+    initBatch.add(Ruinae::kModulationTypeId, 2.0 / 3.0); // Flanger
 
     std::vector<float> outL, outR;
     ModMockEventList noteOnEvents;
@@ -417,7 +417,7 @@ TEST_CASE("Switching modulation type with nullptr process context does not crash
 
     // Switch modulation type with nullptr context (already default in processModBlock)
     ModParamChangeBatch switchBatch;
-    switchBatch.add(Ruinae::kModulationTypeId, 1.0); // Flanger
+    switchBatch.add(Ruinae::kModulationTypeId, 2.0 / 3.0); // Flanger
 
     // Process with nullptr context -- should not crash
     processModBlock(proc.get(), 512, outL, outR, &switchBatch, nullptr);

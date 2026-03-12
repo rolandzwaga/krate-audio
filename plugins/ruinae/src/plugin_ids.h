@@ -17,7 +17,7 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 6;
+constexpr Steinberg::int32 kCurrentStateVersion = 7;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)
@@ -55,6 +55,7 @@ static const Steinberg::FUID kControllerUID(0xD6C5B4A3, 0x8B6A4F2E, 0x2F1E0D9C, 
 //   1800-1899: Mono Mode (Priority, Legato, Portamento Time, PortaMode)
 //   1900-1909: Phaser (Rate, Depth, Feedback, Mix, Stages, ...)
 //   1910-1919: Flanger (Rate, Depth, Feedback, Mix, StereoSpread, Waveform, Sync, NoteValue, ModulationType)
+//   1920-1929: Chorus (Rate, Depth, Feedback, Mix, StereoSpread, Voices, Waveform, Sync, NoteValue)
 //   2000-2099: Macros (Macro 1-4 values)
 //   2100-2199: Rungler (Osc1 Freq, Osc2 Freq, Depth, Filter, Bits, Loop Mode)
 //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
@@ -95,6 +96,7 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     //   1800-1899: Mono Mode
     //   1900-1909: Phaser
     //   1910-1919: Flanger
+    //   1920-1929: Chorus
     //   2000-2099: Macros
     //   2100-2199: Rungler
     //   2200-2299: Settings (Pitch Bend Range, Velocity Curve, Tuning Ref, Alloc Mode, Steal Mode, Gain Comp)
@@ -697,8 +699,25 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kFlangerWaveformId = 1915,         // Sine/Triangle (dropdown, default Triangle)
     kFlangerSyncId = 1916,             // on/off (default off)
     kFlangerNoteValueId = 1917,        // Note value (dropdown)
-    kModulationTypeId = 1918,          // None/Phaser/Flanger (default None for fresh instances)
+    kModulationTypeId = 1918,          // None/Phaser/Flanger/Chorus (default None for fresh instances)
     kFlangerEndId = 1919,
+
+    // ==========================================================================
+    // Chorus Parameters (1920-1929)
+    // ==========================================================================
+    // Shares the 1900-1999 range with Phaser and Flanger.
+    // The Chorus is a mutually exclusive alternative in the modulation slot.
+    kChorusBaseId = 1920,
+    kChorusRateId = 1920,              // 0.05-10.0 Hz (default 0.5 Hz)
+    kChorusDepthId = 1921,             // 0-1 (default 0.5)
+    kChorusFeedbackId = 1922,          // -1 to +1 (default 0.0)
+    kChorusMixId = 1923,               // 0-1 (default 0.5)
+    kChorusStereoSpreadId = 1924,      // 0-360 degrees (default 180)
+    kChorusVoicesId = 1925,            // 1-4 (default 2), 4-step dropdown
+    kChorusWaveformId = 1926,          // Sine/Triangle (dropdown, default Triangle)
+    kChorusSyncId = 1927,              // on/off (default off)
+    kChorusNoteValueId = 1928,         // Note value (dropdown)
+    kChorusEndId = 1929,
 
     // ==========================================================================
     // Macro Parameters (2000-2099)

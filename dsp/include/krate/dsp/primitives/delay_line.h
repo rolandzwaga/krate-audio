@@ -123,6 +123,16 @@ public:
     /// @note O(1) time complexity.
     [[nodiscard]] float readLinear(float delaySamples) const noexcept;
 
+    /// @brief Read a sample at a fractional delay with cubic Hermite interpolation.
+    ///
+    /// @param delaySamples Number of samples to delay (fractional allowed).
+    /// @return The interpolated sample value.
+    ///
+    /// @note Delay is clamped to [1, maxDelaySamples - 1] (needs neighbors).
+    /// @note Use for chorus and pitch-modulated delays requiring smooth interpolation.
+    /// @note O(1) time complexity.
+    [[nodiscard]] float readCubic(float delaySamples) const noexcept;
+
     /// @brief Read a sample at a fractional delay with allpass interpolation.
     ///
     /// @param delaySamples Number of samples to delay (fractional allowed).
@@ -225,6 +235,32 @@ inline float DelayLine::readLinear(float delaySamples) const noexcept {
 
     // Linear interpolation: y = y0 + frac * (y1 - y0)
     return y0 + frac * (y1 - y0);
+}
+
+inline float DelayLine::readCubic(float delaySamples) const noexcept {
+    // Clamp delay to [1, maxDelaySamples_ - 1] to ensure neighbors exist
+    const float clampedDelay = std::clamp(delaySamples, 1.0f,
+        static_cast<float>(maxDelaySamples_ > 1 ? maxDelaySamples_ - 1 : 1));
+
+    // Split into integer and fractional parts
+    const float intPart = std::floor(clampedDelay);
+    const float frac = clampedDelay - intPart;
+
+    const size_t idx = static_cast<size_t>(intPart);
+
+    // Read 4 adjacent samples: ym1, y0, y1, y2
+    const float ym1 = read(idx - 1);
+    const float y0  = read(idx);
+    const float y1  = read(idx + 1);
+    const float y2  = read(idx + 2);
+
+    // Catmull-Rom spline coefficients (tension = 0.5)
+    const float c0 = y0;
+    const float c1 = 0.5f * (y1 - ym1);
+    const float c2 = ym1 - 2.5f * y0 + 2.0f * y1 - 0.5f * y2;
+    const float c3 = 0.5f * (y2 - ym1) + 1.5f * (y0 - y1);
+
+    return ((c3 * frac + c2) * frac + c1) * frac + c0;
 }
 
 inline float DelayLine::readAllpass(float delaySamples) noexcept {

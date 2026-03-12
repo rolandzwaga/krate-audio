@@ -706,11 +706,14 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // Phaser params + modulation type (replaces legacy phaserEnabled_ int8)
     savePhaserParams(phaserParams_, streamer);
     // Write modulationType as int8 for backward compatibility with state format:
-    // 0 = None (legacy: phaser disabled), 1 = Phaser (legacy: phaser enabled), 2 = Flanger (new)
+    // 0 = None (legacy: phaser disabled), 1 = Phaser (legacy: phaser enabled), 2 = Flanger, 3 = Chorus
     streamer.writeInt8(static_cast<Steinberg::int8>(modulationType_.load(std::memory_order_relaxed)));
 
     // Flanger params (version 6+)
     saveFlangerParams(flangerParams_, streamer);
+
+    // Chorus params (version 7+)
+    saveChorusParams(chorusParams_, streamer);
 
     // Extended LFO params
     saveLFO1ExtendedParams(lfo1Params_, streamer);
@@ -860,6 +863,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             flangerParams_.waveform.store(1, std::memory_order_relaxed);
             flangerParams_.sync.store(false, std::memory_order_relaxed);
             flangerParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
+        }
+
+        // Chorus params (version 7+)
+        if (version >= 7) {
+            loadChorusParams(chorusParams_, streamer);
+        } else {
+            // Old preset: no chorus data, reset to defaults
+            chorusParams_.rateHz.store(0.5f, std::memory_order_relaxed);
+            chorusParams_.depth.store(0.5f, std::memory_order_relaxed);
+            chorusParams_.feedback.store(0.0f, std::memory_order_relaxed);
+            chorusParams_.mix.store(0.5f, std::memory_order_relaxed);
+            chorusParams_.stereoSpread.store(180.0f, std::memory_order_relaxed);
+            chorusParams_.voices.store(2, std::memory_order_relaxed);
+            chorusParams_.waveform.store(1, std::memory_order_relaxed);
+            chorusParams_.sync.store(false, std::memory_order_relaxed);
+            chorusParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
         }
 
         // Extended LFO params
@@ -1070,8 +1089,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             else
                 harmonizerEnabled_.store(enabled, std::memory_order_relaxed);
         } else if (paramId == kModulationTypeId) {
-            // ModulationType: 0=None, 1=Phaser, 2=Flanger (discrete 3-step param)
-            const int modType = static_cast<int>(std::round(value * 2.0));
+            // ModulationType: 0=None, 1=Phaser, 2=Flanger, 3=Chorus (discrete 4-step param)
+            const int modType = static_cast<int>(std::round(value * 3.0));
             modulationType_.store(modType, std::memory_order_relaxed);
             engine_.effectsChain().startModCrossfade(
                 static_cast<Krate::DSP::ModulationType>(modType));
@@ -1118,6 +1137,54 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         0, Krate::DSP::kNoteValueDropdownCount - 1);
                     auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
                     engine_.effectsChain().flanger().setNoteValue(mapping.note, mapping.modifier);
+                    break;
+                }
+                default:
+                    break;
+            }
+        } else if (paramId >= kChorusBaseId && paramId <= kChorusEndId) {
+            // Store to atomic param struct for state save/load
+            handleChorusParamChange(chorusParams_, paramId, value);
+            // Chorus parameter dispatch (direct to DSP object)
+            switch (paramId) { // NOLINT(bugprone-branch-clone): each case dispatches to a different setter with different value scaling
+                case kChorusRateId:
+                    engine_.effectsChain().chorus().setRate(
+                        std::clamp(static_cast<float>(0.05 + value * 9.95), 0.05f, 10.0f));
+                    break;
+                case kChorusDepthId:
+                    engine_.effectsChain().chorus().setDepth(
+                        static_cast<float>(value));
+                    break;
+                case kChorusFeedbackId:
+                    engine_.effectsChain().chorus().setFeedback(
+                        static_cast<float>(value * 2.0 - 1.0));
+                    break;
+                case kChorusMixId:
+                    engine_.effectsChain().chorus().setMix(
+                        static_cast<float>(value));
+                    break;
+                case kChorusStereoSpreadId:
+                    engine_.effectsChain().chorus().setStereoSpread(
+                        static_cast<float>(value * 360.0));
+                    break;
+                case kChorusVoicesId:
+                    engine_.effectsChain().chorus().setVoices(
+                        std::clamp(static_cast<int>(value * 3.0 + 0.5) + 1, 1, 4));
+                    break;
+                case kChorusWaveformId:
+                    engine_.effectsChain().chorus().setWaveform(
+                        static_cast<Krate::DSP::Waveform>(
+                            std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1)));
+                    break;
+                case kChorusSyncId:
+                    engine_.effectsChain().chorus().setTempoSync(value > 0.5);
+                    break;
+                case kChorusNoteValueId: {
+                    const int noteIdx = std::clamp(
+                        static_cast<int>(value * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5),
+                        0, Krate::DSP::kNoteValueDropdownCount - 1);
+                    auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIdx);
+                    engine_.effectsChain().chorus().setNoteValue(mapping.note, mapping.modifier);
                     break;
                 }
                 default:

@@ -500,6 +500,87 @@ TEST_CASE("DelayLine modulated delay (US4 coverage)", "[delay][linear][modulatio
 }
 
 // =============================================================================
+// Cubic Hermite Interpolation Tests
+// =============================================================================
+
+TEST_CASE("DelayLine readCubic at integer delay returns exact sample", "[delay][cubic]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);  // 100ms max
+
+    // Write known sequence: 0, 1, 2, 3, 4, ...
+    for (int i = 0; i < 100; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    // At integer delays, cubic should return the exact sample
+    // Most recent sample is at delay=0, which is 99
+    float result = delay.readCubic(1.0f);
+    // delay=1 reads sample before most recent = 98
+    CHECK(result == Approx(98.0f).margin(0.01f));
+
+    result = delay.readCubic(10.0f);
+    CHECK(result == Approx(89.0f).margin(0.01f));
+}
+
+TEST_CASE("DelayLine readCubic is more accurate than linear for sine", "[delay][cubic]") {
+    DelayLine delay;
+    const double sr = 44100.0;
+    delay.prepare(sr, 0.1f);
+
+    // Write a full cycle of a sine wave at a frequency that doesn't align to samples
+    const float freq = 1000.0f;  // 1kHz
+    const size_t samples = 200;
+
+    for (size_t i = 0; i < samples; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * freq * static_cast<float>(i) / static_cast<float>(sr));
+        delay.write(val);
+    }
+
+    // Read at a fractional delay and compare to true value
+    const float fractionalDelay = 50.5f;  // Between two samples
+    float cubicResult = delay.readCubic(fractionalDelay);
+    float linearResult = delay.readLinear(fractionalDelay);
+
+    // True value: the sample at position (samples-1) - fractionalDelay
+    float trueIndex = static_cast<float>(samples - 1) - fractionalDelay;
+    float trueValue = std::sin(2.0f * 3.14159265f * freq * trueIndex / static_cast<float>(sr));
+
+    float cubicError = std::abs(cubicResult - trueValue);
+    float linearError = std::abs(linearResult - trueValue);
+
+    // Cubic should be at least as accurate as linear (typically much better)
+    CHECK(cubicError <= linearError + 1e-6f);
+}
+
+TEST_CASE("DelayLine readCubic edge cases", "[delay][cubic]") {
+    DelayLine delay;
+    delay.prepare(44100.0, 0.1f);
+
+    for (int i = 0; i < 100; ++i) {
+        delay.write(static_cast<float>(i));
+    }
+
+    SECTION("minimum delay (1.0) does not crash") {
+        float result = delay.readCubic(1.0f);
+        CHECK_FALSE(std::isnan(result));
+        CHECK_FALSE(std::isinf(result));
+    }
+
+    SECTION("delay below minimum is clamped to 1.0") {
+        float result = delay.readCubic(0.0f);
+        float resultAtOne = delay.readCubic(1.0f);
+        CHECK(result == Approx(resultAtOne));
+    }
+
+    SECTION("delay at maximum boundary") {
+        float maxDelay = static_cast<float>(delay.maxDelaySamples() - 1);
+        float result = delay.readCubic(maxDelay);
+        CHECK_FALSE(std::isnan(result));
+        CHECK_FALSE(std::isinf(result));
+    }
+}
+
+// =============================================================================
 // Phase 5: User Story 3 - Allpass Interpolation (T027-T028)
 // =============================================================================
 

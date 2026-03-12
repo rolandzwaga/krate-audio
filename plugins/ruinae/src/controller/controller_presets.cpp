@@ -38,6 +38,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
 #include "parameters/flanger_params.h"
+#include "parameters/chorus_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -519,15 +520,20 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
     if (!streamer.readInt8(flag)) return false;
     synthSetter(kReverbEnabledId, flag ? 1.0 : 0.0);
 
-    // Phaser params + modulation type (int8: 0=None, 1=Phaser, 2=Flanger)
+    // Phaser params + modulation type (int8: 0=None, 1=Phaser, 2=Flanger, 3=Chorus)
     loadPhaserParamsToController(streamer, synthSetter);
     if (!streamer.readInt8(flag)) return false;
-    // Map int8 to StringListParameter normalized: index / stepCount = index / 2
-    synthSetter(kModulationTypeId, static_cast<double>(flag) / 2.0);
+    // Map int8 to StringListParameter normalized: index / stepCount = index / 3
+    synthSetter(kModulationTypeId, static_cast<double>(flag) / 3.0);
 
     // Flanger params (version 6+)
     if (version >= 6) {
         loadFlangerParamsToController(streamer, synthSetter);
+    }
+
+    // Chorus params (version 7+)
+    if (version >= 7) {
+        loadChorusParamsToController(streamer, synthSetter);
     }
 
     // Extended LFO, Macro, Rungler, Settings, Mod sources

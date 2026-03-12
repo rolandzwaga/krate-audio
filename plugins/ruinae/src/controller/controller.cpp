@@ -57,6 +57,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
 #include "parameters/flanger_params.h"
+#include "parameters/chorus_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -232,6 +233,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerReverbParams(parameters);
     registerPhaserParams(parameters);
     registerFlangerParams(parameters);
+    registerChorusParams(parameters);
     registerHarmonizerParams(parameters);
     registerMonoModeParams(parameters);
     registerMacroParams(parameters);
@@ -738,12 +740,17 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (flangerRateGroup_) flangerRateGroup_->setVisible(value < 0.5);
         if (flangerNoteValueGroup_) flangerNoteValueGroup_->setVisible(value >= 0.5);
     }
+    if (tag == kChorusSyncId) {
+        if (chorusRateGroup_) chorusRateGroup_->setVisible(value < 0.5);
+        if (chorusNoteValueGroup_) chorusNoteValueGroup_->setVisible(value >= 0.5);
+    }
     if (tag == kModulationTypeId) {
-        // 3-step: 0=None, 1=Phaser, 2=Flanger. Normalized: 0.0, 0.5, 1.0
-        int modType = static_cast<int>(value * 2.0 + 0.5);
+        // 4-step: 0=None, 1=Phaser, 2=Flanger, 3=Chorus. Normalized: 0.0, 0.333, 0.667, 1.0
+        int modType = static_cast<int>(value * 3.0 + 0.5);
         if (noModulationGroup_) noModulationGroup_->setVisible(modType == 0);
         if (phaserControlsGroup_) phaserControlsGroup_->setVisible(modType == 1);
         if (flangerControlsGroup_) flangerControlsGroup_->setVisible(modType == 2);
+        if (chorusControlsGroup_) chorusControlsGroup_->setVisible(modType == 3);
     }
     if (tag == kTranceGateTempoSyncId) {
         if (tranceGateRateGroup_) tranceGateRateGroup_->setVisible(value < 0.5);
@@ -1041,8 +1048,11 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         noModulationGroup_ = nullptr;
         phaserControlsGroup_ = nullptr;
         flangerControlsGroup_ = nullptr;
+        chorusControlsGroup_ = nullptr;
         flangerRateGroup_ = nullptr;
         flangerNoteValueGroup_ = nullptr;
+        chorusRateGroup_ = nullptr;
+        chorusNoteValueGroup_ = nullptr;
         tranceGateRateGroup_ = nullptr;
         tranceGateNoteValueGroup_ = nullptr;
         arpRateGroup_ = nullptr;
@@ -1805,18 +1815,33 @@ VSTGUI::CView* Controller::verifyView(
             } else if (*name == "NoModulationGroup") {
                 noModulationGroup_ = container;
                 auto* modParam = getParameterObject(kModulationTypeId);
-                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 2.0 + 0.5) : 0;
+                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 0);
             } else if (*name == "PhaserControlsGroup") {
                 phaserControlsGroup_ = container;
                 auto* modParam = getParameterObject(kModulationTypeId);
-                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 2.0 + 0.5) : 0;
+                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 1);
             } else if (*name == "FlangerControlsGroup") {
                 flangerControlsGroup_ = container;
                 auto* modParam = getParameterObject(kModulationTypeId);
-                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 2.0 + 0.5) : 0;
+                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
                 container->setVisible(modType == 2);
+            } else if (*name == "ChorusControlsGroup") {
+                chorusControlsGroup_ = container;
+                auto* modParam = getParameterObject(kModulationTypeId);
+                int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
+                container->setVisible(modType == 3);
+            } else if (*name == "ChorusRateGroup") {
+                chorusRateGroup_ = container;
+                auto* syncParam = getParameterObject(kChorusSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(!syncOn);
+            } else if (*name == "ChorusNoteValueGroup") {
+                chorusNoteValueGroup_ = container;
+                auto* syncParam = getParameterObject(kChorusSyncId);
+                bool syncOn = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
+                container->setVisible(syncOn);
             } else if (*name == "FlangerRateGroup") {
                 flangerRateGroup_ = container;
                 auto* syncParam = getParameterObject(kFlangerSyncId);
@@ -2169,14 +2194,16 @@ void Controller::syncAllViews() {
     syncVisGroup(kDelaySyncId, delayTimeGroup_, delayNoteValueGroup_);
     syncVisGroup(kPhaserSyncId, phaserRateGroup_, phaserNoteValueGroup_);
     syncVisGroup(kFlangerSyncId, flangerRateGroup_, flangerNoteValueGroup_);
+    syncVisGroup(kChorusSyncId, chorusRateGroup_, chorusNoteValueGroup_);
 
-    // Sync modulation type visibility (None / Phaser / Flanger)
+    // Sync modulation type visibility (None / Phaser / Flanger / Chorus)
     {
         auto* modParam = getParameterObject(kModulationTypeId);
-        int modType = modParam ? static_cast<int>(modParam->getNormalized() * 2.0 + 0.5) : 0;
+        int modType = modParam ? static_cast<int>(modParam->getNormalized() * 3.0 + 0.5) : 0;
         if (noModulationGroup_) noModulationGroup_->setVisible(modType == 0);
         if (phaserControlsGroup_) phaserControlsGroup_->setVisible(modType == 1);
         if (flangerControlsGroup_) flangerControlsGroup_->setVisible(modType == 2);
+        if (chorusControlsGroup_) chorusControlsGroup_->setVisible(modType == 3);
     }
     syncVisGroup(kTranceGateTempoSyncId, tranceGateRateGroup_, tranceGateNoteValueGroup_);
     syncVisGroup(kArpTempoSyncId, arpRateGroup_, arpNoteValueGroup_);

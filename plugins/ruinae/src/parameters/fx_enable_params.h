@@ -18,10 +18,10 @@ inline void registerFxEnableParams(Steinberg::Vst::ParameterContainer& parameter
     parameters.addParameter(STR16("Reverb Enabled"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kReverbEnabledId);
     // kPhaserEnabledId (1502) is DEPRECATED -- replaced by kModulationTypeId (1918).
-    // Modulation type: 0=None, 1=Phaser, 2=Flanger (discrete 3-step parameter)
+    // Modulation type: 0=None, 1=Phaser, 2=Flanger, 3=Chorus (discrete 4-step parameter)
     parameters.addParameter(createDropdownParameter(
         STR16("Modulation Type"), kModulationTypeId,
-        {STR16("None"), STR16("Phaser"), STR16("Flanger")}));
+        {STR16("None"), STR16("Phaser"), STR16("Flanger"), STR16("Chorus")}));
     parameters.addParameter(STR16("Harmonizer Enabled"), STR16(""), 1, 0.0,
         ParameterInfo::kCanAutomate, kHarmonizerEnabledId);
 }

@@ -727,6 +727,9 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         // Flanger params (version 6+)
         Ruinae::RuinaeFlangerParams flp; Ruinae::loadFlangerParams(flp, readStream);
 
+        // Chorus params (version 7+)
+        Ruinae::RuinaeChorusParams chp; Ruinae::loadChorusParams(chp, readStream);
+
         // Extended LFO params
         Ruinae::loadLFO1ExtendedParams(l1p, readStream);
         Ruinae::loadLFO2ExtendedParams(l2p, readStream);

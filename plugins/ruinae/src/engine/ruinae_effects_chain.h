@@ -19,6 +19,7 @@
 #pragma once
 
 #include <krate/dsp/core/block_context.h>
+#include <krate/dsp/core/sigmoid.h>
 #include <krate/dsp/core/crossfade_utils.h>
 #include <krate/dsp/core/note_value.h>
 #include <krate/dsp/effects/digital_delay.h>
@@ -29,6 +30,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/processors/chorus.h>
 #include <krate/dsp/processors/flanger.h>
 #include <krate/dsp/processors/phaser.h>
 #include <krate/dsp/systems/harmonizer_engine.h>
@@ -88,7 +90,8 @@ namespace Krate::DSP {
 enum class ModulationType {
     None = 0,
     Phaser = 1,
-    Flanger = 2
+    Flanger = 2,
+    Chorus = 3
 };
 
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
@@ -155,9 +158,10 @@ public:
         granularDelay_.prepare(sampleRate);  // Only sampleRate!
         spectralDelay_.prepare(sampleRate, maxBlockSize);
 
-        // Prepare phaser and flanger
+        // Prepare phaser, flanger, and chorus
         phaser_.prepare(sampleRate);
         flanger_.prepare(sampleRate);
+        chorus_.prepare(sampleRate);
 
         // Prepare reverb (both types for dual-reverb support)
         reverb_.prepare(sampleRate);
@@ -215,6 +219,7 @@ public:
     void reset() noexcept {
         phaser_.reset();
         flanger_.reset();
+        chorus_.reset();
         modCrossfading_ = false;
         modCrossfadeAlpha_ = 0.0f;
         modCrossfadeIncrement_ = 0.0f;
@@ -343,6 +348,11 @@ public:
     Flanger& flanger() noexcept { return flanger_; }
     /// @brief Get a const reference to the flanger.
     [[nodiscard]] const Flanger& flanger() const noexcept { return flanger_; }
+
+    /// @brief Get a mutable reference to the chorus for direct parameter setting.
+    Chorus& chorus() noexcept { return chorus_; }
+    /// @brief Get a const reference to the chorus.
+    [[nodiscard]] const Chorus& chorus() const noexcept { return chorus_; }
 
     // =========================================================================
     // Delay Type Selection (FR-009 through FR-014)
@@ -948,6 +958,21 @@ private:
         }
 
         // ---------------------------------------------------------------
+        // Inter-stage protection: soft limit before reverb
+        // ---------------------------------------------------------------
+        // When the harmonizer is active, its multi-voice accumulation can
+        // push the signal well above unity. Soft-limiting before the reverb
+        // prevents overdriving the reverb's feedback network, which would
+        // amplify distortion artifacts. Only active when the harmonizer is
+        // enabled to preserve transparent pass-through otherwise.
+        if (harmonizerEnabled_) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                left[i] = Sigmoid::softLimit(left[i]);
+                right[i] = Sigmoid::softLimit(right[i]);
+            }
+        }
+
+        // ---------------------------------------------------------------
         // Slot 3: Reverb (FR-005, FR-022, 125-dual-reverb FR-024/FR-025)
         // ---------------------------------------------------------------
         if (reverbEnabled_) {
@@ -1204,6 +1229,9 @@ private:
             case ModulationType::Flanger:
                 flanger_.processStereo(left, right, numSamples);
                 break;
+            case ModulationType::Chorus:
+                chorus_.processStereo(left, right, numSamples);
+                break;
             case ModulationType::None:
             default:
                 // Passthrough -- no processing
@@ -1218,6 +1246,8 @@ private:
             phaser_.reset();
         } else if (activeModType_ == ModulationType::Flanger) {
             flanger_.reset();
+        } else if (activeModType_ == ModulationType::Chorus) {
+            chorus_.reset();
         }
         activeModType_ = incomingModType_;
         modCrossfading_ = false;
@@ -1239,9 +1269,10 @@ private:
     bool harmonizerEnabled_ = false;
     bool harmonizerNeedsPrime_ = false; // Apply voice fade-in on first process
 
-    // Modulation slot (Phaser/Flanger/None)
+    // Modulation slot (Phaser/Flanger/Chorus/None)
     Phaser phaser_;
     Flanger flanger_;
+    Chorus chorus_;
 
     // Modulation type crossfade state
     ModulationType activeModType_ = ModulationType::None;

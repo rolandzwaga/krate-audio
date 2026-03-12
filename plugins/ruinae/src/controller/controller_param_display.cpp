@@ -28,6 +28,7 @@
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
 #include "parameters/flanger_params.h"
+#include "parameters/chorus_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -88,6 +89,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         result = formatPhaserParam(id, valueNormalized, string);
     } else if (id >= kFlangerRateId && id <= kFlangerEndId) {
         result = formatFlangerParam(id, valueNormalized, string);
+    } else if (id >= kChorusBaseId && id <= kChorusEndId) {
+        result = formatChorusParam(id, valueNormalized, string);
     } else if (id >= kHarmonizerBaseId && id <= kHarmonizerEndId) {
         result = formatHarmonizerParam(id, valueNormalized, string);
     } else if (id >= kMonoBaseId && id <= kMonoEndId) {

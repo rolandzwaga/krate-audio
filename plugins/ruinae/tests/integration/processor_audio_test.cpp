@@ -421,7 +421,7 @@ TEST_CASE("Processor phaser end-to-end: phaser ON vs OFF produces different outp
         // Block 0: Send phaser params + noteOn
         MockParamChangesWithData params;
         if (enablePhaser) {
-            params.addChange(Ruinae::kModulationTypeId, 0.5);   // Phaser (1/2 normalized)
+            params.addChange(Ruinae::kModulationTypeId, 1.0 / 3.0);   // Phaser (1/3 normalized)
             params.addChange(Ruinae::kPhaserMixId, 1.0);        // 100% wet
             params.addChange(Ruinae::kPhaserDepthId, 1.0);      // Full depth
             params.addChange(Ruinae::kPhaserRateId, 0.5);       // ~10 Hz

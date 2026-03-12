@@ -268,6 +268,39 @@ namespace Sigmoid {
     return std::clamp(x, -threshold, threshold);
 }
 
+// -----------------------------------------------------------------------------
+// softLimit - Threshold-Based Soft Limiter (output protection)
+// -----------------------------------------------------------------------------
+
+/// @brief Threshold-based soft limiter for transparent output protection.
+///
+/// Linear below threshold (zero distortion), smoothly saturates above
+/// using tanh curve mapped to the remaining headroom. Much more transparent
+/// than applying tanh to the full signal — preserves waveform integrity
+/// for signals below the threshold.
+///
+/// @param x Input value (unbounded)
+/// @param threshold Knee point below which signal passes unchanged (0.0-1.0)
+/// @return Soft-limited output approaching [-1, 1]
+///
+/// @example
+/// @code
+/// softLimit(0.5f)  // = 0.5f   (linear, no distortion)
+/// softLimit(0.85f) // = 0.85f  (at threshold, no distortion)
+/// softLimit(1.2f)  // ≈ 0.97f  (gently compressed)
+/// softLimit(3.0f)  // ≈ 1.0f   (heavily compressed)
+/// @endcode
+[[nodiscard]] inline float softLimit(float x, float threshold = 0.85f) noexcept {
+    const float absX = (x >= 0.0f) ? x : -x;
+    if (absX <= threshold) return x;
+
+    const float sign = (x >= 0.0f) ? 1.0f : -1.0f;
+    const float headroom = 1.0f - threshold;
+    // Map excess above threshold through tanh, scaled to fit in headroom
+    const float excess = (absX - threshold) / headroom;
+    return sign * (threshold + headroom * FastMath::fastTanh(excess));
+}
+
 } // namespace Sigmoid
 
 // =============================================================================

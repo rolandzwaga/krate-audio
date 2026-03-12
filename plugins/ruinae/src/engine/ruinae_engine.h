@@ -831,9 +831,12 @@ public:
             mixBufferR_[s] *= effectiveGain;
 
             // Step 12: Soft limiter (FR-030)
+            // Uses threshold-based soft limiting: linear below 0.85,
+            // tanh saturation above. Transparent for normal signals,
+            // only compresses peaks that would otherwise clip.
             if (softLimitEnabled_) {
-                mixBufferL_[s] = Sigmoid::tanh(mixBufferL_[s]);
-                mixBufferR_[s] = Sigmoid::tanh(mixBufferR_[s]);
+                mixBufferL_[s] = Sigmoid::softLimit(mixBufferL_[s]);
+                mixBufferR_[s] = Sigmoid::softLimit(mixBufferR_[s]);
             }
 
             // Step 13: NaN/Inf flush (FR-031)
@@ -1426,6 +1429,7 @@ public:
         effectsChain_.setDelayTempo(bpm);
         effectsChain_.setPhaserTempo(static_cast<float>(bpm));
         effectsChain_.flanger().setTempo(bpm);
+        effectsChain_.chorus().setTempo(bpm);
         // Forward tempo to all voices' trance gates
         for (auto& voice : voices_) {
             voice.setTranceGateTempo(bpm);

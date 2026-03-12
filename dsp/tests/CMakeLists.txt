@@ -130,6 +130,7 @@ add_executable(dsp_tests
     unit/processors/formant_filter_test.cpp
     unit/processors/envelope_filter_test.cpp
     unit/processors/phaser_test.cpp
+    unit/processors/chorus_test.cpp
     unit/processors/flanger_test.cpp
     unit/processors/spectral_morph_filter_test.cpp
     unit/processors/spectral_gate_test.cpp
@@ -379,6 +380,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/formant_filter_test.cpp
         unit/processors/envelope_filter_test.cpp
         unit/processors/phaser_test.cpp
+        unit/processors/chorus_test.cpp
         unit/processors/flanger_test.cpp
         unit/processors/spectral_morph_filter_test.cpp
         unit/processors/spectral_gate_test.cpp
