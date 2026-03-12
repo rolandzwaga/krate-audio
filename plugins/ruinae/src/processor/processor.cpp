@@ -841,15 +841,11 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 
         // Phaser params + enable flag
         loadPhaserParams(phaserParams_, streamer);
-        if (streamer.readInt8(i8)) {
-            // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
-            // New format: 0 = None, 1 = Phaser, 2 = Flanger
-            modulationType_.store(static_cast<int>(i8), std::memory_order_relaxed);
-        } else {
-            // Very old preset with no modulationType byte at all:
-            // default to Phaser (1) to preserve pre-existing behavior (FR-011)
-            modulationType_.store(1, std::memory_order_relaxed);
-        }
+        // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
+        // New format: 0 = None, 1 = Phaser, 2 = Flanger
+        // Default to Phaser (1) for very old presets with no byte (FR-011)
+        const int modType = streamer.readInt8(i8) ? static_cast<int>(i8) : 1;
+        modulationType_.store(modType, std::memory_order_relaxed);
 
         // Flanger params (version 6+)
         if (version >= 6) {
@@ -1067,13 +1063,12 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         } else if (paramId == kDelayEnabledId || paramId == kReverbEnabledId
                    || paramId == kHarmonizerEnabledId) {
             const bool enabled = value >= 0.5;
-            if (paramId == kDelayEnabledId)
+            if (paramId == kDelayEnabledId) // NOLINT(bugprone-branch-clone): each branch stores to a different atomic
                 delayEnabled_.store(enabled, std::memory_order_relaxed);
             else if (paramId == kReverbEnabledId)
                 reverbEnabled_.store(enabled, std::memory_order_relaxed);
-            else {
+            else
                 harmonizerEnabled_.store(enabled, std::memory_order_relaxed);
-            }
         } else if (paramId == kModulationTypeId) {
             // ModulationType: 0=None, 1=Phaser, 2=Flanger (discrete 3-step param)
             const int modType = static_cast<int>(std::round(value * 2.0));
@@ -1088,7 +1083,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
             // Store to atomic param struct for state save/load
             handleFlangerParamChange(flangerParams_, paramId, value);
             // Flanger parameter dispatch (direct to DSP object)
-            switch (paramId) {
+            switch (paramId) { // NOLINT(bugprone-branch-clone): each case dispatches to a different setter with different value scaling
                 case kFlangerRateId:
                     engine_.effectsChain().flanger().setRate(
                         std::clamp(static_cast<float>(0.05 + value * 4.95), 0.05f, 5.0f));

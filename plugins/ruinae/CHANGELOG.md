@@ -5,6 +5,19 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.10] - 2026-03-12
+
+### Added
+
+- **Flanger effect** — New stereo flanger DSP processor (Layer 2) with modulated short delay line, LFO-driven comb-filter sweep, and tanh-clipped feedback for resonance control. Parameters: Rate (0.05–5 Hz), Depth, Feedback (±1.0), Mix (true dry/wet crossfade), Stereo Spread (0–360°), Waveform (Sine/Triangle), Tempo Sync with note value selection
+- **Modulation type selector** — The phaser enable toggle is replaced by a three-way selector (None / Phaser / Flanger) in the modulation slot. Switching between effects uses a 30ms linear-ramp crossfade for click-free transitions. Only one modulation effect is active at a time
+- **Flanger UI controls** — Modulation fieldset shows context-appropriate controls: flanger knobs and dropdowns when Flanger is selected, phaser controls when Phaser is selected, or a "No modulation" label when None is selected
+- **Backward-compatible preset migration** — Old presets with `phaserEnabled` are automatically migrated: enabled → Phaser, disabled → None. All flanger parameters default gracefully when absent from older state streams
+
+### Changed
+
+- **Modulation fieldset renamed** — "PHASER" fieldset is now "MODULATION" to reflect the expanded modulation slot
+
 ## [0.9.9] - 2026-03-11
 
 ### Fixed

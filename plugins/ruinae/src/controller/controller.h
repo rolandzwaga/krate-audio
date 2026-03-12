@@ -296,6 +296,15 @@ private:
     VSTGUI::CView* phaserRateGroup_ = nullptr;
     VSTGUI::CView* phaserNoteValueGroup_ = nullptr;
 
+    /// Modulation type switching groups (None / Phaser / Flanger)
+    VSTGUI::CView* noModulationGroup_ = nullptr;
+    VSTGUI::CView* phaserControlsGroup_ = nullptr;
+    VSTGUI::CView* flangerControlsGroup_ = nullptr;
+
+    /// Flanger Rate/NoteValue groups - toggled by flanger sync state
+    VSTGUI::CView* flangerRateGroup_ = nullptr;
+    VSTGUI::CView* flangerNoteValueGroup_ = nullptr;
+
     /// Trance Gate Rate/NoteValue groups - toggled by sync state
     VSTGUI::CView* tranceGateRateGroup_ = nullptr;
     VSTGUI::CView* tranceGateNoteValueGroup_ = nullptr;
