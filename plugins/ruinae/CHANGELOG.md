@@ -5,6 +5,18 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.11] - 2026-03-12
+
+### Added
+
+- **Chorus effect** — New stereo chorus DSP processor (Layer 2) with LFO-modulated delay lines, configurable depth and rate, and true dry/wet crossfade. Parameters: Rate (0.1–5 Hz), Depth, Mix, Voices (1–4), Stereo Spread
+- **Chorus UI controls** — New CHORUS fieldset on the FX tab with enable toggle, knobs, and voice selector
+- **Chorus preset support** — Chorus parameters included in state save/load with backward-compatible defaults for older presets
+
+### Fixed
+
+- **Harmonizer + reverb clipping artifacts** — Combined signal from harmonizer voices exceeded ±1.0, causing hard compression through the output limiter. Fixed with three changes: harmonizer wet bus now scales by 1/√N (N = active voices), new threshold-based soft limiter (`softLimit`) preserves signals below 0.85 and only saturates peaks, and inter-stage soft limiting between harmonizer and reverb prevents overdriving the reverb feedback network. Click count reduced ~60%, max sample step reduced ~25%
+
 ## [0.9.10] - 2026-03-12
 
 ### Added
