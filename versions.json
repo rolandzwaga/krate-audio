@@ -2,7 +2,7 @@
   "schema_version": 1,
   "plugins": {
     "Disrumpo": {
-      "version": "0.9.3",
+      "version": "0.9.1",
       "download_url": "https://rolandzwaga.github.io/krate-audio/disrumpo/",
       "release_notes": ""
     },
@@ -12,12 +12,12 @@
       "release_notes": ""
     },
     "Iterum": {
-      "version": "0.14.3",
+      "version": "0.14.1",
       "download_url": "https://rolandzwaga.github.io/krate-audio/iterum/",
       "release_notes": ""
     },
     "Ruinae": {
-      "version": "0.9.9",
+      "version": "0.9.11",
       "download_url": "https://rolandzwaga.github.io/krate-audio/ruinae/",
       "release_notes": ""
     }
