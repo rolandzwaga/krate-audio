@@ -391,14 +391,14 @@ Key rules:
 
 **Purpose**: Validation, pluginval, full test suite verification, and CPU budget confirmation across all user stories.
 
-- [ ] T047 [P] Run the full `dsp_tests` suite and verify all tests pass (no regressions): `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
-- [ ] T048 [P] Run the full `ruinae_tests` suite and verify all tests pass: `build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
-- [ ] T049 Build the Ruinae VST3 plugin in Release: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` (ignore post-build copy permission error if VST3 dir is locked -- check that compilation itself succeeded)
+- [X] T047 [P] Run the full `dsp_tests` suite and verify all tests pass (no regressions): `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
+- [X] T048 [P] Run the full `ruinae_tests` suite and verify all tests pass: `build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
+- [X] T049 Build the Ruinae VST3 plugin in Release: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` (ignore post-build copy permission error if VST3 dir is locked -- check that compilation itself succeeded)
 - [ ] T050 Run pluginval at strictness level 5 with flanger active: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- all checks must pass
-- [ ] T051 [P] Verify SC-001 CPU budget: run a performance micro-benchmark (or manual CPU profiler) confirming the Flanger processes stereo at 44.1kHz using less than 0.5% CPU (expected ~0.1-0.2% based on plan.md analysis). Document the measured value.
-- [ ] T052 [P] Verify SC-004 output bounds: run the existing stability test (from T012) and confirm no sample exceeds +/-1.0 magnitude from unity-level input at any feedback setting within the specified range
-- [ ] T053 [P] Verify SC-005 tempo sync accuracy: run the tempo sync test (from T032) at 20 BPM and 300 BPM extremes and confirm period matches within 1%
-- [ ] T054 [P] Verify SC-002 parameter smoothing (no zipper noise): confirm all four `OnePoleSmoother` instances (rate, depth, feedback, mix) are actively called per-sample inside `processStereo()` by reading the process loop in `flanger.h`; run a continuous parameter ramp test (automate rate from 0.05 Hz to 5.0 Hz over 44100 samples) and verify no output sample has a step discontinuity larger than the smoother's expected per-sample increment
+- [X] T051 [P] Verify SC-001 CPU budget: run a performance micro-benchmark (or manual CPU profiler) confirming the Flanger processes stereo at 44.1kHz using less than 0.5% CPU (expected ~0.1-0.2% based on plan.md analysis). Document the measured value.
+- [X] T052 [P] Verify SC-004 output bounds: run the existing stability test (from T012) and confirm no sample exceeds +/-1.0 magnitude from unity-level input at any feedback setting within the specified range
+- [X] T053 [P] Verify SC-005 tempo sync accuracy: run the tempo sync test (from T032) at 20 BPM and 300 BPM extremes and confirm period matches within 1%
+- [X] T054 [P] Verify SC-002 parameter smoothing (no zipper noise): confirm all four `OnePoleSmoother` instances (rate, depth, feedback, mix) are actively called per-sample inside `processStereo()` by reading the process loop in `flanger.h`; run a continuous parameter ramp test (automate rate from 0.05 Hz to 5.0 Hz over 44100 samples) and verify no output sample has a step discontinuity larger than the smoother's expected per-sample increment
 
 ---
 

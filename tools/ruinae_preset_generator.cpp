@@ -1410,7 +1410,7 @@ std::vector<PresetDef> createAllPresets() {
         s.ampEnv.decayMs = 200.0f;
         s.ampEnv.sustain = 0.8f;
         s.ampEnv.releaseMs = 200.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 0.3f;
         s.phaser.depth = 0.4f;
         s.phaser.feedback = 0.5f;
@@ -2270,7 +2270,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 0; s.filter.cutoffHz = 4000.0f; s.filter.resonance = 0.12f;
         s.ampEnv.attackMs = 250.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 1200.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 0.2f; s.phaser.depth = 0.35f;
         s.phaser.feedback = 0.4f; s.phaser.mix = 0.3f; s.phaser.stages = 2;
         s.delayEnabled = 1;
@@ -2975,7 +2975,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 4; s.filter.cutoffHz = 5500.0f; s.filter.resonance = 0.15f;
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 300.0f;
         s.ampEnv.sustain = 0.7f; s.ampEnv.releaseMs = 200.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 0.8f; s.phaser.depth = 0.5f;
         s.phaser.feedback = 0.5f; s.phaser.mix = 0.3f; s.phaser.stages = 2;
         s.global.voiceMode = 1;
@@ -3242,7 +3242,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 4; s.filter.cutoffHz = 2500.0f; s.filter.resonance = 0.3f;
         s.ampEnv.attackMs = 3.0f; s.ampEnv.decayMs = 200.0f;
         s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 150.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 0.4f; s.phaser.depth = 0.6f;
         s.phaser.feedback = 0.6f; s.phaser.mix = 0.4f; s.phaser.stages = 3; // 8-stage
         s.phaser.centerFreqHz = 500.0f;
@@ -3566,7 +3566,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 0; s.filter.cutoffHz = 4000.0f; s.filter.resonance = 0.25f;
         s.ampEnv.attackMs = 500.0f; s.ampEnv.decayMs = 700.0f;
         s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 1500.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 0.3f; s.phaser.depth = 0.5f;
         s.phaser.feedback = 0.4f; s.phaser.mix = 0.35f; s.phaser.stages = 3;
         s.reverbEnabled = 1;
@@ -4062,7 +4062,7 @@ std::vector<PresetDef> createAllPresets() {
         s.filter.type = 0; s.filter.cutoffHz = 5000.0f; s.filter.resonance = 0.15f;
         s.ampEnv.attackMs = 50.0f; s.ampEnv.decayMs = 400.0f;
         s.ampEnv.sustain = 0.75f; s.ampEnv.releaseMs = 500.0f;
-        s.phaserEnabled = 1;
+        s.modulationType = 1; // Phaser
         s.phaser.rateHz = 2.0f; s.phaser.depth = 0.7f;
         s.phaser.feedback = 0.6f; s.phaser.mix = 0.5f; s.phaser.stages = 3;
         s.phaser.sync = 1; s.phaser.noteValue = kNote1_4;

@@ -845,6 +845,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
             // New format: 0 = None, 1 = Phaser, 2 = Flanger
             modulationType_.store(static_cast<int>(i8), std::memory_order_relaxed);
+        } else {
+            // Very old preset with no modulationType byte at all:
+            // default to Phaser (1) to preserve pre-existing behavior (FR-011)
+            modulationType_.store(1, std::memory_order_relaxed);
         }
 
         // Flanger params (version 6+)

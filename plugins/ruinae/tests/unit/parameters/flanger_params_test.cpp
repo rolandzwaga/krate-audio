@@ -358,6 +358,81 @@ static std::vector<char> buildV5StateFromV6(Steinberg::MemoryStream& v6Stream) {
     return v5Bytes;
 }
 
+/// Build a very old state (pre-v5) by removing both flanger params AND the
+/// modulationType byte from a v6 state, then patching version to 5.
+/// This simulates a preset so old that the phaserEnabled/modulationType field
+/// was not yet written at all.
+static std::vector<char> buildVeryOldStateFromV6(Steinberg::MemoryStream& v6Stream) {
+    Steinberg::int64 totalSize = 0;
+    v6Stream.seek(0, Steinberg::IBStream::kIBSeekEnd, &totalSize);
+    v6Stream.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    std::vector<char> v6Bytes(static_cast<size_t>(totalSize));
+    Steinberg::int32 bytesRead = 0;
+    v6Stream.read(v6Bytes.data(), static_cast<Steinberg::int32>(totalSize), &bytesRead);
+
+    // Parse through to find where modulationType byte starts
+    Steinberg::MemoryStream parseStream(v6Bytes.data(), static_cast<Steinberg::TSize>(totalSize));
+    Steinberg::IBStreamer streamer(&parseStream, kLittleEndian);
+
+    Steinberg::int32 version = 0;
+    streamer.readInt32(version);
+
+    // Skip all param packs
+    Ruinae::GlobalParams globalP; loadGlobalParams(globalP, streamer);
+    Ruinae::OscAParams oscAP; loadOscAParams(oscAP, streamer);
+    Ruinae::OscBParams oscBP; loadOscBParams(oscBP, streamer);
+    Ruinae::MixerParams mixerP; loadMixerParams(mixerP, streamer);
+    Ruinae::RuinaeFilterParams filterP; loadFilterParams(filterP, streamer);
+    Ruinae::RuinaeDistortionParams distP; loadDistortionParams(distP, streamer);
+    Ruinae::RuinaeTranceGateParams tgP; loadTranceGateParams(tgP, streamer);
+    Ruinae::AmpEnvParams aeP; loadAmpEnvParams(aeP, streamer);
+    Ruinae::FilterEnvParams feP; loadFilterEnvParams(feP, streamer);
+    Ruinae::ModEnvParams meP; loadModEnvParams(meP, streamer);
+    Ruinae::LFO1Params l1P; loadLFO1Params(l1P, streamer);
+    Ruinae::LFO2Params l2P; loadLFO2Params(l2P, streamer);
+    Ruinae::ChaosModParams cmP; loadChaosModParams(cmP, streamer);
+    Ruinae::ModMatrixParams mmP; loadModMatrixParams(mmP, streamer);
+    Ruinae::GlobalFilterParams gfP; loadGlobalFilterParams(gfP, streamer);
+    Ruinae::RuinaeDelayParams delP; loadDelayParams(delP, streamer);
+    Ruinae::RuinaeReverbParams revP; loadReverbParams(revP, streamer);
+    if (version >= 5) {
+        Steinberg::int32 rt = 0; streamer.readInt32(rt);
+    }
+    Ruinae::MonoModeParams monoP; loadMonoModeParams(monoP, streamer);
+
+    // Skip voice routes
+    for (int i = 0; i < 16; ++i) {
+        Steinberg::int8 i8 = 0; float f = 0.0f;
+        streamer.readInt8(i8); streamer.readInt8(i8);
+        streamer.readFloat(f); streamer.readInt8(i8);
+        streamer.readFloat(f); streamer.readInt8(i8);
+        streamer.readInt8(i8); streamer.readInt8(i8);
+    }
+
+    // FX enable flags
+    Steinberg::int8 fl = 0;
+    streamer.readInt8(fl); streamer.readInt8(fl);
+
+    // Phaser params
+    Ruinae::RuinaePhaserParams phaserP;
+    loadPhaserParams(phaserP, streamer);
+
+    // Current position is right before the modulationType byte
+    Steinberg::int64 modTypePos = 0;
+    parseStream.tell(&modTypePos);
+
+    // Truncate here -- do NOT include modulationType byte or anything after
+    std::vector<char> oldBytes(v6Bytes.begin(),
+                               v6Bytes.begin() + static_cast<ptrdiff_t>(modTypePos));
+
+    // Patch version to 5
+    Steinberg::int32 v5Version = 5;
+    std::memcpy(oldBytes.data(), &v5Version, sizeof(v5Version));
+
+    return oldBytes;
+}
+
 } // anonymous namespace
 
 // =============================================================================
@@ -548,6 +623,49 @@ TEST_CASE("Flanger params default when loaded from version 5 state", "[flanger_s
     }
 
     // Verify processor can still process audio
+    processFlangerBlock(proc2.get(), 512);
+
+    proc1->setActive(false);
+    proc1->terminate();
+    proc2->setActive(false);
+    proc2->terminate();
+}
+
+// =============================================================================
+// T039: Absent boolean (very old preset -- reading past stream end)
+// =============================================================================
+
+TEST_CASE("Very old preset with absent modulationType defaults to Phaser", "[flanger_state][migration]") {
+    // Build a state stream that ends right before the modulationType byte,
+    // simulating a very old preset format where the phaserEnabled/modulationType
+    // field was never written.
+    auto proc1 = makeFlangerStateProcessor();
+
+    // Save a normal v6 state first
+    Steinberg::MemoryStream v6Stream;
+    proc1->getState(&v6Stream);
+
+    // Strip everything from modulationType onward
+    std::vector<char> veryOldBytes = buildVeryOldStateFromV6(v6Stream);
+    REQUIRE(veryOldBytes.size() > 4);
+
+    // Load into fresh processor
+    auto proc2 = makeFlangerStateProcessor();
+    Steinberg::MemoryStream oldStream(veryOldBytes.data(),
+                                      static_cast<Steinberg::TSize>(veryOldBytes.size()));
+    auto result = proc2->setState(&oldStream);
+    REQUIRE(result == Steinberg::kResultTrue);
+    drainPresetTransfer(proc2.get());
+
+    // Save from proc2 and extract -- modulationType should default to Phaser (1)
+    // per FR-011: "If the boolean is absent entirely (even older preset),
+    // the default of modType=Phaser is applied to preserve pre-existing behavior."
+    Steinberg::MemoryStream stream2;
+    proc2->getState(&stream2);
+    auto restored = extractFlangerFromState(stream2);
+    CHECK(restored.modulationType == 1); // Phaser (default for absent field)
+
+    // Verify processor can still process audio without crash
     processFlangerBlock(proc2.get(), 512);
 
     proc1->setActive(false);
