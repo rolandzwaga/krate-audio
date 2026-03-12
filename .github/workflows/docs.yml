@@ -80,19 +80,16 @@ jobs:
               mkdir -p "_site/$plugin"
 
               PLUGIN_NAME=$(jq -r '.name' "$version_file")
-              VERSION=$(jq -r '.version' "$version_file")
               DESCRIPTION=$(jq -r '.description' "$version_file")
               PUBLISHER=$(jq -r '.publisher' "$version_file")
-              # Use latest git tag for this plugin (format: pluginname/vX.Y.Z)
+              # Version comes exclusively from git tags (no release tag = no landing page)
               PLUGIN_LOWER=$(echo "$PLUGIN_NAME" | tr '[:upper:]' '[:lower:]')
               TAG=$(git tag -l "${PLUGIN_LOWER}/v*" --sort=-v:refname | head -1)
-              if [ -n "$TAG" ]; then
-                # Extract version from tag (e.g., "ruinae/v0.9.9" -> "0.9.9")
-                # so download URLs match the actual release, not version.json
-                VERSION=$(echo "$TAG" | sed 's|.*/v||')
-              else
-                TAG="${PLUGIN_LOWER}/v${VERSION}"
+              if [ -z "$TAG" ]; then
+                echo "  No release tag found for $plugin — skipping landing page"
+                continue
               fi
+              VERSION=$(echo "$TAG" | sed 's|.*/v||')
               # URL-encode the slash for GitHub download URLs
               TAG_URL=$(echo "$TAG" | sed 's|/|%2F|g')
 
