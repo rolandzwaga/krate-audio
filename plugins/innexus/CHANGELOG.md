@@ -5,6 +5,19 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-03-13
+
+### Added
+
+- **Modulator tempo sync** — Dual-mode Rate controls for Mod1/Mod2: free-running Hz and tempo-synced note values (21 entries from 1/64T to 4/1D); synced mode is the default (1/8 note); processor reads host tempo and converts note values to Hz via `bpm / (60 * beats)`
+- **Sync toggle button** — Visible ToggleButton ("sync") below each Rate knob for switching between free and synced modes; uses `CControl::registerControlListener()` sub-listener pattern to observe value changes alongside VST3Editor's main listener
+- **4 new parameters** — `kMod1RateSyncId` (617), `kMod1NoteValueId` (618), `kMod2RateSyncId` (627), `kMod2NoteValueId` (628); RateSync is bool (default synced), NoteValue is StringListParameter with 21 entries (default index 10 = 1/8)
+- **State persistence** — New parameters saved/loaded with backward-compatible fallback (old presets default to synced mode, 1/8 note)
+
+### Fixed
+
+- **ADSR display drag feedback loop** — Prevented parameter setter re-entry during drag operations that caused value oscillation
+
 ## [0.9.5] - 2026-03-10
 
 ### Added
