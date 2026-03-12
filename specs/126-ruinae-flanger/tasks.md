@@ -410,7 +410,7 @@ Key rules:
 
 ### N-1.0.1 Run Clang-Tidy Analysis
 
-- [ ] T055 Run clang-tidy on all modified and new source files (requires `windows-ninja` build with `compile_commands.json`):
+- [X] T055 Run clang-tidy on all modified and new source files (requires `windows-ninja` build with `compile_commands.json`):
   ```powershell
   # Windows (PowerShell - from VS Developer PowerShell)
   ./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
@@ -419,8 +419,8 @@ Key rules:
 
 ### N-1.0.2 Address Findings
 
-- [ ] T056 Fix all errors reported by clang-tidy (blocking issues -- must be zero errors before proceeding)
-- [ ] T057 Review warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comments for any DSP-specific intentional suppressions
+- [X] T056 Fix all errors reported by clang-tidy (blocking issues -- must be zero errors before proceeding)
+- [X] T057 Review warnings and fix where appropriate; add `// NOLINT(<check-name>): <reason>` comments for any DSP-specific intentional suppressions
 
 **Checkpoint**: Static analysis clean -- ready for completion verification.
 
@@ -430,7 +430,7 @@ Key rules:
 
 **Purpose**: Update living architecture documentation to record the new `Flanger` component (Constitution Principle XIV).
 
-- [ ] T058 Update `specs/_architecture_/layer-2-processors.md` to add the `Flanger` component entry:
+- [X] T058 Update `specs/_architecture_/layer-2-processors.md` to add the `Flanger` component entry:
   - Component name: `Flanger`
   - Purpose: Stereo modulated short-delay-line processor for comb-filter sweep (flanging) effects
   - Public API summary: `prepare()`, `reset()`, `processStereo()`, `setRate()`, `setDepth()`, `setFeedback()`, `setMix()`, `setStereoSpread()`, `setWaveform()`, `setTempoSync()`, `setNoteValue()`, `setTempo()`

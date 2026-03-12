@@ -2526,6 +2526,138 @@ Input
 
 ---
 
+## Flanger
+**Path:** [flanger.h](../../dsp/include/krate/dsp/processors/flanger.h) | **Since:** 0.16.0
+
+Stereo modulated short-delay-line processor for comb-filter sweep (flanging) effects. Uses a modulated delay line (0.3-4.0ms) with feedback and LFO control to produce classic jet-engine sweeps, metallic tones, and through-zero flanging effects.
+
+**Use when:**
+- Creating classic flanging comb-filter sweep effects on synths, guitars, or pads
+- Need a comb-filter sweep with bipolar feedback for resonance control
+- Want stereo processing with configurable LFO phase offset for spatial width
+- Building effects chains that need a mutually exclusive phaser/flanger modulation slot
+- Need tempo-synchronized modulation for rhythmic flanging effects
+
+**Note:** Ruinae uses this via `RuinaeEffectsChain` with the `ModulationType` selector; the crossfade mechanism mirrors the existing delay type crossfade.
+
+**Features:**
+- Modulated delay line with 0.3-4.0ms sweep range
+- LFO waveform selection (Sine, Triangle via LFOWaveform)
+- Bipolar feedback (-1 to +1) with tanh soft-clipping and 0.98 internal clamp
+- True crossfade mix: `(1-mix)*dry + mix*wet` (distinct from Phaser's additive topology)
+- Stereo processing with 0-360 degree LFO phase offset
+- Tempo sync with note value and modifier support
+- Parameter smoothing (5ms) for click-free automation on rate, depth, feedback, and mix
+- Denormal flushing in feedback path
+
+```cpp
+class Flanger {
+    static constexpr float kMinRate = 0.05f;
+    static constexpr float kMaxRate = 5.0f;
+    static constexpr float kDefaultRate = 0.5f;
+    static constexpr float kMinDelayMs = 0.3f;
+    static constexpr float kMaxDelayMs = 4.0f;
+    static constexpr float kFeedbackClamp = 0.98f;
+    static constexpr float kSmoothingTimeMs = 5.0f;
+
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+
+    // Processing
+    void processStereo(float* left, float* right, size_t numSamples) noexcept;
+
+    // LFO parameters
+    void setRate(float hz) noexcept;                // [0.05, 5] Hz
+    void setDepth(float amount) noexcept;           // [0, 1] sweep range
+    void setWaveform(LFOWaveform waveform) noexcept;
+
+    // Feedback and mix
+    void setFeedback(float amount) noexcept;        // [-1, +1] bipolar resonance
+    void setMix(float dryWet) noexcept;             // [0, 1] true crossfade
+
+    // Stereo
+    void setStereoSpread(float degrees) noexcept;   // [0, 360] phase offset
+
+    // Tempo sync
+    void setTempoSync(bool enabled) noexcept;
+    void setNoteValue(NoteValue value, NoteModifier modifier) noexcept;
+    void setTempo(double bpm) noexcept;
+
+    // Getters for all parameters...
+    [[nodiscard]] float getRate() const noexcept;
+    [[nodiscard]] float getDepth() const noexcept;
+    [[nodiscard]] float getFeedback() const noexcept;
+    [[nodiscard]] float getMix() const noexcept;
+    [[nodiscard]] float getStereoSpread() const noexcept;
+    [[nodiscard]] LFOWaveform getWaveform() const noexcept;
+    [[nodiscard]] bool isTempoSyncEnabled() const noexcept;
+};
+```
+
+| Parameter | Default | Range | Effect |
+|-----------|---------|-------|--------|
+| rate | 0.5 Hz | [0.05, 5] | LFO frequency (free-running) |
+| depth | 0.5 | [0, 1] | Delay sweep range (0 = static comb, 1 = full sweep) |
+| feedback | 0.0 | [-1, +1] | Resonance; positive = jet sweep, negative = metallic |
+| mix | 0.5 | [0, 1] | True crossfade dry/wet blend |
+| stereoSpread | 90 deg | [0, 360] | LFO phase offset L/R |
+| waveform | Triangle | LFOWaveform | LFO shape |
+
+**Usage Example (Basic flanger):**
+```cpp
+Flanger flanger;
+flanger.prepare(44100.0);
+flanger.setRate(0.5f);          // 0.5 Hz sweep
+flanger.setDepth(0.8f);         // 80% depth
+flanger.setFeedback(0.5f);      // 50% feedback for resonance
+flanger.setMix(0.5f);           // 50/50 dry/wet
+
+// Process stereo in-place
+flanger.processStereo(left, right, numSamples);
+```
+
+**Usage Example (Stereo with spread):**
+```cpp
+Flanger flanger;
+flanger.prepare(44100.0);
+flanger.setStereoSpread(180.0f);  // Inverted L/R modulation
+flanger.setRate(1.0f);
+flanger.setDepth(1.0f);
+
+flanger.processStereo(left, right, numSamples);
+```
+
+**Usage Example (Tempo-synced):**
+```cpp
+Flanger flanger;
+flanger.prepare(44100.0);
+flanger.setTempoSync(true);
+flanger.setTempo(120.0);                                        // 120 BPM
+flanger.setNoteValue(NoteValue::Quarter, NoteModifier::Plain);  // Quarter note
+```
+
+**Topology (true crossfade mix):**
+```
+Input
+  |
+  +-- tanh(feedback * feedbackState) --->+
+  |                                      |
+  v                                      |
+[Delay Line (LFO-modulated)] ---> wet    |
+  |                                      |
+  v                                      |
+feedbackState = flushDenormal(wet)       |
+  |                                      |
+  +--------------------------------------+
+  |
+[True Crossfade: (1-mix)*dry + mix*wet] ---> output
+```
+
+**Dependencies:** Layer 0 (db_utils.h, note_value.h), Layer 1 (delay_line.h, lfo.h, smoother.h)
+
+---
+
 ## SpectralMorphFilter
 **Path:** [spectral_morph_filter.h](../../dsp/include/krate/dsp/processors/spectral_morph_filter.h) | **Since:** 0.14.0
 
