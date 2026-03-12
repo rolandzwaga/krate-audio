@@ -81,15 +81,18 @@ jobs:
               VERSION=$(jq -r '.version' "$version_file")
               DESCRIPTION=$(jq -r '.description' "$version_file")
               PUBLISHER=$(jq -r '.publisher' "$version_file")
-              # Use latest git tag for this plugin, or fall back to "v$VERSION"
-              TAG=$(git tag -l "${PLUGIN_NAME}-v*" --sort=-v:refname | head -1)
-              [ -z "$TAG" ] && TAG="v${VERSION}"
+              # Use latest git tag for this plugin (format: pluginname/vX.Y.Z)
+              PLUGIN_LOWER=$(echo "$PLUGIN_NAME" | tr '[:upper:]' '[:lower:]')
+              TAG=$(git tag -l "${PLUGIN_LOWER}/v*" --sort=-v:refname | head -1)
+              [ -z "$TAG" ] && TAG="${PLUGIN_LOWER}/v${VERSION}"
+              # URL-encode the slash for GitHub download URLs
+              TAG_URL=$(echo "$TAG" | sed 's|/|%2F|g')
 
               DESCRIPTION_ESC=$(printf '%s\n' "$DESCRIPTION" | sed 's/[&/\]/\\&/g')
               PUBLISHER_ESC=$(printf '%s\n' "$PUBLISHER" | sed 's/[&/\]/\\&/g')
 
               sed -e "s|{{VERSION}}|$VERSION|g" \
-                  -e "s|{{TAG}}|$TAG|g" \
+                  -e "s|{{TAG}}|$TAG_URL|g" \
                   -e "s|{{REPO}}|$REPO|g" \
                   -e "s|{{NAME}}|$PLUGIN_NAME|g" \
                   -e "s|{{DESCRIPTION}}|$DESCRIPTION_ESC|g" \
