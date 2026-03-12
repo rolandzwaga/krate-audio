@@ -394,7 +394,7 @@ Key rules:
 - [X] T047 [P] Run the full `dsp_tests` suite and verify all tests pass (no regressions): `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
 - [X] T048 [P] Run the full `ruinae_tests` suite and verify all tests pass: `build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
 - [X] T049 Build the Ruinae VST3 plugin in Release: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` (ignore post-build copy permission error if VST3 dir is locked -- check that compilation itself succeeded)
-- [ ] T050 Run pluginval at strictness level 5 with flanger active: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- all checks must pass
+- [X] T050 Run pluginval at strictness level 5 with flanger active: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Ruinae.vst3"` -- all checks must pass
 - [X] T051 [P] Verify SC-001 CPU budget: run a performance micro-benchmark (or manual CPU profiler) confirming the Flanger processes stereo at 44.1kHz using less than 0.5% CPU (expected ~0.1-0.2% based on plan.md analysis). Document the measured value.
 - [X] T052 [P] Verify SC-004 output bounds: run the existing stability test (from T012) and confirm no sample exceeds +/-1.0 magnitude from unity-level input at any feedback setting within the specified range
 - [X] T053 [P] Verify SC-005 tempo sync accuracy: run the tempo sync test (from T032) at 20 BPM and 300 BPM extremes and confirm period matches within 1%
@@ -439,7 +439,7 @@ Key rules:
   - "When to use this": When you need a comb-filter sweep with feedback; for effects chains that need a mutually exclusive phaser/flanger modulation slot
   - Note: Ruinae uses this via `RuinaeEffectsChain` with the `ModulationType` selector; the crossfade mechanism mirrors the existing delay type crossfade
 
-- [ ] T059 Commit architecture documentation update
+- [X] T059 Commit architecture documentation update
 
 **Checkpoint**: Architecture documentation reflects all new functionality added by this spec.
 
@@ -453,8 +453,8 @@ Key rules:
 
 Before claiming this spec is complete, verify EVERY requirement by opening the actual implementation file:
 
-- [ ] T060 Review each FR-xxx requirement from `specs/126-ruinae-flanger/spec.md` against implementation -- for each row, open the implementation file, read the code, and record the file path and line number that satisfies it
-- [ ] T061 Review each SC-xxx success criterion and verify measurable targets:
+- [X] T060 Review each FR-xxx requirement from `specs/126-ruinae-flanger/spec.md` against implementation -- for each row, open the implementation file, read the code, and record the file path and line number that satisfies it
+- [X] T061 Review each SC-xxx success criterion and verify measurable targets:
   - SC-001: CPU < 0.5% -- record the actual measured value
   - SC-002: No zipper noise -- verify smoothers are active on rate/depth/feedback/mix
   - SC-003: Click-free crossfade -- verify crossfade mechanism is 30ms and linear
@@ -463,19 +463,19 @@ Before claiming this spec is complete, verify EVERY requirement by opening the a
   - SC-006: Round-trip fidelity -- record the tolerance verified in state tests
   - SC-007: All unit tests pass -- record the Catch2 summary line
   - SC-008: pluginval passes -- record the pluginval result line
-- [ ] T062 Search for cheating patterns in all new/modified files:
-  - [ ] No `// placeholder` or `// TODO` comments in `flanger.h`, `flanger_params.h`, `processor.cpp`, `controller.cpp`, `ruinae_effects_chain.h`
-  - [ ] No test thresholds relaxed from spec requirements
-  - [ ] No features quietly removed from scope
+- [X] T062 Search for cheating patterns in all new/modified files:
+  - [X] No `// placeholder` or `// TODO` comments in `flanger.h`, `flanger_params.h`, `processor.cpp`, `controller.cpp`, `ruinae_effects_chain.h`
+  - [X] No test thresholds relaxed from spec requirements
+  - [X] No features quietly removed from scope
 
 ### N.2 Fill Compliance Table
 
-- [ ] T063 Update the "Implementation Verification" section in `specs/126-ruinae-flanger/spec.md` with compliance status for each FR-xxx and SC-xxx, citing specific file paths, line numbers, test names, and measured values -- mark overall status COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T063 Update the "Implementation Verification" section in `specs/126-ruinae-flanger/spec.md` with compliance status for each FR-xxx and SC-xxx, citing specific file paths, line numbers, test names, and measured values -- mark overall status COMPLETE / NOT COMPLETE / PARTIAL
 
 ### N.3 Final Commit
 
-- [ ] T064 Commit all final verification work (updated spec.md compliance table)
-- [ ] T065 Verify all tests pass one final time and the build is clean: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
+- [X] T064 Commit all final verification work (updated spec.md compliance table)
+- [X] T065 Verify all tests pass one final time and the build is clean: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
 
 **Checkpoint**: Spec implementation honestly complete. All FRs and SCs verified with evidence. No gaps hidden.
 
