@@ -720,9 +720,12 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         Steinberg::int8 i8 = 0;
         readStream.readInt8(i8); readStream.readInt8(i8);
 
-        // Phaser params + enable
+        // Phaser params + modulationType
         Ruinae::RuinaePhaserParams php; Ruinae::loadPhaserParams(php, readStream);
         readStream.readInt8(i8);
+
+        // Flanger params (version 6+)
+        Ruinae::RuinaeFlangerParams flp; Ruinae::loadFlangerParams(flp, readStream);
 
         // Extended LFO params
         Ruinae::loadLFO1ExtendedParams(l1p, readStream);

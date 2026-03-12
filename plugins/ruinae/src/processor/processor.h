@@ -38,6 +38,7 @@
 #include "parameters/delay_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
+#include "parameters/flanger_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -233,6 +234,7 @@ private:
     RuinaeDelayParams delayParams_;
     RuinaeReverbParams reverbParams_;
     RuinaePhaserParams phaserParams_;
+    RuinaeFlangerParams flangerParams_;
     RuinaeHarmonizerParams harmonizerParams_;
     MonoModeParams monoModeParams_;
     MacroParams macroParams_;

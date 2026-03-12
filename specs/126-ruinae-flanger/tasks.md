@@ -281,7 +281,7 @@ Key rules:
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T032 [US5] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
+- [X] T032 [US5] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
   - Tempo sync off: LFO runs at exactly the value set by `setRate(2.0f)` Hz (measure zero-crossing period over 44100 samples at 44100 Hz SR -- should be ~22050 samples per half-cycle)
   - Tempo sync on, Quarter note at 120 BPM: LFO period = 0.5s (one quarter at 120 BPM) -- measure within 1% tolerance: `Approx(44100 * 0.5).margin(44100 * 0.005)`
   - Tempo sync on, tempo change 120 -> 140 BPM: after `setTempo(140.0)`, LFO period adjusts to 60.0/140.0 = 0.4286s for a quarter note
@@ -289,32 +289,32 @@ Key rules:
   - Switching sync on/off does not produce NaN output
   - Build and confirm tests FAIL
 
-- [ ] T033 [US5] Build `dsp_tests` and confirm tempo sync tests FAIL at this point
+- [X] T033 [US5] Build `dsp_tests` and confirm tempo sync tests FAIL at this point
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T034 [US5] Verify/extend tempo sync wiring in `dsp/include/krate/dsp/processors/flanger.h`:
+- [X] T034 [US5] Verify/extend tempo sync wiring in `dsp/include/krate/dsp/processors/flanger.h`:
   - `setTempoSync(bool enabled)`: store in `tempoSync_`; call `lfoL_.setTempoSync(enabled)` and `lfoR_.setTempoSync(enabled)`; if disabling sync, restore `lfoL_.setFrequency(rate_)` and `lfoR_.setFrequency(rate_)`
   - `setNoteValue(NoteValue nv, NoteModifier nm)`: store in `noteValue_` and `noteModifier_`; call `lfoL_.setNoteValue(nv, nm)` and `lfoR_.setNoteValue(nv, nm)`
   - `setTempo(double bpm)`: store in `tempo_`; call `lfoL_.setTempo(bpm)` and `lfoR_.setTempo(bpm)`
   - After `prepare()`, restore tempo sync state: if `tempoSync_`, call `setTempoSync(true)`, `setNoteValue(noteValue_, noteModifier_)`, `setTempo(tempo_)` on the newly initialized LFOs
 
-- [ ] T035 [US5] Wire tempo sync through the plugin in `plugins/ruinae/src/processor/processor.cpp`:
+- [X] T035 [US5] Wire tempo sync through the plugin in `plugins/ruinae/src/processor/processor.cpp`:
   - In `processParameterChanges()`, handle `kFlangerSyncId`: update `flangerParams_.sync` and call `effectsChain_.flanger().setTempoSync(value > 0.5f)` directly (same direct-dispatch pattern used for all other flanger setters in this function)
   - In `processParameterChanges()`, handle `kFlangerNoteValueId`: update `flangerParams_.noteValue` and call `effectsChain_.flanger().setNoteValue(...)` after converting index to `NoteValue`/`NoteModifier`
   - In `applyParamsToEngine()`, propagate host tempo to flanger: `effectsChain_.flanger().setTempo(processContext.tempo)` when `kTempoValid` flag is set; use default 120.0 BPM when not valid
 
-- [ ] T036 [US5] Build both targets and verify all tempo sync tests pass:
+- [X] T036 [US5] Build both targets and verify all tempo sync tests pass:
   - `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "Flanger*" 2>&1 | tail -10`
   - `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -10`
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T037 [US5] Confirm all IEEE 754 compliance is already addressed from prior phases -- no new functions expected in tempo sync tests
+- [X] T037 [US5] Confirm all IEEE 754 compliance is already addressed from prior phases -- no new functions expected in tempo sync tests
 
 ### 7.4 Commit User Story 5
 
-- [ ] T038 [US5] Commit all User Story 5 work (tempo sync implementation and tests in `flanger.h`, `flanger_test.cpp`, `processor.cpp`)
+- [X] T038 [US5] Commit all User Story 5 work (tempo sync implementation and tests in `flanger.h`, `flanger_test.cpp`, `processor.cpp`)
 
 **Checkpoint**: Tempo sync locks LFO period to host tempo within 1% tolerance at any tempo between 20 and 300 BPM. Build remains green.
 
@@ -330,7 +330,7 @@ Key rules:
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T039 [US6] Add failing tests in `plugins/ruinae/tests/unit/processor/` (new file `flanger_state_test.cpp` or extend existing state test) covering:
+- [X] T039 [US6] Add failing tests in `plugins/ruinae/tests/unit/processor/` (new file `flanger_state_test.cpp` or extend existing state test) covering:
   - New preset round-trip: set all flanger params to known non-default values (rate=3.0, depth=0.8, feedback=-0.5, mix=0.75, stereoSpread=180.0, waveform=Sine, sync=true, noteValue=Quarter, modulationType=Flanger), save state, load state, verify all values restored with `Approx().margin(1e-5f)` tolerance
   - Old preset migration `phaserEnabled_=1`: construct a byte stream matching the pre-feature state format with int8 value `1` at the phaserEnabled position -- load it and verify `modulationType_=Phaser` and all flanger params are at defaults
   - Old preset migration `phaserEnabled_=0`: same with int8 value `0` -- verify `modulationType_=None`
@@ -338,11 +338,11 @@ Key rules:
   - All flanger parameters default correctly when absent from stream
   - Build and confirm tests FAIL
 
-- [ ] T040 [US6] Build `ruinae_tests` and confirm state tests FAIL at this point
+- [X] T040 [US6] Build `ruinae_tests` and confirm state tests FAIL at this point
 
 ### 8.2 Implementation for User Story 6
 
-- [ ] T041 [US6] Create `plugins/ruinae/src/parameters/flanger_params.h` with the `RuinaeFlangerParams` struct (mirroring `phaser_params.h`):
+- [X] T041 [US6] Create `plugins/ruinae/src/parameters/flanger_params.h` with the `RuinaeFlangerParams` struct (mirroring `phaser_params.h`):
   - Struct fields as per data-model.md: `rateHz` (atomic float, 0.5f), `depth` (atomic float, 0.5f), `feedback` (atomic float, 0.0f), `mix` (atomic float, 0.5f), `stereoSpread` (atomic float, 90.0f), `waveform` (atomic int, 1 = Triangle), `sync` (atomic bool, false), `noteValue` (atomic int, default index)
   - `handleFlangerParamChange(ParamID id, ParamValue value, RuinaeFlangerParams& params, EffectsChain& chain)`: dispatch all `kFlangerXxxId` and `kModulationTypeId` changes to both the atomic and the DSP object (mirroring `handlePhaserParamChange`)
   - `registerFlangerParams(EditController* controller)`: register the 8 flanger-specific parameters (IDs 1910-1917: rate, depth, feedback, mix, stereoSpread, waveform, sync, noteValue) with their ranges, defaults, and display names (mirroring `registerPhaserParams`); `kModulationTypeId=1918` is a modulation-slot-level parameter registered separately in T043a -- do NOT register it here to avoid double registration
@@ -350,38 +350,38 @@ Key rules:
   - `loadFlangerParams(IBStreamer& streamer, RuinaeFlangerParams& params, int& modulationType, bool isLegacyFormat)`: if `isLegacyFormat`, read one `int8` and map 0->None, 1->Phaser; otherwise read `int32` for `modulationType`, then read all flanger param fields; if any read fails, use defaults
   - `loadFlangerParamsToController(IBStreamer& streamer, EditController* controller, bool isLegacyFormat)`: controller-side counterpart for `setComponentState()`
 
-- [ ] T042 [US6] Update `plugins/ruinae/src/processor/processor.cpp` state save/load:
+- [X] T042 [US6] Update `plugins/ruinae/src/processor/processor.cpp` state save/load:
   - Add `flangerParams_` field of type `RuinaeFlangerParams` to `Processor` (or wherever the existing phaser params are held)
   - Add `modulationType_` atomic<int> (replaces `phaserEnabled_` atomic<bool>)
   - In `getState()`: call `saveFlangerParams(streamer, flangerParams_, modulationType_)` -- write `modulationType_` as `int32` in the position previously occupied by `phaserEnabled_`; write all flanger params after
   - In `setState()`: detect format version (attempt to read modulation type as int32; if reading additional flanger params fails, treat as legacy format); call `loadFlangerParams(streamer, flangerParams_, modulationType_, isLegacy)`; apply loaded values to `effectsChain_`
   - Remove the `phaserEnabled_` atomic from the processor struct (it is superseded by `modulationType_`)
 
-- [ ] T043 [US6] Register flanger parameters in `plugins/ruinae/src/controller/controller.cpp`:
+- [X] T043 [US6] Register flanger parameters in `plugins/ruinae/src/controller/controller.cpp`:
   - Add `#include "parameters/flanger_params.h"`
   - In `Controller::initialize()`, call `registerFlangerParams(this)` after `registerPhaserParams(this)`
   - In `Controller::setComponentState()`, call `loadFlangerParamsToController(streamer, this, isLegacy)` to restore controller-side parameter values on preset load
   - Note: `kFlangerEndId=1919` is a range sentinel only -- confirm it is NOT passed to `parameters.addParameter()` anywhere in controller registration
 
-- [ ] T043a [US6] Update `plugins/ruinae/src/parameters/fx_enable_params.h` to retire `kPhaserEnabledId` registration:
+- [X] T043a [US6] Update `plugins/ruinae/src/parameters/fx_enable_params.h` to retire `kPhaserEnabledId` registration:
   - Remove (or comment out with deprecation notice) the `parameters.addParameter(... kPhaserEnabledId ...)` line from `registerFxEnableParams()`
   - Add registration of `kModulationTypeId=1918` as a discrete parameter with 3 steps (0=None, 1=Phaser, 2=Flanger) and default value 0 (None), either here or confirm it is registered exclusively via `registerFlangerParams()` in T041 -- choose one location and make sure it is registered exactly once
   - Verify `registerFxEnableParams()` is still called from `Controller::initialize()` and that removing `kPhaserEnabledId` does not leave a dangling registration call elsewhere
 
-- [ ] T043b [US6] Update `plugins/ruinae/src/controller/controller_presets.cpp` to replace the `kPhaserEnabledId` preset reference:
+- [X] T043b [US6] Update `plugins/ruinae/src/controller/controller_presets.cpp` to replace the `kPhaserEnabledId` preset reference:
   - Find the `synthSetter(kPhaserEnabledId, ...)` call (line ~524) in preset loading code
   - Replace it with `synthSetter(kModulationTypeId, ...)` using the mapped value: a preset that previously set `kPhaserEnabledId=1.0` should now set `kModulationTypeId=1.0` (Phaser); `kPhaserEnabledId=0.0` maps to `kModulationTypeId=0.0` (None)
   - Search `controller_presets.cpp` for any other occurrences of `kPhaserEnabledId` and update them
 
-- [ ] T044 [US6] Build `ruinae_tests` and verify all state save/load and migration tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -10`
+- [X] T044 [US6] Build `ruinae_tests` and verify all state save/load and migration tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -10`
 
 ### 8.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T045 [US6] Check new state test files for IEEE 754 functions -- add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed
+- [X] T045 [US6] Check new state test files for IEEE 754 functions -- add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt` if needed
 
 ### 8.4 Commit User Story 6
 
-- [ ] T046 [US6] Commit all User Story 6 work: `flanger_params.h` (new), `fx_enable_params.h` (modified), `controller_presets.cpp` (modified), `processor.cpp` (modified state save/load and param dispatch), `controller.cpp` (modified registration), new test files
+- [X] T046 [US6] Commit all User Story 6 work: `flanger_params.h` (new), `fx_enable_params.h` (modified), `controller_presets.cpp` (modified), `processor.cpp` (modified state save/load and param dispatch), `controller.cpp` (modified registration), new test files
 
 **Checkpoint**: All flanger parameters round-trip through save/load without loss. Old presets with `phaserEnabled_` migrate correctly. Controller registers 8 flanger-specific parameters (1910-1917) plus `kModulationTypeId` (1918) as the modulation slot selector. `fx_enable_params.h` no longer registers `kPhaserEnabledId`. `controller_presets.cpp` uses `kModulationTypeId`. Build remains green.
 

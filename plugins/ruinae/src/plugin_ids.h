@@ -17,7 +17,7 @@ namespace Ruinae {
 
 // State version for serialization (bump when format changes post-release)
 // Shared between Processor and Controller — lives here to avoid cross-includes.
-constexpr Steinberg::int32 kCurrentStateVersion = 5;
+constexpr Steinberg::int32 kCurrentStateVersion = 6;
 
 // Processor Component ID
 // The audio processing component (runs on audio thread)

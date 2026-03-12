@@ -56,6 +56,7 @@
 #include "parameters/fx_enable_params.h"
 #include "parameters/reverb_params.h"
 #include "parameters/phaser_params.h"
+#include "parameters/flanger_params.h"
 #include "parameters/harmonizer_params.h"
 #include "parameters/mono_mode_params.h"
 #include "parameters/macro_params.h"
@@ -230,6 +231,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerDelayParams(parameters);
     registerReverbParams(parameters);
     registerPhaserParams(parameters);
+    registerFlangerParams(parameters);
     registerHarmonizerParams(parameters);
     registerMonoModeParams(parameters);
     registerMacroParams(parameters);

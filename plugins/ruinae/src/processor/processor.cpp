@@ -709,6 +709,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     // 0 = None (legacy: phaser disabled), 1 = Phaser (legacy: phaser enabled), 2 = Flanger (new)
     streamer.writeInt8(static_cast<Steinberg::int8>(modulationType_.load(std::memory_order_relaxed)));
 
+    // Flanger params (version 6+)
+    saveFlangerParams(flangerParams_, streamer);
+
     // Extended LFO params
     saveLFO1ExtendedParams(lfo1Params_, streamer);
     saveLFO2ExtendedParams(lfo2Params_, streamer);
@@ -842,6 +845,21 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             // Legacy format: 0 = disabled (None), 1 = enabled (Phaser)
             // New format: 0 = None, 1 = Phaser, 2 = Flanger
             modulationType_.store(static_cast<int>(i8), std::memory_order_relaxed);
+        }
+
+        // Flanger params (version 6+)
+        if (version >= 6) {
+            loadFlangerParams(flangerParams_, streamer);
+        } else {
+            // Old preset: no flanger data, reset to defaults
+            flangerParams_.rateHz.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.depth.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.feedback.store(0.0f, std::memory_order_relaxed);
+            flangerParams_.mix.store(0.5f, std::memory_order_relaxed);
+            flangerParams_.stereoSpread.store(90.0f, std::memory_order_relaxed);
+            flangerParams_.waveform.store(1, std::memory_order_relaxed);
+            flangerParams_.sync.store(false, std::memory_order_relaxed);
+            flangerParams_.noteValue.store(Parameters::kNoteValueDefaultIndex, std::memory_order_relaxed);
         }
 
         // Extended LFO params
@@ -1063,6 +1081,8 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
         } else if (paramId >= kReverbBaseId && paramId <= kReverbEndId) {
             handleReverbParamChange(reverbParams_, paramId, value);
         } else if (paramId >= kFlangerRateId && paramId <= kFlangerEndId) {
+            // Store to atomic param struct for state save/load
+            handleFlangerParamChange(flangerParams_, paramId, value);
             // Flanger parameter dispatch (direct to DSP object)
             switch (paramId) {
                 case kFlangerRateId:
