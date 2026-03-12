@@ -122,6 +122,34 @@ jobs:
           echo "Build output:"
           find _site -type f | sort
 
+      - name: Verify download links
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Verifying download links in generated pages..."
+          FAILED=0
+
+          # Extract all GitHub release download URLs from generated HTML
+          mapfile -t URLS < <(grep -roh 'https://github.com/[^"]*releases/download/[^"]*' _site/ | sort -u)
+
+          for url in "${URLS[@]}"; do
+            # Decode %2F back to / for the API check
+            decoded_url=$(echo "$url" | sed 's/%2F/\//g')
+            status=$(curl -s -o /dev/null -w "%{http_code}" -L --head "$decoded_url")
+            if [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
+              echo "  OK ($status): $url"
+            else
+              echo "  BROKEN ($status): $url"
+              FAILED=1
+            fi
+          done
+
+          if [ "$FAILED" -ne 0 ]; then
+            echo ""
+            echo "::error::Download links are broken! Aborting deployment."
+            exit 1
+          fi
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
