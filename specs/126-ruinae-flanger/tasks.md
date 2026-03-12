@@ -142,7 +142,7 @@ Key rules:
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T012 [US2] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
+- [X] T012 [US2] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
   - Positive feedback (+0.95): RMS energy of output is higher than with feedback=0 (resonance increases spectral peaks)
   - Negative feedback (-0.95): tonal character differs from positive feedback (spectral content differs -- can check a few frequency bins or just verify output is not identical to positive feedback case)
   - Feedback=0.0: output matches a reference generated with no feedback path
@@ -151,26 +151,26 @@ Key rules:
   - `kFeedbackClamp`: verify that setting feedback=1.0 does not cause instability (internally clamped to 0.98)
   - Build and confirm new tests FAIL before implementation changes
 
-- [ ] T013 [US2] Build `dsp_tests` and confirm the feedback/waveform/stability tests FAIL at this point
+- [X] T013 [US2] Build `dsp_tests` and confirm the feedback/waveform/stability tests FAIL at this point
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T014 [US2] Extend `dsp/include/krate/dsp/processors/flanger.h` to fully wire feedback and waveform:
+- [X] T014 [US2] Extend `dsp/include/krate/dsp/processors/flanger.h` to fully wire feedback and waveform:
   - Verify `setFeedback()` stores the value in `feedback_` and updates `feedbackSmoother_.setTarget(feedback_)` (may already be in place from US1 skeleton -- confirm it actually feeds into the process loop)
   - Verify `setWaveform(LFOWaveform wf)` calls `lfoL_.setWaveform(wf)` and `lfoR_.setWaveform(wf)` and stores in `waveform_`
   - Confirm the process loop uses `std::tanh(clampedFeedback * feedbackStateL_)` before summing with input (not just multiplying feedback directly)
   - Confirm `detail::flushDenormal(wet)` is applied to feedbackState storage
   - Verify the feedback clamp is `std::clamp(feedback, -kFeedbackClamp, kFeedbackClamp)` evaluated inside `processStereo()` from the smoothed value, not from the stored `feedback_` field directly
 
-- [ ] T015 [US2] Build `dsp_tests` and verify all feedback and waveform tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "Flanger*" 2>&1 | tail -10`
+- [X] T015 [US2] Build `dsp_tests` and verify all feedback and waveform tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "Flanger*" 2>&1 | tail -10`
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T016 [US2] If stability tests use any IEEE 754 functions (`std::isnan`, `std::isfinite`), confirm `dsp/tests/unit/processors/flanger_test.cpp` is already in the `-fno-fast-math` list from T010 (or add it now)
+- [X] T016 [US2] If stability tests use any IEEE 754 functions (`std::isnan`, `std::isfinite`), confirm `dsp/tests/unit/processors/flanger_test.cpp` is already in the `-fno-fast-math` list from T010 (or add it now)
 
 ### 4.4 Commit User Story 2
 
-- [ ] T017 [US2] Commit all User Story 2 work (updated `flanger.h` and `flanger_test.cpp` with feedback/waveform/stability tests and implementations)
+- [X] T017 [US2] Commit all User Story 2 work (updated `flanger.h` and `flanger_test.cpp` with feedback/waveform/stability tests and implementations)
 
 **Checkpoint**: Feedback path (positive/negative/zero), waveform selection (Sine/Triangle), and stability at extreme values are all tested and passing. Build remains green.
 

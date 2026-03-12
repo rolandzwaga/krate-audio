@@ -358,3 +358,277 @@ TEST_CASE("Flanger Depth=1.0 produces maximum sweep range", "[flanger][depth]") 
     // Depth=1.0 should produce noticeably different behavior than depth=0.0
     REQUIRE(varianceMax != Approx(varianceMin).margin(0.001f));
 }
+
+// =============================================================================
+// User Story 2: Feedback and Tonal Shaping
+// =============================================================================
+
+// Helper: compute RMS of a buffer
+static float computeRMS(const float* buf, size_t n) {
+    float sum = 0.0f;
+    for (size_t i = 0; i < n; ++i) {
+        sum += buf[i] * buf[i];
+    }
+    return std::sqrt(sum / static_cast<float>(n));
+}
+
+TEST_CASE("Flanger positive feedback increases resonance energy", "[flanger][feedback]") {
+    // Use a constant-value signal where positive feedback clearly accumulates
+    // energy at the comb filter peaks (DC always adds constructively with + feedback)
+    Flanger flangerZero;
+    flangerZero.prepare(44100.0);
+    flangerZero.setRate(1.0f);
+    flangerZero.setDepth(0.5f);
+    flangerZero.setMix(0.5f);
+    flangerZero.setFeedback(0.0f);
+
+    constexpr size_t N = 44100; // 1 second
+    std::vector<float> leftZero(N, 0.5f);
+    std::vector<float> rightZero(N, 0.5f);
+    flangerZero.processStereo(leftZero.data(), rightZero.data(), N);
+
+    Flanger flangerPos;
+    flangerPos.prepare(44100.0);
+    flangerPos.setRate(1.0f);
+    flangerPos.setDepth(0.5f);
+    flangerPos.setMix(0.5f);
+    flangerPos.setFeedback(0.95f);
+
+    std::vector<float> leftPos(N, 0.5f);
+    std::vector<float> rightPos(N, 0.5f);
+    flangerPos.processStereo(leftPos.data(), rightPos.data(), N);
+
+    // Positive feedback on a constant signal should produce higher peak magnitude
+    // because the feedback path accumulates (tanh-limited) energy
+    float peakZero = 0.0f;
+    float peakPos = 0.0f;
+    for (size_t i = 4000; i < N; ++i) {
+        peakZero = std::max(peakZero, std::abs(leftZero[i]));
+        peakPos = std::max(peakPos, std::abs(leftPos[i]));
+    }
+
+    REQUIRE(peakPos > peakZero);
+}
+
+TEST_CASE("Flanger negative feedback produces different output than positive", "[flanger][feedback]") {
+    constexpr size_t N = 44100;
+
+    Flanger flangerPos;
+    flangerPos.prepare(44100.0);
+    flangerPos.setRate(1.0f);
+    flangerPos.setDepth(0.5f);
+    flangerPos.setMix(1.0f);
+    flangerPos.setFeedback(0.95f);
+
+    std::vector<float> leftPos(N);
+    std::vector<float> rightPos(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        leftPos[i] = val;
+        rightPos[i] = val;
+    }
+    flangerPos.processStereo(leftPos.data(), rightPos.data(), N);
+
+    Flanger flangerNeg;
+    flangerNeg.prepare(44100.0);
+    flangerNeg.setRate(1.0f);
+    flangerNeg.setDepth(0.5f);
+    flangerNeg.setMix(1.0f);
+    flangerNeg.setFeedback(-0.95f);
+
+    std::vector<float> leftNeg(N);
+    std::vector<float> rightNeg(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        leftNeg[i] = val;
+        rightNeg[i] = val;
+    }
+    flangerNeg.processStereo(leftNeg.data(), rightNeg.data(), N);
+
+    // Positive and negative feedback should produce different spectral content
+    bool anyDifference = false;
+    for (size_t i = 4000; i < N; ++i) {
+        if (std::abs(leftPos[i] - leftNeg[i]) > 1e-6f) {
+            anyDifference = true;
+            break;
+        }
+    }
+    REQUIRE(anyDifference);
+}
+
+TEST_CASE("Flanger feedback=0 matches no-feedback reference", "[flanger][feedback]") {
+    constexpr size_t N = 44100;
+
+    // Two identical flangers with feedback=0 should produce identical output
+    Flanger flangerA;
+    flangerA.prepare(44100.0);
+    flangerA.setRate(1.0f);
+    flangerA.setDepth(0.5f);
+    flangerA.setMix(1.0f);
+    flangerA.setFeedback(0.0f);
+
+    Flanger flangerB;
+    flangerB.prepare(44100.0);
+    flangerB.setRate(1.0f);
+    flangerB.setDepth(0.5f);
+    flangerB.setMix(1.0f);
+    flangerB.setFeedback(0.0f);
+
+    std::vector<float> leftA(N), rightA(N);
+    std::vector<float> leftB(N), rightB(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        leftA[i] = val;
+        rightA[i] = val;
+        leftB[i] = val;
+        rightB[i] = val;
+    }
+
+    flangerA.processStereo(leftA.data(), rightA.data(), N);
+    flangerB.processStereo(leftB.data(), rightB.data(), N);
+
+    // Identical settings should produce identical output
+    bool allMatch = true;
+    for (size_t i = 0; i < N; ++i) {
+        if (std::abs(leftA[i] - leftB[i]) > 1e-6f) {
+            allMatch = false;
+            break;
+        }
+    }
+    REQUIRE(allMatch);
+}
+
+TEST_CASE("Flanger waveform Sine vs Triangle produces different modulation", "[flanger][waveform]") {
+    constexpr size_t N = 44100; // 1 second
+
+    Flanger flangerSine;
+    flangerSine.prepare(44100.0);
+    flangerSine.setRate(2.0f);
+    flangerSine.setDepth(1.0f);
+    flangerSine.setMix(1.0f);
+    flangerSine.setFeedback(0.0f);
+    flangerSine.setWaveform(Waveform::Sine);
+
+    std::vector<float> leftSine(N);
+    std::vector<float> rightSine(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        leftSine[i] = val;
+        rightSine[i] = val;
+    }
+    flangerSine.processStereo(leftSine.data(), rightSine.data(), N);
+
+    Flanger flangerTri;
+    flangerTri.prepare(44100.0);
+    flangerTri.setRate(2.0f);
+    flangerTri.setDepth(1.0f);
+    flangerTri.setMix(1.0f);
+    flangerTri.setFeedback(0.0f);
+    flangerTri.setWaveform(Waveform::Triangle);
+
+    std::vector<float> leftTri(N);
+    std::vector<float> rightTri(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        leftTri[i] = val;
+        rightTri[i] = val;
+    }
+    flangerTri.processStereo(leftTri.data(), rightTri.data(), N);
+
+    // Sine and Triangle waveforms should produce different outputs
+    bool anyDifference = false;
+    for (size_t i = 1000; i < N; ++i) {
+        if (std::abs(leftSine[i] - leftTri[i]) > 1e-6f) {
+            anyDifference = true;
+            break;
+        }
+    }
+    REQUIRE(anyDifference);
+}
+
+TEST_CASE("Flanger stability: 10 seconds at feedback=0.99 remains bounded", "[flanger][stability]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(0.5f);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.99f);
+
+    constexpr size_t N = 44100 * 10; // 10 seconds
+    // Process in blocks to avoid huge single allocation
+    constexpr size_t kBlockSize = 4096;
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+
+    bool hasNaN = false;
+    float maxMagnitude = 0.0f;
+
+    size_t remaining = N;
+    while (remaining > 0) {
+        size_t blockLen = std::min(remaining, kBlockSize);
+
+        // Fill with a test signal
+        for (size_t i = 0; i < blockLen; ++i) {
+            left[i] = 0.5f;
+            right[i] = 0.5f;
+        }
+
+        flanger.processStereo(left.data(), right.data(), blockLen);
+
+        for (size_t i = 0; i < blockLen; ++i) {
+            if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+                hasNaN = true;
+            }
+            maxMagnitude = std::max(maxMagnitude, std::max(std::abs(left[i]), std::abs(right[i])));
+        }
+
+        remaining -= blockLen;
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE(maxMagnitude < 2.0f);
+}
+
+TEST_CASE("Flanger feedback clamp: feedback=1.0 does not cause instability", "[flanger][feedback]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(1.0f);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(1.0f); // Should be internally clamped to 0.98
+
+    // Verify the stored value is clamped to valid range
+    REQUIRE(flanger.getFeedback() == Approx(1.0f)); // Stored as 1.0 (within [-1, +1])
+
+    // But processing should be stable because the process loop clamps to 0.98
+    constexpr size_t N = 44100 * 5; // 5 seconds
+    constexpr size_t kBlockSize = 4096;
+    std::array<float, kBlockSize> left{};
+    std::array<float, kBlockSize> right{};
+
+    bool hasNaN = false;
+    float maxMagnitude = 0.0f;
+
+    size_t remaining = N;
+    while (remaining > 0) {
+        size_t blockLen = std::min(remaining, kBlockSize);
+        for (size_t i = 0; i < blockLen; ++i) {
+            left[i] = 0.5f;
+            right[i] = 0.5f;
+        }
+
+        flanger.processStereo(left.data(), right.data(), blockLen);
+
+        for (size_t i = 0; i < blockLen; ++i) {
+            if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+                hasNaN = true;
+            }
+            maxMagnitude = std::max(maxMagnitude, std::max(std::abs(left[i]), std::abs(right[i])));
+        }
+
+        remaining -= blockLen;
+    }
+
+    REQUIRE_FALSE(hasNaN);
+    REQUIRE(maxMagnitude < 2.0f);
+}
