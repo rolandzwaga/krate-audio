@@ -227,7 +227,7 @@ private:
     // FX Enable (1500-1502)
     std::atomic<bool> delayEnabled_{false};
     std::atomic<bool> reverbEnabled_{false};
-    std::atomic<bool> phaserEnabled_{false};
+    std::atomic<int> modulationType_{0};  // ModulationType: 0=None, 1=Phaser, 2=Flanger
     std::atomic<bool> harmonizerEnabled_{false};
 
     RuinaeDelayParams delayParams_;

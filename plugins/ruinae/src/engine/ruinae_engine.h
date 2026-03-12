@@ -532,6 +532,10 @@ public:
     // Effects Chain (FR-026, FR-027, FR-028)
     // =========================================================================
 
+    /// @brief Direct access to the effects chain (for modulation type crossfade).
+    RuinaeEffectsChain& effectsChain() noexcept { return effectsChain_; }
+    [[nodiscard]] const RuinaeEffectsChain& effectsChain() const noexcept { return effectsChain_; }
+
     void setDelayEnabled(bool enabled) noexcept { effectsChain_.setDelayEnabled(enabled); }
     void setReverbEnabled(bool enabled) noexcept { effectsChain_.setReverbEnabled(enabled); }
 

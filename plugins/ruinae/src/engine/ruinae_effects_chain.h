@@ -29,6 +29,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/processors/flanger.h>
 #include <krate/dsp/processors/phaser.h>
 #include <krate/dsp/systems/harmonizer_engine.h>
 #include "ruinae_types.h"
@@ -78,6 +79,17 @@ static inline float peakLevel(const float* buf, size_t n) {
 #endif
 
 namespace Krate::DSP {
+
+/// @brief Modulation type selector for the modulation effects slot.
+///
+/// Replaces the legacy `phaserEnabled_` boolean with a three-way selector
+/// supporting None, Phaser, and Flanger. Used by RuinaeEffectsChain for
+/// crossfade switching between modulation effects.
+enum class ModulationType {
+    None = 0,
+    Phaser = 1,
+    Flanger = 2
+};
 
 /// @brief Stereo effects chain for the Ruinae synthesizer (Layer 3).
 ///
@@ -143,8 +155,9 @@ public:
         granularDelay_.prepare(sampleRate);  // Only sampleRate!
         spectralDelay_.prepare(sampleRate, maxBlockSize);
 
-        // Prepare phaser
+        // Prepare phaser and flanger
         phaser_.prepare(sampleRate);
+        flanger_.prepare(sampleRate);
 
         // Prepare reverb (both types for dual-reverb support)
         reverb_.prepare(sampleRate);
@@ -201,6 +214,10 @@ public:
     /// Does not deallocate memory.
     void reset() noexcept {
         phaser_.reset();
+        flanger_.reset();
+        modCrossfading_ = false;
+        modCrossfadeAlpha_ = 0.0f;
+        modCrossfadeIncrement_ = 0.0f;
         digitalDelay_.reset();
         tapeDelay_.reset();
         pingPongDelay_.reset();
@@ -282,7 +299,50 @@ public:
 
     void setDelayEnabled(bool enabled) noexcept { delayEnabled_ = enabled; }
     void setReverbEnabled(bool enabled) noexcept { reverbEnabled_ = enabled; }
-    void setPhaserEnabled(bool enabled) noexcept { phaserEnabled_ = enabled; }
+
+    /// @brief Set the modulation type directly (no crossfade).
+    /// Used during applyParamsToEngine() per-block updates.
+    void setModulationType(ModulationType type) noexcept {
+        if (!modCrossfading_) {
+            activeModType_ = type;
+        }
+    }
+
+    /// @brief Start a 30ms linear crossfade to a new modulation type.
+    /// If the incoming type matches the active type and no crossfade is in
+    /// progress, this is a no-op.
+    void startModCrossfade(ModulationType incoming) noexcept {
+        if (!modCrossfading_ && incoming == activeModType_) {
+            return;
+        }
+        if (modCrossfading_ && incoming == incomingModType_) {
+            return; // Already fading to this type
+        }
+        incomingModType_ = incoming;
+        modCrossfadeAlpha_ = 0.0f;
+        modCrossfadeIncrement_ = 1.0f / (0.030f * static_cast<float>(sampleRate_));
+        modCrossfading_ = true;
+    }
+
+    /// @brief Get the currently active modulation type.
+    [[nodiscard]] ModulationType getActiveModulationType() const noexcept {
+        return activeModType_;
+    }
+
+    /// @brief Legacy compatibility: setPhaserEnabled maps to ModulationType.
+    /// DEPRECATED: Use setModulationType() instead.
+    void setPhaserEnabled(bool enabled) noexcept {
+        if (enabled) {
+            activeModType_ = ModulationType::Phaser;
+        } else if (activeModType_ == ModulationType::Phaser) {
+            activeModType_ = ModulationType::None;
+        }
+    }
+
+    /// @brief Get a mutable reference to the flanger for direct parameter setting.
+    Flanger& flanger() noexcept { return flanger_; }
+    /// @brief Get a const reference to the flanger.
+    [[nodiscard]] const Flanger& flanger() const noexcept { return flanger_; }
 
     // =========================================================================
     // Delay Type Selection (FR-009 through FR-014)
@@ -704,53 +764,9 @@ private:
         ctx.isPlaying = true;
 
         // ---------------------------------------------------------------
-        // Slot 0: Phaser (before delay)
+        // Slot 0: Modulation (Phaser/Flanger/None) with crossfade
         // ---------------------------------------------------------------
-#if RUINAE_FX_CHAIN_DEBUG
-        // Save pre-phaser samples for comparison (stack buffer, max 512)
-        float preSnapL[512];
-        float preSnapR[512];
-        size_t snapN = std::min(numSamples, size_t(512));
-        if (s_logCounter % 200 == 0 && phaserEnabled_) {
-            std::memcpy(preSnapL, left, snapN * sizeof(float));
-            std::memcpy(preSnapR, right, snapN * sizeof(float));
-        }
-#endif
-        if (phaserEnabled_) {
-            phaser_.processStereo(left, right, numSamples);
-        }
-#if RUINAE_FX_CHAIN_DEBUG
-        if (s_logCounter % 200 == 0) {
-            float preL = peakLevel(preSnapL, snapN);
-            if (phaserEnabled_ && preL > 0.001f) {
-                // Compute RMS diff and max diff
-                float sumSqDiff = 0.0f;
-                float maxDiff = 0.0f;
-                int maxDiffIdx = 0;
-                for (size_t i = 0; i < snapN; ++i) {
-                    float d = left[i] - preSnapL[i];
-                    sumSqDiff += d * d;
-                    if (std::fabs(d) > maxDiff) {
-                        maxDiff = std::fabs(d);
-                        maxDiffIdx = static_cast<int>(i);
-                    }
-                }
-                float rmsDiff = std::sqrt(sumSqDiff / static_cast<float>(snapN));
-                logFxChain("[RUINAE][FX] phaserEnabled_=1 prePeak=%.6f  rmsDiff=%.8f maxDiff=%.8f @sample%d\n",
-                    preL, rmsDiff, maxDiff, maxDiffIdx);
-                // Log first few sample diffs
-                if (snapN >= 4) {
-                    logFxChain("[RUINAE][FX] samples: pre[0]=%.6f post[0]=%.6f  pre[1]=%.6f post[1]=%.6f\n",
-                        preSnapL[0], left[0], preSnapL[1], left[1]);
-                    logFxChain("[RUINAE][FX] samples: pre[2]=%.6f post[2]=%.6f  pre[3]=%.6f post[3]=%.6f\n",
-                        preSnapL[2], left[2], preSnapL[3], left[3]);
-                }
-            } else {
-                logFxChain("[RUINAE][FX] phaserEnabled_=%d prePeak=%.6f (silent or off)\n",
-                    phaserEnabled_ ? 1 : 0, phaserEnabled_ ? peakLevel(left, snapN) : 0.0f);
-            }
-        }
-#endif
+        processModulationSlot(left, right, numSamples);
 
         // ---------------------------------------------------------------
         // Slot 1: Delay (FR-005) with crossfade (FR-010)
@@ -1137,6 +1153,79 @@ private:
     }
 
     // =========================================================================
+    // Modulation Slot Processing (Phaser/Flanger/None crossfade)
+    // =========================================================================
+
+    /// @brief Process the modulation effect in the stereo audio buffers.
+    /// Handles crossfade between modulation types (None/Phaser/Flanger).
+    void processModulationSlot(float* left, float* right, size_t numSamples) noexcept {
+        if (modCrossfading_) {
+            // Process both outgoing and incoming effects, blend with alpha
+            // Save the input for the outgoing effect
+            std::memcpy(tempL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(tempR_.data(), right, numSamples * sizeof(float));
+
+            // Process outgoing effect on temp buffers
+            processModEffect(activeModType_, tempL_.data(), tempR_.data(), numSamples);
+            // Process incoming effect on original buffers
+            processModEffect(incomingModType_, left, right, numSamples);
+
+            // Blend: outgoing * (1 - alpha) + incoming * alpha
+            for (size_t i = 0; i < numSamples; ++i) {
+                float alpha = modCrossfadeAlpha_;
+                left[i] = tempL_[i] * (1.0f - alpha) + left[i] * alpha;
+                right[i] = tempR_[i] * (1.0f - alpha) + right[i] * alpha;
+
+                modCrossfadeAlpha_ += modCrossfadeIncrement_;
+                if (modCrossfadeAlpha_ >= 1.0f) {
+                    modCrossfadeAlpha_ = 1.0f;
+                    completeModCrossfade();
+                    // Copy remaining incoming samples directly (crossfade done)
+                    // The incoming effect already processed the full buffer,
+                    // and remaining samples after this point should use incoming.
+                    // Since left/right already contain the incoming output,
+                    // we just need to stop blending.
+                    break;
+                }
+            }
+        } else {
+            // No crossfade: process only the active effect
+            processModEffect(activeModType_, left, right, numSamples);
+        }
+    }
+
+    /// @brief Process a single modulation effect on the given buffers.
+    void processModEffect(ModulationType type, float* left, float* right,
+                          size_t numSamples) noexcept {
+        switch (type) {
+            case ModulationType::Phaser:
+                phaser_.processStereo(left, right, numSamples);
+                break;
+            case ModulationType::Flanger:
+                flanger_.processStereo(left, right, numSamples);
+                break;
+            case ModulationType::None:
+            default:
+                // Passthrough -- no processing
+                break;
+        }
+    }
+
+    /// @brief Complete a modulation type crossfade.
+    void completeModCrossfade() noexcept {
+        // Reset the outgoing effect
+        if (activeModType_ == ModulationType::Phaser) {
+            phaser_.reset();
+        } else if (activeModType_ == ModulationType::Flanger) {
+            flanger_.reset();
+        }
+        activeModType_ = incomingModType_;
+        modCrossfading_ = false;
+        modCrossfadeAlpha_ = 0.0f;
+        modCrossfadeIncrement_ = 0.0f;
+    }
+
+    // =========================================================================
     // Member Variables (per data-model.md E-002)
     // =========================================================================
 
@@ -1147,12 +1236,19 @@ private:
     double tempoBPM_ = 120.0;
     bool delayEnabled_ = false;
     bool reverbEnabled_ = false;
-    bool phaserEnabled_ = false;
     bool harmonizerEnabled_ = false;
     bool harmonizerNeedsPrime_ = false; // Apply voice fade-in on first process
 
-    // Phaser slot (before delay)
+    // Modulation slot (Phaser/Flanger/None)
     Phaser phaser_;
+    Flanger flanger_;
+
+    // Modulation type crossfade state
+    ModulationType activeModType_ = ModulationType::None;
+    ModulationType incomingModType_ = ModulationType::None;
+    bool modCrossfading_ = false;
+    float modCrossfadeAlpha_ = 0.0f;
+    float modCrossfadeIncrement_ = 0.0f;
 
     // Delay slot (5 types)
     DigitalDelay digitalDelay_;

@@ -211,7 +211,7 @@ Key rules:
 
 ### 5.4 Commit User Story 3
 
-- [ ] T023 [US3] Commit all User Story 3 work (stereo spread tests and any `flanger.h` fixes)
+- [X] T023 [US3] Commit all User Story 3 work (stereo spread tests and any `flanger.h` fixes)
 
 **Checkpoint**: Stereo spread at 0/90/180 degrees produces the expected L/R phase relationships. All DSP unit tests pass. Build remains green.
 
@@ -227,7 +227,7 @@ Key rules:
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T024 [US4] Add failing tests to `plugins/ruinae/tests/unit/processor/` (new file or extend existing processor test) covering:
+- [X] T024 [US4] Add failing tests to `plugins/ruinae/tests/unit/processor/` (new file or extend existing processor test) covering:
   - `ModulationType` enum is defined with values None=0, Phaser=1, Flanger=2
   - Switching modulation type to `None` while audio plays: verify all output samples are finite (no NaN/Inf) during and after transition
   - Switching from `Phaser` to `Flanger`: verify output is finite during crossfade and reflects flanger character afterward (delay-based effect, not allpass-based)
@@ -236,13 +236,13 @@ Key rules:
   - Degraded host: switching modulation type with a `nullptr` process context does not crash
   - Build and confirm tests FAIL (effects chain changes not yet made)
 
-- [ ] T025 [US4] Build `ruinae_tests` and confirm the new switching tests FAIL at this point
+- [X] T025 [US4] Build `ruinae_tests` and confirm the new switching tests FAIL at this point
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T026 [US4] Add `ModulationType` enum to `plugins/ruinae/src/engine/ruinae_effects_chain.h`: `enum class ModulationType { None = 0, Phaser = 1, Flanger = 2 };`
+- [X] T026 [US4] Add `ModulationType` enum to `plugins/ruinae/src/engine/ruinae_effects_chain.h`: `enum class ModulationType { None = 0, Phaser = 1, Flanger = 2 };`
 
-- [ ] T027 [US4] Extend `plugins/ruinae/src/engine/ruinae_effects_chain.h` with:
+- [X] T027 [US4] Extend `plugins/ruinae/src/engine/ruinae_effects_chain.h` with:
   - New field `flanger_` of type `Krate::DSP::Flanger` (add `#include <krate/dsp/processors/flanger.h>`)
   - Replace `phaserEnabled_` with `activeModType_` (`ModulationType`) and `incomingModType_` (`ModulationType`)
   - Add crossfade state fields: `modCrossfading_` (bool), `modCrossfadeAlpha_` (float), `modCrossfadeIncrement_` (float) -- mirroring the existing delay type crossfade fields
@@ -251,21 +251,21 @@ Key rules:
   - Update `prepare()` to also call `flanger_.prepare(sampleRate_)`
   - Update `reset()` to also call `flanger_.reset()`
 
-- [ ] T028 [US4] Wire `kModulationTypeId` parameter in `plugins/ruinae/src/processor/processor.cpp`:
+- [X] T028 [US4] Wire `kModulationTypeId` parameter in `plugins/ruinae/src/processor/processor.cpp`:
   - Add `std::atomic<int> modulationType_{0}` (default `None`=0 for fresh instantiation with no prior state, per FR-011)
   - In `processParameterChanges()`, handle `kModulationTypeId`: store to `modulationType_`, call `effectsChain_.startModCrossfade(static_cast<ModulationType>(value))`; also remove the existing `kPhaserEnabledId` case from the parameter change dispatch (lines ~1041-1048)
   - In `applyParamsToEngine()`, replace the `setPhaserEnabled(phaserEnabled_.load(...))` call (line ~1404) with `setModulationType(static_cast<ModulationType>(modulationType_.load(...)))` (or equivalent effects chain call)
   - Remove the `phaserEnabled_` atomic field declaration from the Processor class entirely; confirm no remaining references in `processor.cpp`
 
-- [ ] T029 [US4] Build `ruinae_tests` and verify all switching tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -10`
+- [X] T029 [US4] Build `ruinae_tests` and verify all switching tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target ruinae_tests && build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -10`
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T030 [US4] Check new processor test files for IEEE 754 functions -- if present, add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt`
+- [X] T030 [US4] Check new processor test files for IEEE 754 functions -- if present, add to `-fno-fast-math` list in `plugins/ruinae/tests/CMakeLists.txt`
 
 ### 6.4 Commit User Story 4
 
-- [ ] T031 [US4] Commit all User Story 4 work: `ruinae_effects_chain.h` (modified), `processor.cpp` (modified), new/modified test file(s)
+- [X] T031 [US4] Commit all User Story 4 work: `ruinae_effects_chain.h` (modified), `processor.cpp` (modified), new/modified test file(s)
 
 **Checkpoint**: `ModulationType` enum exists, `RuinaeEffectsChain` holds a `Flanger` instance, crossfade switching between None/Phaser/Flanger is implemented and tested, `kModulationTypeId` is wired. Build remains green.
 

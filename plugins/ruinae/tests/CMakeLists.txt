@@ -109,6 +109,9 @@ add_executable(ruinae_tests
     # Euclidean_Bells Preset Level Analysis Test (faint output investigation)
     integration/euclidean_bells_level_test.cpp
 
+    # Modulation Type Switching Tests (126-ruinae-flanger)
+    unit/processor/modulation_type_test.cpp
+
     # Reverb Type Selection Tests (125-dual-reverb)
     unit/processor/reverb_type_test.cpp
 
@@ -180,6 +183,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/euclidean_bells_level_test.cpp
         unit/vst/voice_route_rt_safety_test.cpp
         unit/processor/reverb_type_test.cpp
+        unit/processor/modulation_type_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
