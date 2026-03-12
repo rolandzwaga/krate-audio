@@ -84,7 +84,13 @@ jobs:
               # Use latest git tag for this plugin (format: pluginname/vX.Y.Z)
               PLUGIN_LOWER=$(echo "$PLUGIN_NAME" | tr '[:upper:]' '[:lower:]')
               TAG=$(git tag -l "${PLUGIN_LOWER}/v*" --sort=-v:refname | head -1)
-              [ -z "$TAG" ] && TAG="${PLUGIN_LOWER}/v${VERSION}"
+              if [ -n "$TAG" ]; then
+                # Extract version from tag (e.g., "ruinae/v0.9.9" -> "0.9.9")
+                # so download URLs match the actual release, not version.json
+                VERSION=$(echo "$TAG" | sed 's|.*/v||')
+              else
+                TAG="${PLUGIN_LOWER}/v${VERSION}"
+              fi
               # URL-encode the slash for GitHub download URLs
               TAG_URL=$(echo "$TAG" | sed 's|/|%2F|g')
 
