@@ -589,6 +589,215 @@ TEST_CASE("Flanger stability: 10 seconds at feedback=0.99 remains bounded", "[fl
     REQUIRE(maxMagnitude < 2.0f);
 }
 
+// =============================================================================
+// User Story 3: Stereo Width and Spread
+// =============================================================================
+
+TEST_CASE("Flanger stereo spread=0: L and R outputs are sample-identical", "[flanger][stereo]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(1.0f);
+    flanger.setDepth(0.5f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+    flanger.setStereoSpread(0.0f);
+
+    constexpr size_t N = 4096;
+    std::vector<float> left(N);
+    std::vector<float> right(N);
+
+    // Feed identical input to both channels
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = val;
+        right[i] = val;
+    }
+
+    flanger.processStereo(left.data(), right.data(), N);
+
+    // With spread=0 and identical input, L and R should be sample-identical
+    bool allMatch = true;
+    for (size_t i = 0; i < N; ++i) {
+        if (std::abs(left[i] - right[i]) > 1e-7f) {
+            allMatch = false;
+            break;
+        }
+    }
+    REQUIRE(allMatch);
+}
+
+TEST_CASE("Flanger stereo spread=180: L and R outputs diverge", "[flanger][stereo]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(1.0f);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.setFeedback(0.0f);
+    flanger.setStereoSpread(180.0f);
+
+    constexpr size_t N = 44100; // 1 second = 1 full LFO cycle at 1Hz
+    std::vector<float> left(N);
+    std::vector<float> right(N);
+
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = val;
+        right[i] = val;
+    }
+
+    flanger.processStereo(left.data(), right.data(), N);
+
+    // With spread=180, L and R LFOs are in anti-phase, so outputs should differ
+    // Accumulate the L-R difference magnitude over the second half (after warmup)
+    float diffEnergy = 0.0f;
+    for (size_t i = N / 2; i < N; ++i) {
+        float diff = left[i] - right[i];
+        diffEnergy += diff * diff;
+    }
+
+    // Significant difference expected with 180 degrees of spread
+    REQUIRE(diffEnergy > 0.01f);
+}
+
+TEST_CASE("Flanger stereo spread=90: output differs from spread=0 and spread=180", "[flanger][stereo]") {
+    auto processWithSpread = [](float spreadDeg) {
+        Flanger flanger;
+        flanger.prepare(44100.0);
+        flanger.setRate(1.0f);
+        flanger.setDepth(1.0f);
+        flanger.setMix(1.0f);
+        flanger.setFeedback(0.0f);
+        flanger.setStereoSpread(spreadDeg);
+
+        constexpr size_t N = 44100;
+        std::vector<float> left(N);
+        std::vector<float> right(N);
+        for (size_t i = 0; i < N; ++i) {
+            float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+            left[i] = val;
+            right[i] = val;
+        }
+        flanger.processStereo(left.data(), right.data(), N);
+
+        // Return L-R energy as a summary metric
+        float energy = 0.0f;
+        for (size_t i = N / 2; i < N; ++i) {
+            float diff = left[i] - right[i];
+            energy += diff * diff;
+        }
+        return energy;
+    };
+
+    float energy0 = processWithSpread(0.0f);
+    float energy90 = processWithSpread(90.0f);
+    float energy180 = processWithSpread(180.0f);
+
+    // Spread=0 should have near-zero L-R difference
+    REQUIRE(energy0 < 1e-6f);
+
+    // Spread=90 should differ from both 0 and 180
+    REQUIRE(energy90 > energy0 + 0.001f);
+    // Spread=90 and 180 should produce different L-R energy values
+    REQUIRE(std::abs(energy90 - energy180) > 0.001f);
+}
+
+TEST_CASE("Flanger stereo spread: out-of-range values do not crash", "[flanger][stereo]") {
+    Flanger flanger;
+    flanger.prepare(44100.0);
+    flanger.setRate(1.0f);
+    flanger.setDepth(0.5f);
+    flanger.setMix(0.5f);
+
+    constexpr size_t N = 512;
+    std::array<float, N> left{};
+    std::array<float, N> right{};
+
+    SECTION("400 degrees wraps gracefully") {
+        REQUIRE_NOTHROW(flanger.setStereoSpread(400.0f));
+        // 400 mod 360 = 40
+        REQUIRE(flanger.getStereoSpread() == Approx(40.0f).margin(0.01f));
+        fillStereo(left.data(), right.data(), N, 0.5f);
+        REQUIRE_NOTHROW(flanger.processStereo(left.data(), right.data(), N));
+
+        // No NaN
+        bool hasNaN = false;
+        for (size_t i = 0; i < N; ++i) {
+            if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+                hasNaN = true;
+                break;
+            }
+        }
+        REQUIRE_FALSE(hasNaN);
+    }
+
+    SECTION("-10 degrees wraps gracefully") {
+        REQUIRE_NOTHROW(flanger.setStereoSpread(-10.0f));
+        // -10 mod 360 -> 350
+        REQUIRE(flanger.getStereoSpread() == Approx(350.0f).margin(0.01f));
+        fillStereo(left.data(), right.data(), N, 0.5f);
+        REQUIRE_NOTHROW(flanger.processStereo(left.data(), right.data(), N));
+
+        bool hasNaN = false;
+        for (size_t i = 0; i < N; ++i) {
+            if (detail::isNaN(left[i]) || detail::isNaN(right[i])) {
+                hasNaN = true;
+                break;
+            }
+        }
+        REQUIRE_FALSE(hasNaN);
+    }
+}
+
+TEST_CASE("Flanger stereo spread persists after prepare and reset", "[flanger][stereo]") {
+    Flanger flanger;
+    flanger.setStereoSpread(180.0f);
+    flanger.prepare(44100.0);
+
+    // Spread should still be 180 after prepare
+    REQUIRE(flanger.getStereoSpread() == Approx(180.0f));
+
+    // Process to verify it actually works (L/R should differ)
+    constexpr size_t N = 22050; // half-second
+    std::vector<float> left(N);
+    std::vector<float> right(N);
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = val;
+        right[i] = val;
+    }
+
+    flanger.setRate(1.0f);
+    flanger.setDepth(1.0f);
+    flanger.setMix(1.0f);
+    flanger.processStereo(left.data(), right.data(), N);
+
+    float diffEnergy = 0.0f;
+    for (size_t i = N / 2; i < N; ++i) {
+        float diff = left[i] - right[i];
+        diffEnergy += diff * diff;
+    }
+    REQUIRE(diffEnergy > 0.001f);
+
+    // Now reset and verify spread is still applied
+    flanger.reset();
+    REQUIRE(flanger.getStereoSpread() == Approx(180.0f));
+
+    // Process again - should still show stereo difference
+    for (size_t i = 0; i < N; ++i) {
+        float val = std::sin(2.0f * 3.14159265f * 440.0f * static_cast<float>(i) / 44100.0f);
+        left[i] = val;
+        right[i] = val;
+    }
+    flanger.processStereo(left.data(), right.data(), N);
+
+    float diffEnergyAfterReset = 0.0f;
+    for (size_t i = N / 2; i < N; ++i) {
+        float diff = left[i] - right[i];
+        diffEnergyAfterReset += diff * diff;
+    }
+    REQUIRE(diffEnergyAfterReset > 0.001f);
+}
+
 TEST_CASE("Flanger feedback clamp: feedback=1.0 does not cause instability", "[flanger][feedback]") {
     Flanger flanger;
     flanger.prepare(44100.0);

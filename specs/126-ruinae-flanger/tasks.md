@@ -186,28 +186,28 @@ Key rules:
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T018 [US3] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
+- [X] T018 [US3] Add failing tests to `dsp/tests/unit/processors/flanger_test.cpp` covering:
   - Spread=0 degrees: after `prepare()` and `reset()`, left and right channel outputs are sample-identical when fed identical input
   - Spread=180 degrees: left and right outputs diverge -- when L delay is at or near maximum (late in LFO cycle), R delay is at or near minimum (verify by comparing L-R difference magnitude)
   - Spread=90 degrees: outputs differ from both Spread=0 and Spread=180 cases (quadrature relationship -- a simple energy difference check is sufficient)
   - `setStereoSpread()` with out-of-range values (e.g., 400 degrees, -10 degrees) does not crash and clamps/wraps gracefully
   - Build and confirm new tests FAIL
 
-- [ ] T019 [US3] Build `dsp_tests` and confirm stereo spread tests FAIL at this point
+- [X] T019 [US3] Build `dsp_tests` and confirm stereo spread tests FAIL at this point
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T020 [US3] Verify/extend `dsp/include/krate/dsp/processors/flanger.h` stereo spread implementation:
+- [X] T020 [US3] Verify/extend `dsp/include/krate/dsp/processors/flanger.h` stereo spread implementation:
   - `setStereoSpread(float degrees)` stores in `stereoSpread_` and calls `lfoR_.setPhaseOffset(degrees)` immediately (and after any `prepare()` or `reset()`)
   - After `prepare()`, `lfoR_.setPhaseOffset(stereoSpread_)` is called to restore the spread setting
   - After `reset()`, verify the phase offset is reapplied to `lfoR_` so spread persists across resets
   - Confirm that `lfoL_` is never given a phase offset (it is the reference channel, always 0 degrees)
 
-- [ ] T021 [US3] Build `dsp_tests` and verify all stereo spread tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "Flanger*" 2>&1 | tail -10`
+- [X] T021 [US3] Build `dsp_tests` and verify all stereo spread tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "Flanger*" 2>&1 | tail -10`
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T022 [US3] Confirm `flanger_test.cpp` IEEE 754 coverage is already addressed from T010/T016 -- no new action needed unless new functions were added
+- [X] T022 [US3] Confirm `flanger_test.cpp` IEEE 754 coverage is already addressed from T010/T016 -- no new action needed unless new functions were added
 
 ### 5.4 Commit User Story 3
 
