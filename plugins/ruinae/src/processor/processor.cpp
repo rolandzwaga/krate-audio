@@ -1521,6 +1521,47 @@ void Processor::applyParamsToEngine() {
 
     }
 
+    // --- Voice Mod Routes (per-voice modulation routing) ---
+    {
+        using Krate::DSP::VoiceModSource;
+        using Krate::DSP::VoiceModDest;
+
+        // Fixed per-destination scales: convert raw offset to physical units
+        // These match the scales used throughout the engine and tests.
+        engine_.setVoiceModRouteScale(VoiceModDest::FilterCutoff, 48.0f);      // semitones
+        engine_.setVoiceModRouteScale(VoiceModDest::FilterResonance, 1.0f);    // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::MorphPosition, 1.0f);      // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::DistortionDrive, 1.0f);    // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::TranceGateDepth, 1.0f);    // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::OscAPitch, 24.0f);         // semitones
+        engine_.setVoiceModRouteScale(VoiceModDest::OscBPitch, 24.0f);         // semitones
+        engine_.setVoiceModRouteScale(VoiceModDest::OscALevel, 1.0f);         // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::OscBLevel, 1.0f);         // linear
+        engine_.setVoiceModRouteScale(VoiceModDest::SpectralTilt, 12.0f);     // dB/octave
+
+        for (int i = 0; i < Krate::Plugins::kMaxVoiceRoutes; ++i) {
+            auto r = voiceRoutes_[static_cast<size_t>(i)].load();
+
+            Krate::DSP::VoiceModRoute dspRoute;
+            dspRoute.source = static_cast<VoiceModSource>(r.source);
+            dspRoute.destination = static_cast<VoiceModDest>(r.destination);
+
+            // Apply scale multiplier to route amount
+            float scaleMul = kScaleMultipliers[std::clamp(
+                static_cast<int>(r.scale), 0, 4)];
+            dspRoute.amount = r.amount * scaleMul;
+
+            // Only activate if the route is active and not bypassed
+            if (r.active != 0 && r.bypass == 0) {
+                engine_.setVoiceModRoute(i, dspRoute);
+            } else {
+                // Clear inactive/bypassed routes
+                dspRoute.amount = 0.0f;
+                engine_.setVoiceModRoute(i, dspRoute);
+            }
+        }
+    }
+
     // --- Global Filter ---
     engine_.setGlobalFilterEnabled(globalFilterParams_.enabled.load(std::memory_order_relaxed));
     {

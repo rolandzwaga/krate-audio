@@ -61,6 +61,9 @@ add_executable(ruinae_tests
     integration/reverb_volume_test.cpp
     integration/chorus_reverb_artifact_test.cpp
 
+    # Voice Modulation → Filter Cutoff End-to-End Test
+    integration/voice_mod_filter_test.cpp
+
     # Arpeggiator Tests (071-arp-engine-integration)
     unit/parameters/arpeggiator_params_test.cpp
     unit/processor/arp_integration_test.cpp
@@ -175,6 +178,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         integration/morph_pad_modulation_test.cpp
         integration/reverb_volume_test.cpp
         integration/chorus_reverb_artifact_test.cpp
+        integration/voice_mod_filter_test.cpp
         unit/controller_params_test.cpp
         unit/controller_display_test.cpp
         unit/processor/arp_mod_integration_test.cpp
