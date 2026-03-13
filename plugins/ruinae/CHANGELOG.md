@@ -5,6 +5,15 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.12] - 2026-03-13
+
+### Added
+
+- **Mod source visualisers** — UI-thread visualisers for Rungler (XY Lissajous plot, CV staircase, shift register bits), Sample & Hold (scrolling time-series with trigger markers and slew smoothing), and Random (scrolling output with smoothness morphing) mod sources. Also added shared LFO waveform and Chaos mod display components
+- **Sidechain input bus** — Auxiliary stereo sidechain input for audio-dependent mod sources (EnvFollower, PitchFollower, Transient). Falls back to analyzing the synth's own output when no sidechain is connected
+- **Sidechain status indicators** — CTextLabel indicators on EnvFollower, PitchFollower, and Transient mod source views showing connection state (green "SIDECHAIN ACTIVE" / amber "NO SIDECHAIN — analyzing synth output")
+- **ADSR expanded overlay** — New overlay component for expanded ADSR envelope editing
+
 ## [0.9.11] - 2026-03-12
 
 ### Added
