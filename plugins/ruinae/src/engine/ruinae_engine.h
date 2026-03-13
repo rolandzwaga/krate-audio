@@ -482,6 +482,14 @@ public:
         globalModEngine_.setExternalSourceValue(slot, value);
     }
 
+    /// @brief Set sidechain audio input for the current block.
+    /// When connected, EnvFollower/PitchFollower/Transient analyze this instead
+    /// of the synth's own output. Pointers are cleared after each processBlock.
+    void setSidechainInput(const float* left, const float* right) noexcept {
+        sidechainL_ = left;
+        sidechainR_ = right;
+    }
+
     // =========================================================================
     // Modulation State Query (for UI feedback)
     // =========================================================================
@@ -729,9 +737,14 @@ public:
             }
         }
 
-        // Step 3: Process global modulation with previous block's output (FR-018)
-        globalModEngine_.process(ctx, previousOutputL_.data(),
-                                 previousOutputR_.data(), numSamples);
+        // Step 3: Process global modulation with audio input
+        // Use sidechain if connected, otherwise fall back to previous block's output
+        const float* modAudioL = sidechainL_ ? sidechainL_ : previousOutputL_.data();
+        const float* modAudioR = sidechainR_ ? sidechainR_ : previousOutputR_.data();
+        globalModEngine_.process(ctx, modAudioL, modAudioR, numSamples);
+        // Clear sidechain pointers (must be re-set each block by processor)
+        sidechainL_ = nullptr;
+        sidechainR_ = nullptr;
 
         // Step 4: Read global modulation offsets (FR-020)
         const float cutoffOffset = globalModEngine_.getModulationOffset(
@@ -1923,6 +1936,10 @@ private:
     std::vector<float> mixBufferR_;
     std::vector<float> previousOutputL_;
     std::vector<float> previousOutputR_;
+
+    // Sidechain input pointers (set per block, cleared after use)
+    const float* sidechainL_ = nullptr;
+    const float* sidechainR_ = nullptr;
 
     // =========================================================================
     // State

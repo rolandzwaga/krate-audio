@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "adsr_expanded_overlay.h"
 #include "plugin_ids.h"
 #include "version.h"
 #include "preset/ruinae_preset_config.h"
@@ -254,6 +255,23 @@ private:
     Ruinae::Controller* controller_ = nullptr;
 };
 
+class ADSRExpandButton : public OutlineButton {
+public:
+    ADSRExpandButton(const VSTGUI::CRect& size, Ruinae::Controller* controller,
+                     Ruinae::Controller::EnvelopeType envType,
+                     VSTGUI::CColor frameColor)
+        : OutlineButton(size, "Expand", frameColor)
+        , controller_(controller)
+        , envType_(envType) {}
+protected:
+    void onClick() override {
+        if (controller_) controller_->openAdsrExpandedOverlay(envType_);
+    }
+private:
+    Ruinae::Controller* controller_ = nullptr;
+    Ruinae::Controller::EnvelopeType envType_;
+};
+
 } // anonymous namespace
 
 namespace Ruinae {
@@ -383,6 +401,35 @@ VSTGUI::CView* Controller::createCustomView(
         attributes.getPointAttribute("size", size);
         VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
         return new Krate::Plugins::CheckForUpdatesButton(rect, updateChecker_.get());
+    }
+
+    // ADSR Expand Buttons
+    if (std::strcmp(name, "ADSRExpandButton.Amp") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(42, 14);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new ADSRExpandButton(rect, this, EnvelopeType::kAmp,
+            VSTGUI::CColor(0x50, 0x8C, 0xC8)); // amp-env color
+    }
+    if (std::strcmp(name, "ADSRExpandButton.Filter") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(42, 14);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new ADSRExpandButton(rect, this, EnvelopeType::kFilter,
+            VSTGUI::CColor(0xDC, 0xAA, 0x3C)); // filter-env color
+    }
+    if (std::strcmp(name, "ADSRExpandButton.Mod") == 0) {
+        VSTGUI::CPoint origin(0, 0);
+        VSTGUI::CPoint size(42, 14);
+        attributes.getPointAttribute("origin", origin);
+        attributes.getPointAttribute("size", size);
+        VSTGUI::CRect rect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
+        return new ADSRExpandButton(rect, this, EnvelopeType::kMod,
+            VSTGUI::CColor(0xA0, 0x5A, 0xC8)); // mod-env color
     }
 
     // Version label (dynamic, reads VERSION_STR)

@@ -2022,6 +2022,12 @@
         <view class="CTextLabel" origin="134, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Quantize"/>
+
+        <!-- Waveform Display -->
+        <view class="LfoWaveformDisplay"
+              origin="12, 146" size="510, 230"
+              custom-view-name="LFO1WaveformDisplay"
+              lfo-color="#5AC882"/>
     </template>
 
     <template name="ModSource_LFO2" size="540, 400" class="CViewContainer" transparent="true">
@@ -2111,6 +2117,12 @@
         <view class="CTextLabel" origin="134, 122" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Quantize"/>
+
+        <!-- Waveform Display -->
+        <view class="LfoWaveformDisplay"
+              origin="12, 146" size="510, 230"
+              custom-view-name="LFO2WaveformDisplay"
+              lfo-color="#5AC882"/>
     </template>
 
     <template name="ModSource_Chaos" size="540, 400" class="CViewContainer" transparent="true">
@@ -2164,6 +2176,12 @@
               title="Sync"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
+
+        <!-- Chaos Mod Display (XY attractor + scrolling output) -->
+        <view class="ChaosModDisplay"
+              origin="12, 90" size="510, 290"
+              custom-view-name="ChaosModDisplay"
+              chaos-color="#5AC882"/>
     </template>
 
     <template name="ModSource_Macros" size="540, 400" class="CViewContainer" transparent="true">
@@ -2234,6 +2252,12 @@
               title="Loop"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
+
+        <!-- Rungler Display (XY Lissajous + staircase CV + shift register bits) -->
+        <view class="RunglerDisplay"
+              origin="12, 145" size="510, 245"
+              custom-view-name="RunglerDisplay"
+              rungler-color="#5AC882"/>
     </template>
     <template name="ModSource_EnvFollower" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
@@ -2257,6 +2281,13 @@
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Rel"/>
+
+        <!-- Sidechain status indicator -->
+        <view class="CTextLabel" origin="12, 70" size="510, 14"
+              custom-view-name="SidechainIndicatorEnvFollower"
+              font="~ NormalFontSmaller" font-color="#C8A03C"
+              text-alignment="left" transparent="true"
+              title="NO SIDECHAIN &#x2014; analyzing synth output"/>
     </template>
     <template name="ModSource_SampleHold" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
@@ -2297,6 +2328,12 @@
               title="Sync"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
+
+        <!-- S&H Display (scrolling staircase with trigger markers + slew) -->
+        <view class="SampleHoldDisplay"
+              origin="12, 90" size="510, 300"
+              custom-view-name="SampleHoldDisplay"
+              sh-color="#5AC882"/>
     </template>
     <template name="ModSource_Random" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Rate (hidden when sync active) -->
@@ -2337,6 +2374,12 @@
               title="Sync"
               on-color="modulation" off-color="toggle-off"
               font-size="9"/>
+
+        <!-- Random Display (scrolling output with smoothness curves) -->
+        <view class="RandomModDisplay"
+              origin="12, 90" size="510, 300"
+              custom-view-name="RandomModDisplay"
+              random-color="#5AC882"/>
     </template>
     <template name="ModSource_PitchFollower" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Min Hz -->
@@ -2367,6 +2410,13 @@
         <view class="CTextLabel" origin="198, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Speed"/>
+
+        <!-- Sidechain status indicator -->
+        <view class="CTextLabel" origin="12, 70" size="510, 14"
+              custom-view-name="SidechainIndicatorPitchFollower"
+              font="~ NormalFontSmaller" font-color="#C8A03C"
+              text-alignment="left" transparent="true"
+              title="NO SIDECHAIN &#x2014; analyzing synth output"/>
     </template>
     <template name="ModSource_Transient" size="540, 400" class="CViewContainer" transparent="true">
         <!-- Sensitivity -->
@@ -2390,6 +2440,13 @@
         <view class="CTextLabel" origin="134, 46" size="48, 12"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="center" transparent="true" title="Decay"/>
+
+        <!-- Sidechain status indicator -->
+        <view class="CTextLabel" origin="12, 70" size="510, 14"
+              custom-view-name="SidechainIndicatorTransient"
+              font="~ NormalFontSmaller" font-color="#C8A03C"
+              text-alignment="left" transparent="true"
+              title="NO SIDECHAIN &#x2014; analyzing synth output"/>
     </template>
 
     <!-- ============================================================ -->
@@ -4076,6 +4133,9 @@
                       control-point-color="amp-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <view class="CView" origin="396, 125" size="42, 14"
+                      custom-view-name="ADSRExpandButton.Amp"
+                      transparent="true"/>
                 <!-- ADSR Knobs -->
                 <view class="ArcKnob" origin="55, 143" size="28, 28"
                       control-tag="AmpEnvAttack"
@@ -4116,6 +4176,9 @@
                       control-point-color="filter-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <view class="CView" origin="396, 125" size="42, 14"
+                      custom-view-name="ADSRExpandButton.Filter"
+                      transparent="true"/>
                 <!-- ADSR Knobs -->
                 <view class="ArcKnob" origin="55, 143" size="28, 28"
                       control-tag="FilterEnvAttack"
@@ -4156,6 +4219,9 @@
                       control-point-color="mod-env"
                       background-color="bg-display" grid-color="grid"
                       text-color="text-secondary"/>
+                <view class="CView" origin="428, 125" size="42, 14"
+                      custom-view-name="ADSRExpandButton.Mod"
+                      transparent="true"/>
                 <!-- ADSR Knobs -->
                 <view class="ArcKnob" origin="59, 143" size="28, 28"
                       control-tag="ModEnvAttack"

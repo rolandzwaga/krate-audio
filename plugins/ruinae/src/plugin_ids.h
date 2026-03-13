@@ -1191,8 +1191,11 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
 
     kArpEndId = 3372,
 
+    // --- Sidechain Status (output parameter, not persisted) ---
+    kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active
+
     // ==========================================================================
-    kNumParameters = 3373,
+    kNumParameters = 3401,
 
     // ==========================================================================
     // UI Action Button Tags (NOT VST parameters - UI-only triggers)

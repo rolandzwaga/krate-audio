@@ -25,11 +25,19 @@
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
 #include "ui/xy_morph_pad.h"
+#include "adsr_expanded_overlay.h"
 #include "ui/adsr_display.h"
 #include "ui/mod_matrix_grid.h"
 #include "ui/mod_ring_indicator.h"
 #include "ui/mod_heatmap.h"
 #include "ui/euclidean_dot_display.h"
+#include "ui/lfo_waveform_display.h"
+#include "ui/chaos_mod_display.h"
+#include "ui/rungler_display.h"
+#include "ui/sample_hold_display.h"
+#include "ui/random_mod_display.h"
+#include "vstgui/lib/controls/ctextlabel.h"
+#include <krate/dsp/core/note_value.h>
 #include "ui/category_tab_bar.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
@@ -245,6 +253,11 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
     registerPitchFollowerParams(parameters);
     registerTransientParams(parameters);
     registerArpParams(parameters);
+
+    // Sidechain active status (hidden, read-only output parameter)
+    parameters.addParameter(STR16("Sidechain Active"), STR16(""), 0, 0.0,
+        Steinberg::Vst::ParameterInfo::kIsHidden | Steinberg::Vst::ParameterInfo::kIsReadOnly,
+        kSidechainActiveId);
 
     // ==========================================================================
     // Initialize Preset Manager
@@ -716,9 +729,109 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
         if (lfo2RateGroup_) lfo2RateGroup_->setVisible(value < 0.5);
         if (lfo2NoteValueGroup_) lfo2NoteValueGroup_->setVisible(value >= 0.5);
     }
+
+    // Update LFO waveform displays when relevant parameters change
+    // Helper: compute LFO frequency from sync state, rate, and note value params
+    auto computeLfoFreq = [this](Steinberg::Vst::ParamID syncId,
+                                  Steinberg::Vst::ParamID rateId,
+                                  Steinberg::Vst::ParamID noteValueId) -> float {
+        auto* syncParam = getParameterObject(syncId);
+        bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+        if (synced) {
+            auto* nvParam = getParameterObject(noteValueId);
+            int nvIdx = nvParam ? static_cast<int>(
+                nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
+            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
+            return bps / beats;
+        }
+        auto* rateParam = getParameterObject(rateId);
+        return rateParam ? lfoRateFromNormalized(rateParam->getNormalized()) : 1.0f;
+    };
+
+    if (lfo1WaveformDisplay_) {
+        if (tag == kLFO1ShapeId)
+            lfo1WaveformDisplay_->setShape(static_cast<int>(value * 5.0 + 0.5));
+        else if (tag == kLFO1SymmetryId)
+            lfo1WaveformDisplay_->setSymmetry(static_cast<float>(value));
+        else if (tag == kLFO1QuantizeId)
+            lfo1WaveformDisplay_->setQuantizeSteps(lfoQuantizeFromNormalized(value));
+        else if (tag == kLFO1UnipolarId)
+            lfo1WaveformDisplay_->setUnipolar(value >= 0.5);
+        else if (tag == kLFO1PhaseOffsetId)
+            lfo1WaveformDisplay_->setPhaseOffset(static_cast<float>(value));
+        else if (tag == kLFO1DepthId)
+            lfo1WaveformDisplay_->setDepth(static_cast<float>(value));
+        else if (tag == kLFO1FadeInId)
+            lfo1WaveformDisplay_->setFadeInMs(lfoFadeInFromNormalized(value));
+        if (tag == kLFO1RateId || tag == kLFO1SyncId || tag == kLFO1NoteValueId)
+            lfo1WaveformDisplay_->setFrequencyHz(
+                computeLfoFreq(kLFO1SyncId, kLFO1RateId, kLFO1NoteValueId));
+    }
+    if (lfo2WaveformDisplay_) {
+        if (tag == kLFO2ShapeId)
+            lfo2WaveformDisplay_->setShape(static_cast<int>(value * 5.0 + 0.5));
+        else if (tag == kLFO2SymmetryId)
+            lfo2WaveformDisplay_->setSymmetry(static_cast<float>(value));
+        else if (tag == kLFO2QuantizeId)
+            lfo2WaveformDisplay_->setQuantizeSteps(lfoQuantizeFromNormalized(value));
+        else if (tag == kLFO2UnipolarId)
+            lfo2WaveformDisplay_->setUnipolar(value >= 0.5);
+        else if (tag == kLFO2PhaseOffsetId)
+            lfo2WaveformDisplay_->setPhaseOffset(static_cast<float>(value));
+        else if (tag == kLFO2DepthId)
+            lfo2WaveformDisplay_->setDepth(static_cast<float>(value));
+        else if (tag == kLFO2FadeInId)
+            lfo2WaveformDisplay_->setFadeInMs(lfoFadeInFromNormalized(value));
+        if (tag == kLFO2RateId || tag == kLFO2SyncId || tag == kLFO2NoteValueId)
+            lfo2WaveformDisplay_->setFrequencyHz(
+                computeLfoFreq(kLFO2SyncId, kLFO2RateId, kLFO2NoteValueId));
+    }
     if (tag == kChaosModSyncId) {
         if (chaosRateGroup_) chaosRateGroup_->setVisible(value < 0.5);
         if (chaosNoteValueGroup_) chaosNoteValueGroup_->setVisible(value >= 0.5);
+    }
+    // Update chaos mod display when type, rate, depth, sync, or note value changes
+    if (chaosModDisplay_) {
+        if (tag == kChaosModTypeId)
+            chaosModDisplay_->setModel(static_cast<int>(value * (kChaosTypeCount - 1) + 0.5));
+        if (tag == kChaosModRateId || tag == kChaosModSyncId || tag == kChaosModNoteValueId)
+            chaosModDisplay_->setSpeed(
+                computeLfoFreq(kChaosModSyncId, kChaosModRateId, kChaosModNoteValueId));
+        if (tag == kChaosModDepthId)
+            chaosModDisplay_->setDepth(static_cast<float>(value));
+    }
+    // Update rungler display when any rungler parameter changes
+    if (runglerDisplay_) {
+        if (tag == kRunglerOsc1FreqId)
+            runglerDisplay_->setOsc1Freq(runglerFreqFromNormalized(value));
+        if (tag == kRunglerOsc2FreqId)
+            runglerDisplay_->setOsc2Freq(runglerFreqFromNormalized(value));
+        if (tag == kRunglerDepthId)
+            runglerDisplay_->setDepth(static_cast<float>(value));
+        if (tag == kRunglerFilterId)
+            runglerDisplay_->setFilterAmount(static_cast<float>(value));
+        if (tag == kRunglerBitsId)
+            runglerDisplay_->setBits(runglerBitsFromNormalized(value));
+        if (tag == kRunglerLoopModeId)
+            runglerDisplay_->setLoopMode(value >= 0.5);
+    }
+    // Update S&H display when rate, slew, sync, or note value changes
+    if (sampleHoldDisplay_) {
+        if (tag == kSampleHoldRateId || tag == kSampleHoldSyncId || tag == kSampleHoldNoteValueId)
+            sampleHoldDisplay_->setRate(
+                computeLfoFreq(kSampleHoldSyncId, kSampleHoldRateId, kSampleHoldNoteValueId));
+        if (tag == kSampleHoldSlewId)
+            sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(value));
+    }
+    // Update random display when rate, smoothness, sync, or note value changes
+    if (randomModDisplay_) {
+        if (tag == kRandomRateId || tag == kRandomSyncId || tag == kRandomNoteValueId)
+            randomModDisplay_->setRate(
+                computeLfoFreq(kRandomSyncId, kRandomRateId, kRandomNoteValueId));
+        if (tag == kRandomSmoothnessId)
+            randomModDisplay_->setSmoothness(static_cast<float>(value));
     }
     if (tag == kSampleHoldSyncId) {
         if (shRateGroup_) shRateGroup_->setVisible(value < 0.5);
@@ -727,6 +840,13 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     if (tag == kRandomSyncId) {
         if (randomRateGroup_) randomRateGroup_->setVisible(value < 0.5);
         if (randomNoteValueGroup_) randomNoteValueGroup_->setVisible(value >= 0.5);
+    }
+    // Update sidechain indicator on all 3 audio-dependent mod source views
+    if (tag == kSidechainActiveId) {
+        sidechainActive_ = value >= 0.5;
+        updateSidechainIndicator(sidechainIndicatorEnvFollower_);
+        updateSidechainIndicator(sidechainIndicatorPitchFollower_);
+        updateSidechainIndicator(sidechainIndicatorTransient_);
     }
     if (tag == kDelaySyncId) {
         if (delayTimeGroup_) delayTimeGroup_->setVisible(value < 0.5);
@@ -848,6 +968,26 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
     syncAdsrParamToDisplay(tag, value, modEnvDisplay_,
         kModEnvAttackId, kModEnvAttackCurveId,
         kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
+
+    // Forward to expanded ADSR display if open and matching current envelope
+    if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen()) {
+        auto* expandedDisplay = adsrExpandedOverlay_->getDisplay();
+        if (expandedDisplay) {
+            if (expandedEnvType_ == EnvelopeType::kAmp) {
+                syncAdsrParamToDisplay(tag, value, expandedDisplay,
+                    kAmpEnvAttackId, kAmpEnvAttackCurveId,
+                    kAmpEnvBezierEnabledId, kAmpEnvBezierAttackCp1XId);
+            } else if (expandedEnvType_ == EnvelopeType::kFilter) {
+                syncAdsrParamToDisplay(tag, value, expandedDisplay,
+                    kFilterEnvAttackId, kFilterEnvAttackCurveId,
+                    kFilterEnvBezierEnabledId, kFilterEnvBezierAttackCp1XId);
+            } else if (expandedEnvType_ == EnvelopeType::kMod) {
+                syncAdsrParamToDisplay(tag, value, expandedDisplay,
+                    kModEnvAttackId, kModEnvAttackCurveId,
+                    kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
+            }
+        }
+    }
 
     // Push mod matrix parameter changes to ModMatrixGrid and ModRingIndicators
     if (tag >= kModMatrixBaseId && tag <= kModMatrixDetailEndId) {
@@ -999,6 +1139,34 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
         }
     }
 
+    // Create ADSR expanded overlay (single shared overlay for all 3 envelopes)
+    {
+        auto* frame = editor->getFrame();
+        if (frame && !adsrExpandedOverlay_) {
+            auto frameSize = frame->getViewSize();
+            adsrExpandedOverlay_ = new ADSRExpandedOverlayView(frameSize);
+
+            // Wire the expanded display's callbacks
+            auto* expandedDisplay = adsrExpandedOverlay_->getDisplay();
+            if (expandedDisplay) {
+                expandedDisplay->setParameterCallback(
+                    [this](uint32_t paramId, float normalizedValue) {
+                        setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                        performEdit(paramId, static_cast<double>(normalizedValue));
+                    });
+                expandedDisplay->setBeginEditCallback(
+                    [this](uint32_t paramId) { beginEdit(paramId); });
+                expandedDisplay->setEndEditCallback(
+                    [this](uint32_t paramId) { endEdit(paramId); });
+            }
+
+            adsrExpandedOverlay_->setCloseCallback(
+                [this]() { closeAdsrExpandedOverlay(); });
+
+            frame->addView(adsrExpandedOverlay_);
+        }
+    }
+
     // Start update check and banner polling
     if (updateChecker_) {
         updateChecker_->checkForUpdate(false);
@@ -1088,6 +1256,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         presetBrowserView_ = nullptr;
         arpPresetBrowserView_ = nullptr;
         savePresetDialogView_ = nullptr;
+        adsrExpandedOverlay_ = nullptr;
 
         // Stop update banner polling (view is owned by frame)
         if (updateBannerView_) {
@@ -1723,6 +1892,201 @@ VSTGUI::CView* Controller::verifyView(
                 view->setAlphaValue(isBitcrush ? 0.35f : 1.0f);
                 view->setMouseEnabled(!isBitcrush);
             }
+
+            // LFO Waveform Displays
+            auto* lfoDisplay = dynamic_cast<Krate::Plugins::LfoWaveformDisplay*>(view);
+            if (lfoDisplay) {
+                auto syncLfoDisplay = [&](Krate::Plugins::LfoWaveformDisplay* display,
+                                          Steinberg::Vst::ParamID shapeId,
+                                          Steinberg::Vst::ParamID symmetryId,
+                                          Steinberg::Vst::ParamID quantizeId,
+                                          Steinberg::Vst::ParamID unipolarId,
+                                          Steinberg::Vst::ParamID phaseId,
+                                          Steinberg::Vst::ParamID rateId,
+                                          Steinberg::Vst::ParamID syncId,
+                                          Steinberg::Vst::ParamID noteValueId,
+                                          Steinberg::Vst::ParamID depthId,
+                                          Steinberg::Vst::ParamID fadeInId) {
+                    auto* p = getParameterObject(shapeId);
+                    if (p) display->setShape(static_cast<int>(p->getNormalized() * 5.0 + 0.5));
+                    p = getParameterObject(symmetryId);
+                    if (p) display->setSymmetry(static_cast<float>(p->getNormalized()));
+                    p = getParameterObject(quantizeId);
+                    if (p) display->setQuantizeSteps(lfoQuantizeFromNormalized(p->getNormalized()));
+                    p = getParameterObject(unipolarId);
+                    if (p) display->setUnipolar(p->getNormalized() >= 0.5);
+                    p = getParameterObject(phaseId);
+                    if (p) display->setPhaseOffset(static_cast<float>(p->getNormalized()));
+                    p = getParameterObject(depthId);
+                    if (p) display->setDepth(static_cast<float>(p->getNormalized()));
+                    p = getParameterObject(fadeInId);
+                    if (p) display->setFadeInMs(lfoFadeInFromNormalized(p->getNormalized()));
+
+                    // Compute and set frequency
+                    auto* syncParam = getParameterObject(syncId);
+                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    if (synced) {
+                        auto* nvParam = getParameterObject(noteValueId);
+                        int nvIdx = nvParam ? static_cast<int>(
+                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
+                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+                        float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
+                        display->setFrequencyHz(bps / beats);
+                    } else {
+                        auto* rateParam = getParameterObject(rateId);
+                        if (rateParam)
+                            display->setFrequencyHz(lfoRateFromNormalized(rateParam->getNormalized()));
+                    }
+                };
+
+                if (*viewName == "LFO1WaveformDisplay") {
+                    lfo1WaveformDisplay_ = lfoDisplay;
+                    syncLfoDisplay(lfoDisplay,
+                                   kLFO1ShapeId, kLFO1SymmetryId, kLFO1QuantizeId,
+                                   kLFO1UnipolarId, kLFO1PhaseOffsetId,
+                                   kLFO1RateId, kLFO1SyncId, kLFO1NoteValueId,
+                                   kLFO1DepthId, kLFO1FadeInId);
+                } else if (*viewName == "LFO2WaveformDisplay") {
+                    lfo2WaveformDisplay_ = lfoDisplay;
+                    syncLfoDisplay(lfoDisplay,
+                                   kLFO2ShapeId, kLFO2SymmetryId, kLFO2QuantizeId,
+                                   kLFO2UnipolarId, kLFO2PhaseOffsetId,
+                                   kLFO2RateId, kLFO2SyncId, kLFO2NoteValueId,
+                                   kLFO2DepthId, kLFO2FadeInId);
+                }
+            }
+
+            // Chaos Mod Display
+            auto* chaosDisplay = dynamic_cast<Krate::Plugins::ChaosModDisplay*>(view);
+            if (chaosDisplay && viewName && *viewName == "ChaosModDisplay") {
+                chaosModDisplay_ = chaosDisplay;
+                // Sync current parameter state
+                auto* typeParam = getParameterObject(kChaosModTypeId);
+                if (typeParam)
+                    chaosDisplay->setModel(static_cast<int>(
+                        typeParam->getNormalized() * (kChaosTypeCount - 1) + 0.5));
+                // Compute effective speed from sync state
+                {
+                    auto* syncParam = getParameterObject(kChaosModSyncId);
+                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    if (synced) {
+                        auto* nvParam = getParameterObject(kChaosModNoteValueId);
+                        int nvIdx = nvParam ? static_cast<int>(
+                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
+                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+                        float bps = 120.0f / 60.0f;
+                        chaosDisplay->setSpeed(bps / beats);
+                    } else {
+                        auto* rateParam = getParameterObject(kChaosModRateId);
+                        if (rateParam)
+                            chaosDisplay->setSpeed(lfoRateFromNormalized(rateParam->getNormalized()));
+                    }
+                }
+                auto* depthParam = getParameterObject(kChaosModDepthId);
+                if (depthParam)
+                    chaosDisplay->setDepth(static_cast<float>(depthParam->getNormalized()));
+            }
+
+            // Rungler Display
+            auto* runglerDisp = dynamic_cast<Krate::Plugins::RunglerDisplay*>(view);
+            if (runglerDisp && viewName && *viewName == "RunglerDisplay") {
+                runglerDisplay_ = runglerDisp;
+                // Sync current parameter state
+                auto* osc1Param = getParameterObject(kRunglerOsc1FreqId);
+                if (osc1Param)
+                    runglerDisp->setOsc1Freq(runglerFreqFromNormalized(osc1Param->getNormalized()));
+                auto* osc2Param = getParameterObject(kRunglerOsc2FreqId);
+                if (osc2Param)
+                    runglerDisp->setOsc2Freq(runglerFreqFromNormalized(osc2Param->getNormalized()));
+                auto* depthP = getParameterObject(kRunglerDepthId);
+                if (depthP)
+                    runglerDisp->setDepth(static_cast<float>(depthP->getNormalized()));
+                auto* filterParam = getParameterObject(kRunglerFilterId);
+                if (filterParam)
+                    runglerDisp->setFilterAmount(static_cast<float>(filterParam->getNormalized()));
+                auto* bitsParam = getParameterObject(kRunglerBitsId);
+                if (bitsParam)
+                    runglerDisp->setBits(runglerBitsFromNormalized(bitsParam->getNormalized()));
+                auto* loopParam = getParameterObject(kRunglerLoopModeId);
+                if (loopParam)
+                    runglerDisp->setLoopMode(loopParam->getNormalized() >= 0.5);
+            }
+
+            // Sample & Hold Display
+            auto* shDisp = dynamic_cast<Krate::Plugins::SampleHoldDisplay*>(view);
+            if (shDisp && viewName && *viewName == "SampleHoldDisplay") {
+                sampleHoldDisplay_ = shDisp;
+                // Compute effective rate from sync state
+                {
+                    auto* syncParam = getParameterObject(kSampleHoldSyncId);
+                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    if (synced) {
+                        auto* nvParam = getParameterObject(kSampleHoldNoteValueId);
+                        int nvIdx = nvParam ? static_cast<int>(
+                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
+                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+                        float bps = 120.0f / 60.0f;
+                        shDisp->setRate(bps / beats);
+                    } else {
+                        auto* rateParam = getParameterObject(kSampleHoldRateId);
+                        if (rateParam)
+                            shDisp->setRate(lfoRateFromNormalized(rateParam->getNormalized()));
+                    }
+                }
+                auto* slewParam = getParameterObject(kSampleHoldSlewId);
+                if (slewParam)
+                    shDisp->setSlew(sampleHoldSlewFromNormalized(slewParam->getNormalized()));
+            }
+
+            // Random Mod Display
+            auto* rndDisp = dynamic_cast<Krate::Plugins::RandomModDisplay*>(view);
+            if (rndDisp && viewName && *viewName == "RandomModDisplay") {
+                randomModDisplay_ = rndDisp;
+                // Compute effective rate from sync state
+                {
+                    auto* syncParam = getParameterObject(kRandomSyncId);
+                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    if (synced) {
+                        auto* nvParam = getParameterObject(kRandomNoteValueId);
+                        int nvIdx = nvParam ? static_cast<int>(
+                            nvParam->getNormalized() * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5) : 10;
+                        auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+                        float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+                        float bps = 120.0f / 60.0f;
+                        rndDisp->setRate(bps / beats);
+                    } else {
+                        auto* rateParam = getParameterObject(kRandomRateId);
+                        if (rateParam)
+                            rndDisp->setRate(lfoRateFromNormalized(rateParam->getNormalized()));
+                    }
+                }
+                auto* smoothParam = getParameterObject(kRandomSmoothnessId);
+                if (smoothParam)
+                    rndDisp->setSmoothness(static_cast<float>(smoothParam->getNormalized()));
+            }
+        }
+    }
+
+    // Wire sidechain indicator labels
+    {
+        auto* textLabel = dynamic_cast<VSTGUI::CTextLabel*>(view);
+        if (textLabel) {
+            const auto* scName = attributes.getAttributeValue("custom-view-name");
+            if (scName) {
+                if (*scName == "SidechainIndicatorEnvFollower") {
+                    sidechainIndicatorEnvFollower_ = textLabel;
+                    updateSidechainIndicator(textLabel);
+                } else if (*scName == "SidechainIndicatorPitchFollower") {
+                    sidechainIndicatorPitchFollower_ = textLabel;
+                    updateSidechainIndicator(textLabel);
+                } else if (*scName == "SidechainIndicatorTransient") {
+                    sidechainIndicatorTransient_ = textLabel;
+                    updateSidechainIndicator(textLabel);
+                }
+            }
         }
     }
 
@@ -2038,6 +2402,25 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 }
 
 // ==============================================================================
+// ==============================================================================
+// Sidechain Indicator Update
+// ==============================================================================
+
+void Controller::updateSidechainIndicator(VSTGUI::CView* indicator) {
+    auto* label = dynamic_cast<VSTGUI::CTextLabel*>(indicator);
+    if (!label) return;
+
+    if (sidechainActive_) {
+        label->setText("SIDECHAIN ACTIVE");
+        label->setFontColor(VSTGUI::CColor(90, 200, 130, 255));  // green
+    } else {
+        label->setText("NO SIDECHAIN \xe2\x80\x94 analyzing synth output");
+        label->setFontColor(VSTGUI::CColor(200, 160, 60, 255));  // amber
+    }
+    label->invalid();
+}
+
+// ==============================================================================
 // Batch View Sync (bulk parameter load guard)
 // ==============================================================================
 // Called once after setComponentState() or loadComponentStateWithNotify() to
@@ -2188,6 +2571,112 @@ void Controller::syncAllViews() {
     };
     syncVisGroup(kLFO1SyncId, lfo1RateGroup_, lfo1NoteValueGroup_);
     syncVisGroup(kLFO2SyncId, lfo2RateGroup_, lfo2NoteValueGroup_);
+
+    // ---- LFO Waveform Displays ----
+    auto syncLfoWaveform = [&](Krate::Plugins::LfoWaveformDisplay* display,
+                               Steinberg::Vst::ParamID shapeId,
+                               Steinberg::Vst::ParamID symmetryId,
+                               Steinberg::Vst::ParamID quantizeId,
+                               Steinberg::Vst::ParamID unipolarId,
+                               Steinberg::Vst::ParamID phaseId,
+                               Steinberg::Vst::ParamID rateId,
+                               Steinberg::Vst::ParamID syncId,
+                               Steinberg::Vst::ParamID noteValueId,
+                               Steinberg::Vst::ParamID depthId,
+                               Steinberg::Vst::ParamID fadeInId) {
+        if (!display) return;
+        display->setShape(static_cast<int>(paramNorm(shapeId) * 5.0 + 0.5));
+        display->setSymmetry(static_cast<float>(paramNorm(symmetryId)));
+        display->setQuantizeSteps(lfoQuantizeFromNormalized(paramNorm(quantizeId)));
+        display->setUnipolar(paramNorm(unipolarId) >= 0.5);
+        display->setPhaseOffset(static_cast<float>(paramNorm(phaseId)));
+        display->setDepth(static_cast<float>(paramNorm(depthId)));
+        display->setFadeInMs(lfoFadeInFromNormalized(paramNorm(fadeInId)));
+
+        bool synced = paramNorm(syncId) >= 0.5;
+        if (synced) {
+            int nvIdx = static_cast<int>(
+                paramNorm(noteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
+            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            float bps = Krate::Plugins::LfoWaveformDisplay::kDefaultBpm / 60.0f;
+            display->setFrequencyHz(bps / beats);
+        } else {
+            display->setFrequencyHz(lfoRateFromNormalized(paramNorm(rateId)));
+        }
+    };
+    syncLfoWaveform(lfo1WaveformDisplay_,
+                    kLFO1ShapeId, kLFO1SymmetryId, kLFO1QuantizeId,
+                    kLFO1UnipolarId, kLFO1PhaseOffsetId,
+                    kLFO1RateId, kLFO1SyncId, kLFO1NoteValueId,
+                    kLFO1DepthId, kLFO1FadeInId);
+    syncLfoWaveform(lfo2WaveformDisplay_,
+                    kLFO2ShapeId, kLFO2SymmetryId, kLFO2QuantizeId,
+                    kLFO2UnipolarId, kLFO2PhaseOffsetId,
+                    kLFO2RateId, kLFO2SyncId, kLFO2NoteValueId,
+                    kLFO2DepthId, kLFO2FadeInId);
+    // Sync chaos mod display
+    if (chaosModDisplay_) {
+        chaosModDisplay_->setModel(static_cast<int>(
+            paramNorm(kChaosModTypeId) * (kChaosTypeCount - 1) + 0.5));
+        // Compute effective speed from sync state
+        bool chaosSynced = paramNorm(kChaosModSyncId) >= 0.5;
+        if (chaosSynced) {
+            int nvIdx = static_cast<int>(
+                paramNorm(kChaosModNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
+            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            float bps = 120.0f / 60.0f;
+            chaosModDisplay_->setSpeed(bps / beats);
+        } else {
+            chaosModDisplay_->setSpeed(lfoRateFromNormalized(paramNorm(kChaosModRateId)));
+        }
+        chaosModDisplay_->setDepth(static_cast<float>(paramNorm(kChaosModDepthId)));
+    }
+    // Sync rungler display
+    if (runglerDisplay_) {
+        runglerDisplay_->setOsc1Freq(runglerFreqFromNormalized(paramNorm(kRunglerOsc1FreqId)));
+        runglerDisplay_->setOsc2Freq(runglerFreqFromNormalized(paramNorm(kRunglerOsc2FreqId)));
+        runglerDisplay_->setDepth(static_cast<float>(paramNorm(kRunglerDepthId)));
+        runglerDisplay_->setFilterAmount(static_cast<float>(paramNorm(kRunglerFilterId)));
+        runglerDisplay_->setBits(runglerBitsFromNormalized(paramNorm(kRunglerBitsId)));
+        runglerDisplay_->setLoopMode(paramNorm(kRunglerLoopModeId) >= 0.5);
+    }
+    // Sync S&H display
+    if (sampleHoldDisplay_) {
+        bool shSynced = paramNorm(kSampleHoldSyncId) >= 0.5;
+        if (shSynced) {
+            int nvIdx = static_cast<int>(
+                paramNorm(kSampleHoldNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
+            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            float bps = 120.0f / 60.0f;
+            sampleHoldDisplay_->setRate(bps / beats);
+        } else {
+            sampleHoldDisplay_->setRate(lfoRateFromNormalized(paramNorm(kSampleHoldRateId)));
+        }
+        sampleHoldDisplay_->setSlew(sampleHoldSlewFromNormalized(paramNorm(kSampleHoldSlewId)));
+    }
+    // Sync random display
+    if (randomModDisplay_) {
+        bool rndSynced = paramNorm(kRandomSyncId) >= 0.5;
+        if (rndSynced) {
+            int nvIdx = static_cast<int>(
+                paramNorm(kRandomNoteValueId) * (Krate::DSP::kNoteValueDropdownCount - 1) + 0.5);
+            auto mapping = Krate::DSP::getNoteValueFromDropdown(nvIdx);
+            float beats = Krate::DSP::getBeatsForNote(mapping.note, mapping.modifier);
+            float bps = 120.0f / 60.0f;
+            randomModDisplay_->setRate(bps / beats);
+        } else {
+            randomModDisplay_->setRate(lfoRateFromNormalized(paramNorm(kRandomRateId)));
+        }
+        randomModDisplay_->setSmoothness(static_cast<float>(paramNorm(kRandomSmoothnessId)));
+    }
+    // Sync sidechain indicators
+    sidechainActive_ = paramNorm(kSidechainActiveId) >= 0.5;
+    updateSidechainIndicator(sidechainIndicatorEnvFollower_);
+    updateSidechainIndicator(sidechainIndicatorPitchFollower_);
+    updateSidechainIndicator(sidechainIndicatorTransient_);
     syncVisGroup(kChaosModSyncId, chaosRateGroup_, chaosNoteValueGroup_);
     syncVisGroup(kSampleHoldSyncId, shRateGroup_, shNoteValueGroup_);
     syncVisGroup(kRandomSyncId, randomRateGroup_, randomNoteValueGroup_);
@@ -2316,10 +2805,119 @@ void Controller::syncAllViews() {
         }
     }
 
+    // ---- Expanded ADSR overlay ----
+    if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen()) {
+        auto* expandedDisplay = adsrExpandedOverlay_->getDisplay();
+        if (expandedDisplay) {
+            if (expandedEnvType_ == EnvelopeType::kAmp) {
+                syncAdsrDisplay(expandedDisplay,
+                    kAmpEnvAttackId, kAmpEnvAttackCurveId,
+                    kAmpEnvBezierEnabledId, kAmpEnvBezierAttackCp1XId);
+            } else if (expandedEnvType_ == EnvelopeType::kFilter) {
+                syncAdsrDisplay(expandedDisplay,
+                    kFilterEnvAttackId, kFilterEnvAttackCurveId,
+                    kFilterEnvBezierEnabledId, kFilterEnvBezierAttackCp1XId);
+            } else if (expandedEnvType_ == EnvelopeType::kMod) {
+                syncAdsrDisplay(expandedDisplay,
+                    kModEnvAttackId, kModEnvAttackCurveId,
+                    kModEnvBezierEnabledId, kModEnvBezierAttackCp1XId);
+            }
+        }
+    }
+
     // ---- Single full-frame repaint instead of thousands of invalidRects ----
     if (activeEditor_ && activeEditor_->getFrame()) {
         activeEditor_->getFrame()->invalid();
     }
+}
+
+// ==============================================================================
+// ADSR Expanded Overlay
+// ==============================================================================
+
+void Controller::openAdsrExpandedOverlay(EnvelopeType env) {
+    if (!adsrExpandedOverlay_)
+        return;
+
+    expandedEnvType_ = env;
+
+    auto* display = adsrExpandedOverlay_->getDisplay();
+    if (!display)
+        return;
+
+    // Configure title and colors based on envelope type
+    uint32_t adsrBaseId = 0;
+    uint32_t curveBaseId = 0;
+    uint32_t bezierEnabledId = 0;
+    uint32_t bezierBaseId = 0;
+
+    switch (env) {
+    case EnvelopeType::kAmp:
+        adsrExpandedOverlay_->setTitle("AMP Envelope");
+        adsrExpandedOverlay_->setColors(
+            VSTGUI::CColor(0x50, 0x8C, 0xC8),       // amp-env stroke
+            VSTGUI::CColor(0x50, 0x8C, 0xC8, 0x40),  // amp-env fill
+            VSTGUI::CColor(0x50, 0x8C, 0xC8));        // amp-env control-point
+        adsrBaseId = kAmpEnvAttackId;
+        curveBaseId = kAmpEnvAttackCurveId;
+        bezierEnabledId = kAmpEnvBezierEnabledId;
+        bezierBaseId = kAmpEnvBezierAttackCp1XId;
+        break;
+    case EnvelopeType::kFilter:
+        adsrExpandedOverlay_->setTitle("FILTER Envelope");
+        adsrExpandedOverlay_->setColors(
+            VSTGUI::CColor(0xDC, 0xAA, 0x3C),       // filter-env stroke
+            VSTGUI::CColor(0xDC, 0xAA, 0x3C, 0x40),  // filter-env fill
+            VSTGUI::CColor(0xDC, 0xAA, 0x3C));        // filter-env control-point
+        adsrBaseId = kFilterEnvAttackId;
+        curveBaseId = kFilterEnvAttackCurveId;
+        bezierEnabledId = kFilterEnvBezierEnabledId;
+        bezierBaseId = kFilterEnvBezierAttackCp1XId;
+        break;
+    case EnvelopeType::kMod:
+        adsrExpandedOverlay_->setTitle("MOD Envelope");
+        adsrExpandedOverlay_->setColors(
+            VSTGUI::CColor(0xA0, 0x5A, 0xC8),       // mod-env stroke
+            VSTGUI::CColor(0xA0, 0x5A, 0xC8, 0x40),  // mod-env fill
+            VSTGUI::CColor(0xA0, 0x5A, 0xC8));        // mod-env control-point
+        adsrBaseId = kModEnvAttackId;
+        curveBaseId = kModEnvAttackCurveId;
+        bezierEnabledId = kModEnvBezierEnabledId;
+        bezierBaseId = kModEnvBezierAttackCp1XId;
+        break;
+    }
+
+    // Configure param IDs on the expanded display
+    display->setAdsrBaseParamId(adsrBaseId);
+    display->setCurveBaseParamId(curveBaseId);
+    display->setBezierEnabledParamId(bezierEnabledId);
+    display->setBezierBaseParamId(bezierBaseId);
+
+    // Sync current parameter values
+    syncAdsrDisplay(display, adsrBaseId, curveBaseId, bezierEnabledId, bezierBaseId);
+
+    // Wire playback state for the matching envelope
+    switch (env) {
+    case EnvelopeType::kAmp:
+        if (ampEnvOutputPtr_ && ampEnvStagePtr_ && envVoiceActivePtr_)
+            display->setPlaybackStatePointers(ampEnvOutputPtr_, ampEnvStagePtr_, envVoiceActivePtr_);
+        break;
+    case EnvelopeType::kFilter:
+        if (filterEnvOutputPtr_ && filterEnvStagePtr_ && envVoiceActivePtr_)
+            display->setPlaybackStatePointers(filterEnvOutputPtr_, filterEnvStagePtr_, envVoiceActivePtr_);
+        break;
+    case EnvelopeType::kMod:
+        if (modEnvOutputPtr_ && modEnvStagePtr_ && envVoiceActivePtr_)
+            display->setPlaybackStatePointers(modEnvOutputPtr_, modEnvStagePtr_, envVoiceActivePtr_);
+        break;
+    }
+
+    adsrExpandedOverlay_->open();
+}
+
+void Controller::closeAdsrExpandedOverlay() {
+    if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen())
+        adsrExpandedOverlay_->close();
 }
 
 } // namespace Ruinae

@@ -34,6 +34,9 @@ void Controller::onTabChanged([[maybe_unused]] int newTab) {
     lfo2RateGroup_ = nullptr;
     lfo1NoteValueGroup_ = nullptr;
     lfo2NoteValueGroup_ = nullptr;
+    lfo1WaveformDisplay_ = nullptr;
+    lfo2WaveformDisplay_ = nullptr;
+    chaosModDisplay_ = nullptr;
     chaosRateGroup_ = nullptr;
     chaosNoteValueGroup_ = nullptr;
     shRateGroup_ = nullptr;

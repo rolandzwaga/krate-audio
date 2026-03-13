@@ -256,6 +256,7 @@ private:
     Krate::DSP::ArpeggiatorCore arpCore_;
     std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
     float lastArpPitch_ = 0.0f;  ///< Last arp NoteOn pitch, normalized 0-1 (for mod source)
+    float lastSidechainActive_ = -1.0f;  ///< Tracks sidechain state for output param changes
     bool wasTransportPlaying_{false};
     bool hostSupportsTransport_{false}; ///< True once host reports kPlaying
     double prevProjectTimeMusic_{-1.0}; ///< For detecting backward PPQ jumps (DAW loop)

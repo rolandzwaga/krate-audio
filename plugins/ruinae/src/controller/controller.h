@@ -32,6 +32,10 @@
 #include <functional>
 #include <memory>
 
+namespace Ruinae {
+class ADSRExpandedOverlayView;
+}
+
 namespace Krate::Plugins {
 // ClipboardLaneType and LaneClipboard are now defined in arp_lane.h
 class PresetBrowserView;
@@ -49,6 +53,11 @@ class ModMatrixGrid;
 class ModRingIndicator;
 class EuclideanDotDisplay;
 class UpdateBannerView;
+class LfoWaveformDisplay;
+class ChaosModDisplay;
+class RunglerDisplay;
+class SampleHoldDisplay;
+class RandomModDisplay;
 }
 
 namespace Ruinae {
@@ -168,6 +177,18 @@ public:
     Krate::Plugins::PresetManager* getPresetManager() { return presetManager_.get(); }
 
     // ===========================================================================
+    // ADSR Expanded Overlay
+    // ===========================================================================
+
+    enum class EnvelopeType { kAmp, kFilter, kMod };
+
+    /// Open the ADSR expanded overlay for a specific envelope
+    void openAdsrExpandedOverlay(EnvelopeType env);
+
+    /// Close the ADSR expanded overlay
+    void closeAdsrExpandedOverlay();
+
+    // ===========================================================================
     // IControlListener (for action buttons)
     // ===========================================================================
 
@@ -196,6 +217,9 @@ public:
 private:
     /// Wire an ADSRDisplay instance based on its control-tag
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
+
+    /// Update a sidechain indicator text label (active/inactive)
+    void updateSidechainIndicator(VSTGUI::CView* indicator);
 
     /// Sync an ADSRDisplay from current parameter state
     void syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,
@@ -263,6 +287,11 @@ private:
     Krate::Plugins::ADSRDisplay* filterEnvDisplay_ = nullptr;
     Krate::Plugins::ADSRDisplay* modEnvDisplay_ = nullptr;
 
+    /// ADSR expanded overlay (owned by frame, raw pointer)
+    ADSRExpandedOverlayView* adsrExpandedOverlay_ = nullptr;
+    /// Which envelope is currently shown in the expanded overlay
+    EnvelopeType expandedEnvType_ = EnvelopeType::kAmp;
+
     /// Euclidean controls container (regen, hits, rotate) - hidden when Euclidean mode is off
     VSTGUI::CView* euclideanControlsGroup_ = nullptr;
 
@@ -275,6 +304,30 @@ private:
     /// LFO Note Value groups - visible when tempo sync is active
     VSTGUI::CView* lfo1NoteValueGroup_ = nullptr;
     VSTGUI::CView* lfo2NoteValueGroup_ = nullptr;
+
+    /// LFO waveform display visualizers
+    Krate::Plugins::LfoWaveformDisplay* lfo1WaveformDisplay_ = nullptr;
+    Krate::Plugins::LfoWaveformDisplay* lfo2WaveformDisplay_ = nullptr;
+
+    /// Chaos modulation display visualizer
+    Krate::Plugins::ChaosModDisplay* chaosModDisplay_ = nullptr;
+
+    /// Rungler display visualizer
+    Krate::Plugins::RunglerDisplay* runglerDisplay_ = nullptr;
+
+    /// Sample & Hold display visualizer
+    Krate::Plugins::SampleHoldDisplay* sampleHoldDisplay_ = nullptr;
+
+    /// Random mod display visualizer
+    Krate::Plugins::RandomModDisplay* randomModDisplay_ = nullptr;
+
+    /// Sidechain active state (updated from processor output parameter)
+    bool sidechainActive_ = false;
+
+    /// Sidechain indicator labels (on EnvFollower, PitchFollower, Transient views)
+    VSTGUI::CView* sidechainIndicatorEnvFollower_ = nullptr;
+    VSTGUI::CView* sidechainIndicatorPitchFollower_ = nullptr;
+    VSTGUI::CView* sidechainIndicatorTransient_ = nullptr;
 
     /// Chaos Rate/NoteValue groups - toggled by sync state
     VSTGUI::CView* chaosRateGroup_ = nullptr;

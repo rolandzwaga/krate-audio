@@ -122,8 +122,14 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     }
 
     // Ruinae is a synthesizer instrument:
+    // - Auxiliary sidechain audio input (for EnvFollower, PitchFollower, Transient)
     // - Event input (MIDI notes)
-    // - Stereo audio output (no audio input)
+    // - Stereo audio output
+    addAudioInput(
+        STR16("Sidechain"),
+        Steinberg::Vst::SpeakerArr::kStereo,
+        Steinberg::Vst::BusTypes::kAux,
+        0 /* not default-active — host activates when user routes audio */);
     addEventInput(STR16("Event Input"));
     addEventOutput(STR16("MIDI Output"));
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
@@ -513,6 +519,44 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         engine_.setExternalSourceValue(0, lastArpPitch_);
     }
 
+    // Extract sidechain audio if available (for EnvFollower, PitchFollower, Transient)
+    const float* sidechainL = nullptr;
+    const float* sidechainR = nullptr;
+    bool sidechainActive = false;
+    if (data.numInputs > 0 && data.inputs) {
+        const auto& scBus = data.inputs[0];
+        if (scBus.numChannels >= 2 &&
+            scBus.channelBuffers32 &&
+            scBus.channelBuffers32[0] && scBus.channelBuffers32[1]) {
+            sidechainL = scBus.channelBuffers32[0];
+            sidechainR = scBus.channelBuffers32[1];
+            sidechainActive = true;
+        } else if (scBus.numChannels == 1 &&
+                   scBus.channelBuffers32 && scBus.channelBuffers32[0]) {
+            sidechainL = scBus.channelBuffers32[0];
+            sidechainR = scBus.channelBuffers32[0];  // mono → both channels
+            sidechainActive = true;
+        }
+    }
+
+    // Pass sidechain to engine (overrides self-analysis when connected)
+    engine_.setSidechainInput(sidechainL, sidechainR);
+
+    // Write sidechain active state as output parameter for UI indicator
+    if (data.outputParameterChanges) {
+        float activeVal = sidechainActive ? 1.0f : 0.0f;
+        if (activeVal != lastSidechainActive_) {
+            Steinberg::int32 queueIndex = 0;
+            auto* queue = data.outputParameterChanges->addParameterData(
+                kSidechainActiveId, queueIndex);
+            if (queue) {
+                Steinberg::int32 pointIndex = 0;
+                queue->addPoint(0, static_cast<double>(activeVal), pointIndex);
+            }
+            lastSidechainActive_ = activeVal;
+        }
+    }
+
     // Process audio through the engine
     engine_.processBlock(outputL, outputR, numSamples);
 
@@ -644,10 +688,15 @@ Steinberg::tresult PLUGIN_API Processor::setBusArrangements(
     Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
     Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) {
 
-    // Ruinae is an instrument: no audio inputs, stereo output only
-    if (numIns == 0 && numOuts == 1 &&
-        outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
-        return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
+    // Ruinae is an instrument with optional sidechain input:
+    // Accept either no inputs (instrument-only) or 1 stereo input (sidechain)
+    if (numOuts == 1 && outputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
+        if (numIns == 0) {
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
+        }
+        if (numIns == 1 && inputs[0] == Steinberg::Vst::SpeakerArr::kStereo) {
+            return AudioEffect::setBusArrangements(inputs, numIns, outputs, numOuts);
+        }
     }
 
     return Steinberg::kResultFalse;
