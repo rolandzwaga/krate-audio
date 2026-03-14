@@ -628,23 +628,16 @@
     </view>
   </template>
   <template name="Editor" class="CViewContainer" origin="0, 0" size="900, 600" background-color="background" minSize="900, 600" maxSize="1200, 900" autosize="left right top bottom">
-    <view class="CViewContainer" origin="0, 0" size="900, 50" background-color="header" autosize="left right" mouse-enabled="true">
+    <view class="CViewContainer" origin="0, 0" size="900, 70" background-color="header" autosize="left right" mouse-enabled="true">
       <view class="CTextLabel" origin="15, 10" size="120, 30" title="ITERUM" font="title-font" font-color="accent" text-alignment="left" transparent="true"/>
-      <view class="CTextLabel" origin="150, 14" size="80, 22" title="Mode:" font="label-font" font-color="text-dim" text-alignment="right" transparent="true"/>
-      <view class="COptionMenu" origin="235, 12" size="160, 26" control-tag="Mode" default-value="0" font="~ NormalFont" font-color="text" back-color="panel" frame-color="border" frame-width="1" menu-popup-style="true" menu-check-style="true" mouse-enabled="true" transparent="false" wants-focus="true" text-alignment="left" text-inset="5, 0"/>
-      <view custom-view-name="CheckForUpdatesButton" origin="560, 14" size="130, 22"/>
-      <view custom-view-name="SavePresetButton" origin="712, 12" size="85, 26"/>
-      <view custom-view-name="PresetBrowserButton" origin="805, 12" size="80, 26"/>
+      <view class="IconSegmentButton" origin="15, 42" size="870, 24" control-tag="Mode" default-value="0" segment-names="Granular,Spectral,Shimmer,Tape,BBD,Digital,PingPong,Reverse,MultiTap,Freeze" font="label-font" font-color="text-dim" font-color-selected="text-light" back-color="segment-normal" selected-color="segment-selected" frame-color="border"/>
+      <view custom-view-name="CheckForUpdatesButton" origin="560, 10" size="130, 22"/>
     </view>
-    <view class="UIViewSwitchContainer" origin="20, 60" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel" template-switch-control="Mode"/>
-    <view class="FieldsetContainer" origin="20, 480" size="860, 52" fieldset-title="GLOBAL OUTPUT" fieldset-color="border" fieldset-title-color="text" transparent="true">
-      <view class="CTextLabel" origin="10, 14" size="90, 16" title="Output Gain" font="label-font" font-color="text-dim" transparent="true"/>
-      <view class="CSlider" origin="100, 14" size="650, 22" control-tag="Gain" default-value="0.5" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
-      <view class="CTextEdit" origin="770, 14" size="70, 22" control-tag="Gain" font="value-font" font-color="text" back-color="panel" frame-color="border" text-alignment="center" style-round-rect="true" round-rect-radius="2"/>
-    </view>
+    <view class="UIViewSwitchContainer" origin="20, 80" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel" template-switch-control="Mode"/>
     <view class="CViewContainer" origin="0, 560" size="900, 40" background-color="header" autosize="left right bottom">
       <view class="CTextLabel" control-tag="9999" origin="15, 12" size="200, 16" title="Iterum v1.0.0" font="value-font" font-color="text-dim" transparent="true"/>
-      <view class="CTextLabel" origin="680, 12" size="200, 16" title="11 Delay Modes" font="value-font" font-color="text-dim" text-alignment="right" transparent="true"/>
+      <view custom-view-name="SavePresetButton" origin="700, 7" size="85, 26"/>
+      <view custom-view-name="PresetBrowserButton" origin="795, 7" size="90, 26"/>
     </view>
     <!-- Update Banner (last child = paints on top of everything) -->
     <view custom-view-name="UpdateBanner" origin="0, 0" size="900, 60" autosize="left right"/>
