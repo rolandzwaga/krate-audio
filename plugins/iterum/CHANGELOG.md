@@ -5,6 +5,30 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-03-14
+
+### Changed
+
+- **Major UI refactor**: Replaced all section containers with FieldsetContainer — sections now use a compact fieldset-style outline with title in the border, saving ~18px vertical space per section
+- **Delay time controls**: Replaced slider/dropdown/segment button groups in all 7 tempo-syncable modes with a compact ArcKnob + sync toggle + value display, managed by a new DelayTimeSyncController sub-controller
+- **Header redesign**: Replaced mode dropdown with IconSegmentButton showing custom-drawn icons for each delay mode (icon-and-text layout)
+- **Footer redesign**: Moved preset browser and save buttons to footer; added compact ArcKnob for output gain with value popup; version label shows version number only
+- **Removed Global Output section**: Output gain control moved to footer ArcKnob
+
+### Added
+
+- **DelayTimeSyncController**: Reusable DelegationController sub-controller that dynamically swaps an ArcKnob's parameter tag between free delay time and note value when sync is toggled
+- **ArcKnob popup-position attribute**: New `popup-position` property (top/bottom) to control where the value popup appears, preventing clipping at window edges
+- **ArcKnob value display**: CParamDisplay above each delay time ArcKnob showing the formatted parameter value
+- **FieldsetContainer**: Registered for use in Iterum (previously only used by Innexus/Ruinae)
+- **ToggleButton and ArcKnob**: Registered for use in Iterum entry point
+
+### Removed
+
+- 14 delay-time/note-value visibility controllers replaced by sub-controller tag-swapping pattern
+- 14 unused control-tags (delay time labels, note value labels)
+- "11 Delay Modes" label from footer
+
 ## [0.14.3] - 2026-03-05
 
 ### Added
