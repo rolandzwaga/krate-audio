@@ -48,6 +48,15 @@ namespace Krate::Plugins {
 class IconSegmentButton : public VSTGUI::CControl {
 public:
     // =========================================================================
+    // Layout Mode
+    // =========================================================================
+
+    enum LayoutMode {
+        kIconOrText,   // Default: icon if available, else text label
+        kIconAndText   // Stacked: icon above, text below
+    };
+
+    // =========================================================================
     // Segment Data
     // =========================================================================
 
@@ -72,6 +81,7 @@ public:
     IconSegmentButton(const IconSegmentButton& other)
         : CControl(other)
         , segments_(other.segments_)
+        , layoutMode_(other.layoutMode_)
         , selectedColor_(other.selectedColor_)
         , unselectedColor_(other.unselectedColor_)
         , frameColor_(other.frameColor_)
@@ -145,6 +155,9 @@ public:
 
     void setTextFontSize(double s) { textFontSize_ = s; setDirty(); }
     [[nodiscard]] double getTextFontSize() const { return textFontSize_; }
+
+    void setLayoutMode(LayoutMode m) { layoutMode_ = m; setDirty(); }
+    [[nodiscard]] LayoutMode getLayoutMode() const { return layoutMode_; }
 
     // =========================================================================
     // Selected Segment
@@ -353,16 +366,61 @@ private:
     // Icon Drawing
     // =========================================================================
 
+    void drawIconOnly(VSTGUI::CDrawContext* context,
+                      const VSTGUI::CRect& rect,
+                      const std::string& iconName,
+                      const VSTGUI::CColor& color) const {
+        if (iconName == "gear")          drawGearIcon(context, rect, color);
+        else if (iconName == "funnel")   drawFunnelIcon(context, rect, color);
+        else if (iconName == "granular") drawGranularIcon(context, rect, color);
+        else if (iconName == "spectral") drawSpectralIcon(context, rect, color);
+        else if (iconName == "shimmer")  drawShimmerIcon(context, rect, color);
+        else if (iconName == "tape")     drawTapeIcon(context, rect, color);
+        else if (iconName == "bbd")      drawBBDIcon(context, rect, color);
+        else if (iconName == "digital")  drawDigitalIcon(context, rect, color);
+        else if (iconName == "pingpong") drawPingPongIcon(context, rect, color);
+        else if (iconName == "reverse")  drawReverseIcon(context, rect, color);
+        else if (iconName == "multitap") drawMultiTapIcon(context, rect, color);
+        else if (iconName == "freeze")   drawFreezeIcon(context, rect, color);
+        else                             drawFallbackDot(context, rect, color);
+    }
+
+    void drawIconAndText(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CRect& segRect,
+                         const std::string& iconName,
+                         const VSTGUI::CColor& color,
+                         const std::string& segName) const {
+        // Split segment: ~60% icon (top), ~40% text (bottom)
+        double splitY = segRect.top + segRect.getHeight() * 0.6;
+        VSTGUI::CRect iconRect(segRect.left, segRect.top + 2, segRect.right, splitY);
+        VSTGUI::CRect textRect(segRect.left, splitY, segRect.right, segRect.bottom - 2);
+
+        if (!iconName.empty())
+            drawIconOnly(context, iconRect, iconName, color);
+        if (!segName.empty()) {
+            auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
+                "Helvetica", static_cast<VSTGUI::CCoord>(textFontSize_));
+            context->setFont(font);
+            context->setFontColor(color);
+            context->drawString(
+                VSTGUI::UTF8String(segName).getPlatformString(), textRect,
+                VSTGUI::kCenterText);
+        }
+    }
+
     void drawIcon(VSTGUI::CDrawContext* context,
                   const VSTGUI::CRect& segRect,
                   const std::string& iconName,
                   const VSTGUI::CColor& color,
                   const std::string& segName = {}) const {
-        if (iconName == "gear")
-            drawGearIcon(context, segRect, color);
-        else if (iconName == "funnel")
-            drawFunnelIcon(context, segRect, color);
-        else if (iconName.empty() && !segName.empty())
+        if (layoutMode_ == kIconAndText) {
+            drawIconAndText(context, segRect, iconName, color, segName);
+            return;
+        }
+        // kIconOrText: icon if available, else text
+        if (!iconName.empty())
+            drawIconOnly(context, segRect, iconName, color);
+        else if (!segName.empty())
             drawTextLabel(context, segRect, segName, color);
         else
             drawFallbackDot(context, segRect, color);
@@ -457,6 +515,292 @@ private:
 
         context->setFillColor(color);
         context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+    }
+
+    // ---- Delay mode icons (thin stroke line art) ----
+
+    void drawGranularIcon(VSTGUI::CDrawContext* context,
+                          const VSTGUI::CRect& segRect,
+                          const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // Scattered particles at varied positions
+        constexpr double kOffsets[][2] = {
+            {-0.5, -0.6}, {0.4, -0.4}, {-0.2, -0.1}, {0.6, 0.1},
+            {-0.6, 0.4}, {0.1, 0.5}, {0.5, 0.6}
+        };
+        constexpr double kRadii[] = {2.0, 1.5, 2.5, 1.8, 2.0, 1.5, 2.2};
+        for (int i = 0; i < 7; ++i) {
+            double px = cx + kOffsets[i][0] * r;
+            double py = cy + kOffsets[i][1] * r;
+            double pr = kRadii[i] * (dim / 20.0);
+            auto path = VSTGUI::owned(context->createGraphicsPath());
+            if (!path) continue;
+            path->addEllipse(VSTGUI::CRect(px - pr, py - pr, px + pr, py + pr));
+            context->setFillColor(color);
+            context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+        }
+    }
+
+    void drawSpectralIcon(VSTGUI::CDrawContext* context,
+                          const VSTGUI::CRect& segRect,
+                          const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // 5 vertical bars of varying height
+        constexpr double kHeights[] = {0.4, 0.7, 1.0, 0.8, 0.5};
+        constexpr int kBars = 5;
+        double barW = dim / (kBars * 2.0);
+        double totalW = barW * kBars + barW * (kBars - 1) * 0.5;
+        double startX = cx - totalW / 2.0;
+        double baseY = cy + r * 0.5;
+        for (int i = 0; i < kBars; ++i) {
+            double bx = startX + i * barW * 1.5;
+            double bh = kHeights[i] * dim * 0.8;
+            VSTGUI::CRect barRect(bx, baseY - bh, bx + barW, baseY);
+            context->setFillColor(color);
+            context->drawRect(barRect, VSTGUI::kDrawFilled);
+        }
+    }
+
+    void drawShimmerIcon(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CRect& segRect,
+                         const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // Upward chevron
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path) return;
+        path->beginSubpath(VSTGUI::CPoint(cx - r * 0.5, cy + r * 0.2));
+        path->addLine(VSTGUI::CPoint(cx, cy - r * 0.5));
+        path->addLine(VSTGUI::CPoint(cx + r * 0.5, cy + r * 0.2));
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+        // Sparkle dots
+        constexpr double kSparkles[][2] = {{0.3, -0.6}, {-0.4, -0.3}, {0.5, 0.0}};
+        for (auto& sp : kSparkles) {
+            double sx = cx + sp[0] * r;
+            double sy = cy + sp[1] * r;
+            double sr = 1.2 * (dim / 20.0);
+            auto dot = VSTGUI::owned(context->createGraphicsPath());
+            if (!dot) continue;
+            dot->addEllipse(VSTGUI::CRect(sx - sr, sy - sr, sx + sr, sy + sr));
+            context->setFillColor(color);
+            context->drawGraphicsPath(dot, VSTGUI::CDrawContext::kPathFilled);
+        }
+    }
+
+    void drawTapeIcon(VSTGUI::CDrawContext* context,
+                      const VSTGUI::CRect& segRect,
+                      const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        double reelR = r * 0.35;
+        double leftX = cx - r * 0.45;
+        double rightX = cx + r * 0.45;
+        // Two reels
+        for (double rx : {leftX, rightX}) {
+            auto circle = VSTGUI::owned(context->createGraphicsPath());
+            if (!circle) continue;
+            circle->addEllipse(VSTGUI::CRect(
+                rx - reelR, cy - reelR, rx + reelR, cy + reelR));
+            context->setFrameColor(color);
+            context->setLineWidth(strokeWidth_);
+            context->drawGraphicsPath(circle, VSTGUI::CDrawContext::kPathStroked);
+            // Hub dot
+            double hubR = reelR * 0.25;
+            auto hub = VSTGUI::owned(context->createGraphicsPath());
+            if (!hub) continue;
+            hub->addEllipse(VSTGUI::CRect(
+                rx - hubR, cy - hubR, rx + hubR, cy + hubR));
+            context->setFillColor(color);
+            context->drawGraphicsPath(hub, VSTGUI::CDrawContext::kPathFilled);
+        }
+        // Tape path line connecting tops
+        auto tape = VSTGUI::owned(context->createGraphicsPath());
+        if (!tape) return;
+        tape->beginSubpath(VSTGUI::CPoint(leftX + reelR, cy - reelR * 0.3));
+        tape->addLine(VSTGUI::CPoint(rightX - reelR, cy - reelR * 0.3));
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_ * 0.8);
+        context->drawGraphicsPath(tape, VSTGUI::CDrawContext::kPathStroked);
+    }
+
+    void drawBBDIcon(VSTGUI::CDrawContext* context,
+                     const VSTGUI::CRect& segRect,
+                     const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // 5 small squares in a row connected by lines
+        constexpr int kBuckets = 5;
+        double boxSize = dim / 8.0;
+        double totalW = r * 1.6;
+        double spacing = totalW / (kBuckets - 1);
+        double startX = cx - totalW / 2.0;
+        // Connecting line
+        auto line = VSTGUI::owned(context->createGraphicsPath());
+        if (line) {
+            line->beginSubpath(VSTGUI::CPoint(startX, cy));
+            line->addLine(VSTGUI::CPoint(startX + totalW, cy));
+            context->setFrameColor(color);
+            context->setLineWidth(strokeWidth_ * 0.7);
+            context->drawGraphicsPath(line, VSTGUI::CDrawContext::kPathStroked);
+        }
+        // Buckets
+        for (int i = 0; i < kBuckets; ++i) {
+            double bx = startX + i * spacing;
+            VSTGUI::CRect box(bx - boxSize, cy - boxSize,
+                              bx + boxSize, cy + boxSize);
+            context->setFrameColor(color);
+            context->setLineWidth(strokeWidth_);
+            context->drawRect(box, VSTGUI::kDrawStroked);
+        }
+    }
+
+    void drawDigitalIcon(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CRect& segRect,
+                         const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // Square waveform
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path) return;
+        double x0 = cx - r * 0.7;
+        double hi = cy - r * 0.4;
+        double lo = cy + r * 0.4;
+        double step = r * 0.35;
+        path->beginSubpath(VSTGUI::CPoint(x0, lo));
+        path->addLine(VSTGUI::CPoint(x0, hi));
+        path->addLine(VSTGUI::CPoint(x0 + step, hi));
+        path->addLine(VSTGUI::CPoint(x0 + step, lo));
+        path->addLine(VSTGUI::CPoint(x0 + 2 * step, lo));
+        path->addLine(VSTGUI::CPoint(x0 + 2 * step, hi));
+        path->addLine(VSTGUI::CPoint(x0 + 3 * step, hi));
+        path->addLine(VSTGUI::CPoint(x0 + 3 * step, lo));
+        path->addLine(VSTGUI::CPoint(x0 + 4 * step, lo));
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+    }
+
+    void drawPingPongIcon(VSTGUI::CDrawContext* context,
+                          const VSTGUI::CRect& segRect,
+                          const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        double wallL = cx - r * 0.6;
+        double wallR = cx + r * 0.6;
+        // Two walls
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_);
+        context->drawLine(VSTGUI::CPoint(wallL, cy - r * 0.6),
+                          VSTGUI::CPoint(wallL, cy + r * 0.6));
+        context->drawLine(VSTGUI::CPoint(wallR, cy - r * 0.6),
+                          VSTGUI::CPoint(wallR, cy + r * 0.6));
+        // Zigzag bounce
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path) return;
+        path->beginSubpath(VSTGUI::CPoint(wallL, cy - r * 0.4));
+        path->addLine(VSTGUI::CPoint(wallR, cy - r * 0.1));
+        path->addLine(VSTGUI::CPoint(wallL, cy + r * 0.2));
+        path->addLine(VSTGUI::CPoint(wallR, cy + r * 0.5));
+        context->setLineWidth(strokeWidth_ * 0.8);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+    }
+
+    void drawReverseIcon(VSTGUI::CDrawContext* context,
+                         const VSTGUI::CRect& segRect,
+                         const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // Left-pointing play triangle
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path) return;
+        path->beginSubpath(VSTGUI::CPoint(cx + r * 0.4, cy - r * 0.5));
+        path->addLine(VSTGUI::CPoint(cx - r * 0.5, cy));
+        path->addLine(VSTGUI::CPoint(cx + r * 0.4, cy + r * 0.5));
+        path->closeSubpath();
+        context->setFillColor(color);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+    }
+
+    void drawMultiTapIcon(VSTGUI::CDrawContext* context,
+                          const VSTGUI::CRect& segRect,
+                          const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0;
+        // 4 vertical lines at staggered positions, decreasing height
+        constexpr double kXOff[] = {-0.5, -0.15, 0.2, 0.55};
+        constexpr double kH[] = {1.0, 0.75, 0.55, 0.35};
+        double baseY = cy + r * 0.5;
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_ * 1.2);
+        for (int i = 0; i < 4; ++i) {
+            double lx = cx + kXOff[i] * r;
+            double h = kH[i] * r;
+            context->drawLine(VSTGUI::CPoint(lx, baseY),
+                              VSTGUI::CPoint(lx, baseY - h));
+        }
+    }
+
+    void drawFreezeIcon(VSTGUI::CDrawContext* context,
+                        const VSTGUI::CRect& segRect,
+                        const VSTGUI::CColor& color) const {
+        double cx = segRect.left + segRect.getWidth() / 2.0;
+        double cy = segRect.top + segRect.getHeight() / 2.0;
+        double dim = std::min(segRect.getWidth(), segRect.getHeight())
+                     * static_cast<double>(iconSize_);
+        double r = dim / 2.0 * 0.7;
+        // Snowflake: 3 lines crossing at center (60° intervals) with end ticks
+        constexpr double kPi = 3.14159265358979323846;
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_);
+        for (int i = 0; i < 3; ++i) {
+            double angle = i * kPi / 3.0;
+            double cosA = std::cos(angle);
+            double sinA = std::sin(angle);
+            double x1 = cx + r * cosA;
+            double y1 = cy + r * sinA;
+            double x2 = cx - r * cosA;
+            double y2 = cy - r * sinA;
+            context->drawLine(VSTGUI::CPoint(x1, y1), VSTGUI::CPoint(x2, y2));
+            // End ticks (perpendicular short lines)
+            double tickLen = r * 0.25;
+            double perpX = -sinA * tickLen;
+            double perpY = cosA * tickLen;
+            context->drawLine(VSTGUI::CPoint(x1 - perpX, y1 - perpY),
+                              VSTGUI::CPoint(x1 + perpX, y1 + perpY));
+            context->drawLine(VSTGUI::CPoint(x2 - perpX, y2 - perpY),
+                              VSTGUI::CPoint(x2 + perpX, y2 + perpY));
+        }
     }
 
     void drawTextLabel(VSTGUI::CDrawContext* context,
@@ -595,6 +939,7 @@ private:
     static constexpr uint32_t kNoSegment = 0xFFFFFFFF;
 
     std::vector<Segment> segments_;
+    LayoutMode layoutMode_ = kIconOrText;
     VSTGUI::CColor selectedColor_{100, 200, 220, 255};
     VSTGUI::CColor unselectedColor_{120, 120, 130, 255};
     VSTGUI::CColor frameColor_{60, 60, 68, 255};
@@ -640,6 +985,14 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (!btn)
             return false;
 
+        // Layout mode
+        if (auto val = attributes.getAttributeValue("layout-mode")) {
+            if (*val == "icon-and-text")
+                btn->setLayoutMode(IconSegmentButton::kIconAndText);
+            else
+                btn->setLayoutMode(IconSegmentButton::kIconOrText);
+        }
+
         // Segment configuration
         if (auto val = attributes.getAttributeValue("segment-names"))
             btn->setSegmentNames(*val);
@@ -677,6 +1030,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
 
     bool getAttributeNames(
         VSTGUI::IViewCreator::StringList& attributeNames) const override {
+        attributeNames.emplace_back("layout-mode");
         attributeNames.emplace_back("segment-names");
         attributeNames.emplace_back("segment-icons");
         attributeNames.emplace_back("selected-color");
@@ -692,6 +1046,7 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
 
     AttrType getAttributeType(
         const std::string& attributeName) const override {
+        if (attributeName == "layout-mode") return kStringType;
         if (attributeName == "segment-names") return kStringType;
         if (attributeName == "segment-icons") return kStringType;
         if (attributeName == "selected-color") return kColorType;
@@ -713,6 +1068,11 @@ struct IconSegmentButtonCreator : VSTGUI::ViewCreatorAdapter {
         if (!btn)
             return false;
 
+        if (attributeName == "layout-mode") {
+            stringValue = (btn->getLayoutMode() == IconSegmentButton::kIconAndText)
+                ? "icon-and-text" : "icon-or-text";
+            return true;
+        }
         if (attributeName == "segment-names") {
             stringValue = btn->getSegmentNames();
             return true;
