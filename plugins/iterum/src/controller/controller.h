@@ -108,6 +108,12 @@ public:
     /// Called when the editor is about to close
     void willClose(VSTGUI::VST3Editor* editor) override;
 
+    /// Create sub-controllers for delay time sync (DelegationController pattern)
+    VSTGUI::IController* createSubController(
+        VSTGUI::UTF8StringPtr name,
+        const VSTGUI::IUIDescription* description,
+        VSTGUI::VST3Editor* editor) override;
+
     // ===========================================================================
     // Preset Browser (Spec 042)
     // ===========================================================================
@@ -170,26 +176,7 @@ private:
 
     // Visibility controllers for conditional control visibility (thread-safe)
     // Uses IDependent mechanism to receive parameter changes on UI thread
-    Steinberg::IPtr<Steinberg::FObject> digitalDelayTimeVisibilityController_;
     Steinberg::IPtr<Steinberg::FObject> digitalAgeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> pingPongDelayTimeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> granularDelayTimeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> spectralBaseDelayVisibilityController_;  // spec 041
-
-    // Tempo sync visibility controllers (hide delay time when synced)
-    Steinberg::IPtr<Steinberg::FObject> shimmerDelayTimeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> bbdDelayTimeVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> reverseChunkSizeVisibilityController_;
-    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    // NoteValue visibility controllers (show note value when synced)
-    Steinberg::IPtr<Steinberg::FObject> granularNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> spectralNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> shimmerNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> bbdNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> digitalNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> pingPongNoteValueVisibilityController_;
-    Steinberg::IPtr<Steinberg::FObject> reverseNoteValueVisibilityController_;
     // MultiTap Note Value: Show when Pattern is Mathematical (GoldenRatio+)
     // Simplified design - no TimeMode dependency, just pattern-based visibility
     Steinberg::IPtr<Steinberg::FObject> multitapNoteValueVisibilityController_;

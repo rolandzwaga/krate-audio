@@ -15,6 +15,12 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 
+// Shared UI controls - include triggers static ViewCreator registration
+#include "ui/arc_knob.h"
+#include "ui/fieldset_container.h"
+#include "ui/icon_segment_button.h"
+#include "ui/toggle_button.h"
+
 #include "public.sdk/source/main/pluginfactory.h"
 
 // ==============================================================================

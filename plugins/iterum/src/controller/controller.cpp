@@ -3,6 +3,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "delay_time_sync_controller.h"
 #include "plugin_ids.h"
 #include "version.h"
 
@@ -1125,29 +1126,102 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
 // ==============================================================================
 
 // =============================================================================
-// PresetBrowserButton: Button that opens the preset browser
+// OutlineButton: Rounded-rect outline button with hover highlight
+// Matches the style used in Ruinae/Innexus, adapted for Iterum's light theme
 // =============================================================================
-class PresetBrowserButton : public VSTGUI::CTextButton {
+class OutlineButton : public VSTGUI::CView {
 public:
-    PresetBrowserButton(const VSTGUI::CRect& size, Controller* controller)
-        : CTextButton(size, nullptr, -1, "Presets")
-        , controller_(controller)
-    {
-        setFrameColor(VSTGUI::CColor(80, 80, 85));
-        setTextColor(VSTGUI::CColor(255, 255, 255));
+    OutlineButton(const VSTGUI::CRect& size, std::string title,
+                  VSTGUI::CColor frameColor = VSTGUI::CColor(208, 208, 208))
+        : CView(size)
+        , title_(std::move(title))
+        , frameColor_(frameColor)
+    {}
+
+    void draw(VSTGUI::CDrawContext* context) override {
+        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
+        auto r = getViewSize();
+        r.inset(0.5, 0.5);
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (path) {
+            constexpr double kRadius = 3.0;
+            path->addRoundRect(r, kRadius);
+
+            if (hovered_) {
+                context->setFillColor(VSTGUI::CColor(0, 0, 0, 20));
+                context->drawGraphicsPath(path,
+                    VSTGUI::CDrawContext::kPathFilled);
+            }
+
+            context->setFrameColor(frameColor_);
+            context->setLineWidth(1.0);
+            context->drawGraphicsPath(path,
+                VSTGUI::CDrawContext::kPathStroked);
+        }
+
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
+            *VSTGUI::kNormalFontSmaller);
+        context->setFont(font);
+        context->setFontColor(VSTGUI::CColor(102, 102, 102));
+        context->drawString(
+            VSTGUI::UTF8String(title_), getViewSize(),
+            VSTGUI::kCenterText);
+
+        setDirty(false);
+    }
+
+    VSTGUI::CMouseEventResult onMouseEntered(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        hovered_ = true;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorHand);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        hovered_ = false;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
+        invalid();
+        return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (buttons.isLeftButton() && controller_) {
-            controller_->openPresetBrowser();
-            return VSTGUI::kMouseEventHandled;
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& buttons) override {
+        if (buttons.isLeftButton()) {
+            onClick();
+            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
         }
-        return CTextButton::onMouseDown(where, buttons);
+        return VSTGUI::kMouseEventNotHandled;
     }
 
+protected:
+    virtual void onClick() = 0;
+
+private:
+    std::string title_;
+    VSTGUI::CColor frameColor_;
+    bool hovered_ = false;
+};
+
+// =============================================================================
+// PresetBrowserButton: Button that opens the preset browser
+// =============================================================================
+class PresetBrowserButton : public OutlineButton {
+public:
+    PresetBrowserButton(const VSTGUI::CRect& size, Controller* controller)
+        : OutlineButton(size, "Presets")
+        , controller_(controller) {}
+protected:
+    void onClick() override {
+        if (controller_) controller_->openPresetBrowser();
+    }
 private:
     Controller* controller_ = nullptr;
 };
@@ -1155,27 +1229,15 @@ private:
 // =============================================================================
 // SavePresetButton: Button that opens standalone save dialog (Spec 042)
 // =============================================================================
-class SavePresetButton : public VSTGUI::CTextButton {
+class SavePresetButton : public OutlineButton {
 public:
     SavePresetButton(const VSTGUI::CRect& size, Controller* controller)
-        : CTextButton(size, nullptr, -1, "Save Preset")
-        , controller_(controller)
-    {
-        setFrameColor(VSTGUI::CColor(80, 80, 85));
-        setTextColor(VSTGUI::CColor(255, 255, 255));
+        : OutlineButton(size, "Save Preset")
+        , controller_(controller) {}
+protected:
+    void onClick() override {
+        if (controller_) controller_->openSavePresetDialog();
     }
-
-    VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (buttons.isLeftButton() && controller_) {
-            controller_->openSavePresetDialog();
-            return VSTGUI::kMouseEventHandled;
-        }
-        return CTextButton::onMouseDown(where, buttons);
-    }
-
 private:
     Controller* controller_ = nullptr;
 };
@@ -1379,6 +1441,39 @@ VSTGUI::CView* Controller::createCustomView(
     return nullptr;
 }
 
+// ==============================================================================
+// createSubController - Delay Time Sync sub-controllers
+// ==============================================================================
+VSTGUI::IController* Controller::createSubController(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::IUIDescription* /*description*/,
+    [[maybe_unused]] VSTGUI::VST3Editor* editor)
+{
+    if (!name)
+        return nullptr;
+
+    const std::string controllerName(name);
+
+    // VSTGUI takes ownership of the returned pointer (raw new is mandated)
+    // editor (VST3Editor*) is the IController parent for delegation
+    if (controllerName == "GranularTimeSyncController")
+        return new DelayTimeSyncController(kGranularDelayTimeId, kGranularTimeModeId, kGranularNoteValueId, editor);
+    if (controllerName == "SpectralTimeSyncController")
+        return new DelayTimeSyncController(kSpectralBaseDelayId, kSpectralTimeModeId, kSpectralNoteValueId, editor);
+    if (controllerName == "ShimmerTimeSyncController")
+        return new DelayTimeSyncController(kShimmerDelayTimeId, kShimmerTimeModeId, kShimmerNoteValueId, editor);
+    if (controllerName == "BBDTimeSyncController")
+        return new DelayTimeSyncController(kBBDDelayTimeId, kBBDTimeModeId, kBBDNoteValueId, editor);
+    if (controllerName == "DigitalTimeSyncController")
+        return new DelayTimeSyncController(kDigitalDelayTimeId, kDigitalTimeModeId, kDigitalNoteValueId, editor);
+    if (controllerName == "PingPongTimeSyncController")
+        return new DelayTimeSyncController(kPingPongDelayTimeId, kPingPongTimeModeId, kPingPongNoteValueId, editor);
+    if (controllerName == "ReverseTimeSyncController")
+        return new DelayTimeSyncController(kReverseChunkSizeId, kReverseTimeModeId, kReverseNoteValueId, editor);
+
+    return nullptr;
+}
+
 void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // Store editor reference for manual UI control
     activeEditor_ = editor;
@@ -1407,33 +1502,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
             // template-switch-control="Mode" in editor.uidesc
 
             // =====================================================================
-            // Conditional Visibility: Delay Time Controls
+            // Conditional Visibility Controllers
             // =====================================================================
-            // Digital and PingPong modes have a delay time control that should be
-            // hidden when time mode is "Synced" (since time value is ignored).
-            //
-            // Thread-Safe Pattern:
-            // - Create VisibilityController instances that register as IDependent
-            // - Parameter changes trigger IDependent::update() on UI thread
-            // - UpdateHandler automatically defers updates to UI thread
-            // - VSTGUI controls are ONLY manipulated on UI thread
-            //
-            // Dynamic Lookup Pattern:
-            // - UIViewSwitchContainer destroys/recreates controls on view switch
-            // - DO NOT cache control pointers - they become dangling after switch
-            // - VisibilityController uses control TAG for dynamic lookup
-            // - Each update() looks up current control by tag (survives view switch)
+            // NOTE: Delay time / note value visibility is now handled by
+            // DelayTimeSyncController sub-controllers (tag swapping pattern).
+            // Only non-time-mode visibility controllers remain here.
             // =====================================================================
-
-            // Create visibility controllers for Digital mode
-            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
-            // NOTE: Pass &activeEditor_ (pointer to member) so VisibilityController
-            // always gets the CURRENT editor, avoiding dangling pointer crashes
-            // when the editor is closed and reopened.
-            if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
-                digitalDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, digitalTimeMode, {9901, kDigitalDelayTimeId}, 0.5f, true);
-            }
 
             // Hide Age label + control when Era is "Pristine" (< 0.25)
             // Era values: 0 = Pristine (0.0), 1 = 80s (0.5), 2 = LoFi (1.0)
@@ -1443,75 +1517,6 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                     &activeEditor_, digitalEra, {9902, kDigitalAgeId}, 0.25f, false);
             }
 
-            // Create visibility controllers for PingPong mode
-            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
-            if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
-                pingPongDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, pingPongTimeMode, {9903, kPingPongDelayTimeId}, 0.5f, true);
-            }
-
-            // Create visibility controllers for Granular mode
-            // Hide delay time label + control when time mode is "Synced" (>= 0.5)
-            if (auto* granularTimeMode = getParameterObject(kGranularTimeModeId)) {
-                granularDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, granularTimeMode, {9904, kGranularDelayTimeId}, 0.5f, true);
-            }
-
-            // Create visibility controllers for Spectral mode (spec 041)
-            // Hide base delay label + control when time mode is "Synced" (>= 0.5)
-            if (auto* spectralTimeMode = getParameterObject(kSpectralTimeModeId)) {
-                spectralBaseDelayVisibilityController_ = new VisibilityController(
-                    &activeEditor_, spectralTimeMode, {9912, kSpectralBaseDelayId}, 0.5f, true);
-            }
-
-            // Create visibility controllers for 6 delay modes with tempo sync
-            // Hide delay time when time mode is "Synced" (>= 0.5)
-            if (auto* shimmerTimeMode = getParameterObject(kShimmerTimeModeId)) {
-                shimmerDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, shimmerTimeMode, {9905, kShimmerDelayTimeId}, 0.5f, true);
-            }
-            if (auto* bbdTimeMode = getParameterObject(kBBDTimeModeId)) {
-                bbdDelayTimeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, bbdTimeMode, {9906, kBBDDelayTimeId}, 0.5f, true);
-            }
-            if (auto* reverseTimeMode = getParameterObject(kReverseTimeModeId)) {
-                reverseChunkSizeVisibilityController_ = new VisibilityController(
-                    &activeEditor_, reverseTimeMode, {9907, kReverseChunkSizeId}, 0.5f, true);
-            }
-            // MultiTap has no TimeMode - BaseTime and Tempo controls removed (simplified design)
-            // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-
-            // Create NoteValue visibility controllers for delay modes
-            // Show note value label + control when time mode is "Synced" (>= 0.5)
-            // NOTE: showWhenBelow = false means visible when value >= threshold
-            if (auto* granularTimeMode = getParameterObject(kGranularTimeModeId)) {
-                granularNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, granularTimeMode, {9920, kGranularNoteValueId}, 0.5f, false);
-            }
-            if (auto* spectralTimeMode = getParameterObject(kSpectralTimeModeId)) {
-                spectralNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, spectralTimeMode, {9921, kSpectralNoteValueId}, 0.5f, false);
-            }
-            if (auto* shimmerTimeMode = getParameterObject(kShimmerTimeModeId)) {
-                shimmerNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, shimmerTimeMode, {9922, kShimmerNoteValueId}, 0.5f, false);
-            }
-            if (auto* bbdTimeMode = getParameterObject(kBBDTimeModeId)) {
-                bbdNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, bbdTimeMode, {9923, kBBDNoteValueId}, 0.5f, false);
-            }
-            if (auto* digitalTimeMode = getParameterObject(kDigitalTimeModeId)) {
-                digitalNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, digitalTimeMode, {9924, kDigitalNoteValueId}, 0.5f, false);
-            }
-            if (auto* pingPongTimeMode = getParameterObject(kPingPongTimeModeId)) {
-                pingPongNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, pingPongTimeMode, {9925, kPingPongNoteValueId}, 0.5f, false);
-            }
-            if (auto* reverseTimeMode = getParameterObject(kReverseTimeModeId)) {
-                reverseNoteValueVisibilityController_ = new VisibilityController(
-                    &activeEditor_, reverseTimeMode, {9926, kReverseNoteValueId}, 0.5f, false);
-            }
             // MultiTap Note Value: Show when Pattern is Mathematical (14-18), NOT Custom (19)
             // Patterns 14-18 need Note Value for baseTimeMs calculation.
             // Pattern 19 (Custom) has its own editor and doesn't use Note Value.
@@ -1704,23 +1709,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     // PHASE 1: Deactivate ALL visibility controllers FIRST
     // This ensures any in-flight or pending deferred updates will be safely ignored.
     // The atomic isActive_ flag is checked at the very start of update().
-    deactivateController(digitalDelayTimeVisibilityController_);
+    // NOTE: Delay time / note value visibility controllers removed — now handled
+    // by DelayTimeSyncController sub-controllers (tag swapping pattern).
     deactivateController(digitalAgeVisibilityController_);
-    deactivateController(pingPongDelayTimeVisibilityController_);
-    deactivateController(granularDelayTimeVisibilityController_);
-    deactivateController(spectralBaseDelayVisibilityController_);
-    deactivateController(shimmerDelayTimeVisibilityController_);
-    deactivateController(bbdDelayTimeVisibilityController_);
-    deactivateController(reverseChunkSizeVisibilityController_);
-    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-    deactivateController(granularNoteValueVisibilityController_);
-    deactivateController(spectralNoteValueVisibilityController_);
-    deactivateController(shimmerNoteValueVisibilityController_);
-    deactivateController(bbdNoteValueVisibilityController_);
-    deactivateController(digitalNoteValueVisibilityController_);
-    deactivateController(pingPongNoteValueVisibilityController_);
-    deactivateController(reverseNoteValueVisibilityController_);
     deactivateController(multitapNoteValueVisibilityController_);
     deactivateController(patternEditorVisibilityController_);  // Spec 046
     deactivateController(copyPatternButtonVisibilityController_);  // Spec 046
@@ -1735,27 +1726,7 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
 
     // PHASE 3: Destroy visibility controllers (removes dependents and releases refs)
     // Now safe because: (1) isActive_ is false, (2) activeEditor_ is nullptr
-    digitalDelayTimeVisibilityController_ = nullptr;
     digitalAgeVisibilityController_ = nullptr;
-    pingPongDelayTimeVisibilityController_ = nullptr;
-    granularDelayTimeVisibilityController_ = nullptr;
-    spectralBaseDelayVisibilityController_ = nullptr;  // spec 041
-
-    // Tempo sync visibility controllers
-    shimmerDelayTimeVisibilityController_ = nullptr;
-    bbdDelayTimeVisibilityController_ = nullptr;
-    reverseChunkSizeVisibilityController_ = nullptr;
-    // MultiTap has no BaseTime/Tempo visibility controllers (simplified design)
-    // Freeze mode has no TimeMode - legacy shimmer/diffusion parameters removed
-
-    // NoteValue visibility controllers
-    granularNoteValueVisibilityController_ = nullptr;
-    spectralNoteValueVisibilityController_ = nullptr;
-    shimmerNoteValueVisibilityController_ = nullptr;
-    bbdNoteValueVisibilityController_ = nullptr;
-    digitalNoteValueVisibilityController_ = nullptr;
-    pingPongNoteValueVisibilityController_ = nullptr;
-    reverseNoteValueVisibilityController_ = nullptr;
     multitapNoteValueVisibilityController_ = nullptr;
     patternEditorVisibilityController_ = nullptr;  // Spec 046
     copyPatternButtonVisibilityController_ = nullptr;  // Spec 046
