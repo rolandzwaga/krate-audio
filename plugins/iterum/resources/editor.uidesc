@@ -178,7 +178,7 @@
   </gradients>
   <template name="GranularPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="GRANULAR DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 192" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 192" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="GranularTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="GranularDelayTime" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="GranularDelayTime" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -209,7 +209,7 @@
       <view class="CTextLabel" origin="10, 142" size="240, 16" title="Pitch Quantize" font="label-font" font-color="text-dim" transparent="true" text-alignment="left"/>
       <view class="CSegmentButton" origin="10, 160" size="240, 22" control-tag="GranularPitchQuant" style="horizontal" segment-names="Off,Semis,Octs,5ths,Scale" selection-mode="kSingle" font="value-font" text-color="text" text-color-highlighted="text-light" frame-color="border" gradient="segment-bg" gradient-highlighted="segment-bg-selected"/>
     </view>
-    <view class="FieldsetContainer" origin="580, 30" size="270, 192" fieldset-title="SPRAY & RANDOMIZATION" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="580, 30" size="270, 192" fieldset-title="SPRAY &amp; RANDOMIZATION" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CTextLabel" origin="10, 10" size="30, 16" title="Pitch" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="GranularPitchSpray" origin="35, 10" size="30, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="10, 28" size="55, 20" control-tag="GranularPitchSpray" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
@@ -234,7 +234,7 @@
   </template>
   <template name="SpectralPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="SPECTRAL DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 157" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 157" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="SpectralTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="SpectralBaseDelay" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="SpectralBaseDelay" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -274,7 +274,7 @@
   </template>
   <template name="ShimmerPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="SHIMMER DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="ShimmerTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="ShimmerDelayTime" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="ShimmerDelayTime" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -298,7 +298,7 @@
       <view class="CParamDisplay" control-tag="ShimmerShimmerMix" origin="220, 10" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="180, 28" size="80, 20" control-tag="ShimmerShimmerMix" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
     </view>
-    <view class="FieldsetContainer" origin="580, 30" size="270, 127" fieldset-title="DIFFUSION & FILTER" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="580, 30" size="270, 127" fieldset-title="DIFFUSION &amp; FILTER" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CTextLabel" origin="10, 10" size="35, 16" title="Size" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="ShimmerDiffusionSize" origin="45, 10" size="40, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="10, 28" size="75, 20" control-tag="ShimmerDiffusionSize" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
@@ -311,7 +311,7 @@
   </template>
   <template name="TapePanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="TAPE DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 122" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 122" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CTextLabel" origin="10, 10" size="60, 16" title="Feedback" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="TapeFeedback" origin="70, 10" size="60, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="10, 28" size="120, 20" control-tag="TapeFeedback" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
@@ -362,7 +362,7 @@
   </template>
   <template name="BBDPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="BBD DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="BBDTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="BBDDelayTime" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="BBDDelayTime" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -393,7 +393,7 @@
   </template>
   <template name="DigitalPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="DIGITAL DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 172" fieldset-title="TIME & SYNC" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 172" fieldset-title="TIME &amp; SYNC" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="DigitalTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="DigitalDelayTime" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="DigitalDelayTime" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -443,7 +443,7 @@
   </template>
   <template name="PingPongPanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="PING PONG DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME & SYNC" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="10, 30" size="280, 127" fieldset-title="TIME &amp; SYNC" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CViewContainer" origin="10, 10" size="55, 68" sub-controller="PingPongTimeSyncController" transparent="true">
         <view class="CParamDisplay" control-tag="PingPongDelayTime" origin="0, 0" size="55, 13" font="label-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="center" value-precision="0"/>
         <view class="ArcKnob" origin="5, 13" size="45, 45" control-tag="PingPongDelayTime" default-value="0.25" arc-color="accent" guide-color="slider-track" arc-width="2.5"/>
@@ -477,7 +477,7 @@
   </template>
   <template name="ReversePanel" class="CViewContainer" origin="0, 0" size="860, 400" background-color="panel" transparent="false">
     <view class="CTextLabel" origin="10, 5" size="200, 22" title="REVERSE DELAY" font="section-font" font-color="accent" transparent="true"/>
-    <view class="FieldsetContainer" origin="290, 30" size="280, 152" fieldset-title="TIME & MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
+    <view class="FieldsetContainer" origin="290, 30" size="280, 152" fieldset-title="TIME &amp; MIX" fieldset-color="border" fieldset-title-color="accent" transparent="true">
       <view class="CTextLabel" origin="10, 10" size="60, 16" title="Feedback" font="label-font" font-color="text-dim" transparent="true"/>
       <view class="CParamDisplay" control-tag="ReverseFeedback" origin="70, 10" size="60, 16" font="value-font" font-color="text" back-color="~ TransparentCColor" frame-color="~ TransparentCColor" text-alignment="right" value-precision="0"/>
       <view class="CSlider" origin="10, 28" size="120, 20" control-tag="ReverseFeedback" orientation="horizontal" draw-frame="true" draw-back="true" draw-value="true" frame-color="border" back-color="slider-track" value-color="accent"/>
