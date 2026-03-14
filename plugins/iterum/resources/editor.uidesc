@@ -636,6 +636,7 @@
     <view class="CViewContainer" origin="0, 560" size="900, 40" background-color="header" autosize="left right bottom">
       <view class="CTextLabel" control-tag="9999" origin="0, 12" size="60, 16" title="v1.0.0" text-alignment="left" text-inset="4, 0" font="value-font" font-color="text-dim" transparent="true"/>
       <view class="ArcKnob" origin="62, 2" size="36, 36" control-tag="Gain" default-value="0.5" arc-color="accent" guide-color="slider-track" arc-width="2" popup-position="top"/>
+      <view class="CTextLabel" origin="100, 12" size="30, 16" title="Gain" font="label-font" font-color="text-dim" transparent="true" text-alignment="left"/>
       <view custom-view-name="CheckForUpdatesButton" origin="580, 7" size="110, 26"/>
       <view custom-view-name="SavePresetButton" origin="700, 7" size="85, 26"/>
       <view custom-view-name="PresetBrowserButton" origin="795, 7" size="90, 26"/>
