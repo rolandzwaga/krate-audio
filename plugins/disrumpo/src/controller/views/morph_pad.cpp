@@ -84,7 +84,9 @@ MorphPad::MorphPad(const VSTGUI::CRect& size,
             activeNodesParam_->addDependent(this);
 
             // Initialize active node count from current parameter value
-            activeNodeCount_ = getActiveNodeCountFromParam();
+            int count = getActiveNodeCountFromParam();
+            activeNodeCount_ = count;
+            morphDisabled_ = (count < 2);
         }
     }
 
