@@ -24,6 +24,7 @@
     <color name="border" rgba="#3A3A40ff"/>
     <color name="panel" rgba="#202024ff"/>
     <color name="panel-expanded" rgba="#2A2A30ff"/>
+    <color name="shadow" rgba="#00000080"/>
   </colors>
   <fonts>
     <font name="title-font" font-name="Arial" size="18" bold="true"/>
@@ -567,28 +568,41 @@
         <view class="UIViewSwitchContainer" origin="10, 95" size="215, 243" animation-time="0" template-switch-control="Band4TabView" template-names="Band4MainTab,Band4ShapeTab"/>
       </view>
       <!-- Expanded band strips: shown/hidden by AnimatedExpandController (tags 9100-9103) -->
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
+      <!-- Structure: outer (690x290, transparent) -> shadow (684x284 at 6,6) + border (684x284 at 0,0, band color) -> content (680x280 at 2,2) -->
+      <view class="CViewContainer" origin="0, 0" size="690, 290" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1ExpandedContainer" back-color="transparent"/>
-        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
-          <view template="Band1ExpandedStrip"/>
+        <view class="CViewContainer" origin="6, 6" size="684, 284" background-color="shadow" background-color-draw-style="filled"/>
+        <view class="CViewContainer" origin="0, 0" size="684, 284" background-color="band-1" background-color-draw-style="filled">
+          <view class="CViewContainer" origin="2, 2" size="680, 280" background-color="panel-expanded">
+            <view template="Band1ExpandedStrip"/>
+          </view>
         </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="690, 290" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2ExpandedContainer" back-color="transparent"/>
-        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
-          <view template="Band2ExpandedStrip"/>
+        <view class="CViewContainer" origin="6, 6" size="684, 284" background-color="shadow" background-color-draw-style="filled"/>
+        <view class="CViewContainer" origin="0, 0" size="684, 284" background-color="band-2" background-color-draw-style="filled">
+          <view class="CViewContainer" origin="2, 2" size="680, 280" background-color="panel-expanded">
+            <view template="Band2ExpandedStrip"/>
+          </view>
         </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="690, 290" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3ExpandedContainer" back-color="transparent"/>
-        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
-          <view template="Band3ExpandedStrip"/>
+        <view class="CViewContainer" origin="6, 6" size="684, 284" background-color="shadow" background-color-draw-style="filled"/>
+        <view class="CViewContainer" origin="0, 0" size="684, 284" background-color="band-3" background-color-draw-style="filled">
+          <view class="CViewContainer" origin="2, 2" size="680, 280" background-color="panel-expanded">
+            <view template="Band3ExpandedStrip"/>
+          </view>
         </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="690, 290" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4ExpandedContainer" back-color="transparent"/>
-        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
-          <view template="Band4ExpandedStrip"/>
+        <view class="CViewContainer" origin="6, 6" size="684, 284" background-color="shadow" background-color-draw-style="filled"/>
+        <view class="CViewContainer" origin="0, 0" size="684, 284" background-color="band-4" background-color-draw-style="filled">
+          <view class="CViewContainer" origin="2, 2" size="680, 280" background-color="panel-expanded">
+            <view template="Band4ExpandedStrip"/>
+          </view>
         </view>
       </view>
     </view>
@@ -1300,7 +1314,7 @@
       <view class="CTextLabel" origin="10, 145" size="60, 12" title="Mode" font="small-font" font-color="text-secondary"/>
       <view class="CSegmentButton" origin="10, 158" size="180, 22" control-tag="Band.MorphMode" default-value="0.33" style="horizontal" segment-names="1D, 2D, Radial" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
       <view class="CTextLabel" origin="10, 183" size="60, 12" title="Nodes" font="small-font" font-color="text-secondary"/>
-      <view class="CSegmentButton" origin="70, 182" size="90, 20" control-tag="Band.ActiveNodes" default-value="1.0" style="horizontal" segment-names="2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
+      <view class="CSegmentButton" origin="70, 182" size="120, 20" control-tag="Band.ActiveNodes" default-value="0.0" style="horizontal" segment-names="1, 2, 3, 4" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
       <view class="CTextLabel" origin="10, 205" size="60, 12" title="Smooth" font="small-font" font-color="text-secondary"/>
       <view class="ArcKnob" origin="75, 200" size="30, 25" control-tag="Band.MorphSmoothing" default-value="0" min-value="0" max-value="1" arc-color="accent-secondary"/>
       <view class="CTextLabel" origin="108, 210" size="30, 12" title="ms" font="small-font" font-color="text-secondary"/>

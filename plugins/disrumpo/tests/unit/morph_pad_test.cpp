@@ -351,8 +351,8 @@ TEST_CASE("MorphPad node configuration", "[morph_pad][nodes]") {
     }
 
     SECTION("setActiveNodeCount clamps to valid range") {
-        pad.setActiveNodeCount(1);
-        REQUIRE(pad.getActiveNodeCount() == 2);  // Minimum is 2
+        pad.setActiveNodeCount(0);
+        REQUIRE(pad.getActiveNodeCount() == 1);  // Minimum is 1
 
         pad.setActiveNodeCount(5);
         REQUIRE(pad.getActiveNodeCount() == 4);  // Maximum is 4
@@ -769,8 +769,8 @@ TEST_CASE("MorphPad active nodes count affects visibility", "[morph_pad][nodes][
     }
 
     SECTION("active node count is clamped") {
-        pad.setActiveNodeCount(1);
-        REQUIRE(pad.getActiveNodeCount() == 2);  // Min is 2
+        pad.setActiveNodeCount(0);
+        REQUIRE(pad.getActiveNodeCount() == 1);  // Min is 1
 
         pad.setActiveNodeCount(10);
         REQUIRE(pad.getActiveNodeCount() == 4);  // Max is 4

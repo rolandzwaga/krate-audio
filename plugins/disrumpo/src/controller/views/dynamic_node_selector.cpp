@@ -205,20 +205,20 @@ int DynamicNodeSelector::getActiveNodeCount() const
         return 4;  // Default to 4 nodes
     }
 
-    // ActiveNodes parameter: 0 = 2 nodes, 0.5 = 3 nodes, 1.0 = 4 nodes
-    // Convert normalized value to count (2, 3, or 4)
+    // ActiveNodes parameter: 0 = 1 node, 0.333 = 2 nodes, 0.667 = 3, 1.0 = 4
+    // Convert normalized value to count (1, 2, 3, or 4)
     double normalized = activeNodesParam_->getNormalized();
 
-    // StringListParameter with 3 options: toPlain gives 0, 1, 2
-    // Map to: 2, 3, 4 nodes
+    // StringListParameter with 4 options: toPlain gives 0, 1, 2, 3
+    // Map to: 1, 2, 3, 4 nodes
     int index = static_cast<int>(activeNodesParam_->toPlain(normalized));
-    return index + 2;  // 0->2, 1->3, 2->4
+    return index + 1;  // 0->1, 1->2, 2->3, 3->4
 }
 
 void DynamicNodeSelector::rebuildSegments(int activeCount)
 {
     // Clamp to valid range
-    activeCount = std::clamp(activeCount, 2, 4);
+    activeCount = std::clamp(activeCount, 1, 4);
 
     if (activeCount == currentSegmentCount_) {
         return;  // No change needed

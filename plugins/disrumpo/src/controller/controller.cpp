@@ -2223,10 +2223,11 @@ void Controller::registerBandParams() {
             nullptr,
             Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList
         );
+        activeNodesParam->appendString(STR16("1"));
         activeNodesParam->appendString(STR16("2"));
         activeNodesParam->appendString(STR16("3"));
         activeNodesParam->appendString(STR16("4"));
-        activeNodesParam->setNormalized(1.0);  // Default to "4" (index 2 = 1.0)
+        activeNodesParam->setNormalized(0.0);  // Default to "1" (index 0 = 0.0, single distortion)
         parameters.addParameter(activeNodesParam);
 
         // Band Expanded: boolean toggle for expand/collapse state (UI only)
@@ -2969,7 +2970,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
                                            kMinActiveNodes, kMaxMorphNodes);
                     setParamNormalized(
                         makeBandParamId(band, BandParamType::kBandActiveNodes),
-                        static_cast<double>(count - 2) / 2.0);
+                        static_cast<double>(count - 1) / 3.0);
                 }
                 if (readMorphSmoothing)
                     setParamNormalized(
@@ -3985,9 +3986,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 &activeEditor_,
                 expandedParam,
                 expandedContainerTag,
-                280.0f,  // Expanded height matching uidesc container size (680x280)
+                290.0f,  // Expanded height matching uidesc (284 content + 6 shadow offset)
                 250,     // FR-005: 250ms animation (well within 300ms limit)
-                parentBandTag  // FR-004: Parent band container tag for visibility guard
+                parentBandTag,  // FR-004: Parent band container tag for visibility guard
+                b,        // Band index for positioning expanded panel relative to band
+                690.0f    // Expanded width matching uidesc (684 content + 6 shadow offset)
             );
         }
     }
@@ -5089,7 +5092,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
                     editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphMode), static_cast<double>(morphMode) / 2.0);
                 if (readActiveNodes) {
                     int count = std::clamp(static_cast<int>(activeNodes), kMinActiveNodes, kMaxMorphNodes);
-                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 2) / 2.0);
+                    editParamWithNotify(makeBandParamId(band, BandParamType::kBandActiveNodes), static_cast<double>(count - 1) / 3.0);
                 }
                 if (readMorphSmoothing)
                     editParamWithNotify(makeBandParamId(band, BandParamType::kBandMorphSmoothing), static_cast<double>(morphSmoothing) / 500.0);

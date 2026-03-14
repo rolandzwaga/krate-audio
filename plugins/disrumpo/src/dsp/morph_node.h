@@ -122,10 +122,10 @@ struct ShapeShadowStorage {
 };
 
 /// @brief Minimum number of active morph nodes per band.
-inline constexpr int kMinActiveNodes = 2;
+inline constexpr int kMinActiveNodes = 1;
 
-/// @brief Default number of active morph nodes (A-B morphing).
-inline constexpr int kDefaultActiveNodes = 2;
+/// @brief Default number of active morph nodes (single distortion, no morphing).
+inline constexpr int kDefaultActiveNodes = 1;
 
 /// @brief Weight threshold below which a node is skipped (FR-015).
 /// Nodes with weight below this threshold are not processed to save CPU.

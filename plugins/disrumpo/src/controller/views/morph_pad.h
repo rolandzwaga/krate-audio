@@ -90,7 +90,7 @@ public:
     // =========================================================================
 
     /// @brief Set the number of active morph nodes.
-    /// @param count Number of active nodes (2, 3, or 4)
+    /// @param count Number of active nodes (1, 2, 3, or 4). Count=1 disables morphing (greyscale).
     void setActiveNodeCount(int count);
 
     /// @brief Get the number of active morph nodes.
@@ -337,6 +337,9 @@ private:
 
     // Default node positions (corners for 4-node mode)
     void resetNodePositionsToDefault();
+
+    // Morph disabled (single node mode - greyscale, no mouse interaction)
+    bool morphDisabled_ = false;
 
     // High contrast mode (Spec 012 FR-025a)
     bool highContrastEnabled_ = false;

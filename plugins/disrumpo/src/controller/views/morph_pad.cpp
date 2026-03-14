@@ -155,11 +155,11 @@ int MorphPad::getActiveNodeCountFromParam() const {
         return 4;  // Default to 4 nodes
     }
 
-    // ActiveNodes parameter: StringListParameter with 3 options
-    // toPlain gives 0, 1, 2 -> map to 2, 3, 4 nodes
+    // ActiveNodes parameter: StringListParameter with 4 options
+    // toPlain gives 0, 1, 2, 3 -> map to 1, 2, 3, 4 nodes
     double normalized = activeNodesParam_->getNormalized();
     int index = static_cast<int>(activeNodesParam_->toPlain(normalized));
-    return index + 2;  // 0->2, 1->3, 2->4
+    return index + 1;  // 0->1, 1->2, 2->3, 3->4
 }
 
 void MorphPad::resetNodePositionsToDefault() {
@@ -181,7 +181,8 @@ void MorphPad::resetNodePositionsToDefault() {
 // =============================================================================
 
 void MorphPad::setActiveNodeCount(int count) {
-    activeNodeCount_ = std::clamp(count, 2, kMaxNodes);
+    activeNodeCount_ = std::clamp(count, 1, kMaxNodes);
+    morphDisabled_ = (activeNodeCount_ < 2);
     recalculateWeights();
     invalid();
 }
@@ -307,6 +308,18 @@ int MorphPad::hitTestNode(float pixelX, float pixelY) const {
 }
 
 // =============================================================================
+// Greyscale Helper (single-node disabled mode)
+// =============================================================================
+
+namespace {
+/// @brief Desaturate a color to greyscale using ITU-R BT.601 luminance weights.
+VSTGUI::CColor desaturateColor(const VSTGUI::CColor& color) {
+    auto lum = static_cast<uint8_t>(0.299f * color.red + 0.587f * color.green + 0.114f * color.blue);
+    return VSTGUI::CColor(lum, lum, lum, color.alpha);
+}
+} // anonymous namespace
+
+// =============================================================================
 // CControl Overrides - Drawing
 // =============================================================================
 
@@ -378,6 +391,10 @@ void MorphPad::drawBackground(VSTGUI::CDrawContext* context) {
                 static_cast<uint8_t>(b * kDarkenFactor),
                 0xFF
             };
+
+            // Desaturate when morph is disabled (single node mode)
+            if (morphDisabled_)
+                cellColor = desaturateColor(cellColor);
 
             // Draw the cell
             VSTGUI::CRect cellRect(
@@ -465,6 +482,8 @@ void MorphPad::drawConnectionLines(VSTGUI::CDrawContext* context) {
 
         // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
         VSTGUI::CColor nodeColor = getNodeColor(i);
+        if (morphDisabled_)
+            nodeColor = desaturateColor(nodeColor);
 
         // Set opacity based on weight
         uint8_t alpha = static_cast<uint8_t>(nodes_[i].weight * 255.0f);
@@ -494,6 +513,8 @@ void MorphPad::drawNodes(VSTGUI::CDrawContext* context) {
 
         // Get fixed node color (A=coral, B=teal, C=purple, D=yellow)
         VSTGUI::CColor fillColor = getNodeColor(i);
+        if (morphDisabled_)
+            fillColor = desaturateColor(fillColor);
 
         // Scale brightness based on weight
         float brightness = kMinBrightness + nodes_[i].weight * (kMaxBrightness - kMinBrightness);
@@ -550,13 +571,16 @@ void MorphPad::drawCursor(VSTGUI::CDrawContext* context) const {
         pixelX + radius, pixelY + radius
     );
 
-    context->setFrameColor(VSTGUI::CColor{0xFF, 0xFF, 0xFF, 0xFF});  // White
+    VSTGUI::CColor cursorColor = morphDisabled_
+        ? VSTGUI::CColor{0x80, 0x80, 0x80, 0xFF}   // Grey when disabled
+        : VSTGUI::CColor{0xFF, 0xFF, 0xFF, 0xFF};   // White when active
+    context->setFrameColor(cursorColor);
     context->setLineWidth(kCursorStrokeWidth);
     context->drawEllipse(cursorRect, VSTGUI::kDrawStroked);
 
     // Small filled center point
     VSTGUI::CRect centerRect(pixelX - 2.0, pixelY - 2.0, pixelX + 2.0, pixelY + 2.0);
-    context->setFillColor(VSTGUI::CColor{0xFF, 0xFF, 0xFF, 0xFF});
+    context->setFillColor(cursorColor);
     context->drawEllipse(centerRect, VSTGUI::kDrawFilled);
 }
 
@@ -584,6 +608,7 @@ void MorphPad::drawPositionLabel(VSTGUI::CDrawContext* context) {
 // =============================================================================
 
 void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
+    if (morphDisabled_) return;
     if (event.buttonState.isLeft()) {
         float pixelX = static_cast<float>(event.mousePosition.x);
         float pixelY = static_cast<float>(event.mousePosition.y);
@@ -667,6 +692,7 @@ void MorphPad::onMouseDownEvent(VSTGUI::MouseDownEvent& event) {
 }
 
 void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
+    if (morphDisabled_) return;
     if (isDragging_) {
         float pixelX = static_cast<float>(event.mousePosition.x);
         float pixelY = static_cast<float>(event.mousePosition.y);
@@ -741,6 +767,7 @@ void MorphPad::onMouseMoveEvent(VSTGUI::MouseMoveEvent& event) {
 }
 
 void MorphPad::onMouseUpEvent(VSTGUI::MouseUpEvent& event) {
+    if (morphDisabled_) return;
     if (isDragging_ || isDraggingNode_) {
         endEdit();
 
@@ -758,6 +785,7 @@ void MorphPad::onMouseUpEvent(VSTGUI::MouseUpEvent& event) {
 }
 
 void MorphPad::onMouseWheelEvent(VSTGUI::MouseWheelEvent& event) {
+    if (morphDisabled_) return;
     // FR-040: Scroll wheel interaction
     // Vertical scroll adjusts X, horizontal scroll adjusts Y
 

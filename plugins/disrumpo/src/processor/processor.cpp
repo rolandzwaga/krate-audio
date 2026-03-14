@@ -2205,9 +2205,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 break;
                             }
                             case BandParamType::kBandActiveNodes: {
-                                // StringListParameter: 3 entries ["2","3","4"]
-                                int idx = static_cast<int>(value * 2.0 + 0.5);
-                                int count = std::clamp(idx + 2, kMinActiveNodes, kMaxMorphNodes);
+                                // StringListParameter: 4 entries ["1","2","3","4"]
+                                int idx = static_cast<int>(value * 3.0 + 0.5);
+                                int count = std::clamp(idx + 1, kMinActiveNodes, kMaxMorphNodes);
                                 bandMorphCache_[band].activeNodeCount = count;
                                 bandProcessors_[band].setMorphNodes(
                                     bandMorphCache_[band].nodes, count);

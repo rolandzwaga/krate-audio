@@ -29,13 +29,17 @@ public:
     /// @param expandedHeight The full height of the container when expanded
     /// @param animationDurationMs Duration of animation in milliseconds (0 = instant)
     /// @param parentBandTag Tag of the parent band container (-1 = no parent guard)
+    /// @param bandIndex Band index (0-3) for positioning the expanded panel relative to the band
+    /// @param expandedWidth The full width of the container (must match uidesc, used for positioning)
     AnimatedExpandController(
         VSTGUI::VST3Editor** editorPtr,
         Steinberg::Vst::Parameter* watchedParam,
         Steinberg::int32 containerTag,
         float expandedHeight,
         uint32_t animationDurationMs = 250,
-        Steinberg::int32 parentBandTag = -1);
+        Steinberg::int32 parentBandTag = -1,
+        int bandIndex = 0,
+        float expandedWidth = 680.0f);
 
     ~AnimatedExpandController() override;
 
@@ -58,11 +62,16 @@ private:
     void instantExpand(VSTGUI::CViewContainer* container) const;
     static void instantCollapse(VSTGUI::CViewContainer* container);
 
+    /// Move the container to the band-relative X position (clamped to parent bounds).
+    void positionContainerForBand(VSTGUI::CViewContainer* container) const;
+
     VSTGUI::VST3Editor** editorPtr_;
     Steinberg::Vst::Parameter* watchedParam_;
     Steinberg::int32 containerTag_;
     Steinberg::int32 parentBandTag_;
+    int bandIndex_;
     float expandedHeight_;
+    float expandedWidth_ = 680.0f;  ///< Stored from uidesc (avoids stale width after animation)
     uint32_t animationDurationMs_;
     bool animationsEnabled_ = true;
     std::atomic<bool> isActive_{true};

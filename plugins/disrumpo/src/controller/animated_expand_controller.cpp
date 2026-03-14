@@ -22,12 +22,16 @@ AnimatedExpandController::AnimatedExpandController(
     Steinberg::int32 containerTag,
     float expandedHeight,
     uint32_t animationDurationMs,
-    Steinberg::int32 parentBandTag)
+    Steinberg::int32 parentBandTag,
+    int bandIndex,
+    float expandedWidth)
     : editorPtr_(editorPtr)
     , watchedParam_(watchedParam)
     , containerTag_(containerTag)
     , parentBandTag_(parentBandTag)
+    , bandIndex_(bandIndex)
     , expandedHeight_(expandedHeight)
+    , expandedWidth_(expandedWidth)
     , animationDurationMs_(animationDurationMs)
 {
     if (watchedParam_) {
@@ -137,8 +141,29 @@ bool AnimatedExpandController::isParentBandVisible() {
     return parentContainer->isVisible();
 }
 
+void AnimatedExpandController::positionContainerForBand(VSTGUI::CViewContainer* container) const {
+    // Position expanded panel left-aligned to the triggering band, clamped to parent bounds.
+    // Uses stored expandedWidth_ to avoid reading stale width from a mid-animation rect.
+    constexpr float kBandSpacing = 240.0f;
+    float targetX = bandIndex_ * kBandSpacing;
+
+    if (auto* parent = container->getParentView()) {
+        auto parentWidth = static_cast<float>(parent->getViewSize().getWidth());
+        targetX = std::min(targetX, parentWidth - expandedWidth_);
+    }
+    targetX = std::max(0.0f, targetX);
+
+    auto rect = container->getViewSize();
+    auto height = rect.getHeight();
+    rect.left = static_cast<VSTGUI::CCoord>(targetX);
+    rect.right = rect.left + static_cast<VSTGUI::CCoord>(expandedWidth_);
+    rect.setHeight(height);  // Preserve current height
+    container->setViewSize(rect);
+}
+
 void AnimatedExpandController::animateExpand(VSTGUI::CViewContainer* container) {
-    // Make visible first so animation is seen
+    // Move to band position first, then animate height (original flow preserved)
+    positionContainerForBand(container);
     container->setVisible(true);
 
     VSTGUI::VST3Editor* editor = editorPtr_ ? *editorPtr_ : nullptr;
@@ -201,10 +226,11 @@ void AnimatedExpandController::animateCollapse(VSTGUI::CViewContainer* container
 }
 
 void AnimatedExpandController::instantExpand(VSTGUI::CViewContainer* container) const {
-    container->setVisible(true);
+    positionContainerForBand(container);
     auto rect = container->getViewSize();
     rect.setHeight(static_cast<VSTGUI::CCoord>(expandedHeight_));
     container->setViewSize(rect);
+    container->setVisible(true);
     if (container->getFrame()) {
         container->invalid();
     }
