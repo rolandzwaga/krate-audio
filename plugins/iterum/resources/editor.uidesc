@@ -628,11 +628,11 @@
     </view>
   </template>
   <template name="Editor" class="CViewContainer" origin="0, 0" size="900, 600" background-color="background" minSize="900, 600" maxSize="1200, 900" autosize="left right top bottom">
-    <view class="CViewContainer" origin="0, 0" size="900, 70" background-color="header" autosize="left right" mouse-enabled="true">
+    <view class="CViewContainer" origin="0, 0" size="900, 50" background-color="header" autosize="left right" mouse-enabled="true">
       <view class="CTextLabel" origin="15, 10" size="80, 30" title="ITERUM" font="title-font" font-color="accent" text-alignment="left" transparent="true"/>
-      <view class="IconSegmentButton" origin="100, 5" size="680, 60" control-tag="Mode" default-value="0" layout-mode="icon-and-text" segment-names="Granular,Spectral,Shimmer,Tape,BBD,Digital,PingPong,Reverse,MultiTap,Freeze" segment-icons="granular,spectral,shimmer,tape,bbd,digital,pingpong,reverse,multitap,freeze" selected-color="accent" unselected-color="text-dim" frame-color="border"/>
+      <view class="IconSegmentButton" origin="100, 5" size="790, 40" control-tag="Mode" default-value="0" layout-mode="icon-and-text" segment-names="Granular,Spectral,Shimmer,Tape,BBD,Digital,PingPong,Reverse,MultiTap,Freeze" segment-icons="granular,spectral,shimmer,tape,bbd,digital,pingpong,reverse,multitap,freeze" selected-color="accent" unselected-color="slider-track" frame-color="border"/>
     </view>
-    <view class="UIViewSwitchContainer" origin="20, 80" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel" template-switch-control="Mode"/>
+    <view class="UIViewSwitchContainer" origin="20, 60" size="860, 400" background-color="panel" transparent="false" template-names="GranularPanel,SpectralPanel,ShimmerPanel,TapePanel,BBDPanel,DigitalPanel,PingPongPanel,ReversePanel,MultiTapPanel,FreezePanel" template-switch-control="Mode"/>
     <view class="CViewContainer" origin="0, 560" size="900, 40" background-color="header" autosize="left right bottom">
       <view class="CTextLabel" control-tag="9999" origin="15, 12" size="200, 16" title="Iterum v1.0.0" font="value-font" font-color="text-dim" transparent="true"/>
       <view custom-view-name="CheckForUpdatesButton" origin="580, 7" size="110, 26"/>
