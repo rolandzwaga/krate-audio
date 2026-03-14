@@ -19,6 +19,7 @@
 
 // Custom VSTGUI view registrations (must be included in exactly one TU)
 #include "ui/toggle_button.h"
+#include "ui/arc_knob.h"
 
 // ==============================================================================
 // Plugin Factory Definition

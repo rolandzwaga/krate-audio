@@ -2339,18 +2339,18 @@ void Controller::registerBandParams() {
         displayedTypeParam->appendString(STR16("Bitcrush"));
         displayedTypeParam->appendString(STR16("Sample Reduce"));
         displayedTypeParam->appendString(STR16("Quantize"));
+        displayedTypeParam->appendString(STR16("Aliasing"));
+        displayedTypeParam->appendString(STR16("Bitwise Mangler"));
         displayedTypeParam->appendString(STR16("Temporal"));
         displayedTypeParam->appendString(STR16("Ring Saturation"));
         displayedTypeParam->appendString(STR16("Feedback"));
-        displayedTypeParam->appendString(STR16("Aliasing"));
-        displayedTypeParam->appendString(STR16("Bitwise Mangler"));
+        displayedTypeParam->appendString(STR16("Allpass Resonant"));
         displayedTypeParam->appendString(STR16("Chaos"));
         displayedTypeParam->appendString(STR16("Formant"));
         displayedTypeParam->appendString(STR16("Granular"));
         displayedTypeParam->appendString(STR16("Spectral"));
         displayedTypeParam->appendString(STR16("Fractal"));
         displayedTypeParam->appendString(STR16("Stochastic"));
-        displayedTypeParam->appendString(STR16("Allpass Resonant"));
         parameters.addParameter(displayedTypeParam);
 
         // Band TabView: Main/Shape tab switching (UI only, not persisted)
@@ -2388,18 +2388,18 @@ void Controller::registerNodeParams() {
         STR16("Bitcrush"),
         STR16("Sample Reduce"),
         STR16("Quantize"),
+        STR16("Aliasing"),
+        STR16("Bitwise Mangler"),
         STR16("Temporal"),
         STR16("Ring Saturation"),
         STR16("Feedback"),
-        STR16("Aliasing"),
-        STR16("Bitwise Mangler"),
+        STR16("Allpass Resonant"),
         STR16("Chaos"),
         STR16("Formant"),
         STR16("Granular"),
         STR16("Spectral"),
         STR16("Fractal"),
-        STR16("Stochastic"),
-        STR16("Allpass Resonant")
+        STR16("Stochastic")
     };
     static constexpr int kNumDistortionTypes = 26;
 
