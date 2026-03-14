@@ -5,6 +5,15 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-03-14
+
+### Added
+
+- **Single distortion mode (activeNodeCount=1)** — Default is now 1 node per band, bypassing morph overhead. MorphPad renders in greyscale with mouse interaction disabled when count=1.
+- **Band-relative expanded panel positioning** — Expanded band popups now appear anchored to the triggering band instead of always at the top-left.
+- **Band-colored popup borders** — Each expanded panel has a 2px border matching its band color (orange, teal, green, purple).
+- **Drop shadow on expanded panels** — Semi-transparent shadow offset behind expanded band popups for visual depth.
+
 ## [0.9.3] - 2026-03-05
 
 ### Added
