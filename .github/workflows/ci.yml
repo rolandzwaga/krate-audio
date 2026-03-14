@@ -61,7 +61,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Detect file changes
-        if: github.event_name != 'workflow_call'
+        if: inputs.plugin == ''
         uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -89,31 +89,21 @@ jobs:
       - name: Set outputs
         id: set-outputs
         run: |
-          if [ "${{ github.event_name }}" = "workflow_call" ]; then
-            PLUGIN="${{ inputs.plugin }}"
-            if [ -z "$PLUGIN" ]; then
-              # No plugin specified — build everything (backward compatible)
-              echo "dsp=true" >> $GITHUB_OUTPUT
-              echo "shared=true" >> $GITHUB_OUTPUT
-              echo "iterum=true" >> $GITHUB_OUTPUT
-              echo "disrumpo=true" >> $GITHUB_OUTPUT
-              echo "ruinae=true" >> $GITHUB_OUTPUT
-              echo "innexus=true" >> $GITHUB_OUTPUT
-              echo "infra=true" >> $GITHUB_OUTPUT
-            else
-              # Only build the selected plugin (used by release.yml)
-              echo "dsp=false" >> $GITHUB_OUTPUT
-              echo "shared=false" >> $GITHUB_OUTPUT
-              echo "infra=false" >> $GITHUB_OUTPUT
-              for p in iterum disrumpo ruinae innexus; do
-                if [ "$p" = "$PLUGIN" ]; then
-                  echo "$p=true" >> $GITHUB_OUTPUT
-                else
-                  echo "$p=false" >> $GITHUB_OUTPUT
-                fi
-              done
-            fi
+          PLUGIN="${{ inputs.plugin }}"
+          if [ -n "$PLUGIN" ]; then
+            # Specific plugin requested (used by release.yml) — only build that plugin
+            echo "dsp=false" >> $GITHUB_OUTPUT
+            echo "shared=false" >> $GITHUB_OUTPUT
+            echo "infra=false" >> $GITHUB_OUTPUT
+            for p in iterum disrumpo ruinae innexus; do
+              if [ "$p" = "$PLUGIN" ]; then
+                echo "$p=true" >> $GITHUB_OUTPUT
+              else
+                echo "$p=false" >> $GITHUB_OUTPUT
+              fi
+            done
           else
+            # No plugin specified — use file change detection (push/PR)
             echo "dsp=${{ steps.filter.outputs.dsp }}" >> $GITHUB_OUTPUT
             echo "shared=${{ steps.filter.outputs.shared }}" >> $GITHUB_OUTPUT
             echo "iterum=${{ steps.filter.outputs.iterum }}" >> $GITHUB_OUTPUT
