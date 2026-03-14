@@ -3094,11 +3094,13 @@ Steinberg::tresult PLUGIN_API Controller::getState(Steinberg::IBStream* state) {
         return Steinberg::kResultFalse;
     }
 
-    // Spec 012 T027: Serialize window size
-    if (!streamer.writeDouble(lastWindowWidth_)) {
+    // Window size placeholder: write dummy values to maintain binary format
+    // compatibility with version 2 state (MIDI CC data follows these doubles).
+    // Window size is session-only and not persisted.
+    if (!streamer.writeDouble(0.0)) {
         return Steinberg::kResultFalse;
     }
-    if (!streamer.writeDouble(lastWindowHeight_)) {
+    if (!streamer.writeDouble(0.0)) {
         return Steinberg::kResultFalse;
     }
 
@@ -3132,18 +3134,13 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
         return Steinberg::kResultOk;
     }
 
-    // Spec 012 T028: Deserialize window size (version >= 2)
-    // Note: height may include mod panel (200px extra) if it was visible.
-    // The 5:3 ratio is enforced on the base area in editorAttached().
+    // Read and discard legacy window size doubles (version >= 2).
+    // Window size is session-only; we must still consume these bytes
+    // to reach the MIDI CC data that follows.
     if (version >= 2) {
-        double width = 1000.0;
-        double height = 600.0;
-        if (streamer.readDouble(width) && streamer.readDouble(height)) {
-            width = std::clamp(width, 834.0, 1400.0);
-            height = std::clamp(height, 500.0, 1040.0);
-            lastWindowWidth_ = width;
-            lastWindowHeight_ = height;
-        }
+        double unusedWidth = 0.0, unusedHeight = 0.0;
+        streamer.readDouble(unusedWidth);
+        streamer.readDouble(unusedHeight);
 
         // Spec 012 T059: Deserialize global MIDI CC mappings
         Steinberg::int32 midiDataSize = 0;
@@ -4009,12 +4006,19 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
     // T029/T030: Restore last window size (height may include mod panel)
     // Always request resize: the uidesc template size (1000x800) includes space
     // for the mod panel, but the default window size is 1000x600.
-    // Use the saved dimensions directly — they were captured from the actual frame
-    // in willClose() and account for host-specific adjustments (DPI, decorations).
+    // Set initial window size. The uidesc template is 1000x800 (includes mod
+    // panel space), but the default window should be 1000x600.
+    // Window size is session-only — always open at default size.
     {
-        double constrainedWidth = std::clamp(lastWindowWidth_, 834.0, 1400.0);
-        double constrainedHeight = std::clamp(lastWindowHeight_, 500.0, 1040.0);
-        editor->requestResize(VSTGUI::CPoint(constrainedWidth, constrainedHeight));
+        double initWidth = 1000.0;
+        double initHeight = 600.0;
+        // If mod panel was visible at init, add its height
+        auto* mpParam = getParameterObject(
+            makeGlobalParamId(GlobalParamType::kGlobalModPanelVisible));
+        if (mpParam && mpParam->getNormalized() >= 0.5) {
+            initHeight += ModPanelToggleController::kModPanelHeight;
+        }
+        editor->requestResize(VSTGUI::CPoint(initWidth, initHeight));
     }
 
     // T045/T047: Register keyboard shortcut handler and enable focus drawing
@@ -4191,22 +4195,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
-    // Save current window size before closing so getState() persists it
-    if (editor) {
-        auto* frame = editor->getFrame();
-        if (frame) {
-            auto rect = frame->getViewSize();
-            // Save the logical (unscaled) size. The frame's viewSize includes the
-            // zoom/DPI scale factor applied by CFrame::setZoom(). If we saved the
-            // scaled size, requestResize() in didOpen() would pass it before zoom
-            // is reapplied, causing the window to grow each open/close cycle.
-            double zoom = frame->getZoom();
-            if (zoom > 0.0) {
-                lastWindowWidth_ = std::floor(rect.getWidth() / zoom);
-                lastWindowHeight_ = std::floor(rect.getHeight() / zoom);
-            }
-        }
-    }
+    // Window size is session-only — no longer persisted.
 
     // FR-024: Called when the editor is about to close
     // CRITICAL: Deactivate all visibility controllers BEFORE clearing them

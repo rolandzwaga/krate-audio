@@ -23,6 +23,7 @@
     <color name="slider-handle" rgba="#FF6B35ff"/>
     <color name="border" rgba="#3A3A40ff"/>
     <color name="panel" rgba="#202024ff"/>
+    <color name="panel-expanded" rgba="#2A2A30ff"/>
   </colors>
   <fonts>
     <font name="title-font" font-name="Arial" size="18" bold="true"/>
@@ -535,7 +536,7 @@
       <view class="CViewContainer" origin="0, 0" size="235, 340" background-color="panel" control-tag="Band1Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="center"/>
-        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band1Expanded" default-value="0"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band1Expanded" default-value="0" tooltip="Expand Band 1" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band1DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band1TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -545,7 +546,7 @@
       <view class="CViewContainer" origin="240, 0" size="235, 340" background-color="panel" control-tag="Band2Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 2" font="section-font" font-color="band-2" text-alignment="center"/>
-        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band2Expanded" default-value="0"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band2Expanded" default-value="0" tooltip="Expand Band 2" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band2DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band2TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -555,7 +556,7 @@
       <view class="CViewContainer" origin="480, 0" size="235, 340" background-color="panel" control-tag="Band3Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 3" font="section-font" font-color="band-3" text-alignment="center"/>
-        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band3Expanded" default-value="0"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band3Expanded" default-value="0" tooltip="Expand Band 3" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band3DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band3TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -565,7 +566,7 @@
       <view class="CViewContainer" origin="720, 0" size="235, 340" background-color="panel" control-tag="Band4Container">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4Container" back-color="transparent"/>
         <view class="CTextLabel" origin="0, 5" size="200, 20" title="Band 4" font="section-font" font-color="band-4" text-alignment="center"/>
-        <view class="COnOffButton" origin="200, 5" size="25, 20" bitmap="onoff_25x20" control-tag="Band4Expanded" default-value="0"/>
+        <view class="ToggleButton" origin="200, 5" size="25, 20" on-color="accent-primary" off-color="text-secondary" control-tag="Band4Expanded" default-value="0" tooltip="Expand Band 4" icon-style="chevron" on-orientation="down" off-orientation="right"/>
         <view class="CTextLabel" origin="10, 30" size="50, 15" title="Type" font="small-font" font-color="text-secondary"/>
         <view class="COptionMenu" origin="10, 45" size="215, 22" control-tag="Band4DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSegmentButton" origin="10, 72" size="215, 20" control-tag="Band4TabView" default-value="0" style="horizontal" segment-names="Main, Shape" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" selected-gradient="button-active"/>
@@ -573,44 +574,52 @@
         <view class="UIViewSwitchContainer" origin="10, 95" size="215, 243" animation-time="0" template-switch-control="Band4TabView" template-names="Band4MainTab,Band4ShapeTab"/>
       </view>
       <!-- Expanded band strips: shown/hidden by AnimatedExpandController (tags 9100-9103) -->
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band1ExpandedContainer" back-color="transparent"/>
-        <view template="Band1ExpandedStrip"/>
+        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
+          <view template="Band1ExpandedStrip"/>
+        </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band2ExpandedContainer" back-color="transparent"/>
-        <view template="Band2ExpandedStrip"/>
+        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
+          <view template="Band2ExpandedStrip"/>
+        </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band3ExpandedContainer" back-color="transparent"/>
-        <view template="Band3ExpandedStrip"/>
+        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
+          <view template="Band3ExpandedStrip"/>
+        </view>
       </view>
-      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="panel" visible="false">
+      <view class="CViewContainer" origin="0, 0" size="680, 280" background-color="border" background-color-draw-style="filled" visible="false">
         <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="Band4ExpandedContainer" back-color="transparent"/>
-        <view template="Band4ExpandedStrip"/>
+        <view class="CViewContainer" origin="1, 1" size="678, 278" background-color="panel-expanded">
+          <view template="Band4ExpandedStrip"/>
+        </view>
       </view>
     </view>
     <view class="CViewContainer" origin="0, 550" size="1000, 50" background-color="background-secondary">
       <view class="CTextLabel" origin="20, 15" size="50, 20" title="Sweep" font="label-font" font-color="text-primary"/>
-      <view class="COnOffButton" origin="70, 12" size="25, 25" bitmap="onoff_25x25" control-tag="SweepEnable" default-value="0"/>
+      <view class="ToggleButton" origin="70, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnable" default-value="0" tooltip="Enable sweep"/>
       <view class="CTextLabel" origin="110, 15" size="40, 20" title="Freq" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="150, 15" size="100, 20" orientation="horizontal" control-tag="SweepFrequency" default-value="0.049" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="260, 15" size="40, 20" title="Width" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="300, 15" size="80, 20" orientation="horizontal" control-tag="SweepWidth" default-value="0.143" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="400, 15" size="30, 20" title="LFO" font="small-font" font-color="text-secondary"/>
-      <view class="COnOffButton" origin="430, 12" size="25, 25" bitmap="onoff_25x25" control-tag="SweepLFOEnable" default-value="0"/>
+      <view class="ToggleButton" origin="430, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepLFOEnable" default-value="0" tooltip="Enable sweep LFO"/>
       <view class="CTextLabel" origin="460, 15" size="30, 20" title="Rate" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="490, 15" size="60, 20" orientation="horizontal" control-tag="SweepLFORate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="555, 15" size="35, 20" title="Depth" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="590, 15" size="50, 20" orientation="horizontal" control-tag="SweepLFODepth" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="650, 15" size="30, 20" title="Env" font="small-font" font-color="text-secondary"/>
-      <view class="COnOffButton" origin="680, 12" size="25, 25" bitmap="onoff_25x25" control-tag="SweepEnvEnable" default-value="0"/>
+      <view class="ToggleButton" origin="680, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="SweepEnvEnable" default-value="0" tooltip="Enable sweep envelope follower"/>
       <view class="CTextLabel" origin="710, 15" size="25, 20" title="Atk" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="735, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvAttack" default-value="0.1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="780, 15" size="25, 20" title="Rel" font="small-font" font-color="text-secondary"/>
       <view class="CSlider" origin="805, 15" size="40, 20" orientation="horizontal" control-tag="SweepEnvRelease" default-value="0.2" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
       <view class="CTextLabel" origin="855, 15" size="30, 20" title="Mod" font="small-font" font-color="accent-secondary"/>
-      <view class="COnOffButton" origin="885, 12" size="25, 25" bitmap="onoff_25x25" control-tag="ModPanelVisible" default-value="0"/>
+      <view class="ToggleButton" origin="885, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" on-orientation="down" off-orientation="right"/>
       <view class="CTextLabel" origin="920, 15" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
     </view>
     <view class="CViewContainer" origin="0, 600" size="1000, 200" background-color="background-primary" visible="false">
@@ -621,22 +630,22 @@
         <view class="CSlider" origin="42, 20" size="55, 16" orientation="horizontal" control-tag="ModLFO1Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="COptionMenu" origin="100, 20" size="55, 16" control-tag="ModLFO1Shape" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSlider" origin="158, 20" size="40, 16" orientation="horizontal" control-tag="ModLFO1Phase" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-        <view class="COnOffButton" origin="202, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Sync" default-value="0"/>
+        <view class="ToggleButton" origin="202, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Sync" default-value="0" tooltip="Sync LFO 1 to tempo"/>
         <view class="COptionMenu" origin="222, 20" size="50, 16" control-tag="ModLFO1NoteValue" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CTextLabel" origin="276, 20" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
-        <view class="COnOffButton" origin="292, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Unipolar" default-value="0"/>
+        <view class="ToggleButton" origin="292, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Unipolar" default-value="0" tooltip="LFO 1 unipolar mode"/>
         <view class="CTextLabel" origin="312, 20" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
-        <view class="COnOffButton" origin="328, 20" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO1Retrigger" default-value="0"/>
+        <view class="ToggleButton" origin="328, 20" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO1Retrigger" default-value="0" tooltip="Retrigger LFO 1 on note"/>
         <view class="CTextLabel" origin="10, 40" size="30, 16" title="LFO2" font="small-font" font-color="text-primary"/>
         <view class="CSlider" origin="42, 40" size="55, 16" orientation="horizontal" control-tag="ModLFO2Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="COptionMenu" origin="100, 40" size="55, 16" control-tag="ModLFO2Shape" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CSlider" origin="158, 40" size="40, 16" orientation="horizontal" control-tag="ModLFO2Phase" default-value="0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
-        <view class="COnOffButton" origin="202, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Sync" default-value="0"/>
+        <view class="ToggleButton" origin="202, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Sync" default-value="0" tooltip="Sync LFO 2 to tempo"/>
         <view class="COptionMenu" origin="222, 40" size="50, 16" control-tag="ModLFO2NoteValue" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CTextLabel" origin="276, 40" size="16, 16" title="U" font="small-font" font-color="text-secondary"/>
-        <view class="COnOffButton" origin="292, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Unipolar" default-value="0"/>
+        <view class="ToggleButton" origin="292, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Unipolar" default-value="0" tooltip="LFO 2 unipolar mode"/>
         <view class="CTextLabel" origin="312, 40" size="16, 16" title="R" font="small-font" font-color="text-secondary"/>
-        <view class="COnOffButton" origin="328, 40" size="16, 16" bitmap="onoff_25x25" control-tag="ModLFO2Retrigger" default-value="0"/>
+        <view class="ToggleButton" origin="328, 40" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModLFO2Retrigger" default-value="0" tooltip="Retrigger LFO 2 on note"/>
         <view class="CTextLabel" origin="10, 62" size="25, 16" title="Env" font="small-font" font-color="text-primary"/>
         <view class="CTextLabel" origin="36, 62" size="18, 16" title="Atk" font="small-font" font-color="text-secondary"/>
         <view class="CSlider" origin="54, 62" size="50, 16" orientation="horizontal" control-tag="ModEnvAttack" default-value="0.0" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
@@ -651,7 +660,7 @@
         <view class="CTextLabel" origin="118, 82" size="35, 16" title="Smth" font="small-font" font-color="text-secondary"/>
         <view class="CSlider" origin="153, 82" size="55, 16" orientation="horizontal" control-tag="ModRandomSmoothness" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="CTextLabel" origin="214, 82" size="28, 16" title="Sync" font="small-font" font-color="text-secondary"/>
-        <view class="COnOffButton" origin="242, 82" size="16, 16" bitmap="onoff_25x25" control-tag="ModRandomSync" default-value="0"/>
+        <view class="ToggleButton" origin="242, 82" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModRandomSync" default-value="0" tooltip="Sync random to tempo"/>
         <view class="CTextLabel" origin="10, 102" size="35, 16" title="Chaos" font="small-font" font-color="text-primary"/>
         <view class="COptionMenu" origin="46, 102" size="70, 16" control-tag="ModChaosModel" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
         <view class="CTextLabel" origin="120, 102" size="28, 16" title="Spd" font="small-font" font-color="text-secondary"/>
@@ -958,7 +967,7 @@
     <view class="CTextLabel" origin="30, 35" size="60, 15" title="Smooth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape0" origin="35, 50" size="50, 50" default-value="0.2" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-4"/>
     <view class="CTextLabel" origin="120, 35" size="70, 15" title="DC Block" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape1" origin="135, 55" size="40, 25" bitmap="onoff_40x25" default-value="1"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape1" origin="135, 55" size="40, 25" on-color="accent-primary" off-color="text-secondary" default-value="1" tooltip="Enable DC blocking"/>
   </template>
   <template name="TypeParams_HalfRectify" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Half Rectify" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -967,7 +976,7 @@
     <view class="CTextLabel" origin="75, 30" size="60, 12" title="Smooth" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="80, 42" size="45, 45" default-value="0.2" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-4"/>
     <view class="CTextLabel" origin="145, 30" size="65, 12" title="DC Block" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape2" origin="157, 48" size="40, 25" bitmap="onoff_40x25" default-value="1"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape2" origin="157, 48" size="40, 25" on-color="accent-primary" off-color="text-secondary" default-value="1" tooltip="Enable DC blocking"/>
   </template>
   <template name="TypeParams_Bitcrush" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Bitcrush" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -1051,7 +1060,7 @@
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="1x,2x,3x,4x"/>
     <view class="CTextLabel" origin="105, 78" size="35, 10" title="Lim" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape6" origin="107, 90" size="25, 20" bitmap="onoff_25x20" default-value="1"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape6" origin="107, 90" size="25, 20" on-color="accent-primary" off-color="text-secondary" default-value="1" tooltip="Enable limiter"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Thr" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.8" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
   </template>
@@ -1062,7 +1071,7 @@
     <view class="CTextLabel" origin="55, 28" size="50, 12" title="Shift" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape1" origin="57, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
     <view class="CTextLabel" origin="110, 28" size="45, 12" title="PreFlt" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape2" origin="117, 45" size="30, 25" bitmap="onoff_30x25" default-value="0"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape2" origin="117, 45" size="30, 25" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Enable pre-filter"/>
     <view class="CTextLabel" origin="160, 28" size="45, 12" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape3" origin="162, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-3"/>
     <view class="CTextLabel" origin="80, 88" size="50, 12" title="Reso" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1138,7 +1147,7 @@
     <view class="CTextLabel" origin="88, 78" size="35, 10" title="Sprd" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape7" origin="88, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tight,Medium,Wide,Full"/>
     <view class="CTextLabel" origin="135, 78" size="30, 10" title="Frz" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape8" origin="135, 90" size="22, 20" bitmap="onoff_22x20" default-value="0"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape8" origin="135, 90" size="22, 20" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Freeze grains"/>
   </template>
   <template name="TypeParams_Spectral" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Spectral" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -1212,7 +1221,7 @@
     <view class="CTextLabel" origin="55, 78" size="40, 10" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tanh,Clip,Asym,Hyst"/>
     <view class="CTextLabel" origin="105, 78" size="35, 10" title="Pitch" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COnOffButton" control-tag="Band.NodeShape6" origin="110, 90" size="25, 20" bitmap="onoff_25x20" default-value="0"/>
+    <view class="ToggleButton" control-tag="Band.NodeShape6" origin="110, 90" size="25, 20" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Enable pitch tracking"/>
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Damp" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" background-color="background-secondary" handle-color="band-6"/>
   </template>
@@ -1235,11 +1244,11 @@
     <view class="CSlider" origin="110, 115" size="100, 20" orientation="horizontal" control-tag="Band.Pan" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="slider-handle" draw-frame="true" draw-frame-color="border"/>
     <view class="CParamDisplay" origin="110, 137" size="100, 15" control-tag="Band.Pan" font="value-font" font-color="text-primary" back-color="transparent" text-alignment="center"/>
     <view class="CViewContainer" origin="0, 158" size="215, 50" transparent="true">
-      <view class="COnOffButton" origin="30, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Solo" default-value="0"/>
+      <view class="ToggleButton" origin="30, 0" size="40, 25" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Solo" default-value="0" tooltip="Solo band"/>
       <view class="CTextLabel" origin="30, 25" size="40, 15" title="Solo" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="90, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Bypass" default-value="0"/>
+      <view class="ToggleButton" origin="90, 0" size="40, 25" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Bypass" default-value="0" tooltip="Bypass band processing"/>
       <view class="CTextLabel" origin="90, 25" size="40, 15" title="Bypass" font="small-font" font-color="text-secondary" text-alignment="center"/>
-      <view class="COnOffButton" origin="150, 0" size="40, 25" bitmap="onoff_40x25" control-tag="Band.Mute" default-value="0"/>
+      <view class="ToggleButton" origin="150, 0" size="40, 25" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Mute" default-value="0" tooltip="Mute band output"/>
       <view class="CTextLabel" origin="150, 25" size="40, 15" title="Mute" font="small-font" font-color="text-secondary" text-alignment="center"/>
     </view>
     <view class="CTextLabel" origin="0, 215" size="42, 20" title="Morph X" font="small-font" font-color="text-secondary"/>
@@ -1284,7 +1293,7 @@
   <template name="BandExpandedStrip" class="CViewContainer" size="680, 280" background-color="panel">
     <view class="CViewContainer" origin="0, 0" size="680, 40" background-color="background-secondary">
       <view class="CTextLabel" origin="10, 10" size="60, 20" title="Band 1" font="section-font" font-color="band-1" text-alignment="left"/>
-      <view class="COnOffButton" origin="640, 8" size="30, 24" bitmap="onoff_30x24" control-tag="Band.Expanded" default-value="1"/>
+      <view class="ToggleButton" origin="640, 8" size="30, 24" on-color="accent-primary" off-color="text-secondary" control-tag="Band.Expanded" default-value="1" tooltip="Collapse expanded view" icon-style="chevron" on-orientation="down" off-orientation="right"/>
       <view class="CTextLabel" origin="80, 12" size="35, 16" title="Type" font="small-font" font-color="text-secondary"/>
       <view class="COptionMenu" origin="115, 10" size="100, 20" control-tag="Band.DisplayedType" font="value-font" font-color="text-primary" back-color="background-secondary" frame-color="border"/>
       <view class="CTextLabel" origin="230, 2" size="40, 12" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>

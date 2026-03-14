@@ -17,6 +17,9 @@
 
 #include "public.sdk/source/main/pluginfactory.h"
 
+// Custom VSTGUI view registrations (must be included in exactly one TU)
+#include "ui/toggle_button.h"
+
 // ==============================================================================
 // Plugin Factory Definition
 // ==============================================================================
