@@ -48,6 +48,8 @@ namespace Krate::Plugins {
 
 class ArcKnob : public VSTGUI::CKnobBase {
 public:
+    enum PopupPosition { kPopupBottom, kPopupTop };
+
     ArcKnob(const VSTGUI::CRect& size, VSTGUI::IControlListener* listener,
             int32_t tag)
         : CKnobBase(size, listener, tag, nullptr) {}
@@ -60,7 +62,8 @@ public:
         , guideColor_(other.guideColor_)
         , indicatorLength_(other.indicatorLength_)
         , arcLineWidth_(other.arcLineWidth_)
-        , modArcLineWidth_(other.modArcLineWidth_) {}
+        , modArcLineWidth_(other.modArcLineWidth_)
+        , popupPosition_(other.popupPosition_) {}
 
     // =========================================================================
     // Modulation API
@@ -102,6 +105,9 @@ public:
 
     void setModArcLineWidth(VSTGUI::CCoord width) noexcept { modArcLineWidth_ = width; }
     [[nodiscard]] VSTGUI::CCoord getModArcLineWidth() const noexcept { return modArcLineWidth_; }
+
+    void setPopupPosition(PopupPosition pos) noexcept { popupPosition_ = pos; }
+    [[nodiscard]] PopupPosition getPopupPosition() const noexcept { return popupPosition_; }
 
     // =========================================================================
     // Drawing
@@ -431,19 +437,27 @@ private:
         auto popupWidth = static_cast<VSTGUI::CCoord>(text.size()) * kCharWidth + kPaddingH * 2;
         popupWidth = std::max(popupWidth, 36.0);
 
-        // Position below knob center in frame coordinates.
-        // CView::localToFrame doesn't add the view's own offset, so start
-        // in parent coordinates (using getViewSize() which is in parent coords).
+        // Position popup relative to knob in frame coordinates.
         VSTGUI::CRect vs = getViewSize();
-        VSTGUI::CPoint bottomCenter(
-            vs.left + vs.getWidth() / 2.0, vs.bottom);
-        localToFrame(bottomCenter);
+        VSTGUI::CPoint anchorPoint(
+            vs.left + vs.getWidth() / 2.0,
+            popupPosition_ == kPopupTop ? vs.top : vs.bottom);
+        localToFrame(anchorPoint);
 
-        VSTGUI::CRect popupRect(
-            bottomCenter.x - popupWidth / 2.0,
-            bottomCenter.y + kGap,
-            bottomCenter.x + popupWidth / 2.0,
-            bottomCenter.y + kGap + kPopupHeight);
+        VSTGUI::CRect popupRect;
+        if (popupPosition_ == kPopupTop) {
+            popupRect = VSTGUI::CRect(
+                anchorPoint.x - popupWidth / 2.0,
+                anchorPoint.y - kGap - kPopupHeight,
+                anchorPoint.x + popupWidth / 2.0,
+                anchorPoint.y - kGap);
+        } else {
+            popupRect = VSTGUI::CRect(
+                anchorPoint.x - popupWidth / 2.0,
+                anchorPoint.y + kGap,
+                anchorPoint.x + popupWidth / 2.0,
+                anchorPoint.y + kGap + kPopupHeight);
+        }
 
         // Create styled label
         int32_t style = VSTGUI::CParamDisplay::kRoundRectStyle
@@ -527,6 +541,8 @@ private:
     VSTGUI::CCoord indicatorLength_ = 4.0;
     VSTGUI::CCoord arcLineWidth_ = 1.0;
     VSTGUI::CCoord modArcLineWidth_ = 1.0;
+
+    PopupPosition popupPosition_ = kPopupBottom;
 };
 
 // =============================================================================
@@ -582,6 +598,13 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
         if (attributes.getDoubleAttribute("mod-arc-width", d))
             knob->setModArcLineWidth(d);
 
+        if (auto val = attributes.getAttributeValue("popup-position")) {
+            if (*val == "top")
+                knob->setPopupPosition(ArcKnob::kPopupTop);
+            else
+                knob->setPopupPosition(ArcKnob::kPopupBottom);
+        }
+
         // Also apply CKnobBase attributes (angle-start, angle-range, etc.)
         if (attributes.getDoubleAttribute("angle-start", d)) {
             d = d / 180.0 * VSTGUI::Constants::pi;
@@ -608,6 +631,7 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("angle-start");
         attributeNames.emplace_back("angle-range");
         attributeNames.emplace_back("zoom-factor");
+        attributeNames.emplace_back("popup-position");
         return true;
     }
 
@@ -621,6 +645,7 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "angle-start") return kFloatType;
         if (attributeName == "angle-range") return kFloatType;
         if (attributeName == "zoom-factor") return kFloatType;
+        if (attributeName == "popup-position") return kStringType;
         return kUnknownType;
     }
 
@@ -675,6 +700,11 @@ struct ArcKnobCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "zoom-factor") {
             stringValue = VSTGUI::UIAttributes::doubleToString(
                 knob->getZoomFactor());
+            return true;
+        }
+        if (attributeName == "popup-position") {
+            stringValue = (knob->getPopupPosition() == ArcKnob::kPopupTop)
+                ? "top" : "bottom";
             return true;
         }
         return false;
