@@ -127,7 +127,6 @@ struct DistortionParams {
     int dynamicMode = 0;            ///< Mode: 0=Envelope, 1=Inverse, 2=Derivative
     float dynamicCurve = 0.5f;      ///< Temporal waveshape curve [0, 1]
     float dynamicDepth = 0.5f;      ///< Temporal depth [0, 1]
-    int lookAhead = 0;              ///< Temporal look-ahead mode
     float hold = 0.0f;              ///< Temporal hold [0, 1]
 
     // Hybrid (D16-D17, D26)

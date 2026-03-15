@@ -141,14 +141,13 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::Temporal:
             // Slot0=Mode, Slot1=Sens, Slot2=Curve, Slot3=Atk, Slot4=Rel, Slot5=Depth,
-            // Slot6=Look, Slot7=Hold
+            // Slot6=(unused), Slot7=Hold
             p.dynamicMode = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 modes
             p.sensitivity = slots[1];
             p.dynamicCurve = slots[2];
             p.attackMs = 1.0f + slots[3] * 499.0f;    // [0,1] → [1,500]
             p.releaseMs = 10.0f + slots[4] * 4990.0f; // [0,1] → [10,5000]
             p.dynamicDepth = slots[5];
-            p.lookAhead = static_cast<int>(slots[6] * 1.0f + 0.5f);
             p.hold = slots[7];
             break;
 

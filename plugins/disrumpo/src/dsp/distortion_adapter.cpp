@@ -198,7 +198,14 @@ float DistortionAdapter::process(float input) noexcept {
     const float dry = input;
 
     // Apply drive scaling
-    float wet = input * commonParams_.drive;
+    // Temporal handles drive internally via setBaseDrive() — skip external scaling
+    // to avoid double-drive that makes envelope params (sensitivity/attack/release) inaudible
+    float wet;
+    if (currentType_ == DistortionType::Temporal) {
+        wet = input;
+    } else {
+        wet = input * commonParams_.drive;
+    }
 
     // Process through current type
     wet = processRaw(wet);
@@ -738,10 +745,28 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         case DistortionType::Temporal: {
             int mode = std::clamp(p.dynamicMode, 0, 3);
             temporal_.setMode(static_cast<Krate::DSP::TemporalMode>(mode));
+            // Map plugin Drive [0, 10] → baseDrive [0.5, 3.0].
+            // The waveshaper's tanh(drive * x) is perceptually flat above drive ~3
+            // (tanh(3) ≈ 0.995), so the envelope modulation becomes inaudible when
+            // baseDrive is too high. Restricting to [0.5, 3.0] keeps modulation in
+            // the zone where it crosses the saturation knee — audibly meaningful.
+            // Input is passed raw (no pre-gain) so the envelope tracks true levels.
+            const float driveNorm = commonParams_.drive / 10.0f;  // [0, 1]
+            temporal_.setBaseDrive(0.5f + driveNorm * 2.5f);
             temporal_.setDriveModulation(p.sensitivity);
             temporal_.setAttackTime(p.attackMs);
             temporal_.setReleaseTime(p.releaseMs);
             temporal_.setHysteresisDepth(p.dynamicDepth);
+
+            // Curve (Slot 2) → waveshape type selection (9 types)
+            int shapeIndex = static_cast<int>(p.dynamicCurve * 8.0f + 0.5f);
+            shapeIndex = std::clamp(shapeIndex, 0, 8);
+            temporal_.setWaveshapeType(
+                static_cast<Krate::DSP::WaveshapeType>(shapeIndex));
+
+            // Hold (Slot 7) → hysteresis decay time [1, 500] ms
+            float decayMs = 1.0f + p.hold * 499.0f;
+            temporal_.setHysteresisDecay(decayMs);
             break;
         }
 

@@ -1014,7 +1014,7 @@
     <view class="CTextLabel" origin="162, 28" size="50, 12" title="Offset" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="164, 40" size="45, 45" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
   </template>
-  <template name="TypeParams_Temporal" class="CViewContainer" size="215, 200" background-color="panel">
+  <template name="TypeParams_Temporal" class="CViewContainer" sub-controller="TemporalMode" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Temporal" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Follow,Inverse,Transient,Hyst"/>
@@ -1026,12 +1026,12 @@
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="155, 38" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-5"/>
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="Rel" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-5"/>
-    <view class="CTextLabel" origin="55, 78" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape5" origin="55, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-5"/>
-    <view class="CTextLabel" origin="105, 78" size="40, 10" title="Look" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 88" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Off,On"/>
-    <view class="CTextLabel" origin="155, 78" size="35, 10" title="Hold" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-5"/>
+    <view class="CViewContainer" temporal-group="hysteresis" origin="55, 78" size="140, 50" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape5" origin="0, 10" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-5"/>
+      <view class="CTextLabel" origin="50, 0" size="35, 10" title="Hold" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape7" origin="50, 10" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-5"/>
+    </view>
   </template>
   <template name="TypeParams_RingSat" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Ring Saturation" font="section-font" font-color="text-primary" text-alignment="center"/>

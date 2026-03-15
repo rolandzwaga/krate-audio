@@ -2600,12 +2600,14 @@ void Controller::registerNodeParams() {
                 shapeName.append(Steinberg::UString128(std::to_string(n + 1).c_str()));
                 shapeName.append(Steinberg::UString128(" Shape "));
                 shapeName.append(Steinberg::UString128(std::to_string(s).c_str()));
+                // Shape2 uses stepCount=8 for discrete snapping (waveshape selector)
+                int32_t stepCount = (s == 2) ? 8 : 0;
                 auto* shapeParam = new Steinberg::Vst::RangeParameter(
                     shapeName,
                     makeNodeParamId(static_cast<uint8_t>(b), static_cast<uint8_t>(n), shapeType),
                     STR16(""),
                     0.0, 1.0, 0.5,
-                    0,
+                    stepCount,
                     Steinberg::Vst::ParameterInfo::kCanAutomate
                 );
                 parameters.addParameter(shapeParam);
@@ -3307,6 +3309,48 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                 auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                 int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
                 float v = static_cast<float>(valueNormalized);
+
+                if (distType == DistortionType::Temporal) {
+                    if (slot == 2) {
+                        // Curve → waveshape type name
+                        static const char* const kWaveshapeNames[] = {
+                            "Tanh", "Atan", "Cubic", "Quintic",
+                            "RSqrt", "Erf", "HardClip", "Diode", "Tube"
+                        };
+                        int idx = static_cast<int>(v * 8.0f + 0.5f);
+                        idx = std::clamp(idx, 0, 8);
+                        const char* name = kWaveshapeNames[idx];
+                        for (int i = 0; name[i] && i < 127; ++i) {
+                            string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
+                            string[i + 1] = 0;
+                        }
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 1 || slot == 5) {
+                        // Sens, Depth: percentage
+                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+                        appendToString128(string, STR16("%"));
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 3) {
+                        // Atk: [0,1] → [1,500] ms
+                        floatToString128(1.0 + v * 499.0, 0, string);
+                        appendToString128(string, STR16(" ms"));
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 4) {
+                        // Rel: [0,1] → [10,5000] ms
+                        floatToString128(10.0 + v * 4990.0, 0, string);
+                        appendToString128(string, STR16(" ms"));
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 7) {
+                        // Hold: [0,1] → [1,500] ms
+                        floatToString128(1.0 + v * 499.0, 0, string);
+                        appendToString128(string, STR16(" ms"));
+                        return Steinberg::kResultTrue;
+                    }
+                }
 
                 if (distType == DistortionType::Bitcrush) {
                     if (slot == 0) {

@@ -339,12 +339,92 @@ private:
     bool initialVisibilitySet_ = false;
 };
 
+// ==============================================================================
+// TemporalModeController: Conditional visibility for Hysteresis-only controls
+// ==============================================================================
+// Sub-controller for TypeParams_Temporal template. Watches the Mode dropdown
+// (Band.NodeShape0) and shows/hides hysteresis-specific controls (Depth, Hold)
+// based on which mode is selected:
+//   - Hysteresis (3): show Depth and Hold
+//   - Others (0-2):   hide them
+// ==============================================================================
+
+class TemporalModeController : public VSTGUI::DelegationController {
+public:
+    TemporalModeController(VSTGUI::IController* parentController)
+        : DelegationController(parentController) {}
+
+    ~TemporalModeController() override {
+        if (modeControl_)
+            modeControl_->unregisterControlListener(this);
+    }
+
+    VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description) override {
+        // Detect the Mode COptionMenu by its control-tag
+        const auto* tagName = attributes.getAttributeValue("control-tag");
+        if (tagName && *tagName == "Band.NodeShape0") {
+            if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
+                modeControl_ = control;
+                modeControl_->registerControlListener(this);
+            }
+        }
+
+        // Detect hysteresis wrapper container by custom attribute
+        const auto* visGroup = attributes.getAttributeValue("temporal-group");
+        if (visGroup && *visGroup == "hysteresis") {
+            if (auto* container = view->asViewContainer()) {
+                hystContainer_ = container;
+            }
+        }
+
+        auto* result = DelegationController::verifyView(view, attributes, description);
+
+        // Set initial visibility once all pieces are found
+        if (modeControl_ && hystContainer_ && !initialVisibilitySet_) {
+            initialVisibilitySet_ = true;
+            updateVisibility();
+        }
+
+        return result;
+    }
+
+    void valueChanged(VSTGUI::CControl* control) override {
+        if (control == modeControl_) {
+            updateVisibility();
+        }
+        DelegationController::valueChanged(control);
+    }
+
+private:
+    void updateVisibility() {
+        if (!modeControl_) return;
+
+        // Mode dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
+        float norm = modeControl_->getValueNormalized();
+        int mode = static_cast<int>(norm * 3.0f + 0.5f);
+
+        // Hysteresis is mode 3
+        bool showHyst = (mode == 3);
+
+        if (hystContainer_)
+            hystContainer_->setVisible(showHyst);
+    }
+
+    VSTGUI::CControl* modeControl_ = nullptr;
+    VSTGUI::CViewContainer* hystContainer_ = nullptr;
+    bool initialVisibilitySet_ = false;
+};
+
 // Inline definition of BandSubController::createSubController
 inline VSTGUI::IController* BandSubController::createSubController(
     VSTGUI::UTF8StringPtr name, const VSTGUI::IUIDescription* description) {
     if (std::strcmp(name, "BitwiseOp") == 0) {
         // Pass 'this' as parent so tag remapping is preserved
         return new BitwiseOpController(this);
+    }
+    if (std::strcmp(name, "TemporalMode") == 0) {
+        return new TemporalModeController(this);
     }
     return DelegationController::createSubController(name, description);
 }
