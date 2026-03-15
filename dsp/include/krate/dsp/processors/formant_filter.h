@@ -1,14 +1,16 @@
 // ==============================================================================
 // Layer 2: DSP Processor - Formant Filter
 // ==============================================================================
-// Implements vocal formant filtering using 3 parallel bandpass filters
-// (F1, F2, F3) for creating "talking" effects on non-vocal audio sources.
+// Implements vocal formant filtering using up to 5 parallel bandpass filters
+// (F1-F5) for creating "talking" effects on non-vocal audio sources.
 //
 // Features:
 // - Discrete vowel selection (A, E, I, O, U)
 // - Continuous vowel morphing (0-4 position)
 // - Formant frequency shifting (+/-24 semitones)
 // - Gender parameter (-1 male to +1 female)
+// - Configurable active formant count (2-5)
+// - Bandwidth scaling and resonance gain
 // - Smoothed parameter transitions (click-free)
 //
 // Constitution Compliance:
@@ -35,8 +37,8 @@ namespace DSP {
 
 /// @brief Layer 2 DSP Processor - Formant/Vowel Filter
 ///
-/// Implements vocal formant filtering using 3 parallel bandpass filters
-/// (F1, F2, F3) for creating "talking" effects on non-vocal audio sources.
+/// Implements vocal formant filtering using up to 5 parallel bandpass filters
+/// (F1-F5) for creating "talking" effects on non-vocal audio sources.
 ///
 /// @par Real-Time Safety
 /// All processing methods are noexcept and allocation-free after prepare().
@@ -62,7 +64,11 @@ public:
     // Constants
     // =========================================================================
 
-    static constexpr int kNumFormants = 3;
+    static constexpr int kMaxFormants = 5;
+    static constexpr int kDefaultFormants = 3;
+    static constexpr int kMinFormants = 2;
+    // Backward compatibility alias
+    static constexpr int kNumFormants = kMaxFormants;
     static constexpr float kMinFrequency = 20.0f;
     static constexpr float kMaxFrequencyRatio = 0.45f;
     static constexpr float kMinQ = 0.5f;
@@ -164,6 +170,37 @@ public:
     /// @note Real-time safe
     void setGender(float amount) noexcept;
 
+    /// @brief Set the number of active formant bands.
+    ///
+    /// Controls how many formant bands contribute to the output.
+    /// - 2: F1 + F2 only (basic vowel shape)
+    /// - 3: F1 + F2 + F3 (standard, default)
+    /// - 4: F1-F4 (extended vocal tract)
+    /// - 5: F1-F5 (full formant model)
+    ///
+    /// @param count Number of active formants (clamped to [2, 5])
+    /// @note Real-time safe
+    void setActiveFormants(int count) noexcept;
+
+    /// @brief Set bandwidth scale factor.
+    ///
+    /// Multiplies all formant bandwidths by this factor.
+    /// Higher values = wider, more relaxed formants.
+    /// Lower values = narrower, tighter formants.
+    ///
+    /// @param scale Bandwidth multiplier (clamped to [0.1, 10.0])
+    /// @note Real-time safe
+    void setBandwidthScale(float scale) noexcept;
+
+    /// @brief Set resonance gain multiplier.
+    ///
+    /// Additional gain applied to formant peak outputs, independent
+    /// of filter Q. Higher values = more prominent formant peaks.
+    ///
+    /// @param gain Resonance gain multiplier (clamped to [0.1, 8.0])
+    /// @note Real-time safe
+    void setResonanceGain(float gain) noexcept;
+
     // =========================================================================
     // Smoothing Configuration
     // =========================================================================
@@ -183,11 +220,11 @@ public:
 
     /// @brief Process single sample.
     ///
-    /// Processes input through 3 parallel bandpass filters and sums outputs.
+    /// Processes input through parallel bandpass filters and sums outputs.
     /// Updates smoothed parameters per-sample for accurate modulation.
     ///
     /// @param input Input sample
-    /// @return Filtered output sample (sum of F1 + F2 + F3 bandpass outputs)
+    /// @return Filtered output sample (sum of active formant bandpass outputs)
     /// @note Real-time safe (noexcept, no allocation)
     [[nodiscard]] float process(float input) noexcept;
 
@@ -226,6 +263,15 @@ public:
     /// @brief Check if prepare() has been called.
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
+    /// @brief Get number of active formants.
+    [[nodiscard]] int getActiveFormants() const noexcept { return activeFormants_; }
+
+    /// @brief Get bandwidth scale factor.
+    [[nodiscard]] float getBandwidthScale() const noexcept { return bandwidthScale_; }
+
+    /// @brief Get resonance gain multiplier.
+    [[nodiscard]] float getResonanceGain() const noexcept { return resonanceGain_; }
+
 private:
     // =========================================================================
     // Internal Methods
@@ -244,21 +290,27 @@ private:
     /// @brief Calculate Q from frequency and bandwidth, clamped.
     [[nodiscard]] static float calculateQ(float frequency, float bandwidth) noexcept;
 
+    /// @brief Get formant frequency from FormantData by index (0-4).
+    [[nodiscard]] static float getFormantFreq(const FormantData& d, int idx) noexcept;
+
+    /// @brief Get formant bandwidth from FormantData by index (0-4).
+    [[nodiscard]] static float getFormantBW(const FormantData& d, int idx) noexcept;
+
     // =========================================================================
     // Members
     // =========================================================================
 
-    // Filter stages (3 parallel bandpass)
-    std::array<Biquad, kNumFormants> formants_{};
+    // Filter stages (up to 5 parallel bandpass)
+    std::array<Biquad, kMaxFormants> formants_{};
 
     // Per-band gain compensation (Q value of each band)
     // Converts from "constant 0 dB peak gain" to "constant skirt gain"
     // bandpass behavior, matching standard formant synthesizer gain structure.
-    std::array<float, kNumFormants> bandGain_{1.0f, 1.0f, 1.0f};
+    std::array<float, kMaxFormants> bandGain_{1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
-    // Parameter smoothers (3 frequencies + 3 bandwidths)
-    std::array<OnePoleSmoother, kNumFormants> freqSmoothers_{};
-    std::array<OnePoleSmoother, kNumFormants> bwSmoothers_{};
+    // Parameter smoothers (5 frequencies + 5 bandwidths)
+    std::array<OnePoleSmoother, kMaxFormants> freqSmoothers_{};
+    std::array<OnePoleSmoother, kMaxFormants> bwSmoothers_{};
 
     // Parameters
     Vowel currentVowel_ = Vowel::A;
@@ -266,6 +318,9 @@ private:
     float formantShift_ = 0.0f;
     float gender_ = 0.0f;
     float smoothingTime_ = kDefaultSmoothingMs;
+    int activeFormants_ = kDefaultFormants;
+    float bandwidthScale_ = 1.0f;
+    float resonanceGain_ = 1.0f;
 
     // State
     double sampleRate_ = 44100.0;
@@ -276,6 +331,28 @@ private:
 // =============================================================================
 // Inline Implementation
 // =============================================================================
+
+inline float FormantFilter::getFormantFreq(const FormantData& d, int idx) noexcept {
+    switch (idx) {
+        case 0: return d.f1;
+        case 1: return d.f2;
+        case 2: return d.f3;
+        case 3: return d.f4;
+        case 4: return d.f5;
+        default: return d.f3;
+    }
+}
+
+inline float FormantFilter::getFormantBW(const FormantData& d, int idx) noexcept {
+    switch (idx) {
+        case 0: return d.bw1;
+        case 1: return d.bw2;
+        case 2: return d.bw3;
+        case 3: return d.bw4;
+        case 4: return d.bw5;
+        default: return d.bw3;
+    }
+}
 
 inline void FormantFilter::prepare(double sampleRate) noexcept {
     sampleRate_ = sampleRate;
@@ -334,6 +411,19 @@ inline void FormantFilter::setGender(float amount) noexcept {
     calculateTargetFormants();
 }
 
+inline void FormantFilter::setActiveFormants(int count) noexcept {
+    activeFormants_ = std::clamp(count, kMinFormants, kMaxFormants);
+}
+
+inline void FormantFilter::setBandwidthScale(float scale) noexcept {
+    bandwidthScale_ = std::clamp(scale, 0.1f, 10.0f);
+    calculateTargetFormants();
+}
+
+inline void FormantFilter::setResonanceGain(float gain) noexcept {
+    resonanceGain_ = std::clamp(gain, 0.1f, 8.0f);
+}
+
 inline void FormantFilter::setSmoothingTime(float ms) noexcept {
     smoothingTime_ = std::clamp(ms, 0.1f, 1000.0f);
 
@@ -349,8 +439,13 @@ inline void FormantFilter::setSmoothingTime(float ms) noexcept {
 }
 
 inline void FormantFilter::calculateTargetFormants() noexcept {
-    // Base formant data - either discrete or interpolated
-    float f1, f2, f3, bw1, bw2, bw3;
+    // Apply shift and gender multipliers
+    // Formula: finalFreq = baseFreq * shiftMultiplier * genderMultiplier
+    // shiftMultiplier = pow(2, semitones / 12)
+    // genderMultiplier = pow(2, gender * 0.25)
+    const float shiftMultiplier = std::pow(2.0f, formantShift_ / 12.0f);
+    const float genderMultiplier = std::pow(2.0f, gender_ * 0.25f);
+    const float combinedMultiplier = shiftMultiplier * genderMultiplier;
 
     if (useMorphMode_) {
         // Morph mode: interpolate between adjacent vowels
@@ -361,74 +456,39 @@ inline void FormantFilter::calculateTargetFormants() noexcept {
         const auto& lower = kVowelFormants[static_cast<size_t>(lowerIdx)];
         const auto& upper = kVowelFormants[static_cast<size_t>(upperIdx)];
 
-        f1 = std::lerp(lower.f1, upper.f1, fraction);
-        f2 = std::lerp(lower.f2, upper.f2, fraction);
-        f3 = std::lerp(lower.f3, upper.f3, fraction);
-        bw1 = std::lerp(lower.bw1, upper.bw1, fraction);
-        bw2 = std::lerp(lower.bw2, upper.bw2, fraction);
-        bw3 = std::lerp(lower.bw3, upper.bw3, fraction);
+        for (int i = 0; i < kMaxFormants; ++i) {
+            float freq = std::lerp(getFormantFreq(lower, i), getFormantFreq(upper, i), fraction);
+            float bw = std::lerp(getFormantBW(lower, i), getFormantBW(upper, i), fraction);
+            freqSmoothers_[i].setTarget(clampFrequency(freq * combinedMultiplier));
+            bwSmoothers_[i].setTarget(bw * combinedMultiplier * bandwidthScale_);
+        }
     } else {
         // Discrete mode: use table directly
         const auto& formant = getFormant(currentVowel_);
-        f1 = formant.f1;
-        f2 = formant.f2;
-        f3 = formant.f3;
-        bw1 = formant.bw1;
-        bw2 = formant.bw2;
-        bw3 = formant.bw3;
+
+        for (int i = 0; i < kMaxFormants; ++i) {
+            float freq = getFormantFreq(formant, i);
+            float bw = getFormantBW(formant, i);
+            freqSmoothers_[i].setTarget(clampFrequency(freq * combinedMultiplier));
+            bwSmoothers_[i].setTarget(bw * combinedMultiplier * bandwidthScale_);
+        }
     }
-
-    // Apply shift and gender multipliers
-    // Formula: finalFreq = baseFreq * shiftMultiplier * genderMultiplier
-    // shiftMultiplier = pow(2, semitones / 12)
-    // genderMultiplier = pow(2, gender * 0.25)
-    const float shiftMultiplier = std::pow(2.0f, formantShift_ / 12.0f);
-    const float genderMultiplier = std::pow(2.0f, gender_ * 0.25f);
-    const float combinedMultiplier = shiftMultiplier * genderMultiplier;
-
-    // Apply multiplier to frequencies and bandwidths, then clamp
-    const float targetF1 = clampFrequency(f1 * combinedMultiplier);
-    const float targetF2 = clampFrequency(f2 * combinedMultiplier);
-    const float targetF3 = clampFrequency(f3 * combinedMultiplier);
-
-    // Bandwidths also scale proportionally to maintain constant Q
-    const float targetBw1 = bw1 * combinedMultiplier;
-    const float targetBw2 = bw2 * combinedMultiplier;
-    const float targetBw3 = bw3 * combinedMultiplier;
-
-    // Set smoother targets
-    freqSmoothers_[0].setTarget(targetF1);
-    freqSmoothers_[1].setTarget(targetF2);
-    freqSmoothers_[2].setTarget(targetF3);
-    bwSmoothers_[0].setTarget(targetBw1);
-    bwSmoothers_[1].setTarget(targetBw2);
-    bwSmoothers_[2].setTarget(targetBw3);
 }
 
 inline void FormantFilter::updateFilterCoefficients() noexcept {
-    // Process smoothers and get current values
-    const float f1 = freqSmoothers_[0].process();
-    const float f2 = freqSmoothers_[1].process();
-    const float f3 = freqSmoothers_[2].process();
-    const float bw1 = bwSmoothers_[0].process();
-    const float bw2 = bwSmoothers_[1].process();
-    const float bw3 = bwSmoothers_[2].process();
-
-    // Calculate Q values, store as per-band gain, and configure filters
-    const float q1 = calculateQ(f1, bw1);
-    const float q2 = calculateQ(f2, bw2);
-    const float q3 = calculateQ(f3, bw3);
-
-    // Store Q as gain to convert "constant 0 dB peak" BPF to
-    // "constant skirt gain" BPF (standard formant synthesizer behavior)
-    bandGain_[0] = q1;
-    bandGain_[1] = q2;
-    bandGain_[2] = q3;
-
     const float sr = static_cast<float>(sampleRate_);
-    formants_[0].configure(FilterType::Bandpass, f1, q1, 0.0f, sr);
-    formants_[1].configure(FilterType::Bandpass, f2, q2, 0.0f, sr);
-    formants_[2].configure(FilterType::Bandpass, f3, q3, 0.0f, sr);
+
+    for (int i = 0; i < kMaxFormants; ++i) {
+        const float freq = freqSmoothers_[i].process();
+        const float bw = bwSmoothers_[i].process();
+        const float q = calculateQ(freq, bw);
+
+        // Store Q as gain to convert "constant 0 dB peak" BPF to
+        // "constant skirt gain" BPF (standard formant synthesizer behavior)
+        bandGain_[i] = q;
+
+        formants_[i].configure(FilterType::Bandpass, freq, q, 0.0f, sr);
+    }
 }
 
 inline float FormantFilter::clampFrequency(float freq) const noexcept {
@@ -448,15 +508,21 @@ inline float FormantFilter::process(float input) noexcept {
     // Update filter coefficients with smoothed parameters
     updateFilterCoefficients();
 
-    // Process through all 3 parallel formant filters and sum
+    // Process through active parallel formant filters and sum
     // Each band is scaled by Q (bandGain_) to convert from "constant 0 dB peak"
     // to "constant skirt gain" bandpass, matching formant synthesizer convention.
+    // resonanceGain_ provides additional peak prominence control.
     float output = 0.0f;
-    for (int i = 0; i < kNumFormants; ++i) {
+    for (int i = 0; i < activeFormants_; ++i) {
         output += formants_[i].process(input) * bandGain_[i];
     }
+    // Still process inactive bands to keep filter state current (avoids
+    // clicks when activeFormants_ increases), but don't add to output.
+    for (int i = activeFormants_; i < kMaxFormants; ++i) {
+        (void)formants_[i].process(input);
+    }
 
-    return output;
+    return output * resonanceGain_;
 }
 
 inline void FormantFilter::processBlock(float* buffer, size_t numSamples) noexcept {

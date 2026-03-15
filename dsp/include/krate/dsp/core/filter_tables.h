@@ -43,21 +43,25 @@ inline constexpr size_t kNumVowels = 5;
 
 /// @brief Formant frequency and bandwidth data for a single vowel.
 ///
-/// Contains the first three formant frequencies (F1, F2, F3) and their
-/// corresponding bandwidths (BW1, BW2, BW3). These values are derived from
-/// phonetic research and are commonly used in vocal synthesis and formant
-/// filtering applications.
+/// Contains up to five formant frequencies (F1-F5) and their corresponding
+/// bandwidths. These values are derived from phonetic research and are
+/// commonly used in vocal synthesis and formant filtering applications.
 ///
 /// @note F1 relates to tongue height (higher = more open vowel)
 /// @note F2 relates to tongue frontness (higher = more front vowel)
 /// @note F3 relates to lip rounding and speaker characteristics
+/// @note F4/F5 relate to vocal tract length; relatively stable across vowels
 struct FormantData {
     float f1;   ///< First formant frequency in Hz (typically 250-800 Hz)
     float f2;   ///< Second formant frequency in Hz (typically 600-2200 Hz)
     float f3;   ///< Third formant frequency in Hz (typically 2200-3000 Hz)
+    float f4;   ///< Fourth formant frequency in Hz (typically 3200-3700 Hz)
+    float f5;   ///< Fifth formant frequency in Hz (typically 4200-4700 Hz)
     float bw1;  ///< First formant bandwidth in Hz (typically 40-80 Hz)
     float bw2;  ///< Second formant bandwidth in Hz (typically 60-100 Hz)
     float bw3;  ///< Third formant bandwidth in Hz (typically 100-150 Hz)
+    float bw4;  ///< Fourth formant bandwidth in Hz (typically 200-300 Hz)
+    float bw5;  ///< Fifth formant bandwidth in Hz (typically 250-350 Hz)
 };
 
 // =============================================================================
@@ -80,20 +84,20 @@ struct FormantData {
 /// float f1 = a.f1;  // 600.0 Hz
 /// ```
 inline constexpr std::array<FormantData, kNumVowels> kVowelFormants = {{
-    // Vowel A: F1=600, F2=1040, F3=2250 Hz
-    {600.0f, 1040.0f, 2250.0f, 60.0f, 70.0f, 110.0f},
+    // Vowel A: F1=600, F2=1040, F3=2250, F4=3300, F5=4500 Hz
+    {600.0f, 1040.0f, 2250.0f, 3300.0f, 4500.0f, 60.0f, 70.0f, 110.0f, 250.0f, 300.0f},
 
-    // Vowel E: F1=400, F2=1620, F3=2400 Hz
-    {400.0f, 1620.0f, 2400.0f, 40.0f, 80.0f, 100.0f},
+    // Vowel E: F1=400, F2=1620, F3=2400, F4=3200, F5=4400 Hz
+    {400.0f, 1620.0f, 2400.0f, 3200.0f, 4400.0f, 40.0f, 80.0f, 100.0f, 200.0f, 280.0f},
 
-    // Vowel I: F1=250, F2=1750, F3=2600 Hz
-    {250.0f, 1750.0f, 2600.0f, 60.0f, 90.0f, 100.0f},
+    // Vowel I: F1=250, F2=1750, F3=2600, F4=3350, F5=4700 Hz
+    {250.0f, 1750.0f, 2600.0f, 3350.0f, 4700.0f, 60.0f, 90.0f, 100.0f, 250.0f, 300.0f},
 
-    // Vowel O: F1=400, F2=750, F3=2400 Hz
-    {400.0f, 750.0f, 2400.0f, 40.0f, 80.0f, 100.0f},
+    // Vowel O: F1=400, F2=750, F3=2400, F4=3300, F5=4500 Hz
+    {400.0f, 750.0f, 2400.0f, 3300.0f, 4500.0f, 40.0f, 80.0f, 100.0f, 250.0f, 300.0f},
 
-    // Vowel U: F1=350, F2=600, F3=2400 Hz
-    {350.0f, 600.0f, 2400.0f, 40.0f, 80.0f, 100.0f},
+    // Vowel U: F1=350, F2=600, F3=2400, F4=3300, F5=4500 Hz
+    {350.0f, 600.0f, 2400.0f, 3300.0f, 4500.0f, 40.0f, 80.0f, 100.0f, 250.0f, 300.0f},
 }};
 
 // =============================================================================

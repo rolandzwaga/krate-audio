@@ -244,6 +244,53 @@ public:
         }
     }
 
+    /// @brief Set gender scaling parameter.
+    ///
+    /// Delegates to FormantFilter::setGender() which scales formant
+    /// frequencies based on typical male/female vocal tract differences.
+    ///
+    /// @param amount Gender value [-1.0, +1.0]: -1=male, 0=neutral, +1=female
+    /// @note Real-time safe
+    void setGender(float amount) noexcept {
+        formantFilter_.setGender(amount);
+    }
+
+    /// @brief Set the number of active formant bands (2-5).
+    /// @note Real-time safe
+    void setActiveFormants(int count) noexcept {
+        formantFilter_.setActiveFormants(count);
+    }
+
+    /// @brief Set bandwidth scale factor.
+    ///
+    /// Multiplies all formant bandwidths. Higher = wider, more relaxed.
+    ///
+    /// @param scale Bandwidth multiplier [0.1, 10.0]
+    /// @note Real-time safe
+    void setBandwidthScale(float scale) noexcept {
+        formantFilter_.setBandwidthScale(scale);
+    }
+
+    /// @brief Set resonance gain multiplier.
+    ///
+    /// Additional peak prominence, independent of filter Q.
+    ///
+    /// @param gain Resonance gain [0.1, 8.0]
+    /// @note Real-time safe
+    void setResonanceGain(float gain) noexcept {
+        formantFilter_.setResonanceGain(gain);
+    }
+
+    /// @brief Set waveshaper asymmetry (curve).
+    ///
+    /// Adds DC bias before shaping, creating even harmonics.
+    ///
+    /// @param bias Asymmetry [-1.0, +1.0]
+    /// @note Real-time safe
+    void setAsymmetry(float bias) noexcept {
+        waveshaper_.setAsymmetry(bias);
+    }
+
     // =========================================================================
     // Distortion (FR-012, FR-013, FR-014)
     // =========================================================================

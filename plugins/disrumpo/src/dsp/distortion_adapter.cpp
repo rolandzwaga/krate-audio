@@ -864,7 +864,14 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             int vowel = std::clamp(p.vowelSelect, 0, 4);
             formant_.setVowel(static_cast<Krate::DSP::Vowel>(vowel));
             formant_.setFormantShift(p.formantShift);
-            formant_.setVowelBlend(p.formantBlend * 4.0f); // [0,1] → [0,4]
+            formant_.setAsymmetry(p.formantCurve * 2.0f - 1.0f);   // [0,1] → [-1,+1]
+            // Reso: exponential map [0,1] → [0.25, 4.0] gain multiplier
+            formant_.setResonanceGain(std::pow(4.0f, p.formantReso * 2.0f - 1.0f));
+            // BW: exponential map [0,1] → [0.25, 4.0] bandwidth scale
+            formant_.setBandwidthScale(std::pow(4.0f, p.formantBW * 2.0f - 1.0f));
+            formant_.setActiveFormants(p.formantCount + 2);         // 0-3 → 2-5
+            formant_.setGender(p.formantGender * 2.0f - 1.0f);     // [0,1] → [-1,+1]
+            formant_.setVowelBlend(p.formantBlend * 4.0f);         // [0,1] → [0,4]
             break;
         }
 
