@@ -416,6 +416,82 @@ private:
     bool initialVisibilitySet_ = false;
 };
 
+// ==============================================================================
+// RingSatFreqModeController: Conditional visibility for Hz/Ratio knob
+// ==============================================================================
+// Sub-controller for TypeParams_RingSat template. Watches the Freq mode dropdown
+// (Band.NodeShape5) and shows/hides the Hz/Ratio knob container based on mode:
+//   - Fixed (0) or Harmonic (1): show Hz/Ratio knob
+//   - Track (2) or Random (3):   hide it
+// ==============================================================================
+
+class RingSatFreqModeController : public VSTGUI::DelegationController {
+public:
+    RingSatFreqModeController(VSTGUI::IController* parentController)
+        : DelegationController(parentController) {}
+
+    ~RingSatFreqModeController() override {
+        if (freqModeControl_)
+            freqModeControl_->unregisterControlListener(this);
+    }
+
+    VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description) override {
+        // Detect the Freq mode COptionMenu by its control-tag
+        const auto* tagName = attributes.getAttributeValue("control-tag");
+        if (tagName && *tagName == "Band.NodeShape5") {
+            if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
+                freqModeControl_ = control;
+                freqModeControl_->registerControlListener(this);
+            }
+        }
+
+        // Detect Hz/Ratio wrapper container by custom attribute
+        const auto* visGroup = attributes.getAttributeValue("rs-freq-group");
+        if (visGroup && *visGroup == "hz-ratio") {
+            if (auto* container = view->asViewContainer()) {
+                hzRatioContainer_ = container;
+            }
+        }
+
+        auto* result = DelegationController::verifyView(view, attributes, description);
+
+        // Set initial visibility once all pieces are found
+        if (freqModeControl_ && hzRatioContainer_ && !initialVisibilitySet_) {
+            initialVisibilitySet_ = true;
+            updateVisibility();
+        }
+
+        return result;
+    }
+
+    void valueChanged(VSTGUI::CControl* control) override {
+        if (control == freqModeControl_) {
+            updateVisibility();
+        }
+        DelegationController::valueChanged(control);
+    }
+
+private:
+    void updateVisibility() {
+        if (!freqModeControl_) return;
+
+        // Freq mode dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
+        float norm = freqModeControl_->getValueNormalized();
+        int mode = static_cast<int>(norm * 3.0f + 0.5f);
+
+        // Show Hz/Ratio knob for Fixed (0) and Harmonic (1); hide for Track (2) and Random (3)
+        bool showKnob = (mode <= 1);
+
+        if (hzRatioContainer_)
+            hzRatioContainer_->setVisible(showKnob);
+    }
+
+    VSTGUI::CControl* freqModeControl_ = nullptr;
+    VSTGUI::CViewContainer* hzRatioContainer_ = nullptr;
+    bool initialVisibilitySet_ = false;
+};
+
 // Inline definition of BandSubController::createSubController
 inline VSTGUI::IController* BandSubController::createSubController(
     VSTGUI::UTF8StringPtr name, const VSTGUI::IUIDescription* description) {
@@ -425,6 +501,9 @@ inline VSTGUI::IController* BandSubController::createSubController(
     }
     if (std::strcmp(name, "TemporalMode") == 0) {
         return new TemporalModeController(this);
+    }
+    if (std::strcmp(name, "RingSatFreqMode") == 0) {
+        return new RingSatFreqModeController(this);
     }
     return DelegationController::createSubController(name, description);
 }

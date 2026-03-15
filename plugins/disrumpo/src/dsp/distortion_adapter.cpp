@@ -773,10 +773,42 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // =================================================================
         // Hybrid (D16-D17, D26)
         // =================================================================
-        case DistortionType::RingSaturation:
+        case DistortionType::RingSaturation: {
             ringSaturation_.setModulationDepth(p.modDepth);
             ringSaturation_.setStages(std::clamp(p.stages, 1, 4));
+
+            // Curve → waveshape type (9 discrete types)
+            int curveIdx = static_cast<int>(p.rsCurve * 8.0f + 0.5f);
+            curveIdx = std::clamp(curveIdx, 0, 8);
+            ringSaturation_.setSaturationCurve(
+                static_cast<Krate::DSP::WaveshapeType>(curveIdx));
+
+            // Carrier waveform (Sine, Triangle, Square, Saw)
+            ringSaturation_.setCarrierWaveform(
+                static_cast<Krate::DSP::RSCarrierWaveform>(
+                    std::clamp(p.carrierType, 0, 3)));
+
+            // Bias [-1, +1]
+            ringSaturation_.setBias(p.bias);
+
+            // Frequency mode
+            int freqMode = std::clamp(p.rsFreqSelect, 0, 3);
+            ringSaturation_.setFreqMode(
+                static_cast<Krate::DSP::RSFreqMode>(freqMode));
+
+            // Carrier frequency param — interpretation depends on mode
+            if (freqMode == 0) {
+                // Fixed: [0,1] → [20, 5000] Hz exponential
+                float freqHz = 20.0f * std::pow(250.0f, p.rsCarrierFreq);
+                ringSaturation_.setCarrierFrequency(freqHz);
+            } else if (freqMode == 1) {
+                // Harmonic: [0,1] → ratio 1-16
+                float ratio = 1.0f + std::round(p.rsCarrierFreq * 15.0f);
+                ringSaturation_.setHarmonicRatio(ratio);
+            }
+            // Track/Random: frequency is auto-determined, no param needed
             break;
+        }
 
         case DistortionType::FeedbackDist:
             feedbackDist_.setFeedback(p.feedback);

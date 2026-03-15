@@ -152,13 +152,15 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             break;
 
         case DistortionType::RingSaturation:
-            // Slot0=Mod, Slot1=Stages, Slot2=Curve, Slot3=Carrier, Slot4=Bias, Slot5=Freq
+            // Slot0=Mod, Slot1=Stages, Slot2=Curve, Slot3=Carrier, Slot4=Bias,
+            // Slot5=Freq mode, Slot6=Hz/Ratio
             p.modDepth = slots[0];
             p.stages = 1 + static_cast<int>(slots[1] * 3.0f + 0.5f); // [0,1] → 1-4
             p.rsCurve = slots[2];
             p.carrierType = static_cast<int>(slots[3] * 3.0f + 0.5f);
             p.bias = slots[4] * 2.0f - 1.0f;
             p.rsFreqSelect = static_cast<int>(slots[5] * 3.0f + 0.5f);
+            p.rsCarrierFreq = slots[6];
             break;
 
         case DistortionType::FeedbackDist:

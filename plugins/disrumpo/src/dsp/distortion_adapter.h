@@ -137,6 +137,7 @@ struct DistortionParams {
     float rsCurve = 0.5f;           ///< Ring sat curve [0, 1]
     int carrierType = 0;            ///< Ring sat carrier select
     int rsFreqSelect = 0;           ///< Ring sat frequency select
+    float rsCarrierFreq = 0.5f;     ///< Ring sat carrier freq param [0, 1]
     float fbCurve = 0.5f;           ///< Feedback curve [0, 1]
     int filterType = 0;             ///< Feedback filter select
     float filterFreq = 0.5f;        ///< Feedback filter freq [0, 1]

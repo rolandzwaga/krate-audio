@@ -1033,7 +1033,7 @@
       <view class="ArcKnob" control-tag="Band.NodeShape7" origin="50, 10" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-5"/>
     </view>
   </template>
-  <template name="TypeParams_RingSat" class="CViewContainer" size="215, 200" background-color="panel">
+  <template name="TypeParams_RingSat" class="CViewContainer" sub-controller="RingSatFreqMode" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Ring Saturation" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 12" title="Mod" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape0" origin="7, 40" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
@@ -1047,6 +1047,10 @@
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="72, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
     <view class="CTextLabel" origin="130, 82" size="50, 12" title="Freq" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape5" origin="130, 94" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Fixed,Harmonic,Track,Random"/>
+    <view class="CViewContainer" rs-freq-group="hz-ratio" origin="5, 135" size="100, 50" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="40, 10" title="Hz" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape6" origin="2, 12" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
+    </view>
   </template>
   <template name="TypeParams_Feedback" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Feedback" font="section-font" font-color="text-primary" text-alignment="center"/>

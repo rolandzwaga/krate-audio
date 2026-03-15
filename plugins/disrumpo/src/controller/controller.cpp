@@ -3352,6 +3352,49 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                     }
                 }
 
+                if (distType == DistortionType::RingSaturation) {
+                    if (slot == 1) {
+                        // Stages: [0,1] → 1-4
+                        int stages = 1 + static_cast<int>(v * 3.0f + 0.5f);
+                        intToString128(stages, string);
+                        appendToString128(string, STR16("x"));
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 2) {
+                        // Curve → waveshape type name
+                        static const char* const kWaveshapeNames[] = {
+                            "Tanh", "Atan", "Cubic", "Quintic",
+                            "RSqrt", "Erf", "HardClip", "Diode", "Tube"
+                        };
+                        int idx = static_cast<int>(v * 8.0f + 0.5f);
+                        idx = std::clamp(idx, 0, 8);
+                        const char* name = kWaveshapeNames[idx];
+                        for (int i = 0; name[i] && i < 127; ++i) {
+                            string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
+                            string[i + 1] = 0;
+                        }
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 4) {
+                        // Bias: [0,1] → [-1, +1]
+                        float bias = v * 2.0f - 1.0f;
+                        floatToString128(bias, 2, string);
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 6) {
+                        // Hz/Ratio: interpretation depends on freq mode (slot 5)
+                        // For display, show the Hz value (Fixed mode mapping)
+                        float freqHz = 20.0f * std::pow(250.0, static_cast<double>(v));
+                        if (freqHz < 100.0f) {
+                            floatToString128(freqHz, 1, string);
+                        } else {
+                            floatToString128(freqHz, 0, string);
+                        }
+                        appendToString128(string, STR16(" Hz"));
+                        return Steinberg::kResultTrue;
+                    }
+                }
+
                 if (distType == DistortionType::Bitcrush) {
                     if (slot == 0) {
                         // Bits: [0,1] → [1,16]
