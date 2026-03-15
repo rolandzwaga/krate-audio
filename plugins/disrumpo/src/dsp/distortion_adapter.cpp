@@ -815,6 +815,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             feedbackDist_.setDelayTime(p.delayMs);
             feedbackDist_.setLimiterThreshold(p.limiter ? (p.limThreshold * -24.0f) : 0.0f);
             feedbackDist_.setToneFrequency(20.0f + p.filterFreq * 19980.0f);
+            feedbackDist_.setFilterType(p.filterType);
+            feedbackDist_.setStages(p.stages);
+            feedbackDist_.setDecay(p.fbDecay);
             break;
 
         case DistortionType::AllpassResonant: {

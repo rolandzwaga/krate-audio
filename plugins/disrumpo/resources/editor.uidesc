@@ -1070,6 +1070,8 @@
     <view class="ToggleButton" control-tag="Band.NodeShape6" origin="107, 90" size="25, 20" on-color="accent-primary" off-color="text-secondary" default-value="1" tooltip="Enable limiter"/>
     <view class="CTextLabel" origin="155, 78" size="35, 10" title="Thr" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.8" min-value="0" max-value="1" arc-color="band-6"/>
+    <view class="CTextLabel" origin="5, 128" size="35, 10" title="Decay" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape8" origin="5, 138" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-6"/>
   </template>
   <template name="TypeParams_Aliasing" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Aliasing" font="section-font" font-color="text-primary" text-alignment="center"/>

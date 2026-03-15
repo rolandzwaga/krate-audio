@@ -117,6 +117,7 @@ public:
     static constexpr float kMinToneHz = 20.0f;         ///< Minimum tone frequency
     static constexpr float kMaxToneHz = 20000.0f;      ///< Maximum tone frequency
     static constexpr float kDefaultToneHz = 5000.0f;   ///< Default: mild filtering
+    static constexpr int kMaxFilterStages = 4;          ///< Maximum cascaded filter stages
     /// @}
 
     /// @name Internal Constants
@@ -179,14 +180,8 @@ public:
         thresholdSmoother_.snapTo(limiterThresholdLinear_);
         toneFreqSmoother_.snapTo(toneFrequencyHz_);
 
-        // Configure tone filter as lowpass with Butterworth Q (FR-021, FR-021a)
-        toneFilter_.configure(
-            FilterType::Lowpass,
-            toneFrequencyHz_,
-            kButterworthQ,
-            0.0f,
-            sampleRate_
-        );
+        // Configure tone filter with current type and Butterworth Q (FR-021, FR-021a)
+        configureAllFilters();
 
         // Configure DC blocker (FR-028)
         dcBlocker_.prepare(sampleRate, kDCBlockerCutoffHz);
@@ -213,9 +208,12 @@ public:
     void reset() noexcept {
         delayLine_.reset();
         toneFilter_.reset();
+        for (int i = 0; i < kMaxFilterStages - 1; ++i)
+            extraFilters_[i].reset();
         dcBlocker_.reset();
         limiterEnvelope_.reset();
         feedbackSample_ = 0.0f;
+        inputGate_ = 0.0f;
     }
 
     // =========================================================================
@@ -248,14 +246,8 @@ public:
 
         // Update tone filter frequency if it has changed significantly
         if (std::abs(smoothedToneFreq - lastToneFreq_) > 0.1f) {
-            toneFilter_.configure(
-                FilterType::Lowpass,
-                smoothedToneFreq,
-                kButterworthQ,
-                0.0f,
-                sampleRate_
-            );
             lastToneFreq_ = smoothedToneFreq;
+            configureAllFilters();
         }
 
         // Feedback comb filter topology for resonance at f = 1000/delayMs Hz:
@@ -271,8 +263,13 @@ public:
         saturation_.setDrive(smoothedDrive);
         float saturated = saturation_.process(delayed);
 
-        // Apply tone filter (lowpass) - FR-020
-        float filtered = toneFilter_.process(saturated);
+        // Apply tone filter (LP/BP/HP with cascaded stages) or bypass if Off
+        float filtered = saturated;
+        if (filterType_ != 0) {
+            filtered = toneFilter_.process(filtered);
+            for (int s = 1; s < stages_; ++s)
+                filtered = extraFilters_[s - 1].process(filtered);
+        }
 
         // Apply DC blocker to remove asymmetric saturation DC (FR-028)
         float dcBlocked = dcBlocker_.process(filtered);
@@ -303,8 +300,31 @@ public:
         // FR-027: Flush denormals to prevent CPU spikes
         processed = detail::flushDenormal(processed);
 
+        // Modulate feedback by input envelope when decay is active.
+        // inputGate_ tracks input level with fast attack / variable release.
+        // When input is present, gate ≈ 1.0; when input drops, gate decays
+        // toward 0, smoothly killing self-oscillation.
+        float effectiveFeedback = smoothedFeedback;
+        if (decayAmount_ > 0.0f) {
+            const float inputLevel = std::abs(x);
+            // Fast attack: gate rises instantly to input level
+            if (inputLevel > inputGate_) {
+                inputGate_ = inputLevel;
+            } else {
+                // Release controlled by decayCoeff_ (derived from decay time)
+                inputGate_ *= decayCoeff_;
+            }
+            inputGate_ = detail::flushDenormal(inputGate_);
+            // Map gate to feedback multiplier: saturate at 1.0 so normal
+            // playing doesn't reduce feedback, but silence decays it.
+            // decayAmount_ controls how much the gate affects feedback:
+            // 0 = no effect, 1 = full gating
+            const float gateNorm = std::min(inputGate_ * 10.0f, 1.0f);
+            effectiveFeedback *= 1.0f - decayAmount_ * (1.0f - gateNorm);
+        }
+
         // Write input + feedback to delay line
-        float feedbackSignal = processed * smoothedFeedback;
+        float feedbackSignal = processed * effectiveFeedback;
         feedbackSignal = detail::flushDenormal(feedbackSignal);
         delayLine_.write(x + feedbackSignal);
 
@@ -445,6 +465,61 @@ public:
     }
 
     // =========================================================================
+    // Filter Type & Stages
+    // =========================================================================
+
+    /// @brief Set filter type. 0=Off, 1=Lowpass, 2=Bandpass, 3=Highpass.
+    void setFilterType(int type) noexcept {
+        type = std::clamp(type, 0, 3);
+        if (type != filterType_) {
+            filterType_ = type;
+            configureAllFilters();
+        }
+    }
+
+    /// @brief Get current filter type.
+    [[nodiscard]] int getFilterType() const noexcept { return filterType_; }
+
+    /// @brief Set number of cascaded filter stages (1-4).
+    void setStages(int stages) noexcept {
+        stages = std::clamp(stages, 1, kMaxFilterStages);
+        if (stages != stages_) {
+            stages_ = stages;
+            configureAllFilters();
+        }
+    }
+
+    /// @brief Get current number of filter stages.
+    [[nodiscard]] int getStages() const noexcept { return stages_; }
+
+    // =========================================================================
+    // Decay (input-gated feedback)
+    // =========================================================================
+
+    /// @brief Set decay amount and release time.
+    ///
+    /// When decay > 0, an envelope follower tracks input level. When input
+    /// drops (you stop playing), feedback is smoothly reduced, killing
+    /// self-oscillation over a controllable release time.
+    ///
+    /// @param amount Decay amount [0, 1]. 0=off (feedback always at set value),
+    ///               1=full gating (feedback drops to 0 when input is silent)
+    void setDecay(float amount) noexcept {
+        decayAmount_ = std::clamp(amount, 0.0f, 1.0f);
+        // Map amount to release time: 50ms (fast) to 5000ms (slow ring-out)
+        // Use exponential mapping for musical feel
+        const float releaseMs = 50.0f + decayAmount_ * decayAmount_ * 4950.0f;
+        // One-pole coefficient: exp(-1 / (releaseMs * sampleRate / 1000))
+        if (sampleRate_ > 0.0f) {
+            const float releaseSamples = releaseMs * sampleRate_ * 0.001f;
+            decayCoeff_ = std::exp(-1.0f / releaseSamples);
+        }
+    }
+
+    /// @brief Get current decay amount.
+    [[nodiscard]] float getDecay() const noexcept { return decayAmount_; }
+
+    // =========================================================================
     // Info (SC-007)
     // =========================================================================
 
@@ -454,12 +529,36 @@ public:
 
 private:
     // =========================================================================
+    // Internal Helpers
+    // =========================================================================
+
+    /// @brief Reconfigure all filter stages with current type/freq/stages.
+    void configureAllFilters() noexcept {
+        if (filterType_ == 0 || sampleRate_ <= 0.0f) return;
+
+        // Map filterType_ to FilterType enum: 1=LP, 2=BP, 3=HP
+        static constexpr FilterType kTypeMap[] = {
+            FilterType::Lowpass,  // placeholder for 0 (Off, never reached)
+            FilterType::Lowpass,
+            FilterType::Bandpass,
+            FilterType::Highpass
+        };
+        const auto ft = kTypeMap[filterType_];
+        const float freq = (lastToneFreq_ > 0.0f) ? lastToneFreq_ : toneFrequencyHz_;
+
+        toneFilter_.configure(ft, freq, kButterworthQ, 0.0f, sampleRate_);
+        for (int i = 0; i < stages_ - 1; ++i)
+            extraFilters_[i].configure(ft, freq, kButterworthQ, 0.0f, sampleRate_);
+    }
+
+    // =========================================================================
     // Components (Layer 1 + Layer 2)
     // =========================================================================
 
     DelayLine delayLine_;               ///< Feedback delay path
     Waveshaper saturation_;             ///< Saturation in feedback
-    Biquad toneFilter_;                 ///< Lowpass tone control
+    Biquad toneFilter_;                 ///< Primary tone filter (stage 1)
+    Biquad extraFilters_[kMaxFilterStages - 1]; ///< Extra cascaded stages (2-4)
     DCBlocker dcBlocker_;               ///< DC offset removal
     EnvelopeFollower limiterEnvelope_;  ///< Level tracking for soft limiter
 
@@ -483,6 +582,10 @@ private:
     float limiterThresholdDb_ = kDefaultThresholdDb;
     float toneFrequencyHz_ = kDefaultToneHz;
     WaveshapeType saturationCurve_ = WaveshapeType::Tanh;
+    int filterType_ = 1;               ///< 0=Off, 1=LP, 2=BP, 3=HP
+    int stages_ = 1;                   ///< Number of cascaded filter stages (1-4)
+    float decayAmount_ = 0.0f;         ///< Decay amount [0,1] (0=off)
+    float decayCoeff_ = 0.999f;        ///< One-pole release coefficient
 
     // =========================================================================
     // Cached / Derived Values
@@ -497,6 +600,7 @@ private:
 
     float feedbackSample_ = 0.0f;  ///< Previous output for feedback (unused after refactor)
     float lastToneFreq_ = 0.0f;   ///< Last configured tone filter frequency
+    float inputGate_ = 0.0f;      ///< Input envelope for decay gating
     bool prepared_ = false;
 };
 

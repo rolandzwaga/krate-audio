@@ -165,7 +165,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::FeedbackDist:
             // Slot0=FB, Slot1=Delay, Slot2=Curve, Slot3=Filter, Slot4=Freq,
-            // Slot5=Stage, Slot6=Lim, Slot7=Thr
+            // Slot5=Stage, Slot6=Lim, Slot7=Thr, Slot8=Decay
             p.feedback = slots[0] * 1.5f;              // [0,1] → [0,1.5]
             p.delayMs = 1.0f + slots[1] * 99.0f;      // [0,1] → [1,100]
             p.fbCurve = slots[2];
@@ -174,6 +174,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             p.stages = 1 + static_cast<int>(slots[5] * 3.0f + 0.5f);
             p.limiter = slots[6] >= 0.5f;
             p.limThreshold = slots[7];
+            p.fbDecay = slots[8];                      // [0,1] direct
             break;
 
         case DistortionType::Aliasing:

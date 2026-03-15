@@ -143,6 +143,7 @@ struct DistortionParams {
     float filterFreq = 0.5f;        ///< Feedback filter freq [0, 1]
     bool limiter = true;            ///< Feedback limiter toggle
     float limThreshold = 0.8f;      ///< Feedback limiter threshold [0, 1]
+    float fbDecay = 0.0f;           ///< Feedback decay amount [0, 1] (0=off)
 
     // Aliasing (D18)
     float freqShift = 0.0f;         ///< Frequency shift [-1000, 1000] Hz
