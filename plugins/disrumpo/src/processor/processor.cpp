@@ -268,16 +268,15 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             break;
 
         case DistortionType::AllpassResonant:
-            // Slot0=Topo, Slot1=Freq, Slot2=FB, Slot3=Decay, Slot4=Curve,
-            // Slot5=Stage, Slot6=Pitch, Slot7=Damp
+            // Slot0=Topo, Slot1=Freq, Slot2=FB, Slot3=Decay, Slot4=Drive,
+            // Slot5=Curve, Slot7=Damp (Slot6 unused)
             p.allpassTopo = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 topologies
             p.resonantFreq = 20.0f + slots[1] * 1980.0f; // [0,1] → [20,2000]
             p.allpassFeedback = slots[2] * 0.99f;       // [0,1] → [0,0.99]
             p.decayTimeS = 0.01f + slots[3] * 9.99f;    // [0,1] → [0.01,10]
-            p.allpassCurve = slots[4];
-            p.stages = 1 + static_cast<int>(slots[5] * 3.0f + 0.5f);
-            p.allpassPitch = slots[6] >= 0.5f;
-            p.allpassDamp = slots[7];
+            p.allpassDrive = slots[4];                   // [0,1] → drive amount
+            p.allpassSatType = static_cast<int>(slots[5] * 3.0f + 0.5f); // 0-3 curve types
+            p.allpassDamp = slots[7];                    // [0,1] → damping amount
             break;
 
         default:

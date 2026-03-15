@@ -1221,14 +1221,12 @@
     <view class="ArcKnob" control-tag="Band.NodeShape2" origin="105, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
     <view class="CTextLabel" origin="155, 28" size="35, 10" title="Decay" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="155, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
-    <view class="CTextLabel" origin="5, 78" size="35, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CTextLabel" origin="5, 78" size="35, 10" title="Drive" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-6"/>
-    <view class="CTextLabel" origin="55, 78" size="40, 10" title="Stage" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CTextLabel" origin="55, 78" size="40, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tanh,Clip,Asym,Hyst"/>
-    <view class="CTextLabel" origin="105, 78" size="35, 10" title="Pitch" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ToggleButton" control-tag="Band.NodeShape6" origin="110, 90" size="25, 20" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Enable pitch tracking"/>
-    <view class="CTextLabel" origin="155, 78" size="40, 10" title="Damp" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-6"/>
+    <view class="CTextLabel" origin="105, 78" size="40, 10" title="Damp" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape7" origin="105, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-6"/>
   </template>
   <!-- BandMainTab: Shared template using generic Band.* tags (remapped by sub-controller) -->
   <template name="BandMainTab" class="CViewContainer" size="215, 243" background-color="panel">

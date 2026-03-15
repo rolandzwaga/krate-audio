@@ -239,6 +239,28 @@ public:
     [[nodiscard]] float getDecay() const noexcept;
 
     // =========================================================================
+    // Damping Control
+    // =========================================================================
+
+    /// @brief Set the feedback damping amount.
+    ///
+    /// Controls high-frequency attenuation in the feedback path:
+    /// - 0.0 = no damping (transparent)
+    /// - 1.0 = heavy damping (dark, muffled resonance)
+    ///
+    /// Applied per-topology:
+    /// - SingleAllpass/FeedbackMatrix: One-pole LP on stage feedback
+    /// - AllpassChain: One-pole LP on chain feedback
+    /// - KarplusStrong: Scales the existing lowpass cutoff
+    ///
+    /// @param damping Damping amount (clamped to [0.0, 1.0])
+    void setDamping(float damping) noexcept;
+
+    /// @brief Get the current damping setting.
+    /// @return Target damping amount
+    [[nodiscard]] float getDamping() const noexcept;
+
+    // =========================================================================
     // Processing (FR-024 to FR-030)
     // =========================================================================
 
@@ -310,11 +332,13 @@ private:
         void setFrequency(float hz, float sampleRate) noexcept;
         void setDrive(float drive) noexcept;
         void setSaturationCurve(WaveshapeType type) noexcept;
+        void setDampingCutoff(float cutoff) noexcept;
         [[nodiscard]] float process(float input, float feedbackGain) noexcept;
 
     private:
         Biquad allpass_;
         Waveshaper waveshaper_;
+        OnePoleLP dampingLP_;
         float lastOutput_ = 0.0f;
     };
 
@@ -366,6 +390,7 @@ private:
     float feedback_ = 0.5f;
     float drive_ = 1.0f;
     float decay_ = 1.0f;
+    float damping_ = 0.0f;
     WaveshapeType saturationCurve_ = WaveshapeType::Tanh;
     bool prepared_ = false;
 
@@ -396,6 +421,7 @@ private:
     static constexpr std::array<float, 4> kChainFrequencyRatios = {1.0f, 1.5f, 2.33f, 3.67f};
     std::array<Biquad, 4> chainAllpasses_;
     Waveshaper chainWaveshaper_;
+    OnePoleLP chainDampingLP_;
     float chainLastOutput_ = 0.0f;
 
     // =========================================================================
@@ -429,11 +455,14 @@ inline void AllpassSaturator::SaturatedAllpassStage::prepare(double sampleRate) 
     allpass_.configure(FilterType::Allpass, 440.0f, 10.0f, 0.0f, static_cast<float>(sampleRate));
     waveshaper_.setType(WaveshapeType::Tanh);
     waveshaper_.setDrive(1.0f);
+    dampingLP_.prepare(sampleRate);
+    dampingLP_.setCutoff(static_cast<float>(sampleRate) * 0.45f); // Transparent by default
     lastOutput_ = 0.0f;
 }
 
 inline void AllpassSaturator::SaturatedAllpassStage::reset() noexcept {
     allpass_.reset();
+    dampingLP_.reset();
     lastOutput_ = 0.0f;
 }
 
@@ -450,9 +479,14 @@ inline void AllpassSaturator::SaturatedAllpassStage::setSaturationCurve(Waveshap
     waveshaper_.setType(type);
 }
 
+inline void AllpassSaturator::SaturatedAllpassStage::setDampingCutoff(float cutoff) noexcept {
+    dampingLP_.setCutoff(cutoff);
+}
+
 inline float AllpassSaturator::SaturatedAllpassStage::process(float input, float feedbackGain) noexcept {
-    // Add feedback to input
-    const float feedbackedInput = input + lastOutput_ * feedbackGain;
+    // Apply damping LP to feedback signal
+    const float dampedFeedback = dampingLP_.process(lastOutput_);
+    const float feedbackedInput = input + dampedFeedback * feedbackGain;
 
     // Process through allpass
     const float allpassed = allpass_.process(feedbackedInput);
@@ -500,6 +534,8 @@ inline void AllpassSaturator::prepare(double sampleRate, [[maybe_unused]] size_t
     }
     chainWaveshaper_.setType(saturationCurve_);
     chainWaveshaper_.setDrive(drive_);
+    chainDampingLP_.prepare(sampleRate);
+    chainDampingLP_.setCutoff(static_cast<float>(sampleRate) * 0.45f); // Transparent by default
 
     // Prepare KarplusStrong delay (max delay for 20Hz minimum frequency)
     const float maxDelaySeconds = 1.0f / 20.0f;  // 50ms for 20Hz
@@ -537,6 +573,7 @@ inline void AllpassSaturator::reset() noexcept {
     for (auto& ap : chainAllpasses_) {
         ap.reset();
     }
+    chainDampingLP_.reset();
     chainLastOutput_ = 0.0f;
 
     // Reset KarplusStrong
@@ -630,6 +667,33 @@ inline void AllpassSaturator::setDecay(float seconds) noexcept {
 
 inline float AllpassSaturator::getDecay() const noexcept {
     return decay_;
+}
+
+// -----------------------------------------------------------------------------
+// Damping Control
+// -----------------------------------------------------------------------------
+
+inline void AllpassSaturator::setDamping(float damping) noexcept {
+    damping_ = std::clamp(damping, 0.0f, 1.0f);
+    if (!prepared_) return;
+
+    // Map damping to cutoff: 0 = transparent (near-nyquist), 1 = dark (~100Hz)
+    const float maxCutoff = static_cast<float>(sampleRate_) * 0.45f;
+    constexpr float minCutoff = 100.0f;
+    const float cutoff = maxCutoff * std::pow(minCutoff / maxCutoff, damping_);
+
+    // Apply to stage damping LPs (SingleAllpass + FeedbackMatrix)
+    singleStage_.setDampingCutoff(cutoff);
+    for (auto& stage : matrixStages_) {
+        stage.setDampingCutoff(cutoff);
+    }
+    // AllpassChain uses its own damping LP
+    chainDampingLP_.setCutoff(cutoff);
+    // KarplusStrong damping is applied in processKarplusStrong() via cutoff scaling
+}
+
+inline float AllpassSaturator::getDamping() const noexcept {
+    return damping_;
 }
 
 // -----------------------------------------------------------------------------
@@ -731,8 +795,9 @@ inline float AllpassSaturator::processSingleAllpass(float input) noexcept {
 inline float AllpassSaturator::processAllpassChain(float input) noexcept {
     const float feedback = feedbackSmoother_.getCurrentValue();
 
-    // Add feedback to input
-    float signal = input + chainLastOutput_ * feedback;
+    // Apply damping LP to feedback signal
+    const float dampedFeedback = chainDampingLP_.process(chainLastOutput_);
+    float signal = input + dampedFeedback * feedback;
 
     // Process through chain of allpass filters
     for (auto& ap : chainAllpasses_) {
@@ -757,6 +822,13 @@ inline float AllpassSaturator::processKarplusStrong(float input) noexcept {
     // Calculate feedback and lowpass cutoff from decay time
     float ksFeedback, ksCutoff;
     decayToFeedbackAndCutoff(decay_, smoothedFreq, ksFeedback, ksCutoff);
+
+    // Apply damping: scale cutoff down exponentially
+    if (damping_ > 0.0f) {
+        constexpr float minCutoff = 100.0f;
+        const float dampScale = std::pow(minCutoff / std::max(ksCutoff, minCutoff), damping_);
+        ksCutoff = std::max(ksCutoff * dampScale, 20.0f);
+    }
     ksLowpass_.setCutoff(ksCutoff);
 
     // Read from delay with allpass interpolation

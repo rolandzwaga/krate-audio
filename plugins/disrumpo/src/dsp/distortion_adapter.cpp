@@ -826,6 +826,22 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             allpassSaturator_.setFrequency(p.resonantFreq);
             allpassSaturator_.setFeedback(p.allpassFeedback);
             allpassSaturator_.setDecay(p.decayTimeS);
+
+            // Drive: denormalize [0,1] → [0.1, 10.0]
+            allpassSaturator_.setDrive(0.1f + p.allpassDrive * 9.9f);
+
+            // Saturation curve: map menu index to WaveshapeType
+            constexpr Krate::DSP::WaveshapeType kSatTypes[] = {
+                Krate::DSP::WaveshapeType::Tanh,      // 0: Tanh
+                Krate::DSP::WaveshapeType::HardClip,   // 1: Clip
+                Krate::DSP::WaveshapeType::Diode,      // 2: Asym
+                Krate::DSP::WaveshapeType::Tube         // 3: Hyst
+            };
+            int satIdx = std::clamp(p.allpassSatType, 0, 3);
+            allpassSaturator_.setSaturationCurve(kSatTypes[satIdx]);
+
+            // Damping
+            allpassSaturator_.setDamping(p.allpassDamp);
             break;
         }
 

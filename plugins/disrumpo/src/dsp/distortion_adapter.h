@@ -212,8 +212,8 @@ struct DistortionParams {
     float resonantFreq = 440.0f;    ///< Resonant frequency [20, 2000] Hz
     float allpassFeedback = 0.7f;   ///< Allpass feedback [0, 0.99]
     float decayTimeS = 1.0f;        ///< Decay time [0.01, 10] s
-    float allpassCurve = 0.5f;      ///< Allpass curve [0, 1]
-    bool allpassPitch = false;      ///< Allpass pitch tracking
+    float allpassDrive = 0.5f;      ///< Allpass drive amount [0, 1]
+    int allpassSatType = 0;         ///< Allpass saturation curve select (0-3)
     float allpassDamp = 0.3f;       ///< Allpass damping [0, 1]
 };
 

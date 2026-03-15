@@ -517,7 +517,7 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     result.resonantFreq = 0.0f;
     result.allpassFeedback = 0.0f;
     result.decayTimeS = 0.0f;
-    result.allpassCurve = 0.0f;
+    result.allpassDrive = 0.0f;
     result.allpassDamp = 0.0f;
 
     // --- Weighted accumulation of all continuous parameters ---
@@ -630,7 +630,7 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         result.resonantFreq += w * p.resonantFreq;
         result.allpassFeedback += w * p.allpassFeedback;
         result.decayTimeS += w * p.decayTimeS;
-        result.allpassCurve += w * p.allpassCurve;
+        result.allpassDrive += w * p.allpassDrive;
         result.allpassDamp += w * p.allpassDamp;
     }
 
