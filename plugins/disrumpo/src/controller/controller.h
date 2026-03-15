@@ -287,6 +287,9 @@ private:
     // Custom CSegmentButton controls that show/hide A/B/C/D based on ActiveNodes
     std::array<DynamicNodeSelector*, kMaxBands> dynamicNodeSelectors_{};
 
+    // Compact view node selectors (auto-hide when single node)
+    std::array<DynamicNodeSelector*, kMaxBands> compactNodeSelectors_{};
+
     // ==========================================================================
     // MorphPads (US6)
     // ==========================================================================

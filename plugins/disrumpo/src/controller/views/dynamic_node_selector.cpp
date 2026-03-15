@@ -241,6 +241,11 @@ void DynamicNodeSelector::rebuildSegments(int activeCount)
 
     currentSegmentCount_ = activeCount;
 
+    // Auto-hide when only 1 node active (compact view)
+    if (autoHideSingle_) {
+        setVisible(activeCount > 1);
+    }
+
     // Restore selection (clamped to valid range)
     if (std::cmp_greater_equal(currentSelection, activeCount)) {
         currentSelection = static_cast<uint32_t>(activeCount - 1);

@@ -72,6 +72,10 @@ public:
     /// Increases segment borders and uses solid fills.
     void setHighContrastMode(bool enabled) { highContrastEnabled_ = enabled; }
 
+    /// @brief Enable auto-hide when only 1 node is active.
+    /// Used in compact BandShapeTab view to hide the selector when unnecessary.
+    void setAutoHideForSingleNode(bool enabled) { autoHideSingle_ = enabled; }
+
     // =========================================================================
     // IDependent Implementation (from FObject)
     // =========================================================================
@@ -104,6 +108,9 @@ private:
 
     // High contrast mode (Spec 012 FR-025a)
     bool highContrastEnabled_ = false;
+
+    // Auto-hide when only 1 active node (compact view)
+    bool autoHideSingle_ = false;
 };
 
 } // namespace Disrumpo

@@ -194,6 +194,26 @@ public:
         return DelegationController::verifyView(view, attributes, description);
     }
 
+    /// @brief Inject band index into custom view attributes.
+    /// Custom views (DynamicNodeSelector, MorphPad, etc.) read a "band" attribute
+    /// to determine which band's parameters to wire up. This override creates a
+    /// modified copy of the UIAttributes with the correct band index injected.
+    VSTGUI::CView* createView(const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description) override {
+        const auto* customViewName = attributes.getAttributeValue("custom-view-name");
+        if (customViewName) {
+            auto* modified = new VSTGUI::UIAttributes(attributes.empty() ? 0 : 16);
+            for (auto it = attributes.begin(); it != attributes.end(); ++it) {
+                modified->setAttribute(it->first, it->second);
+            }
+            modified->setAttribute("band", std::to_string(bandIndex_));
+            auto* view = controller->createView(*modified, description);
+            modified->forget();
+            return view;
+        }
+        return DelegationController::createView(attributes, description);
+    }
+
     // Dispatch nested sub-controllers (e.g., BitwiseOp for TypeParams_Bitwise)
     VSTGUI::IController* createSubController(VSTGUI::UTF8StringPtr name,
                                               const VSTGUI::IUIDescription* description) override;
@@ -214,24 +234,6 @@ protected:
 class BandExpandedStripController : public BandSubController {
 public:
     using BandSubController::BandSubController;
-
-    VSTGUI::CView* createView(const VSTGUI::UIAttributes& attributes,
-                               const VSTGUI::IUIDescription* description) override {
-        const auto* customViewName = attributes.getAttributeValue("custom-view-name");
-        if (customViewName) {
-            // Custom views read "band" attribute to determine which band's parameters
-            // to wire up. Create new attributes with the correct band index injected.
-            auto* modified = new VSTGUI::UIAttributes(attributes.empty() ? 0 : 16);
-            for (auto it = attributes.begin(); it != attributes.end(); ++it) {
-                modified->setAttribute(it->first, it->second);
-            }
-            modified->setAttribute("band", std::to_string(bandIndex_));
-            auto* view = controller->createView(*modified, description);
-            modified->forget();
-            return view;
-        }
-        return DelegationController::createView(attributes, description);
-    }
 
     VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
                                const VSTGUI::IUIDescription* description) override {

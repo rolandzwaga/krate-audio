@@ -1276,6 +1276,9 @@
   <template name="BandShapeTab" class="CViewContainer" size="215, 243" background-color="panel">
     <view class="CSlider" origin="0, 0" size="1, 1" transparent="true" control-tag="Band.DisplayedType" min-value="0" max-value="1"/>
     <view class="UIViewSwitchContainer" origin="0, 0" size="215, 200" animation-time="0" template-switch-control="Band.DisplayedType" template-names="TypeParams_SoftClip,TypeParams_HardClip,TypeParams_Tube,TypeParams_Tape,TypeParams_Fuzz,TypeParams_AsymFuzz,TypeParams_SineFold,TypeParams_TriFold,TypeParams_SergeFold,TypeParams_FullRectify,TypeParams_HalfRectify,TypeParams_Bitcrush,TypeParams_SampleReduce,TypeParams_Quantize,TypeParams_Aliasing,TypeParams_Bitwise,TypeParams_Temporal,TypeParams_RingSat,TypeParams_Feedback,TypeParams_AllpassRes,TypeParams_Chaos,TypeParams_Formant,TypeParams_Granular,TypeParams_Spectral,TypeParams_Fractal,TypeParams_Stochastic"/>
+    <!-- Node selector row (auto-hides DynamicNodeSelector when ActiveNodes <= 1) -->
+    <view class="CTextLabel" origin="5, 207" size="40, 16" title="Node" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CView" custom-view-name="DynamicNodeSelector" origin="50, 207" size="130, 16" band="0" control-tag="Band.SelectedNode" auto-hide-single="true"/>
   </template>
   <!-- Per-band wrappers: set sub-controller name encoding band index -->
   <template name="Band1ShapeTab" class="CViewContainer" sub-controller="BandShapeTab0" size="215, 243" background-color="panel">

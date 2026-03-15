@@ -3731,8 +3731,14 @@ VSTGUI::CView* Controller::createCustomView(
             nodeSelector->setValueNormalized(normalized);
         }
 
-        // Store reference for cleanup in willClose()
-        dynamicNodeSelectors_[bandIndex] = nodeSelector;
+        // Check for auto-hide-single attribute (compact view node selectors)
+        const std::string* autoHideStr = attributes.getAttributeValue("auto-hide-single");
+        if (autoHideStr && *autoHideStr == "true") {
+            nodeSelector->setAutoHideForSingleNode(true);
+            compactNodeSelectors_[bandIndex] = nodeSelector;
+        } else {
+            dynamicNodeSelectors_[bandIndex] = nodeSelector;
+        }
 
         return nodeSelector;
     }
@@ -4301,6 +4307,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 dns->setHighContrastMode(true);
             }
         }
+        for (auto* dns : compactNodeSelectors_) {
+            if (dns) {
+                dns->setHighContrastMode(true);
+            }
+        }
     }
 
     // T159-T161: Create morph-sweep link controller (US8)
@@ -4426,12 +4437,20 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         }
     }
 
-    // US6: Deactivate dynamic node selectors
+    // US6: Deactivate dynamic node selectors (expanded view)
     // Note: The views themselves are managed by VSTGUI, we just deactivate and clear refs
     for (auto& dns : dynamicNodeSelectors_) {
         if (dns) {
             dns->deactivate();
             dns = nullptr;  // Don't delete - VSTGUI owns the view
+        }
+    }
+
+    // Deactivate compact view node selectors
+    for (auto& dns : compactNodeSelectors_) {
+        if (dns) {
+            dns->deactivate();
+            dns = nullptr;
         }
     }
 
