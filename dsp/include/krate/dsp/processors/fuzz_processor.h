@@ -443,11 +443,17 @@ inline float FuzzProcessor::processGermanium(float input) noexcept {
 
 inline float FuzzProcessor::processSilicon(float input) noexcept {
     // Silicon characteristics:
-    // - Harder clipping via Sigmoid::tanh() with higher drive
-    // - No sag (tighter response)
-    // - Produces predominantly odd harmonics (symmetric)
+    // - Harder, more abrupt clipping than Germanium
+    // - No sag (tighter, more consistent response)
+    // - Produces predominantly odd harmonics (symmetric hard clip)
+    // - Buzzy, sustained, aggressive character
 
-    return Sigmoid::tanh(input * 2.0f);  // Harder drive for tighter clipping
+    // Hard clip with a sharp knee — approximates silicon transistor saturation
+    // Two-stage: soft drive into hard clip threshold for buzzy square-ish tone
+    const float driven = FastMath::fastTanh(input * 3.0f);  // Tighter drive curve
+    // Apply hard clip at ±0.8 to create the sharp silicon edge
+    const float clipped = std::clamp(driven * 1.25f, -1.0f, 1.0f);
+    return clipped;
 }
 
 inline void FuzzProcessor::process(float* buffer, size_t numSamples) noexcept {

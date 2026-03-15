@@ -141,7 +141,7 @@ TEST_CASE("Factory preset files exist", "[preset][factory][validation]") {
 
     REQUIRE_FALSE(presetFiles.empty());
     INFO("Found " << presetFiles.size() << " preset files in " << presetsDir.string());
-    CHECK(presetFiles.size() == 120);
+    CHECK(presetFiles.size() == 121);
 }
 
 TEST_CASE("Factory presets load without error", "[preset][factory][validation]") {
@@ -256,7 +256,7 @@ TEST_CASE("Factory preset category distribution matches spec", "[preset][factory
     std::map<std::string, int> expectedCounts = {
         {"Init", 5}, {"Sweep", 15}, {"Morph", 15},
         {"Bass", 10}, {"Leads", 10}, {"Pads", 10},
-        {"Drums", 10}, {"Experimental", 15}, {"Chaos", 10},
+        {"Drums", 10}, {"Experimental", 16}, {"Chaos", 10},
         {"Dynamic", 10}, {"Lo-Fi", 10}
     };
 

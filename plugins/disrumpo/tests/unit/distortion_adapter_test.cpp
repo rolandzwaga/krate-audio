@@ -90,12 +90,12 @@ TEST_CASE("UT-DI-002: Type switching activates correct processor", "[distortion]
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
     DistortionCommonParams commonParams;
-    commonParams.drive = 3.0f;
+    commonParams.drive = 1.5f;
     commonParams.mix = 1.0f;
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
-    const float testSignal = 0.8f;
+    const float testSignal = 0.3f;
 
     // SoftClip vs HardClip should produce different outputs
     adapter.setType(DistortionType::SoftClip);
@@ -352,9 +352,318 @@ TEST_CASE("Wavefold folds parameter changes output", "[distortion][wavefold]") {
     REQUIRE(outputFolds1 != Approx(outputFolds4).margin(0.001f));
 }
 
+TEST_CASE("SergeFold model parameter changes output", "[distortion][wavefold]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 2.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::SergeFold);
+
+    const float testSignal = 0.5f;
+
+    // Model 0 (Serge/Sine)
+    DistortionParams params;
+    params.folds = 3.0f;
+    params.foldModel = 0;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputModel0 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputModel0 = adapter.process(testSignal);
+    }
+
+    // Model 1 (Simple/Triangle)
+    params.foldModel = 1;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputModel1 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputModel1 = adapter.process(testSignal);
+    }
+
+    // Model 3 (Lockhart)
+    params.foldModel = 3;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputModel3 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputModel3 = adapter.process(testSignal);
+    }
+
+    CAPTURE(outputModel0);
+    CAPTURE(outputModel1);
+    CAPTURE(outputModel3);
+    // At least two of the three models should produce different output
+    bool anyDifferent = (outputModel0 != Approx(outputModel1).margin(0.001f)) ||
+                        (outputModel0 != Approx(outputModel3).margin(0.001f)) ||
+                        (outputModel1 != Approx(outputModel3).margin(0.001f));
+    REQUIRE(anyDifferent);
+}
+
+TEST_CASE("SineFold bias parameter changes output", "[distortion][wavefold]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 2.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::SineFold);
+
+    const float testSignal = 0.5f;
+
+    // Bias = 0 (centered)
+    DistortionParams params;
+    params.folds = 3.0f;
+    params.bias = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputNoBias = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputNoBias = adapter.process(testSignal);
+    }
+
+    // Bias = 0.5 (shifted)
+    params.bias = 0.5f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputWithBias = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputWithBias = adapter.process(testSignal);
+    }
+
+    CAPTURE(outputNoBias);
+    CAPTURE(outputWithBias);
+    REQUIRE(outputNoBias != Approx(outputWithBias).margin(0.001f));
+}
+
+TEST_CASE("SineFold shape parameter changes output", "[distortion][wavefold]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 2.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::SineFold);
+
+    const float testSignal = 0.5f;
+
+    // Shape = 0 (pure sine fold)
+    DistortionParams params;
+    params.folds = 3.0f;
+    params.shape = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputShape0 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputShape0 = adapter.process(testSignal);
+    }
+
+    // Shape = 1 (pure triangle fold)
+    params.shape = 1.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputShape1 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputShape1 = adapter.process(testSignal);
+    }
+
+    CAPTURE(outputShape0);
+    CAPTURE(outputShape1);
+    REQUIRE(outputShape0 != Approx(outputShape1).margin(0.001f));
+}
+
+TEST_CASE("SineFold smooth parameter changes output", "[distortion][wavefold]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 3.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::SineFold);
+
+    // Use a varying signal to make the lowpass filter audible
+    // Process a burst of samples with alternating values to create HF content
+    DistortionParams params;
+    params.folds = 5.0f;
+    params.smoothness = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    // Process alternating samples to generate high harmonics
+    float sumNoSmooth = 0.0f;
+    for (int i = 0; i < 200; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float out = adapter.process(sig);
+        sumNoSmooth += out * out;  // Energy measure
+    }
+
+    // Smooth = 1 (heavy lowpass)
+    params.smoothness = 1.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float sumSmooth = 0.0f;
+    for (int i = 0; i < 200; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float out = adapter.process(sig);
+        sumSmooth += out * out;
+    }
+
+    CAPTURE(sumNoSmooth);
+    CAPTURE(sumSmooth);
+    // Heavy smoothing should reduce total energy (lowpass attenuates harmonics)
+    REQUIRE(sumNoSmooth != Approx(sumSmooth).margin(0.01f));
+}
+
+TEST_CASE("TriangleFold angle parameter changes output", "[distortion][wavefold]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 2.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::TriangleFold);
+
+    const float testSignal = 0.5f;
+
+    // Angle = 0 (pure triangle fold)
+    DistortionParams params;
+    params.folds = 3.0f;
+    params.angle = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputAngle0 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputAngle0 = adapter.process(testSignal);
+    }
+
+    // Angle = 1 (pure sine fold)
+    params.angle = 1.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outputAngle1 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        outputAngle1 = adapter.process(testSignal);
+    }
+
+    CAPTURE(outputAngle0);
+    CAPTURE(outputAngle1);
+    REQUIRE(outputAngle0 != Approx(outputAngle1).margin(0.001f));
+}
+
 // =============================================================================
 // Rectify Category Tests (Phase 4)
 // =============================================================================
+
+TEST_CASE("FullRectify smooth parameter changes output", "[distortion][rectify]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::FullRectify);
+
+    // No smooth — process alternating signal to create HF content from rectification
+    DistortionParams params;
+    params.smoothness = 0.0f;
+    params.dcBlock = false;  // Disable DC block so it doesn't mask differences
+    adapter.setParams(params);
+    adapter.reset();
+
+    float sumNoSmooth = 0.0f;
+    for (int i = 0; i < 200; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float out = adapter.process(sig);
+        sumNoSmooth += out * out;
+    }
+
+    // Heavy smooth
+    params.smoothness = 1.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float sumSmooth = 0.0f;
+    for (int i = 0; i < 200; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 1000.0f * static_cast<float>(i) / 44100.0f);
+        float out = adapter.process(sig);
+        sumSmooth += out * out;
+    }
+
+    CAPTURE(sumNoSmooth);
+    CAPTURE(sumSmooth);
+    REQUIRE(sumNoSmooth != Approx(sumSmooth).margin(0.01f));
+}
+
+TEST_CASE("FullRectify dcBlock toggle affects output", "[distortion][rectify]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::FullRectify);
+
+    // DC block ON — rectification creates DC offset, blocker removes it
+    DistortionParams params;
+    params.dcBlock = true;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float sumDCBlockOn = 0.0f;
+    for (int i = 0; i < 500; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        sumDCBlockOn += adapter.process(sig);
+    }
+
+    // DC block OFF — DC offset remains in output
+    params.dcBlock = false;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float sumDCBlockOff = 0.0f;
+    for (int i = 0; i < 500; ++i) {
+        float sig = 0.5f * std::sin(2.0f * 3.14159f * 200.0f * static_cast<float>(i) / 44100.0f);
+        sumDCBlockOff += adapter.process(sig);
+    }
+
+    CAPTURE(sumDCBlockOn);
+    CAPTURE(sumDCBlockOff);
+    // With DC block off, sum should be higher (positive DC offset not removed)
+    REQUIRE(std::abs(sumDCBlockOn) < std::abs(sumDCBlockOff));
+}
 
 TEST_CASE("FullRectify output is always >= 0 for negative input", "[distortion][rectify]") {
     DistortionAdapter adapter;

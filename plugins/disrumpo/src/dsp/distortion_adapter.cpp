@@ -47,6 +47,17 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     tapeHfFilter_.setCutoff(8000.0f);
     flutterPhase_ = 0.0f;
 
+    // Prepare asymmetric fuzz body filter
+    bodyFilter_.prepare(sampleRate);
+    bodyFilter_.setCutoff(20000.0f);  // Start fully open
+
+    // Prepare wavefold smooth filter
+    wavefoldSmoothFilter_.prepare(sampleRate);
+    wavefoldSmoothFilter_.setCutoff(20000.0f);  // Start fully open
+
+    // Prepare triangle wavefolder for shape crossfade
+    wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Triangle);
+
     // Prepare wavefolder
     wavefolder_.prepare(sampleRate, blockSize);
 
@@ -114,6 +125,8 @@ void DistortionAdapter::reset() noexcept {
 
     // Reset tape-specific state
     tapeHfFilter_.reset();
+    bodyFilter_.reset();
+    wavefoldSmoothFilter_.reset();
     flutterPhase_ = 0.0f;
 
     // Reset ring buffer state
@@ -332,13 +345,10 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 : Krate::DSP::FuzzType::Silicon);
             fuzz_.process(singleSampleBuffer_, 1);
 
-            // Body: low-pass filter effect via simple one-pole approximation
-            // body=0 → bright/harsh, body=1 → dark/thick
+            // Body: one-pole lowpass filter for tone darkening
+            // body=0 → fully open (bright/harsh), body=1 → dark/thick
             float result = singleSampleBuffer_[0] - asymBias;
-            if (typeParams_.body > 0.01f) {
-                const float bodyCoeff = typeParams_.body * 0.9f;
-                result = result * (1.0f - bodyCoeff) + singleSampleBuffer_[0] * bodyCoeff;
-            }
+            result = bodyFilter_.process(result);
             return result;
         }
 
@@ -346,39 +356,77 @@ float DistortionAdapter::processRaw(float input) noexcept {
         // Wavefold (D07-D09) - Phase 4
         // =====================================================================
         case DistortionType::SineFold: {
-            // D07: Sine wavefolder (Serge model)
-            singleSampleBuffer_[0] = input;
-            wavefolder_.setModel(Krate::DSP::WavefolderModel::Serge);
+            // D07: Sine wavefolder (Serge model) with bias, shape, smooth
+            // Bias: DC offset before folding for asymmetric harmonics
+            float biased = input + typeParams_.bias;
+            singleSampleBuffer_[0] = biased;
             wavefolder_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            float result = singleSampleBuffer_[0];
+            // Shape: crossfade between sine fold (0) and triangle fold (1)
+            if (typeParams_.shape > 0.001f) {
+                float triFolded = wavefoldTriangle_.process(biased);
+                result = result * (1.0f - typeParams_.shape) + triFolded * typeParams_.shape;
+            }
+            // Smooth: lowpass filter to tame harsh harmonics
+            result = wavefoldSmoothFilter_.process(result);
+            return result;
         }
 
         case DistortionType::TriangleFold: {
-            // D08: Triangle wavefolder (Simple model)
-            singleSampleBuffer_[0] = input;
-            wavefolder_.setModel(Krate::DSP::WavefolderModel::Simple);
+            // D08: Triangle wavefolder (Simple model) with bias, angle, smooth
+            float biased = input + typeParams_.bias;
+            singleSampleBuffer_[0] = biased;
             wavefolder_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            float result = singleSampleBuffer_[0];
+            // Angle: crossfade between triangle fold (0) and sine fold (1)
+            if (typeParams_.angle > 0.001f) {
+                wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Sine);
+                float sinFolded = wavefoldTriangle_.process(biased);
+                wavefoldTriangle_.setType(Krate::DSP::WavefoldType::Triangle);
+                result = result * (1.0f - typeParams_.angle) + sinFolded * typeParams_.angle;
+            }
+            result = wavefoldSmoothFilter_.process(result);
+            return result;
         }
 
         case DistortionType::SergeFold: {
-            // D09: Serge-style wavefolder (Lockhart model)
-            singleSampleBuffer_[0] = input;
-            wavefolder_.setModel(Krate::DSP::WavefolderModel::Lockhart);
+            // D09: Serge-style wavefolder with selectable model, bias, shape, smooth
+            // Model is set in routeParamsToProcessor — do NOT override here
+            float biased = input + typeParams_.bias;
+            singleSampleBuffer_[0] = biased;
             wavefolder_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            float result = singleSampleBuffer_[0];
+            // Shape: crossfade with triangle fold
+            if (typeParams_.shape > 0.001f) {
+                float triFolded = wavefoldTriangle_.process(biased);
+                result = result * (1.0f - typeParams_.shape) + triFolded * typeParams_.shape;
+            }
+            result = wavefoldSmoothFilter_.process(result);
+            return result;
         }
 
         // =====================================================================
         // Rectify (D10-D11) - Phase 4
         // =====================================================================
-        case DistortionType::FullRectify:
-            // D10: Full-wave rectification (absolute value)
-            return std::abs(input);
+        case DistortionType::FullRectify: {
+            // D10: Full-wave rectification (absolute value) with smooth
+            float result = std::abs(input);
+            if (typeParams_.smoothness > 0.001f) {
+                result = wavefoldSmoothFilter_.process(result);
+            }
+            return result;
+        }
 
-        case DistortionType::HalfRectify:
-            // D11: Half-wave rectification (positive only)
-            return std::max(0.0f, input);
+        case DistortionType::HalfRectify: {
+            // D11: Half-wave rectification with threshold and smooth
+            // Threshold [0,1] → clip point [0, 1]
+            const float thresh = typeParams_.threshold;
+            float result = (input >= thresh) ? input : 0.0f;
+            if (typeParams_.smoothness > 0.001f) {
+                result = wavefoldSmoothFilter_.process(result);
+            }
+            return result;
+        }
 
         // =====================================================================
         // Digital (D12-D14, D18-D19) - Phase 5
@@ -529,6 +577,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             // on first use, changing audio behavior. Leave type to processRaw().
             fuzz_.setBias(p.bias);
             fuzz_.setFuzz(p.sustain);
+            // Body: map [0,1] to cutoff [20000, 400] Hz (exponential)
+            // body=0 → 20kHz (fully open), body=1 → 400Hz (dark)
+            bodyFilter_.setCutoff(20000.0f * std::pow(400.0f / 20000.0f, p.body));
             break;
 
         // =================================================================
@@ -538,12 +589,20 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             wavefolder_.setModel(Krate::DSP::WavefolderModel::Serge);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
+            // Shape: crossfade target (triangle wavefolder)
+            wavefoldTriangle_.setFoldAmount(p.folds);
+            // Smooth: map [0,1] → cutoff [20000, 500] Hz (exponential)
+            // smoothness=0 → fully open, smoothness=1 → dark/mellow
+            wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
             break;
 
         case DistortionType::TriangleFold:
             wavefolder_.setModel(Krate::DSP::WavefolderModel::Simple);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
+            // Shape: crossfade target (sine wavefolder)
+            wavefoldTriangle_.setFoldAmount(p.folds);
+            wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
             break;
 
         case DistortionType::SergeFold: {
@@ -558,14 +617,20 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             wavefolder_.setModel(models[mi]);
             wavefolder_.setFoldAmount(p.folds);
             wavefolder_.setSymmetry(p.symmetry);
+            wavefoldTriangle_.setFoldAmount(p.folds);
+            wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
             break;
         }
 
         // =================================================================
-        // Rectify (D10-D11) — minimal DSP routing
+        // Rectify (D10-D11)
         // =================================================================
         case DistortionType::FullRectify:
         case DistortionType::HalfRectify:
+            // Smooth filter cutoff
+            wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
+            // DC block toggle — override the always-on default
+            needsDCBlock_ = p.dcBlock;
             break;
 
         // =================================================================

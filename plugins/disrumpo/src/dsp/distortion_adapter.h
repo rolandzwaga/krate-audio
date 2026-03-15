@@ -412,6 +412,15 @@ private:
     /// One-pole lowpass for tape HF rolloff (D04)
     Krate::DSP::OnePoleLP tapeHfFilter_;
 
+    /// One-pole lowpass for asymmetric fuzz body control (D06)
+    Krate::DSP::OnePoleLP bodyFilter_;
+
+    /// One-pole lowpass for wavefold smooth parameter (D07-D09)
+    Krate::DSP::OnePoleLP wavefoldSmoothFilter_;
+
+    /// Secondary wavefolder for shape crossfade (triangle model for sine/triangle blend)
+    Krate::DSP::Wavefolder wavefoldTriangle_;
+
     /// Phase accumulator for tape flutter LFO (D04)
     float flutterPhase_ = 0.0f;
 

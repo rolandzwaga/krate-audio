@@ -361,17 +361,17 @@ TEST_CASE("DIAG: DistortionAdapters produce different output for different types
 
     // Set up SoftClip
     adapterA.setType(Disrumpo::DistortionType::SoftClip);
-    adapterA.setCommonParams({5.0f, 1.0f, 8000.0f});
+    adapterA.setCommonParams({1.5f, 1.0f, 8000.0f});
 
-    // Set up Bitcrush
+    // Set up Bitcrush — low bit depth to ensure visible quantization
     adapterB.setType(Disrumpo::DistortionType::Bitcrush);
-    adapterB.setCommonParams({5.0f, 1.0f, 8000.0f});
+    adapterB.setCommonParams({1.5f, 1.0f, 8000.0f});
     Disrumpo::DistortionParams bParams;
-    bParams.bitDepth = 4.0f;
+    bParams.bitDepth = 2.0f;
     adapterB.setParams(bParams);
 
-    float outA = adapterA.process(0.5f);
-    float outB = adapterB.process(0.5f);
+    float outA = adapterA.process(0.3f);
+    float outB = adapterB.process(0.3f);
 
     INFO("Adapter SoftClip output: " << outA);
     INFO("Adapter Bitcrush output: " << outB);

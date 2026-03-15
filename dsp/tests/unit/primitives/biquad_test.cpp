@@ -356,7 +356,7 @@ TEST_CASE("Biquad single sample processing", "[biquad][US1][process]") {
     }
 
     SECTION("State is updated after processing") {
-        filter.process(1.0f);
+        (void)filter.process(1.0f);
         CHECK((filter.getZ1() != 0.0f || filter.getZ2() != 0.0f));
     }
 
@@ -418,8 +418,8 @@ TEST_CASE("Biquad reset clears state", "[biquad][US1]") {
     filter.configure(FilterType::Lowpass, 1000.0f, butterworthQ(), 0.0f, kTestSampleRate);
 
     // Process some samples to build up state
-    filter.process(1.0f);
-    filter.process(0.5f);
+    (void)filter.process(1.0f);
+    (void)filter.process(0.5f);
 
     SECTION("State is non-zero before reset") {
         CHECK((filter.getZ1() != 0.0f || filter.getZ2() != 0.0f));
@@ -451,7 +451,7 @@ TEST_CASE("Lowpass frequency response at cutoff", "[biquad][US1][response]") {
 
     // Let filter settle
     for (size_t i = 0; i < 1000; ++i) {
-        filter.process(std::sin(omega * static_cast<float>(i)));
+        (void)filter.process(std::sin(omega * static_cast<float>(i)));
     }
     filter.reset();
 
@@ -484,7 +484,7 @@ TEST_CASE("Highpass frequency response at cutoff", "[biquad][US1][response]") {
 
     // Let filter settle
     for (size_t i = 0; i < 1000; ++i) {
-        filter.process(std::sin(omega * static_cast<float>(i)));
+        (void)filter.process(std::sin(omega * static_cast<float>(i)));
     }
     filter.reset();
 
@@ -619,7 +619,7 @@ TEST_CASE("Notch frequency response at center", "[biquad][US2][response]") {
 
     // Let filter settle
     for (size_t i = 0; i < 2000; ++i) {
-        filter.process(std::sin(omega * static_cast<float>(i)));
+        (void)filter.process(std::sin(omega * static_cast<float>(i)));
     }
     filter.reset();
 
@@ -655,7 +655,7 @@ TEST_CASE("Allpass maintains unity magnitude", "[biquad][US2][response]") {
 
         // Let filter settle
         for (size_t i = 0; i < 1000; ++i) {
-            filter.process(std::sin(omega * static_cast<float>(i)));
+            (void)filter.process(std::sin(omega * static_cast<float>(i)));
         }
 
         filter.processBlock(buffer.data(), numSamples);
@@ -830,8 +830,8 @@ TEST_CASE("BiquadCascade reset clears all stages", "[biquad][US3]") {
     cascade.setButterworth(FilterType::Lowpass, 1000.0f, kTestSampleRate);
 
     // Build up state
-    cascade.process(1.0f);
-    cascade.process(0.5f);
+    (void)cascade.process(1.0f);
+    (void)cascade.process(0.5f);
 
     // At least one stage should have state
     bool hasState = (cascade.stage(0).getZ1() != 0.0f) ||
@@ -1027,11 +1027,11 @@ TEST_CASE("Denormals are flushed to zero", "[biquad][US5][denormal]") {
     filter.configure(FilterType::Lowpass, 100.0f, butterworthQ(), 0.0f, kTestSampleRate);
 
     // Feed an impulse
-    filter.process(1.0f);
+    (void)filter.process(1.0f);
 
     // Feed silence for a long time
     for (size_t i = 0; i < 100000; ++i) {
-        filter.process(0.0f);
+        (void)filter.process(0.0f);
     }
 
     // State should be flushed to zero (not denormal)
@@ -1176,7 +1176,7 @@ float measureGainAtFrequency(Biquad& filter, float testFreq, float sampleRate) {
 
     // Let filter settle
     for (size_t i = 0; i < 2000; ++i) {
-        filter.process(std::sin(omega * static_cast<float>(i)));
+        (void)filter.process(std::sin(omega * static_cast<float>(i)));
     }
     filter.reset();
 
@@ -1257,7 +1257,7 @@ float measureCascadeGain(BiquadCascade<N>& cascade, float testFreq, float sample
 
     // Let filter settle
     for (size_t i = 0; i < 2000; ++i) {
-        cascade.process(std::sin(omega * static_cast<float>(i)));
+        (void)cascade.process(std::sin(omega * static_cast<float>(i)));
     }
     cascade.reset();
 
@@ -1457,12 +1457,12 @@ TEST_CASE("Filter state decays to zero within 1 second (SC-007)", "[biquad][US5]
     filter.configure(FilterType::Lowpass, 100.0f, butterworthQ(), 0.0f, kTestSampleRate);
 
     // Feed an impulse
-    filter.process(1.0f);
+    (void)filter.process(1.0f);
 
     // Feed exactly 1 second of silence (44100 samples at 44.1kHz)
     constexpr size_t oneSecond = 44100;
     for (size_t i = 0; i < oneSecond; ++i) {
-        filter.process(0.0f);
+        (void)filter.process(0.0f);
     }
 
     // State should be zero (not denormal)
