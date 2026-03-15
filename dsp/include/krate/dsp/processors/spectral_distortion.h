@@ -59,6 +59,22 @@ enum class GapBehavior : uint8_t {
     UseGlobalDrive = 1    ///< Unassigned bins use global drive parameter
 };
 
+/// @brief Phase handling mode for spectral output
+enum class SpectralPhaseMode : uint8_t {
+    Preserve = 0,   ///< Keep phases from distortion output (default)
+    Random = 1,     ///< Randomize phases (noise-like textures)
+    Gradient = 2,   ///< Linear phase gradient (time-shift effect)
+    Temporal = 3    ///< Use previous frame's phases (smearing/freeze)
+};
+
+/// @brief Magnitude scale mode for spectral processing
+enum class MagnitudeScaleMode : uint8_t {
+    Linear = 0,   ///< Process magnitudes directly (default)
+    Log = 1,      ///< Log-domain: compresses dynamic range before distortion
+    Bark = 2,     ///< Bark-weighted: emphasizes perceptually important bands
+    ERB = 3       ///< ERB-weighted: smooth perceptual frequency weighting
+};
+
 // =============================================================================
 // SpectralDistortion Class
 // =============================================================================
@@ -155,6 +171,16 @@ public:
         // Allocate phase storage for MagnitudeOnly mode
         storedPhases_.resize(numBins_, 0.0f);
 
+        // Allocate phase storage for Temporal phase mode
+        prevFramePhases_.resize(numBins_, 0.0f);
+
+        // Pre-compute per-bin frequency weights for tilt/scale
+        binFrequencies_.resize(numBins_);
+        const float binWidth = static_cast<float>(sampleRate_) / static_cast<float>(fftSize_);
+        for (std::size_t i = 0; i < numBins_; ++i) {
+            binFrequencies_[i] = static_cast<float>(i) * binWidth;
+        }
+
         // Allocate zero buffer for null input handling
         zeroBuffer_.resize(fftSize * 4, 0.0f);
 
@@ -175,6 +201,8 @@ public:
         outputSpectrum_.reset();
 
         std::fill(storedPhases_.begin(), storedPhases_.end(), 0.0f);
+        std::fill(prevFramePhases_.begin(), prevFramePhases_.end(), 0.0f);
+        prngState_ = 0x12345678u;
     }
 
     // =========================================================================
@@ -397,6 +425,65 @@ public:
     }
 
     // =========================================================================
+    // Spectral Shaping Parameters
+    // =========================================================================
+
+    /// @brief Set spectral tilt amount
+    /// @param tilt 0.0 = darken (cut highs), 0.5 = neutral, 1.0 = brighten (boost highs)
+    void setTilt(float tilt) noexcept {
+        tilt_ = std::clamp(tilt, 0.0f, 1.0f);
+    }
+
+    /// @brief Get current tilt
+    [[nodiscard]] float getTilt() const noexcept {
+        return tilt_;
+    }
+
+    /// @brief Set spectral threshold for bin gating
+    /// @param threshold 0.0 = pass all bins, 1.0 = gate all bins
+    void setThreshold(float threshold) noexcept {
+        threshold_ = std::clamp(threshold, 0.0f, 1.0f);
+    }
+
+    /// @brief Get current threshold
+    [[nodiscard]] float getThreshold() const noexcept {
+        return threshold_;
+    }
+
+    /// @brief Set magnitude scale mode
+    /// @param mode How magnitudes are scaled during processing
+    void setMagnitudeScaleMode(MagnitudeScaleMode mode) noexcept {
+        magnitudeScaleMode_ = mode;
+    }
+
+    /// @brief Get current magnitude scale mode
+    [[nodiscard]] MagnitudeScaleMode getMagnitudeScaleMode() const noexcept {
+        return magnitudeScaleMode_;
+    }
+
+    /// @brief Set spectral frequency parameter (normalized)
+    /// @param freq 0.0 to 1.0, maps to pivot frequency for tilt (0 = low, 1 = Nyquist)
+    void setFrequency(float freq) noexcept {
+        frequency_ = std::clamp(freq, 0.0f, 1.0f);
+    }
+
+    /// @brief Get current frequency parameter
+    [[nodiscard]] float getFrequency() const noexcept {
+        return frequency_;
+    }
+
+    /// @brief Set phase handling mode
+    /// @param mode How output phases are generated
+    void setPhaseMode(SpectralPhaseMode mode) noexcept {
+        phaseMode_ = mode;
+    }
+
+    /// @brief Get current phase mode
+    [[nodiscard]] SpectralPhaseMode getPhaseMode() const noexcept {
+        return phaseMode_;
+    }
+
+    // =========================================================================
     // Query
     // =========================================================================
 
@@ -440,6 +527,7 @@ private:
 
     /// @brief Process a single spectral frame
     void processSpectralFrame() noexcept {
+        // Step 1: Mode-specific distortion
         switch (mode_) {
             case SpectralDistortionMode::PerBinSaturate:
                 applyPerBinSaturate();
@@ -453,6 +541,31 @@ private:
             case SpectralDistortionMode::SpectralBitcrush:
                 applySpectralBitcrush();
                 break;
+        }
+
+        // Step 2: Apply magnitude scale mode (post-distortion reshaping)
+        if (magnitudeScaleMode_ != MagnitudeScaleMode::Linear) {
+            applyMagnitudeScaleMode();
+        }
+
+        // Step 3: Apply threshold gating
+        if (threshold_ > 0.0f) {
+            applyThresholdGating();
+        }
+
+        // Step 4: Apply spectral tilt
+        if (tilt_ != 0.5f) {
+            applySpectralTilt();
+        }
+
+        // Step 5: Apply phase mode
+        if (phaseMode_ != SpectralPhaseMode::Preserve) {
+            applyPhaseMode();
+        }
+
+        // Step 6: Store phases for temporal mode (always, so switching is seamless)
+        for (std::size_t bin = 0; bin < numBins_; ++bin) {
+            prevFramePhases_[bin] = outputSpectrum_.getPhase(bin);
         }
     }
 
@@ -694,6 +807,174 @@ private:
         }
     }
 
+    // =========================================================================
+    // Post-Processing Methods
+    // =========================================================================
+
+    /// @brief Apply threshold gating — zero out bins below threshold
+    void applyThresholdGating() noexcept {
+        // Find peak magnitude for relative threshold
+        float peakMag = 0.0f;
+        for (std::size_t bin = 0; bin < numBins_; ++bin) {
+            peakMag = std::max(peakMag, outputSpectrum_.getMagnitude(bin));
+        }
+
+        if (peakMag < 1e-20f) return;
+
+        const float threshLevel = threshold_ * peakMag;
+
+        for (std::size_t bin = 0; bin < numBins_; ++bin) {
+            if (outputSpectrum_.getMagnitude(bin) < threshLevel) {
+                outputSpectrum_.setMagnitude(bin, 0.0f);
+            }
+        }
+    }
+
+    /// @brief Apply spectral tilt — frequency-dependent gain
+    void applySpectralTilt() noexcept {
+        // tilt_ range: 0 = darken (cut highs -12dB/oct), 0.5 = neutral, 1 = brighten (+12dB/oct)
+        // Map to slope in dB/octave: -12 to +12
+        const float slopeDb = (tilt_ - 0.5f) * 24.0f;
+
+        if (std::abs(slopeDb) < 0.01f) return;
+
+        // Pivot frequency from frequency_ parameter (mapped to Hz)
+        // frequency_ 0..1 maps logarithmically: 100Hz to Nyquist
+        const float nyquist = static_cast<float>(sampleRate_) * 0.5f;
+        const float pivotHz = 100.0f * std::pow(nyquist / 100.0f, frequency_);
+
+        // Convert slope to per-octave linear multiplier
+        // gain_at_freq = (freq / pivot)^(slope_dB / 6.02)
+        // Using 6.02 dB = 1 octave doubling
+        const float exponent = slopeDb / 6.02f;
+
+        for (std::size_t bin = 1; bin < numBins_; ++bin) {
+            const float freqHz = binFrequencies_[bin];
+            if (freqHz < 1.0f) continue;
+
+            const float ratio = freqHz / pivotHz;
+            const float gain = std::pow(ratio, exponent);
+
+            float mag = outputSpectrum_.getMagnitude(bin) * gain;
+            mag = detail::flushDenormal(mag);
+            outputSpectrum_.setMagnitude(bin, mag);
+        }
+    }
+
+    /// @brief Apply magnitude scale mode post-processing
+    void applyMagnitudeScaleMode() noexcept {
+        switch (magnitudeScaleMode_) {
+            case MagnitudeScaleMode::Linear:
+                break;  // No-op
+
+            case MagnitudeScaleMode::Log: {
+                // Log compression: reduces dynamic range between loud and quiet bins
+                // Maps magnitude through log(1 + x) / log(2) to compress peaks
+                float peakMag = 0.0f;
+                for (std::size_t bin = 0; bin < numBins_; ++bin) {
+                    peakMag = std::max(peakMag, outputSpectrum_.getMagnitude(bin));
+                }
+                if (peakMag < 1e-20f) break;
+                const float invPeak = 1.0f / peakMag;
+                const float invLog2 = 1.0f / std::log(2.0f);
+
+                for (std::size_t bin = 0; bin < numBins_; ++bin) {
+                    float mag = outputSpectrum_.getMagnitude(bin);
+                    float normalized = mag * invPeak;
+                    float compressed = std::log(1.0f + normalized) * invLog2;
+                    outputSpectrum_.setMagnitude(bin, detail::flushDenormal(compressed * peakMag));
+                }
+                break;
+            }
+
+            case MagnitudeScaleMode::Bark: {
+                // Bark-scale emphasis: boost perceptually important 1-4kHz region
+                for (std::size_t bin = 1; bin < numBins_; ++bin) {
+                    const float f = binFrequencies_[bin];
+                    // Bark critical band rate
+                    const float bark = 13.0f * std::atan(0.00076f * f)
+                                     + 3.5f * std::atan(f * f / (7500.0f * 7500.0f));
+                    // Weight: peak at ~13 Bark (3.5kHz), falloff at extremes
+                    // Normalize so mid-frequencies get ~1.0 gain
+                    const float weight = 0.5f + 0.5f * std::exp(-0.1f * (bark - 13.0f) * (bark - 13.0f));
+                    float mag = outputSpectrum_.getMagnitude(bin) * weight;
+                    outputSpectrum_.setMagnitude(bin, detail::flushDenormal(mag));
+                }
+                break;
+            }
+
+            case MagnitudeScaleMode::ERB: {
+                // ERB emphasis: smooth perceptual weighting
+                for (std::size_t bin = 1; bin < numBins_; ++bin) {
+                    const float f = binFrequencies_[bin];
+                    // ERB rate (Glasberg & Moore 1990)
+                    const float erbRate = 21.4f * std::log10(4.37f * f / 1000.0f + 1.0f);
+                    // Weight: peak around ERB rate 20-25 (~2-4kHz)
+                    const float weight = 0.5f + 0.5f * std::exp(-0.05f * (erbRate - 22.0f) * (erbRate - 22.0f));
+                    float mag = outputSpectrum_.getMagnitude(bin) * weight;
+                    outputSpectrum_.setMagnitude(bin, detail::flushDenormal(mag));
+                }
+                break;
+            }
+        }
+    }
+
+    /// @brief Apply phase mode post-processing
+    void applyPhaseMode() noexcept {
+        switch (phaseMode_) {
+            case SpectralPhaseMode::Preserve:
+                break;  // No-op
+
+            case SpectralPhaseMode::Random: {
+                // Randomize phases using fast xorshift PRNG
+                for (std::size_t bin = 0; bin < numBins_; ++bin) {
+                    prngState_ ^= prngState_ << 13;
+                    prngState_ ^= prngState_ >> 17;
+                    prngState_ ^= prngState_ << 5;
+                    // Map to [-pi, pi]
+                    float phase = (static_cast<float>(prngState_) / 4294967296.0f) * kTwoPi - kPi;
+                    outputSpectrum_.setPhase(bin, phase);
+                }
+                break;
+            }
+
+            case SpectralPhaseMode::Gradient: {
+                // Linear phase gradient — creates a time-shift effect
+                // frequency_ controls gradient steepness (0 = no shift, 1 = max shift)
+                const float maxShift = kTwoPi * 4.0f;  // Up to 4 full rotations
+                const float gradient = (frequency_ - 0.5f) * 2.0f * maxShift;
+
+                for (std::size_t bin = 0; bin < numBins_; ++bin) {
+                    float phase = outputSpectrum_.getPhase(bin);
+                    phase += gradient * static_cast<float>(bin) / static_cast<float>(numBins_);
+                    // Wrap to [-pi, pi]
+                    phase = std::fmod(phase + kPi, kTwoPi);
+                    if (phase < 0.0f) phase += kTwoPi;
+                    phase -= kPi;
+                    outputSpectrum_.setPhase(bin, phase);
+                }
+                break;
+            }
+
+            case SpectralPhaseMode::Temporal: {
+                // Use previous frame's phases — creates smearing/freeze effect
+                for (std::size_t bin = 0; bin < numBins_; ++bin) {
+                    outputSpectrum_.setPhase(bin, prevFramePhases_[bin]);
+                }
+                break;
+            }
+        }
+    }
+
+    /// @brief Simple xorshift PRNG (next value)
+    /// @note NOT cryptographic — for audio randomization only
+    [[nodiscard]] uint32_t nextPrng() noexcept {
+        prngState_ ^= prngState_ << 13;
+        prngState_ ^= prngState_ >> 17;
+        prngState_ ^= prngState_ << 5;
+        return prngState_;
+    }
+
     /// @brief Get drive value for a specific bin in BinSelective mode
     [[nodiscard]] float getDriveForBin(std::size_t bin) const noexcept {
         float maxDrive = -1.0f;
@@ -781,6 +1062,14 @@ private:
     bool processDCNyquist_ = false;
     GapBehavior gapBehavior_ = GapBehavior::Passthrough;
 
+    // Spectral shaping parameters
+    float tilt_ = 0.5f;
+    float threshold_ = 0.0f;
+    MagnitudeScaleMode magnitudeScaleMode_ = MagnitudeScaleMode::Linear;
+    float frequency_ = 0.5f;
+    SpectralPhaseMode phaseMode_ = SpectralPhaseMode::Preserve;
+    uint32_t prngState_ = 0x12345678u;
+
     // Band configuration
     BandConfig lowBand_;
     BandConfig midBand_;
@@ -795,6 +1084,12 @@ private:
 
     // Phase storage for MagnitudeOnly mode
     std::vector<float> storedPhases_;
+
+    // Phase storage for Temporal phase mode
+    std::vector<float> prevFramePhases_;
+
+    // Pre-computed per-bin frequencies (Hz)
+    std::vector<float> binFrequencies_;
 
     // Auxiliary buffers
     std::vector<float> zeroBuffer_;

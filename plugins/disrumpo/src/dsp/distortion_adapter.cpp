@@ -887,9 +887,40 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             break;
 
         case DistortionType::Spectral: {
+            // Slot 0: Mode (4 processing algorithms)
             int mode = std::clamp(p.spectralMode, 0, 3);
             spectral_.setMode(static_cast<Krate::DSP::SpectralDistortionMode>(mode));
-            spectral_.setMagnitudeBits(static_cast<float>(p.magnitudeBits));
+
+            // Slot 1: FFT size — re-prepare if changed (allocates, but only on user param change)
+            if (static_cast<std::size_t>(p.fftSize) != spectral_.getFftSize()) {
+                spectral_.prepare(sampleRate_, static_cast<std::size_t>(p.fftSize));
+            }
+
+            // Slot 2: Curve — map continuous [0,1] to WaveshapeType enum (9 types: 0-8)
+            int curveIdx = std::clamp(static_cast<int>(p.spectralCurve * 8.0f + 0.5f), 0, 8);
+            spectral_.setSaturationCurve(static_cast<Krate::DSP::WaveshapeType>(curveIdx));
+
+            // Slot 3: Tilt — spectral tilt [0,1] (0=dark, 0.5=neutral, 1=bright)
+            spectral_.setTilt(p.spectralTilt);
+
+            // Slot 4: Threshold — spectral gate [0,1]
+            spectral_.setThreshold(p.spectralThreshold);
+
+            // Slot 5: Magnitude scale mode (4 modes: Linear, Log, Bark, ERB)
+            int magMode = std::clamp(p.spectralMagMode, 0, 3);
+            spectral_.setMagnitudeScaleMode(
+                static_cast<Krate::DSP::MagnitudeScaleMode>(magMode));
+
+            // Slot 6: Frequency — pivot/focus frequency [0,1]
+            spectral_.setFrequency(p.spectralFreq);
+
+            // Slot 7: Phase mode (4 modes: Preserve, Random, Gradient, Temporal)
+            int phaseMode = std::clamp(p.spectralPhase, 0, 3);
+            spectral_.setPhaseMode(
+                static_cast<Krate::DSP::SpectralPhaseMode>(phaseMode));
+
+            // Common parameter: BitDepth → magnitude quantization for Bitcrush mode
+            spectral_.setMagnitudeBits(p.bitDepth);
             break;
         }
 
