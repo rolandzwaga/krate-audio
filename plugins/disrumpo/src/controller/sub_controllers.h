@@ -22,6 +22,9 @@
 #include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/controls/ccontrol.h"
+
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -191,6 +194,10 @@ public:
         return DelegationController::verifyView(view, attributes, description);
     }
 
+    // Dispatch nested sub-controllers (e.g., BitwiseOp for TypeParams_Bitwise)
+    VSTGUI::IController* createSubController(VSTGUI::UTF8StringPtr name,
+                                              const VSTGUI::IUIDescription* description) override;
+
 protected:
     int bandIndex_;
 };
@@ -244,5 +251,102 @@ public:
         return BandSubController::verifyView(view, attributes, description);
     }
 };
+
+// ==============================================================================
+// BitwiseOpController: Conditional visibility for Bitwise Mangler controls
+// ==============================================================================
+// Sub-controller for TypeParams_Bitwise template. Watches the Op dropdown
+// (Band.NodeShape0) and shows/hides Pattern and Bits containers based on
+// which operation is selected:
+//   - XorPattern (0): show Pattern
+//   - BitRotate (2):  show Bits
+//   - BitShuffle (3): show Pattern (labeled "Seed")
+//   - Others:         hide both
+// ==============================================================================
+
+class BitwiseOpController : public VSTGUI::DelegationController {
+public:
+    BitwiseOpController(VSTGUI::IController* parentController)
+        : DelegationController(parentController) {}
+
+    ~BitwiseOpController() override {
+        if (opControl_)
+            opControl_->unregisterControlListener(this);
+    }
+
+    VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
+                               const VSTGUI::IUIDescription* description) override {
+        // Detect the Op COptionMenu by its control-tag
+        const auto* tagName = attributes.getAttributeValue("control-tag");
+        if (tagName && *tagName == "Band.NodeShape0") {
+            if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
+                opControl_ = control;
+                opControl_->registerControlListener(this);
+            }
+        }
+
+        // Detect Pattern and Bits wrapper containers by custom attribute
+        const auto* visGroup = attributes.getAttributeValue("bitwise-group");
+        if (visGroup) {
+            if (auto* container = view->asViewContainer()) {
+                if (*visGroup == "pattern")
+                    patternContainer_ = container;
+                else if (*visGroup == "bits")
+                    bitsContainer_ = container;
+            }
+        }
+
+        auto* result = DelegationController::verifyView(view, attributes, description);
+
+        // Set initial visibility once all pieces are found
+        if (opControl_ && patternContainer_ && bitsContainer_ && !initialVisibilitySet_) {
+            initialVisibilitySet_ = true;
+            updateVisibility();
+        }
+
+        return result;
+    }
+
+    void valueChanged(VSTGUI::CControl* control) override {
+        if (control == opControl_) {
+            updateVisibility();
+        }
+        DelegationController::valueChanged(control);
+    }
+
+private:
+    void updateVisibility() {
+        if (!opControl_) return;
+
+        // Op dropdown: 6 items → normalized 0/5, 1/5, 2/5, 3/5, 4/5, 5/5
+        float norm = opControl_->getValueNormalized();
+        int op = static_cast<int>(norm * 5.0f + 0.5f);
+
+        // Pattern visible for XorPattern(0) and BitShuffle(3)
+        bool showPattern = (op == 0 || op == 3);
+        // Bits visible for BitRotate(2)
+        bool showBits = (op == 2);
+
+        if (patternContainer_)
+            patternContainer_->setVisible(showPattern);
+        if (bitsContainer_)
+            bitsContainer_->setVisible(showBits);
+    }
+
+    VSTGUI::CControl* opControl_ = nullptr;
+    VSTGUI::CViewContainer* patternContainer_ = nullptr;
+    VSTGUI::CViewContainer* bitsContainer_ = nullptr;
+    bool initialVisibilitySet_ = false;
+};
+
+// Inline definition of BandSubController::createSubController
+inline VSTGUI::IController* BandSubController::createSubController(
+    VSTGUI::UTF8StringPtr name, const VSTGUI::IUIDescription* description) {
+    if (std::strcmp(name, "BitwiseOp") == 0) {
+        // Pass 'this' as parent so tag remapping is preserved
+        return new BitwiseOpController(this);
+    }
+    return DelegationController::createSubController(name, description);
+}
 
 } // namespace Disrumpo

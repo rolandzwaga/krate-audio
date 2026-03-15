@@ -1074,16 +1074,20 @@
     <view class="CTextLabel" origin="55, 28" size="50, 12" title="Shift" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="57, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
   </template>
-  <template name="TypeParams_Bitwise" class="CViewContainer" size="215, 200" background-color="panel">
+  <template name="TypeParams_Bitwise" class="CViewContainer" sub-controller="BitwiseOp" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Bitwise Mangler" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="50, 12" title="Op" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="XorPat,XorPrev,Rotate,Shuffle,BitAnd,Overflow"/>
     <view class="CTextLabel" origin="60, 28" size="50, 12" title="Intensity" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="62, 40" size="40, 40" default-value="0.5" min-value="0" max-value="1" arc-color="band-3"/>
-    <view class="CTextLabel" origin="115, 28" size="50, 12" title="Pattern" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape2" origin="117, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
-    <view class="CTextLabel" origin="30, 88" size="50, 12" title="Bits" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CSlider" control-tag="Band.NodeShape3" origin="30, 102" size="55, 20" orientation="horizontal" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="band-3" draw-frame="true" draw-frame-color="border"/>
+    <view class="CViewContainer" bitwise-group="pattern" origin="115, 28" size="50, 55" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="50, 12" title="Pattern" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape2" origin="2, 12" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
+    </view>
+    <view class="CViewContainer" bitwise-group="bits" origin="30, 88" size="55, 34" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="50, 12" title="Bits" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="CSlider" control-tag="Band.NodeShape3" origin="0, 14" size="55, 20" orientation="horizontal" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="band-3" draw-frame="true" draw-frame-color="border"/>
+    </view>
   </template>
   <template name="TypeParams_Chaos" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Chaos" font="section-font" font-color="text-primary" text-alignment="center"/>
