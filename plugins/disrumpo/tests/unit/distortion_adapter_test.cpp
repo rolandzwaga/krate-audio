@@ -2490,3 +2490,242 @@ TEST_CASE("Fractal through adapter: high drive does not produce NaN",
         // extreme distortion, but NaN/Inf must never happen
     }
 }
+
+// ==============================================================================
+// Quantize (D14) — N-level uniform quantization tests
+// ==============================================================================
+
+TEST_CASE("Quantize 2-level produces only values near -1 and +1", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    DistortionParams params;
+    params.quantLevels = 0.0f;  // [0,1] → [2,64], so 0 = 2 levels
+    params.dither = 0.0f;
+    params.smoothness = 0.0f;
+    params.quantOffset = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    // Feed a range of non-zero values — all should snap to -1 or +1
+    // (Zero is exactly on the midpoint between the two levels, so it may round either way)
+    const float testValues[] = {0.1f, 0.5f, 0.9f, -0.3f, -0.7f};
+    for (float val : testValues) {
+        float out = adapter.process(val);
+        CAPTURE(val);
+        CAPTURE(out);
+        CHECK((std::abs(out - 1.0f) < 0.01f || std::abs(out + 1.0f) < 0.01f));
+    }
+}
+
+TEST_CASE("Quantize level count affects resolution", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    const float testSignal = 0.37f;
+
+    // 2 levels (quantLevels = 0): step = 2.0, 0.37 → +1.0
+    DistortionParams params;
+    params.quantLevels = 0.0f;
+    params.dither = 0.0f;
+    params.smoothness = 0.0f;
+    params.quantOffset = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float out2 = adapter.process(testSignal);
+
+    // 64 levels (quantLevels = 1): step = 2/63 ≈ 0.032, much finer
+    params.quantLevels = 1.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float out64 = adapter.process(testSignal);
+
+    CAPTURE(out2);
+    CAPTURE(out64);
+    // 2 levels: 0.37 → 1.0 (large error). 64 levels: 0.37 → ~0.365 (small error)
+    CHECK(std::abs(out64 - testSignal) < std::abs(out2 - testSignal));
+    // 64-level output should be close to input
+    CHECK(out64 == Approx(testSignal).margin(0.04f));
+}
+
+TEST_CASE("Quantize offset shifts quantization grid", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    const float testSignal = 0.3f;
+
+    // No offset
+    DistortionParams params;
+    params.quantLevels = 0.1f;  // ~8 levels for visible quantization
+    params.dither = 0.0f;
+    params.smoothness = 0.0f;
+    params.quantOffset = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outNoOffset = adapter.process(testSignal);
+
+    // With offset
+    params.quantOffset = 0.5f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float outWithOffset = adapter.process(testSignal);
+
+    CAPTURE(outNoOffset);
+    CAPTURE(outWithOffset);
+    CHECK(outNoOffset != Approx(outWithOffset).margin(0.001f));
+}
+
+TEST_CASE("Quantize dither adds variation to constant input", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    // Use few levels so dither has visible effect
+    DistortionParams params;
+    params.quantLevels = 0.1f;  // ~8 levels
+    params.dither = 1.0f;       // Full dither
+    params.smoothness = 0.0f;
+    params.quantOffset = 0.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    // Feed constant signal — dither should cause some outputs to differ
+    const float testSignal = 0.3f;
+    std::set<float> uniqueOutputs;
+    for (int i = 0; i < 100; ++i) {
+        uniqueOutputs.insert(adapter.process(testSignal));
+    }
+
+    CAPTURE(uniqueOutputs.size());
+    // With dither on few levels, we expect at least 2 distinct output values
+    CHECK(uniqueOutputs.size() >= 2);
+}
+
+TEST_CASE("Quantize smoothness reduces high-frequency energy", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    // Generate a sine wave, process with and without smoothing
+    constexpr int kNumSamples = 512;
+    constexpr float kFreq = 440.0f;
+
+    auto processSine = [&](float smoothness) {
+        DistortionParams params;
+        params.quantLevels = 0.05f;  // ~5 levels for harsh staircase
+        params.dither = 0.0f;
+        params.smoothness = smoothness;
+        params.quantOffset = 0.0f;
+        adapter.setParams(params);
+        adapter.reset();
+
+        // Measure sample-to-sample differences (proxy for HF energy)
+        float totalDiff = 0.0f;
+        float prevOut = 0.0f;
+        for (int i = 0; i < kNumSamples; ++i) {
+            float in = std::sin(2.0f * 3.14159265f * kFreq * static_cast<float>(i)
+                                / static_cast<float>(kTestSampleRate));
+            float out = adapter.process(in);
+            totalDiff += std::abs(out - prevOut);
+            prevOut = out;
+        }
+        return totalDiff;
+    };
+
+    float hfNoSmooth = processSine(0.0f);
+    float hfFullSmooth = processSine(1.0f);
+
+    CAPTURE(hfNoSmooth);
+    CAPTURE(hfFullSmooth);
+    // Smoothing should reduce sample-to-sample variation
+    CHECK(hfFullSmooth < hfNoSmooth);
+}
+
+TEST_CASE("Quantize all 4 params independently affect output", "[distortion][digital][quantize]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::Quantize);
+
+    const float testSignal = 0.3f;
+
+    // Baseline: mid levels, no dither, no smooth, no offset
+    auto getOutput = [&](float levels, float dither, float smooth, float offset) {
+        DistortionParams params;
+        params.quantLevels = levels;
+        params.dither = dither;
+        params.smoothness = smooth;
+        params.quantOffset = offset;
+        adapter.setParams(params);
+        adapter.reset();
+
+        // Process enough samples for filter to settle
+        float out = 0.0f;
+        for (int i = 0; i < 50; ++i) {
+            out = adapter.process(testSignal);
+        }
+        return out;
+    };
+
+    float baseline = getOutput(0.2f, 0.0f, 0.0f, 0.0f);
+
+    // Change only levels
+    float changedLevels = getOutput(0.8f, 0.0f, 0.0f, 0.0f);
+    CHECK(baseline != Approx(changedLevels).margin(0.001f));
+
+    // Change only smoothness (compare against unsmoothed)
+    float changedSmooth = getOutput(0.2f, 0.0f, 1.0f, 0.0f);
+    CHECK(baseline != Approx(changedSmooth).margin(0.001f));
+
+    // Change only offset
+    float changedOffset = getOutput(0.2f, 0.0f, 0.0f, 0.5f);
+    CHECK(baseline != Approx(changedOffset).margin(0.001f));
+}

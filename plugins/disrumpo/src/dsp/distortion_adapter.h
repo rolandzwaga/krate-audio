@@ -18,7 +18,6 @@
 #include <krate/dsp/processors/tape_saturator.h>
 #include <krate/dsp/processors/fuzz_processor.h>
 #include <krate/dsp/processors/wavefolder_processor.h>
-#include <krate/dsp/processors/bitcrusher_processor.h>
 #include <krate/dsp/primitives/bit_crusher.h>
 #include <krate/dsp/processors/temporal_distortion.h>
 #include <krate/dsp/processors/feedback_distortion.h>
@@ -376,7 +375,6 @@ private:
     Krate::DSP::TapeSaturator tape_;
     Krate::DSP::FuzzProcessor fuzz_;
     Krate::DSP::WavefolderProcessor wavefolder_;
-    Krate::DSP::BitcrusherProcessor bitcrusher_;
     Krate::DSP::SampleRateReducer srReducer_;
     Krate::DSP::TemporalDistortion temporal_;
     Krate::DSP::RingSaturation ringSaturation_;

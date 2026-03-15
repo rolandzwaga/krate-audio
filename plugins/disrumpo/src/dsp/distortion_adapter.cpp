@@ -62,7 +62,6 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     wavefolder_.prepare(sampleRate, blockSize);
 
     // Prepare digital-category processors
-    bitcrusher_.prepare(sampleRate, blockSize);
     rawBitCrusher_.prepare(sampleRate);
     srReducer_.prepare(sampleRate);
 
@@ -109,7 +108,6 @@ void DistortionAdapter::reset() noexcept {
     tape_.reset();
     fuzz_.reset();
     wavefolder_.reset();
-    bitcrusher_.reset();
     srReducer_.reset();
     temporal_.reset();
     ringSaturation_.reset();
@@ -441,7 +439,7 @@ float DistortionAdapter::processRaw(float input) noexcept {
         // Digital (D12-D14, D18-D19) - Phase 5
         // =====================================================================
         case DistortionType::Bitcrush: {
-            // D12: Direct bit depth reduction — inline for full [1,16] range
+            // D12: Bit depth reduction via BitCrusher primitive (Layer 1)
             float bitDepth = typeParams_.bitDepth;
 
             // Jitter: randomize bit depth ±2 bits per sample
@@ -454,12 +452,33 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 bitDepth = std::clamp(bitDepth + offset, 1.0f, 16.0f);
             }
 
-            // Quantize: levels = 2^bitDepth, scale to half-range, round, scale back
-            const float halfLevels = std::pow(2.0f, bitDepth - 1.0f);
-            float scaled = input * halfLevels;
+            // Set per-sample bit depth (handles jitter) and dither
+            rawBitCrusher_.setBitDepth(bitDepth);
+            rawBitCrusher_.setDither(
+                (bitcrushDitherMode_ != 0) ? typeParams_.dither : 0.0f);
 
-            // Optional TPDF dither before rounding (when Mode=Dither)
-            if (bitcrushDitherMode_ != 0 && typeParams_.dither > 0.0f) {
+            return rawBitCrusher_.process(input);
+        }
+
+        case DistortionType::SampleReduce:
+            // D13: Sample rate reduction
+            return srReducer_.process(input);
+
+        case DistortionType::Quantize: {
+            // D14: N-level uniform quantization (linear level count, distinct from Bitcrush)
+            // Levels: [0,1] → [2, 64] linear (vs Bitcrush exponential 2^bits)
+            // N levels are uniformly spaced in [-1, +1] with step = 2/(N-1)
+            const float numLevels = 2.0f + typeParams_.quantLevels * 62.0f;
+            const float stepSize = 2.0f / (numLevels - 1.0f);
+
+            // Map input from [-1,1] to index space [0, N-1]
+            float index = (input + 1.0f) / stepSize;
+
+            // Offset shifts the quantization grid for asymmetric harmonics
+            index += typeParams_.quantOffset;
+
+            // Optional TPDF dither before rounding
+            if (typeParams_.dither > 0.0f) {
                 jitterRng_ ^= jitterRng_ << 13;
                 jitterRng_ ^= jitterRng_ >> 17;
                 jitterRng_ ^= jitterRng_ << 5;
@@ -468,21 +487,23 @@ float DistortionAdapter::processRaw(float input) noexcept {
                 jitterRng_ ^= jitterRng_ >> 17;
                 jitterRng_ ^= jitterRng_ << 5;
                 float r2 = static_cast<float>(jitterRng_ >> 8) / 16777215.0f - 0.5f;
-                scaled += (r1 + r2) * typeParams_.dither;
+                index += (r1 + r2) * typeParams_.dither;
             }
 
-            return std::round(scaled) / halfLevels;
-        }
+            // Round to nearest level, undo offset, clamp to valid range
+            index = std::round(index) - typeParams_.quantOffset;
+            index = std::clamp(index, 0.0f, numLevels - 1.0f);
 
-        case DistortionType::SampleReduce:
-            // D13: Sample rate reduction
-            return srReducer_.process(input);
+            // Convert back to [-1, 1]
+            float quantized = index * stepSize - 1.0f;
+            quantized = std::clamp(quantized, -1.0f, 1.0f);
 
-        case DistortionType::Quantize: {
-            // D14: Quantization distortion (same as bitcrush with different params)
-            singleSampleBuffer_[0] = input;
-            bitcrusher_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            // Optional smoothing lowpass
+            if (typeParams_.smoothness > 0.001f) {
+                quantized = wavefoldSmoothFilter_.process(quantized);
+            }
+
+            return quantized;
         }
 
         case DistortionType::Aliasing:
@@ -673,18 +694,24 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // Digital (D12-D14, D18-D19)
         // =================================================================
         case DistortionType::Bitcrush:
-            // Quantization is done inline in processRaw — just store params
+            // BitCrusher primitive configured per-sample in processRaw for jitter
+            rawBitCrusher_.setBitDepth(p.bitDepth);
+            rawBitCrusher_.setDither(
+                (p.bitcrushMode != 0) ? p.dither : 0.0f);
             bitcrushDitherMode_ = p.bitcrushMode;
             bitcrushJitter_ = p.jitter;
             break;
 
         case DistortionType::SampleReduce:
             srReducer_.setReductionFactor(p.sampleRateRatio);
+            srReducer_.setJitter(p.jitter);
+            srReducer_.setMode(static_cast<Krate::DSP::SampleRateReducer::Mode>(p.sampleMode));
+            srReducer_.setSmoothness(p.smoothness);
             break;
 
         case DistortionType::Quantize:
-            bitcrusher_.setBitDepth(p.quantLevels * 12.0f + 4.0f);
-            bitcrusher_.setDitherAmount(p.dither);
+            // Smooth filter cutoff: same exponential mapping as wavefold/rectify
+            wavefoldSmoothFilter_.setCutoff(20000.0f * std::pow(500.0f / 20000.0f, p.smoothness));
             break;
 
         case DistortionType::Aliasing:
