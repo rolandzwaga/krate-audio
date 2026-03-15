@@ -122,8 +122,20 @@ public:
     static constexpr float kMaxInputCoupling = 1.0f;
     static constexpr float kDefaultInputCoupling = 0.0f;
 
-    static constexpr float kMinDrive = 0.5f;   ///< Minimum waveshaping drive
-    static constexpr float kMaxDrive = 4.0f;   ///< Maximum waveshaping drive
+    static constexpr float kMinXDrive = 0.0f;
+    static constexpr float kMaxXDrive = 1.0f;
+    static constexpr float kDefaultXDrive = 1.0f;   ///< Full X modulation by default
+
+    static constexpr float kMinYDrive = 0.0f;
+    static constexpr float kMaxYDrive = 1.0f;
+    static constexpr float kDefaultYDrive = 0.0f;   ///< No Y modulation by default
+
+    static constexpr float kMinSmoothness = 0.0f;
+    static constexpr float kMaxSmoothness = 1.0f;
+    static constexpr float kDefaultSmoothness = 0.0f; ///< No smoothing by default
+
+    static constexpr float kMinDrive = 0.3f;    ///< Minimum waveshaping drive (near-linear)
+    static constexpr float kMaxDrive = 10.0f;   ///< Maximum waveshaping drive (hard saturation)
 
     static constexpr size_t kControlRateInterval = 32;  ///< Samples between attractor updates
 
@@ -223,6 +235,35 @@ public:
     /// @note Values outside [0, 1] are clamped.
     void setInputCoupling(float coupling) noexcept;
 
+    /// @brief Set X-axis drive amount.
+    ///
+    /// Controls how much the attractor's X state variable modulates waveshaping drive.
+    ///
+    /// @param drive Drive in range [0.0, 1.0]
+    ///              - 0.0 = X has no effect on drive (constant mid-range drive)
+    ///              - 1.0 = full X modulation depth
+    void setXDrive(float drive) noexcept;
+
+    /// @brief Set Y-axis drive amount.
+    ///
+    /// Adds the attractor's Y state variable as a second dimension of drive modulation,
+    /// producing more complex, multi-dimensional chaos character.
+    ///
+    /// @param drive Drive in range [0.0, 1.0]
+    ///              - 0.0 = Y has no effect on drive
+    ///              - 1.0 = full Y modulation depth
+    void setYDrive(float drive) noexcept;
+
+    /// @brief Set output smoothness.
+    ///
+    /// Applies one-pole lowpass filtering to the attractor's normalized output
+    /// before it modulates drive, reducing jitter for smoother modulation.
+    ///
+    /// @param smoothness Smoothness in range [0.0, 1.0]
+    ///                   - 0.0 = no smoothing (raw chaos)
+    ///                   - 1.0 = heavy smoothing (very slow, gentle modulation)
+    void setSmoothness(float smoothness) noexcept;
+
     // =========================================================================
     // Parameter Getters
     // =========================================================================
@@ -238,6 +279,15 @@ public:
 
     /// @brief Get the current input coupling.
     [[nodiscard]] float getInputCoupling() const noexcept;
+
+    /// @brief Get the current X drive amount.
+    [[nodiscard]] float getXDrive() const noexcept;
+
+    /// @brief Get the current Y drive amount.
+    [[nodiscard]] float getYDrive() const noexcept;
+
+    /// @brief Get the current smoothness.
+    [[nodiscard]] float getSmoothness() const noexcept;
 
     /// @brief Check if processor has been prepared.
     [[nodiscard]] bool isPrepared() const noexcept;
@@ -323,6 +373,9 @@ private:
     /// @brief Chua diode nonlinearity h(x) (FR-016)
     [[nodiscard]] static float chuaDiode(float x) noexcept;
 
+    /// @brief Recompute smoothing coefficient from smoothness_ and sampleRate_
+    void updateSmoothCoeff() noexcept;
+
     // =========================================================================
     // State
     // =========================================================================
@@ -332,7 +385,11 @@ private:
 
     // Attractor state
     AttractorState state_;
-    float normalizedX_ = 0.0f;  ///< Normalized attractor X for drive modulation
+    float normalizedX_ = 0.0f;   ///< Normalized attractor X [-1, 1]
+    float normalizedY_ = 0.0f;   ///< Normalized attractor Y [-1, 1]
+    float smoothedX_ = 0.0f;     ///< Smoothed X for drive modulation
+    float smoothedY_ = 0.0f;     ///< Smoothed Y for asymmetry modulation
+    float smoothCoeff_ = 0.0f;   ///< One-pole smoothing coefficient (precomputed)
 
     // Henon-specific state for interpolation
     float prevHenonX_ = 0.0f;
@@ -350,6 +407,9 @@ private:
     float chaosAmount_ = kDefaultChaosAmount;
     float attractorSpeed_ = kDefaultAttractorSpeed;
     float inputCoupling_ = kDefaultInputCoupling;
+    float xDrive_ = kDefaultXDrive;
+    float yDrive_ = kDefaultYDrive;
+    float smoothness_ = kDefaultSmoothness;
     double sampleRate_ = 44100.0;
     bool prepared_ = false;
 
@@ -369,6 +429,9 @@ inline void ChaosWaveshaper::prepare(double sampleRate, size_t maxBlockSize) noe
 
     // Prepare oversampler (FR-034, FR-035)
     oversampler_.prepare(sampleRate_, maxBlockSize);
+
+    // Precompute smoothing coefficient for this sample rate
+    updateSmoothCoeff();
 
     // Initialize attractor state
     resetModelState();
@@ -390,8 +453,12 @@ inline void ChaosWaveshaper::setModel(ChaosModel model) noexcept {
     if (static_cast<uint8_t>(model) > static_cast<uint8_t>(ChaosModel::Henon)) {
         model = ChaosModel::Lorenz;
     }
-    model_ = model;
-    resetModelState();
+    // Only reset attractor state when model actually changes —
+    // setModel() may be called every sample via MorphEngine::processSameFamily()
+    if (model != model_) {
+        model_ = model;
+        resetModelState();
+    }
 }
 
 inline void ChaosWaveshaper::setChaosAmount(float amount) noexcept {
@@ -404,6 +471,19 @@ inline void ChaosWaveshaper::setAttractorSpeed(float speed) noexcept {
 
 inline void ChaosWaveshaper::setInputCoupling(float coupling) noexcept {
     inputCoupling_ = std::clamp(coupling, kMinInputCoupling, kMaxInputCoupling);
+}
+
+inline void ChaosWaveshaper::setXDrive(float drive) noexcept {
+    xDrive_ = std::clamp(drive, kMinXDrive, kMaxXDrive);
+}
+
+inline void ChaosWaveshaper::setYDrive(float drive) noexcept {
+    yDrive_ = std::clamp(drive, kMinYDrive, kMaxYDrive);
+}
+
+inline void ChaosWaveshaper::setSmoothness(float smoothness) noexcept {
+    smoothness_ = std::clamp(smoothness, kMinSmoothness, kMaxSmoothness);
+    updateSmoothCoeff();
 }
 
 inline ChaosModel ChaosWaveshaper::getModel() const noexcept {
@@ -420,6 +500,18 @@ inline float ChaosWaveshaper::getAttractorSpeed() const noexcept {
 
 inline float ChaosWaveshaper::getInputCoupling() const noexcept {
     return inputCoupling_;
+}
+
+inline float ChaosWaveshaper::getXDrive() const noexcept {
+    return xDrive_;
+}
+
+inline float ChaosWaveshaper::getYDrive() const noexcept {
+    return yDrive_;
+}
+
+inline float ChaosWaveshaper::getSmoothness() const noexcept {
+    return smoothness_;
 }
 
 inline bool ChaosWaveshaper::isPrepared() const noexcept {
@@ -447,12 +539,31 @@ inline float ChaosWaveshaper::sanitizeInput(float input) const noexcept {
 }
 
 inline float ChaosWaveshaper::applyWaveshaping(float input) const noexcept {
-    // FR-020, FR-022: Map normalized attractor X to drive range
-    const float driveT = normalizedX_ * 0.5f + 0.5f;  // Map [-1, 1] to [0, 1]
-    const float drive = kMinDrive + driveT * (kMaxDrive - kMinDrive);
+    // X controls drive amount: map smoothedX_ from [-1,1] to [0,1]
+    const float driveT = smoothedX_ * 0.5f + 0.5f;
+    // Quadratic mapping: concentrates perceptual variation in the useful range
+    // At t=0: drive=0.3 (near-linear), t=0.5: drive≈2.7, t=1.0: drive=10 (hard clip)
+    const float driveT2 = driveT * driveT;
+    const float drive = kMinDrive + driveT2 * (kMaxDrive - kMinDrive);
 
-    // Apply tanh waveshaping with chaos-modulated drive
-    return Sigmoid::tanhVariable(input, drive);
+    // Y controls waveshaping asymmetry: different pos/neg gains create even harmonics
+    const float asymmetry = smoothedY_;
+
+    if (std::abs(asymmetry) < 0.01f) {
+        // Near-symmetric: standard tanh waveshaping
+        return Sigmoid::tanhVariable(input, drive);
+    }
+
+    // Asymmetric: different drive for positive/negative half-cycles
+    // Creates even harmonics (2nd, 4th) → dramatically different timbre
+    const float posGain = drive * (1.0f + asymmetry * 0.8f);
+    const float negGain = drive * (1.0f - asymmetry * 0.8f);
+
+    if (input >= 0.0f) {
+        return FastMath::fastTanh(std::max(0.0f, posGain) * input);
+    } else {
+        return FastMath::fastTanh(std::max(0.0f, negGain) * input);
+    }
 }
 
 inline float ChaosWaveshaper::processInternal(float input) noexcept {
@@ -479,6 +590,18 @@ inline float ChaosWaveshaper::processInternal(float input) noexcept {
 
         updateAttractor();
         samplesUntilUpdate_ = static_cast<int>(kControlRateInterval);
+    }
+
+    // Per-sample smoothing of X and Y targets
+    // This runs at audio rate for musically useful time constants
+    const float targetX = normalizedX_ * xDrive_;
+    const float targetY = normalizedY_ * yDrive_;
+    if (smoothCoeff_ > 0.0f) {
+        smoothedX_ += (1.0f - smoothCoeff_) * (targetX - smoothedX_);
+        smoothedY_ += (1.0f - smoothCoeff_) * (targetY - smoothedY_);
+    } else {
+        smoothedX_ = targetX;
+        smoothedY_ = targetY;
     }
 
     // FR-023: Bypass when chaosAmount=0
@@ -537,8 +660,9 @@ inline void ChaosWaveshaper::updateAttractor() noexcept {
     // Check bounds and reset if diverged (FR-018, FR-033)
     checkAndResetIfDiverged();
 
-    // Update normalized output for drive modulation
+    // Update normalized outputs (smoothing happens per-sample in processInternal)
     normalizedX_ = std::clamp(state_.x / normalizationFactor_, -1.0f, 1.0f);
+    normalizedY_ = std::clamp(state_.y / normalizationFactor_, -1.0f, 1.0f);
 }
 
 inline void ChaosWaveshaper::checkAndResetIfDiverged() noexcept {
@@ -599,6 +723,9 @@ inline void ChaosWaveshaper::resetModelState() noexcept {
     }
 
     normalizedX_ = std::clamp(state_.x / normalizationFactor_, -1.0f, 1.0f);
+    normalizedY_ = std::clamp(state_.y / normalizationFactor_, -1.0f, 1.0f);
+    smoothedX_ = 0.0f;
+    smoothedY_ = 0.0f;
 }
 
 inline void ChaosWaveshaper::updateLorenz() noexcept {
@@ -689,6 +816,22 @@ inline void ChaosWaveshaper::updateHenon() noexcept {
     // Interpolate for continuous output (FR-017 clarification)
     // Linear interpolation between previous and current X
     // Note: actual output uses normalizedX_ which is updated in updateAttractor
+}
+
+inline void ChaosWaveshaper::updateSmoothCoeff() noexcept {
+    if (smoothness_ <= 0.001f) {
+        smoothCoeff_ = 0.0f;
+        return;
+    }
+    // Map smoothness [0,1] to time constant [0, 200ms]
+    // Quadratic curve for musical feel (most control at low end)
+    const float timeConstantSec = smoothness_ * smoothness_ * 0.2f;
+    const float timeConstantSamples = timeConstantSec * static_cast<float>(sampleRate_);
+    if (timeConstantSamples < 1.0f) {
+        smoothCoeff_ = 0.0f;
+    } else {
+        smoothCoeff_ = std::exp(-1.0f / timeConstantSamples);
+    }
 }
 
 } // namespace DSP

@@ -854,6 +854,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             chaos_.setChaosAmount(p.chaosAmount);
             chaos_.setAttractorSpeed(p.attractorSpeed);
             chaos_.setInputCoupling(p.chaosCoupling);
+            chaos_.setXDrive(p.chaosXDrive);
+            chaos_.setYDrive(p.chaosYDrive);
+            chaos_.setSmoothness(p.smoothness);
             break;
         }
 
