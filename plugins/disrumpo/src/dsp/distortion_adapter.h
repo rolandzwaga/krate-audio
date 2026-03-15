@@ -19,6 +19,7 @@
 #include <krate/dsp/processors/fuzz_processor.h>
 #include <krate/dsp/processors/wavefolder_processor.h>
 #include <krate/dsp/processors/bitcrusher_processor.h>
+#include <krate/dsp/primitives/bit_crusher.h>
 #include <krate/dsp/processors/temporal_distortion.h>
 #include <krate/dsp/processors/feedback_distortion.h>
 #include <krate/dsp/processors/aliasing_effect.h>
@@ -404,6 +405,18 @@ private:
 
     /// Single-sample buffer for block processors that only have block processing
     float singleSampleBuffer_[1] = {0.0f};
+
+    /// Raw bit crusher primitive for direct quantization (Bitcrush type)
+    Krate::DSP::BitCrusher rawBitCrusher_;
+
+    /// Bitcrush jitter amount [0, 1] — randomizes bit depth per sample
+    float bitcrushJitter_ = 0.0f;
+
+    /// Bitcrush dither mode: 0=Truncate (no dither), 1=Dither (use dither amount)
+    int bitcrushDitherMode_ = 0;
+
+    /// PRNG state for bitcrush jitter (xorshift32)
+    uint32_t jitterRng_ = 0x5A3E7B91u;
 
     // =========================================================================
     // Tape-Specific Processing State

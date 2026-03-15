@@ -63,6 +63,7 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
 
     // Prepare digital-category processors
     bitcrusher_.prepare(sampleRate, blockSize);
+    rawBitCrusher_.prepare(sampleRate);
     srReducer_.prepare(sampleRate);
 
     // Prepare dynamic/temporal
@@ -210,7 +211,15 @@ float DistortionAdapter::process(float input) noexcept {
     }
 
     // Apply tone filter to wet signal
-    wet = applyTone(wet);
+    // Skip for digital types where harsh quantization/aliasing IS the effect
+    // The tone filter (prepared at oversampled rate) would destroy the staircase
+    if (currentType_ != DistortionType::Bitcrush &&
+        currentType_ != DistortionType::SampleReduce &&
+        currentType_ != DistortionType::Quantize &&
+        currentType_ != DistortionType::Aliasing &&
+        currentType_ != DistortionType::BitwiseMangler) {
+        wet = applyTone(wet);
+    }
 
     // Mix dry/wet
     const float mix = std::clamp(commonParams_.mix, 0.0f, 1.0f);
@@ -432,10 +441,37 @@ float DistortionAdapter::processRaw(float input) noexcept {
         // Digital (D12-D14, D18-D19) - Phase 5
         // =====================================================================
         case DistortionType::Bitcrush: {
-            // D12: Bit depth reduction
-            singleSampleBuffer_[0] = input;
-            bitcrusher_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+            // D12: Direct bit depth reduction — inline for full [1,16] range
+            float bitDepth = typeParams_.bitDepth;
+
+            // Jitter: randomize bit depth ±2 bits per sample
+            if (bitcrushJitter_ > 0.001f) {
+                jitterRng_ ^= jitterRng_ << 13;
+                jitterRng_ ^= jitterRng_ >> 17;
+                jitterRng_ ^= jitterRng_ << 5;
+                float rnd = static_cast<float>(jitterRng_ >> 8) / 16777215.0f;
+                float offset = (rnd * 2.0f - 1.0f) * bitcrushJitter_ * 2.0f;
+                bitDepth = std::clamp(bitDepth + offset, 1.0f, 16.0f);
+            }
+
+            // Quantize: levels = 2^bitDepth, scale to half-range, round, scale back
+            const float halfLevels = std::pow(2.0f, bitDepth - 1.0f);
+            float scaled = input * halfLevels;
+
+            // Optional TPDF dither before rounding (when Mode=Dither)
+            if (bitcrushDitherMode_ != 0 && typeParams_.dither > 0.0f) {
+                jitterRng_ ^= jitterRng_ << 13;
+                jitterRng_ ^= jitterRng_ >> 17;
+                jitterRng_ ^= jitterRng_ << 5;
+                float r1 = static_cast<float>(jitterRng_ >> 8) / 16777215.0f - 0.5f;
+                jitterRng_ ^= jitterRng_ << 13;
+                jitterRng_ ^= jitterRng_ >> 17;
+                jitterRng_ ^= jitterRng_ << 5;
+                float r2 = static_cast<float>(jitterRng_ >> 8) / 16777215.0f - 0.5f;
+                scaled += (r1 + r2) * typeParams_.dither;
+            }
+
+            return std::round(scaled) / halfLevels;
         }
 
         case DistortionType::SampleReduce:
@@ -637,11 +673,9 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // Digital (D12-D14, D18-D19)
         // =================================================================
         case DistortionType::Bitcrush:
-            bitcrusher_.setBitDepth(p.bitDepth);
-            bitcrusher_.setDitherAmount(p.dither);
-            bitcrusher_.setProcessingOrder(p.bitcrushMode == 0
-                ? Krate::DSP::ProcessingOrder::BitCrushFirst
-                : Krate::DSP::ProcessingOrder::SampleReduceFirst);
+            // Quantization is done inline in processRaw — just store params
+            bitcrushDitherMode_ = p.bitcrushMode;
+            bitcrushJitter_ = p.jitter;
             break;
 
         case DistortionType::SampleReduce:

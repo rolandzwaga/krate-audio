@@ -3294,6 +3294,44 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
             }
         }
 
+        // Shape slots: type-specific formatting based on active distortion type
+        const auto paramByte = static_cast<uint8_t>(paramType);
+        if (paramByte >= static_cast<uint8_t>(NodeParamType::kNodeShape0) &&
+            paramByte <= static_cast<uint8_t>(NodeParamType::kNodeShape9)) {
+            // Get the band's displayed type to determine formatting
+            uint8_t band = extractBandFromNodeParam(id);
+            auto displayedTypeId = makeBandParamId(band, BandParamType::kBandDisplayedType);
+            auto* dtParam = getParameterObject(displayedTypeId);
+            if (dtParam) {
+                int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
+                auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
+                int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
+                float v = static_cast<float>(valueNormalized);
+
+                if (distType == DistortionType::Bitcrush) {
+                    if (slot == 0) {
+                        // Bits: [0,1] → [1,16]
+                        floatToString128(1.0 + v * 15.0, 1, string);
+                        appendToString128(string, STR16(" bit"));
+                        return Steinberg::kResultTrue;
+                    }
+                    if (slot == 1) {
+                        // Dither: percentage
+                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+                        appendToString128(string, STR16("%"));
+                        return Steinberg::kResultTrue;
+                    }
+                    // slot 2 = Mode (COptionMenu, handled by menu items)
+                    if (slot == 3) {
+                        // Jitter: percentage
+                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+                        appendToString128(string, STR16("%"));
+                        return Steinberg::kResultTrue;
+                    }
+                }
+            }
+        }
+
         // Node Mix: percentage with no decimal (e.g., "75%")
         if (paramType == NodeParamType::kNodeMix) {
             auto* param = getParameterObject(id);

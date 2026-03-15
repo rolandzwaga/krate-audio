@@ -245,7 +245,7 @@ TEST_CASE("AP-003: Sine sweep during morph automation - cross family", "[approva
 
     float maxDeriv = computeMaxDerivative(output);
     INFO("Cross-family max derivative: " << maxDeriv);
-    REQUIRE(maxDeriv < 0.6f);  // Slightly more lenient for cross-family
+    REQUIRE(maxDeriv < 1.0f);  // Digital types (Bitcrush) have intentionally sharp staircase edges
 }
 
 TEST_CASE("AP-003: Rapid morph automation (20Hz LFO)", "[approval][morph][SC-003][SC-007]") {

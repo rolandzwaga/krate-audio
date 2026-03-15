@@ -395,7 +395,7 @@ TEST_CASE("DIAG: MorphEngine produces different output for cross-family types",
     nodes[0].commonParams.toneHz = 8000.0f;
 
     nodes[1] = Disrumpo::MorphNode(1, 1.0f, 0.0f, Disrumpo::DistortionType::Bitcrush);
-    nodes[1].commonParams.drive = 5.0f;
+    nodes[1].commonParams.drive = 1.0f;  // Low drive to avoid clipping to 1.0
     nodes[1].commonParams.mix = 1.0f;
     nodes[1].commonParams.toneHz = 8000.0f;
     nodes[1].params.bitDepth = 4.0f;

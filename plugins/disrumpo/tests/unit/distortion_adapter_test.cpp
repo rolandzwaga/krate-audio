@@ -15,9 +15,12 @@
 
 #include "dsp/distortion_adapter.h"
 #include "dsp/distortion_types.h"
+#include "dsp/morph_engine.h"
+#include "dsp/morph_node.h"
 
 #include <cmath>
 #include <array>
+#include <set>
 
 using namespace Disrumpo;
 using Catch::Approx;
@@ -788,15 +791,17 @@ TEST_CASE("Digital types produce non-passthrough output", "[distortion][digital]
         adapter.setType(DistortionType::Bitcrush);
 
         DistortionParams params;
-        params.bitDepth = 8.0f;
+        params.bitDepth = 2.0f;  // 2-bit for extreme quantization
         adapter.setParams(params);
         adapter.reset();
 
+        // Use 0.37 to avoid landing on a quantization boundary after drive scaling
+        const float bcSignal = 0.37f;
         float output = 0.0f;
         for (int i = 0; i < 10; ++i) {
-            output = adapter.process(testSignal);
+            output = adapter.process(bcSignal);
         }
-        REQUIRE(output != Approx(testSignal * commonParams.drive).margin(0.01f));
+        REQUIRE(output != Approx(bcSignal * commonParams.drive).margin(0.01f));
     }
 
     SECTION("SampleReduce") {
@@ -860,21 +865,334 @@ TEST_CASE("Bitcrush bitDepth parameter changes output", "[distortion][digital]")
         output16 = adapter.process(testSignal);
     }
 
-    // bitDepth = 4 (lo-fi) - this is minimum allowed by BitcrusherProcessor
+    // bitDepth = 2 (extreme lo-fi) — only 4 quantization levels
+    params.bitDepth = 2.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    float output2 = 0.0f;
+    for (int i = 0; i < 20; ++i) {
+        output2 = adapter.process(testSignal);
+    }
+
+    CAPTURE(output16);
+    CAPTURE(output2);
+    // With 2-bit (4 levels), 0.37 quantizes to 0.5 (halfLevels=2, round(0.74)=1, 1/2=0.5)
+    // With 16-bit, 0.37 stays close to 0.37
+    REQUIRE(output16 != Approx(output2).margin(0.01f));
+}
+
+// ==============================================================================
+// Bitcrush shape-slot-to-DSP integration test
+// Exercises the same mapShapeSlotsToParams mapping that the processor uses
+// when the UI sends Band.NodeShape0-3 parameter changes.
+// ==============================================================================
+TEST_CASE("Bitcrush shape slot mapping produces audible changes", "[distortion][digital][integration]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+    adapter.setType(DistortionType::Bitcrush);
+
+    const float testSignal = 0.37f;
+
+    // Helper: replicate mapShapeSlotsToParams for Bitcrush, then set on adapter
+    auto applyBitcrushSlots = [&](float slot0, float slot1, float slot2, float slot3) {
+        DistortionParams p;
+        p.bitDepth = 1.0f + slot0 * 15.0f;       // [0,1] -> [1,16]
+        p.dither = slot1;
+        p.bitcrushMode = static_cast<int>(slot2 * 1.0f + 0.5f);
+        p.jitter = slot3;
+        adapter.setParams(p);
+    };
+
+    auto processNSamples = [&](float input, int n) {
+        float out = 0.0f;
+        for (int i = 0; i < n; ++i) out = adapter.process(input);
+        return out;
+    };
+
+    SECTION("Bits knob (Shape0) changes output") {
+        // Slot0 = 0.0 → bitDepth = 4 (very lo-fi)
+        applyBitcrushSlots(0.0f, 0.0f, 0.0f, 0.0f);
+        adapter.reset();
+        float outputLoBits = processNSamples(testSignal, 20);
+
+        // Slot0 = 1.0 → bitDepth = 16 (transparent)
+        applyBitcrushSlots(1.0f, 0.0f, 0.0f, 0.0f);
+        adapter.reset();
+        float outputHiBits = processNSamples(testSignal, 20);
+
+        CAPTURE(outputLoBits, outputHiBits);
+        REQUIRE(outputLoBits != Approx(outputHiBits).margin(0.01f));
+    }
+
+    SECTION("Dither knob (Shape1) changes output when Mode=Dither") {
+        // Mode=Dither (slot2=1.0) enables dithering; accumulate RMS difference
+        applyBitcrushSlots(0.0f, 0.0f, 1.0f, 0.0f);  // Bits=4, Dither=0, Mode=Dither
+        adapter.reset();
+        float sumNoDither = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumNoDither += out * out;
+        }
+
+        applyBitcrushSlots(0.0f, 1.0f, 1.0f, 0.0f);  // Bits=4, Dither=1, Mode=Dither
+        adapter.reset();
+        float sumFullDither = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumFullDither += out * out;
+        }
+
+        float rmsNoDither = std::sqrt(sumNoDither / 1000.0f);
+        float rmsFullDither = std::sqrt(sumFullDither / 1000.0f);
+        CAPTURE(rmsNoDither, rmsFullDither);
+        REQUIRE(rmsNoDither != Approx(rmsFullDither).margin(0.0001f));
+    }
+
+    SECTION("Mode dropdown (Shape2) toggles dither on/off") {
+        // With Mode=Truncate (slot2=0), dither is forced off regardless of Dither knob
+        applyBitcrushSlots(0.0f, 1.0f, 0.0f, 0.0f);  // Bits=4, Dither=1, Mode=Truncate
+        adapter.reset();
+        float sumTruncate = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumTruncate += out * out;
+        }
+
+        // With Mode=Dither (slot2=1), dither knob value is used
+        applyBitcrushSlots(0.0f, 1.0f, 1.0f, 0.0f);  // Bits=4, Dither=1, Mode=Dither
+        adapter.reset();
+        float sumDither = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumDither += out * out;
+        }
+
+        float rmsTruncate = std::sqrt(sumTruncate / 1000.0f);
+        float rmsDither = std::sqrt(sumDither / 1000.0f);
+        CAPTURE(rmsTruncate, rmsDither);
+        REQUIRE(rmsTruncate != Approx(rmsDither).margin(0.0001f));
+    }
+
+    SECTION("Jitter knob (Shape3) changes output") {
+        // Jitter randomizes bit depth per sample — measurable RMS difference
+        applyBitcrushSlots(0.3f, 0.0f, 0.0f, 0.0f);  // ~7.6 bits, no jitter
+        adapter.reset();
+        float sumNoJitter = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumNoJitter += out * out;
+        }
+
+        applyBitcrushSlots(0.3f, 0.0f, 0.0f, 1.0f);  // ~7.6 bits, full jitter
+        adapter.reset();
+        float sumFullJitter = 0.0f;
+        for (int i = 0; i < 1000; ++i) {
+            float out = adapter.process(testSignal);
+            sumFullJitter += out * out;
+        }
+
+        float rmsNoJitter = std::sqrt(sumNoJitter / 1000.0f);
+        float rmsFullJitter = std::sqrt(sumFullJitter / 1000.0f);
+        CAPTURE(rmsNoJitter, rmsFullJitter);
+        REQUIRE(rmsNoJitter != Approx(rmsFullJitter).margin(0.0001f));
+    }
+}
+
+// ==============================================================================
+// Bitcrush through MorphEngine (1-node) integration test
+// Tests the exact runtime path: MorphNode → MorphEngine → blendedAdapter
+// ==============================================================================
+TEST_CASE("Bitcrush through MorphEngine responds to shape slot changes", "[distortion][digital][morph]") {
+    using namespace Disrumpo;
+
+    // Set up a MorphEngine with 1 Bitcrush node
+    MorphEngine engine;
+    engine.prepare(kTestSampleRate, kTestBlockSize);
+
+    std::array<MorphNode, kMaxMorphNodes> nodes;
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
+    nodes[0].commonParams = {1.0f, 1.0f, 4000.0f}; // drive=1, mix=1
+
+    const float testSignal = 0.37f;
+
+    SECTION("Changing bitDepth via shape slots affects output") {
+        // Shape slot 0 = 0.0 → bitDepth = 1 (extreme lo-fi)
+        DistortionParams loParams;
+        loParams.bitDepth = 1.0f + 0.0f * 15.0f;  // 1 bit
+        nodes[0].params = loParams;
+        engine.setNodes(nodes, 1);
+        engine.setMorphPosition(0.0f, 0.0f);
+        engine.reset();
+
+        float outputLo = 0.0f;
+        for (int i = 0; i < 20; ++i) outputLo = engine.process(testSignal);
+
+        // Shape slot 0 = 1.0 → bitDepth = 16 (transparent)
+        DistortionParams hiParams;
+        hiParams.bitDepth = 1.0f + 1.0f * 15.0f;  // 16 bits
+        nodes[0].params = hiParams;
+        engine.setNodes(nodes, 1);
+        engine.reset();
+
+        float outputHi = 0.0f;
+        for (int i = 0; i < 20; ++i) outputHi = engine.process(testSignal);
+
+        CAPTURE(outputLo, outputHi);
+        REQUIRE(outputLo != Approx(outputHi).margin(0.01f));
+    }
+}
+
+// ==============================================================================
+// DIAGNOSTIC: Full sine wave through Bitcrush at various bit depths
+// Verify the output shows staircase quantization, not just hiss
+// ==============================================================================
+TEST_CASE("DIAG: Bitcrush sine wave produces staircase quantization", "[distortion][digital][diagnostic]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 20000.0f;  // Wide open tone to not filter the effect
+    adapter.setCommonParams(commonParams);
+    adapter.setType(DistortionType::Bitcrush);
+
+    DistortionParams params;
     params.bitDepth = 4.0f;
     adapter.setParams(params);
     adapter.reset();
 
-    float output4 = 0.0f;
-    for (int i = 0; i < 20; ++i) {
-        output4 = adapter.process(testSignal);
+    // Generate one cycle of a 1kHz sine at 44.1kHz (~44 samples)
+    constexpr int kSamplesPerCycle = 44;
+    constexpr float kFreq = 1000.0f;
+    constexpr float kAmplitude = 0.8f;  // Healthy signal level
+
+    // Collect unique output values to count staircase steps
+    std::set<float> uniqueOutputs;
+    float maxAbsDiff = 0.0f;
+
+    // Process a few cycles to settle, then measure
+    for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
+        float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
+        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float output = adapter.process(input);
+
+        if (i >= kSamplesPerCycle * 2) {  // After settling
+            // Round to avoid floating-point noise giving false uniqueness
+            float rounded = std::round(output * 10000.0f) / 10000.0f;
+            uniqueOutputs.insert(rounded);
+            maxAbsDiff = std::max(maxAbsDiff, std::abs(output - input));
+        }
     }
 
-    CAPTURE(output16);
-    CAPTURE(output4);
-    // With 4-bit, 0.37 quantizes to 0.375 (6/16) or 0.3125 (5/16)
-    // With 16-bit, 0.37 stays close to 0.37
-    REQUIRE(output16 != Approx(output4).margin(0.01f));
+    INFO("Unique output levels at 4-bit: " << uniqueOutputs.size());
+    INFO("Max absolute difference from input: " << maxAbsDiff);
+
+    // At 4-bit with 0.8 amplitude, we expect ~12 unique levels (±6 steps)
+    // NOT hundreds or thousands (which would mean no quantization is happening)
+    REQUIRE(uniqueOutputs.size() <= 20);  // Must be staircase, not smooth
+    REQUIRE(uniqueOutputs.size() >= 4);   // Must have enough steps to be audible
+    REQUIRE(maxAbsDiff > 0.05f);          // Must deviate significantly from input
+}
+
+// ==============================================================================
+// DIAGNOSTIC: Full MorphEngine path sine wave quantization
+// This is the ACTUAL runtime path when the plugin is running
+// ==============================================================================
+TEST_CASE("DIAG: Bitcrush at 8x prepared rate shows tone filter problem", "[distortion][digital][diagnostic]") {
+    // THIS IS THE BUG: adapter prepared at 8x rate but processing 1x data
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate * 8, kTestBlockSize);  // 352800 Hz!
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 4000.0f;  // Default tone
+    adapter.setCommonParams(commonParams);
+    adapter.setType(DistortionType::Bitcrush);
+
+    DistortionParams params;
+    params.bitDepth = 4.0f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    constexpr int kSamplesPerCycle = 44;
+    constexpr float kFreq = 1000.0f;
+    constexpr float kAmplitude = 0.8f;
+
+    std::set<float> uniqueOutputs;
+    float maxAbsDiff = 0.0f;
+
+    for (int i = 0; i < kSamplesPerCycle * 10; ++i) {
+        float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
+        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float output = adapter.process(input);
+
+        if (i >= kSamplesPerCycle * 5) {
+            float rounded = std::round(output * 1000.0f) / 1000.0f;
+            uniqueOutputs.insert(rounded);
+            maxAbsDiff = std::max(maxAbsDiff, std::abs(output - input));
+        }
+    }
+
+    INFO("8x-prepared adapter: Unique output levels at 4-bit: " << uniqueOutputs.size());
+    INFO("8x-prepared adapter: Max absolute difference from input: " << maxAbsDiff);
+
+    // After fix: even at 8x prepared rate, Bitcrush should have clean staircase
+    // because the tone filter is now bypassed for digital types
+    REQUIRE(uniqueOutputs.size() <= 20);
+    REQUIRE(maxAbsDiff > 0.05f);
+}
+
+TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[distortion][digital][diagnostic]") {
+    MorphEngine engine;
+    engine.prepare(kTestSampleRate, kTestBlockSize);
+    engine.setSmoothingTime(0.0f);
+
+    std::array<MorphNode, kMaxMorphNodes> nodes;
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::Bitcrush);
+    nodes[0].commonParams = {1.0f, 1.0f, 20000.0f};
+    nodes[0].params.bitDepth = 4.0f;
+
+    nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+    nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+    nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+
+    engine.setNodes(nodes, 1);  // 1 active node
+    engine.setMorphPosition(0.0f, 0.0f);
+
+    constexpr int kSamplesPerCycle = 44;
+    constexpr float kFreq = 1000.0f;
+    constexpr float kAmplitude = 0.8f;
+
+    std::set<float> uniqueOutputs;
+    float maxAbsDiff = 0.0f;
+
+    for (int i = 0; i < kSamplesPerCycle * 5; ++i) {
+        float t = static_cast<float>(i) / static_cast<float>(kTestSampleRate);
+        float input = kAmplitude * std::sin(2.0f * 3.14159265f * kFreq * t);
+        float output = engine.process(input);
+
+        if (i >= kSamplesPerCycle * 2) {
+            float rounded = std::round(output * 10000.0f) / 10000.0f;
+            uniqueOutputs.insert(rounded);
+            maxAbsDiff = std::max(maxAbsDiff, std::abs(output - input));
+        }
+    }
+
+    INFO("MorphEngine: Unique output levels at 4-bit: " << uniqueOutputs.size());
+    INFO("MorphEngine: Max absolute difference from input: " << maxAbsDiff);
+
+    REQUIRE(uniqueOutputs.size() <= 20);
+    REQUIRE(uniqueOutputs.size() >= 4);
+    REQUIRE(maxAbsDiff > 0.05f);
 }
 
 TEST_CASE("BitwiseMangler rotateAmount parameter changes output", "[distortion][digital]") {

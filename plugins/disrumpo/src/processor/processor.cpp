@@ -117,7 +117,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::Bitcrush:
             // Slot0=Bits, Slot1=Dither, Slot2=Mode, Slot3=Jitter
-            p.bitDepth = 4.0f + slots[0] * 12.0f;     // [0,1] → [4,16]
+            p.bitDepth = 1.0f + slots[0] * 15.0f;     // [0,1] → [1,16]
             p.dither = slots[1];
             p.bitcrushMode = static_cast<int>(slots[2] * 1.0f + 0.5f);
             p.jitter = slots[3];
