@@ -1195,47 +1195,74 @@ TEST_CASE("DIAG: MorphEngine Bitcrush path produces staircase quantization", "[d
     REQUIRE(maxAbsDiff > 0.05f);
 }
 
-TEST_CASE("BitwiseMangler rotateAmount parameter changes output", "[distortion][digital]") {
+TEST_CASE("BitwiseMangler shape slot params change output", "[distortion][digital]") {
     DistortionAdapter adapter;
     adapter.prepare(kTestSampleRate, kTestBlockSize);
 
     DistortionCommonParams commonParams;
-    commonParams.drive = 1.0f;  // No drive scaling to see bitwise effects clearly
+    commonParams.drive = 1.0f;
     commonParams.mix = 1.0f;
     commonParams.toneHz = 8000.0f;
     adapter.setCommonParams(commonParams);
 
     adapter.setType(DistortionType::BitwiseMangler);
 
-    // Use a signal that will show bit manipulation effects
     const float testSignal = 0.37f;
 
-    // rotateAmount = 0 (no rotation)
-    DistortionParams params;
-    params.rotateAmount = 0;
-    params.xorPattern = 0x0000;  // No XOR either
-    adapter.setParams(params);
-    adapter.reset();
+    SECTION("BitRotate: bitwiseBits changes output") {
+        DistortionParams params;
+        params.bitwiseOp = 2;  // BitRotate
+        params.bitwiseIntensity = 1.0f;
+        params.bitwiseBits = 0.5f;  // maps to rotateAmount=0 (passthrough)
+        adapter.setParams(params);
+        adapter.reset();
 
-    float output0 = 0.0f;
-    for (int i = 0; i < 20; ++i) {
-        output0 = adapter.process(testSignal);
+        float outputCenter = 0.0f;
+        for (int i = 0; i < 20; ++i) {
+            outputCenter = adapter.process(testSignal);
+        }
+
+        // Move bits slider to 0.75 -> rotateAmount = int(0.75*32-16) = 8
+        params.bitwiseBits = 0.75f;
+        adapter.setParams(params);
+        adapter.reset();
+
+        float outputOffset = 0.0f;
+        for (int i = 0; i < 20; ++i) {
+            outputOffset = adapter.process(testSignal);
+        }
+
+        CAPTURE(outputCenter);
+        CAPTURE(outputOffset);
+        REQUIRE(outputCenter != Approx(outputOffset).margin(0.001f));
     }
 
-    // rotateAmount = 4 (rotate bits by 4)
-    params.rotateAmount = 4;
-    adapter.setParams(params);
-    adapter.reset();
+    SECTION("XorPattern: bitwisePattern changes output") {
+        DistortionParams params;
+        params.bitwiseOp = 0;  // XorPattern
+        params.bitwiseIntensity = 1.0f;
+        params.bitwisePattern = 0.0f;  // pattern=0 (passthrough)
+        adapter.setParams(params);
+        adapter.reset();
 
-    float output4 = 0.0f;
-    for (int i = 0; i < 20; ++i) {
-        output4 = adapter.process(testSignal);
+        float outputZero = 0.0f;
+        for (int i = 0; i < 20; ++i) {
+            outputZero = adapter.process(testSignal);
+        }
+
+        params.bitwisePattern = 0.5f;  // pattern=32767
+        adapter.setParams(params);
+        adapter.reset();
+
+        float outputHalf = 0.0f;
+        for (int i = 0; i < 20; ++i) {
+            outputHalf = adapter.process(testSignal);
+        }
+
+        CAPTURE(outputZero);
+        CAPTURE(outputHalf);
+        REQUIRE(outputZero != Approx(outputHalf).margin(0.001f));
     }
-
-    CAPTURE(output0);
-    CAPTURE(output4);
-    // Bit rotation should produce different output
-    REQUIRE(output0 != Approx(output4).margin(0.01f));
 }
 
 // =============================================================================

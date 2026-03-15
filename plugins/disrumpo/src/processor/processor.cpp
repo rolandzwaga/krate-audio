@@ -176,21 +176,17 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             break;
 
         case DistortionType::Aliasing:
-            // Slot0=Down, Slot1=Shift, Slot2=PreFlt, Slot3=FB, Slot4=Reso
+            // Slot0=Down, Slot1=Shift
             p.sampleRateRatio = 2.0f + slots[0] * 30.0f; // [0,1] → [2,32]
             p.freqShift = (slots[1] * 2.0f - 1.0f) * 5000.0f; // [0,1] → [-5000,5000]
-            p.preFilter = slots[2] >= 0.5f;
-            p.feedback = slots[3] * 0.95f;              // [0,1] → [0,0.95]
-            p.resonance = slots[4];
             break;
 
         case DistortionType::BitwiseMangler:
-            // Slot0=Op, Slot1=Intensity, Slot2=Pattern, Slot3=Bits, Slot4=Smooth
+            // Slot0=Op, Slot1=Intensity, Slot2=Pattern, Slot3=Bits
             p.bitwiseOp = static_cast<int>(slots[0] * 5.0f + 0.5f); // 0-5 operations
             p.bitwiseIntensity = slots[1];
             p.bitwisePattern = slots[2];
             p.bitwiseBits = slots[3];
-            p.smoothness = slots[4];
             break;
 
         case DistortionType::Chaos:

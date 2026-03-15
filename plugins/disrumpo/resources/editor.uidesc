@@ -1073,12 +1073,6 @@
     <view class="ArcKnob" control-tag="Band.NodeShape0" origin="7, 40" size="40, 40" default-value="0.5" min-value="0" max-value="1" arc-color="band-3"/>
     <view class="CTextLabel" origin="55, 28" size="50, 12" title="Shift" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="57, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
-    <view class="CTextLabel" origin="110, 28" size="45, 12" title="PreFlt" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ToggleButton" control-tag="Band.NodeShape2" origin="117, 45" size="30, 25" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Enable pre-filter"/>
-    <view class="CTextLabel" origin="160, 28" size="45, 12" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape3" origin="162, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
-    <view class="CTextLabel" origin="80, 88" size="50, 12" title="Reso" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape4" origin="82, 100" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
   </template>
   <template name="TypeParams_Bitwise" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Bitwise Mangler" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -1090,8 +1084,6 @@
     <view class="ArcKnob" control-tag="Band.NodeShape2" origin="117, 40" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
     <view class="CTextLabel" origin="30, 88" size="50, 12" title="Bits" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="CSlider" control-tag="Band.NodeShape3" origin="30, 102" size="55, 20" orientation="horizontal" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="band-3" draw-frame="true" draw-frame-color="border"/>
-    <view class="CTextLabel" origin="120, 88" size="50, 12" title="Smooth" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape4" origin="122, 100" size="40, 40" default-value="0.0" min-value="0" max-value="1" arc-color="band-3"/>
   </template>
   <template name="TypeParams_Chaos" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Chaos" font="section-font" font-color="text-primary" text-alignment="center"/>

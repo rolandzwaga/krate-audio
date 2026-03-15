@@ -443,7 +443,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     result.jitter = 0.0f;
     result.quantLevels = 0.0f;
     result.quantOffset = 0.0f;
-    result.resonance = 0.0f;
     result.bitwiseIntensity = 0.0f;
     result.bitwisePattern = 0.0f;
     result.bitwiseBits = 0.0f;
@@ -557,7 +556,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         result.jitter += w * p.jitter;
         result.quantLevels += w * p.quantLevels;
         result.quantOffset += w * p.quantOffset;
-        result.resonance += w * p.resonance;
         result.bitwiseIntensity += w * p.bitwiseIntensity;
         result.bitwisePattern += w * p.bitwisePattern;
         result.bitwiseBits += w * p.bitwiseBits;

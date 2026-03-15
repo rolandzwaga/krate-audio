@@ -723,17 +723,12 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             int op = std::clamp(p.bitwiseOp, 0, 5);
             bitwiseMangler_.setOperation(static_cast<Krate::DSP::BitwiseOperation>(op));
             bitwiseMangler_.setIntensity(p.bitwiseIntensity);
-            // Support both legacy fields (rotateAmount/xorPattern) and shape slot fields
-            if (p.rotateAmount != 0) {
-                bitwiseMangler_.setOperation(Krate::DSP::BitwiseOperation::BitRotate);
-                bitwiseMangler_.setRotateAmount(p.rotateAmount);
-            } else if (p.xorPattern != 0xAAAA) {
-                bitwiseMangler_.setOperation(Krate::DSP::BitwiseOperation::XorPattern);
-                bitwiseMangler_.setPattern(p.xorPattern);
-            } else {
-                bitwiseMangler_.setPattern(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
-                bitwiseMangler_.setRotateAmount(static_cast<int>(p.bitwiseBits * 32.0f - 16.0f));
-            }
+            // Route Pattern and Bits to all relevant DSP setters:
+            // - Pattern → XorPattern mask, BitShuffle seed
+            // - Bits → BitRotate amount
+            bitwiseMangler_.setPattern(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
+            bitwiseMangler_.setRotateAmount(static_cast<int>(p.bitwiseBits * 32.0f - 16.0f));
+            bitwiseMangler_.setSeed(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
             break;
         }
 

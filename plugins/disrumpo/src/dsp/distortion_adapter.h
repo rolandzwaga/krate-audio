@@ -115,8 +115,6 @@ struct DistortionParams {
     int sampleMode = 0;             ///< Sample reduce mode
     float quantLevels = 0.5f;       ///< Quantize levels [0, 1]
     float quantOffset = 0.0f;       ///< Quantize offset [0, 1]
-    bool preFilter = false;         ///< Aliasing pre-filter toggle
-    float resonance = 0.0f;         ///< Aliasing resonance [0, 1]
     int bitwiseOp = 0;              ///< Bitwise operation select
     float bitwiseIntensity = 0.5f;  ///< Bitwise intensity [0, 1]
     float bitwisePattern = 0.0f;    ///< Bitwise pattern [0, 1]
