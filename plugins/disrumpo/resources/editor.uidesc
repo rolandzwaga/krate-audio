@@ -1147,10 +1147,6 @@
     <view class="ArcKnob" control-tag="Band.NodeShape5" origin="5, 88" size="30, 30" default-value="0.5" min-value="0" max-value="1" arc-color="band-7"/>
     <view class="CTextLabel" origin="43, 78" size="35, 10" title="Env" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape6" origin="43, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Hann,Trap,Sine,Blk"/>
-    <view class="CTextLabel" origin="88, 78" size="35, 10" title="Sprd" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="88, 90" size="35, 14" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tight,Medium,Wide,Full"/>
-    <view class="CTextLabel" origin="135, 78" size="30, 10" title="Frz" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ToggleButton" control-tag="Band.NodeShape8" origin="135, 90" size="22, 20" on-color="accent-primary" off-color="text-secondary" default-value="0" tooltip="Freeze grains"/>
   </template>
   <template name="TypeParams_Spectral" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Spectral" font="section-font" font-color="text-primary" text-alignment="center"/>

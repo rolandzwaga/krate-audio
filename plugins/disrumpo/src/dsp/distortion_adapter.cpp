@@ -880,6 +880,10 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             granular_.setGrainDensity(1.0f + p.grainDensity * 7.0f); // [0,1] → [1,8]
             granular_.setPositionJitter(p.grainPVar * 50.0f);        // [0,1] → [0,50]
             granular_.setDriveVariation(p.grainDVar);
+            granular_.setPosition(p.grainPos);
+            granular_.setCurve(p.grainCurve);
+            granular_.setEnvelopeType(static_cast<Krate::DSP::GrainEnvelopeType>(
+                std::clamp(p.grainEnvType, 0, 3)));
             break;
 
         case DistortionType::Spectral: {

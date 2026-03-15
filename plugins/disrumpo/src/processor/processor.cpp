@@ -217,7 +217,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::Granular:
             // Slot0=Size, Slot1=Dens, Slot2=PVar, Slot3=DVar, Slot4=Pos,
-            // Slot5=Curve, Slot6=Env, Slot7=Sprd, Slot8=Frz
+            // Slot5=Curve, Slot6=Env
             p.grainSizeMs = 5.0f + slots[0] * 95.0f;  // [0,1] → [5,100]
             p.grainDensity = slots[1];
             p.grainPVar = slots[2];
@@ -225,8 +225,6 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             p.grainPos = slots[4];
             p.grainCurve = slots[5];
             p.grainEnvType = static_cast<int>(slots[6] * 3.0f + 0.5f);
-            p.grainSpread = static_cast<int>(slots[7] * 3.0f + 0.5f);
-            p.grainFreeze = slots[8] >= 0.5f;
             break;
 
         case DistortionType::Spectral:

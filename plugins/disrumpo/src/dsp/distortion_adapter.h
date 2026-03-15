@@ -174,8 +174,6 @@ struct DistortionParams {
     float grainPos = 0.0f;          ///< Granular position [0, 1]
     float grainCurve = 0.5f;        ///< Granular curve [0, 1]
     int grainEnvType = 0;           ///< Granular envelope select
-    int grainSpread = 0;            ///< Granular spread select
-    bool grainFreeze = false;       ///< Granular freeze toggle
 
     // Spectral (D23)
     int spectralMode = 0;           ///< Spectral processing mode

@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -283,6 +284,48 @@ public:
 
     /// @brief Get current position jitter in milliseconds.
     [[nodiscard]] float getPositionJitter() const noexcept { return positionJitterMs_; }
+
+    // =========================================================================
+    // Grain Position Control
+    // =========================================================================
+
+    /// @brief Set grain read position as lookback into the circular buffer.
+    /// @param normalized Position in [0, 1] where 0 = most recent audio, 1 = oldest in buffer
+    void setPosition(float normalized) noexcept {
+        position_ = std::clamp(normalized, 0.0f, 1.0f);
+    }
+
+    /// @brief Get current grain position.
+    [[nodiscard]] float getPosition() const noexcept { return position_; }
+
+    // =========================================================================
+    // Curve Control
+    // =========================================================================
+
+    /// @brief Set distortion curve (power reshaping of waveshaper output).
+    /// @param normalized Curve in [0, 1] where 0.5 = linear, <0.5 = expand, >0.5 = compress
+    void setCurve(float normalized) noexcept {
+        curve_ = std::clamp(normalized, 0.0f, 1.0f);
+    }
+
+    /// @brief Get current curve value.
+    [[nodiscard]] float getCurve() const noexcept { return curve_; }
+
+    // =========================================================================
+    // Envelope Type Control
+    // =========================================================================
+
+    /// @brief Set grain envelope type.
+    /// @param type Envelope shape (Hann, Trapezoid, Sine, Blackman)
+    void setEnvelopeType(GrainEnvelopeType type) noexcept {
+        if (type != envelopeType_) {
+            envelopeType_ = type;
+            GrainEnvelope::generate(envelopeTable_.data(), kEnvelopeTableSize, type);
+        }
+    }
+
+    /// @brief Get current envelope type.
+    [[nodiscard]] GrainEnvelopeType getEnvelopeType() const noexcept { return envelopeType_; }
 
     // =========================================================================
     // Mix Control (FR-028, FR-029, FR-030, FR-031)
@@ -555,8 +598,11 @@ private:
         // Store grain state
         GrainState& state = grainStates_[grainIndex];
         state.drive = grainDrive;
-        // Start position: current write position minus 1, minus jitter
-        const size_t basePos = (writePos_ > 0) ? writePos_ - 1 : kBufferSize - 1;
+        // Start position: current write position minus lookback, minus jitter
+        // position_ [0,1] maps to lookback into available buffer history
+        const size_t availableHistory = std::min(samplesWritten_, kBufferSize - 1);
+        const size_t positionLookback = static_cast<size_t>(position_ * static_cast<float>(availableHistory));
+        const size_t basePos = (writePos_ + kBufferSize - 1 - positionLookback) & kBufferMask;
         state.startBufferPos = (basePos + kBufferSize - jitterOffset) & kBufferMask;
         state.grainSizeSamples = msToSamples(grainSizeMs_);
 
@@ -599,7 +645,15 @@ private:
         const float bufferSample = buffer_[readPos];
 
         // Apply waveshaper
-        const float distorted = ws.process(bufferSample);
+        float distorted = ws.process(bufferSample);
+
+        // Apply curve reshaping: maps [0,1] → exponent [0.2, 5.0]
+        // 0.5 = exponent 1.0 (linear), <0.5 = expand (softer), >0.5 = compress (harder)
+        if (curve_ != 0.5f) {
+            const float exponent = std::pow(10.0f, (curve_ - 0.5f) * 2.0f);  // [0.1, 10] range
+            const float sign = (distorted >= 0.0f) ? 1.0f : -1.0f;
+            distorted = sign * std::pow(std::abs(distorted), exponent);
+        }
 
         // Apply envelope
         float output = distorted * envelope;
@@ -659,8 +713,11 @@ private:
     float baseDrive_ = 5.0f;
     float driveVariation_ = 0.0f;
     float positionJitterMs_ = 0.0f;
+    float position_ = 0.0f;
+    float curve_ = 0.5f;
     float mix_ = 1.0f;
     WaveshapeType baseDistortionType_ = WaveshapeType::Tanh;
+    GrainEnvelopeType envelopeType_ = GrainEnvelopeType::Hann;
     bool algorithmVariation_ = false;
 };
 
