@@ -89,7 +89,6 @@ struct DistortionParams {
     int tapeModel = 0;              ///< Tape model select
     float hfRoll = 0.5f;            ///< Tape HF rolloff [0, 1]
     float flutter = 0.2f;           ///< Tape flutter [0, 1]
-    float gate = 0.0f;              ///< Fuzz gate [0, 1]
     int transistor = 0;             ///< Fuzz transistor type [0-1]
     float octave = 0.0f;            ///< Fuzz octave [0, 1]
     float sustain = 0.5f;           ///< Fuzz sustain [0, 1]
@@ -405,6 +404,16 @@ private:
 
     /// Single-sample buffer for block processors that only have block processing
     float singleSampleBuffer_[1] = {0.0f};
+
+    // =========================================================================
+    // Tape-Specific Processing State
+    // =========================================================================
+
+    /// One-pole lowpass for tape HF rolloff (D04)
+    Krate::DSP::OnePoleLP tapeHfFilter_;
+
+    /// Phase accumulator for tape flutter LFO (D04)
+    float flutterPhase_ = 0.0f;
 
     // =========================================================================
     // Block-Based Processing State

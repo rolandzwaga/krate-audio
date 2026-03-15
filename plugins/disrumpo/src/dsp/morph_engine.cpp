@@ -424,7 +424,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     result.speed = 0.0f;
     result.hfRoll = 0.0f;
     result.flutter = 0.0f;
-    result.gate = 0.0f;
     result.octave = 0.0f;
     result.sustain = 0.0f;
     result.asymmetry = 0.0f;
@@ -539,7 +538,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         result.speed += w * p.speed;
         result.hfRoll += w * p.hfRoll;
         result.flutter += w * p.flutter;
-        result.gate += w * p.gate;
         result.octave += w * p.octave;
         result.sustain += w * p.sustain;
         result.asymmetry += w * p.asymmetry;

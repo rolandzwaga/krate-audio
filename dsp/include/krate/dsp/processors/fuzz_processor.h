@@ -492,7 +492,13 @@ inline void FuzzProcessor::process(float* buffer, size_t numSamples) noexcept {
         const float drive = minDrive * std::pow(maxDrive / minDrive, fuzzAmount);
 
         // Apply input drive
-        const float drivenSample = sample * drive;
+        float drivenSample = sample * drive;
+
+        // Bias: shift the operating point before clipping (FR-009)
+        // bias=1: centered (clean), bias=0: heavily offset (sputtery/dying battery)
+        // Maps [0,1] to DC offset [0.8, 0.0] — low bias pushes signal asymmetric
+        const float biasOffset = (1.0f - biasValue) * 0.8f;
+        drivenSample += biasOffset;
 
         // Type-specific saturation with crossfade support (FR-006a)
         float saturated;
@@ -545,13 +551,8 @@ inline void FuzzProcessor::process(float* buffer, size_t numSamples) noexcept {
             }
         }
 
-        // Bias gating effect (FR-009)
-        // bias=0: maximum gating (dying battery), bias=1: no gating
-        // Gate threshold based on bias
-        const float gateThreshold = (1.0f - biasValue) * 0.1f;  // 0 to 0.1
-        if (std::abs(saturated) < gateThreshold) {
-            saturated *= std::abs(saturated) / gateThreshold;  // Soft gate
-        }
+        // Remove the bias DC offset after clipping to keep only the asymmetry effect
+        saturated -= biasOffset;
 
         // DC blocking (FR-042)
         saturated = dcBlocker_.process(saturated);

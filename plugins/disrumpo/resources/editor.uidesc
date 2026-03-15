@@ -904,14 +904,12 @@
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Fuzz" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="45, 12" title="Bias" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape0" origin="7, 40" size="38, 38" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
-    <view class="CTextLabel" origin="55, 28" size="45, 12" title="Gate" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape1" origin="57, 40" size="38, 38" default-value="0.0" min-value="0" max-value="1" arc-color="accent-primary"/>
-    <view class="CTextLabel" origin="105, 28" size="55, 12" title="Transistor" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Germanium,Silicon"/>
-    <view class="CTextLabel" origin="30, 85" size="45, 12" title="Octave" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape3" origin="32, 97" size="38, 38" default-value="0.0" min-value="0" max-value="1" arc-color="accent-primary"/>
-    <view class="CTextLabel" origin="120, 85" size="50, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape4" origin="122, 97" size="38, 38" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
+    <view class="CTextLabel" origin="55, 28" size="55, 12" title="Transistor" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape1" origin="55, 42" size="55, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Germanium,Silicon"/>
+    <view class="CTextLabel" origin="120, 28" size="45, 12" title="Octave" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape2" origin="122, 40" size="38, 38" default-value="0.0" min-value="0" max-value="1" arc-color="accent-primary"/>
+    <view class="CTextLabel" origin="55, 85" size="50, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape3" origin="57, 97" size="38, 38" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
   </template>
   <template name="TypeParams_AsymFuzz" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Asymmetric Fuzz" font="section-font" font-color="text-primary" text-alignment="center"/>
@@ -921,12 +919,10 @@
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="57, 40" size="35, 35" default-value="0.3" min-value="0" max-value="1" arc-color="accent-primary"/>
     <view class="CTextLabel" origin="105, 28" size="50, 12" title="Trans" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape2" origin="105, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Germanium,Silicon"/>
-    <view class="CTextLabel" origin="163, 28" size="40, 12" title="Gate" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape3" origin="165, 40" size="35, 35" default-value="0.0" min-value="0" max-value="1" arc-color="accent-primary"/>
-    <view class="CTextLabel" origin="5, 82" size="45, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="CTextLabel" origin="163, 28" size="45, 12" title="Sustain" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape3" origin="165, 40" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
+    <view class="CTextLabel" origin="5, 82" size="40, 12" title="Body" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="7, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
-    <view class="CTextLabel" origin="55, 82" size="40, 12" title="Body" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape5" origin="57, 94" size="35, 35" default-value="0.5" min-value="0" max-value="1" arc-color="accent-primary"/>
   </template>
   <template name="TypeParams_SineFold" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Sine Fold" font="section-font" font-color="text-primary" text-alignment="center"/>

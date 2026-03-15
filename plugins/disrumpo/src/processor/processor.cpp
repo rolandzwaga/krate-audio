@@ -58,22 +58,20 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             break;
 
         case DistortionType::Fuzz:
-            // Slot0=Bias, Slot1=Gate, Slot2=Transistor, Slot3=Octave, Slot4=Sustain
-            p.bias = slots[0] * 2.0f - 1.0f;
-            p.gate = slots[1];
-            p.transistor = static_cast<int>(slots[2] * 1.0f + 0.5f); // 0-1
-            p.octave = slots[3];
-            p.sustain = slots[4];
+            // Slot0=Bias, Slot1=Transistor, Slot2=Octave, Slot3=Sustain
+            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
+            p.transistor = static_cast<int>(slots[1] * 1.0f + 0.5f); // 0-1
+            p.octave = slots[2];
+            p.sustain = slots[3];
             break;
 
         case DistortionType::AsymmetricFuzz:
-            // Slot0=Bias, Slot1=Asym, Slot2=Trans, Slot3=Gate, Slot4=Sustain, Slot5=Body
-            p.bias = slots[0] * 2.0f - 1.0f;
+            // Slot0=Bias, Slot1=Asym, Slot2=Trans, Slot3=Sustain, Slot4=Body
+            p.bias = slots[0];  // Fuzz bias is unipolar [0,1]
             p.asymmetry = slots[1];
             p.transistor = static_cast<int>(slots[2] * 1.0f + 0.5f);
-            p.gate = slots[3];
-            p.sustain = slots[4];
-            p.body = slots[5];
+            p.sustain = slots[3];
+            p.body = slots[4];
             break;
 
         case DistortionType::SineFold:

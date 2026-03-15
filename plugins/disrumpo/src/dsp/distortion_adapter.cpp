@@ -8,6 +8,8 @@
 
 #include "distortion_adapter.h"
 
+#include <krate/dsp/core/fast_math.h>
+
 #include <cmath>
 #include <algorithm>
 
@@ -39,6 +41,11 @@ void DistortionAdapter::prepare(double sampleRate, int maxBlockSize) noexcept {
     tubeShaper_.setDrive(1.0f);
     tapeShaper_.setType(Krate::DSP::WaveshapeType::Tanh);
     tapeShaper_.setDrive(1.5f);
+
+    // Prepare tape-specific processing
+    tapeHfFilter_.prepare(sampleRate);
+    tapeHfFilter_.setCutoff(8000.0f);
+    flutterPhase_ = 0.0f;
 
     // Prepare wavefolder
     wavefolder_.prepare(sampleRate, blockSize);
@@ -104,6 +111,10 @@ void DistortionAdapter::reset() noexcept {
     spectral_.reset();
     fractal_.reset();
     stochastic_.reset();
+
+    // Reset tape-specific state
+    tapeHfFilter_.reset();
+    flutterPhase_ = 0.0f;
 
     // Reset ring buffer state
     inputRingBuffer_.fill(0.0f);
@@ -216,39 +227,119 @@ float DistortionAdapter::processRaw(float input) noexcept {
         // =====================================================================
         // Saturation (D01-D06) - Phase 3
         // =====================================================================
-        case DistortionType::SoftClip:
-            // D01: Tanh-based soft saturation via SaturationProcessor
-            saturation_.setType(Krate::DSP::SaturationType::Tape);
-            return saturation_.processSample(input);
+        case DistortionType::SoftClip: {
+            // D01: Parameterized soft clip with curve and knee control
+            const float absX = std::abs(input);
+            const float sgn = input >= 0.0f ? 1.0f : -1.0f;
 
-        case DistortionType::HardClip:
-            // D02: Digital hard clipping via SaturationProcessor
-            saturation_.setType(Krate::DSP::SaturationType::Digital);
-            return saturation_.processSample(input);
+            // Knee [0,1] → threshold [0.1, 0.9]
+            // knee=0: low threshold, heavy saturation (more color)
+            // knee=1: high threshold, only peaks saturate (transparent)
+            const float threshold = 0.1f + typeParams_.knee * 0.8f;
 
-        case DistortionType::Tube:
-            // D03: Tube stage emulation - use direct waveshaper for single sample
-            tubeShaper_.setAsymmetry(typeParams_.bias);
-            return tubeShaper_.process(input);
+            if (absX <= threshold) {
+                return input;
+            }
 
-        case DistortionType::Tape:
-            // D04: Tape saturator - use direct waveshaper for single sample
-            return tapeShaper_.process(input);
+            // Curve [0,1] → saturation steepness [1, 6]
+            // curve=0: gentle tanh curve (warm, subtle harmonics)
+            // curve=1: steep tanh curve (aggressive, near hard-clip)
+            const float curveDrive = 1.0f + typeParams_.curve * 5.0f;
+
+            const float headroom = 1.0f - threshold;
+            const float excess = (absX - threshold) / headroom;
+            const float shaped = headroom * Krate::DSP::FastMath::fastTanh(excess * curveDrive);
+
+            return sgn * (threshold + shaped);
+        }
+
+        case DistortionType::HardClip: {
+            // D02: Parameterized hard clip with threshold and ceiling
+            // Threshold [0,1] → clip onset [0.1, 1.0]
+            // threshold=0: clips almost everything (extreme)
+            // threshold=1: clips only above unity (subtle)
+            const float clipThreshold = 0.1f + typeParams_.threshold * 0.9f;
+
+            // Ceiling [0,1] → output ceiling [0.1, 1.0]
+            // ceiling=0: very low output cap (crushed)
+            // ceiling=1: full output level
+            const float clipCeiling = 0.1f + typeParams_.ceiling * 0.9f;
+
+            const float sgn = input >= 0.0f ? 1.0f : -1.0f;
+            const float absX = std::abs(input);
+
+            if (absX <= clipThreshold) {
+                // Scale linearly within threshold to map to ceiling range
+                return input * (clipCeiling / clipThreshold);
+            }
+            return sgn * clipCeiling;
+        }
+
+        case DistortionType::Tube: {
+            // D03: Tube stage emulation via TubeStage processor
+            // Supports bias, sag (saturation amount), and multi-stage cascading
+            singleSampleBuffer_[0] = input;
+            const int stages = std::clamp(typeParams_.satStage + 1, 1, 4);
+            for (int s = 0; s < stages; ++s) {
+                tube_.process(singleSampleBuffer_, 1);
+            }
+            return singleSampleBuffer_[0];
+        }
+
+        case DistortionType::Tape: {
+            // D04: Tape saturator via TapeSaturator processor
+            // Apply flutter modulation (subtle pitch/gain wobble)
+            float modulated = input;
+            if (typeParams_.flutter > 0.001f) {
+                // Flutter rate ~4-8 Hz, depth controlled by flutter param
+                constexpr float kFlutterRateHz = 5.5f;
+                const float flutterDepth = typeParams_.flutter * 0.02f;
+                const float lfo = std::sin(flutterPhase_ * 6.2831853f);
+                modulated = input * (1.0f + lfo * flutterDepth);
+                flutterPhase_ += kFlutterRateHz / static_cast<float>(sampleRate_);
+                if (flutterPhase_ >= 1.0f) flutterPhase_ -= 1.0f;
+            }
+
+            singleSampleBuffer_[0] = modulated;
+            tape_.process(singleSampleBuffer_, 1);
+            float result = singleSampleBuffer_[0];
+
+            // Apply HF rolloff filter
+            result = tapeHfFilter_.process(result);
+
+            return result;
+        }
 
         case DistortionType::Fuzz: {
-            // D05: Germanium fuzz - process single sample through block processor
+            // D05: Fuzz with transistor type selection
             singleSampleBuffer_[0] = input;
-            fuzz_.setFuzzType(Krate::DSP::FuzzType::Germanium);
+            fuzz_.setFuzzType(typeParams_.transistor == 0
+                ? Krate::DSP::FuzzType::Germanium
+                : Krate::DSP::FuzzType::Silicon);
             fuzz_.process(singleSampleBuffer_, 1);
             return singleSampleBuffer_[0];
         }
 
         case DistortionType::AsymmetricFuzz: {
-            // D06: Silicon fuzz with bias control
-            singleSampleBuffer_[0] = input;
-            fuzz_.setFuzzType(Krate::DSP::FuzzType::Silicon);
+            // D06: Asymmetric fuzz with transistor select and body
+            // Apply asymmetry: bias the signal before fuzz for asymmetric clipping
+            const float asymBias = typeParams_.asymmetry * 0.5f;
+            float biased = input + asymBias;
+
+            singleSampleBuffer_[0] = biased;
+            fuzz_.setFuzzType(typeParams_.transistor == 0
+                ? Krate::DSP::FuzzType::Germanium
+                : Krate::DSP::FuzzType::Silicon);
             fuzz_.process(singleSampleBuffer_, 1);
-            return singleSampleBuffer_[0];
+
+            // Body: low-pass filter effect via simple one-pole approximation
+            // body=0 → bright/harsh, body=1 → dark/thick
+            float result = singleSampleBuffer_[0] - asymBias;
+            if (typeParams_.body > 0.01f) {
+                const float bodyCoeff = typeParams_.body * 0.9f;
+                result = result * (1.0f - bodyCoeff) + singleSampleBuffer_[0] * bodyCoeff;
+            }
+            return result;
         }
 
         // =====================================================================
@@ -396,30 +487,31 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // Saturation (D01-D06)
         // =================================================================
         case DistortionType::SoftClip:
-            saturation_.setInputGain(commonParams_.drive * 6.0f);
-            saturation_.setMix(1.0f);
-            saturation_.setType(Krate::DSP::SaturationType::Tape);
+            // Curve and knee are used directly in processRaw()
             break;
 
         case DistortionType::HardClip:
-            saturation_.setInputGain(commonParams_.drive * 6.0f);
-            saturation_.setMix(1.0f);
-            saturation_.setType(Krate::DSP::SaturationType::Digital);
+            // Threshold and ceiling are used directly in processRaw()
             break;
 
         case DistortionType::Tube:
-            tubeShaper_.setAsymmetry(p.bias);
             tube_.setBias(p.bias);
             tube_.setSaturationAmount(p.sag);
             break;
 
         case DistortionType::Tape:
-            tapeShaper_.setDrive(1.0f + p.sag * 2.0f);
             tape_.setBias(p.bias);
             tape_.setSaturation(p.sag);
             tape_.setModel(p.tapeModel == 0
                 ? Krate::DSP::TapeModel::Simple
                 : Krate::DSP::TapeModel::Hysteresis);
+            // Speed [0,1] → drive: higher speed = more headroom = less natural saturation
+            // Map so speed=0 → high drive (hot), speed=1 → low drive (clean)
+            tape_.setDrive(12.0f - p.speed * 10.0f);
+            // HF rolloff [0,1] → cutoff [20000, 1000] Hz
+            // hfRoll=0: no rolloff (full bandwidth), hfRoll=1: heavy rolloff
+            tapeHfFilter_.setCutoff(20000.0f - p.hfRoll * 19000.0f);
+            // Flutter is read directly in processRaw()
             break;
 
         case DistortionType::Fuzz:
