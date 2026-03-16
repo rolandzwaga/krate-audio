@@ -179,6 +179,62 @@ section h2 {
     border-radius: 50%;
 }
 
+/* Overview */
+.overview p {
+    color: var(--color-text-muted);
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+
+/* Distortion Types */
+.distortion-types > p {
+    color: var(--color-text-muted);
+    margin-bottom: 2rem;
+}
+
+.distortion-types h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.distortion-types h3:first-of-type {
+    margin-top: 0;
+}
+
+.distortion-types > p + h3 {
+    margin-top: 0;
+}
+
+.distortion-types h3 + p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.distortion-types ul {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.distortion-types li {
+    padding: 0.75rem 1rem 0.75rem 1.25rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    border-left: 3px solid var(--color-accent);
+}
+
+.distortion-types li strong {
+    color: var(--color-text);
+}
+
 /* Installation */
 .install-instructions {
     display: grid;
