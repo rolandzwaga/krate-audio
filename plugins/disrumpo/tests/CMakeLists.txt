@@ -117,6 +117,7 @@ add_executable(disrumpo_tests
     integration/processor_audio_output_test.cpp
     integration/chaos_distortion_wiring_test.cpp
     integration/multi_node_distortion_test.cpp
+    integration/bitcrush_noise_repro_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
