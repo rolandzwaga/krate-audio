@@ -94,6 +94,13 @@ public:
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }
 
+    // Test accessors
+    [[nodiscard]] const std::array<float, kMaxMorphNodes>& getMorphWeightsForBand(int band) const;
+    [[nodiscard]] float getMorphCacheX(int band) const;
+    [[nodiscard]] float getMorphCacheY(int band) const;
+    [[nodiscard]] int getMorphCacheActiveNodes(int band) const;
+    [[nodiscard]] const BandProcessor& getBandProcessor(int band) const { return bandProcessors_[band]; }
+
 protected:
     // ==========================================================================
     // Parameter Handling

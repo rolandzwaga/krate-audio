@@ -445,7 +445,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
     result.quantOffset = 0.0f;
     result.bitwiseIntensity = 0.0f;
     result.bitwisePattern = 0.0f;
-    result.bitwiseBits = 0.0f;
 
     // Dynamic continuous
     result.sensitivity = 0.0f;
@@ -467,9 +466,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
 
     // Aliasing continuous
     result.freqShift = 0.0f;
-
-    // Bitwise continuous
-    result.rotateAmount = 0;
 
     // Experimental continuous
     result.chaosAmount = 0.0f;
@@ -558,7 +554,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
         result.quantOffset += w * p.quantOffset;
         result.bitwiseIntensity += w * p.bitwiseIntensity;
         result.bitwisePattern += w * p.bitwisePattern;
-        result.bitwiseBits += w * p.bitwiseBits;
 
         // Dynamic
         result.sensitivity += w * p.sensitivity;
@@ -580,9 +575,6 @@ DistortionParams MorphEngine::interpolateParams() const noexcept {
 
         // Aliasing
         result.freqShift += w * p.freqShift;
-
-        // Bitwise
-        result.rotateAmount += static_cast<int>(w * static_cast<float>(p.rotateAmount));
 
         // Experimental
         result.chaosAmount += w * p.chaosAmount;

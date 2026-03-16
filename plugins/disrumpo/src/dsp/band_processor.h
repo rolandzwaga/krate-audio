@@ -335,6 +335,9 @@ public:
         return kDefaultWeights;
     }
 
+    /// @brief Get MorphEngine for testing.
+    [[nodiscard]] const MorphEngine* getMorphEngine() const noexcept { return morphEngine_.get(); }
+
     // =========================================================================
     // Oversampling Configuration (spec 009-intelligent-oversampling)
     // =========================================================================

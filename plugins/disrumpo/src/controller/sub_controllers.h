@@ -258,12 +258,10 @@ public:
 // BitwiseOpController: Conditional visibility for Bitwise Mangler controls
 // ==============================================================================
 // Sub-controller for TypeParams_Bitwise template. Watches the Op dropdown
-// (Band.NodeShape0) and shows/hides Pattern and Bits containers based on
+// (Band.NodeShape0) and shows/hides Pattern container based on
 // which operation is selected:
 //   - XorPattern (0): show Pattern
-//   - BitRotate (2):  show Bits
-//   - BitShuffle (3): show Pattern (labeled "Seed")
-//   - Others:         hide both
+//   - Others:         hide Pattern
 // ==============================================================================
 
 class BitwiseOpController : public VSTGUI::DelegationController {
@@ -320,14 +318,14 @@ private:
     void updateVisibility() {
         if (!opControl_) return;
 
-        // Op dropdown: 6 items → normalized 0/5, 1/5, 2/5, 3/5, 4/5, 5/5
+        // Op dropdown: 4 items → normalized 0/3, 1/3, 2/3, 3/3
         float norm = opControl_->getValueNormalized();
-        int op = static_cast<int>(norm * 5.0f + 0.5f);
+        int op = static_cast<int>(norm * 3.0f + 0.5f);
 
-        // Pattern visible for XorPattern(0) and BitShuffle(3)
-        bool showPattern = (op == 0 || op == 3);
-        // Bits visible for BitRotate(2)
-        bool showBits = (op == 2);
+        // Pattern visible for XorPattern(0) only
+        bool showPattern = (op == 0);
+        // Bits control is no longer used (BitRotate/BitShuffle removed)
+        bool showBits = false;
 
         if (patternContainer_)
             patternContainer_->setVisible(showPattern);

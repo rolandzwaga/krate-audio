@@ -122,6 +122,15 @@ public:
     /// @brief Get current smoothed morph Y position.
     [[nodiscard]] float getSmoothedY() const noexcept;
 
+    // Test accessors
+    [[nodiscard]] int getActiveNodeCount() const noexcept { return activeNodeCount_; }
+    [[nodiscard]] bool getAllSameFamily() const noexcept { return allSameFamily_; }
+    [[nodiscard]] DistortionType getAdapterType(int idx) const noexcept { return adapters_[idx].getType(); }
+    [[nodiscard]] DistortionType getNodeType(int idx) const noexcept { return nodes_[idx].type; }
+    [[nodiscard]] const DistortionParams& getNodeParams(int idx) const noexcept { return nodes_[idx].params; }
+    [[nodiscard]] const DistortionCommonParams& getNodeCommonParams(int idx) const noexcept { return nodes_[idx].commonParams; }
+    [[nodiscard]] const DistortionAdapter& getAdapter(int idx) const noexcept { return adapters_[idx]; }
+
     // =========================================================================
     // Processing
     // =========================================================================

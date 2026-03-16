@@ -824,7 +824,8 @@ TEST_CASE("Digital types produce non-passthrough output", "[distortion][digital]
         adapter.setType(DistortionType::BitwiseMangler);
 
         DistortionParams params;
-        params.rotateAmount = 8;
+        params.bitwiseOp = 0;  // XorPattern
+        params.bitwisePattern = 0.5f;
         adapter.setParams(params);
         adapter.reset();
 
@@ -1209,34 +1210,6 @@ TEST_CASE("BitwiseMangler shape slot params change output", "[distortion][digita
 
     const float testSignal = 0.37f;
 
-    SECTION("BitRotate: bitwiseBits changes output") {
-        DistortionParams params;
-        params.bitwiseOp = 2;  // BitRotate
-        params.bitwiseIntensity = 1.0f;
-        params.bitwiseBits = 0.5f;  // maps to rotateAmount=0 (passthrough)
-        adapter.setParams(params);
-        adapter.reset();
-
-        float outputCenter = 0.0f;
-        for (int i = 0; i < 20; ++i) {
-            outputCenter = adapter.process(testSignal);
-        }
-
-        // Move bits slider to 0.75 -> rotateAmount = int(0.75*32-16) = 8
-        params.bitwiseBits = 0.75f;
-        adapter.setParams(params);
-        adapter.reset();
-
-        float outputOffset = 0.0f;
-        for (int i = 0; i < 20; ++i) {
-            outputOffset = adapter.process(testSignal);
-        }
-
-        CAPTURE(outputCenter);
-        CAPTURE(outputOffset);
-        REQUIRE(outputCenter != Approx(outputOffset).margin(0.001f));
-    }
-
     SECTION("XorPattern: bitwisePattern changes output") {
         DistortionParams params;
         params.bitwiseOp = 0;  // XorPattern
@@ -1263,6 +1236,49 @@ TEST_CASE("BitwiseMangler shape slot params change output", "[distortion][digita
         CAPTURE(outputHalf);
         REQUIRE(outputZero != Approx(outputHalf).margin(0.001f));
     }
+}
+
+// Regression: BitwiseMangler intensity controls bit depth (number of bits
+// mangled), not dry/wet blend. Adapter mix handles dry/wet like all other types.
+TEST_CASE("BitwiseMangler: low intensity preserves signal structure", "[distortion][digital][regression]") {
+    DistortionAdapter adapter;
+    adapter.prepare(kTestSampleRate, kTestBlockSize);
+
+    DistortionCommonParams commonParams;
+    commonParams.drive = 1.0f;
+    commonParams.mix = 1.0f;
+    commonParams.toneHz = 8000.0f;
+    adapter.setCommonParams(commonParams);
+
+    adapter.setType(DistortionType::BitwiseMangler);
+
+    // Process a sine wave at low intensity — should NOT be white noise
+    DistortionParams params;
+    params.bitwiseOp = 0;           // XorPattern
+    params.bitwiseIntensity = 0.2f; // Low: ~5 bits affected
+    params.bitwisePattern = 0.5f;
+    adapter.setParams(params);
+    adapter.reset();
+
+    constexpr int kSamples = 512;
+    float output[kSamples];
+    for (int i = 0; i < kSamples; ++i) {
+        float input = std::sin(2.0f * 3.14159265f * 440.0f * i / 44100.0f);
+        output[i] = adapter.process(input);
+    }
+
+    // Calculate zero-crossing rate — tonal signal should be < 0.1,
+    // white noise would be ~0.5
+    int crossings = 0;
+    for (int i = 1; i < kSamples; ++i) {
+        if ((output[i] >= 0.0f) != (output[i - 1] >= 0.0f)) {
+            ++crossings;
+        }
+    }
+    float zcr = static_cast<float>(crossings) / static_cast<float>(kSamples - 1);
+
+    INFO("ZCR at intensity=0.2: " << zcr << " (noise would be ~0.5)");
+    REQUIRE(zcr < 0.15f);  // Must still sound tonal, not noise
 }
 
 // =============================================================================

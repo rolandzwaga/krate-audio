@@ -731,15 +731,10 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             break;
 
         case DistortionType::BitwiseMangler: {
-            int op = std::clamp(p.bitwiseOp, 0, 5);
+            int op = std::clamp(p.bitwiseOp, 0, 3);
             bitwiseMangler_.setOperation(static_cast<Krate::DSP::BitwiseOperation>(op));
             bitwiseMangler_.setIntensity(p.bitwiseIntensity);
-            // Route Pattern and Bits to all relevant DSP setters:
-            // - Pattern → XorPattern mask, BitShuffle seed
-            // - Bits → BitRotate amount
-            bitwiseMangler_.setPattern(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
-            bitwiseMangler_.setRotateAmount(static_cast<int>(p.bitwiseBits * 32.0f - 16.0f));
-            bitwiseMangler_.setSeed(static_cast<uint32_t>(p.bitwisePattern * 65535.0f));
+            bitwiseMangler_.setPattern(static_cast<uint32_t>(p.bitwisePattern * 16777215.0f));
             break;
         }
 

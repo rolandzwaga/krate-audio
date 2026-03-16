@@ -1083,7 +1083,7 @@
   <template name="TypeParams_Bitwise" class="CViewContainer" sub-controller="BitwiseOp" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Bitwise Mangler" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="50, 12" title="Op" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="XorPat,XorPrev,Rotate,Shuffle,BitAnd,Overflow"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 42" size="50, 18" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="XorPat,XorPrev,BitAnd,Overflow"/>
     <view class="CTextLabel" origin="60, 28" size="50, 12" title="Intensity" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="62, 40" size="40, 40" default-value="0.5" min-value="0" max-value="1" arc-color="band-3"/>
     <view class="CViewContainer" bitwise-group="pattern" origin="115, 28" size="50, 55" transparent="true">

@@ -70,7 +70,7 @@ struct DistortionCommonParams {
 /// - Dynamic: sensitivity, attackMs, releaseMs, dynamicMode
 /// - Hybrid: feedback, delayMs, stages, modDepth
 /// - Aliasing: freqShift
-/// - Bitwise: rotateAmount, xorPattern
+/// - Bitwise: xorPattern
 /// - Experimental: chaosAmount, attractorSpeed, grainSizeMs, formantShift
 /// - Spectral: fftSize, magnitudeBits
 /// - Fractal: iterations, scaleFactor, frequencyDecay
@@ -118,7 +118,7 @@ struct DistortionParams {
     int bitwiseOp = 0;              ///< Bitwise operation select
     float bitwiseIntensity = 0.5f;  ///< Bitwise intensity [0, 1]
     float bitwisePattern = 0.0f;    ///< Bitwise pattern [0, 1]
-    float bitwiseBits = 0.5f;       ///< Bitwise bits slider [0, 1]
+    float bitwiseBits = 0.5f;       ///< Bitwise bits slider [0, 1] (reserved, unused)
 
     // Dynamic (D15)
     float sensitivity = 0.5f;       ///< Envelope sensitivity [0, 1]
@@ -149,7 +149,6 @@ struct DistortionParams {
     float freqShift = 0.0f;         ///< Frequency shift [-1000, 1000] Hz
 
     // Bitwise (D19)
-    int rotateAmount = 0;           ///< Bit rotation [-16, 16]
     uint16_t xorPattern = 0xAAAA;   ///< XOR mask [0x0000, 0xFFFF]
 
     // Experimental (D20-D25)

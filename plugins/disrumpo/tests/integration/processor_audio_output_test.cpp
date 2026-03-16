@@ -349,10 +349,10 @@ TEST_CASE("TabView parameter change does not affect audio", "[integration][proce
 }
 
 // =============================================================================
-// Test: BitwiseMangler Bits (NodeShape3) changes output through full processor
+// Test: BitwiseMangler Pattern (NodeShape2) changes output through full processor
 // =============================================================================
 
-TEST_CASE("BitwiseMangler Bits slider changes audio through full processor",
+TEST_CASE("BitwiseMangler Pattern slider changes audio through full processor",
           "[integration][processor][bitwise]") {
     ProcessorFixture fixture;
 
@@ -361,22 +361,20 @@ TEST_CASE("BitwiseMangler Bits slider changes audio through full processor",
     std::array<float, kBlockSize> outputL{};
     std::array<float, kBlockSize> outputR{};
 
-    // Step 1: Set node 0 of band 0 to BitwiseMangler (type index 15)
-    // Also set Op=BitRotate (slot0=0.4) and Intensity=1.0 (slot1=1.0)
+    // Step 1: Set node 0 of band 0 to BitwiseMangler with XorPattern, Pattern=0
     {
         SimpleParameterChanges setupParams;
-        // Set node 0 type to BitwiseMangler (index 15 out of 26: normalized = 15/25 = 0.6)
         setupParams.addChange(
             Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeType), 15.0 / 25.0);
-        // Op = BitRotate (index 2 out of 6: normalized = 2/5 = 0.4)
+        // Op = XorPattern (index 0 out of 4: normalized = 0.0)
         setupParams.addChange(
-            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape0), 0.4);
+            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape0), 0.0);
         // Intensity = 1.0 (full wet)
         setupParams.addChange(
             Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape1), 1.0);
-        // Bits = 0.5 (center = rotateAmount 0 = passthrough)
+        // Pattern = 0.0 (XOR with 0 = passthrough)
         setupParams.addChange(
-            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape3), 0.5);
+            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape2), 0.0);
 
         for (Steinberg::int32 block = 0; block < kNumBlocks; ++block) {
             generateSine(inputL.data(), kBlockSize, 1000.0f, kSampleRate, block * kBlockSize);
@@ -388,37 +386,34 @@ TEST_CASE("BitwiseMangler Bits slider changes audio through full processor",
         }
     }
 
-    // Step 2: Capture output with Bits=0.5 (center)
-    float rmsCenter = 0.0f;
-    std::array<float, kBlockSize> capturedCenter{};
+    // Step 2: Capture output with Pattern=0.0 (passthrough)
+    std::array<float, kBlockSize> capturedZero{};
     {
         generateSine(inputL.data(), kBlockSize, 1000.0f, kSampleRate, kNumBlocks * kBlockSize);
         generateSine(inputR.data(), kBlockSize, 1000.0f, kSampleRate, kNumBlocks * kBlockSize);
         std::memset(outputL.data(), 0, sizeof(float) * kBlockSize);
         std::memset(outputR.data(), 0, sizeof(float) * kBlockSize);
         fixture.processBlock(inputL.data(), inputR.data(), outputL.data(), outputR.data());
-        rmsCenter = calculateRMS(outputL.data(), kBlockSize);
-        capturedCenter = outputL;
+        capturedZero = outputL;
     }
 
-    // Step 3: Change Bits to 1.0 (rotateAmount = 16) and settle
+    // Step 3: Change Pattern to 1.0 (full XOR mask) and settle
     {
-        SimpleParameterChanges bitsChange;
-        bitsChange.addChange(
-            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape3), 1.0);
+        SimpleParameterChanges patternChange;
+        patternChange.addChange(
+            Disrumpo::makeNodeParamId(0, 0, Disrumpo::NodeParamType::kNodeShape2), 1.0);
 
         for (Steinberg::int32 block = 0; block < 8; ++block) {
             generateSine(inputL.data(), kBlockSize, 1000.0f, kSampleRate, (kNumBlocks + 1 + block) * kBlockSize);
             generateSine(inputR.data(), kBlockSize, 1000.0f, kSampleRate, (kNumBlocks + 1 + block) * kBlockSize);
             std::memset(outputL.data(), 0, sizeof(float) * kBlockSize);
             std::memset(outputR.data(), 0, sizeof(float) * kBlockSize);
-            auto* p = (block == 0) ? static_cast<Steinberg::Vst::IParameterChanges*>(&bitsChange) : nullptr;
+            auto* p = (block == 0) ? static_cast<Steinberg::Vst::IParameterChanges*>(&patternChange) : nullptr;
             fixture.processBlock(inputL.data(), inputR.data(), outputL.data(), outputR.data(), p);
         }
     }
 
-    // Step 4: Capture output with Bits=1.0
-    float rmsBitsMax = 0.0f;
+    // Step 4: Capture output with Pattern=1.0
     std::array<float, kBlockSize> capturedMax{};
     {
         generateSine(inputL.data(), kBlockSize, 1000.0f, kSampleRate, (kNumBlocks + 9) * kBlockSize);
@@ -426,22 +421,17 @@ TEST_CASE("BitwiseMangler Bits slider changes audio through full processor",
         std::memset(outputL.data(), 0, sizeof(float) * kBlockSize);
         std::memset(outputR.data(), 0, sizeof(float) * kBlockSize);
         fixture.processBlock(inputL.data(), inputR.data(), outputL.data(), outputR.data());
-        rmsBitsMax = calculateRMS(outputL.data(), kBlockSize);
         capturedMax = outputL;
     }
 
-    // Compare sample-by-sample: at least some samples must differ significantly
+    // Compare: outputs MUST differ when Pattern changes from 0 to max
     int differentSamples = 0;
     for (Steinberg::int32 i = 0; i < kBlockSize; ++i) {
-        if (std::abs(capturedCenter[i] - capturedMax[i]) > 0.01f) {
+        if (std::abs(capturedZero[i] - capturedMax[i]) > 0.01f) {
             ++differentSamples;
         }
     }
 
-    INFO("RMS center (Bits=0.5): " << rmsCenter);
-    INFO("RMS max (Bits=1.0): " << rmsBitsMax);
     INFO("Different samples: " << differentSamples << " / " << kBlockSize);
-
-    // The outputs MUST differ when Bits changes from center to max
     REQUIRE(differentSamples > kBlockSize / 4);
 }

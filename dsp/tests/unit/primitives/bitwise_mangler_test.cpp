@@ -32,14 +32,11 @@ using Catch::Approx;
 // Phase 2: Foundational Tests
 // =============================================================================
 
-TEST_CASE("BitwiseOperation enum has 6 values (FR-005)", "[bitwise_mangler][enum]") {
-    // Verify enum values exist and are distinct
+TEST_CASE("BitwiseOperation enum has 4 values", "[bitwise_mangler][enum]") {
     REQUIRE(static_cast<uint8_t>(BitwiseOperation::XorPattern) == 0);
     REQUIRE(static_cast<uint8_t>(BitwiseOperation::XorPrevious) == 1);
-    REQUIRE(static_cast<uint8_t>(BitwiseOperation::BitRotate) == 2);
-    REQUIRE(static_cast<uint8_t>(BitwiseOperation::BitShuffle) == 3);
-    REQUIRE(static_cast<uint8_t>(BitwiseOperation::BitAverage) == 4);
-    REQUIRE(static_cast<uint8_t>(BitwiseOperation::OverflowWrap) == 5);
+    REQUIRE(static_cast<uint8_t>(BitwiseOperation::BitAverage) == 2);
+    REQUIRE(static_cast<uint8_t>(BitwiseOperation::OverflowWrap) == 3);
 }
 
 TEST_CASE("BitwiseOperation is uint8_t (FR-005)", "[bitwise_mangler][enum]") {
@@ -53,9 +50,7 @@ TEST_CASE("BitwiseMangler default constructor initializes correctly",
 
     REQUIRE(mangler.getOperation() == BitwiseOperation::XorPattern);
     REQUIRE(mangler.getIntensity() == Approx(1.0f));
-    REQUIRE(mangler.getPattern() == 0xAAAAAAAAu);  // FR-012: Default pattern
-    REQUIRE(mangler.getRotateAmount() == 0);
-    REQUIRE(mangler.getSeed() == 12345u);  // FR-018: Default seed
+    REQUIRE(mangler.getPattern() == 0xAAAAAAAAu);
 }
 
 TEST_CASE("prepare() and reset() lifecycle (FR-001, FR-002)", "[bitwise_mangler][lifecycle]") {
@@ -128,15 +123,12 @@ TEST_CASE("Intensity 0.0 produces bit-exact passthrough (SC-009)", "[bitwise_man
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
         BitwiseOperation::XorPrevious,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle,
         BitwiseOperation::BitAverage,
         BitwiseOperation::OverflowWrap
     );
 
     mangler.setOperation(op);
 
-    // Test various input values
     for (float input : {-1.0f, -0.5f, -0.1f, 0.0f, 0.1f, 0.5f, 1.0f}) {
         float output = mangler.process(input);
         // Bit-exact comparison
@@ -153,8 +145,6 @@ TEST_CASE("NaN input returns 0.0 (FR-022)", "[bitwise_mangler][edge][nan]") {
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
         BitwiseOperation::XorPrevious,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle,
         BitwiseOperation::BitAverage,
         BitwiseOperation::OverflowWrap
     );
@@ -175,8 +165,6 @@ TEST_CASE("Inf input returns 0.0 (FR-022)", "[bitwise_mangler][edge][inf]") {
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
         BitwiseOperation::XorPrevious,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle,
         BitwiseOperation::BitAverage,
         BitwiseOperation::OverflowWrap
     );
@@ -480,249 +468,7 @@ TEST_CASE("XorPrevious: SC-002 (frequency-dependent response)", "[bitwise_mangle
 }
 
 // =============================================================================
-// Phase 5: User Story 3 - BitRotate Mode
-// =============================================================================
-
-TEST_CASE("BitRotate: setRotateAmount/getRotateAmount with clamping (FR-013, FR-014)", "[bitwise_mangler][US3][rotate]") {
-    BitwiseMangler mangler;
-
-    SECTION("default is 0") {
-        REQUIRE(mangler.getRotateAmount() == 0);
-    }
-
-    SECTION("accepts values in [-16, +16]") {
-        mangler.setRotateAmount(-16);
-        REQUIRE(mangler.getRotateAmount() == -16);
-
-        mangler.setRotateAmount(16);
-        REQUIRE(mangler.getRotateAmount() == 16);
-
-        mangler.setRotateAmount(0);
-        REQUIRE(mangler.getRotateAmount() == 0);
-
-        mangler.setRotateAmount(8);
-        REQUIRE(mangler.getRotateAmount() == 8);
-    }
-
-    SECTION("clamps values outside [-16, +16] (FR-014)") {
-        mangler.setRotateAmount(-20);
-        REQUIRE(mangler.getRotateAmount() == -16);
-
-        mangler.setRotateAmount(20);
-        REQUIRE(mangler.getRotateAmount() == 16);
-
-        mangler.setRotateAmount(100);
-        REQUIRE(mangler.getRotateAmount() == 16);
-    }
-}
-
-TEST_CASE("BitRotate: rotateAmount 0 is passthrough", "[bitwise_mangler][US3][passthrough]") {
-    BitwiseMangler mangler;
-    mangler.prepare(44100.0);
-    mangler.setOperation(BitwiseOperation::BitRotate);
-    mangler.setRotateAmount(0);
-    mangler.setIntensity(1.0f);
-    mangler.setDCBlockEnabled(false);  // Disable DC blocking for passthrough test
-
-    for (float input : {-0.9f, -0.5f, 0.0f, 0.5f, 0.9f}) {
-        float output = mangler.process(input);
-        REQUIRE(output == Approx(input).margin(1e-6f));
-    }
-}
-
-TEST_CASE("BitRotate: SC-003 (+8 vs -8 produces different spectra)", "[bitwise_mangler][US3][SC-003]") {
-    using namespace Krate::DSP::TestUtils;
-
-    constexpr size_t numSamples = 8192;
-    constexpr float sampleRate = 44100.0f;
-    constexpr float fundamentalHz = 440.0f;
-
-    std::vector<float> input(numSamples);
-    std::vector<float> outputPlus(numSamples);
-    std::vector<float> outputMinus(numSamples);
-
-    TestHelpers::generateSine(input.data(), numSamples, fundamentalHz, sampleRate);
-
-    // Rotate +8
-    BitwiseMangler manglerPlus;
-    manglerPlus.prepare(sampleRate);
-    manglerPlus.setOperation(BitwiseOperation::BitRotate);
-    manglerPlus.setRotateAmount(8);
-    manglerPlus.setIntensity(1.0f);
-
-    for (size_t i = 0; i < numSamples; ++i) {
-        outputPlus[i] = manglerPlus.process(input[i]);
-    }
-
-    // Rotate -8
-    BitwiseMangler manglerMinus;
-    manglerMinus.prepare(sampleRate);
-    manglerMinus.setOperation(BitwiseOperation::BitRotate);
-    manglerMinus.setRotateAmount(-8);
-    manglerMinus.setIntensity(1.0f);
-
-    for (size_t i = 0; i < numSamples; ++i) {
-        outputMinus[i] = manglerMinus.process(input[i]);
-    }
-
-    // Calculate THD for both
-    float thdPlus = SignalMetrics::calculateTHD(outputPlus.data(), numSamples, fundamentalHz, sampleRate);
-    float thdMinus = SignalMetrics::calculateTHD(outputMinus.data(), numSamples, fundamentalHz, sampleRate);
-
-    INFO("+8 rotation THD: " << thdPlus << "%");
-    INFO("-8 rotation THD: " << thdMinus << "%");
-
-    // They should be different (asymmetric rotation)
-    REQUIRE(thdPlus != Approx(thdMinus).margin(1.0f));
-}
-
-TEST_CASE("BitRotate: rotation by 24 equals rotation by 0 (modulo behavior)", "[bitwise_mangler][US3][modulo]") {
-    BitwiseMangler mangler1;
-    mangler1.prepare(44100.0);
-    mangler1.setOperation(BitwiseOperation::BitRotate);
-    mangler1.setIntensity(1.0f);
-
-    // Due to clamping, we can't set 24 directly, but let's test that the
-    // rotation wraps correctly at the implementation level
-    mangler1.setRotateAmount(0);
-
-    BitwiseMangler mangler2;
-    mangler2.prepare(44100.0);
-    mangler2.setOperation(BitwiseOperation::BitRotate);
-    mangler2.setIntensity(1.0f);
-    mangler2.setRotateAmount(0);
-
-    // Both should produce same output
-    for (float input : {-0.5f, 0.0f, 0.5f}) {
-        float out1 = mangler1.process(input);
-        float out2 = mangler2.process(input);
-        REQUIRE(out1 == Approx(out2).margin(1e-6f));
-    }
-}
-
-// =============================================================================
-// Phase 6: User Story 4 - BitShuffle Mode
-// =============================================================================
-
-TEST_CASE("BitShuffle: setSeed/getSeed (FR-016, FR-018)", "[bitwise_mangler][US4][seed]") {
-    BitwiseMangler mangler;
-
-    SECTION("default seed is 12345 (FR-018)") {
-        REQUIRE(mangler.getSeed() == 12345u);
-    }
-
-    SECTION("setSeed/getSeed work correctly") {
-        mangler.setSeed(42);
-        REQUIRE(mangler.getSeed() == 42u);
-
-        mangler.setSeed(999999);
-        REQUIRE(mangler.getSeed() == 999999u);
-    }
-
-    SECTION("zero seed replaced with default (FR-018)") {
-        mangler.setSeed(0);
-        REQUIRE(mangler.getSeed() == 12345u);
-    }
-}
-
-TEST_CASE("BitShuffle: SC-004 (same seed produces bit-exact identical output after reset)", "[bitwise_mangler][US4][SC-004]") {
-    BitwiseMangler mangler;
-    mangler.prepare(44100.0);
-    mangler.setOperation(BitwiseOperation::BitShuffle);
-    mangler.setSeed(12345);
-    mangler.setIntensity(1.0f);
-
-    constexpr size_t numSamples = 100;
-    std::array<float, numSamples> output1;
-    std::array<float, numSamples> output2;
-
-    // Generate test signal
-    std::array<float, numSamples> input;
-    for (size_t i = 0; i < numSamples; ++i) {
-        input[i] = std::sin(static_cast<float>(i) * 0.1f);
-    }
-
-    // First run
-    mangler.reset();
-    for (size_t i = 0; i < numSamples; ++i) {
-        output1[i] = mangler.process(input[i]);
-    }
-
-    // Second run after reset
-    mangler.reset();
-    for (size_t i = 0; i < numSamples; ++i) {
-        output2[i] = mangler.process(input[i]);
-    }
-
-    // SC-004: Bit-exact identical output
-    // NOLINTNEXTLINE(bugprone-suspicious-memory-comparison) - intentional bit-exact check
-    REQUIRE(std::memcmp(output1.data(), output2.data(), numSamples * sizeof(float)) == 0);
-}
-
-TEST_CASE("BitShuffle: different seeds produce different outputs (FR-017)", "[bitwise_mangler][US4][different_seeds]") {
-    constexpr size_t numSamples = 100;
-    std::array<float, numSamples> input;
-    std::array<float, numSamples> output1;
-    std::array<float, numSamples> output2;
-
-    // Generate test signal
-    for (size_t i = 0; i < numSamples; ++i) {
-        input[i] = std::sin(static_cast<float>(i) * 0.1f);
-    }
-
-    // Seed 12345
-    BitwiseMangler mangler1;
-    mangler1.prepare(44100.0);
-    mangler1.setOperation(BitwiseOperation::BitShuffle);
-    mangler1.setSeed(12345);
-    mangler1.setIntensity(1.0f);
-
-    for (size_t i = 0; i < numSamples; ++i) {
-        output1[i] = mangler1.process(input[i]);
-    }
-
-    // Seed 67890
-    BitwiseMangler mangler2;
-    mangler2.prepare(44100.0);
-    mangler2.setOperation(BitwiseOperation::BitShuffle);
-    mangler2.setSeed(67890);
-    mangler2.setIntensity(1.0f);
-
-    for (size_t i = 0; i < numSamples; ++i) {
-        output2[i] = mangler2.process(input[i]);
-    }
-
-    // Outputs should be different
-    bool anyDifferent = false;
-    for (size_t i = 0; i < numSamples; ++i) {
-        if (output1[i] != output2[i]) {
-            anyDifferent = true;
-            break;
-        }
-    }
-    REQUIRE(anyDifferent);
-}
-
-TEST_CASE("BitShuffle: permutation is valid (no duplicate mappings)", "[bitwise_mangler][US4][permutation]") {
-    // This is an internal implementation detail, but we can verify behavior
-    // by checking that the shuffle produces dramatically different output
-
-    BitwiseMangler mangler;
-    mangler.prepare(44100.0);
-    mangler.setOperation(BitwiseOperation::BitShuffle);
-    mangler.setSeed(12345);
-    mangler.setIntensity(1.0f);
-
-    // Process a non-zero value
-    float input = 0.5f;
-    float output = mangler.process(input);
-
-    // Output should be different from input (shuffle should change bits)
-    REQUIRE(output != Approx(input).margin(0.01f));
-}
-
-// =============================================================================
-// Phase 7: User Story 5 - BitAverage Mode
+// Phase 5: User Story 3 - BitAverage Mode (was Phase 7)
 // =============================================================================
 
 TEST_CASE("BitAverage: AND operation preserves only common bits (FR-032)", "[bitwise_mangler][US5][and]") {
@@ -955,8 +701,6 @@ TEST_CASE("SC-010: Limited DC offset for zero-mean input (with DC blocking)", "[
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
         BitwiseOperation::XorPrevious,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle,
         BitwiseOperation::BitAverage,
         BitwiseOperation::OverflowWrap
     );
@@ -966,13 +710,10 @@ TEST_CASE("SC-010: Limited DC offset for zero-mean input (with DC blocking)", "[
     mangler.setOperation(op);
     mangler.setIntensity(1.0f);
 
-    // Verify DC blocking is on by default
     REQUIRE(mangler.isDCBlockEnabled() == true);
 
     if (op == BitwiseOperation::XorPattern) {
         mangler.setPattern(0xAAAAAAAAu);
-    } else if (op == BitwiseOperation::BitRotate) {
-        mangler.setRotateAmount(4);
     }
 
     mangler.reset();
@@ -1078,8 +819,8 @@ TEST_CASE("processBlock produces same output as sequential process calls (FR-020
 
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle
+        BitwiseOperation::BitAverage,
+        BitwiseOperation::OverflowWrap
     );
 
     mangler1.setOperation(op);
@@ -1121,8 +862,6 @@ TEST_CASE("All modes produce valid output for 1M samples", "[bitwise_mangler][st
     auto op = GENERATE(
         BitwiseOperation::XorPattern,
         BitwiseOperation::XorPrevious,
-        BitwiseOperation::BitRotate,
-        BitwiseOperation::BitShuffle,
         BitwiseOperation::BitAverage,
         BitwiseOperation::OverflowWrap
     );
@@ -1131,10 +870,6 @@ TEST_CASE("All modes produce valid output for 1M samples", "[bitwise_mangler][st
     mangler.prepare(44100.0);
     mangler.setOperation(op);
     mangler.setIntensity(1.0f);
-
-    if (op == BitwiseOperation::BitRotate) {
-        mangler.setRotateAmount(4);
-    }
 
     constexpr size_t numSamples = 100000;  // 100k samples for faster test
     bool foundNaN = false;

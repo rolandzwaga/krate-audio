@@ -24,6 +24,7 @@
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
 #include "dsp/distortion_adapter.h"
+#include "dsp/band_processor.h"
 
 #include <algorithm>
 #include <array>
@@ -714,13 +715,11 @@ TEST_CASE("MorphEngine: switching to cross-family does not produce noise",
     // Phase 2: Switch to 2 nodes with BitwiseMangler (shadow defaults)
     // Simulate what happens when user selects BitwiseMangler:
     // Shadow loads all-0.5 slots → mapShapeSlotsToParams produces:
-    //   op=3 (BitShuffle), intensity=0.5, pattern=0.5, bits=0.5
     // Use the FIXED shadow defaults for BitwiseMangler
     DistortionParams bmParams;
-    bmParams.bitwiseOp = 2;         // BitRotate (fixed default: slot 0 = 0.3)
+    bmParams.bitwiseOp = 0;         // XorPattern (default)
     bmParams.bitwiseIntensity = 0.5f;
-    bmParams.bitwisePattern = 0.0f; // No XOR pattern (fixed default: slot 2 = 0.0)
-    bmParams.bitwiseBits = 0.5f;    // rotateAmount = 0
+    bmParams.bitwisePattern = 0.5f; // Mid-range XOR pattern
 
     nodes[1].type = DistortionType::BitwiseMangler;
     nodes[1].params = bmParams;
@@ -777,10 +776,9 @@ TEST_CASE("DistortionAdapter: BitwiseMangler with shadow defaults is not noise",
     // Use the FIXED shadow defaults for BitwiseMangler:
     // slot 0 = 0.3 → op=2 (BitRotate), slot 2 = 0.0 → no pattern, slot 3 = 0.5 → amount=0
     DistortionParams p;
-    p.bitwiseOp = 2;   // BitRotate (slot 0 = 0.3 → int(0.3*5+0.5) = 2)
+    p.bitwiseOp = 0;   // XorPattern
     p.bitwiseIntensity = 0.5f;
-    p.bitwisePattern = 0.0f;   // No XOR pattern
-    p.bitwiseBits = 0.5f;      // rotateAmount = 0 (passthrough)
+    p.bitwisePattern = 0.5f;   // Mid-range XOR pattern
     adapter.setParams(p);
 
     DistortionCommonParams cp{1.0f, 1.0f, 4000.0f};
@@ -811,4 +809,672 @@ TEST_CASE("DistortionAdapter: BitwiseMangler with shadow defaults is not noise",
     // If this fails, the shadow defaults are producing noise-like output.
     REQUIRE_FALSE(looksLikeWhiteNoise(analysisStart, analysisLen));
     REQUIRE(std::abs(autocorr) > 0.15f);
+}
+
+// =============================================================================
+// BUG REPRO: Morph cursor position has no effect on cross-family distortion
+// =============================================================================
+// User scenario:
+//   1. Band 0, Node A = SoftClip, Node B = BitwiseMangler
+//   2. Move morph cursor fully to Node A position → hear SoftClip (correct)
+//   3. Move morph cursor fully to Node B position → STILL hear SoftClip (BUG)
+//   4. The output should be measurably different when cursor is on different
+//      cross-family nodes.
+//
+// This tests at the MorphEngine level to isolate from VST parameter routing.
+// =============================================================================
+
+TEST_CASE("Cross-family morph: cursor position changes output character",
+          "[integration][morph][bug]") {
+    using namespace Disrumpo;
+
+    constexpr double kSR = 44100.0;
+    constexpr int kSamples = 8192;
+    constexpr float kFreq = 440.0f;
+    constexpr float twoPi = 6.283185307179586f;
+
+    // Generate input signal
+    std::array<float, kSamples> input{};
+    for (int i = 0; i < kSamples; ++i) {
+        input[i] = std::sin(twoPi * kFreq * static_cast<float>(i) / static_cast<float>(kSR));
+    }
+
+    // Configure nodes: A = SoftClip at (0,0), B = BitwiseMangler at (1,0)
+    std::array<MorphNode, kMaxMorphNodes> nodes;
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+    nodes[0].commonParams = {5.0f, 1.0f, 4000.0f};  // drive=5, mix=100%, tone=4kHz
+
+    nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::BitwiseMangler);
+    nodes[1].commonParams = {5.0f, 1.0f, 4000.0f};  // same drive/mix/tone
+    // Use non-trivial BitwiseMangler params so the effect is audible
+    nodes[1].params.bitwiseOp = 0;           // XorPattern
+    nodes[1].params.bitwiseIntensity = 0.8f; // high intensity
+    nodes[1].params.bitwisePattern = 0.7f;   // non-zero XOR pattern
+
+    nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+    nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+
+    // --- Capture output with cursor fully on Node A (SoftClip) ---
+    auto engineA = std::make_unique<MorphEngine>();
+    engineA->prepare(kSR, 512);
+    engineA->setSmoothingTime(0.0f);  // No smoothing for instant position
+    engineA->setNodes(nodes, 2);
+    engineA->setMorphPosition(0.0f, 0.0f);  // Fully on Node A
+
+    // Warm up (let DC blockers/filters settle)
+    for (int i = 0; i < kSamples; ++i) {
+        [[maybe_unused]] float out = engineA->process(input[i]);
+    }
+
+    // Capture
+    std::array<float, kSamples> outputA{};
+    for (int i = 0; i < kSamples; ++i) {
+        outputA[i] = engineA->process(input[i]);
+    }
+
+    // --- Capture output with cursor fully on Node B (BitwiseMangler) ---
+    auto engineB = std::make_unique<MorphEngine>();
+    engineB->prepare(kSR, 512);
+    engineB->setSmoothingTime(0.0f);
+    engineB->setNodes(nodes, 2);
+    engineB->setMorphPosition(1.0f, 0.0f);  // Fully on Node B
+
+    // Warm up
+    for (int i = 0; i < kSamples; ++i) {
+        [[maybe_unused]] float out = engineB->process(input[i]);
+    }
+
+    // Capture
+    std::array<float, kSamples> outputB{};
+    for (int i = 0; i < kSamples; ++i) {
+        outputB[i] = engineB->process(input[i]);
+    }
+
+    // --- Capture output with cursor at center (50/50 blend) ---
+    auto engineMid = std::make_unique<MorphEngine>();
+    engineMid->prepare(kSR, 512);
+    engineMid->setSmoothingTime(0.0f);
+    engineMid->setNodes(nodes, 2);
+    engineMid->setMorphPosition(0.5f, 0.0f);  // Midpoint
+
+    // Warm up
+    for (int i = 0; i < kSamples; ++i) {
+        [[maybe_unused]] float out = engineMid->process(input[i]);
+    }
+
+    // Capture
+    std::array<float, kSamples> outputMid{};
+    for (int i = 0; i < kSamples; ++i) {
+        outputMid[i] = engineMid->process(input[i]);
+    }
+
+    // --- Analysis ---
+    // Use second half for analysis (after any transients)
+    const int analysisOffset = kSamples / 2;
+    const int analysisLen = kSamples / 2;
+
+    const float* aPtr = outputA.data() + analysisOffset;
+    const float* bPtr = outputB.data() + analysisOffset;
+    const float* midPtr = outputMid.data() + analysisOffset;
+
+    float rmsA = calculateRMS(aPtr, analysisLen);
+    float rmsB = calculateRMS(bPtr, analysisLen);
+    float rmsMid = calculateRMS(midPtr, analysisLen);
+    float zcrA = calculateZeroCrossingRate(aPtr, analysisLen);
+    float zcrB = calculateZeroCrossingRate(bPtr, analysisLen);
+    float zcrMid = calculateZeroCrossingRate(midPtr, analysisLen);
+    float autocorrA = calculateAutocorrelation(aPtr, analysisLen);
+    float autocorrB = calculateAutocorrelation(bPtr, analysisLen);
+    float autocorrMid = calculateAutocorrelation(midPtr, analysisLen);
+
+    INFO("Node A (SoftClip)       - RMS: " << rmsA << " ZCR: " << zcrA << " autocorr: " << autocorrA);
+    INFO("Node B (BitwiseMangler) - RMS: " << rmsB << " ZCR: " << zcrB << " autocorr: " << autocorrB);
+    INFO("Midpoint blend          - RMS: " << rmsMid << " ZCR: " << zcrMid << " autocorr: " << autocorrMid);
+
+    // Both outputs must be non-silent
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(rmsMid > 0.01f);
+
+    // KEY ASSERTION: Compute sample-by-sample difference between A and B outputs.
+    // If the morph is working, they should be significantly different.
+    double diffSumSq = 0.0;
+    for (int i = 0; i < analysisLen; ++i) {
+        double d = static_cast<double>(aPtr[i]) - static_cast<double>(bPtr[i]);
+        diffSumSq += d * d;
+    }
+    float diffRMS = static_cast<float>(std::sqrt(diffSumSq / analysisLen));
+    INFO("RMS difference between Node A and Node B output: " << diffRMS);
+
+    // The outputs must be meaningfully different — not just numerical noise.
+    // A diffRMS > 0.05 means the waveforms are substantially different.
+    // BUG: If this fails, cursor position has no effect on the output.
+    REQUIRE(diffRMS > 0.05f);
+
+    // Also verify midpoint is different from both extremes
+    double diffMidASumSq = 0.0;
+    double diffMidBSumSq = 0.0;
+    for (int i = 0; i < analysisLen; ++i) {
+        double dA = static_cast<double>(midPtr[i]) - static_cast<double>(aPtr[i]);
+        double dB = static_cast<double>(midPtr[i]) - static_cast<double>(bPtr[i]);
+        diffMidASumSq += dA * dA;
+        diffMidBSumSq += dB * dB;
+    }
+    float diffMidA = static_cast<float>(std::sqrt(diffMidASumSq / analysisLen));
+    float diffMidB = static_cast<float>(std::sqrt(diffMidBSumSq / analysisLen));
+    INFO("RMS diff midpoint vs A: " << diffMidA);
+    INFO("RMS diff midpoint vs B: " << diffMidB);
+
+    // Midpoint should differ from at least one extreme
+    REQUIRE((diffMidA > 0.02f || diffMidB > 0.02f));
+}
+
+// =============================================================================
+// BUG REPRO (VST3 Processor): SoftClip + BitwiseMangler morph stuck on SoftClip
+// =============================================================================
+// Same scenario through the full VST3 Processor parameter routing.
+// Verifies the bug isn't just in MorphEngine but also in parameter handling.
+// =============================================================================
+
+// =============================================================================
+// Multi-node morph: diverse distortion types produce distinct outputs
+// =============================================================================
+// Each test configures N nodes with distortion types from DIFFERENT categories
+// (Saturation, Wavefold, Rectify, Digital) and verifies that moving the morph
+// cursor to each node produces measurably different output. This exercises
+// both same-family and cross-family morph paths through the full VST3 processor.
+// =============================================================================
+
+/// Helper: add a distortion node to band 0 with the given type index and drive.
+/// type is raw enum index (0-25).
+static void addNodeParams(SimpleParameterChanges& params, int nodeIdx,
+                          int typeIdx, double drive, double mix = 1.0) {
+    params.addChange(
+        Disrumpo::makeNodeParamId(0, nodeIdx, Disrumpo::NodeParamType::kNodeType),
+        static_cast<double>(typeIdx) / 25.0);
+    params.addChange(
+        Disrumpo::makeNodeParamId(0, nodeIdx, Disrumpo::NodeParamType::kNodeDrive),
+        drive);
+    params.addChange(
+        Disrumpo::makeNodeParamId(0, nodeIdx, Disrumpo::NodeParamType::kNodeMix),
+        mix);
+}
+
+/// Helper: capture output at a given morph cursor position.
+static std::array<float, kBlockSize> captureAtCursor(
+    ProcessorFixture& fixture, float morphX, float morphY,
+    float freq, Steinberg::int32& sampleOffset) {
+    // Move cursor
+    {
+        SimpleParameterChanges params;
+        params.addChange(
+            Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandMorphX),
+            morphX);
+        params.addChange(
+            Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandMorphY),
+            morphY);
+        fixture.processBlocks(kSettleBlocks, freq, sampleOffset, &params);
+    }
+    // Capture
+    std::array<float, kBlockSize> output{};
+    fixture.processBlocks(1, freq, sampleOffset, nullptr, output.data());
+    return output;
+}
+
+/// Helper: compute RMS difference between two buffers.
+static float rmsDifference(const float* a, const float* b, Steinberg::int32 n) {
+    double sumSq = 0.0;
+    for (Steinberg::int32 i = 0; i < n; ++i) {
+        double d = static_cast<double>(a[i]) - static_cast<double>(b[i]);
+        sumSq += d * d;
+    }
+    return static_cast<float>(std::sqrt(sumSq / n));
+}
+
+TEST_CASE("2-node morph: Tube vs SineFold produce distinct outputs",
+          "[integration][morph][multi-node]") {
+    // Tube (D03, Saturation) vs SineFold (D07, Wavefold) — different categories
+    ProcessorFixture fixture;
+    Steinberg::int32 sampleOffset = 0;
+    constexpr float kFreq = 440.0f;
+
+    {
+        SimpleParameterChanges params;
+        addNodeParams(params, 0, 2, 0.7);  // Tube (index 2)
+        addNodeParams(params, 1, 6, 0.7);  // SineFold (index 6)
+
+        // 2 active nodes
+        params.addChange(
+            Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandActiveNodes),
+            1.0 / 3.0);
+
+        fixture.processBlocks(kSettleBlocks, kFreq, sampleOffset, &params);
+    }
+
+    // Capture at Node 0 (Tube): morph cursor (0, 0)
+    auto outputA = captureAtCursor(fixture, 0.0f, 0.0f, kFreq, sampleOffset);
+
+    // Capture at Node 1 (SineFold): morph cursor (1, 0)
+    auto outputB = captureAtCursor(fixture, 1.0f, 0.0f, kFreq, sampleOffset);
+
+    float rmsA = calculateRMS(outputA.data(), kBlockSize);
+    float rmsB = calculateRMS(outputB.data(), kBlockSize);
+    float diff = rmsDifference(outputA.data(), outputB.data(), kBlockSize);
+
+    INFO("Tube RMS: " << rmsA << "  SineFold RMS: " << rmsB << "  diffRMS: " << diff);
+
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(diff > 0.05f);
+}
+
+TEST_CASE("3-node morph: Fuzz vs FullRectify vs Bitcrush produce distinct outputs",
+          "[integration][morph][multi-node]") {
+    // Fuzz (D05, Saturation) vs FullRectify (D10, Rectify) vs Bitcrush (D12, Digital)
+    ProcessorFixture fixture;
+    Steinberg::int32 sampleOffset = 0;
+    constexpr float kFreq = 440.0f;
+
+    {
+        SimpleParameterChanges params;
+        addNodeParams(params, 0, 4, 0.6);   // Fuzz (index 4)
+        addNodeParams(params, 1, 9, 0.6);   // FullRectify (index 9)
+        addNodeParams(params, 2, 11, 0.6);  // Bitcrush (index 11)
+
+        // 3 active nodes
+        params.addChange(
+            Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandActiveNodes),
+            2.0 / 3.0);
+
+        fixture.processBlocks(kSettleBlocks, kFreq, sampleOffset, &params);
+    }
+
+    // 3-node layout is a triangle: Node0=(0,0), Node1=(1,0), Node2=(0.5,1)
+    auto outputA = captureAtCursor(fixture, 0.0f, 0.0f, kFreq, sampleOffset);
+    auto outputB = captureAtCursor(fixture, 1.0f, 0.0f, kFreq, sampleOffset);
+    auto outputC = captureAtCursor(fixture, 0.5f, 1.0f, kFreq, sampleOffset);
+
+    float rmsA = calculateRMS(outputA.data(), kBlockSize);
+    float rmsB = calculateRMS(outputB.data(), kBlockSize);
+    float rmsC = calculateRMS(outputC.data(), kBlockSize);
+    float diffAB = rmsDifference(outputA.data(), outputB.data(), kBlockSize);
+    float diffAC = rmsDifference(outputA.data(), outputC.data(), kBlockSize);
+    float diffBC = rmsDifference(outputB.data(), outputC.data(), kBlockSize);
+
+    INFO("Fuzz RMS: " << rmsA << "  FullRectify RMS: " << rmsB
+         << "  Bitcrush RMS: " << rmsC);
+    INFO("diffAB: " << diffAB << "  diffAC: " << diffAC << "  diffBC: " << diffBC);
+
+    // All nodes produce output
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(rmsC > 0.01f);
+
+    // All pairs are distinct
+    REQUIRE(diffAB > 0.05f);
+    REQUIRE(diffAC > 0.05f);
+    REQUIRE(diffBC > 0.05f);
+}
+
+TEST_CASE("4-node morph: Tape vs SergeFold vs HalfRectify vs Quantize produce distinct outputs",
+          "[integration][morph][multi-node]") {
+    // Tape (D04, Saturation) vs SergeFold (D09, Wavefold) vs
+    // HalfRectify (D11, Rectify) vs Quantize (D14, Digital)
+    ProcessorFixture fixture;
+    Steinberg::int32 sampleOffset = 0;
+    constexpr float kFreq = 440.0f;
+
+    {
+        SimpleParameterChanges params;
+        addNodeParams(params, 0, 3, 0.7);   // Tape (index 3)
+        addNodeParams(params, 1, 8, 0.7);   // SergeFold (index 8)
+        addNodeParams(params, 2, 10, 0.7);  // HalfRectify (index 10)
+        addNodeParams(params, 3, 13, 0.7);  // Quantize (index 13)
+
+        // 4 active nodes
+        params.addChange(
+            Disrumpo::makeBandParamId(0, Disrumpo::BandParamType::kBandActiveNodes),
+            1.0);
+
+        fixture.processBlocks(kSettleBlocks, kFreq, sampleOffset, &params);
+    }
+
+    // 4-node layout: corners (0,0), (1,0), (1,1), (0,1)
+    auto outputA = captureAtCursor(fixture, 0.0f, 0.0f, kFreq, sampleOffset);
+    auto outputB = captureAtCursor(fixture, 1.0f, 0.0f, kFreq, sampleOffset);
+    auto outputC = captureAtCursor(fixture, 1.0f, 1.0f, kFreq, sampleOffset);
+    auto outputD = captureAtCursor(fixture, 0.0f, 1.0f, kFreq, sampleOffset);
+
+    float rmsA = calculateRMS(outputA.data(), kBlockSize);
+    float rmsB = calculateRMS(outputB.data(), kBlockSize);
+    float rmsC = calculateRMS(outputC.data(), kBlockSize);
+    float rmsD = calculateRMS(outputD.data(), kBlockSize);
+
+    INFO("Tape RMS: " << rmsA << "  SergeFold RMS: " << rmsB
+         << "  HalfRectify RMS: " << rmsC << "  Quantize RMS: " << rmsD);
+
+    // All nodes produce output
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(rmsC > 0.01f);
+    REQUIRE(rmsD > 0.01f);
+
+    // Adjacent pairs should be distinct (at minimum)
+    float diffAB = rmsDifference(outputA.data(), outputB.data(), kBlockSize);
+    float diffBC = rmsDifference(outputB.data(), outputC.data(), kBlockSize);
+    float diffCD = rmsDifference(outputC.data(), outputD.data(), kBlockSize);
+    float diffDA = rmsDifference(outputD.data(), outputA.data(), kBlockSize);
+
+    INFO("diffAB: " << diffAB << "  diffBC: " << diffBC
+         << "  diffCD: " << diffCD << "  diffDA: " << diffDA);
+
+    REQUIRE(diffAB > 0.05f);
+    REQUIRE(diffBC > 0.05f);
+    REQUIRE(diffCD > 0.05f);
+    REQUIRE(diffDA > 0.05f);
+}
+
+// (Old SoftClip-BitwiseMangler morph tests replaced by diverse multi-node tests above)
+
+// =============================================================================
+// DIAGNOSTIC: MorphEngine with processor-style setNodes call sequence
+// =============================================================================
+// The processor calls setMorphNodes multiple times during parameter processing:
+// once per parameter change, with activeCount=1 until kBandActiveNodes is set.
+// This test mimics that exact sequence to see if the intermediate calls break
+// the engine state.
+// =============================================================================
+
+TEST_CASE("MorphEngine: processor-style setNodes sequence preserves node state",
+          "[integration][morph][diagnostic]") {
+    using namespace Disrumpo;
+
+    constexpr double kSR = 44100.0;
+    constexpr int kSamples = 8192;
+    constexpr float kFreq = 440.0f;
+    constexpr float twoPi = 6.283185307179586f;
+
+    std::array<float, kSamples> input{};
+    for (int i = 0; i < kSamples; ++i) {
+        input[i] = std::sin(twoPi * kFreq * static_cast<float>(i) / static_cast<float>(kSR));
+    }
+
+    // Use SoftClip vs SineFold — different categories, reliably different spectral output
+    constexpr DistortionCommonParams kDefaultCommon{1.0f, 1.0f, 4000.0f};
+    std::array<MorphNode, kMaxMorphNodes> nodes;
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+    nodes[0].commonParams = kDefaultCommon;
+    nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+    nodes[1].commonParams = kDefaultCommon;
+    nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+    nodes[2].commonParams = kDefaultCommon;
+    nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+    nodes[3].commonParams = kDefaultCommon;
+
+    auto engine = std::make_unique<MorphEngine>();
+    engine->prepare(kSR, 512);
+    engine->setSmoothingTime(0.0f);
+
+    int activeCount = kDefaultActiveNodes;  // = 1
+
+    engine->setNodes(nodes, activeCount);
+    engine->setMorphPosition(0.5f, 0.5f);
+
+    // Mimic processor parameter sequence with multiple setNodes calls
+    engine->setNodes(nodes, activeCount);
+    nodes[0].commonParams.drive = 5.0f;
+    engine->setNodes(nodes, activeCount);
+    nodes[0].commonParams.mix = 1.0f;
+    engine->setNodes(nodes, activeCount);
+
+    // Node 1 → SineFold (Wavefold category, cross-family with SoftClip)
+    nodes[1].type = DistortionType::SineFold;
+    engine->setNodes(nodes, activeCount);  // still activeCount=1
+    nodes[1].commonParams.drive = 5.0f;
+    engine->setNodes(nodes, activeCount);
+    nodes[1].commonParams.mix = 1.0f;
+    engine->setNodes(nodes, activeCount);
+
+    // Activate 2 nodes
+    activeCount = 2;
+    engine->setNodes(nodes, activeCount);
+    engine->setMorphPosition(0.0f, 0.0f);
+
+    // Warm up
+    for (int i = 0; i < kSamples; ++i) {
+        [[maybe_unused]] float out = engine->process(input[i]);
+    }
+
+    // Capture at Node A (SoftClip)
+    engine->setMorphPosition(0.0f, 0.0f);
+    for (int i = 0; i < 1024; ++i) {
+        [[maybe_unused]] float out = engine->process(input[i % kSamples]);
+    }
+    std::array<float, kSamples> outputA{};
+    for (int i = 0; i < kSamples; ++i) {
+        outputA[i] = engine->process(input[i]);
+    }
+
+    // Capture at Node B (SineFold)
+    engine->setMorphPosition(1.0f, 0.0f);
+    for (int i = 0; i < 1024; ++i) {
+        [[maybe_unused]] float out = engine->process(input[i % kSamples]);
+    }
+    std::array<float, kSamples> outputB{};
+    for (int i = 0; i < kSamples; ++i) {
+        outputB[i] = engine->process(input[i]);
+    }
+
+    // Analysis
+    const int analysisOffset = kSamples / 2;
+    const int analysisLen = kSamples / 2;
+    const float* aPtr = outputA.data() + analysisOffset;
+    const float* bPtr = outputB.data() + analysisOffset;
+
+    float rmsA = calculateRMS(aPtr, analysisLen);
+    float rmsB = calculateRMS(bPtr, analysisLen);
+
+    double diffSumSq = 0.0;
+    for (int i = 0; i < analysisLen; ++i) {
+        double d = static_cast<double>(aPtr[i]) - static_cast<double>(bPtr[i]);
+        diffSumSq += d * d;
+    }
+    float diffRMS = static_cast<float>(std::sqrt(diffSumSq / analysisLen));
+
+    INFO("Processor-style sequence: Node A RMS: " << rmsA << " Node B RMS: " << rmsB
+         << " diffRMS: " << diffRMS);
+
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(diffRMS > 0.10f);
+}
+
+// =============================================================================
+// DIAGNOSTIC: BandProcessor-level test (bypasses Processor routing)
+// =============================================================================
+// Tests the BandProcessor directly to determine if the bug is in:
+// a) BandProcessor (oversampling/wrapping of MorphEngine), or
+// b) Processor (parameter routing/per-block updates)
+// =============================================================================
+
+TEST_CASE("BandProcessor: cross-family morph cursor changes output",
+          "[integration][morph][diagnostic]") {
+    using namespace Disrumpo;
+
+    constexpr double kSR = 44100.0;
+    constexpr Steinberg::int32 kSamples = 8192;
+    constexpr float kFreq = 440.0f;
+    constexpr float twoPi = 6.283185307179586f;
+
+    std::vector<float> inputL(kSamples), inputR(kSamples);
+    for (int i = 0; i < kSamples; ++i) {
+        float s = std::sin(twoPi * kFreq * static_cast<float>(i) / static_cast<float>(kSR));
+        inputL[i] = s;
+        inputR[i] = s;
+    }
+
+    // SoftClip (Saturation) vs SineFold (Wavefold) — reliably different character
+    constexpr DistortionCommonParams kCommon{5.0f, 1.0f, 4000.0f};
+    std::array<MorphNode, kMaxMorphNodes> nodes;
+    nodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+    nodes[0].commonParams = kCommon;
+    nodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SineFold);
+    nodes[1].commonParams = kCommon;
+    nodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+    nodes[2].commonParams = kCommon;
+    nodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+    nodes[3].commonParams = kCommon;
+
+    // Cursor on Node A (SoftClip)
+    BandProcessor bpA;
+    bpA.prepare(kSR, 512);
+    bpA.setMaxOversampleFactor(1);
+    bpA.setMorphEnabled(true);
+    bpA.setMorphNodes(nodes, 2);
+    bpA.setMorphPosition(0.0f, 0.0f);
+
+    std::vector<float> warmL(kSamples), warmR(kSamples);
+    std::copy(inputL.begin(), inputL.end(), warmL.begin());
+    std::copy(inputR.begin(), inputR.end(), warmR.begin());
+    bpA.processBlock(warmL.data(), warmR.data(), kSamples);
+
+    std::vector<float> outAL(inputL), outAR(inputR);
+    bpA.processBlock(outAL.data(), outAR.data(), kSamples);
+
+    // Cursor on Node B (SineFold)
+    BandProcessor bpB;
+    bpB.prepare(kSR, 512);
+    bpB.setMaxOversampleFactor(1);
+    bpB.setMorphEnabled(true);
+    bpB.setMorphNodes(nodes, 2);
+    bpB.setMorphPosition(1.0f, 0.0f);
+
+    std::copy(inputL.begin(), inputL.end(), warmL.begin());
+    std::copy(inputR.begin(), inputR.end(), warmR.begin());
+    bpB.processBlock(warmL.data(), warmR.data(), kSamples);
+
+    std::vector<float> outBL(inputL), outBR(inputR);
+    bpB.processBlock(outBL.data(), outBR.data(), kSamples);
+
+    // Analysis
+    const int off = kSamples / 2;
+    const int len = kSamples / 2;
+    float rmsA = calculateRMS(outAL.data() + off, len);
+    float rmsB = calculateRMS(outBL.data() + off, len);
+
+    double diffSumSq = 0.0;
+    for (int i = 0; i < len; ++i) {
+        double d = static_cast<double>(outAL[off + i]) - static_cast<double>(outBL[off + i]);
+        diffSumSq += d * d;
+    }
+    float diffRMS = static_cast<float>(std::sqrt(diffSumSq / len));
+
+    INFO("BandProcessor: Node A RMS: " << rmsA << " Node B RMS: " << rmsB
+         << " diffRMS: " << diffRMS);
+
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(diffRMS > 0.05f);
+}
+
+// =============================================================================
+// DIAGNOSTIC: BandProcessor per-sample path (matches Processor usage)
+// =============================================================================
+// The Processor calls bandProcessors_[b].process(float&, float&) per sample,
+// NOT processBlock(). This test verifies the per-sample path works.
+// =============================================================================
+
+TEST_CASE("BandProcessor per-sample: cross-family morph cursor changes output",
+          "[integration][morph][diagnostic]") {
+    using namespace Disrumpo;
+
+    constexpr double kSR = 44100.0;
+    constexpr Steinberg::int32 kSamples = 8192;
+    constexpr float kFreq = 440.0f;
+    constexpr float twoPi = 6.283185307179586f;
+
+    std::vector<float> input(kSamples);
+    for (int i = 0; i < kSamples; ++i) {
+        input[i] = std::sin(twoPi * kFreq * static_cast<float>(i) / static_cast<float>(kSR));
+    }
+
+    // SoftClip vs SineFold — different categories, reliable spectral difference
+    auto runWithProcessorFlow = [&](float morphX, float morphY,
+                                     std::vector<float>& outL) {
+        constexpr DistortionCommonParams kInitCommon{1.0f, 1.0f, 4000.0f};
+        std::array<MorphNode, kMaxMorphNodes> initNodes;
+        initNodes[0] = MorphNode(0, 0.0f, 0.0f, DistortionType::SoftClip);
+        initNodes[0].commonParams = kInitCommon;
+        initNodes[1] = MorphNode(1, 1.0f, 0.0f, DistortionType::SoftClip);
+        initNodes[1].commonParams = kInitCommon;
+        initNodes[2] = MorphNode(2, 0.0f, 1.0f, DistortionType::SoftClip);
+        initNodes[2].commonParams = kInitCommon;
+        initNodes[3] = MorphNode(3, 1.0f, 1.0f, DistortionType::SoftClip);
+        initNodes[3].commonParams = kInitCommon;
+
+        BandProcessor bp;
+        bp.prepare(kSR);
+        bp.setMorphEnabled(true);
+        bp.setMorphNodes(initNodes, kDefaultActiveNodes);
+        bp.setMorphPosition(0.5f, 0.5f);
+
+        auto mutableNodes = initNodes;
+
+        // Node 0: SoftClip with drive
+        mutableNodes[0].commonParams.drive = 5.0f;
+        bp.setMorphNodes(mutableNodes, 1);
+        mutableNodes[0].commonParams.mix = 1.0f;
+        bp.setMorphNodes(mutableNodes, 1);
+
+        // Node 1: SineFold with drive
+        mutableNodes[1].type = DistortionType::SineFold;
+        bp.setMorphNodes(mutableNodes, 1);
+        mutableNodes[1].commonParams.drive = 5.0f;
+        bp.setMorphNodes(mutableNodes, 1);
+        mutableNodes[1].commonParams.mix = 1.0f;
+        bp.setMorphNodes(mutableNodes, 1);
+
+        // Activate 2 nodes
+        bp.setMorphNodes(mutableNodes, 2);
+        bp.setMorphPosition(morphX, morphY);
+
+        // Warm up
+        for (int i = 0; i < 32768; ++i) {
+            float l = input[i % kSamples], r = input[i % kSamples];
+            bp.process(l, r);
+            if (i % 512 == 511) bp.setMorphPosition(morphX, morphY);
+        }
+
+        // Capture
+        outL.resize(kSamples);
+        for (int i = 0; i < kSamples; ++i) {
+            float l = input[i], r = input[i];
+            bp.process(l, r);
+            outL[i] = l;
+            if (i % 512 == 511) bp.setMorphPosition(morphX, morphY);
+        }
+    };
+
+    std::vector<float> outAL, outBL;
+    runWithProcessorFlow(0.0f, 0.0f, outAL);
+    runWithProcessorFlow(1.0f, 0.0f, outBL);
+
+    const int off = kSamples / 2;
+    const int len = kSamples / 2;
+    float rmsA = calculateRMS(outAL.data() + off, len);
+    float rmsB = calculateRMS(outBL.data() + off, len);
+
+    double dss = 0.0;
+    for (int i = 0; i < len; ++i) {
+        double d = static_cast<double>(outAL[off + i]) - static_cast<double>(outBL[off + i]);
+        dss += d * d;
+    }
+    float diffRMS = static_cast<float>(std::sqrt(dss / len));
+
+    INFO("BandProcessor per-sample: Node A RMS: " << rmsA << " Node B RMS: " << rmsB
+         << " diffRMS: " << diffRMS);
+
+    REQUIRE(rmsA > 0.01f);
+    REQUIRE(rmsB > 0.01f);
+    REQUIRE(diffRMS > 0.05f);
 }

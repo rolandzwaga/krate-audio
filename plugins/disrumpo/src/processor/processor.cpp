@@ -184,11 +184,10 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             break;
 
         case DistortionType::BitwiseMangler:
-            // Slot0=Op, Slot1=Intensity, Slot2=Pattern, Slot3=Bits
-            p.bitwiseOp = static_cast<int>(slots[0] * 5.0f + 0.5f); // 0-5 operations
+            // Slot0=Op, Slot1=Intensity, Slot2=Pattern
+            p.bitwiseOp = static_cast<int>(slots[0] * 3.0f + 0.5f); // 0-3 operations
             p.bitwiseIntensity = slots[1];
             p.bitwisePattern = slots[2];
-            p.bitwiseBits = slots[3];
             break;
 
         case DistortionType::Chaos:
@@ -1558,6 +1557,13 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
 // ==============================================================================
 // Parameter Handling
 // ==============================================================================
+
+const std::array<float, kMaxMorphNodes>& Processor::getMorphWeightsForBand(int band) const {
+    return bandProcessors_[band].getMorphWeights();
+}
+float Processor::getMorphCacheX(int band) const { return bandMorphCache_[band].morphX; }
+float Processor::getMorphCacheY(int band) const { return bandMorphCache_[band].morphY; }
+int Processor::getMorphCacheActiveNodes(int band) const { return bandMorphCache_[band].activeNodeCount; }
 
 void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* changes) {
     if (!changes) {
