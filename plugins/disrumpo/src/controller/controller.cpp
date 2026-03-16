@@ -654,14 +654,12 @@ public:
     , selectedNodeParam_(controller->getParameterObject(
           makeBandParamId(band, BandParamType::kBandSelectedNode)))
     {
-        // Cache shape slot parameter objects for fast access during shadow save/restore
-        for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-            auto shapeType = static_cast<NodeParamType>(
-                static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
-            // Sub-controller maps to node 0, so shadow save/restore targets node 0
-            shapeSlotParams_[s] = controller_->getParameterObject(
-                makeNodeParamId(band, 0, shapeType));
+        // Cache proxy parameter objects (Drive, Mix, Tone, Bias, Shape0-9)
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            proxyParams_[i] = controller_->getParameterObject(
+                makeBandParamId(band, kProxyIndexToBandParam[i]));
         }
+
         // Watch the SelectedNode parameter
         if (selectedNodeParam_) {
             selectedNodeParam_->addRef();
@@ -687,6 +685,14 @@ public:
             displayedTypeParam_->addDependent(this);
         }
 
+        // Watch all proxy params for bidirectional sync (user edits knobs)
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (proxyParams_[i]) {
+                proxyParams_[i]->addRef();
+                proxyParams_[i]->addDependent(this);
+            }
+        }
+
         // Trigger initial sync
         if (selectedNodeParam_) {
             selectedNodeParam_->deferUpdate();
@@ -709,6 +715,12 @@ public:
             displayedTypeParam_->release();
             displayedTypeParam_ = nullptr;
         }
+        for (auto*& param : proxyParams_) {
+            if (param) {
+                param->release();
+                param = nullptr;
+            }
+        }
     }
 
     void deactivate() {
@@ -723,6 +735,11 @@ public:
             }
             if (displayedTypeParam_) {
                 displayedTypeParam_->removeDependent(this);
+            }
+            for (auto* param : proxyParams_) {
+                if (param) {
+                    param->removeDependent(this);
+                }
             }
         }
     }
@@ -740,14 +757,20 @@ public:
 
         isUpdating_ = true;
 
-        // Determine which parameter changed
         auto* changedParam = Steinberg::FCast<Steinberg::Vst::Parameter>(changedUnknown);
 
         if (changedParam == displayedTypeParam_) {
             // User changed the type dropdown → copy to selected node's type
             copyDisplayedTypeToSelectedNode();
+        } else if (changedParam == selectedNodeParam_) {
+            // User selected a different node → copy all from new node to proxies
+            copySelectedNodeToDisplayedType();
+            copySelectedNodeToProxies();
+        } else if (isProxyParam(changedParam)) {
+            // User changed a proxy knob → forward to selected node's actual param
+            copyProxyToSelectedNode(changedParam);
         } else {
-            // Selected node or node type changed → copy to DisplayedType
+            // A node type changed externally → update DisplayedType if it's the selected node
             copySelectedNodeToDisplayedType();
         }
 
@@ -757,57 +780,96 @@ public:
     OBJ_METHODS(NodeSelectionController, FObject)
 
 private:
+    int getSelectedNode() const {
+        if (!selectedNodeParam_) return 0;
+        int sel = static_cast<int>(selectedNodeParam_->getNormalized() * 3.0 + 0.5);
+        return std::clamp(sel, 0, 3);
+    }
+
+    bool isProxyParam(Steinberg::Vst::Parameter* param) const {
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (proxyParams_[i] == param) return true;
+        }
+        return false;
+    }
+
+    /// Helper: edit a parameter with begin/set/perform/end
+    void editParam(Steinberg::Vst::ParamID id, double normValue) {
+        controller_->beginEdit(id);
+        controller_->setParamNormalized(id, normValue);
+        controller_->performEdit(id, normValue);
+        controller_->endEdit(id);
+    }
+
     void copySelectedNodeToDisplayedType() {
         if (!selectedNodeParam_ || !displayedTypeParam_) return;
 
-        // Get selected node index (0-3)
-        int selectedNode = static_cast<int>(
-            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
-        selectedNode = std::clamp(selectedNode, 0, 3);
-
-        // Get that node's type
+        int selectedNode = getSelectedNode();
         auto* nodeTypeParam = nodeTypeParams_[selectedNode];
         if (!nodeTypeParam) return;
 
         float nodeTypeNorm = static_cast<float>(nodeTypeParam->getNormalized());
-
-        // Get current displayed type value
         float currentDisplayedType = static_cast<float>(displayedTypeParam_->getNormalized());
 
-        // Only update if different to avoid unnecessary notifications
-        if (std::abs(currentDisplayedType - nodeTypeNorm) < 0.001f) {
-            return;  // Values are the same, no update needed
-        }
+        if (std::abs(currentDisplayedType - nodeTypeNorm) < 0.001f) return;
 
-        // Copy to DisplayedType parameter
-        // Must use performEdit() to trigger VSTGUI's ParameterChangeListener
-        auto displayedTypeId = makeBandParamId(band_, BandParamType::kBandDisplayedType);
-        controller_->beginEdit(displayedTypeId);
-        controller_->setParamNormalized(displayedTypeId, nodeTypeNorm);
-        controller_->performEdit(displayedTypeId, nodeTypeNorm);
-        controller_->endEdit(displayedTypeId);
+        editParam(makeBandParamId(band_, BandParamType::kBandDisplayedType), nodeTypeNorm);
+    }
+
+    /// Copy all param values from the selected node to the proxy params (for UI display)
+    void copySelectedNodeToProxies() {
+        int selectedNode = getSelectedNode();
+        auto nodeIdx = static_cast<uint8_t>(selectedNode);
+
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (!proxyParams_[i]) continue;
+
+            auto* actualParam = controller_->getParameterObject(
+                makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]));
+            if (!actualParam) continue;
+
+            float actualNorm = static_cast<float>(actualParam->getNormalized());
+            float proxyNorm = static_cast<float>(proxyParams_[i]->getNormalized());
+
+            if (std::abs(proxyNorm - actualNorm) < 0.0001f) continue;
+
+            editParam(makeBandParamId(band_, kProxyIndexToBandParam[i]), actualNorm);
+        }
+    }
+
+    /// Forward a proxy param change to the selected node's actual parameter
+    void copyProxyToSelectedNode(Steinberg::Vst::Parameter* changedProxy) {
+        int selectedNode = getSelectedNode();
+        auto nodeIdx = static_cast<uint8_t>(selectedNode);
+
+        for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+            if (proxyParams_[i] != changedProxy) continue;
+
+            float proxyNorm = static_cast<float>(changedProxy->getNormalized());
+            auto actualId = makeNodeParamId(band_, nodeIdx, kProxyIndexToNodeParam[i]);
+
+            auto* actualParam = controller_->getParameterObject(actualId);
+            if (actualParam) {
+                float actualNorm = static_cast<float>(actualParam->getNormalized());
+                if (std::abs(actualNorm - proxyNorm) < 0.0001f) return;
+            }
+
+            editParam(actualId, proxyNorm);
+            return;
+        }
     }
 
     void copyDisplayedTypeToSelectedNode() {
         if (!selectedNodeParam_ || !displayedTypeParam_) return;
 
-        // Get selected node index (0-3)
-        int selectedNode = static_cast<int>(
-            selectedNodeParam_->getNormalized() * 3.0 + 0.5);
-        selectedNode = std::clamp(selectedNode, 0, 3);
+        int selectedNode = getSelectedNode();
 
-        // Get displayed type value
         float displayedTypeNorm = static_cast<float>(displayedTypeParam_->getNormalized());
-
-        // Get selected node's type parameter
         auto* nodeTypeParam = nodeTypeParams_[selectedNode];
         if (!nodeTypeParam) return;
 
-        // Only update if different to avoid unnecessary notifications
         float currentNodeType = static_cast<float>(nodeTypeParam->getNormalized());
-        if (std::abs(currentNodeType - displayedTypeNorm) < 0.001f) {
-            return;  // Values are the same, no update needed
-        }
+        if (std::abs(currentNodeType - displayedTypeNorm) < 0.001f) return;
 
         // Determine old and new type indices for shadow save/restore
         int oldTypeIdx = static_cast<int>(currentNodeType * 25.0 + 0.5);
@@ -815,13 +877,13 @@ private:
         oldTypeIdx = std::clamp(oldTypeIdx, 0, 25);
         newTypeIdx = std::clamp(newTypeIdx, 0, 25);
 
-        // Save/restore shape slots via shadow storage if available
+        // Save current proxy shape slot values for the old type
         if (shapeShadowPtr_) {
-            // Save current shape slot values for the old type
             float currentSlots[MorphNode::kShapeSlotCount];
             for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-                if (shapeSlotParams_[s])
-                    currentSlots[s] = static_cast<float>(shapeSlotParams_[s]->getNormalized());
+                // Proxy shape params are at index 4..13 in proxyParams_
+                if (proxyParams_[4 + s])
+                    currentSlots[s] = static_cast<float>(proxyParams_[4 + s]->getNormalized());
                 else
                     currentSlots[s] = 0.5f;
             }
@@ -831,24 +893,17 @@ private:
         // Copy DisplayedType to selected node's type
         auto nodeTypeId = makeNodeParamId(band_, static_cast<uint8_t>(selectedNode),
                                            NodeParamType::kNodeType);
-        controller_->beginEdit(nodeTypeId);
-        controller_->setParamNormalized(nodeTypeId, displayedTypeNorm);
-        controller_->performEdit(nodeTypeId, displayedTypeNorm);
-        controller_->endEdit(nodeTypeId);
+        editParam(nodeTypeId, displayedTypeNorm);
 
-        // Restore shape slot values for the new type
+        // Restore shape slot values for the new type → update proxies
+        // (proxy change listener will forward to the selected node's actual params)
         if (shapeShadowPtr_) {
             float newSlots[MorphNode::kShapeSlotCount];
             shapeShadowPtr_->load(newTypeIdx, newSlots);
             for (int s = 0; s < MorphNode::kShapeSlotCount; ++s) {
-                if (shapeSlotParams_[s]) {
-                    auto shapeType = static_cast<NodeParamType>(
-                        static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
-                    auto shapeParamId = makeNodeParamId(band_, 0, shapeType);
-                    controller_->beginEdit(shapeParamId);
-                    controller_->setParamNormalized(shapeParamId, newSlots[s]);
-                    controller_->performEdit(shapeParamId, newSlots[s]);
-                    controller_->endEdit(shapeParamId);
+                if (proxyParams_[4 + s]) {
+                    editParam(makeBandParamId(band_, kProxyIndexToBandParam[4 + s]),
+                              newSlots[s]);
                 }
             }
         }
@@ -859,11 +914,10 @@ private:
     Steinberg::Vst::Parameter* selectedNodeParam_ = nullptr;
     Steinberg::Vst::Parameter* nodeTypeParams_[4] = {nullptr, nullptr, nullptr, nullptr};
     Steinberg::Vst::Parameter* displayedTypeParam_ = nullptr;
+    Steinberg::Vst::Parameter* proxyParams_[kNumDisplayedProxyParams] = {};
     std::atomic<bool> isActive_{true};
     bool isUpdating_ = false;  // Re-entrancy guard for bidirectional sync
 
-    /// Shape slot parameter objects for node 0 (UI always maps to node 0)
-    Steinberg::Vst::Parameter* shapeSlotParams_[MorphNode::kShapeSlotCount] = {};
     /// Pointer to Controller-owned shadow storage (survives editor close/reopen)
     ShapeShadowStorage* shapeShadowPtr_ = nullptr;
 };
@@ -1153,6 +1207,103 @@ static void appendToString128(Steinberg::Vst::String128 dest, const Steinberg::V
         ++suffixLen;
     }
     dest[len + suffixLen] = 0;
+}
+
+/// @brief Format a shape slot value as a string based on distortion type.
+/// @return true if a custom format was applied, false to fall through to default.
+static bool formatShapeSlot(DistortionType distType, int slot, float v,
+                            Steinberg::Vst::String128 string) {
+    if (distType == DistortionType::Temporal) {
+        if (slot == 2) {
+            static const char* const kWaveshapeNames[] = {
+                "Tanh", "Atan", "Cubic", "Quintic",
+                "RSqrt", "Erf", "HardClip", "Diode", "Tube"
+            };
+            int idx = std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);
+            const char* name = kWaveshapeNames[idx];
+            for (int i = 0; name[i] && i < 127; ++i) {
+                string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
+                string[i + 1] = 0;
+            }
+            return true;
+        }
+        if (slot == 1 || slot == 5) {
+            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+            appendToString128(string, STR16("%"));
+            return true;
+        }
+        if (slot == 3) {
+            floatToString128(1.0 + v * 499.0, 0, string);
+            appendToString128(string, STR16(" ms"));
+            return true;
+        }
+        if (slot == 4) {
+            floatToString128(10.0 + v * 4990.0, 0, string);
+            appendToString128(string, STR16(" ms"));
+            return true;
+        }
+        if (slot == 7) {
+            floatToString128(1.0 + v * 499.0, 0, string);
+            appendToString128(string, STR16(" ms"));
+            return true;
+        }
+    }
+
+    if (distType == DistortionType::RingSaturation) {
+        if (slot == 1) {
+            int stages = 1 + static_cast<int>(v * 3.0f + 0.5f);
+            intToString128(stages, string);
+            appendToString128(string, STR16("x"));
+            return true;
+        }
+        if (slot == 2) {
+            static const char* const kWaveshapeNames[] = {
+                "Tanh", "Atan", "Cubic", "Quintic",
+                "RSqrt", "Erf", "HardClip", "Diode", "Tube"
+            };
+            int idx = std::clamp(static_cast<int>(v * 8.0f + 0.5f), 0, 8);
+            const char* name = kWaveshapeNames[idx];
+            for (int i = 0; name[i] && i < 127; ++i) {
+                string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
+                string[i + 1] = 0;
+            }
+            return true;
+        }
+        if (slot == 4) {
+            float bias = v * 2.0f - 1.0f;
+            floatToString128(bias, 2, string);
+            return true;
+        }
+        if (slot == 6) {
+            float freqHz = 20.0f * std::pow(250.0, static_cast<double>(v));
+            if (freqHz < 100.0f)
+                floatToString128(freqHz, 1, string);
+            else
+                floatToString128(freqHz, 0, string);
+            appendToString128(string, STR16(" Hz"));
+            return true;
+        }
+    }
+
+    if (distType == DistortionType::Bitcrush) {
+        if (slot == 0) {
+            floatToString128(1.0 + v * 15.0, 1, string);
+            appendToString128(string, STR16(" bit"));
+            return true;
+        }
+        if (slot == 1) {
+            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+            appendToString128(string, STR16("%"));
+            return true;
+        }
+        if (slot == 3) {
+            intToString128(static_cast<int>(std::round(v * 100.0f)), string);
+            appendToString128(string, STR16("%"));
+            return true;
+        }
+    }
+
+    return false;
 }
 
 // ==============================================================================
@@ -2415,6 +2566,53 @@ void Controller::registerBandParams() {
         displayedTypeParam->appendString(STR16("Stochastic"));
         parameters.addParameter(displayedTypeParam);
 
+        // Proxy "Displayed" parameters for the selected node's controls.
+        // These mirror the selected node's Drive/Mix/Tone/Bias/Shape values.
+        // NodeSelectionController syncs them bidirectionally with actual node params.
+        {
+            auto band = static_cast<uint8_t>(b);
+
+            // Displayed Drive: same range as node Drive [0, 10], default 1
+            parameters.addParameter(new Steinberg::Vst::RangeParameter(
+                STR16("Displayed Drive"),
+                makeBandParamId(band, BandParamType::kBandDisplayedDrive),
+                STR16(""), 0.0, 10.0, 1.0, 0,
+                Steinberg::Vst::ParameterInfo::kNoFlags));
+
+            // Displayed Mix: same range as node Mix [0, 100], default 100
+            parameters.addParameter(new Steinberg::Vst::RangeParameter(
+                STR16("Displayed Mix"),
+                makeBandParamId(band, BandParamType::kBandDisplayedMix),
+                STR16("%"), 0.0, 100.0, 100.0, 0,
+                Steinberg::Vst::ParameterInfo::kNoFlags));
+
+            // Displayed Tone: same range as node Tone [200, 8000], default 4000
+            parameters.addParameter(new Steinberg::Vst::RangeParameter(
+                STR16("Displayed Tone"),
+                makeBandParamId(band, BandParamType::kBandDisplayedTone),
+                STR16("Hz"), 200.0, 8000.0, 4000.0, 0,
+                Steinberg::Vst::ParameterInfo::kNoFlags));
+
+            // Displayed Bias: same range as node Bias [-1, +1], default 0
+            parameters.addParameter(new Steinberg::Vst::RangeParameter(
+                STR16("Displayed Bias"),
+                makeBandParamId(band, BandParamType::kBandDisplayedBias),
+                STR16(""), -1.0, 1.0, 0.0, 0,
+                Steinberg::Vst::ParameterInfo::kNoFlags));
+
+            // Displayed Shape slots 0-9: same range [0, 1], default 0.5
+            for (int s = 0; s < 10; ++s) {
+                auto proxyType = static_cast<BandParamType>(
+                    static_cast<uint8_t>(BandParamType::kBandDisplayedShape0) + s);
+                int32_t stepCount = (s == 2) ? 8 : 0;  // Shape2 snaps for waveshape selector
+                parameters.addParameter(new Steinberg::Vst::RangeParameter(
+                    STR16("Displayed Shape"),
+                    makeBandParamId(band, proxyType),
+                    STR16(""), 0.0, 1.0, 0.5, stepCount,
+                    Steinberg::Vst::ParameterInfo::kNoFlags));
+            }
+        }
+
         // Band TabView: Main/Shape tab switching (UI only, not persisted)
         static const Steinberg::Vst::TChar* bandTabViewNames[] = {
             STR16("Band 1 Tab View"), STR16("Band 2 Tab View"),
@@ -3122,9 +3320,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             // else for b >= kMaxBands: data read-and-discarded (v7 migration)
         }
 
-        // Sync DisplayedType proxy from selected node's type for each band.
-        // DisplayedType drives UIViewSwitchContainer but isn't persisted;
-        // derive it from the node type we just restored.
+        // Sync all proxy params from selected node's actual values for each band.
+        // Proxies (DisplayedType, DisplayedDrive, etc.) drive the UI but aren't
+        // persisted; derive them from the node params we just restored.
         for (int b = 0; b < kMaxBands; ++b) {
             auto band = static_cast<uint8_t>(b);
             auto* selParam = getParameterObject(
@@ -3133,13 +3331,26 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
             if (selParam)
                 selNode = std::clamp(
                     static_cast<int>(selParam->getNormalized() * 3.0 + 0.5), 0, 3);
+            auto nodeIdx = static_cast<uint8_t>(selNode);
+
+            // Sync DisplayedType
             auto* nodeTypeParam = getParameterObject(
-                makeNodeParamId(band, static_cast<uint8_t>(selNode),
-                                NodeParamType::kNodeType));
+                makeNodeParamId(band, nodeIdx, NodeParamType::kNodeType));
             if (nodeTypeParam)
                 setParamNormalized(
                     makeBandParamId(band, BandParamType::kBandDisplayedType),
                     nodeTypeParam->getNormalized());
+
+            // Sync all proxy params (Drive, Mix, Tone, Bias, Shape0-9)
+            for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
+                auto* actualParam = getParameterObject(
+                    makeNodeParamId(band, nodeIdx, kProxyIndexToNodeParam[i]));
+                if (actualParam) {
+                    setParamNormalized(
+                        makeBandParamId(band, kProxyIndexToBandParam[i]),
+                        actualParam->getNormalized());
+                }
+            }
         }
     }
 
@@ -3300,7 +3511,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         const auto paramByte = static_cast<uint8_t>(paramType);
         if (paramByte >= static_cast<uint8_t>(NodeParamType::kNodeShape0) &&
             paramByte <= static_cast<uint8_t>(NodeParamType::kNodeShape9)) {
-            // Get the band's displayed type to determine formatting
             uint8_t band = extractBandFromNodeParam(id);
             auto displayedTypeId = makeBandParamId(band, BandParamType::kBandDisplayedType);
             auto* dtParam = getParameterObject(displayedTypeId);
@@ -3308,114 +3518,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                 int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
                 auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
                 int slot = paramByte - static_cast<uint8_t>(NodeParamType::kNodeShape0);
-                float v = static_cast<float>(valueNormalized);
-
-                if (distType == DistortionType::Temporal) {
-                    if (slot == 2) {
-                        // Curve → waveshape type name
-                        static const char* const kWaveshapeNames[] = {
-                            "Tanh", "Atan", "Cubic", "Quintic",
-                            "RSqrt", "Erf", "HardClip", "Diode", "Tube"
-                        };
-                        int idx = static_cast<int>(v * 8.0f + 0.5f);
-                        idx = std::clamp(idx, 0, 8);
-                        const char* name = kWaveshapeNames[idx];
-                        for (int i = 0; name[i] && i < 127; ++i) {
-                            string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
-                            string[i + 1] = 0;
-                        }
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 1 || slot == 5) {
-                        // Sens, Depth: percentage
-                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-                        appendToString128(string, STR16("%"));
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 3) {
-                        // Atk: [0,1] → [1,500] ms
-                        floatToString128(1.0 + v * 499.0, 0, string);
-                        appendToString128(string, STR16(" ms"));
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 4) {
-                        // Rel: [0,1] → [10,5000] ms
-                        floatToString128(10.0 + v * 4990.0, 0, string);
-                        appendToString128(string, STR16(" ms"));
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 7) {
-                        // Hold: [0,1] → [1,500] ms
-                        floatToString128(1.0 + v * 499.0, 0, string);
-                        appendToString128(string, STR16(" ms"));
-                        return Steinberg::kResultTrue;
-                    }
-                }
-
-                if (distType == DistortionType::RingSaturation) {
-                    if (slot == 1) {
-                        // Stages: [0,1] → 1-4
-                        int stages = 1 + static_cast<int>(v * 3.0f + 0.5f);
-                        intToString128(stages, string);
-                        appendToString128(string, STR16("x"));
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 2) {
-                        // Curve → waveshape type name
-                        static const char* const kWaveshapeNames[] = {
-                            "Tanh", "Atan", "Cubic", "Quintic",
-                            "RSqrt", "Erf", "HardClip", "Diode", "Tube"
-                        };
-                        int idx = static_cast<int>(v * 8.0f + 0.5f);
-                        idx = std::clamp(idx, 0, 8);
-                        const char* name = kWaveshapeNames[idx];
-                        for (int i = 0; name[i] && i < 127; ++i) {
-                            string[i] = static_cast<Steinberg::Vst::TChar>(name[i]);
-                            string[i + 1] = 0;
-                        }
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 4) {
-                        // Bias: [0,1] → [-1, +1]
-                        float bias = v * 2.0f - 1.0f;
-                        floatToString128(bias, 2, string);
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 6) {
-                        // Hz/Ratio: interpretation depends on freq mode (slot 5)
-                        // For display, show the Hz value (Fixed mode mapping)
-                        float freqHz = 20.0f * std::pow(250.0, static_cast<double>(v));
-                        if (freqHz < 100.0f) {
-                            floatToString128(freqHz, 1, string);
-                        } else {
-                            floatToString128(freqHz, 0, string);
-                        }
-                        appendToString128(string, STR16(" Hz"));
-                        return Steinberg::kResultTrue;
-                    }
-                }
-
-                if (distType == DistortionType::Bitcrush) {
-                    if (slot == 0) {
-                        // Bits: [0,1] → [1,16]
-                        floatToString128(1.0 + v * 15.0, 1, string);
-                        appendToString128(string, STR16(" bit"));
-                        return Steinberg::kResultTrue;
-                    }
-                    if (slot == 1) {
-                        // Dither: percentage
-                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-                        appendToString128(string, STR16("%"));
-                        return Steinberg::kResultTrue;
-                    }
-                    // slot 2 = Mode (COptionMenu, handled by menu items)
-                    if (slot == 3) {
-                        // Jitter: percentage
-                        intToString128(static_cast<int>(std::round(v * 100.0f)), string);
-                        appendToString128(string, STR16("%"));
-                        return Steinberg::kResultTrue;
-                    }
-                }
+                if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                    return Steinberg::kResultTrue;
             }
         }
 
@@ -3444,6 +3548,47 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
                 floatToString128(plainValue, 1, string);
                 appendToString128(string, STR16(" dB"));
                 return Steinberg::kResultTrue;
+            }
+        }
+
+        // Displayed Drive proxy: same formatting as node Drive
+        if (paramType == BandParamType::kBandDisplayedDrive) {
+            auto* param = getParameterObject(id);
+            if (param) {
+                double plainValue = param->toPlain(valueNormalized);
+                floatToString128(plainValue, 1, string);
+                return Steinberg::kResultTrue;
+            }
+        }
+
+        // Displayed Mix proxy: same formatting as node Mix
+        if (paramType == BandParamType::kBandDisplayedMix) {
+            auto* param = getParameterObject(id);
+            if (param) {
+                double plainValue = param->toPlain(valueNormalized);
+                int percent = static_cast<int>(std::round(plainValue));
+                intToString128(percent, string);
+                appendToString128(string, STR16("%"));
+                return Steinberg::kResultTrue;
+            }
+        }
+
+        // Displayed Shape proxy slots: same type-specific formatting as node shapes
+        {
+            const auto paramByte = static_cast<uint8_t>(paramType);
+            const auto shape0Byte = static_cast<uint8_t>(BandParamType::kBandDisplayedShape0);
+            const auto shape9Byte = static_cast<uint8_t>(BandParamType::kBandDisplayedShape9);
+            if (paramByte >= shape0Byte && paramByte <= shape9Byte) {
+                uint8_t band = extractBandIndex(id);
+                auto displayedTypeId = makeBandParamId(band, BandParamType::kBandDisplayedType);
+                auto* dtParam = getParameterObject(displayedTypeId);
+                if (dtParam) {
+                    int typeIdx = static_cast<int>(dtParam->getNormalized() * 25.0 + 0.5);
+                    auto distType = static_cast<DistortionType>(std::clamp(typeIdx, 0, 25));
+                    int slot = paramByte - shape0Byte;
+                    if (formatShapeSlot(distType, slot, static_cast<float>(valueNormalized), string))
+                        return Steinberg::kResultTrue;
+                }
             }
         }
 

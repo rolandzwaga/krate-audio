@@ -192,6 +192,23 @@ enum class BandParamType : uint8_t {
     kBandSelectedNode = 0x0D, ///< Selected node for editing (0-3) (US7 FR-025)
     kBandDisplayedType = 0x0E, ///< Proxy type for UIViewSwitchContainer (mirrors selected node's type)
     kBandTabView       = 0x0F, ///< Tab view state [0=Main, 1=Shape] (UI only)
+
+    // Proxy parameters: mirror the selected node's values for UI display.
+    // Updated by NodeSelectionController; bidirectional sync with actual node params.
+    kBandDisplayedDrive  = 0x10, ///< Proxy for selected node's Drive [0, 10]
+    kBandDisplayedMix    = 0x11, ///< Proxy for selected node's Mix [0, 100] %
+    kBandDisplayedTone   = 0x12, ///< Proxy for selected node's Tone [200, 8000] Hz
+    kBandDisplayedBias   = 0x13, ///< Proxy for selected node's Bias [-1, +1]
+    kBandDisplayedShape0 = 0x14, ///< Proxy for selected node's Shape slot 0
+    kBandDisplayedShape1 = 0x15, ///< Proxy for selected node's Shape slot 1
+    kBandDisplayedShape2 = 0x16, ///< Proxy for selected node's Shape slot 2
+    kBandDisplayedShape3 = 0x17, ///< Proxy for selected node's Shape slot 3
+    kBandDisplayedShape4 = 0x18, ///< Proxy for selected node's Shape slot 4
+    kBandDisplayedShape5 = 0x19, ///< Proxy for selected node's Shape slot 5
+    kBandDisplayedShape6 = 0x1A, ///< Proxy for selected node's Shape slot 6
+    kBandDisplayedShape7 = 0x1B, ///< Proxy for selected node's Shape slot 7
+    kBandDisplayedShape8 = 0x1C, ///< Proxy for selected node's Shape slot 8
+    kBandDisplayedShape9 = 0x1D, ///< Proxy for selected node's Shape slot 9
 };
 
 /// @brief Create parameter ID for per-band parameters.
@@ -317,6 +334,39 @@ constexpr bool isNodeParamId(Steinberg::Vst::ParamID paramId) {
     uint8_t bandNibble = (paramId >> 8) & 0x0F;
     return nodeNibble <= 3 && bandNibble <= 3;
 }
+
+// =============================================================================
+// Proxy Parameter Mapping Tables
+// =============================================================================
+// Maps between proxy band-level params and actual node-level params.
+// Used by NodeSelectionController for bidirectional sync.
+// =============================================================================
+
+/// @brief Number of proxy "Displayed" parameters per band (Drive, Mix, Tone, Bias, Shape0-9).
+constexpr int kNumDisplayedProxyParams = 14;
+
+/// @brief Map proxy param index (0-13) to the corresponding NodeParamType.
+/// Index 0=Drive, 1=Mix, 2=Tone, 3=Bias, 4-13=Shape0-9.
+constexpr NodeParamType kProxyIndexToNodeParam[kNumDisplayedProxyParams] = {
+    NodeParamType::kNodeDrive,  NodeParamType::kNodeMix,
+    NodeParamType::kNodeTone,   NodeParamType::kNodeBias,
+    NodeParamType::kNodeShape0, NodeParamType::kNodeShape1,
+    NodeParamType::kNodeShape2, NodeParamType::kNodeShape3,
+    NodeParamType::kNodeShape4, NodeParamType::kNodeShape5,
+    NodeParamType::kNodeShape6, NodeParamType::kNodeShape7,
+    NodeParamType::kNodeShape8, NodeParamType::kNodeShape9,
+};
+
+/// @brief Map proxy param index (0-13) to the corresponding BandParamType.
+constexpr BandParamType kProxyIndexToBandParam[kNumDisplayedProxyParams] = {
+    BandParamType::kBandDisplayedDrive,  BandParamType::kBandDisplayedMix,
+    BandParamType::kBandDisplayedTone,   BandParamType::kBandDisplayedBias,
+    BandParamType::kBandDisplayedShape0, BandParamType::kBandDisplayedShape1,
+    BandParamType::kBandDisplayedShape2, BandParamType::kBandDisplayedShape3,
+    BandParamType::kBandDisplayedShape4, BandParamType::kBandDisplayedShape5,
+    BandParamType::kBandDisplayedShape6, BandParamType::kBandDisplayedShape7,
+    BandParamType::kBandDisplayedShape8, BandParamType::kBandDisplayedShape9,
+};
 
 // =============================================================================
 // Legacy/Compatibility Aliases

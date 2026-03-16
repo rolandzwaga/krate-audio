@@ -129,31 +129,33 @@ public:
             return 9100 + bandIndex_;
 
         // ====================================================================
-        // Node-level parameter remapping (Node 0 = selected node's display)
+        // Node-level parameter remapping → proxy "Displayed" params
         // ====================================================================
+        // UI controls bind to band-level proxy params. NodeSelectionController
+        // syncs these bidirectionally with the selected node's actual params.
         if (std::strcmp(name, "Band.NodeDrive") == 0)
-            return static_cast<int32_t>(makeNodeParamId(band, 0, NodeParamType::kNodeDrive));
+            return static_cast<int32_t>(makeBandParamId(band, BandParamType::kBandDisplayedDrive));
 
         if (std::strcmp(name, "Band.NodeMix") == 0)
-            return static_cast<int32_t>(makeNodeParamId(band, 0, NodeParamType::kNodeMix));
+            return static_cast<int32_t>(makeBandParamId(band, BandParamType::kBandDisplayedMix));
 
         if (std::strcmp(name, "Band.NodeTone") == 0)
-            return static_cast<int32_t>(makeNodeParamId(band, 0, NodeParamType::kNodeTone));
+            return static_cast<int32_t>(makeBandParamId(band, BandParamType::kBandDisplayedTone));
 
         if (std::strcmp(name, "Band.NodeBias") == 0)
-            return static_cast<int32_t>(makeNodeParamId(band, 0, NodeParamType::kNodeBias));
+            return static_cast<int32_t>(makeBandParamId(band, BandParamType::kBandDisplayedBias));
 
         // ====================================================================
-        // Shape slot parameter remapping (generic per-type controls)
+        // Shape slot parameter remapping → proxy "Displayed" params
         // ====================================================================
         {
             char tagName[32];
             for (int s = 0; s < 10; ++s) {
                 std::snprintf(tagName, sizeof(tagName), "Band.NodeShape%d", s);
                 if (std::strcmp(name, tagName) == 0) {
-                    auto shapeType = static_cast<NodeParamType>(
-                        static_cast<uint8_t>(NodeParamType::kNodeShape0) + s);
-                    return static_cast<int32_t>(makeNodeParamId(band, 0, shapeType));
+                    auto proxyType = static_cast<BandParamType>(
+                        static_cast<uint8_t>(BandParamType::kBandDisplayedShape0) + s);
+                    return static_cast<int32_t>(makeBandParamId(band, proxyType));
                 }
             }
         }
