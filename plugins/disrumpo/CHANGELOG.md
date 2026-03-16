@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- ** Fix ALL distortion type UIs ** - A large number of the UI controls were not properly wired to their underlying processor. These were all properly wired.
 - **Node B/C/D distortion controls not affecting sound** — Band popup UI controls (Drive, Mix, Tone, Bias, and all type-specific Shape parameters) were hardwired to node A. Turning knobs on nodes B, C, or D had no audible effect. Introduced proxy display parameters with bidirectional sync so all node controls correctly modify the selected node's actual parameters.
 - **Shape shadow save/restore broken for non-node-A selections** — Type-switching shadow storage (which remembers per-type knob positions) was also hardcoded to node A, causing shape values to be lost when switching distortion types on other nodes.
 
