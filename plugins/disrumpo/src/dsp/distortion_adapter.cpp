@@ -199,9 +199,13 @@ float DistortionAdapter::process(float input) noexcept {
 
     // Apply drive scaling
     // Temporal handles drive internally via setBaseDrive() — skip external scaling
-    // to avoid double-drive that makes envelope params (sensitivity/attack/release) inaudible
+    // to avoid double-drive that makes envelope params (sensitivity/attack/release) inaudible.
+    // Stochastic handles drive internally so jitter/coeff noise operate on the normalized
+    // signal BEFORE drive amplification — otherwise drive pushes the signal deep into the
+    // waveshaper's saturation plateau where ±0.5 of jitter is compressed to nothing.
     float wet;
-    if (currentType_ == DistortionType::Temporal) {
+    if (currentType_ == DistortionType::Temporal ||
+        currentType_ == DistortionType::Stochastic) {
         wet = input;
     } else {
         wet = input * commonParams_.drive;
@@ -952,9 +956,16 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         case DistortionType::Stochastic: {
             int curve = std::clamp(p.stochasticCurve, 0, 5);
             stochastic_.setBaseType(static_cast<Krate::DSP::WaveshapeType>(curve));
+            // Drive is handled internally (not pre-scaled) so jitter/coeff noise
+            // operate on the normalized signal before amplification
+            stochastic_.setDrive(commonParams_.drive);
             stochastic_.setJitterAmount(p.jitterAmount);
             stochastic_.setJitterRate(p.jitterRate);
             stochastic_.setCoefficientNoise(p.coefficientNoise);
+            stochastic_.setDrift(p.stochasticDrift);
+            stochastic_.setCorrelationMode(p.stochasticCorr);
+            stochastic_.setOutputSmooth(p.stochasticSmooth);
+            stochastic_.setNoiseColor(p.stochasticNoiseColor);
             break;
         }
 

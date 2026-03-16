@@ -29,6 +29,7 @@
 
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/primitives/pink_noise_filter.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/waveshaper.h>
 
@@ -39,6 +40,67 @@
 
 namespace Krate {
 namespace DSP {
+
+// =============================================================================
+// Noise Color for Stochastic Modulation
+// =============================================================================
+
+/// @brief Noise distribution color for shaping stochastic modulation streams.
+///
+/// Controls the spectral character of the random values feeding the jitter
+/// and drive modulation smoothers.
+enum class StochasticNoiseColor : int {
+    White = 0,   ///< Flat spectrum — uniform variation (default)
+    Pink = 1,    ///< -3dB/oct — organic 1/f analog drift
+    Brown = 2,   ///< -6dB/oct — slow brownian wander
+    Blue = 3,    ///< +3dB/oct — brighter, responsive variation
+    Violet = 4   ///< +6dB/oct — fast, twitchy, aggressive
+};
+
+/// @brief Per-stream noise color filter state.
+///
+/// Filters white noise from the RNG into the selected noise color.
+/// Each modulation stream (jitter, drive) gets its own instance for
+/// independent spectral characteristics.
+struct NoiseColorFilter {
+    PinkNoiseFilter pinkFilter;
+    float brownState = 0.0f;
+    float prevSample = 0.0f;
+
+    [[nodiscard]] float process(float white, StochasticNoiseColor color) noexcept {
+        switch (color) {
+            case StochasticNoiseColor::White:
+                return white;
+            case StochasticNoiseColor::Pink:
+                return pinkFilter.process(white);
+            case StochasticNoiseColor::Brown: {
+                constexpr float kLeak = 0.99f;
+                brownState = kLeak * brownState + (1.0f - kLeak) * white;
+                float out = brownState * 5.0f;
+                return std::clamp(out, -1.0f, 1.0f);
+            }
+            case StochasticNoiseColor::Blue: {
+                float pink = pinkFilter.process(white);
+                float blue = (pink - prevSample) * 0.7f;
+                prevSample = pink;
+                return std::clamp(blue, -1.0f, 1.0f);
+            }
+            case StochasticNoiseColor::Violet: {
+                float violet = (white - prevSample) * 0.5f;
+                prevSample = white;
+                return std::clamp(violet, -1.0f, 1.0f);
+            }
+            default:
+                return white;
+        }
+    }
+
+    void reset() noexcept {
+        pinkFilter.reset();
+        brownState = 0.0f;
+        prevSample = 0.0f;
+    }
+};
 
 // =============================================================================
 // StochasticShaper Class
@@ -105,6 +167,18 @@ public:
     static constexpr float kDriveModulationRange = 0.5f;  ///< +/- 50% at coeffNoise=1.0 (FR-017)
     static constexpr float kDefaultDrive = 1.0f;          ///< Default drive (FR-008b)
     static constexpr uint32_t kDefaultSeed = 1;           ///< Default RNG seed
+    static constexpr float kDriftRate = 0.2f;             ///< Drift smoother rate Hz (slow wander)
+    static constexpr float kDriftMaxOffset = 0.3f;        ///< Max drift offset at amount=1.0
+    static constexpr float kMinSmoothTimeMs = 0.05f;      ///< Minimum output smooth time
+    static constexpr float kMaxOutputSmoothMs = 20.0f;    ///< Maximum output smooth time ms
+
+    /// Correlation mode: controls coupling between jitter and drive modulation
+    enum class CorrelationMode : int {
+        None = 0,    ///< Independent random streams (default)
+        Sample = 1,  ///< Both use same random value per sample
+        Param = 2,   ///< Drive mod depth scales with current jitter offset
+        Both = 3     ///< Sample + Param correlation
+    };
 
     // =========================================================================
     // Construction (FR-003)
@@ -155,10 +229,25 @@ public:
 
         // Configure smoothers with current jitter rate
         reconfigureSmoothers();
+        recalculateUpdateRate();
+
+        // Configure drift smoother (very slow ~0.2 Hz)
+        const float driftSmoothMs = std::clamp(800.0f / kDriftRate, kMinSmoothingTimeMs, kMaxSmoothingTimeMs);
+        driftSmoother_.configure(driftSmoothMs, static_cast<float>(sampleRate_));
+        driftSmoother_.snapTo(rng_.nextFloat());
+        samplesPerDriftUpdate_ = static_cast<uint32_t>(sampleRate_ / kDriftRate);
+
+        // Configure output smoother
+        reconfigureOutputSmoother();
+        outputSmoother_.snapTo(0.0f);
 
         // Initialize smoother state with random values
         jitterSmoother_.snapTo(rng_.nextFloat());
         driveSmoother_.snapTo(rng_.nextFloat());
+
+        // Reset counters
+        jitterCounter_ = 0;
+        driftCounter_ = 0;
 
         prepared_ = true;
     }
@@ -176,15 +265,23 @@ public:
         // Reinitialize RNG with current seed (FR-021: 0 replaced with default)
         rng_.seed(seed_ != 0 ? seed_ : kDefaultSeed);
 
-        // Reset smoothers
+        // Reset smoothers and color filters
         jitterSmoother_.reset();
         driveSmoother_.reset();
+        driftSmoother_.reset();
+        outputSmoother_.reset();
+        jitterColorFilter_.reset();
+        driveColorFilter_.reset();
 
         // Initialize smoother state with fresh random values
         jitterSmoother_.snapTo(rng_.nextFloat());
         driveSmoother_.snapTo(rng_.nextFloat());
+        driftSmoother_.snapTo(rng_.nextFloat());
+        outputSmoother_.snapTo(0.0f);
 
-        // Reset diagnostic state
+        // Reset counters and diagnostic state
+        jitterCounter_ = 0;
+        driftCounter_ = 0;
         currentJitter_ = 0.0f;
         currentDriveMod_ = baseDrive_;
     }
@@ -255,9 +352,10 @@ public:
         const float maxRate = static_cast<float>(sampleRate_ * 0.5);
         jitterRate_ = std::clamp(hz, kMinJitterRate, maxRate);
 
-        // Reconfigure smoothers if prepared
+        // Reconfigure smoothers and update rate if prepared
         if (prepared_) {
             reconfigureSmoothers();
+            recalculateUpdateRate();
         }
     }
 
@@ -291,6 +389,105 @@ public:
     /// @brief Get the current coefficient noise amount.
     [[nodiscard]] float getCoefficientNoise() const noexcept {
         return coefficientNoise_;
+    }
+
+    // =========================================================================
+    // Drift Parameter
+    // =========================================================================
+
+    /// @brief Set the drift amount.
+    ///
+    /// Controls a slow random walk applied to the jitter baseline,
+    /// simulating analog component drift over time.
+    ///
+    /// @param amount Drift amount, clamped to [0.0, 1.0]
+    ///               - 0.0 = no drift
+    ///               - 1.0 = max drift offset of +/- 0.3
+    void setDrift(float amount) noexcept {
+        drift_ = std::clamp(amount, 0.0f, 1.0f);
+    }
+
+    /// @brief Get the current drift amount.
+    [[nodiscard]] float getDrift() const noexcept {
+        return drift_;
+    }
+
+    // =========================================================================
+    // Correlation Mode
+    // =========================================================================
+
+    /// @brief Set the correlation mode between jitter and drive modulation.
+    ///
+    /// @param mode CorrelationMode enum value
+    ///   - None:   Independent random streams (default)
+    ///   - Sample: Both smoothers receive the same random input per sample
+    ///   - Param:  Drive modulation depth scales with absolute jitter offset
+    ///   - Both:   Sample + Param correlation combined
+    void setCorrelationMode(CorrelationMode mode) noexcept {
+        correlationMode_ = mode;
+    }
+
+    /// @brief Set the correlation mode from integer (for parameter mapping).
+    void setCorrelationMode(int mode) noexcept {
+        correlationMode_ = static_cast<CorrelationMode>(std::clamp(mode, 0, 3));
+    }
+
+    /// @brief Get the current correlation mode.
+    [[nodiscard]] CorrelationMode getCorrelationMode() const noexcept {
+        return correlationMode_;
+    }
+
+    // =========================================================================
+    // Output Smoothing
+    // =========================================================================
+
+    /// @brief Set the output smoothing amount.
+    ///
+    /// Applies a one-pole lowpass to the output to soften stochastic artifacts.
+    ///
+    /// @param amount Smoothing amount, clamped to [0.0, 1.0]
+    ///               - 0.0 = no output smoothing (bypass)
+    ///               - 1.0 = maximum smoothing (~20ms time constant)
+    void setOutputSmooth(float amount) noexcept {
+        outputSmoothAmount_ = std::clamp(amount, 0.0f, 1.0f);
+        if (prepared_) {
+            reconfigureOutputSmoother();
+        }
+    }
+
+    /// @brief Get the current output smoothing amount.
+    [[nodiscard]] float getOutputSmooth() const noexcept {
+        return outputSmoothAmount_;
+    }
+
+    // =========================================================================
+    // Noise Color
+    // =========================================================================
+
+    /// @brief Set the noise distribution color for modulation streams.
+    ///
+    /// Controls the spectral character of random values feeding the jitter
+    /// and drive modulation smoothers. Different colors produce fundamentally
+    /// different modulation characters:
+    /// - White: uniform variation at all rates (default, classic behavior)
+    /// - Pink: 1/f noise, most organic and analog-like
+    /// - Brown: very slow drift, brownian wander
+    /// - Blue: brighter, more responsive variation
+    /// - Violet: fast, twitchy, aggressive digital character
+    ///
+    /// @param color StochasticNoiseColor value
+    void setNoiseColor(StochasticNoiseColor color) noexcept {
+        noiseColor_ = color;
+    }
+
+    /// @brief Set noise color from integer (for parameter mapping).
+    void setNoiseColor(int color) noexcept {
+        noiseColor_ = static_cast<StochasticNoiseColor>(std::clamp(color, 0, 4));
+    }
+
+    /// @brief Get the current noise color.
+    [[nodiscard]] StochasticNoiseColor getNoiseColor() const noexcept {
+        return noiseColor_;
     }
 
     // =========================================================================
@@ -339,28 +536,60 @@ public:
         // Sanitize input (FR-029, FR-030)
         x = sanitizeInput(x);
 
-        // Generate smoothed random values (FR-025, FR-034)
-        // Update jitter smoother target with new random value
-        jitterSmoother_.setTarget(rng_.nextFloat());
-        const float smoothedJitter = jitterSmoother_.process();
+        // Sample-and-hold: generate new random targets at jitter rate,
+        // not every sample. The smoothers interpolate between targets.
+        if (++jitterCounter_ >= samplesPerUpdate_) {
+            jitterCounter_ = 0;
 
-        // Update drive smoother target with new random value (FR-018: independent smoother)
-        driveSmoother_.setTarget(rng_.nextFloat());
+            const float randJitter = jitterColorFilter_.process(rng_.nextFloat(), noiseColor_);
+            jitterSmoother_.setTarget(randJitter);
+
+            const bool sampleCorr = (correlationMode_ == CorrelationMode::Sample ||
+                                     correlationMode_ == CorrelationMode::Both);
+            const float randDrive = sampleCorr ? randJitter
+                : driveColorFilter_.process(rng_.nextFloat(), noiseColor_);
+            driveSmoother_.setTarget(randDrive);
+        }
+
+        const float smoothedJitter = jitterSmoother_.process();
         const float smoothedDriveMod = driveSmoother_.process();
 
-        // FR-022: jitterOffset = jitterAmount * smoothedRandom * 0.5
-        const float jitterOffset = jitterAmount_ * smoothedJitter * kMaxJitterOffset;
+        // Drift: update target at a much slower rate (~0.2 Hz)
+        if (++driftCounter_ >= samplesPerDriftUpdate_) {
+            driftCounter_ = 0;
+            driftSmoother_.setTarget(rng_.nextFloat());
+        }
+        const float driftOffset = drift_ * (driftSmoother_.process()) * kDriftMaxOffset;
+
+        // FR-022: jitterOffset = jitterAmount * smoothedRandom * 0.5 + drift
+        const float jitterOffset = jitterAmount_ * smoothedJitter * kMaxJitterOffset + driftOffset;
 
         // FR-023: effectiveDrive = baseDrive * (1.0 + coeffNoise * smoothedRandom * 0.5)
-        const float effectiveDrive = baseDrive_ * (1.0f + coefficientNoise_ * smoothedDriveMod * kDriveModulationRange);
+        // With Param correlation: drive mod depth scales with absolute jitter offset
+        // Baseline of 0.25 ensures Coef is never fully killed by Param mode
+        const bool paramCorr = (correlationMode_ == CorrelationMode::Param ||
+                                correlationMode_ == CorrelationMode::Both);
+        const float corrScale = paramCorr
+            ? 0.25f + std::abs(jitterOffset) * 3.0f  // [0.25, ~2.0] range
+            : 1.0f;
+        const float effectiveDrive = baseDrive_ * (1.0f + coefficientNoise_ * smoothedDriveMod
+                                                   * kDriveModulationRange * corrScale);
 
         // Store for diagnostics (FR-035, FR-036)
         currentJitter_ = jitterOffset;
         currentDriveMod_ = effectiveDrive;
 
-        // Apply waveshaping with modulated parameters (FR-025a workaround)
+        // Apply waveshaping with modulated parameters
         waveshaper_.setDrive(effectiveDrive);
-        return waveshaper_.process(x + jitterOffset);
+        float out = waveshaper_.process(x + jitterOffset);
+
+        // Output smoothing (when amount > 0)
+        if (outputSmoothAmount_ > 0.0f) {
+            outputSmoother_.setTarget(out);
+            out = outputSmoother_.process();
+        }
+
+        return out;
     }
 
     /// @brief Process a block of samples in-place. (FR-004)
@@ -449,6 +678,22 @@ private:
         driveSmoother_.configure(smoothTimeMs, sampleRateF);
     }
 
+    /// @brief Recalculate sample-and-hold update interval from jitter rate
+    void recalculateUpdateRate() noexcept {
+        // Generate new random target at jitter rate
+        // Minimum 1 sample (at Nyquist rate)
+        samplesPerUpdate_ = std::max(1u,
+            static_cast<uint32_t>(sampleRate_ / static_cast<double>(jitterRate_)));
+    }
+
+    /// @brief Reconfigure output smoother with current amount
+    void reconfigureOutputSmoother() noexcept {
+        // Map amount [0,1] to smooth time [0.05, 20] ms (exponential)
+        const float timeMs = kMinSmoothTimeMs +
+            outputSmoothAmount_ * outputSmoothAmount_ * (kMaxOutputSmoothMs - kMinSmoothTimeMs);
+        outputSmoother_.configure(timeMs, static_cast<float>(sampleRate_));
+    }
+
     // =========================================================================
     // Composed Primitives (FR-032 to FR-034)
     // =========================================================================
@@ -457,6 +702,10 @@ private:
     Xorshift32 rng_{kDefaultSeed};    ///< Random number generator (FR-033)
     OnePoleSmoother jitterSmoother_;  ///< Smooths jitter offset (FR-034)
     OnePoleSmoother driveSmoother_;   ///< Smooths drive modulation (FR-018)
+    OnePoleSmoother driftSmoother_;   ///< Slow drift random walk
+    OnePoleSmoother outputSmoother_;  ///< Output smoothing filter
+    NoiseColorFilter jitterColorFilter_;  ///< Noise color shaping for jitter stream
+    NoiseColorFilter driveColorFilter_;   ///< Noise color shaping for drive stream
 
     // =========================================================================
     // Configuration
@@ -465,10 +714,20 @@ private:
     float jitterAmount_ = 0.0f;                 ///< [0.0, 1.0]
     float jitterRate_ = kDefaultJitterRate;     ///< [0.01, sampleRate/2] Hz
     float coefficientNoise_ = 0.0f;             ///< [0.0, 1.0]
+    float drift_ = 0.0f;                        ///< [0.0, 1.0] drift amount
+    float outputSmoothAmount_ = 0.0f;           ///< [0.0, 1.0] output smoothing
+    CorrelationMode correlationMode_ = CorrelationMode::None;
+    StochasticNoiseColor noiseColor_ = StochasticNoiseColor::White;
     float baseDrive_ = kDefaultDrive;           ///< Base drive before modulation
     uint32_t seed_ = kDefaultSeed;              ///< RNG seed
     double sampleRate_ = 44100.0;               ///< Sample rate
     bool prepared_ = false;                     ///< Initialization flag
+
+    // Sample-and-hold counters for rate-controlled random updates
+    uint32_t samplesPerUpdate_ = 4410;          ///< Samples between new random targets
+    uint32_t samplesPerDriftUpdate_ = 220500;   ///< Samples between drift updates
+    uint32_t jitterCounter_ = 0;                ///< Current jitter update counter
+    uint32_t driftCounter_ = 0;                 ///< Current drift update counter
 
     // =========================================================================
     // Diagnostic State (FR-035, FR-036)

@@ -255,7 +255,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
 
         case DistortionType::Stochastic:
             // Slot0=Curve, Slot1=Jit, Slot2=Rate, Slot3=Coef, Slot4=Drift,
-            // Slot5=Corr, Slot6=Smth
+            // Slot5=Corr, Slot6=Smth, Slot7=Dist (noise color)
             p.stochasticCurve = static_cast<int>(slots[0] * 5.0f + 0.5f);
             p.jitterAmount = slots[1];
             p.jitterRate = 0.1f + slots[2] * 99.9f;   // [0,1] → [0.1,100]
@@ -263,6 +263,7 @@ static void mapShapeSlotsToParams(DistortionType type, const float* slots,
             p.stochasticDrift = slots[4];
             p.stochasticCorr = static_cast<int>(slots[5] * 3.0f + 0.5f);
             p.stochasticSmooth = slots[6];
+            p.stochasticNoiseColor = static_cast<int>(slots[7] * 4.0f + 0.5f);
             break;
 
         case DistortionType::AllpassResonant:

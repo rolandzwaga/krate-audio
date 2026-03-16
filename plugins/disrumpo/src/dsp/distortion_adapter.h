@@ -204,6 +204,7 @@ struct DistortionParams {
     float stochasticDrift = 0.0f;   ///< Stochastic drift [0, 1]
     int stochasticCorr = 0;         ///< Stochastic correlation select
     float stochasticSmooth = 0.5f;  ///< Stochastic smoothing [0, 1]
+    int stochasticNoiseColor = 0;   ///< Noise distribution color (0-4)
 
     // Allpass Resonant (D26)
     int allpassTopo = 0;            ///< Allpass topology select

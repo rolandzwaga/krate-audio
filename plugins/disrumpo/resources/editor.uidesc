@@ -1195,7 +1195,7 @@
   <template name="TypeParams_Stochastic" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Stochastic" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Curve" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="White,Pink,Brown,Weibull,Exp,Custom"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Tanh,Atan,Cubic,Qntc,RSqrt,Erf"/>
     <view class="CTextLabel" origin="55, 28" size="35, 10" title="Jit" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape1" origin="55, 38" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-7"/>
     <view class="CTextLabel" origin="105, 28" size="35, 10" title="Rate" font="small-font" font-color="text-secondary" text-alignment="center"/>
@@ -1204,12 +1204,12 @@
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="155, 38" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-7"/>
     <view class="CTextLabel" origin="5, 78" size="35, 10" title="Drift" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-7"/>
-    <view class="CTextLabel" origin="55, 78" size="35, 10" title="Seed" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="CTextButton" origin="55, 90" size="38, 18" title="New" font="small-font" font-color="text-primary" frame-color="border" gradient="button-default" gradient-highlighted="button-active"/>
-    <view class="CTextLabel" origin="105, 78" size="40, 10" title="Corr" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="None,Sample,Param,Both"/>
-    <view class="CTextLabel" origin="155, 78" size="35, 10" title="Smth" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape6" origin="155, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-7"/>
+    <view class="CTextLabel" origin="55, 78" size="40, 10" title="Corr" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape5" origin="55, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="None,Sample,Param,Both"/>
+    <view class="CTextLabel" origin="105, 78" size="35, 10" title="Smth" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="ArcKnob" control-tag="Band.NodeShape6" origin="105, 88" size="32, 32" default-value="0.3" min-value="0" max-value="1" arc-color="band-7"/>
+    <view class="CTextLabel" origin="155, 78" size="40, 10" title="Dist" font="small-font" font-color="text-secondary" text-alignment="center"/>
+    <view class="COptionMenu" control-tag="Band.NodeShape7" origin="155, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="White,Pink,Brown,Blue,Violet"/>
   </template>
   <template name="TypeParams_AllpassRes" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Allpass Resonant" font="section-font" font-color="text-primary" text-alignment="center"/>
