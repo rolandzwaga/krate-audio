@@ -52,18 +52,92 @@
             </div>
         </section>
 
+        <section class="overview">
+            <h2>Overview</h2>
+            <p>Disrumpo is a multi-band distortion plugin with 26 distortion algorithms spanning saturation, wavefolding, digital destruction, and experimental spectral processing. Split your signal into up to 4 frequency bands and apply independent distortion to each, then morph smoothly between algorithms using the 2D MorphPad or automated Sweep system.</p>
+        </section>
+
         <section class="features">
             <h2>Features</h2>
             <ul>
-                <li>4-band crossover network with adjustable crossover frequencies</li>
-                <li>Morph system for smooth transitions between distortion types</li>
-                <li>MorphPad for intuitive 2D morph control</li>
-                <li>Sweep system with LFO and envelope modulation modes</li>
-                <li>Intelligent oversampling for alias-free distortion</li>
-                <li>120 factory presets across 11 categories</li>
-                <li>Built-in preset browser with save, load, and search</li>
-                <li>Full parameter automation and MIDI CC learn support</li>
-                <li>Cross-platform: VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+                <li><strong>26 distortion algorithms</strong> across 7 families: saturation, wavefolding, rectification, digital, dynamic, hybrid, and experimental</li>
+                <li><strong>4-band crossover network</strong> with adjustable crossover frequencies &mdash; apply different distortion types and settings to each band independently</li>
+                <li><strong>Morph system</strong> for smooth, interpolated transitions between distortion types within the same family</li>
+                <li><strong>MorphPad</strong> &mdash; an intuitive 2D XY controller for real-time morph navigation</li>
+                <li><strong>Sweep system</strong> with LFO and envelope follower modulation modes for animated, time-varying distortion</li>
+                <li><strong>Intelligent oversampling</strong> &mdash; automatically selects 2x or 4x oversampling per algorithm to suppress aliasing while preserving intentional digital artifacts where appropriate</li>
+                <li><strong>Per-type shape controls</strong> &mdash; each algorithm exposes dedicated parameters (bias, sag, folds, grain size, chaos amount, etc.) for deep sound design</li>
+                <li><strong>Global drive, mix, and tone</strong> controls shared across all distortion types</li>
+                <li><strong>120 factory presets</strong> across 11 categories</li>
+                <li><strong>Built-in preset browser</strong> with save, load, and search</li>
+                <li><strong>Full parameter automation</strong> and MIDI CC learn support</li>
+                <li><strong>Cross-platform:</strong> VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+            </ul>
+        </section>
+
+        <section class="distortion-types">
+            <h2>Distortion Types</h2>
+            <p>Disrumpo offers 26 distortion algorithms organized into 7 families. Types within the same family can be morphed smoothly between each other.</p>
+
+            <h3>Saturation</h3>
+            <p>Classic analog-modeled saturation and clipping circuits.</p>
+            <ul>
+                <li><strong>Soft Clip</strong> &mdash; Tanh-based soft saturation with warm, symmetric character and primarily odd harmonics</li>
+                <li><strong>Hard Clip</strong> &mdash; Digital hard clipping that produces a full harmonic series for aggressive, harsh tones</li>
+                <li><strong>Tube</strong> &mdash; Asymmetric polynomial waveshaping modeled on vacuum tube gain stages, rich in even harmonics</li>
+                <li><strong>Tape</strong> &mdash; Tape saturation with pre/de-emphasis filtering; includes a Jiles-Atherton hysteresis model for authentic magnetic tape response</li>
+                <li><strong>Fuzz</strong> &mdash; Germanium transistor fuzz with soft clipping and saggy, "dying battery" response</li>
+                <li><strong>Asymmetric Fuzz</strong> &mdash; Silicon transistor fuzz with bias control, brighter and tighter than germanium with odd harmonic emphasis</li>
+            </ul>
+
+            <h3>Wavefold</h3>
+            <p>Signal wavefolding algorithms that create complex overtone spectra by folding the waveform back on itself.</p>
+            <ul>
+                <li><strong>Sine Fold</strong> &mdash; Classic Serge-style wavefolder using sinusoidal folding; produces FM-like sparse spectra</li>
+                <li><strong>Triangle Fold</strong> &mdash; Symmetric mirror-like folding with dense odd harmonics and smooth spectral rolloff</li>
+                <li><strong>Serge Fold</strong> &mdash; Lambert-W based circuit model derived from the Lockhart wavefolder; rich even and odd harmonics with spectral nulls</li>
+            </ul>
+
+            <h3>Rectify</h3>
+            <p>Waveform rectification for octave-up effects and harmonic doubling.</p>
+            <ul>
+                <li><strong>Full Rectify</strong> &mdash; Full-wave rectification (absolute value) producing symmetric distortion with all harmonics</li>
+                <li><strong>Half Rectify</strong> &mdash; Half-wave rectification with asymmetric character and added sub-harmonic content</li>
+            </ul>
+
+            <h3>Digital</h3>
+            <p>Lo-fi and bit-level destruction effects that embrace digital artifacts.</p>
+            <ul>
+                <li><strong>Bitcrush</strong> &mdash; Bit depth reduction with optional dither for lo-fi quantization distortion</li>
+                <li><strong>Sample Reduce</strong> &mdash; Sample rate reduction (downsampling) that introduces aliasing and step-like artifacts</li>
+                <li><strong>Quantize</strong> &mdash; Amplitude quantization to stepped levels for digital staircase distortion</li>
+                <li><strong>Aliasing</strong> &mdash; Intentional aliasing with optional frequency shifting for harsh, metallic, inharmonic tones</li>
+                <li><strong>Bitwise Mangler</strong> &mdash; Bit rotation and XOR operations directly on sample data for glitchy, noise-like textures</li>
+            </ul>
+
+            <h3>Dynamic</h3>
+            <p>Time-varying distortion that responds to signal dynamics.</p>
+            <ul>
+                <li><strong>Temporal</strong> &mdash; Envelope follower&ndash;controlled distortion where saturation intensity responds to input level and dynamics</li>
+            </ul>
+
+            <h3>Hybrid</h3>
+            <p>Combinations of different distortion approaches blended together.</p>
+            <ul>
+                <li><strong>Ring Saturation</strong> &mdash; Ring modulation blended with saturation for metallic, inharmonic overtones combined with warmth</li>
+                <li><strong>Feedback</strong> &mdash; Feedback loop&ndash;based distortion with a configurable internal filter for resonant, self-modulating tones</li>
+                <li><strong>Allpass Resonant</strong> &mdash; Cascaded allpass filters with saturation and feedback, producing resonant peaks and phase-warped ringing</li>
+            </ul>
+
+            <h3>Experimental</h3>
+            <p>Novel distortion approaches using granular, spectral, and mathematical techniques.</p>
+            <ul>
+                <li><strong>Chaos</strong> &mdash; Chaotic attractor waveshaping using mathematical models (Lorenz, R&ouml;ssler, Chua, H&eacute;non) for complex, unpredictable timbres</li>
+                <li><strong>Formant</strong> &mdash; Formant filtering combined with distortion; shapes the signal through vowel-like resonant peaks for speech-like character</li>
+                <li><strong>Granular</strong> &mdash; Granular distortion that processes the signal in small, windowed grains for cloud-like, micro-timbral textures</li>
+                <li><strong>Spectral</strong> &mdash; FFT-domain distortion applied per frequency bin; modes include per-bin saturation, magnitude processing, bin-selective distortion, and spectral bitcrushing</li>
+                <li><strong>Fractal</strong> &mdash; Iterative, self-similar distortion with recursive structure and controllable depth for evolving harmonic complexity</li>
+                <li><strong>Stochastic</strong> &mdash; Noise-modulated distortion with random jitter for probabilistic, shimmering, diffuse textures</li>
             </ul>
         </section>
 
