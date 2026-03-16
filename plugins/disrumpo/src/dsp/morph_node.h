@@ -101,9 +101,19 @@ struct ShapeShadowStorage {
     float typeSlots[kDistortionTypeCount][kSlotCount];
 
     ShapeShadowStorage() noexcept {
+        // Default all slots to 0.5 (center value, works for most types)
         for (auto& type : typeSlots)
             for (int s = 0; s < kSlotCount; ++s)
                 type[s] = 0.5f;
+
+        // Fix BitwiseMangler defaults: slot 0 = 0.5 maps to op=3 (BitShuffle)
+        // which permutes audio bits and produces noise on real audio.
+        // Use op=2 (BitRotate) with amount=0 (passthrough) as the safe default.
+        const int bmIdx = static_cast<int>(DistortionType::BitwiseMangler);
+        typeSlots[bmIdx][0] = 0.3f;  // Op: int(0.3*5+0.5) = 2 → BitRotate
+        typeSlots[bmIdx][1] = 0.5f;  // Intensity: 50% (moderate)
+        typeSlots[bmIdx][2] = 0.0f;  // Pattern: 0 (no XOR mask)
+        typeSlots[bmIdx][3] = 0.5f;  // Bits: rotateAmount = 0 (passthrough)
     }
 
     /// Save current slot values for the given type index.

@@ -116,6 +116,7 @@ add_executable(disrumpo_tests
     integration/modulation_audio_path_test.cpp
     integration/processor_audio_output_test.cpp
     integration/chaos_distortion_wiring_test.cpp
+    integration/multi_node_distortion_test.cpp
 )
 
 target_link_libraries(disrumpo_tests
