@@ -64,6 +64,21 @@ enum class FractalMode : uint8_t {
     Feedback = 4    ///< Cross-level feedback with delay (FR-009)
 };
 
+/// @brief Blend modes for combining fractal iteration levels.
+///
+/// Controls how the per-iteration level outputs are combined into the final
+/// wet signal. Each mode produces a distinct harmonic character:
+/// - Add: Linear sum (default, preserves fractal decomposition)
+/// - Multiply: Ring-modulation style, each level modulates the accumulator
+/// - Max: Peak selection, only the loudest level is heard
+/// - Screen: Soft union that avoids clipping (audio analog of screen blend)
+enum class FractalBlendMode : uint8_t {
+    Add = 0,       ///< Linear sum of all levels (default)
+    Multiply = 1,  ///< Cascaded ring modulation between levels
+    Max = 2,       ///< Peak selection — loudest level wins
+    Screen = 3     ///< Soft combination: a + b - a*b (avoids clipping)
+};
+
 // =============================================================================
 // FractalDistortion Class (FR-001 to FR-050)
 // =============================================================================
@@ -417,6 +432,46 @@ public:
     }
 
     // =========================================================================
+    // Blend Mode
+    // =========================================================================
+
+    /// @brief Set how iteration levels are combined into the final output.
+    /// @param mode FractalBlendMode to use
+    void setBlendMode(FractalBlendMode mode) noexcept {
+        blendMode_ = mode;
+    }
+
+    /// @brief Get current blend mode.
+    [[nodiscard]] FractalBlendMode getBlendMode() const noexcept {
+        return blendMode_;
+    }
+
+    // =========================================================================
+    // Curve Type (applies to all modes)
+    // =========================================================================
+
+    /// @brief Set the saturation curve type used across all modes.
+    ///
+    /// - Residual/Feedback/Multiband: replaces the default tanh saturation
+    /// - Harmonic: sets both odd and even harmonic waveshaper curves
+    /// - Cascade: sets the waveshaper type for all iteration levels
+    ///
+    /// @param type WaveshapeType to use (default: Tanh)
+    void setCurveType(WaveshapeType type) noexcept {
+        curveType_ = type;
+        curveShaper_.setType(type);
+        oddHarmonicCurve_ = type;
+        evenHarmonicCurve_ = type;
+        for (auto& ws : waveshapers_)
+            ws.setType(type);
+    }
+
+    /// @brief Get current curve type.
+    [[nodiscard]] WaveshapeType getCurveType() const noexcept {
+        return curveType_;
+    }
+
+    // =========================================================================
     // Processing (FR-046 to FR-050)
     // =========================================================================
 
@@ -507,6 +562,58 @@ public:
 
 private:
     // =========================================================================
+    // Level Combination
+    // =========================================================================
+
+    /// @brief Combine iteration levels according to the current blend mode.
+    /// @param levels Array of per-iteration level outputs
+    /// @param count Number of active iterations
+    /// @return Combined output sample
+    float combineLevels(const std::array<float, kMaxIterations>& levels,
+                        int count) const noexcept {
+        if (count <= 0) return 0.0f;
+
+        switch (blendMode_) {
+            case FractalBlendMode::Add:
+            default: {
+                float sum = 0.0f;
+                for (int i = 0; i < count; ++i)
+                    sum += levels[static_cast<size_t>(i)];
+                return sum;
+            }
+            case FractalBlendMode::Multiply: {
+                // Each level ring-modulates the accumulator
+                float result = levels[0];
+                for (int i = 1; i < count; ++i)
+                    result *= (1.0f + levels[static_cast<size_t>(i)]);
+                return result;
+            }
+            case FractalBlendMode::Max: {
+                // Peak selection: loudest level wins (preserves sign)
+                float best = levels[0];
+                float bestAbs = std::abs(best);
+                for (int i = 1; i < count; ++i) {
+                    const float a = std::abs(levels[static_cast<size_t>(i)]);
+                    if (a > bestAbs) {
+                        best = levels[static_cast<size_t>(i)];
+                        bestAbs = a;
+                    }
+                }
+                return best;
+            }
+            case FractalBlendMode::Screen: {
+                // Audio screen blend: a + b - a*b
+                // Soft union that naturally limits toward ±1
+                float result = levels[0];
+                for (int i = 1; i < count; ++i)
+                    result = result + levels[static_cast<size_t>(i)]
+                             - result * levels[static_cast<size_t>(i)];
+                return result;
+            }
+        }
+    }
+
+    // =========================================================================
     // Mode-Specific Processing
     // =========================================================================
 
@@ -522,8 +629,9 @@ private:
     [[nodiscard]] float processResidual(float input, float smoothedDrive) noexcept {
         std::array<float, kMaxIterations> levels{};
 
-        // Level 0: tanh(input * drive) (FR-027)
-        levels[0] = Sigmoid::tanh(input * smoothedDrive);
+        // Level 0: saturate(input * drive) (FR-027)
+        curveShaper_.setDrive(smoothedDrive);
+        levels[0] = curveShaper_.process(input);
         levels[0] = detail::flushDenormal(levels[0]);
 
         // Apply frequency decay to level 0 if enabled
@@ -540,7 +648,8 @@ private:
             const float residual = input - sum;
 
             // Apply saturation with scaled drive
-            levels[static_cast<size_t>(i)] = Sigmoid::tanh(residual * scalePower * smoothedDrive);
+            curveShaper_.setDrive(scalePower * smoothedDrive);
+            levels[static_cast<size_t>(i)] = curveShaper_.process(residual);
             levels[static_cast<size_t>(i)] = detail::flushDenormal(levels[static_cast<size_t>(i)]);
 
             // Apply frequency decay if enabled
@@ -553,7 +662,7 @@ private:
             scalePower *= scaleFactor_;
         }
 
-        return sum;  // FR-029: Sum all levels
+        return combineLevels(levels, iterations_);
     }
 
     /// @brief Process using Multiband mode algorithm (FR-030 to FR-033).
@@ -593,13 +702,11 @@ private:
         // High band (Band 3)
         bandOutputs[3] = processBandResidual(bands.high, smoothedDrive, bandIterations[3]);
 
-        // Sum all bands for output (FR-030)
-        float output = 0.0f;
-        for (int i = 0; i < kNumBands; ++i) {
-            output += bandOutputs[static_cast<size_t>(i)];
-        }
-
-        return output;
+        // Combine bands using blend mode (FR-030)
+        std::array<float, kMaxIterations> padded{};
+        for (int i = 0; i < kNumBands; ++i)
+            padded[static_cast<size_t>(i)] = bandOutputs[static_cast<size_t>(i)];
+        return combineLevels(padded, kNumBands);
     }
 
     /// @brief Process using Harmonic mode algorithm (FR-034 to FR-038).
@@ -674,7 +781,7 @@ private:
             scalePower *= scaleFactor_;
         }
 
-        return sum;
+        return combineLevels(levels, iterations_);
     }
 
     /// @brief Process using Cascade mode algorithm (FR-039 to FR-041).
@@ -723,7 +830,7 @@ private:
             scalePower *= scaleFactor_;
         }
 
-        return sum;
+        return combineLevels(levels, iterations_);
     }
 
     /// @brief Process using Feedback mode algorithm (FR-042 to FR-045).
@@ -739,8 +846,9 @@ private:
     [[nodiscard]] float processFeedback(float input, float smoothedDrive) noexcept {
         std::array<float, kMaxIterations> levels{};
 
-        // Level 0: tanh(input * drive) - no feedback on first level
-        levels[0] = Sigmoid::tanh(input * smoothedDrive);
+        // Level 0: saturate(input * drive) - no feedback on first level
+        curveShaper_.setDrive(smoothedDrive);
+        levels[0] = curveShaper_.process(input);
         levels[0] = detail::flushDenormal(levels[0]);
 
         // Apply frequency decay if enabled
@@ -761,7 +869,8 @@ private:
 
             // Combine residual with feedback and apply saturation
             const float combinedInput = residual + feedbackContribution;
-            levels[static_cast<size_t>(i)] = Sigmoid::tanh(combinedInput * scalePower * smoothedDrive);
+            curveShaper_.setDrive(scalePower * smoothedDrive);
+            levels[static_cast<size_t>(i)] = curveShaper_.process(combinedInput);
             levels[static_cast<size_t>(i)] = detail::flushDenormal(levels[static_cast<size_t>(i)]);
 
             // Apply frequency decay if enabled
@@ -779,13 +888,16 @@ private:
             feedbackBuffer_[static_cast<size_t>(i)] = levels[static_cast<size_t>(i)];
         }
 
+        // Combine levels using blend mode
+        float output = combineLevels(levels, iterations_);
+
         // Apply soft limiting only when feedback is active to prevent runaway (FR-045)
         // When feedbackAmount=0, this should match Residual mode exactly
         if (feedbackAmount_ > 0.0f) {
-            sum = Sigmoid::tanh(sum);
+            output = Sigmoid::tanh(output);
         }
 
-        return sum;
+        return output;
     }
 
     // =========================================================================
@@ -863,7 +975,8 @@ private:
         std::array<float, kMaxIterations> levels{};
 
         // Level 0
-        levels[0] = Sigmoid::tanh(input * smoothedDrive);
+        curveShaper_.setDrive(smoothedDrive);
+        levels[0] = curveShaper_.process(input);
         levels[0] = detail::flushDenormal(levels[0]);
 
         float sum = levels[0];
@@ -872,13 +985,14 @@ private:
         float scalePower = scaleFactor_;
         for (int i = 1; i < numIterations && i < kMaxIterations; ++i) {
             const float residual = input - sum;
-            levels[static_cast<size_t>(i)] = Sigmoid::tanh(residual * scalePower * smoothedDrive);
+            curveShaper_.setDrive(scalePower * smoothedDrive);
+            levels[static_cast<size_t>(i)] = curveShaper_.process(residual);
             levels[static_cast<size_t>(i)] = detail::flushDenormal(levels[static_cast<size_t>(i)]);
             sum += levels[static_cast<size_t>(i)];
             scalePower *= scaleFactor_;
         }
 
-        return sum;
+        return combineLevels(levels, numIterations);
     }
 
     // =========================================================================
@@ -891,6 +1005,7 @@ private:
     DCBlocker dcBlocker_;                                      ///< Post-processing DC removal
     OnePoleSmoother driveSmoother_;                            ///< Drive parameter smoothing
     OnePoleSmoother mixSmoother_;                              ///< Mix parameter smoothing
+    Waveshaper curveShaper_;                                    ///< General saturation curve for Residual/Feedback/Multiband
 
     // Multiband mode components (FR-030)
     Crossover4Way crossover_;                                  ///< 4-way band splitter
@@ -917,10 +1032,12 @@ private:
     float frequencyDecay_ = 0.0f;
     float crossoverFrequency_ = kDefaultCrossoverFrequency;
     float bandIterationScale_ = kDefaultBandIterationScale;
+    WaveshapeType curveType_ = WaveshapeType::Tanh;             ///< Saturation curve for all modes
     WaveshapeType oddHarmonicCurve_ = WaveshapeType::Tanh;     ///< FR-037: Default Tanh
     WaveshapeType evenHarmonicCurve_ = WaveshapeType::Tube;    ///< FR-037: Default Tube
     std::array<WaveshapeType, kMaxIterations> levelWaveshapers_;  ///< Cascade mode per-level types
     float feedbackAmount_ = 0.0f;
+    FractalBlendMode blendMode_ = FractalBlendMode::Add;          ///< Level combination mode
 };
 
 }  // namespace DSP

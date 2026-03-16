@@ -494,6 +494,74 @@ private:
     bool initialVisibilitySet_ = false;
 };
 
+// ---------------------------------------------------------------------------
+// FractalModeController — shows/hides FB (Feedback mode) and Depth (Multiband mode)
+// ---------------------------------------------------------------------------
+class FractalModeController : public VSTGUI::DelegationController {
+public:
+    explicit FractalModeController(VSTGUI::IController* parentController)
+        : DelegationController(parentController) {}
+
+    VSTGUI::CView* verifyView(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
+                               [[maybe_unused]] const VSTGUI::IUIDescription* description) override {
+        // Detect the Mode dropdown (Band.NodeShape0)
+        const auto* tagName = attributes.getAttributeValue("control-tag");
+        if (tagName && *tagName == "Band.NodeShape0") {
+            if (auto* control = dynamic_cast<VSTGUI::CControl*>(view)) {
+                modeControl_ = control;
+                modeControl_->registerControlListener(this);
+            }
+        }
+
+        // Detect visibility containers by custom attribute
+        const auto* group = attributes.getAttributeValue("fractal-group");
+        if (group) {
+            if (auto* container = view->asViewContainer()) {
+                if (*group == "feedback")
+                    feedbackContainer_ = container;
+                else if (*group == "depth")
+                    depthContainer_ = container;
+            }
+        }
+
+        auto* result = DelegationController::verifyView(view, attributes, description);
+
+        // Set initial visibility once all pieces are found
+        if (modeControl_ && feedbackContainer_ && depthContainer_ && !initialVisibilitySet_) {
+            initialVisibilitySet_ = true;
+            updateVisibility();
+        }
+        return result;
+    }
+
+    void valueChanged(VSTGUI::CControl* control) override {
+        if (control == modeControl_) {
+            updateVisibility();
+        }
+        DelegationController::valueChanged(control);
+    }
+
+private:
+    void updateVisibility() {
+        if (!modeControl_) return;
+
+        // Mode dropdown: 5 items → normalized 0/4, 1/4, 2/4, 3/4, 4/4
+        // Residual=0, Multiband=1, Harmonic=2, Cascade=3, Feedback=4
+        float norm = modeControl_->getValueNormalized();
+        int mode = static_cast<int>(norm * 4.0f + 0.5f);
+
+        if (feedbackContainer_)
+            feedbackContainer_->setVisible(mode == 4);  // Feedback only
+        if (depthContainer_)
+            depthContainer_->setVisible(mode == 1);     // Multiband only
+    }
+
+    VSTGUI::CControl* modeControl_ = nullptr;
+    VSTGUI::CViewContainer* feedbackContainer_ = nullptr;
+    VSTGUI::CViewContainer* depthContainer_ = nullptr;
+    bool initialVisibilitySet_ = false;
+};
+
 // Inline definition of BandSubController::createSubController
 inline VSTGUI::IController* BandSubController::createSubController(
     VSTGUI::UTF8StringPtr name, const VSTGUI::IUIDescription* description) {
@@ -506,6 +574,9 @@ inline VSTGUI::IController* BandSubController::createSubController(
     }
     if (std::strcmp(name, "RingSatFreqMode") == 0) {
         return new RingSatFreqModeController(this);
+    }
+    if (std::strcmp(name, "FractalMode") == 0) {
+        return new FractalModeController(this);
     }
     return DelegationController::createSubController(name, description);
 }

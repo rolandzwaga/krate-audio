@@ -931,6 +931,16 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
             fractal_.setScaleFactor(p.scaleFactor);
             fractal_.setFrequencyDecay(p.frequencyDecay);
             fractal_.setFeedbackAmount(p.fractalFB);
+            // Curve controls saturation waveshaper type across all modes
+            auto curveType = static_cast<Krate::DSP::WaveshapeType>(
+                std::clamp(static_cast<int>(p.fractalCurve * 8.0f + 0.5f), 0, 8));
+            fractal_.setCurveType(curveType);
+            // Blend mode controls how iteration levels are combined
+            int blendIdx = std::clamp(p.fractalBlend, 0, 3);
+            fractal_.setBlendMode(
+                static_cast<Krate::DSP::FractalBlendMode>(blendIdx));
+            // Depth controls band iteration scale (multiband mode)
+            fractal_.setBandIterationScale(p.fractalDepth);
             // Set internal drive to 1.0 since the adapter already applies
             // commonParams_.drive to the input before processRaw().
             // Without this, the default internal drive of 2.0 doubles

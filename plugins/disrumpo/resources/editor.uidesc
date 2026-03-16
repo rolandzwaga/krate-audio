@@ -1167,7 +1167,7 @@
     <view class="CTextLabel" origin="155, 78" size="40, 10" title="Phase" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape7" origin="155, 90" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Preserve,Random,Gradient,Temporal"/>
   </template>
-  <template name="TypeParams_Fractal" class="CViewContainer" size="215, 200" background-color="panel">
+  <template name="TypeParams_Fractal" class="CViewContainer" sub-controller="FractalMode" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Fractal" font="section-font" font-color="text-primary" text-alignment="center"/>
     <view class="CTextLabel" origin="5, 28" size="40, 10" title="Mode" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape0" origin="5, 38" size="40, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Residual,Multiband,Harmonic,Cascade,Feedback"/>
@@ -1179,12 +1179,18 @@
     <view class="ArcKnob" control-tag="Band.NodeShape3" origin="155, 38" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-7"/>
     <view class="CTextLabel" origin="5, 78" size="38, 10" title="FDecay" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="ArcKnob" control-tag="Band.NodeShape4" origin="5, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-7"/>
-    <view class="CTextLabel" origin="55, 78" size="30, 10" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape5" origin="55, 88" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-7"/>
+    <!-- FB: only visible in Feedback mode (4) -->
+    <view class="CViewContainer" fractal-group="feedback" origin="55, 78" size="40, 45" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="30, 10" title="FB" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape5" origin="0, 10" size="32, 32" default-value="0.0" min-value="0" max-value="1" arc-color="band-7"/>
+    </view>
     <view class="CTextLabel" origin="105, 78" size="40, 10" title="Blend" font="small-font" font-color="text-secondary" text-alignment="center"/>
     <view class="COptionMenu" control-tag="Band.NodeShape6" origin="105, 90" size="42, 16" font="small-font" font-color="text-primary" back-color="background-secondary" frame-color="border" menu-items="Add,Multiply,Max,Screen"/>
-    <view class="CTextLabel" origin="155, 78" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
-    <view class="ArcKnob" control-tag="Band.NodeShape7" origin="155, 88" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-7"/>
+    <!-- Depth: only visible in Multiband mode (1) -->
+    <view class="CViewContainer" fractal-group="depth" origin="155, 78" size="40, 45" transparent="true">
+      <view class="CTextLabel" origin="0, 0" size="35, 10" title="Depth" font="small-font" font-color="text-secondary" text-alignment="center"/>
+      <view class="ArcKnob" control-tag="Band.NodeShape7" origin="0, 10" size="32, 32" default-value="0.5" min-value="0" max-value="1" arc-color="band-7"/>
+    </view>
   </template>
   <template name="TypeParams_Stochastic" class="CViewContainer" size="215, 200" background-color="panel">
     <view class="CTextLabel" origin="5, 5" size="205, 18" title="Stochastic" font="section-font" font-color="text-primary" text-alignment="center"/>
