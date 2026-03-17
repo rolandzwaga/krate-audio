@@ -19,6 +19,8 @@
 #include "update/update_checker.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 
@@ -48,7 +50,8 @@ class EvolutionPositionView;
 class ModulatorActivityView;
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
-                   public VSTGUI::VST3EditorDelegate
+                   public VSTGUI::VST3EditorDelegate,
+                   public Steinberg::Vst::IDataExchangeReceiver
 {
 public:
     Controller() = default;
@@ -85,6 +88,26 @@ public:
     Steinberg::tresult PLUGIN_API notify(
         Steinberg::Vst::IMessage* message) override;
 
+    // --- IDataExchangeReceiver ---
+    void PLUGIN_API queueOpened(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 blockSize,
+        Steinberg::TBool& dispatchOnBackgroundThread) override;
+    void PLUGIN_API queueClosed(
+        Steinberg::Vst::DataExchangeUserContextID userContextID) override;
+    void PLUGIN_API onDataExchangeBlocksReceived(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 numBlocks,
+        Steinberg::Vst::DataExchangeBlock* blocks,
+        Steinberg::TBool onBackgroundThread) override;
+
+    // --- Interface support ---
+    OBJ_METHODS(Controller, EditControllerEx1)
+    DEFINE_INTERFACES
+        DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
+    END_DEFINE_INTERFACES(EditControllerEx1)
+    DELEGATE_REFCOUNT(EditControllerEx1)
+
     /// @brief Import a snapshot from a JSON file into a memory slot (FR-025, FR-029).
     bool importSnapshotFromJson(const std::string& filePath, int slotIndex);
 
@@ -118,6 +141,9 @@ public:
     /// Apply a single parameter with begin/perform/end edit notifications
     void editParamWithNotify(Steinberg::Vst::ParamID id,
                              Steinberg::Vst::ParamValue value);
+
+    /// Get cached display data (test accessor)
+    const DisplayData& getCachedDisplayData() const { return cachedDisplayData_; }
 
     static Steinberg::FUnknown* createInstance(void*)
     {
@@ -153,6 +179,7 @@ private:
 
     // Display data pipeline (FR-048)
     DisplayData cachedDisplayData_{};
+    Steinberg::Vst::DataExchangeReceiverHandler dataExchangeReceiver_{this};
 
     // Display timer (FR-049)
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> displayTimer_;

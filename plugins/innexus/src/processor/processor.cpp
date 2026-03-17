@@ -203,9 +203,17 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         // Spec B FR-005, FR-018: Reset feedback buffer on activation
         feedbackBuffer_.fill(0.0f);
         previousFreezeForFeedback_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
+
+        // DataExchange: open queue for display data transfer
+        if (dataExchange_)
+            dataExchange_->onActivate(processSetup);
     }
     else
     {
+        // DataExchange: close queue before deactivation
+        if (dataExchange_)
+            dataExchange_->onDeactivate();
+
         oscillatorBank_.reset();
         residualSynth_.reset();
 

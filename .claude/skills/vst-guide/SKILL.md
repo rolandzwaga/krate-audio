@@ -11,7 +11,7 @@ This skill captures hard-won insights about VST3 SDK and VSTGUI that are not obv
 ## Quick Reference
 
 - **Parameter types & helpers**: See [PARAMETERS.md](PARAMETERS.md)
-- **Thread safety & IDependent**: See [THREAD-SAFETY.md](THREAD-SAFETY.md)
+- **Thread safety, IDependent & DataExchange API**: See [THREAD-SAFETY.md](THREAD-SAFETY.md)
 - **VSTGUI components & reusable templates**: See [UI-COMPONENTS.md](UI-COMPONENTS.md)
 - **Control selection guide**: See [CONTROLS-REFERENCE.md](CONTROLS-REFERENCE.md)
 - **Cross-platform patterns**: See [CROSS-PLATFORM.md](CROSS-PLATFORM.md)

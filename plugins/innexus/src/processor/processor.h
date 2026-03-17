@@ -41,6 +41,7 @@
 #include <krate/dsp/core/pitch_utils.h>
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 
 #include <array>
 #include <atomic>
@@ -72,6 +73,12 @@ public:
     // --- IComponent ---
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
+
+    // --- IConnectionPoint (DataExchange lifecycle) ---
+    Steinberg::tresult PLUGIN_API connect(
+        Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(
+        Steinberg::Vst::IConnectionPoint* other) override;
 
     // --- IMessage handler (FR-029: JSON import via IMessage) ---
     Steinberg::tresult PLUGIN_API notify(
@@ -682,6 +689,7 @@ private:
     // =========================================================================
     // Display Data (M7: FR-048)
     // =========================================================================
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchange_;
     DisplayData displayDataBuffer_{}; // Processor-side buffer, no atomic needed
 
     // =========================================================================

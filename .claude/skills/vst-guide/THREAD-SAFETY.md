@@ -287,3 +287,214 @@ To verify your implementation is safe:
 3. **willClose()**: Call `deactivate()` on ALL controllers BEFORE destroying them
 4. **Destructor**: Only release references, deactivation already done
 5. **update()**: Check `isActive_` first, then check for valid editor
+
+---
+
+## DataExchange API (Processor → Controller Data Transfer)
+
+### The Problem
+
+Sending display/visualization data from `process()` to the controller via `IMessage` has two issues:
+
+1. **Real-time safety**: `allocateMessage()` + `sendMessage()` allocates on the audio thread
+2. **Host compatibility**: Some hosts (notably Reason) don't reliably deliver `IMessage` from `process()`
+
+### The Solution: VST3 DataExchange API
+
+The SDK (v3.7.9+) provides `DataExchangeHandler` / `DataExchangeReceiverHandler` — a purpose-built mechanism with automatic IMessage fallback for older hosts. Located in:
+
+```
+public.sdk/source/vst/utility/dataexchange.h   // Header
+public.sdk/source/vst/utility/dataexchange.cpp  // Impl (part of sdk_common target)
+pluginterfaces/vst/ivstdataexchange.h           // IDataExchangeReceiver interface
+```
+
+### Processor Side Pattern
+
+```cpp
+// processor.h
+#include "public.sdk/source/vst/utility/dataexchange.h"
+
+class Processor : public Steinberg::Vst::AudioEffect {
+    // Override connect/disconnect for DataExchange lifecycle
+    tresult PLUGIN_API connect(Vst::IConnectionPoint* other) override;
+    tresult PLUGIN_API disconnect(Vst::IConnectionPoint* other) override;
+
+private:
+    std::unique_ptr<Vst::DataExchangeHandler> dataExchange_;
+    DisplayData displayDataBuffer_{};  // Must be trivially copyable!
+};
+```
+
+```cpp
+// processor.cpp — connect/disconnect
+tresult PLUGIN_API Processor::connect(Vst::IConnectionPoint* other) {
+    auto result = AudioEffect::connect(other);
+    if (result == kResultTrue) {
+        auto configCallback = [](Vst::DataExchangeHandler::Config& config,
+                                 const Vst::ProcessSetup& /*setup*/) {
+            config.blockSize = static_cast<uint32>(sizeof(DisplayData));
+            config.numBlocks = 2;       // Double-buffer
+            config.alignment = 32;      // Cache-line friendly
+            config.userContextID = 0;
+            return true;
+        };
+        dataExchange_ = std::make_unique<Vst::DataExchangeHandler>(
+            this, configCallback);
+        dataExchange_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+tresult PLUGIN_API Processor::disconnect(Vst::IConnectionPoint* other) {
+    if (dataExchange_) {
+        dataExchange_->onDisconnect(other);
+        dataExchange_.reset();
+    }
+    return AudioEffect::disconnect(other);
+}
+
+// processor.cpp — setActive
+tresult PLUGIN_API Processor::setActive(TBool state) {
+    if (state) {
+        // ... other activation ...
+        if (dataExchange_) dataExchange_->onActivate(processSetup);
+    } else {
+        if (dataExchange_) dataExchange_->onDeactivate();
+        // ... other deactivation ...
+    }
+    return AudioEffect::setActive(state);
+}
+
+// processor.cpp — sendDisplayData (called from process())
+void Processor::sendDisplayData() {
+    // ... populate displayDataBuffer_ ...
+
+    if (dataExchange_) {
+        auto block = dataExchange_->getCurrentOrNewBlock();
+        if (block.blockID != Vst::InvalidDataExchangeBlockID && block.data) {
+            std::memcpy(block.data, &displayDataBuffer_, sizeof(DisplayData));
+            dataExchange_->sendCurrentBlock();
+        }
+    }
+}
+```
+
+### Controller Side Pattern
+
+```cpp
+// controller.h
+#include "public.sdk/source/vst/utility/dataexchange.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
+
+class Controller : public Vst::EditControllerEx1,
+                   public VSTGUI::VST3EditorDelegate,
+                   public Vst::IDataExchangeReceiver  // Add this
+{
+public:
+    // IDataExchangeReceiver
+    void PLUGIN_API queueOpened(Vst::DataExchangeUserContextID userContextID,
+                                uint32 blockSize,
+                                TBool& dispatchOnBackgroundThread) override;
+    void PLUGIN_API queueClosed(
+        Vst::DataExchangeUserContextID userContextID) override;
+    void PLUGIN_API onDataExchangeBlocksReceived(
+        Vst::DataExchangeUserContextID userContextID,
+        uint32 numBlocks,
+        Vst::DataExchangeBlock* blocks,
+        TBool onBackgroundThread) override;
+
+    // REQUIRED: Interface macros to expose IDataExchangeReceiver
+    OBJ_METHODS(Controller, EditControllerEx1)
+    DEFINE_INTERFACES
+        DEF_INTERFACE(Vst::IDataExchangeReceiver)
+    END_DEFINE_INTERFACES(EditControllerEx1)
+    DELEGATE_REFCOUNT(EditControllerEx1)
+
+private:
+    DisplayData cachedDisplayData_{};
+    Vst::DataExchangeReceiverHandler dataExchangeReceiver_{this};
+};
+```
+
+```cpp
+// controller.cpp
+void PLUGIN_API Controller::queueOpened(
+    Vst::DataExchangeUserContextID, uint32, TBool& dispatchOnBackgroundThread) {
+    dispatchOnBackgroundThread = false;  // UI thread — safe with timer pattern
+}
+
+void PLUGIN_API Controller::queueClosed(Vst::DataExchangeUserContextID) {}
+
+void PLUGIN_API Controller::onDataExchangeBlocksReceived(
+    Vst::DataExchangeUserContextID, uint32 numBlocks,
+    Vst::DataExchangeBlock* blocks, TBool) {
+    // Use latest block (most recent data)
+    for (uint32 i = 0; i < numBlocks; ++i) {
+        if (blocks[i].data && blocks[i].size >= sizeof(DisplayData))
+            std::memcpy(&cachedDisplayData_, blocks[i].data, sizeof(DisplayData));
+    }
+}
+
+tresult PLUGIN_API Controller::notify(Vst::IMessage* message) {
+    if (!message) return kInvalidArgument;
+
+    // DataExchange fallback: handles IMessage-encoded blocks transparently
+    if (dataExchangeReceiver_.onMessage(message))
+        return kResultOk;
+
+    // ... other message handling (SampleFileLoaded, etc.) ...
+
+    return EditControllerEx1::notify(message);
+}
+```
+
+### Critical Implementation Notes
+
+| Rule | Detail |
+|------|--------|
+| **DisplayData must be trivially copyable** | `static_assert(std::is_trivially_copyable_v<DisplayData>)` — required for `memcpy` block transport |
+| **Null-guard `dataExchange_`** | Tests and hosts that don't call `connect()` must not crash — `if (dataExchange_)` before every call |
+| **DEFINE_INTERFACES chaining** | `END_DEFINE_INTERFACES(EditControllerEx1)` chains through the parent's `queryInterface` — this is required for `IUnitInfo` to remain discoverable |
+| **`dispatchOnBackgroundThread = false`** | Keeps `onDataExchangeBlocksReceived` on UI thread, safe with the existing timer + cached data pattern |
+| **Existing timer pattern preserved** | The 30ms `CVSTGUITimer` continues to drive view updates from `cachedDisplayData_` — no change to the view refresh path |
+| **IMessage fallback is automatic** | When host doesn't support `IDataExchangeHandler`, the SDK transparently falls back to IMessage via a 1ms timer. No plugin code changes needed. |
+| **`onActivate` before `setActive` returns** | Call `dataExchange_->onActivate(processSetup)` at the END of the `setActive(true)` block, after all other setup |
+| **`onDeactivate` before `setActive` base call** | Call `dataExchange_->onDeactivate()` at the START of the `setActive(false)` block, before resetting other state |
+
+### Testing DataExchange
+
+The IMessage fallback uses a platform timer (1ms interval) to deliver queued blocks. In tests:
+
+- **Unit tests (no connect)**: `sendDisplayData()` is a no-op when `dataExchange_` is null — existing tests work unchanged
+- **Unit tests (direct receiver)**: Call `onDataExchangeBlocksReceived()` directly with a mock `DataExchangeBlock` pointing to test data
+- **Integration tests**: Wire Processor ↔ Controller via `IConnectionPoint`, then pump platform messages to allow the fallback timer to fire:
+
+```cpp
+// Windows: SetTimer requires message dispatching
+static void pumpMessages(int durationMs) {
+#ifdef _WIN32
+    auto start = std::chrono::steady_clock::now();
+    while (/* elapsed < durationMs */) {
+        MSG msg;
+        while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+#else
+    std::this_thread::sleep_for(std::chrono::milliseconds(durationMs));
+#endif
+}
+```
+
+### SDK Source Reference
+
+| File | Key Content |
+|------|-------------|
+| `dataexchange.cpp:44-49` | Message IDs: `"DataExchange"`, `"DataExchangeQueueOpened"`, `"DataExchangeQueueClosed"` |
+| `dataexchange.cpp:52-192` | `MessageHandler` — fallback IMessage implementation with ring buffers and 1ms timer |
+| `dataexchange.cpp:395-463` | `DataExchangeReceiverHandler::onMessage()` — decodes fallback messages, calls `onDataExchangeBlocksReceived()` |
+| `dataexchange.h:40-123` | `DataExchangeHandler` public API |
+| `dataexchange.h:135-150` | `DataExchangeReceiverHandler` public API |

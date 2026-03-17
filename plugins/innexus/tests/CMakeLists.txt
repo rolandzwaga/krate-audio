@@ -116,6 +116,15 @@ add_executable(innexus_tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
 
+    # DataExchange API tests (Processor side)
+    unit/processor/test_data_exchange.cpp
+
+    # DataExchange API tests (Controller side)
+    unit/controller/test_data_exchange_receiver.cpp
+
+    # DataExchange pipeline integration test
+    integration/test_data_exchange_pipeline.cpp
+
     # UI controller tests (M7)
     unit/controller/test_harmonic_display_view.cpp
     unit/controller/test_confidence_indicator_view.cpp

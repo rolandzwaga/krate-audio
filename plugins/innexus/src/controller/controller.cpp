@@ -1359,6 +1359,42 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
 }
 
 // ==============================================================================
+// IDataExchangeReceiver implementation
+// ==============================================================================
+void PLUGIN_API Controller::queueOpened(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 /*blockSize*/,
+    Steinberg::TBool& dispatchOnBackgroundThread)
+{
+    // Dispatch on UI thread so we can safely update cachedDisplayData_
+    // without synchronization (timer also fires on UI thread).
+    dispatchOnBackgroundThread = false;
+}
+
+void PLUGIN_API Controller::queueClosed(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/)
+{
+    // Nothing to clean up
+}
+
+void PLUGIN_API Controller::onDataExchangeBlocksReceived(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 numBlocks,
+    Steinberg::Vst::DataExchangeBlock* blocks,
+    Steinberg::TBool /*onBackgroundThread*/)
+{
+    // Copy the latest block's DisplayData into the cached buffer.
+    // If multiple blocks arrived, use the last one (most recent data).
+    for (Steinberg::uint32 i = 0; i < numBlocks; ++i)
+    {
+        if (blocks[i].data && blocks[i].size >= sizeof(DisplayData))
+        {
+            std::memcpy(&cachedDisplayData_, blocks[i].data, sizeof(DisplayData));
+        }
+    }
+}
+
+// ==============================================================================
 // notify (T015: FR-048 IMessage protocol)
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Controller::notify(
@@ -1367,25 +1403,11 @@ Steinberg::tresult PLUGIN_API Controller::notify(
     if (!message)
         return Steinberg::kInvalidArgument;
 
-    // Display data from processor (FR-048)
-    if (std::strcmp(message->getMessageID(), "DisplayData") == 0)
-    {
-        auto* attrs = message->getAttributes();
-        if (!attrs)
-            return Steinberg::kResultFalse;
-
-        const void* data = nullptr;
-        Steinberg::uint32 dataSize = 0;
-        if (attrs->getBinary("data", data, dataSize) != Steinberg::kResultOk)
-            return Steinberg::kResultFalse;
-
-        // Validate size matches DisplayData struct
-        if (dataSize != sizeof(DisplayData))
-            return Steinberg::kResultFalse;
-
-        std::memcpy(&cachedDisplayData_, data, sizeof(DisplayData));
+    // DataExchange fallback: IMessage-based display data transport.
+    // The DataExchangeReceiverHandler decodes fallback messages and calls
+    // onDataExchangeBlocksReceived() above. Returns true if handled.
+    if (dataExchangeReceiver_.onMessage(message))
         return Steinberg::kResultOk;
-    }
 
     // Sample file loaded notification from processor
     if (std::strcmp(message->getMessageID(), "SampleFileLoaded") == 0)

@@ -4,10 +4,51 @@
 
 #include "processor.h"
 
+#include "pluginterfaces/vst/ivstdataexchange.h"
+
 #include <algorithm>
 #include <cstring>
 
 namespace Innexus {
+
+// ==============================================================================
+// connect() -- DataExchange lifecycle
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Processor::connect(
+    Steinberg::Vst::IConnectionPoint* other)
+{
+    auto result = AudioEffect::connect(other);
+    if (result == Steinberg::kResultTrue)
+    {
+        auto configCallback = [] (Steinberg::Vst::DataExchangeHandler::Config& config,
+                                  const Steinberg::Vst::ProcessSetup& /*setup*/) {
+            config.blockSize = static_cast<Steinberg::uint32>(sizeof(DisplayData));
+            config.numBlocks = 2;
+            config.alignment = 32;
+            config.userContextID = 0;
+            return true;
+        };
+
+        dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
+            this, configCallback);
+        dataExchange_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+// ==============================================================================
+// disconnect() -- DataExchange lifecycle
+// ==============================================================================
+Steinberg::tresult PLUGIN_API Processor::disconnect(
+    Steinberg::Vst::IConnectionPoint* other)
+{
+    if (dataExchange_)
+    {
+        dataExchange_->onDisconnect(other);
+        dataExchange_.reset();
+    }
+    return AudioEffect::disconnect(other);
+}
 
 // ==============================================================================
 // sendDisplayData() -- Display data pipeline (M7: FR-048)
@@ -57,19 +98,17 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
     // Increment frame counter
     displayDataBuffer_.frameCounter++;
 
-    // Send via IMessage
-    auto* msg = allocateMessage();
-    if (msg)
+    // Send via DataExchangeHandler (uses native API if host supports it,
+    // falls back to IMessage transparently)
+    if (dataExchange_)
     {
-        msg->setMessageID("DisplayData");
-        auto* attrs = msg->getAttributes();
-        if (attrs)
+        auto block = dataExchange_->getCurrentOrNewBlock();
+        if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
+            && block.data != nullptr)
         {
-            attrs->setBinary("data", &displayDataBuffer_,
-                sizeof(DisplayData));
+            std::memcpy(block.data, &displayDataBuffer_, sizeof(DisplayData));
+            dataExchange_->sendCurrentBlock();
         }
-        sendMessage(msg);
-        msg->release();
     }
 }
 
