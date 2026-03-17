@@ -224,6 +224,10 @@ public:
         noteFrequency_ = (frequency < 0.0f) ? 0.0f : frequency;
         velocity_ = std::clamp(velocity, 0.0f, 1.0f);
 
+        // Clear stale pitch modulation offsets from previous note
+        oscAPitchModSemitones_ = 0.0f;
+        oscBPitchModSemitones_ = 0.0f;
+
         // Update oscillator frequencies (with per-osc tuning)
         updateOscFrequencies();
 
@@ -425,6 +429,11 @@ public:
                 modRouter_.getOffset(VoiceModDest::MorphPosition)
                 * modDestScales_[static_cast<size_t>(VoiceModDest::MorphPosition)];
 
+            // Apply FilterResonance modulation
+            const float resonanceModOffset =
+                modRouter_.getOffset(VoiceModDest::FilterResonance)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::FilterResonance)];
+
             // Apply OscALevel/OscBLevel modulation (042-ext-modulation-system FR-004)
             const float oscALevelOffset =
                 modRouter_.getOffset(VoiceModDest::OscALevel)
@@ -455,6 +464,14 @@ public:
 
             // Update filter cutoff and process sample
             setActiveFilterCutoff(effectiveCutoff);
+
+            // Apply filter resonance modulation
+            if (resonanceModOffset != 0.0f) {
+                const float effectiveResonance = std::clamp(
+                    filterResonance_ + resonanceModOffset, 0.1f, 30.0f);
+                setActiveFilterResonance(effectiveResonance);
+            }
+
             mixBuffer_[i] = processActiveFilter(mixBuffer_[i]);
 
             // Store amp envelope value for VCA stage below
@@ -469,6 +486,47 @@ public:
             if (tiltModOffset != 0.0f && spectralMorph_) {
                 const float modulatedTilt = std::clamp(mixTilt_ + tiltModOffset, -12.0f, 12.0f);
                 spectralMorph_->setSpectralTilt(modulatedTilt);
+            }
+        }
+
+        // Store OscAPitch/OscBPitch modulation offsets for next block
+        // (applied via updateOscFrequencies() which is called before oscillator rendering)
+        {
+            const float newOscAPitchMod =
+                modRouter_.getOffset(VoiceModDest::OscAPitch)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::OscAPitch)];
+            const float newOscBPitchMod =
+                modRouter_.getOffset(VoiceModDest::OscBPitch)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::OscBPitch)];
+            if (newOscAPitchMod != oscAPitchModSemitones_
+                || newOscBPitchMod != oscBPitchModSemitones_) {
+                oscAPitchModSemitones_ = newOscAPitchMod;
+                oscBPitchModSemitones_ = newOscBPitchMod;
+                updateOscFrequencies();
+            }
+        }
+
+        // Apply DistortionDrive modulation at block rate
+        {
+            const float driveModOffset =
+                modRouter_.getOffset(VoiceModDest::DistortionDrive)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::DistortionDrive)];
+            if (driveModOffset != 0.0f) {
+                const float effectiveDrive = std::clamp(
+                    distortionDrive_ + driveModOffset, 0.0f, 1.0f);
+                setActiveDistortionDrive(effectiveDrive);
+            }
+        }
+
+        // Apply TranceGateDepth modulation at block rate
+        {
+            const float gateDepthModOffset =
+                modRouter_.getOffset(VoiceModDest::TranceGateDepth)
+                * modDestScales_[static_cast<size_t>(VoiceModDest::TranceGateDepth)];
+            if (gateDepthModOffset != 0.0f) {
+                const float effectiveDepth = std::clamp(
+                    tranceGateDepth_ + gateDepthModOffset, 0.0f, 1.0f);
+                tranceGate_.setDepth(effectiveDepth);
             }
         }
 
@@ -950,6 +1008,7 @@ public:
     }
 
     void setTranceGateParams(const TranceGateParams& params) noexcept {
+        tranceGateDepth_ = std::clamp(params.depth, 0.0f, 1.0f);
         tranceGate_.setParams(params);
     }
 
@@ -969,6 +1028,11 @@ public:
 
     void setTranceGateRate(float hz) noexcept {
         tranceGate_.setRate(hz);
+    }
+
+    void setTranceGateDepth(float depth) noexcept {
+        tranceGateDepth_ = std::clamp(depth, 0.0f, 1.0f);
+        tranceGate_.setDepth(tranceGateDepth_);
     }
 
     void setTranceGateTempo(double bpm) noexcept {
@@ -1419,9 +1483,11 @@ private:
     ///        per-osc tuning offsets (semitones + cents).
     void updateOscFrequencies() noexcept {
         const float freqA = noteFrequency_
-            * semitonesToRatio(oscATuneSemitones_ + oscAFineCents_ / 100.0f);
+            * semitonesToRatio(oscATuneSemitones_ + oscAFineCents_ / 100.0f
+                               + oscAPitchModSemitones_);
         const float freqB = noteFrequency_
-            * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f);
+            * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f
+                               + oscBPitchModSemitones_);
         oscA_.setFrequency(freqA);
         oscB_.setFrequency(freqB);
 
@@ -1468,9 +1534,11 @@ private:
     float oscATuneSemitones_{0.0f};
     float oscAFineCents_{0.0f};
     float oscALevel_{1.0f};
+    float oscAPitchModSemitones_{0.0f};  ///< Per-voice mod offset for OSC A pitch
     float oscBTuneSemitones_{0.0f};
     float oscBFineCents_{0.0f};
     float oscBLevel_{1.0f};
+    float oscBPitchModSemitones_{0.0f};  ///< Per-voice mod offset for OSC B pitch
 
     // Shared oscillator resources (owned here, shared with both oscillators)
     struct SharedOscResources {
@@ -1523,6 +1591,7 @@ private:
     // TranceGate (FR-016: post-distortion, pre-VCA)
     TranceGate tranceGate_;
     bool tranceGateEnabled_{false};
+    float tranceGateDepth_{1.0f};
 
     // Envelopes
     ADSREnvelope ampEnv_;       // ENV 1

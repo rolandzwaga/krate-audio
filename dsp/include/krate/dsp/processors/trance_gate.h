@@ -171,6 +171,11 @@ public:
         updateStepDuration();
     }
 
+    /// @brief Set gate depth [0.0, 1.0] without reconfiguring other params.
+    void setDepth(float depth) noexcept {
+        params_.depth = std::clamp(depth, 0.0f, 1.0f);
+    }
+
     /// @brief Set free-run rate in Hz (only effective when tempoSync is off).
     void setRate(float hz) noexcept {
         params_.rateHz = std::clamp(hz, 0.1f, 100.0f);

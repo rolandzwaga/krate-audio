@@ -187,6 +187,39 @@ inline void generateBezierCurveTable(
 }
 
 // =============================================================================
+// Inverse Table Lookup
+// =============================================================================
+
+/// Find the phase [0,1] that produces a given target value in an ascending
+/// (0→1) curve table. Uses linear scan + interpolation. O(256) worst case.
+///
+/// @param table        The lookup table (must be monotonically non-decreasing)
+/// @param targetValue  Normalized target value in [0, 1]
+/// @return Phase in [0, 1]
+[[nodiscard]] inline float inverseLookupCurveTable(
+    const std::array<float, kCurveTableSize>& table,
+    float targetValue) noexcept
+{
+    targetValue = std::clamp(targetValue, 0.0f, 1.0f);
+
+    // Edge cases
+    if (targetValue <= table[0]) return 0.0f;
+    if (targetValue >= table[kCurveTableSize - 1]) return 1.0f;
+
+    // Linear scan to find bracketing entries
+    for (size_t i = 0; i < kCurveTableSize - 1; ++i) {
+        if (table[i + 1] >= targetValue) {
+            float span = table[i + 1] - table[i];
+            float frac = (span > 1e-8f)
+                ? (targetValue - table[i]) / span
+                : 0.0f;
+            return (static_cast<float>(i) + frac) / 255.0f;
+        }
+    }
+    return 1.0f;
+}
+
+// =============================================================================
 // Conversion Functions
 // =============================================================================
 

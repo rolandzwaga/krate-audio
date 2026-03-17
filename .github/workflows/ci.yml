@@ -148,19 +148,19 @@ jobs:
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
 
       - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
 
       - name: Build Iterum and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
 
       - name: Build Disrumpo
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo --parallel
 
       - name: Build Ruinae and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae ruinae_tests --parallel
 
       - name: Build Innexus and Tests
@@ -176,11 +176,11 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
 
       - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run Innexus Tests
@@ -188,11 +188,11 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
 
       - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
       - name: Upload Iterum Artifact
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Iterum-Windows-x64
@@ -200,7 +200,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifact
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Disrumpo-Windows-x64
@@ -208,7 +208,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifact
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Ruinae-Windows-x64
@@ -275,19 +275,19 @@ jobs:
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
 
       - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
 
       - name: Build Iterum, AU, AUv3, and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU Iterum_AUV3 validator --parallel
 
       - name: Build Disrumpo, AU, and AUv3
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU Disrumpo_AUV3 --parallel
 
       - name: Build Ruinae, AU, AUv3, and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU Ruinae_AUV3 ruinae_tests --parallel
 
       - name: Build Innexus, AU, AUv3, and Tests
@@ -303,11 +303,11 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
 
       - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run Innexus Tests
@@ -315,12 +315,12 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
 
       - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
       # Install AU and run auval validation for Iterum
       - name: Run Iterum AU Validation
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           rm -rf ~/Library/Audio/Plug-Ins/Components/Iterum.component
@@ -331,7 +331,7 @@ jobs:
 
       # Install AU and run auval validation for Disrumpo
       - name: Run Disrumpo AU Validation
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           rm -rf ~/Library/Audio/Plug-Ins/Components/Disrumpo.component
@@ -342,7 +342,7 @@ jobs:
 
       # Install AU and run auval validation for Ruinae
       - name: Run Ruinae AU Validation
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           mkdir -p ~/Library/Audio/Plug-Ins/Components
           rm -rf ~/Library/Audio/Plug-Ins/Components/Ruinae.component
@@ -364,7 +364,7 @@ jobs:
 
       # Verify AUv3 bundle structure (per-plugin, matching build conditions)
       - name: Verify Iterum AUv3 Bundle
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           APP="build/bin/${{ env.BUILD_TYPE }}/Iterum AUv3.app"
           test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
@@ -372,7 +372,7 @@ jobs:
           echo "[Iterum] AUv3 bundle OK"
 
       - name: Verify Disrumpo AUv3 Bundle
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           APP="build/bin/${{ env.BUILD_TYPE }}/Disrumpo AUv3.app"
           test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
@@ -380,7 +380,7 @@ jobs:
           echo "[Disrumpo] AUv3 bundle OK"
 
       - name: Verify Ruinae AUv3 Bundle
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: |
           APP="build/bin/${{ env.BUILD_TYPE }}/Ruinae AUv3.app"
           test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
@@ -401,7 +401,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Upload Iterum Artifacts
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Iterum-macOS
@@ -412,7 +412,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifacts
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Disrumpo-macOS
@@ -423,7 +423,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifacts
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Ruinae-macOS
@@ -502,19 +502,19 @@ jobs:
         run: cmake --build build --target shared_tests --parallel
 
       - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target plugin_tests approval_tests --parallel
 
       - name: Build Iterum and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Iterum validator --parallel
 
       - name: Build Disrumpo
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Disrumpo --parallel
 
       - name: Build Ruinae and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Ruinae ruinae_tests --parallel
 
       - name: Build Innexus and Tests
@@ -530,11 +530,11 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
 
       - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
 
       - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
 
       - name: Run Innexus Tests
@@ -542,7 +542,7 @@ jobs:
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
 
       - name: Run VST3 Validator (Iterum)
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
 
       # Show ccache statistics for debugging cache effectiveness
@@ -551,7 +551,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Upload Iterum Artifact
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Iterum-Linux-x64
@@ -559,7 +559,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Disrumpo Artifact
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Disrumpo-Linux-x64
@@ -567,7 +567,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Ruinae Artifact
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: Ruinae-Linux-x64

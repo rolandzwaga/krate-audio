@@ -351,7 +351,9 @@ public:
         return voiceActive_;
     }
 
-    /// Calculate the pixel position of the playback dot based on current stage and output
+    /// Calculate the pixel position of the playback dot based on current stage and output.
+    /// Uses inverse curve table lookup so the dot follows the drawn curve path
+    /// (Bezier or power curve) instead of moving in a straight line.
     [[nodiscard]] VSTGUI::CPoint getPlaybackDotPosition() const {
         float output = playbackOutput_;
         int stage = playbackStage_;
@@ -361,18 +363,23 @@ public:
 
         switch (stage) {
             case 1: { // Attack: output goes from 0 to peakLevel
-                float progress = (peakLevel_ > 0.001f)
+                float normalizedLevel = (peakLevel_ > 0.001f)
                     ? std::clamp(output / peakLevel_, 0.0f, 1.0f)
                     : 0.0f;
-                dotX = layout_.attackStartX + progress * (layout_.attackEndX - layout_.attackStartX);
+                float phase = curveAwarePhase(normalizedLevel, attackCurve_,
+                    bezierHandles_[0], true);
+                dotX = layout_.attackStartX + phase * (layout_.attackEndX - layout_.attackStartX);
                 break;
             }
             case 2: { // Decay: output goes from peakLevel down to sustainLevel
                 float range = peakLevel_ - sustainLevel_;
-                float progress = (range > 0.001f)
+                // curveVal goes 0→1 as output goes peak→sustain
+                float curveVal = (range > 0.001f)
                     ? std::clamp((peakLevel_ - output) / range, 0.0f, 1.0f)
                     : 0.5f;
-                dotX = layout_.attackEndX + progress * (layout_.decayEndX - layout_.attackEndX);
+                float phase = curveAwarePhase(curveVal, decayCurve_,
+                    bezierHandles_[1], false);
+                dotX = layout_.attackEndX + phase * (layout_.decayEndX - layout_.attackEndX);
                 break;
             }
             case 3: { // Sustain: hold at sustain level in the middle of sustain segment
@@ -380,10 +387,13 @@ public:
                 break;
             }
             case 4: { // Release: output goes from sustainLevel down to 0
-                float progress = (sustainLevel_ > 0.001f)
+                // curveVal goes 0→1 as output goes sustain→0
+                float curveVal = (sustainLevel_ > 0.001f)
                     ? std::clamp(1.0f - output / sustainLevel_, 0.0f, 1.0f)
                     : 0.5f;
-                dotX = layout_.sustainEndX + progress * (layout_.releaseEndX - layout_.sustainEndX);
+                float phase = curveAwarePhase(curveVal, releaseCurve_,
+                    bezierHandles_[2], false);
+                dotX = layout_.sustainEndX + phase * (layout_.releaseEndX - layout_.sustainEndX);
                 break;
             }
             default: // Idle or unknown
@@ -423,6 +433,24 @@ public:
         float range = layout_.bottomY - layout_.topY;
         if (range <= 0.0f) return 0.0f;
         return std::clamp((layout_.bottomY - pixelY) / range, 0.0f, 1.0f);
+    }
+
+    /// Convert a normalized curve value to a phase using inverse curve table lookup.
+    /// For attack (isAttack=true): table maps 0→1 (ascending).
+    /// For decay/release (isAttack=false): drawing uses a 0→1 table where
+    /// curveVal=0 at start and curveVal=1 at end of the segment.
+    [[nodiscard]] float curveAwarePhase(float curveVal,
+                                         float curveAmount,
+                                         const BezierHandles& handles,
+                                         [[maybe_unused]] bool isAttack) const {
+        std::array<float, Krate::DSP::kCurveTableSize> table{};
+        if (bezierEnabled_) {
+            Krate::DSP::generateBezierCurveTable(table,
+                handles.cp1x, handles.cp1y, handles.cp2x, handles.cp2y);
+        } else {
+            Krate::DSP::generatePowerCurveTable(table, curveAmount);
+        }
+        return Krate::DSP::inverseLookupCurveTable(table, curveVal);
     }
 
     /// Get the pixel position of a control point
@@ -787,11 +815,13 @@ private:
         return DragTarget::None;
     }
 
-    /// Hit test the mode toggle button (16x16 in top-right corner)
+    /// Hit test the mode toggle button
     [[nodiscard]] bool hitTestModeToggle(const VSTGUI::CPoint& point) const {
         VSTGUI::CRect vs = getViewSize();
+        bool useFullLabels = vs.getWidth() > 500.0;
+        float btnWidth = useFullLabels ? 50.0f : kModeToggleSize;
         float btnRight = static_cast<float>(vs.right) - kPadding;
-        float btnLeft = btnRight - kModeToggleSize;
+        float btnLeft = btnRight - btnWidth;
         float btnTop = static_cast<float>(vs.top) + kPadding;
         float btnBottom = btnTop + kModeToggleSize;
 
@@ -1675,8 +1705,10 @@ private:
 
     void drawModeToggle(VSTGUI::CDrawContext* context) const {
         VSTGUI::CRect vs = getViewSize();
+        bool useFullLabels = vs.getWidth() > 500.0;
+        float btnWidth = useFullLabels ? 50.0f : kModeToggleSize;
         float btnRight = static_cast<float>(vs.right) - kPadding;
-        float btnLeft = btnRight - kModeToggleSize;
+        float btnLeft = btnRight - btnWidth;
         float btnTop = static_cast<float>(vs.top) + kPadding;
         float btnBottom = btnTop + kModeToggleSize;
 
@@ -1700,8 +1732,10 @@ private:
             VSTGUI::kBoldFace);
         context->setFont(font);
         context->setFontColor(VSTGUI::CColor(220, 220, 230, 255));
-        context->drawString(
-            VSTGUI::UTF8String(bezierEnabled_ ? "B" : "S"),
+        const char* label = useFullLabels
+            ? (bezierEnabled_ ? "Bezier" : "Simple")
+            : (bezierEnabled_ ? "B" : "S");
+        context->drawString(VSTGUI::UTF8String(label),
             btnRect, VSTGUI::kCenterText);
     }
 

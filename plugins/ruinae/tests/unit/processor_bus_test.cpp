@@ -39,13 +39,13 @@ TEST_CASE("Processor bus configuration", "[processor][bus]") {
         REQUIRE(result == Steinberg::kResultFalse);
     }
 
-    SECTION("Rejects audio input + stereo output") {
+    SECTION("Accepts stereo sidechain input + stereo output") {
         Steinberg::Vst::SpeakerArrangement stereo = Steinberg::Vst::SpeakerArr::kStereo;
         auto result = processor.setBusArrangements(
-            &stereo, 1,  // one stereo input (invalid for synth)
+            &stereo, 1,  // one stereo input (sidechain)
             &stereo, 1   // one stereo output
         );
-        REQUIRE(result == Steinberg::kResultFalse);
+        REQUIRE(result == Steinberg::kResultTrue);
     }
 
     SECTION("Rejects two outputs") {

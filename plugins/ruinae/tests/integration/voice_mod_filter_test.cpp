@@ -440,3 +440,69 @@ TEST_CASE("Voice mod route ENV3 -> FilterCutoff with negative amount darkens sou
     // Negative modulation should reduce energy (filter closes)
     REQUIRE(rmsWithMod < rmsNoMod * 0.9f);
 }
+
+// =============================================================================
+// Processor-level regression: OscAPitch modulation through full pipeline
+// =============================================================================
+// This test verifies that OscAPitch modulation survives the applyParamsToEngine
+// overwrite cycle. The processor calls setOscATuneSemitones() every block which
+// resets oscillator frequencies. The pitch mod offset must persist through this.
+
+TEST_CASE("Voice mod route ENV3 -> OscAPitch affects audio through processor",
+          "[voice-mod][pitch][integration]") {
+    auto initProc = []() {
+        auto proc = std::make_unique<Ruinae::Processor>();
+        proc->initialize(nullptr);
+
+        Steinberg::Vst::ProcessSetup setup{};
+        setup.processMode = Steinberg::Vst::kRealtime;
+        setup.symbolicSampleSize = Steinberg::Vst::kSample32;
+        setup.sampleRate = 44100.0;
+        setup.maxSamplesPerBlock = 512;
+        proc->setupProcessing(setup);
+        proc->setActive(true);
+        return proc;
+    };
+
+    auto procWithMod = initProc();
+    auto procNoMod = initProc();
+
+    // ENV3 -> OscAPitch (destination=5), full positive amount
+    sendVoiceModRoute(*procWithMod,
+        /*slotIndex=*/0,
+        /*source=*/2,        // Env3
+        /*destination=*/5,   // OscAPitch
+        /*amount=*/1.0);     // Full positive
+
+    constexpr int kNumBlocks = 30;
+
+    std::vector<float> outputWithMod;
+    {
+        MockEventList events;
+        events.addNoteOn(60, 0.8f);
+        MockParameterChanges emptyParams;
+        outputWithMod = processBlocks(*procWithMod, events, &emptyParams, kNumBlocks);
+    }
+
+    std::vector<float> outputNoMod;
+    {
+        MockEventList events;
+        events.addNoteOn(60, 0.8f);
+        MockParameterChanges emptyParams;
+        outputNoMod = processBlocks(*procNoMod, events, &emptyParams, kNumBlocks);
+    }
+
+    REQUIRE(hasNonZeroSamples(outputWithMod.data(), outputWithMod.size()));
+    REQUIRE(hasNonZeroSamples(outputNoMod.data(), outputNoMod.size()));
+
+    bool differ = false;
+    for (size_t i = 0; i < outputWithMod.size() && i < outputNoMod.size(); ++i) {
+        if (std::abs(outputWithMod[i] - outputNoMod[i]) > 1e-6f) {
+            differ = true;
+            break;
+        }
+    }
+
+    // PRIMARY ASSERTION: ENV3 -> OscAPitch must change the audio output
+    REQUIRE(differ);
+}

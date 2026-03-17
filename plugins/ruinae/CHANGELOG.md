@@ -5,6 +5,18 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.13] - 2026-03-17
+
+### Fixed
+
+- **Envelope timing completely wrong** — Amp and mod envelope decay/attack/release times were drastically shorter than specified (e.g., 10s decayed in ~1s). Root cause: curve amounts were never applied to amp and mod envelopes, leaving them on the one-pole exponential path instead of the phase-based table path. Added float curve setter overloads in engine and wired them in the processor
+- **Bezier curves ignored by envelopes** — Bezier control points were stored in parameters but never forwarded to the DSP engine. Added Bezier curve setters for all three envelopes (amp, filter, mod) and conditional application in the processor when Bezier mode is enabled
+- **ADSR playback dot doesn't follow curve** — The playback indicator dot moved in a straight line instead of tracing the drawn curve path. Added inverse curve table lookup to compute the correct phase from the output level, so the dot now follows Bezier and power curves accurately
+
+### Changed
+
+- **ADSR mode toggle labels** — In the expanded overlay (>500px width), the Bezier/Simple toggle button now shows full "Bezier"/"Simple" labels instead of abbreviated "B"/"S"
+
 ## [0.9.12] - 2026-03-13
 
 ### Added

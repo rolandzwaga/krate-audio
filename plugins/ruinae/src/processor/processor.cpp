@@ -1490,21 +1490,81 @@ void Processor::applyParamsToEngine() {
     engine_.setAmpDecay(ampEnvParams_.decayMs.load(std::memory_order_relaxed));
     engine_.setAmpSustain(ampEnvParams_.sustain.load(std::memory_order_relaxed));
     engine_.setAmpRelease(ampEnvParams_.releaseMs.load(std::memory_order_relaxed));
+    if (ampEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
+        engine_.setAmpAttackBezierCurve(
+            ampEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
+        engine_.setAmpDecayBezierCurve(
+            ampEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
+        engine_.setAmpReleaseBezierCurve(
+            ampEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
+            ampEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
+    } else {
+        engine_.setAmpAttackCurve(ampEnvParams_.attackCurve.load(std::memory_order_relaxed));
+        engine_.setAmpDecayCurve(ampEnvParams_.decayCurve.load(std::memory_order_relaxed));
+        engine_.setAmpReleaseCurve(ampEnvParams_.releaseCurve.load(std::memory_order_relaxed));
+    }
 
     // --- Filter Envelope ---
     engine_.setFilterAttack(filterEnvParams_.attackMs.load(std::memory_order_relaxed));
     engine_.setFilterDecay(filterEnvParams_.decayMs.load(std::memory_order_relaxed));
     engine_.setFilterSustain(filterEnvParams_.sustain.load(std::memory_order_relaxed));
     engine_.setFilterRelease(filterEnvParams_.releaseMs.load(std::memory_order_relaxed));
-    engine_.setFilterAttackCurve(filterEnvParams_.attackCurve.load(std::memory_order_relaxed));
-    engine_.setFilterDecayCurve(filterEnvParams_.decayCurve.load(std::memory_order_relaxed));
-    engine_.setFilterReleaseCurve(filterEnvParams_.releaseCurve.load(std::memory_order_relaxed));
+    if (filterEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
+        engine_.setFilterAttackBezierCurve(
+            filterEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
+        engine_.setFilterDecayBezierCurve(
+            filterEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
+        engine_.setFilterReleaseBezierCurve(
+            filterEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
+            filterEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
+    } else {
+        engine_.setFilterAttackCurve(filterEnvParams_.attackCurve.load(std::memory_order_relaxed));
+        engine_.setFilterDecayCurve(filterEnvParams_.decayCurve.load(std::memory_order_relaxed));
+        engine_.setFilterReleaseCurve(filterEnvParams_.releaseCurve.load(std::memory_order_relaxed));
+    }
 
     // --- Mod Envelope ---
     engine_.setModAttack(modEnvParams_.attackMs.load(std::memory_order_relaxed));
     engine_.setModDecay(modEnvParams_.decayMs.load(std::memory_order_relaxed));
     engine_.setModSustain(modEnvParams_.sustain.load(std::memory_order_relaxed));
     engine_.setModRelease(modEnvParams_.releaseMs.load(std::memory_order_relaxed));
+    if (modEnvParams_.bezierEnabled.load(std::memory_order_relaxed) >= 0.5f) {
+        engine_.setModAttackBezierCurve(
+            modEnvParams_.bezierAttackCp1X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierAttackCp1Y.load(std::memory_order_relaxed),
+            modEnvParams_.bezierAttackCp2X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierAttackCp2Y.load(std::memory_order_relaxed));
+        engine_.setModDecayBezierCurve(
+            modEnvParams_.bezierDecayCp1X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierDecayCp1Y.load(std::memory_order_relaxed),
+            modEnvParams_.bezierDecayCp2X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierDecayCp2Y.load(std::memory_order_relaxed));
+        engine_.setModReleaseBezierCurve(
+            modEnvParams_.bezierReleaseCp1X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierReleaseCp1Y.load(std::memory_order_relaxed),
+            modEnvParams_.bezierReleaseCp2X.load(std::memory_order_relaxed),
+            modEnvParams_.bezierReleaseCp2Y.load(std::memory_order_relaxed));
+    } else {
+        engine_.setModAttackCurve(modEnvParams_.attackCurve.load(std::memory_order_relaxed));
+        engine_.setModDecayCurve(modEnvParams_.decayCurve.load(std::memory_order_relaxed));
+        engine_.setModReleaseCurve(modEnvParams_.releaseCurve.load(std::memory_order_relaxed));
+    }
 
     // --- LFO 1 ---
     engine_.setGlobalLFO1Rate(lfo1Params_.rateHz.load(std::memory_order_relaxed));

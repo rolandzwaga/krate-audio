@@ -2068,9 +2068,9 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
         CHECK((info.flags & ParameterInfo::kIsHidden) == 0);
     }
 
-    // Verify sentinels (updated for arp-chord-lane)
+    // Verify sentinels (updated for dual-reverb/flanger additions)
     CHECK(kArpEndId == 3372);
-    CHECK(kNumParameters == 3373);
+    CHECK(kNumParameters == 3401);
 }
 
 // T062: formatArpParam for Spice: percentage display

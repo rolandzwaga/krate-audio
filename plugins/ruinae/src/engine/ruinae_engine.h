@@ -1284,6 +1284,33 @@ public:
         for (auto& voice : voices_) { voice.getAmpEnvelope().setReleaseCurve(curve); }
     }
 
+    void setAmpAttackCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setAttackCurve(amount); }
+    }
+
+    void setAmpDecayCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setDecayCurve(amount); }
+    }
+
+    void setAmpReleaseCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setReleaseCurve(amount); }
+    }
+
+    void setAmpAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setAmpDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setAmpReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getAmpEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
     // --- Filter Envelope ---
 
     void setFilterAttack(float ms) noexcept {
@@ -1333,6 +1360,18 @@ public:
         for (auto& voice : voices_) { voice.getFilterEnvelope().setReleaseCurve(amount); }
     }
 
+    void setFilterAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setFilterDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setFilterReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getFilterEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
     // --- Modulation Envelope ---
 
     void setModAttack(float ms) noexcept {
@@ -1365,6 +1404,33 @@ public:
 
     void setModReleaseCurve(EnvCurve curve) noexcept {
         for (auto& voice : voices_) { voice.getModEnvelope().setReleaseCurve(curve); }
+    }
+
+    void setModAttackCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getModEnvelope().setAttackCurve(amount); }
+    }
+
+    void setModDecayCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getModEnvelope().setDecayCurve(amount); }
+    }
+
+    void setModReleaseCurve(float amount) noexcept {
+        if (detail::isNaN(amount) || detail::isInf(amount)) return;
+        for (auto& voice : voices_) { voice.getModEnvelope().setReleaseCurve(amount); }
+    }
+
+    void setModAttackBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getModEnvelope().setAttackBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setModDecayBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getModEnvelope().setDecayBezierCurve(cp1x, cp1y, cp2x, cp2y); }
+    }
+
+    void setModReleaseBezierCurve(float cp1x, float cp1y, float cp2x, float cp2y) noexcept {
+        for (auto& voice : voices_) { voice.getModEnvelope().setReleaseBezierCurve(cp1x, cp1y, cp2x, cp2y); }
     }
 
     // --- Per-voice modulation routing ---
