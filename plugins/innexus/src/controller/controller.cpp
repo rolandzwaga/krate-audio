@@ -1683,8 +1683,36 @@ void Controller::onDisplayTimerFired()
 
     // Check if we have new data (frame counter changed)
     if (cachedDisplayData_.frameCounter == lastProcessedFrameCounter_)
+    {
+        // No new frame — track staleness. When the host stops calling
+        // process() (e.g. playback stopped), clear the display so it
+        // doesn't show stale partial data indefinitely.
+        if (staleTickCount_ < kStaleTickThreshold)
+        {
+            ++staleTickCount_;
+            if (staleTickCount_ == kStaleTickThreshold)
+            {
+                // Clear cached data and push empty data to all views
+                DisplayData empty{};
+                cachedDisplayData_ = empty;
+                if (harmonicDisplayView_)
+                    harmonicDisplayView_->updateData(empty);
+                if (confidenceIndicatorView_)
+                    confidenceIndicatorView_->updateData(empty);
+                if (memorySlotStatusView_)
+                    memorySlotStatusView_->updateData(empty);
+                if (evolutionPositionView_)
+                    evolutionPositionView_->updateData(empty, false);
+                if (modActivityView0_)
+                    modActivityView0_->updateData(0.0f, false);
+                if (modActivityView1_)
+                    modActivityView1_->updateData(0.0f, false);
+            }
+        }
         return;
+    }
 
+    staleTickCount_ = 0;
     lastProcessedFrameCounter_ = cachedDisplayData_.frameCounter;
 
     // Update each custom view with cached display data

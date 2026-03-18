@@ -145,6 +145,9 @@ public:
     /// Get cached display data (test accessor)
     const DisplayData& getCachedDisplayData() const { return cachedDisplayData_; }
 
+    /// Simulate one display timer tick (TEST ONLY).
+    void testTickDisplayTimer() { onDisplayTimerFired(); }
+
     static Steinberg::FUnknown* createInstance(void*)
     {
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());
@@ -233,6 +236,10 @@ private:
 
     // Track last processed frame counter to avoid redundant updates
     uint32_t lastProcessedFrameCounter_ = 0;
+
+    // Stale data detection: count consecutive timer ticks with no new frame
+    int staleTickCount_ = 0;
+    static constexpr int kStaleTickThreshold = 3; // ~90ms at 30ms timer
 };
 
 } // namespace Innexus

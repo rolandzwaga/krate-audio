@@ -820,6 +820,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             if (numOutputChannels >= 2) out[1][s] = 0.0f;
         }
         data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
+
+        // No display data sent during silence — the controller's
+        // staleness timer will clear the views after ~90ms.
         return Steinberg::kResultOk;
     }
 

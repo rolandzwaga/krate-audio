@@ -95,8 +95,8 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
         (mod2Enable_.load(std::memory_order_relaxed) > 0.5f) &&
         (mod2Depth_.load(std::memory_order_relaxed) > 0.0f);
 
-    // Increment frame counter
-    displayDataBuffer_.frameCounter++;
+    // Increment monotonic frame counter
+    displayDataBuffer_.frameCounter = ++displayFrameCounter_;
 
     // Send via DataExchangeHandler (uses native API if host supports it,
     // falls back to IMessage transparently)

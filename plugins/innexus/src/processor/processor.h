@@ -369,6 +369,7 @@ public:
     /// this is the standard VST3 IMessage pattern used throughout the codebase.
     void sendDisplayData(Steinberg::Vst::ProcessData& data);
 
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -691,6 +692,7 @@ private:
     // =========================================================================
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchange_;
     DisplayData displayDataBuffer_{}; // Processor-side buffer, no atomic needed
+    uint32_t displayFrameCounter_ = 0; // Monotonic counter across all sends
 
     // =========================================================================
     // Processing State
