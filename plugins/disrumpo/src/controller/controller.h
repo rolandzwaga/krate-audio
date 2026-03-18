@@ -15,7 +15,9 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 #include "public.sdk/source/common/memorystream.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmidicontrollers.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
@@ -24,8 +26,11 @@
 #include "platform/accessibility_helper.h"
 #include "midi/midi_cc_manager.h"
 #include "controller/keyboard_shortcut_handler.h"
+#include "controller/spectrum_block.h"
 
 #include "dsp/morph_node.h"
+
+#include <krate/dsp/primitives/spectrum_fifo.h>
 
 #include <array>
 #include <functional>
@@ -51,7 +56,8 @@ class SweepIndicator;
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate,
-                   public Steinberg::Vst::IMidiMapping {
+                   public Steinberg::Vst::IMidiMapping,
+                   public Steinberg::Vst::IDataExchangeReceiver {
 public:
     Controller() = default;
     ~Controller() override;  // Defined in cpp to allow unique_ptr with forward declaration
@@ -174,8 +180,26 @@ public:
     // IConnectionPoint (IMessage handling)
     // ===========================================================================
 
-    /// Handle messages from Processor (e.g., spectrum FIFO pointers)
+    /// Handle messages from Processor (e.g., mod offsets)
     Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+
+    // ===========================================================================
+    // IDataExchangeReceiver (spectrum audio data from Processor)
+    // ===========================================================================
+
+    void PLUGIN_API queueOpened(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 blockSize,
+        Steinberg::TBool& dispatchOnBackgroundThread) override;
+
+    void PLUGIN_API queueClosed(
+        Steinberg::Vst::DataExchangeUserContextID userContextID) override;
+
+    void PLUGIN_API onDataExchangeBlocksReceived(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 numBlocks,
+        Steinberg::Vst::DataExchangeBlock* blocks,
+        Steinberg::TBool onBackgroundThread) override;
 
     // ===========================================================================
     // Factory
@@ -193,9 +217,23 @@ public:
         DEF_INTERFACE(Steinberg::Vst::IEditController)
         DEF_INTERFACE(Steinberg::Vst::IEditController2)
         DEF_INTERFACE(Steinberg::Vst::IMidiMapping)
+        DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
     END_DEFINE_INTERFACES(EditController)
 
     DELEGATE_REFCOUNT(EditController)
+
+    // ==========================================================================
+    // Test Accessors
+    // ==========================================================================
+
+    /// @brief Check if spectrum data has been received via DataExchange.
+    [[nodiscard]] bool isSpectrumDataAvailable() const { return spectrumDataAvailable_; }
+
+    /// @brief Get controller-local input FIFO (for test verification).
+    [[nodiscard]] Krate::DSP::SpectrumFIFO<8192>& getLocalInputFIFO() { return localInputFIFO_; }
+
+    /// @brief Get controller-local output FIFO (for test verification).
+    [[nodiscard]] Krate::DSP::SpectrumFIFO<8192>& getLocalOutputFIFO() { return localOutputFIFO_; }
 
 private:
     // ==========================================================================
@@ -231,12 +269,21 @@ private:
     SweepIndicator* sweepIndicator_ = nullptr;
 
     // ==========================================================================
-    // Spectrum FIFO Cache (received from Processor via IMessage)
+    // Spectrum DataExchange (received from Processor via DataExchange API)
     // ==========================================================================
-    // Cached so we can connect FIFOs when the editor opens after setActive()
-    void* cachedInputFIFO_ = nullptr;
-    void* cachedOutputFIFO_ = nullptr;
+
+    /// DataExchange fallback handler (IMessage transport for older hosts)
+    Steinberg::Vst::DataExchangeReceiverHandler dataExchangeReceiver_{this};
+
+    /// Controller-owned FIFOs populated from DataExchange blocks
+    Krate::DSP::SpectrumFIFO<8192> localInputFIFO_;
+    Krate::DSP::SpectrumFIFO<8192> localOutputFIFO_;
+
+    /// Cached sample rate from most recent SpectrumBlock
     double cachedSpectrumSampleRate_ = 0.0;
+
+    /// Whether we've received at least one spectrum block (for editor connection)
+    bool spectrumDataAvailable_ = false;
 
     // ==========================================================================
     // Modulation Offset Visualization

@@ -15,6 +15,7 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 #include "dsp/crossover_network.h"
 #include "dsp/band_processor.h"
 #include "dsp/band_state.h"
@@ -22,13 +23,14 @@
 #include "dsp/custom_curve.h"
 #include "dsp/sweep_lfo.h"
 #include "dsp/sweep_envelope.h"
+#include "controller/spectrum_block.h"
 
 #include <krate/dsp/primitives/sweep_position_buffer.h>
-#include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/systems/modulation_engine.h>
 
 #include <array>
 #include <atomic>
+#include <memory>
 
 namespace Disrumpo {
 
@@ -73,6 +75,15 @@ public:
     Steinberg::tresult PLUGIN_API setBusArrangements(
         Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
+
+    // ===========================================================================
+    // IConnectionPoint (DataExchange lifecycle)
+    // ===========================================================================
+
+    Steinberg::tresult PLUGIN_API connect(
+        Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(
+        Steinberg::Vst::IConnectionPoint* other) override;
 
     // ===========================================================================
     // IComponent
@@ -234,17 +245,19 @@ private:
     Krate::DSP::ModulationEngine modulationEngine_;
 
     // ==========================================================================
-    // Spectrum Analyzer FIFOs (audio -> UI data transfer)
+    // Spectrum Analyzer DataExchange (audio -> UI data transfer)
     // ==========================================================================
 
-    /// @brief Lock-free FIFO for input audio samples (pre-distortion)
-    Krate::DSP::SpectrumFIFO<8192> spectrumInputFIFO_;
+    /// @brief DataExchange handler for sending audio samples to controller
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchange_;
 
-    /// @brief Lock-free FIFO for output audio samples (post-distortion)
-    Krate::DSP::SpectrumFIFO<8192> spectrumOutputFIFO_;
+    /// @brief Pre-allocated buffer for building SpectrumBlock on audio thread
+    SpectrumBlock spectrumBlockBuffer_{};
 
-    /// @brief Send spectrum FIFO pointers to controller via IMessage
-    void sendSpectrumFIFOMessage();
+    /// @brief Send current audio block to controller via DataExchange
+    void sendSpectrumBlock(const float* inputL, const float* inputR,
+                           const float* outputL, const float* outputR,
+                           Steinberg::int32 numSamples);
 
     /// @brief Send modulation offset array pointer to controller via IMessage
     void sendModOffsetsMessage();

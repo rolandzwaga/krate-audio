@@ -394,15 +394,15 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
         // Reset modulation engine
         modulationEngine_.reset();
 
-        // Reset spectrum FIFOs and send pointers to controller
-        spectrumInputFIFO_.clear();
-        spectrumOutputFIFO_.clear();
-        sendSpectrumFIFOMessage();
+        // DataExchange: open queue for spectrum data transfer
+        if (dataExchange_)
+            dataExchange_->onActivate(processSetup);
+
         sendModOffsetsMessage();
     } else {
-        // Deactivating: notify controller to disconnect FIFOs
-        spectrumInputFIFO_.clear();
-        spectrumOutputFIFO_.clear();
+        // DataExchange: close queue before deactivation
+        if (dataExchange_)
+            dataExchange_->onDeactivate();
     }
 
     return AudioEffect::setActive(state);
@@ -447,18 +447,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Spectrum Analyzer: Push pre-distortion input samples to FIFO
-    // Mono mixdown (L+R)*0.5 for UI-thread FFT analysis
+    // Spectrum Analyzer: Prepare pre-distortion mono mixdown for DataExchange
     // ==========================================================================
     {
-        constexpr Steinberg::int32 kMonoChunkSize = 512;
-        float monoChunk[kMonoChunkSize];
-        for (Steinberg::int32 offset = 0; offset < data.numSamples; offset += kMonoChunkSize) {
-            auto chunkLen = std::min(kMonoChunkSize, data.numSamples - offset);
-            for (Steinberg::int32 i = 0; i < chunkLen; ++i) {
-                monoChunk[i] = (inputL[offset + i] + inputR[offset + i]) * 0.5f;
-            }
-            spectrumInputFIFO_.push(monoChunk, static_cast<size_t>(chunkLen));
+        const auto blockSamples = std::min(
+            static_cast<uint32_t>(data.numSamples), kSpectrumBlockMaxSamples);
+        for (uint32_t i = 0; i < blockSamples; ++i) {
+            spectrumBlockBuffer_.inputSamples[i] =
+                (inputL[i] + inputR[i]) * 0.5f;
         }
     }
 
@@ -731,19 +727,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // ==========================================================================
-    // Spectrum Analyzer: Push post-distortion output samples to FIFO
+    // Spectrum Analyzer: Send pre+post distortion samples via DataExchange
     // ==========================================================================
-    {
-        constexpr Steinberg::int32 kMonoChunkSize = 512;
-        float monoChunk[kMonoChunkSize];
-        for (Steinberg::int32 offset = 0; offset < data.numSamples; offset += kMonoChunkSize) {
-            auto chunkLen = std::min(kMonoChunkSize, data.numSamples - offset);
-            for (Steinberg::int32 i = 0; i < chunkLen; ++i) {
-                monoChunk[i] = (outputL[offset + i] + outputR[offset + i]) * 0.5f;
-            }
-            spectrumOutputFIFO_.push(monoChunk, static_cast<size_t>(chunkLen));
-        }
-    }
+    sendSpectrumBlock(inputL, inputR, outputL, outputR, data.numSamples);
 
     // Update sample position for timing synchronization
     samplePosition_ += static_cast<uint64_t>(data.numSamples);
@@ -2286,29 +2272,76 @@ bool Processor::shouldBandContribute(int bandIndex) const noexcept {
 }
 
 // ==============================================================================
-// Spectrum FIFO IMessage
+// DataExchange lifecycle (Spectrum Analyzer)
 // ==============================================================================
 
-void Processor::sendSpectrumFIFOMessage() {
-    auto msg = Steinberg::owned(allocateMessage());
-    if (!msg)
+Steinberg::tresult PLUGIN_API Processor::connect(
+    Steinberg::Vst::IConnectionPoint* other)
+{
+    auto result = AudioEffect::connect(other);
+    if (result == Steinberg::kResultTrue)
+    {
+        auto configCallback = [] (Steinberg::Vst::DataExchangeHandler::Config& config,
+                                  const Steinberg::Vst::ProcessSetup& /*setup*/) {
+            config.blockSize = static_cast<Steinberg::uint32>(sizeof(SpectrumBlock));
+            config.numBlocks = 4;  // More blocks for IMessage fallback headroom
+            config.alignment = 32;
+            config.userContextID = 0;
+            return true;
+        };
+
+        dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
+            this, configCallback);
+        dataExchange_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+Steinberg::tresult PLUGIN_API Processor::disconnect(
+    Steinberg::Vst::IConnectionPoint* other)
+{
+    if (dataExchange_)
+    {
+        dataExchange_->onDisconnect(other);
+        dataExchange_.reset();
+    }
+    return AudioEffect::disconnect(other);
+}
+
+// ==============================================================================
+// sendSpectrumBlock -- send audio samples via DataExchange
+// ==============================================================================
+
+void Processor::sendSpectrumBlock(
+    const float* inputL, const float* inputR,
+    const float* outputL, const float* outputR,
+    Steinberg::int32 numSamples)
+{
+    if (!dataExchange_)
         return;
 
-    msg->setMessageID("SpectrumFIFO");
-    auto* attrs = msg->getAttributes();
-    if (!attrs)
+    auto block = dataExchange_->getCurrentOrNewBlock();
+    if (block.blockID == Steinberg::Vst::InvalidDataExchangeBlockID
+        || block.data == nullptr)
         return;
 
-    // Send FIFO pointers as int64 (safe: both components are in-process)
-    attrs->setInt("inputPtr",
-        static_cast<Steinberg::int64>(
-            reinterpret_cast<intptr_t>(&spectrumInputFIFO_)));
-    attrs->setInt("outputPtr",
-        static_cast<Steinberg::int64>(
-            reinterpret_cast<intptr_t>(&spectrumOutputFIFO_)));
-    attrs->setFloat("sampleRate", sampleRate_);
+    auto* specBlock = static_cast<SpectrumBlock*>(block.data);
+    const auto count = std::min(
+        static_cast<uint32_t>(numSamples), kSpectrumBlockMaxSamples);
 
-    sendMessage(msg);
+    // Copy pre-computed input mono mixdown from buffer
+    std::memcpy(specBlock->inputSamples, spectrumBlockBuffer_.inputSamples,
+        count * sizeof(float));
+
+    // Compute output mono mixdown directly into the block
+    for (uint32_t i = 0; i < count; ++i) {
+        specBlock->outputSamples[i] = (outputL[i] + outputR[i]) * 0.5f;
+    }
+
+    specBlock->numSamples = count;
+    specBlock->sampleRate = static_cast<float>(sampleRate_);
+
+    dataExchange_->sendCurrentBlock();
 }
 
 void Processor::sendModOffsetsMessage() {
