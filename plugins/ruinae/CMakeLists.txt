@@ -53,6 +53,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Processor (Audio Thread)
     src/processor/processor.h
     src/processor/processor.cpp
+    src/processor/processor_state.cpp
+    src/processor/processor_params.cpp
+    src/processor/processor_midi.cpp
+    src/processor/processor_messaging.cpp
 
     # Controller (UI Thread)
     src/controller/controller.h
@@ -63,6 +67,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/controller/controller_param_display.cpp
     src/controller/controller_presets.cpp
     src/controller/controller_settings.cpp
+    src/controller/controller_verify_view.cpp
+    src/controller/controller_view_sync.cpp
     src/controller/parameter_helpers.h
 
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
