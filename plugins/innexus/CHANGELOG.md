@@ -5,6 +5,12 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-03-18
+
+### Fixed
+
+- **Visualizer blank in most hosts** — Display data was being sent every `process()` call (600+/sec at small buffer sizes) into a 2-slot queue, causing overflow in hosts using the IMessage fallback path (all hosts except Cubase); throttled sends to ~30Hz matching the UI timer cadence and increased queue depth from 2 to 8 blocks
+
 ## [0.9.7] - 2026-03-18
 
 ### Changed
