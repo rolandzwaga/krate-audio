@@ -254,6 +254,10 @@ private:
     /// @brief Pre-allocated buffer for building SpectrumBlock on audio thread
     SpectrumBlock spectrumBlockBuffer_{};
 
+    /// @brief Throttle spectrum sends to ~30Hz to avoid queue overflow
+    int spectrumSendIntervalSamples_ = 0;
+    int spectrumSendAccumulatorSamples_ = 0;
+
     /// @brief Send current audio block to controller via DataExchange
     void sendSpectrumBlock(const float* inputL, const float* inputR,
                            const float* outputL, const float* outputR,

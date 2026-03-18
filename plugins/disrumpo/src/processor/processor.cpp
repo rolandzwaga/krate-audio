@@ -326,6 +326,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     // Store processing parameters
     // FR-011: Store sample rate for DSP calculations
     sampleRate_ = setup.sampleRate;
+    spectrumSendIntervalSamples_ = 0; // recompute on next send
 
     // Constitution Principle II: Pre-allocate ALL buffers HERE
 
@@ -2284,7 +2285,7 @@ Steinberg::tresult PLUGIN_API Processor::connect(
         auto configCallback = [] (Steinberg::Vst::DataExchangeHandler::Config& config,
                                   const Steinberg::Vst::ProcessSetup& /*setup*/) {
             config.blockSize = static_cast<Steinberg::uint32>(sizeof(SpectrumBlock));
-            config.numBlocks = 4;  // More blocks for IMessage fallback headroom
+            config.numBlocks = 8;  // More blocks for IMessage fallback headroom
             config.alignment = 32;
             config.userContextID = 0;
             return true;
@@ -2317,8 +2318,19 @@ void Processor::sendSpectrumBlock(
     const float* outputL, const float* outputR,
     Steinberg::int32 numSamples)
 {
-    if (!dataExchange_)
+    if (!dataExchange_ || numSamples <= 0)
         return;
+
+    // Throttle spectrum sends to ~30Hz (matching UI update cadence) to avoid
+    // overflowing the queue in hosts that drain the IMessage fallback slowly.
+    if (spectrumSendIntervalSamples_ <= 0)
+        spectrumSendIntervalSamples_ = std::max(1, static_cast<int>(sampleRate_ * 0.03));
+
+    spectrumSendAccumulatorSamples_ += static_cast<int>(numSamples);
+    if (spectrumSendAccumulatorSamples_ < spectrumSendIntervalSamples_)
+        return;
+
+    spectrumSendAccumulatorSamples_ %= spectrumSendIntervalSamples_;
 
     auto block = dataExchange_->getCurrentOrNewBlock();
     if (block.blockID == Steinberg::Vst::InvalidDataExchangeBlockID
