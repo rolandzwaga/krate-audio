@@ -5,6 +5,17 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-03-18
+
+### Changed
+
+- **Refactored controller.cpp into focused modules** — Split the 5626-line controller.cpp into 6 files: visibility_controllers.h/.cpp (9 IDependent observer classes), parameter_registration.cpp (5 registerXxxParams methods), format_helpers.h (string formatting utilities), and custom_buttons.h (preset browser/save buttons). Main controller.cpp reduced to ~1940 lines.
+- **Migrated spectrum analyzer to VST3 DataExchange API** — Replaced the IMessage-based FIFO pointer sharing with the standard VST3 DataExchange API for transferring audio samples from Processor to Controller, with automatic IMessage fallback for older hosts.
+
+### Added
+
+- **DataExchange integration test** — Verifies the full Processor→Controller spectrum data pipeline via DataExchange blocks.
+
 ## [0.9.5] - 2026-03-16
 
 ### Fixed
