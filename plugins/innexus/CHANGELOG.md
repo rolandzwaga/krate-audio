@@ -5,6 +5,16 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-03-18
+
+### Changed
+
+- **Display data pipeline migrated to VST3 DataExchange API** — Replaced raw `IMessage`-based display data transfer from `process()` with the SDK's `DataExchangeHandler`/`DataExchangeReceiverHandler` pattern; fixes harmonic display not updating in hosts like Reason that don't reliably deliver `IMessage` from the audio thread; eliminates `allocateMessage()` calls on the real-time audio thread; automatically falls back to IMessage transport for hosts that don't support the native `IDataExchangeHandler` API
+
+### Fixed
+
+- **Harmonic display not clearing after audio stops** — Added controller-side staleness detection: after ~90ms with no new display frames, the cached display data is zeroed and all visualization views are cleared; prevents stale partial data from being shown indefinitely when the host stops calling `process()`
+
 ## [0.9.6] - 2026-03-13
 
 ### Added
