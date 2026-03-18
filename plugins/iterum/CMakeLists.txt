@@ -57,8 +57,11 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/custom_views.h
+    src/controller/custom_views.cpp
     src/controller/delay_time_sync_controller.h
     src/controller/delay_time_sync_controller.cpp
+    src/controller/visibility_controller.h
 
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
