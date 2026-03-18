@@ -22,9 +22,13 @@
 namespace Krate::DSP {
 
 /// Interpolate between two HarmonicFrames.
-/// - Amplitudes: lerp of L2-normalized values
-/// - RelativeFrequencies: lerp (missing partials default to harmonicIndex)
-/// - Phase: NOT interpolated (oscillator bank is phase-continuous)
+/// - Amplitudes: lerp (missing side = 0.0)
+/// - RelativeFrequencies: lerp (missing side = harmonicIndex)
+/// - Frequency: lerp (missing side = f0 * harmonicIndex)
+/// - InharmonicDeviation: lerp (missing side = 0.0)
+/// - Stability: lerp (missing side = 1.0)
+/// - Phase: NOT interpolated (oscillator bank is phase-continuous via MCF)
+/// - HarmonicIndex, Age: copy from dominant source (b when t > 0.5)
 /// - Metadata: lerp of globalAmplitude, spectralCentroid, brightness, noisiness
 /// - numPartials: max of both frames
 /// @param a Source frame (State A, frozen snapshot)
@@ -69,37 +73,43 @@ inline HarmonicFrame lerpHarmonicFrame(
             : static_cast<float>(inA ? ap.harmonicIndex : (i + 1));
         rp.relativeFrequency = oneMinusT * relFreqA + t * relFreqB;
 
-        // Phase: NOT interpolated -- copy from dominant source
+        // Frequency & inharmonicDeviation: lerp (missing side = ideal harmonic)
+        const float freqA = inA ? ap.frequency : (a.f0 * static_cast<float>(i + 1));
+        const float freqB = inB ? bp.frequency : (b.f0 * static_cast<float>(i + 1));
+        rp.frequency = oneMinusT * freqA + t * freqB;
+
+        const float devA = inA ? ap.inharmonicDeviation : 0.0f;
+        const float devB = inB ? bp.inharmonicDeviation : 0.0f;
+        rp.inharmonicDeviation = oneMinusT * devA + t * devB;
+
+        // Stability: lerp (missing side = 1.0)
+        const float stabA = inA ? ap.stability : 1.0f;
+        const float stabB = inB ? bp.stability : 1.0f;
+        rp.stability = oneMinusT * stabA + t * stabB;
+
+        // Phase, harmonicIndex, age: copy from dominant source
+        // Phase is NOT interpolated — the oscillator bank maintains
+        // phase continuity through its MCF recurrence.
         if (bDominant && inB)
         {
             rp.phase = bp.phase;
             rp.harmonicIndex = bp.harmonicIndex;
-            rp.inharmonicDeviation = bp.inharmonicDeviation;
-            rp.frequency = bp.frequency;
-            rp.stability = bp.stability;
             rp.age = bp.age;
         }
         else if (inA)
         {
             rp.phase = ap.phase;
             rp.harmonicIndex = ap.harmonicIndex;
-            rp.inharmonicDeviation = ap.inharmonicDeviation;
-            rp.frequency = ap.frequency;
-            rp.stability = ap.stability;
             rp.age = ap.age;
         }
         else if (inB)
         {
             rp.phase = bp.phase;
             rp.harmonicIndex = bp.harmonicIndex;
-            rp.inharmonicDeviation = bp.inharmonicDeviation;
-            rp.frequency = bp.frequency;
-            rp.stability = bp.stability;
             rp.age = bp.age;
         }
         else
         {
-            // Neither side has this partial (shouldn't happen given maxPartials logic)
             rp.harmonicIndex = i + 1;
         }
     }

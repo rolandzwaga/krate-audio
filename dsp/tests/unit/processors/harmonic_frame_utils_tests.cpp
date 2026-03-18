@@ -238,6 +238,84 @@ TEST_CASE("lerpHarmonicFrame interpolates metadata at t=0.5",
         Approx((a.f0Confidence + b.f0Confidence) / 2.0f).margin(1e-5f));
 }
 
+// T045b: lerpHarmonicFrame interpolates frequency continuously (no hard switch)
+TEST_CASE("lerpHarmonicFrame interpolates frequency continuously",
+          "[dsp][processors][morph][us2]")
+{
+    auto a = makeFrame(4, 440.0f, 0.5f);
+    auto b = makeFrame(4, 880.0f, 0.5f);
+
+    // At t=0.3 and t=0.7, frequency should be a smooth lerp, NOT a hard switch
+    auto r03 = Krate::DSP::lerpHarmonicFrame(a, b, 0.3f);
+    auto r07 = Krate::DSP::lerpHarmonicFrame(a, b, 0.7f);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        float freqA = a.partials[idx].frequency;
+        float freqB = b.partials[idx].frequency;
+
+        // t=0.3: should be 70% A + 30% B
+        float expected03 = 0.7f * freqA + 0.3f * freqB;
+        REQUIRE(r03.partials[idx].frequency == Approx(expected03).margin(1e-3f));
+
+        // t=0.7: should be 30% A + 70% B
+        float expected07 = 0.3f * freqA + 0.7f * freqB;
+        REQUIRE(r07.partials[idx].frequency == Approx(expected07).margin(1e-3f));
+    }
+}
+
+// T045c: lerpHarmonicFrame interpolates inharmonicDeviation and stability
+TEST_CASE("lerpHarmonicFrame interpolates inharmonicDeviation and stability",
+          "[dsp][processors][morph][us2]")
+{
+    auto a = makeFrame(4, 440.0f, 0.5f);
+    auto b = makeFrame(4, 880.0f, 0.5f);
+
+    auto result = Krate::DSP::lerpHarmonicFrame(a, b, 0.5f);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+
+        float expectedDev = (a.partials[idx].inharmonicDeviation +
+                             b.partials[idx].inharmonicDeviation) / 2.0f;
+        REQUIRE(result.partials[idx].inharmonicDeviation ==
+            Approx(expectedDev).margin(1e-5f));
+
+        float expectedStab = (a.partials[idx].stability +
+                              b.partials[idx].stability) / 2.0f;
+        REQUIRE(result.partials[idx].stability ==
+            Approx(expectedStab).margin(1e-5f));
+    }
+}
+
+// T045d: lerpHarmonicFrame frequency is continuous across t=0.5 boundary
+TEST_CASE("lerpHarmonicFrame frequency has no discontinuity at t=0.5",
+          "[dsp][processors][morph][us2]")
+{
+    auto a = makeFrame(4, 440.0f, 0.5f);
+    auto b = makeFrame(4, 880.0f, 0.5f);
+
+    // Sample at t=0.49 and t=0.51 — frequency should be nearly identical
+    auto rLo = Krate::DSP::lerpHarmonicFrame(a, b, 0.49f);
+    auto rHi = Krate::DSP::lerpHarmonicFrame(a, b, 0.51f);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        float freqLo = rLo.partials[idx].frequency;
+        float freqHi = rHi.partials[idx].frequency;
+
+        // Should differ by < 2% (smooth linear step, no hard switch)
+        // A hard switch would produce a >50% jump at this boundary.
+        float diff = std::abs(freqHi - freqLo);
+        float avg = (freqLo + freqHi) / 2.0f;
+        INFO("Partial " << i << ": freqLo=" << freqLo << " freqHi=" << freqHi);
+        REQUIRE(diff / avg < 0.02f);
+    }
+}
+
 // =============================================================================
 // Phase 4: US2 - lerpResidualFrame Tests (T046-T049)
 // =============================================================================

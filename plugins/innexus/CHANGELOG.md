@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Harmonic display not clearing after audio stops** — Added controller-side staleness detection: after ~90ms with no new display frames, the cached display data is zeroed and all visualization views are cleared; prevents stale partial data from being shown indefinitely when the host stops calling `process()`
+- **Timbral Blend hard switch at midpoint** — `lerpHarmonicFrame` now interpolates frequency, inharmonic deviation, and stability continuously across the full morph range instead of hard-switching at `t=0.5`; eliminates the audible discontinuity when sweeping the Timbral Blend knob past the halfway point; phase continuity is maintained by the oscillator bank's MCF recurrence
 
 ## [0.9.6] - 2026-03-13
 
