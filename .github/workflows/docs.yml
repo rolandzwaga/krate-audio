@@ -7,6 +7,7 @@ on:
       - 'plugins/*/MANUAL.md'
       - 'plugins/*/images/**'
       - 'plugins/*/docs/**'
+      - 'docs/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
@@ -121,6 +122,18 @@ jobs:
               fi
             fi
           done
+
+          # Copy shared root assets (favicon etc.) into _site and each plugin subdir
+          if [ -d "docs/assets" ]; then
+            mkdir -p "_site/assets"
+            cp -r docs/assets/* "_site/assets/"
+            for dir in _site/*/; do
+              [ -d "$dir" ] || continue
+              mkdir -p "${dir}assets"
+              cp -n docs/assets/* "${dir}assets/" 2>/dev/null || true
+            done
+            echo "Copied shared assets (favicon, etc.) to _site/"
+          fi
 
           # List what we built
           echo ""
