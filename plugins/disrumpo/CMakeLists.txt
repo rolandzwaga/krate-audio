@@ -57,6 +57,11 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/parameter_registration.cpp
+    src/controller/visibility_controllers.h
+    src/controller/visibility_controllers.cpp
+    src/controller/format_helpers.h
+    src/controller/custom_buttons.h
 
     # Custom Views (UI Components)
     src/controller/views/spectrum_display.h

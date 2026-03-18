@@ -118,6 +118,21 @@ add_executable(disrumpo_tests
     integration/chaos_distortion_wiring_test.cpp
     integration/multi_node_distortion_test.cpp
     integration/bitcrush_noise_repro_test.cpp
+
+    # Integration tests - DataExchange spectrum pipeline
+    integration/data_exchange_spectrum_test.cpp
+
+    # Controller sources (needed for DataExchange integration tests)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/parameter_registration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/visibility_controllers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/animated_expand_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/keyboard_shortcut_handler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/spectrum_display.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/sweep_indicator.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/custom_curve_editor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/dynamic_node_selector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/node_editor_border.cpp
 )
 
 target_link_libraries(disrumpo_tests
@@ -127,6 +142,7 @@ target_link_libraries(disrumpo_tests
         Catch2::Catch2
         test_helpers
         sdk
+        sdk_hosting
         vstgui_support
 )
 
