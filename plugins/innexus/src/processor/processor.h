@@ -693,6 +693,8 @@ private:
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchange_;
     DisplayData displayDataBuffer_{}; // Processor-side buffer, no atomic needed
     uint32_t displayFrameCounter_ = 0; // Monotonic counter across all sends
+    int displaySendIntervalSamples_ = 0; // Throttle: samples between sends (~30Hz)
+    int displaySendAccumulatorSamples_ = 0;
 
     // =========================================================================
     // Processing State

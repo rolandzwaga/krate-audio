@@ -231,6 +231,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     Steinberg::Vst::ProcessSetup& newSetup)
 {
     sampleRate_ = newSetup.sampleRate;
+    displaySendIntervalSamples_ = 0; // recompute on next send
 
     // FR-011: source crossfade length = 20ms in samples
     sourceCrossfadeLengthSamples_ = static_cast<int>(

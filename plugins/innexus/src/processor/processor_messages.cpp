@@ -23,7 +23,7 @@ Steinberg::tresult PLUGIN_API Processor::connect(
         auto configCallback = [] (Steinberg::Vst::DataExchangeHandler::Config& config,
                                   const Steinberg::Vst::ProcessSetup& /*setup*/) {
             config.blockSize = static_cast<Steinberg::uint32>(sizeof(DisplayData));
-            config.numBlocks = 2;
+            config.numBlocks = 8;
             config.alignment = 32;
             config.userContextID = 0;
             return true;
@@ -53,8 +53,22 @@ Steinberg::tresult PLUGIN_API Processor::disconnect(
 // ==============================================================================
 // sendDisplayData() -- Display data pipeline (M7: FR-048)
 // ==============================================================================
-void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
+void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
 {
+    if (!dataExchange_ || data.numSamples <= 0)
+        return;
+
+    // Throttle display sends to ~30Hz (matching UI timer cadence) to avoid
+    // overflowing the queue in hosts that drain the IMessage fallback slowly.
+    if (displaySendIntervalSamples_ <= 0)
+        displaySendIntervalSamples_ = std::max(1, static_cast<int>(sampleRate_ * 0.03));
+
+    displaySendAccumulatorSamples_ += static_cast<int>(data.numSamples);
+    if (displaySendAccumulatorSamples_ < displaySendIntervalSamples_)
+        return;
+
+    displaySendAccumulatorSamples_ %= displaySendIntervalSamples_;
+
     // Populate display buffer from current processor state
     const auto& frame = morphedFrame_;
     const int numPartials = std::min(frame.numPartials,
@@ -99,17 +113,17 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& /*data*/)
     displayDataBuffer_.frameCounter = ++displayFrameCounter_;
 
     // Send via DataExchangeHandler (uses native API if host supports it,
-    // falls back to IMessage transparently)
-    if (dataExchange_)
+    // falls back to IMessage transparently). If the queue is temporarily full,
+    // just drop this visual frame and keep the audio thread moving.
+    auto block = dataExchange_->getCurrentOrNewBlock();
+    if (block.blockID == Steinberg::Vst::InvalidDataExchangeBlockID
+        || block.data == nullptr)
     {
-        auto block = dataExchange_->getCurrentOrNewBlock();
-        if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
-            && block.data != nullptr)
-        {
-            std::memcpy(block.data, &displayDataBuffer_, sizeof(DisplayData));
-            dataExchange_->sendCurrentBlock();
-        }
+        return;
     }
+
+    std::memcpy(block.data, &displayDataBuffer_, sizeof(DisplayData));
+    dataExchange_->sendCurrentBlock();
 }
 
 // ==============================================================================
