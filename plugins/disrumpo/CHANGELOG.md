@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.7] - 2026-03-19
 
-### Added
+### Fixed
 
-- **Extended tempo sync note values** — Added 2/1, 3/1, and 4/1 note values (with triplet and dotted variants) to all LFO and sweep note value dropdowns, expanding from 21 to 30 entries for longer sync periods.
+- **Preset browser loading broken for modulation and morph data** — `loadComponentStateWithNotify()` was missing v5+ modulation and v6+ morph sections, causing all presets to appear identical in the browser. Deduplicated ~430 lines of state parsing into a single `parseComponentState<ParamSetter>` template method.
+- **Incorrect mod source indices in factory presets** — Preset generator had wrong ModSource enum ordering (Chaos at 5 instead of 9, Macros at 9-12 instead of 5-8). Fixed and regenerated all 119 factory presets.
+- **Input gain, output gain, and mix not affecting audio** — These three global parameters were registered through UI and controller but never applied to the actual audio signal. Now properly applied (input gain before crossover, output gain and dry/wet mix after band summation).
+- **Spectrum analyzer data overflow in IMessage fallback hosts** — Throttled spectrum data sends to ~30Hz and increased DataExchange queue from 4 to 8 blocks.
+
+### Changed
+
+- **Standardized LFO note value dropdowns** — Replaced the custom 15-entry note value list (1/1 to 1/16T) with the standard DSP dropdown matching all other plugins. Bumped preset version to 10 with automatic migration of old note indices.
+- **Extended tempo sync note values** — Added 2/1, 3/1, and 4/1 note values (with triplet and dotted variants) to all LFO and sweep note value dropdowns, expanding to 30 entries for longer sync periods.
 
 ## [0.9.6] - 2026-03-18
 
