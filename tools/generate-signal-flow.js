@@ -17,6 +17,11 @@ if (!inputPath || !outputPath) {
 
 const dotSource = fs.readFileSync(inputPath, "utf-8");
 
+// Derive plugin name from input path (e.g., "plugins/ruinae/docs/ruinae_signal_flow.dot" → "Ruinae")
+const inputBasename = path.basename(inputPath, ".dot"); // "ruinae_signal_flow"
+const pluginSlug = inputBasename.replace(/_signal_flow$/, ""); // "ruinae"
+const pluginName = pluginSlug.charAt(0).toUpperCase() + pluginSlug.slice(1); // "Ruinae"
+
 // Escape backticks and backslashes for embedding in a JS template literal
 const escapedDot = dotSource.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$/g, "\\$");
 
@@ -25,7 +30,7 @@ const html = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruinae - Signal Flow Diagram</title>
+    <title>${pluginName} - Signal Flow Diagram</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -168,7 +173,7 @@ const html = `<!DOCTYPE html>
 <body>
     <div class="header">
         <nav class="breadcrumb">
-            <a href="./">Ruinae</a>
+            <a href="./">${pluginName}</a>
             <span class="separator">/</span>
         </nav>
         <h1>Signal Flow Diagram</h1>
