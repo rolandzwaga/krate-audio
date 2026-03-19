@@ -14,6 +14,7 @@
 // - UI thread MUST NEVER directly access audio data
 // ==============================================================================
 
+#include "base/source/fstreamer.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -468,6 +469,9 @@ private:
     /// @param state Stream containing component state in Processor::getState() format
     /// @return true on success
     bool loadComponentStateWithNotify(Steinberg::IBStream* state);
+
+    template <typename ParamSetter>
+    bool parseComponentState(Steinberg::IBStreamer& streamer, int32_t version, ParamSetter&& setter);
 };
 
 } // namespace Disrumpo

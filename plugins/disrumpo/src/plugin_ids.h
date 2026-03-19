@@ -531,6 +531,11 @@ constexpr Steinberg::Vst::ParamID makeModParamId(ModParamType param) {
 
 constexpr Steinberg::Vst::ParamID kRoutingParamBase = 0x0D80;
 
+/// Number of modulation source entries exposed in the UI (None through Transient).
+/// External sources (External0-3) are not user-selectable and excluded from the UI list.
+/// This must match the number of appendString() calls in registerRoutingParams().
+constexpr int kUIModSourceCount = 14;
+
 /// @brief Create parameter ID for routing parameters.
 /// @param routingIndex Routing slot index (0-31)
 /// @param offset Parameter offset: 0=Source, 1=Dest, 2=Amount, 3=Curve

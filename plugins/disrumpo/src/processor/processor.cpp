@@ -1824,7 +1824,7 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                             switch (routOff) {
                                 case 0:  // Source
                                     routing.source = static_cast<Krate::DSP::ModSource>(
-                                        static_cast<int>(value * (Krate::DSP::kModSourceCount - 1) + 0.5));
+                                        static_cast<int>(value * (kUIModSourceCount - 1) + 0.5));
                                     routing.active = (routing.source != Krate::DSP::ModSource::None);
                                     break;
                                 case 1:  // Destination

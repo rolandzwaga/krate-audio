@@ -76,10 +76,11 @@ enum class MorphLinkMode : uint8_t {
     None = 0, SweepFreq, InverseSweep, EaseIn, EaseOut, HoldRise, Stepped, Custom
 };
 
-// Modulation sources
+// Modulation sources (must match Krate::DSP::ModSource in modulation_types.h)
 enum class ModSource : uint8_t {
-    None = 0, LFO1, LFO2, EnvFollower, Random, Chaos,
-    SampleHold, PitchFollower, Transient, Macro1, Macro2, Macro3, Macro4
+    None = 0, LFO1, LFO2, EnvFollower, Random,
+    Macro1, Macro2, Macro3, Macro4,
+    Chaos, Rungler, SampleHold, PitchFollower, Transient
 };
 
 // Modulation curves
