@@ -183,6 +183,25 @@ section h2 {
     border-radius: 50%;
 }
 
+/* Signal Flow / Documentation Links */
+.signal-flow-link {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.signal-flow-link:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 211, 238, 0.15);
+}
+
 /* Installation */
 .install-instructions {
     display: grid;
