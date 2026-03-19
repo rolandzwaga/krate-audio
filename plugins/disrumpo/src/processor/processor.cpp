@@ -12,6 +12,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/note_value.h>
 
 #include <algorithm>  // for std::max, std::min
 #include <cmath>      // for std::log10, std::pow
@@ -848,9 +849,17 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(sweepLFO_.isTempoSynced() ? 1 : 0)))
         return Steinberg::kResultFalse;
     {
-        // Encode note value + modifier as single index: noteValueIndex * 3 + modifierIndex
-        int noteIndex = static_cast<int>(sweepLFO_.getNoteValue()) * 3 +
-                        static_cast<int>(sweepLFO_.getNoteModifier());
+        // Encode as standard dropdown index (0-20, matching kNoteValueDropdownMapping)
+        const auto nv = sweepLFO_.getNoteValue();
+        const auto nm = sweepLFO_.getNoteModifier();
+        int noteIndex = Krate::DSP::kNoteValueDefaultIndex; // default 1/8
+        for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
+            if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
+                Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
+                noteIndex = i;
+                break;
+            }
+        }
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIndex)))
             return Steinberg::kResultFalse;
     }
@@ -899,8 +908,16 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO1TempoSync() ? 1 : 0)))
         return Steinberg::kResultFalse;
     {
-        int noteIdx = static_cast<int>(modulationEngine_.getLFO1NoteValue()) * 3 +
-                      static_cast<int>(modulationEngine_.getLFO1NoteModifier());
+        const auto nv = modulationEngine_.getLFO1NoteValue();
+        const auto nm = modulationEngine_.getLFO1NoteModifier();
+        int noteIdx = Krate::DSP::kNoteValueDefaultIndex;
+        for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
+            if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
+                Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
+                noteIdx = i;
+                break;
+            }
+        }
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
             return Steinberg::kResultFalse;
     }
@@ -923,8 +940,16 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getLFO2TempoSync() ? 1 : 0)))
         return Steinberg::kResultFalse;
     {
-        int noteIdx = static_cast<int>(modulationEngine_.getLFO2NoteValue()) * 3 +
-                      static_cast<int>(modulationEngine_.getLFO2NoteModifier());
+        const auto nv = modulationEngine_.getLFO2NoteValue();
+        const auto nm = modulationEngine_.getLFO2NoteModifier();
+        int noteIdx = Krate::DSP::kNoteValueDefaultIndex;
+        for (int i = 0; i < Krate::DSP::kNoteValueDropdownCount; ++i) {
+            if (Krate::DSP::kNoteValueDropdownMapping[i].note == nv &&
+                Krate::DSP::kNoteValueDropdownMapping[i].modifier == nm) {
+                noteIdx = i;
+                break;
+            }
+        }
         if (!streamer.writeInt8(static_cast<Steinberg::int8>(noteIdx)))
             return Steinberg::kResultFalse;
     }
@@ -1213,10 +1238,15 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (streamer.readInt8(lfoSync))
             sweepLFO_.setTempoSync(lfoSync != 0);
         if (streamer.readInt8(lfoNoteIndex)) {
-            int idx = std::clamp(static_cast<int>(lfoNoteIndex), 0, 14);
-            sweepLFO_.setNoteValue(
-                static_cast<Krate::DSP::NoteValue>(idx / 3),
-                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+            int idx;
+            if (version <= 9) {
+                // v9: old 15-entry encoding (NoteValue*3+NoteModifier) → convert to 21-entry dropdown
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfoNoteIndex), 0, 14)];
+            } else {
+                idx = std::clamp(static_cast<int>(lfoNoteIndex), 0, kNoteValueCount - 1);
+            }
+            const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+            sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
         }
 
         // Envelope
@@ -1289,10 +1319,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             modulationEngine_.setLFO1TempoSync(lfo1Sync != 0);
         Steinberg::int8 lfo1NoteIdx = 0;
         if (streamer.readInt8(lfo1NoteIdx)) {
-            int idx = std::clamp(static_cast<int>(lfo1NoteIdx), 0, 14);
-            modulationEngine_.setLFO1NoteValue(
-                static_cast<Krate::DSP::NoteValue>(idx / 3),
-                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+            int idx;
+            if (version <= 9) {
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfo1NoteIdx), 0, 14)];
+            } else {
+                idx = std::clamp(static_cast<int>(lfo1NoteIdx), 0, kNoteValueCount - 1);
+            }
+            const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+            modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
         }
         Steinberg::int8 lfo1Unipolar = 0;
         if (streamer.readInt8(lfo1Unipolar))
@@ -1321,10 +1355,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             modulationEngine_.setLFO2TempoSync(lfo2Sync != 0);
         Steinberg::int8 lfo2NoteIdx = 0;
         if (streamer.readInt8(lfo2NoteIdx)) {
-            int idx = std::clamp(static_cast<int>(lfo2NoteIdx), 0, 14);
-            modulationEngine_.setLFO2NoteValue(
-                static_cast<Krate::DSP::NoteValue>(idx / 3),
-                static_cast<Krate::DSP::NoteModifier>(idx % 3));
+            int idx;
+            if (version <= 9) {
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfo2NoteIdx), 0, 14)];
+            } else {
+                idx = std::clamp(static_cast<int>(lfo2NoteIdx), 0, kNoteValueCount - 1);
+            }
+            const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+            modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
         }
         Steinberg::int8 lfo2Unipolar = 0;
         if (streamer.readInt8(lfo2Unipolar))
@@ -1724,12 +1762,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                         case SweepParamType::kSweepLFONoteValue: {
                             // Convert normalized [0,1] to note value index [0,15]
                             // Standard note values: Whole, Half, Quarter, Eighth, Sixteenth (x3 for normal, dotted, triplet)
-                            const int noteIndex = static_cast<int>(value * 14.0f + 0.5f);
-                            const int noteValueIndex = noteIndex / 3;  // 0-4: Whole, Half, Quarter, Eighth, Sixteenth
-                            const int modifierIndex = noteIndex % 3;   // 0: Normal, 1: Dotted, 2: Triplet
-                            sweepLFO_.setNoteValue(
-                                static_cast<Krate::DSP::NoteValue>(noteValueIndex),
-                                static_cast<Krate::DSP::NoteModifier>(modifierIndex));
+                            const int noteIndex = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                            const auto mapping = Krate::DSP::getNoteValueFromDropdown(noteIndex);
+                            sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
                             break;
                         }
 
@@ -1866,10 +1901,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO1TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO1NoteValue: {
-                                int idx = static_cast<int>(value * 14.0f + 0.5f);
-                                modulationEngine_.setLFO1NoteValue(
-                                    static_cast<Krate::DSP::NoteValue>(idx / 3),
-                                    static_cast<Krate::DSP::NoteModifier>(idx % 3));
+                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+                                modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
                                 break;
                             }
                             case ModParamType::kLFO1Unipolar:
@@ -1899,10 +1933,9 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setLFO2TempoSync(value >= 0.5);
                                 break;
                             case ModParamType::kLFO2NoteValue: {
-                                int idx = static_cast<int>(value * 14.0f + 0.5f);
-                                modulationEngine_.setLFO2NoteValue(
-                                    static_cast<Krate::DSP::NoteValue>(idx / 3),
-                                    static_cast<Krate::DSP::NoteModifier>(idx % 3));
+                                const int idx = static_cast<int>(value * (kNoteValueCount - 1) + 0.5f);
+                                const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
+                                modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
                                 break;
                             }
                             case ModParamType::kLFO2Unipolar:

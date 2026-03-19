@@ -271,21 +271,11 @@ void Controller::registerSweepParams() {
     auto* lfoNoteParam = new Steinberg::Vst::StringListParameter(
         STR16("Sweep LFO Note"), makeSweepParamId(SweepParamType::kSweepLFONoteValue),
         nullptr, Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
-    lfoNoteParam->appendString(STR16("1/1"));
-    lfoNoteParam->appendString(STR16("1/1d"));
-    lfoNoteParam->appendString(STR16("1/1t"));
-    lfoNoteParam->appendString(STR16("1/2"));
-    lfoNoteParam->appendString(STR16("1/2d"));
-    lfoNoteParam->appendString(STR16("1/2t"));
-    lfoNoteParam->appendString(STR16("1/4"));
-    lfoNoteParam->appendString(STR16("1/4d"));
-    lfoNoteParam->appendString(STR16("1/4t"));
-    lfoNoteParam->appendString(STR16("1/8"));
-    lfoNoteParam->appendString(STR16("1/8d"));
-    lfoNoteParam->appendString(STR16("1/8t"));
-    lfoNoteParam->appendString(STR16("1/16"));
-    lfoNoteParam->appendString(STR16("1/16d"));
-    lfoNoteParam->appendString(STR16("1/16t"));
+    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
+                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
+                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
+                           "1/1T","1/1","1/1D"})
+        lfoNoteParam->appendString(Steinberg::String(n));
     parameters.addParameter(lfoNoteParam);
 
     // Sweep Envelope Follower Parameters (FR-026, FR-027)
@@ -391,9 +381,10 @@ void Controller::registerModulationParams() {
 
     auto* lfo1Note = new Steinberg::Vst::StringListParameter(
         STR16("LFO 1 Note Value"), makeModParamId(ModParamType::kLFO1NoteValue));
-    for (const auto* n : {"1/1", "1/1 D", "1/1 T", "1/2", "1/2 D", "1/2 T",
-                           "1/4", "1/4 D", "1/4 T", "1/8", "1/8 D", "1/8 T",
-                           "1/16", "1/16 D", "1/16 T"})
+    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
+                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
+                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
+                           "1/1T","1/1","1/1D"})
         lfo1Note->appendString(Steinberg::String(n));
     parameters.addParameter(lfo1Note);
 
@@ -425,9 +416,10 @@ void Controller::registerModulationParams() {
 
     auto* lfo2Note = new Steinberg::Vst::StringListParameter(
         STR16("LFO 2 Note Value"), makeModParamId(ModParamType::kLFO2NoteValue));
-    for (const auto* n : {"1/1", "1/1 D", "1/1 T", "1/2", "1/2 D", "1/2 T",
-                           "1/4", "1/4 D", "1/4 T", "1/8", "1/8 D", "1/8 T",
-                           "1/16", "1/16 D", "1/16 T"})
+    for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
+                           "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
+                           "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
+                           "1/1T","1/1","1/1D"})
         lfo2Note->appendString(Steinberg::String(n));
     parameters.addParameter(lfo2Note);
 

@@ -46,7 +46,7 @@ public:
 // Constants (must match plugin_ids.h and DSP headers)
 // ==============================================================================
 
-static constexpr int32_t kPresetVersion = 9;
+static constexpr int32_t kPresetVersion = 10;
 static constexpr int kMaxBands = 4;
 static constexpr int kMaxMorphNodes = 4;
 static constexpr size_t kMaxMacros = 4;
@@ -148,7 +148,7 @@ struct SweepState {
     Waveform lfoWaveform = Waveform::Sine;
     float lfoDepth = 0.0f;
     bool lfoSync = false;
-    int8_t lfoNoteIndex = 0;
+    int8_t lfoNoteIndex = 10; // 1/8 (standard default, kNoteValueDropdownMapping index)
 
     // Envelope
     bool envEnabled = false;
@@ -167,7 +167,7 @@ struct ModSourceState {
     Waveform lfo1Shape = Waveform::Sine;
     float lfo1PhaseNorm = 0.0f;
     bool lfo1Sync = false;
-    int8_t lfo1NoteIndex = 0;
+    int8_t lfo1NoteIndex = 10; // 1/8 (standard default)
     bool lfo1Unipolar = false;
     bool lfo1Retrigger = true;
 
@@ -176,7 +176,7 @@ struct ModSourceState {
     Waveform lfo2Shape = Waveform::Sine;
     float lfo2PhaseNorm = 0.0f;
     bool lfo2Sync = false;
-    int8_t lfo2NoteIndex = 0;
+    int8_t lfo2NoteIndex = 10; // 1/8 (standard default)
     bool lfo2Unipolar = false;
     bool lfo2Retrigger = true;
 
@@ -1207,7 +1207,7 @@ std::vector<PresetDef> createAllPresets() {
         enableSweep(p.state, 0.5f, 0.3f, 0.65f);
         p.state.sweep.lfoEnabled = true;
         p.state.sweep.lfoSync = true;
-        p.state.sweep.lfoNoteIndex = 6; // 1/8 note
+        p.state.sweep.lfoNoteIndex = 10; // 1/8 note (dropdown index)
         p.state.sweep.lfoDepth = 0.7f;
         p.state.sweep.lfoWaveform = Waveform::Square;
         // Low: hard clip with low threshold
@@ -1223,7 +1223,7 @@ std::vector<PresetDef> createAllPresets() {
         addRouting(p.state, 1, ModSource::LFO1, ModDest::bandMix(2), 0.2f);
         p.state.modSources.lfo1RateNorm = 0.5f;
         p.state.modSources.lfo1Sync = true;
-        p.state.modSources.lfo1NoteIndex = 4; // 1/4 note
+        p.state.modSources.lfo1NoteIndex = 13; // 1/4 note (dropdown index)
         p.state.modSources.transSensitivity = 0.8f;
         presets.push_back(p);
     }

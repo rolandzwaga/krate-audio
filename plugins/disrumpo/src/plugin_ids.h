@@ -674,7 +674,21 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 9;
+constexpr int32_t kPresetVersion = 10;
+
+/// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
+/// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).
+/// New encoding: kNoteValueDropdownMapping[] index (1/64T→1/1D).
+constexpr int8_t kOldNoteIdxToNewDropdown[15] = {
+    19, 20, 18,  // 1/1, 1/1D, 1/1T
+    16, 17, 15,  // 1/2, 1/2D, 1/2T
+    13, 14, 12,  // 1/4, 1/4D, 1/4T
+    10, 11,  9,  // 1/8, 1/8D, 1/8T
+     7,  8,  6,  // 1/16, 1/16D, 1/16T
+};
+
+/// Number of entries in the standard note value dropdown (from DSP layer).
+constexpr int kNoteValueCount = 21;
 
 // ==============================================================================
 // Plugin Metadata

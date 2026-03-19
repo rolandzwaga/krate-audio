@@ -250,8 +250,13 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeSweepParamId(SweepParamType::kSweepLFODepth), lfoDepth);
         if (streamer.readInt8(lfoSync))
             setter(makeSweepParamId(SweepParamType::kSweepLFOSync), lfoSync != 0 ? 1.0 : 0.0);
-        if (streamer.readInt8(lfoNoteIndex))
-            setter(makeSweepParamId(SweepParamType::kSweepLFONoteValue), static_cast<double>(lfoNoteIndex) / 14.0);
+        if (streamer.readInt8(lfoNoteIndex)) {
+            int noteIdx = static_cast<int>(lfoNoteIndex);
+            if (version <= 9)
+                noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
+            setter(makeSweepParamId(SweepParamType::kSweepLFONoteValue),
+                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+        }
 
         // Sweep Envelope
         Steinberg::int8 envEnable = 0;
@@ -297,8 +302,13 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readInt8(lfo1Sync))
             setter(makeModParamId(ModParamType::kLFO1Sync), lfo1Sync != 0 ? 1.0 : 0.0);
         Steinberg::int8 lfo1NoteIdx = 0;
-        if (streamer.readInt8(lfo1NoteIdx))
-            setter(makeModParamId(ModParamType::kLFO1NoteValue), static_cast<double>(lfo1NoteIdx) / 14.0);
+        if (streamer.readInt8(lfo1NoteIdx)) {
+            int noteIdx = static_cast<int>(lfo1NoteIdx);
+            if (version <= 9)
+                noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
+            setter(makeModParamId(ModParamType::kLFO1NoteValue),
+                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+        }
         Steinberg::int8 lfo1Unipolar = 0;
         if (streamer.readInt8(lfo1Unipolar))
             setter(makeModParamId(ModParamType::kLFO1Unipolar), lfo1Unipolar != 0 ? 1.0 : 0.0);
@@ -320,8 +330,13 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readInt8(lfo2Sync))
             setter(makeModParamId(ModParamType::kLFO2Sync), lfo2Sync != 0 ? 1.0 : 0.0);
         Steinberg::int8 lfo2NoteIdx = 0;
-        if (streamer.readInt8(lfo2NoteIdx))
-            setter(makeModParamId(ModParamType::kLFO2NoteValue), static_cast<double>(lfo2NoteIdx) / 14.0);
+        if (streamer.readInt8(lfo2NoteIdx)) {
+            int noteIdx = static_cast<int>(lfo2NoteIdx);
+            if (version <= 9)
+                noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
+            setter(makeModParamId(ModParamType::kLFO2NoteValue),
+                   static_cast<double>(std::clamp(noteIdx, 0, kNoteValueCount - 1)) / (kNoteValueCount - 1));
+        }
         Steinberg::int8 lfo2Unipolar = 0;
         if (streamer.readInt8(lfo2Unipolar))
             setter(makeModParamId(ModParamType::kLFO2Unipolar), lfo2Unipolar != 0 ? 1.0 : 0.0);
@@ -1645,7 +1660,7 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFOWaveform), 5));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepLFODepth)));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepLFOSync)));
-    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFONoteValue), 14));
+    streamer.writeInt8(getInt8FromList(makeSweepParamId(SweepParamType::kSweepLFONoteValue), kNoteValueCount - 1));
     streamer.writeInt8(getBoolInt8(makeSweepParamId(SweepParamType::kSweepEnvEnable)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvAttack)));
     streamer.writeFloat(getParamNorm(makeSweepParamId(SweepParamType::kSweepEnvRelease)));
@@ -1659,14 +1674,14 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1Shape), 5));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO1Phase)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Sync)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1NoteValue), 14));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO1NoteValue), kNoteValueCount - 1));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Unipolar)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO1Retrigger)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Rate)));
     streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2Shape), 5));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kLFO2Phase)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Sync)));
-    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2NoteValue), 14));
+    streamer.writeInt8(getInt8FromList(makeModParamId(ModParamType::kLFO2NoteValue), kNoteValueCount - 1));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Unipolar)));
     streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kLFO2Retrigger)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kEnvFollowerAttack)));
