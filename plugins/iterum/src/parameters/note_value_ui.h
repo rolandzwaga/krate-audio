@@ -32,7 +32,7 @@ using Krate::DSP::kNoteValueDefaultIndex;
 // Grouped by note value (Triplet, Normal, Dotted for each note).
 // Order MUST match kNoteValueDropdownMapping[] in dsp/core/note_value.h
 //
-// Total: 21 entries (indices 0-20)
+// Total: 30 entries (indices 0-29)
 // Default: index 10 (1/8 note)
 // =============================================================================
 
@@ -67,6 +67,18 @@ inline const Steinberg::Vst::TChar* const kNoteValueDropdownStrings[] = {
     STR16("1/1T"),    // 18: triplet whole
     STR16("1/1"),     // 19: whole note
     STR16("1/1D"),    // 20: dotted whole
+    // 2/1 variants
+    STR16("2/1T"),    // 21: triplet double whole
+    STR16("2/1"),     // 22: double whole note
+    STR16("2/1D"),    // 23: dotted double whole
+    // 3/1 variants
+    STR16("3/1T"),    // 24: triplet triple whole
+    STR16("3/1"),     // 25: triple whole note
+    STR16("3/1D"),    // 26: dotted triple whole
+    // 4/1 variants
+    STR16("4/1T"),    // 27: triplet quadruple whole
+    STR16("4/1"),     // 28: quadruple whole note
+    STR16("4/1D"),    // 29: dotted quadruple whole
 };
 
 } // namespace Iterum::Parameters

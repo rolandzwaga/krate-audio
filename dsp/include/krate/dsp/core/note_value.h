@@ -36,14 +36,16 @@ enum class TimeMode : uint8_t {
 /// Used by BlockContext::tempoToSamples() and LFO tempo sync features.
 /// Values represent standard Western notation durations.
 enum class NoteValue : uint8_t {
-    DoubleWhole = 0, ///< 2/1 note (8 beats at 4/4) - breve
-    Whole,           ///< 1/1 note (4 beats at 4/4)
-    Half,            ///< 1/2 note (2 beats)
-    Quarter,         ///< 1/4 note (1 beat) - default
-    Eighth,          ///< 1/8 note (0.5 beats)
-    Sixteenth,       ///< 1/16 note (0.25 beats)
-    ThirtySecond,    ///< 1/32 note (0.125 beats)
-    SixtyFourth      ///< 1/64 note (0.0625 beats)
+    QuadrupleWhole = 0, ///< 4/1 note (16 beats at 4/4) - longa
+    TripleWhole,        ///< 3/1 note (12 beats at 4/4)
+    DoubleWhole,        ///< 2/1 note (8 beats at 4/4) - breve
+    Whole,              ///< 1/1 note (4 beats at 4/4)
+    Half,               ///< 1/2 note (2 beats)
+    Quarter,            ///< 1/4 note (1 beat) - default
+    Eighth,             ///< 1/8 note (0.5 beats)
+    Sixteenth,          ///< 1/16 note (0.25 beats)
+    ThirtySecond,       ///< 1/32 note (0.125 beats)
+    SixtyFourth         ///< 1/64 note (0.0625 beats)
 };
 
 /// @brief Timing modifiers for note values.
@@ -62,6 +64,8 @@ enum class NoteModifier : uint8_t {
 /// @brief Beats per note value (at 4/4 time signature).
 /// Array indexed by static_cast<size_t>(NoteValue).
 inline constexpr float kBeatsPerNote[] = {
+    16.0f,   // QuadrupleWhole (longa)
+    12.0f,   // TripleWhole
     8.0f,    // DoubleWhole (breve)
     4.0f,    // Whole
     2.0f,    // Half
@@ -110,10 +114,13 @@ inline constexpr float kModifierMultiplier[] = {
 //  12: 1/4T   13: 1/4    14: 1/4D
 //  15: 1/2T   16: 1/2    17: 1/2D
 //  18: 1/1T   19: 1/1    20: 1/1D
+//  21: 2/1T   22: 2/1    23: 2/1D
+//  24: 3/1T   25: 3/1    26: 3/1D
+//  27: 4/1T   28: 4/1    29: 4/1D
 // =============================================================================
 
 /// @brief Number of note value dropdown entries
-inline constexpr int kNoteValueDropdownCount = 21;
+inline constexpr int kNoteValueDropdownCount = 30;
 
 /// @brief Default note value dropdown index (1/8 note)
 inline constexpr int kNoteValueDefaultIndex = 10;
@@ -155,6 +162,18 @@ inline constexpr NoteValueMapping kNoteValueDropdownMapping[] = {
     {NoteValue::Whole, NoteModifier::Triplet},        // 18: 1/1T  (2.667 beats)
     {NoteValue::Whole, NoteModifier::None},           // 19: 1/1   (4.0 beats)
     {NoteValue::Whole, NoteModifier::Dotted},         // 20: 1/1D  (6.0 beats)
+    // 2/1 variants
+    {NoteValue::DoubleWhole, NoteModifier::Triplet},  // 21: 2/1T  (5.333 beats)
+    {NoteValue::DoubleWhole, NoteModifier::None},     // 22: 2/1   (8.0 beats)
+    {NoteValue::DoubleWhole, NoteModifier::Dotted},   // 23: 2/1D  (12.0 beats)
+    // 3/1 variants
+    {NoteValue::TripleWhole, NoteModifier::Triplet},  // 24: 3/1T  (8.0 beats)
+    {NoteValue::TripleWhole, NoteModifier::None},     // 25: 3/1   (12.0 beats)
+    {NoteValue::TripleWhole, NoteModifier::Dotted},   // 26: 3/1D  (18.0 beats)
+    // 4/1 variants
+    {NoteValue::QuadrupleWhole, NoteModifier::Triplet}, // 27: 4/1T  (10.667 beats)
+    {NoteValue::QuadrupleWhole, NoteModifier::None},    // 28: 4/1   (16.0 beats)
+    {NoteValue::QuadrupleWhole, NoteModifier::Dotted},  // 29: 4/1D  (24.0 beats)
 };
 
 /// @brief Convert dropdown index to (NoteValue, NoteModifier) pair

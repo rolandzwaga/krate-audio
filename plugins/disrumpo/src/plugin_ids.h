@@ -678,7 +678,7 @@ constexpr int32_t kPresetVersion = 10;
 
 /// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
 /// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).
-/// New encoding: kNoteValueDropdownMapping[] index (1/64T→1/1D).
+/// New encoding: kNoteValueDropdownMapping[] index (1/64T→4/1D).
 constexpr int8_t kOldNoteIdxToNewDropdown[15] = {
     19, 20, 18,  // 1/1, 1/1D, 1/1T
     16, 17, 15,  // 1/2, 1/2D, 1/2T
@@ -688,7 +688,7 @@ constexpr int8_t kOldNoteIdxToNewDropdown[15] = {
 };
 
 /// Number of entries in the standard note value dropdown (from DSP layer).
-constexpr int kNoteValueCount = 21;
+constexpr int kNoteValueCount = 30;
 
 // ==============================================================================
 // Plugin Metadata

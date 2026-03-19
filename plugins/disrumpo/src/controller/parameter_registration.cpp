@@ -274,7 +274,8 @@ void Controller::registerSweepParams() {
     for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
                            "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
                            "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D"})
+                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
+                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
         lfoNoteParam->appendString(Steinberg::String(n));
     parameters.addParameter(lfoNoteParam);
 
@@ -384,7 +385,8 @@ void Controller::registerModulationParams() {
     for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
                            "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
                            "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D"})
+                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
+                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
         lfo1Note->appendString(Steinberg::String(n));
     parameters.addParameter(lfo1Note);
 
@@ -419,7 +421,8 @@ void Controller::registerModulationParams() {
     for (const auto* n : {"1/64T","1/64","1/64D","1/32T","1/32","1/32D",
                            "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
                            "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
-                           "1/1T","1/1","1/1D"})
+                           "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
+                           "3/1T","3/1","3/1D","4/1T","4/1","4/1D"})
         lfo2Note->appendString(Steinberg::String(n));
     parameters.addParameter(lfo2Note);
 

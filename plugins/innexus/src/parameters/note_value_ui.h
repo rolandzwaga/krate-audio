@@ -5,7 +5,7 @@
 // ==============================================================================
 // Provides centralized UI strings for note value dropdowns.
 // Order MUST match kNoteValueDropdownMapping[] in dsp/core/note_value.h
-// Total: 21 entries (indices 0-20), Default: index 10 (1/8 note)
+// Total: 30 entries (indices 0-29), Default: index 10 (1/8 note)
 // ==============================================================================
 
 #include <krate/dsp/core/note_value.h>
@@ -40,6 +40,18 @@ inline const Steinberg::Vst::TChar* const kNoteValueDropdownStrings[] = {
     STR16("1/1T"),    // 18
     STR16("1/1"),     // 19
     STR16("1/1D"),    // 20
+    // 2/1 variants
+    STR16("2/1T"),    // 21
+    STR16("2/1"),     // 22
+    STR16("2/1D"),    // 23
+    // 3/1 variants
+    STR16("3/1T"),    // 24
+    STR16("3/1"),     // 25
+    STR16("3/1D"),    // 26
+    // 4/1 variants
+    STR16("4/1T"),    // 27
+    STR16("4/1"),     // 28
+    STR16("4/1D"),    // 29
 };
 
 } // namespace Innexus::Parameters
