@@ -80,7 +80,7 @@ public:
             outputSmoother_.configure(smoothMs, static_cast<float>(sampleRate_));
             outputSmoother_.setTarget(currentTarget_);
         }
-        static_cast<void>(outputSmoother_.process());
+        outputSmoother_.advanceSamples(numSamples);
     }
 
     /// @brief Process one sample.

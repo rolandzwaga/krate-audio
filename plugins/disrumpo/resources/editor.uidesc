@@ -342,6 +342,10 @@
     <control-tag name="ModTransSensitivity" tag="3408"/>
     <control-tag name="ModTransAttack" tag="3409"/>
     <control-tag name="ModTransDecay" tag="3410"/>
+    <control-tag name="ModRunglerRate" tag="3416"/>
+    <control-tag name="ModRunglerDepth" tag="3417"/>
+    <control-tag name="ModRunglerBits" tag="3418"/>
+    <control-tag name="ModRunglerLoop" tag="3419"/>
     <control-tag name="ModMacro1Value" tag="3424"/>
     <control-tag name="ModMacro1Min" tag="3425"/>
     <control-tag name="ModMacro1Max" tag="3426"/>
@@ -504,7 +508,7 @@
       <color-stop rgba="#303035ff" start="1"/>
     </gradient>
   </gradients>
-  <template name="editor" class="CViewContainer" size="1000, 800" background-color="background-primary" minSize="834, 500" maxSize="1400, 840">
+  <template name="editor" class="CViewContainer" size="1000, 830" background-color="background-primary" minSize="834, 500" maxSize="1400, 870">
     <view class="CViewContainer" origin="0, 0" size="1000, 50" background-color="background-secondary">
       <view class="CTextLabel" origin="20, 10" size="200, 30" title="Disrumpo" font="title-font" font-color="text-primary" text-alignment="left"/>
       <view custom-view-name="PresetBrowserButton" origin="250, 12" size="80, 25"/>
@@ -629,9 +633,9 @@
       <view class="ToggleButton" origin="885, 12" size="25, 25" on-color="accent-primary" off-color="text-secondary" control-tag="ModPanelVisible" default-value="0" tooltip="Show modulation panel" icon-style="chevron" on-orientation="down" off-orientation="right"/>
       <view class="CTextLabel" origin="920, 15" size="60, 20" title="Disrumpo" font="small-font" font-color="text-secondary" text-alignment="right"/>
     </view>
-    <view class="CViewContainer" origin="0, 600" size="1000, 200" background-color="background-primary" visible="false">
+    <view class="CViewContainer" origin="0, 600" size="1000, 230" background-color="background-primary" visible="false">
       <view class="CParamDisplay" origin="0, 0" size="0, 0" control-tag="ModPanelContainer" back-color="transparent"/>
-      <view class="CViewContainer" origin="0, 0" size="500, 200" background-color="background-primary">
+      <view class="CViewContainer" origin="0, 0" size="500, 230" background-color="background-primary">
         <view class="CTextLabel" origin="10, 2" size="120, 16" title="MODULATION SOURCES" font="small-font" font-color="accent-primary"/>
         <view class="CTextLabel" origin="10, 20" size="30, 16" title="LFO1" font="small-font" font-color="text-primary"/>
         <view class="CSlider" origin="42, 20" size="55, 16" orientation="horizontal" control-tag="ModLFO1Rate" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
@@ -696,6 +700,15 @@
         <view class="CSlider" origin="144, 162" size="50, 16" orientation="horizontal" control-tag="ModTransAttack" default-value="0.158" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="CTextLabel" origin="198, 162" size="25, 16" title="Dcy" font="small-font" font-color="text-secondary"/>
         <view class="CSlider" origin="223, 162" size="50, 16" orientation="horizontal" control-tag="ModTransDecay" default-value="0.167" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="10, 182" size="30, 16" title="Rnglr" font="small-font" font-color="text-primary"/>
+        <view class="CTextLabel" origin="40, 182" size="22, 16" title="Rate" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="62, 182" size="55, 16" orientation="horizontal" control-tag="ModRunglerRate" default-value="0.08" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="122, 182" size="25, 16" title="Dpth" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="147, 182" size="55, 16" orientation="horizontal" control-tag="ModRunglerDepth" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="207, 182" size="22, 16" title="Bits" font="small-font" font-color="text-secondary"/>
+        <view class="CSlider" origin="229, 182" size="40, 16" orientation="horizontal" control-tag="ModRunglerBits" default-value="0.333" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-secondary" draw-frame="true" draw-frame-color="border"/>
+        <view class="CTextLabel" origin="274, 182" size="28, 16" title="Loop" font="small-font" font-color="text-secondary"/>
+        <view class="ToggleButton" origin="302, 182" size="16, 16" on-color="accent-primary" off-color="text-secondary" control-tag="ModRunglerLoop" default-value="0" tooltip="Toggle Rungler loop mode"/>
         <view class="CTextLabel" origin="350, 2" size="40, 16" title="MACROS" font="small-font" font-color="accent-primary"/>
         <view class="CTextLabel" origin="417, 6" size="22, 12" title="Min" font="small-font" font-color="text-secondary"/>
         <view class="CTextLabel" origin="445, 6" size="22, 12" title="Max" font="small-font" font-color="text-secondary"/>
@@ -721,13 +734,13 @@
         <view class="CSlider" origin="444, 80" size="25, 16" orientation="horizontal" control-tag="ModMacro4Max" default-value="1" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="text-secondary" draw-frame="true" draw-frame-color="border"/>
         <view class="COptionMenu" origin="472, 80" size="26, 16" control-tag="ModMacro4Curve" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
       </view>
-      <view class="CViewContainer" origin="500, 0" size="500, 200" background-color="background-secondary">
+      <view class="CViewContainer" origin="500, 0" size="500, 230" background-color="background-secondary">
         <view class="CTextLabel" origin="10, 2" size="120, 16" title="ROUTING MATRIX" font="small-font" font-color="accent-primary"/>
         <view class="CTextLabel" origin="10, 18" size="40, 12" title="Src" font="small-font" font-color="text-secondary"/>
         <view class="CTextLabel" origin="100, 18" size="40, 12" title="Dest" font="small-font" font-color="text-secondary"/>
         <view class="CTextLabel" origin="200, 18" size="40, 12" title="Amount" font="small-font" font-color="text-secondary"/>
         <view class="CTextLabel" origin="330, 18" size="40, 12" title="Curve" font="small-font" font-color="text-secondary"/>
-        <view class="CScrollView" origin="0, 32" size="500, 168" container-size="488, 576" horizontal-scrollbar="false" vertical-scrollbar="true" scrollbar-width="12" background-color="background-secondary">
+        <view class="CScrollView" origin="0, 32" size="500, 198" container-size="488, 576" horizontal-scrollbar="false" vertical-scrollbar="true" scrollbar-width="12" background-color="background-secondary">
           <view class="COptionMenu" origin="10, 0" size="80, 16" control-tag="ModRoute1Source" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
           <view class="COptionMenu" origin="95, 0" size="95, 16" control-tag="ModRoute1Dest" font="small-font" font-color="text-primary" back-color="background-primary" frame-color="border"/>
           <view class="CSlider" origin="195, 0" size="120, 16" orientation="horizontal" control-tag="ModRoute1Amount" default-value="0.5" min-value="0" max-value="1" draw-back="true" draw-back-color="slider-track" draw-value="true" draw-value-color="accent-primary" draw-frame="true" draw-frame-color="border"/>

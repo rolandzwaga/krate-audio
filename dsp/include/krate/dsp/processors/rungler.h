@@ -230,6 +230,17 @@ public:
     }
 
     // =========================================================================
+    // Parameter Getters (for state save/load)
+    // =========================================================================
+
+    [[nodiscard]] float getOsc1Frequency() const noexcept { return osc1BaseFreq_; }
+    [[nodiscard]] float getOsc2Frequency() const noexcept { return osc2BaseFreq_; }
+    [[nodiscard]] float getRunglerDepth() const noexcept { return osc1RunglerDepth_; }
+    [[nodiscard]] float getFilterAmount() const noexcept { return filterAmount_; }
+    [[nodiscard]] size_t getRunglerBits() const noexcept { return runglerBits_; }
+    [[nodiscard]] bool getLoopMode() const noexcept { return loopMode_; }
+
+    // =========================================================================
     // ModulationSource Interface (042-ext-modulation-system)
     // =========================================================================
 

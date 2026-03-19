@@ -1010,6 +1010,16 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
     if (!streamer.writeFloat((modulationEngine_.getTransientDecay() - 20.0f) / 180.0f))
         return Steinberg::kResultFalse;
 
+    // Rungler (v11+: 4 values: rate[float], depth[float], bits[int8], loop[int8])
+    if (!streamer.writeFloat((modulationEngine_.getRunglerOsc1Freq() - 0.1f) / 49.9f))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeFloat(modulationEngine_.getRunglerDepth()))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRunglerBits())))
+        return Steinberg::kResultFalse;
+    if (!streamer.writeInt8(static_cast<Steinberg::int8>(modulationEngine_.getRunglerLoopMode() ? 1 : 0)))
+        return Steinberg::kResultFalse;
+
     // Macros (4 × 4 = 16 values: value[float], min[float], max[float], curve[int8])
     for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
         const auto& macro = modulationEngine_.getMacro(m);
@@ -1445,6 +1455,26 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         float transDecayNorm = 0.0f;
         if (streamer.readFloat(transDecayNorm))
             modulationEngine_.setTransientDecay(20.0f + transDecayNorm * 180.0f);
+
+        // Rungler (v11+: 4 values: rate, depth, bits, loop)
+        if (version >= 11) {
+            float runglerRateNorm = 0.0f;
+            if (streamer.readFloat(runglerRateNorm)) {
+                float hz = 0.1f + runglerRateNorm * 49.9f;
+                modulationEngine_.setRunglerOsc1Freq(hz);
+                modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
+            }
+            float runglerDepth = 0.5f;
+            if (streamer.readFloat(runglerDepth))
+                modulationEngine_.setRunglerDepth(runglerDepth);
+            Steinberg::int8 runglerBits = 8;
+            if (streamer.readInt8(runglerBits))
+                modulationEngine_.setRunglerBits(
+                    static_cast<size_t>(std::clamp(static_cast<int>(runglerBits), 4, 16)));
+            Steinberg::int8 runglerLoop = 0;
+            if (streamer.readInt8(runglerLoop))
+                modulationEngine_.setRunglerLoopMode(runglerLoop != 0);
+        }
 
         // Macros (4 × 4 = 16 values)
         for (size_t m = 0; m < Krate::DSP::kMaxMacros; ++m) {
@@ -2047,6 +2077,25 @@ void Processor::processParameterChanges(Steinberg::Vst::IParameterChanges* chang
                                 modulationEngine_.setTransientDecay(ms);
                                 break;
                             }
+
+                            // Rungler
+                            case ModParamType::kRunglerRate: {
+                                float hz = 0.1f + static_cast<float>(value) * 49.9f;
+                                modulationEngine_.setRunglerOsc1Freq(hz);
+                                modulationEngine_.setRunglerOsc2Freq(hz * 1.5f);
+                                break;
+                            }
+                            case ModParamType::kRunglerDepth:
+                                modulationEngine_.setRunglerDepth(static_cast<float>(value));
+                                break;
+                            case ModParamType::kRunglerBits: {
+                                size_t bits = 4 + static_cast<size_t>(value * 12.0 + 0.5);
+                                modulationEngine_.setRunglerBits(bits);
+                                break;
+                            }
+                            case ModParamType::kRunglerLoop:
+                                modulationEngine_.setRunglerLoopMode(value >= 0.5);
+                                break;
 
                             // Macros
                             case ModParamType::kMacro1Value:

@@ -535,6 +535,13 @@ public:
     void setRunglerBits(size_t bits) noexcept { rungler_.setRunglerBits(bits); }
     void setRunglerLoopMode(bool loop) noexcept { rungler_.setLoopMode(loop); }
 
+    [[nodiscard]] float getRunglerOsc1Freq() const noexcept { return rungler_.getOsc1Frequency(); }
+    [[nodiscard]] float getRunglerOsc2Freq() const noexcept { return rungler_.getOsc2Frequency(); }
+    [[nodiscard]] float getRunglerDepth() const noexcept { return rungler_.getRunglerDepth(); }
+    [[nodiscard]] float getRunglerFilter() const noexcept { return rungler_.getFilterAmount(); }
+    [[nodiscard]] size_t getRunglerBits() const noexcept { return rungler_.getRunglerBits(); }
+    [[nodiscard]] bool getRunglerLoopMode() const noexcept { return rungler_.getLoopMode(); }
+
     // =========================================================================
     // External Source Slots
     // =========================================================================

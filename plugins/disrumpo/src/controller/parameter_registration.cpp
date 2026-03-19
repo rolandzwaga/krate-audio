@@ -502,6 +502,16 @@ void Controller::registerModulationParams() {
     parameters.addParameter(STR16("Transient Decay"), STR16("ms"), 0, 0.167,
         Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kTransientDecay));
 
+    // Rungler Parameters
+    parameters.addParameter(STR16("Rungler Rate"), STR16("Hz"), 0, 0.08,
+        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerRate));
+    parameters.addParameter(STR16("Rungler Depth"), nullptr, 0, 0.5,
+        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerDepth));
+    parameters.addParameter(STR16("Rungler Bits"), nullptr, 12, 0.333,
+        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerBits));
+    parameters.addParameter(STR16("Rungler Loop"), nullptr, 1, 0.0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate, makeModParamId(ModParamType::kRunglerLoop));
+
     // Macro Parameters (4 macros x 4 params)
     const Steinberg::Vst::TChar* macroNames[] = {
         STR16("Macro 1"), STR16("Macro 2"), STR16("Macro 3"), STR16("Macro 4")

@@ -426,6 +426,7 @@ constexpr uint8_t extractCrossoverIndex(Steinberg::Vst::ParamID paramId) {
 // - 0x0D40-0x0D42: Sample & Hold parameters
 // - 0x0D48-0x0D4B: Pitch Follower parameters
 // - 0x0D50-0x0D52: Transient Detector parameters
+// - 0x0D58-0x0D5B: Rungler parameters
 // - 0x0D60-0x0D6F: Macro parameters (4 macros x 4 params)
 // - 0x0D80-0x0DFF: Routing parameters (32 routings x 4 params)
 // ==============================================================================
@@ -494,6 +495,12 @@ enum class ModParamType : uint8_t {
     kTransientSensitivity = 0x50,  ///< Sensitivity [0, 1.0]
     kTransientAttack      = 0x51,  ///< Attack time [0.5, 10] ms
     kTransientDecay       = 0x52,  ///< Decay time [20, 200] ms
+
+    // Rungler (0x58-0x5B)
+    kRunglerRate   = 0x58,  ///< Rate (osc1 freq) [0.1, 50] Hz
+    kRunglerDepth  = 0x59,  ///< Feedback depth [0, 1]
+    kRunglerBits   = 0x5A,  ///< Shift register bits [4, 16]
+    kRunglerLoop   = 0x5B,  ///< Loop mode [on/off]
 
     // Macros (0x60-0x6F: 4 macros x 4 params each)
     kMacro1Value = 0x60,  ///< Macro 1 value [0, 1]
@@ -674,7 +681,7 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 10;
+constexpr int32_t kPresetVersion = 11;
 
 /// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
 /// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).

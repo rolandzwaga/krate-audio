@@ -239,7 +239,8 @@ private:
 
 class ModPanelToggleController : public Steinberg::FObject {
 public:
-    static constexpr VSTGUI::CCoord kModPanelHeight = 200.0;
+    static constexpr VSTGUI::CCoord kModPanelHeight = 230.0;
+    static constexpr VSTGUI::CCoord kBaseHeight = 600.0;
 
     ModPanelToggleController(
         VSTGUI::VST3Editor** editorPtr,
@@ -297,10 +298,9 @@ public:
 
             auto currentRect = frame->getViewSize();
             auto currentWidth = currentRect.getWidth();
-            auto currentHeight = currentRect.getHeight();
             VSTGUI::CCoord newHeight = shouldShow
-                ? currentHeight + kModPanelHeight
-                : currentHeight - kModPanelHeight;
+                ? kBaseHeight + kModPanelHeight
+                : kBaseHeight;
 
             VSTGUI::CCoord minH = shouldShow ? (500.0 + kModPanelHeight) : 500.0;
             VSTGUI::CCoord maxH = shouldShow ? (840.0 + kModPanelHeight) : 840.0;

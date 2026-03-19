@@ -47,19 +47,21 @@ TEST_CASE("Waveform enum has correct values", "[lfo][enum][foundational]") {
 
 // T006: NoteValue enum tests
 TEST_CASE("NoteValue enum has correct values", "[lfo][enum][foundational]") {
-    SECTION("DoubleWhole is first note value (value 0)") {
-        CHECK(static_cast<uint8_t>(NoteValue::DoubleWhole) == 0);
+    SECTION("QuadrupleWhole is first note value (value 0)") {
+        CHECK(static_cast<uint8_t>(NoteValue::QuadrupleWhole) == 0);
     }
 
-    SECTION("All 8 note values have sequential values") {
-        CHECK(static_cast<uint8_t>(NoteValue::DoubleWhole) == 0);
-        CHECK(static_cast<uint8_t>(NoteValue::Whole) == 1);
-        CHECK(static_cast<uint8_t>(NoteValue::Half) == 2);
-        CHECK(static_cast<uint8_t>(NoteValue::Quarter) == 3);
-        CHECK(static_cast<uint8_t>(NoteValue::Eighth) == 4);
-        CHECK(static_cast<uint8_t>(NoteValue::Sixteenth) == 5);
-        CHECK(static_cast<uint8_t>(NoteValue::ThirtySecond) == 6);
-        CHECK(static_cast<uint8_t>(NoteValue::SixtyFourth) == 7);
+    SECTION("All 10 note values have sequential values") {
+        CHECK(static_cast<uint8_t>(NoteValue::QuadrupleWhole) == 0);
+        CHECK(static_cast<uint8_t>(NoteValue::TripleWhole) == 1);
+        CHECK(static_cast<uint8_t>(NoteValue::DoubleWhole) == 2);
+        CHECK(static_cast<uint8_t>(NoteValue::Whole) == 3);
+        CHECK(static_cast<uint8_t>(NoteValue::Half) == 4);
+        CHECK(static_cast<uint8_t>(NoteValue::Quarter) == 5);
+        CHECK(static_cast<uint8_t>(NoteValue::Eighth) == 6);
+        CHECK(static_cast<uint8_t>(NoteValue::Sixteenth) == 7);
+        CHECK(static_cast<uint8_t>(NoteValue::ThirtySecond) == 8);
+        CHECK(static_cast<uint8_t>(NoteValue::SixtyFourth) == 9);
     }
 
     SECTION("NoteValue enum is uint8_t") {

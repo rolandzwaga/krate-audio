@@ -101,8 +101,8 @@ TEST_CASE("NoteValue dropdown mapping handles out of range", "[dsp][core]") {
         REQUIRE(mapping.modifier == NoteModifier::None);
     }
 
-    SECTION("Index >= 21 defaults to 1/8") {
-        auto mapping = getNoteValueFromDropdown(21);
+    SECTION("Index >= 30 defaults to 1/8") {
+        auto mapping = getNoteValueFromDropdown(30);
         REQUIRE(mapping.note == NoteValue::Eighth);
         REQUIRE(mapping.modifier == NoteModifier::None);
     }
