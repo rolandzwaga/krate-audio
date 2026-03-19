@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bandwidth-enhanced synthesis (Loris model)** — Per-partial amplitude modulation: `am = sqrt(1-bw) + noise*sqrt(2*bw)`; replaces global noisiness with per-partial noisiness in both mono and stereo output paths
 - **Source-aware resynthesis** — `loadPolyphonicFrame()` and `setSourcePitch()` enable independent pitch control per detected voice; e.g., shift one chord note while keeping others stable
 - **kAnalysisModeId parameter** (ID 502) — StringListParameter: Mono / Poly / Auto (default Auto)
+- **Multi-voice polyphonic F0 display** — ConfidenceIndicatorView now shows all detected voices (up to 8) with individual confidence bars, note names, and amplitude-scaled text brightness; includes a mode badge (MONO/POLY/AUTO>M/AUTO>P) with color-coded background; falls back to original single-voice layout when in mono mode; fieldset renamed from "F0 Confidence" to "Pitch Detection"
 
 ### Changed
 
