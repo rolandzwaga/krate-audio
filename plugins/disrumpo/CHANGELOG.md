@@ -5,6 +5,22 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-03-19
+
+### Added
+
+- **Band Tone and Band Bias modulation targets** — Tone and Bias are now available as per-band modulation routing destinations, grouped alongside each band's existing targets (Morph X/Y, Drive, Mix, Gain, Pan) in the routing dropdown.
+- **Modulation overlay on Tone, Gain, and Pan sliders** — Upgraded these controls to ModSlider so they display the blue modulation range indicator when targeted by a modulation source.
+
+### Changed
+
+- **Removed Bias from main band tab** — Bias is type-specific (only affects tube, tape, fuzz, wavefolder, and ring mod types) and is already accessible through each distortion type's shape slot controls. Removing it from the main tab avoids confusion when it has no effect.
+- **Preset version bumped to 12** — Existing presets are automatically migrated; modulation routing destination indices are remapped from the old 6-per-band to the new 8-per-band layout.
+
+### Fixed
+
+- **Modulation routing slots shifted on reload** — The controller's component state parser was missing the Rungler data block (10 bytes), causing all routing and macro data to be read from wrong stream offsets. Routing slot assignments would silently shift down by one position on every save/reload cycle.
+
 ## [0.9.7] - 2026-03-19
 
 ### Fixed
