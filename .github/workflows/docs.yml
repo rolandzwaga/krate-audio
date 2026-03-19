@@ -112,14 +112,14 @@ jobs:
               has_output=true
             fi
 
-            # --- Generate signal flow diagram for ruinae ---
-            if [ "$plugin" = "ruinae" ] && [ -f "plugins/ruinae/docs/ruinae_signal_flow.dot" ]; then
-              if [ -f "tools/generate-signal-flow.js" ]; then
-                node tools/generate-signal-flow.js \
-                  plugins/ruinae/docs/ruinae_signal_flow.dot \
-                  _site/ruinae/signal-flow.html
-                echo "  Generated signal flow diagram"
-              fi
+            # --- Generate signal flow diagrams ---
+            dot_file="$plugin_dir/docs/${plugin}_signal_flow.dot"
+            if [ -f "$dot_file" ] && [ -f "tools/generate-signal-flow.js" ]; then
+              mkdir -p "_site/$plugin"
+              node tools/generate-signal-flow.js \
+                "$dot_file" \
+                "_site/$plugin/signal-flow.html"
+              echo "  Generated signal flow diagram for $plugin"
             fi
           done
 

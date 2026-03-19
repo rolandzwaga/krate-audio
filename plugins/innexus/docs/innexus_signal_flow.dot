@@ -1,0 +1,379 @@
+digraph InnexusSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Analysis pipeline</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Harmonic frame transformations</TD></TR>
+            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Creative extensions (M6)</TD></TR>
+            <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Freeze / confidence gating</TD></TR>
+            <TR><TD>&#x2501;&#x25B6;</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - &#x25B6;</TD><TD ALIGN="LEFT">Control / frame data</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT SOURCES
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI Input\n(Notes, Velocity,\nPitch Bend ±12 semi)", shape=house, fillcolor="#CCDDEE"];
+        sidechain_in [label="Sidechain Audio\n(Auxiliary Stereo Bus)\nStereo-to-mono downmix", shape=house, fillcolor="#CCDDEE"];
+        sample_load [label="Sample Loader\n(WAV/AIFF)\nBackground thread analysis\nLock-free atomic exchange", shape=house, fillcolor="#CCDDEE"];
+        host_tempo [label="Host Tempo\n(BPM for mod sync)", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    // =========================================================================
+    // INPUT SOURCE SELECTION
+    // =========================================================================
+    subgraph cluster_source_select {
+        label="Input Source (FR-001)";
+        style=rounded;
+        color="#666666";
+        bgcolor="#E8EEF4";
+
+        source_switch [label="Input Source Switch\nSample (0.0) / Sidechain (1.0)\n20ms crossfade on change", shape=diamond, fillcolor="#7BAFD4"];
+    }
+
+    sidechain_in -> source_switch [penwidth=2, label="live audio"];
+    sample_load -> source_switch [penwidth=2, label="offline\nanalysis"];
+
+    // =========================================================================
+    // ANALYSIS FEEDBACK LOOP (Spec B)
+    // =========================================================================
+    feedback_mix [label="Feedback Mixer\n(Spec B: FR-005)\nsynth output mixed\ninto sidechain input\nwith exponential decay", shape=box, fillcolor="#F0C8A0", color="#C07020"];
+
+    source_switch -> feedback_mix [penwidth=2, color="#2A5080", label="sidechain\nmode only"];
+
+    // =========================================================================
+    // LIVE ANALYSIS PIPELINE
+    // =========================================================================
+    subgraph cluster_analysis {
+        label="LiveAnalysisPipeline  —  Real-Time Spectral Analysis";
+        style=rounded;
+        color="#E8A838";
+        bgcolor="#FDF3E8";
+        fontsize=13;
+        fontcolor="#804010";
+        penwidth=2;
+
+        preproc [label="PreProcessing\nDC removal, HPF,\nnoise gate,\ntransient suppression", shape=box, fillcolor="#F5D090"];
+
+        yin [label="YIN Pitch Detector\nFFT-accelerated autocorrelation\nF0 + confidence [0, 1]\nVoiced/unvoiced classification", shape=box, fillcolor="#F5D090"];
+
+        subgraph cluster_stft {
+            label="Dual STFT";
+            style=dashed;
+            color="#E8A838";
+            bgcolor="#F5E8D0";
+
+            short_stft [label="Short STFT\n1024-pt window\nLow latency", shape=box, fillcolor="#E8C868"];
+            long_stft [label="Long STFT\n2048-pt window\nHigh precision", shape=box, fillcolor="#E8C868"];
+        }
+
+        subgraph cluster_mode_select {
+            label="Analysis Mode (Auto/Mono/Poly)";
+            style=dashed;
+            color="#E8A838";
+            bgcolor="#F5E8D0";
+
+            mode_select [label="Mode Selector\nAuto: switch on YIN\nconfidence ≤ 0.6\n4-frame crossfade", shape=diamond, fillcolor="#E8B050"];
+
+            mono_path [label="Monophonic Path\nYIN F0 → Partial Tracker\n→ Harmonic Model Builder\n→ Spectral Coring (residual)", shape=box, fillcolor="#E8C868"];
+
+            poly_path [label="Polyphonic Path\nMultiPitchDetector (Klapuri)\n→ MultiSourceSieve\n→ Up to 8 voices\nHungarian assignment", shape=box, fillcolor="#E8C868"];
+        }
+
+        preproc -> yin [penwidth=2, color="#804010"];
+        preproc -> short_stft [penwidth=2, color="#804010"];
+        preproc -> long_stft [penwidth=2, color="#804010"];
+        yin -> mode_select [style=dashed, color="#804010", label="F0 +\nconfidence"];
+        short_stft -> mode_select [penwidth=2, color="#804010"];
+        long_stft -> mode_select [penwidth=2, color="#804010"];
+        mode_select -> mono_path [style=dashed, label="mono"];
+        mode_select -> poly_path [style=dashed, label="poly"];
+    }
+
+    feedback_mix -> preproc [penwidth=2, color="#804010", label="audio\nsamples"];
+
+    // =========================================================================
+    // ANALYSIS OUTPUTS
+    // =========================================================================
+    subgraph cluster_frames {
+        label="Analysis Output Frames";
+        style=rounded;
+        color="#666666";
+        bgcolor="#E8EEF4";
+
+        live_frame [label="HarmonicFrame\nF0, partials (up to 96),\nconfidence, amplitude,\nspectral descriptors", shape=box, fillcolor="#7BAFD4"];
+        residual_frame [label="ResidualFrame\nSpectral envelope\nof noise residual", shape=box, fillcolor="#7BAFD4"];
+        poly_frame [label="PolyphonicFrame\nUp to 8 source voices\n+ inharmonic partials\n(for UI display)", shape=box, fillcolor="#7BAFD4"];
+        sample_frames [label="Sample Analysis\n(offline)\nPre-computed frame\nsequence + ADSR detection", shape=box, fillcolor="#7BAFD4"];
+    }
+
+    mono_path -> live_frame [penwidth=2, color="#2A5080"];
+    mono_path -> residual_frame [penwidth=2, color="#2A5080"];
+    poly_path -> poly_frame [penwidth=2, color="#2A5080"];
+    poly_path -> live_frame [penwidth=2, color="#2A5080", label="primary\nvoice"];
+    source_switch -> sample_frames [style=dashed, label="sample\nmode"];
+
+    // =========================================================================
+    // FREEZE & CONFIDENCE GATING
+    // =========================================================================
+    subgraph cluster_freeze {
+        label="Freeze System  —  Frame Stabilization";
+        style=rounded;
+        color="#D94A7A";
+        bgcolor="#FCEDF2";
+        fontsize=13;
+        fontcolor="#A02050";
+        penwidth=2;
+
+        manual_freeze [label="Manual Freeze (FR-002)\nCaptures current frame\non parameter engage\n10ms crossfade on release", shape=box, fillcolor="#E88AAA"];
+
+        confidence_gate [label="Confidence-Gated Freeze\n(FR-052)\nThreshold: 0.3\nHysteresis: 0.05\n7ms crossfade on recovery", shape=box, fillcolor="#E88AAA"];
+
+        spectral_decay [label="Spectral Decay Envelope\nPer-partial amplitude decay\nHigher partials die first\nPrevents noise during fade-out", shape=box, fillcolor="#E88AAA"];
+
+        last_good_frame [label="Last Good Frame\n(frozen harmonic state)", shape=box, fillcolor="#F0A0B8"];
+    }
+
+    live_frame -> confidence_gate [style=dashed, color="#A02050", label="confidence\ncheck"];
+    confidence_gate -> spectral_decay [style=dashed, color="#A02050", label="below\nthreshold"];
+    confidence_gate -> last_good_frame [style=dashed, color="#A02050"];
+    manual_freeze -> last_good_frame [style=dashed, color="#A02050", label="capture"];
+
+    // =========================================================================
+    // HARMONIC MEMORY (M5)
+    // =========================================================================
+    subgraph cluster_memory {
+        label="Harmonic Memory (M5: FR-005, FR-006)";
+        style=rounded;
+        color="#9B6BBF";
+        bgcolor="#F3ECF9";
+
+        memory_slots [label="8 Memory Slots\nEach stores:\n• HarmonicSnapshot\n  (partials + spectral data)\n• 9 ADSR parameters\n• Occupied flag", shape=box, fillcolor="#C49EE0"];
+
+        capture [label="Capture Trigger\nStores current frame\n+ ADSR to selected slot\nUpdates evolution waypoints", shape=box, fillcolor="#C49EE0"];
+
+        recall [label="Recall Trigger\nLoads snapshot from slot\nRestores ADSR values\nInitiates crossfade", shape=box, fillcolor="#C49EE0"];
+    }
+
+    live_frame -> capture [style=dashed, color="#6B3B9F", label="current\nframe"];
+    last_good_frame -> capture [style=dashed, color="#6B3B9F", label="frozen\nframe"];
+    capture -> memory_slots [style=dashed, color="#6B3B9F"];
+    memory_slots -> recall [style=dashed, color="#6B3B9F"];
+
+    // =========================================================================
+    // FRAME SELECTION (Priority Hierarchy)
+    // =========================================================================
+    subgraph cluster_frame_select {
+        label="Frame Selection  —  Priority Hierarchy";
+        style=rounded;
+        color="#6BBF6B";
+        bgcolor="#E5F5E5";
+
+        frame_select [label="Frame Source Selector\n\n1. Manual Freeze (if engaged)\n2. Memory Recall (if triggered)\n3. Evolution Engine (if enabled)\n4. Multi-Source Blender (if enabled)\n5. Live Analysis (sidechain mode)\n6. Sample Frame (sample mode)", shape=diamond, fillcolor="#8ED08E"];
+    }
+
+    last_good_frame -> frame_select [penwidth=2, color="#3A8F3A", label="frozen"];
+    recall -> frame_select [penwidth=2, color="#3A8F3A", label="recalled"];
+    live_frame -> frame_select [penwidth=2, color="#3A8F3A", label="live"];
+    sample_frames -> frame_select [penwidth=2, color="#3A8F3A", label="sample\n(frame advance\n+ sustain loop)"];
+
+    // =========================================================================
+    // CREATIVE EXTENSIONS (M6)
+    // =========================================================================
+    subgraph cluster_creative {
+        label="Creative Extensions (M6)  —  Per-Sample Processing";
+        style=rounded;
+        color="#9B6BBF";
+        bgcolor="#F3ECF9";
+        fontsize=13;
+        fontcolor="#6B3B9F";
+        penwidth=2;
+
+        // Evolution Engine
+        evolution [label="Evolution Engine\n(FR-014 to FR-023)\nInterpolates between waypoint\nmemory slots over time\nSpeed, depth, mode controls\nFree-running phase", shape=box, fillcolor="#C49EE0"];
+
+        // Multi-Source Blender
+        blender [label="Multi-Source Blender\n(FR-034 to FR-042)\n8 slot weights + live weight\nNormalized weighted sum\nof spectral data\nSmoothed per-sample", shape=box, fillcolor="#C49EE0"];
+
+        // Morph
+        morph [label="Spectral Morph\n(FR-010)\nInterpolate between\nfrozen (A) and live (B)\nPer-partial amplitude\nand frequency blending\n7ms smoother", shape=box, fillcolor="#C49EE0"];
+    }
+
+    memory_slots -> evolution [style=dashed, color="#6B3B9F", label="waypoint\nslots"];
+    memory_slots -> blender [style=dashed, color="#6B3B9F", label="slot\nweights"];
+    live_frame -> blender [style=dashed, color="#6B3B9F", label="live\nweight"];
+    evolution -> frame_select [penwidth=2, color="#6B3B9F", label="evolved"];
+    blender -> frame_select [penwidth=2, color="#6B3B9F", label="blended"];
+    frame_select -> morph [penwidth=2, color="#3A8F3A"];
+
+    // =========================================================================
+    // HARMONIC TRANSFORMATION CHAIN
+    // =========================================================================
+    subgraph cluster_transform {
+        label="Harmonic Transformation Chain  —  Always Applied";
+        style=rounded;
+        color="#6BBF6B";
+        bgcolor="#E5F5E5";
+        fontsize=13;
+        fontcolor="#2A6030";
+        penwidth=2;
+
+        timbral_blend [label="Timbral Blend\n(Cross-Synthesis)\nBlend between analyzed\ntimbre and pure harmonic\nreference frame\n0.0 = pure, 1.0 = analyzed", shape=box, fillcolor="#A8DCA8"];
+
+        harmonic_filter [label="Harmonic Filter\n(FR-019 to FR-025)\n5 filter types:\nAll-pass, Odd, Even,\nComb, Random\nPer-partial amplitude mask", shape=box, fillcolor="#A8DCA8"];
+
+        modulators [label="Harmonic Modulators\n(FR-024 to FR-029)\nMod 1 + Mod 2 (independent)\n5 waveforms, tempo sync\nTargets: Amplitude, Frequency, Pan\nAdjustable partial range (1-96)", shape=box, fillcolor="#A8DCA8"];
+
+        physics [label="Harmonic Physics\n(Spec A: 122)\n• Warmth (soft saturation)\n• Coupling (neighbor energy share)\n• Stability (per-partial inertia)\n• Entropy (natural decay)\nAll smoothed per-block", shape=box, fillcolor="#A8DCA8"];
+
+        morph -> timbral_blend [penwidth=2, color="#3A8F3A"];
+        timbral_blend -> harmonic_filter [penwidth=2, color="#3A8F3A"];
+        harmonic_filter -> modulators [penwidth=2, color="#3A8F3A"];
+        modulators -> physics [penwidth=2, color="#3A8F3A"];
+    }
+
+    host_tempo -> modulators [style=dashed, color="#888888", label="BPM\n(tempo sync)"];
+
+    // =========================================================================
+    // SYNTHESIS ENGINE
+    // =========================================================================
+    subgraph cluster_synthesis {
+        label="Synthesis Engine  —  Per-Sample Audio Generation";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+        fontsize=13;
+        fontcolor="#2A5080";
+        penwidth=2;
+
+        osc_bank [label="Harmonic Oscillator Bank\n48-96 Gordon-Smith MCF oscillators\nAmplitude-stable magic circle phasors\nPitch bend, detune spread,\nstereo partial spread\n→ harmonicL, harmonicR", shape=box, fillcolor="#6AABEA"];
+
+        residual_synth [label="Residual Synthesizer\nSTFT-domain noise shaping\nSpectral envelope from analysis\nBrightness tilt + transient emphasis\n→ residualSample (mono)", shape=box, fillcolor="#6AABEA"];
+
+        mix [label="Harmonic/Residual Mix\nsampleL = harmonicL × harmLevel\n           + residual × resLevel\nsampleR = harmonicR × harmLevel\n           + residual × resLevel\n(levels smoothed per-sample)", shape=box, fillcolor="#6AABEA"];
+
+        osc_bank -> mix [penwidth=2, color="#2A5080", label="stereo\nharmonics"];
+        residual_synth -> mix [penwidth=2, color="#2A5080", label="mono\nresidual"];
+    }
+
+    physics -> osc_bank [penwidth=2, color="#2A5080", label="load frame\n+ pitch bend"];
+    residual_frame -> residual_synth [penwidth=2, color="#2A5080", label="spectral\nenvelope"];
+
+    // =========================================================================
+    // OUTPUT CHAIN
+    // =========================================================================
+    subgraph cluster_output {
+        label="Output Chain  —  Per-Sample Dynamics & Safety";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+        fontsize=13;
+        fontcolor="#444444";
+        penwidth=2;
+
+        crossfades [label="Crossfade Stack\n• Source switch (20ms)\n• Freeze recovery (7ms)\n• Manual freeze recovery (10ms)\n• Anti-click voice steal (20ms)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
+
+        velocity [label="Velocity Scaling\nsample × velocityGain", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        adsr [label="ADSR Envelope\n(Spec 124)\nAuto-detected from sample\nAttack/Decay/Sustain/Release\nBezier curves, time scale\nAmount blend: lerp(1, env, amt)\nSustain frame looping", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        release_env [label="Release Envelope\n(when ADSR Amount = 0)\nExponential decay\nEnd note at gain < 1e-6", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        master_gain [label="Master Gain\n(0.0 – 2.0)", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        soft_limiter [label="Soft Limiter\ntanh(sample)\nAlways-on safety", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        output [label="Audio Output\nStereo L / R", shape=invhouse, fillcolor="#CCDDEE"];
+
+        crossfades -> velocity [penwidth=2];
+        velocity -> adsr [penwidth=2];
+        adsr -> release_env [penwidth=2, label="fallback\n(amt=0)"];
+        adsr -> master_gain [penwidth=2, label="amt>0"];
+        release_env -> master_gain [penwidth=2];
+        master_gain -> soft_limiter [penwidth=2];
+        soft_limiter -> output [penwidth=2];
+    }
+
+    mix -> crossfades [penwidth=2, color="#2A5080"];
+
+    // =========================================================================
+    // FEEDBACK LOOP (Output → Analysis)
+    // =========================================================================
+    output -> feedback_mix [style=bold, color="#C07020", label="mono sum\nof output\n(sidechain\nmode only)", constraint=false];
+
+    // =========================================================================
+    // DISPLAY DATA PIPELINE
+    // =========================================================================
+    subgraph cluster_display {
+        label="Display Data (FR-048)";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+
+        display [label="DataExchange Handler\n~30Hz throttled\nPartial amplitudes, F0,\nconfidence, memory status,\nevolution position,\nmodulator phase,\npolyphonic voice data,\nanalysis mode badge", shape=box, fillcolor="#DDDDDD"];
+    }
+
+    osc_bank -> display [style=dashed, color="#888888", label="partial\nstate"];
+    poly_frame -> display [style=dashed, color="#888888", label="multi-voice\nF0 display"];
+    memory_slots -> display [style=dashed, color="#888888", label="slot\nstatus"];
+
+    // =========================================================================
+    // MIDI ROUTING
+    // =========================================================================
+    midi_in -> osc_bank [penwidth=2, label="note on/off\nvelocity\npitch bend"];
+    midi_in -> adsr [style=dashed, label="note on\n(retrigger)"];
+    midi_in -> release_env [style=dashed, label="note off"];
+
+    // =========================================================================
+    // PROCESSING RATE ANNOTATIONS
+    // =========================================================================
+    subgraph cluster_rates {
+        label="Processing Rates";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+
+        rates [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD ALIGN="LEFT"><B>Analysis:</B></TD><TD ALIGN="LEFT">Per-block (push samples → consume frames when new)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Frame transforms:</B></TD><TD ALIGN="LEFT">Per-block (filter, physics smoothers) + per-sample (evolution, blend, modulation)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (oscillator bank + residual synth)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Output chain:</B></TD><TD ALIGN="LEFT">Per-sample (crossfades, velocity, ADSR, limiter)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Feedback loop:</B></TD><TD ALIGN="LEFT">Per-block (capture output → mix into next analysis block)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Display data:</B></TD><TD ALIGN="LEFT">~30Hz via DataExchange (throttled)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Parameters:</B></TD><TD ALIGN="LEFT">Per-block (atomic reads + smoother updates, 5-15ms)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Frame priority:</B></TD><TD ALIGN="LEFT">Manual Freeze → Recall → Evolution → Blender → Live → Sample</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Transform order:</B></TD><TD ALIGN="LEFT">Morph → Timbral Blend → Filter → Modulators → Physics → Oscillator Load</TD></TR>
+            </TABLE>
+        >];
+    }
+}
