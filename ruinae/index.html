@@ -53,61 +53,81 @@
             </div>
         </section>
 
+        <section class="overview">
+            <h2>Overview</h2>
+            <p>Ruinae is a synthesizer built for sound design that goes beyond traditional subtractive synthesis. Its dual-oscillator architecture offers 10 oscillator types &mdash; from conventional PolyBLEP waveforms to chaotic attractors, particle clouds, and spectral freeze &mdash; feeding into 13 filter types, 7 distortion algorithms, and a full effects chain with phaser, flanger, chorus, delay, harmonizer, and plate reverb.</p>
+            <p>A deep modulation system with an 8-slot matrix, dual LFOs, three ADSR envelopes with Bezier curves, and exotic sources like chaos generators and rungler circuits keeps everything in motion. The built-in arpeggiator with 8 polymetric lanes, per-step chord generation, and Euclidean timing turns single notes into complex harmonic sequences. Up to 16 voices of polyphony with sidechain-reactive modulation sources round out a synthesizer designed to produce sounds that evolve, breathe, and surprise.</p>
+        </section>
+
         <section class="features">
-            <h2>Oscillators</h2>
+            <h2>Features</h2>
             <ul>
-                <li>Dual oscillator architecture with 10 types: PolyBLEP, Wavetable, Phase Distortion, Sync, Additive, Chaos, Particle, Formant, Spectral Freeze, and Noise</li>
-                <li>Crossfade or Spectral Morph blending between oscillators with tilt and shift controls</li>
+                <li><strong>10 oscillator types</strong> &mdash; PolyBLEP (classic anti-aliased waveforms), Wavetable, Phase Distortion, Hard Sync, Additive, Chaos (Lorenz/R&ouml;ssler/Chua attractors), Particle (granular cloud), Formant, Spectral Freeze, and Noise</li>
+                <li><strong>Dual oscillator architecture</strong> &mdash; crossfade or spectral morph blending between oscillators with tilt and shift controls for complex, evolving timbres</li>
+                <li><strong>13 filter types</strong> &mdash; SVF (lowpass, highpass, bandpass, notch, allpass, peak, shelf), Ladder, Formant, Comb, Envelope Filter, and Self-Oscillating</li>
+                <li><strong>7 distortion algorithms</strong> &mdash; Chaos Waveshaper, Spectral, Granular, Wavefolder, Tape Saturator, Ring Modulator (with waveform select, fixed/ratio modes, and stereo spread), and Clean bypass</li>
+                <li><strong>Trance gate</strong> &mdash; rhythmic amplitude gate with 2&ndash;32 steps, Euclidean pattern generation, and tempo sync</li>
+                <li><strong>4 send effects</strong> &mdash; phaser (2&ndash;12 stages, stereo spread, multiple LFO shapes), flanger (modulated comb filter with feedback and tempo sync), chorus (1&ndash;4 voices with stereo spread), and Dattorro plate reverb (freeze, pre-delay, diffusion, modulation)</li>
+                <li><strong>5 delay types</strong> &mdash; Digital (with era/age character and wavefolder), Tape, Ping Pong, Granular, and Spectral</li>
+                <li><strong>Harmonizer</strong> &mdash; up to 4 pitch-shifted voices with scale-aware diatonic harmony across 16 scale modes, formant preservation, and feedback</li>
+                <li><strong>8-slot modulation matrix</strong> &mdash; 14 sources routed to 15 destinations with per-route curve shaping, smoothing, scaling, and bypass</li>
+                <li><strong>Dual LFOs</strong> &mdash; 6 waveforms (sine, triangle, saw, square, sample &amp; hold, random), symmetry, quantize, fade-in, tempo sync with note value selection, and retrigger</li>
+                <li><strong>3 ADSR envelopes</strong> &mdash; Amp, Filter, and Mod envelopes with adjustable power curves and Bezier control point editing via expanded overlay</li>
+                <li><strong>Exotic mod sources</strong> &mdash; envelope follower, pitch follower, transient detector (with sidechain input), chaos generator, rungler, sample &amp; hold, and 4 user macro knobs</li>
+                <li><strong>Sidechain input</strong> &mdash; auxiliary stereo bus for audio-dependent mod sources; falls back to analyzing the synth's own output when no sidechain is connected</li>
+                <li><strong>Advanced arpeggiator</strong> &mdash; 10 modes (Up, Down, Up-Down, Random, Chord, and more) with 1&ndash;4 octave range, swing, latch, and Euclidean timing</li>
+                <li><strong>8 polymetric arp lanes</strong> &mdash; up to 32 steps each: Velocity, Gate, Pitch, Chord (None/Dyad/Triad/7th/9th via diatonic scale-degree stacking), Inversion (Root/1st/2nd/3rd), Ratchet, Modifier, and Condition</li>
+                <li><strong>Arp harmonic features</strong> &mdash; 16 scale modes for pitch quantization and chord quality, global voicing modes (Close, Drop-2, Spread, Random), and arp pitch available as a global modulation source</li>
+                <li><strong>Up to 16-voice polyphony</strong> &mdash; mono mode with legato and portamento, configurable voice-steal priority, per-voice pan, stereo width, and global output filter (LP/HP/BP/Notch)</li>
+                <li><strong>65+ factory presets</strong> across synth and arp categories with built-in preset browser, save dialog, and search</li>
+                <li><strong>Full parameter automation</strong> and MIDI CC learn support</li>
+                <li><strong>In-plugin update checker</strong> &mdash; automatic version check with non-intrusive update banner</li>
+                <li><strong>Cross-platform:</strong> VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
             </ul>
         </section>
 
         <section class="features">
-            <h2>Filters &amp; Distortion</h2>
+            <h2>Oscillators</h2>
+            <p>Ruinae's 10 oscillator types cover ground from fundamental waveforms to experimental synthesis techniques.</p>
             <ul>
-                <li>13 filter types: SVF (LP/HP/BP/Notch/Allpass/Peak/Shelf), Ladder, Formant, Comb, Envelope Filter, and Self-Oscillating</li>
-                <li>7 distortion algorithms: Chaos Waveshaper, Spectral, Granular, Wavefolder, Tape Saturator, Ring Modulator, and Clean bypass</li>
-                <li>Rhythmic trance gate with 2&ndash;32 steps, Euclidean patterns, and tempo sync</li>
+                <li><strong>PolyBLEP</strong> &mdash; Band-limited saw, square, triangle, and pulse waveforms with anti-aliased discontinuities for clean, classic analog tones</li>
+                <li><strong>Wavetable</strong> &mdash; Wavetable scanning with interpolated position control for smooth morphing through spectral snapshots</li>
+                <li><strong>Phase Distortion</strong> &mdash; Casio CZ-style phase distortion synthesis with variable waveshaping for metallic, bell-like, and organ timbres</li>
+                <li><strong>Hard Sync</strong> &mdash; Oscillator sync with independent slave frequency for aggressive, formant-rich sweeps</li>
+                <li><strong>Additive</strong> &mdash; Per-harmonic amplitude control for precise spectral sculpting and organ-like tones</li>
+                <li><strong>Chaos</strong> &mdash; Audio-rate chaotic attractors (Lorenz, R&ouml;ssler, Chua) producing complex, non-repeating waveforms with controllable instability</li>
+                <li><strong>Particle</strong> &mdash; Granular cloud oscillator with configurable grain density, scatter, and envelope for textural, evolving timbres</li>
+                <li><strong>Formant</strong> &mdash; Vowel-modeled oscillator with controllable formant positions for speech-like and vocal synthesis</li>
+                <li><strong>Spectral Freeze</strong> &mdash; Captures and holds a spectral snapshot, producing sustained, frozen-in-time textures from any input state</li>
+                <li><strong>Noise</strong> &mdash; Filtered noise generator for percussive transients, wind textures, and broadband fills</li>
             </ul>
         </section>
 
         <section class="features">
             <h2>Effects Chain</h2>
+            <p>A full post-voice effects chain with modulation, delay, pitch shifting, and reverb.</p>
             <ul>
-                <li>Phaser with 2&ndash;12 stages, tempo sync, stereo spread, and multiple LFO waveforms</li>
-                <li>5 delay types: Digital (with era/age/wavefolder), Tape, Ping Pong, Granular, and Spectral</li>
-                <li>Harmonizer with up to 4 pitch-shifted voices, scale-aware harmony, and formant preservation</li>
-                <li>Dattorro plate reverb with freeze, pre-delay, diffusion, and modulation</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Modulation</h2>
-            <ul>
-                <li>8-slot modulation matrix routing 14 sources to 15 destinations with per-route curve, smoothing, and scaling</li>
-                <li>2 LFOs with tempo sync, 6 waveforms, symmetry, quantize, fade-in, and retrigger</li>
-                <li>3 ADSR envelopes (Amp, Filter, Mod) with adjustable curves and Bezier control points</li>
-                <li>Envelope follower, pitch follower, chaos generator, sample &amp; hold, and 4 user macro knobs</li>
+                <li><strong>Phaser</strong> &mdash; 2&ndash;12 allpass stages with LFO modulation (6 waveforms), tempo sync, stereo spread, and feedback for classic jet and sweep effects</li>
+                <li><strong>Flanger</strong> &mdash; Short modulated delay line with LFO-driven comb filter sweep, bipolar feedback (&plusmn;1.0) for metallic resonance, and stereo spread (0&ndash;360&deg;)</li>
+                <li><strong>Chorus</strong> &mdash; 1&ndash;4 voice stereo chorus with configurable depth, rate, and spread for width and detuned richness</li>
+                <li><strong>Delay</strong> &mdash; 5 types: Digital (with era/age character modeling and wavefolder in feedback), Tape (with wow and flutter), Ping Pong, Granular (with grain density and scatter), and Spectral (FFT-domain delay with bin-selective feedback)</li>
+                <li><strong>Harmonizer</strong> &mdash; Up to 4 pitch-shifted voices with scale-aware diatonic intervals across 16 scale types, formant preservation, detuning, and feedback</li>
+                <li><strong>Plate Reverb</strong> &mdash; Dattorro plate algorithm with input diffusion, tank modulation, damping filter, pre-delay, and infinite freeze mode</li>
             </ul>
         </section>
 
         <section class="features">
             <h2>Arpeggiator</h2>
+            <p>A polymetric step sequencer that transforms single notes into complex harmonic patterns.</p>
             <ul>
-                <li>10 arp modes (Up, Down, Up-Down, Random, Chord, and more) with 1&ndash;4 octave range and swing</li>
-                <li>8 independent polymetric lanes with up to 32 steps each: Velocity, Gate, Pitch, Chord, Inversion, Ratchet, Modifier, and Condition</li>
-                <li>Per-step chord generation (Dyad, Triad, 7th, 9th) via diatonic scale-degree stacking with per-step inversion and global voicing modes (Close, Drop-2, Spread, Random)</li>
-                <li>16 scale modes for harmonic quantization and chord quality</li>
-                <li>Euclidean timing mode, latch (Hold/Add), and multiple retrigger options</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Voice &amp; System</h2>
-            <ul>
-                <li>Up to 16-voice polyphony with mono mode, legato, portamento, and voice-steal priority options</li>
-                <li>Per-voice pan, stereo width, and global filter with 4 SVF modes (LP/HP/BP/Notch)</li>
-                <li>Built-in preset browser with save, load, and search</li>
-                <li>Cross-platform: VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+                <li><strong>10 arp modes</strong> &mdash; Up, Down, Up-Down, Down-Up, Random, Chord, Converge, Diverge, and more with 1&ndash;4 octave range and adjustable swing</li>
+                <li><strong>8 independent lanes</strong> &mdash; each with up to 32 steps and independent length for polymetric rhythms: Velocity, Gate, Pitch, Chord, Inversion, Ratchet, Modifier, and Condition</li>
+                <li><strong>Per-step chord generation</strong> &mdash; chord lane selects None, Dyad, Triad, 7th, or 9th chords built by stacking diatonic scale degrees; inversion lane controls voicing (Root, 1st, 2nd, 3rd inversion)</li>
+                <li><strong>Global voicing modes</strong> &mdash; Close, Drop-2, Spread, and Random voicing distribute chord notes across registers for natural voice leading</li>
+                <li><strong>16 scale modes</strong> &mdash; Major, Minor (Natural/Harmonic/Melodic), Dorian, Phrygian, Lydian, Mixolydian, Locrian, Pentatonic (Major/Minor), Blues, Whole Tone, and Diminished (W-H, H-W); pitch lane values become scale-degree offsets in non-Chromatic modes</li>
+                <li><strong>Euclidean timing</strong> &mdash; algorithmic rhythm generation from pulse and step count parameters</li>
+                <li><strong>Latch modes</strong> &mdash; Hold and Add modes for hands-free performance; multiple retrigger options for phase control</li>
+                <li><strong>Arp pitch as mod source</strong> &mdash; the last played arp note is available in the global modulation matrix for pitch-following effects</li>
             </ul>
         </section>
 
