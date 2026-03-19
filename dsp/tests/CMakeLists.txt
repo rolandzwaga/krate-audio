@@ -48,6 +48,7 @@ add_executable(dsp_tests
     unit/core/curve_table_test.cpp
     unit/core/transport_sync_test.cpp
     unit/core/chord_generator_test.cpp
+    unit/core/hungarian_algorithm_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp
@@ -190,6 +191,9 @@ add_executable(dsp_tests
     unit/processors/harmonic_frame_utils_tests.cpp
     unit/processors/harmonic_snapshot_tests.cpp
     unit/processors/test_harmonic_oscillator_bank_stereo.cpp
+    unit/processors/multi_pitch_detector_tests.cpp
+    unit/processors/multi_source_sieve_tests.cpp
+    unit/processors/partial_tracker_polyphonic_tests.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -305,6 +309,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/curve_table_test.cpp
         unit/core/transport_sync_test.cpp
         unit/core/chord_generator_test.cpp
+        unit/core/hungarian_algorithm_test.cpp
         unit/primitives/envelope_utils_test.cpp
         unit/primitives/adsr_envelope_test.cpp
         unit/primitives/smoother_test.cpp
@@ -501,6 +506,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/harmonic_frame_utils_tests.cpp
         unit/processors/harmonic_snapshot_tests.cpp
         unit/processors/test_harmonic_oscillator_bank_stereo.cpp
+        unit/processors/multi_pitch_detector_tests.cpp
+        unit/processors/multi_source_sieve_tests.cpp
+        unit/processors/partial_tracker_polyphonic_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

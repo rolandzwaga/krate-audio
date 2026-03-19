@@ -72,6 +72,7 @@ set(KRATE_DSP_CORE_HEADERS
     include/krate/dsp/core/stereo_utils.h
     include/krate/dsp/core/wavetable_data.h
     include/krate/dsp/core/window_functions.h
+    include/krate/dsp/core/hungarian_algorithm.h
 )
 
 # Layer 1: Primitives
@@ -121,6 +122,8 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/harmonic_types.h
     include/krate/dsp/processors/yin_pitch_detector.h
     include/krate/dsp/processors/partial_tracker.h
+    include/krate/dsp/processors/multi_pitch_detector.h
+    include/krate/dsp/processors/multi_source_sieve.h
 )
 
 # Layer 3: Systems

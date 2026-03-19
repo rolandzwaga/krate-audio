@@ -8,7 +8,14 @@
 //
 // Orchestrates the full analysis chain for real-time sidechain audio:
 // PreProcessingPipeline -> YinPitchDetector -> STFT -> PartialTracker ->
-// HarmonicModelBuilder -> SpectralCoringEstimator
+// MultiPitchDetector (when poly) -> MultiSourceSieve -> HarmonicModelBuilder
+// -> SpectralCoringEstimator
+//
+// Polyphonic Analysis Upgrade:
+// - Adaptive mono/poly mode switching based on YIN confidence
+// - Multi-pitch detection via harmonic salience + iterative cancellation
+// - Multi-source harmonic sieve for peak-to-F0 assignment
+// - PolyphonicFrame output for multi-voice resynthesis
 //
 // Constitution Compliance:
 // - Principle II: Real-Time Safety (all buffers pre-allocated in prepare())
@@ -27,6 +34,8 @@
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/processors/yin_pitch_detector.h>
 #include <krate/dsp/processors/partial_tracker.h>
+#include <krate/dsp/processors/multi_pitch_detector.h>
+#include <krate/dsp/processors/multi_source_sieve.h>
 #include <krate/dsp/processors/spectral_coring_estimator.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
 #include <krate/dsp/primitives/stft.h>
@@ -38,15 +47,26 @@
 
 namespace Innexus {
 
-/// @brief Real-time analysis pipeline for sidechain audio.
+/// @brief Real-time analysis pipeline for sidechain audio with polyphonic support.
 ///
 /// Composes existing DSP components (PreProcessingPipeline, YinPitchDetector,
-/// STFT, PartialTracker, HarmonicModelBuilder, SpectralCoringEstimator) into
-/// a single pipeline that processes live audio into HarmonicFrame data.
+/// STFT, PartialTracker, HarmonicModelBuilder, SpectralCoringEstimator) plus
+/// new polyphonic components (MultiPitchDetector, MultiSourceSieve) into a
+/// single pipeline that processes live audio into HarmonicFrame or
+/// PolyphonicFrame data.
 ///
-/// Designed to be instantiable multiple times for future multi-source blending.
+/// Supports three analysis modes:
+/// - Mono: Always use YIN monophonic detection (current behavior)
+/// - Poly: Always use multi-pitch detection
+/// - Auto: Switch based on YIN confidence (default)
 class LiveAnalysisPipeline {
 public:
+    /// YIN confidence threshold for auto mode switching
+    static constexpr float kPolyConfidenceThreshold = 0.6f;
+
+    /// Number of frames to crossfade when switching modes
+    static constexpr int kModeSwitchCrossfadeFrames = 4;
+
     LiveAnalysisPipeline() = default;
     ~LiveAnalysisPipeline() = default;
 
@@ -79,6 +99,23 @@ public:
         modelBuilder_.setResponsiveness(value);
     }
 
+    /// Set the analysis mode (Mono/Poly/Auto).
+    /// @param mode Analysis mode
+    void setAnalysisMode(Krate::DSP::AnalysisMode mode) noexcept {
+        analysisMode_ = mode;
+    }
+
+    /// Get the current analysis mode.
+    [[nodiscard]] Krate::DSP::AnalysisMode getAnalysisMode() const noexcept {
+        return analysisMode_;
+    }
+
+    /// Check whether the pipeline is currently running in polyphonic mode.
+    /// In Auto mode, this depends on the latest YIN confidence.
+    [[nodiscard]] bool isPolyphonicActive() const noexcept {
+        return lastFrameWasPolyphonic_;
+    }
+
     /// Feed mono sidechain audio samples into the pipeline.
     /// Internally accumulates and triggers analysis when enough data available.
     /// @param data Pointer to mono audio samples
@@ -89,10 +126,19 @@ public:
     [[nodiscard]] bool hasNewFrame() const noexcept { return newFrameAvailable_; }
 
     /// Get the latest harmonic frame and clear the new-frame flag.
+    /// In mono mode, this is the full monophonic frame.
+    /// In poly mode, this returns the first (strongest) source's frame.
     [[nodiscard]] const Krate::DSP::HarmonicFrame& consumeFrame() noexcept
     {
         newFrameAvailable_ = false;
         return latestFrame_;
+    }
+
+    /// Get the latest polyphonic frame.
+    /// Only meaningful when isPolyphonicActive() returns true.
+    [[nodiscard]] const Krate::DSP::PolyphonicFrame& consumePolyphonicFrame() noexcept
+    {
+        return latestPolyFrame_;
     }
 
     /// Get the latest residual frame.
@@ -108,6 +154,12 @@ private:
     /// Run the analysis chain: YIN, PartialTracker, ModelBuilder, Coring
     void runAnalysis();
 
+    /// Run the polyphonic analysis path
+    void runPolyphonicAnalysis(const Krate::DSP::F0Estimate& yinF0, float inputRms);
+
+    /// Run the monophonic analysis path (original behavior)
+    void runMonophonicAnalysis(const Krate::DSP::F0Estimate& f0, float inputRms);
+
     // =========================================================================
     // Pipeline components
     // =========================================================================
@@ -120,6 +172,10 @@ private:
     Krate::DSP::PartialTracker tracker_;
     Krate::DSP::HarmonicModelBuilder modelBuilder_;
     Krate::DSP::SpectralCoringEstimator coringEstimator_;
+
+    // Polyphonic analysis components
+    Krate::DSP::MultiPitchDetector multiPitchDetector_;
+    Krate::DSP::MultiSourceSieve multiSourceSieve_;
 
     // =========================================================================
     // YIN circular buffer
@@ -140,6 +196,7 @@ private:
     // Output state
     // =========================================================================
     Krate::DSP::HarmonicFrame latestFrame_{};
+    Krate::DSP::PolyphonicFrame latestPolyFrame_{};
     Krate::DSP::ResidualFrame latestResidualFrame_{};
     bool newFrameAvailable_ = false;
 
@@ -147,10 +204,18 @@ private:
     // Configuration
     // =========================================================================
     LatencyMode latencyMode_ = LatencyMode::LowLatency;
+    Krate::DSP::AnalysisMode analysisMode_ = Krate::DSP::AnalysisMode::Auto;
     bool residualEnabled_ = true;
     float sampleRate_ = 44100.0f;
     bool prepared_ = false;
     bool longStftActive_ = false;
+
+    // =========================================================================
+    // Mode switching state
+    // =========================================================================
+    bool lastFrameWasPolyphonic_ = false;
+    int modeSwitchCrossfadeRemaining_ = 0; ///< Frames remaining in mode crossfade
+    Krate::DSP::HarmonicFrame previousModeFrame_{}; ///< Frame from the old mode for crossfading
 };
 
 } // namespace Innexus

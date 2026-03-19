@@ -32,7 +32,7 @@ struct F0Estimate {
 /// A single tracked harmonic component within a HarmonicFrame (FR-028).
 /// Carries harmonic index, measured frequency, amplitude, phase,
 /// relative frequency (frequency / F0), inharmonic deviation, stability score,
-/// and tracking age.
+/// tracking age, source ID (for polyphonic analysis), and bandwidth.
 struct Partial {
     int harmonicIndex = 0;           ///< 1-based harmonic number (0 = unassigned)
     float frequency = 0.0f;          ///< Measured frequency in Hz (actual, not idealized)
@@ -42,6 +42,8 @@ struct Partial {
     float inharmonicDeviation = 0.0f;///< relativeFrequency - harmonicIndex
     float stability = 0.0f;          ///< Tracking confidence [0.0, 1.0]
     int age = 0;                     ///< Frames since track birth
+    int sourceId = 0;                ///< Which F0 this partial belongs to (0 = unassigned/mono)
+    float bandwidth = 0.0f;          ///< Per-partial noisiness [0=pure sine, 1=pure noise]
 };
 
 /// A snapshot of the harmonic analysis at one point in time (FR-029).
@@ -58,6 +60,43 @@ struct HarmonicFrame {
     float brightness = 0.0f;                       ///< Perceptual brightness descriptor
     float noisiness = 0.0f;                        ///< Residual-to-harmonic ratio [0.0, 1.0]
     float globalAmplitude = 0.0f;                  ///< Smoothed RMS of source
+};
+
+// ==============================================================================
+// Multi-Pitch Detection Types (Polyphonic Analysis)
+// ==============================================================================
+
+/// Maximum number of simultaneous F0 voices for polyphonic analysis
+inline constexpr int kMaxPolyphonicVoices = 8;
+
+/// Result of multi-pitch detection: up to kMaxPolyphonicVoices F0 estimates
+/// ranked by salience/confidence.
+struct MultiF0Result {
+    std::array<F0Estimate, kMaxPolyphonicVoices> estimates{};
+    int numDetected = 0;
+};
+
+/// Analysis mode for the pipeline
+enum class AnalysisMode : int {
+    Mono = 0,   ///< Always use YIN monophonic detection
+    Poly = 1,   ///< Always use multi-pitch detection
+    Auto = 2    ///< Switch based on YIN confidence
+};
+
+/// A polyphonic analysis frame containing multiple harmonic sources.
+/// Each source has its own HarmonicFrame, plus any unassigned (inharmonic)
+/// partials that don't fit any detected F0.
+struct PolyphonicFrame {
+    MultiF0Result f0s{};
+    std::array<HarmonicFrame, kMaxPolyphonicVoices> sources{};
+    int numSources = 0;
+
+    /// Partials that didn't match any detected F0 (inharmonic/free partials)
+    std::array<Partial, kMaxPartials> inharmonicPartials{};
+    int numInharmonicPartials = 0;
+
+    /// Global amplitude (same as mono path)
+    float globalAmplitude = 0.0f;
 };
 
 } // namespace Krate::DSP

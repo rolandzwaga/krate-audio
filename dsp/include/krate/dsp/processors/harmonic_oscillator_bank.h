@@ -169,6 +169,10 @@ public:
         panLeft_.fill(kCenterGain);
         panRight_.fill(kCenterGain);
         detuneMultiplier_.fill(1.0f);
+        bandwidth_.fill(0.0f);
+        sourcePitch_.fill(0.0f);
+        sourceId_.fill(0);
+        polyMode_ = false;
     }
 
     // =========================================================================
@@ -208,6 +212,7 @@ public:
             relativeFrequency_[i] = partial.relativeFrequency;
             inharmonicDeviation_[i] = partial.inharmonicDeviation;
             targetAmplitude_[i] = partial.amplitude;
+            bandwidth_[i] = partial.bandwidth;
 
             // Initialize oscillator state if this is the first frame
             if (!frameLoaded_) {
@@ -231,6 +236,7 @@ public:
         recalculateAntiAliasing();
 
         frameLoaded_ = true;
+        polyMode_ = false;
     }
 
     /// @brief Set the target pitch (MIDI-driven).
@@ -269,6 +275,104 @@ public:
             recalculateFrequencies();
             recalculateAntiAliasing();
         }
+    }
+
+    // =========================================================================
+    // Polyphonic / Source-Aware Resynthesis (Tier 3b)
+    // =========================================================================
+
+    /// @brief Load a polyphonic frame with per-source pitch control.
+    ///
+    /// Merges partials from all sources in a PolyphonicFrame into the oscillator
+    /// bank. Each source's partials are resynthesized at their respective
+    /// target pitches, enabling independent pitch shifting per source.
+    ///
+    /// @param polyFrame The polyphonic analysis frame
+    /// @param sourcePitches Per-source target pitches in Hz (array of kMaxPolyphonicVoices).
+    ///                      Set to 0 for a source to use its analyzed F0.
+    /// @param defaultPitch Fallback pitch for sources with sourcePitches[s]==0
+    /// @note Real-time safe
+    void loadPolyphonicFrame(const PolyphonicFrame& polyFrame,
+                              const float* sourcePitches,
+                              float defaultPitch) noexcept {
+        if (!prepared_) return;
+
+        // Detect large pitch jumps for crossfade (FR-040) using default pitch
+        if (frameLoaded_ && targetPitch_ > 0.0f && defaultPitch > 0.0f) {
+            float ratio = defaultPitch / targetPitch_;
+            if (ratio < 1.0f) ratio = 1.0f / ratio;
+            if (ratio > crossfadeThresholdRatio_) {
+                crossfadeOldLevel_ = lastOutputSample_;
+                crossfadeRemaining_ = crossfadeLengthSamples_;
+            }
+        }
+
+        targetPitch_ = defaultPitch;
+        int totalPartials = 0;
+
+        // Load partials from each source
+        for (int s = 0; s < polyFrame.numSources && totalPartials < static_cast<int>(kMaxPartials); ++s) {
+            const auto& src = polyFrame.sources[s];
+            float srcPitch = (sourcePitches != nullptr && sourcePitches[s] > 0.0f)
+                                 ? sourcePitches[s]
+                                 : (src.f0 > 0.0f ? defaultPitch : 0.0f);
+
+            for (int i = 0; i < src.numPartials && totalPartials < static_cast<int>(kMaxPartials); ++i) {
+                const auto& partial = src.partials[i];
+                harmonicIndex_[totalPartials] = partial.harmonicIndex;
+                relativeFrequency_[totalPartials] = partial.relativeFrequency;
+                inharmonicDeviation_[totalPartials] = partial.inharmonicDeviation;
+                targetAmplitude_[totalPartials] = partial.amplitude;
+                bandwidth_[totalPartials] = partial.bandwidth;
+                sourceId_[totalPartials] = partial.sourceId;
+                sourcePitch_[totalPartials] = srcPitch;
+
+                if (!frameLoaded_) {
+                    float freq = computeSourcePartialFrequency(totalPartials);
+                    float phase = partial.phase;
+                    sinState_[totalPartials] = std::sin(phase);
+                    cosState_[totalPartials] = std::cos(phase);
+                    epsilon_[totalPartials] = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
+                    currentAmplitude_[totalPartials] = 0.0f;
+                }
+
+                ++totalPartials;
+            }
+        }
+
+        activePartials_ = totalPartials;
+
+        // Zero out unused partials
+        for (size_t i = static_cast<size_t>(totalPartials); i < kMaxPartials; ++i) {
+            targetAmplitude_[i] = 0.0f;
+            harmonicIndex_[i] = 0;
+            sourceId_[i] = 0;
+            sourcePitch_[i] = 0.0f;
+        }
+
+        // Recalculate frequencies using per-source pitches
+        recalculateSourceFrequencies();
+        recalculateAntiAliasing();
+
+        frameLoaded_ = true;
+        polyMode_ = true;
+    }
+
+    /// @brief Set the target pitch for a specific source in polyphonic mode.
+    ///
+    /// @param sourceId 1-based source ID
+    /// @param frequencyHz Target frequency for this source
+    /// @note Real-time safe
+    void setSourcePitch(int sourceId, float frequencyHz) noexcept {
+        if (!prepared_ || !polyMode_ || sourceId <= 0 || frequencyHz <= 0.0f) return;
+
+        for (int i = 0; i < activePartials_; ++i) {
+            if (sourceId_[i] == sourceId) {
+                sourcePitch_[i] = frequencyHz;
+            }
+        }
+        recalculateSourceFrequencies();
+        recalculateAntiAliasing();
     }
 
     // =========================================================================
@@ -384,8 +488,18 @@ public:
             float c = cosState_[i];
             float eps = epsilon_[i] * detuneMultiplier_[i];
 
-            // Output: amplitude * sine * pan coefficients
-            float ampSample = s * currentAmplitude_[i];
+            // Bandwidth-enhanced synthesis (Loris model)
+            float bw = bandwidth_[i];
+            float ampMod = 1.0f;
+            if (bw > 1e-4f) {
+                // Generate simple noise for bandwidth modulation
+                float noise = nextNoiseSample();
+                // Loris formula: am = sqrt(1-bw) + noise * sqrt(2*bw)
+                ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
+            }
+
+            // Output: amplitude * sine * bandwidth modulation * pan coefficients
+            float ampSample = s * currentAmplitude_[i] * ampMod;
             sumL += ampSample * panLeft_[i];
             sumR += ampSample * panRight_[i];
 
@@ -512,8 +626,16 @@ public:
             float c = cosState_[i];
             float eps = epsilon_[i];
 
-            // Output: amplitude * sine
-            sum += s * currentAmplitude_[i];
+            // Bandwidth-enhanced synthesis (Loris model)
+            float bw = bandwidth_[i];
+            float ampMod = 1.0f;
+            if (bw > 1e-4f) {
+                float noise = nextNoiseSample();
+                ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
+            }
+
+            // Output: amplitude * sine * bandwidth modulation
+            sum += s * currentAmplitude_[i] * ampMod;
 
             // Advance phasor: Gordon-Smith MCF (determinant = 1)
             float sNew = s + eps * c;
@@ -630,6 +752,15 @@ private:
     // Private Methods
     // =========================================================================
 
+    /// @brief Generate a white noise sample using a simple LCG.
+    /// Returns a sample in [-1, 1].
+    [[nodiscard]] float nextNoiseSample() noexcept {
+        // Linear congruential generator (fast, sufficient for noise modulation)
+        noiseState_ = noiseState_ * 1664525u + 1013904223u;
+        // Convert to float in [-1, 1]
+        return static_cast<float>(static_cast<int32_t>(noiseState_)) * (1.0f / 2147483648.0f);
+    }
+
     /// @brief Compute per-partial frequency (FR-037).
     ///
     /// freq_n = (harmonicIndex + inharmonicDeviation * inharmonicityAmount) * targetPitch
@@ -637,6 +768,28 @@ private:
         int n = harmonicIndex_[partialIndex];
         float deviation = inharmonicDeviation_[partialIndex];
         return (static_cast<float>(n) + deviation * inharmonicityAmount_) * targetPitch_;
+    }
+
+    /// @brief Compute per-partial frequency using per-source pitch (Tier 3b).
+    ///
+    /// Uses sourcePitch_[i] instead of targetPitch_ when in polyphonic mode.
+    [[nodiscard]] float computeSourcePartialFrequency(int partialIndex) const noexcept {
+        int n = harmonicIndex_[partialIndex];
+        float deviation = inharmonicDeviation_[partialIndex];
+        float pitch = sourcePitch_[partialIndex] > 0.0f
+                          ? sourcePitch_[partialIndex]
+                          : targetPitch_;
+        return (static_cast<float>(n) + deviation * inharmonicityAmount_) * pitch;
+    }
+
+    /// @brief Recalculate epsilon for all active partials using per-source pitches.
+    void recalculateSourceFrequencies() noexcept {
+        constexpr float kMaxEpsilon = 1.99f;
+        for (int i = 0; i < activePartials_; ++i) {
+            float freq = computeSourcePartialFrequency(i);
+            float eps = 2.0f * std::sin(kPi * freq * inverseSampleRate_);
+            epsilon_[i] = std::clamp(eps, -kMaxEpsilon, kMaxEpsilon);
+        }
     }
 
     /// @brief Recalculate epsilon for all active partials.
@@ -744,12 +897,17 @@ private:
     alignas(32) std::array<float, kMaxPartials> antiAliasGain_{};
     alignas(32) std::array<float, kMaxPartials> relativeFrequency_{};
     alignas(32) std::array<float, kMaxPartials> inharmonicDeviation_{};
+    alignas(32) std::array<float, kMaxPartials> bandwidth_{}; ///< Per-partial noisiness [0,1]
 
     // --- Stereo pan and detune arrays (M6 FR-006 to FR-013, FR-030 to FR-032) ---
     alignas(32) std::array<float, kMaxPartials> panPosition_{};      ///< [-1, +1]
     alignas(32) std::array<float, kMaxPartials> panLeft_{};           ///< cos(angle)
     alignas(32) std::array<float, kMaxPartials> panRight_{};          ///< sin(angle)
     alignas(32) std::array<float, kMaxPartials> detuneMultiplier_{};  ///< freq multiplier
+
+    // --- Source-aware resynthesis arrays (Tier 3b) ---
+    alignas(32) std::array<float, kMaxPartials> sourcePitch_{};     ///< Per-partial source pitch (Hz)
+    std::array<int, kMaxPartials> sourceId_{};                       ///< Per-partial source ID (0=mono)
 
     /// Harmonic index per partial (not float -- integer)
     std::array<int, kMaxPartials> harmonicIndex_{};
@@ -780,6 +938,10 @@ private:
     int renormCounter_ = 0;               ///< Counter for periodic MCF renormalization
     bool prepared_ = false;               ///< Whether prepare() has been called
     bool frameLoaded_ = false;            ///< Whether loadFrame() has been called
+    bool polyMode_ = false;               ///< Whether using polyphonic source-aware mode
+
+    // --- Noise generator for bandwidth enhancement ---
+    uint32_t noiseState_ = 12345u;        ///< LCG state for noise generation
 };
 
 } // namespace Krate::DSP

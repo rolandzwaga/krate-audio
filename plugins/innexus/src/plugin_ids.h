@@ -74,6 +74,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Sidechain / Live Analysis (500-599) -- M3
     kInputSourceId = 500,          // 0 = Sample, 1 = Sidechain (StringListParameter)
     kLatencyModeId = 501,          // 0 = Low Latency, 1 = High Precision (StringListParameter)
+    kAnalysisModeId = 502,         // 0 = Mono, 1 = Poly, 2 = Auto (StringListParameter)
 
     // Creative Extensions (600-699) -- M6
     // Cross-Synthesis

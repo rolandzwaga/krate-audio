@@ -4,7 +4,8 @@
 // Phase 4: Full implementation of the real-time analysis pipeline.
 //
 // Orchestrates: PreProcessingPipeline -> YinPitchDetector -> STFT ->
-// PartialTracker -> HarmonicModelBuilder -> SpectralCoringEstimator
+// PartialTracker -> [MultiPitchDetector + MultiSourceSieve] ->
+// HarmonicModelBuilder -> SpectralCoringEstimator
 // ==============================================================================
 
 #include "live_analysis_pipeline.h"
@@ -68,6 +69,12 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
     // Spectral coring estimator
     coringEstimator_.prepare(kShortWindowConfig.fftSize, sampleRate_);
 
+    // Multi-pitch detector
+    multiPitchDetector_.prepare(kShortWindowConfig.fftSize, sampleRate);
+
+    // Multi-source sieve
+    multiSourceSieve_.prepare(sampleRate);
+
     // YIN circular buffer
     yinBuffer_.resize(yinWindowSize_, 0.0f);
     yinContiguousBuffer_.resize(yinWindowSize_, 0.0f);
@@ -76,8 +83,12 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
 
     // Reset output state
     latestFrame_ = {};
+    latestPolyFrame_ = {};
     latestResidualFrame_ = {};
+    previousModeFrame_ = {};
     newFrameAvailable_ = false;
+    lastFrameWasPolyphonic_ = false;
+    modeSwitchCrossfadeRemaining_ = 0;
 
     prepared_ = true;
 }
@@ -103,8 +114,12 @@ void LiveAnalysisPipeline::reset()
     yinBufferFilled_ = false;
 
     latestFrame_ = {};
+    latestPolyFrame_ = {};
     latestResidualFrame_ = {};
+    previousModeFrame_ = {};
     newFrameAvailable_ = false;
+    lastFrameWasPolyphonic_ = false;
+    modeSwitchCrossfadeRemaining_ = 0;
 }
 
 // ==============================================================================
@@ -207,8 +222,10 @@ void LiveAnalysisPipeline::pushSamples(const float* data, size_t count)
         }
 
         latestFrame_ = {};
+        latestPolyFrame_ = {};
         latestResidualFrame_ = {};
         newFrameAvailable_ = true;
+        lastFrameWasPolyphonic_ = false;
         return;
     }
 
@@ -238,8 +255,6 @@ void LiveAnalysisPipeline::runAnalysis()
     {
         // YIN needs a contiguous window. We have a circular buffer.
         // Unwrap into pre-allocated contiguous buffer (FR-008: no audio-thread allocation).
-        // The most recent yinWindowSize_ samples are:
-        //   from yinWriteIndex_ to end, then from 0 to yinWriteIndex_
         for (size_t i = 0; i < yinWindowSize_; ++i)
         {
             yinContiguousBuffer_[i] = yinBuffer_[(yinWriteIndex_ + i) % yinWindowSize_];
@@ -267,6 +282,80 @@ void LiveAnalysisPipeline::runAnalysis()
         }
     }
 
+    // Decide mono vs poly based on analysis mode and YIN confidence
+    bool usePolyPath = false;
+    switch (analysisMode_)
+    {
+    case Krate::DSP::AnalysisMode::Mono:
+        usePolyPath = false;
+        break;
+    case Krate::DSP::AnalysisMode::Poly:
+        usePolyPath = true;
+        break;
+    case Krate::DSP::AnalysisMode::Auto:
+        // Use poly when YIN confidence is low (suggests polyphonic content)
+        usePolyPath = (f0.confidence <= kPolyConfidenceThreshold);
+        break;
+    }
+
+    // Detect mode switch and initiate crossfade
+    bool modeChanged = (usePolyPath != lastFrameWasPolyphonic_);
+    if (modeChanged)
+    {
+        // Snapshot the current frame before switching modes
+        previousModeFrame_ = latestFrame_;
+        modeSwitchCrossfadeRemaining_ = kModeSwitchCrossfadeFrames;
+    }
+
+    if (usePolyPath)
+    {
+        runPolyphonicAnalysis(f0, inputRms);
+        lastFrameWasPolyphonic_ = true;
+    }
+    else
+    {
+        runMonophonicAnalysis(f0, inputRms);
+        lastFrameWasPolyphonic_ = false;
+    }
+
+    // Apply crossfade between old mode's frame and new mode's frame
+    if (modeSwitchCrossfadeRemaining_ > 0)
+    {
+        float fadeNew = 1.0f - static_cast<float>(modeSwitchCrossfadeRemaining_) /
+                                   static_cast<float>(kModeSwitchCrossfadeFrames);
+        float fadeOld = 1.0f - fadeNew;
+
+        // Crossfade the partial amplitudes of the primary output frame
+        int numNew = latestFrame_.numPartials;
+        int numOld = previousModeFrame_.numPartials;
+        int maxPartials = std::max(numNew, numOld);
+        maxPartials = std::min(maxPartials, static_cast<int>(Krate::DSP::kMaxPartials));
+
+        for (int i = 0; i < maxPartials; ++i)
+        {
+            float newAmp = (i < numNew) ? latestFrame_.partials[i].amplitude : 0.0f;
+            float oldAmp = (i < numOld) ? previousModeFrame_.partials[i].amplitude : 0.0f;
+            latestFrame_.partials[i].amplitude = oldAmp * fadeOld + newAmp * fadeNew;
+        }
+        latestFrame_.numPartials = maxPartials;
+
+        // Also crossfade global amplitude
+        latestFrame_.globalAmplitude =
+            previousModeFrame_.globalAmplitude * fadeOld +
+            latestFrame_.globalAmplitude * fadeNew;
+
+        --modeSwitchCrossfadeRemaining_;
+    }
+
+    newFrameAvailable_ = true;
+}
+
+// ==============================================================================
+// Monophonic Analysis (original behavior)
+// ==============================================================================
+void LiveAnalysisPipeline::runMonophonicAnalysis(
+    const Krate::DSP::F0Estimate& f0, float inputRms)
+{
     // Run partial tracker
     tracker_.processFrame(
         shortSpectrum_,
@@ -292,7 +381,104 @@ void LiveAnalysisPipeline::runAnalysis()
         latestResidualFrame_ = {};
     }
 
-    newFrameAvailable_ = true;
+    // Clear polyphonic frame in mono mode
+    latestPolyFrame_ = {};
+    latestPolyFrame_.numSources = 1;
+    latestPolyFrame_.sources[0] = latestFrame_;
+    latestPolyFrame_.f0s.numDetected = 1;
+    latestPolyFrame_.f0s.estimates[0] = f0;
+    latestPolyFrame_.globalAmplitude = latestFrame_.globalAmplitude;
+}
+
+// ==============================================================================
+// Polyphonic Analysis
+// ==============================================================================
+void LiveAnalysisPipeline::runPolyphonicAnalysis(
+    const Krate::DSP::F0Estimate& yinF0, float inputRms)
+{
+    // Step 1: Run partial tracker with YIN F0 (still needed for peak detection)
+    // Use a neutral F0 so the sieve doesn't constrain peak assignment
+    Krate::DSP::F0Estimate neutralF0{};
+    neutralF0.frequency = yinF0.frequency;
+    neutralF0.confidence = yinF0.confidence;
+    neutralF0.voiced = false; // Don't apply monophonic sieve
+
+    tracker_.processFrame(
+        shortSpectrum_,
+        neutralF0,
+        kShortWindowConfig.fftSize,
+        sampleRate_);
+
+    // Step 2: Multi-pitch detection from the tracker's detected peaks
+    // We need the raw peak data. Since PartialTracker now tracks peaks,
+    // we extract frequencies and amplitudes from the tracked partials.
+    const auto& trackedPartials = tracker_.getPartials();
+    int numTracked = tracker_.getActiveCount();
+
+    // Collect frequencies and amplitudes for multi-pitch detection
+    std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
+    std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
+    for (int i = 0; i < numTracked; ++i) {
+        peakFreqs[static_cast<size_t>(i)] = trackedPartials[static_cast<size_t>(i)].frequency;
+        peakAmps[static_cast<size_t>(i)] = trackedPartials[static_cast<size_t>(i)].amplitude;
+    }
+
+    auto multiF0 = multiPitchDetector_.detect(
+        peakFreqs.data(), peakAmps.data(), numTracked);
+
+    // Step 3: If no F0s detected, fall back to mono path
+    if (multiF0.numDetected == 0) {
+        runMonophonicAnalysis(yinF0, inputRms);
+        return;
+    }
+
+    // Step 4: Multi-source sieve - assign partials to sources
+    auto partials = trackedPartials; // Copy so we can modify sourceId
+    multiSourceSieve_.assignSources(partials, numTracked, multiF0);
+
+    // Step 5: Build polyphonic frame
+    latestPolyFrame_ = multiSourceSieve_.buildPolyphonicFrame(
+        partials, numTracked, multiF0, inputRms);
+
+    // Step 6: Run HarmonicModelBuilder on each source independently
+    for (int s = 0; s < multiF0.numDetected; ++s) {
+        auto& srcFrame = latestPolyFrame_.sources[static_cast<size_t>(s)];
+        // Build smoothed model for this source
+        // Note: We use the same model builder for simplicity;
+        // in a future upgrade, each source could have its own builder
+        // for independent smoothing timescales.
+        Krate::DSP::F0Estimate srcF0;
+        srcF0.frequency = multiF0.estimates[static_cast<size_t>(s)].frequency;
+        srcF0.confidence = multiF0.estimates[static_cast<size_t>(s)].confidence;
+        srcF0.voiced = true;
+
+        // For the first/primary source, use the main model builder
+        if (s == 0) {
+            srcFrame = modelBuilder_.build(
+                srcFrame.partials, srcFrame.numPartials, srcF0, inputRms);
+        }
+        // Secondary sources get basic frame data without full model building
+        // (to keep CPU budget manageable)
+    }
+
+    // The primary (strongest) source becomes the latestFrame_ for
+    // backward compatibility with mono consumers
+    if (multiF0.numDetected > 0) {
+        latestFrame_ = latestPolyFrame_.sources[0];
+    } else {
+        latestFrame_ = {};
+    }
+
+    // Spectral coring residual estimation (based on primary source)
+    if (residualEnabled_)
+    {
+        latestResidualFrame_ = coringEstimator_.estimateResidual(
+            shortSpectrum_, latestFrame_);
+    }
+    else
+    {
+        latestResidualFrame_ = {};
+    }
 }
 
 } // namespace Innexus

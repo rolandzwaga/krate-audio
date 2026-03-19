@@ -68,6 +68,7 @@ public:
             }
         }
         globalAmpSmoother_.reset();
+        smoothedBandwidth_.fill(0.0f);
     }
 
     /// Set the hop size in samples (affects smoother advance rate).
@@ -158,6 +159,12 @@ public:
         for (int i = 0; i < numPartials; ++i) {
             frame.partials[i] = partials[i];
             frame.partials[i].amplitude = blendedAmps[i] * normFactor;
+            // Smooth bandwidth with one-pole filter for stability
+            float rawBw = partials[i].bandwidth;
+            float& prevBw = smoothedBandwidth_[static_cast<size_t>(i)];
+            constexpr float kBwSmoothCoeff = 0.3f; // ~3 frames to settle
+            prevBw += kBwSmoothCoeff * (rawBw - prevBw);
+            frame.partials[i].bandwidth = prevBw;
         }
 
         // ---- Step 5: Spectral centroid and brightness (FR-032) ----
@@ -265,6 +272,9 @@ private:
     std::array<std::array<float, kMedianWindowSize>, kMaxPartials> medianBuffer_{};
     std::array<size_t, kMaxPartials> medianWriteIndex_{};
     std::array<bool, kMaxPartials> medianBufferFilled_{};
+
+    // -- Per-partial bandwidth smoothing --
+    std::array<float, kMaxPartials> smoothedBandwidth_{};
 
     // -- Global amplitude (FR-034) --
     OnePoleSmoother globalAmpSmoother_;
