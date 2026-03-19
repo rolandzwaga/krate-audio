@@ -11,6 +11,8 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
 
+#include <krate/dsp/core/db_utils.h>
+
 #include <algorithm>  // for std::max, std::min
 #include <cmath>      // for std::log10, std::pow
 #include <cstring>    // for memcpy
@@ -671,14 +673,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Band Processing (FR-001a: sample-by-sample processing)
     // ==========================================================================
 
-    // Note: modInputGain, modOutputGain, modGlobalMix are computed above but
-    // not applied here because the original processor doesn't apply global
-    // gain/mix in the audio loop. They will take effect when global parameter
-    // application is added. The modulation offsets are correctly computed
-    // and available via modulationEngine_.getModulatedValue().
-    (void)modInputGain;
-    (void)modOutputGain;
-    (void)modGlobalMix;
+    // Denormalize global gain/mix parameters
+    // Input/Output Gain: normalized [0,1] → dB [-24,+24] → linear
+    constexpr float kGainMinDb = -24.0f;
+    constexpr float kGainRangeDb = 48.0f; // 24 - (-24)
+    const float inputGainDb = kGainMinDb + modInputGain * kGainRangeDb;
+    const float outputGainDb = kGainMinDb + modOutputGain * kGainRangeDb;
+    const float inputGainLinear = Krate::DSP::dbToGain(inputGainDb);
+    const float outputGainLinear = Krate::DSP::dbToGain(outputGainDb);
+    // Mix: normalized [0,1] maps directly to dry/wet fraction
+    const float wetMix = modGlobalMix;
+    const float dryMix = 1.0f - wetMix;
 
     std::array<float, kMaxBands> bandsL{};
     std::array<float, kMaxBands> bandsR{};
@@ -689,9 +694,13 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     for (Steinberg::int32 n = 0; n < data.numSamples; ++n) {
+        // Apply input gain before crossover
+        const float inL = inputL[n] * inputGainLinear;
+        const float inR = inputR[n] * inputGainLinear;
+
         // Split input through crossover networks (FR-001b: independent L/R)
-        crossoverL_.process(inputL[n], bandsL);
-        crossoverR_.process(inputR[n], bandsR);
+        crossoverL_.process(inL, bandsL);
+        crossoverR_.process(inR, bandsR);
 
         // Initialize output accumulators
         float sumL = 0.0f;
@@ -718,8 +727,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             sumR += bandR;
         }
 
-        outputL[n] = sumL;
-        outputR[n] = sumR;
+        // Apply output gain and dry/wet mix
+        outputL[n] = inputL[n] * dryMix + sumL * outputGainLinear * wetMix;
+        outputR[n] = inputR[n] * dryMix + sumR * outputGainLinear * wetMix;
     }
 
     // Restore base distortion params after per-sample processing
