@@ -53,60 +53,63 @@
             </div>
         </section>
 
+        <section class="overview">
+            <h2>Overview</h2>
+            <p>Innexus is a harmonic analysis and resynthesis instrument that deconstructs audio into its fundamental components &mdash; pitch, harmonics, and noise &mdash; then rebuilds it as a fully playable synthesizer voice. Load a sample or feed live audio through the sidechain, and Innexus extracts up to 96 partials in real time using spectral analysis and pitch tracking. The resulting harmonic model can be frozen, morphed, filtered, modulated, and blended across multiple sources, turning any sound into a rich, evolving instrument.</p>
+            <p>With polyphonic analysis capable of detecting up to 8 simultaneous voices, bandwidth-enhanced synthesis for natural noise textures, and a harmonic physics engine that introduces organic interactions between partials, Innexus bridges the gap between analysis-driven resynthesis and creative sound design.</p>
+        </section>
+
+        <section class="features">
+            <h2>Features</h2>
+            <ul>
+                <li><strong>Up to 96 harmonics per voice</strong> &mdash; Gordon-Smith magic circle oscillators with amplitude-stable phasors; configurable partial count (48, 64, 80, or 96)</li>
+                <li><strong>Mono and polyphonic analysis</strong> &mdash; YIN pitch tracking for monophonic sources; Klapuri-style multi-pitch detection for chords and polyphonic content with up to 8 simultaneous voices; adaptive Auto mode switches between mono and poly based on signal complexity</li>
+                <li><strong>Real-time pitch detection display</strong> &mdash; multi-voice visualization showing all detected fundamentals with confidence bars, note names, and a mono/poly mode indicator</li>
+                <li><strong>Dual input modes</strong> &mdash; load audio files for offline analysis with MIDI playback, or use live sidechain input with selectable low-latency or high-precision analysis</li>
+                <li><strong>Residual synthesis</strong> &mdash; SMS-style harmonic/noise decomposition with spectral envelope shaping, brightness control, and transient emphasis</li>
+                <li><strong>Bandwidth-enhanced partials</strong> &mdash; per-partial tonal-to-noisy estimation from spectral peak curvature; Loris-model amplitude modulation blends pure tone with shaped noise for natural, breathy textures</li>
+                <li><strong>Spectral morphing</strong> &mdash; smoothly interpolate between two harmonic states with per-partial amplitude and frequency blending</li>
+                <li><strong>Harmonic memory</strong> &mdash; capture, store, and recall up to 8 timbral snapshots as playable oscillator states; import/export as JSON</li>
+                <li><strong>Multi-source blending</strong> &mdash; mix across live input, stored memory slots, and the current analysis with independent level controls per source</li>
+                <li><strong>Harmonic filtering</strong> &mdash; per-partial amplitude masks with preset filter shapes (odd, even, comb, random, etc.)</li>
+                <li><strong>Evolution engine</strong> &mdash; automated spectral drift with configurable speed, depth, and mode for slow timbral evolution</li>
+                <li><strong>Dual LFO modulators</strong> &mdash; per-partial amplitude or frequency modulation with adjustable harmonic range, tempo sync, and 5 waveform shapes</li>
+                <li><strong>Cross-synthesis</strong> &mdash; blend between the analyzed timbre and a pure harmonic reference for timbral control from natural to synthetic</li>
+                <li><strong>Stereo partial spread</strong> &mdash; distribute harmonics across the stereo field for wide, immersive output</li>
+                <li><strong>ADSR envelope detection</strong> &mdash; auto-extracts attack, decay, sustain, and release stages from loaded samples; sustain frame looping for indefinite hold with adjustable curve shapes</li>
+                <li><strong>Harmonic physics</strong> &mdash; warmth (soft saturation), coupling (energy sharing between neighbors), stability and entropy (per-partial dynamics with inertia and natural decay)</li>
+                <li><strong>Analysis feedback loop</strong> &mdash; route synthesizer output back into the analysis pipeline for emergent, self-evolving timbral behavior</li>
+                <li><strong>Confidence-gated freeze</strong> &mdash; automatically freezes the harmonic model when pitch detection confidence drops, with spectral decay envelope for natural fade-out</li>
+                <li><strong>Drag-and-drop sample loading</strong> (WAV, AIFF) with visual feedback overlay</li>
+                <li><strong>35 factory presets</strong> across 7 categories with built-in preset browser and save dialog</li>
+                <li><strong>Full parameter automation</strong> and MIDI CC learn support</li>
+                <li><strong>Cross-platform:</strong> VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+            </ul>
+        </section>
+
         <section class="features">
             <h2>Analysis Engine</h2>
+            <p>Innexus uses a multi-stage spectral analysis pipeline to extract harmonic content from audio in real time.</p>
             <ul>
-                <li>YIN pitch tracking with FFT-accelerated autocorrelation, confidence gating, and hysteresis</li>
-                <li>Multi-resolution STFT with dual windows for simultaneous low-frequency accuracy and low-latency tracking</li>
-                <li>Partial tracker with harmonic sieve, frame-to-frame matching, and birth/death management for up to 96 partials</li>
-                <li>Harmonic model builder with L2 normalization, dual-timescale blending, and spectral descriptors</li>
+                <li><strong>YIN pitch tracking</strong> &mdash; FFT-accelerated autocorrelation with confidence scoring, hysteresis, and voiced/unvoiced classification</li>
+                <li><strong>Multi-resolution STFT</strong> &mdash; dual analysis windows running simultaneously for low-frequency accuracy and low-latency response</li>
+                <li><strong>Multi-pitch detection</strong> &mdash; harmonic salience summation with iterative spectral envelope cancellation (Klapuri-style) for polyphonic content; Hungarian algorithm for globally optimal partial-to-track assignment</li>
+                <li><strong>Partial tracking</strong> &mdash; harmonic sieve with frame-to-frame matching, linear prediction for frequency continuation, and birth/death management for up to 96 partials</li>
+                <li><strong>Harmonic model builder</strong> &mdash; L2 amplitude normalization, dual-timescale blending for smooth frame transitions, and spectral descriptors (centroid, brightness, noisiness)</li>
+                <li><strong>Per-partial bandwidth estimation</strong> &mdash; spectral peak curvature analysis distinguishes tonal from noisy partials; bandwidth values smoothed across frames for stability</li>
             </ul>
         </section>
 
         <section class="features">
-            <h2>Synthesis</h2>
+            <h2>Synthesis Engine</h2>
+            <p>The synthesis engine reconstructs audio from the harmonic model with high fidelity and musical flexibility.</p>
             <ul>
-                <li>Up to 96 Gordon-Smith MCF oscillators per voice with amplitude-stable magic circle phasors (configurable: 48, 64, 80, or 96)</li>
-                <li>Inharmonicity preservation from analyzed source material with user-adjustable blend</li>
-                <li>Residual/noise model (SMS decomposition) with spectral envelope shaping and transient emphasis</li>
-                <li>Anti-aliasing with soft Nyquist rolloff, phase-continuous model updates, and crossfade on discontinuities</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Input Modes</h2>
-            <ul>
-                <li>Sample mode: load audio files, run offline analysis, store harmonic model for MIDI playback</li>
-                <li>Live sidechain: real-time continuous analysis with selectable low-latency or high-precision mode</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Musical Control</h2>
-            <ul>
-                <li>Harmonic freeze, spectral morphing between two harmonic states, and harmonic filtering with presets</li>
-                <li>Harmonic Memory: capture, store, and recall timbral snapshots as playable oscillator states</li>
-                <li>Cross-synthesis, stereo partial spread, evolution engine, and per-partial LFO modulation</li>
-                <li>Multi-source blending across live inputs and stored snapshots</li>
-                <li>ADSR envelope detection: auto-extracts attack, decay, sustain, and release from loaded samples with sustain frame looping for indefinite hold</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Harmonic Physics</h2>
-            <ul>
-                <li>Warmth: soft saturation that compresses dominant partials and boosts quiet ones</li>
-                <li>Coupling: nearest-neighbor energy sharing between harmonics for spectral viscosity</li>
-                <li>Stability and Entropy: per-partial stateful dynamics with inertia, persistence, and natural decay</li>
-                <li>Analysis feedback loop: route synth output back into the analysis pipeline for emergent, self-evolving timbral behavior</li>
-            </ul>
-        </section>
-
-        <section class="features">
-            <h2>Workflow</h2>
-            <ul>
-                <li>Drag-and-drop sample loading (WAV, AIFF) with visual feedback overlay</li>
-                <li>35 factory presets across 7 categories with preset browser and save dialog</li>
+                <li><strong>Additive oscillator bank</strong> &mdash; up to 96 phase-continuous Gordon-Smith oscillators with amplitude-stable magic circle algorithm (2 multiplies + 2 adds per sample per partial)</li>
+                <li><strong>Inharmonicity preservation</strong> &mdash; retains the natural partial frequency deviations from the analyzed source with user-adjustable inharmonicity amount</li>
+                <li><strong>Bandwidth-enhanced synthesis</strong> &mdash; Loris noise model applies per-partial amplitude modulation: <code>am = sqrt(1-bw) + noise*sqrt(2*bw)</code> for natural breathy and noisy textures</li>
+                <li><strong>Residual noise model</strong> &mdash; STFT-domain spectral envelope shaping with brightness tilt control and transient emphasis for attack characteristics</li>
+                <li><strong>Anti-aliasing</strong> &mdash; soft Nyquist rolloff, phase-continuous model updates, and sample-accurate crossfade on discontinuities</li>
+                <li><strong>Source-aware polyphonic resynthesis</strong> &mdash; independent pitch control per detected voice; shift individual chord notes while keeping others stable</li>
             </ul>
         </section>
 
