@@ -70,7 +70,7 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
     displaySendAccumulatorSamples_ %= displaySendIntervalSamples_;
 
     // Populate display buffer from current processor state
-    const auto& frame = morphedFrame_;
+    const auto& frame = voice_.morphedFrame;
     const int numPartials = std::min(frame.numPartials,
         static_cast<int>(Krate::DSP::kMaxPartials));
 

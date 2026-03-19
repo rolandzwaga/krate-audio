@@ -130,6 +130,9 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kAnalysisFeedbackId = 710,     // 0.0-1.0, default 0.0
     kAnalysisFeedbackDecayId = 711, // 0.0-1.0, default 0.2
 
+    // Voice Mode (730) -- MPE Support
+    kVoiceModeId = 730,            // StringListParameter: "Mono"/"4 Voices"/"8 Voices", default 0 (Mono)
+
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
     kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms

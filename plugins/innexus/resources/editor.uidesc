@@ -134,6 +134,9 @@
     <control-tag name="AdsrDecayCurve" tag="727"/>
     <control-tag name="AdsrReleaseCurve" tag="728"/>
 
+    <!-- Voice Mode (MPE polyphony) -->
+    <control-tag name="VoiceMode" tag="730"/>
+
     <!-- Template tags for modulator sub-controller remapping -->
     <control-tag name="Mod.Enable" tag="610"/>
     <control-tag name="Mod.Waveform" tag="611"/>
@@ -333,6 +336,16 @@
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Partials"/>
+
+      <!-- Voice Mode (MPE polyphony) -->
+      <view class="COptionMenu" origin="75, 96" size="52, 20"
+            control-tag="VoiceMode" default-value="0"
+            font="value-font" font-color="text-primary"
+            back-color="bg-panel" frame-color="text-dim"/>
+      <view class="CTextLabel" origin="75, 116" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Voices"/>
 
       <!-- FR-017: Inharmonicity -->
       <view class="ArcKnob" origin="75, 22" size="42, 42"

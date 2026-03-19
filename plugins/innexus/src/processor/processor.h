@@ -19,6 +19,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "innexus_voice.h"
 #include "controller/display_data.h"
 #include "dsp/sample_analysis.h"
 #include "dsp/sample_analyzer.h"
@@ -37,6 +38,7 @@
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/systems/voice_allocator.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
 
@@ -46,6 +48,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <memory>
 #include <string>
 
 namespace Innexus {
@@ -91,9 +94,14 @@ public:
 
     // --- MIDI Event Dispatcher Callbacks ---
     // Used by Krate::Plugins::dispatchMidiEvents (midi_event_dispatcher.h)
-    void onNoteOn(int16_t pitch, float velocity);
-    void onNoteOff(int16_t pitch);
+    void onNoteOn(int16_t pitch, float velocity, int32_t noteId);
+    void onNoteOff(int16_t pitch, int32_t noteId);
     void onPitchBend(float bipolar);
+    void onNoteExpression(int32_t noteId, uint32_t typeId, double value);
+
+    // Backward-compatible overloads for tests (noteId defaults to -1)
+    void onNoteOn(int16_t pitch, float velocity) { onNoteOn(pitch, velocity, -1); }
+    void onNoteOff(int16_t pitch) { onNoteOff(pitch, -1); }
 
     // --- Public API for analysis (used by setState to trigger re-analysis) ---
     void loadSample(const std::string& filePath);
@@ -194,6 +202,9 @@ public:
         return manualFrozenFrame_;
     }
 
+    /// @brief Get the voice struct (TEST ONLY).
+    const InnexusVoice& getVoice() const { return voice_; }
+
     /// @brief Get the frozen residual frame (TEST ONLY).
     const Krate::DSP::ResidualFrame& getManualFrozenResidualFrame() const
     {
@@ -215,7 +226,7 @@ public:
     /// @brief Get confidence-gate freeze recovery samples remaining (TEST ONLY).
     int getConfidenceGateFreezeRecoverySamplesRemaining() const
     {
-        return freezeRecoverySamplesRemaining_;
+        return voice_.freezeRecoverySamplesRemaining;
     }
 
     /// @brief Get freeze parameter value (TEST ONLY).
@@ -237,7 +248,7 @@ public:
     }
 
     /// @brief Get current auto-freeze (confidence-gated) state (TEST ONLY).
-    bool getAutoFreezeActive() const { return isFrozen_; }
+    bool getAutoFreezeActive() const { return voice_.isFrozen; }
 
     /// @brief Get morph position smoother (TEST ONLY).
     const Krate::DSP::OnePoleSmoother& getMorphPositionSmoother() const
@@ -248,13 +259,13 @@ public:
     /// @brief Get the morphed harmonic frame (TEST ONLY).
     const Krate::DSP::HarmonicFrame& getMorphedFrame() const
     {
-        return morphedFrame_;
+        return voice_.morphedFrame;
     }
 
     /// @brief Get the morphed residual frame (TEST ONLY).
     const Krate::DSP::ResidualFrame& getMorphedResidualFrame() const
     {
-        return morphedResidualFrame_;
+        return voice_.morphedResidualFrame;
     }
 
     /// @brief Get current filter type (TEST ONLY).
@@ -373,14 +384,25 @@ public:
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
     void processEvents(Steinberg::Vst::IEventList* events);
-    void handleNoteOn(int noteNumber, float velocity);
-    void handleNoteOff();
+    void handleNoteOn(int noteNumber, float velocity, int32_t noteId);
+    void handleNoteOff(int noteNumber, int32_t noteId);
     void handlePitchBend(float bendSemitones);
-    void updateReleaseDecayCoeff();
+    void updateReleaseDecayCoeff(InnexusVoice& voice);
     void checkForNewAnalysis();
     void cleanupPendingDeletion();
     void applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled);
     void applyHarmonicPhysics() noexcept;
+
+    /// Find voice by noteId. Returns nullptr if not found.
+    InnexusVoice* findVoiceByNoteId(int32_t noteId);
+
+    /// Get the number of currently active voices.
+    int getActiveVoiceCount() const;
+
+    /// Broadcast the current morphed frame (in voice_) to all active voices.
+    /// Each voice loads at its own pitch (midiNote + pitchBend + expressionTuning).
+    /// Also broadcasts residual frame if residual synth is prepared.
+    void broadcastFrameToVoices(int activePartialCount, bool loadResidual);
 
     // =========================================================================
     // Parameter Atomics
@@ -473,10 +495,16 @@ private:
     std::atomic<float> adsrReleaseCurve_{0.0f};       // -1.0 to +1.0, default 0.0
 
     // =========================================================================
-    // DSP Members (T081)
+    // Voice Pool (Phase 2: polyphonic rendering)
+    // Heap-allocated to avoid stack overflow (8 voices * ~15KB = ~120KB)
     // =========================================================================
-    Krate::DSP::HarmonicOscillatorBank oscillatorBank_;
-    Krate::DSP::ResidualSynthesizer residualSynth_;
+    static constexpr int kMaxVoices = 8;
+    std::unique_ptr<std::array<InnexusVoice, kMaxVoices>> voicesPtr_ =
+        std::make_unique<std::array<InnexusVoice, kMaxVoices>>();
+    std::array<InnexusVoice, kMaxVoices>& voices_ = *voicesPtr_;
+    InnexusVoice& voice_ = (*voicesPtr_)[0]; ///< Convenience alias for mono mode / Phase 1 compat
+    Krate::DSP::VoiceAllocator voiceAllocator_;
+    std::atomic<float> voiceMode_{0.0f};  ///< 0=Mono, 1/2=4 Voices, 2/2=8 Voices
 
     // Parameter smoothers (FR-025)
     Krate::DSP::OnePoleSmoother harmonicLevelSmoother_;
@@ -502,9 +530,7 @@ private:
     Krate::DSP::OnePoleSmoother stabilitySmoother_;
     Krate::DSP::OnePoleSmoother entropySmoother_;
 
-    // ADSR Envelope (Spec 124: 124-adsr-envelope-detection)
-    Krate::DSP::ADSREnvelope adsr_;
-    Krate::DSP::OnePoleSmoother adsrAmountSmoother_;
+    // ADSR Envelope — per-voice (in voice_.adsr / voice_.adsrAmountSmoother)
 
     // ADSR Playback State atomics (Spec 124: T048)
     // Updated per-block in process() for ADSRDisplay playback dot visualization.
@@ -525,62 +551,14 @@ private:
     /// Background analysis engine
     SampleAnalyzer sampleAnalyzer_;
 
-    // =========================================================================
-    // Voice State
-    // =========================================================================
-    bool noteActive_ = false;
-    int currentMidiNote_ = -1;
-    float velocityGain_ = 1.0f;
-    float pitchBendSemitones_ = 0.0f;
+    // Voice state, frame tracking, release envelope, anti-click,
+    // confidence-gated freeze — all in voice_
 
-    // =========================================================================
-    // Frame Advancement (FR-047)
-    // =========================================================================
-    size_t currentFrameIndex_ = 0;
-    size_t frameSampleCounter_ = 0;
-
-    // Sustain loop region (Spec 124): frames loop within [sustainLoopStart_, sustainLoopEnd_)
-    // when ADSR is in Sustain stage. Set from DetectedADSR on sample load.
-    int sustainLoopStart_ = 0;
-    int sustainLoopEnd_ = 0;
-
-    // =========================================================================
-    // Release Envelope (FR-049, FR-057)
-    // =========================================================================
-    float releaseGain_ = 1.0f;
-    bool inRelease_ = false;
-    bool inAdsrRelease_ = false;  // ADSR handles release (skip old FR-049 release)
-    float releaseDecayCoeff_ = 0.0f;
-
-    // =========================================================================
-    // Anti-Click Voice Steal Crossfade (FR-054)
-    // =========================================================================
-    int antiClickSamplesRemaining_ = 0;
-    int antiClickLengthSamples_ = 0;
-    float antiClickOldLevel_ = 0.0f;
-
-    // =========================================================================
-    // Confidence-Gated Freeze (FR-052, FR-053)
-    // =========================================================================
+    // Constants used by confidence-gated freeze logic
     static constexpr float kConfidenceThreshold = 0.3f;
     static constexpr float kConfidenceHysteresis = 0.05f;
-    /// During spectral decay, new frame amplitude must exceed this fraction
-    /// of the original frozen frame amplitude to allow recovery.
-    /// Prevents noise from interrupting the fade-out.
     static constexpr float kDecayRecoveryAmplitudeRatio = 0.1f;
-
-    /// Last known-good frame for freeze
-    Krate::DSP::HarmonicFrame lastGoodFrame_{};
-    bool isFrozen_ = false;
-
-    /// Crossfade from frozen to live (FR-053)
-    int freezeRecoverySamplesRemaining_ = 0;
-    int freezeRecoveryLengthSamples_ = 0;
-    float freezeRecoveryOldLevel_ = 0.0f;
     static constexpr float kFreezeRecoveryTimeSec = 0.007f; // 7ms default
-
-    /// Per-partial spectral decay for natural fade-out when confidence gate freezes
-    SpectralDecayEnvelope spectralDecay_;
 
     // =========================================================================
     // Pitch Bend (FR-051)
@@ -650,8 +628,7 @@ private:
     // Morph Interpolation (M4: FR-010 to FR-018)
     // =========================================================================
     Krate::DSP::OnePoleSmoother morphPositionSmoother_{};
-    Krate::DSP::HarmonicFrame morphedFrame_{};
-    Krate::DSP::ResidualFrame morphedResidualFrame_{};
+    // morphedFrame_ and morphedResidualFrame_ are now in voice_
 
     // =========================================================================
     // Harmonic Filter (M4: FR-019 to FR-028)

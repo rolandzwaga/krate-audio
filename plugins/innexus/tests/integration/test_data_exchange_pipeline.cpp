@@ -257,14 +257,19 @@ TEST_CASE("DataExchange full round-trip via IMessage fallback",
 {
     PipelineFixture fix;
 
-    // sendDisplayData directly — verify basic delivery
-    ProcessData emptyData{};
-    emptyData.numSamples = 0;
-    fix.proc.sendDisplayData(emptyData);
-    pumpMessages(50);
+    // Inject analysis and play a note so sendDisplayData has content.
+    // Process enough blocks to exceed the 30Hz throttle interval
+    // (~1323 samples at 44.1kHz = 11 blocks of 128).
+    fix.proc.testInjectAnalysis(makeTestAnalysis(10, 440.0f, 0.5f));
+    fix.events.addNoteOn(69, 1.0f);
+    for (int i = 0; i < 15; ++i)
+    {
+        fix.processBlock();
+        pumpMessages(5);
+    }
 
     REQUIRE(fix.cachedDisplay().frameCounter >= 1u);
-    REQUIRE(fix.cachedDisplay().activePartialCount == 48);
+    REQUIRE(fix.cachedDisplay().activePartialCount > 0);
 }
 
 TEST_CASE("Display data shows partials during note-on, clears after note-off",
@@ -276,12 +281,12 @@ TEST_CASE("Display data shows partials during note-on, clears after note-off",
     fix.proc.testInjectAnalysis(makeTestAnalysis(50, 440.0f, 0.5f));
     fix.events.addNoteOn(69, 1.0f); // A4
 
-    // Process several blocks to let the oscillator ramp up.
-    // Pump between blocks to ensure DataExchange timer delivers.
-    for (int i = 0; i < 5; ++i)
+    // Process enough blocks to exceed the 30Hz throttle interval
+    // (~1323 samples at 44.1kHz = 11 blocks of 128) and let oscillators ramp up.
+    for (int i = 0; i < 15; ++i)
     {
         fix.processBlock();
-        pumpMessages(10);
+        pumpMessages(5);
     }
 
     // Verify display shows non-zero partial amplitudes

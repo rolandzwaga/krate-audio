@@ -326,6 +326,11 @@ void Processor::processParameterChanges(
                 break;
             }
 
+            case kVoiceModeId:
+                voiceMode_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }

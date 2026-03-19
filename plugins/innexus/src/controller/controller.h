@@ -20,7 +20,10 @@
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
+#include "public.sdk/source/vst/vstnoteexpressiontypes.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
+#include "pluginterfaces/vst/ivstnoteexpression.h"
+#include "pluginterfaces/vst/ivstphysicalui.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 
@@ -51,7 +54,9 @@ class ModulatorActivityView;
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate,
-                   public Steinberg::Vst::IDataExchangeReceiver
+                   public Steinberg::Vst::IDataExchangeReceiver,
+                   public Steinberg::Vst::INoteExpressionController,
+                   public Steinberg::Vst::INoteExpressionPhysicalUIMapping
 {
 public:
     Controller() = default;
@@ -101,10 +106,35 @@ public:
         Steinberg::Vst::DataExchangeBlock* blocks,
         Steinberg::TBool onBackgroundThread) override;
 
+    // --- INoteExpressionController ---
+    Steinberg::int32 PLUGIN_API getNoteExpressionCount(
+        Steinberg::int32 busIndex, Steinberg::int16 channel) override;
+    Steinberg::tresult PLUGIN_API getNoteExpressionInfo(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::int32 noteExpressionIndex,
+        Steinberg::Vst::NoteExpressionTypeInfo& info) override;
+    Steinberg::tresult PLUGIN_API getNoteExpressionStringByValue(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::NoteExpressionTypeID id,
+        Steinberg::Vst::NoteExpressionValue valueNormalized,
+        Steinberg::Vst::String128 string) override;
+    Steinberg::tresult PLUGIN_API getNoteExpressionValueByString(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::NoteExpressionTypeID id,
+        const Steinberg::Vst::TChar* string,
+        Steinberg::Vst::NoteExpressionValue& valueNormalized) override;
+
+    // --- INoteExpressionPhysicalUIMapping ---
+    Steinberg::tresult PLUGIN_API getPhysicalUIMapping(
+        Steinberg::int32 busIndex, Steinberg::int16 channel,
+        Steinberg::Vst::PhysicalUIMapList& list) override;
+
     // --- Interface support ---
     OBJ_METHODS(Controller, EditControllerEx1)
     DEFINE_INTERFACES
         DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
+        DEF_INTERFACE(Steinberg::Vst::INoteExpressionController)
+        DEF_INTERFACE(Steinberg::Vst::INoteExpressionPhysicalUIMapping)
     END_DEFINE_INTERFACES(EditControllerEx1)
     DELEGATE_REFCOUNT(EditControllerEx1)
 
@@ -240,6 +270,9 @@ private:
     // Stale data detection: count consecutive timer ticks with no new frame
     int staleTickCount_ = 0;
     static constexpr int kStaleTickThreshold = 3; // ~90ms at 30ms timer
+
+    // NoteExpression type container (Phase 4: MPE support)
+    Steinberg::Vst::NoteExpressionTypeContainer noteExpressionTypes_;
 };
 
 } // namespace Innexus

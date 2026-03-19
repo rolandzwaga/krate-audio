@@ -683,6 +683,61 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(adsrReleaseCurveParam);
 
+    // Voice Mode (MPE polyphony)
+    auto* voiceModeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Voice Mode"), kVoiceModeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    voiceModeParam->appendString(STR16("Mono"));
+    voiceModeParam->appendString(STR16("4 Voices"));
+    voiceModeParam->appendString(STR16("8 Voices"));
+    parameters.addParameter(voiceModeParam);
+
+    // NoteExpression types (Phase 4: MPE support)
+    {
+        using namespace Steinberg::Vst;
+        auto* tuning = new NoteExpressionType(
+            NoteExpressionTypeIDs::kTuningTypeID,
+            STR16("Tuning"), STR16("Tune"), STR16(""),
+            -1, nullptr, // no associated parameter
+            NoteExpressionTypeInfo::kIsBipolar);
+        tuning->getInfo().valueDesc.minimum = 0.0;
+        tuning->getInfo().valueDesc.maximum = 1.0;
+        tuning->getInfo().valueDesc.defaultValue = 0.5;
+        tuning->getInfo().valueDesc.stepCount = 0;
+        noteExpressionTypes_.addNoteExpressionType(tuning);
+
+        auto* volume = new NoteExpressionType(
+            NoteExpressionTypeIDs::kVolumeTypeID,
+            STR16("Volume"), STR16("Vol"), STR16(""),
+            -1, nullptr, 0);
+        volume->getInfo().valueDesc.minimum = 0.0;
+        volume->getInfo().valueDesc.maximum = 1.0;
+        volume->getInfo().valueDesc.defaultValue = 0.25; // maps to 1.0x gain
+        volume->getInfo().valueDesc.stepCount = 0;
+        noteExpressionTypes_.addNoteExpressionType(volume);
+
+        auto* pan = new NoteExpressionType(
+            NoteExpressionTypeIDs::kPanTypeID,
+            STR16("Pan"), STR16("Pan"), STR16(""),
+            -1, nullptr,
+            NoteExpressionTypeInfo::kIsBipolar);
+        pan->getInfo().valueDesc.minimum = 0.0;
+        pan->getInfo().valueDesc.maximum = 1.0;
+        pan->getInfo().valueDesc.defaultValue = 0.5;
+        pan->getInfo().valueDesc.stepCount = 0;
+        noteExpressionTypes_.addNoteExpressionType(pan);
+
+        auto* brightness = new NoteExpressionType(
+            NoteExpressionTypeIDs::kBrightnessTypeID,
+            STR16("Brightness"), STR16("Bright"), STR16(""),
+            -1, nullptr, 0);
+        brightness->getInfo().valueDesc.minimum = 0.0;
+        brightness->getInfo().valueDesc.maximum = 1.0;
+        brightness->getInfo().valueDesc.defaultValue = 0.5;
+        brightness->getInfo().valueDesc.stepCount = 0;
+        noteExpressionTypes_.addNoteExpressionType(brightness);
+    }
+
     // Update checker
     updateChecker_ = std::make_unique<Krate::Plugins::UpdateChecker>(makeInnexusUpdateConfig());
 
@@ -1873,6 +1928,87 @@ void Controller::closeAdsrExpandedOverlay()
 {
     if (adsrExpandedOverlay_ && adsrExpandedOverlay_->isOpen())
         adsrExpandedOverlay_->close();
+}
+
+// ==============================================================================
+// INoteExpressionController (Phase 4: MPE support)
+// ==============================================================================
+
+Steinberg::int32 PLUGIN_API Controller::getNoteExpressionCount(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/)
+{
+    if (busIndex != 0)
+        return 0;
+    return noteExpressionTypes_.getNoteExpressionCount();
+}
+
+Steinberg::tresult PLUGIN_API Controller::getNoteExpressionInfo(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::int32 noteExpressionIndex,
+    Steinberg::Vst::NoteExpressionTypeInfo& info)
+{
+    if (busIndex != 0)
+        return Steinberg::kResultFalse;
+    return noteExpressionTypes_.getNoteExpressionInfo(noteExpressionIndex, info);
+}
+
+Steinberg::tresult PLUGIN_API Controller::getNoteExpressionStringByValue(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::NoteExpressionTypeID id,
+    Steinberg::Vst::NoteExpressionValue valueNormalized,
+    Steinberg::Vst::String128 string)
+{
+    if (busIndex != 0)
+        return Steinberg::kResultFalse;
+    return noteExpressionTypes_.getNoteExpressionStringByValue(
+        id, valueNormalized, string);
+}
+
+Steinberg::tresult PLUGIN_API Controller::getNoteExpressionValueByString(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::NoteExpressionTypeID id,
+    const Steinberg::Vst::TChar* string,
+    Steinberg::Vst::NoteExpressionValue& valueNormalized)
+{
+    if (busIndex != 0)
+        return Steinberg::kResultFalse;
+    return noteExpressionTypes_.getNoteExpressionValueByString(
+        id, string, valueNormalized);
+}
+
+// ==============================================================================
+// INoteExpressionPhysicalUIMapping (Phase 4: MPE controller mapping)
+// ==============================================================================
+
+Steinberg::tresult PLUGIN_API Controller::getPhysicalUIMapping(
+    Steinberg::int32 busIndex, Steinberg::int16 /*channel*/,
+    Steinberg::Vst::PhysicalUIMapList& list)
+{
+    if (busIndex != 0)
+        return Steinberg::kResultFalse;
+
+    for (Steinberg::uint32 i = 0; i < list.count; ++i)
+    {
+        using namespace Steinberg::Vst;
+        auto& entry = list.map[i];
+        switch (entry.physicalUITypeID)
+        {
+        case PhysicalUITypeIDs::kPUIXMovement:
+            entry.noteExpressionTypeID = NoteExpressionTypeIDs::kTuningTypeID;
+            break;
+        case PhysicalUITypeIDs::kPUIYMovement:
+            entry.noteExpressionTypeID = NoteExpressionTypeIDs::kBrightnessTypeID;
+            break;
+        case PhysicalUITypeIDs::kPUIPressure:
+            entry.noteExpressionTypeID = NoteExpressionTypeIDs::kVolumeTypeID;
+            break;
+        default:
+            entry.noteExpressionTypeID = kInvalidTypeID;
+            break;
+        }
+    }
+
+    return Steinberg::kResultOk;
 }
 
 } // namespace Innexus

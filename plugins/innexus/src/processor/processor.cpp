@@ -63,7 +63,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
     addAudioOutput(STR16("Stereo Out"), Steinberg::Vst::SpeakerArr::kStereo);
 
     // Spec 124 FR-012: Explicitly set hard retrigger mode for ADSR envelope
-    adsr_.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
+    voice_.adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
 
     // Sidechain audio input (FR-001: auxiliary stereo bus, NOT default-active)
     // Must be inactive by default so AU wrapper can initialize without inputs.
@@ -109,13 +109,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         // SC-010: Clean up any pending deletions from previous activation cycle
         cleanupPendingDeletion();
 
-        // Prepare oscillator bank
-        oscillatorBank_.prepare(sampleRate_);
-
-        // Prepare residual synthesizer.
-        // Use sample analysis config if available, otherwise use short STFT config
-        // so it's ready for sidechain mode regardless of current input source.
-        // Always prepare here (not in process()) to avoid audio-thread allocation (FR-008).
+        // Prepare all voices (oscillator banks + residual synths)
         {
             const SampleAnalysis* analysis =
                 currentAnalysis_.load(std::memory_order_acquire);
@@ -129,8 +123,13 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
                  analysis->analysisHopSize > 0)
                     ? analysis->analysisHopSize
                     : kShortWindowConfig.hopSize;
-            residualSynth_.prepare(
-                fftSize, hopSize, static_cast<float>(sampleRate_));
+
+            for (auto& voice : voices_)
+            {
+                voice.oscillatorBank.prepare(sampleRate_);
+                voice.residualSynth.prepare(
+                    fftSize, hopSize, static_cast<float>(sampleRate_));
+            }
         }
 
         // Configure parameter smoothers (FR-025: 5ms time constant)
@@ -143,37 +142,21 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         transientEmphasisSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
         transientEmphasisSmoother_.snapTo(0.0f); // default plain value (no boost)
 
-        // Compute freeze recovery length
-        freezeRecoveryLengthSamples_ = static_cast<int>(
-            kFreezeRecoveryTimeSec * static_cast<float>(sampleRate_));
-        freezeRecoveryLengthSamples_ = std::max(freezeRecoveryLengthSamples_, 1);
+        // Compute per-voice timing constants and reset all voices
+        {
+            const int freezeRecovLen = std::max(1, static_cast<int>(
+                kFreezeRecoveryTimeSec * static_cast<float>(sampleRate_)));
+            const int antiClickLen = std::max(1, static_cast<int>(
+                kAntiClickTimeSec * static_cast<float>(sampleRate_)));
 
-        // Reset spectral decay state on activation
-        spectralDecay_.deactivate();
-
-        // Compute anti-click voice steal length (20ms)
-        antiClickLengthSamples_ = static_cast<int>(
-            kAntiClickTimeSec * static_cast<float>(sampleRate_));
-        antiClickLengthSamples_ = std::max(antiClickLengthSamples_, 1);
-
-        // Compute initial release decay coefficient
-        updateReleaseDecayCoeff();
-
-        // Reset voice state
-        noteActive_ = false;
-        inRelease_ = false;
-        inAdsrRelease_ = false;
-        releaseGain_ = 1.0f;
-        currentMidiNote_ = -1;
-        velocityGain_ = 1.0f;
-        pitchBendSemitones_ = 0.0f;
-        currentFrameIndex_ = 0;
-        frameSampleCounter_ = 0;
-        antiClickSamplesRemaining_ = 0;
-        antiClickOldLevel_ = 0.0f;
-        isFrozen_ = false;
-        freezeRecoverySamplesRemaining_ = 0;
-        freezeRecoveryOldLevel_ = 0.0f;
+            for (auto& voice : voices_)
+            {
+                voice.freezeRecoveryLengthSamples = freezeRecovLen;
+                voice.spectralDecay.deactivate();
+                voice.antiClickLengthSamples = antiClickLen;
+                voice.reset();
+            }
+        }
 
         // Reset manual freeze state (M4)
         manualFreezeActive_ = false;
@@ -181,11 +164,15 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         manualFreezeRecoveryOldLevel_ = 0.0f;
         previousFreezeState_ = freeze_.load(std::memory_order_relaxed) > 0.5f;
 
-        // Spec 124: Prepare ADSR envelope and amount smoother
-        adsr_.prepare(static_cast<float>(sampleRate_));
-        adsr_.reset();
-        adsrAmountSmoother_.configure(15.0f, static_cast<float>(sampleRate_));
-        adsrAmountSmoother_.snapTo(adsrAmount_.load(std::memory_order_relaxed));
+        // Spec 124: Prepare ADSR envelope and amount smoother for all voices
+        for (auto& voice : voices_)
+        {
+            voice.adsr.prepare(static_cast<float>(sampleRate_));
+            voice.adsr.reset();
+            voice.adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
+            voice.adsrAmountSmoother.configure(15.0f, static_cast<float>(sampleRate_));
+            voice.adsrAmountSmoother.snapTo(adsrAmount_.load(std::memory_order_relaxed));
+        }
 
         // Spec A: Snap harmonic physics smoothers and reset physics state
         warmthSmoother_.snapTo(warmth_.load(std::memory_order_relaxed));
@@ -214,8 +201,11 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         if (dataExchange_)
             dataExchange_->onDeactivate();
 
-        oscillatorBank_.reset();
-        residualSynth_.reset();
+        for (auto& voice : voices_)
+        {
+            voice.oscillatorBank.reset();
+            voice.residualSynth.reset();
+        }
 
         // SC-010: Clean up any pending deletions when deactivating
         cleanupPendingDeletion();
@@ -338,7 +328,7 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     liveAnalysis_.prepare(sampleRate_, currentMode);
 
     // Prepare spectral decay envelope for frozen frame fade-out
-    spectralDecay_.prepare(sampleRate_, static_cast<size_t>(
+    voice_.spectralDecay.prepare(sampleRate_, static_cast<size_t>(
         newSetup.maxSamplesPerBlock > 0 ? newSetup.maxSamplesPerBlock : 512));
 
     return AudioEffect::setupProcessing(newSetup);
@@ -374,10 +364,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (currentSource != previousInputSource_)
         {
             // Source changed -- initiate crossfade
-            if (noteActive_) {
+            if (voice_.active) {
                 float captL = 0.0f;
                 float captR = 0.0f;
-                oscillatorBank_.processStereo(captL, captR);
+                voice_.oscillatorBank.processStereo(captL, captR);
                 sourceCrossfadeOldLevel_ = (captL + captR) * 0.5f;
             } else {
                 sourceCrossfadeOldLevel_ = 0.0f;
@@ -510,7 +500,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // enterAttack() sees the correct useTableProcessing_ state.
     const float adsrAmountTarget = adsrAmount_.load(std::memory_order_relaxed);
     const bool adsrActive = (adsrAmountTarget > 0.0f) ||
-        (adsrAmountSmoother_.getCurrentValue() > 1e-7f);
+        (voice_.adsrAmountSmoother.getCurrentValue() > 1e-7f);
 
     if (adsrActive)
     {
@@ -525,18 +515,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         float effRelease = std::clamp(
             adsrReleaseMs_.load(std::memory_order_relaxed) * timeScale, 1.0f, 5000.0f);
 
-        adsr_.setAttack(effAttack);
-        adsr_.setDecay(effDecay);
-        adsr_.setSustain(adsrSustainLevel_.load(std::memory_order_relaxed));
-        adsr_.setRelease(effRelease);
+        voice_.adsr.setAttack(effAttack);
+        voice_.adsr.setDecay(effDecay);
+        voice_.adsr.setSustain(adsrSustainLevel_.load(std::memory_order_relaxed));
+        voice_.adsr.setRelease(effRelease);
 
         // Curve amounts (unscaled by timeScale)
-        adsr_.setAttackCurve(adsrAttackCurve_.load(std::memory_order_relaxed));
-        adsr_.setDecayCurve(adsrDecayCurve_.load(std::memory_order_relaxed));
-        adsr_.setReleaseCurve(adsrReleaseCurve_.load(std::memory_order_relaxed));
+        voice_.adsr.setAttackCurve(adsrAttackCurve_.load(std::memory_order_relaxed));
+        voice_.adsr.setDecayCurve(adsrDecayCurve_.load(std::memory_order_relaxed));
+        voice_.adsr.setReleaseCurve(adsrReleaseCurve_.load(std::memory_order_relaxed));
 
         // Set smoother target for Amount
-        adsrAmountSmoother_.setTarget(adsrAmountTarget);
+        voice_.adsrAmountSmoother.setTarget(adsrAmountTarget);
     }
 
     // --- Process MIDI events ---
@@ -574,8 +564,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const bool hasLiveFrame = isSidechainMode &&
         (currentLiveFrame_.f0 > 0.0f ||
          (newLiveFrameThisBlock && currentLiveFrame_.f0Confidence == 0.0f &&
-          lastGoodFrame_.f0 > 0.0f) ||
-         (isFrozen_ && spectralDecay_.isActive()));
+          voice_.lastGoodFrame.f0 > 0.0f) ||
+         (voice_.isFrozen && voice_.spectralDecay.isActive()));
 
 
     // =========================================================================
@@ -608,10 +598,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 // FR-015: If already frozen (slot-to-slot recall), initiate crossfade
                 if (manualFreezeActive_)
                 {
-                    if (noteActive_) {
+                    if (voice_.active) {
                         float captL = 0.0f;
                         float captR = 0.0f;
-                        oscillatorBank_.processStereo(captL, captR);
+                        voice_.oscillatorBank.processStereo(captL, captR);
                         manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
                     } else {
                         manualFreezeRecoveryOldLevel_ = 0.0f;
@@ -716,9 +706,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             if (manualFreezeActive_ && smoothedMorph > 1e-6f)
             { // NOLINT(bugprone-branch-clone) branches assign from different sources
                 // (a) Freeze active + morph > 0: capture post-morph blended state (FR-008)
-                // morphedFrame_ contains the last-computed pre-filter morph result
-                captureFrame = morphedFrame_;
-                captureResidual = morphedResidualFrame_;
+                // voice_.morphedFrame contains the last-computed pre-filter morph result
+                captureFrame = voice_.morphedFrame;
+                captureResidual = voice_.morphedResidualFrame;
             }
             else if (manualFreezeActive_)
             {
@@ -735,10 +725,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             else if (hasSampleAnalysis)
             {
                 // (d) Sample mode, no freeze: capture current sample frame
-                captureFrame = analysis->getFrame(currentFrameIndex_);
+                captureFrame = analysis->getFrame(voice_.currentFrameIndex);
                 if (!analysis->residualFrames.empty())
                     captureResidual =
-                        analysis->getResidualFrame(currentFrameIndex_);
+                        analysis->getResidualFrame(voice_.currentFrameIndex);
             }
             // else: (e) No analysis -- captureFrame/captureResidual are default (empty)
 
@@ -790,7 +780,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // so that engaging freeze with no analysis still captures an empty frame.
     // This block runs only when the early return would fire; the main freeze
     // detection block handles the normal (has-analysis) case.
-    if (!noteActive_ || (!hasSampleAnalysis && !hasLiveFrame))
+    if (!voice_.active || (!hasSampleAnalysis && !hasLiveFrame))
     {
         const bool currentFreezeState = freeze_.load(std::memory_order_relaxed) > 0.5f;
 
@@ -814,7 +804,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         previousFreezeState_ = currentFreezeState;
     }
 
-    if (!noteActive_ || (!hasSampleAnalysis && !hasLiveFrame))
+    if (!voice_.active || (!hasSampleAnalysis && !hasLiveFrame))
     {
         for (Steinberg::int32 s = 0; s < numSamples; ++s)
         {
@@ -830,7 +820,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
     // --- Update inharmonicity from parameter ---
     float inharm = inharmonicityAmount_.load(std::memory_order_relaxed);
-    oscillatorBank_.setInharmonicityAmount(inharm);
+    voice_.oscillatorBank.setInharmonicityAmount(inharm);
 
     // --- Active partial count from user parameter ---
     const int activePartialCount = getActivePartialCount();
@@ -865,10 +855,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
                                     !analysis->residualFrames.empty() &&
-                                    residualSynth_.isPrepared();
+                                    voice_.residualSynth.isPrepared();
 
     // In sidechain mode, live residual is always available if the pipeline produces it
-    const bool hasLiveResidual = isSidechainMode && residualSynth_.isPrepared();
+    const bool hasLiveResidual = isSidechainMode && voice_.residualSynth.isPrepared();
 
 
     // =========================================================================
@@ -890,10 +880,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             }
             else if (hasSampleAnalysis)
             {
-                manualFrozenFrame_ = analysis->getFrame(currentFrameIndex_);
+                manualFrozenFrame_ = analysis->getFrame(voice_.currentFrameIndex);
                 if (!analysis->residualFrames.empty())
                     manualFrozenResidualFrame_ =
-                        analysis->getResidualFrame(currentFrameIndex_);
+                        analysis->getResidualFrame(voice_.currentFrameIndex);
                 else
                     manualFrozenResidualFrame_ = {};
             }
@@ -911,10 +901,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         {
             // FR-006: Initiate 10ms crossfade from frozen to live
             // Capture current oscillator output level for smooth crossfade
-            if (noteActive_) {
+            if (voice_.active) {
                 float captL = 0.0f;
                 float captR = 0.0f;
-                oscillatorBank_.processStereo(captL, captR);
+                voice_.oscillatorBank.processStereo(captL, captR);
                 manualFreezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
             } else {
                 manualFreezeRecoveryOldLevel_ = 0.0f;
@@ -986,7 +976,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // When freeze inactive: pass-through live frame (FR-016)
     // (FR-004, FR-005, FR-007, FR-010 to FR-018)
     // =========================================================================
-    if (manualFreezeActive_ && noteActive_)
+    if (manualFreezeActive_ && voice_.active)
     {
         // Update morph position smoother (FR-017)
         morphPositionSmoother_.setTarget(
@@ -1002,9 +992,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
         else if (hasSampleAnalysis)
         {
-            liveFrame = analysis->getFrame(currentFrameIndex_);
+            liveFrame = analysis->getFrame(voice_.currentFrameIndex);
             if (!analysis->residualFrames.empty())
-                liveResidualFrame = analysis->getResidualFrame(currentFrameIndex_);
+                liveResidualFrame = analysis->getResidualFrame(voice_.currentFrameIndex);
         }
 
         // Advance smoother by block size to get smoothed value (FR-017)
@@ -1017,53 +1007,41 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (smoothedMorph < 1e-6f)
         { // NOLINT(bugprone-branch-clone) branches assign from different sources
             // Fully frozen (morph = 0.0)
-            morphedFrame_ = manualFrozenFrame_;
-            morphedResidualFrame_ = manualFrozenResidualFrame_;
+            voice_.morphedFrame = manualFrozenFrame_;
+            voice_.morphedResidualFrame = manualFrozenResidualFrame_;
         }
         else if (smoothedMorph > 1.0f - 1e-6f)
         {
             // Fully live (morph = 1.0)
-            morphedFrame_ = liveFrame;
-            morphedResidualFrame_ = liveResidualFrame;
+            voice_.morphedFrame = liveFrame;
+            voice_.morphedResidualFrame = liveResidualFrame;
         }
         else
         {
             // Interpolate between frozen (A) and live (B)
-            morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
+            voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
                 manualFrozenFrame_, liveFrame, smoothedMorph);
-            morphedResidualFrame_ = Krate::DSP::lerpResidualFrame(
+            voice_.morphedResidualFrame = Krate::DSP::lerpResidualFrame(
                 manualFrozenResidualFrame_, liveResidualFrame, smoothedMorph);
         }
 
         // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
         // Blend between pure harmonic reference and source model BEFORE filter.
         if (smoothedTimbralBlend < 1.0f - 1e-6f)
-            morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
-                pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+            voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
+                pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
         // M4: Apply harmonic filter mask (FR-020, FR-026, T082)
         // Filter is applied AFTER morph+blend and BEFORE oscillator bank.
         // Residual passes through unmodified (FR-027).
         if (currentFilterType_ != 0) // Skip for All-Pass (early-out)
-            Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+            Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
         // Load morphed+filtered frame into oscillator bank
         // M6 FR-025: Apply modulator amplitude modulation before loading
         applyModulatorAmplitude(mod1Enabled, mod2Enabled);
         applyHarmonicPhysics();
-        float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-        float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-        float targetPitch = basePitch * bendRatio;
-        morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
-        if (residualSynth_.isPrepared())
-        {
-            residualSynth_.loadFrame(
-                morphedResidualFrame_,
-                brightnessSmoother_.getCurrentValue(),
-                transientEmphasisSmoother_.getCurrentValue());
-        }
+        broadcastFrameToVoices(activePartialCount, true);
     }
 
     // For sidechain mode: if a new live frame arrived this block, load it into
@@ -1077,94 +1055,67 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     if (!manualFreezeActive_ && isSidechainMode && (hasLiveF0 || gotGatedFrame))
     {
         // Apply confidence-gated freeze (FR-010, FR-052) to live frames
-        float recoveryThreshold = isFrozen_
+        float recoveryThreshold = voice_.isFrozen
             ? (kConfidenceThreshold + kConfidenceHysteresis)
             : kConfidenceThreshold;
 
         // During active spectral decay, also require sufficient input amplitude
         // to recover. This prevents background noise from interrupting the decay
         // with "spectral mush" frames.
-        const bool amplitudeOk = !spectralDecay_.isActive() ||
+        const bool amplitudeOk = !voice_.spectralDecay.isActive() ||
             currentLiveFrame_.globalAmplitude >=
-                spectralDecay_.initialAmplitude() * kDecayRecoveryAmplitudeRatio;
+                voice_.spectralDecay.initialAmplitude() * kDecayRecoveryAmplitudeRatio;
 
         if (currentLiveFrame_.f0Confidence >= recoveryThreshold && amplitudeOk)
         {
-            if (isFrozen_)
+            if (voice_.isFrozen)
             {
-                isFrozen_ = false;
-                spectralDecay_.deactivate();
+                voice_.isFrozen = false;
+                voice_.spectralDecay.deactivate();
                 float captL = 0.0f;
                 float captR = 0.0f;
-                oscillatorBank_.processStereo(captL, captR);
-                freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
-                freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
+                voice_.oscillatorBank.processStereo(captL, captR);
+                voice_.freezeRecoveryOldLevel = (captL + captR) * 0.5f;
+                voice_.freezeRecoverySamplesRemaining = voice_.freezeRecoveryLengthSamples;
             }
-            lastGoodFrame_ = currentLiveFrame_;
+            voice_.lastGoodFrame = currentLiveFrame_;
 
             // M4: Store live frame as morphed (no freeze = pass-through)
-            morphedFrame_ = currentLiveFrame_;
-            morphedResidualFrame_ = currentLiveResidualFrame_;
+            voice_.morphedFrame = currentLiveFrame_;
+            voice_.morphedResidualFrame = currentLiveResidualFrame_;
 
             // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
             if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
-                    pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+                voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
+                    pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
             // Apply harmonic filter (FR-026, FR-027)
             if (currentFilterType_ != 0)
-                Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+                Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
             // M6 FR-025: Apply modulator amplitude modulation
             applyModulatorAmplitude(mod1Enabled, mod2Enabled);
             applyHarmonicPhysics();
-
-            // Calculate target pitch with pitch bend
-            float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-            float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-            float targetPitch = basePitch * bendRatio;
-            morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
-            // Load live residual frame (FR-016: same controls as sample mode)
-            if (residualSynth_.isPrepared())
-            {
-                residualSynth_.loadFrame(
-                    morphedResidualFrame_,
-                    brightnessSmoother_.getCurrentValue(),
-                    transientEmphasisSmoother_.getCurrentValue());
-            }
+            broadcastFrameToVoices(activePartialCount, true);
         }
         else
         {
             // FR-052: Hold last known-good frame
-            bool wasFrozen = isFrozen_;
-            isFrozen_ = true;
+            bool wasFrozen = voice_.isFrozen;
+            voice_.isFrozen = true;
 
             // Activate spectral decay on freeze transition
             if (!wasFrozen)
-                spectralDecay_.activate(morphedFrame_);
+                voice_.spectralDecay.activate(voice_.morphedFrame);
 
             // Apply per-partial spectral decay to the held frame each block.
             // This produces a natural fade-out where higher partials die first.
-            if (spectralDecay_.isActive() && !spectralDecay_.isFullyDecayed())
+            if (voice_.spectralDecay.isActive() && !voice_.spectralDecay.isFullyDecayed())
             {
-                spectralDecay_.processBlock(morphedFrame_);
+                voice_.spectralDecay.processBlock(voice_.morphedFrame);
 
-                // Re-load decayed frame into oscillator bank
-                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-                float targetPitch = basePitch * bendRatio;
-                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
-                if (residualSynth_.isPrepared())
-                {
-                    residualSynth_.loadFrame(
-                        morphedResidualFrame_,
-                        brightnessSmoother_.getCurrentValue(),
-                        transientEmphasisSmoother_.getCurrentValue());
-                }
+                // Re-load decayed frame into all active voices
+                broadcastFrameToVoices(activePartialCount, true);
             }
         }
     }
@@ -1283,85 +1234,83 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     bool hasSoundOutput = false;
     const bool hasResidual = isSidechainMode ? hasLiveResidual : hasSampleResidual;
 
+    // Hoist voice mode outside per-sample loop (avoid atomic load per sample)
+    const float voiceModeNorm = voiceMode_.load(std::memory_order_relaxed);
+    const int voiceModeIdx = std::clamp(
+        static_cast<int>(std::round(voiceModeNorm * 2.0f)), 0, 2);
+    constexpr int kVoiceCounts[] = {1, 4, 8};
+    const int maxVoicesThisBlock = kVoiceCounts[voiceModeIdx];
+
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
         // --- Frame advancement (FR-047) -- only in sample mode ---
         // FR-007: Skip frame advancement when manual freeze is active
         if (!manualFreezeActive_ && !isSidechainMode && hopSizeInSamples > 0 && totalFrames > 0)
         {
-            frameSampleCounter_++;
-            if (frameSampleCounter_ >= hopSizeInSamples &&
-                currentFrameIndex_ < totalFrames - 1)
+            voice_.frameSampleCounter++;
+            if (voice_.frameSampleCounter >= hopSizeInSamples &&
+                voice_.currentFrameIndex < totalFrames - 1)
             {
-                frameSampleCounter_ = 0;
-                currentFrameIndex_++;
+                voice_.frameSampleCounter = 0;
+                voice_.currentFrameIndex++;
 
                 // Spec 124: Sustain loop — when ADSR is in Sustain stage and
                 // a valid loop region exists, wrap frame index back to loop start.
                 // This keeps the note alive indefinitely while the key is held.
-                if (adsrActive && sustainLoopStart_ < sustainLoopEnd_ &&
-                    adsr_.getStage() == Krate::DSP::ADSRStage::Sustain &&
-                    static_cast<int>(currentFrameIndex_) >= sustainLoopEnd_)
+                if (adsrActive && voice_.sustainLoopStart < voice_.sustainLoopEnd &&
+                    voice_.adsr.getStage() == Krate::DSP::ADSRStage::Sustain &&
+                    static_cast<int>(voice_.currentFrameIndex) >= voice_.sustainLoopEnd)
                 {
-                    currentFrameIndex_ = static_cast<size_t>(sustainLoopStart_);
+                    voice_.currentFrameIndex = static_cast<size_t>(voice_.sustainLoopStart);
                 }
 
                 // Get the new frame
-                const auto& frame = analysis->getFrame(currentFrameIndex_);
+                const auto& frame = analysis->getFrame(voice_.currentFrameIndex);
 
                 // Confidence-gated freeze (FR-052) with hysteresis (FR-053)
-                float recoveryThreshold = isFrozen_
+                float recoveryThreshold = voice_.isFrozen
                     ? (kConfidenceThreshold + kConfidenceHysteresis)
                     : kConfidenceThreshold;
 
                 if (frame.f0Confidence >= recoveryThreshold)
                 {
-                    if (isFrozen_)
+                    if (voice_.isFrozen)
                     {
-                        isFrozen_ = false;
+                        voice_.isFrozen = false;
                         float captL = 0.0f;
                         float captR = 0.0f;
-                        oscillatorBank_.processStereo(captL, captR);
-                        freezeRecoveryOldLevel_ = (captL + captR) * 0.5f;
-                        freezeRecoverySamplesRemaining_ = freezeRecoveryLengthSamples_;
+                        voice_.oscillatorBank.processStereo(captL, captR);
+                        voice_.freezeRecoveryOldLevel = (captL + captR) * 0.5f;
+                        voice_.freezeRecoverySamplesRemaining = voice_.freezeRecoveryLengthSamples;
                     }
-                    lastGoodFrame_ = frame;
+                    voice_.lastGoodFrame = frame;
 
                     // M4: Store frame as morphed (no freeze = pass-through)
-                    morphedFrame_ = frame;
+                    voice_.morphedFrame = frame;
 
                     // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
                     if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                        morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
-                            pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+                        voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
+                            pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
                     // Apply harmonic filter (FR-026)
                     if (currentFilterType_ != 0)
-                        Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+                        Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
                     // M6 FR-025: Apply modulator amplitude modulation
                     applyModulatorAmplitude(mod1Enabled, mod2Enabled);
                     applyHarmonicPhysics();
 
-                    float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-                    float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-                    float targetPitch = basePitch * bendRatio;
-                    morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
                     if (hasSampleResidual)
                     {
-                        morphedResidualFrame_ =
-                            analysis->getResidualFrame(currentFrameIndex_);
-                        residualSynth_.loadFrame(
-                            morphedResidualFrame_,
-                            brightnessSmoother_.getCurrentValue(),
-                            transientEmphasisSmoother_.getCurrentValue());
+                        voice_.morphedResidualFrame =
+                            analysis->getResidualFrame(voice_.currentFrameIndex);
                     }
+                    broadcastFrameToVoices(activePartialCount, hasSampleResidual);
                 }
                 else
                 {
-                    isFrozen_ = true;
+                    voice_.isFrozen = true;
                 }
             }
         }
@@ -1385,8 +1334,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             Krate::DSP::MemorySlot evoAdsrInterp{};
             if (evolutionEngine_.getInterpolatedFrame(memorySlots_, evoFrame, evoResidual, &evoAdsrInterp))
             {
-                morphedFrame_ = evoFrame;
-                morphedResidualFrame_ = evoResidual;
+                voice_.morphedFrame = evoFrame;
+                voice_.morphedResidualFrame = evoResidual;
 
                 // Spec 124 FR-017: Wire interpolated ADSR from evolution to processor atomics
                 adsrAttackMs_.store(evoAdsrInterp.adsrAttackMs, std::memory_order_relaxed);
@@ -1401,30 +1350,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
                 // Apply timbral blend (cross-synthesis) to evolution output
                 if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
-                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+                    voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
                 // Apply harmonic filter
                 if (currentFilterType_ != 0)
-                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+                    Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
                 // M6 FR-025: Apply modulator amplitude modulation
                 applyModulatorAmplitude(mod1Enabled, mod2Enabled);
                 applyHarmonicPhysics();
-
-                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-                float targetPitch = basePitch * bendRatio;
-                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
-                if (residualSynth_.isPrepared())
-                {
-                    residualSynth_.loadFrame(
-                        morphedResidualFrame_,
-                        brightnessSmoother_.getCurrentValue(),
-                        transientEmphasisSmoother_.getCurrentValue());
-                }
+                broadcastFrameToVoices(activePartialCount, true);
             }
         }
         else
@@ -1467,8 +1403,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     currentLiveFrame_, currentLiveResidualFrame_,
                     hasLiveSource, blendFrame, blendResidual))
             {
-                morphedFrame_ = blendFrame;
-                morphedResidualFrame_ = blendResidual;
+                voice_.morphedFrame = blendFrame;
+                voice_.morphedResidualFrame = blendResidual;
 
                 // Spec 124 FR-016: Wire blended ADSR from morph engine to processor atomics
                 Krate::DSP::MemorySlot blendAdsrInterp{};
@@ -1487,30 +1423,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
                 // Apply timbral blend (cross-synthesis) to blended output
                 if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                    morphedFrame_ = Krate::DSP::lerpHarmonicFrame(
-                        pureHarmonicFrame_, morphedFrame_, smoothedTimbralBlend);
+                    voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
+                        pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
                 // Apply harmonic filter
                 if (currentFilterType_ != 0)
-                    Krate::DSP::applyHarmonicMask(morphedFrame_, filterMask_);
+                    Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
 
                 // Apply modulator amplitude modulation
                 applyModulatorAmplitude(mod1Enabled, mod2Enabled);
                 applyHarmonicPhysics();
-
-                float basePitch = Krate::DSP::midiNoteToFrequency(currentMidiNote_);
-                float bendRatio = Krate::DSP::semitonesToRatio(pitchBendSemitones_);
-                float targetPitch = basePitch * bendRatio;
-                morphedFrame_.numPartials = std::min(morphedFrame_.numPartials, activePartialCount);
-        oscillatorBank_.loadFrame(morphedFrame_, targetPitch);
-
-                if (residualSynth_.isPrepared())
-                {
-                    residualSynth_.loadFrame(
-                        morphedResidualFrame_,
-                        brightnessSmoother_.getCurrentValue(),
-                        transientEmphasisSmoother_.getCurrentValue());
-                }
+                broadcastFrameToVoices(activePartialCount, true);
             }
         }
         else
@@ -1528,8 +1451,8 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         // M6: Update stereo spread and detune per sample (smoothed)
-        oscillatorBank_.setStereoSpread(stereoSpreadSmoother_.process());
-        oscillatorBank_.setDetuneSpread(detuneSpreadSmoother_.process());
+        voice_.oscillatorBank.setStereoSpread(stereoSpreadSmoother_.process());
+        voice_.oscillatorBank.setDetuneSpread(detuneSpreadSmoother_.process());
 
         // M6: Advance harmonic modulators per sample (FR-029: free-running)
         // Apply smoothed rate and depth each sample (FR-033)
@@ -1543,14 +1466,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             {
                 std::array<float, Krate::DSP::kMaxPartials> mult1{};
                 mod1_.getFrequencyMultipliers(mult1);
-                oscillatorBank_.applyExternalFrequencyMultipliers(mult1);
+                voice_.oscillatorBank.applyExternalFrequencyMultipliers(mult1);
             }
 
             // Apply pan offsets (FR-027, FR-028)
             {
                 std::array<float, Krate::DSP::kMaxPartials> panOff1{};
                 mod1_.getPanOffsets(panOff1);
-                oscillatorBank_.applyPanOffsets(panOff1);
+                voice_.oscillatorBank.applyPanOffsets(panOff1);
             }
         }
         else
@@ -1569,14 +1492,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             {
                 std::array<float, Krate::DSP::kMaxPartials> mult2{};
                 mod2_.getFrequencyMultipliers(mult2);
-                oscillatorBank_.applyExternalFrequencyMultipliers(mult2);
+                voice_.oscillatorBank.applyExternalFrequencyMultipliers(mult2);
             }
 
             // Apply pan offsets (FR-027, FR-028: additive with mod1)
             {
                 std::array<float, Krate::DSP::kMaxPartials> panOff2{};
                 mod2_.getPanOffsets(panOff2);
-                oscillatorBank_.applyPanOffsets(panOff2);
+                voice_.oscillatorBank.applyPanOffsets(panOff2);
             }
         }
         else
@@ -1585,23 +1508,138 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             (void)mod2DepthSmoother_.process();
         }
 
-        // --- Generate oscillator bank stereo output (M6: FR-007) ---
-        float harmonicL = 0.0f;
-        float harmonicR = 0.0f;
-        oscillatorBank_.processStereo(harmonicL, harmonicR);
-        float residualSample = hasResidual ? residualSynth_.process() : 0.0f;
-
-        // M2: Mix harmonic and residual (FR-028)
+        // --- Generate polyphonic stereo output ---
+        // Advance global smoothers per-sample (FR-025)
         float harmLevel = harmonicLevelSmoother_.process();
         float resLevel = residualLevelSmoother_.process();
-        // Advance brightness/transient smoothers per-sample (FR-025)
         (void)brightnessSmoother_.process();
         (void)transientEmphasisSmoother_.process();
 
-        // Residual is center-panned in both channels (FR-012)
-        float resContrib = residualSample * resLevel;
-        float sampleL = harmonicL * harmLevel + resContrib;
-        float sampleR = harmonicR * harmLevel + resContrib;
+        float sampleL = 0.0f;
+        float sampleR = 0.0f;
+        int activeCount = 0;
+
+        for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
+        {
+            auto& v = voices_[static_cast<size_t>(vi)];
+            if (!v.active)
+                continue;
+
+            float vL = 0.0f;
+            float vR = 0.0f;
+            v.oscillatorBank.processStereo(vL, vR);
+            float residualSample = hasResidual ? v.residualSynth.process() : 0.0f;
+
+            // M2: Mix harmonic and residual per voice
+            // Phase 3: expressionBrightness modulates the harmonic/residual balance.
+            // At 0.5 (default), global levels are used unmodified.
+            // At 0.0, harmonics are boosted by 2x and residuals are silenced.
+            // At 1.0, residuals are boosted by 2x and harmonics are silenced.
+            float brightScale = v.expressionBrightness * 2.0f; // 0..2
+            float perVoiceHarmLevel = harmLevel * (2.0f - brightScale);
+            float perVoiceResLevel = resLevel * brightScale;
+            float resContrib = residualSample * perVoiceResLevel;
+            vL = vL * perVoiceHarmLevel + resContrib;
+            vR = vR * perVoiceHarmLevel + resContrib;
+
+            // --- Per-voice freeze recovery crossfade (FR-053) ---
+            if (v.freezeRecoverySamplesRemaining > 0)
+            {
+                float fadeProgress = static_cast<float>(v.freezeRecoverySamplesRemaining) /
+                                     static_cast<float>(v.freezeRecoveryLengthSamples);
+                vL = v.freezeRecoveryOldLevel * fadeProgress + vL * (1.0f - fadeProgress);
+                vR = v.freezeRecoveryOldLevel * fadeProgress + vR * (1.0f - fadeProgress);
+                v.freezeRecoverySamplesRemaining--;
+            }
+
+            // --- Per-voice anti-click crossfade (FR-054) ---
+            if (v.antiClickSamplesRemaining > 0)
+            {
+                float fadeProgress = static_cast<float>(v.antiClickSamplesRemaining) /
+                                     static_cast<float>(v.antiClickLengthSamples);
+                vL = v.antiClickOldLevel * fadeProgress + vL * (1.0f - fadeProgress);
+                vR = v.antiClickOldLevel * fadeProgress + vR * (1.0f - fadeProgress);
+                v.antiClickSamplesRemaining--;
+            }
+
+            // --- Per-voice velocity scaling (FR-050) ---
+            vL *= v.velocityGain;
+            vR *= v.velocityGain;
+
+            // --- Per-voice expression volume (Phase 3: MPE) ---
+            vL *= v.expressionVolume;
+            vR *= v.expressionVolume;
+
+            // --- Per-voice expression pan (Phase 3: MPE) ---
+            if (v.expressionPan != 0.5f)
+            {
+                // Constant-power pan law
+                constexpr float kPi4 = 0.7853981633974483f;
+                float angle = v.expressionPan * kPi4 * 2.0f; // 0..pi/2
+                float panL = std::cos(angle);
+                float panR = std::sin(angle);
+                float mono = (vL + vR) * 0.5f;
+                vL = mono * panL;
+                vR = mono * panR;
+            }
+
+            // --- Per-voice ADSR envelope gain ---
+            if (adsrActive)
+            {
+                float envVal = v.adsr.process();
+                float smoothedAmount = v.adsrAmountSmoother.process();
+                float adsrGain = 1.0f - smoothedAmount + smoothedAmount * envVal;
+                vL *= adsrGain;
+                vR *= adsrGain;
+
+                if (v.inAdsrRelease &&
+                    v.adsr.getStage() == Krate::DSP::ADSRStage::Idle)
+                {
+                    v.active = false;
+                    v.inAdsrRelease = false;
+                    v.oscillatorBank.reset();
+                    v.residualSynth.reset();
+                    // Signal finished to allocator (poly mode)
+                    if (maxVoicesThisBlock > 1)
+                        voiceAllocator_.voiceFinished(static_cast<size_t>(vi));
+                    vL = 0.0f;
+                    vR = 0.0f;
+                }
+            }
+
+            // --- Per-voice release envelope (FR-049) ---
+            if (v.inRelease)
+            {
+                v.releaseGain *= v.releaseDecayCoeff;
+                vL *= v.releaseGain;
+                vR *= v.releaseGain;
+
+                if (v.releaseGain < 1e-6f)
+                {
+                    v.active = false;
+                    v.inRelease = false;
+                    v.releaseGain = 1.0f;
+                    v.oscillatorBank.reset();
+                    v.residualSynth.reset();
+                    if (maxVoicesThisBlock > 1)
+                        voiceAllocator_.voiceFinished(static_cast<size_t>(vi));
+                    vL = 0.0f;
+                    vR = 0.0f;
+                }
+            }
+
+            sampleL += vL;
+            sampleR += vR;
+            ++activeCount;
+        }
+
+        // --- Gain compensation for polyphony: 1/sqrt(activeVoiceCount) ---
+        if (activeCount > 1)
+        {
+            float comp = 1.0f / std::sqrt(static_cast<float>(activeCount));
+            sampleL *= comp;
+            sampleR *= comp;
+        }
 
         // --- Source switch crossfade (FR-011) ---
         if (sourceCrossfadeSamplesRemaining_ > 0)
@@ -1615,18 +1653,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             sourceCrossfadeSamplesRemaining_--;
         }
 
-        // --- Freeze recovery crossfade (FR-053) ---
-        if (freezeRecoverySamplesRemaining_ > 0)
-        {
-            float fadeProgress = static_cast<float>(freezeRecoverySamplesRemaining_) /
-                                 static_cast<float>(freezeRecoveryLengthSamples_);
-            sampleL = freezeRecoveryOldLevel_ * fadeProgress +
-                      sampleL * (1.0f - fadeProgress);
-            sampleR = freezeRecoveryOldLevel_ * fadeProgress +
-                      sampleR * (1.0f - fadeProgress);
-            freezeRecoverySamplesRemaining_--;
-        }
-
         // --- M4: Manual freeze recovery crossfade (FR-006) ---
         if (manualFreezeRecoverySamplesRemaining_ > 0)
         {
@@ -1637,67 +1663,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             sampleR = manualFreezeRecoveryOldLevel_ * fadeProgress +
                       sampleR * (1.0f - fadeProgress);
             manualFreezeRecoverySamplesRemaining_--;
-        }
-
-        // --- Anti-click voice steal crossfade (FR-054) ---
-        if (antiClickSamplesRemaining_ > 0)
-        {
-            float fadeProgress = static_cast<float>(antiClickSamplesRemaining_) /
-                                 static_cast<float>(antiClickLengthSamples_);
-            sampleL = antiClickOldLevel_ * fadeProgress +
-                      sampleL * (1.0f - fadeProgress);
-            sampleR = antiClickOldLevel_ * fadeProgress +
-                      sampleR * (1.0f - fadeProgress);
-            antiClickSamplesRemaining_--;
-        }
-
-        // --- Velocity scaling (FR-050): applied to summed output, NOT partials ---
-        sampleL *= velocityGain_;
-        sampleR *= velocityGain_;
-
-        // --- Spec 124: ADSR envelope gain (FR-008, FR-009, FR-011) ---
-        // Bit-exact bypass when Amount==0.0: skip ALL ADSR processing (SC-003)
-        if (adsrActive)
-        {
-            float envVal = adsr_.process();
-            float smoothedAmount = adsrAmountSmoother_.process();
-            // lerp(1.0, envVal, smoothedAmount) = 1.0*(1-amount) + envVal*amount
-            float adsrGain = 1.0f - smoothedAmount + smoothedAmount * envVal;
-            sampleL *= adsrGain;
-            sampleR *= adsrGain;
-
-            // When ADSR handles release, end note when envelope reaches Idle
-            if (inAdsrRelease_ &&
-                adsr_.getStage() == Krate::DSP::ADSRStage::Idle)
-            {
-                noteActive_ = false;
-                inAdsrRelease_ = false;
-                oscillatorBank_.reset();
-                residualSynth_.reset();
-                sampleL = 0.0f;
-                sampleR = 0.0f;
-            }
-        }
-
-        // --- Release envelope (FR-049) ---
-        // Only used when ADSR Amount==0 (old behavior)
-        if (inRelease_)
-        {
-            releaseGain_ *= releaseDecayCoeff_;
-            sampleL *= releaseGain_;
-            sampleR *= releaseGain_;
-
-            // Check if release has faded below threshold
-            if (releaseGain_ < 1e-6f)
-            {
-                noteActive_ = false;
-                inRelease_ = false;
-                releaseGain_ = 1.0f;
-                oscillatorBank_.reset();
-                residualSynth_.reset();
-                sampleL = 0.0f;
-                sampleR = 0.0f;
-            }
         }
 
         // --- Master gain ---
@@ -1768,9 +1733,9 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     }
 
     // Spec 124 T048: Update ADSR playback state atomics for ADSRDisplay visualization
-    adsrEnvelopeOutput_.store(adsr_.getOutput(), std::memory_order_relaxed);
-    adsrStage_.store(static_cast<int>(adsr_.getStage()), std::memory_order_relaxed);
-    adsrActive_.store(adsr_.isActive(), std::memory_order_relaxed);
+    adsrEnvelopeOutput_.store(voice_.adsr.getOutput(), std::memory_order_relaxed);
+    adsrStage_.store(static_cast<int>(voice_.adsr.getStage()), std::memory_order_relaxed);
+    adsrActive_.store(voice_.adsr.isActive(), std::memory_order_relaxed);
 
     // M7: Send display data to controller (FR-048)
     // Only when producing output and processing samples (SC-008)
@@ -1826,13 +1791,16 @@ void Processor::checkForNewAnalysis()
     if (!result)
         return;
 
-    // M2: Prepare residual synth if new analysis has residual data
+    // M2: Prepare residual synth for all voices if new analysis has residual data
     if (result->analysisFFTSize > 0 && result->analysisHopSize > 0 &&
         !result->residualFrames.empty())
     {
-        residualSynth_.prepare(
-            result->analysisFFTSize, result->analysisHopSize,
-            static_cast<float>(sampleRate_));
+        for (auto& voice : voices_)
+        {
+            voice.residualSynth.prepare(
+                result->analysisFFTSize, result->analysisHopSize,
+                static_cast<float>(sampleRate_));
+        }
     }
 
     // Spec 124 FR-003: Auto-populate ADSR parameter values upon new sample load
@@ -1843,9 +1811,12 @@ void Processor::checkForNewAnalysis()
         adsrSustainLevel_.store(adsr.sustainLevel, std::memory_order_relaxed);
         adsrReleaseMs_.store(adsr.releaseMs, std::memory_order_relaxed);
 
-        // Store sustain loop region frame indices for frame looping
-        sustainLoopStart_ = adsr.sustainStartFrame;
-        sustainLoopEnd_ = adsr.sustainEndFrame;
+        // Store sustain loop region frame indices for all voices
+        for (auto& voice : voices_)
+        {
+            voice.sustainLoopStart = adsr.sustainStartFrame;
+            voice.sustainLoopEnd = adsr.sustainEndFrame;
+        }
 
         // Auto-enable ADSR when detection produces results — without this,
         // Amount stays at 0.0 and the detected envelope is never applied.
@@ -1913,7 +1884,7 @@ void Processor::applyHarmonicPhysics() noexcept
     harmonicPhysics_.setCoupling(couplingSmoother_.getCurrentValue());
     harmonicPhysics_.setStability(stabilitySmoother_.getCurrentValue());
     harmonicPhysics_.setEntropy(entropySmoother_.getCurrentValue());
-    harmonicPhysics_.processFrame(morphedFrame_);
+    harmonicPhysics_.processFrame(voice_.morphedFrame);
 }
 
 // ==============================================================================
@@ -1924,9 +1895,53 @@ void Processor::applyModulatorAmplitude(bool mod1Enabled, bool mod2Enabled)
     // FR-028: Two modulators on overlapping amplitude ranges multiply effects
     // (sequential application = multiplicative)
     if (mod1Enabled)
-        mod1_.applyAmplitudeModulation(morphedFrame_);
+        mod1_.applyAmplitudeModulation(voice_.morphedFrame);
     if (mod2Enabled)
-        mod2_.applyAmplitudeModulation(morphedFrame_);
+        mod2_.applyAmplitudeModulation(voice_.morphedFrame);
+}
+
+// ==============================================================================
+// Broadcast Morphed Frame to All Active Voices
+// ==============================================================================
+void Processor::broadcastFrameToVoices(int activePartialCount, bool loadResidual)
+{
+    const float brightness = brightnessSmoother_.getCurrentValue();
+    const float transientEmp = transientEmphasisSmoother_.getCurrentValue();
+
+    const float modeNorm = voiceMode_.load(std::memory_order_relaxed);
+    const int modeIdx = std::clamp(
+        static_cast<int>(std::round(modeNorm * 2.0f)), 0, 2);
+    constexpr int kCounts[] = {1, 4, 8};
+    const int maxVoices = kCounts[modeIdx];
+
+    for (int i = 0; i < maxVoices; ++i)
+    {
+        auto& v = voices_[static_cast<size_t>(i)];
+        if (!v.active)
+            continue;
+
+        // Copy the global morphed frame to this voice
+        v.morphedFrame = voice_.morphedFrame;
+        v.morphedResidualFrame = voice_.morphedResidualFrame;
+
+        // Clamp partials
+        v.morphedFrame.numPartials = std::min(
+            v.morphedFrame.numPartials, activePartialCount);
+
+        // Compute this voice's target pitch
+        float basePitch = Krate::DSP::midiNoteToFrequency(v.midiNote);
+        float bendRatio = Krate::DSP::semitonesToRatio(
+            v.pitchBendSemitones + v.expressionTuning);
+        float targetPitch = basePitch * bendRatio;
+
+        v.oscillatorBank.loadFrame(v.morphedFrame, targetPitch);
+
+        if (loadResidual && v.residualSynth.isPrepared())
+        {
+            v.residualSynth.loadFrame(
+                v.morphedResidualFrame, brightness, transientEmp);
+        }
+    }
 }
 
 } // namespace Innexus

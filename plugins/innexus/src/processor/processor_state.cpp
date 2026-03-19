@@ -206,6 +206,9 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(mod2RateSync_.load(std::memory_order_relaxed));
     streamer.writeFloat(mod2NoteValue_.load(std::memory_order_relaxed));
 
+    // --- Voice Mode parameter ---
+    streamer.writeFloat(voiceMode_.load(std::memory_order_relaxed));
+
     return Steinberg::kResultOk;
 }
 
@@ -331,9 +334,12 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         {
             if (analysisFFTSize > 0 && analysisHopSize > 0)
             {
-                residualSynth_.prepare(
-                    analysisFFTSize, analysisHopSize,
-                    static_cast<float>(sampleRate_));
+                for (auto& voice : voices_)
+                {
+                    voice.residualSynth.prepare(
+                        analysisFFTSize, analysisHopSize,
+                        static_cast<float>(sampleRate_));
+                }
             }
 
             auto* old = currentAnalysis_.exchange(
@@ -596,6 +602,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         mod2RateSync_.store(floatVal > 0.5f ? 1.0f : 0.0f);
     if (streamer.readFloat(floatVal))
         mod2NoteValue_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Voice Mode parameter (graceful fallback: defaults to Mono for old states) ---
+    if (streamer.readFloat(floatVal))
+        voiceMode_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     return Steinberg::kResultOk;
 }

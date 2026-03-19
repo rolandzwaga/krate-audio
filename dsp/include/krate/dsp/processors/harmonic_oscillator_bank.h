@@ -29,6 +29,7 @@
 #pragma once
 
 #include <krate/dsp/processors/harmonic_types.h>
+#include <krate/dsp/processors/harmonic_oscillator_bank_simd.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/pitch_utils.h>
 
@@ -235,6 +236,15 @@ public:
         recalculateFrequencies();
         recalculateAntiAliasing();
 
+        // Check if any partial has bandwidth (for SIMD fast path selection)
+        hasBandwidth_ = false;
+        for (int i = 0; i < numPartials; ++i) {
+            if (bandwidth_[i] > 1e-4f) {
+                hasBandwidth_ = true;
+                break;
+            }
+        }
+
         frameLoaded_ = true;
         polyMode_ = false;
     }
@@ -353,6 +363,15 @@ public:
         // Recalculate frequencies using per-source pitches
         recalculateSourceFrequencies();
         recalculateAntiAliasing();
+
+        // Check bandwidth for SIMD fast path selection
+        hasBandwidth_ = false;
+        for (int i = 0; i < totalPartials; ++i) {
+            if (bandwidth_[i] > 1e-4f) {
+                hasBandwidth_ = true;
+                break;
+            }
+        }
 
         frameLoaded_ = true;
         polyMode_ = true;
@@ -478,47 +497,59 @@ public:
         const bool doRenorm = (renormCounter_ >= 16);
         if (doRenorm) renormCounter_ = 0;
 
-        for (int i = 0; i < n; ++i) {
-            // Amplitude smoothing (FR-041)
-            float target = targetAmplitude_[i] * antiAliasGain_[i];
-            currentAmplitude_[i] += ampSmoothCoeff_ * (target - currentAmplitude_[i]);
+        // Use SIMD path when no renormalization needed this sample.
+        // The SIMD path handles amplitude smoothing + MCF advance + stereo pan
+        // for all active partials in batches of 4/8.
+        // Bandwidth modulation and renormalization remain scalar (rare/periodic).
+        if (!doRenorm && !hasBandwidth_) {
+            processMcfBatchSIMD(
+                sinState_.data(), cosState_.data(),
+                epsilon_.data(), detuneMultiplier_.data(),
+                currentAmplitude_.data(), targetAmplitude_.data(),
+                antiAliasGain_.data(), panLeft_.data(), panRight_.data(),
+                ampSmoothCoeff_, n, sumL, sumR);
+        } else {
+            // Scalar path: handles bandwidth modulation and renormalization
+            for (int i = 0; i < n; ++i) {
+                // Amplitude smoothing (FR-041)
+                float target = targetAmplitude_[i] * antiAliasGain_[i];
+                currentAmplitude_[i] += ampSmoothCoeff_ * (target - currentAmplitude_[i]);
 
-            // MCF oscillator
-            float s = sinState_[i];
-            float c = cosState_[i];
-            float eps = epsilon_[i] * detuneMultiplier_[i];
+                // MCF oscillator
+                float s = sinState_[i];
+                float c = cosState_[i];
+                float eps = epsilon_[i] * detuneMultiplier_[i];
 
-            // Bandwidth-enhanced synthesis (Loris model)
-            float bw = bandwidth_[i];
-            float ampMod = 1.0f;
-            if (bw > 1e-4f) {
-                // Generate simple noise for bandwidth modulation
-                float noise = nextNoiseSample();
-                // Loris formula: am = sqrt(1-bw) + noise * sqrt(2*bw)
-                ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
-            }
-
-            // Output: amplitude * sine * bandwidth modulation * pan coefficients
-            float ampSample = s * currentAmplitude_[i] * ampMod;
-            sumL += ampSample * panLeft_[i];
-            sumR += ampSample * panRight_[i];
-
-            // Advance phasor: Gordon-Smith MCF (determinant = 1)
-            float sNew = s + eps * c;
-            float cNew = c - eps * sNew;
-
-            // Periodic renormalization
-            if (doRenorm) {
-                float mag2 = sNew * sNew + cNew * cNew;
-                if (mag2 > 0.0f) {
-                    float invMag = 1.0f / std::sqrt(mag2);
-                    sNew *= invMag;
-                    cNew *= invMag;
+                // Bandwidth-enhanced synthesis (Loris model)
+                float bw = bandwidth_[i];
+                float ampMod = 1.0f;
+                if (bw > 1e-4f) {
+                    float noise = nextNoiseSample();
+                    ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
                 }
-            }
 
-            sinState_[i] = sNew;
-            cosState_[i] = cNew;
+                // Output: amplitude * sine * bandwidth modulation * pan coefficients
+                float ampSample = s * currentAmplitude_[i] * ampMod;
+                sumL += ampSample * panLeft_[i];
+                sumR += ampSample * panRight_[i];
+
+                // Advance phasor: Gordon-Smith MCF (determinant = 1)
+                float sNew = s + eps * c;
+                float cNew = c - eps * sNew;
+
+                // Periodic renormalization
+                if (doRenorm) {
+                    float mag2 = sNew * sNew + cNew * cNew;
+                    if (mag2 > 0.0f) {
+                        float invMag = 1.0f / std::sqrt(mag2);
+                        sNew *= invMag;
+                        cNew *= invMag;
+                    }
+                }
+
+                sinState_[i] = sNew;
+                cosState_[i] = cNew;
+            }
         }
 
         // Fade out residual partials beyond activePartials_
@@ -939,6 +970,7 @@ private:
     bool prepared_ = false;               ///< Whether prepare() has been called
     bool frameLoaded_ = false;            ///< Whether loadFrame() has been called
     bool polyMode_ = false;               ///< Whether using polyphonic source-aware mode
+    bool hasBandwidth_ = false;           ///< Whether any partial has non-zero bandwidth (SIMD path selection)
 
     // --- Noise generator for bandwidth enhancement ---
     uint32_t noiseState_ = 12345u;        ///< LCG state for noise generation

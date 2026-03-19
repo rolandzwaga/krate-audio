@@ -45,6 +45,24 @@ concept HasPitchBend = requires(H& h, float f) {
     { h.onPitchBend(f) };
 };
 
+/// Concept: handler supports noteId-aware note-on callback (MPE/polyphonic)
+template<typename H>
+concept HasNoteIdCallbacks = requires(H& h, int16_t pitch, float vel, int32_t noteId) {
+    { h.onNoteOn(pitch, vel, noteId) };
+};
+
+/// Concept: handler supports noteId-aware note-off callback (MPE/polyphonic)
+template<typename H>
+concept HasNoteIdNoteOff = requires(H& h, int16_t pitch, int32_t noteId) {
+    { h.onNoteOff(pitch, noteId) };
+};
+
+/// Concept: handler supports NoteExpression events (MPE per-note expression)
+template<typename H>
+concept HasNoteExpression = requires(H& h, int32_t noteId, uint32_t typeId, double value) {
+    { h.onNoteExpression(noteId, typeId, value) };
+};
+
 // ==============================================================================
 // dispatchMidiEvents
 // ==============================================================================
@@ -84,18 +102,40 @@ void dispatchMidiEvents(Steinberg::Vst::IEventList* events, Handler& handler)
             // Velocity-0 noteOn is treated as noteOff per MIDI convention
             if (event.noteOn.velocity <= 0.0f)
             {
-                handler.onNoteOff(event.noteOn.pitch);
+                if constexpr (HasNoteIdNoteOff<Handler>)
+                    handler.onNoteOff(event.noteOn.pitch, event.noteOn.noteId);
+                else
+                    handler.onNoteOff(event.noteOn.pitch);
             }
             else
             {
-                handler.onNoteOn(event.noteOn.pitch, event.noteOn.velocity);
+                if constexpr (HasNoteIdCallbacks<Handler>)
+                    handler.onNoteOn(event.noteOn.pitch, event.noteOn.velocity,
+                                     event.noteOn.noteId);
+                else
+                    handler.onNoteOn(event.noteOn.pitch, event.noteOn.velocity);
             }
             break;
         }
 
         case Steinberg::Vst::Event::kNoteOffEvent:
         {
-            handler.onNoteOff(event.noteOff.pitch);
+            if constexpr (HasNoteIdNoteOff<Handler>)
+                handler.onNoteOff(event.noteOff.pitch, event.noteOff.noteId);
+            else
+                handler.onNoteOff(event.noteOff.pitch);
+            break;
+        }
+
+        case Steinberg::Vst::Event::kNoteExpressionValueEvent:
+        {
+            if constexpr (HasNoteExpression<Handler>)
+            {
+                handler.onNoteExpression(
+                    event.noteExpressionValue.noteId,
+                    event.noteExpressionValue.typeId,
+                    event.noteExpressionValue.value);
+            }
             break;
         }
 
