@@ -5,6 +5,25 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-03-19
+
+### Added
+
+- **Polyphonic analysis pipeline** — Innexus can now analyze and resynthesize polyphonic content (chords, multi-note passages); detects up to 8 simultaneous fundamental frequencies using harmonic salience summation with iterative spectral envelope cancellation (Klapuri-style)
+- **Hungarian algorithm partial matching** — Replaced greedy nearest-neighbor peak-to-track matching with globally optimal Hungarian algorithm assignment; dramatically improves tracking through crossing partials, vibrato, and pitch bends
+- **Linear prediction for frequency continuation** — 4-frame frequency history per partial with linear/quadratic extrapolation; predicts next frequency for more robust tracking through modulation and complex signals
+- **Multi-source harmonic sieve** — Assigns spectral peaks to detected F0 sources using frequency error weighted by amplitude consistency with each source's spectral envelope; unmatched peaks tracked as inharmonic partials
+- **Adaptive mono/poly mode switching** — Three analysis modes: Mono (YIN only), Poly (always multi-pitch), Auto (switches based on YIN confidence ≤ 0.6); 4-frame amplitude crossfade on mode transitions
+- **Per-partial bandwidth estimation** — Estimates tonal-vs-noisy character from spectral peak curvature; narrow peaks → low bandwidth (tonal), wide peaks → high bandwidth (noisy)
+- **Bandwidth-enhanced synthesis (Loris model)** — Per-partial amplitude modulation: `am = sqrt(1-bw) + noise*sqrt(2*bw)`; replaces global noisiness with per-partial noisiness in both mono and stereo output paths
+- **Source-aware resynthesis** — `loadPolyphonicFrame()` and `setSourcePitch()` enable independent pitch control per detected voice; e.g., shift one chord note while keeping others stable
+- **kAnalysisModeId parameter** (ID 502) — StringListParameter: Mono / Poly / Auto (default Auto)
+
+### Changed
+
+- **Partial struct extended** — Added `sourceId` (which F0 a partial belongs to) and `bandwidth` (per-partial noisiness 0–1) fields; backward compatible with existing consumers
+- **HarmonicModelBuilder smooths bandwidth** — One-pole filter on per-partial bandwidth for frame-to-frame stability
+
 ## [0.9.8] - 2026-03-18
 
 ### Fixed
