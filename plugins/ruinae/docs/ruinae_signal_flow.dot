@@ -288,7 +288,21 @@ digraph RuinaeSignalFlow {
         fontcolor="#6B3B9F";
         penwidth=2;
 
-        phaser [label="Phaser\nTempo sync, center freq,\nstereo spread, waveform,\nfeedback", shape=box, fillcolor="#C49EE0"];
+        subgraph cluster_modulation {
+            label="Modulation Slot (mutually exclusive, 30ms crossfade)";
+            style=dashed;
+            color="#9B6BBF";
+            bgcolor="#EAE0F2";
+
+            mod_select [label="ModulationType\nNone / Phaser / Flanger / Chorus", shape=diamond, fillcolor="#D4B0E8"];
+            phaser [label="Phaser\n2-12 allpass stages\nTempo sync, center freq,\nstereo spread, waveform,\nfeedback", shape=box, fillcolor="#C49EE0"];
+            flanger [label="Flanger\nModulated comb filter\nBipolar feedback (±1.0)\nTempo sync, waveform,\nstereo spread (0-360°)", shape=box, fillcolor="#C49EE0"];
+            chorus [label="Chorus\n1-4 voices\nDepth, rate, mix,\ntempo sync,\nstereo spread", shape=box, fillcolor="#C49EE0"];
+
+            mod_select -> phaser [style=dashed, label="if Phaser"];
+            mod_select -> flanger [style=dashed, label="if Flanger"];
+            mod_select -> chorus [style=dashed, label="if Chorus"];
+        }
 
         subgraph cluster_delay {
             label="Delay (5 types, 30ms crossfade)";
@@ -301,14 +315,17 @@ digraph RuinaeSignalFlow {
 
         harmonizer [label="Harmonizer\nPitch-shifted voices (up to 4)\nHarmony modes, scale-aware\nFormant preserve, per-voice\ninterval/level/pan/delay/detune\n\nMono-in → Stereo-out\n30ms crossfade on enable", shape=box, fillcolor="#C49EE0"];
 
+        inter_limiter [label="Soft Limiter\ntanh(sample)\n(when harmonizer active)", shape=box, fillcolor="#B090D0"];
+
         reverb [label="Reverb\n(2 types, 30ms crossfade)\n• Dattorro Plate\n• FDN (Feedback Delay Network)\nFull parameter set", shape=box, fillcolor="#C49EE0"];
 
-        phaser -> delay [penwidth=2, color="#6B3B9F"];
+        mod_select -> delay [penwidth=2, color="#6B3B9F", label="passthrough\nor processed"];
         delay -> harmonizer [penwidth=2, color="#6B3B9F"];
-        harmonizer -> reverb [penwidth=2, color="#6B3B9F"];
+        harmonizer -> inter_limiter [penwidth=2, color="#6B3B9F"];
+        inter_limiter -> reverb [penwidth=2, color="#6B3B9F"];
     }
 
-    gfilter -> phaser [penwidth=2, color="#2A5080"];
+    gfilter -> mod_select [penwidth=2, color="#2A5080"];
 
     // =========================================================================
     // MASTER OUTPUT
@@ -465,6 +482,8 @@ digraph RuinaeSignalFlow {
     host_tempo -> glfo2 [style=dashed, color="#888888"];
     host_tempo -> trance_gate [style=dashed, color="#888888", label="BPM"];
     host_tempo -> phaser [style=dashed, color="#888888", label="BPM"];
+    host_tempo -> flanger [style=dashed, color="#888888", label="BPM"];
+    host_tempo -> chorus [style=dashed, color="#888888", label="BPM"];
     host_tempo -> delay [style=dashed, color="#888888", label="BPM"];
 
     // Global mod destinations → audio chain targets
@@ -504,7 +523,7 @@ digraph RuinaeSignalFlow {
             <TR><TD ALIGN="LEFT"><B>Audio chain:</B></TD><TD ALIGN="LEFT">Per-sample (voice) / Per-block (effects)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Voice routes:</B></TD><TD ALIGN="LEFT">16 routes × 8 sources → 10 destinations</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Global routes:</B></TD><TD ALIGN="LEFT">8 routes × 14 sources → 15 destinations</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Phaser → Delay → Harmonizer → Reverb (each optional, reverb: Dattorro/FDN)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Effects order:</B></TD><TD ALIGN="LEFT">Modulation (Phaser/Flanger/Chorus/None) → Delay → Harmonizer → Soft Limit → Reverb (Dattorro/FDN)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Interaction:</B></TD><TD ALIGN="LEFT">Global "AllVoice" dests are forwarded into per-voice processing</TD></TR>
             </TABLE>
         >];
