@@ -416,6 +416,24 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readFloat(transDecayNorm))
             setter(makeModParamId(ModParamType::kTransientDecay), transDecayNorm);
 
+        // Rungler (v11+: 4 values: rate, depth, bits, loop)
+        // Controller doesn't use these but must read them to keep stream aligned
+        if (version >= 11) {
+            float runglerRateNorm = 0.0f;
+            streamer.readFloat(runglerRateNorm);
+            setter(makeModParamId(ModParamType::kRunglerRate), runglerRateNorm);
+            float runglerDepth = 0.5f;
+            streamer.readFloat(runglerDepth);
+            setter(makeModParamId(ModParamType::kRunglerDepth), runglerDepth);
+            Steinberg::int8 runglerBits = 8;
+            streamer.readInt8(runglerBits);
+            setter(makeModParamId(ModParamType::kRunglerBits),
+                   static_cast<double>(std::clamp(static_cast<int>(runglerBits), 4, 16) - 4) / 12.0);
+            Steinberg::int8 runglerLoop = 0;
+            streamer.readInt8(runglerLoop);
+            setter(makeModParamId(ModParamType::kRunglerLoop), runglerLoop != 0 ? 1.0 : 0.0);
+        }
+
         // Macros
         constexpr ModParamType macroParams[4][4] = {
             {ModParamType::kMacro1Value, ModParamType::kMacro1Min, ModParamType::kMacro1Max, ModParamType::kMacro1Curve},
@@ -446,10 +464,21 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
                        static_cast<double>(std::clamp(static_cast<int>(source), 0, kUIModSourceCount - 1))
                        / static_cast<double>(kUIModSourceCount - 1));
             int32_t dest = 0;
-            if (streamer.readInt32(dest))
+            if (streamer.readInt32(dest)) {
+                // v12: migrate dest indices from old 6-per-band to new 8-per-band layout
+                if (version <= 11 && dest >= static_cast<int32_t>(ModDest::kBandBase)) {
+                    constexpr int32_t kOldParamsPerBand = 6;
+                    const int32_t bandRelative = dest - static_cast<int32_t>(ModDest::kBandBase);
+                    const int32_t oldBand = bandRelative / kOldParamsPerBand;
+                    const int32_t oldOffset = bandRelative % kOldParamsPerBand;
+                    dest = static_cast<int32_t>(ModDest::kBandBase)
+                         + oldBand * static_cast<int32_t>(ModDest::kParamsPerBand)
+                         + oldOffset;
+                }
                 setter(makeRoutingParamId(r, 1),
                        static_cast<double>(std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)))
                        / static_cast<double>(ModDest::kTotalDestinations - 1));
+            }
             float amount = 0.0f;
             if (streamer.readFloat(amount))
                 setter(makeRoutingParamId(r, 2), static_cast<double>(amount + 1.0f) / 2.0);
@@ -1704,6 +1733,19 @@ Steinberg::MemoryStream* Controller::createComponentStateStream() {
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientSensitivity)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientAttack)));
     streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kTransientDecay)));
+
+    // Rungler (v11+: rate[float], depth[float], bits[int8], loop[int8])
+    {
+        float rateNorm = getParamNorm(makeModParamId(ModParamType::kRunglerRate));
+        streamer.writeFloat(rateNorm);
+        streamer.writeFloat(getParamNorm(makeModParamId(ModParamType::kRunglerDepth)));
+        // Bits: parameter has stepCount=12 (values 4-16), convert normalized to raw int
+        auto* bitsParam = getParameterObject(makeModParamId(ModParamType::kRunglerBits));
+        Steinberg::int8 bits = bitsParam ? static_cast<Steinberg::int8>(
+            4 + static_cast<int>(std::round(bitsParam->getNormalized() * 12.0))) : 8;
+        streamer.writeInt8(bits);
+        streamer.writeInt8(getBoolInt8(makeModParamId(ModParamType::kRunglerLoop)));
+    }
 
     constexpr ModParamType macroParams[4][4] = {
         {ModParamType::kMacro1Value, ModParamType::kMacro1Min, ModParamType::kMacro1Max, ModParamType::kMacro1Curve},

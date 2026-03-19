@@ -300,6 +300,20 @@ public:
         }
     }
 
+    /// @brief Set tone and bias modulation offsets for this band.
+    /// For morph path: forwards offsets to MorphEngine for per-sample application.
+    /// For non-morph path: offsets are applied at block rate in beginBlockModulation().
+    ///
+    /// @param toneOffset Tone modulation offset [-1, +1] normalized (scaled by 7800 Hz)
+    /// @param biasOffset Bias modulation offset [-1, +1] normalized
+    void setToneBiasModOffset(float toneOffset, float biasOffset) noexcept {
+        toneModOffset_ = toneOffset;
+        biasModOffset_ = biasOffset;
+        if (morphEngine_) {
+            morphEngine_->setToneBiasModOffset(toneOffset, biasOffset);
+        }
+    }
+
     /// @brief Enable or disable morph engine.
     /// When disabled, uses single distortion adapter instead.
     /// @param enabled true to enable morphing, false for single distortion
@@ -422,12 +436,17 @@ public:
     /// adapter. Must be paired with endBlockModulation() after the loop.
     void beginBlockModulation() noexcept {
         blockModActive_ = false;
-        if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f)) {
+        if (!morphEnabled_ && (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
+                             || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f)) {
             savedCommonParams_ = distortion_.getCommonParams();
+            savedDistortionParams_ = distortion_.getParams();
             distortion_.setCommonParams({
                 std::clamp(savedCommonParams_.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f),
                 std::clamp(savedCommonParams_.mix + mixModOffset_, 0.0f, 1.0f),
-                savedCommonParams_.toneHz});
+                std::clamp(savedCommonParams_.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f)});
+            auto modParams = savedDistortionParams_;
+            modParams.bias = std::clamp(modParams.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
+            distortion_.setParams(modParams);
             blockModActive_ = true;
         }
     }
@@ -437,6 +456,7 @@ public:
     void endBlockModulation() noexcept {
         if (blockModActive_) {
             distortion_.setCommonParams(savedCommonParams_);
+            distortion_.setParams(savedDistortionParams_);
             blockModActive_ = false;
         }
     }
@@ -794,12 +814,15 @@ private:
     bool morphEnabled_ = false;  // Default to legacy mode for backward compatibility
     bool bypassed_ = false;       // FR-012: Band bypass flag
 
-    // Drive/Mix modulation offsets (block-rate, from ModulationEngine)
+    // Modulation offsets (block-rate, from ModulationEngine)
     float driveModOffset_ = 0.0f;
     float mixModOffset_ = 0.0f;
+    float toneModOffset_ = 0.0f;
+    float biasModOffset_ = 0.0f;
 
     // Block-rate modulation save/restore state
     DistortionCommonParams savedCommonParams_{};
+    DistortionParams savedDistortionParams_{};
     bool blockModActive_ = false;
 
     // Cached morph state for oversampling factor computation (spec 009)

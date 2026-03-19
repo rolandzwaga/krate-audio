@@ -593,6 +593,8 @@ void Controller::registerModulationParams() {
             routeDest->appendString(Steinberg::String().printf("Band %d Mix", b));
             routeDest->appendString(Steinberg::String().printf("Band %d Gain", b));
             routeDest->appendString(Steinberg::String().printf("Band %d Pan", b));
+            routeDest->appendString(Steinberg::String().printf("Band %d Tone", b));
+            routeDest->appendString(Steinberg::String().printf("Band %d Bias", b));
         }
         parameters.addParameter(routeDest);
 

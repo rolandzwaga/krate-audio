@@ -89,6 +89,8 @@ void MorphEngine::reset() noexcept {
     // Reset modulation offsets
     driveModOffset_ = 0.0f;
     mixModOffset_ = 0.0f;
+    toneModOffset_ = 0.0f;
+    biasModOffset_ = 0.0f;
 }
 
 // =============================================================================
@@ -113,6 +115,11 @@ void MorphEngine::setMode(MorphMode mode) noexcept {
 void MorphEngine::setDriveMixModOffset(float driveOffset, float mixOffset) noexcept {
     driveModOffset_ = driveOffset;
     mixModOffset_ = mixOffset;
+}
+
+void MorphEngine::setToneBiasModOffset(float toneOffset, float biasOffset) noexcept {
+    toneModOffset_ = toneOffset;
+    biasModOffset_ = biasOffset;
 }
 
 void MorphEngine::setSmoothingTime(float timeMs) noexcept {
@@ -695,14 +702,17 @@ float MorphEngine::processSameFamily(float input) noexcept {
         }
     }
 
-    // Set blended adapter to dominant type with interpolated params
+    // Set blended adapter to dominant type with interpolated params + modulation
     blendedAdapter_.setType(nodes_[dominantNode].type);
-    blendedAdapter_.setParams(interpolateParams());
 
-    // Apply drive/mix modulation offsets after interpolation
+    auto bp = interpolateParams();
+    bp.bias = std::clamp(bp.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
+    blendedAdapter_.setParams(bp);
+
     auto cp = interpolateCommonParams();
     cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
     cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
+    cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
     blendedAdapter_.setCommonParams(cp);
 
     return blendedAdapter_.process(input);
@@ -712,13 +722,18 @@ float MorphEngine::processCrossFamily(float input) noexcept {
     // Cross-family: parallel processing with equal-power crossfade
     // Per spec FR-007, FR-008
 
-    // Apply drive/mix modulation offsets to per-node adapters (from base node params)
-    if (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f) {
+    // Apply modulation offsets to per-node adapters (from base node params)
+    if (driveModOffset_ != 0.0f || mixModOffset_ != 0.0f
+        || toneModOffset_ != 0.0f || biasModOffset_ != 0.0f) {
         for (int i = 0; i < activeNodeCount_; ++i) {
             auto cp = nodes_[i].commonParams;
             cp.drive = std::clamp(cp.drive + driveModOffset_ * 10.0f, 0.0f, 10.0f);
             cp.mix = std::clamp(cp.mix + mixModOffset_, 0.0f, 1.0f);
+            cp.toneHz = std::clamp(cp.toneHz + toneModOffset_ * 7800.0f, 200.0f, 8000.0f);
             adapters_[i].setCommonParams(cp);
+            auto p = nodes_[i].params;
+            p.bias = std::clamp(p.bias + biasModOffset_ * 2.0f, -1.0f, 1.0f);
+            adapters_[i].setParams(p);
         }
     }
 

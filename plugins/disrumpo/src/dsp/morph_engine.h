@@ -101,6 +101,11 @@ public:
     /// @param mixOffset Mix modulation offset [-1, +1]
     void setDriveMixModOffset(float driveOffset, float mixOffset) noexcept;
 
+    /// @brief Set tone and bias modulation offsets.
+    /// Tone offset [-1, +1] is scaled by 7800 Hz (tone range [200, 8000]).
+    /// Bias offset [-1, +1] is scaled by 2.0 (bias range [-1, +1]).
+    void setToneBiasModOffset(float toneOffset, float biasOffset) noexcept;
+
     /// @brief Set nodes from BandState.
     ///
     /// Copies node configurations for weight computation and processing.
@@ -246,9 +251,11 @@ private:
     // Prepared flag
     bool prepared_ = false;
 
-    // Drive/Mix modulation offsets (block-rate, from ModulationEngine)
+    // Modulation offsets (block-rate, from ModulationEngine)
     float driveModOffset_ = 0.0f;  // [-1, +1] normalized offset
     float mixModOffset_ = 0.0f;    // [-1, +1] normalized offset
+    float toneModOffset_ = 0.0f;   // [-1, +1] normalized offset (scaled by 7800 Hz)
+    float biasModOffset_ = 0.0f;   // [-1, +1] normalized offset (scaled by 2.0)
 };
 
 } // namespace Disrumpo

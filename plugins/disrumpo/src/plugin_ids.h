@@ -582,10 +582,11 @@ constexpr uint8_t extractRoutingOffset(Steinberg::Vst::ParamID paramId) {
 // Layout:
 // - 0-2: Global parameters (InputGain, OutputGain, GlobalMix)
 // - 3-5: Sweep parameters (Frequency, Width, Intensity)
-// - 6-29: Per-band parameters (4 bands × 6 params each)
+// - 6+: Per-band parameters (4 bands × 8 params each)
 //
-// Per-band params at offset (6 + band*6 + param):
-//   +0=MorphX, +1=MorphY, +2=Drive, +3=Mix, +4=BandGain, +5=BandPan
+// Per-band params at offset (6 + band*8 + param):
+//   +0=MorphX, +1=MorphY, +2=Drive, +3=Mix, +4=BandGain, +5=BandPan,
+//   +6=BandTone, +7=BandBias
 // ==============================================================================
 
 namespace ModDest {
@@ -602,7 +603,7 @@ inline constexpr uint32_t kSweepIntensity = 5;
 
 // Per-band destination base
 inline constexpr uint32_t kBandBase       = 6;
-inline constexpr uint32_t kParamsPerBand  = 6;
+inline constexpr uint32_t kParamsPerBand  = 8;
 
 // Per-band parameter offsets within a band block
 inline constexpr uint32_t kBandMorphX  = 0;
@@ -611,13 +612,15 @@ inline constexpr uint32_t kBandDrive   = 2;
 inline constexpr uint32_t kBandMix     = 3;
 inline constexpr uint32_t kBandGain    = 4;
 inline constexpr uint32_t kBandPan     = 5;
+inline constexpr uint32_t kBandTone    = 6;
+inline constexpr uint32_t kBandBias    = 7;
 
-// Total modulation destinations: 6 global/sweep + 4 bands × 6 params = 30
+// Total modulation destinations: 6 global/sweep + 4 bands × 8 params = 38
 inline constexpr uint32_t kTotalDestinations = kBandBase + 4 * kParamsPerBand;
 
 /// @brief Get modulation destination index for a per-band parameter.
 /// @param band Band index (0-3)
-/// @param paramOffset One of kBandMorphX..kBandPan (0-5)
+/// @param paramOffset One of kBandMorphX..kBandBias (0-7)
 /// @return Destination index for use with ModulationEngine
 constexpr uint32_t bandParam(uint8_t band, uint32_t paramOffset) {
     return kBandBase + static_cast<uint32_t>(band) * kParamsPerBand + paramOffset;
@@ -680,8 +683,9 @@ constexpr const char* getMorphLinkModeName(MorphLinkMode mode) noexcept {
 // - v7: Progressive disclosure (window size, MIDI CC mappings, mod panel visibility)
 // - v8: Reduced max bands from 8 to 4 (stream format: 4 bands, 3 crossovers, 4 morph)
 // - v9: Shape parameter slots (10 generic slots per node for type-specific UI controls)
+// - v12: Band Tone/Bias modulation targets (kParamsPerBand 6→8, dest index migration)
 // ==============================================================================
-constexpr int32_t kPresetVersion = 11;
+constexpr int32_t kPresetVersion = 12;
 
 /// Migration table: old note index (v9, 15 entries) -> new dropdown index (v10, 21 entries).
 /// Old encoding: NoteValue * 3 + NoteModifier (Whole→Sixteenth, None/Dotted/Triplet).

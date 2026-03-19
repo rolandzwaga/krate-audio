@@ -176,6 +176,15 @@ public:
                 else if (*tagName == "Band.NodeMix")
                     modSlider->setModDestId(
                         ModDest::bandParam(bandIndex_, ModDest::kBandMix));
+                else if (*tagName == "Band.NodeTone")
+                    modSlider->setModDestId(
+                        ModDest::bandParam(bandIndex_, ModDest::kBandTone));
+                else if (*tagName == "Band.Gain")
+                    modSlider->setModDestId(
+                        ModDest::bandParam(bandIndex_, ModDest::kBandGain));
+                else if (*tagName == "Band.Pan")
+                    modSlider->setModDestId(
+                        ModDest::bandParam(bandIndex_, ModDest::kBandPan));
             }
         }
 

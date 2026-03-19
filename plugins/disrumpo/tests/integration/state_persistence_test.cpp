@@ -464,21 +464,23 @@ TEST_CASE("ModDest::bandParam produces expected indices for all bands",
         REQUIRE(bandParam(band, kBandMix) == expectedBase + 3);
         REQUIRE(bandParam(band, kBandGain) == expectedBase + 4);
         REQUIRE(bandParam(band, kBandPan) == expectedBase + 5);
+        REQUIRE(bandParam(band, kBandTone) == expectedBase + 6);
+        REQUIRE(bandParam(band, kBandBias) == expectedBase + 7);
     }
 
     // Verify total
-    REQUIRE(kTotalDestinations == 30);
-    REQUIRE(bandParam(3, kBandPan) == 29);  // Last valid destination
+    REQUIRE(kTotalDestinations == 38);
+    REQUIRE(bandParam(3, kBandBias) == 37);  // Last valid destination
 }
 
 TEST_CASE("Dropdown item count matches kTotalDestinations",
           "[integration][state_persistence][routing]") {
     // The dropdown should have exactly kTotalDestinations items:
-    // 3 global + 3 sweep + (kMaxBands * 6) per-band
+    // 3 global + 3 sweep + (kMaxBands * 8) per-band
     constexpr int kGlobalCount = 3;
     constexpr int kSweepCount = 3;
     constexpr int kBandsInDropdown = 4;  // Must match kMaxBands
-    constexpr int kParamsPerBand = 6;
+    constexpr int kParamsPerBand = 8;
 
     constexpr int expectedTotal = kGlobalCount + kSweepCount
                                   + kBandsInDropdown * kParamsPerBand;

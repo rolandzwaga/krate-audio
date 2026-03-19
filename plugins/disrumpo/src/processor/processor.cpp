@@ -550,14 +550,19 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bandMorphCache_[b].morphY);
         bandProcessors_[b].setMorphPosition(modMorphX, modMorphY);
 
-        // Band Drive/Mix: pass raw offsets to BandProcessor/MorphEngine
+        // Band Drive/Mix/Tone/Bias: pass raw offsets to BandProcessor/MorphEngine
         // For morph path: MorphEngine applies per-sample after interpolation
         // For non-morph path: BandProcessor applies at block rate in processBlock()
         const float driveOffset = modulationEngine_.getModulationOffset(
             ModDest::bandParam(bandIdx, ModDest::kBandDrive));
         const float mixOffset = modulationEngine_.getModulationOffset(
             ModDest::bandParam(bandIdx, ModDest::kBandMix));
+        const float toneOffset = modulationEngine_.getModulationOffset(
+            ModDest::bandParam(bandIdx, ModDest::kBandTone));
+        const float biasOffset = modulationEngine_.getModulationOffset(
+            ModDest::bandParam(bandIdx, ModDest::kBandBias));
         bandProcessors_[b].setDriveMixModOffset(driveOffset, mixOffset);
+        bandProcessors_[b].setToneBiasModOffset(toneOffset, biasOffset);
     }
 
     // ==========================================================================
@@ -1501,9 +1506,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 routing.source = static_cast<Krate::DSP::ModSource>(
                     std::clamp(static_cast<int>(source), 0, static_cast<int>(Krate::DSP::kModSourceCount - 1)));
             int32_t dest = 0;
-            if (streamer.readInt32(dest))
+            if (streamer.readInt32(dest)) {
+                // v12: kParamsPerBand changed from 6 to 8 (added Tone, Bias).
+                // Migrate old dest indices: old band offsets were at 6 + band*6 + param,
+                // new layout is 6 + band*8 + param.
+                if (version <= 11 && dest >= static_cast<int32_t>(ModDest::kBandBase)) {
+                    constexpr int32_t kOldParamsPerBand = 6;
+                    const int32_t bandRelative = dest - static_cast<int32_t>(ModDest::kBandBase);
+                    const int32_t oldBand = bandRelative / kOldParamsPerBand;
+                    const int32_t oldOffset = bandRelative % kOldParamsPerBand;
+                    dest = static_cast<int32_t>(ModDest::kBandBase)
+                         + oldBand * static_cast<int32_t>(ModDest::kParamsPerBand)
+                         + oldOffset;
+                }
                 routing.destParamId = static_cast<uint32_t>(
                     std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)));
+            }
             if (!streamer.readFloat(routing.amount))
                 routing.amount = 0.0f;
             Steinberg::int8 curve = 0;
