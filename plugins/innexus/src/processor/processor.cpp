@@ -471,6 +471,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             {
                 currentLiveFrame_ = liveAnalysis_.consumeFrame();
                 currentLiveResidualFrame_ = liveAnalysis_.consumeResidualFrame();
+                currentLivePolyFrame_ = liveAnalysis_.consumePolyphonicFrame();
             }
         }
     }

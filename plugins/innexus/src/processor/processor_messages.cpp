@@ -91,6 +91,22 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
     displayDataBuffer_.f0 = frame.f0;
     displayDataBuffer_.f0Confidence = frame.f0Confidence;
 
+    // Polyphonic voice data
+    const auto& polyFrame = currentLivePolyFrame_;
+    int numVoices = std::min(polyFrame.numSources, 8);
+    displayDataBuffer_.numVoices = static_cast<uint8_t>(numVoices);
+    displayDataBuffer_.isPolyphonic = liveAnalysis_.isPolyphonicActive() ? 1 : 0;
+    displayDataBuffer_.analysisMode = static_cast<uint8_t>(liveAnalysis_.getAnalysisMode());
+
+    for (int i = 0; i < numVoices; ++i)
+    {
+        displayDataBuffer_.voices[i].f0 = polyFrame.sources[static_cast<size_t>(i)].f0;
+        displayDataBuffer_.voices[i].confidence = polyFrame.sources[static_cast<size_t>(i)].f0Confidence;
+        displayDataBuffer_.voices[i].amplitude = polyFrame.sources[static_cast<size_t>(i)].globalAmplitude;
+    }
+    for (int i = numVoices; i < 8; ++i)
+        displayDataBuffer_.voices[i] = {};
+
     // Memory slot status
     for (int i = 0; i < 8; ++i)
         displayDataBuffer_.slotOccupied[i] = memorySlots_[static_cast<size_t>(i)].occupied ? 1 : 0;

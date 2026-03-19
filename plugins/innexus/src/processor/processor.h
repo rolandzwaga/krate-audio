@@ -627,6 +627,9 @@ private:
     /// Latest residual frame from live analysis
     Krate::DSP::ResidualFrame currentLiveResidualFrame_{};
 
+    /// Latest polyphonic frame from live analysis (for multi-voice display)
+    Krate::DSP::PolyphonicFrame currentLivePolyFrame_{};
+
     // =========================================================================
     // Manual Freeze State (M4: FR-002, FR-003, FR-007)
     // =========================================================================

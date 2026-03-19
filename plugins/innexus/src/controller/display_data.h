@@ -11,6 +11,13 @@
 
 namespace Innexus {
 
+/// Per-voice data for polyphonic pitch display
+struct VoiceDisplayData {
+    float f0 = 0.0f;           ///< Hz
+    float confidence = 0.0f;   ///< [0.0, 1.0]
+    float amplitude = 0.0f;    ///< Relative amplitude for visual scaling
+};
+
 struct DisplayData
 {
     float partialAmplitudes[96]{};    // Linear amplitudes [0.0, ~1.0]
@@ -25,6 +32,10 @@ struct DisplayData
     float mod2Phase = 0.0f;           // LFO phase [0.0, 1.0]
     bool mod1Active = false;          // Modulator 1 enabled & depth > 0
     bool mod2Active = false;          // Modulator 2 enabled & depth > 0
+    VoiceDisplayData voices[8]{};     // Detected polyphonic voices (sorted by salience)
+    uint8_t numVoices = 0;             // 0-8 active voices
+    uint8_t isPolyphonic = 0;          // 1 = poly path was used for this frame
+    uint8_t analysisMode = 2;          // 0=Mono, 1=Poly, 2=Auto (mirrors AnalysisMode enum)
     uint32_t frameCounter = 0;        // Monotonic, incremented per new frame
 };
 

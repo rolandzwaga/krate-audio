@@ -237,7 +237,7 @@
 
     <!-- FR-003: F0 section -->
     <view class="FieldsetContainer" origin="530, 52" size="265, 145"
-          title="F0 Confidence" fieldset-title="F0 Confidence" fieldset-color="text-dim"
+          title="Pitch Detection" fieldset-title="Pitch Detection" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset"/>
 
     <!-- FR-013: Confidence Indicator (custom view) -->
