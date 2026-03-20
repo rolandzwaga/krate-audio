@@ -56,7 +56,7 @@
         <section class="overview">
             <h2>Overview</h2>
             <p>Innexus is a harmonic analysis and resynthesis instrument that deconstructs audio into its fundamental components &mdash; pitch, harmonics, and noise &mdash; then rebuilds it as a fully playable synthesizer voice. Load a sample or feed live audio through the sidechain, and Innexus extracts up to 96 partials in real time using spectral analysis and pitch tracking. The resulting harmonic model can be frozen, morphed, filtered, modulated, and blended across multiple sources, turning any sound into a rich, evolving instrument.</p>
-            <p>With polyphonic analysis capable of detecting up to 8 simultaneous voices, bandwidth-enhanced synthesis for natural noise textures, and a harmonic physics engine that introduces organic interactions between partials, Innexus bridges the gap between analysis-driven resynthesis and creative sound design.</p>
+            <p>With polyphonic analysis capable of detecting up to 8 simultaneous voices, bandwidth-enhanced synthesis for natural noise textures, MPE (MIDI Polyphonic Expression) support for per-note expressive control, and a harmonic physics engine that introduces organic interactions between partials, Innexus bridges the gap between analysis-driven resynthesis and creative sound design.</p>
         </section>
 
         <section class="signal-flow">
@@ -89,6 +89,7 @@
                 <li><strong>Confidence-gated freeze</strong> &mdash; automatically freezes the harmonic model when pitch detection confidence drops, with spectral decay envelope for natural fade-out</li>
                 <li><strong>Drag-and-drop sample loading</strong> (WAV, AIFF) with visual feedback overlay</li>
                 <li><strong>35 factory presets</strong> across 7 categories with built-in preset browser and save dialog</li>
+                <li><strong>MPE support</strong> &mdash; per-note expression via MIDI Polyphonic Expression: independent tuning (&plusmn;120 semitones), volume (0&ndash;4&times; gain), pan, and brightness per voice, plus global pitch bend</li>
                 <li><strong>Full parameter automation</strong> and MIDI CC learn support</li>
                 <li><strong>Cross-platform:</strong> VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
             </ul>
