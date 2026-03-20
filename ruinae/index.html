@@ -56,7 +56,7 @@
         <section class="overview">
             <h2>Overview</h2>
             <p>Ruinae is a synthesizer built for sound design that goes beyond traditional subtractive synthesis. Its dual-oscillator architecture offers 10 oscillator types &mdash; from conventional PolyBLEP waveforms to chaotic attractors, particle clouds, and spectral freeze &mdash; feeding into 13 filter types, 7 distortion algorithms, and a full effects chain with phaser, flanger, chorus, delay, harmonizer, and plate reverb.</p>
-            <p>A deep modulation system with an 8-slot matrix, dual LFOs, three ADSR envelopes with Bezier curves, and exotic sources like chaos generators and rungler circuits keeps everything in motion. The built-in arpeggiator with 8 polymetric lanes, per-step chord generation, and Euclidean timing turns single notes into complex harmonic sequences. Up to 16 voices of polyphony with sidechain-reactive modulation sources round out a synthesizer designed to produce sounds that evolve, breathe, and surprise.</p>
+            <p>A deep modulation system with an 8-slot matrix, dual LFOs, three ADSR envelopes with Bezier curves, and exotic sources like chaos generators and rungler circuits keeps everything in motion. The built-in arpeggiator with 8 polymetric lanes, per-step chord generation, and Euclidean timing turns single notes into complex harmonic sequences. Up to 16 voices of polyphony with MPE (MIDI Polyphonic Expression) support and sidechain-reactive modulation sources round out a synthesizer designed to produce sounds that evolve, breathe, and surprise.</p>
         </section>
 
         <section class="signal-flow">
@@ -86,6 +86,7 @@
                 <li><strong>8 polymetric arp lanes</strong> &mdash; up to 32 steps each: Velocity, Gate, Pitch, Chord (None/Dyad/Triad/7th/9th via diatonic scale-degree stacking), Inversion (Root/1st/2nd/3rd), Ratchet, Modifier, and Condition</li>
                 <li><strong>Arp harmonic features</strong> &mdash; 16 scale modes for pitch quantization and chord quality, global voicing modes (Close, Drop-2, Spread, Random), and arp pitch available as a global modulation source</li>
                 <li><strong>Up to 16-voice polyphony</strong> &mdash; mono mode with legato and portamento, configurable voice-steal priority, per-voice pan, stereo width, and global output filter (LP/HP/BP/Notch)</li>
+                <li><strong>MPE support</strong> &mdash; per-note expression via MIDI Polyphonic Expression: independent tuning (&plusmn;120 semitones), volume (0&ndash;4&times; gain), and brightness (&plusmn;48 semitone filter cutoff offset) per voice, plus global pitch bend</li>
                 <li><strong>65+ factory presets</strong> across synth and arp categories with built-in preset browser, save dialog, and search</li>
                 <li><strong>Full parameter automation</strong> and MIDI CC learn support</li>
                 <li><strong>In-plugin update checker</strong> &mdash; automatic version check with non-intrusive update banner</li>
