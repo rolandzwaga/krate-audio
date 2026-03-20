@@ -128,6 +128,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(FUnknown* context) {
 }
 
 Steinberg::tresult PLUGIN_API Controller::terminate() {
+    editorClosing_.store(true, std::memory_order_release);
+    cachedModOffsets_ = nullptr;
     updateChecker_.reset();
     return EditControllerEx1::terminate();
 }
@@ -1328,6 +1330,8 @@ VSTGUI::IController* Controller::createSubController(
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor) {
+    editorClosing_.store(false, std::memory_order_release);
+    spectrumDataAvailable_ = false;
     activeEditor_ = editor;
 
     auto* bandCountParam = getParameterObject(makeGlobalParamId(GlobalParamType::kGlobalBandCount));
@@ -1470,6 +1474,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* editor) {
+    // FIRST: set guard flag and kill all timers/async callbacks to prevent
+    // races with DataExchange or timer callbacks during teardown
+    editorClosing_.store(true, std::memory_order_release);
+    cachedModOffsets_ = nullptr;
+    if (sweepVisualizationTimer_) { sweepVisualizationTimer_->stop(); sweepVisualizationTimer_ = nullptr; }
+    if (spectrumDisplay_) spectrumDisplay_->stopAnalysis();
+
+    // Now safe to tear down visibility controllers and views
     for (auto& vc : bandVisibilityControllers_) {
         if (vc) {
             if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(vc.get())) cvc->deactivate();
@@ -1499,7 +1511,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         if (auto* svc = dynamic_cast<SweepVisualizationController*>(sweepVisualizationController_.get())) svc->deactivate();
         sweepVisualizationController_ = nullptr;
     }
-    if (sweepVisualizationTimer_) { sweepVisualizationTimer_->stop(); sweepVisualizationTimer_ = nullptr; }
     if (customCurveVisController_) {
         if (auto* cvc = dynamic_cast<ContainerVisibilityController*>(customCurveVisController_.get())) cvc->deactivate();
         customCurveVisController_ = nullptr;
@@ -1527,7 +1538,6 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
         if (auto* bridge = dynamic_cast<CrossoverDragBridge*>(crossoverDragBridge_.get())) bridge->deactivate();
         crossoverDragBridge_ = nullptr;
     }
-    if (spectrumDisplay_) spectrumDisplay_->stopAnalysis();
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
     activeEditor_ = nullptr;
@@ -1876,6 +1886,9 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
     Steinberg::Vst::DataExchangeBlock* blocks,
     Steinberg::TBool /*onBackgroundThread*/)
 {
+    if (editorClosing_.load(std::memory_order_acquire))
+        return;
+
     for (Steinberg::uint32 i = 0; i < numBlocks; ++i) {
         if (blocks[i].data && blocks[i].size >= sizeof(SpectrumBlock)) {
             const auto* specBlock = static_cast<const SpectrumBlock*>(blocks[i].data);
@@ -1901,6 +1914,8 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
 
 Steinberg::tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message) {
     if (!message) return Steinberg::kInvalidArgument;
+    if (editorClosing_.load(std::memory_order_acquire))
+        return Steinberg::Vst::EditControllerEx1::notify(message);
     if (dataExchangeReceiver_.onMessage(message)) return Steinberg::kResultOk;
 
     if (strcmp(message->getMessageID(), "ModOffsets") == 0) {

@@ -315,7 +315,6 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
 }
 
 Steinberg::tresult PLUGIN_API Processor::terminate() {
-    // Cleanup any resources allocated in initialize()
     return AudioEffect::terminate();
 }
 

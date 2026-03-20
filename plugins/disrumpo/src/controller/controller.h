@@ -34,6 +34,7 @@
 #include <krate/dsp/primitives/spectrum_fifo.h>
 
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 
@@ -285,6 +286,9 @@ private:
 
     /// Whether we've received at least one spectrum block (for editor connection)
     bool spectrumDataAvailable_ = false;
+
+    /// Guard: set true during willClose() to reject late DataExchange/message callbacks
+    std::atomic<bool> editorClosing_{false};
 
     // ==========================================================================
     // Modulation Offset Visualization
