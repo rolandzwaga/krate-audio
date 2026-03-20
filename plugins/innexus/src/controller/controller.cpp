@@ -1119,6 +1119,23 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(pcVal, 0.0f, 1.0f)));
     }
 
+    // --- Modulator Tempo Sync parameters (skip 4 floats) ---
+    {
+        float skipVal = 0.0f;
+        streamer.readFloat(skipVal); // mod1RateSync
+        streamer.readFloat(skipVal); // mod1NoteValue
+        streamer.readFloat(skipVal); // mod2RateSync
+        streamer.readFloat(skipVal); // mod2NoteValue
+    }
+
+    // --- Voice Mode parameter ---
+    {
+        float vmVal = 0.0f;
+        if (streamer.readFloat(vmVal))
+            setParamNormalized(kVoiceModeId,
+                static_cast<double>(std::clamp(vmVal, 0.0f, 1.0f)));
+    }
+
     return Steinberg::kResultOk;
 }
 
