@@ -209,6 +209,11 @@ public:
         voiceLfo_.reset();
         noteFrequency_ = 0.0f;
         velocity_ = 0.0f;
+        noteId_ = -1;
+        midiNote_ = -1;
+        expressionTuning_ = 0.0f;
+        expressionVolume_ = 1.0f;
+        expressionBrightness_ = 0.5f;
     }
 
     // =========================================================================
@@ -227,6 +232,11 @@ public:
         // Clear stale pitch modulation offsets from previous note
         oscAPitchModSemitones_ = 0.0f;
         oscBPitchModSemitones_ = 0.0f;
+
+        // Reset MPE expression fields for new note
+        expressionTuning_ = 0.0f;
+        expressionVolume_ = 1.0f;
+        expressionBrightness_ = 0.5f;
 
         // Update oscillator frequencies (with per-osc tuning)
         updateOscFrequencies();
@@ -456,9 +466,12 @@ public:
             }
 
             // Compute per-sample cutoff modulation (FR-011)
+            // MPE brightness: map 0-1 to ±48 semitones from center (0.5)
+            const float brightnessOffset = (expressionBrightness_ - 0.5f) * 96.0f;
             const float totalSemitones = filterEnvAmount_ * filterEnvVal
                                        + keyTrackSemitones
-                                       + cutoffModSemitones;
+                                       + cutoffModSemitones
+                                       + brightnessOffset;
             float effectiveCutoff = filterCutoffHz_ * semitonesToRatio(totalSemitones);
             effectiveCutoff = std::clamp(effectiveCutoff, 20.0f, maxCutoff);
 
@@ -557,8 +570,8 @@ public:
                 sample = tranceGate_.process(sample);
             }
 
-            // Apply amplitude envelope (VCA) (FR-020)
-            const float ampLevel = output[i];
+            // Apply amplitude envelope (VCA) (FR-020) with MPE expression volume
+            const float ampLevel = output[i] * expressionVolume_;
             output[i] = sample * ampLevel;
 
             // NaN/Inf safety flush (FR-036)
@@ -1083,6 +1096,34 @@ public:
     }
 
     // =========================================================================
+    // MPE Per-Note Expression
+    // =========================================================================
+
+    /// @brief Set the VST3 noteId for this voice (MPE routing).
+    void setNoteId(int32_t noteId) noexcept { noteId_ = noteId; }
+    [[nodiscard]] int32_t noteId() const noexcept { return noteId_; }
+
+    /// @brief Set the MIDI note number for noteId lookup.
+    void setMidiNote(int note) noexcept { midiNote_ = note; }
+    [[nodiscard]] int midiNote() const noexcept { return midiNote_; }
+
+    /// @brief Set per-note tuning offset in semitones and update oscillator frequencies.
+    void setExpressionTuning(float semitones) noexcept {
+        expressionTuning_ = semitones;
+        updateOscFrequencies();
+    }
+
+    /// @brief Set per-note volume multiplier (0 = silent, 1 = unity, 4 = max).
+    void setExpressionVolume(float gain) noexcept {
+        expressionVolume_ = std::clamp(gain, 0.0f, 4.0f);
+    }
+
+    /// @brief Set per-note brightness (0-1, affects filter cutoff).
+    void setExpressionBrightness(float brightness) noexcept {
+        expressionBrightness_ = std::clamp(brightness, 0.0f, 1.0f);
+    }
+
+    // =========================================================================
     // Modulation Routing (FR-024 through FR-027)
     // =========================================================================
 
@@ -1482,17 +1523,21 @@ private:
     /// @brief Recompute per-oscillator frequencies from noteFrequency_ and
     ///        per-osc tuning offsets (semitones + cents).
     void updateOscFrequencies() noexcept {
-        const float freqA = noteFrequency_
+        // Apply MPE expression tuning to base frequency
+        const float tuningRatio = semitonesToRatio(expressionTuning_);
+        const float effectiveFreq = noteFrequency_ * tuningRatio;
+
+        const float freqA = effectiveFreq
             * semitonesToRatio(oscATuneSemitones_ + oscAFineCents_ / 100.0f
                                + oscAPitchModSemitones_);
-        const float freqB = noteFrequency_
+        const float freqB = effectiveFreq
             * semitonesToRatio(oscBTuneSemitones_ + oscBFineCents_ / 100.0f
                                + oscBPitchModSemitones_);
         oscA_.setFrequency(freqA);
         oscB_.setFrequency(freqB);
 
         // Forward note frequency to ring modulator for NoteTrack mode (FR-016)
-        ringMod_.setNoteFrequency(noteFrequency_);
+        ringMod_.setNoteFrequency(effectiveFreq);
     }
 
     // =========================================================================
@@ -1613,6 +1658,14 @@ private:
     float noteFrequency_{0.0f};
     float velocity_{0.0f};
     float aftertouch_{0.0f};  ///< Channel aftertouch [0, 1] (FR-010, 042-ext-modulation-system)
+
+    // MPE per-note expression fields
+    int32_t noteId_{-1};                 ///< VST3 noteId for MPE NoteExpression routing
+    int midiNote_{-1};                   ///< MIDI note number (0-127), for noteId lookup
+    float expressionTuning_{0.0f};       ///< Per-note tuning offset in semitones (kTuningTypeID)
+    float expressionVolume_{1.0f};       ///< Per-note gain multiplier (kVolumeTypeID), 0-4x
+    float expressionBrightness_{0.5f};   ///< Per-note brightness (kBrightnessTypeID), 0-1
+
     double sampleRate_{0.0};
     size_t maxBlockSize_{0};
     bool prepared_{false};

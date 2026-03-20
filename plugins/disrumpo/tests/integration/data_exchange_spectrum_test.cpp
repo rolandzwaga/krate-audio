@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstring>
 #include <chrono>
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -244,17 +245,17 @@ TEST_CASE("DataExchange delivers audio samples to controller local FIFOs",
 TEST_CASE("Processor lifecycle without connect - sendSpectrumBlock is no-op",
           "[disrumpo][data-exchange]")
 {
-    Disrumpo::Processor proc;
+    auto proc = std::make_unique<Disrumpo::Processor>();
     HostApplication host;
-    REQUIRE(proc.initialize(&host) == kResultOk);
+    REQUIRE(proc->initialize(&host) == kResultOk);
 
     ProcessSetup setup{};
     setup.sampleRate = 44100.0;
     setup.maxSamplesPerBlock = 512;
     setup.symbolicSampleSize = kSample32;
     setup.processMode = kRealtime;
-    REQUIRE(proc.setupProcessing(setup) == kResultOk);
-    REQUIRE(proc.setActive(true) == kResultOk);
+    REQUIRE(proc->setupProcessing(setup) == kResultOk);
+    REQUIRE(proc->setActive(true) == kResultOk);
 
     // Process a block without connect — sendSpectrumBlock should be a no-op
     std::vector<float> inL(512, 0.5f), inR(512, 0.5f);
@@ -278,11 +279,13 @@ TEST_CASE("Processor lifecycle without connect - sendSpectrumBlock is no-op",
     data.inputs = &inputBus;
     data.outputs = &outputBus;
 
-    // Should not crash
-    proc.process(data);
+    // Should not crash — process without DataExchange connect() should be a no-op
+    // for spectrum sending (Tier 3 shared FIFO still works)
+    auto result = proc->process(data);
+    REQUIRE(result == kResultOk);
 
-    REQUIRE(proc.setActive(false) == kResultOk);
-    REQUIRE(proc.terminate() == kResultOk);
+    REQUIRE(proc->setActive(false) == kResultOk);
+    REQUIRE(proc->terminate() == kResultOk);
 }
 
 TEST_CASE("Controller can be initialized",
@@ -298,9 +301,9 @@ TEST_CASE("Processor init with host",
           "[disrumpo][data-exchange][lifecycle]")
 {
     HostApplication host;
-    Disrumpo::Processor proc;
-    REQUIRE(proc.initialize(&host) == kResultOk);
-    REQUIRE(proc.terminate() == kResultOk);
+    auto proc = std::make_unique<Disrumpo::Processor>();
+    REQUIRE(proc->initialize(&host) == kResultOk);
+    REQUIRE(proc->terminate() == kResultOk);
 }
 
 TEST_CASE("Processor connect to controller",

@@ -611,7 +611,7 @@ TEST_CASE("ArpProcessor_StateRoundTrip_AllParams", "[arp][integration][state]") 
         params.addChange(Ruinae::kArpOctaveRangeId, 2.0 / 3.0); // octaveRange = 3
         params.addChange(Ruinae::kArpOctaveModeId, 1.0);        // octaveMode = 1 (Interleaved)
         params.addChange(Ruinae::kArpTempoSyncId, 0.0);         // tempoSync = false
-        params.addChange(Ruinae::kArpNoteValueId, 14.0 / 20.0); // noteValue = 14
+        params.addChange(Ruinae::kArpNoteValueId, 14.0 / 29.0); // noteValue = 14
         // freeRate: normalized = (12.5 - 0.5) / 49.5
         params.addChange(Ruinae::kArpFreeRateId, (12.5 - 0.5) / 49.5);
         // gateLength: normalized = (60.0 - 1.0) / 199.0

@@ -20,11 +20,11 @@ using Catch::Approx;
 // ==============================================================================
 
 TEST_CASE("UI_VERSION_STR is defined and formatted correctly", "[vst][version]") {
-    SECTION("UI_VERSION_STR contains plugin name and version") {
+    SECTION("UI_VERSION_STR starts with v and contains version") {
         std::string uiVersion = UI_VERSION_STR;
 
-        // Should contain "Iterum v"
-        REQUIRE(uiVersion.find("Iterum v") == 0);
+        // Should start with "v"
+        REQUIRE(uiVersion.find("v") == 0);
 
         // Should contain version number (e.g., "0.1.2")
         REQUIRE(uiVersion.find(VERSION_STR) != std::string::npos);
@@ -32,7 +32,7 @@ TEST_CASE("UI_VERSION_STR is defined and formatted correctly", "[vst][version]")
 
     SECTION("UI_VERSION_STR matches expected format") {
         std::string uiVersion = UI_VERSION_STR;
-        std::string expected = std::string(stringPluginName) + " v" + VERSION_STR;
+        std::string expected = "v" + std::string(VERSION_STR);
 
         REQUIRE(uiVersion == expected);
     }
@@ -88,7 +88,7 @@ TEST_CASE("getUIVersionString returns correct value", "[vst][version][utility]")
 
     SECTION("returns formatted version string") {
         std::string uiVersion = getUIVersionString();
-        REQUIRE(uiVersion.find("Iterum v") == 0);
+        REQUIRE(uiVersion.find("v") == 0);
         REQUIRE(uiVersion.find(VERSION_STR) != std::string::npos);
     }
 }

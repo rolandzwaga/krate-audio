@@ -7,6 +7,7 @@
 
 #include "midi/midi_event_dispatcher.h"
 
+
 namespace Ruinae {
 
 // ==============================================================================
@@ -56,6 +57,55 @@ void Processor::onNoteOff(int16_t pitch) {
     if (!arpDispatchesNotes) {
         engine_.noteOff(midiPitch);
     }
+}
+
+// ==============================================================================
+// MPE Callbacks (noteId-aware overloads)
+// ==============================================================================
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Processor::onNoteOn(int16_t pitch, float velocity, int32_t noteId) {
+    auto midiPitch = static_cast<uint8_t>(pitch);
+    auto midiVelocity = static_cast<uint8_t>(velocity * 127.0f + 0.5f);
+
+    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
+
+    const bool arpRunning = (opMode != kArpOff);
+    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
+
+    if (arpRunning) {
+        arpCore_.noteOn(midiPitch, midiVelocity);
+    }
+    if (!arpDispatchesNotes) {
+        engine_.noteOn(midiPitch, midiVelocity, noteId);
+    }
+}
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Processor::onNoteOff(int16_t pitch, int32_t noteId) {
+    auto midiPitch = static_cast<uint8_t>(pitch);
+
+    const int opMode = arpParams_.operatingMode.load(std::memory_order_relaxed);
+
+    const bool arpRunning = (opMode != kArpOff);
+    const bool arpDispatchesNotes = (opMode == kArpMIDI || opMode == kArpMIDIMod);
+
+    if (arpRunning) {
+        arpCore_.noteOff(midiPitch);
+    }
+    if (!arpDispatchesNotes) {
+        engine_.noteOff(midiPitch, noteId);
+    }
+}
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Processor::onNoteExpression(int32_t noteId, uint32_t typeId, double value) {
+    engine_.setNoteExpression(noteId, typeId, value);
+}
+
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Processor::onPitchBend(float bipolar) {
+    engine_.setPitchBend(bipolar);
 }
 
 } // namespace Ruinae

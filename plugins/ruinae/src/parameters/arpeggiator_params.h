@@ -830,6 +830,9 @@ inline Steinberg::tresult formatArpParam(
                 "1/4T",  "1/4",  "1/4D",
                 "1/2T",  "1/2",  "1/2D",
                 "1/1T",  "1/1",  "1/1D",
+                "2/1T",  "2/1",  "2/1D",
+                "3/1T",  "3/1",  "3/1D",
+                "4/1T",  "4/1",  "4/1D",
             };
             int idx = std::clamp(
                 static_cast<int>(value * (Parameters::kNoteValueDropdownCount - 1) + 0.5),

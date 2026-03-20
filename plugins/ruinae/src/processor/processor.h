@@ -173,6 +173,12 @@ public:
     void onNoteOn(int16_t pitch, float velocity);
     void onNoteOff(int16_t pitch);
 
+    // --- MPE Callbacks (noteId-aware) ---
+    void onNoteOn(int16_t pitch, float velocity, int32_t noteId);
+    void onNoteOff(int16_t pitch, int32_t noteId);
+    void onNoteExpression(int32_t noteId, uint32_t typeId, double value);
+    void onPitchBend(float bipolar);
+
     static FUnknown* createInstance(void*) {
         return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
     }

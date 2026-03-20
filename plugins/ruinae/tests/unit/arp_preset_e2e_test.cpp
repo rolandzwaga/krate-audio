@@ -348,8 +348,8 @@ static std::vector<char> captureBasicUp116State() {
     changes.add(Ruinae::kArpOctaveModeId, 0.0);
     // Tempo sync = on
     changes.add(Ruinae::kArpTempoSyncId, 1.0);
-    // Note value = 1/16 (index 7): normalized = 7/20 = 0.35
-    changes.add(Ruinae::kArpNoteValueId, 7.0 / 20.0);
+    // Note value = 1/16 (index 7): normalized = 7/29
+    changes.add(Ruinae::kArpNoteValueId, 7.0 / 29.0);
     // Free rate = 4.0 Hz (default, not used in tempo sync):
     // normalized = (4.0 - 0.5) / 49.5
     changes.add(Ruinae::kArpFreeRateId, (4.0 - 0.5) / 49.5);

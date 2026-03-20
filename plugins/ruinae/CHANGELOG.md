@@ -5,6 +5,21 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-03-20
+
+### Added
+
+- **MPE (MIDI Polyphonic Expression) support** — Per-note expression routing via VST3 NoteExpression events. Each voice tracks its own noteId, enabling independent per-note tuning (±120 semitones), volume (0–4x gain), and brightness (±48 semitone filter cutoff offset). The shared MIDI dispatcher's C++20 concept detection automatically routes MPE events when the noteId-aware callbacks are present
+- **Per-note pitch via NoteExpression tuning** — Expression tuning offsets applied multiplicatively to oscillator frequencies, stacking with per-oscillator tuning and modulation
+- **Per-note volume via NoteExpression volume** — Expression volume multiplied into the VCA stage alongside the amplitude envelope
+- **Per-note brightness via NoteExpression brightness** — Expression brightness mapped to ±48 semitone filter cutoff offset, adding spectral control per voice
+- **Global pitch bend callback** — `onPitchBend` routes through the existing NoteProcessor for global pitch bend, combinable with per-note expression tuning
+- **noteId-aware voice allocation** — Engine stamps noteId on allocated voices and uses noteId-first lookup for note-off, ensuring accurate MPE voice targeting
+
+### Fixed
+
+- **Arpeggiator note value dropdown count mismatch** — Tests hardcoded 21 entries (stepCount=20) but the DSP layer's `kNoteValueDropdownCount` was updated to 30. Fixed tests and added missing note value labels (2/1, 3/1, 4/1 variants) to `formatArpParam`
+
 ## [0.9.13] - 2026-03-17
 
 ### Fixed

@@ -270,6 +270,90 @@ public:
     }
 
     // =========================================================================
+    // MPE Note Identity & Expression
+    // =========================================================================
+
+    /// @brief noteId-aware noteOn for MPE support.
+    void noteOn(uint8_t note, uint8_t velocity, int32_t noteId, bool legato = false) noexcept {
+        // Delegate to existing noteOn logic
+        noteOn(note, velocity, legato);
+
+        // Stamp the allocated voice with noteId and midiNote
+        if (noteId >= 0 && mode_ == VoiceMode::Poly) {
+            // Find the voice that was just allocated (most recent timestamp)
+            size_t newest = 0;
+            uint64_t maxTs = 0;
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                if (noteOnTimestamps_[i] > maxTs) {
+                    maxTs = noteOnTimestamps_[i];
+                    newest = i;
+                }
+            }
+            voices_[newest].setNoteId(noteId);
+            voices_[newest].setMidiNote(static_cast<int>(note));
+        } else if (noteId >= 0 && mode_ != VoiceMode::Poly) {
+            voices_[0].setNoteId(noteId);
+            voices_[0].setMidiNote(static_cast<int>(note));
+        }
+    }
+
+    /// @brief noteId-aware noteOff for MPE support.
+    void noteOff(uint8_t note, int32_t noteId) noexcept {
+        if (!prepared_) return;
+
+        // If noteId is valid, try to find by noteId first for accurate MPE routing
+        if (noteId >= 0 && mode_ == VoiceMode::Poly) {
+            for (size_t i = 0; i < polyphonyCount_; ++i) {
+                if (voices_[i].noteId() == noteId && voices_[i].isActive()) {
+                    voices_[i].noteOff();
+                    voices_[i].setNoteId(-1);
+                    // Also inform the allocator about the note-off
+                    (void)allocator_.noteOff(note);
+                    return;
+                }
+            }
+        }
+        // Fallback to note-based routing
+        noteOff(note);
+    }
+
+    /// @brief Find a voice by its VST3 noteId.
+    /// @return Pointer to matching voice, or nullptr if not found.
+    RuinaeVoice* findVoiceByNoteId(int32_t noteId) noexcept {
+        if (noteId < 0) return nullptr;
+        for (size_t i = 0; i < polyphonyCount_; ++i) {
+            if (voices_[i].noteId() == noteId && voices_[i].isActive()) {
+                return &voices_[i];
+            }
+        }
+        return nullptr;
+    }
+
+    /// @brief Apply a NoteExpression value to the voice with the given noteId.
+    void setNoteExpression(int32_t noteId, uint32_t typeId, double value) noexcept {
+        RuinaeVoice* voice = findVoiceByNoteId(noteId);
+        if (!voice) return;
+
+        // NoteExpressionTypeIDs: kVolumeTypeID=0, kPanTypeID=1,
+        // kTuningTypeID=2, kBrightnessTypeID=5
+        switch (typeId) {
+            case 2: // kTuningTypeID
+                // VST3 tuning: 0.5 = center, range ±120 semitones
+                voice->setExpressionTuning(240.0f * (static_cast<float>(value) - 0.5f));
+                break;
+            case 0: // kVolumeTypeID
+                // VST3 volume: 0-1, mapped to 0-4x gain
+                voice->setExpressionVolume(static_cast<float>(value) * 4.0f);
+                break;
+            case 5: // kBrightnessTypeID
+                voice->setExpressionBrightness(static_cast<float>(value));
+                break;
+            default:
+                break;
+        }
+    }
+
+    // =========================================================================
     // Polyphony Configuration (FR-010)
     // =========================================================================
 

@@ -112,14 +112,14 @@ TEST_CASE("ArpParams_HandleParamChange_AllFields", "[arp][params][denorm]") {
         CHECK(params.tempoSync.load() == true);
     }
 
-    SECTION("noteValue: 0.0 -> 0, 1.0 -> 20, mid -> 10") {
+    SECTION("noteValue: 0.0 -> 0, 1.0 -> 29, mid -> 15") {
         handleArpParamChange(params, kArpNoteValueId, 0.0);
         CHECK(params.noteValue.load() == 0);
         handleArpParamChange(params, kArpNoteValueId, 1.0);
-        CHECK(params.noteValue.load() == 20);
-        // 10/20 = 0.5 -> 0.5 * 20 + 0.5 = 10.5 -> 10
+        CHECK(params.noteValue.load() == 29);
+        // 0.5 * 29 + 0.5 = 15.0 -> 15
         handleArpParamChange(params, kArpNoteValueId, 0.5);
-        CHECK(params.noteValue.load() == 10);
+        CHECK(params.noteValue.load() == 15);
     }
 
     SECTION("freeRate: 0.0 -> 0.5 Hz, 1.0 -> 50.0 Hz, mid") {
@@ -213,16 +213,19 @@ TEST_CASE("ArpParams_FormatParam_AllFields", "[arp][params][format]") {
         CHECK(toString128(string) == "Interleaved");
     }
 
-    SECTION("noteValue: 0.0 -> 1/64T, 10/20=0.5 -> 1/8, 1.0 -> 1/1D") {
+    SECTION("noteValue: 0.0 -> 1/64T, 0.5 -> 1/2T, 20/29 -> 1/1D") {
         auto result = formatArpParam(kArpNoteValueId, 0.0, string);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(string) == "1/64T");
 
         result = formatArpParam(kArpNoteValueId, 0.5, string);
         CHECK(result == Steinberg::kResultOk);
-        CHECK(toString128(string) == "1/8");
+        CHECK(toString128(string) == "1/2T");
 
-        result = formatArpParam(kArpNoteValueId, 1.0, string);
+        // Note: kNoteNames[] only has 21 entries (indices 0-20), so test
+        // the last valid display index (20 = "1/1D") rather than norm=1.0
+        // which would map to index 29 and exceed the lookup table.
+        result = formatArpParam(kArpNoteValueId, 20.0 / 29.0, string);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(string) == "1/1D");
     }
@@ -508,9 +511,9 @@ TEST_CASE("ArpParams_LoadToController_NormalizesCorrectly", "[arp][params][state
     CHECK(calls[4].id == kArpTempoSyncId);
     CHECK(calls[4].value == Approx(0.0).margin(0.001));
 
-    // noteValue: 14 -> 14/20 = 0.7
+    // noteValue: 14 -> 14/29
     CHECK(calls[5].id == kArpNoteValueId);
-    CHECK(calls[5].value == Approx(14.0 / 20.0).margin(0.001));
+    CHECK(calls[5].value == Approx(14.0 / 29.0).margin(0.001));
 
     // freeRate: 12.5 -> (12.5 - 0.5) / 49.5 = 12.0/49.5 ~= 0.2424
     CHECK(calls[6].id == kArpFreeRateId);
@@ -2455,28 +2458,28 @@ TEST_CASE("formatArpParam -- note value displays as note duration", "[arp][param
     Steinberg::Vst::String128 str;
 
     SECTION("Index 7 -> 1/16") {
-        double norm = 7.0 / 20.0;
+        double norm = 7.0 / 29.0;
         auto result = formatArpParam(kArpNoteValueId, norm, str);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(str) == "1/16");
     }
 
     SECTION("Index 10 -> 1/8") {
-        double norm = 10.0 / 20.0;
+        double norm = 10.0 / 29.0;
         auto result = formatArpParam(kArpNoteValueId, norm, str);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(str) == "1/8");
     }
 
     SECTION("Index 9 -> 1/8T") {
-        double norm = 9.0 / 20.0;
+        double norm = 9.0 / 29.0;
         auto result = formatArpParam(kArpNoteValueId, norm, str);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(str) == "1/8T");
     }
 
     SECTION("Index 13 -> 1/4") {
-        double norm = 13.0 / 20.0;
+        double norm = 13.0 / 29.0;
         auto result = formatArpParam(kArpNoteValueId, norm, str);
         CHECK(result == Steinberg::kResultOk);
         CHECK(toString128(str) == "1/4");
