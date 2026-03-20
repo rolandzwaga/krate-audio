@@ -25,11 +25,13 @@
 #include "dsp/sweep_envelope.h"
 #include "controller/spectrum_block.h"
 
+#include <krate/dsp/primitives/spectrum_fifo.h>
 #include <krate/dsp/primitives/sweep_position_buffer.h>
 #include <krate/dsp/systems/modulation_engine.h>
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <memory>
 
 namespace Disrumpo {
@@ -257,6 +259,26 @@ private:
     /// @brief Throttle spectrum sends to ~30Hz to avoid queue overflow
     int spectrumSendIntervalSamples_ = 0;
     int spectrumSendAccumulatorSamples_ = 0;
+
+    // ==========================================================================
+    // SharedDisplayBridge (Tier 3 fallback for hosts without DataExchange)
+    // ==========================================================================
+
+    /// @brief Shared display data exposed to controller via SharedDisplayBridge
+    struct SharedDisplay {
+        Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
+        Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
+        std::atomic<float>* sampleRate;
+    };
+
+    uint64_t instanceId_ = 0;
+    Krate::DSP::SpectrumFIFO<8192> sharedInputFIFO_;
+    Krate::DSP::SpectrumFIFO<8192> sharedOutputFIFO_;
+    std::atomic<float> sharedSampleRate_{0.0f};
+    SharedDisplay sharedDisplay_{};
+
+    /// @brief Magic marker for instanceId in state stream
+    static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154; // "KRAT"
 
     /// @brief Send current audio block to controller via DataExchange
     void sendSpectrumBlock(const float* inputL, const float* inputR,

@@ -21,9 +21,13 @@
 #include <krate/dsp/core/pitch_utils.h>
 #include <krate/dsp/core/sigmoid.h>
 
+#include "display/shared_display_bridge.h"
+#include "display/display_bridge_log.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <random>
 
 namespace Innexus {
 
@@ -33,6 +37,11 @@ namespace Innexus {
 Processor::Processor() // NOLINT(cppcoreguidelines-pro-type-member-init) -- sampleAnalyzer_ is default-constructed; clang-tidy can't resolve its include
 {
     setControllerClass(kControllerUID);
+
+    // Generate unique instance ID for SharedDisplayBridge
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    instanceId_ = gen();
 }
 
 Processor::~Processor()
@@ -74,6 +83,13 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
         Steinberg::Vst::BusTypes::kAux,
         0 /* not default active */);
 
+    // Register in SharedDisplayBridge (Tier 3 fallback)
+    Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
+        instanceId_, &sharedDisplay_);
+
+    KRATE_BRIDGE_LOG("Innexus::Processor::initialize() — id=0x%llx",
+        static_cast<unsigned long long>(instanceId_));
+
     return Steinberg::kResultOk;
 }
 
@@ -82,6 +98,10 @@ Steinberg::tresult PLUGIN_API Processor::initialize(Steinberg::FUnknown* context
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Processor::terminate()
 {
+    KRATE_BRIDGE_LOG("Innexus::Processor::terminate() — id=0x%llx",
+        static_cast<unsigned long long>(instanceId_));
+    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+
     sampleAnalyzer_.cancel();
 
     // SC-010: Clean up any pending deletion when deactivating
@@ -104,6 +124,8 @@ void Processor::cleanupPendingDeletion()
 // ==============================================================================
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
 {
+    KRATE_BRIDGE_LOG("Innexus::Processor::setActive(%s)",
+        state ? "true" : "false");
     if (state)
     {
         // SC-010: Clean up any pending deletions from previous activation cycle

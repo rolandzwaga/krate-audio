@@ -6,6 +6,7 @@
 
 #include "pluginterfaces/base/ibstream.h"
 #include "base/source/fstreamer.h"
+#include "display/shared_display_bridge.h"
 
 #include <algorithm>
 #include <cmath>
@@ -208,6 +209,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     // --- Voice Mode parameter ---
     streamer.writeFloat(voiceMode_.load(std::memory_order_relaxed));
+
+    // SharedDisplayBridge: append instance ID for Tier 3 fallback
+    streamer.writeInt32(kInstanceIdMarker);
+    streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
 
     return Steinberg::kResultOk;
 }
@@ -606,6 +611,20 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     // --- Voice Mode parameter (graceful fallback: defaults to Mono for old states) ---
     if (streamer.readFloat(floatVal))
         voiceMode_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // SharedDisplayBridge: try to read instance ID from state trailer
+    {
+        Steinberg::int32 marker = 0;
+        Steinberg::int64 storedId = 0;
+        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
+            && streamer.readInt64(storedId))
+        {
+            Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+            instanceId_ = static_cast<uint64_t>(storedId);
+            Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
+                instanceId_, &sharedDisplay_);
+        }
+    }
 
     return Steinberg::kResultOk;
 }

@@ -26,6 +26,7 @@ add_executable(shared_tests
     test_midi_event_dispatcher.cpp
     test_version_compare.cpp
     test_update_checker.cpp
+    test_shared_display_bridge.cpp
 )
 
 target_link_libraries(shared_tests

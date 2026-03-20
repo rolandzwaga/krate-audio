@@ -23,6 +23,8 @@
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
 #include "ui/update_banner_view.h"
+#include "display/shared_display_bridge.h"
+#include "display/display_bridge_log.h"
 
 #include "vstgui/uidescription/uiattributes.h"
 #include "vstgui/lib/controls/ctextlabel.h"
@@ -1136,6 +1138,22 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(vmVal, 0.0f, 1.0f)));
     }
 
+    // SharedDisplayBridge: try to read instance ID from state trailer
+    {
+        Steinberg::int32 marker = 0;
+        Steinberg::int64 storedId = 0;
+        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
+            && streamer.readInt64(storedId))
+        {
+            instanceId_ = static_cast<uint64_t>(storedId);
+            sharedDisplay_ = static_cast<SharedDisplay*>(
+                Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
+            KRATE_BRIDGE_LOG("Innexus::Controller::setComponentState() — id=0x%llx, bridge=%s",
+                static_cast<unsigned long long>(instanceId_),
+                sharedDisplay_ ? "found" : "NOT found");
+        }
+    }
+
     return Steinberg::kResultOk;
 }
 
@@ -1426,6 +1444,11 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
 
     activeEditor_ = nullptr;
 
+    // Reset shared display fallback state
+    sharedDisplay_ = nullptr;
+    dataExchangeActive_ = false;
+    fallbackTickCounter_ = 0;
+
     // Defensive counter reset
     modInstanceCounter_ = 0;
 }
@@ -1462,6 +1485,10 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
         if (blocks[i].data && blocks[i].size >= sizeof(DisplayData))
         {
             std::memcpy(&cachedDisplayData_, blocks[i].data, sizeof(DisplayData));
+            if (!dataExchangeActive_)
+                KRATE_BRIDGE_LOG("Innexus::Controller — DataExchange data received (Tier 1/2 active)");
+            dataExchangeActive_ = true;
+            fallbackTickCounter_ = 0;
         }
     }
 }
@@ -1752,6 +1779,22 @@ void Controller::onDisplayTimerFired()
 {
     // Update sample load panel visibility (cheap check every 30ms)
     updateSampleLoadVisibility();
+
+    // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
+    // read directly from the processor's shared display buffer
+    if (!dataExchangeActive_ && sharedDisplay_) {
+        ++fallbackTickCounter_;
+        if (fallbackTickCounter_ > 10) { // ~330ms at 30ms timer
+            if (fallbackTickCounter_ == 11)
+                KRATE_BRIDGE_LOG("Innexus::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+            auto counter = sharedDisplay_->frameCounter.load(std::memory_order_acquire);
+            if (counter != lastProcessedFrameCounter_) {
+                std::memcpy(&cachedDisplayData_, &sharedDisplay_->buffer,
+                    sizeof(DisplayData));
+                cachedDisplayData_.frameCounter = counter;
+            }
+        }
+    }
 
     // Check if we have new data (frame counter changed)
     if (cachedDisplayData_.frameCounter == lastProcessedFrameCounter_)

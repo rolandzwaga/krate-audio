@@ -3,6 +3,7 @@
 // ==============================================================================
 
 #include "processor.h"
+#include "display/display_bridge_log.h"
 
 #include "pluginterfaces/vst/ivstdataexchange.h"
 
@@ -32,6 +33,12 @@ Steinberg::tresult PLUGIN_API Processor::connect(
         dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
             this, configCallback);
         dataExchange_->onConnect(other, getHostContext());
+        KRATE_BRIDGE_LOG("Innexus::Processor::connect() — DataExchange created");
+    }
+    else
+    {
+        KRATE_BRIDGE_LOG("Innexus::Processor::connect() — base connect failed (result=%d)",
+            static_cast<int>(result));
     }
     return result;
 }
@@ -42,6 +49,7 @@ Steinberg::tresult PLUGIN_API Processor::connect(
 Steinberg::tresult PLUGIN_API Processor::disconnect(
     Steinberg::Vst::IConnectionPoint* other)
 {
+    KRATE_BRIDGE_LOG("Innexus::Processor::disconnect()");
     if (dataExchange_)
     {
         dataExchange_->onDisconnect(other);
@@ -55,7 +63,7 @@ Steinberg::tresult PLUGIN_API Processor::disconnect(
 // ==============================================================================
 void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
 {
-    if (!dataExchange_ || data.numSamples <= 0)
+    if (data.numSamples <= 0)
         return;
 
     // Throttle display sends to ~30Hz (matching UI timer cadence) to avoid
@@ -128,9 +136,14 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
     // Increment monotonic frame counter
     displayDataBuffer_.frameCounter = ++displayFrameCounter_;
 
-    // Send via DataExchangeHandler (uses native API if host supports it,
-    // falls back to IMessage transparently). If the queue is temporarily full,
-    // just drop this visual frame and keep the audio thread moving.
+    // Also write to shared display buffer for Tier 3 fallback
+    std::memcpy(&sharedDisplay_.buffer, &displayDataBuffer_, sizeof(DisplayData));
+    sharedDisplay_.frameCounter.store(displayFrameCounter_, std::memory_order_release);
+
+    // Tier 1/2: Send via DataExchangeHandler (if host called connect())
+    if (!dataExchange_)
+        return;
+
     auto block = dataExchange_->getCurrentOrNewBlock();
     if (block.blockID == Steinberg::Vst::InvalidDataExchangeBlockID
         || block.data == nullptr)

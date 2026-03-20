@@ -27,6 +27,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -270,6 +271,21 @@ private:
     // Stale data detection: count consecutive timer ticks with no new frame
     int staleTickCount_ = 0;
     static constexpr int kStaleTickThreshold = 3; // ~90ms at 30ms timer
+
+    // =========================================================================
+    // SharedDisplayBridge (Tier 3 fallback)
+    // =========================================================================
+    struct SharedDisplay {
+        DisplayData buffer{};
+        std::atomic<uint32_t> frameCounter{0};
+    };
+
+    uint64_t instanceId_{0};
+    SharedDisplay* sharedDisplay_{nullptr};
+    bool dataExchangeActive_{false};
+    int fallbackTickCounter_{0};
+
+    static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154;
 
     // NoteExpression type container (Phase 4: MPE support)
     Steinberg::Vst::NoteExpressionTypeContainer noteExpressionTypes_;

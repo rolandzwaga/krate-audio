@@ -48,6 +48,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -675,6 +676,19 @@ private:
     uint32_t displayFrameCounter_ = 0; // Monotonic counter across all sends
     int displaySendIntervalSamples_ = 0; // Throttle: samples between sends (~30Hz)
     int displaySendAccumulatorSamples_ = 0;
+
+    // =========================================================================
+    // SharedDisplayBridge (Tier 3 fallback for hosts without DataExchange)
+    // =========================================================================
+    struct SharedDisplay {
+        DisplayData buffer{};
+        std::atomic<uint32_t> frameCounter{0};
+    };
+
+    uint64_t instanceId_ = 0;
+    SharedDisplay sharedDisplay_;
+
+    static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154; // "KRAT"
 
     // =========================================================================
     // Processing State

@@ -50,6 +50,11 @@ add_library(KratePluginsShared STATIC
     # Update Banner UI
     src/ui/update_banner_view.h
 
+    # Display Data Bridge (SharedDisplayBridge — Tier 3 visualizer fallback)
+    src/display/shared_display_bridge.h
+    src/display/shared_display_bridge.cpp
+    src/display/display_bridge_log.h
+
     # UI Components
     src/ui/color_utils.h
     src/ui/arc_knob.h

@@ -5,6 +5,13 @@ All notable changes to Disrumpo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.9] - 2026-03-20
+
+### Added
+
+- **SharedDisplayBridge visualizer fallback** — Spectrum analyzer now works in DAWs that don't implement `IConnectionPoint::connect()` (e.g. Ableton, Reason). A three-tier automatic fallback detects when DataExchange is unavailable and reads display data directly from processor-owned shared memory via a global registry. No user configuration needed.
+- **Diagnostic logging for display pipeline** — `[KrateBridge]` messages in DebugView/stderr trace the full lifecycle: initialize, connect, setActive, DataExchange receipt, and fallback activation. Filterable by `KrateBridge` prefix.
+
 ## [0.9.8] - 2026-03-19
 
 ### Added

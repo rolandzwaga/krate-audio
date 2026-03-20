@@ -14,9 +14,13 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/note_value.h>
 
+#include "display/shared_display_bridge.h"
+#include "display/display_bridge_log.h"
+
 #include <algorithm>  // for std::max, std::min
 #include <cmath>      // for std::log10, std::pow
 #include <cstring>    // for memcpy
+#include <random>     // for instance ID generation
 
 namespace Disrumpo {
 
@@ -293,6 +297,16 @@ Processor::Processor() {
     // Set the controller class ID for host to create the correct controller
     // Constitution Principle I: Processor/Controller separation
     setControllerClass(kControllerUID);
+
+    // Generate unique instance ID for SharedDisplayBridge
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    instanceId_ = gen();
+
+    // Wire shared display pointers
+    sharedDisplay_.inputFIFO = &sharedInputFIFO_;
+    sharedDisplay_.outputFIFO = &sharedOutputFIFO_;
+    sharedDisplay_.sampleRate = &sharedSampleRate_;
 }
 
 // ==============================================================================
@@ -311,10 +325,20 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
     addAudioInput(STR16("Audio Input"), Steinberg::Vst::SpeakerArr::kStereo);
     addAudioOutput(STR16("Audio Output"), Steinberg::Vst::SpeakerArr::kStereo);
 
+    // Register in SharedDisplayBridge (Tier 3 fallback)
+    Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
+        instanceId_, &sharedDisplay_);
+
+    KRATE_BRIDGE_LOG("Disrumpo::Processor::initialize() — id=0x%llx",
+        static_cast<unsigned long long>(instanceId_));
+
     return Steinberg::kResultTrue;
 }
 
 Steinberg::tresult PLUGIN_API Processor::terminate() {
+    KRATE_BRIDGE_LOG("Disrumpo::Processor::terminate() — id=0x%llx",
+        static_cast<unsigned long long>(instanceId_));
+    Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
     return AudioEffect::terminate();
 }
 
@@ -378,6 +402,8 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 }
 
 Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state) {
+    KRATE_BRIDGE_LOG("Disrumpo::Processor::setActive(%s)",
+        state ? "true" : "false");
     if (state) {
         // Activating: reset processing state
         crossoverL_.reset();
@@ -1091,6 +1117,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state) {
         }
     }
 
+    // SharedDisplayBridge: append instance ID for Tier 3 fallback
+    streamer.writeInt32(kInstanceIdMarker);
+    streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
+
     return Steinberg::kResultOk;
 }
 
@@ -1631,6 +1661,22 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             }
             // else: discard morph data from bands 4-7 (v7 migration)
         }
+    }
+
+    // SharedDisplayBridge: try to read instance ID from state trailer
+    {
+        Steinberg::int32 marker = 0;
+        Steinberg::int64 storedId = 0;
+        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
+            && streamer.readInt64(storedId))
+        {
+            // Re-register with the stored ID (supports state restore)
+            Krate::Plugins::SharedDisplayBridge::instance().unregisterInstance(instanceId_);
+            instanceId_ = static_cast<uint64_t>(storedId);
+            Krate::Plugins::SharedDisplayBridge::instance().registerInstance(
+                instanceId_, &sharedDisplay_);
+        }
+        // If marker not found, keep the constructor-generated ID (old state format)
     }
 
     return Steinberg::kResultOk;
@@ -2403,6 +2449,12 @@ Steinberg::tresult PLUGIN_API Processor::connect(
         dataExchange_ = std::make_unique<Steinberg::Vst::DataExchangeHandler>(
             this, configCallback);
         dataExchange_->onConnect(other, getHostContext());
+        KRATE_BRIDGE_LOG("Disrumpo::Processor::connect() — DataExchange created");
+    }
+    else
+    {
+        KRATE_BRIDGE_LOG("Disrumpo::Processor::connect() — base connect failed (result=%d)",
+            static_cast<int>(result));
     }
     return result;
 }
@@ -2410,6 +2462,7 @@ Steinberg::tresult PLUGIN_API Processor::connect(
 Steinberg::tresult PLUGIN_API Processor::disconnect(
     Steinberg::Vst::IConnectionPoint* other)
 {
+    KRATE_BRIDGE_LOG("Disrumpo::Processor::disconnect()");
     if (dataExchange_)
     {
         dataExchange_->onDisconnect(other);
@@ -2427,7 +2480,7 @@ void Processor::sendSpectrumBlock(
     const float* outputL, const float* outputR,
     Steinberg::int32 numSamples)
 {
-    if (!dataExchange_ || numSamples <= 0)
+    if (numSamples <= 0)
         return;
 
     // Throttle spectrum sends to ~30Hz (matching UI update cadence) to avoid
@@ -2441,14 +2494,30 @@ void Processor::sendSpectrumBlock(
 
     spectrumSendAccumulatorSamples_ %= spectrumSendIntervalSamples_;
 
+    const auto count = std::min(
+        static_cast<uint32_t>(numSamples), kSpectrumBlockMaxSamples);
+
+    // Always push to shared FIFOs (Tier 3 fallback — works even without connect())
+    sharedInputFIFO_.push(spectrumBlockBuffer_.inputSamples, count);
+    // Compute output mono mixdown into the shared FIFO
+    {
+        float outputMono[kSpectrumBlockMaxSamples];
+        for (uint32_t i = 0; i < count; ++i)
+            outputMono[i] = (outputL[i] + outputR[i]) * 0.5f;
+        sharedOutputFIFO_.push(outputMono, count);
+    }
+    sharedSampleRate_.store(static_cast<float>(sampleRate_), std::memory_order_release);
+
+    // Tier 1/2: Send via DataExchange (if host called connect())
+    if (!dataExchange_)
+        return;
+
     auto block = dataExchange_->getCurrentOrNewBlock();
     if (block.blockID == Steinberg::Vst::InvalidDataExchangeBlockID
         || block.data == nullptr)
         return;
 
     auto* specBlock = static_cast<SpectrumBlock*>(block.data);
-    const auto count = std::min(
-        static_cast<uint32_t>(numSamples), kSpectrumBlockMaxSamples);
 
     // Copy pre-computed input mono mixdown from buffer
     std::memcpy(specBlock->inputSamples, spectrumBlockBuffer_.inputSamples,

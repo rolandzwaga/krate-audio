@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Data exchange pipeline tests** — Tests were processing fewer blocks than the 30Hz throttle interval required; increased block count from 5 to 15 to reliably trigger display data delivery
+- **Display not working in some DAWs** — Harmonic display, confidence indicator, evolution position, and modulator activity views now work in DAWs that don't implement `IConnectionPoint::connect()` (e.g. Ableton, Reason) via SharedDisplayBridge fallback with automatic detection
 
 ## [0.9.9] - 2026-03-19
 

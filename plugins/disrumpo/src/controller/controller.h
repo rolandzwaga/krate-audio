@@ -35,6 +35,7 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <functional>
 #include <memory>
 
@@ -289,6 +290,25 @@ private:
 
     /// Guard: set true during willClose() to reject late DataExchange/message callbacks
     std::atomic<bool> editorClosing_{false};
+
+    // ==========================================================================
+    // SharedDisplayBridge (Tier 3 fallback)
+    // ==========================================================================
+
+    /// Forward declaration of processor's shared display struct
+    struct SharedDisplay {
+        Krate::DSP::SpectrumFIFO<8192>* inputFIFO;
+        Krate::DSP::SpectrumFIFO<8192>* outputFIFO;
+        std::atomic<float>* sampleRate;
+    };
+
+    uint64_t instanceId_{0};
+    SharedDisplay* sharedDisplay_{nullptr};
+    bool dataExchangeActive_{false};
+    int fallbackTickCounter_{0};
+
+    /// Magic marker for instanceId in state stream (must match processor)
+    static constexpr Steinberg::int32 kInstanceIdMarker = 0x4B524154;
 
     // ==========================================================================
     // Modulation Offset Visualization

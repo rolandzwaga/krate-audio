@@ -32,6 +32,8 @@
 #include "update/disrumpo_update_config.h"
 #include "platform/accessibility_helper.h"
 #include "midi/midi_cc_manager.h"
+#include "display/shared_display_bridge.h"
+#include "display/display_bridge_log.h"
 
 #include "base/source/fstreamer.h"
 #include "base/source/fobject.h"
@@ -628,6 +630,22 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(Steinberg::IBStream*
 
     if (!parseComponentState(streamer, version, setter))
         return Steinberg::kResultFalse;
+
+    // SharedDisplayBridge: try to read instance ID from state trailer
+    {
+        Steinberg::int32 marker = 0;
+        Steinberg::int64 storedId = 0;
+        if (streamer.readInt32(marker) && marker == kInstanceIdMarker
+            && streamer.readInt64(storedId))
+        {
+            instanceId_ = static_cast<uint64_t>(storedId);
+            sharedDisplay_ = static_cast<SharedDisplay*>(
+                Krate::Plugins::SharedDisplayBridge::instance().lookupInstance(instanceId_));
+            KRATE_BRIDGE_LOG("Disrumpo::Controller::setComponentState() — id=0x%llx, bridge=%s",
+                static_cast<unsigned long long>(instanceId_),
+                sharedDisplay_ ? "found" : "NOT found");
+        }
+    }
 
     bulkParamLoad_ = false;
     syncAllViews();
@@ -1449,6 +1467,22 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor) {
                 if (auto* frame = activeEditor_->getFrame())
                     updateModSliders(frame);
             }
+            // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
+            // wire the spectrum display directly to the processor's shared FIFOs
+            if (!dataExchangeActive_ && sharedDisplay_ && !spectrumDataAvailable_) {
+                ++fallbackTickCounter_;
+                if (fallbackTickCounter_ > 10) { // ~330ms at 33ms timer
+                    KRATE_BRIDGE_LOG("Disrumpo::Controller — Tier 3 fallback ACTIVATED (no DataExchange after ~330ms)");
+                    spectrumDataAvailable_ = true;
+                    if (spectrumDisplay_) {
+                        spectrumDisplay_->setSpectrumFIFOs(
+                            sharedDisplay_->inputFIFO, sharedDisplay_->outputFIFO);
+                        float sr = sharedDisplay_->sampleRate->load(std::memory_order_acquire);
+                        if (sr > 0.0f)
+                            spectrumDisplay_->startAnalysis(sr);
+                    }
+                }
+            }
         }, 33);
 
     auto* morphLinkParam = getParameterObject(makeSweepParamId(SweepParamType::kSweepMorphLink));
@@ -1540,6 +1574,9 @@ void Controller::willClose(VSTGUI::VST3Editor* editor) {
     }
     sweepIndicator_ = nullptr;
     spectrumDisplay_ = nullptr;
+    sharedDisplay_ = nullptr;
+    dataExchangeActive_ = false;
+    fallbackTickCounter_ = 0;
     activeEditor_ = nullptr;
     if (updateBannerView_) { updateBannerView_->stopPolling(); updateBannerView_ = nullptr; }
     (void)editor;
@@ -1896,6 +1933,10 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
                 localInputFIFO_.push(specBlock->inputSamples, specBlock->numSamples);
                 localOutputFIFO_.push(specBlock->outputSamples, specBlock->numSamples);
                 cachedSpectrumSampleRate_ = specBlock->sampleRate;
+                if (!dataExchangeActive_)
+                    KRATE_BRIDGE_LOG("Disrumpo::Controller — DataExchange data received (Tier 1/2 active)");
+                dataExchangeActive_ = true;
+                fallbackTickCounter_ = 0;
                 if (!spectrumDataAvailable_) {
                     spectrumDataAvailable_ = true;
                     if (spectrumDisplay_) {
