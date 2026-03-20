@@ -5,6 +5,27 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-03-20
+
+### Added
+
+- **MPE polyphonic expression** — Full MIDI Polyphonic Expression support with per-note pitch bend, slide (brightness), pressure (volume), and pan; works with MPE controllers like Roli Seaboard, Linnstrument, and Osmose
+- **Voice Mode parameter** (ID 730) — Mono / 4 Voices / 8 Voices; backward compatible (existing presets default to Mono); UI dropdown in the oscillator section
+- **Polyphonic voice pool** — Up to 8 simultaneous voices with `VoiceAllocator` integration (Oldest allocation, Hard stealing); 1/sqrt(N) gain compensation prevents clipping when stacking voices
+- **NoteExpression controller declaration** — Hosts discover 4 expression types (Tuning, Volume, Pan, Brightness) via `INoteExpressionController`; physical UI mapping via `INoteExpressionPhysicalUIMapping` (X→Tuning, Y→Brightness, Pressure→Volume)
+- **Per-voice expression rendering** — Tuning offsets applied to pitch calculation (±120 semitones), volume as per-voice gain multiplier (0–4x), constant-power pan law, brightness controls harmonic/residual balance per voice
+- **SIMD-accelerated oscillator bank** — Google Highway vectorized MCF oscillator processing across partials (4-wide SSE / 8-wide AVX2); amplitude smoothing, MCF advance, and stereo pan accumulation in SIMD; ~35% throughput improvement on the hot path
+
+### Changed
+
+- **Per-voice state extracted to `InnexusVoice` struct** — All voice-specific state (oscillator bank, residual synth, ADSR, frame tracking, release envelope, anti-click crossfade, confidence-gated freeze, spectral decay) moved from flat Processor members into a dedicated struct for clean polyphonic management
+- **MIDI dispatcher extended** — `midi_event_dispatcher.h` now supports `noteId`-aware callbacks and `kNoteExpressionValueEvent` dispatch via C++20 concepts; backward compatible with existing handlers
+- **Global frame broadcast** — Frame computation pipeline (morph, blend, filter, evolution, modulators, physics) computes once per block, then `broadcastFrameToVoices()` distributes to all active voices at their individual pitches
+
+### Fixed
+
+- **Data exchange pipeline tests** — Tests were processing fewer blocks than the 30Hz throttle interval required; increased block count from 5 to 15 to reliably trigger display data delivery
+
 ## [0.9.9] - 2026-03-19
 
 ### Added
