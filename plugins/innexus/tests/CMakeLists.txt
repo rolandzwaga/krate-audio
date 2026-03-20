@@ -125,6 +125,9 @@ add_executable(innexus_tests
     # DataExchange pipeline integration test
     integration/test_data_exchange_pipeline.cpp
 
+    # Polyphonic MPE integration tests
+    integration/test_polyphonic_mpe.cpp
+
     # UI controller tests (M7)
     unit/controller/test_harmonic_display_view.cpp
     unit/controller/test_confidence_indicator_view.cpp

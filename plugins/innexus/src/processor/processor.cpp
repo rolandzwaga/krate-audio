@@ -515,18 +515,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         float effRelease = std::clamp(
             adsrReleaseMs_.load(std::memory_order_relaxed) * timeScale, 1.0f, 5000.0f);
 
-        voice_.adsr.setAttack(effAttack);
-        voice_.adsr.setDecay(effDecay);
-        voice_.adsr.setSustain(adsrSustainLevel_.load(std::memory_order_relaxed));
-        voice_.adsr.setRelease(effRelease);
+        const float sustainLevel = adsrSustainLevel_.load(std::memory_order_relaxed);
+        const float attackCurve = adsrAttackCurve_.load(std::memory_order_relaxed);
+        const float decayCurve = adsrDecayCurve_.load(std::memory_order_relaxed);
+        const float releaseCurve = adsrReleaseCurve_.load(std::memory_order_relaxed);
 
-        // Curve amounts (unscaled by timeScale)
-        voice_.adsr.setAttackCurve(adsrAttackCurve_.load(std::memory_order_relaxed));
-        voice_.adsr.setDecayCurve(adsrDecayCurve_.load(std::memory_order_relaxed));
-        voice_.adsr.setReleaseCurve(adsrReleaseCurve_.load(std::memory_order_relaxed));
-
-        // Set smoother target for Amount
-        voice_.adsrAmountSmoother.setTarget(adsrAmountTarget);
+        // Update ADSR parameters for all voices
+        for (auto& voice : voices_)
+        {
+            voice.adsr.setAttack(effAttack);
+            voice.adsr.setDecay(effDecay);
+            voice.adsr.setSustain(sustainLevel);
+            voice.adsr.setRelease(effRelease);
+            voice.adsr.setAttackCurve(attackCurve);
+            voice.adsr.setDecayCurve(decayCurve);
+            voice.adsr.setReleaseCurve(releaseCurve);
+            voice.adsrAmountSmoother.setTarget(adsrAmountTarget);
+        }
     }
 
     // --- Process MIDI events ---
@@ -780,8 +785,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // so that engaging freeze with no analysis still captures an empty frame.
     // This block runs only when the early return would fire; the main freeze
     // detection block handles the normal (has-analysis) case.
-    if (!voice_.active || (!hasSampleAnalysis && !hasLiveFrame))
     {
+        bool anyActive = false;
+        for (const auto& v : voices_) { if (v.active) { anyActive = true; break; } }
+        if (!anyActive || (!hasSampleAnalysis && !hasLiveFrame))
+        {
         const bool currentFreezeState = freeze_.load(std::memory_order_relaxed) > 0.5f;
 
         if (currentFreezeState && !previousFreezeState_)
@@ -802,25 +810,42 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
 
         previousFreezeState_ = currentFreezeState;
-    }
-
-    if (!voice_.active || (!hasSampleAnalysis && !hasLiveFrame))
-    {
-        for (Steinberg::int32 s = 0; s < numSamples; ++s)
-        {
-            out[0][s] = 0.0f;
-            if (numOutputChannels >= 2) out[1][s] = 0.0f;
         }
-        data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
-
-        // No display data sent during silence — the controller's
-        // staleness timer will clear the views after ~90ms.
-        return Steinberg::kResultOk;
     }
 
-    // --- Update inharmonicity from parameter ---
-    float inharm = inharmonicityAmount_.load(std::memory_order_relaxed);
-    voice_.oscillatorBank.setInharmonicityAmount(inharm);
+    {
+        // Check if ANY voice is active (poly mode: voice 0 may be idle while others play)
+        bool anyVoiceActive = false;
+        for (const auto& v : voices_)
+        {
+            if (v.active) { anyVoiceActive = true; break; }
+        }
+
+        if (!anyVoiceActive || (!hasSampleAnalysis && !hasLiveFrame))
+        {
+            for (Steinberg::int32 s = 0; s < numSamples; ++s)
+            {
+                out[0][s] = 0.0f;
+                if (numOutputChannels >= 2) out[1][s] = 0.0f;
+            }
+            data.outputs[0].silenceFlags = (numOutputChannels >= 2) ? 0x3 : 0x1;
+            return Steinberg::kResultOk;
+        }
+    }
+
+    // Hoist voice mode early (needed for all-voice operations below)
+    const float voiceModeNormEarly = voiceMode_.load(std::memory_order_relaxed);
+    const int voiceModeIdxEarly = std::clamp(
+        static_cast<int>(std::round(voiceModeNormEarly * 2.0f)), 0, 2);
+    constexpr int kVoiceCountsEarly[] = {1, 4, 8};
+    const int maxVoicesEarly = kVoiceCountsEarly[voiceModeIdxEarly];
+
+    // --- Update inharmonicity from parameter (all voices) ---
+    {
+        float inharm = inharmonicityAmount_.load(std::memory_order_relaxed);
+        for (int vi = 0; vi < maxVoicesEarly; ++vi)
+            voices_[static_cast<size_t>(vi)].oscillatorBank.setInharmonicityAmount(inharm);
+    }
 
     // --- Active partial count from user parameter ---
     const int activePartialCount = getActivePartialCount();
@@ -1450,30 +1475,39 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             (void)blendWeightSmootherArray_[8].process();
         }
 
-        // M6: Update stereo spread and detune per sample (smoothed)
-        voice_.oscillatorBank.setStereoSpread(stereoSpreadSmoother_.process());
-        voice_.oscillatorBank.setDetuneSpread(detuneSpreadSmoother_.process());
+        // M6: Update stereo spread and detune per sample (all active voices)
+        {
+            float spread = stereoSpreadSmoother_.process();
+            float detune = detuneSpreadSmoother_.process();
+            for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
+            {
+                auto& v = voices_[static_cast<size_t>(vi)];
+                if (!v.active) continue;
+                v.oscillatorBank.setStereoSpread(spread);
+                v.oscillatorBank.setDetuneSpread(detune);
+            }
+        }
 
         // M6: Advance harmonic modulators per sample (FR-029: free-running)
         // Apply smoothed rate and depth each sample (FR-033)
+        // Modulator state is global (shared), but effects apply to all voices.
         if (mod1Enabled)
         {
             mod1_.setRate(mod1RateSmoother_.process());
             mod1_.setDepth(mod1DepthSmoother_.process());
             mod1_.advance();
 
-            // Apply frequency multipliers on top of detune (FR-026, FR-028)
-            {
-                std::array<float, Krate::DSP::kMaxPartials> mult1{};
-                mod1_.getFrequencyMultipliers(mult1);
-                voice_.oscillatorBank.applyExternalFrequencyMultipliers(mult1);
-            }
+            std::array<float, Krate::DSP::kMaxPartials> mult1{};
+            mod1_.getFrequencyMultipliers(mult1);
+            std::array<float, Krate::DSP::kMaxPartials> panOff1{};
+            mod1_.getPanOffsets(panOff1);
 
-            // Apply pan offsets (FR-027, FR-028)
+            for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
             {
-                std::array<float, Krate::DSP::kMaxPartials> panOff1{};
-                mod1_.getPanOffsets(panOff1);
-                voice_.oscillatorBank.applyPanOffsets(panOff1);
+                auto& v = voices_[static_cast<size_t>(vi)];
+                if (!v.active) continue;
+                v.oscillatorBank.applyExternalFrequencyMultipliers(mult1);
+                v.oscillatorBank.applyPanOffsets(panOff1);
             }
         }
         else
@@ -1488,18 +1522,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             mod2_.setDepth(mod2DepthSmoother_.process());
             mod2_.advance();
 
-            // Apply frequency multipliers (FR-026, FR-028: additive with mod1)
-            {
-                std::array<float, Krate::DSP::kMaxPartials> mult2{};
-                mod2_.getFrequencyMultipliers(mult2);
-                voice_.oscillatorBank.applyExternalFrequencyMultipliers(mult2);
-            }
+            std::array<float, Krate::DSP::kMaxPartials> mult2{};
+            mod2_.getFrequencyMultipliers(mult2);
+            std::array<float, Krate::DSP::kMaxPartials> panOff2{};
+            mod2_.getPanOffsets(panOff2);
 
-            // Apply pan offsets (FR-027, FR-028: additive with mod1)
+            for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
             {
-                std::array<float, Krate::DSP::kMaxPartials> panOff2{};
-                mod2_.getPanOffsets(panOff2);
-                voice_.oscillatorBank.applyPanOffsets(panOff2);
+                auto& v = voices_[static_cast<size_t>(vi)];
+                if (!v.active) continue;
+                v.oscillatorBank.applyExternalFrequencyMultipliers(mult2);
+                v.oscillatorBank.applyPanOffsets(panOff2);
             }
         }
         else
