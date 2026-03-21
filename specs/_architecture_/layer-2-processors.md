@@ -3631,6 +3631,73 @@ where: R = exp(-6.91 / (T60 * sampleRate)), theta = 2*pi*freq/sampleRate
 
 ---
 
+## ModalResonatorBank
+**Path:** [modal_resonator_bank.h](../../dsp/include/krate/dsp/processors/modal_resonator_bank.h) | **Since:** Spec 127
+
+Bank of up to 96 parallel damped coupled-form resonators for modal synthesis. Uses the Gordon-Smith damped coupled-form topology with SoA (Structure of Arrays) layout, Chaigne-Lambourg frequency-dependent damping (b3 coefficient), stiff-string/scatter inharmonicity warping, and transient emphasis excitation conditioning. Designed for physically-motivated resonance driven by analyzed harmonic content in the Innexus resynthesis pipeline.
+
+```cpp
+namespace Krate::DSP {
+
+class ModalResonatorBank {
+    static constexpr size_t kMaxModes = 96;
+
+    // Lifecycle
+    ModalResonatorBank() noexcept = default;
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Mode configuration - full reset with new mode set
+    void setModes(const HarmonicFrame& frame,
+                  float damping, float inharmonicity) noexcept;
+
+    // Mode update - smooth coefficient transition for existing modes
+    void updateModes(const HarmonicFrame& frame,
+                     float damping, float inharmonicity) noexcept;
+
+    // Processing
+    [[nodiscard]] float processSample(float excitation) noexcept;
+    void processBlock(const float* input, float* output,
+                      size_t numSamples) noexcept;
+
+    // Maintenance
+    void flushSilentModes() noexcept;
+
+    // Queries
+    [[nodiscard]] int getNumActiveModes() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Use when you need physically-motivated resonance driven by analyzed harmonic content
+- Designed for 96-mode SIMD operation with SoA layout
+- Modal synthesis of vibrating bodies driven by arbitrary excitation signals
+- Innexus physical modelling path: residual signal drives the resonator bank to produce physically plausible textures
+
+**Differentiators from existing alternatives:**
+- **ModalResonator** (32-mode biquad, material presets): Uses impulse-invariant two-pole oscillators with T60 decay, strike-based excitation. Fixed material models (Wood, Metal, Glass, etc.). Designed for percussion synthesis.
+- **ResonatorBank** (16 bandpass filters with Q control): Uses biquad bandpass topology. Q-based resonance control. Designed for spectral filtering/formant shaping.
+- **ModalResonatorBank** (this class, 96-mode damped coupled-form): Uses Gordon-Smith coupled-form with frequency-dependent damping. Driven by HarmonicFrame partial data. Designed for analysis-driven physical modelling at scale with SIMD optimization.
+
+**Key features:**
+- **Gordon-Smith damped coupled-form**: `s_new = R * (s + eps * c) + gain * input`, `c_new = R * (c - eps * s_new)` -- amplitude-stable per-sample resonance
+- **SoA layout**: All mode state stored in aligned `std::array<float, 96>` arrays for cache-line efficiency and SIMD readiness
+- **Chaigne-Lambourg damping**: Frequency-dependent decay via `b3 * f^2` term -- higher modes decay faster, matching physical material behavior
+- **Scatter inharmonicity**: Stiff-string frequency warping `f_n = n * f0 * sqrt(1 + B * n^2)` stretches upper partials for metallic/bell-like timbres
+- **Transient emphasis**: Envelope follower boosts excitation transients for attack clarity
+- **Mode culling**: Inactive modes (below silence threshold) are skipped in the inner loop
+- **Coefficient smoothing**: 2ms one-pole smoothing on epsilon/radius/gain prevents clicks during mode transitions
+- **Output safety**: `softClip()` applied to final output to prevent overflow
+
+**Performance:** 96 modes per voice, ~5 FLOPs per mode per sample. Target: < 5% single core for 96 modes x 8 voices at 44.1 kHz.
+
+**Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials)
+
+---
+
 ## StochasticFilter
 **Path:** [stochastic_filter.h](../../dsp/include/krate/dsp/processors/stochastic_filter.h) | **Since:** 0.15.0
 

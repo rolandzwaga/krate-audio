@@ -11,6 +11,7 @@ add_library(KrateDSP STATIC
     include/krate/dsp/core/spectral_simd.cpp
     include/krate/dsp/effects/fdn_reverb_simd.cpp
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.cpp
+    include/krate/dsp/processors/modal_resonator_bank_simd.cpp
 )
 
 # Public include directory for consumers
@@ -126,6 +127,8 @@ set(KRATE_DSP_PROCESSORS_HEADERS
     include/krate/dsp/processors/multi_pitch_detector.h
     include/krate/dsp/processors/multi_source_sieve.h
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.h
+    include/krate/dsp/processors/modal_resonator_bank.h
+    include/krate/dsp/processors/modal_resonator_bank_simd.h
 )
 
 # Layer 3: Systems

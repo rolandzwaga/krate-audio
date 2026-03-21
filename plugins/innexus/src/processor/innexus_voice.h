@@ -20,6 +20,7 @@
 
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
+#include <krate/dsp/processors/modal_resonator_bank.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
@@ -42,6 +43,7 @@ struct InnexusVoice
     // =========================================================================
     Krate::DSP::HarmonicOscillatorBank oscillatorBank;
     Krate::DSP::ResidualSynthesizer residualSynth;
+    Krate::DSP::ModalResonatorBank modalResonator;
 
     // ADSR Envelope (Spec 124)
     Krate::DSP::ADSREnvelope adsr;
@@ -112,6 +114,7 @@ struct InnexusVoice
     void prepare(double sampleRate)
     {
         oscillatorBank.prepare(sampleRate);
+        modalResonator.prepare(sampleRate);
         adsr.prepare(static_cast<float>(sampleRate));
         adsr.reset();
         adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
@@ -137,6 +140,7 @@ struct InnexusVoice
         freezeRecoveryOldLevel = 0.0f;
         oscillatorBank.reset();
         residualSynth.reset();
+        modalResonator.reset();
 
         // Reset expression values
         expressionTuning = 0.0f;
