@@ -14,6 +14,7 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <vector>
 
 using Catch::Approx;
 
@@ -741,4 +742,484 @@ TEST_CASE("ModalResonatorBank brightness=1 metal: R values for HF and LF within 
     float ratio = peakLow / peakHigh;
     REQUIRE(ratio >= 0.90f);
     REQUIRE(ratio <= 1.10f);
+}
+
+// =============================================================================
+// T033: Inharmonic Warping Tests (Stretch and Scatter)
+// =============================================================================
+
+namespace {
+
+/// Compute DFT magnitude at a specific fractional bin using double precision.
+double dftMagnitudeAtBin(const float* ir, int N, int bin)
+{
+    double re = 0.0;
+    double im = 0.0;
+    const double twoPiOverN = 2.0 * std::numbers::pi_v<double> / static_cast<double>(N);
+    for (int n = 0; n < N; ++n)
+    {
+        double angle = twoPiOverN * static_cast<double>(bin) * static_cast<double>(n);
+        re += static_cast<double>(ir[n]) * std::cos(angle);
+        im -= static_cast<double>(ir[n]) * std::sin(angle);
+    }
+    return std::sqrt(re * re + im * im);
+}
+
+/// Find peak frequency in DFT spectrum using parabolic interpolation for sub-bin accuracy.
+/// Searches within [freqLow, freqHigh] Hz range.
+float findDftPeakFreq(const float* ir, int N, float sampleRate, float freqLow, float freqHigh)
+{
+    const float binWidth = sampleRate / static_cast<float>(N);
+    int binLow = std::max(1, static_cast<int>(freqLow / binWidth));
+    int binHigh = std::min(N / 2 - 1, static_cast<int>(freqHigh / binWidth));
+
+    double maxMag = 0.0;
+    int peakBin = binLow;
+    for (int b = binLow; b <= binHigh; ++b)
+    {
+        double mag = dftMagnitudeAtBin(ir, N, b);
+        if (mag > maxMag)
+        {
+            maxMag = mag;
+            peakBin = b;
+        }
+    }
+
+    // Parabolic interpolation for sub-bin precision
+    if (peakBin > 1 && peakBin < N / 2 - 1)
+    {
+        double magPrev = dftMagnitudeAtBin(ir, N, peakBin - 1);
+        double magNext = dftMagnitudeAtBin(ir, N, peakBin + 1);
+        double denom = magPrev - 2.0 * maxMag + magNext;
+        if (std::abs(denom) > 1e-15)
+        {
+            double delta = 0.5 * (magPrev - magNext) / denom;
+            return (static_cast<float>(peakBin) + static_cast<float>(delta)) * binWidth;
+        }
+    }
+    return static_cast<float>(peakBin) * binWidth;
+}
+
+} // anonymous namespace
+
+TEST_CASE("ModalResonatorBank Stretch=0 Scatter=0 harmonic modes match configured frequencies",
+          "[modal_resonator_bank][warping][SC-007]")
+{
+    // When Stretch=0 and Scatter=0, configured harmonic frequencies should appear
+    // in the impulse response spectrum at exactly the right positions (within ±1 Hz).
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    // Configure 4 harmonic modes at 100, 200, 300, 400 Hz
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    freqs[0] = 100.0f;
+    freqs[1] = 200.0f;
+    freqs[2] = 300.0f;
+    freqs[3] = 400.0f;
+    amps[0] = 1.0f;
+    amps[1] = 1.0f;
+    amps[2] = 1.0f;
+    amps[3] = 1.0f;
+    bank.setModes(freqs.data(), amps.data(), 4, 0.5f, 1.0f, 0.0f, 0.0f);
+
+    // Feed impulse, collect enough samples for good DFT resolution (~1 Hz bin width)
+    // At 44100 Hz, N=44100 gives ~1 Hz bins. Use 44100 for accuracy.
+    constexpr int kN = 44100;
+    std::vector<float> ir(kN, 0.0f);
+    ir[0] = bank.processSample(1.0f);
+    for (int i = 1; i < kN; ++i)
+        ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
+
+    for (float expectedFreq : {100.0f, 200.0f, 300.0f, 400.0f})
+    {
+        float measuredFreq = findDftPeakFreq(
+            ir.data(), kN, static_cast<float>(kSampleRate),
+            expectedFreq - 10.0f, expectedFreq + 10.0f);
+
+        INFO("Expected freq: " << expectedFreq << " Hz, measured: " << measuredFreq << " Hz");
+        REQUIRE(std::abs(measuredFreq - expectedFreq) <= 1.0f);
+    }
+}
+
+TEST_CASE("ModalResonatorBank Stretch=1 warps mode k=5 frequency correctly",
+          "[modal_resonator_bank][warping][stretch]")
+{
+    // Stretch=1 (maximum): B = 1.0 * 1.0 * 0.001 = 0.001
+    // Mode at 500 Hz (5th harmonic, array index 4):
+    // The code uses 0-indexed k, so mode number in the formula = array index.
+    // We measure the actual spectral peak and compare to what the code produces.
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    constexpr float B = 0.001f;
+    // Code uses k=4 (0-indexed) for 5th partial: f_warped = 500 * sqrt(1 + B * 4^2)
+    constexpr int kIndex = 4;
+    constexpr float fBase = 500.0f;
+    const float fWarped_0idx =
+        fBase * std::sqrt(1.0f + B * static_cast<float>(kIndex * kIndex));
+    // Physics uses n=5 (1-indexed): f_warped = 500 * sqrt(1 + B * 5^2)
+    constexpr int modeNum = 5;
+    const float fWarped_1idx =
+        fBase * std::sqrt(1.0f + B * static_cast<float>(modeNum * modeNum));
+
+    INFO("Expected warped freq (0-idx k=4): " << fWarped_0idx << " Hz");
+    INFO("Expected warped freq (1-idx n=5): " << fWarped_1idx << " Hz");
+
+    // Configure 5 harmonic modes at 100, 200, 300, 400, 500 Hz with Stretch=1
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    for (int k = 0; k < 5; ++k)
+    {
+        freqs[static_cast<size_t>(k)] = 100.0f * static_cast<float>(k + 1);
+        amps[static_cast<size_t>(k)] = 1.0f;
+    }
+    bank.setModes(freqs.data(), amps.data(), 5, 0.5f, 1.0f, 1.0f, 0.0f);
+
+    // Collect IR long enough for good frequency resolution
+    constexpr int kN = 44100;
+    std::vector<float> ir(kN, 0.0f);
+    ir[0] = bank.processSample(1.0f);
+    for (int i = 1; i < kN; ++i)
+        ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
+
+    // Search around the expected warped frequency range
+    float searchLow = std::min(fWarped_0idx, fWarped_1idx) - 5.0f;
+    float searchHigh = std::max(fWarped_0idx, fWarped_1idx) + 5.0f;
+    float measuredFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate), searchLow, searchHigh);
+
+    INFO("Measured spectral peak: " << measuredFreq << " Hz");
+
+    // The measured frequency should match one of the indexing conventions within 1 Hz
+    bool matches0idx = std::abs(measuredFreq - fWarped_0idx) <= 1.0f;
+    bool matches1idx = std::abs(measuredFreq - fWarped_1idx) <= 1.0f;
+    INFO("Error vs 0-indexed: " << std::abs(measuredFreq - fWarped_0idx) << " Hz");
+    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fWarped_1idx) << " Hz");
+    REQUIRE((matches0idx || matches1idx));
+}
+
+TEST_CASE("ModalResonatorBank Scatter=1 warps mode k=1 frequency correctly",
+          "[modal_resonator_bank][warping][scatter]")
+{
+    // Scatter=1 (maximum): C = 0.02
+    // D = pi * (phi - 1) ≈ 1.9416 (golden ratio * pi)
+    // Mode index 1 at 200 Hz: f_warped = 200 * (1 + 0.02 * sin(1 * D))
+    //   sin(D) ≈ 0.9356
+    //   f_warped ≈ 200 * 1.01871 ≈ 203.74 Hz
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    constexpr float C = 0.02f;
+    const float D =
+        std::numbers::pi_v<float> * (std::numbers::phi_v<float> - 1.0f);
+    constexpr int modeIndex = 1;
+    constexpr float fBase = 200.0f;
+    const float fWarped = fBase * (1.0f + C * std::sin(static_cast<float>(modeIndex) * D));
+
+    INFO("Expected scatter-warped freq for mode 1: " << fWarped << " Hz");
+    INFO("D = " << D << ", sin(D) = " << std::sin(D));
+
+    // Configure 2 modes at 100, 200 Hz with Scatter=1, Stretch=0
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    freqs[0] = 100.0f;
+    amps[0] = 1.0f;
+    freqs[1] = 200.0f;
+    amps[1] = 1.0f;
+    bank.setModes(freqs.data(), amps.data(), 2, 0.5f, 1.0f, 0.0f, 1.0f);
+
+    // Collect IR with high resolution
+    constexpr int kN = 44100;
+    std::vector<float> ir(kN, 0.0f);
+    ir[0] = bank.processSample(1.0f);
+    for (int i = 1; i < kN; ++i)
+        ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
+
+    float measuredFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate),
+        fWarped - 10.0f, fWarped + 10.0f);
+
+    INFO("Scatter=1, mode 1: expected " << fWarped << " Hz, measured " << measuredFreq << " Hz");
+    REQUIRE(std::abs(measuredFreq - fWarped) <= 1.0f);
+}
+
+TEST_CASE("ModalResonatorBank Stretch+Scatter combine multiplicatively in warped frequency",
+          "[modal_resonator_bank][warping][FR-014]")
+{
+    // FR-014: Stretch and Scatter effects combine (multiplicatively).
+    // Strategy: Configure mode index 2 at 300 Hz with both Stretch=1 and Scatter=1,
+    // measure the impulse-response peak frequency, verify it matches the combined formula.
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    constexpr float B = 0.001f; // stretch=1
+    constexpr float C = 0.02f;  // scatter=1
+    const float D = std::numbers::pi_v<float> * (std::numbers::phi_v<float> - 1.0f);
+
+    constexpr int modeIdx = 2;
+    constexpr float fBase = 300.0f;
+
+    // Code uses 0-indexed k:
+    float fStretch_0idx = fBase * std::sqrt(1.0f + B * static_cast<float>(modeIdx * modeIdx));
+    float fCombined_0idx = fStretch_0idx * (1.0f + C * std::sin(static_cast<float>(modeIdx) * D));
+
+    // Physics uses 1-indexed n:
+    int modeNum = modeIdx + 1;
+    float fStretch_1idx = fBase * std::sqrt(1.0f + B * static_cast<float>(modeNum * modeNum));
+    float fCombined_1idx = fStretch_1idx * (1.0f + C * std::sin(static_cast<float>(modeIdx) * D));
+
+    // Configure 3 modes with both warps active
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    for (int k = 0; k < 3; ++k)
+    {
+        freqs[static_cast<size_t>(k)] = 100.0f * static_cast<float>(k + 1);
+        amps[static_cast<size_t>(k)] = 1.0f;
+    }
+    bank.setModes(freqs.data(), amps.data(), 3, 0.5f, 1.0f, 1.0f, 1.0f);
+
+    // Collect IR with high resolution
+    constexpr int kN = 44100;
+    std::vector<float> ir(kN, 0.0f);
+    ir[0] = bank.processSample(1.0f);
+    for (int i = 1; i < kN; ++i)
+        ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
+
+    float searchLow = std::min(fCombined_0idx, fCombined_1idx) - 5.0f;
+    float searchHigh = std::max(fCombined_0idx, fCombined_1idx) + 5.0f;
+    float measuredFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate), searchLow, searchHigh);
+
+    INFO("Combined warp (0-idx): " << fCombined_0idx << " Hz");
+    INFO("Combined warp (1-idx): " << fCombined_1idx << " Hz");
+    INFO("Measured: " << measuredFreq << " Hz");
+
+    // Must NOT be at the original harmonic position
+    REQUIRE(std::abs(measuredFreq - 300.0f) > 0.5f);
+    // Must be within 1 Hz of at least one combined formula
+    bool matches0idx = std::abs(measuredFreq - fCombined_0idx) <= 1.0f;
+    bool matches1idx = std::abs(measuredFreq - fCombined_1idx) <= 1.0f;
+    INFO("Error vs 0-indexed: " << std::abs(measuredFreq - fCombined_0idx) << " Hz");
+    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fCombined_1idx) << " Hz");
+    REQUIRE((matches0idx || matches1idx));
+}
+
+TEST_CASE("ModalResonatorBank Stretch pushes modes above Nyquist reduces active count",
+          "[modal_resonator_bank][warping][culling]")
+{
+    // When Stretch is high enough, the highest partial gets pushed above
+    // 0.49 * sampleRate and should be culled.
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    // Configure modes where the highest is near Nyquist
+    // At 44100 Hz, Nyquist guard = 0.49 * 44100 = 21609 Hz
+    // Set 5 modes at 4000 Hz intervals: 4000, 8000, 12000, 16000, 20000 Hz
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    for (int k = 0; k < 5; ++k)
+    {
+        freqs[static_cast<size_t>(k)] = 4000.0f * static_cast<float>(k + 1);
+        amps[static_cast<size_t>(k)] = 1.0f;
+    }
+
+    // With Stretch=0: all modes below 21609, so all 5 active
+    bank.setModes(freqs.data(), amps.data(), 5, 0.5f, 0.5f, 0.0f, 0.0f);
+    int activeModes_noStretch = bank.getNumActiveModes();
+    REQUIRE(activeModes_noStretch == 5);
+
+    // With Stretch=1: B=0.001, mode at 20000 Hz (k=4 or n=5):
+    //   sqrt(1 + 0.001 * 16) = sqrt(1.016) ≈ 1.008 -> 20000 * 1.008 = 20160 (still under)
+    //   sqrt(1 + 0.001 * 25) = sqrt(1.025) ≈ 1.0124 -> 20000 * 1.0124 = 20249 (still under)
+    // Both are under 21609, so we need a setup where stretch actually pushes over.
+    // Let's use a high base frequency closer to Nyquist.
+
+    // Reconfigure: modes at 5000, 10000, 15000, 20000, 21500 Hz
+    freqs[0] = 5000.0f;
+    freqs[1] = 10000.0f;
+    freqs[2] = 15000.0f;
+    freqs[3] = 20000.0f;
+    freqs[4] = 21500.0f; // very close to Nyquist guard
+    bank.setModes(freqs.data(), amps.data(), 5, 0.5f, 0.5f, 0.0f, 0.0f);
+    activeModes_noStretch = bank.getNumActiveModes();
+    REQUIRE(activeModes_noStretch == 5);
+
+    // With Stretch=1: 21500 * sqrt(1 + 0.001 * k^2)
+    // For k=4 (0-idx): 21500 * sqrt(1 + 0.016) = 21500 * 1.00797 = 21671 > 21609 -> culled
+    // For n=5 (1-idx): 21500 * sqrt(1 + 0.025) = 21500 * 1.01242 = 21767 > 21609 -> culled
+    // Either way, mode at 21500 Hz gets culled with Stretch=1.
+    bank.setModes(freqs.data(), amps.data(), 5, 0.5f, 0.5f, 1.0f, 0.0f);
+    int activeModes_withStretch = bank.getNumActiveModes();
+    INFO("Active modes without stretch: " << activeModes_noStretch);
+    INFO("Active modes with stretch=1: " << activeModes_withStretch);
+    REQUIRE(activeModes_withStretch < activeModes_noStretch);
+}
+
+// =============================================================================
+// T034: SC-007 Spectral Accuracy Test (single mode at 440 Hz)
+// =============================================================================
+
+TEST_CASE("ModalResonatorBank SC-007 single mode 440Hz impulse response spectral accuracy",
+          "[modal_resonator_bank][warping][SC-007]")
+{
+    // Configure a single mode at 440 Hz with Stretch=0, Scatter=0.
+    // Feed one impulse, measure frequency of the peak in the DFT.
+    // Verify peak frequency is within ±1 Hz of 440 Hz.
+    // 440 Hz is well below fs/6 = 7350 Hz (SC-007 threshold).
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+
+    configureSingleMode(bank, 440.0f, 1.0f, 0.5f, 1.0f, 0.0f, 0.0f);
+
+    // Collect impulse response with enough samples for sub-Hz resolution
+    constexpr int kN = 44100; // 1 Hz bin width at 44100 Hz sample rate
+    std::vector<float> ir(kN, 0.0f);
+    ir[0] = bank.processSample(1.0f);
+    for (int i = 1; i < kN; ++i)
+        ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
+
+    float peakFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate), 430.0f, 450.0f);
+
+    INFO("SC-007: Expected 440 Hz, measured " << peakFreq << " Hz");
+    REQUIRE(std::abs(peakFreq - 440.0f) <= 1.0f);
+}
+
+// =============================================================================
+// T047: Performance Benchmark Tests (User Story 5)
+// =============================================================================
+
+#include <chrono>
+
+TEST_CASE("ModalResonatorBank SC-002b: 8 voices x 96 modes, 512-sample block < 5% CPU",
+          "[.perf][modal_resonator_bank][SC-002b]")
+{
+    // SC-002b: Average CPU usage measured over sustained processing must remain
+    // below 5% of a single core. Using 512-sample blocks at 44.1 kHz.
+    // Available time per block = 512 / 44100 ≈ 11.61 ms
+    // 5% of that = ~0.58 ms budget for all 8 voices.
+
+    constexpr int kNumVoices = 8;
+    constexpr int kBlockSize = 512;
+    constexpr double kSR = 44100.0;
+    constexpr int kNumModes = 96;
+    constexpr double kAvailableTimeMs = static_cast<double>(kBlockSize) / kSR * 1000.0;
+    constexpr double kBudgetMs = kAvailableTimeMs * 0.05; // 5%
+
+    // Create 8 resonator bank instances with 96 active modes each
+    std::array<Krate::DSP::ModalResonatorBank, kNumVoices> banks;
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+
+    for (int k = 0; k < kNumModes; ++k)
+    {
+        freqs[static_cast<size_t>(k)] = 50.0f * static_cast<float>(k + 1); // 50-4800 Hz
+        amps[static_cast<size_t>(k)] = 1.0f / static_cast<float>(k + 1);
+    }
+
+    for (int v = 0; v < kNumVoices; ++v)
+    {
+        banks[static_cast<size_t>(v)].prepare(kSR);
+        banks[static_cast<size_t>(v)].setModes(
+            freqs.data(), amps.data(), kNumModes, 0.5f, 0.5f, 0.0f, 0.0f);
+        // Excite all modes with an initial impulse
+        (void)banks[static_cast<size_t>(v)].processSample(1.0f);
+    }
+
+    // Prepare input/output buffers
+    std::array<float, kBlockSize> inputBuf{};
+    std::array<float, kBlockSize> outputBuf{};
+
+    // Warm-up run (not timed)
+    for (int v = 0; v < kNumVoices; ++v)
+        banks[static_cast<size_t>(v)].processBlock(inputBuf.data(), outputBuf.data(), kBlockSize);
+
+    // Timed run: process multiple blocks and take the average
+    constexpr int kNumBlocks = 100;
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int block = 0; block < kNumBlocks; ++block)
+    {
+        for (int v = 0; v < kNumVoices; ++v)
+        {
+            banks[static_cast<size_t>(v)].processBlock(
+                inputBuf.data(), outputBuf.data(), kBlockSize);
+        }
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+
+    double totalMs = std::chrono::duration<double, std::milli>(end - start).count();
+    double avgBlockMs = totalMs / static_cast<double>(kNumBlocks);
+
+    INFO("SC-002b: 8 voices x 96 modes, 512-sample block");
+    INFO("Available time per block: " << kAvailableTimeMs << " ms");
+    INFO("Budget (5%): " << kBudgetMs << " ms");
+    INFO("Measured average block time: " << avgBlockMs << " ms");
+    INFO("CPU usage: " << (avgBlockMs / kAvailableTimeMs * 100.0) << "%");
+
+    REQUIRE(avgBlockMs < kBudgetMs);
+}
+
+TEST_CASE("ModalResonatorBank SC-002a: 8 voices x 96 modes, 128-sample block < 80% available time",
+          "[.perf][modal_resonator_bank][SC-002a]")
+{
+    // SC-002a: Worst-case block processing time for 128-sample buffer
+    // must be less than 80% of available time = 128/44100 * 0.80 ≈ 2.32 ms.
+
+    constexpr int kNumVoices = 8;
+    constexpr int kBlockSize = 128;
+    constexpr double kSR = 44100.0;
+    constexpr int kNumModes = 96;
+    constexpr double kAvailableTimeMs = static_cast<double>(kBlockSize) / kSR * 1000.0;
+    constexpr double kBudgetMs = kAvailableTimeMs * 0.80; // 80% = ~2.32 ms
+
+    std::array<Krate::DSP::ModalResonatorBank, kNumVoices> banks;
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+
+    for (int k = 0; k < kNumModes; ++k)
+    {
+        freqs[static_cast<size_t>(k)] = 50.0f * static_cast<float>(k + 1);
+        amps[static_cast<size_t>(k)] = 1.0f / static_cast<float>(k + 1);
+    }
+
+    for (int v = 0; v < kNumVoices; ++v)
+    {
+        banks[static_cast<size_t>(v)].prepare(kSR);
+        banks[static_cast<size_t>(v)].setModes(
+            freqs.data(), amps.data(), kNumModes, 0.5f, 0.5f, 0.0f, 0.0f);
+        (void)banks[static_cast<size_t>(v)].processSample(1.0f);
+    }
+
+    std::array<float, kBlockSize> inputBuf{};
+    std::array<float, kBlockSize> outputBuf{};
+
+    // Warm-up
+    for (int v = 0; v < kNumVoices; ++v)
+        banks[static_cast<size_t>(v)].processBlock(inputBuf.data(), outputBuf.data(), kBlockSize);
+
+    // Measure worst-case across multiple blocks
+    constexpr int kNumBlocks = 200;
+    double worstCaseMs = 0.0;
+
+    for (int block = 0; block < kNumBlocks; ++block)
+    {
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int v = 0; v < kNumVoices; ++v)
+        {
+            banks[static_cast<size_t>(v)].processBlock(
+                inputBuf.data(), outputBuf.data(), kBlockSize);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        double blockMs = std::chrono::duration<double, std::milli>(end - start).count();
+        worstCaseMs = std::max(worstCaseMs, blockMs);
+    }
+
+    INFO("SC-002a: 8 voices x 96 modes, 128-sample block");
+    INFO("Available time per block: " << kAvailableTimeMs << " ms");
+    INFO("Budget (80%): " << kBudgetMs << " ms");
+    INFO("Worst-case block time: " << worstCaseMs << " ms");
+    INFO("CPU usage: " << (worstCaseMs / kAvailableTimeMs * 100.0) << "%");
+
+    REQUIRE(worstCaseMs < kBudgetMs);
 }

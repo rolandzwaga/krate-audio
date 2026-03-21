@@ -249,22 +249,22 @@ No new implementation code is needed. The Chaigne-Lambourg damping (`decayRate_k
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T033 [P] [US3] Add inharmonic warping tests to `dsp/tests/unit/processors/test_modal_resonator_bank.cpp`:
+- [X] T033 [P] [US3] Add inharmonic warping tests to `dsp/tests/unit/processors/test_modal_resonator_bank.cpp`:
   - Stretch=0, Scatter=0: configured at frequencies `[100, 200, 300, 400]` Hz, verify impulse response spectrum peaks within ±1 Hz of those frequencies (SC-007 for harmonic case)
   - Stretch=1 (maximum): mode k=5 at 500 Hz should warp to `500 * sqrt(1 + 0.001 * 25) = 500 * sqrt(1.025) ≈ 506.2 Hz` -- verify `epsilonTarget_[4]` encodes this frequency (compute expected epsilon and compare with tolerance)
   - Scatter=1 (maximum): mode k=1 at 200 Hz, `C=0.02`, `D=pi*(sqrt(5)-1)/2 ≈ 1.9416`, displacement = `200 * (1 + 0.02 * sin(1 * D)) ≈ 200 * (1 + 0.02 * 0.9511) ≈ 203.8 Hz` -- verify epsilon encodes this
   - Stretch and Scatter both non-zero: effects combine multiplicatively (FR-014), verify the warped frequency used in damping model is the fully-warped frequency, not the original
   - Warped frequencies above Nyquist (0.49 * sampleRate) are culled even when Stretch pushes them over the limit -- verify `getNumActiveModes()` decreases when Stretch is high enough to push the highest partial above Nyquist
 
-- [ ] T034 [P] [US3] SC-007 spectral accuracy test (below fs/6 modes): configure a single mode at 440 Hz with Stretch=0, Scatter=0; feed one impulse; measure frequency of the peak in the resulting impulse response using DFT over ~4096 samples; verify peak frequency is within ±1 Hz of 440 Hz
+- [X] T034 [P] [US3] SC-007 spectral accuracy test (below fs/6 modes): configure a single mode at 440 Hz with Stretch=0, Scatter=0; feed one impulse; measure frequency of the peak in the resulting impulse response using DFT over ~4096 samples; verify peak frequency is within ±1 Hz of 440 Hz
 
 ### 5.2 Implementation for User Story 3
 
 No new implementation code is needed. The Stretch and Scatter warping was already implemented in `computeModeCoefficients()` during Phase 3 (T015). This phase is purely about verifying the warping math is correct with targeted tests.
 
-- [ ] T035 [US3] If any test from T033/T034 fails, fix the Stretch and Scatter computation in `computeModeCoefficients()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`. Common mistakes: using `k` as 0-indexed when formula uses 1-indexed, wrong formula for stiff-string inharmonicity (`sqrt(1 + B*k^2)` not `1 + B*k`), wrong golden-ratio constant for scatter
+- [X] T035 [US3] If any test from T033/T034 fails, fix the Stretch and Scatter computation in `computeModeCoefficients()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`. Common mistakes: using `k` as 0-indexed when formula uses 1-indexed, wrong formula for stiff-string inharmonicity (`sqrt(1 + B*k^2)` not `1 + B*k`), wrong golden-ratio constant for scatter
 
-- [ ] T036 [US3] Build and verify tests pass:
+- [X] T036 [US3] Build and verify tests pass:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests
   build/windows-x64-release/bin/Release/dsp_tests.exe "ModalResonatorBank*" 2>&1 | tail -10
@@ -272,11 +272,11 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T037 [US3] If the SC-007 DFT test in T034 uses `std::isnan` or `std::isinf` for NaN/Inf detection in the DFT buffer, add the test file to `-fno-fast-math` in `dsp/tests/CMakeLists.txt`
+- [X] T037 [US3] If the SC-007 DFT test in T034 uses `std::isnan` or `std::isinf` for NaN/Inf detection in the DFT buffer, add the test file to `-fno-fast-math` in `dsp/tests/CMakeLists.txt`
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T038 [US3] **Commit completed User Story 3 work** (inharmonic warping tests + any warping fixes)
+- [X] T038 [US3] **Commit completed User Story 3 work** (inharmonic warping tests + any warping fixes)
 
 **Checkpoint**: Stretch and Scatter produce measurably inharmonic modes. SC-007 spectral accuracy passes. All three user stories are independently tested and committed.
 
@@ -294,18 +294,18 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T039 [P] [US4] Add backwards-compat tests to `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
+- [X] T039 [P] [US4] Add backwards-compat tests to `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
   - State load from old stream (stream ends before new params): verify `kPhysModelMixId` defaults to 0.0, `kResonanceDecayId` defaults to 0.5s normalized, `kResonanceBrightnessId` defaults to 0.5, `kResonanceStretchId` defaults to 0.0, `kResonanceScatterId` defaults to 0.0
   - State round-trip: save state with all 5 new params at non-default values, reload, verify all 5 values are restored exactly
   - SC-001: Render 512 samples with `kPhysModelMixId=0` and verify output matches a pre-computed reference block (capture a reference from the unmodified Innexus output for the same voice configuration)
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T040 [US4] Add state save/load for 5 new parameters in `plugins/innexus/src/processor/processor_state.cpp`:
+- [X] T040 [US4] Add state save/load for 5 new parameters in `plugins/innexus/src/processor/processor_state.cpp`:
   - On save (getState): after all existing `streamer.writeFloat()` calls, append: `streamer.writeFloat(physModelMix_)`, `streamer.writeFloat(resonanceDecay_)`, `streamer.writeFloat(resonanceBrightness_)`, `streamer.writeFloat(resonanceStretch_)`, `streamer.writeFloat(resonanceScatter_)`
   - On load (setState): after all existing reads, use optional reads with defaults: `if (streamer.readFloat(val)) physModelMix_ = val; else physModelMix_ = 0.0f;` (same pattern for other 4 params with their defaults)
 
-- [ ] T041 [US4] Register 5 new parameters in `plugins/innexus/src/controller/controller.cpp` `initialize()` method:
+- [X] T041 [US4] Register 5 new parameters in `plugins/innexus/src/controller/controller.cpp` `initialize()` method:
   - `kPhysModelMixId`: name="Physical Model Mix", range=[0,1], default=0, linear, unitless
   - `kResonanceDecayId`: name="Decay", range=[0,1] normalized (log-mapped in processor), default=normalized(0.5s), unit=seconds
   - `kResonanceBrightnessId`: name="Brightness", range=[0,1], default=0.5, linear, unitless
@@ -313,13 +313,13 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
   - `kResonanceScatterId`: name="Scatter", range=[0,1], default=0, linear, unitless
   - Follow the exact registration pattern used for existing Innexus parameters
 
-- [ ] T042 [US4] Build `innexus_tests` and verify all tests pass including the regression test from T039:
+- [X] T042 [US4] Build `innexus_tests` and verify all tests pass including the regression test from T039:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target innexus_tests
   build/windows-x64-release/bin/Release/innexus_tests.exe "PhysicalModel*" 2>&1 | tail -10
   ```
 
-- [ ] T043 [US4] Run ALL existing Innexus tests (not just the new ones) to verify SC-008 (no regressions):
+- [X] T043 [US4] Run ALL existing Innexus tests (not just the new ones) to verify SC-008 (no regressions):
   ```
   build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5
   ```
@@ -327,11 +327,11 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T044 [US4] Verify IEEE 754 compliance for `test_physical_model.cpp` -- if the SC-001 reference comparison uses floating-point equality, confirm it is bit-exact integer comparison (not floating-point comparison that would be affected by fast-math). If any `std::isnan`/`std::isinf` are used, add to `-fno-fast-math` list.
+- [X] T044 [US4] Verify IEEE 754 compliance for `test_physical_model.cpp` -- if the SC-001 reference comparison uses floating-point equality, confirm it is bit-exact integer comparison (not floating-point comparison that would be affected by fast-math). If any `std::isnan`/`std::isinf` are used, add to `-fno-fast-math` list.
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T045 [US4] **Commit completed User Story 4 work** (state save/load, controller registration, backwards-compat tests)
+- [X] T045 [US4] **Commit completed User Story 4 work** (state save/load, controller registration, backwards-compat tests)
 
 **Checkpoint**: Old presets load cleanly with new parameter defaults. State round-trips correctly. SC-001 bit-exact at mix=0 is formally proven with a test.
 
@@ -347,12 +347,12 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T046 [P] [US5] Add polyphony and performance tests to `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
+- [X] T046 [P] [US5] Add polyphony and performance tests to `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
   - Voice independence: configure two `ModalResonatorBank` instances with different partial frequency sets, feed the same impulse to both, verify their outputs differ (independent tuning per FR-025)
   - Mode count respects `kPartialCountId`: configure bank with `numPartials=48`, verify `getNumActiveModes() <= 48`; repeat for 64, 80, 96 -- verify `getNumActiveModes()` never exceeds the requested count (FR-017)
   - Note-off ring: simulate a note-off by calling the processor's note-off handler (which resets the ADSR and residual synth but must NOT call `modalResonator.reset()`); immediately after note-off, verify that `modalResonator.processSample(0.0f)` still returns non-zero output -- confirming the resonator rings free of the voice envelope (FR-026). Do not test this by manually skipping a `reset()` call; exercise it through the actual processor note-off code path so the test will catch any future regression that inadvertently adds a `modalResonator.reset()` call to that path.
 
-- [ ] T047 [P] [US5] Add performance benchmark test (tagged `[.perf]`) to `dsp/tests/unit/processors/test_modal_resonator_bank.cpp`:
+- [X] T047 [P] [US5] Add performance benchmark test (tagged `[.perf]`) to `dsp/tests/unit/processors/test_modal_resonator_bank.cpp`:
   - SC-002b: Create 8 `ModalResonatorBank` instances, each configured with 96 active modes at 44.1 kHz; time a 512-sample block across all 8 instances; verify total block time < 5% of 512/44100 available time (approximately 58ms budget for 5%)
   - SC-002a: Time a 128-sample block across all 8 instances; verify worst-case time < 80% of 128/44100 = 2.32ms
 
@@ -360,30 +360,30 @@ No new implementation code is needed. The Stretch and Scatter warping was alread
 
 No new implementation code is needed. Each `InnexusVoice` already owns one `ModalResonatorBank` instance (added in T007). The processor already processes each voice independently. This phase verifies the architecture is correct.
 
-- [ ] T048 [US5] If the performance tests from T047 reveal SC-002a or SC-002b violations, apply the following optimizations in order of impact (stop when both criteria pass):
+- [X] T048 [US5] If the performance tests from T047 reveal SC-002a or SC-002b violations, apply the following optimizations in order of impact (stop when both criteria pass):
   1. Verify mode culling is working correctly -- inactive modes must be skipped in the inner loop of `processSample()`, not just flagged
   2. Verify `flushSilentModes()` is zeroing decayed mode states so they are culled on subsequent blocks
   3. If still over budget, open `dsp/include/krate/dsp/processors/modal_resonator_bank.h` and move the smoothing step (`epsilon_ = epsilon_ + (1-c) * (target-epsilon_)`) outside the sample loop to a once-per-block update (acceptable since smoothing at block rate is sufficient for the coefficient updates)
 
-- [ ] T049 [US5] Build and verify tests pass:
+- [X] T049 [US5] Build and verify tests pass:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests innexus_tests
   build/windows-x64-release/bin/Release/dsp_tests.exe "ModalResonatorBank*" 2>&1 | tail -10
   build/windows-x64-release/bin/Release/innexus_tests.exe "PhysicalModel*" 2>&1 | tail -10
   ```
 
-- [ ] T050 [US5] Run performance tests explicitly (tagged `.perf`):
+- [X] T050 [US5] Run performance tests explicitly (tagged `.perf`):
   ```
   build/windows-x64-release/bin/Release/dsp_tests.exe "[.perf]" 2>&1 | tail -20
   ```
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T051 [US5] The performance benchmark uses wall-clock timing -- no IEEE 754 concern. Confirm no isnan/isinf added. No CMakeLists.txt changes needed.
+- [X] T051 [US5] The performance benchmark uses wall-clock timing -- no IEEE 754 concern. Confirm no isnan/isinf added. No CMakeLists.txt changes needed.
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T052 [US5] **Commit completed User Story 5 work** (polyphony tests + any performance fixes)
+- [X] T052 [US5] **Commit completed User Story 5 work** (polyphony tests + any performance fixes)
 
 **Checkpoint**: 8-voice polyphony passes SC-002a and SC-002b. Voice independence confirmed. Mode count respects kPartialCountId.
 
