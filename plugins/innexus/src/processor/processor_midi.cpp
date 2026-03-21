@@ -148,7 +148,12 @@ static void initVoiceForNoteOn(
     float resonanceDecay,
     float resonanceBrightness,
     float resonanceStretch,
-    float resonanceScatter)
+    float resonanceScatter,
+    ExciterType exciterType,
+    float impactHardness,
+    float impactMass,
+    float impactBrightness,
+    float impactPosition)
 {
     // Set new note state
     voice.midiNote = noteNumber;
@@ -259,6 +264,33 @@ static void initVoiceForNoteOn(
             modeFreqs.data(), modeAmps.data(), frame.numPartials,
             resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
     }
+
+    // Spec 128: Trigger impact exciter on note-on if type is Impact
+    if (exciterType == ExciterType::Impact)
+    {
+        // Get f0 from the morphed frame for comb filter
+        float f0 = voice.morphedFrame.f0;
+        if (f0 <= 0.0f)
+            f0 = Krate::DSP::midiNoteToFrequency(noteNumber);
+
+        voice.impactExciter.trigger(
+            velocity, impactHardness, impactMass, impactBrightness, impactPosition, f0);
+
+        // FR-035: Mallet choke on retrigger -- velocity-dependent choke envelope
+        // chokeMaxScale_ determines how much the existing resonance is damped.
+        // A hard re-strike (high velocity) chokes more; gentle tap chokes less.
+        constexpr float kMaxChokeBase = 4.0f;  // maximum choke multiplier
+        voice.chokeMaxScale_ = 1.0f + (kMaxChokeBase - 1.0f) * velocity;
+        voice.chokeEnvelope_ = 0.0f;  // start at full choke
+        voice.chokeDecayScale_ = voice.chokeMaxScale_;
+    }
+    else
+    {
+        // Residual or other exciter: no choke
+        voice.chokeDecayScale_ = 1.0f;
+        voice.chokeEnvelope_ = 1.0f;
+        voice.chokeMaxScale_ = 1.0f;
+    }
 }
 
 // ==============================================================================
@@ -288,6 +320,17 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
     const float resStretch = resonanceStretch_.load(std::memory_order_relaxed);
     const float resScatter = resonanceScatter_.load(std::memory_order_relaxed);
 
+    // Spec 128: Impact exciter parameters
+    const float exciterTypeNorm = exciterType_.load(std::memory_order_relaxed);
+    const auto exciterType = static_cast<ExciterType>(
+        std::clamp(static_cast<int>(std::round(exciterTypeNorm * 2.0f)), 0, 2));
+    const float impHardness = impactHardness_.load(std::memory_order_relaxed);
+    const float impMass = impactMass_.load(std::memory_order_relaxed);
+    // Brightness is stored normalized [0,1], denormalize to plain [-1,+1]
+    const float impBrightnessNorm = impactBrightness_.load(std::memory_order_relaxed);
+    const float impBrightness = impBrightnessNorm * 2.0f - 1.0f;
+    const float impPosition = impactPosition_.load(std::memory_order_relaxed);
+
     if (maxVoices == 1)
     {
         // === MONO MODE: last-note-priority (original behavior) ===
@@ -310,7 +353,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             currentLiveFrame_, currentLiveResidualFrame_,
             blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
             brightness, transientEmp,
-            resDecay, resBrightness, resStretch, resScatter);
+            resDecay, resBrightness, resStretch, resScatter,
+            exciterType, impHardness, impMass, impBrightness, impPosition);
 
         // Apply modulators (mono mode uses processor-level modulators)
         const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -349,7 +393,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     currentLiveFrame_, currentLiveResidualFrame_,
                     blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
                     brightness, transientEmp,
-                    resDecay, resBrightness, resStretch, resScatter);
+                    resDecay, resBrightness, resStretch, resScatter,
+                    exciterType, impHardness, impMass, impBrightness, impPosition);
                 break;
             }
             case Krate::DSP::VoiceEvent::Type::NoteOff:

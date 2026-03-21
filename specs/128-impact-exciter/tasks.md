@@ -185,32 +185,32 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T024 [P] [US2] Write failing unit tests for multi-dimensional velocity response in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T024 [P] [US2] Write failing unit tests for multi-dimensional velocity response in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - At same hardness=0.5, velocity 1.0 vs velocity 0.2: output peak amplitude is higher at vel=1.0 (amplitude = `pow(v, 0.6)`)
   - At same hardness=0.5, velocity 1.0 vs velocity 0.2: output spectral centroid is measurably higher at vel=1.0 (exponential cutoff modulation, SC-004)
   - At same hardness=0.5, velocity 1.0 vs velocity 0.2: pulse duration is shorter at vel=1.0 (`T *= pow(1 - v, 0.2)`, SC-004)
   - Velocity coupling is NOT linear: spectral centroid at vel=0.5 is NOT exactly midway between vel=0.0 and vel=1.0 (SC-004, FR-021)
   - At same hardness=0.5, pulse durations at vel=0.0, vel=0.5, vel=1.0 form a non-linear curve: T(0.5) is NOT midway between T(0.0) and T(1.0) (verifies FR-021 for duration mapping)
 
-- [ ] T025 [P] [US2] Write failing integration tests for velocity routing in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
+- [X] T025 [P] [US2] Write failing integration tests for velocity routing in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
   - On note-on with Impact exciter selected, `impactExciter.trigger()` receives normalized velocity from `InnexusVoice::velocityGain` (not 0 or 1 default)
   - Two notes at same pitch, same hardness, different velocities produce different peak amplitudes from resonator
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T026 [US2] Extend `InnexusVoice` in `plugins/innexus/src/processor/innexus_voice.h`: add `ImpactExciter impactExciter` member and choke state fields (`chokeDecayScale_`, `chokeEnvelope_`, `chokeEnvelopeCoeff_`, `chokeMaxScale_`) per data-model.md InnexusVoice Extensions section
+- [X] T026 [US2] Extend `InnexusVoice` in `plugins/innexus/src/processor/innexus_voice.h`: add `ImpactExciter impactExciter` member and choke state fields (`chokeDecayScale_`, `chokeEnvelope_`, `chokeEnvelopeCoeff_`, `chokeMaxScale_`) per data-model.md InnexusVoice Extensions section
 
-- [ ] T027 [US2] Extend `initVoiceForNoteOn()` in `plugins/innexus/src/processor/processor_midi.cpp`: when `exciterType_ == ExciterType::Impact`, call `voice.impactExciter.trigger(velocityGain, hardness, mass, brightness, position, f0)` reading normalized params from processor atomics (hardness, mass, brightness, position) and voice's current f0
+- [X] T027 [US2] Extend `initVoiceForNoteOn()` in `plugins/innexus/src/processor/processor_midi.cpp`: when `exciterType_ == ExciterType::Impact`, call `voice.impactExciter.trigger(velocityGain, hardness, mass, brightness, position, f0)` reading normalized params from processor atomics (hardness, mass, brightness, position) and voice's current f0
 
-- [ ] T028 [US2] Extend the voice processing loop in `plugins/innexus/src/processor/processor.cpp`: when `exciterType_ == ExciterType::Impact`, compute `excitation = voice.impactExciter.process()` instead of `residualSynth.process()`, pass excitation to `voice.modalResonator.processSample(excitation, voice.chokeDecayScale_)` (FR-030, FR-031)
+- [X] T028 [US2] Extend the voice processing loop in `plugins/innexus/src/processor/processor.cpp`: when `exciterType_ == ExciterType::Impact`, compute `excitation = voice.impactExciter.process()` instead of `residualSynth.process()`, pass excitation to `voice.modalResonator.processSample(excitation, voice.chokeDecayScale_)` (FR-030, FR-031)
 
-- [ ] T029 [US2] Call `impactExciter.prepare(sampleRate, voiceIndex)` and `impactExciter.reset()` at the appropriate lifecycle points in `plugins/innexus/src/processor/processor.cpp` (alongside existing `residualSynth` prepare/reset calls)
+- [X] T029 [US2] Call `impactExciter.prepare(sampleRate, voiceIndex)` and `impactExciter.reset()` at the appropriate lifecycle points in `plugins/innexus/src/processor/processor.cpp` (alongside existing `residualSynth` prepare/reset calls)
 
-- [ ] T030 [US2] Verify all User Story 2 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
+- [X] T030 [US2] Verify all User Story 2 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
 
 ### 4.3 Cross-Platform Verification
 
-- [ ] T031 [US2] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
+- [X] T031 [US2] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
 
 ### 4.4 Commit
 

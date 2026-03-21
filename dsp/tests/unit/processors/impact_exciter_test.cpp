@@ -500,3 +500,119 @@ TEST_CASE("ImpactExciter comb blend is neither fully dry nor fully wet", "[proce
     float evenHarmBlend = measureHarmonicMagnitude(bufferBlend, kSampleRate, f0 * 2.0f);
     REQUIRE(evenHarmBlend > 0.001f);
 }
+
+// =============================================================================
+// T024: Multi-dimensional velocity response tests (User Story 2)
+// =============================================================================
+
+TEST_CASE("ImpactExciter velocity 1.0 vs 0.2: higher peak amplitude at full velocity (SC-004)",
+          "[processors][impact_exciter][velocity]")
+{
+    Krate::DSP::ImpactExciter exciterHigh;
+    exciterHigh.prepare(kSampleRate, 50);
+    auto bufHigh = generateExciterBlock(exciterHigh, 1.0f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float peakHigh = findPeakAmplitude(bufHigh);
+
+    Krate::DSP::ImpactExciter exciterLow;
+    exciterLow.prepare(kSampleRate, 50);
+    auto bufLow = generateExciterBlock(exciterLow, 0.2f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float peakLow = findPeakAmplitude(bufLow);
+
+    // Higher velocity must produce higher amplitude
+    REQUIRE(peakHigh > peakLow);
+
+    // Ratio should reflect nonlinear pow(v, 0.6): pow(1.0, 0.6)/pow(0.2, 0.6) ~ 2.89
+    // Allow wide margin due to SVF and noise effects
+    float ratio = peakHigh / peakLow;
+    REQUIRE(ratio > 1.5f);
+}
+
+TEST_CASE("ImpactExciter velocity 1.0 vs 0.2: higher spectral centroid at full velocity (SC-004)",
+          "[processors][impact_exciter][velocity]")
+{
+    // Use separate instances with same voice seed to isolate velocity effect
+    Krate::DSP::ImpactExciter exciterHigh;
+    exciterHigh.prepare(kSampleRate, 60);
+    auto bufHigh = generateExciterBlock(exciterHigh, 1.0f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidHigh = estimateSpectralCentroid(bufHigh, kSampleRate);
+
+    Krate::DSP::ImpactExciter exciterLow;
+    exciterLow.prepare(kSampleRate, 60);
+    auto bufLow = generateExciterBlock(exciterLow, 0.2f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidLow = estimateSpectralCentroid(bufLow, kSampleRate);
+
+    // Higher velocity = higher cutoff from FR-019, so brighter output
+    REQUIRE(centroidHigh > centroidLow);
+}
+
+TEST_CASE("ImpactExciter velocity 1.0 vs 0.2: shorter pulse duration at full velocity (SC-004)",
+          "[processors][impact_exciter][velocity]")
+{
+    // FR-020: T *= pow(1 - v, 0.2), so higher velocity gives shorter T
+    Krate::DSP::ImpactExciter exciterHigh;
+    exciterHigh.prepare(kSampleRate, 70);
+    auto bufHigh = generateExciterBlock(exciterHigh, 1.0f, 0.5f, 0.5f, 0.0f, 0.0f, 440.0f);
+    int lastHigh = findLastNonZeroIndex(bufHigh);
+
+    Krate::DSP::ImpactExciter exciterLow;
+    exciterLow.prepare(kSampleRate, 70);
+    auto bufLow = generateExciterBlock(exciterLow, 0.2f, 0.5f, 0.5f, 0.0f, 0.0f, 440.0f);
+    int lastLow = findLastNonZeroIndex(bufLow);
+
+    // Full velocity pulse should end sooner
+    REQUIRE(lastHigh < lastLow);
+}
+
+TEST_CASE("ImpactExciter velocity coupling is nonlinear: centroid at 0.5 is NOT midway (FR-021)",
+          "[processors][impact_exciter][velocity]")
+{
+    // SC-004, FR-021: Exponential/log curves, not linear
+    Krate::DSP::ImpactExciter excLow;
+    excLow.prepare(kSampleRate, 80);
+    auto bufLow = generateExciterBlock(excLow, 0.0001f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidLow = estimateSpectralCentroid(bufLow, kSampleRate);
+
+    Krate::DSP::ImpactExciter excMid;
+    excMid.prepare(kSampleRate, 80);
+    auto bufMid = generateExciterBlock(excMid, 0.5f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidMid = estimateSpectralCentroid(bufMid, kSampleRate);
+
+    Krate::DSP::ImpactExciter excHigh;
+    excHigh.prepare(kSampleRate, 80);
+    auto bufHigh = generateExciterBlock(excHigh, 1.0f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidHigh = estimateSpectralCentroid(bufHigh, kSampleRate);
+
+    // If linear: centroidMid would be midpoint of low and high
+    float linearMidpoint = (centroidLow + centroidHigh) * 0.5f;
+
+    // Exponential coupling: centroidMid should NOT be at the linear midpoint
+    // Allow 5% tolerance for "midpoint" -- the deviation should exceed this
+    float deviation = std::abs(centroidMid - linearMidpoint) / std::abs(centroidHigh - centroidLow);
+    REQUIRE(deviation > 0.05f);
+}
+
+TEST_CASE("ImpactExciter pulse duration nonlinear with velocity: T(0.5) not midway (FR-021)",
+          "[processors][impact_exciter][velocity]")
+{
+    // FR-020, FR-021: T *= pow(1-v, 0.2) is nonlinear
+    auto measureDuration = [](float vel) {
+        Krate::DSP::ImpactExciter exc;
+        exc.prepare(kSampleRate, 90);
+        auto buf = generateExciterBlock(exc, vel, 0.5f, 0.5f, 0.0f, 0.0f, 440.0f);
+        return findLastNonZeroIndex(buf);
+    };
+
+    int durationLow = measureDuration(0.0001f);
+    int durationMid = measureDuration(0.5f);
+    int durationHigh = measureDuration(1.0f);
+
+    // Ensure ordering: high vel = shorter
+    REQUIRE(durationHigh < durationLow);
+
+    // Mid should NOT be the arithmetic midpoint
+    float linearMid = static_cast<float>(durationLow + durationHigh) * 0.5f;
+    float actualMid = static_cast<float>(durationMid);
+    float range = static_cast<float>(durationLow - durationHigh);
+    float deviation = std::abs(actualMid - linearMid) / std::max(range, 1.0f);
+    REQUIRE(deviation > 0.03f);
+}
