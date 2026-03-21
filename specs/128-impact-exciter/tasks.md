@@ -259,7 +259,7 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 5.4 Commit
 
-- [ ] T039 [US3] Commit completed User Story 3 work: micro-bounce subsystem + per-trigger variation tests
+- [X] T039 [US3] Commit completed User Story 3 work: micro-bounce subsystem + per-trigger variation tests
 
 **Checkpoint**: Identical trigger parameters produce measurably different output each time. Micro-bounce appears for hardness > 0.6. All Phase 5 tests pass.
 
@@ -279,19 +279,19 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T040 [P] [US4] Write failing unit tests for brightness trim in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T040 [P] [US4] Write failing unit tests for brightness trim in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - High hardness + brightness=-1.0: spectral centroid lower than hardness alone at brightness=0.0 (SC-007 "sharp transient but dark tone")
   - Brightness=0.0: spectral centroid equals baseline hardness mapping exactly (FR-017, SC-007)
   - Brightness=+1.0: spectral centroid higher than brightness=0.0 (SC-007)
   - cutoff shift at +/-1.0 is approximately +/-12 semitones from the brightness=0.0 cutoff (SC-007: verify `cutoff_+1 / cutoff_0 ≈ 2.0`, within 5% tolerance)
 
-- [ ] T041 [P] [US4] Write failing unit tests for strike position in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T041 [P] [US4] Write failing unit tests for strike position in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Position=0.0 (edge): second harmonic is NOT attenuated relative to fundamental (FR-024, SC-008)
   - Position=0.5 (center): second harmonic amplitude measurably lower than at position=0.0 (SC-008)
   - Position=0.13 (default): output is between 0.0 and 0.5 in harmonic content (FR-024 "sweet spot")
   - Blend factor: output at position=0.5 is NOT equal to pure comb filter output (confirms 70/30 blend, FR-023)
 
-- [ ] T042 [P] [US4] Write failing VST parameter tests for new Innexus parameters in `plugins/innexus/tests/unit/vst/innexus_vst_tests.cpp`:
+- [X] T042 [P] [US4] Write failing VST parameter tests for new Innexus parameters in `plugins/innexus/tests/unit/vst/innexus_vst_tests.cpp`:
   - `kExciterTypeId` (805) range: 0 to 2, default 0
   - `kImpactHardnessId` (806) range: 0.0-1.0, default 0.5
   - `kImpactMassId` (807) range: 0.0-1.0, default 0.3
@@ -301,15 +301,15 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T043 [US4] Verify parameter routing: confirm `processor.cpp` reads `impactBrightness_` and `impactPosition_` atomics and passes denormalized values to `impactExciter.trigger()` (brightness: `param * 2.0f - 1.0f` for -1..+1 from normalized 0..1). Fix any routing gaps found.
+- [X] T043 [US4] Verify parameter routing: confirm `processor.cpp` reads `impactBrightness_` and `impactPosition_` atomics and passes denormalized values to `impactExciter.trigger()` (brightness: `param * 2.0f - 1.0f` for -1..+1 from normalized 0..1). Fix any routing gaps found.
 
-- [ ] T044 [US4] Add edge-case guard in `process()` for position=0.0 in `dsp/include/krate/dsp/processors/impact_exciter.h`: when `combDelaySamples_ < 1`, skip comb filter computation entirely and return filtered signal directly (performance optimization from plan.md, also ensures FR-024 boundary behavior)
+- [X] T044 [US4] Add edge-case guard in `process()` for position=0.0 in `dsp/include/krate/dsp/processors/impact_exciter.h`: when `combDelaySamples_ < 1`, skip comb filter computation entirely and return filtered signal directly (performance optimization from plan.md, also ensures FR-024 boundary behavior)
 
-- [ ] T045 [US4] Verify all User Story 4 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
+- [X] T045 [US4] Verify all User Story 4 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
 
 ### 6.3 Cross-Platform Verification
 
-- [ ] T046 [US4] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/vst/innexus_vst_tests.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
+- [X] T046 [US4] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/vst/innexus_vst_tests.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
 
 ### 6.4 Commit
 

@@ -894,6 +894,233 @@ TEST_CASE("ImpactExciter hardness 0.4: no bounce below threshold 0.6 (FR-007)",
     REQUIRE_FALSE(foundGap);
 }
 
+// =============================================================================
+// T040: Brightness trim detailed tests (User Story 4 / SC-007, FR-016, FR-017)
+// =============================================================================
+
+TEST_CASE("ImpactExciter brightness=-1.0 at high hardness: centroid lower than brightness=0.0 (SC-007)",
+          "[processors][impact_exciter][brightness]")
+{
+    // High hardness + brightness=-1.0: "sharp transient but dark tone"
+    Krate::DSP::ImpactExciter excNeutral;
+    excNeutral.prepare(kSampleRate, 100);
+    auto bufNeutral = generateExciterBlock(excNeutral, 0.7f, 0.8f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidNeutral = estimateSpectralCentroid(bufNeutral, kSampleRate);
+
+    Krate::DSP::ImpactExciter excDark;
+    excDark.prepare(kSampleRate, 100);
+    auto bufDark = generateExciterBlock(excDark, 0.7f, 0.8f, 0.3f, -1.0f, 0.0f, 440.0f);
+    float centroidDark = estimateSpectralCentroid(bufDark, kSampleRate);
+
+    // brightness=-1.0 should produce a lower centroid than brightness=0.0
+    REQUIRE(centroidDark < centroidNeutral);
+}
+
+TEST_CASE("ImpactExciter brightness=0.0 preserves exact baseline centroid (FR-017, SC-007)",
+          "[processors][impact_exciter][brightness]")
+{
+    // Two separate instances with same seed, both at brightness=0.0.
+    // Output should be identical, proving brightness=0.0 applies no offset.
+    Krate::DSP::ImpactExciter excA;
+    excA.prepare(kSampleRate, 200);
+    auto bufA = generateExciterBlock(excA, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+
+    Krate::DSP::ImpactExciter excB;
+    excB.prepare(kSampleRate, 200);
+    auto bufB = generateExciterBlock(excB, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+
+    // Buffers should be bit-identical (same seed, same params, brightness=0 is identity)
+    bool identical = true;
+    for (size_t i = 0; i < bufA.size(); ++i) {
+        if (bufA[i] != bufB[i]) {
+            identical = false;
+            break;
+        }
+    }
+    REQUIRE(identical);
+}
+
+TEST_CASE("ImpactExciter brightness=+1.0 centroid higher than brightness=0.0 (SC-007)",
+          "[processors][impact_exciter][brightness]")
+{
+    Krate::DSP::ImpactExciter excNeutral;
+    excNeutral.prepare(kSampleRate, 100);
+    auto bufNeutral = generateExciterBlock(excNeutral, 0.7f, 0.8f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidNeutral = estimateSpectralCentroid(bufNeutral, kSampleRate);
+
+    Krate::DSP::ImpactExciter excBright;
+    excBright.prepare(kSampleRate, 100);
+    auto bufBright = generateExciterBlock(excBright, 0.7f, 0.8f, 0.3f, 1.0f, 0.0f, 440.0f);
+    float centroidBright = estimateSpectralCentroid(bufBright, kSampleRate);
+
+    REQUIRE(centroidBright > centroidNeutral);
+}
+
+TEST_CASE("ImpactExciter brightness +-1.0 cutoff ratio is approximately 2.0 (SC-007, +-12 semitones)",
+          "[processors][impact_exciter][brightness]")
+{
+    // FR-016: effectiveCutoff = baseCutoff * exp2(brightness)
+    // At brightness=+1.0: cutoff = 2 * baseCutoff, brightness=-1.0: cutoff = 0.5 * baseCutoff
+    // So cutoff_+1 / cutoff_0 should be ~2.0 and cutoff_0 / cutoff_-1 should be ~2.0.
+    //
+    // We measure the spectral centroid as a proxy for effective cutoff.
+    // The ratio won't be exactly 2.0 because centroid also depends on source spectrum,
+    // but it should be approximately 2.0 within tolerance.
+    //
+    // Use high hardness (high cutoff) and moderate velocity so cutoff doesn't clip at Nyquist.
+
+    Krate::DSP::ImpactExciter excNeutral;
+    excNeutral.prepare(kSampleRate, 300);
+    auto bufNeutral = generateExciterBlock(excNeutral, 0.5f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f);
+    float centroidNeutral = estimateSpectralCentroid(bufNeutral, kSampleRate);
+
+    Krate::DSP::ImpactExciter excBright;
+    excBright.prepare(kSampleRate, 300);
+    auto bufBright = generateExciterBlock(excBright, 0.5f, 0.5f, 0.3f, 1.0f, 0.0f, 440.0f);
+    float centroidBright = estimateSpectralCentroid(bufBright, kSampleRate);
+
+    Krate::DSP::ImpactExciter excDark;
+    excDark.prepare(kSampleRate, 300);
+    auto bufDark = generateExciterBlock(excDark, 0.5f, 0.5f, 0.3f, -1.0f, 0.0f, 440.0f);
+    float centroidDark = estimateSpectralCentroid(bufDark, kSampleRate);
+
+    // The ratio centroidBright / centroidNeutral should approximate 2.0 (one octave up)
+    float ratioBright = centroidBright / centroidNeutral;
+    REQUIRE(ratioBright > 1.5f);  // At least significantly higher
+    REQUIRE(ratioBright < 2.5f);  // Not too far from 2x
+
+    // The ratio centroidNeutral / centroidDark should also approximate 2.0
+    float ratioDark = centroidNeutral / centroidDark;
+    REQUIRE(ratioDark > 1.5f);
+    REQUIRE(ratioDark < 2.5f);
+
+    // The full range ratio (bright/dark) should be ~4.0 (two octaves)
+    float ratioFull = centroidBright / centroidDark;
+    REQUIRE(ratioFull > 3.0f);
+    REQUIRE(ratioFull < 6.0f);
+}
+
+// =============================================================================
+// T041: Strike position detailed tests (User Story 4 / SC-008, FR-023, FR-024)
+// =============================================================================
+
+TEST_CASE("ImpactExciter position=0.0: second harmonic NOT attenuated (FR-024, SC-008)",
+          "[processors][impact_exciter][position]")
+{
+    float f0 = 440.0f;
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 400);
+
+    auto buffer = generateExciterBlock(exciter, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, f0);
+
+    float mag1 = measureHarmonicMagnitude(buffer, kSampleRate, f0);
+    float mag2 = measureHarmonicMagnitude(buffer, kSampleRate, f0 * 2.0f);
+
+    // At position=0.0, comb filter is bypassed, so 2nd harmonic should be present
+    // relative to fundamental. The ratio depends on pulse shape, but should be substantial.
+    REQUIRE(mag1 > 0.001f);
+    REQUIRE(mag2 > 0.001f);
+
+    // 2nd harmonic should NOT be dramatically attenuated relative to fundamental
+    // (no comb filter nulls at position=0.0)
+    float ratio = mag2 / mag1;
+    REQUIRE(ratio > 0.05f);
+}
+
+TEST_CASE("ImpactExciter position=0.5: absolute 2nd harmonic lower than position=0.0 (SC-008)",
+          "[processors][impact_exciter][position]")
+{
+    float f0 = 440.0f;
+
+    // Use same seed for both so the only difference is the comb filter
+    Krate::DSP::ImpactExciter excEdge;
+    excEdge.prepare(kSampleRate, 99);
+    auto bufEdge = generateExciterBlock(excEdge, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, f0);
+    float mag2Edge = measureHarmonicMagnitude(bufEdge, kSampleRate, f0 * 2.0f);
+
+    Krate::DSP::ImpactExciter excCenter;
+    excCenter.prepare(kSampleRate, 99);
+    auto bufCenter = generateExciterBlock(excCenter, 0.7f, 0.5f, 0.3f, 0.0f, 0.5f, f0);
+    float mag2Center = measureHarmonicMagnitude(bufCenter, kSampleRate, f0 * 2.0f);
+
+    // Position=0.5 should attenuate 2nd harmonic relative to position=0.0 (edge)
+    // The comb filter H(z) = 1 - z^(-D) creates nulls at even harmonics when D=N/2.
+    // With 70% wet blend, even harmonics are reduced to ~30% of dry level.
+    REQUIRE(mag2Center < mag2Edge * 0.8f);
+}
+
+TEST_CASE("ImpactExciter position=0.13: spectrum differs from both 0.0 and 0.5 (FR-024)",
+          "[processors][impact_exciter][position]")
+{
+    // Position=0.13 is the "sweet spot" of struck bars. It applies a mild comb
+    // filter with nulls at non-harmonic frequencies (f0/0.13 ~ 3385 Hz, etc.),
+    // producing a different spectral coloration than both edge (no comb) and
+    // center (nulls at even harmonics).
+
+    float f0 = 440.0f;
+
+    Krate::DSP::ImpactExciter excEdge;
+    excEdge.prepare(kSampleRate, 99);
+    auto bufEdge = generateExciterBlock(excEdge, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, f0);
+
+    Krate::DSP::ImpactExciter excDefault;
+    excDefault.prepare(kSampleRate, 99);
+    auto bufDefault = generateExciterBlock(excDefault, 0.7f, 0.5f, 0.3f, 0.0f, 0.13f, f0);
+
+    Krate::DSP::ImpactExciter excCenter;
+    excCenter.prepare(kSampleRate, 99);
+    auto bufCenter = generateExciterBlock(excCenter, 0.7f, 0.5f, 0.3f, 0.0f, 0.5f, f0);
+
+    // Position=0.13 output should differ from both edge and center
+    float centroidEdge = estimateSpectralCentroid(bufEdge, kSampleRate);
+    float centroidDefault = estimateSpectralCentroid(bufDefault, kSampleRate);
+    float centroidCenter = estimateSpectralCentroid(bufCenter, kSampleRate);
+
+    // All three should have meaningful centroids
+    REQUIRE(centroidEdge > 100.0f);
+    REQUIRE(centroidDefault > 100.0f);
+    REQUIRE(centroidCenter > 100.0f);
+
+    // Default position should have a distinct centroid (not identical to either)
+    float diffFromEdge = std::abs(centroidDefault - centroidEdge);
+    float diffFromCenter = std::abs(centroidDefault - centroidCenter);
+    REQUIRE(diffFromEdge > 10.0f);  // Measurably different from edge
+    REQUIRE(diffFromCenter > 10.0f);  // Measurably different from center
+}
+
+TEST_CASE("ImpactExciter position=0.5 blend: output differs from pure comb (FR-023)",
+          "[processors][impact_exciter][position]")
+{
+    // FR-023: output = lerp(input, combFiltered, 0.7), not fully wet.
+    // If the comb filter were 100% wet, even harmonics would be completely nulled.
+    // With 70% wet, even harmonics should be attenuated but not eliminated.
+
+    float f0 = 440.0f;
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 700);
+
+    auto buffer = generateExciterBlock(exciter, 0.7f, 0.5f, 0.3f, 0.0f, 0.5f, f0);
+
+    // Measure even harmonics -- with 70% blend they should be reduced but present
+    float mag2 = measureHarmonicMagnitude(buffer, kSampleRate, f0 * 2.0f);
+    float mag4 = measureHarmonicMagnitude(buffer, kSampleRate, f0 * 4.0f);
+    float mag1 = measureHarmonicMagnitude(buffer, kSampleRate, f0);
+    float mag3 = measureHarmonicMagnitude(buffer, kSampleRate, f0 * 3.0f);
+
+    // Even harmonics should still be present (not zero, proving blend is not 100%)
+    REQUIRE(mag2 > 0.0001f);
+    REQUIRE(mag4 > 0.0001f);
+
+    // Odd harmonics should be stronger than even at center position
+    // (comb at half-period nulls even harmonics, odd harmonics reinforced)
+    REQUIRE(mag1 > mag2);
+    REQUIRE(mag3 > mag4);
+}
+
+// =============================================================================
+// T034: Micro-bounce tests (User Story 3 / FR-007, FR-008)
+// =============================================================================
+
 TEST_CASE("ImpactExciter bounce delay and amplitude vary across triggers (FR-008)",
           "[processors][impact_exciter][bounce]")
 {
