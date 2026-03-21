@@ -397,19 +397,19 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 **Test-first exception**: SIMD is a pure internal optimization that must produce numerically identical output to the scalar path. No new tests need to be written before implementing the SIMD kernel. The scalar tests written in Phases 3-5 serve as the oracle: if the SIMD kernel is correct, all existing `ModalResonatorBank*` tests will continue to pass unchanged. This is consistent with Constitution Principle XII because the observable behavior is already fully covered -- the SIMD path adds no new behavior to specify.
 
-- [ ] T053 Create `dsp/include/krate/dsp/processors/modal_resonator_bank_simd.cpp` using the Highway self-inclusion pattern (`HWY_TARGET_INCLUDE`, `HWY_EXPORT`, `HWY_DYNAMIC_DISPATCH`) following the exact template of `dsp/src/harmonic_oscillator_bank_simd.cpp`; implement the coupled-form inner loop over SoA arrays using `hn::ScalableTag<float>` (FR-005)
+- [X] T053 Create `dsp/include/krate/dsp/processors/modal_resonator_bank_simd.cpp` using the Highway self-inclusion pattern (`HWY_TARGET_INCLUDE`, `HWY_EXPORT`, `HWY_DYNAMIC_DISPATCH`) following the exact template of `dsp/src/harmonic_oscillator_bank_simd.cpp`; implement the coupled-form inner loop over SoA arrays using `hn::ScalableTag<float>` (FR-005)
 
-- [ ] T054 Add `modal_resonator_bank_simd.cpp` to `dsp/CMakeLists.txt` under the SIMD source list (same pattern as `harmonic_oscillator_bank_simd.cpp`)
+- [X] T054 Add `modal_resonator_bank_simd.cpp` to `dsp/CMakeLists.txt` under the SIMD source list (same pattern as `harmonic_oscillator_bank_simd.cpp`)
 
-- [ ] T055 Update `ModalResonatorBank::processBlock()` to dispatch to the SIMD kernel via `HWY_DYNAMIC_DISPATCH` for the bulk of modes, with a scalar tail loop for remainder modes (same scalar-plus-tail pattern as `HarmonicOscillatorBank`)
+- [X] T055 Update `ModalResonatorBank::processBlock()` to dispatch to the SIMD kernel via `HWY_DYNAMIC_DISPATCH` for the bulk of modes, with a scalar tail loop for remainder modes (same scalar-plus-tail pattern as `HarmonicOscillatorBank`)
 
-- [ ] T056 Build `dsp_tests` and run ALL existing `ModalResonatorBank*` tests to confirm SIMD output is identical to scalar baseline (the tests written in Phases 3-5 serve as correctness regression for the SIMD path):
+- [X] T056 Build `dsp_tests` and run ALL existing `ModalResonatorBank*` tests to confirm SIMD output is identical to scalar baseline (the tests written in Phases 3-5 serve as correctness regression for the SIMD path):
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests
   build/windows-x64-release/bin/Release/dsp_tests.exe "ModalResonatorBank*" 2>&1 | tail -10
   ```
 
-- [ ] T057 Run performance tests again to confirm SIMD provides measurable improvement over scalar:
+- [X] T057 Run performance tests again to confirm SIMD provides measurable improvement over scalar:
   ```
   build/windows-x64-release/bin/Release/dsp_tests.exe "[.perf]" 2>&1 | tail -20
   ```
@@ -424,13 +424,13 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 **Purpose**: Verify the complete updated Innexus plugin passes pluginval at strictness level 5 (SC-009).
 
-- [ ] T059 Build the full Innexus plugin:
+- [X] T059 Build the full Innexus plugin:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release
   ```
   (Permission error copying to `C:/Program Files/Common Files/VST3/` is acceptable -- compilation success is what matters.)
 
-- [ ] T060 Run pluginval:
+- [X] T060 Run pluginval:
   ```
   tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3" 2>&1 | tail -20
   ```
@@ -446,11 +446,11 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 **Purpose**: Code review and final build verification across all user stories. SC-003 and SC-004 are validated in Phase 3 tests; this phase reviews the implementation for correctness against FRs.
 
-- [ ] T062 [P] Code review against all FRs: walk through `modal_resonator_bank.h` and verify: `kTransientEmphasisGain = 4.0f` has the required comment about future promotion (FR-022), `kMaxB3 = 4.0e-5f` is inside the class (FR-006), `(1-R)` normalization is used not `(1-R^2)/2` (FR-009), `kMaxModes = 96` matches (FR-001)
+- [X] T062 [P] Code review against all FRs: walk through `modal_resonator_bank.h` and verify: `kTransientEmphasisGain = 4.0f` has the required comment about future promotion (FR-022), `kMaxB3 = 4.0e-5f` is inside the class (FR-006), `(1-R)` normalization is used not `(1-R^2)/2` (FR-009), `kMaxModes = 96` matches (FR-001)
 
-- [ ] T063 [P] Verify FR-013: confirm in `computeModeCoefficients()` that the Stretch/Scatter warping modifies only the local `f_w` variable used for resonator coefficients and does NOT touch the `HarmonicFrame::partials` data (which feeds the oscillator bank)
+- [X] T063 [P] Verify FR-013: confirm in `computeModeCoefficients()` that the Stretch/Scatter warping modifies only the local `f_w` variable used for resonator coefficients and does NOT touch the `HarmonicFrame::partials` data (which feeds the oscillator bank)
 
-- [ ] T064 Build all test targets one final time and confirm zero failures:
+- [X] T064 Build all test targets one final time and confirm zero failures:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests innexus_tests
   build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5
@@ -471,9 +471,9 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 ### 11.1 Architecture Documentation Update
 
-- [ ] T066 Update `specs/_architecture_/layer-2-processors.md`: add entry for `ModalResonatorBank` including purpose ("Bank of up to 96 parallel damped coupled-form resonators for modal synthesis"), public API summary (`prepare`, `reset`, `setModes`, `updateModes`, `processBlock`, `processSample`, `flushSilentModes`), file location (`dsp/include/krate/dsp/processors/modal_resonator_bank.h`), "when to use" ("Use when you need physically-motivated resonance driven by analyzed harmonic content; designed for 96-mode SIMD operation with SoA layout"), and note on existing alternatives (`ModalResonator` = 32-mode biquad material presets; `ResonatorBank` = 16 bandpass filters with Q control -- different topologies)
+- [X] T066 Update `specs/_architecture_/layer-2-processors.md`: add entry for `ModalResonatorBank` including purpose ("Bank of up to 96 parallel damped coupled-form resonators for modal synthesis"), public API summary (`prepare`, `reset`, `setModes`, `updateModes`, `processBlock`, `processSample`, `flushSilentModes`), file location (`dsp/include/krate/dsp/processors/modal_resonator_bank.h`), "when to use" ("Use when you need physically-motivated resonance driven by analyzed harmonic content; designed for 96-mode SIMD operation with SoA layout"), and note on existing alternatives (`ModalResonator` = 32-mode biquad material presets; `ResonatorBank` = 16 bandpass filters with Q control -- different topologies)
 
-- [ ] T067 [P] Update `specs/_architecture_/innexus-plugin.md` (if it exists) or the relevant Innexus architecture doc: add `PhysicalModelMixer` to plugin-local DSP section, add note about the physical modelling signal path (residual -> transient emphasis -> modal resonator -> PhysicalModelMixer blend)
+- [X] T067 [P] Update `specs/_architecture_/innexus-plugin.md` (if it exists) or the relevant Innexus architecture doc: add `PhysicalModelMixer` to plugin-local DSP section, add note about the physical modelling signal path (residual -> transient emphasis -> modal resonator -> PhysicalModelMixer blend)
 
 ### 11.2 Final Commit
 
@@ -490,19 +490,19 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 > **Pre-commit Quality Gate**: Run clang-tidy to catch potential bugs, performance issues, and style violations.
 
-- [ ] T070 Generate `compile_commands.json` if not current (run from VS Developer PowerShell):
+- [X] T070 Generate `compile_commands.json` if not current (run from VS Developer PowerShell):
   ```powershell
   cd F:/projects/iterum
   cmake --preset windows-ninja
   ```
 
-- [ ] T071 Run clang-tidy on new and modified files:
+- [X] T071 Run clang-tidy on new and modified files:
   ```powershell
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
   ./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja
   ```
 
-- [ ] T072 Fix all clang-tidy errors (blocking issues). Review warnings and fix where appropriate. Add `// NOLINT(<check>): <reason>` comments for intentional suppressions (e.g., performance-no-automatic-move on aligned arrays, magic-number on DSP constants that are already named constexpr).
+- [X] T072 Fix all clang-tidy errors (blocking issues). Review warnings and fix where appropriate. Add `// NOLINT(<check>): <reason>` comments for intentional suppressions (e.g., performance-no-automatic-move on aligned arrays, magic-number on DSP constants that are already named constexpr).
 
 - [ ] T073 **Commit clang-tidy fixes** if any changes were required
 
@@ -518,9 +518,9 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 ### 13.1 Requirements Verification
 
-- [ ] T074 **Review ALL FR-001 through FR-034 requirements** from `specs/127-modal-resonator-bank/spec.md` against actual implementation code -- open each relevant source file and confirm each FR is met; record file path and line number evidence
+- [X] T074 **Review ALL FR-001 through FR-034 requirements** from `specs/127-modal-resonator-bank/spec.md` against actual implementation code -- open each relevant source file and confirm each FR is met; record file path and line number evidence
 
-- [ ] T075 **Review ALL SC-001 through SC-009 success criteria** and verify measurable targets are achieved with actual test output:
+- [X] T075 **Review ALL SC-001 through SC-009 success criteria** and verify measurable targets are achieved with actual test output:
   - SC-001: Cite the specific integration test name and its "PASSED" output
   - SC-002a/b: Cite the performance test timing output vs the 2.32ms and 5% thresholds
   - SC-003: Cite the Phase 3 test result (no NaN, no slowdown after 30s silence)
@@ -531,7 +531,7 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
   - SC-008: Run `innexus_tests.exe` with no filter and cite the "All tests passed" summary line
   - SC-009: Cite the pluginval output "PASSED" line
 
-- [ ] T076 **Search for cheating patterns** in implementation:
+- [X] T076 **Search for cheating patterns** in implementation:
   - No `// placeholder` or `// TODO` comments in new code
   - No test thresholds relaxed from spec requirements
   - No features quietly removed from scope
@@ -541,15 +541,15 @@ No new implementation code is needed. Each `InnexusVoice` already owns one `Moda
 
 ### 13.2 Fill Compliance Table in spec.md
 
-- [ ] T077 **Update `specs/127-modal-resonator-bank/spec.md` "Implementation Verification" section** with compliance status for each FR and SC -- include file paths, line numbers, test names, and actual measured values for every row
+- [X] T077 **Update `specs/127-modal-resonator-bank/spec.md` "Implementation Verification" section** with compliance status for each FR and SC -- include file paths, line numbers, test names, and actual measured values for every row
 
-- [ ] T078 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T078 **Mark overall status honestly**: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 13.3 Honest Self-Check
 
 Before marking complete, answer all five self-check questions from the template. If ANY answer is "yes", do not claim completion.
 
-- [ ] T079 **All self-check questions answered "no"** (or gaps documented honestly with user notification)
+- [X] T079 **All self-check questions answered "no"** (or gaps documented honestly with user notification)
 
 **Checkpoint**: Honest assessment complete -- ready for final phase.
 
@@ -557,14 +557,14 @@ Before marking complete, answer all five self-check questions from the template.
 
 ## Phase 14: Final Completion
 
-- [ ] T080 **Verify all tests pass** one final time:
+- [X] T080 **Verify all tests pass** one final time:
   ```
   "C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests innexus_tests
   build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5
   build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5
   ```
 
-- [ ] T081 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
+- [X] T081 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec 127 implementation honestly complete.
 

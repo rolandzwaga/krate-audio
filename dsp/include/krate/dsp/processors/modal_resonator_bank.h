@@ -11,6 +11,7 @@
 // ==============================================================================
 
 #include <krate/dsp/core/dsp_utils.h>
+#include <krate/dsp/processors/modal_resonator_bank_simd.h>
 
 #include <algorithm>
 #include <cmath>
@@ -103,11 +104,20 @@ public:
     /// Process a block of samples.
     /// Smooths coefficients once at block start (block-rate smoothing is
     /// sufficient for coefficient updates and saves ~9 FLOPs/mode/sample).
+    /// Uses SIMD-accelerated mode loop via Highway dynamic dispatch.
     void processBlock(const float* input, float* output, int numSamples) noexcept
     {
         smoothCoefficients();
         for (int i = 0; i < numSamples; ++i) {
-            output[i] = processSampleCore(input[i]);
+            float ex = applyTransientEmphasis(input[i]);
+
+            // SIMD-accelerated mode loop (processes all modes for one sample)
+            float modeSum = processModalBankSampleSIMD(
+                sinState_, cosState_, epsilon_, radius_, inputGain_,
+                ex, numModes_);
+
+            // Soft-clip safety limiter (FR-010)
+            output[i] = softClip(modeSum / kSoftClipThreshold) * kSoftClipThreshold;
         }
         flushSilentModes();
     }

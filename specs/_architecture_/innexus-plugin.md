@@ -97,6 +97,97 @@ Audio conditioning pipeline (DC blocking, normalization, pre-emphasis) shared by
 
 ---
 
+### PhysicalModelMixer
+**Path:** [physical_model_mixer.h](../../plugins/innexus/src/dsp/physical_model_mixer.h) | **Since:** Spec 127
+
+Stateless utility struct that blends the existing additive signal path with the physical model output (modal resonator bank). Provides bit-exact backward compatibility at mix=0.
+
+```cpp
+namespace Innexus {
+
+struct PhysicalModelMixer {
+    /// Blend additive and physical model paths.
+    /// mix=0: harmonic + residual (bit-exact current behavior)
+    /// mix=1: harmonic + physical (full modal replacement)
+    [[nodiscard]] static float process(
+        float harmonicSignal, float residualSignal,
+        float physicalSignal, float mix) noexcept;
+};
+
+} // namespace Innexus
+```
+
+**Formula:**
+- `dry = harmonicSignal + residualSignal` (current additive path)
+- `wet = harmonicSignal + physicalSignal` (physical model path)
+- `out = dry * (1 - mix) + wet * mix`
+- Simplifies to: `out = harmonicSignal + (1 - mix) * residualSignal + mix * physicalSignal`
+
+**When to use:**
+- In the Innexus voice render loop to crossfade between additive resynthesis and physical modelling
+- Controlled by the PhysicalModelMix parameter (ID 804, range 0.0-1.0)
+
+**Key design decisions:**
+- **Stateless**: Pure function, no member state. Can be called freely per-sample.
+- **Bit-exact bypass at mix=0**: When mix=0, the `(1-mix)*residual + mix*physical` terms reduce to just `residual`, preserving exact backward-compatible output.
+- **Static method**: No instance needed, emphasizing the purely functional nature.
+
+**Dependencies:** None (standalone utility)
+
+---
+
+## Spec 127 Physical Modelling Signal Path
+**Since:** Spec 127 (127-modal-resonator-bank)
+
+Extension to the Innexus voice render loop that adds a physical modelling path alongside the existing additive resynthesis path. The modal resonator bank transforms the analyzed residual signal into physically resonant textures.
+
+### Signal Chain
+
+```
+Analysis → HarmonicFrame + ResidualFrame
+                │                    │
+                │                    ├─→ ResidualSynthesizer → residualSignal
+                │                    │                              │
+                │                    └─→ [transient emphasis] ──→ ModalResonatorBank → physicalSignal
+                │                                                          │
+                ├─→ HarmonicOscillatorBank → harmonicSignal               │
+                │                                │                         │
+                │                                └────────┬────────────────┘
+                │                                         │
+                │                                   PhysicalModelMixer
+                │                                    (mix parameter)
+                │                                         │
+                └─────────────────────────────────→ voiceOutput
+```
+
+### Parameters (IDs 800-804)
+
+| ID | Name | Range | Default | Purpose |
+|----|------|-------|---------|---------|
+| 800 | Physical Model Enable | 0/1 | 0 (off) | Master enable for modal resonator processing |
+| 801 | Physical Model Damping | 0.0-1.0 | 0.3 | Frequency-dependent decay (Chaigne-Lambourg b3) |
+| 802 | Physical Model Inharmonicity | 0.0-1.0 | 0.0 | Stiff-string scatter warping amount |
+| 803 | Physical Model Transient | 0.0-1.0 | 0.5 | Transient emphasis gain on excitation |
+| 804 | Physical Model Mix | 0.0-1.0 | 0.5 | Blend between additive (0) and physical (1) paths |
+
+### Voice-Level Components
+
+Each `InnexusVoice` contains a `Krate::DSP::ModalResonatorBank` instance. The resonator bank:
+- Is configured via `setModes()` / `updateModes()` from the current `HarmonicFrame` partial data
+- Receives the residual synthesizer output (with transient emphasis) as excitation
+- Outputs a physically-modelled signal that replaces the residual in the physical path
+- Is blended with the additive path via `PhysicalModelMixer`
+
+### Key Design Patterns
+
+- **Enable gate**: When Physical Model Enable = 0, the entire modal resonator path is skipped. No CPU cost, bit-exact additive output.
+- **Per-voice resonator**: Each voice has its own ModalResonatorBank instance (~3.2 KB). State is independent per voice.
+- **Frame-driven mode updates**: Mode frequencies and amplitudes are derived from HarmonicFrame partial data, keeping the resonator in sync with the analyzed content.
+- **Smoothed parameters**: Damping, inharmonicity, and mix use OnePoleSmoother for click-free automation.
+- **State persistence**: Five new parameters appended to state stream (version 10). Loading older states initializes enable=0 (bypass) for backward compatibility.
+
+---
+
 ## M4 Musical Control Layer (Freeze, Morph, Harmonic Filter, Responsiveness)
 **Since:** M4 (118-musical-control-layer)
 

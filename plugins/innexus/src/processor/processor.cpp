@@ -11,6 +11,7 @@
 
 #include "processor.h"
 #include "dsp/dual_stft_config.h"
+#include "dsp/physical_model_mixer.h"
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -899,6 +900,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     brightnessSmoother_.setTarget(brightnessPlainTarget);
     transientEmphasisSmoother_.setTarget(transientEmpPlainTarget);
 
+    // --- Spec 127: Physical model mix parameter (read once per block) ---
+    // Material params (decay, brightness, stretch, scatter) are read in
+    // broadcastFrameToVoices() and handleNoteOn() where they're applied.
+    const float physModelMix = physModelMix_.load(std::memory_order_relaxed);
+
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
                                     !analysis->residualFrames.empty() &&
@@ -1593,9 +1599,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float brightScale = v.expressionBrightness * 2.0f; // 0..2
             float perVoiceHarmLevel = harmLevel * (2.0f - brightScale);
             float perVoiceResLevel = resLevel * brightScale;
+
+            // Spec 127: Modal resonator excitation uses RAW residual (unscaled)
+            // resLevel scaling is only applied to the mixer's dry-residual argument
+            float physicalSample = v.modalResonator.processSample(residualSample);
             float resContrib = residualSample * perVoiceResLevel;
-            vL = vL * perVoiceHarmLevel + resContrib;
-            vR = vR * perVoiceHarmLevel + resContrib;
+
+            // Spec 127 FR-023: PhysicalModelMixer blends residual and physical paths
+            // At mix=0: monoMix = resContrib (bit-exact with pre-feature behavior)
+            // At mix=1: monoMix = physicalSample (full modal replacement)
+            float monoMix = Innexus::PhysicalModelMixer::process(
+                0.0f, resContrib, physicalSample, physModelMix);
+
+            vL = vL * perVoiceHarmLevel + monoMix;
+            vR = vR * perVoiceHarmLevel + monoMix;
 
             // --- Per-voice freeze recovery crossfade (FR-053) ---
             if (v.freezeRecoverySamplesRemaining > 0)
@@ -1963,6 +1980,12 @@ void Processor::broadcastFrameToVoices(int activePartialCount, bool loadResidual
     const float brightness = brightnessSmoother_.getCurrentValue();
     const float transientEmp = transientEmphasisSmoother_.getCurrentValue();
 
+    // Spec 127: Material parameters for modal resonator update
+    const float resDecay = resonanceDecay_.load(std::memory_order_relaxed);
+    const float resBrightness = resonanceBrightness_.load(std::memory_order_relaxed);
+    const float resStretch = resonanceStretch_.load(std::memory_order_relaxed);
+    const float resScatter = resonanceScatter_.load(std::memory_order_relaxed);
+
     const float modeNorm = voiceMode_.load(std::memory_order_relaxed);
     const int modeIdx = std::clamp(
         static_cast<int>(std::round(modeNorm * 2.0f)), 0, 2);
@@ -1990,6 +2013,29 @@ void Processor::broadcastFrameToVoices(int activePartialCount, bool loadResidual
         float targetPitch = basePitch * bendRatio;
 
         v.oscillatorBank.loadFrame(v.morphedFrame, targetPitch);
+
+        // Spec 127 FR-019: Update modal resonator modes on frame advance
+        // (does NOT clear filter states -- modes ring through transitions)
+        {
+            // Extract frequencies from morphed frame partials
+            // Note: oscillatorBank uses the frame with targetPitch applied,
+            // but modal resonator uses the raw partial frequencies from analysis
+            // scaled by the pitch ratio (targetPitch / f0)
+            const auto& frame = v.morphedFrame;
+            float pitchRatio = (frame.f0 > 0.0f) ? targetPitch / frame.f0 : 1.0f;
+            std::array<float, Krate::DSP::kMaxPartials> modeFreqs{};
+            std::array<float, Krate::DSP::kMaxPartials> modeAmps{};
+            for (int k = 0; k < frame.numPartials; ++k)
+            {
+                modeFreqs[static_cast<size_t>(k)] =
+                    frame.partials[static_cast<size_t>(k)].frequency * pitchRatio;
+                modeAmps[static_cast<size_t>(k)] =
+                    frame.partials[static_cast<size_t>(k)].amplitude;
+            }
+            v.modalResonator.updateModes(
+                modeFreqs.data(), modeAmps.data(), frame.numPartials,
+                resDecay, resBrightness, resStretch, resScatter);
+        }
 
         if (loadResidual && v.residualSynth.isPrepared())
         {

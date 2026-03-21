@@ -694,6 +694,40 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     voiceModeParam->appendString(STR16("8 Voices"));
     parameters.addParameter(voiceModeParam);
 
+    // Physical Modelling (Spec 127)
+    auto* physModelMixParam = new Steinberg::Vst::RangeParameter(
+        STR16("Physical Model Mix"), kPhysModelMixId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(physModelMixParam);
+
+    // Log mapping: plain = 0.01 * 500^norm, so norm = log(plain/0.01) / log(500)
+    // For default 0.5s: norm = log(50) / log(500) = ~0.6295
+    const double kDecayDefaultNorm = std::log(50.0) / std::log(500.0);
+    auto* resonanceDecayParam = new Steinberg::Vst::RangeParameter(
+        STR16("Resonance Decay"), kResonanceDecayId,
+        STR16("s"), 0.0, 1.0, kDecayDefaultNorm, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(resonanceDecayParam);
+
+    auto* resonanceBrightnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Resonance Brightness"), kResonanceBrightnessId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(resonanceBrightnessParam);
+
+    auto* resonanceStretchParam = new Steinberg::Vst::RangeParameter(
+        STR16("Resonance Stretch"), kResonanceStretchId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(resonanceStretchParam);
+
+    auto* resonanceScatterParam = new Steinberg::Vst::RangeParameter(
+        STR16("Resonance Scatter"), kResonanceScatterId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(resonanceScatterParam);
+
     // NoteExpression types (Phase 4: MPE support)
     {
         using namespace Steinberg::Vst;
@@ -1136,6 +1170,32 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         if (streamer.readFloat(vmVal))
             setParamNormalized(kVoiceModeId,
                 static_cast<double>(std::clamp(vmVal, 0.0f, 1.0f)));
+    }
+
+    // --- Physical Modelling parameters (Spec 127, graceful fallback for old states) ---
+    {
+        float pmVal = 0.0f;
+        if (streamer.readFloat(pmVal))
+            setParamNormalized(kPhysModelMixId,
+                static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(pmVal))
+        {
+            // resonanceDecay_ is stored as plain seconds (0.01-5.0)
+            // Reverse log mapping: norm = log(plain/0.01) / log(500)
+            float plain = std::clamp(pmVal, 0.01f, 5.0f);
+            float norm = std::log(plain / 0.01f) / std::log(500.0f);
+            setParamNormalized(kResonanceDecayId,
+                static_cast<double>(std::clamp(norm, 0.0f, 1.0f)));
+        }
+        if (streamer.readFloat(pmVal))
+            setParamNormalized(kResonanceBrightnessId,
+                static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(pmVal))
+            setParamNormalized(kResonanceStretchId,
+                static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(pmVal))
+            setParamNormalized(kResonanceScatterId,
+                static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
     }
 
     // SharedDisplayBridge: try to read instance ID from state trailer

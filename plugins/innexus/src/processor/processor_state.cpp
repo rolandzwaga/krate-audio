@@ -210,6 +210,13 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     // --- Voice Mode parameter ---
     streamer.writeFloat(voiceMode_.load(std::memory_order_relaxed));
 
+    // --- Physical Modelling parameters (Spec 127) ---
+    streamer.writeFloat(physModelMix_.load(std::memory_order_relaxed));
+    streamer.writeFloat(resonanceDecay_.load(std::memory_order_relaxed));
+    streamer.writeFloat(resonanceBrightness_.load(std::memory_order_relaxed));
+    streamer.writeFloat(resonanceStretch_.load(std::memory_order_relaxed));
+    streamer.writeFloat(resonanceScatter_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -611,6 +618,18 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     // --- Voice Mode parameter (graceful fallback: defaults to Mono for old states) ---
     if (streamer.readFloat(floatVal))
         voiceMode_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Physical Modelling parameters (Spec 127, graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        physModelMix_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        resonanceDecay_.store(std::clamp(floatVal, 0.01f, 5.0f));
+    if (streamer.readFloat(floatVal))
+        resonanceBrightness_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        resonanceStretch_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        resonanceScatter_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

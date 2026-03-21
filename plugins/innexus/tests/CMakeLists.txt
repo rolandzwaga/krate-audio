@@ -125,6 +125,9 @@ add_executable(innexus_tests
     # DataExchange pipeline integration test
     integration/test_data_exchange_pipeline.cpp
 
+    # Physical Model tests (Spec 127)
+    unit/processor/test_physical_model.cpp
+
     # Polyphonic MPE integration tests
     integration/test_polyphonic_mpe.cpp
 
@@ -186,6 +189,7 @@ if(NOT MSVC)
         integration/reset_trap_tests.cpp
         integration/sidechain_integration_tests.cpp
         integration/test_sidechain_wav_quality.cpp
+        unit/processor/test_physical_model.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

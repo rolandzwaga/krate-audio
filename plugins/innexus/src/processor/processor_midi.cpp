@@ -144,7 +144,11 @@ static void initVoiceForNoteOn(
     const std::array<float, Krate::DSP::kMaxPartials>& filterMask,
     const Krate::DSP::HarmonicFrame& pureHarmonicFrame,
     float brightness,
-    float transientEmphasis)
+    float transientEmphasis,
+    float resonanceDecay,
+    float resonanceBrightness,
+    float resonanceStretch,
+    float resonanceScatter)
 {
     // Set new note state
     voice.midiNote = noteNumber;
@@ -236,6 +240,25 @@ static void initVoiceForNoteOn(
                 voice.morphedResidualFrame, brightness, transientEmphasis);
         }
     }
+
+    // Spec 127 FR-018: Initialize modal resonator on note-on
+    // Clears filter states and snaps coefficients from current frame partials
+    {
+        const auto& frame = voice.morphedFrame;
+        float pitchRatio = (frame.f0 > 0.0f) ? targetPitch / frame.f0 : 1.0f;
+        std::array<float, Krate::DSP::kMaxPartials> modeFreqs{};
+        std::array<float, Krate::DSP::kMaxPartials> modeAmps{};
+        for (int k = 0; k < frame.numPartials; ++k)
+        {
+            modeFreqs[static_cast<size_t>(k)] =
+                frame.partials[static_cast<size_t>(k)].frequency * pitchRatio;
+            modeAmps[static_cast<size_t>(k)] =
+                frame.partials[static_cast<size_t>(k)].amplitude;
+        }
+        voice.modalResonator.setModes(
+            modeFreqs.data(), modeAmps.data(), frame.numPartials,
+            resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+    }
 }
 
 // ==============================================================================
@@ -259,6 +282,12 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
     const float brightness = brightnessSmoother_.getCurrentValue();
     const float transientEmp = transientEmphasisSmoother_.getCurrentValue();
 
+    // Spec 127: Modal resonator material parameters
+    const float resDecay = resonanceDecay_.load(std::memory_order_relaxed);
+    const float resBrightness = resonanceBrightness_.load(std::memory_order_relaxed);
+    const float resStretch = resonanceStretch_.load(std::memory_order_relaxed);
+    const float resScatter = resonanceScatter_.load(std::memory_order_relaxed);
+
     if (maxVoices == 1)
     {
         // === MONO MODE: last-note-priority (original behavior) ===
@@ -280,7 +309,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             analysis, isSidechainMode,
             currentLiveFrame_, currentLiveResidualFrame_,
             blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
-            brightness, transientEmp);
+            brightness, transientEmp,
+            resDecay, resBrightness, resStretch, resScatter);
 
         // Apply modulators (mono mode uses processor-level modulators)
         const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -318,7 +348,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     analysis, isSidechainMode,
                     currentLiveFrame_, currentLiveResidualFrame_,
                     blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
-                    brightness, transientEmp);
+                    brightness, transientEmp,
+                    resDecay, resBrightness, resStretch, resScatter);
                 break;
             }
             case Krate::DSP::VoiceEvent::Type::NoteOff:

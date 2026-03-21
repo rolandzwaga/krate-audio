@@ -368,6 +368,13 @@ public:
     int getAdsrStage() const { return adsrStage_.load(std::memory_order_relaxed); }
     bool getAdsrActive() const { return adsrActive_.load(std::memory_order_relaxed); }
 
+    // Physical Modelling (Spec 127) test accessors
+    float getPhysModelMix() const { return physModelMix_.load(std::memory_order_relaxed); }
+    float getResonanceDecay() const { return resonanceDecay_.load(std::memory_order_relaxed); }
+    float getResonanceBrightness() const { return resonanceBrightness_.load(std::memory_order_relaxed); }
+    float getResonanceStretch() const { return resonanceStretch_.load(std::memory_order_relaxed); }
+    float getResonanceScatter() const { return resonanceScatter_.load(std::memory_order_relaxed); }
+
     // Analysis Feedback Loop (Spec B) test accessors
     float getFeedbackAmount() const { return feedbackAmount_.load(std::memory_order_relaxed); }
     float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_relaxed); }
@@ -483,6 +490,13 @@ private:
     // Analysis Feedback Loop parameters (Spec B: 123-analysis-feedback-loop)
     std::atomic<float> feedbackAmount_{0.0f};         // 0.0-1.0, default 0.0
     std::atomic<float> feedbackDecay_{0.2f};          // 0.0-1.0, default 0.2
+
+    // Physical Modelling parameters (Spec 127: 127-modal-resonator-bank)
+    std::atomic<float> physModelMix_{0.0f};              // 0.0-1.0, default 0.0
+    std::atomic<float> resonanceDecay_{0.5f};            // plain seconds, default 0.5
+    std::atomic<float> resonanceBrightness_{0.5f};       // 0.0-1.0, default 0.5
+    std::atomic<float> resonanceStretch_{0.0f};          // 0.0-1.0, default 0.0
+    std::atomic<float> resonanceScatter_{0.0f};          // 0.0-1.0, default 0.0
 
     // ADSR Envelope parameters (Spec 124: 124-adsr-envelope-detection)
     std::atomic<float> adsrAttackMs_{10.0f};          // plain ms, default 10ms

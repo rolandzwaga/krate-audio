@@ -331,6 +331,32 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Physical Modelling (Spec 127)
+            case kPhysModelMixId:
+                physModelMix_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kResonanceDecayId:
+            {
+                // Log mapping: 0.01s to 5.0s
+                // normalized 0->0.01, 1->5.0: plain = 0.01 * 500^norm
+                auto decaySec = 0.01f * std::pow(500.0f, static_cast<float>(value));
+                resonanceDecay_.store(std::clamp(decaySec, 0.01f, 5.0f));
+                break;
+            }
+            case kResonanceBrightnessId:
+                resonanceBrightness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kResonanceStretchId:
+                resonanceStretch_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kResonanceScatterId:
+                resonanceScatter_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
