@@ -365,7 +365,7 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 7.4 Commit
 
-- [ ] T056 [US5] Commit completed User Story 5 work: energy capping tests + mallet choke integration + retrigger click-free verification
+- [X] T056 [US5] Commit completed User Story 5 work: energy capping tests + mallet choke integration + retrigger click-free verification
 
 **Checkpoint**: Rapid retrigger is energy-safe. Retrigger produces natural choke. No clicks at onset. All Phase 7 tests pass.
 
@@ -375,13 +375,13 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 **Purpose**: Performance validation, build integration, pluginval, and final cleanup.
 
-- [ ] T057 [P] Build full Innexus plugin and run pluginval: `cmake --build build/windows-x64-release --config Release`, then `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` - fix any failures
-- [ ] T058 [P] Verify CPU budget: add a performance test to `dsp/tests/unit/processors/impact_exciter_test.cpp` that measures CPU time for `processBlock(output, 512)` on a triggered exciter at 44100 Hz, assert single-voice cost is < 0.1% CPU (SC-012) using wall-clock measurement. Note: if wall-clock measurement produces non-deterministic CI failures, replace with instruction count measurement (using RDTSC or equivalent) or document that SC-012 is verified by a manual profiling session rather than automated test.
-- [ ] T059 [P] Verify all dsp_tests and innexus_tests pass together with a clean release build: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure | tail -10`
-- [ ] T060 Add `impact_exciter_test.cpp` to `dsp/tests/CMakeLists.txt` source list (if not already added during T013, ensure the file is explicitly listed as a test source)
-- [ ] T061 Add `xorshift32_test.cpp` to `dsp/tests/CMakeLists.txt` source list (if not already added during T005)
-- [ ] T062 Verify the early-out optimization in `ImpactExciter::process()` is in place: when `!pulseActive_ && !bounceActive_`, the function returns immediately without calling SVF or DelayLine (plan.md performance optimization)
-- [ ] T082 Verify FR-036 broadband compliance: measure the power spectral density of the `ImpactExciter` output at default parameters (hardness=0.5, mass=0.3, brightness=0.0, position=0.13, velocity=0.5) and confirm energy is present across 0-8 kHz. Document that the architecture (exciter outputs a scalar; `ModalResonatorBank` accepts it uniformly) does not preclude per-mode weighting. Record findings in the FR-036 compliance row of spec.md.
+- [X] T057 [P] Build full Innexus plugin and run pluginval: `cmake --build build/windows-x64-release --config Release`, then `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` - fix any failures
+- [X] T058 [P] Verify CPU budget: add a performance test to `dsp/tests/unit/processors/impact_exciter_test.cpp` that measures CPU time for `processBlock(output, 512)` on a triggered exciter at 44100 Hz, assert single-voice cost is < 0.1% CPU (SC-012) using wall-clock measurement. Note: if wall-clock measurement produces non-deterministic CI failures, replace with instruction count measurement (using RDTSC or equivalent) or document that SC-012 is verified by a manual profiling session rather than automated test.
+- [X] T059 [P] Verify all dsp_tests and innexus_tests pass together with a clean release build: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure | tail -10`
+- [X] T060 Add `impact_exciter_test.cpp` to `dsp/tests/CMakeLists.txt` source list (if not already added during T013, ensure the file is explicitly listed as a test source)
+- [X] T061 Add `xorshift32_test.cpp` to `dsp/tests/CMakeLists.txt` source list (if not already added during T005)
+- [X] T062 Verify the early-out optimization in `ImpactExciter::process()` is in place: when `!pulseActive_ && !bounceActive_`, the function returns immediately without calling SVF or DelayLine (plan.md performance optimization)
+- [X] T082 Verify FR-036 broadband compliance: measure the power spectral density of the `ImpactExciter` output at default parameters (hardness=0.5, mass=0.3, brightness=0.0, position=0.13, velocity=0.5) and confirm energy is present across 0-8 kHz. Document that the architecture (exciter outputs a scalar; `ModalResonatorBank` accepts it uniformly) does not preclude per-mode weighting. Record findings in the FR-036 compliance row of spec.md.
 
 ---
 
@@ -389,10 +389,10 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 **Purpose**: Update living architecture documentation per Constitution Principle XIV (Living Architecture Documentation).
 
-- [ ] T063 [P] Update `specs/_architecture_/layer-0-core.md`: add `XorShift32` entry with purpose (deterministic per-voice PRNG), public API summary (`seed()`, `next()`, `nextFloat()`, `nextFloatSigned()`), file location (`dsp/include/krate/dsp/core/xorshift32.h`), and when to use (any processor needing deterministic per-voice noise without stdlib dependency)
-- [ ] T064 [P] Update `specs/_architecture_/layer-2-processors.md` (or equivalent processors section): add `ImpactExciter` entry with purpose (hybrid pulse+noise impact excitation burst), sub-systems (pulse shaping, micro-bounce, noise texture, SVF filter, comb filter, energy capping), file location (`dsp/include/krate/dsp/processors/impact_exciter.h`), and key design notes (Layer 1 deps: SVF + DelayLine; per-voice state; non-copyable)
-- [ ] T065 Update `specs/_architecture_/layer-2-processors.md` ModalResonatorBank entry: document the new `decayScale` overload and its mallet choke use case
-- [ ] T066 Commit architecture documentation updates
+- [X] T063 [P] Update `specs/_architecture_/layer-0-core.md`: add `XorShift32` entry with purpose (deterministic per-voice PRNG), public API summary (`seed()`, `next()`, `nextFloat()`, `nextFloatSigned()`), file location (`dsp/include/krate/dsp/core/xorshift32.h`), and when to use (any processor needing deterministic per-voice noise without stdlib dependency)
+- [X] T064 [P] Update `specs/_architecture_/layer-2-processors.md` (or equivalent processors section): add `ImpactExciter` entry with purpose (hybrid pulse+noise impact excitation burst), sub-systems (pulse shaping, micro-bounce, noise texture, SVF filter, comb filter, energy capping), file location (`dsp/include/krate/dsp/processors/impact_exciter.h`), and key design notes (Layer 1 deps: SVF + DelayLine; per-voice state; non-copyable)
+- [X] T065 Update `specs/_architecture_/layer-2-processors.md` ModalResonatorBank entry: document the new `decayScale` overload and its mallet choke use case
+- [X] T066 Commit architecture documentation updates
 
 **Checkpoint**: Architecture docs reflect all new components. Feature branch is clean.
 
