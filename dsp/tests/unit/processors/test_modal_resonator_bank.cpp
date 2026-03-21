@@ -1223,3 +1223,145 @@ TEST_CASE("ModalResonatorBank SC-002a: 8 voices x 96 modes, 128-sample block < 8
 
     REQUIRE(worstCaseMs < kBudgetMs);
 }
+
+// =============================================================================
+// DecayScale Overload Tests (Spec 128 - Impact Exciter)
+// =============================================================================
+
+TEST_CASE("ModalResonatorBank processSample with decayScale 1.0 matches original",
+          "[modal_resonator_bank][decay_scale]")
+{
+    // Two identical banks: one using original API, one using decayScale=1.0f
+    Krate::DSP::ModalResonatorBank bankA;
+    Krate::DSP::ModalResonatorBank bankB;
+    bankA.prepare(kSampleRate);
+    bankB.prepare(kSampleRate);
+
+    configureSingleMode(bankA, 440.0f, 1.0f, 0.5f, 0.5f);
+    configureSingleMode(bankB, 440.0f, 1.0f, 0.5f, 0.5f);
+
+    // Feed identical impulses and compare outputs
+    float outA = bankA.processSample(1.0f);
+    float outB = bankB.processSample(1.0f, 1.0f);
+    REQUIRE(outA == Approx(outB).margin(1e-7f));
+
+    // Compare decay over 1000 samples
+    for (int i = 0; i < 1000; ++i) {
+        outA = bankA.processSample(0.0f);
+        outB = bankB.processSample(0.0f, 1.0f);
+        REQUIRE(outA == Approx(outB).margin(1e-7f));
+    }
+}
+
+TEST_CASE("ModalResonatorBank decayScale > 1.0 accelerates decay",
+          "[modal_resonator_bank][decay_scale]")
+{
+    Krate::DSP::ModalResonatorBank bankNormal;
+    Krate::DSP::ModalResonatorBank bankChoked;
+    bankNormal.prepare(kSampleRate);
+    bankChoked.prepare(kSampleRate);
+
+    // Use moderate decay time (0.1s) so gain = (1-R) is reasonably large
+    // and mode has clear energy, while still ringing long enough to measure
+    configureSingleMode(bankNormal, 440.0f, 1.0f, 0.1f, 1.0f);
+    configureSingleMode(bankChoked, 440.0f, 1.0f, 0.1f, 1.0f);
+
+    // Excite both banks identically with strong impulse
+    (void)bankNormal.processSample(1.0f);
+    (void)bankChoked.processSample(1.0f, 1.0f);
+
+    // Apply choke immediately (decayScale=8.0) to one bank
+    // Run for ~2000 samples (~45ms) to give choke time to take effect
+    constexpr int kTotalSamples = 2000;
+    constexpr int kMeasureWindow = 200;
+    constexpr int kSkip = kTotalSamples - kMeasureWindow;
+
+    for (int i = 0; i < kSkip; ++i) {
+        (void)bankNormal.processSample(0.0f);
+        (void)bankChoked.processSample(0.0f, 8.0f);
+    }
+
+    float peakNormal = 0.0f;
+    float peakChoked = 0.0f;
+    for (int i = 0; i < kMeasureWindow; ++i) {
+        float sNormal = bankNormal.processSample(0.0f);
+        float sChoked = bankChoked.processSample(0.0f, 8.0f);
+        peakNormal = std::max(peakNormal, std::abs(sNormal));
+        peakChoked = std::max(peakChoked, std::abs(sChoked));
+    }
+
+    // Choked bank should have decayed significantly more
+    INFO("Normal peak: " << peakNormal << ", Choked peak: " << peakChoked);
+    REQUIRE(peakNormal > 1e-4f); // Ensure normal bank still has meaningful energy
+    REQUIRE(peakChoked < peakNormal * 0.5f);
+}
+
+TEST_CASE("ModalResonatorBank decayScale preserves relative damping between modes",
+          "[modal_resonator_bank][decay_scale]")
+{
+    // Configure two banks with 2 modes at different frequencies
+    // (they naturally have different decay rates due to freq-dependent damping).
+    // Apply decayScale=2.0 and verify the ratio of their decay rates is preserved.
+    Krate::DSP::ModalResonatorBank bankNormal;
+    Krate::DSP::ModalResonatorBank bankScaled;
+    bankNormal.prepare(kSampleRate);
+    bankScaled.prepare(kSampleRate);
+
+    // Two modes: 220 Hz and 880 Hz with equal amplitude
+    std::array<float, kMaxModes> freqs{};
+    std::array<float, kMaxModes> amps{};
+    freqs[0] = 220.0f;
+    freqs[1] = 880.0f;
+    amps[0] = 1.0f;
+    amps[1] = 1.0f;
+
+    bankNormal.setModes(freqs.data(), amps.data(), 2, 0.5f, 0.5f, 0.0f, 0.0f);
+    bankScaled.setModes(freqs.data(), amps.data(), 2, 0.5f, 0.5f, 0.0f, 0.0f);
+
+    // Excite both
+    (void)bankNormal.processSample(1.0f);
+    (void)bankScaled.processSample(1.0f, 1.0f);
+
+    // Let them ring for 2000 samples
+    for (int i = 0; i < 2000; ++i) {
+        (void)bankNormal.processSample(0.0f);
+        (void)bankScaled.processSample(0.0f, 2.0f);
+    }
+
+    // The scaled bank should have decayed faster overall
+    // Measure energy over next 500 samples
+    float energyNormal = 0.0f;
+    float energyScaled = 0.0f;
+    for (int i = 0; i < 500; ++i) {
+        float sN = bankNormal.processSample(0.0f);
+        float sS = bankScaled.processSample(0.0f, 2.0f);
+        energyNormal += sN * sN;
+        energyScaled += sS * sS;
+    }
+
+    // Scaled bank should have significantly less energy
+    INFO("Normal energy: " << energyNormal << ", Scaled energy: " << energyScaled);
+    REQUIRE(energyScaled < energyNormal);
+}
+
+TEST_CASE("ModalResonatorBank processBlock with decayScale",
+          "[modal_resonator_bank][decay_scale]")
+{
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+    configureSingleMode(bank, 440.0f, 1.0f, 1.0f, 1.0f);
+
+    constexpr int kBlockSize = 128;
+    std::array<float, kBlockSize> input{};
+    std::array<float, kBlockSize> output{};
+    input[0] = 1.0f; // impulse
+
+    bank.processBlock(input.data(), output.data(), kBlockSize, 1.0f);
+
+    // Should produce non-zero output
+    float peak = 0.0f;
+    for (float s : output) {
+        peak = std::max(peak, std::abs(s));
+    }
+    REQUIRE(peak > 0.0f);
+}

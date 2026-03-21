@@ -97,8 +97,20 @@ public:
     /// Includes per-sample coefficient smoothing (for single-sample callers).
     [[nodiscard]] float processSample(float excitation) noexcept
     {
+        return processSample(excitation, 1.0f);
+    }
+
+    /// Process a single sample with optional decay scaling (mallet choke).
+    /// @param excitation Input excitation signal
+    /// @param decayScale Decay acceleration factor:
+    ///   - 1.0f = normal operation (no choke)
+    ///   - >1.0f = accelerated decay (choke), applied as R_eff = pow(R, decayScale)
+    ///   - Preserves relative damping between modes (material character retained)
+    /// @note The pow() per mode is only computed when decayScale != 1.0f
+    [[nodiscard]] float processSample(float excitation, float decayScale) noexcept
+    {
         smoothCoefficients();
-        return processSampleCore(excitation);
+        return processSampleCore(excitation, decayScale);
     }
 
     /// Process a block of samples.
@@ -118,6 +130,17 @@ public:
 
             // Soft-clip safety limiter (FR-010)
             output[i] = softClip(modeSum / kSoftClipThreshold) * kSoftClipThreshold;
+        }
+        flushSilentModes();
+    }
+
+    /// Process a block of samples with decay scaling (mallet choke).
+    void processBlock(const float* input, float* output, int numSamples,
+                      float decayScale) noexcept
+    {
+        smoothCoefficients();
+        for (int i = 0; i < numSamples; ++i) {
+            output[i] = processSampleCore(input[i], decayScale);
         }
         flushSilentModes();
     }
@@ -292,25 +315,42 @@ private:
     /// Core per-sample resonator processing (no coefficient smoothing).
     /// Branchless inner loop: inactive modes have zero coefficients and
     /// contribute nothing to output.
-    [[nodiscard]] float processSampleCore(float excitation) noexcept
+    [[nodiscard]] float processSampleCore(float excitation, float decayScale = 1.0f) noexcept
     {
         float ex = applyTransientEmphasis(excitation);
         float output = 0.0f;
 
-        for (int k = 0; k < numModes_; ++k) {
-            float s = sinState_[k];
-            float c = cosState_[k];
-            float eps = epsilon_[k];
-            float R = radius_[k];
-            float gain = inputGain_[k];
+        if (decayScale != 1.0f) {
+            for (int k = 0; k < numModes_; ++k) {
+                float s = sinState_[k];
+                float c = cosState_[k];
+                float eps = epsilon_[k];
+                float R = std::pow(radius_[k], decayScale);
+                float gain = inputGain_[k];
 
-            // Gordon-Smith coupled-form resonator (FR-003)
-            float s_new = R * (s + eps * c) + gain * ex;
-            float c_new = R * (c - eps * s_new);
+                float s_new = R * (s + eps * c) + gain * ex;
+                float c_new = R * (c - eps * s_new);
 
-            sinState_[k] = s_new;
-            cosState_[k] = c_new;
-            output += s_new;
+                sinState_[k] = s_new;
+                cosState_[k] = c_new;
+                output += s_new;
+            }
+        } else {
+            for (int k = 0; k < numModes_; ++k) {
+                float s = sinState_[k];
+                float c = cosState_[k];
+                float eps = epsilon_[k];
+                float R = radius_[k];
+                float gain = inputGain_[k];
+
+                // Gordon-Smith coupled-form resonator (FR-003)
+                float s_new = R * (s + eps * c) + gain * ex;
+                float c_new = R * (c - eps * s_new);
+
+                sinState_[k] = s_new;
+                cosState_[k] = c_new;
+                output += s_new;
+            }
         }
 
         // Soft-clip safety limiter (FR-010)

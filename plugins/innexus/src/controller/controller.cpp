@@ -728,6 +728,40 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(resonanceScatterParam);
 
+    // Impact Exciter (Spec 128)
+    auto* exciterTypeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Exciter Type"), kExciterTypeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    exciterTypeParam->appendString(STR16("Residual"));
+    exciterTypeParam->appendString(STR16("Impact"));
+    exciterTypeParam->appendString(STR16("Bow"));
+    parameters.addParameter(exciterTypeParam);
+
+    auto* impactHardnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Hardness"), kImpactHardnessId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactHardnessParam);
+
+    auto* impactMassParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Mass"), kImpactMassId,
+        STR16("%"), 0.0, 1.0, 0.3, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactMassParam);
+
+    // Brightness: plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (norm 0.5)
+    auto* impactBrightnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Brightness"), kImpactBrightnessId,
+        STR16(""), -1.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactBrightnessParam);
+
+    auto* impactPositionParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Position"), kImpactPositionId,
+        STR16(""), 0.0, 1.0, 0.13, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactPositionParam);
+
     // NoteExpression types (Phase 4: MPE support)
     {
         using namespace Steinberg::Vst;
@@ -1196,6 +1230,26 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         if (streamer.readFloat(pmVal))
             setParamNormalized(kResonanceScatterId,
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
+    }
+
+    // --- Impact Exciter parameters (Spec 128, graceful fallback for old states) ---
+    {
+        float ieVal = 0.0f;
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kExciterTypeId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactHardnessId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactMassId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactBrightnessId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactPositionId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
     }
 
     // SharedDisplayBridge: try to read instance ID from state trailer

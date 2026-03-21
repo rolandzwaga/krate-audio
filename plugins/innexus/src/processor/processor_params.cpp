@@ -357,6 +357,28 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Impact Exciter (Spec 128)
+            case kExciterTypeId:
+                exciterType_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kImpactHardnessId:
+                impactHardness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kImpactMassId:
+                impactMass_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kImpactBrightnessId:
+                impactBrightness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kImpactPositionId:
+                impactPosition_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }

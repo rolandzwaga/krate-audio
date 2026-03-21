@@ -217,6 +217,13 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(resonanceStretch_.load(std::memory_order_relaxed));
     streamer.writeFloat(resonanceScatter_.load(std::memory_order_relaxed));
 
+    // --- Impact Exciter parameters (Spec 128) ---
+    streamer.writeFloat(exciterType_.load(std::memory_order_relaxed));
+    streamer.writeFloat(impactHardness_.load(std::memory_order_relaxed));
+    streamer.writeFloat(impactMass_.load(std::memory_order_relaxed));
+    streamer.writeFloat(impactBrightness_.load(std::memory_order_relaxed));
+    streamer.writeFloat(impactPosition_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -630,6 +637,18 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         resonanceStretch_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))
         resonanceScatter_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Impact Exciter parameters (Spec 128, graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        exciterType_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        impactHardness_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        impactMass_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        impactBrightness_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        impactPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

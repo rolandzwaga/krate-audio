@@ -49,6 +49,7 @@ add_executable(dsp_tests
     unit/core/transport_sync_test.cpp
     unit/core/chord_generator_test.cpp
     unit/core/hungarian_algorithm_test.cpp
+    unit/core/xorshift32_test.cpp
 
     # Layer 1: Primitives
     unit/primitives/envelope_utils_test.cpp
@@ -311,6 +312,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/transport_sync_test.cpp
         unit/core/chord_generator_test.cpp
         unit/core/hungarian_algorithm_test.cpp
+        unit/core/xorshift32_test.cpp
         unit/primitives/envelope_utils_test.cpp
         unit/primitives/adsr_envelope_test.cpp
         unit/primitives/smoother_test.cpp
