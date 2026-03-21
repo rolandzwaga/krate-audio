@@ -99,26 +99,26 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T013 [P] [US1] Write failing unit tests for the `ImpactExciter` lifecycle and pulse shape in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T013 [P] [US1] Write failing unit tests for the `ImpactExciter` lifecycle and pulse shape in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - `prepare()` transitions to `isPrepared() == true`
   - `isActive()` is false before trigger, true during pulse, false after pulse completes
   - `processBlock()` produces non-zero output after trigger, zero output after pulse duration
   - Pulse is zero after `T_max + bounce_delay + bounce_duration` samples at all mass settings
   - `reset()` clears active state (all subsequent `process()` calls return 0.0f)
 
-- [ ] T014 [P] [US1] Write failing unit tests for pulse shape mathematics in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T014 [P] [US1] Write failing unit tests for pulse shape mathematics in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Pulse peak occurs earlier in time at high hardness (skewed), later at low hardness (FR-003)
   - Pulse duration increases with mass: `trigger(vel, h, 0.0)` produces shorter burst than `trigger(vel, h, 1.0)` (FR-005)
   - Pulse amplitude scales nonlinearly with velocity: amplitude at vel=1.0 is NOT 2x amplitude at vel=0.25 (FR-006: `pow(v, 0.6)`)
   - Rise-time measurement: defined as time from pulse start to 90% of peak amplitude. At hardness=0.8, rise-time MUST be less than 50% of rise-time at hardness=0.2 (SC-003: verifies asymmetry is audibly different at hard vs soft settings)
 
-- [ ] T015 [P] [US1] Write failing unit tests for the SVF lowpass and brightness trim in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T015 [P] [US1] Write failing unit tests for the SVF lowpass and brightness trim in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Output spectral centroid at hardness=1.0 is measurably higher than at hardness=0.0 (FR-015)
   - Brightness trim at default 0.0 produces same spectral centroid as without trim (FR-017)
   - Brightness trim at +1.0 increases spectral centroid vs 0.0 (FR-016)
   - Brightness trim at -1.0 decreases spectral centroid vs 0.0 (FR-016)
 
-- [ ] T016 [P] [US1] Write failing unit tests for strike position comb filter in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T016 [P] [US1] Write failing unit tests for strike position comb filter in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Position 0.0 and position 0.5 produce different output spectra (FR-024)
   - Position 0.5 measurably attenuates even harmonics vs position 0.0 (SC-008)
   - Position 0.13 (default) produces output with all harmonics present (FR-024 "sweet spot")
@@ -126,12 +126,12 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 3.2 Implementation for User Story 1
 
-- [ ] T017 [US1] Implement `ImpactExciter` class in `dsp/include/krate/dsp/processors/impact_exciter.h` per contract `specs/128-impact-exciter/contracts/impact_exciter_api.h`:
+- [X] T017 [US1] Implement `ImpactExciter` class in `dsp/include/krate/dsp/processors/impact_exciter.h` per contract `specs/128-impact-exciter/contracts/impact_exciter_api.h`:
   - All fields from data-model.md (pulse state, bounce state, noise state, SVF, DelayLine, energy capping, attack ramp)
   - `prepare(double sampleRate, uint32_t voiceId)`: allocates SVF (Lowpass mode, `snapToTarget()`), DelayLine (55ms at given sampleRate), seeds XorShift32, computes `energyDecay_`
   - `reset()`: clears SVF, DelayLine, sets `pulseActive_ = false`, `bounceActive_ = false`, `energy_ = 0.0f`, `pinkState_ = 0.0f`
 
-- [ ] T018 [US1] Implement `trigger()` in `dsp/include/krate/dsp/processors/impact_exciter.h`:
+- [X] T018 [US1] Implement `trigger()` in `dsp/include/krate/dsp/processors/impact_exciter.h`:
   - Compute `effectiveHardness = clamp(hardness + velocity * 0.1f, 0.0f, 1.0f)` (FR-018)
   - Compute `gamma_ = 1.0f + 3.0f * effectiveHardness` (FR-004)
   - Compute `skew_ = 0.3f * effectiveHardness` (FR-003)
@@ -144,7 +144,7 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
   - Compute `noiseLevel_` = `lerp(0.25f, 0.08f, effectiveHardness)` (FR-011)
   - Set `pulseSamplesTotal_`, `pulseSampleCounter_ = 0`, `attackRampCounter_ = 0`, `pulseActive_ = true` (FR-033)
 
-- [ ] T019 [US1] Implement `process()` in `dsp/include/krate/dsp/processors/impact_exciter.h`:
+- [X] T019 [US1] Implement `process()` in `dsp/include/krate/dsp/processors/impact_exciter.h`:
   - Early-out if not `pulseActive_` and not `bounceActive_`: return 0.0f (performance optimization from plan.md)
   - Compute pulse sample: `t = pulseSampleCounter_ / pulseSamplesTotal_`, `skewedX = powf(t, 1.0f - skew_)`, `pulseSample = amplitude_ * powf(sinf(kPi * skewedX), gamma_)` (FR-003, FR-004)
   - Generate noise: `white = rng_.nextFloatSigned()`, apply one-pole pinking `pink = white - 0.9f * pinkState_; pinkState_ = pink` (FR-010 fixed `b=0.9f`), blend based on hardness, envelope with `pulseSample` envelope factor (FR-009), scale by `noiseLevel_` (FR-011)
@@ -155,17 +155,17 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
   - Apply energy capping: update `energy_`, apply `gain = threshold_ / energy_` if `energy_ > threshold_` (FR-034)
   - Advance `pulseSampleCounter_`, set `pulseActive_ = false` when counter reaches total (FR-001)
 
-- [ ] T020 [US1] Implement `processBlock()` in `dsp/include/krate/dsp/processors/impact_exciter.h`: loop over `process()` filling `output[i]` (FR-001 convenience wrapper)
+- [X] T020 [US1] Implement `processBlock()` in `dsp/include/krate/dsp/processors/impact_exciter.h`: loop over `process()` filling `output[i]` (FR-001 convenience wrapper)
 
-- [ ] T021 [US1] Verify all User Story 1 tests pass: build `dsp_tests`, run `dsp_tests.exe "ImpactExciter*"`
+- [X] T021 [US1] Verify all User Story 1 tests pass: build `dsp_tests`, run `dsp_tests.exe "ImpactExciter*"`
 
 ### 3.3 Cross-Platform Verification
 
-- [ ] T022 [US1] Verify IEEE 754 compliance in `dsp/tests/unit/processors/impact_exciter_test.cpp`: if any test uses `std::isnan`/`std::isfinite`/`std::isinf`, add the file to the `-fno-fast-math` list in `dsp/tests/CMakeLists.txt`
+- [X] T022 [US1] Verify IEEE 754 compliance in `dsp/tests/unit/processors/impact_exciter_test.cpp`: if any test uses `std::isnan`/`std::isfinite`/`std::isinf`, add the file to the `-fno-fast-math` list in `dsp/tests/CMakeLists.txt`
 
 ### 3.4 Commit
 
-- [ ] T023 [US1] Commit completed User Story 1 work: XorShift32 + ModalResonatorBank decayScale (Phase 2) + ImpactExciter core DSP
+- [X] T023 [US1] Commit completed User Story 1 work: XorShift32 + ModalResonatorBank decayScale (Phase 2) + ImpactExciter core DSP
 
 **Checkpoint**: `ImpactExciter` is a standalone tested DSP component. It can be instantiated in isolation and produces physically-motivated excitation bursts. All Phase 3 tests pass.
 
