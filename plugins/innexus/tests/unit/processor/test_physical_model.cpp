@@ -14,6 +14,7 @@
 #include <krate/dsp/processors/residual_types.h>
 
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "base/source/fstreamer.h"
 
 #include <catch2/catch_approx.hpp>
@@ -560,20 +561,85 @@ static std::unique_ptr<Innexus::Processor> createImpactExciterProcessor()
     return proc;
 }
 
-/// Helper to set normalized parameter via processParameterChanges simulation
+/// Minimal IParamValueQueue for test parameter injection
+class T025ParamValueQueue : public IParamValueQueue
+{
+public:
+    T025ParamValueQueue(ParamID id, ParamValue val) : id_(id), value_(val) {}
+    ParamID PLUGIN_API getParameterId() override { return id_; }
+    int32 PLUGIN_API getPointCount() override { return 1; }
+    tresult PLUGIN_API getPoint(int32 /*index*/, int32& sampleOffset,
+                                 ParamValue& value) override
+    {
+        sampleOffset = 0;
+        value = value_;
+        return kResultTrue;
+    }
+    tresult PLUGIN_API addPoint(int32 /*sampleOffset*/, ParamValue /*value*/,
+                                 int32& /*index*/) override
+    {
+        return kResultFalse;
+    }
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+private:
+    ParamID id_;
+    ParamValue value_;
+};
+
+/// Minimal IParameterChanges for test parameter injection
+class T025ParameterChanges : public IParameterChanges
+{
+public:
+    void addChange(ParamID id, ParamValue val)
+    {
+        queues_.emplace_back(id, val);
+    }
+    int32 PLUGIN_API getParameterCount() override
+    {
+        return static_cast<int32>(queues_.size());
+    }
+    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
+    {
+        if (index < 0 || index >= static_cast<int32>(queues_.size()))
+            return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+    IParamValueQueue* PLUGIN_API addParameterData(const ParamID& /*id*/,
+                                                    int32& /*index*/) override
+    {
+        return nullptr;
+    }
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+private:
+    std::vector<T025ParamValueQueue> queues_;
+};
+
+/// Helper to set normalized parameter via processParameterChanges simulation.
+/// Processes one silent block with the parameter change so the processor picks it up.
 static void setProcessorParam(Innexus::Processor& proc, ParamID id, double value)
 {
-    // We use the process() call to inject parameter changes.
-    // Create a minimal ProcessData with parameter changes.
-    // For simplicity, we use the public setParamNormalized + process pattern.
-    // Since we can't easily set atomics from outside, we'll process a block
-    // with parameter changes by creating proper IParameterChanges.
-    //
-    // Alternative: just process blocks and the atomics set from prior phases
-    // will be picked up by the voice loop.
-    (void)proc;
-    (void)id;
-    (void)value;
+    constexpr int kBS = 128;
+    std::vector<float> outL(kBS, 0.0f);
+    std::vector<float> outR(kBS, 0.0f);
+
+    T025ParameterChanges paramChanges;
+    paramChanges.addChange(id, value);
+
+    ProcessData data{};
+    data.numSamples = kBS;
+    data.numInputs = 0;
+    data.numOutputs = 1;
+    data.inputParameterChanges = &paramChanges;
+    AudioBusBuffers outBus{};
+    outBus.numChannels = 2;
+    float* channels[2] = {outL.data(), outR.data()};
+    outBus.channelBuffers32 = channels;
+    data.outputs = &outBus;
+    proc.process(data);
 }
 
 /// Helper to process a number of blocks and return the peak amplitude
@@ -610,53 +676,60 @@ static float processBlocksAndGetPeak(Innexus::Processor& proc, int numBlocks)
 TEST_CASE("ImpactExciter integration: note-on with Impact exciter produces non-zero output",
           "[physical_model][impact_exciter][integration]")
 {
-    auto proc = createImpactExciterProcessor();
+    // Test with Residual (default, exciterType normalized = 0.0)
+    auto procResidual = createImpactExciterProcessor();
+    // Exciter type defaults to 0 (Residual) -- no param change needed
+    procResidual->onNoteOn(60, 0.8f);
+    float peakResidual = processBlocksAndGetPeak(*procResidual, 16);
+    procResidual->setActive(false);
+    procResidual->terminate();
 
-    // Set exciter type to Impact (1). The kExciterTypeId is a StringListParameter
-    // with 3 values (0,1,2). Normalized value 0.5 => index 1 (Impact).
-    // We need to inject the parameter. Since the processor atomics are private,
-    // we use the process() parameter change mechanism. For testing, we'll
-    // rely on the testSetExciterType accessor if available, or process a block
-    // with parameter changes.
-    //
-    // The simplest approach: use the IParameterChanges mechanism during process().
-    // But since that's complex, we note that the exciter type defaults to 0 (Residual).
-    // For this test, we verify that when exciter type IS set to Impact,
-    // the output differs from Residual.
+    // Test with Impact (exciterType normalized = 0.5 => index 1)
+    auto procImpact = createImpactExciterProcessor();
+    // Set exciter type to Impact BEFORE triggering note-on
+    setProcessorParam(*procImpact, Innexus::kExciterTypeId, 0.5);
+    procImpact->onNoteOn(60, 0.8f);
+    float peakImpact = processBlocksAndGetPeak(*procImpact, 16);
+    procImpact->setActive(false);
+    procImpact->terminate();
 
-    // Process with Residual (default) first
-    proc->onNoteOn(60, 0.8f);
-    float peakResidual = processBlocksAndGetPeak(*proc, 16);
-
-    // The processor should produce non-zero output with residual
+    // Both should produce non-zero output
     REQUIRE(peakResidual > 0.0f);
+    REQUIRE(peakImpact > 0.0f);
 
-    proc->setActive(false);
-    proc->terminate();
+    // Impact exciter output should differ from Residual exciter output,
+    // confirming the Impact code path is actually active
+    REQUIRE(peakImpact != Catch::Approx(peakResidual).margin(1e-6f));
 }
 
 TEST_CASE("ImpactExciter integration: two notes at different velocities produce different peaks from resonator",
           "[physical_model][impact_exciter][velocity][integration]")
 {
-    // Test that velocity is actually routed through the voice pipeline.
-    // Even with Residual exciter, velocity affects output via velocityGain.
-    // With Impact exciter, velocity additionally affects excitation spectrum.
+    // Test that velocity is routed through the Impact exciter code path.
+    // Both processors use Impact exciter (normalized 0.5 => index 1).
 
-    // Voice A: high velocity
+    // Voice A: high velocity with Impact exciter
     auto procA = createImpactExciterProcessor();
+    setProcessorParam(*procA, Innexus::kExciterTypeId, 0.5);
     procA->onNoteOn(60, 0.95f);
     float peakHigh = processBlocksAndGetPeak(*procA, 16);
     procA->setActive(false);
     procA->terminate();
 
-    // Voice B: low velocity
+    // Voice B: low velocity with Impact exciter
     auto procB = createImpactExciterProcessor();
+    setProcessorParam(*procB, Innexus::kExciterTypeId, 0.5);
     procB->onNoteOn(60, 0.15f);
     float peakLow = processBlocksAndGetPeak(*procB, 16);
     procB->setActive(false);
     procB->terminate();
 
-    // Higher velocity should produce higher peak
+    // Both should produce non-zero output
+    REQUIRE(peakHigh > 0.0f);
+    REQUIRE(peakLow > 0.0f);
+
+    // Higher velocity should produce higher peak from the resonator
+    // when driven by Impact exciter
     REQUIRE(peakHigh > peakLow);
 }
 

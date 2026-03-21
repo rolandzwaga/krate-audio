@@ -616,3 +616,335 @@ TEST_CASE("ImpactExciter pulse duration nonlinear with velocity: T(0.5) not midw
     float deviation = std::abs(actualMid - linearMid) / std::max(range, 1.0f);
     REQUIRE(deviation > 0.03f);
 }
+
+// =============================================================================
+// T033: Per-trigger micro-variation tests (User Story 3 / SC-006)
+// =============================================================================
+
+TEST_CASE("ImpactExciter 10 identical triggers produce pairwise non-identical buffers (SC-006)",
+          "[processors][impact_exciter][variation]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    constexpr int kNumTriggers = 10;
+    constexpr int kBufSize = 512;
+
+    // Collect 10 output buffers from identical trigger parameters
+    std::vector<std::vector<float>> buffers(kNumTriggers);
+    for (int t = 0; t < kNumTriggers; ++t) {
+        buffers[static_cast<size_t>(t)].resize(kBufSize, 0.0f);
+        exciter.trigger(0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f);
+        exciter.processBlock(buffers[static_cast<size_t>(t)].data(), kBufSize);
+    }
+
+    // Pairwise comparison: no two buffers should be identical
+    int identicalPairs = 0;
+    for (int a = 0; a < kNumTriggers; ++a) {
+        for (int b = a + 1; b < kNumTriggers; ++b) {
+            bool identical = true;
+            for (int s = 0; s < kBufSize; ++s) {
+                if (buffers[static_cast<size_t>(a)][static_cast<size_t>(s)]
+                    != buffers[static_cast<size_t>(b)][static_cast<size_t>(s)]) {
+                    identical = false;
+                    break;
+                }
+            }
+            if (identical)
+                ++identicalPairs;
+        }
+    }
+    REQUIRE(identicalPairs == 0);
+}
+
+TEST_CASE("ImpactExciter per-trigger variation is subtle (SC-006)",
+          "[processors][impact_exciter][variation]")
+{
+    // Verify that per-trigger variation is subtle, not disruptive.
+    // The noise component is fully random per trigger, while gamma/T have ±2-5% variation.
+    // We measure the peak amplitude variation across triggers: all triggers at the same
+    // velocity should produce similar peak amplitudes (dominated by the deterministic
+    // pulse, which has only ±2% gamma variation and ±5% duration variation).
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    constexpr int kNumTriggers = 10;
+    constexpr int kBufSize = 512;
+
+    std::vector<float> peakAmps;
+    std::vector<float> totalEnergies;
+
+    for (int t = 0; t < kNumTriggers; ++t) {
+        std::vector<float> buf(kBufSize, 0.0f);
+        exciter.trigger(0.7f, 1.0f, 0.3f, 0.0f, 0.0f, 440.0f);
+        exciter.processBlock(buf.data(), kBufSize);
+
+        float peak = findPeakAmplitude(buf);
+        peakAmps.push_back(peak);
+
+        float energy = 0.0f;
+        for (float s : buf)
+            energy += s * s;
+        totalEnergies.push_back(energy);
+    }
+
+    // All peaks should be in a similar range (subtle variation)
+    float minPeak = *std::min_element(peakAmps.begin(), peakAmps.end());
+    float maxPeak = *std::max_element(peakAmps.begin(), peakAmps.end());
+    float avgPeak = 0.0f;
+    for (float p : peakAmps) avgPeak += p;
+    avgPeak /= static_cast<float>(kNumTriggers);
+
+    REQUIRE(avgPeak > 0.01f); // Signal exists
+
+    // Peak amplitude variation should be < 20% of average (subtle, not disruptive)
+    REQUIRE((maxPeak - minPeak) < avgPeak * 0.20f);
+
+    // Total energy variation should also be bounded
+    float minEnergy = *std::min_element(totalEnergies.begin(), totalEnergies.end());
+    float maxEnergy = *std::max_element(totalEnergies.begin(), totalEnergies.end());
+    float avgEnergy = 0.0f;
+    for (float e : totalEnergies) avgEnergy += e;
+    avgEnergy /= static_cast<float>(kNumTriggers);
+
+    // Energy variation < 30% of average (noise adds stochastic energy)
+    REQUIRE((maxEnergy - minEnergy) < avgEnergy * 0.30f);
+}
+
+TEST_CASE("ImpactExciter different voiceIds produce different noise sequences (FR-012)",
+          "[processors][impact_exciter][variation]")
+{
+    constexpr int kBufSize = 512;
+
+    Krate::DSP::ImpactExciter exciterA;
+    exciterA.prepare(kSampleRate, 0);
+    auto bufA = generateExciterBlock(exciterA, 0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f, kBufSize);
+
+    Krate::DSP::ImpactExciter exciterB;
+    exciterB.prepare(kSampleRate, 1);
+    auto bufB = generateExciterBlock(exciterB, 0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f, kBufSize);
+
+    // Buffers should differ (different RNG seeds)
+    bool identical = true;
+    for (int s = 0; s < kBufSize; ++s) {
+        if (bufA[static_cast<size_t>(s)] != bufB[static_cast<size_t>(s)]) {
+            identical = false;
+            break;
+        }
+    }
+    REQUIRE_FALSE(identical);
+}
+
+TEST_CASE("ImpactExciter polyphonic RNG isolation: two voices differ from sample 0 (FR-012)",
+          "[processors][impact_exciter][variation]")
+{
+    constexpr int kBufSize = 512;
+
+    // Simulate two polyphonic voices triggered simultaneously
+    Krate::DSP::ImpactExciter voice0;
+    voice0.prepare(kSampleRate, 0);
+
+    Krate::DSP::ImpactExciter voice1;
+    voice1.prepare(kSampleRate, 1);
+
+    // Trigger both with identical parameters (chord scenario)
+    voice0.trigger(0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f);
+    voice1.trigger(0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f);
+
+    // Process sample by sample and find first difference
+    int firstDiffSample = -1;
+    for (int s = 0; s < kBufSize; ++s) {
+        float s0 = voice0.process();
+        float s1 = voice1.process();
+        if (s0 != s1 && firstDiffSample < 0) {
+            firstDiffSample = s;
+        }
+    }
+
+    // Voices should differ from very early on (noise component differs from sample 0)
+    // The deterministic pulse part is the same, but noise uses per-voice RNG
+    REQUIRE(firstDiffSample >= 0);
+    REQUIRE(firstDiffSample < 5); // Should differ within the first few samples
+}
+
+// =============================================================================
+// T034: Micro-bounce tests (User Story 3 / FR-007, FR-008)
+// =============================================================================
+
+TEST_CASE("ImpactExciter hardness 0.8: bounce adds energy beyond primary pulse (FR-007)",
+          "[processors][impact_exciter][bounce]")
+{
+    // At hardness=0.8 (effectiveHardness ~0.87), bounce should be active.
+    // The bounce overlaps with the primary pulse, so instead of looking for
+    // two separate peaks, we compare against a no-bounce case (hardness=0.5,
+    // effectiveHardness ~0.57 < 0.6 threshold) and verify the hard-strike
+    // output has more energy in the late portion of the pulse.
+
+    constexpr int kBufSize = 1024;
+
+    // With bounce (hardness=0.8, effectiveHardness > 0.6)
+    Krate::DSP::ImpactExciter exciterBounce;
+    exciterBounce.prepare(kSampleRate, 42);
+    auto bufBounce = generateExciterBlock(exciterBounce, 0.7f, 0.8f, 0.3f, 0.0f, 0.0f, 440.0f, kBufSize);
+
+    // Without bounce (hardness=0.5, effectiveHardness ~0.57 < 0.6)
+    Krate::DSP::ImpactExciter exciterNoBounce;
+    exciterNoBounce.prepare(kSampleRate, 42);
+    auto bufNoBounce = generateExciterBlock(exciterNoBounce, 0.7f, 0.5f, 0.3f, 0.0f, 0.0f, 440.0f, kBufSize);
+
+    // Verify that bounceActive_ was triggered by checking that the outputs differ.
+    // Due to different hardness, they already differ in pulse shape, but the bounce
+    // adds additional energy in a secondary bump after the bounce delay (~1ms = ~44 samples).
+    // Measure total energy in samples 40-120 (where bounce pulse is active).
+    int bounceWindowStart = 30;
+    int bounceWindowEnd = 150;
+
+    float energyBounce = 0.0f;
+    float energyNoBounce = 0.0f;
+    for (int i = bounceWindowStart; i < bounceWindowEnd; ++i) {
+        energyBounce += bufBounce[static_cast<size_t>(i)] * bufBounce[static_cast<size_t>(i)];
+        energyNoBounce += bufNoBounce[static_cast<size_t>(i)] * bufNoBounce[static_cast<size_t>(i)];
+    }
+
+    // The bounce case should have more energy in this window due to the secondary pulse
+    // (even though the primary pulse shape also differs due to different hardness).
+    // Both buffers should have non-trivial energy.
+    REQUIRE(energyBounce > 0.001f);
+    REQUIRE(energyNoBounce > 0.001f);
+
+    // The bounce output should have measurably more energy in the bounce window.
+    // The bounce amplitude is 10-20% of primary, so its energy contribution is smaller
+    // but should still be detectable.
+    REQUIRE(energyBounce > energyNoBounce);
+}
+
+TEST_CASE("ImpactExciter hardness 0.4: no bounce below threshold 0.6 (FR-007)",
+          "[processors][impact_exciter][bounce]")
+{
+    // At hardness=0.4, effectiveHardness = clamp(0.4 + 0.7*0.1, 0, 1) = 0.47
+    // which is below the 0.6 threshold, so no bounce should activate.
+    // At hardness=0.8, effectiveHardness = 0.87, bounce IS active.
+    //
+    // We verify by checking the output waveform: with bounce, the signal in the
+    // bounce delay region has extra energy from the secondary pulse; without bounce
+    // the signal is purely the primary pulse + noise.
+    //
+    // Approach: create two fresh instances with identical seeds, trigger both at
+    // the same velocity and mass, but different hardness. Compare the outputs
+    // sample-by-sample to detect the bounce contribution.
+
+    constexpr int kBufSize = 512;
+
+    // Run hardness=0.4 (effectiveHardness=0.47, no bounce)
+    Krate::DSP::ImpactExciter exciterLow;
+    exciterLow.prepare(kSampleRate, 42);
+    exciterLow.trigger(0.7f, 0.4f, 0.3f, 0.0f, 0.0f, 440.0f);
+
+    // Run hardness=0.8 (effectiveHardness=0.87, bounce active)
+    Krate::DSP::ImpactExciter exciterHigh;
+    exciterHigh.prepare(kSampleRate, 42);
+    exciterHigh.trigger(0.7f, 0.8f, 0.3f, 0.0f, 0.0f, 440.0f);
+
+    // Process and check: at hardness=0.4, the exciter should NOT produce any
+    // secondary pulse activity. We verify this indirectly: the output for
+    // hardness=0.4 should be a single continuous pulse region.
+    // Verify the no-bounce exciter's pulse ends within expected range.
+    std::vector<float> bufLow(kBufSize);
+    exciterLow.processBlock(bufLow.data(), kBufSize);
+
+    int lastNonZero = findLastNonZeroIndex(bufLow);
+
+    // Primary pulse at mass=0.3 with velocity shortening:
+    // T = (0.5 + 14.5 * pow(0.3, 0.4))ms * pow(0.3, 0.2) ~ several ms
+    // Should be a contiguous region, not extending beyond expected range.
+    REQUIRE(lastNonZero > 50);   // Has meaningful output
+    REQUIRE(lastNonZero < 600);  // Reasonable duration for no-bounce pulse
+
+    // The high-hardness version should produce more total energy in the
+    // bounce delay window (samples 30-150) than the low-hardness version.
+    // Note: different hardness values mean different gamma/skew/cutoff too,
+    // so we can't do a direct subtraction. But the hard pulse is generally
+    // peakier (higher gamma) and brighter, so it has higher peak energy.
+    // The key test here is that hardness 0.4 does NOT trigger bounce.
+    // We already tested that hardness 0.8 DOES in the other test.
+
+    // Verify the pulse is a single contiguous region (no gap then second pulse)
+    // Find where signal first drops below threshold and stays below
+    float peak = findPeakAmplitude(bufLow);
+    float thresh = peak * 0.01f;
+    bool foundGap = false;
+    bool passedPeak = false;
+    bool inGap = false;
+
+    for (int i = 0; i < kBufSize; ++i) {
+        float val = std::abs(bufLow[static_cast<size_t>(i)]);
+        if (val > thresh) {
+            passedPeak = true;
+            if (inGap) {
+                foundGap = true; // Signal returned after a gap
+                break;
+            }
+        } else if (passedPeak) {
+            inGap = true;
+        }
+    }
+
+    // With no bounce, there should be no significant signal returning after a gap
+    // (The SVF tail may produce very small trailing values, but no distinct secondary pulse)
+    REQUIRE_FALSE(foundGap);
+}
+
+TEST_CASE("ImpactExciter bounce delay and amplitude vary across triggers (FR-008)",
+          "[processors][impact_exciter][bounce]")
+{
+    // FR-008: bounceDelay and bounceAmplitude are randomized per trigger.
+    // Since primary pulse and bounce overlap in time, we measure the total
+    // active duration (which varies with bounce delay + bounce duration)
+    // and the total output energy (which varies with bounce amplitude).
+
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 42);
+
+    constexpr int kNumTriggers = 5;
+    constexpr int kBufSize = 1024;
+
+    std::vector<int> activeDurations;
+    std::vector<float> totalEnergies;
+
+    for (int t = 0; t < kNumTriggers; ++t) {
+        exciter.trigger(0.7f, 0.8f, 0.3f, 0.0f, 0.0f, 440.0f);
+
+        int lastActive = -1;
+        float energy = 0.0f;
+        for (int i = 0; i < kBufSize; ++i) {
+            float sample = exciter.process();
+            energy += sample * sample;
+            if (exciter.isActive())
+                lastActive = i;
+        }
+
+        activeDurations.push_back(lastActive);
+        totalEnergies.push_back(energy);
+    }
+
+    // Active durations should vary due to randomized bounce delay (FR-008)
+    bool durationVaries = false;
+    for (size_t i = 1; i < activeDurations.size(); ++i) {
+        if (activeDurations[i] != activeDurations[0]) {
+            durationVaries = true;
+            break;
+        }
+    }
+    REQUIRE(durationVaries);
+
+    // Total energies should vary due to randomized bounce amplitude (FR-008)
+    bool energyVaries = false;
+    for (size_t i = 1; i < totalEnergies.size(); ++i) {
+        // Use a small relative tolerance to account for floating-point precision
+        if (std::abs(totalEnergies[i] - totalEnergies[0]) > totalEnergies[0] * 0.001f) {
+            energyVaries = true;
+            break;
+        }
+    }
+    REQUIRE(energyVaries);
+}

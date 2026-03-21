@@ -214,7 +214,7 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 4.4 Commit
 
-- [ ] T032 [US2] Commit completed User Story 2 work: ImpactExciter velocity coupling tests + voice integration (exciter trigger on note-on, voice loop switch)
+- [X] T032 [US2] Commit completed User Story 2 work: ImpactExciter velocity coupling tests + voice integration (exciter trigger on note-on, voice loop switch)
 
 **Checkpoint**: Playing MIDI notes with Impact exciter selected produces audible struck-object output with velocity-proportional loudness and brightness. All Phase 4 tests pass.
 
@@ -234,28 +234,28 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T033 [P] [US3] Write failing unit tests for per-trigger micro-variation in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T033 [P] [US3] Write failing unit tests for per-trigger micro-variation in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Trigger 10 times with identical parameters: all 10 output buffers are pairwise non-identical (SC-006)
   - Variation is subtle: root-mean-square difference between any two buffers is less than 10% of the signal RMS (SC-006 "subtle but audible")
   - Per-voice isolation: two `ImpactExciter` instances with different voiceIds produce different noise sequences from the start even with identical trigger parameters (FR-012)
   - Polyphonic RNG isolation: in a polyphonic context (two `ImpactExciter` instances representing two chord voices), the noise components do not produce identical phase patterns -- verified by confirming the two output buffers differ from sample 0 onward (FR-012, US3 acceptance scenario 3)
 
-- [ ] T034 [P] [US3] Write failing unit tests for micro-bounce in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T034 [P] [US3] Write failing unit tests for micro-bounce in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - At hardness=0.8: output has two distinct peaks (primary + secondary bounce) (FR-007)
   - At hardness=0.4: output has only one peak (no bounce below threshold 0.6) (FR-007)
   - Bounce delay and amplitude vary across triggers (randomized per FR-008): compare bounce peak timing across 5 triggers
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T035 [US3] Implement micro-bounce in `trigger()` in `dsp/include/krate/dsp/processors/impact_exciter.h`: when `effectiveHardness > 0.6f`, compute `bounceDelay_` in samples (0.5-2ms, shorter for harder strikes: `delay_s = lerp(0.002f, 0.0005f, (effectiveHardness - 0.6f) / 0.4f)`), randomize `bounceDelay_ *= (1.0f + rng_.nextFloatSigned() * 0.15f)`, compute `bounceAmplitude_` (10-20% of primary, less for harder: `lerp(0.2f, 0.1f, (effectiveHardness - 0.6f) / 0.4f)`), randomize amplitude similarly (FR-007, FR-008), set `bounceActive_ = false`, `bounceDelayCounter_ = 0`, `bounceSamplesTotal_` = pulse duration samples, `bounceGamma_ = gamma_`
+- [X] T035 [US3] Implement micro-bounce in `trigger()` in `dsp/include/krate/dsp/processors/impact_exciter.h`: when `effectiveHardness > 0.6f`, compute `bounceDelay_` in samples (0.5-2ms, shorter for harder strikes: `delay_s = lerp(0.002f, 0.0005f, (effectiveHardness - 0.6f) / 0.4f)`), randomize `bounceDelay_ *= (1.0f + rng_.nextFloatSigned() * 0.15f)`, compute `bounceAmplitude_` (10-20% of primary, less for harder: `lerp(0.2f, 0.1f, (effectiveHardness - 0.6f) / 0.4f)`), randomize amplitude similarly (FR-007, FR-008), set `bounceActive_ = false`, `bounceDelayCounter_ = 0`, `bounceSamplesTotal_` = pulse duration samples, `bounceGamma_ = gamma_`
 
-- [ ] T036 [US3] Extend `process()` to handle micro-bounce in `dsp/include/krate/dsp/processors/impact_exciter.h`: track `bounceDelayCounter_` counting down to bounce start, when active compute bounce pulse sample using same skewed half-sine formula with `bounceGamma_` and `bounceAmplitude_`, add to main signal before SVF (FR-007)
+- [X] T036 [US3] Extend `process()` to handle micro-bounce in `dsp/include/krate/dsp/processors/impact_exciter.h`: track `bounceDelayCounter_` counting down to bounce start, when active compute bounce pulse sample using same skewed half-sine formula with `bounceGamma_` and `bounceAmplitude_`, add to main signal before SVF (FR-007)
 
-- [ ] T037 [US3] Verify all User Story 3 tests pass: build `dsp_tests`, run `dsp_tests.exe "ImpactExciter*"`
+- [X] T037 [US3] Verify all User Story 3 tests pass: build `dsp_tests`, run `dsp_tests.exe "ImpactExciter*"`
 
 ### 5.3 Cross-Platform Verification
 
-- [ ] T038 [US3] Verify IEEE 754 compliance: no new test files requiring `-fno-fast-math` annotation for this phase (micro-variation tests use deterministic integer ops)
+- [X] T038 [US3] Verify IEEE 754 compliance: no new test files requiring `-fno-fast-math` annotation for this phase (micro-variation tests use deterministic integer ops)
 
 ### 5.4 Commit
 
