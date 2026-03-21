@@ -147,13 +147,20 @@
     <control-tag name="Mod.Target" tag="616"/>
     <control-tag name="Mod.RateSync" tag="617"/>
     <control-tag name="Mod.NoteValue" tag="618"/>
+
+    <!-- Physical Modelling (800-804) -->
+    <control-tag name="PhysModelMix" tag="800"/>
+    <control-tag name="ResonanceDecay" tag="801"/>
+    <control-tag name="ResonanceBrightness" tag="802"/>
+    <control-tag name="ResonanceStretch" tag="803"/>
+    <control-tag name="ResonanceScatter" tag="804"/>
   </control-tags>
 
   <!-- ================================================================== -->
   <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 820"
-            background-color="bg-primary" minSize="800, 820" maxSize="800, 820">
+  <template name="Editor" class="CViewContainer" size="800, 935"
+            background-color="bg-primary" minSize="800, 935" maxSize="800, 935">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -727,9 +734,83 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- HARMONIC PHYSICS SECTION (Y 600-695)                           -->
+    <!-- RESONATOR BANK SECTION (Y 600-710)                             -->
+    <!-- Physical modelling: residual -> modal resonator -> mix         -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 600" size="540, 95"
+    <view class="FieldsetContainer" origin="5, 600" size="790, 110"
+          title="Resonator Bank" fieldset-title="Resonator Bank" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <!-- Physical Model Mix (dry/wet blend) -->
+      <view class="ArcKnob" origin="55, 18" size="42, 42"
+            control-tag="PhysModelMix" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="50, 60" size="52, 12"
+            control-tag="PhysModelMix" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="50, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Mix"/>
+
+      <!-- Decay (ring-out time, log-mapped 0.01-5.0s) -->
+      <view class="ArcKnob" origin="195, 18" size="42, 42"
+            control-tag="ResonanceDecay" default-value="0.63"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="190, 60" size="52, 12"
+            control-tag="ResonanceDecay" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="190, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Decay"/>
+
+      <!-- Brightness (material character: wood=0 to metal=1) -->
+      <view class="ArcKnob" origin="335, 18" size="42, 42"
+            control-tag="ResonanceBrightness" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="330, 60" size="52, 12"
+            control-tag="ResonanceBrightness" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="330, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Bright"/>
+
+      <!-- Stretch (stiff-string inharmonicity) -->
+      <view class="ArcKnob" origin="475, 18" size="42, 42"
+            control-tag="ResonanceStretch" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="470, 60" size="52, 12"
+            control-tag="ResonanceStretch" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="470, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Stretch"/>
+
+      <!-- Scatter (irregular mode displacement) -->
+      <view class="ArcKnob" origin="615, 18" size="42, 42"
+            control-tag="ResonanceScatter" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="610, 60" size="52, 12"
+            control-tag="ResonanceScatter" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="610, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Scatter"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- HARMONIC PHYSICS SECTION (Y 715-810)                           -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 715" size="540, 95"
           title="Harmonic Physics" fieldset-title="Harmonic Physics" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -787,9 +868,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ANALYSIS FEEDBACK SECTION (Y 600-695)                          -->
+    <!-- ANALYSIS FEEDBACK SECTION (Y 715-810)                          -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="550, 600" size="245, 95"
+    <view class="FieldsetContainer" origin="550, 715" size="245, 95"
           title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -821,9 +902,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ADSR ENVELOPE SECTION (Y 700-810)                              -->
+    <!-- ADSR ENVELOPE SECTION (Y 815-920)                              -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 700" size="790, 105"
+    <view class="FieldsetContainer" origin="5, 815" size="790, 105"
           title="ADSR Envelope" fieldset-title="ADSR Envelope" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -918,7 +999,7 @@
 
     <!-- Bottom credit line (version from version.h) -->
     <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 806" size="220, 14"
+          origin="575, 921" size="220, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"/>
 
