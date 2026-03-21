@@ -313,7 +313,7 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 6.4 Commit
 
-- [ ] T047 [US4] Commit completed User Story 4 work: brightness trim + strike position tests + parameter routing verified
+- [X] T047 [US4] Commit completed User Story 4 work: brightness trim + strike position tests + parameter routing verified
 
 **Checkpoint**: Brightness trim and strike position produce verifiable spectral changes. VST parameter registration is confirmed correct for all 5 new parameters. All Phase 6 tests pass.
 
@@ -333,17 +333,17 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T048 [P] [US5] Write failing unit tests for energy capping in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T048 [P] [US5] Write failing unit tests for energy capping in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Single trigger: peak output is at expected amplitude level (baseline)
   - 100 rapid triggers (1ms apart at 44100 Hz = every 44 samples): peak output never exceeds 4x single-strike peak (SC-010)
   - After rapid retrigger storm, output eventually decays to near-zero when no new triggers arrive (energy dissipates naturally, no stuck gain)
   - Energy capping acts gradually (soft gain reduction), not as hard clipping: no sudden amplitude step at threshold
 
-- [ ] T049 [P] [US5] Write failing unit tests for click-free retrigger in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
+- [X] T049 [P] [US5] Write failing unit tests for click-free retrigger in `dsp/tests/unit/processors/impact_exciter_test.cpp`:
   - Retrigger after 10ms: no sample-level discontinuity at retrigger point (difference between sample N and N+1 is less than 0.01 at trigger boundary) (SC-009)
   - Attack ramp makes the onset slope gradual: first 13 samples (at 44100 Hz, ~0.3ms) ramp from 0 to full amplitude (FR-033)
 
-- [ ] T050 [P] [US5] Write failing integration tests for mallet choke in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
+- [X] T050 [P] [US5] Write failing integration tests for mallet choke in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`:
   - Retrigger on ringing note: modal resonator output immediately after retrigger is measurably lower than before retrigger (choke active, SC-011)
   - Hard retrigger (velocity=1.0) produces more attenuation than gentle retrigger (velocity=0.2) (SC-011)
   - After ~10ms, choke envelope recovers to 1.0 and resonator behaves normally again (FR-035)
@@ -351,17 +351,17 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T051 [US5] Implement mallet choke envelope logic in `plugins/innexus/src/processor/processor_midi.cpp`: on note-on retrigger (note already playing), set `voice.chokeMaxScale_` proportional to velocity (`kMaxChoke = 1.0f + velocity * 2.0f` or similar empirical value), set `voice.chokeEnvelope_ = 0.0f` (full choke), compute `voice.chokeEnvelopeCoeff_ = expf(-1.0f / (0.01f * sampleRate))` (~10ms decay) (FR-035)
+- [X] T051 [US5] Implement mallet choke envelope logic in `plugins/innexus/src/processor/processor_midi.cpp`: on note-on retrigger (note already playing), set `voice.chokeMaxScale_` proportional to velocity (`kMaxChoke = 1.0f + velocity * 2.0f` or similar empirical value), set `voice.chokeEnvelope_ = 0.0f` (full choke), compute `voice.chokeEnvelopeCoeff_ = expf(-1.0f / (0.01f * sampleRate))` (~10ms decay) (FR-035)
 
-- [ ] T052 [US5] Update the voice processing loop in `plugins/innexus/src/processor/processor.cpp`: advance choke envelope each sample (`chokeEnvelope_ = 1.0f - (1.0f - chokeEnvelope_) * chokeEnvelopeCoeff_`), compute `chokeDecayScale_ = lerp(chokeMaxScale_, 1.0f, chokeEnvelope_)`, pass `chokeDecayScale_` to `modalResonator.processSample(excitation, chokeDecayScale_)` (FR-035)
+- [X] T052 [US5] Update the voice processing loop in `plugins/innexus/src/processor/processor.cpp`: advance choke envelope each sample (`chokeEnvelope_ = 1.0f - (1.0f - chokeEnvelope_) * chokeEnvelopeCoeff_`), compute `chokeDecayScale_ = lerp(chokeMaxScale_, 1.0f, chokeEnvelope_)`, pass `chokeDecayScale_` to `modalResonator.processSample(excitation, chokeDecayScale_)` (FR-035)
 
-- [ ] T053 [US5] Verify energy capping is correctly implemented in `ImpactExciter::process()`: confirm `energyThreshold_` is initialized to approximately 4x single-strike RMS in `prepare()` (compute single-strike energy analytically or empirically from pulse formula), fix threshold if tests fail (FR-034)
+- [X] T053 [US5] Verify energy capping is correctly implemented in `ImpactExciter::process()`: confirm `energyThreshold_` is initialized to approximately 4x single-strike RMS in `prepare()` (compute single-strike energy analytically or empirically from pulse formula), fix threshold if tests fail (FR-034)
 
-- [ ] T054 [US5] Verify all User Story 5 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
+- [X] T054 [US5] Verify all User Story 5 tests pass: build `dsp_tests` and `innexus_tests`, run `dsp_tests.exe "ImpactExciter*"` and `innexus_tests.exe`
 
 ### 7.3 Cross-Platform Verification
 
-- [ ] T055 [US5] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if it uses `std::isfinite` or similar for amplitude bound checks
+- [X] T055 [US5] Verify IEEE 754 compliance in `plugins/innexus/tests/unit/processor/test_physical_model.cpp`: add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if it uses `std::isfinite` or similar for amplitude bound checks
 
 ### 7.4 Commit
 

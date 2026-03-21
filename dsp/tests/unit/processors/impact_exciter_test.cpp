@@ -1175,3 +1175,206 @@ TEST_CASE("ImpactExciter bounce delay and amplitude vary across triggers (FR-008
     }
     REQUIRE(energyVaries);
 }
+
+// =============================================================================
+// T048: Energy Capping Tests (SC-010, FR-034)
+// =============================================================================
+
+TEST_CASE("ImpactExciter single trigger baseline peak amplitude", "[processors][impact_exciter][energy]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    auto buffer = generateExciterBlock(exciter, 0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f, kBlockSize);
+    float peak = findPeakAmplitude(buffer);
+
+    // Baseline single trigger should produce a non-trivial signal
+    REQUIRE(peak > 0.01f);
+    REQUIRE(peak < 2.0f); // sanity upper bound
+}
+
+TEST_CASE("ImpactExciter 100 rapid triggers: peak never exceeds 4x single-strike (SC-010)",
+          "[processors][impact_exciter][energy][SC-010]")
+{
+    // First, measure single-strike peak
+    Krate::DSP::ImpactExciter exciterRef;
+    exciterRef.prepare(kSampleRate, 0);
+    auto refBuffer = generateExciterBlock(exciterRef, 0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f, kBlockSize);
+    float singleStrikePeak = findPeakAmplitude(refBuffer);
+    REQUIRE(singleStrikePeak > 0.0f);
+
+    // Now do 100 rapid triggers (every 44 samples = ~1ms at 44100 Hz)
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    constexpr int kTriggerInterval = 44; // ~1ms
+    constexpr int kNumTriggers = 100;
+    constexpr int kTotalSamples = kTriggerInterval * kNumTriggers + kBlockSize;
+    float overallPeak = 0.0f;
+
+    int nextTriggerSample = 0;
+    int triggerCount = 0;
+    for (int s = 0; s < kTotalSamples; ++s) {
+        if (s == nextTriggerSample && triggerCount < kNumTriggers) {
+            exciter.trigger(0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f);
+            nextTriggerSample += kTriggerInterval;
+            ++triggerCount;
+        }
+        float sample = exciter.process();
+        overallPeak = std::max(overallPeak, std::abs(sample));
+    }
+
+    INFO("Single-strike peak: " << singleStrikePeak);
+    INFO("100 rapid triggers peak: " << overallPeak);
+    INFO("Ratio: " << (overallPeak / singleStrikePeak));
+
+    // SC-010: Peak never exceeds 4x single-strike peak
+    REQUIRE(overallPeak <= 4.0f * singleStrikePeak);
+}
+
+TEST_CASE("ImpactExciter after retrigger storm, output decays to near-zero",
+          "[processors][impact_exciter][energy]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    // Fire 50 rapid triggers
+    constexpr int kTriggerInterval = 44;
+    constexpr int kNumTriggers = 50;
+    for (int t = 0; t < kNumTriggers; ++t) {
+        exciter.trigger(0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f);
+        for (int s = 0; s < kTriggerInterval; ++s)
+            (void)exciter.process();
+    }
+
+    // Now let it decay for 500ms with no new triggers
+    constexpr int kDecaySamples = static_cast<int>(0.5 * 44100.0);
+    float lastPeak = 0.0f;
+    for (int s = 0; s < kDecaySamples; ++s) {
+        float sample = exciter.process();
+        lastPeak = std::max(lastPeak, std::abs(sample));
+    }
+
+    // After 500ms of silence (no triggers), output should be near zero
+    // (the exciter pulse is at most 15ms, so 500ms is far past any pulse)
+    // Check the last 100 samples to see they are essentially zero
+    float tailPeak = 0.0f;
+    for (int s = 0; s < 100; ++s) {
+        float sample = exciter.process();
+        tailPeak = std::max(tailPeak, std::abs(sample));
+    }
+    REQUIRE(tailPeak < 1e-6f);
+}
+
+TEST_CASE("ImpactExciter energy capping is gradual, not hard clipping",
+          "[processors][impact_exciter][energy]")
+{
+    // Verify that the energy capping acts as smooth gain reduction,
+    // not hard clipping. We check that sample-to-sample jumps remain small
+    // even during rapid retrigger.
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    constexpr int kTriggerInterval = 44;
+    constexpr int kNumTriggers = 50;
+    constexpr int kTotalSamples = kTriggerInterval * kNumTriggers;
+
+    float prevSample = 0.0f;
+    float maxDiff = 0.0f;
+    int nextTriggerSample = 0;
+    int triggerCount = 0;
+
+    for (int s = 0; s < kTotalSamples; ++s) {
+        if (s == nextTriggerSample && triggerCount < kNumTriggers) {
+            exciter.trigger(0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f);
+            nextTriggerSample += kTriggerInterval;
+            ++triggerCount;
+        }
+        float sample = exciter.process();
+        float diff = std::abs(sample - prevSample);
+        maxDiff = std::max(maxDiff, diff);
+        prevSample = sample;
+    }
+
+    INFO("Maximum sample-to-sample difference: " << maxDiff);
+    // If hard clipping were used, we'd see sudden jumps at the threshold.
+    // Soft gain reduction should keep differences moderate.
+    // The attack ramp limits onset to ~0.3ms rise, and gain reduction is smooth.
+    // A hard clipper would produce diffs up to the clipping threshold.
+    // We check that no single-sample jump exceeds a reasonable limit.
+    REQUIRE(maxDiff < 0.5f);
+}
+
+// =============================================================================
+// T049: Click-Free Retrigger Tests (SC-009, FR-033)
+// =============================================================================
+
+TEST_CASE("ImpactExciter retrigger after 10ms: no discontinuity at trigger boundary (SC-009)",
+          "[processors][impact_exciter][retrigger][SC-009]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    // First trigger
+    exciter.trigger(0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 220.0f);
+
+    // Process 10ms of audio
+    constexpr int k10msSamples = static_cast<int>(0.01 * 44100.0);
+    float lastSampleBeforeRetrigger = 0.0f;
+    for (int s = 0; s < k10msSamples; ++s) {
+        lastSampleBeforeRetrigger = exciter.process();
+    }
+
+    // Retrigger
+    exciter.trigger(0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 220.0f);
+    float firstSampleAfterRetrigger = exciter.process();
+
+    float discontinuity = std::abs(firstSampleAfterRetrigger - lastSampleBeforeRetrigger);
+    INFO("Last sample before retrigger: " << lastSampleBeforeRetrigger);
+    INFO("First sample after retrigger: " << firstSampleAfterRetrigger);
+    INFO("Discontinuity: " << discontinuity);
+
+    // SC-009: difference at trigger boundary < 0.01
+    REQUIRE(discontinuity < 0.01f);
+}
+
+TEST_CASE("ImpactExciter attack ramp: first ~13 samples ramp from 0 to full amplitude (FR-033)",
+          "[processors][impact_exciter][retrigger][FR-033]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+
+    // Trigger with moderate settings
+    exciter.trigger(0.8f, 0.5f, 0.5f, 0.0f, 0.0f, 220.0f);
+
+    // Collect first 20 samples
+    constexpr int kCollectSamples = 20;
+    std::vector<float> onset(kCollectSamples);
+    for (int i = 0; i < kCollectSamples; ++i)
+        onset[static_cast<size_t>(i)] = exciter.process();
+
+    // First sample should be near zero (ramp starts at 0)
+    REQUIRE(std::abs(onset[0]) < 0.001f);
+
+    // Ramp length at 44100 Hz with 0.3ms ramp = ~13 samples
+    // The signal should be growing over the first ~13 samples
+    // Check that sample 0 < sample 6 < sample 12 (monotonically increasing during ramp)
+    // Note: absolute values since pulse starts positive
+    float absAt0 = std::abs(onset[0]);
+    float absAt6 = std::abs(onset[6]);
+    float absAt12 = std::abs(onset[12]);
+    INFO("Onset[0]=" << onset[0] << " Onset[6]=" << onset[6] << " Onset[12]=" << onset[12]);
+
+    // Signal should be ramping up
+    REQUIRE(absAt6 > absAt0);
+    REQUIRE(absAt12 > absAt6);
+
+    // After the ramp (~13 samples), the signal should be at full amplitude
+    // Check that samples after the ramp are at or near full level
+    // Sample 13 should be unattenuated (or very close)
+    float absAt13 = std::abs(onset[13]);
+    float absAt14 = std::abs(onset[14]);
+    // Post-ramp samples should be higher than mid-ramp
+    REQUIRE(absAt13 >= absAt6);
+    REQUIRE(absAt14 >= absAt6);
+}
