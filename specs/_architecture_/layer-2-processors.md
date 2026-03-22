@@ -3657,8 +3657,11 @@ class ModalResonatorBank {
 
     // Processing
     [[nodiscard]] float processSample(float excitation) noexcept;
+    [[nodiscard]] float processSample(float excitation, float decayScale) noexcept;
     void processBlock(const float* input, float* output,
                       size_t numSamples) noexcept;
+    void processBlock(const float* input, float* output,
+                      size_t numSamples, float decayScale) noexcept;
 
     // Maintenance
     void flushSilentModes() noexcept;
@@ -3691,10 +3694,66 @@ class ModalResonatorBank {
 - **Mode culling**: Inactive modes (below silence threshold) are skipped in the inner loop
 - **Coefficient smoothing**: 2ms one-pole smoothing on epsilon/radius/gain prevents clicks during mode transitions
 - **Output safety**: `softClip()` applied to final output to prevent overflow
+- **Mallet choke (decayScale overload)**: `processSample(excitation, decayScale)` applies a multiplicative decay scale (0.0-1.0) to all mode radii, enabling rapid damping for retrigger choke. When `decayScale < 1.0`, each mode's effective radius is reduced by `pow(radius, 1/decayScale)`, causing accelerated exponential decay while preserving relative damping between modes. The single-argument `processSample(excitation)` delegates to the two-argument overload with `decayScale = 1.0f` (no effect). Used by InnexusVoice choke envelope on note retrigger.
 
 **Performance:** 96 modes per voice, ~5 FLOPs per mode per sample. Target: < 5% single core for 96 modes x 8 voices at 44.1 kHz.
 
 **Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials)
+
+---
+
+## ImpactExciter
+**Path:** [impact_exciter.h](../../dsp/include/krate/dsp/processors/impact_exciter.h) | **Since:** Spec 128
+
+Hybrid pulse+noise impact excitation burst generator for physical modelling. Produces short percussive attacks (mallet strikes, plucks) from MIDI note-on events. Output feeds ModalResonatorBank to create struck-object sounds.
+
+```cpp
+namespace Krate::DSP {
+
+class ImpactExciter {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Trigger a new impact burst
+    void trigger(float velocity, float hardness, float mass,
+                 float brightness, float position, float f0Hz) noexcept;
+
+    // Per-sample processing (returns 0.0 when inactive)
+    [[nodiscard]] float process() noexcept;
+
+    // Block convenience wrapper
+    void processBlock(float* output, int numSamples) noexcept;
+
+    // State queries
+    [[nodiscard]] bool isActive() const noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**Sub-systems:**
+1. **Asymmetric pulse**: Raised-sine pulse with hardness-controlled gamma shaping
+2. **Micro-bounce**: Secondary attenuated pulse for realistic mallet contact
+3. **Noise texture**: XorShift32-driven white noise with one-pole pinking filter (b=0.9)
+4. **Per-trigger variation**: Deterministic randomization of pulse width, bounce timing, noise mix
+5. **Hardness SVF filter**: SVF lowpass controlled by brightness parameter
+6. **Velocity coupling**: Amplitude and pulse-width scaling from MIDI velocity
+7. **Strike position comb filter**: DelayLine-based `1 - z^(-D)` comb for tonal shaping
+8. **Energy capping**: Exponential-decay accumulator prevents energy explosion on rapid retrigger
+
+**When to use:**
+- Physical modelling percussion: mallet, pluck, or struck-object excitation
+- Any pipeline where ModalResonatorBank needs a percussive driving signal
+- Innexus instrument physical model path (ExciterType::Impact)
+
+**Design notes:**
+- Non-copyable (owns SVF + DelayLine state)
+- Per-voice instance: each voice holds its own ImpactExciter
+- Early-out optimization: `process()` returns 0 immediately when no burst is active
+- Comb filter skipped when position = 0.0 (default)
+
+**Dependencies:** Layer 0 (XorShift32, dsp_utils.h), Layer 1 (SVF, DelayLine)
 
 ---
 

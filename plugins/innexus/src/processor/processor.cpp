@@ -147,11 +147,14 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
                     ? analysis->analysisHopSize
                     : kShortWindowConfig.hopSize;
 
-            for (auto& voice : voices_)
+            for (size_t vi = 0; vi < voices_.size(); ++vi)
             {
+                auto& voice = voices_[vi];
                 voice.oscillatorBank.prepare(sampleRate_);
                 voice.residualSynth.prepare(
                     fftSize, hopSize, static_cast<float>(sampleRate_));
+                // Spec 128: Prepare impact exciter per voice
+                voice.impactExciter.prepare(sampleRate_, static_cast<uint32_t>(vi));
             }
         }
 
@@ -905,6 +908,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // broadcastFrameToVoices() and handleNoteOn() where they're applied.
     const float physModelMix = physModelMix_.load(std::memory_order_relaxed);
 
+    // Spec 128: Load exciter type once per block
+    const float exciterTypeNorm = exciterType_.load(std::memory_order_relaxed);
+    const auto exciterType = static_cast<ExciterType>(
+        std::clamp(static_cast<int>(std::round(exciterTypeNorm * 2.0f)), 0, 2));
+
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
                                     !analysis->residualFrames.empty() &&
@@ -1589,7 +1597,17 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float vL = 0.0f;
             float vR = 0.0f;
             v.oscillatorBank.processStereo(vL, vR);
-            float residualSample = hasResidual ? v.residualSynth.process() : 0.0f;
+            // Spec 128 FR-030: Select excitation source based on exciter type
+            float excitation = 0.0f;
+            if (exciterType == ExciterType::Impact)
+            {
+                excitation = v.impactExciter.process();
+            }
+            else
+            {
+                excitation = hasResidual ? v.residualSynth.process() : 0.0f;
+            }
+            float residualSample = excitation;
 
             // M2: Mix harmonic and residual per voice
             // Phase 3: expressionBrightness modulates the harmonic/residual balance.
@@ -1600,9 +1618,20 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float perVoiceHarmLevel = harmLevel * (2.0f - brightScale);
             float perVoiceResLevel = resLevel * brightScale;
 
-            // Spec 127: Modal resonator excitation uses RAW residual (unscaled)
-            // resLevel scaling is only applied to the mixer's dry-residual argument
-            float physicalSample = v.modalResonator.processSample(residualSample);
+            // Spec 127/128: Modal resonator excitation
+            // FR-031: Impact exciter feeds resonator identically to residual
+            // FR-035: Choke envelope updates per sample for smooth decay transition
+            if (exciterType == ExciterType::Impact)
+            {
+                // Advance choke envelope toward 1.0 (no choke)
+                v.chokeEnvelope_ = v.chokeEnvelope_ * v.chokeEnvelopeCoeff_
+                                   + (1.0f - v.chokeEnvelopeCoeff_);
+                // lerp(maxChoke, 1.0, envelope): when envelope=0, full choke; when 1, normal
+                v.chokeDecayScale_ = v.chokeMaxScale_
+                    + (1.0f - v.chokeMaxScale_) * v.chokeEnvelope_;
+            }
+            float physicalSample = v.modalResonator.processSample(
+                excitation, v.chokeDecayScale_);
             float resContrib = residualSample * perVoiceResLevel;
 
             // Spec 127 FR-023: PhysicalModelMixer blends residual and physical paths

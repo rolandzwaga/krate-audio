@@ -95,6 +95,31 @@ class Xorshift32 {
 
 ---
 
+## XorShift32 (Per-Voice PRNG)
+**Path:** [xorshift32.h](../../dsp/include/krate/dsp/core/xorshift32.h) | **Since:** Spec 128
+
+Deterministic per-voice PRNG for processors that need repeatable noise sequences without stdlib dependency. Uses a multiplicative hash on voice ID for inter-voice decorrelation. Period: 2³²-1.
+
+```cpp
+struct XorShift32 {
+    uint32_t state = 0x12345678u;
+
+    void seed(uint32_t voiceId) noexcept;            // Hash-based voice-unique seed
+    [[nodiscard]] uint32_t next() noexcept;           // Raw 32-bit
+    [[nodiscard]] float nextFloat() noexcept;         // [0.0, 1.0) unipolar
+    [[nodiscard]] float nextFloatSigned() noexcept;   // [-1.0, 1.0) bipolar
+};
+```
+
+**When to use:**
+- Any processor needing deterministic per-voice noise (ImpactExciter, future BowExciter)
+- Golden-reference testing where reproducible random sequences are required
+- Prefer over `Xorshift32` (random.h) when voice-unique seeding via hash is needed and `constexpr` is not required
+
+**Difference from `Xorshift32` (random.h):** This variant is a plain `struct` (not a class), uses a multiplicative hash in `seed()` for voice decorrelation, and returns unipolar `[0,1)` from `nextFloat()` (vs bipolar `[-1,1]` in random.h).
+
+---
+
 ## NoteValue & Tempo Sync
 **Path:** [note_value.h](../../dsp/include/krate/dsp/core/note_value.h) | **Since:** 0.0.17
 

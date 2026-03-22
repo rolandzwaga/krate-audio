@@ -41,6 +41,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <vector>
 
 namespace Innexus {
@@ -728,6 +729,40 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(resonanceScatterParam);
 
+    // Impact Exciter (Spec 128)
+    auto* exciterTypeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Exciter Type"), kExciterTypeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    exciterTypeParam->appendString(STR16("Residual"));
+    exciterTypeParam->appendString(STR16("Impact"));
+    exciterTypeParam->appendString(STR16("Bow"));
+    parameters.addParameter(exciterTypeParam);
+
+    auto* impactHardnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Hardness"), kImpactHardnessId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactHardnessParam);
+
+    auto* impactMassParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Mass"), kImpactMassId,
+        STR16("%"), 0.0, 1.0, 0.3, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactMassParam);
+
+    // Brightness: plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (norm 0.5)
+    auto* impactBrightnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Brightness"), kImpactBrightnessId,
+        STR16(""), -1.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactBrightnessParam);
+
+    auto* impactPositionParam = new Steinberg::Vst::RangeParameter(
+        STR16("Impact Position"), kImpactPositionId,
+        STR16(""), 0.0, 1.0, 0.13, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(impactPositionParam);
+
     // NoteExpression types (Phase 4: MPE support)
     {
         using namespace Steinberg::Vst;
@@ -1198,6 +1233,26 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(pmVal, 0.0f, 1.0f)));
     }
 
+    // --- Impact Exciter parameters (Spec 128, graceful fallback for old states) ---
+    {
+        float ieVal = 0.0f;
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kExciterTypeId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactHardnessId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactMassId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactBrightnessId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(ieVal))
+            setParamNormalized(kImpactPositionId,
+                static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
+    }
+
     // SharedDisplayBridge: try to read instance ID from state trailer
     {
         Steinberg::int32 marker = 0;
@@ -1420,6 +1475,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of sample load panel
     updateSampleLoadVisibility();
 
+    // Set initial visibility of impact exciter knobs
+    updateImpactKnobVisibility();
+
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
@@ -1499,6 +1557,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     modActivityView1_ = nullptr;
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
+    impactKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
     adsrExpandedOverlay_ = nullptr;
 
@@ -1833,12 +1892,61 @@ void Controller::updateSampleLoadVisibility()
 }
 
 // ==============================================================================
+// updateImpactKnobVisibility
+// ==============================================================================
+void Controller::updateImpactKnobVisibility()
+{
+    // Lazy-find the impact knob container by locating a child with the
+    // ImpactHardness tag (806) and taking its parent container
+    if (!impactKnobContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || impactKnobContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kImpactHardnessId) {
+                            impactKnobContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!impactKnobContainer_)
+        return;
+
+    // ExciterType: StringListParameter with 3 values
+    // Normalized: 0.0 = Residual, 0.5 = Impact, 1.0 = Bow
+    // Show Impact knobs only when ExciterType == Impact (norm ~0.5)
+    auto* param = getParameterObject(kExciterTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isImpact = (norm >= 0.25f && norm < 0.75f);
+    impactKnobContainer_->setVisible(isImpact);
+    if (impactKnobContainer_->getParentView())
+        impactKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // onDisplayTimerFired (T016: FR-049)
 // ==============================================================================
 void Controller::onDisplayTimerFired()
 {
     // Update sample load panel visibility (cheap check every 30ms)
     updateSampleLoadVisibility();
+
+    // Update impact exciter knob visibility based on exciter type
+    updateImpactKnobVisibility();
 
     // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
     // read directly from the processor's shared display buffer

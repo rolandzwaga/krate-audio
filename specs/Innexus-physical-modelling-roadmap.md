@@ -515,32 +515,178 @@ On **note-off**: Let the resonator ring naturally (exponential decay). The exist
 
 **Sonic character:** The attack of a marimba, kalimba, or plucked string, but the resonance rings with the analyzed spectrum. Decouples "how it's hit" from "what rings."
 
+### Physical Background
+
+Real mallet-object impacts produce a **deterministic, smooth force pulse** governed by the Hertzian contact force law:
+
+```
+F(t) = K * [compression(t)]^alpha    (during contact, F = 0 otherwise)
+```
+
+Where `K` is the stiffness coefficient (material-dependent) and `alpha` is the nonlinearity exponent:
+- Elastic sphere (ideal Hertz): alpha = 1.5
+- Soft felt mallet: alpha ~ 1.5–2.0
+- Used piano hammer felt: alpha ~ 2.5–3.5
+- Hard rubber/plastic: alpha ~ 3.0–5.0
+
+The resulting force pulse is approximately a **half-sine** for soft mallets, becoming **narrower and more peaked** as hardness increases. It is NOT noise — noise enters the picture only through surface texture irregularities (a secondary effect) or through Smith's commuted synthesis, where body resonance is folded into the excitation signal and can be *perceptually approximated* by shaped noise.
+
+**Key physical relationships:**
+- **Contact duration scales with mass:** `T_contact ~ m^(2/5)` (Hertz). Heavier mallets → longer, broader pulses.
+- **Contact duration decreases with velocity:** `T_contact ~ v^(-1/5)`. Harder strikes are shorter AND brighter — this coupling is automatic in physics but must be explicitly implemented.
+- **Spectral centroid ≈ 1 / T_contact.** Perceived hardness correlates most strongly with the spectral centroid of the attack (Freed 1990).
+
+**Key references:**
+- Chaigne & Doutaut, "Numerical simulations of xylophones I" JASA 101(1), 1997 — Hertzian mallet-bar contact model
+- Chaigne & Askenfelt, "Numerical simulations of piano strings I/II" JASA 1994 — nonlinear hammer-string interaction
+- Stulov, "Hysteretic model of grand piano hammer felt" JASA 97(4), 1995 — asymmetric pulse with memory
+- Avanzini & Rocchesso, "Modeling Collision Sounds: Non-linear Contact Force" DAFx-01, 2001 — Hunt-Crossley model for synthesis
+- Freed, "Auditory correlates of perceived mallet hardness" JASA 87(1), 1990 — spectral centroid = perceived hardness
+- Bork, "Measuring the acoustical properties of mallets" Applied Acoustics 30(1), 1990 — mallet shock spectra
+- Smith, *Physical Audio Signal Processing* §9.3 (https://ccrma.stanford.edu/~jos/pasp/) — commuted synthesis, force-pulse synthesis, noise substitution
+- Cook, "PhISM: Physically Informed Sonic Modeling" CMJ 21(3), 1997 — stochastic event modelling for percussion
+- Bilbao, *Numerical Sound Synthesis* (Wiley, 2009) — finite-difference collision framework
+
 ### New DSP Components
 
 #### `ImpactExciter` — Layer 2 (processors)
 Location: `dsp/include/krate/dsp/processors/impact_exciter.h`
 
 ```
-Trigger: note-on event
-Params: hardness (0-1), mass (0-1), brightness (0-1)
-Output: short burst of shaped noise (excitation signal)
+Trigger: note-on event + MIDI velocity
+Params: hardness (0-1), mass (0-1), brightness (0-1), position (0-1)
+Output: short excitation burst (asymmetric pulse + shaped noise)
 
-Model:
-  - Generates a short noise burst (1-50ms depending on mass)
-  - Shaped by hardness: soft = low-pass filtered, hard = full bandwidth
-  - Envelope: single-shot exponential decay, duration from mass
-  - Brightness: spectral tilt of the noise
+Signal model (hybrid pulse + noise):
+
+  1. Asymmetric deterministic pulse (primary energy):
+     - Shape: skewed raised half-sine with variable peakiness
+       x = t / T
+       skewedX = pow(x, 1.0 - skew)        // skew = 0.3 * hardness
+       pulse(t) = pow(sin(pi * skewedX), gamma)
+       where gamma = 1.0 (soft felt) to ~4.0 (hard metal)
+     - The skew compresses the attack phase and stretches the release,
+       matching Stulov's measured asymmetric force pulses (fast rise,
+       slower fall from felt hysteresis). Harder mallets are more
+       asymmetric because stiffer materials rebound faster.
+     - Duration T: 0.5–15ms, mapped from mass parameter
+       T = T_min + (T_max - T_min) * mass^0.4
+       (the 0.4 exponent approximates the Hertzian m^(2/5) scaling)
+       T_min = 0.5ms (hard tap), T_max = 15ms (heavy soft mallet)
+       Real contact times: hard ~0.1-2ms, soft felt up to ~10ms.
+       Beyond ~15ms the pulse overlaps the resonator decay and stops
+       sounding like an impact. "Thuddy" character comes from
+       resonator damping, not excitation length.
+     - Amplitude: pow(velocity, 0.6) (nonlinear power curve;
+       exponent ~0.5-0.7 matches natural loudness perception)
+
+  2. Micro-bounce (hardness-dependent secondary pulse):
+     - For hardness > 0.6, add a secondary pulse:
+       bounce delay: 0.5–2ms after primary peak (shorter for harder)
+       bounce amplitude: 10–20% of primary (less for harder)
+     - Both delay and amplitude are randomized per trigger:
+       bounceDelay *= (1.0 + rand(-0.15, +0.15))
+       bounceAmp   *= (1.0 + rand(-0.10, +0.10))
+       Fixed bounce delays cause comb-filtering artifacts on
+       repeated same-note triggers. Randomization breaks this.
+     - Models the physical rebound of rigid strikers, which produce
+       2–3 micro-impulses on contact. Soft felt absorbs the bounce.
+     - Only one bounce pulse needed — diminishing returns beyond that.
+
+  3. Noise texture (surface realism):
+     - Noise envelope: follows the same pulse envelope (NOT constant).
+       noise(t) = whiteNoise * pulseEnvelope(t)
+       This ensures noise dies with the pulse — no residual hiss.
+     - Noise spectrum: tilted by hardness before SVF filtering.
+       Soft (hardness < 0.3): pink-ish (one-pole pinking filter)
+       Hard (hardness > 0.7): white (unfiltered)
+       This models felt's inherent high-frequency absorption.
+     - Noise level: lerp(0.25, 0.08, hardness)
+       Soft felt has more surface texture noise; hard metal is cleaner.
+     - IMPORTANT: noise generator must be per-voice (polyphonic).
+       A shared global noise buffer causes phase cancellation and
+       audible flanging when playing chords. Each voice instance
+       maintains its own RNG state.
+     - Filtered by the same SVF as the pulse (step 5).
+
+  4. Per-trigger micro-variation:
+     - On each note-on, randomize:
+       gamma *= (1.0 + rand(-0.02, +0.02))
+       T     *= (1.0 + rand(-0.05, +0.05))
+     - Prevents the "machine gun" effect of identical repeated strikes.
+     - Noise is inherently random per trigger (different RNG seed).
+
+  5. Hardness-controlled lowpass (2-pole SVF):
+     - Base cutoff mapped from hardness parameter:
+       Soft (0.0): cutoff ~ 500 Hz, steep rolloff (12 dB/oct via SVF)
+       Hard (1.0): cutoff ~ 12 kHz, near-transparent
+     - Pulse peakiness also from hardness:
+       gamma = 1.0 + 3.0 * hardness
+     - Brightness trim (from kImpactBrightnessId) offsets the cutoff:
+       effectiveCutoff = baseCutoff(hardness) * exp2(brightnessTrim)
+       where brightnessTrim is bipolar: -1.0 to +1.0 maps to
+       -12 to +12 semitones of cutoff shift.
+       At default (0.0), the physical mapping is preserved.
+       This allows "sharp transient but dark tone" and vice versa.
+
+  6. Velocity coupling (nonlinear, multi-dimensional):
+     - Effective hardness (velocity-hardness cross-modulation):
+       effectiveHardness = clamp(hardness + velocity * 0.1, 0, 1)
+       Real mallets compress more at higher velocity, making them
+       effectively stiffer. This means ff strikes sound perceptually
+       distinct from pp beyond just volume — they are also "harder."
+       All hardness-derived values (gamma, cutoff, skew, noise tilt)
+       use effectiveHardness rather than raw hardness.
+     - Cutoff modulation (exponential, not linear):
+       effectiveCutoff *= exp2(velocity * k)   // k ~ 1.5
+       This models the rapid brightness increase with strike force —
+       felt compresses nonlinearly, becoming stiffer at higher velocity.
+     - Duration modulation:
+       effectiveT *= pow(1.0 - velocity, 0.2)
+       Subtle shortening at high velocity (physically: T ~ v^(-1/5)).
+     - Both cutoff and duration mappings are perceptually motivated:
+       linear velocity mapping sounds wrong because human
+       loudness/brightness perception is logarithmic.
+
+  7. Strike position comb filter:
+     - H(z) = 1 - z^(-floor(position * N))
+       where N = sampleRate / f0 (one period of the fundamental)
+     - Softened by blending with dry signal:
+       output = lerp(input, combFiltered, 0.7)
+       This avoids the "too perfect" nulls of an ideal comb filter.
+       Real strike position filtering is diffuse — the contact area
+       is finite, not a mathematical point.
+     - position = 0.0: near bridge/edge (all harmonics present)
+     - position = 0.5: center (odd harmonics only, clarinet-like)
+     - Default 0.13 matches the typical "sweet spot" of struck bars
+     - Note: this comb assumes harmonic spacing. With inharmonic
+       resonators (stretch > 0 from Phase 1), the comb nulls won't
+       align perfectly with mode frequencies — this is acceptable
+       and even desirable, as real inharmonic objects also have
+       imperfect position-dependent filtering.
 ```
 
-This is intentionally simple — a noise burst with spectral shaping. The *musical complexity* comes from the resonance stage it feeds into.
+**Design rationale:** This hybrid model is informed by Mutable Instruments Elements (Émilie Gillet), which uses a similar architecture: deterministic pulse + noise component + SVF brightness filter. The asymmetric pulse shape is grounded in Stulov's hysteresis measurements (JASA 1995) — real felt produces faster rise than fall. The 2-pole SVF (rather than 1-pole) provides the steeper rolloff measured in real soft-felt mallets (Bork 1990). The strike position comb filter is from extended Karplus-Strong (Jaffe & Smith 1983) and is used in Elements/Rings for mode-selective excitation. The micro-bounce models the double/triple contact observed in rigid striker impacts.
+
+**Why not a full nonlinear contact ODE?** The Chaigne/Bilbao approach of solving the coupled mallet-resonator ODE is more accurate but requires per-sample iteration of a stiff nonlinear system. The signal-model approach above captures the perceptually important features (velocity-brightness coupling, mass-duration scaling, hardness-spectral-centroid mapping, asymmetric pulse shape, micro-bounce) at a fraction of the CPU cost. Smith's commuted synthesis work (CCRMA) validates that signal-model approximations are perceptually indistinguishable from full physical models for most musical applications.
+
+**Retrigger strategy:** Never reset resonator state on retrigger. The excitation signal is simply *added* to the resonator input — the resonator's own dynamics handle the mixing naturally. This matches the approach used by Elements, Rings, and Plaits (Mutable Instruments) and is click-free by construction. A short attack ramp (0.1–0.5ms) on the excitation envelope prevents sample-level discontinuities. Two complementary protections against energy explosion:
+- **Energy capping (safety net):** Track cumulative excitation energy over a short window (~5ms). If energy exceeds a threshold (e.g., 4x single-strike energy), attenuate new excitation proportionally. This prevents runaway energy from rapid retrigger (drum rolls, trills) without audibly gating legitimate playing.
+- **Mallet choke (physical simulation):** On rapid retrigger of the same note, momentarily increase the resonator's base decay rate for ~10ms before injecting the new excitation. This simulates the physical reality that a mallet re-striking an already-vibrating bar briefly damps the existing vibration through contact. The choke amount scales with velocity — a gentle re-tap barely damps; a hard re-strike significantly attenuates the previous ring. This produces the natural "cut-then-ring" quality of real re-struck percussion.
+
+**Future integration note (per-mode excitation scaling):** The exciter outputs a broadband signal that feeds all modes equally. For more realism, the voice layer can weight per-mode excitation gain by the excitation spectrum at each mode frequency: `modeGain_k *= excitationSpectrum(f_k)`. This makes the strike position and hardness affect each mode differently, rather than applying a single spectral envelope to the summed output. This belongs in the voice/resonator integration, not in the exciter itself, because it requires knowledge of the mode frequencies.
 
 ### New Parameters
 
 | ID | Name | Range | Default | Description |
 |----|------|-------|---------|-------------|
 | `kExciterTypeId` | Exciter Type | 0–2 | 0 | Residual / Impact / Bow (Phase 4) |
-| `kImpactHardnessId` | Hardness | 0.0–1.0 | 0.5 | Felt → Metal striker character |
-| `kImpactMassId` | Mass | 0.0–1.0 | 0.3 | Light tap → Heavy thud |
+| `kImpactHardnessId` | Hardness | 0.0–1.0 | 0.5 | Felt → Metal striker character. Controls SVF cutoff (500 Hz–12 kHz), pulse peakiness (gamma 1.0–4.0), asymmetry (skew 0–0.3), and noise spectrum tilt |
+| `kImpactMassId` | Mass | 0.0–1.0 | 0.3 | Light tap → Heavy thud. Controls pulse duration (0.5–15ms via m^0.4 scaling) and noise mix level |
+| `kImpactBrightnessId` | Brightness | -1.0–1.0 | 0.0 | Brightness trim that offsets the hardness-derived SVF cutoff by +/-12 semitones. At 0.0, the physical mapping is preserved. Allows creative overrides like "sharp transient but dark tone" |
+| `kImpactPositionId` | Strike Position | 0.0–1.0 | 0.13 | Edge → Center. Softened comb filter for mode-selective excitation (70% wet blend) |
+
+**Note on brightness as trim, not independent axis:** The hardness parameter establishes the physically-motivated default (spectral centroid tracks contact stiffness, per Freed 1990). The brightness trim loosens this coupling for creative sound design without creating a fully independent axis where most combinations are physically unmotivated. At default (0.0), the instrument behaves physically; at extremes, users get the "sharp but dark" or "soft but bright" combinations they may want.
 
 ### Voice Integration
 
@@ -549,18 +695,32 @@ This is intentionally simple — a noise burst with spectral shaping. The *music
 float excitation;
 switch (exciterType) {
     case kResidual: excitation = residualSynth.process(); break;
-    case kImpact:   excitation = impactExciter.process(); break;
+    case kImpact:   excitation = impactExciter.process(velocity); break;
     case kBow:      excitation = bowModel.process(); break;  // Phase 4
 }
+// Resonator state is never reset on retrigger — excitation adds to existing vibration.
+// Energy capping prevents explosion from rapid retrigger.
 float physicalSample = modalResonator.process(excitation);
+
+// Future: per-mode excitation weighting
+// for (int k = 0; k < numModes; ++k)
+//     modeInput[k] = excitation * excitationSpectrum(modeFreq[k]);
 ```
 
 ### Success Criteria
 
-- [ ] Impact + Modal produces convincing struck-object sounds
-- [ ] Hardness sweep is audibly smooth from mallet to metallic click
-- [ ] Note-on retrigger is click-free
-- [ ] CPU cost negligible (single noise generator + filter)
+- [ ] Impact + Modal produces convincing struck-object sounds across diverse analyzed timbres
+- [ ] Hardness sweep is audibly smooth from felt mallet (dark, fundamental-heavy) to metallic click (bright, partial-rich)
+- [ ] Pulse asymmetry is audible: hard strikes have snappier attack than soft strikes
+- [ ] MIDI velocity affects loudness, brightness, AND effective hardness (exponential coupling, not linear)
+- [ ] ff strikes sound perceptually "harder" than pp strikes at the same hardness setting
+- [ ] Per-trigger micro-variation: repeated same-note strikes sound slightly different each time
+- [ ] Brightness trim allows creative overrides without breaking the physical default
+- [ ] Strike position creates audible harmonic filtering (center = hollow/odd-harmonics, edge = full spectrum)
+- [ ] Note-on retrigger is click-free (additive injection, no resonator reset)
+- [ ] Rapid retrigger (drum roll, trill) does not cause energy explosion (energy cap + mallet choke)
+- [ ] Re-striking a ringing note produces natural "cut-then-ring" damping of previous vibration
+- [ ] CPU cost negligible (pulse generator + SVF + comb filter per voice)
 
 ---
 
@@ -774,6 +934,8 @@ All physical modelling parameters in the 800–899 range:
 
 820  kImpactHardnessId       // Phase 2
 821  kImpactMassId           // Phase 2
+822  kImpactPositionId       // Phase 2
+823  kImpactBrightnessId     // Phase 2 (trim: offsets hardness-derived cutoff)
 
 830  kWaveguideStiffnessId   // Phase 3
 

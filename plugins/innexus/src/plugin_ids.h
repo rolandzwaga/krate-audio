@@ -140,6 +140,13 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kResonanceStretchId = 803,         // 0.0-1.0, default 0.0
     kResonanceScatterId = 804,         // 0.0-1.0, default 0.0
 
+    // Impact Exciter (805-809) -- Spec 128
+    kExciterTypeId = 805,              // StringListParameter: "Residual"/"Impact"/"Bow", default 0
+    kImpactHardnessId = 806,           // RangeParameter: 0.0-1.0, default 0.5
+    kImpactMassId = 807,               // RangeParameter: 0.0-1.0, default 0.3
+    kImpactBrightnessId = 808,         // RangeParameter: plain -1.0 to +1.0, norm 0.0-1.0, default 0.0 (norm 0.5)
+    kImpactPositionId = 809,           // RangeParameter: 0.0-1.0, default 0.13
+
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
     kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms
@@ -180,6 +187,16 @@ enum class HarmonicFilterType : int
     EvenOnly = 2,
     LowHarmonics = 3,
     HighHarmonics = 4
+};
+
+// ==============================================================================
+// Exciter Type Enum (Spec 128: Impact Exciter)
+// ==============================================================================
+enum class ExciterType : int
+{
+    Residual = 0,
+    Impact = 1,
+    Bow = 2       // Reserved for Phase 4
 };
 
 // EvolutionMode enum is defined in dsp/evolution_engine.h (FR-017)

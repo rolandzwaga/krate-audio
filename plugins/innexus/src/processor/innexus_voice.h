@@ -21,6 +21,7 @@
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
+#include <krate/dsp/processors/impact_exciter.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
@@ -44,6 +45,13 @@ struct InnexusVoice
     Krate::DSP::HarmonicOscillatorBank oscillatorBank;
     Krate::DSP::ResidualSynthesizer residualSynth;
     Krate::DSP::ModalResonatorBank modalResonator;
+    Krate::DSP::ImpactExciter impactExciter;
+
+    // Mallet choke state (Spec 128 FR-035)
+    float chokeDecayScale_ = 1.0f;     ///< current decay scale (1.0 = normal)
+    float chokeEnvelope_ = 1.0f;       ///< 0.0 = full choke, 1.0 = no choke
+    float chokeEnvelopeCoeff_ = 0.0f;  ///< per-sample decay toward 1.0 (~10ms)
+    float chokeMaxScale_ = 1.0f;       ///< velocity-dependent max choke value
 
     // ADSR Envelope (Spec 124)
     Krate::DSP::ADSREnvelope adsr;
@@ -118,6 +126,11 @@ struct InnexusVoice
         adsr.prepare(static_cast<float>(sampleRate));
         adsr.reset();
         adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
+
+        // Spec 128: Compute choke envelope coefficient (~10ms decay to 1.0)
+        constexpr float kChokeTimeMs = 10.0f;
+        float chokeSamples = kChokeTimeMs * 0.001f * static_cast<float>(sampleRate);
+        chokeEnvelopeCoeff_ = std::exp(-1.0f / chokeSamples);
     }
 
     /// Reset all voice state to idle defaults.
@@ -141,6 +154,12 @@ struct InnexusVoice
         oscillatorBank.reset();
         residualSynth.reset();
         modalResonator.reset();
+        impactExciter.reset();
+
+        // Reset choke state (Spec 128)
+        chokeDecayScale_ = 1.0f;
+        chokeEnvelope_ = 1.0f;
+        chokeMaxScale_ = 1.0f;
 
         // Reset expression values
         expressionTuning = 0.0f;

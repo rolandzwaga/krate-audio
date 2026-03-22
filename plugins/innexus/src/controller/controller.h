@@ -197,6 +197,9 @@ private:
     /// Update sample load panel visibility based on InputSource parameter
     void updateSampleLoadVisibility();
 
+    /// Update Impact exciter knob container visibility based on ExciterType
+    void updateImpactKnobVisibility();
+
     /// Push current ADSR parameter values to the ADSRDisplay view(s)
     void updateAdsrDisplayFromParams();
 
@@ -261,6 +264,9 @@ private:
     std::atomic<float>* adsrOutputPtr_ = nullptr;
     std::atomic<int>* adsrStagePtr_ = nullptr;
     std::atomic<bool>* adsrActivePtr_ = nullptr;
+
+    // Impact exciter knob container (VSTGUI-owned, nulled in willClose)
+    VSTGUI::CViewContainer* impactKnobContainer_ = nullptr;
 
     // Active editor pointer for visibility controllers
     VSTGUI::VST3Editor* activeEditor_ = nullptr;

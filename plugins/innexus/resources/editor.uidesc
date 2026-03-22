@@ -154,13 +154,20 @@
     <control-tag name="ResonanceBrightness" tag="802"/>
     <control-tag name="ResonanceStretch" tag="803"/>
     <control-tag name="ResonanceScatter" tag="804"/>
+
+    <!-- Impact Exciter (805-809) -->
+    <control-tag name="ExciterType" tag="805"/>
+    <control-tag name="ImpactHardness" tag="806"/>
+    <control-tag name="ImpactMass" tag="807"/>
+    <control-tag name="ImpactBrightness" tag="808"/>
+    <control-tag name="ImpactPosition" tag="809"/>
   </control-tags>
 
   <!-- ================================================================== -->
   <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 935"
-            background-color="bg-primary" minSize="800, 935" maxSize="800, 935">
+  <template name="Editor" class="CViewContainer" size="800, 1030"
+            background-color="bg-primary" minSize="800, 1030" maxSize="800, 1030">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -734,10 +741,86 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- RESONATOR BANK SECTION (Y 600-710)                             -->
+    <!-- EXCITER SECTION (Y 600-690)                                    -->
+    <!-- Signal path: exciter -> resonator bank                         -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 600" size="790, 90"
+          title="Exciter" fieldset-title="Exciter" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <!-- Exciter Type selector (Residual / Impact / Bow) -->
+      <view class="COptionMenu" origin="15, 22" size="100, 22"
+            control-tag="ExciterType" default-value="0"
+            font="label-font" font-color="text-primary"
+            back-color="bg-panel" frame-color="text-dim"/>
+      <view class="CTextLabel" origin="15, 46" size="100, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Type"/>
+
+      <!-- Impact-specific knobs (visibility controlled by ExciterType parameter) -->
+      <view class="CViewContainer" origin="130, 0" size="660, 90"
+            background-color="~ TransparentCColor">
+
+        <!-- Hardness (mallet softness to metallic click) -->
+        <view class="ArcKnob" origin="45, 18" size="42, 42"
+              control-tag="ImpactHardness" default-value="0.5"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="40, 60" size="52, 12"
+              control-tag="ImpactHardness" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="40, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Hard"/>
+
+        <!-- Mass (pulse duration: light tap to heavy thud) -->
+        <view class="ArcKnob" origin="185, 18" size="42, 42"
+              control-tag="ImpactMass" default-value="0.3"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="180, 60" size="52, 12"
+              control-tag="ImpactMass" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="180, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Mass"/>
+
+        <!-- Brightness (trim: dark to bright override) -->
+        <view class="ArcKnob" origin="325, 18" size="42, 42"
+              control-tag="ImpactBrightness" default-value="0.5"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="320, 60" size="52, 12"
+              control-tag="ImpactBrightness" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="320, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Bright"/>
+
+        <!-- Position (strike position: edge to center) -->
+        <view class="ArcKnob" origin="465, 18" size="42, 42"
+              control-tag="ImpactPosition" default-value="0.13"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="460, 60" size="52, 12"
+              control-tag="ImpactPosition" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="460, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Pos"/>
+      </view> <!-- end Impact-specific knobs container -->
+    </view> <!-- end Exciter FieldsetContainer -->
+
+    <!-- ============================================================== -->
+    <!-- RESONATOR BANK SECTION (Y 695-805)                             -->
     <!-- Physical modelling: residual -> modal resonator -> mix         -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 600" size="790, 110"
+    <view class="FieldsetContainer" origin="5, 695" size="790, 110"
           title="Resonator Bank" fieldset-title="Resonator Bank" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -808,9 +891,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- HARMONIC PHYSICS SECTION (Y 715-810)                           -->
+    <!-- HARMONIC PHYSICS SECTION (Y 810-905)                           -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 715" size="540, 95"
+    <view class="FieldsetContainer" origin="5, 810" size="540, 95"
           title="Harmonic Physics" fieldset-title="Harmonic Physics" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -868,9 +951,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ANALYSIS FEEDBACK SECTION (Y 715-810)                          -->
+    <!-- ANALYSIS FEEDBACK SECTION (Y 810-905)                          -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="550, 715" size="245, 95"
+    <view class="FieldsetContainer" origin="550, 810" size="245, 95"
           title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -902,9 +985,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ADSR ENVELOPE SECTION (Y 815-920)                              -->
+    <!-- ADSR ENVELOPE SECTION (Y 910-1015)                             -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 815" size="790, 105"
+    <view class="FieldsetContainer" origin="5, 910" size="790, 105"
           title="ADSR Envelope" fieldset-title="ADSR Envelope" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -999,7 +1082,7 @@
 
     <!-- Bottom credit line (version from version.h) -->
     <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 921" size="220, 14"
+          origin="575, 1016" size="220, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"/>
 

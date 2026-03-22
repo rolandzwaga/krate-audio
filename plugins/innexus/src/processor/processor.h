@@ -498,6 +498,13 @@ private:
     std::atomic<float> resonanceStretch_{0.0f};          // 0.0-1.0, default 0.0
     std::atomic<float> resonanceScatter_{0.0f};          // 0.0-1.0, default 0.0
 
+    // Impact Exciter parameters (Spec 128: 128-impact-exciter)
+    std::atomic<float> exciterType_{0.0f};               // normalized, default 0 (Residual)
+    std::atomic<float> impactHardness_{0.5f};            // 0.0-1.0, default 0.5
+    std::atomic<float> impactMass_{0.3f};                // 0.0-1.0, default 0.3
+    std::atomic<float> impactBrightness_{0.5f};          // normalized 0.0-1.0, default 0.5 (plain 0.0)
+    std::atomic<float> impactPosition_{0.13f};           // 0.0-1.0, default 0.13
+
     // ADSR Envelope parameters (Spec 124: 124-adsr-envelope-detection)
     std::atomic<float> adsrAttackMs_{10.0f};          // plain ms, default 10ms
     std::atomic<float> adsrDecayMs_{100.0f};          // plain ms, default 100ms

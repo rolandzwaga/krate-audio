@@ -148,8 +148,18 @@ static void initVoiceForNoteOn(
     float resonanceDecay,
     float resonanceBrightness,
     float resonanceStretch,
-    float resonanceScatter)
+    float resonanceScatter,
+    ExciterType exciterType,
+    float impactHardness,
+    float impactMass,
+    float impactBrightness,
+    float impactPosition)
 {
+    // FR-032: Detect retrigger (same note already playing) BEFORE overwriting midiNote.
+    // On retrigger, the resonator state must NOT be reset so that existing vibration
+    // persists and the mallet choke envelope can attenuate it naturally.
+    const bool isRetrigger = voice.active && voice.midiNote == noteNumber;
+
     // Set new note state
     voice.midiNote = noteNumber;
     voice.noteId = noteId;
@@ -242,7 +252,9 @@ static void initVoiceForNoteOn(
     }
 
     // Spec 127 FR-018: Initialize modal resonator on note-on
-    // Clears filter states and snaps coefficients from current frame partials
+    // FR-032: On retrigger (same note), use updateModes() to preserve resonator
+    // filter states (existing vibration). On new note, use setModes() which clears
+    // filter states and snaps coefficients from current frame partials.
     {
         const auto& frame = voice.morphedFrame;
         float pitchRatio = (frame.f0 > 0.0f) ? targetPitch / frame.f0 : 1.0f;
@@ -255,9 +267,47 @@ static void initVoiceForNoteOn(
             modeAmps[static_cast<size_t>(k)] =
                 frame.partials[static_cast<size_t>(k)].amplitude;
         }
-        voice.modalResonator.setModes(
-            modeFreqs.data(), modeAmps.data(), frame.numPartials,
-            resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        if (isRetrigger)
+        {
+            // Retrigger: preserve resonator state so existing vibration persists
+            voice.modalResonator.updateModes(
+                modeFreqs.data(), modeAmps.data(), frame.numPartials,
+                resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        }
+        else
+        {
+            // New note: clear filter states for fresh start
+            voice.modalResonator.setModes(
+                modeFreqs.data(), modeAmps.data(), frame.numPartials,
+                resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        }
+    }
+
+    // Spec 128: Trigger impact exciter on note-on if type is Impact
+    if (exciterType == ExciterType::Impact)
+    {
+        // Get f0 from the morphed frame for comb filter
+        float f0 = voice.morphedFrame.f0;
+        if (f0 <= 0.0f)
+            f0 = Krate::DSP::midiNoteToFrequency(noteNumber);
+
+        voice.impactExciter.trigger(
+            velocity, impactHardness, impactMass, impactBrightness, impactPosition, f0);
+
+        // FR-035: Mallet choke on retrigger -- velocity-dependent choke envelope
+        // chokeMaxScale_ determines how much the existing resonance is damped.
+        // A hard re-strike (high velocity) chokes more; gentle tap chokes less.
+        constexpr float kMaxChokeBase = 4.0f;  // maximum choke multiplier
+        voice.chokeMaxScale_ = 1.0f + (kMaxChokeBase - 1.0f) * velocity;
+        voice.chokeEnvelope_ = 0.0f;  // start at full choke
+        voice.chokeDecayScale_ = voice.chokeMaxScale_;
+    }
+    else
+    {
+        // Residual or other exciter: no choke
+        voice.chokeDecayScale_ = 1.0f;
+        voice.chokeEnvelope_ = 1.0f;
+        voice.chokeMaxScale_ = 1.0f;
     }
 }
 
@@ -288,6 +338,17 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
     const float resStretch = resonanceStretch_.load(std::memory_order_relaxed);
     const float resScatter = resonanceScatter_.load(std::memory_order_relaxed);
 
+    // Spec 128: Impact exciter parameters
+    const float exciterTypeNorm = exciterType_.load(std::memory_order_relaxed);
+    const auto exciterType = static_cast<ExciterType>(
+        std::clamp(static_cast<int>(std::round(exciterTypeNorm * 2.0f)), 0, 2));
+    const float impHardness = impactHardness_.load(std::memory_order_relaxed);
+    const float impMass = impactMass_.load(std::memory_order_relaxed);
+    // Brightness is stored normalized [0,1], denormalize to plain [-1,+1]
+    const float impBrightnessNorm = impactBrightness_.load(std::memory_order_relaxed);
+    const float impBrightness = impBrightnessNorm * 2.0f - 1.0f;
+    const float impPosition = impactPosition_.load(std::memory_order_relaxed);
+
     if (maxVoices == 1)
     {
         // === MONO MODE: last-note-priority (original behavior) ===
@@ -310,7 +371,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             currentLiveFrame_, currentLiveResidualFrame_,
             blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
             brightness, transientEmp,
-            resDecay, resBrightness, resStretch, resScatter);
+            resDecay, resBrightness, resStretch, resScatter,
+            exciterType, impHardness, impMass, impBrightness, impPosition);
 
         // Apply modulators (mono mode uses processor-level modulators)
         const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -349,7 +411,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     currentLiveFrame_, currentLiveResidualFrame_,
                     blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
                     brightness, transientEmp,
-                    resDecay, resBrightness, resStretch, resScatter);
+                    resDecay, resBrightness, resStretch, resScatter,
+                    exciterType, impHardness, impMass, impBrightness, impPosition);
                 break;
             }
             case Krate::DSP::VoiceEvent::Type::NoteOff:
