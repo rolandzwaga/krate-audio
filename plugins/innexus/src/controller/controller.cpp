@@ -41,6 +41,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <vector>
 
 namespace Innexus {
@@ -1474,6 +1475,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of sample load panel
     updateSampleLoadVisibility();
 
+    // Set initial visibility of impact exciter knobs
+    updateImpactKnobVisibility();
+
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
@@ -1553,6 +1557,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     modActivityView1_ = nullptr;
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
+    impactKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
     adsrExpandedOverlay_ = nullptr;
 
@@ -1887,12 +1892,61 @@ void Controller::updateSampleLoadVisibility()
 }
 
 // ==============================================================================
+// updateImpactKnobVisibility
+// ==============================================================================
+void Controller::updateImpactKnobVisibility()
+{
+    // Lazy-find the impact knob container by locating a child with the
+    // ImpactHardness tag (806) and taking its parent container
+    if (!impactKnobContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || impactKnobContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kImpactHardnessId) {
+                            impactKnobContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!impactKnobContainer_)
+        return;
+
+    // ExciterType: StringListParameter with 3 values
+    // Normalized: 0.0 = Residual, 0.5 = Impact, 1.0 = Bow
+    // Show Impact knobs only when ExciterType == Impact (norm ~0.5)
+    auto* param = getParameterObject(kExciterTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isImpact = (norm >= 0.25f && norm < 0.75f);
+    impactKnobContainer_->setVisible(isImpact);
+    if (impactKnobContainer_->getParentView())
+        impactKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // onDisplayTimerFired (T016: FR-049)
 // ==============================================================================
 void Controller::onDisplayTimerFired()
 {
     // Update sample load panel visibility (cheap check every 30ms)
     updateSampleLoadVisibility();
+
+    // Update impact exciter knob visibility based on exciter type
+    updateImpactKnobVisibility();
 
     // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
     // read directly from the processor's shared display buffer
