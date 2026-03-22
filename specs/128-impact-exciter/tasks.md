@@ -402,12 +402,12 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 **Purpose**: Clang-tidy quality gate before final completion verification.
 
-- [ ] T067 Generate `compile_commands.json` via ninja preset if not current: `cmake --preset windows-ninja` (or use existing build if up to date)
-- [ ] T068 Run clang-tidy on new and modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
-- [ ] T069 Run clang-tidy on new and modified Innexus plugin files: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja`
-- [ ] T070 Fix all clang-tidy errors (blocking). Review warnings and fix where appropriate for production audio code.
-- [ ] T071 Document any intentional suppressions with `// NOLINT(<check-name>): <reason>` comments if any warnings are intentionally ignored in DSP-specific code
-- [ ] T072 Commit clang-tidy fixes
+- [X] T067 Generate `compile_commands.json` via ninja preset if not current: `cmake --preset windows-ninja` (or use existing build if up to date)
+- [X] T068 Run clang-tidy on new and modified DSP files: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T069 Run clang-tidy on new and modified Innexus plugin files: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja`
+- [X] T070 Fix all clang-tidy errors (blocking). Review warnings and fix where appropriate for production audio code.
+- [X] T071 Document any intentional suppressions with `// NOLINT(<check-name>): <reason>` comments if any warnings are intentionally ignored in DSP-specific code
+- [X] T072 Commit clang-tidy fixes
 
 **Checkpoint**: Static analysis clean - ready for completion verification.
 
@@ -417,12 +417,12 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 **Purpose**: Honest verification of all requirements before claiming completion.
 
-- [ ] T073 **Review ALL FR-001 through FR-036** from `specs/128-impact-exciter/spec.md` against the actual implementation: open each relevant file, read the code, confirm the requirement is met, note file path and line number
-- [ ] T074 **Review ALL SC-001 through SC-012** from `specs/128-impact-exciter/spec.md`: run or read specific test output for each, confirm measurable targets are achieved with actual numbers
-- [ ] T075 **Search for cheating patterns**: `grep -r "TODO\|placeholder\|FIXME\|stub" dsp/include/krate/dsp/processors/impact_exciter.h dsp/include/krate/dsp/core/xorshift32.h plugins/innexus/src/` - must return empty
-- [ ] T076 **Fill the compliance table in `specs/128-impact-exciter/spec.md`** "Implementation Verification" section with honest status, file paths, line numbers, and measured values for every FR-xxx and SC-xxx row
-- [ ] T077 **Honest self-check**: Answer all 5 questions in the template. If ANY answer is "yes", fix the gap before proceeding.
-- [ ] T078 Commit compliance table update to `specs/128-impact-exciter/spec.md`
+- [X] T073 **Review ALL FR-001 through FR-036** from `specs/128-impact-exciter/spec.md` against the actual implementation: open each relevant file, read the code, confirm the requirement is met, note file path and line number
+- [X] T074 **Review ALL SC-001 through SC-012** from `specs/128-impact-exciter/spec.md`: run or read specific test output for each, confirm measurable targets are achieved with actual numbers
+- [X] T075 **Search for cheating patterns**: `grep -r "TODO\|placeholder\|FIXME\|stub" dsp/include/krate/dsp/processors/impact_exciter.h dsp/include/krate/dsp/core/xorshift32.h plugins/innexus/src/` - must return empty
+- [X] T076 **Fill the compliance table in `specs/128-impact-exciter/spec.md`** "Implementation Verification" section with honest status, file paths, line numbers, and measured values for every FR-xxx and SC-xxx row
+- [X] T077 **Honest self-check**: Answer all 5 questions in the template. If ANY answer is "yes", fix the gap before proceeding.
+- [X] T078 Commit compliance table update to `specs/128-impact-exciter/spec.md`
 - [ ] T083 Conduct manual listening test with at least 3 analyzed sources (e.g., voice, glass bell, metallic percussive) using Impact exciter at default settings. Document perceptual result (does each source produce a convincing struck-object sound?) in the SC-001 row of the spec.md compliance table.
 
 **Checkpoint**: Honest compliance table is complete. No gaps hidden.
@@ -431,9 +431,9 @@ This feature wires ImpactExciter into the Innexus processor audio chain (MIDI ro
 
 ## Phase N: Final Completion
 
-- [ ] T079 Verify all tests pass on a clean build: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure | tail -5`
+- [X] T079 Verify all tests pass on a clean build: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure | tail -5`
 - [ ] T080 Verify feature branch `128-impact-exciter` is current with all work committed: `git status` must show clean working tree
-- [ ] T081 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user). If any FR or SC is unmet, document it honestly rather than claiming completion.
+- [X] T081 **Claim completion ONLY if all requirements are MET** (or gaps explicitly approved by user). If any FR or SC is unmet, document it honestly rather than claiming completion.
 
 ---
 

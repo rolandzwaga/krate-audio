@@ -155,6 +155,11 @@ static void initVoiceForNoteOn(
     float impactBrightness,
     float impactPosition)
 {
+    // FR-032: Detect retrigger (same note already playing) BEFORE overwriting midiNote.
+    // On retrigger, the resonator state must NOT be reset so that existing vibration
+    // persists and the mallet choke envelope can attenuate it naturally.
+    const bool isRetrigger = voice.active && voice.midiNote == noteNumber;
+
     // Set new note state
     voice.midiNote = noteNumber;
     voice.noteId = noteId;
@@ -247,7 +252,9 @@ static void initVoiceForNoteOn(
     }
 
     // Spec 127 FR-018: Initialize modal resonator on note-on
-    // Clears filter states and snaps coefficients from current frame partials
+    // FR-032: On retrigger (same note), use updateModes() to preserve resonator
+    // filter states (existing vibration). On new note, use setModes() which clears
+    // filter states and snaps coefficients from current frame partials.
     {
         const auto& frame = voice.morphedFrame;
         float pitchRatio = (frame.f0 > 0.0f) ? targetPitch / frame.f0 : 1.0f;
@@ -260,9 +267,20 @@ static void initVoiceForNoteOn(
             modeAmps[static_cast<size_t>(k)] =
                 frame.partials[static_cast<size_t>(k)].amplitude;
         }
-        voice.modalResonator.setModes(
-            modeFreqs.data(), modeAmps.data(), frame.numPartials,
-            resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        if (isRetrigger)
+        {
+            // Retrigger: preserve resonator state so existing vibration persists
+            voice.modalResonator.updateModes(
+                modeFreqs.data(), modeAmps.data(), frame.numPartials,
+                resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        }
+        else
+        {
+            // New note: clear filter states for fresh start
+            voice.modalResonator.setModes(
+                modeFreqs.data(), modeAmps.data(), frame.numPartials,
+                resonanceDecay, resonanceBrightness, resonanceStretch, resonanceScatter);
+        }
     }
 
     // Spec 128: Trigger impact exciter on note-on if type is Impact
