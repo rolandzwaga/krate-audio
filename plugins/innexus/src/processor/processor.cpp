@@ -156,6 +156,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
                     fftSize, hopSize, static_cast<float>(sampleRate_));
                 // Spec 128: Prepare impact exciter per voice
                 voice.impactExciter.prepare(sampleRate_, static_cast<uint32_t>(vi));
+                // Spec 130: Prepare bow exciter per voice
+                voice.bowExciter.prepare(sampleRate_);
                 // Spec 129: Prepare waveguide string per voice
                 voice.waveguideString.prepare(sampleRate_);
                 voice.waveguideString.prepareVoice(static_cast<uint32_t>(vi));
@@ -1329,6 +1331,22 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
+    // Spec 130 FR-020: Enable/disable bowed-mode coupling on modal resonator
+    {
+        const bool isBowExciter = (exciterType == ExciterType::Bow);
+        const float bPos = bowPosition_.load(std::memory_order_relaxed);
+        for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
+        {
+            auto& v = voices_[static_cast<size_t>(vi)];
+            if (!v.active) continue;
+            // Bowed-mode coupling active when exciter is Bow and resonator is modal (type 0)
+            bool bowModalActive = isBowExciter && (v.activeResonanceType_ == 0);
+            v.modalResonator.setBowModeActive(bowModalActive);
+            if (bowModalActive)
+                v.modalResonator.setBowPosition(bPos);
+        }
+    }
+
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
         // --- Frame advancement (FR-047) -- only in sample mode ---
@@ -1624,15 +1642,34 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float vL = 0.0f;
             float vR = 0.0f;
             v.oscillatorBank.processStereo(vL, vR);
-            // Spec 128 FR-030: Select excitation source based on exciter type
+            // Spec 128/130 FR-030: Select excitation source based on exciter type
+            // FR-015/FR-016/FR-017: Unified exciter interface — pass resonator feedback velocity
+            float feedbackVelocity = (v.activeResonanceType_ == 1)
+                ? v.waveguideString.getFeedbackVelocity()
+                : v.modalResonator.getFeedbackVelocity();
             float excitation = 0.0f;
-            if (exciterType == ExciterType::Impact)
+            switch (exciterType)
             {
-                excitation = v.impactExciter.process();
+            case ExciterType::Impact:
+                excitation = v.impactExciter.process(feedbackVelocity);
+                break;
+            case ExciterType::Bow:
+            {
+                // Bow-specific pre-processing: feed ADSR and resonator energy
+                float adsrValue = v.adsr.process();
+                v.bowExciter.setEnvelopeValue(adsrValue);
+                if (v.activeResonanceType_ == 1)
+                    v.bowExciter.setResonatorEnergy(
+                        v.waveguideString.getControlEnergy());
+                else
+                    v.bowExciter.setResonatorEnergy(
+                        v.modalResonator.getControlEnergy());
+                excitation = v.bowExciter.process(feedbackVelocity);
+                break;
             }
-            else
-            {
-                excitation = hasResidual ? v.residualSynth.process() : 0.0f;
+            default: // ExciterType::Residual
+                excitation = hasResidual ? v.residualSynth.process(feedbackVelocity) : 0.0f;
+                break;
             }
             float residualSample = excitation;
 

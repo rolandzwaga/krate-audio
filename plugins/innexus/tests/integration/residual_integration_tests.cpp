@@ -818,7 +818,7 @@ TEST_CASE("ResidualIntegration: brightness +1.0 boosts high-freq over low-freq (
     std::vector<float> output(hopSize, 0.0f);
     for (size_t i = 0; i < hopSize; ++i)
     {
-        output[i] = synth.process();
+        output[i] = synth.process(0.0f);
     }
 
     // Compute energy in bottom octave vs top octave via FFT analysis of output
@@ -838,7 +838,7 @@ TEST_CASE("ResidualIntegration: brightness +1.0 boosts high-freq over low-freq (
     std::vector<float> darkOutput(hopSize, 0.0f);
     for (size_t i = 0; i < hopSize; ++i)
     {
-        darkOutput[i] = synthDark.process();
+        darkOutput[i] = synthDark.process(0.0f);
     }
 
     // Compute a simple spectral tilt metric: ratio of high-freq to low-freq energy
@@ -881,7 +881,7 @@ TEST_CASE("ResidualIntegration: brightness -1.0 boosts low-freq over high-freq (
     std::vector<float> output(hopSize, 0.0f);
     for (size_t i = 0; i < hopSize; ++i)
     {
-        output[i] = synth.process();
+        output[i] = synth.process(0.0f);
     }
 
     // Compare against neutral (brightness = 0.0)
@@ -892,7 +892,7 @@ TEST_CASE("ResidualIntegration: brightness -1.0 boosts low-freq over high-freq (
     std::vector<float> neutralOutput(hopSize, 0.0f);
     for (size_t i = 0; i < hopSize; ++i)
     {
-        neutralOutput[i] = synthNeutral.process();
+        neutralOutput[i] = synthNeutral.process(0.0f);
     }
 
     // Dark version should have fewer zero crossings than neutral
@@ -932,7 +932,7 @@ TEST_CASE("ResidualIntegration: brightness 0.0 does not tilt (FR-022 neutral)",
     std::vector<float> output(hopSize, 0.0f);
     for (size_t i = 0; i < hopSize; ++i)
     {
-        output[i] = synth.process();
+        output[i] = synth.process(0.0f);
     }
 
     // Compute RMS of first half and second half of output
@@ -1001,8 +1001,8 @@ TEST_CASE("ResidualIntegration: transient emphasis boosts transient frames by (1
     float rmsNormal = 0.0f;
     for (size_t i = 0; i < hopSize; ++i)
     {
-        float t = synthTransient.process();
-        float n = synthNormal.process();
+        float t = synthTransient.process(0.0f);
+        float n = synthNormal.process(0.0f);
         rmsTransient += t * t;
         rmsNormal += n * n;
     }
@@ -1050,8 +1050,8 @@ TEST_CASE("ResidualIntegration: transient emphasis=0 gives identical output for 
     // Outputs should be identical (same PRNG state, same envelope, same energy)
     for (size_t i = 0; i < hopSize; ++i)
     {
-        float t = synthTransient.process();
-        float n = synthNormal.process();
+        float t = synthTransient.process(0.0f);
+        float n = synthNormal.process(0.0f);
         REQUIRE(t == Catch::Approx(n).margin(1e-6f));
     }
 }
@@ -1080,8 +1080,8 @@ TEST_CASE("ResidualIntegration: non-transient frame ignores emphasis value (FR-0
 
     for (size_t i = 0; i < hopSize; ++i)
     {
-        float a = synthWithEmphasis.process();
-        float b = synthWithout.process();
+        float a = synthWithEmphasis.process(0.0f);
+        float b = synthWithout.process(0.0f);
         REQUIRE(a == Catch::Approx(b).margin(1e-6f));
     }
 }

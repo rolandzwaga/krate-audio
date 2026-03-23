@@ -175,7 +175,9 @@ public:
     // No std::vector::push_back(), new, malloc, or container resize in these paths.
     // No locks, exceptions, or I/O. All real-time safe.
 
-    [[nodiscard]] float process() noexcept
+    /// @param feedbackVelocity Resonator feedback velocity (unused by residual model,
+    ///        accepted for unified exciter interface FR-015).
+    [[nodiscard]] float process(float /*feedbackVelocity*/) noexcept
     {
         if (!frameLoaded_ || cursor_ >= hopSize_)
             return 0.0f;

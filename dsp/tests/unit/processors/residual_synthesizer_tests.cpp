@@ -68,6 +68,23 @@ TEST_CASE("ResidualSynthesizer fftSize and hopSize return values from prepare",
 }
 
 // ============================================================================
+// FR-015: Unified exciter interface — process(float feedbackVelocity)
+// ============================================================================
+
+TEST_CASE("ResidualSynthesizer process accepts feedbackVelocity parameter",
+          "[processors][residual_synthesizer]")
+{
+    ResidualSynthesizer synth;
+    synth.prepare(1024, 512, 44100.0f);
+
+    // Unified interface: process(float) must compile and return 0 before loadFrame
+    REQUIRE(synth.process(0.0f) == 0.0f);
+
+    // Passing non-zero feedbackVelocity should still work (residual ignores it)
+    REQUIRE(synth.process(0.5f) == 0.0f);
+}
+
+// ============================================================================
 // Silence before loadFrame (FR-029)
 // ============================================================================
 
@@ -77,7 +94,7 @@ TEST_CASE("ResidualSynthesizer process returns 0 before loadFrame",
     ResidualSynthesizer synth;
     synth.prepare(1024, 512, 44100.0f);
 
-    REQUIRE(synth.process() == 0.0f);
+    REQUIRE(synth.process(0.0f) == 0.0f);
 }
 
 TEST_CASE("ResidualSynthesizer processBlock fills zeros before loadFrame",

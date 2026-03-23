@@ -141,6 +141,31 @@ float measureHarmonicMagnitude(const std::vector<float>& buffer, double sampleRa
 } // anonymous namespace
 
 // =============================================================================
+// FR-016: Unified exciter interface — process(float feedbackVelocity)
+// =============================================================================
+
+TEST_CASE("ImpactExciter process accepts feedbackVelocity parameter",
+          "[processors][impact_exciter]")
+{
+    Krate::DSP::ImpactExciter exciter;
+    exciter.prepare(kSampleRate, 0);
+    exciter.trigger(0.7f, 0.5f, 0.3f, 0.0f, 0.13f, 440.0f);
+
+    // Unified interface: process(float) must compile and produce output
+    // Process several samples to get past the attack ramp
+    float peak = 0.0f;
+    for (int i = 0; i < 100; ++i) {
+        float s = exciter.process(0.0f);
+        peak = std::max(peak, std::abs(s));
+    }
+    REQUIRE(peak > 0.0f);
+
+    // Passing non-zero feedbackVelocity should still work (impact ignores it)
+    float sample2 = exciter.process(0.5f);
+    (void)sample2; // Just verifying it compiles and doesn't crash
+}
+
+// =============================================================================
 // T013: Lifecycle and pulse shape tests
 // =============================================================================
 
@@ -169,7 +194,7 @@ TEST_CASE("ImpactExciter isActive tracks pulse lifecycle", "[processors][impact_
     // At 44100 Hz: ~380 samples. Process extra for bounce.
     // Use generous count of 2048 samples (~46ms) to ensure full completion.
     for (int i = 0; i < kBlockSize; ++i) {
-        (void)exciter.process();
+        (void)exciter.process(0.0f);
     }
 
     REQUIRE_FALSE(exciter.isActive());
@@ -236,7 +261,7 @@ TEST_CASE("ImpactExciter reset clears active state", "[processors][impact_excite
 
     // All subsequent process() calls return 0
     for (int i = 0; i < 100; ++i) {
-        REQUIRE(exciter.process() == Approx(0.0f).margin(1e-10f));
+        REQUIRE(exciter.process(0.0f) == Approx(0.0f).margin(1e-10f));
     }
 }
 
@@ -755,8 +780,8 @@ TEST_CASE("ImpactExciter polyphonic RNG isolation: two voices differ from sample
     // Process sample by sample and find first difference
     int firstDiffSample = -1;
     for (int s = 0; s < kBufSize; ++s) {
-        float s0 = voice0.process();
-        float s1 = voice1.process();
+        float s0 = voice0.process(0.0f);
+        float s1 = voice1.process(0.0f);
         if (s0 != s1 && firstDiffSample < 0) {
             firstDiffSample = s;
         }
@@ -1145,7 +1170,7 @@ TEST_CASE("ImpactExciter bounce delay and amplitude vary across triggers (FR-008
         int lastActive = -1;
         float energy = 0.0f;
         for (int i = 0; i < kBufSize; ++i) {
-            float sample = exciter.process();
+            float sample = exciter.process(0.0f);
             energy += sample * sample;
             if (exciter.isActive())
                 lastActive = i;
@@ -1221,7 +1246,7 @@ TEST_CASE("ImpactExciter 100 rapid triggers: peak never exceeds 4x single-strike
             nextTriggerSample += kTriggerInterval;
             ++triggerCount;
         }
-        float sample = exciter.process();
+        float sample = exciter.process(0.0f);
         overallPeak = std::max(overallPeak, std::abs(sample));
     }
 
@@ -1245,14 +1270,14 @@ TEST_CASE("ImpactExciter after retrigger storm, output decays to near-zero",
     for (int t = 0; t < kNumTriggers; ++t) {
         exciter.trigger(0.8f, 0.5f, 0.3f, 0.0f, 0.0f, 220.0f);
         for (int s = 0; s < kTriggerInterval; ++s)
-            (void)exciter.process();
+            (void)exciter.process(0.0f);
     }
 
     // Now let it decay for 500ms with no new triggers
     constexpr int kDecaySamples = static_cast<int>(0.5 * 44100.0);
     float lastPeak = 0.0f;
     for (int s = 0; s < kDecaySamples; ++s) {
-        float sample = exciter.process();
+        float sample = exciter.process(0.0f);
         lastPeak = std::max(lastPeak, std::abs(sample));
     }
 
@@ -1261,7 +1286,7 @@ TEST_CASE("ImpactExciter after retrigger storm, output decays to near-zero",
     // Check the last 100 samples to see they are essentially zero
     float tailPeak = 0.0f;
     for (int s = 0; s < 100; ++s) {
-        float sample = exciter.process();
+        float sample = exciter.process(0.0f);
         tailPeak = std::max(tailPeak, std::abs(sample));
     }
     REQUIRE(tailPeak < 1e-6f);
@@ -1291,7 +1316,7 @@ TEST_CASE("ImpactExciter energy capping is gradual, not hard clipping",
             nextTriggerSample += kTriggerInterval;
             ++triggerCount;
         }
-        float sample = exciter.process();
+        float sample = exciter.process(0.0f);
         float diff = std::abs(sample - prevSample);
         maxDiff = std::max(maxDiff, diff);
         prevSample = sample;
@@ -1323,12 +1348,12 @@ TEST_CASE("ImpactExciter retrigger after 10ms: no discontinuity at trigger bound
     constexpr int k10msSamples = static_cast<int>(0.01 * 44100.0);
     float lastSampleBeforeRetrigger = 0.0f;
     for (int s = 0; s < k10msSamples; ++s) {
-        lastSampleBeforeRetrigger = exciter.process();
+        lastSampleBeforeRetrigger = exciter.process(0.0f);
     }
 
     // Retrigger
     exciter.trigger(0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 220.0f);
-    float firstSampleAfterRetrigger = exciter.process();
+    float firstSampleAfterRetrigger = exciter.process(0.0f);
 
     float discontinuity = std::abs(firstSampleAfterRetrigger - lastSampleBeforeRetrigger);
     INFO("Last sample before retrigger: " << lastSampleBeforeRetrigger);
@@ -1352,7 +1377,7 @@ TEST_CASE("ImpactExciter attack ramp: first ~13 samples ramp from 0 to full ampl
     constexpr int kCollectSamples = 20;
     std::vector<float> onset(kCollectSamples);
     for (int i = 0; i < kCollectSamples; ++i)
-        onset[static_cast<size_t>(i)] = exciter.process();
+        onset[static_cast<size_t>(i)] = exciter.process(0.0f);
 
     // First sample should be near zero (ramp starts at 0)
     REQUIRE(std::abs(onset[0]) < 0.001f);

@@ -23,6 +23,7 @@
 #include <krate/dsp/processors/modal_resonator_bank.h>
 #include <krate/dsp/processors/waveguide_string.h>
 #include <krate/dsp/processors/impact_exciter.h>
+#include <krate/dsp/processors/bow_exciter.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
@@ -48,6 +49,7 @@ struct InnexusVoice
     Krate::DSP::ModalResonatorBank modalResonator;
     Krate::DSP::WaveguideString waveguideString;
     Krate::DSP::ImpactExciter impactExciter;
+    Krate::DSP::BowExciter bowExciter;
 
     // Spec 129: Resonance type switching
     int activeResonanceType_ = 0;  // 0=Modal, 1=Waveguide
@@ -141,6 +143,9 @@ struct InnexusVoice
         adsr.reset();
         adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
 
+        // Spec 130: Prepare bow exciter per voice
+        bowExciter.prepare(sampleRate);
+
         // Spec 128: Compute choke envelope coefficient (~10ms decay to 1.0)
         constexpr float kChokeTimeMs = 10.0f;
         float chokeSamples = kChokeTimeMs * 0.001f * static_cast<float>(sampleRate);
@@ -170,6 +175,7 @@ struct InnexusVoice
         modalResonator.reset();
         waveguideString.silence();
         impactExciter.reset();
+        bowExciter.reset();
 
         // Reset resonance type crossfade (Spec 129)
         crossfadeActive = false;

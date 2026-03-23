@@ -45,6 +45,12 @@ add_executable(innexus_tests
     # Waveguide string parameter tests (Spec 129)
     unit/vst/waveguide_param_test.cpp
 
+    # Bow exciter parameter and voice tests (Spec 130)
+    unit/vst/bow_parameters_test.cpp
+    unit/vst/bow_oversampling_test.cpp
+    unit/processor/innexus_voice_bow_test.cpp
+    unit/processor/bow_exciter_switch_test.cpp
+
     # State v10 tests (Modulator Tempo Sync)
     unit/vst/test_state_v10.cpp
 

@@ -200,6 +200,9 @@ private:
     /// Update Impact exciter knob container visibility based on ExciterType
     void updateImpactKnobVisibility();
 
+    /// Update Bow exciter knob container visibility based on ExciterType
+    void updateBowVisibility();
+
     /// Update resonator knob containers visibility based on ResonanceType
     void updateResonatorVisibility();
 
@@ -270,6 +273,9 @@ private:
 
     // Impact exciter knob container (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* impactKnobContainer_ = nullptr;
+
+    // Bow exciter knob container (VSTGUI-owned, nulled in willClose)
+    VSTGUI::CViewContainer* bowKnobContainer_ = nullptr;
 
     // Resonator knob containers (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* modalKnobContainer_ = nullptr;

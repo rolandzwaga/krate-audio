@@ -763,6 +763,31 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(impactPositionParam);
 
+    // Bow Exciter (Spec 130)
+    auto* bowPressureParam = new Steinberg::Vst::RangeParameter(
+        STR16("Bow Pressure"), kBowPressureId,
+        STR16("%"), 0.0, 1.0, 0.3, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bowPressureParam);
+
+    auto* bowSpeedParam = new Steinberg::Vst::RangeParameter(
+        STR16("Bow Speed"), kBowSpeedId,
+        STR16("%"), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bowSpeedParam);
+
+    auto* bowPositionParam = new Steinberg::Vst::RangeParameter(
+        STR16("Bow Position"), kBowPositionId,
+        STR16(""), 0.0, 1.0, 0.13, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bowPositionParam);
+
+    auto* bowOversamplingParam = new Steinberg::Vst::RangeParameter(
+        STR16("Bow Oversampling"), kBowOversamplingId,
+        STR16(""), 0.0, 1.0, 0.0, 1,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bowOversamplingParam);
+
     // Waveguide String Resonance (Spec 129)
     auto* resonanceTypeParam = new Steinberg::Vst::StringListParameter(
         STR16("Resonance Type"), kResonanceTypeId, nullptr,
@@ -1288,6 +1313,23 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
     }
 
+    // --- Bow Exciter parameters (Spec 130, graceful fallback for old states) ---
+    {
+        float bowVal = 0.0f;
+        if (streamer.readFloat(bowVal))
+            setParamNormalized(kBowPressureId,
+                static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(bowVal))
+            setParamNormalized(kBowSpeedId,
+                static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(bowVal))
+            setParamNormalized(kBowPositionId,
+                static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(bowVal))
+            setParamNormalized(kBowOversamplingId,
+                static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
+    }
+
     // SharedDisplayBridge: try to read instance ID from state trailer
     {
         Steinberg::int32 marker = 0;
@@ -1513,6 +1555,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of impact exciter knobs
     updateImpactKnobVisibility();
 
+    // Set initial visibility of bow exciter knobs
+    updateBowVisibility();
+
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
@@ -1593,6 +1638,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
     impactKnobContainer_ = nullptr;
+    bowKnobContainer_ = nullptr;
     modalKnobContainer_ = nullptr;
     waveguideKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
@@ -1981,6 +2027,52 @@ void Controller::updateImpactKnobVisibility()
 }
 
 // ==============================================================================
+// updateBowVisibility
+// ==============================================================================
+void Controller::updateBowVisibility()
+{
+    // Lazy-find the bow knob container by locating a child with the
+    // BowPressure tag (820) and taking its parent container
+    if (!bowKnobContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || bowKnobContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kBowPressureId) {
+                            bowKnobContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!bowKnobContainer_)
+        return;
+
+    // ExciterType: StringListParameter with 3 values
+    // Normalized: 0.0 = Residual, 0.5 = Impact, 1.0 = Bow
+    // Show Bow knobs only when ExciterType == Bow (norm >= 0.75)
+    auto* param = getParameterObject(kExciterTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isBow = (norm >= 0.75f);
+    bowKnobContainer_->setVisible(isBow);
+    if (bowKnobContainer_->getParentView())
+        bowKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // updateResonatorVisibility
 // ==============================================================================
 void Controller::updateResonatorVisibility()
@@ -2045,6 +2137,9 @@ void Controller::onDisplayTimerFired()
 
     // Update impact exciter knob visibility based on exciter type
     updateImpactKnobVisibility();
+
+    // Update bow exciter knob visibility based on exciter type
+    updateBowVisibility();
 
     // Update resonator knob containers based on resonance type
     updateResonatorVisibility();

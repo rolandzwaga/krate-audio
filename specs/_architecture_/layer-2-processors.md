@@ -3705,6 +3705,8 @@ class ModalResonatorBank : public IResonator {
 - **Output safety**: `softClip()` applied to final output to prevent overflow
 - **Mallet choke (decayScale overload)**: `processSample(excitation, decayScale)` applies a multiplicative decay scale (0.0-1.0) to all mode radii, enabling rapid damping for retrigger choke. When `decayScale < 1.0`, each mode's effective radius is reduced by `pow(radius, 1/decayScale)`, causing accelerated exponential decay while preserving relative damping between modes. The single-argument `processSample(excitation)` delegates to the two-argument overload with `decayScale = 1.0f` (no effect). Used by InnexusVoice choke envelope on note retrigger.
 
+**Bowed-mode velocity taps (Spec 130):** 8 narrow bandpass filters (Q~50) extract velocity signals from the first 8 active modes for bow coupling. Activated via `setBowModeActive(bool)` and positioned via `setBowPosition(float)`. When active, `getFeedbackVelocity()` returns a harmonically-weighted sum of the 8 BPF outputs (weight = 1/n for mode n), enabling the `BowExciter` to receive frequency-aware feedback from modal resonance. BPF center frequencies track mode frequencies automatically on `setModes()`/`updateModes()`. Taps add ~224 bytes per instance (8 biquad states) and ~40 FLOPs/sample when active. Inactive by default (zero overhead when not bowing).
+
 **Performance:** 96 modes per voice, ~5 FLOPs per mode per sample. Target: < 5% single core for 96 modes x 8 voices at 44.1 kHz.
 
 **Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials, iresonator.h for IResonator interface)
@@ -3829,7 +3831,7 @@ excitation -> (+) -> soft clip -> [delay line] -> [dispersion x4]
 - **Pick position frozen at note onset**: Comb filter applied to excitation only (FR-015)
 - **Dual energy followers**: 5ms control + 30ms perceptual for crossfade gain matching
 - **Soft clipper**: tanh nonlinearity prevents energy explosion
-- **DC blocker**: 3.5 Hz in-loop highpass prevents DC accumulation
+- **DC blocker**: 3.5 Hz in-loop highpass prevents DC accumulation. Positioned after the bow junction output (Spec 130, FR-021) so that DC offset from friction nonlinearity is removed before re-entering the delay line, while preserving the DC-free feedback velocity signal used by `BowExciter`
 - **Log2-domain frequency smoothing**: Perceptually uniform pitch transitions (FR-033)
 
 **Performance:** Single string per voice, < 50ms for 8 voices processing 1 second of audio at 44.1 kHz (SC-013).
@@ -3890,6 +3892,77 @@ class ImpactExciter {
 - Comb filter skipped when position = 0.0 (default)
 
 **Dependencies:** Layer 0 (XorShift32, dsp_utils.h), Layer 1 (SVF, DelayLine)
+
+---
+
+## BowExciter
+**Path:** [bow_exciter.h](../../dsp/include/krate/dsp/processors/bow_exciter.h) | **Since:** Spec 130
+
+STK power-law stick-slip friction exciter for continuous physical modelling. Models the interaction between a bow and a resonating body, producing sustained tones through friction-driven excitation. Takes continuous feedback velocity from a resonator (via `IResonator::getFeedbackVelocity()`) and outputs excitation force. Contains internal state for bow velocity, rosin character jitter (0.7 Hz LFO + filtered noise), bow hair low-pass filter (8 kHz), and energy-aware gain control.
+
+```cpp
+namespace Krate::DSP {
+
+class BowExciter {
+    // Constants
+    static constexpr float kDefaultPressure = 0.3f;
+    static constexpr float kDefaultSpeed = 0.5f;
+    static constexpr float kDefaultPosition = 0.13f;
+    static constexpr float kHairLpfCutoff = 8000.0f;   // Hz
+    static constexpr float kRosinLfoRate = 0.7f;        // Hz
+    static constexpr float kRosinLfoDepth = 0.003f;
+    static constexpr float kRosinNoiseDepth = 0.001f;
+
+    // Lifecycle
+    BowExciter() noexcept = default;
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Note events
+    void trigger(float velocity) noexcept;
+    void release() noexcept;
+
+    // Per-sample processing
+    [[nodiscard]] float process(float feedbackVelocity) noexcept;
+
+    // Parameter setters
+    void setPressure(float pressure) noexcept;   // [0, 1] friction slope
+    void setSpeed(float speed) noexcept;         // [0, 1] velocity ceiling
+    void setPosition(float position) noexcept;   // [0, 1] bridge-to-fingerboard
+    void setEnvelopeValue(float envelopeValue) noexcept;  // ADSR drives acceleration
+    void setResonatorEnergy(float energy) noexcept;       // energy-aware gain
+
+    // Queries
+    [[nodiscard]] bool isActive() const noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Continuous bowed string or bar excitation (violin, cello, bowed metal)
+- Any pipeline where a resonator with `getFeedbackVelocity()` needs sustained driving force
+- Innexus instrument physical model path (`ExciterType::Bow`)
+- Requires a resonator implementing `IResonator` with `getFeedbackVelocity()` for closed-loop feedback coupling
+
+**Key features:**
+- **STK power-law friction**: `reflCoeff = clamp(1/(x^4), 0.01, 0.98)` where `x = |deltaV * slope + offset| + 0.75` -- branchless per-sample friction computation (~4 muls + 1 fabs + 1 clamp)
+- **Rosin character jitter**: 0.7 Hz sine LFO (depth 0.003) + highpass-filtered noise (depth 0.001, cutoff 200 Hz) prevents mechanical repetition
+- **Bow hair low-pass filter**: 8 kHz OnePoleLP smooths friction output for realistic high-frequency rolloff
+- **Energy-aware gain control**: EMA energy tracker compares resonator energy against velocity-derived target; reduces bow force when energy exceeds target to prevent runaway oscillation
+- **ADSR-driven acceleration**: Envelope output is integrated (accumulated) to bow velocity -- envelope controls acceleration, not velocity directly
+- **Position impedance**: `sin(pi * position)` geometric scaling of excitation force based on bow-to-bridge distance
+- **Early-out optimization**: `process()` returns 0 immediately when bow is inactive
+
+**Design notes:**
+- Non-copyable, movable (owns LFO + OnePoleLP state)
+- Per-voice instance: each InnexusVoice holds its own BowExciter
+- Unified exciter interface: `process(float feedbackVelocity)` matches ImpactExciter and ResidualSynthesizer conventions (Spec 130, FR-015/FR-016)
+
+**Performance:** ~4 muls + 1 fabs + 1 clamp per sample for friction core. Target: < 0.5% single core per voice at 44.1 kHz.
+
+**Dependencies:** Layer 0 (XorShift32, dsp_utils.h), Layer 1 (OnePoleLP, LFO)
 
 ---
 
