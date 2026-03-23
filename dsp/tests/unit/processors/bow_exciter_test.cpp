@@ -1477,3 +1477,377 @@ TEST_CASE("BowExciter setPosition clamping", "[processors][bow_exciter]")
         REQUIRE(std::abs(outOne) < 50.0f);
     }
 }
+
+// =============================================================================
+// Phase 6: User Story 4 -- Bow Speed Controls Dynamics and Attack Character
+// =============================================================================
+
+// Helper: simple delay-based resonator stub for testing velocity-amplitude
+// relationship. Uses a short delay line with loss to accumulate energy properly
+// (unlike the one-sample stub, which doesn't model resonance).
+namespace {
+
+struct StubResonator {
+    static constexpr int kDelay = 100; // ~441 Hz at 44100
+    float buffer[kDelay] = {};
+    int writePos = 0;
+    float loss = 0.995f;
+
+    float process(float excitation) noexcept {
+        int readPos = (writePos - kDelay + kDelay) % kDelay;
+        float delayed = buffer[readPos];
+        float output = (delayed * loss) + excitation;
+        buffer[writePos] = output;
+        writePos = (writePos + 1) % kDelay;
+        return delayed; // feedback velocity is the delayed sample
+    }
+
+    void reset() noexcept {
+        for (int i = 0; i < kDelay; ++i) buffer[i] = 0.0f;
+        writePos = 0;
+    }
+};
+
+} // namespace
+
+// =============================================================================
+// T050: Velocity-to-amplitude mapping tests (SC-007)
+// =============================================================================
+
+TEST_CASE("BowExciter velocity-to-amplitude mapping", "[processors][bow_exciter]")
+{
+    // High velocity should produce louder steady-state output than low velocity.
+    // Uses a delay-based resonator stub to properly accumulate energy.
+    auto measureSteadyStateRMS = [](float velocity) {
+        BowExciter bow;
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(1.0f);
+        bow.setPosition(0.13f);
+        bow.trigger(velocity);
+
+        StubResonator res;
+
+        // Run 8000 samples to reach steady state
+        float fbVel = 0.0f;
+        for (int i = 0; i < 8000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            float excitation = bow.process(fbVel);
+            fbVel = res.process(excitation);
+        }
+
+        // Measure RMS over the next 4000 samples at steady state
+        double sumSq = 0.0;
+        constexpr int kMeasureSamples = 4000;
+        for (int i = 0; i < kMeasureSamples; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            float excitation = bow.process(fbVel);
+            fbVel = res.process(excitation);
+            sumSq += static_cast<double>(fbVel) * static_cast<double>(fbVel);
+        }
+        return static_cast<float>(std::sqrt(sumSq / kMeasureSamples));
+    };
+
+    float rmsLow = measureSteadyStateRMS(0.2f);
+    float rmsHigh = measureSteadyStateRMS(0.8f);
+
+    REQUIRE(rmsHigh > rmsLow);
+}
+
+// =============================================================================
+// T051: Speed ceiling tests (FR-005)
+// =============================================================================
+
+TEST_CASE("BowExciter speed ceiling", "[processors][bow_exciter]")
+{
+    SECTION("speed=0.0 produces silence (stationary bow)") {
+        BowExciter bow;
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(0.0f);
+        bow.setPosition(0.13f);
+        bow.trigger(0.8f);
+
+        // With speed=0, velocity ceiling = maxVelocity * 0 = 0
+        // bowVelocity clamps to 0, so deltaV = 0 - feedbackVelocity
+        // But if there's no feedback velocity either, deltaV = 0 → zero output
+        float maxAbs = 0.0f;
+        for (int i = 0; i < 2000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            float sample = bow.process(0.0f);
+            maxAbs = std::max(maxAbs, std::abs(sample));
+        }
+        REQUIRE(maxAbs == Approx(0.0f).margin(1e-7f));
+    }
+
+    SECTION("speed=0.5 produces lower amplitude than speed=1.0") {
+        auto measureAtSpeed = [](float speed) {
+            BowExciter bow;
+            bow.prepare(44100.0);
+            bow.setPressure(0.3f);
+            bow.setSpeed(speed);
+            bow.setPosition(0.13f);
+            bow.trigger(0.8f);
+
+            StubResonator res;
+
+            // Run to steady state
+            float fbVel = 0.0f;
+            for (int i = 0; i < 8000; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+            }
+
+            // Measure RMS over 4000 samples
+            double sumSq = 0.0;
+            constexpr int kN = 4000;
+            for (int i = 0; i < kN; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+                sumSq += static_cast<double>(fbVel) * static_cast<double>(fbVel);
+            }
+            return static_cast<float>(std::sqrt(sumSq / kN));
+        };
+
+        float rmsHalf = measureAtSpeed(0.5f);
+        float rmsFull = measureAtSpeed(1.0f);
+
+        // speed=0.5 means velocity ceiling is half, so output should be lower
+        REQUIRE(rmsFull > rmsHalf);
+    }
+}
+
+// =============================================================================
+// T052: Guettler-compliant attack tests (FR-004, SC-007)
+// =============================================================================
+
+TEST_CASE("BowExciter Guettler-compliant attack transients", "[processors][bow_exciter]")
+{
+    // Fast envelope ramp (0→1 in ~10 samples) = high acceleration = scratchy onset
+    // Slow envelope ramp (0→1 in ~1000 samples) = low acceleration = smooth onset
+    // Measure peak-to-peak variation in first 50 samples
+
+    auto measureOnsetVariation = [](int rampSamples) {
+        BowExciter bow;
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(1.0f);
+        bow.setPosition(0.13f);
+        bow.trigger(0.8f);
+
+        constexpr int kOnsetSamples = 50;
+        std::vector<float> onset(kOnsetSamples);
+        float fbVel = 0.0f;
+        for (int i = 0; i < kOnsetSamples; ++i) {
+            // Ramp envelope from 0 to 1 over rampSamples
+            float envVal = (rampSamples <= 1) ? 1.0f :
+                std::min(1.0f, static_cast<float>(i) / static_cast<float>(rampSamples - 1));
+            bow.setEnvelopeValue(envVal);
+            float sample = bow.process(fbVel);
+            onset[static_cast<size_t>(i)] = sample;
+            fbVel = sample * 0.99f;
+        }
+
+        // Compute peak-to-peak variation: max difference between consecutive samples
+        float maxDiff = 0.0f;
+        for (int i = 1; i < kOnsetSamples; ++i) {
+            float diff = std::abs(onset[static_cast<size_t>(i)]
+                                  - onset[static_cast<size_t>(i - 1)]);
+            maxDiff = std::max(maxDiff, diff);
+        }
+        return maxDiff;
+    };
+
+    float fastOnsetVariation = measureOnsetVariation(10);   // Fast ramp: 10 samples
+    float slowOnsetVariation = measureOnsetVariation(1000); // Slow ramp: 1000 samples
+
+    // Fast ramp should produce higher peak-to-peak variation (more "scratchy")
+    REQUIRE(fastOnsetVariation > slowOnsetVariation);
+}
+
+// =============================================================================
+// T053: maxVelocity from trigger tests
+// =============================================================================
+
+TEST_CASE("BowExciter maxVelocity from trigger", "[processors][bow_exciter]")
+{
+    // After trigger(0.8), maxVelocity corresponds to velocity=0.8
+    // bowVelocity should clamp below maxVelocity * speed
+
+    SECTION("trigger(0.8) with speed=1.0: velocity clamps at 0.8 ceiling") {
+        BowExciter bow;
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(1.0f);
+        bow.setPosition(0.13f);
+        bow.trigger(0.8f);
+
+        // Run many samples so velocity would exceed ceiling if unclamped
+        // kMaxAcceleration = 50, invSampleRate = 1/44100
+        // Per sample: velocity += 50 * (1/44100) = 0.001134
+        // After 5000 samples: velocity would be 5.67 if unclamped
+        // But should be clamped to 0.8 * 1.0 = 0.8
+        float fbVel = 0.0f;
+        for (int i = 0; i < 5000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            float s = bow.process(fbVel);
+            fbVel = s * 0.99f;
+        }
+
+        // Verify output is bounded (velocity is clamped)
+        // If velocity were unclamped at 5.67, output would be much larger
+        // With clamped velocity at 0.8, output is moderate
+        bow.setEnvelopeValue(1.0f);
+        float result = bow.process(0.0f);  // feedbackVelocity=0 → deltaV=bowVelocity
+        REQUIRE(std::abs(result) < 20.0f);
+    }
+
+    SECTION("higher trigger velocity produces higher steady-state amplitude") {
+        auto runAndMeasureOutput = [](float triggerVel) {
+            BowExciter bow;
+            bow.prepare(44100.0);
+            bow.setPressure(0.3f);
+            bow.setSpeed(1.0f);
+            bow.setPosition(0.13f);
+            bow.trigger(triggerVel);
+
+            StubResonator res;
+            float fbVel = 0.0f;
+            for (int i = 0; i < 8000; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+            }
+
+            // Measure steady-state RMS
+            double sumSq = 0.0;
+            constexpr int kN = 4000;
+            for (int i = 0; i < kN; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+                sumSq += static_cast<double>(fbVel) * static_cast<double>(fbVel);
+            }
+            return static_cast<float>(std::sqrt(sumSq / kN));
+        };
+
+        float outputLow = runAndMeasureOutput(0.3f);
+        float outputHigh = runAndMeasureOutput(0.9f);
+
+        // Higher trigger velocity → higher maxVelocity → higher resonator amplitude
+        REQUIRE(outputHigh > outputLow);
+    }
+}
+
+// =============================================================================
+// T054: Verify trigger() maps velocity to maxVelocity correctly
+// =============================================================================
+
+TEST_CASE("BowExciter trigger maps velocity to maxVelocity", "[processors][bow_exciter]")
+{
+    // trigger(velocity) should set maxVelocity_ = velocity
+    // and targetEnergy_ = velocity * speed_
+    // We verify indirectly through the speed ceiling behavior.
+
+    SECTION("trigger(0.5) vs trigger(1.0): higher velocity produces higher amplitude") {
+        auto measureAtVelocity = [](float vel) {
+            BowExciter bow;
+            bow.prepare(44100.0);
+            bow.setPressure(0.3f);
+            bow.setSpeed(1.0f);
+            bow.setPosition(0.5f);  // impedance = 1.0 for simplicity
+            bow.trigger(vel);
+
+            StubResonator res;
+            float fbVel = 0.0f;
+            for (int i = 0; i < 8000; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+            }
+
+            // Measure steady-state RMS
+            double sumSq = 0.0;
+            constexpr int kN = 4000;
+            for (int i = 0; i < kN; ++i) {
+                bow.setEnvelopeValue(1.0f);
+                float excitation = bow.process(fbVel);
+                fbVel = res.process(excitation);
+                sumSq += static_cast<double>(fbVel) * static_cast<double>(fbVel);
+            }
+            return static_cast<float>(std::sqrt(sumSq / kN));
+        };
+
+        float rms05 = measureAtVelocity(0.5f);
+        float rms10 = measureAtVelocity(1.0f);
+
+        // trigger(1.0) should produce higher amplitude than trigger(0.5)
+        REQUIRE(rms10 > rms05);
+    }
+
+    SECTION("trigger sets targetEnergy proportional to velocity * speed") {
+        // targetEnergy = velocity * speed
+        // With higher targetEnergy, energy control is more permissive
+        // (allows more output before attenuating)
+        BowExciter bow;
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(0.5f);
+        bow.setPosition(0.13f);
+
+        // Low velocity trigger
+        bow.trigger(0.2f);  // targetEnergy = 0.2 * 0.5 = 0.1
+
+        float fbVel = 0.0f;
+        for (int i = 0; i < 3000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            bow.setResonatorEnergy(0.5f);  // High energy relative to target
+            float s = bow.process(fbVel);
+            fbVel = s * 0.99f;
+        }
+
+        // Measure steady-state with energy control active
+        double sumAbs1 = 0.0;
+        constexpr int kN = 500;
+        for (int i = 0; i < kN; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            bow.setResonatorEnergy(0.5f);
+            float s = bow.process(fbVel);
+            fbVel = s * 0.99f;
+            sumAbs1 += std::abs(static_cast<double>(s));
+        }
+        float avgLow = static_cast<float>(sumAbs1 / kN);
+
+        // High velocity trigger
+        bow.reset();
+        bow.prepare(44100.0);
+        bow.setPressure(0.3f);
+        bow.setSpeed(0.5f);
+        bow.setPosition(0.13f);
+        bow.trigger(0.9f);  // targetEnergy = 0.9 * 0.5 = 0.45
+
+        fbVel = 0.0f;
+        for (int i = 0; i < 3000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            bow.setResonatorEnergy(0.5f);
+            float s = bow.process(fbVel);
+            fbVel = s * 0.99f;
+        }
+
+        double sumAbs2 = 0.0;
+        for (int i = 0; i < kN; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            bow.setResonatorEnergy(0.5f);
+            float s = bow.process(fbVel);
+            fbVel = s * 0.99f;
+            sumAbs2 += std::abs(static_cast<double>(s));
+        }
+        float avgHigh = static_cast<float>(sumAbs2 / kN);
+
+        // Higher trigger velocity → higher targetEnergy → less energy attenuation
+        // → higher average output (all else being equal)
+        REQUIRE(avgHigh > avgLow);
+    }
+}

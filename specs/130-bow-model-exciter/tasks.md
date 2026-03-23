@@ -193,7 +193,7 @@ Note: Position impedance scaling is part of `process()` implemented in Phase 3. 
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T049 [US3] Commit bow position tests and verification: `BowExciter position impedance and Schelleng playability verified`
+- [X] T049 [US3] Commit bow position tests and verification: `BowExciter position impedance and Schelleng playability verified`
 
 **Checkpoint**: Position parameter controls harmonic emphasis and playability. Singularity prevention confirmed. Schelleng diagram behavior verified.
 
@@ -209,22 +209,22 @@ Note: Position impedance scaling is part of `process()` implemented in Phase 3. 
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T050 [US4] Write failing tests for velocity-to-amplitude mapping in `dsp/tests/unit/processors/bow_exciter_test.cpp`: trigger at velocity=0.2, run to steady state, measure RMS; trigger at velocity=0.8, run to steady state, measure RMS; verify high-velocity RMS > low-velocity RMS (SC-007)
-- [ ] T051 [US4] Write failing tests for speed ceiling in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with speed=0.0, `process()` returns 0.0 (stationary bow produces no excitation per spec edge cases); with speed=0.5, bow velocity saturates at `maxVelocity * 0.5` not `maxVelocity` (FR-005)
-- [ ] T052 [US4] Write failing tests for Guettler-compliant attack in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with fast envelope ramp (envelope goes 0->1 in 10 samples), peak-to-peak output variation in the first 50 samples is measurably higher than with a slow ramp (envelope goes 0->1 in 1000 samples). This confirms acceleration-based integration produces different onset transients (FR-004, SC-007)
-- [ ] T053 [US4] Write failing tests for maxVelocity from trigger in `dsp/tests/unit/processors/bow_exciter_test.cpp`: after `trigger(0.8f)`, `maxVelocity_` corresponds to velocity=0.8; bow velocity clamps below this ceiling
+- [X] T050 [US4] Write failing tests for velocity-to-amplitude mapping in `dsp/tests/unit/processors/bow_exciter_test.cpp`: trigger at velocity=0.2, run to steady state, measure RMS; trigger at velocity=0.8, run to steady state, measure RMS; verify high-velocity RMS > low-velocity RMS (SC-007)
+- [X] T051 [US4] Write failing tests for speed ceiling in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with speed=0.0, `process()` returns 0.0 (stationary bow produces no excitation per spec edge cases); with speed=0.5, bow velocity saturates at `maxVelocity * 0.5` not `maxVelocity` (FR-005)
+- [X] T052 [US4] Write failing tests for Guettler-compliant attack in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with fast envelope ramp (envelope goes 0->1 in 10 samples), peak-to-peak output variation in the first 50 samples is measurably higher than with a slow ramp (envelope goes 0->1 in 1000 samples). This confirms acceleration-based integration produces different onset transients (FR-004, SC-007)
+- [X] T053 [US4] Write failing tests for maxVelocity from trigger in `dsp/tests/unit/processors/bow_exciter_test.cpp`: after `trigger(0.8f)`, `maxVelocity_` corresponds to velocity=0.8; bow velocity clamps below this ceiling
 
 ### 6.2 Implementation for User Story 4
 
 Note: The acceleration-based velocity integration is implemented in Phase 3's `process()`. This phase verifies correct behavior through targeted tests. If T050-T053 fail, the acceleration constant or velocity ceiling logic in `process()` needs adjustment.
 
-- [ ] T054 [US4] Verify `trigger(float velocity)` in `dsp/include/krate/dsp/processors/bow_exciter.h` correctly maps velocity to `maxVelocity_` (e.g., `maxVelocity_ = velocity * kMaxBowVelocity` for a tuned constant) and sets `targetEnergy_`
-- [ ] T055 [US4] Build `dsp_tests` target and fix all compiler errors and warnings
-- [ ] T056 [US4] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 4 tests pass
+- [X] T054 [US4] Verify `trigger(float velocity)` in `dsp/include/krate/dsp/processors/bow_exciter.h` correctly maps velocity to `maxVelocity_` (e.g., `maxVelocity_ = velocity * kMaxBowVelocity` for a tuned constant) and sets `targetEnergy_`
+- [X] T055 [US4] Build `dsp_tests` target and fix all compiler errors and warnings
+- [X] T056 [US4] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 4 tests pass
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T057 [US4] Verify no new files require `-fno-fast-math` additions in `dsp/tests/unit/CMakeLists.txt`
+- [X] T057 [US4] Verify no new files require `-fno-fast-math` additions in `dsp/tests/unit/CMakeLists.txt`
 
 ### 6.4 Commit (MANDATORY)
 
