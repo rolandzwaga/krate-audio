@@ -1579,7 +1579,121 @@ The bow-resonator loop must support a **2x oversampling path** toggled by a qual
 
 **Goal:** Add the resonant character of an instrument body — guitar, violin, marimba resonator tube — as a post-resonance coloring stage.
 
-**Sonic character:** Adds warmth, depth, and the "in a box" quality that distinguishes a raw string from a guitar. Short reverberant coloring, not room reverb.
+**Sonic character:** Adds warmth, depth, and the "in a box" quality that distinguishes a raw string from a guitar. Short reverberant coloring (T60 ≈ 0.02–0.3 s for wood, 0.5–10 s for metal), not room reverb. The body acts as a multi-resonant bandpass filter whose transfer function can be decomposed as a sum of parallel second-order resonant modes.
+
+### Physical Background
+
+Instrument bodies exhibit discrete **resonant modes** at low frequencies that transition into a dense, statistically diffuse response at higher frequencies. The perceptually dominant features are:
+
+**Guitar body** (Elejabarrieta et al., "Coupled Modes of the Resonance Box"; Dan Russell, Penn State modal analysis):
+- **Helmholtz (A0) air mode**: ~90–110 Hz (dreadnought), ~100–120 Hz (classical). Q ≈ 10–30. Caused by air oscillating through the soundhole: f_H = (c / 2π) √(S / (V · L_eff)).
+- **First coupled top-plate mode T(1,1)**: ~180–220 Hz. Q ≈ 15–50. Strongest radiator.
+- **Higher plate modes**: 220–800+ Hz, progressively shorter T60 (~0.02–0.08 s). 11 significant modes below 750 Hz identified in folk guitar measurements.
+- Overall body IR energy concentrated in first ~50–200 ms.
+
+**Violin body** (Gough, "Violin Acoustics," Acoustics Today 2016; Woodhouse, Euphonics):
+- **A0 (Helmholtz)**: ~275 Hz. Q ≈ 20–30.
+- **B1− (first corpus bending)**: ~450–480 Hz. Q ≈ 30–50. Strong radiator.
+- **B1+ (second corpus bending)**: ~530–570 Hz. Q ≈ 30–50. Strongest radiator.
+- **Bridge hill**: broad peak at ~2–3 kHz, bandwidth ~1 kHz (effectively Q ≈ 5–15). Caused by coupling of in-plane bridge resonance with body. Critical for violin "brilliance."
+- Body modes have Q ≈ 20–60; lowest modes can ring up to ~0.2 s.
+
+**Marimba resonator tube** (Yamaha musical instrument guide; LaFavre resonator data):
+- Quarter-wavelength closed-end cylindrical resonator: L = c/(4f) − 0.61r (end correction).
+- Reinforces bar fundamental only (tube harmonics at 3f, 5f don't align with bar partials tuned to 4:1 ratio).
+- T60 ≈ 0.2–0.5 s. Q ≈ 10–30 for the tube resonance.
+
+**Material-dependent damping** — the key physical distinction between wood and metal:
+- **Wood** (spruce, maple, rosewood): internal friction (loss tangent tan δ ≈ 0.005–0.02). Higher frequencies decay 3–10× faster than low frequencies. T60 ratio (low:high) ≈ 3:1 to 10:1.
+- **Metal** (steel, brass, aluminum): internal friction tan δ ≈ 0.0001–0.001 (10–100× lower than wood). Nearly frequency-independent damping. T60 ratio ≈ 1:1 to 2:1. Much longer overall T60.
+
+### Architecture Choice: Hybrid Modal + FDN
+
+**Why not commuted synthesis?** Smith & Välimäki's commuted waveguide synthesis (ICMC 1995) moves the body IR into the excitation signal, replacing the body filter with a wavetable lookup — dramatically cheaper for polyphonic playback of static body types. However, commuted synthesis requires pre-recorded/pre-computed body IRs and cannot morph body character in real-time. Since Innexus needs real-time parametric control of body size and material, commuted synthesis is not suitable here.
+
+**Why not a waveguide mesh?** 2D/3D waveguide meshes model physical geometry directly but suffer from frequency- and direction-dependent dispersion (Smith, PASP), require O(N²) or O(N³) computation for N nodes per side, and are difficult to parameterize. They are primarily research/analysis tools.
+
+**Chosen approach — hybrid modal bank + small FDN:**
+
+```
+input
+  ↓
+[coupling filter] (1-2 biquad EQ, material-dependent)
+  ↓
+ ┌────────────────────┬─────────────────────┐
+ │ modal bank         │ 4-line FDN          │
+ │ (signature modes)  │ (dense tail)        │
+ │ dominates low freq │ dominates mid/high  │
+ └────────┬───────────┴──────────┬──────────┘
+          ↓                      ↓
+       frequency-weighted sum
+          ↓
+    radiation HPF (12 dB/oct, ~0.7× lowest mode freq)
+          ↓
+    energy normalization (passive: ||out|| ≤ ||in||)
+          ↓
+       dry/wet mix
+```
+
+**Stage 0: Coupling filter** (1–2 biquad EQ before the modal+FDN split). Real bodies don't respond flat — the bridge/soundpost acts as a frequency-dependent coupler. This filter shapes the input spectrum before it enters the resonant stages:
+- Wood bodies: slight low-mid emphasis (~100–400 Hz) modelling bridge admittance
+- Metal bodies: broader, flatter response
+- Violin-type: bridge hill pre-emphasis (~2–3 kHz bump)
+- Controlled by material parameter; cheap (1–2 biquads, ~15 FLOPS/sample).
+
+**Stage 1: Parametric modal resonator bank** (6–12 second-order biquad filters) for the low-frequency **signature modes** that define the instrument's tonal character (Helmholtz, plate modes, bridge hill). These provide precise frequency control and are the most perceptually important features. Design via impulse-invariant transform (preferred over bilinear for modal synthesis — avoids frequency warping; Smith, CCRMA):
+   ```
+   θ = 2π·freq / sampleRate
+   R = exp(−π · freq / (Q · sampleRate))
+   a1 = −2·R·cos(θ),  a2 = R²
+   b0 = 1 − R,  b1 = 0,  b2 = −(1 − R)
+   ```
+   Each biquad costs ~7–11 FLOPS/sample. At 12 modes: ~130 FLOPS/sample (~0.01% CPU at 44.1 kHz).
+
+   **Mode frequency control via interpolated reference presets** (not physics scaling):
+   - Store 3 reference modal sets: small (violin-scale), medium (guitar-scale), large (cello-scale)
+   - Each set: array of {frequency, gain, Q} tuples for 6–12 modes
+   - Interpolate log-linearly between adjacent sets: `f = exp(lerp(log(f_small), log(f_large), size))`
+   - Log-linear interpolation preserves musical interval spacing and avoids the detuning artifacts that physics-based scaling (1/size²) would produce — real instrument families don't scale uniformly across dimensions
+   - Gains and Q factors interpolated linearly between reference sets
+
+   **Interpolation method — pole/zero domain, not coefficient domain:**
+   - Interpolate (R, θ) directly, then recompute a1 = −2R·cos(θ), a2 = R². Since R < 1 always holds for decaying modes, any interpolated (R, θ) produces stable coefficients. This avoids the instability and "chirp" artifacts that arise from interpolating raw biquad coefficients (a1, a2) across large frequency jumps.
+   - Do NOT cross-fade parallel banks (doubles CPU cost for marginal benefit).
+
+   **Reference preset design guidelines:**
+   - **A0/T1 coupling (guitar preset):** The Helmholtz (A0) and first top-plate (T1) modes are coupled oscillators exhibiting frequency repulsion. Encode this as an anti-phase gain relationship between adjacent modes with a characteristic dip at ~110 Hz. This creates the "hollow woodiness" of real acoustic guitars rather than an unnatural volume spike at the overlap frequency.
+   - **Bridge hill (violin preset):** Include a broad, low-Q resonance (Q ≈ 5–15) at ~2–3 kHz. This is what gives violins their projection and brilliance (Jansson).
+   - **Sub-Helmholtz rolloff:** Each preset's lowest mode gain should taper to zero below the Helmholtz frequency — real bodies cannot radiate at those frequencies.
+
+**Stage 2: Small FDN** (4 delay lines) for the dense mid/high-frequency response that fills in between the discrete low modes. This is NOT room reverb — delay lengths are very short (body-scale), producing colored resonance rather than spaciousness.
+
+   **FDN design (from Smith, PASP; Jot & Chaigne, AES 1991; Välimäki et al., IEEE TASLP 2012):**
+   - **4 delay lines** with mutually coprime lengths, biased short to stay firmly in "body" territory and avoid early-reflection/room character. Range: **8–80 samples at 44.1 kHz** (~0.2–1.8 ms). Example prime cluster: [11, 17, 23, 31] samples. Scaled by size parameter (larger body = longer delays within this range).
+   - **Hadamard mixing matrix** (4×4): H₄ = (1/2)·[[1,1,1,1],[1,−1,1,−1],[1,1,−1,−1],[1,−1,−1,1]]. Optimal mixing (maximum determinant), requires no multiplies when N is a power of 4 (Smith, PASP). Guarantees lossless mixing (orthogonal, spectral norm = 1).
+   - **First-order absorption filters** per delay line for frequency-dependent decay (Smith, PASP, "First-Order Delay Filter Design"):
+     ```
+     H_i(z) = g_i / (1 − p_i · z⁻¹)
+     p_i = (R₀^Mᵢ − Rπ^Mᵢ) / (R₀^Mᵢ + Rπ^Mᵢ)
+     g_i = 2·R₀^Mᵢ·Rπ^Mᵢ / (R₀^Mᵢ + Rπ^Mᵢ)
+     ```
+     where R₀, Rπ are per-sample decay rates at DC and Nyquist, derived from T60(DC) and T60(Nyquist). Material parameter controls the Rπ/R₀ ratio: wood = low Rπ relative to R₀ ("fuzzy," strong HF damping), metal = Rπ close to R₀ ("glassy," preserved HF). This is the primary mechanism for material character in the FDN — no feedback gain boost is needed (which would violate passivity).
+   - **Hard RT60 cap on FDN:** max T60 = 300 ms (wood) / 2 s (metal). This structurally prevents reverb-like behavior regardless of parameter settings.
+   - **No allpass diffusion needed** — the 4-line FDN with Hadamard mixing provides sufficient density for body-scale cavities. Allpass stages would add latency without benefit at these short delay lengths.
+
+**Stage 3: Frequency-weighted sum.** Modal bank and FDN outputs are combined with frequency-dependent weighting:
+- Modal bank dominates below ~500 Hz (where discrete body modes are perceptually distinct)
+- FDN dominates above ~500 Hz (where real body response becomes dense and statistical)
+- Implementation: simple first-order crossover (6 dB/oct) or fixed gain split. The crossover frequency scales with body size (smaller body → higher crossover).
+
+**Stage 4: Energy normalization.** The body resonator must be **passive** — output energy ≤ input energy — to maintain consistency with the energy models in earlier phases (exciter energy tracking, resonator passivity). Implementation:
+- Normalize modal bank gains so that sum of peak gains ≤ 1.0
+- FDN absorption filters guarantee gain ≤ 1 at all frequencies (structural passivity from orthogonal mixing + absorptive feedback)
+- Optional auto-gain compensation: measure short-term RMS of wet output and scale to match dry input level, with a ceiling of 1.0
+
+This hybrid approach follows the "body-model factoring" principle (Karjalainen & Smith, ICMC 1996): extract the least-damped (high-Q) resonances as parametric filters for real-time control; let the FDN handle the remaining dense, heavily-damped response.
+
+**CPU estimate:** coupling filter (~15 FLOPS/sample) + 12 biquads (~130 FLOPS/sample) + 4-line FDN (~100 FLOPS/sample) + crossover (~10 FLOPS/sample) + radiation HPF (~10 FLOPS/sample) ≈ 265 FLOPS/sample total. At 44.1 kHz: ~12M FLOPS/s, well under 0.5% single-core CPU.
 
 ### New DSP Components
 
@@ -1591,27 +1705,105 @@ Input: mono signal (from modal/waveguide output)
 Params: size (0-1), material (0-1), mix (0-1)
 Output: mono colored signal
 
-Internal: Small waveguide mesh or FDN (2-4 delay lines):
-  - Delay lengths set by body size (5ms–50ms range)
-  - Allpass diffusion for density
-  - Frequency-dependent damping for material character
-  - NOT a reverb — very short, colored, resonant
+Signal flow:
+  input → coupling filter → ┬─ modal bank ─┬→ freq-weighted sum → radiation HPF → energy norm → mix
+                             └─ FDN ────────┘
+
+Internal architecture:
+
+  0. Coupling filter (1-2 biquads):
+     - Pre-shapes input spectrum before resonant stages
+     - Wood: low-mid emphasis (~100-400 Hz, models bridge admittance)
+     - Metal: broader, flatter response
+     - Parameterized by material; coefficients updated at control rate
+
+  1. Parametric modal bank (6-12 parallel biquad resonators):
+     - 3 reference modal sets stored: small (violin), medium (guitar), large (cello)
+     - Each set: array of {freq, gain, Q} tuples
+     - Size parameter interpolates log-linearly between sets:
+       f = exp(lerp(log(f_small), log(f_large), size))
+     - Size 0.0: small body (violin-scale, modes at 275-570+ Hz)
+     - Size 0.5: medium body (guitar-scale, modes at 90-400+ Hz)
+     - Size 1.0: large body (cello-scale, modes at 60-250+ Hz)
+     - Modal gains normalized: sum of peak gains ≤ 1.0 (passivity)
+
+  2. Small FDN (4 delay lines):
+     - Hadamard 4x4 mixing matrix (lossless, multiply-free)
+     - Delay lengths: 8-80 samples at 44.1 kHz (body-scale, NOT room-scale)
+     - Example prime cluster: [11, 17, 23, 31] samples
+     - Scaled by size parameter (larger body = longer delays within range)
+     - Per-line first-order absorption filter parameterized by T60(DC), T60(Nyquist)
+     - Hard RT60 cap: 300 ms (wood) / 2 s (metal)
+
+  3. Frequency-weighted sum:
+     - Modal bank dominates below crossover (~500 Hz, scales with size)
+     - FDN dominates above crossover
+     - Simple first-order crossover (6 dB/oct) or fixed gain split
+
+  4. Radiation high-pass filter (12 dB/oct, 1 biquad):
+     - Real instrument bodies are open systems that cannot radiate below
+       their Helmholtz resonance. This HPF prevents physically impossible
+       sub-rumble, especially audible when small body models process low notes.
+     - Cutoff: ~0.7× the frequency of the lowest active mode (A0/Helmholtz)
+     - Scales automatically with size parameter (smaller body = higher cutoff)
+     - Cheap: 1 biquad, ~10 FLOPS/sample
+
+  5. Material control (applied to coupling filter, modal bank, AND FDN):
+     - Wood (material=0): steep high-frequency rolloff
+       T60 ratio 5:1+ (low:high), overall T60 ~0.02-0.3 s
+       Higher Q modes (Q ≈ 15-50), tan δ ≈ 0.005-0.02
+     - Metal (material=1): gentle rolloff
+       T60 ratio ~1.5:1, overall T60 ~0.5-2 s
+       Higher Q modes (Q ≈ 100-1000), tan δ ≈ 0.0001-0.001
+     - Intermediate values crossfade between wood and metal decay profiles
+
+  6. Energy normalization:
+     - Body resonator is PASSIVE: ||output|| ≤ ||input||
+     - Modal gains normalized (sum of peaks ≤ 1.0)
+     - FDN structurally passive (orthogonal mixing + absorptive filters)
+     - Optional auto-gain: match wet RMS to dry RMS, ceiling 1.0
+
+  Output: mix * body_signal + (1-mix) * dry_input
 ```
 
 ### New Parameters
 
 | ID | Name | Range | Default | Description |
 |----|------|-------|---------|-------------|
-| `kBodySizeId` | Body Size | 0.0–1.0 | 0.5 | Small (violin) → Large (cello/bass) |
-| `kBodyMaterialId` | Material | 0.0–1.0 | 0.5 | Warm (wood) → Bright (metal) |
-| `kBodyMixId` | Body Mix | 0.0–1.0 | 0.0 | How much body coloring to apply |
+| `kBodySizeId` | Body Size | 0.0–1.0 | 0.5 | Interpolates between reference body modal sets. 0 = small (violin-scale, modes ~275+ Hz), 0.5 = medium (guitar-scale, modes ~90+ Hz), 1.0 = large (cello/bass-scale, modes ~60+ Hz). Log-linear interpolation preserves musical interval spacing. Also scales FDN delay lengths (8–80 samples) and crossover frequency. |
+| `kBodyMaterialId` | Material | 0.0–1.0 | 0.5 | Controls frequency-dependent damping profile and coupling filter shape. 0 = wood character (steep HF rolloff, T60 ratio 5:1+, short overall decay 0.02–0.3 s, low-mid coupling emphasis), 1.0 = metal character (flat damping, T60 ratio ~1.5:1, longer decay 0.5–2 s, flat coupling). Affects absorption filters in coupling filter, modal bank, and FDN. |
+| `kBodyMixId` | Body Mix | 0.0–1.0 | 0.0 | Dry/wet blend of body resonance. 0 = bypass (no body coloring), 1.0 = fully colored. |
+
+### Design Notes
+
+**Why post-resonance and not commuted?** In Innexus, body parameters are user-controllable and can change in real-time. Commuted synthesis (Smith & Välimäki, 1995) would require pre-baked body IRs convolved into the excitation, preventing real-time morphing of size/material. The post-resonance FDN+modal approach trades some efficiency for full parametric control. Since this is a per-voice processor (not polyphonic convolution), the CPU cost is acceptable.
+
+**Coupling model:** One-way coupling only (string/plate → body). Two-way coupling (body → string) is needed primarily for wolf-note simulation in bowed strings (Schleske) where the bridge impedance approaches the string impedance. Since Innexus targets general-purpose physical modelling color rather than specific bowed-instrument pathologies, one-way coupling is sufficient and dramatically simpler.
+
+**Parameter smoothing (critical for artifact-free operation):**
+- **Modal bank frequencies:** Interpolate in the pole/zero domain (R, θ), not the coefficient domain (a1, a2). Compute target (R, θ) at control rate, exponentially interpolate toward them each block, then derive coefficients. This is always stable (any R < 1 produces valid coefficients) and avoids the chirps/instability that raw coefficient interpolation causes across large frequency jumps.
+- **FDN delay lengths:** Use fractional delay interpolation (same approach as waveguide string component) when size changes. Without this, delay length jumps cause audible pitch artifacts in the FDN resonances.
+- **Material/coupling filter:** Absorption filter coefficients and coupling EQ interpolated smoothly at control rate. Less critical than modal frequencies (damping changes are perceptually forgiving).
+- **Mix:** Simple linear ramp per block (standard parameter smoothing).
+
+**Energy model consistency:** The body resonator is passive by construction — it cannot add energy to the signal. This is enforced structurally:
+- Modal bank: parallel bandpass filters with normalized gains (sum of peak gains ≤ 1.0). No feedback path exists.
+- FDN: orthogonal mixing matrix (Hadamard) preserves energy; absorption filters strictly attenuate (|H(e^jω)| ≤ 1 at all frequencies). Combined: energy decays monotonically.
+- Coupling filter: unity-gain EQ (reshapes spectrum, doesn't add energy).
+- This maintains consistency with the passivity constraints in earlier phases (exciter energy tracking, resonator decay models).
 
 ### Success Criteria
 
-- [ ] Adds audible "body" without sounding like reverb
-- [ ] Size parameter changes perceived instrument scale
-- [ ] Material parameter spans wood → metal convincingly
-- [ ] No feedback instability at any parameter combination
+- [ ] Adds audible "body" coloring without sounding like room reverb (FDN RT60 hard-capped at 300 ms for wood, 2 s for metal)
+- [ ] Size parameter changes perceived instrument scale: small sounds "violin-like" (modes above ~250 Hz), large sounds "cello-like" (modes below ~100 Hz)
+- [ ] Material parameter spans wood → metal convincingly: wood has warm, quickly-damped HF; metal rings longer with preserved brightness
+- [ ] No feedback instability at any parameter combination (FDN mixing matrix is orthogonal; all absorption filter gains ≤ 1; modal bank is purely parallel with no feedback)
+- [ ] Energy passive: ||body_output|| ≤ ||input|| at all parameter settings (no artificial energy boost)
+- [ ] CPU cost < 0.5% single core per voice at 44.1 kHz (target ~265 FLOPS/sample)
+- [ ] Body mix at 0% produces bit-identical output to input (true bypass)
+- [ ] No zipper noise or pitch artifacts when size/material parameters change during sustained notes
+- [ ] No metallic ringing in wood mode (material=0): FDN delay line fundamentals must sit above the modal/FDN crossover frequency, preventing pitched FDN resonances from leaking into the modal range
+- [ ] No sub-rumble on small body models: radiation HPF prevents energy below ~0.7× lowest mode frequency
 
 ---
 

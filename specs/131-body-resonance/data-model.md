@@ -47,14 +47,14 @@ class BodyResonance {
     std::array<float, kBodyModeCount> currentGain_;
     std::array<float, kBodyModeCount> targetGain_;
 
-    // FDN (4 delay lines)
-    static constexpr size_t kFDNLines = 4;
-    std::array<std::array<float, 128>, kFDNLines> fdnDelayBuffers_;
-    std::array<size_t, kFDNLines> fdnWritePos_;
-    std::array<float, kFDNLines> fdnDelayLengths_;     // Fractional
-    std::array<float, kFDNLines> fdnAbsorptionState_;   // One-pole state
-    std::array<float, kFDNLines> fdnAbsorptionCoeff_;   // p_i
-    std::array<float, kFDNLines> fdnAbsorptionGain_;    // g_i
+    // FDN (4 delay lines) — uses the public constant kBodyFDNLines from contracts/body_resonance_api.h;
+    // kFDNLines is NOT redeclared inside the class; kBodyFDNLines is used directly below
+    std::array<std::array<float, 128>, kBodyFDNLines> fdnDelayBuffers_;
+    std::array<size_t, kBodyFDNLines> fdnWritePos_;
+    std::array<float, kBodyFDNLines> fdnDelayLengths_;     // Fractional
+    std::array<float, kBodyFDNLines> fdnAbsorptionState_;   // One-pole state
+    std::array<float, kBodyFDNLines> fdnAbsorptionCoeff_;   // p_i
+    std::array<float, kBodyFDNLines> fdnAbsorptionGain_;    // g_i
 
     // First-order crossover state
     float crossoverLpState_ = 0.0f;

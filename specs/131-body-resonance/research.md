@@ -179,7 +179,7 @@ Filter: y[n] = g_i * x[n] + p_i * y[n-1]
 | Mode | Freq (Hz) | Gain | Q (wood) | Q (metal) | Physical Feature |
 |------|-----------|------|----------|-----------|------------------|
 | 0 | 90 | 0.7 | 15 | 150 | A0 Helmholtz |
-| 1 | 200 | -0.5 | 20 | 200 | T(1,1) first coupled (anti-phase with A0) |
+| 1 | 110 | -0.5 | 20 | 200 | T(1,1) first coupled (anti-phase with A0, ~110 Hz per FR-020) |
 | 2 | 280 | 0.8 | 25 | 250 | T(2,1) |
 | 3 | 370 | 1.0 | 30 | 300 | Second plate mode (strongest) |
 | 4 | 450 | 0.5 | 20 | 200 | |
