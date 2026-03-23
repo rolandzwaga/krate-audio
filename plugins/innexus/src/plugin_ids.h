@@ -152,6 +152,12 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kWaveguideStiffnessId = 811,       // RangeParameter: 0.0-1.0, default 0.0 (FR-041)
     kWaveguidePickPositionId = 812,    // RangeParameter: 0.0-1.0, default 0.13 (FR-042)
 
+    // Bow Exciter (820-823) -- Spec 130
+    kBowPressureId = 820,              // RangeParameter: 0.0-1.0, default 0.3
+    kBowSpeedId = 821,                 // RangeParameter: 0.0-1.0, default 0.5
+    kBowPositionId = 822,              // RangeParameter: 0.0-1.0, default 0.13
+    kBowOversamplingId = 823,          // Bool (stepCount=1), default 0.0 (off)
+
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
     kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms

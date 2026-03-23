@@ -180,10 +180,14 @@ public:
         // Soft clipper (FR-012)
         float output = softClip(junction);
 
+        // DC blocker (FR-008, R-004, spec-130 FR-021)
+        // Relocated after bow junction output, before signal re-enters delay.
+        float dcOut = dcBlocker_.process(output);
+
         // --- Loop filters ---
 
         // Dispersion allpass cascade (FR-009)
-        float x = output;
+        float x = dcOut;
         if (frozenStiffness_ > 1e-6f) {
             for (int i = 0; i < kMaxDispersionSections; ++i)
                 x = dispersionFilters_[i].process(x);
@@ -193,15 +197,12 @@ public:
         float lossOutput = rho * ((1.0f - S) * x + S * lossState_);
         lossState_ = x;
 
-        // DC blocker (FR-008, R-004)
-        float dcOut = dcBlocker_.process(lossOutput);
-
         // Energy floor clamp (FR-036)
-        if (std::abs(dcOut) < kEnergyFloor)
-            dcOut = 0.0f;
+        if (std::abs(lossOutput) < kEnergyFloor)
+            lossOutput = 0.0f;
 
         // Write filtered signal into bridge-side delay (completes the loop)
-        bridgeSideDelay_.write(dcOut);
+        bridgeSideDelay_.write(lossOutput);
 
         // Update energy followers (FR-023, FR-024) at output tap
         float squared = output * output;

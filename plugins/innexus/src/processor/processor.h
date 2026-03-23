@@ -508,6 +508,12 @@ private:
     std::atomic<float> waveguideStiffness_{0.0f};        // 0.0-1.0, default 0.0
     std::atomic<float> waveguidePickPosition_{0.13f};    // 0.0-1.0, default 0.13
 
+    // Bow Exciter parameters (Spec 130: 130-bow-model-exciter)
+    std::atomic<float> bowPressure_{0.3f};               // 0.0-1.0, default 0.3
+    std::atomic<float> bowSpeed_{0.5f};                  // 0.0-1.0, default 0.5
+    std::atomic<float> bowPosition_{0.13f};              // 0.0-1.0, default 0.13
+    std::atomic<float> bowOversampling_{0.0f};           // bool, default 0.0 (off)
+
     // Impact Exciter parameters (Spec 128: 128-impact-exciter)
     std::atomic<float> exciterType_{0.0f};               // normalized, default 0 (Residual)
     std::atomic<float> impactHardness_{0.5f};            // 0.0-1.0, default 0.5

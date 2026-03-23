@@ -156,7 +156,10 @@ static void initVoiceForNoteOn(
     float impactPosition,
     int resonanceType,
     float waveguideStiffness,
-    float waveguidePickPosition)
+    float waveguidePickPosition,
+    float bowPressure,
+    float bowSpeed,
+    float bowPosition)
 {
     // FR-032: Detect retrigger (same note already playing) BEFORE overwriting midiNote.
     // On retrigger, the resonator state must NOT be reset so that existing vibration
@@ -305,6 +308,19 @@ static void initVoiceForNoteOn(
         voice.chokeEnvelope_ = 0.0f;  // start at full choke
         voice.chokeDecayScale_ = voice.chokeMaxScale_;
     }
+    else if (exciterType == ExciterType::Bow)
+    {
+        // Spec 130: Trigger bow exciter on note-on
+        voice.bowExciter.setPressure(bowPressure);
+        voice.bowExciter.setSpeed(bowSpeed);
+        voice.bowExciter.setPosition(bowPosition);
+        voice.bowExciter.trigger(velocity);
+
+        // No choke for bow exciter
+        voice.chokeDecayScale_ = 1.0f;
+        voice.chokeEnvelope_ = 1.0f;
+        voice.chokeMaxScale_ = 1.0f;
+    }
     else
     {
         // Residual or other exciter: no choke
@@ -366,6 +382,11 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
     const float impBrightness = impBrightnessNorm * 2.0f - 1.0f;
     const float impPosition = impactPosition_.load(std::memory_order_relaxed);
 
+    // Spec 130: Bow exciter parameters
+    const float bPressure = bowPressure_.load(std::memory_order_relaxed);
+    const float bSpeed = bowSpeed_.load(std::memory_order_relaxed);
+    const float bPosition = bowPosition_.load(std::memory_order_relaxed);
+
     // Spec 129: Waveguide string parameters
     const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
     const int resType = std::clamp(static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
@@ -396,7 +417,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             brightness, transientEmp,
             resDecay, resBrightness, resStretch, resScatter,
             exciterType, impHardness, impMass, impBrightness, impPosition,
-            resType, wgStiffness, wgPickPos);
+            resType, wgStiffness, wgPickPos,
+            bPressure, bSpeed, bPosition);
 
         // Apply modulators (mono mode uses processor-level modulators)
         const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -437,7 +459,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     brightness, transientEmp,
                     resDecay, resBrightness, resStretch, resScatter,
                     exciterType, impHardness, impMass, impBrightness, impPosition,
-                    resType, wgStiffness, wgPickPos);
+                    resType, wgStiffness, wgPickPos,
+                    bPressure, bSpeed, bPosition);
                 break;
             }
             case Krate::DSP::VoiceEvent::Type::NoteOff:

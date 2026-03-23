@@ -371,6 +371,40 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Bow Exciter (Spec 130)
+            case kBowPressureId:
+            {
+                auto plain = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                bowPressure_.store(plain);
+                for (auto& v : voices_)
+                    v.bowExciter.setPressure(plain);
+                break;
+            }
+            case kBowSpeedId:
+            {
+                auto plain = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                bowSpeed_.store(plain);
+                for (auto& v : voices_)
+                    v.bowExciter.setSpeed(plain);
+                break;
+            }
+            case kBowPositionId:
+            {
+                auto plain = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                bowPosition_.store(plain);
+                for (auto& v : voices_)
+                    v.bowExciter.setPosition(plain);
+                break;
+            }
+            case kBowOversamplingId:
+            {
+                bool enabled = static_cast<float>(value) > 0.5f;
+                bowOversampling_.store(enabled ? 1.0f : 0.0f);
+                for (auto& v : voices_)
+                    v.bowExciter.setOversamplingEnabled(enabled);
+                break;
+            }
+
             // Impact Exciter (Spec 128)
             case kExciterTypeId:
                 exciterType_.store(

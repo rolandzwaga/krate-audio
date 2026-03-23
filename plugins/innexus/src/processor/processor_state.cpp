@@ -229,6 +229,12 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(waveguideStiffness_.load(std::memory_order_relaxed));
     streamer.writeFloat(waveguidePickPosition_.load(std::memory_order_relaxed));
 
+    // --- Bow Exciter parameters (Spec 130) ---
+    streamer.writeFloat(bowPressure_.load(std::memory_order_relaxed));
+    streamer.writeFloat(bowSpeed_.load(std::memory_order_relaxed));
+    streamer.writeFloat(bowPosition_.load(std::memory_order_relaxed));
+    streamer.writeFloat(bowOversampling_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -662,6 +668,16 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         waveguideStiffness_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))
         waveguidePickPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Bow Exciter parameters (Spec 130, graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        bowPressure_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        bowSpeed_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        bowPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        bowOversampling_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

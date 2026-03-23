@@ -15,6 +15,7 @@
 #include <krate/dsp/processors/modal_resonator_bank_simd.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <numbers>
@@ -22,9 +23,50 @@
 namespace Krate {
 namespace DSP {
 
+/// Internal bandpass filter for bowed-mode velocity taps (FR-020).
+/// Standard biquad BPF: b1 is always 0 for BPF, so only b0, b2 are stored.
+struct BowedModeBPF {
+    float b0{0.0f};  ///< Feedforward coefficient (= alpha)
+    float b2{0.0f};  ///< Feedforward coefficient (= -alpha)
+    float a1{0.0f};  ///< Feedback coefficient
+    float a2{0.0f};  ///< Feedback coefficient
+    float z1{0.0f};  ///< State variable
+    float z2{0.0f};  ///< State variable
+
+    /// Compute BPF coefficients for the given center frequency and Q.
+    void setCoefficients(float freq, float q, double sampleRate) noexcept
+    {
+        const float w0 = 2.0f * std::numbers::pi_v<float> * freq
+                          / static_cast<float>(sampleRate);
+        const float alpha = std::sin(w0) / (2.0f * q);
+        const float a0 = 1.0f + alpha;
+        b0 = alpha / a0;
+        b2 = -alpha / a0;
+        a1 = (-2.0f * std::cos(w0)) / a0;
+        a2 = (1.0f - alpha) / a0;
+    }
+
+    /// Process one sample through the bandpass filter (Direct Form II Transposed).
+    [[nodiscard]] float process(float input) noexcept
+    {
+        float output = b0 * input + z1;
+        z1 = /* b1 * input = 0 */ -a1 * output + z2;
+        z2 = b2 * input - a2 * output;
+        return output;
+    }
+
+    /// Reset filter state to zero.
+    void reset() noexcept
+    {
+        z1 = 0.0f;
+        z2 = 0.0f;
+    }
+};
+
 class ModalResonatorBank : public IResonator {
 public:
     static constexpr int kMaxModes = 96;
+    static constexpr int kNumBowedModes = 8;
 
     ModalResonatorBank() noexcept = default;
     ~ModalResonatorBank() override = default;
@@ -58,6 +100,10 @@ public:
         std::memcpy(epsilon_, epsilonTarget_, sizeof(epsilon_));
         std::memcpy(radius_, radiusTarget_, sizeof(radius_));
         std::memcpy(inputGain_, inputGainTarget_, sizeof(inputGain_));
+        // Reset bowed-mode filters
+        for (auto& f : bowedModeFilters_)
+            f.reset();
+        bowedModeSumVelocity_ = 0.0f;
     }
 
     /// Configure all modes from analyzed harmonic data.
@@ -233,12 +279,43 @@ public:
         reset();
         controlEnergy_ = 0.0f;
         perceptualEnergy_ = 0.0f;
+        // bowedModeSumVelocity_ already cleared by reset()
     }
 
-    /// Modal resonator has no feedback velocity (returns 0.0f).
+    /// Return bowed-mode summed velocity when active, else 0.0f.
     [[nodiscard]] float getFeedbackVelocity() const noexcept override
     {
+        if (bowModeActive_)
+            return bowedModeSumVelocity_;
         return 0.0f;
+    }
+
+    // =========================================================================
+    // Bowed-mode coupling (FR-020, FR-024)
+    // =========================================================================
+
+    /// Enable/disable bowed-mode velocity taps.
+    /// When active, getFeedbackVelocity() returns summed bandpass outputs.
+    void setBowModeActive(bool active) noexcept
+    {
+        bool wasActive = bowModeActive_;
+        bowModeActive_ = active;
+        if (active && !wasActive) {
+            // Initialize BPF coefficients from current mode frequencies
+            initBowedModeFilters();
+            recomputeBowWeights();
+        }
+        if (!active)
+            bowedModeSumVelocity_ = 0.0f;
+    }
+
+    /// Set bow position for harmonic weighting of excitation input.
+    /// Weight per mode k: sin((k+1) * pi * bowPosition)
+    void setBowPosition(float position) noexcept
+    {
+        bowPosition_ = std::clamp(position, 0.0f, 1.0f);
+        if (bowModeActive_)
+            recomputeBowWeights();
     }
 
 private:
@@ -254,6 +331,7 @@ private:
     static constexpr float kSoftClipThreshold = 0.707f; // -3 dBFS
     static constexpr float kControlEnergyTauMs = 5.0f;     // FR-023: fast energy follower
     static constexpr float kPerceptualEnergyTauMs = 30.0f;  // FR-023: slow energy follower
+    static constexpr float kBowInjectionGain = 0.01f;      // FR-020: bow force injection scaling
 
     // Golden-ratio-derived scatter displacement constant
     static constexpr float kScatterD =
@@ -289,6 +367,47 @@ private:
     float storedFrequency_ = 440.0f;
     float storedDecayTime_ = 0.5f;
     float storedBrightness_ = 0.5f;
+
+    // Bowed-mode coupling state (FR-020)
+    std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_{};
+    float bowWeights_[kMaxModes]{};  ///< Harmonic weights for bow excitation
+    float bowedModeSumVelocity_{0.0f};
+    float bowPosition_{0.13f};
+    bool bowModeActive_{false};
+
+    /// Recompute harmonic weights for bowed-mode excitation (FR-024).
+    /// Weight per mode k: sin((k+1) * pi * bowPosition_)
+    void recomputeBowWeights() noexcept
+    {
+        for (int k = 0; k < numModes_; ++k) {
+            float weight = std::sin(static_cast<float>(k + 1)
+                                    * std::numbers::pi_v<float> * bowPosition_);
+            // Apply bow weight on top of existing gain
+            // Note: inputGainTarget_ already has the base amplitude-derived gain.
+            // The bow weight is applied multiplicatively in processSampleCore
+            // when bowModeActive_ is true, via the bowWeights_ array.
+            bowWeights_[k] = weight;
+        }
+    }
+
+    /// Initialize bowed-mode BPF coefficients from current mode frequencies.
+    void initBowedModeFilters() noexcept
+    {
+        // Configure the first kNumBowedModes filters from stored mode data.
+        // Mode frequencies are derived from epsilonTarget_:
+        //   epsilon = 2 * sin(pi * f / sampleRate)
+        //   f = asin(epsilon / 2) * sampleRate / pi
+        int numBowed = std::min(numModes_, kNumBowedModes);
+        for (int k = 0; k < numBowed; ++k) {
+            float eps = epsilonTarget_[k];
+            if (eps <= 0.0f) continue;
+            float freq = std::asin(eps * 0.5f) * sampleRate_
+                         / std::numbers::pi_v<float>;
+            if (freq > 0.0f && freq < sampleRate_ * 0.49f)
+                bowedModeFilters_[static_cast<size_t>(k)].setCoefficients(
+                    freq, 50.0f, static_cast<double>(sampleRate_));
+        }
+    }
 
     /// Compute mode coefficients from partial data.
     void computeModeCoefficients(
@@ -378,6 +497,12 @@ private:
             std::memcpy(radius_, radiusTarget_, sizeof(radius_));
             std::memcpy(inputGain_, inputGainTarget_, sizeof(inputGain_));
         }
+
+        // Reinitialize bowed-mode filters when modes change
+        if (bowModeActive_) {
+            initBowedModeFilters();
+            recomputeBowWeights();
+        }
     }
 
     /// Smooth coefficients toward targets (one-pole per coefficient).
@@ -409,7 +534,13 @@ private:
                 float R = std::pow(radius_[k], decayScale);
                 float gain = inputGain_[k];
 
-                float s_new = R * (s + eps * c) + gain * ex;
+                // FR-024: When bowed, inject force directly with harmonic weight
+                // (bypass inputGain normalization designed for impulsive excitation)
+                float injection = bowModeActive_
+                    ? gain * ex + bowWeights_[k] * excitation * kBowInjectionGain
+                    : gain * ex;
+
+                float s_new = R * (s + eps * c) + injection;
                 float c_new = R * (c - eps * s_new);
 
                 sinState_[k] = s_new;
@@ -424,8 +555,13 @@ private:
                 float R = radius_[k];
                 float gain = inputGain_[k];
 
+                // FR-024: When bowed, inject force directly with harmonic weight
+                float injection = bowModeActive_
+                    ? gain * ex + bowWeights_[k] * excitation * kBowInjectionGain
+                    : gain * ex;
+
                 // Gordon-Smith coupled-form resonator (FR-003)
-                float s_new = R * (s + eps * c) + gain * ex;
+                float s_new = R * (s + eps * c) + injection;
                 float c_new = R * (c - eps * s_new);
 
                 sinState_[k] = s_new;
@@ -436,6 +572,16 @@ private:
 
         // Soft-clip safety limiter (FR-010)
         output = softClip(output / kSoftClipThreshold) * kSoftClipThreshold;
+
+        // FR-020: Feed output through bowed-mode bandpass velocity taps
+        if (bowModeActive_) {
+            float sum = 0.0f;
+            int numBowed = std::min(numModes_, kNumBowedModes);
+            for (int k = 0; k < numBowed; ++k) {
+                sum += bowedModeFilters_[static_cast<size_t>(k)].process(output);
+            }
+            bowedModeSumVelocity_ = sum;
+        }
 
         return output;
     }

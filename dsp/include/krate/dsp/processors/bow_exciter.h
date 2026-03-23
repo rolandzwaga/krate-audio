@@ -109,6 +109,15 @@ public:
         float tauSamples = static_cast<float>(sampleRate) * 0.01f;
         energyAlpha_ = 1.0f / (1.0f + tauSamples);
 
+        // Oversampling downsample LPF (FR-022)
+        // Prepare at 2x rate, cutoff at Nyquist/2 = sampleRate/4
+        // (anti-alias before decimation from 2x to 1x)
+        if (oversamplingEnabled_) {
+            downsampleLpf_.prepare(sampleRate * 2.0);
+            downsampleLpf_.setCutoff(
+                static_cast<float>(sampleRate) * 0.5f);
+        }
+
         prepared_ = true;
     }
 
@@ -130,6 +139,8 @@ public:
 
         hairLpf_.reset();
         rosinLfo_.reset();
+        downsampleLpf_.reset();
+        prevFeedbackVelocity_ = 0.0f;
     }
 
     // ===== Note Events =====
@@ -160,57 +171,40 @@ public:
     /// @return Excitation force to feed into resonator
     [[nodiscard]] float process(float feedbackVelocity) noexcept
     {
-        if (!active_) return 0.0f;
+        if (!active_) {
+            prevFeedbackVelocity_ = feedbackVelocity;
+            return 0.0f;
+        }
 
-        // Step 1: Compute bow acceleration from ADSR envelope (FR-004)
-        float acceleration = envelopeValue_ * kMaxAcceleration;
+        float force = 0.0f;
 
-        // Step 2: Integrate to velocity, clamp by speed ceiling (FR-005)
-        bowVelocity_ += acceleration * invSampleRate_;
-        float velocityCeiling = maxVelocity_ * speed_;
-        bowVelocity_ = std::clamp(bowVelocity_, 0.0f, velocityCeiling);
+        if (oversamplingEnabled_) {
+            // 2x oversampling path (FR-022):
+            // Linearly interpolate feedback input for half-sample position
+            float fbInterp = (prevFeedbackVelocity_ + feedbackVelocity) * 0.5f;
 
-        // Step 3: Compute deltaV (FR-006)
-        float deltaV = bowVelocity_ - feedbackVelocity;
+            // Run friction junction twice at 2x rate with half-rate velocity
+            // integration (invSampleRate_ * 0.5f per sub-sample)
+            float f0 = computeFrictionSample(fbInterp, 0.5f);
+            float f1 = computeFrictionSample(feedbackVelocity, 0.5f);
 
-        // Step 4: Rosin jitter - LFO + highpassed noise (FR-008)
-        float lfoJitter = rosinLfo_.process() * kRosinLfoDepth;
+            // Anti-alias filter on 2x output, then decimate
+            f0 = downsampleLpf_.process(f0);
+            f1 = downsampleLpf_.process(f1);
 
-        // LCG noise generator
-        noiseState_ = noiseState_ * 1664525u + 1013904223u;
-        float rawNoise = static_cast<float>(
-            static_cast<int32_t>(noiseState_)) / 2147483648.0f;
+            // Average the two sub-samples for decimation
+            force = (f0 + f1) * 0.5f;
+        } else {
+            // Standard 1x path
+            force = computeFrictionSample(feedbackVelocity, 1.0f);
+        }
 
-        // Simple one-pole highpass: y = x - lpf(x)
-        noiseHpState_ = noiseHpCoeff_ * noiseHpState_
-                        + (1.0f - noiseHpCoeff_) * rawNoise;
-        float hpNoise = rawNoise - noiseHpState_;
-        float noiseJitter = hpNoise * kRosinNoiseDepth;
+        prevFeedbackVelocity_ = feedbackVelocity;
 
-        float jitter = lfoJitter + noiseJitter;
-
-        // Step 5: Evaluate bow table (FR-002, FR-003)
-        // slope = clamp(5.0 - 4.0 * pressure, 1.0, 10.0)
-        float slope = std::clamp(5.0f - 4.0f * pressure_, 1.0f, 10.0f);
-        float offset = 0.0f;  // Base offset, jitter added below
-        float x = std::fabs(deltaV * slope + (offset + jitter)) + 0.75f;
-        float x2 = x * x;
-        float x4 = x2 * x2;
-        float reflectionCoeff = std::clamp(1.0f / x4, 0.01f, 0.98f);
-
-        // Step 6: Excitation force = deltaV * reflectionCoeff (FR-006)
-        float force = deltaV * reflectionCoeff;
-
-        // Step 7: Position impedance scaling (FR-007)
-        float beta = position_;
-        float betaProduct = beta * (1.0f - beta) * 4.0f;
-        float positionImpedance = 1.0f / std::max(betaProduct, 0.1f);
-        force *= positionImpedance;
-
-        // Step 8: Bow hair LPF at 8 kHz (FR-009)
+        // Step 8: Bow hair LPF at 8 kHz (FR-009) -- always at 1x rate
         force = hairLpf_.process(force);
 
-        // Step 9: Energy-aware gain control (FR-010)
+        // Step 9: Energy-aware gain control (FR-010) -- always at 1x rate
         if (targetEnergy_ > 0.0f) {
             // Update EMA energy tracker
             currentEnergy_ += energyAlpha_ * (resonatorEnergy_ - currentEnergy_);
@@ -257,12 +251,85 @@ public:
         resonatorEnergy_ = energy;
     }
 
+    /// @brief Enable or disable 2x oversampling for the friction junction.
+    /// @param enabled true = 2x oversampling, false = 1x (default)
+    void setOversamplingEnabled(bool enabled) noexcept
+    {
+        oversamplingEnabled_ = enabled;
+        if (prepared_) {
+            // Reconfigure downsample LPF at Nyquist/2 = sampleRate/4
+            downsampleLpf_.prepare(sampleRate_ * 2.0);
+            downsampleLpf_.setCutoff(
+                static_cast<float>(sampleRate_) * 0.5f);
+        }
+    }
+
+    /// @brief Query whether oversampling is enabled.
+    [[nodiscard]] bool isOversamplingEnabled() const noexcept
+    {
+        return oversamplingEnabled_;
+    }
+
     // ===== Queries =====
 
     [[nodiscard]] bool isActive() const noexcept { return active_; }
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
 private:
+    /// @brief Core friction junction computation (steps 1-7).
+    /// @param feedbackVelocity Resonator feedback velocity
+    /// @param rateScale 1.0 for 1x rate, 0.5 for 2x rate (scales integration step)
+    /// @return Raw excitation force before hair LPF and energy control
+    [[nodiscard]] float computeFrictionSample(float feedbackVelocity,
+                                               float rateScale) noexcept
+    {
+        // Step 1: Compute bow acceleration from ADSR envelope (FR-004)
+        float acceleration = envelopeValue_ * kMaxAcceleration;
+
+        // Step 2: Integrate to velocity, clamp by speed ceiling (FR-005)
+        bowVelocity_ += acceleration * invSampleRate_ * rateScale;
+        float velocityCeiling = maxVelocity_ * speed_;
+        bowVelocity_ = std::clamp(bowVelocity_, 0.0f, velocityCeiling);
+
+        // Step 3: Compute deltaV (FR-006)
+        float deltaV = bowVelocity_ - feedbackVelocity;
+
+        // Step 4: Rosin jitter - LFO + highpassed noise (FR-008)
+        float lfoJitter = rosinLfo_.process() * kRosinLfoDepth;
+
+        // LCG noise generator
+        noiseState_ = noiseState_ * 1664525u + 1013904223u;
+        float rawNoise = static_cast<float>(
+            static_cast<int32_t>(noiseState_)) / 2147483648.0f;
+
+        // Simple one-pole highpass: y = x - lpf(x)
+        noiseHpState_ = noiseHpCoeff_ * noiseHpState_
+                        + (1.0f - noiseHpCoeff_) * rawNoise;
+        float hpNoise = rawNoise - noiseHpState_;
+        float noiseJitter = hpNoise * kRosinNoiseDepth;
+
+        float jitter = lfoJitter + noiseJitter;
+
+        // Step 5: Evaluate bow table (FR-002, FR-003)
+        float slope = std::clamp(5.0f - 4.0f * pressure_, 1.0f, 10.0f);
+        float offset = 0.0f;
+        float x = std::fabs(deltaV * slope + (offset + jitter)) + 0.75f;
+        float x2 = x * x;
+        float x4 = x2 * x2;
+        float reflectionCoeff = std::clamp(1.0f / x4, 0.01f, 0.98f);
+
+        // Step 6: Excitation force = deltaV * reflectionCoeff (FR-006)
+        float force = deltaV * reflectionCoeff;
+
+        // Step 7: Position impedance scaling (FR-007)
+        float beta = position_;
+        float betaProduct = beta * (1.0f - beta) * 4.0f;
+        float positionImpedance = 1.0f / std::max(betaProduct, 0.1f);
+        force *= positionImpedance;
+
+        return force;
+    }
+
     // Parameters
     float pressure_{kDefaultPressure};
     float speed_{kDefaultSpeed};
@@ -287,6 +354,11 @@ private:
 
     // Bow hair LPF (FR-009)
     OnePoleLP hairLpf_;
+
+    // Oversampling (FR-022, FR-023)
+    bool oversamplingEnabled_{false};
+    OnePoleLP downsampleLpf_;
+    float prevFeedbackVelocity_{0.0f};
 
     // State
     double sampleRate_{0.0};

@@ -398,7 +398,7 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 - [X] T120 Update `specs/_architecture_/layer-2-processors.md`: add `BowExciter` entry with purpose ("STK power-law stick-slip friction exciter for continuous physical modelling"), public API summary (prepare, trigger, release, process, setPressure, setSpeed, setPosition, setEnvelopeValue, setResonatorEnergy), file location (`dsp/include/krate/dsp/processors/bow_exciter.h`), and "when to use this" (continuous bowed string / bar excitation; requires resonator with getFeedbackVelocity())
 - [X] T121 Update `specs/_architecture_/layer-2-processors.md`: add note to `ModalResonatorBank` entry documenting the 8 bowed-mode bandpass velocity taps (Q~50) and `setBowModeActive()`/`setBowPosition()` API
 - [X] T122 Update `specs/_architecture_/layer-2-processors.md`: add note to `WaveguideString` entry documenting that DC blocker is positioned after the bow junction output (per spec 130, FR-021)
-- [ ] T123 Commit architecture documentation: `docs: update layer-2-processors architecture for BowExciter and bowed-mode coupling`
+- [X] T123 Commit architecture documentation: `docs: update layer-2-processors architecture for BowExciter and bowed-mode coupling`
 
 **Checkpoint**: Architecture documentation reflects all new components and modifications.
 
@@ -410,14 +410,14 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 
 ### 13.1 Requirements Verification
 
-- [ ] T124 Re-read each FR-001 through FR-025 from spec.md; for each requirement, open the implementation file and find the code that satisfies it; record the file path and line number in the spec.md compliance table
-- [ ] T125 Re-read each SC-001 through SC-013 from spec.md; for each criterion, run the specific test or measurement; copy the actual output; compare against the spec threshold; record actual measured values in the compliance table
-- [ ] T126 Search for cheating patterns: `grep -r "TODO\|placeholder\|stub" dsp/include/krate/dsp/processors/bow_exciter.h plugins/innexus/src/` -- verify no TODOs or placeholders remain in new code
-- [ ] T127 Verify no test thresholds were relaxed from spec values: re-read T032's Helmholtz test (fundamental SNR >= 20 dB, >= 3 harmonics above -40 dBFS) and confirm the actual thresholds in the test match spec.md FR-014
+- [X] T124 Re-read each FR-001 through FR-025 from spec.md; for each requirement, open the implementation file and find the code that satisfies it; record the file path and line number in the spec.md compliance table
+- [X] T125 Re-read each SC-001 through SC-013 from spec.md; for each criterion, run the specific test or measurement; copy the actual output; compare against the spec threshold; record actual measured values in the compliance table
+- [X] T126 Search for cheating patterns: `grep -r "TODO\|placeholder\|stub" dsp/include/krate/dsp/processors/bow_exciter.h plugins/innexus/src/` -- verify no TODOs or placeholders remain in new code
+- [X] T127 Verify no test thresholds were relaxed from spec values: re-read T032's Helmholtz test (fundamental SNR >= 20 dB, >= 3 harmonics above -40 dBFS) and confirm the actual thresholds in the test match spec.md FR-014
 
 ### 13.2 Fill Compliance Table in spec.md
 
-- [ ] T128 Update `specs/130-bow-model-exciter/spec.md` "Implementation Verification" table: fill in Status and Evidence for every FR-xxx and SC-xxx row with specific file paths, line numbers, test names, and actual measured values; mark overall status honestly as COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T128 Update `specs/130-bow-model-exciter/spec.md` "Implementation Verification" table: fill in Status and Evidence for every FR-xxx and SC-xxx row with specific file paths, line numbers, test names, and actual measured values; mark overall status honestly as COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 13.3 Honest Self-Check
 
@@ -429,7 +429,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T129 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T129 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 ---
 
