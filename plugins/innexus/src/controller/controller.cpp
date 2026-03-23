@@ -1555,6 +1555,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of impact exciter knobs
     updateImpactKnobVisibility();
 
+    // Set initial visibility of bow exciter knobs
+    updateBowVisibility();
+
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
@@ -1635,6 +1638,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
     impactKnobContainer_ = nullptr;
+    bowKnobContainer_ = nullptr;
     modalKnobContainer_ = nullptr;
     waveguideKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
@@ -2023,6 +2027,52 @@ void Controller::updateImpactKnobVisibility()
 }
 
 // ==============================================================================
+// updateBowVisibility
+// ==============================================================================
+void Controller::updateBowVisibility()
+{
+    // Lazy-find the bow knob container by locating a child with the
+    // BowPressure tag (820) and taking its parent container
+    if (!bowKnobContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || bowKnobContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kBowPressureId) {
+                            bowKnobContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!bowKnobContainer_)
+        return;
+
+    // ExciterType: StringListParameter with 3 values
+    // Normalized: 0.0 = Residual, 0.5 = Impact, 1.0 = Bow
+    // Show Bow knobs only when ExciterType == Bow (norm >= 0.75)
+    auto* param = getParameterObject(kExciterTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isBow = (norm >= 0.75f);
+    bowKnobContainer_->setVisible(isBow);
+    if (bowKnobContainer_->getParentView())
+        bowKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // updateResonatorVisibility
 // ==============================================================================
 void Controller::updateResonatorVisibility()
@@ -2087,6 +2137,9 @@ void Controller::onDisplayTimerFired()
 
     // Update impact exciter knob visibility based on exciter type
     updateImpactKnobVisibility();
+
+    // Update bow exciter knob visibility based on exciter type
+    updateBowVisibility();
 
     // Update resonator knob containers based on resonance type
     updateResonatorVisibility();

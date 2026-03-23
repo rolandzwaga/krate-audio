@@ -166,6 +166,12 @@
     <control-tag name="ImpactMass" tag="807"/>
     <control-tag name="ImpactBrightness" tag="808"/>
     <control-tag name="ImpactPosition" tag="809"/>
+
+    <!-- Bow Exciter (820-823) -->
+    <control-tag name="BowPressure" tag="820"/>
+    <control-tag name="BowSpeed" tag="821"/>
+    <control-tag name="BowPosition" tag="822"/>
+    <control-tag name="BowOversampling" tag="823"/>
   </control-tags>
 
   <!-- ================================================================== -->
@@ -819,6 +825,59 @@
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Pos"/>
       </view> <!-- end Impact-specific knobs container -->
+
+      <!-- Bow-specific knobs (visibility controlled by ExciterType parameter) -->
+      <view class="CViewContainer" origin="130, 0" size="660, 90"
+            background-color="~ TransparentCColor" visible="false">
+
+        <!-- Pressure (friction curve slope: airy to gritty) -->
+        <view class="ArcKnob" origin="45, 18" size="42, 42"
+              control-tag="BowPressure" default-value="0.3"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="40, 60" size="52, 12"
+              control-tag="BowPressure" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="40, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Press"/>
+
+        <!-- Speed (bow velocity ceiling: soft to loud) -->
+        <view class="ArcKnob" origin="185, 18" size="42, 42"
+              control-tag="BowSpeed" default-value="0.5"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="180, 60" size="52, 12"
+              control-tag="BowSpeed" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="180, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Speed"/>
+
+        <!-- Position (harmonic emphasis: bridge to fingerboard) -->
+        <view class="ArcKnob" origin="325, 18" size="42, 42"
+              control-tag="BowPosition" default-value="0.13"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="320, 60" size="52, 12"
+              control-tag="BowPosition" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="320, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Pos"/>
+
+        <!-- Oversampling (2x anti-aliasing toggle) -->
+        <view class="COnOffButton" origin="475, 28" size="32, 22"
+              control-tag="BowOversampling" default-value="0"/>
+        <view class="CTextLabel" origin="462, 52" size="58, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="2x OS"/>
+      </view> <!-- end Bow-specific knobs container -->
+
     </view> <!-- end Exciter FieldsetContainer -->
 
     <!-- ============================================================== -->
