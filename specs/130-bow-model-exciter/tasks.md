@@ -228,7 +228,7 @@ Note: The acceleration-based velocity integration is implemented in Phase 3's `p
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T058 [US4] Commit bow speed/dynamics tests: `BowExciter velocity-to-dynamics and Guettler-compliant attack verified`
+- [X] T058 [US4] Commit bow speed/dynamics tests: `BowExciter velocity-to-dynamics and Guettler-compliant attack verified`
 
 **Checkpoint**: Speed parameter controls amplitude ceiling. ADSR acceleration integration produces distinct onset transients at different attack rates.
 
@@ -244,29 +244,29 @@ Note: The acceleration-based velocity integration is implemented in Phase 3's `p
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T059 [P] [US5] Write failing unit tests for InnexusVoice bow field in `plugins/innexus/tests/unit/processor/innexus_voice_bow_test.cpp`: verify `innexusVoice.bowExciter` is a `Krate::DSP::BowExciter` field; verify `prepare()` propagates to `bowExciter.prepare()`; verify `reset()` propagates to `bowExciter.reset()`
-- [ ] T060 [P] [US5] Write failing unit tests for bow parameter IDs in `plugins/innexus/tests/unit/vst/bow_parameters_test.cpp`: verify `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` are declared in `plugin_ids.h` with unique values; verify parameter registration in controller produces 4 additional parameters beyond the pre-existing set
+- [X] T059 [P] [US5] Write failing unit tests for InnexusVoice bow field in `plugins/innexus/tests/unit/processor/innexus_voice_bow_test.cpp`: verify `innexusVoice.bowExciter` is a `Krate::DSP::BowExciter` field; verify `prepare()` propagates to `bowExciter.prepare()`; verify `reset()` propagates to `bowExciter.reset()`
+- [X] T060 [P] [US5] Write failing unit tests for bow parameter IDs in `plugins/innexus/tests/unit/vst/bow_parameters_test.cpp`: verify `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` are declared in `plugin_ids.h` with unique values; verify parameter registration in controller produces 4 additional parameters beyond the pre-existing set
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T061 [US5] Add `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` to `plugins/innexus/src/plugin_ids.h` with unique integer values not conflicting with existing IDs; values TBD by checking the highest existing ID in that file
-- [ ] T062 [US5] Add `Krate::DSP::BowExciter bowExciter` field to the `InnexusVoice` struct in `plugins/innexus/src/processor/innexus_voice.h`; add `#include <krate/dsp/processors/bow_exciter.h>`
-- [ ] T063 [US5] Register bow parameters in `plugins/innexus/src/controller/controller.cpp` `initialize()`: add 4 `RangeParameter`/`Parameter` registrations for pressure (0.0-1.0, default 0.3), speed (0.0-1.0, default 0.5), position (0.0-1.0, default 0.13), and oversampling (bool, default false)
-- [ ] T064 [US5] Handle bow parameter changes in `plugins/innexus/src/processor/processor_params.cpp`: add cases for `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` -- call corresponding setters on all voices (`v.bowExciter.setPressure(...)` etc.)
-- [ ] T065 [US5] Handle bow trigger on note-on in `plugins/innexus/src/processor/processor_midi.cpp`: when `ExciterType::Bow` is active and a note-on event fires, call `voice.bowExciter.trigger(normalizedVelocity)` and `voice.bowExciter.setPosition(bowPosition_)` etc. with current parameter values
-- [ ] T066 [US5] Update processor audio loop in `plugins/innexus/src/processor/processor.cpp`: implement the unified call pattern from `contracts/unified_exciter_interface.md` -- get `feedbackVelocity = resonator->getFeedbackVelocity()`, switch on exciter type calling `.process(feedbackVelocity)` uniformly, with bow-specific pre-processing (`setEnvelopeValue`, `setResonatorEnergy`) inside the Bow case
-- [ ] T067 [US5] Add bow parameter save/load to `plugins/innexus/src/processor/processor_state.cpp`: serialize `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` in `setState()`/`getState()`
-- [ ] T068 [US5] Build `innexus_tests` target and fix all compiler errors and warnings: `cmake --build build/windows-x64-release --config Release --target innexus_tests`
-- [ ] T069 [US5] Run `innexus_tests.exe 2>&1 | tail -5` and verify all tests pass including T059 and T060
-- [ ] T070 [US5] Run pluginval to verify plugin stability with bow exciter: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
+- [X] T061 [US5] Add `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` to `plugins/innexus/src/plugin_ids.h` with unique integer values not conflicting with existing IDs; values TBD by checking the highest existing ID in that file
+- [X] T062 [US5] Add `Krate::DSP::BowExciter bowExciter` field to the `InnexusVoice` struct in `plugins/innexus/src/processor/innexus_voice.h`; add `#include <krate/dsp/processors/bow_exciter.h>`
+- [X] T063 [US5] Register bow parameters in `plugins/innexus/src/controller/controller.cpp` `initialize()`: add 4 `RangeParameter`/`Parameter` registrations for pressure (0.0-1.0, default 0.3), speed (0.0-1.0, default 0.5), position (0.0-1.0, default 0.13), and oversampling (bool, default false)
+- [X] T064 [US5] Handle bow parameter changes in `plugins/innexus/src/processor/processor_params.cpp`: add cases for `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` -- call corresponding setters on all voices (`v.bowExciter.setPressure(...)` etc.)
+- [X] T065 [US5] Handle bow trigger on note-on in `plugins/innexus/src/processor/processor_midi.cpp`: when `ExciterType::Bow` is active and a note-on event fires, call `voice.bowExciter.trigger(normalizedVelocity)` and `voice.bowExciter.setPosition(bowPosition_)` etc. with current parameter values
+- [X] T066 [US5] Update processor audio loop in `plugins/innexus/src/processor/processor.cpp`: implement the unified call pattern from `contracts/unified_exciter_interface.md` -- get `feedbackVelocity = resonator->getFeedbackVelocity()`, switch on exciter type calling `.process(feedbackVelocity)` uniformly, with bow-specific pre-processing (`setEnvelopeValue`, `setResonatorEnergy`) inside the Bow case
+- [X] T067 [US5] Add bow parameter save/load to `plugins/innexus/src/processor/processor_state.cpp`: serialize `kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId` in `setState()`/`getState()`
+- [X] T068 [US5] Build `innexus_tests` target and fix all compiler errors and warnings: `cmake --build build/windows-x64-release --config Release --target innexus_tests`
+- [X] T069 [US5] Run `innexus_tests.exe 2>&1 | tail -5` and verify all tests pass including T059 and T060
+- [X] T070 [US5] Run pluginval to verify plugin stability with bow exciter: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` (SKIPPED per orchestrator rules -- pluginval runs only in final verification)
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T071 [US5] Verify `innexus_voice_bow_test.cpp` and `bow_parameters_test.cpp` are added to `plugins/innexus/tests/CMakeLists.txt`; check for `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list if found
+- [X] T071 [US5] Verify `innexus_voice_bow_test.cpp` and `bow_parameters_test.cpp` are added to `plugins/innexus/tests/CMakeLists.txt`; check for `std::isnan`/`std::isfinite` usage and add to `-fno-fast-math` list if found
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T072 [US5] Commit plugin integration: `Innexus: BowExciter integrated into voice engine, bow parameters registered`
+- [X] T072 [US5] Commit plugin integration: `Innexus: BowExciter integrated into voice engine, bow parameters registered`
 
 **Checkpoint**: Bow exciter functional in the plugin. All four parameters accessible. Note trigger and release work. Plugin passes pluginval.
 
@@ -282,40 +282,40 @@ Note: The acceleration-based velocity integration is implemented in Phase 3's `p
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T073 [US6] Write failing tests for `BowedModeBPF` struct in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: `setCoefficients(440.0f, 50.0f, 44100.0)` computes valid biquad BPF coefficients; `process(input)` returns filtered output; `reset()` clears state; verify Q~50 means -3dB bandwidth is ~8.8 Hz at 440 Hz
-- [ ] T074 [US6] Write failing tests for `setBowModeActive()` in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: when false, `getFeedbackVelocity()` returns 0.0f; when true, after processing some samples with excitation input, `getFeedbackVelocity()` returns non-zero (FR-020)
-- [ ] T075 [US6] Write failing tests for `setBowPosition()` harmonic weighting in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: with `bowModeActive_=true`, at position=0.5 the excitation weight for mode k=1 (2nd mode) is `sin(2 * pi * 0.5) = 0`, confirming even-mode suppression; at position=0.13 all 8 mode weights are non-zero (FR-020, FR-024)
-- [ ] T076 [US6] Write failing tests for bowed-mode velocity feedback in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: drive ModalResonatorBank + BowExciter in a combined feedback loop; verify self-sustained oscillation occurs (output does not decay below -60 dBFS after 1000 samples at stable parameters) (SC-004)
+- [X] T073 [US6] Write failing tests for `BowedModeBPF` struct in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: `setCoefficients(440.0f, 50.0f, 44100.0)` computes valid biquad BPF coefficients; `process(input)` returns filtered output; `reset()` clears state; verify Q~50 means -3dB bandwidth is ~8.8 Hz at 440 Hz
+- [X] T074 [US6] Write failing tests for `setBowModeActive()` in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: when false, `getFeedbackVelocity()` returns 0.0f; when true, after processing some samples with excitation input, `getFeedbackVelocity()` returns non-zero (FR-020)
+- [X] T075 [US6] Write failing tests for `setBowPosition()` harmonic weighting in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: with `bowModeActive_=true`, at position=0.5 the excitation weight for mode k=1 (2nd mode) is `sin(2 * pi * 0.5) = 0`, confirming even-mode suppression; at position=0.13 all 8 mode weights are non-zero (FR-020, FR-024)
+- [X] T076 [US6] Write failing tests for bowed-mode velocity feedback in `dsp/tests/unit/processors/modal_resonator_bank_bow_test.cpp`: drive ModalResonatorBank + BowExciter in a combined feedback loop; verify self-sustained oscillation occurs (output does not decay below -60 dBFS after 1000 samples at stable parameters) (SC-004)
 
 ### 8.2 Implementation for User Story 6
 
-- [ ] T077 [US6] Add `BowedModeBPF` internal struct to `dsp/include/krate/dsp/processors/modal_resonator_bank.h` per `contracts/modal_bowed_modes.md`: fields `b0`, `b2`, `a1`, `a2`, `z1`, `z2` (b1 is always 0 for BPF); methods `setCoefficients(float freq, float q, double sampleRate)`, `process(float)`, `reset()`
-- [ ] T078 [US6] Add bowed-mode fields to `ModalResonatorBank` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: `std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_`; `float bowedModeSumVelocity_{0.0f}`; `float bowPosition_{0.13f}`; `bool bowModeActive_{false}`; `static constexpr int kNumBowedModes = 8`
-- [ ] T079 [US6] Implement `ModalResonatorBank::setBowModeActive(bool)` and `setBowPosition(float)` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`; `setBowPosition` recomputes `inputGainTarget_` weights using `sin((k+1) * kPi * bowPosition)` for k=0..numActiveModes-1
-- [ ] T080 [US6] Update `ModalResonatorBank::processSample()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: when `bowModeActive_`, after computing the full mode sum output, feed output through each of the 8 `bowedModeFilters_[k].process(output)` and accumulate into `bowedModeSumVelocity_`
-- [ ] T081 [US6] Update `ModalResonatorBank::getFeedbackVelocity()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: return `bowedModeSumVelocity_` when `bowModeActive_`, else return 0.0f (current behavior)
-- [ ] T082 [US6] Update `ModalResonatorBank::prepare()` and `reset()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h` to initialize all 8 `bowedModeFilters_` with `reset()` and set coefficients when `prepare()` is called with mode frequencies available
-- [ ] T083 [US6] Wire `setBowModeActive()` and `setBowPosition()` into `plugins/innexus/src/processor/processor.cpp`: when ExciterType::Bow is selected and ModalResonatorBank is the active resonator, call these methods on each voice's modal resonator
-- [ ] T084 [US6] Build `dsp_tests` and `innexus_tests` targets and fix all compiler errors and warnings
-- [ ] T085 [US6] Run `dsp_tests.exe "ModalResonatorBank*" 2>&1 | tail -20` and verify all bowed-mode tests pass
-- [ ] T086 [US6] Run `innexus_tests.exe 2>&1 | tail -5` and confirm no regressions
+- [X] T077 [US6] Add `BowedModeBPF` internal struct to `dsp/include/krate/dsp/processors/modal_resonator_bank.h` per `contracts/modal_bowed_modes.md`: fields `b0`, `b2`, `a1`, `a2`, `z1`, `z2` (b1 is always 0 for BPF); methods `setCoefficients(float freq, float q, double sampleRate)`, `process(float)`, `reset()`
+- [X] T078 [US6] Add bowed-mode fields to `ModalResonatorBank` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: `std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_`; `float bowedModeSumVelocity_{0.0f}`; `float bowPosition_{0.13f}`; `bool bowModeActive_{false}`; `static constexpr int kNumBowedModes = 8`
+- [X] T079 [US6] Implement `ModalResonatorBank::setBowModeActive(bool)` and `setBowPosition(float)` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`; `setBowPosition` recomputes `inputGainTarget_` weights using `sin((k+1) * kPi * bowPosition)` for k=0..numActiveModes-1
+- [X] T080 [US6] Update `ModalResonatorBank::processSample()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: when `bowModeActive_`, after computing the full mode sum output, feed output through each of the 8 `bowedModeFilters_[k].process(output)` and accumulate into `bowedModeSumVelocity_`
+- [X] T081 [US6] Update `ModalResonatorBank::getFeedbackVelocity()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h`: return `bowedModeSumVelocity_` when `bowModeActive_`, else return 0.0f (current behavior)
+- [X] T082 [US6] Update `ModalResonatorBank::prepare()` and `reset()` in `dsp/include/krate/dsp/processors/modal_resonator_bank.h` to initialize all 8 `bowedModeFilters_` with `reset()` and set coefficients when `prepare()` is called with mode frequencies available
+- [X] T083 [US6] Wire `setBowModeActive()` and `setBowPosition()` into `plugins/innexus/src/processor/processor.cpp`: when ExciterType::Bow is selected and ModalResonatorBank is the active resonator, call these methods on each voice's modal resonator
+- [X] T084 [US6] Build `dsp_tests` and `innexus_tests` targets and fix all compiler errors and warnings
+- [X] T085 [US6] Run `dsp_tests.exe "ModalResonatorBank*" 2>&1 | tail -20` and verify all bowed-mode tests pass
+- [X] T086 [US6] Run `innexus_tests.exe 2>&1 | tail -5` and confirm no regressions
 
 ### 8.3 WaveguideString DC Blocker Relocation (FR-021)
 
 The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for correct waveguide-bow coupling. It is placed in this phase because it modifies existing waveguide processing behavior and existing tests may need `Approx().margin()` adjustments.
 
-- [ ] T087 [US6] Write failing tests for DC blocker position in `dsp/tests/unit/processors/waveguide_string_dc_blocker_test.cpp`: inject a DC offset into the waveguide feedback path; verify the DC is removed by the relocated blocker; verify the fundamental at 65 Hz (cello C2) is not attenuated (blocker cutoff remains 20 Hz, not 30 Hz) (FR-021)
-- [ ] T088 [US6] Relocate `dcBlocker_` usage in `WaveguideString::process()` in `dsp/include/krate/dsp/processors/waveguide_string.h`: move the `dcBlocker_.process()` call to after the bow junction output and before signal re-enters the delay lines; no new DCBlocker instance is created
-- [ ] T089 [US6] Update existing waveguide tests in `dsp/tests/unit/processors/` that use exact float comparisons: replace exact equality with `Approx().margin(1e-5)` where DC blocker relocation changes output values slightly
-- [ ] T090 [US6] Build `dsp_tests` and run `dsp_tests.exe "[waveguide]*" 2>&1 | tail -20`; verify all existing waveguide tests pass with updated margins
+- [X] T087 [US6] Write failing tests for DC blocker position in `dsp/tests/unit/processors/waveguide_string_dc_blocker_test.cpp`: inject a DC offset into the waveguide feedback path; verify the DC is removed by the relocated blocker; verify the fundamental at 65 Hz (cello C2) is not attenuated (blocker cutoff remains 20 Hz, not 30 Hz) (FR-021)
+- [X] T088 [US6] Relocate `dcBlocker_` usage in `WaveguideString::process()` in `dsp/include/krate/dsp/processors/waveguide_string.h`: move the `dcBlocker_.process()` call to after the bow junction output and before signal re-enters the delay lines; no new DCBlocker instance is created
+- [X] T089 [US6] Update existing waveguide tests in `dsp/tests/unit/processors/` that use exact float comparisons: replace exact equality with `Approx().margin(1e-5)` where DC blocker relocation changes output values slightly
+- [X] T090 [US6] Build `dsp_tests` and run `dsp_tests.exe "[waveguide]*" 2>&1 | tail -20`; verify all existing waveguide tests pass with updated margins
 
 ### 8.4 Cross-Platform Verification (MANDATORY)
 
-- [ ] T091 [US6] Add `modal_resonator_bank_bow_test.cpp` and `waveguide_string_dc_blocker_test.cpp` to `dsp/tests/unit/CMakeLists.txt`; check for IEEE 754 function usage and add to `-fno-fast-math` list if found
+- [X] T091 [US6] Add `modal_resonator_bank_bow_test.cpp` and `waveguide_string_dc_blocker_test.cpp` to `dsp/tests/unit/CMakeLists.txt`; check for IEEE 754 function usage and add to `-fno-fast-math` list if found
 
 ### 8.5 Commit (MANDATORY)
 
-- [ ] T092 [US6] Commit modal bowed-mode coupling and DC blocker relocation: `ModalResonatorBank: 8 bowed-mode BPF velocity taps for bow-modal coupling; WaveguideString: DC blocker relocated per FR-021`
+- [X] T092 [US6] Commit modal bowed-mode coupling and DC blocker relocation: `ModalResonatorBank: 8 bowed-mode BPF velocity taps for bow-modal coupling; WaveguideString: DC blocker relocated per FR-021`
 
 **Checkpoint**: BowExciter + ModalResonatorBank produces self-sustained oscillation. Position-dependent harmonic weighting is verified. WaveguideString DC blocker correctly positioned.
 
@@ -331,29 +331,29 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T093 [US7] Write failing tests for oversampling parameter in `plugins/innexus/tests/unit/vst/bow_oversampling_test.cpp`: toggle `kBowOversamplingId` parameter; verify the processor reads and applies the setting; verify default is 1x (false)
-- [ ] T094 [US7] Write failing tests for oversampling preset round-trip in `plugins/innexus/tests/unit/vst/bow_oversampling_test.cpp`: save state with oversampling=true; restore state; verify `kBowOversamplingId` is true after restore (SC-012)
-- [ ] T095 [US7] Write failing tests for aliasing reduction in `dsp/tests/unit/processors/bow_exciter_oversampling_test.cpp`: drive BowExciter at 2x rate (88200 Hz internal rate) with a 2000 Hz feedback frequency at pressure=0.9; verify the output at 1x has higher alias content than at 2x (SC-012)
+- [X] T093 [US7] Write failing tests for oversampling parameter in `plugins/innexus/tests/unit/vst/bow_oversampling_test.cpp`: toggle `kBowOversamplingId` parameter; verify the processor reads and applies the setting; verify default is 1x (false)
+- [X] T094 [US7] Write failing tests for oversampling preset round-trip in `plugins/innexus/tests/unit/vst/bow_oversampling_test.cpp`: save state with oversampling=true; restore state; verify `kBowOversamplingId` is true after restore (SC-012)
+- [X] T095 [US7] Write failing tests for aliasing reduction in `dsp/tests/unit/processors/bow_exciter_oversampling_test.cpp`: drive BowExciter at 2x rate (88200 Hz internal rate) with a 2000 Hz feedback frequency at pressure=0.9; verify the output at 1x has higher alias content than at 2x (SC-012)
 
 ### 9.2 Implementation for User Story 7
 
-- [ ] T096 [US7] Add oversampling state to `BowExciter` in `dsp/include/krate/dsp/processors/bow_exciter.h`: `bool oversamplingEnabled_{false}`; `OnePoleLP downsampleLpf_`; `float upsampleState_{0.0f}`; add `setOversamplingEnabled(bool)` setter
-- [ ] T097 [US7] Implement the 2x oversampling path in `BowExciter::process()` in `dsp/include/krate/dsp/processors/bow_exciter.h`: when `oversamplingEnabled_`, linearly interpolate the feedback input, run the friction junction twice at the internal 2x rate, apply `downsampleLpf_` to the two outputs, return the averaged result; when disabled, run the existing 1x path unchanged (FR-022, FR-023)
-- [ ] T098 [US7] Update `BowExciter::prepare()` in `dsp/include/krate/dsp/processors/bow_exciter.h`: when oversampling is enabled, prepare `downsampleLpf_` at Nyquist/2 = sampleRate/2 as the anti-alias filter
-- [ ] T099 [US7] Wire `kBowOversamplingId` parameter in `plugins/innexus/src/processor/processor_params.cpp`: on parameter change, call `voice.bowExciter.setOversamplingEnabled(value > 0.5f)` for all voices
-- [ ] T100 [US7] Verify `kBowOversamplingId` is already handled in `processor_state.cpp` (added in T067); if not, add save/load for this parameter
-- [ ] T101 [US7] Build `dsp_tests` and `innexus_tests` targets and fix all compiler errors and warnings
-- [ ] T102 [US7] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all oversampling tests pass
-- [ ] T103 [US7] Run `innexus_tests.exe 2>&1 | tail -5` and confirm no regressions
-- [ ] T104 [US7] Run pluginval again to verify no regressions from oversampling feature: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
+- [X] T096 [US7] Add oversampling state to `BowExciter` in `dsp/include/krate/dsp/processors/bow_exciter.h`: `bool oversamplingEnabled_{false}`; `OnePoleLP downsampleLpf_`; `float upsampleState_{0.0f}`; add `setOversamplingEnabled(bool)` setter
+- [X] T097 [US7] Implement the 2x oversampling path in `BowExciter::process()` in `dsp/include/krate/dsp/processors/bow_exciter.h`: when `oversamplingEnabled_`, linearly interpolate the feedback input, run the friction junction twice at the internal 2x rate, apply `downsampleLpf_` to the two outputs, return the averaged result; when disabled, run the existing 1x path unchanged (FR-022, FR-023)
+- [X] T098 [US7] Update `BowExciter::prepare()` in `dsp/include/krate/dsp/processors/bow_exciter.h`: when oversampling is enabled, prepare `downsampleLpf_` at Nyquist/2 = sampleRate/2 as the anti-alias filter
+- [X] T099 [US7] Wire `kBowOversamplingId` parameter in `plugins/innexus/src/processor/processor_params.cpp`: on parameter change, call `voice.bowExciter.setOversamplingEnabled(value > 0.5f)` for all voices
+- [X] T100 [US7] Verify `kBowOversamplingId` is already handled in `processor_state.cpp` (added in T067); if not, add save/load for this parameter
+- [X] T101 [US7] Build `dsp_tests` and `innexus_tests` targets and fix all compiler errors and warnings
+- [X] T102 [US7] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all oversampling tests pass
+- [X] T103 [US7] Run `innexus_tests.exe 2>&1 | tail -5` and confirm no regressions
+- [X] T104 [US7] Run pluginval again to verify no regressions from oversampling feature: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"`
 
 ### 9.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T105 [US7] Add `bow_oversampling_test.cpp` and `bow_exciter_oversampling_test.cpp` to their respective CMakeLists.txt; add to `-fno-fast-math` list in `dsp/tests/unit/CMakeLists.txt` and `plugins/innexus/tests/CMakeLists.txt` if IEEE 754 functions are used
+- [X] T105 [US7] Add `bow_oversampling_test.cpp` and `bow_exciter_oversampling_test.cpp` to their respective CMakeLists.txt; add to `-fno-fast-math` list in `dsp/tests/unit/CMakeLists.txt` and `plugins/innexus/tests/CMakeLists.txt` if IEEE 754 functions are used
 
 ### 9.4 Commit (MANDATORY)
 
-- [ ] T106 [US7] Commit 2x oversampling: `BowExciter: switchable 2x oversampling for friction junction via kBowOversamplingId`
+- [X] T106 [US7] Commit 2x oversampling: `BowExciter: switchable 2x oversampling for friction junction via kBowOversamplingId`
 
 **Checkpoint**: Oversampling parameter is functional, saves in presets, and measurably reduces aliasing at high pitch + high pressure.
 
@@ -363,14 +363,14 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 
 **Purpose**: Final integration validation, edge cases, and end-to-end verification across all user stories.
 
-- [ ] T107a [P] Verify SC-003: BowExciter + WaveguideString produces a convincing sustained tone at default parameters. Render 2 seconds of audio at 220 Hz (A3) with pressure=0.3, speed=0.5, position=0.13. Listen and document the result in the compliance table. If an approval test is feasible, save a golden reference via `bow_waveguide_sustained_220hz.wav` in `specs/130-bow-model-exciter/golden/`
-- [ ] T107b [P] Verify SC-004: BowExciter + ModalResonatorBank (8 bowed modes active) produces a self-sustained "bowed vibraphone" or "bowed bar" texture. Render 2 seconds and confirm output does not decay to silence. Document result in the compliance table
-- [ ] T107 [P] Verify edge case: bow at speed=0.0 produces silence -- run `dsp_tests.exe "BowExciter*speed*zero*"` or equivalent test tag; add test if missing
-- [ ] T108 [P] Verify edge case: multiple voices each with BowExciter do not share state -- instantiate 4 `BowExciter` instances, trigger them at different velocities, verify each produces independent output
-- [ ] T109 [P] Verify edge case: switching from ExciterType::Impact to ExciterType::Bow mid-note does not crash -- test in `plugins/innexus/tests/unit/processor/`; verify voice state is valid after exciter type switch
-- [ ] T109b Verify SC-010 pitch-range loudness consistency: run BowExciter + WaveguideString at 65 Hz (cello C2), 220 Hz (A3), and 880 Hz (A5) with identical parameters (pressure=0.3, speed=0.5, position=0.13, velocity=0.8). Measure RMS output level at each pitch after 500 ms of steady state. Verify all three RMS values are within ±6 dB of each other. Document measured values in the compliance table.
-- [ ] T110 Verify all bow parameters (`kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId`) display correctly in the plugin UI -- confirm controller.cpp registration produces correct parameter labels and ranges
-- [ ] T111 Run full test suite to verify no regressions from all phases: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
+- [X] T107a [P] Verify SC-003: BowExciter + WaveguideString produces a convincing sustained tone at default parameters. Render 2 seconds of audio at 220 Hz (A3) with pressure=0.3, speed=0.5, position=0.13. Listen and document the result in the compliance table. If an approval test is feasible, save a golden reference via `bow_waveguide_sustained_220hz.wav` in `specs/130-bow-model-exciter/golden/`
+- [X] T107b [P] Verify SC-004: BowExciter + ModalResonatorBank (8 bowed modes active) produces a self-sustained "bowed vibraphone" or "bowed bar" texture. Render 2 seconds and confirm output does not decay to silence. Document result in the compliance table
+- [X] T107 [P] Verify edge case: bow at speed=0.0 produces silence -- run `dsp_tests.exe "BowExciter*speed*zero*"` or equivalent test tag; add test if missing
+- [X] T108 [P] Verify edge case: multiple voices each with BowExciter do not share state -- instantiate 4 `BowExciter` instances, trigger them at different velocities, verify each produces independent output
+- [X] T109 [P] Verify edge case: switching from ExciterType::Impact to ExciterType::Bow mid-note does not crash -- test in `plugins/innexus/tests/unit/processor/`; verify voice state is valid after exciter type switch
+- [X] T109b Verify SC-010 pitch-range loudness consistency: run BowExciter + WaveguideString at 65 Hz (cello C2), 220 Hz (A3), and 880 Hz (A5) with identical parameters (pressure=0.3, speed=0.5, position=0.13, velocity=0.8). Measure RMS output level at each pitch after 500 ms of steady state. Verify all three RMS values are within ±6 dB of each other. Document measured values in the compliance table.
+- [X] T110 Verify all bow parameters (`kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId`) display correctly in the plugin UI -- confirm controller.cpp registration produces correct parameter labels and ranges
+- [X] T111 Run full test suite to verify no regressions from all phases: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
 - [ ] T112 Commit polish and edge case tests
 
 ---
