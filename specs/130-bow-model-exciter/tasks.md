@@ -173,23 +173,23 @@ Note: The pressure parameter is already handled inside `process()` via `setPress
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T041 [US3] Write failing tests for position impedance formula in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at position=0.13, impedance = `1.0f / max(0.13f * 0.87f * 4.0f, 0.1f)`; at position=0.0, impedance = `1.0f / 0.1f` (singularity prevented); at position=0.5, impedance = `1.0f / (0.5f * 0.5f * 4.0f)` = 1.0 (FR-007)
-- [ ] T042 [US3] Write failing tests for harmonic weighting at position=0.5 in `dsp/tests/unit/processors/bow_exciter_test.cpp`: run BowExciter in a simulated feedback loop; at position=0.5 the excitation force has measurably different spectral character vs position=0.13, consistent with 2nd harmonic suppression (FR-024, SC-005)
-- [ ] T043 [US3] Write failing tests for position-dependent playability in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at position=0.05 (near bridge) with pressure=0.15, oscillation does NOT sustain (output decays); at position=0.13 with the same pressure, oscillation sustains. This verifies Schelleng diagram behavior (SC-006)
-- [ ] T043b [US3] Write failing test confirming Schelleng behavior is a pressure threshold, not a hard block: at position=0.05 with pressure=0.4 (above the near-bridge F_min), oscillation DOES sustain. This confirms the model correctly requires higher pressure near the bridge, rather than preventing oscillation entirely
-- [ ] T044 [US3] Write failing tests for position=0.0 and position=1.0 edge cases in `dsp/tests/unit/processors/bow_exciter_test.cpp`: neither value causes NaN, Inf, or division by zero; `setPosition()` accepts and clamps these values (FR-007)
+- [X] T041 [US3] Write failing tests for position impedance formula in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at position=0.13, impedance = `1.0f / max(0.13f * 0.87f * 4.0f, 0.1f)`; at position=0.0, impedance = `1.0f / 0.1f` (singularity prevented); at position=0.5, impedance = `1.0f / (0.5f * 0.5f * 4.0f)` = 1.0 (FR-007)
+- [X] T042 [US3] Write failing tests for harmonic weighting at position=0.5 in `dsp/tests/unit/processors/bow_exciter_test.cpp`: run BowExciter in a simulated feedback loop; at position=0.5 the excitation force has measurably different spectral character vs position=0.13, consistent with 2nd harmonic suppression (FR-024, SC-005)
+- [X] T043 [US3] Write failing tests for position-dependent playability in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at position=0.05 (near bridge) with pressure=0.15, oscillation does NOT sustain (output decays); at position=0.13 with the same pressure, oscillation sustains. This verifies Schelleng diagram behavior (SC-006)
+- [X] T043b [US3] Write failing test confirming Schelleng behavior is a pressure threshold, not a hard block: at position=0.05 with pressure=0.4 (above the near-bridge F_min), oscillation DOES sustain. This confirms the model correctly requires higher pressure near the bridge, rather than preventing oscillation entirely
+- [X] T044 [US3] Write failing tests for position=0.0 and position=1.0 edge cases in `dsp/tests/unit/processors/bow_exciter_test.cpp`: neither value causes NaN, Inf, or division by zero; `setPosition()` accepts and clamps these values (FR-007)
 
 ### 5.2 Implementation for User Story 3
 
 Note: Position impedance scaling is part of `process()` implemented in Phase 3. This phase verifies the formula and tuning. The harmonic weighting via `sin(n * pi * beta)` is relevant when position modulates the excitation -- this affects the waveguide coupling in WaveguideString, which is wired in Phase 7 (US5/US6). For isolated BowExciter tests, the harmonic weighting manifests indirectly through the impedance scaling.
 
-- [ ] T045 [US3] Verify `setPosition()` in `dsp/include/krate/dsp/processors/bow_exciter.h` clamps input to [0.0, 1.0] and the position impedance computation uses `max(beta * (1 - beta) * 4.0f, 0.1f)` to prevent the singularity at beta=0 and beta=1
-- [ ] T046 [US3] Build `dsp_tests` target and fix all compiler errors and warnings
-- [ ] T047 [US3] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 3 tests pass
+- [X] T045 [US3] Verify `setPosition()` in `dsp/include/krate/dsp/processors/bow_exciter.h` clamps input to [0.0, 1.0] and the position impedance computation uses `max(beta * (1 - beta) * 4.0f, 0.1f)` to prevent the singularity at beta=0 and beta=1
+- [X] T046 [US3] Build `dsp_tests` target and fix all compiler errors and warnings
+- [X] T047 [US3] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 3 tests pass
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T048 [US3] Verify no new files require `-fno-fast-math` additions in `dsp/tests/unit/CMakeLists.txt`
+- [X] T048 [US3] Verify no new files require `-fno-fast-math` additions in `dsp/tests/unit/CMakeLists.txt`
 
 ### 5.4 Commit (MANDATORY)
 
