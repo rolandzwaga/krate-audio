@@ -1593,6 +1593,8 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
     impactKnobContainer_ = nullptr;
+    modalKnobContainer_ = nullptr;
+    waveguideKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
     adsrExpandedOverlay_ = nullptr;
 
@@ -1979,6 +1981,61 @@ void Controller::updateImpactKnobVisibility()
 }
 
 // ==============================================================================
+// updateResonatorVisibility
+// ==============================================================================
+void Controller::updateResonatorVisibility()
+{
+    // Lazy-find the two resonator knob containers by locating children with
+    // unique tags: ResonanceStretch (803) for modal, WaveguideStiffness (811)
+    // for waveguide. Take their parent containers.
+    if ((!modalKnobContainer_ || !waveguideKnobContainer_) && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || (modalKnobContainer_ && waveguideKnobContainer_))
+                    return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kResonanceStretchId
+                            && !modalKnobContainer_) {
+                            modalKnobContainer_ = container;
+                        }
+                        if (control->getTag() == kWaveguideStiffnessId
+                            && !waveguideKnobContainer_) {
+                            waveguideKnobContainer_ = container;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!modalKnobContainer_ || !waveguideKnobContainer_)
+        return;
+
+    // ResonanceType: StringListParameter with 3 values
+    // Normalized: 0.0 = Modal, 0.5 = Waveguide, 1.0 = Body
+    auto* param = getParameterObject(kResonanceTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isModal = (norm < 0.25f);     // Modal = 0.0
+    bool isWaveguide = (norm >= 0.25f && norm < 0.75f); // Waveguide = 0.5
+
+    modalKnobContainer_->setVisible(isModal);
+    waveguideKnobContainer_->setVisible(isWaveguide);
+
+    if (modalKnobContainer_->getParentView())
+        modalKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // onDisplayTimerFired (T016: FR-049)
 // ==============================================================================
 void Controller::onDisplayTimerFired()
@@ -1988,6 +2045,9 @@ void Controller::onDisplayTimerFired()
 
     // Update impact exciter knob visibility based on exciter type
     updateImpactKnobVisibility();
+
+    // Update resonator knob containers based on resonance type
+    updateResonatorVisibility();
 
     // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
     // read directly from the processor's shared display buffer

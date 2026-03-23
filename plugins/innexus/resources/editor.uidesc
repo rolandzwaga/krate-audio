@@ -155,6 +155,11 @@
     <control-tag name="ResonanceStretch" tag="803"/>
     <control-tag name="ResonanceScatter" tag="804"/>
 
+    <!-- Waveguide String Resonance (810-812) -->
+    <control-tag name="ResonanceType" tag="810"/>
+    <control-tag name="WaveguideStiffness" tag="811"/>
+    <control-tag name="WaveguidePickPosition" tag="812"/>
+
     <!-- Impact Exciter (805-809) -->
     <control-tag name="ExciterType" tag="805"/>
     <control-tag name="ImpactHardness" tag="806"/>
@@ -824,70 +829,155 @@
           title="Resonator Bank" fieldset-title="Resonator Bank" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
-      <!-- Physical Model Mix (dry/wet blend) -->
-      <view class="ArcKnob" origin="55, 18" size="42, 42"
-            control-tag="PhysModelMix" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="50, 60" size="52, 12"
-            control-tag="PhysModelMix" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="50, 72" size="52, 10"
+      <!-- Resonance Type selector (Modal Resonator Bank / Waveguide String) -->
+      <view class="COptionMenu" origin="15, 22" size="130, 22"
+            control-tag="ResonanceType" default-value="0"
+            font="label-font" font-color="text-primary"
+            back-color="bg-panel" frame-color="text-dim"/>
+      <view class="CTextLabel" origin="15, 46" size="130, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Mix"/>
+            title="Resonance Type"/>
 
-      <!-- Decay (ring-out time, log-mapped 0.01-5.0s) -->
-      <view class="ArcKnob" origin="195, 18" size="42, 42"
-            control-tag="ResonanceDecay" default-value="0.63"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="190, 60" size="52, 12"
-            control-tag="ResonanceDecay" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="190, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Decay"/>
+      <!-- Modal Resonator Bank knobs (visibility controlled by ResonanceType) -->
+      <view class="CViewContainer" origin="160, 0" size="630, 110"
+            background-color="~ TransparentCColor">
 
-      <!-- Brightness (material character: wood=0 to metal=1) -->
-      <view class="ArcKnob" origin="335, 18" size="42, 42"
-            control-tag="ResonanceBrightness" default-value="0.5"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="330, 60" size="52, 12"
-            control-tag="ResonanceBrightness" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="330, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Bright"/>
+        <!-- Physical Model Mix (dry/wet blend) -->
+        <view class="ArcKnob" origin="15, 18" size="42, 42"
+              control-tag="PhysModelMix" default-value="0"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="10, 60" size="52, 12"
+              control-tag="PhysModelMix" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="10, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Mix"/>
 
-      <!-- Stretch (stiff-string inharmonicity) -->
-      <view class="ArcKnob" origin="475, 18" size="42, 42"
-            control-tag="ResonanceStretch" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="470, 60" size="52, 12"
-            control-tag="ResonanceStretch" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="470, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Stretch"/>
+        <!-- Decay (ring-out time) -->
+        <view class="ArcKnob" origin="140, 18" size="42, 42"
+              control-tag="ResonanceDecay" default-value="0.63"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="135, 60" size="52, 12"
+              control-tag="ResonanceDecay" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="135, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Decay"/>
 
-      <!-- Scatter (irregular mode displacement) -->
-      <view class="ArcKnob" origin="615, 18" size="42, 42"
-            control-tag="ResonanceScatter" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="610, 60" size="52, 12"
-            control-tag="ResonanceScatter" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="610, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Scatter"/>
+        <!-- Brightness (material character) -->
+        <view class="ArcKnob" origin="265, 18" size="42, 42"
+              control-tag="ResonanceBrightness" default-value="0.5"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="260, 60" size="52, 12"
+              control-tag="ResonanceBrightness" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="260, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Bright"/>
+
+        <!-- Stretch (stiff-string inharmonicity) -->
+        <view class="ArcKnob" origin="390, 18" size="42, 42"
+              control-tag="ResonanceStretch" default-value="0"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="385, 60" size="52, 12"
+              control-tag="ResonanceStretch" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="385, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Stretch"/>
+
+        <!-- Scatter (irregular mode displacement) -->
+        <view class="ArcKnob" origin="515, 18" size="42, 42"
+              control-tag="ResonanceScatter" default-value="0"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="510, 60" size="52, 12"
+              control-tag="ResonanceScatter" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="510, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Scatter"/>
+      </view> <!-- end Modal knobs container -->
+
+      <!-- Waveguide String knobs (visibility controlled by ResonanceType) -->
+      <view class="CViewContainer" origin="160, 0" size="630, 110"
+            background-color="~ TransparentCColor">
+
+        <!-- Physical Model Mix (dry/wet blend, shared) -->
+        <view class="ArcKnob" origin="15, 18" size="42, 42"
+              control-tag="PhysModelMix" default-value="0"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="10, 60" size="52, 12"
+              control-tag="PhysModelMix" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="10, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Mix"/>
+
+        <!-- Decay (shared via IResonator) -->
+        <view class="ArcKnob" origin="140, 18" size="42, 42"
+              control-tag="ResonanceDecay" default-value="0.63"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="135, 60" size="52, 12"
+              control-tag="ResonanceDecay" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="135, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Decay"/>
+
+        <!-- Brightness (shared via IResonator) -->
+        <view class="ArcKnob" origin="265, 18" size="42, 42"
+              control-tag="ResonanceBrightness" default-value="0.5"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="260, 60" size="52, 12"
+              control-tag="ResonanceBrightness" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="260, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Bright"/>
+
+        <!-- Stiffness (waveguide-specific: inharmonicity) -->
+        <view class="ArcKnob" origin="390, 18" size="42, 42"
+              control-tag="WaveguideStiffness" default-value="0"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="385, 60" size="52, 12"
+              control-tag="WaveguideStiffness" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="385, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Stiff"/>
+
+        <!-- Pick Position (waveguide-specific: pluck point) -->
+        <view class="ArcKnob" origin="515, 18" size="42, 42"
+              control-tag="WaveguidePickPosition" default-value="0.13"
+              arc-color="accent"/>
+        <view class="CParamDisplay" origin="510, 60" size="52, 12"
+              control-tag="WaveguidePickPosition" font="value-font"
+              font-color="text-primary" back-color="~ TransparentCColor"
+              text-alignment="center"/>
+        <view class="CTextLabel" origin="510, 72" size="52, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Pick"/>
+      </view> <!-- end Waveguide knobs container -->
     </view>
 
     <!-- ============================================================== -->
