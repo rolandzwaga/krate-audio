@@ -691,16 +691,13 @@ Signal model (hybrid pulse + noise):
 ### Voice Integration
 
 ```cpp
-// Exciter selection
-float excitation;
-switch (exciterType) {
-    case kResidual: excitation = residualSynth.process(); break;
-    case kImpact:   excitation = impactExciter.process(velocity); break;
-    case kBow:      excitation = bowModel.process(); break;  // Phase 4
-}
+// Unified exciter interface (all types share process(feedbackVelocity))
+// MIDI velocity is set at trigger time via exciter->trigger(velocity), not per-sample.
+float feedbackVelocity = resonator->getFeedbackVelocity();  // 0 when not bowed
+float excitation = exciter->process(feedbackVelocity);
 // Resonator state is never reset on retrigger — excitation adds to existing vibration.
 // Energy capping prevents explosion from rapid retrigger.
-float physicalSample = modalResonator.process(excitation);
+float physicalSample = resonator->process(excitation);
 
 // Future: per-mode excitation weighting
 // for (int k = 0; k < numModes; ++k)
@@ -1144,49 +1141,437 @@ Mitigations:
 
 **Sonic character:** Bowed strings, blown tubes, sustained friction textures. The micro-variations of stick-slip friction make sustained notes *alive* in a way that static additive frames can't achieve.
 
+### Physical Background
+
+#### Helmholtz Motion and Stick-Slip Dynamics
+
+A bowed string vibrates in **Helmholtz motion** [H1863]: the string forms two straight-line segments connected by a sharp corner (the "Helmholtz corner") that circulates around the string at the wave speed. At the bowing point, the string alternates between:
+
+- **Stick phase:** The corner travels away from the bow point. String moves with the bow (friction holds).
+- **Slip phase:** The corner passes the bow point. String suddenly slides back against the bow direction.
+
+The velocity at the bow point approximates a **sawtooth wave** — constant during stick, sharp jump during slip — which gives bowed strings their rich harmonic content. The ratio of stick time to slip time is determined by the bow position β (distance from bridge as a fraction of string length).
+
+#### The Schelleng Diagram (Playability Regions)
+
+Schelleng [S73] established that bow force (F) and bow position (β) define three vibration regimes on a log-log plot:
+
+1. **Below F_min — Surface sound / sul tasto:** Bow slides without establishing Helmholtz motion. Thin, glassy, airy tone.
+2. **Between F_min and F_max — Helmholtz region:** Stable stick-slip oscillation. Clean, musical bowing.
+3. **Above F_max — Raucous / scratchy:** Multiple slip events per period, no clean Helmholtz corner. Harsh, crunchy texture.
+
+The boundary equations (approximate):
+```
+F_min ∝ v_bow / β²     (minimum force for Helmholtz motion)
+F_max ∝ v_bow / β      (maximum force before raucous regime)
+```
+
+The playable range **narrows as β decreases** (bow closer to bridge). This is why sul ponticello requires careful pressure control. All three regimes are musically useful in a synthesizer context.
+
+#### Attack Transients: The Guettler Diagram
+
+Guettler [G02] mapped the parameter space of **bow acceleration** vs **bow force** for attack quality:
+
+- A **triangular "playable" region** (vertex at origin) produces clean attacks where Helmholtz motion establishes within ~10-20 nominal periods.
+- Outside this region: scratchy transients with multiple flyback, or failed attacks.
+- The triangle narrows as bow position moves closer to the bridge.
+
+Pre-Helmholtz transients involve chaotic stick-slip interaction producing broadband noise — the characteristic "crunch" at bow onset. The **rate of bow velocity increase** and **initial bow force** determine whether the attack is clean or scratchy.
+
+### Friction Curve Models
+
+The core of bow modelling is the **friction function** mapping relative velocity between bow and string to friction force. Five models exist in the literature, with increasing realism and cost:
+
+#### Model A: STK Power-Law Bow Table (Recommended Primary)
+
+The STK (Synthesis Toolkit) [CS99] uses a memoryless nonlinearity proven in real-time synthesis since the 1990s:
+
+```
+bowTable(v_delta) = clamp( (|v_delta * slope + offset| + 0.75)^(-4), 0.01, 0.98 )
+
+where: slope = 5.0 - 4.0 * bowPressure    (maps pressure 0→1 to slope 5→1)
+       offset = 0.0                        (friction asymmetry, typically zero)
+```
+
+The force injected into the resonator is `v_delta * bowTable(v_delta)`, i.e. the product of velocity difference and reflection coefficient.
+
+**Optimization:** Replace `pow(x, -4)` with `1.0f / (x * x * x * x)` — four multiplies instead of an expensive `pow()` call. Can also be pre-computed as a 256-entry lookup table for further savings.
+
+**Characteristics:**
+- Sharp peak at zero differential velocity (stick phase) that drops rapidly (slip phase)
+- Higher pressure → lower slope → wider sticking zone → more "grabbing"
+- No hysteresis (memoryless) — simplifies implementation, sacrifices some transient realism
+- CPU cost: ~4 multiplies + 1 fabs + 1 clamp per sample
+
+This is also exactly what Faust's `physmodels.lib` uses:
+```faust
+bowTable(offset, slope) = pow(abs(sample) + 0.75, -4) : min(1)
+with { sample = +(offset) * slope; };
+violinBowTable(bowPressure) = bowTable(0, 5 - 4 * bowPressure);
+```
+
+#### Model B: Friedlander/Keller Piecewise Friction
+
+The original physical model [F53] uses a piecewise friction curve:
+
+```
+f(v) = μ_s * F_N                                           for |v| ≤ v_capture (stick)
+f(v) = μ_d * F_N + (μ_s - μ_d) * F_N * v_capture / |v|    for |v| > v_capture (slip)
+```
+
+Where μ_s = static friction coefficient, μ_d = dynamic friction coefficient, F_N = normal (bow) force, v_capture = capture velocity.
+
+**Hysteresis:** The Friedlander model can have up to 3 intersection points with the string's impedance load line, creating hysteresis in stick-slip transitions. The physical system follows the branch closest to its current state. The STK bow table ignores this hysteresis entirely.
+
+#### Model C: Thermal Friction (Future Enhancement)
+
+Smith & Woodhouse [SW00] showed that rosin friction depends on **temperature**, not just velocity. Frictional heating during stick phase softens rosin, reducing viscosity; cooling during slip re-hardens it. This creates naturally hysteretic friction without explicit multi-intersection tracking:
+
+```
+dT/dt = (friction_power - heat_loss) / thermal_mass
+μ(v, T) = f(v, T)    // friction depends on both velocity AND temperature
+```
+
+**Benefit:** More realistic transient behavior — Helmholtz motion establishes more reliably and quickly than with the classic memoryless model. Significantly better attack quality.
+
+**Cost:** ~2-3x the simple bow table (one additional state variable per sample).
+
+**Recommendation:** Consider as a future "quality" option for users who want more expressive transients. Not needed for initial implementation.
+
+#### Model D: Elasto-Plastic Bristle (Research Reference Only)
+
+Dupont et al. [D02], applied to bowed strings by Serafin [S04] at IRCAM/CCRMA. Models bow-string contact as a deformable "bristle" with elastic pre-sliding:
+
+```
+dz/dt = v * (1 - α(v,z) * z / z_ss(v))
+f = σ₀ * z + σ₁ * dz/dt + σ₂ * v
+```
+
+Produces the most physically realistic pre-slip behavior (the "give" before the bow grabs) but at ~4x the cost of the simple bow table. Overkill for a synthesizer context.
+
+#### Model E: Bilbao Exponential (Finite Difference)
+
+Bilbao [B09] uses a smooth bell curve: `φ(v) = √(2a) * v * exp(-a*v² + 0.5)` with `a ≈ 100`. Requires Newton-Raphson iteration (up to 100 iterations/sample) — far too expensive for real-time plugin use but useful as a reference for accuracy comparison.
+
+#### Friction Model Comparison
+
+| Model | Hysteresis | State Vars | CPU Cost | Realism | Recommended Use |
+|-------|-----------|------------|----------|---------|-----------------|
+| STK Bow Table (A) | None | 0 | Very Low | Musical | **Primary model** |
+| Friedlander (B) | Possible | 0 | Low | Good | Reference |
+| Thermal (C) | Natural | 1 | Medium | Very Good | Future enhancement |
+| Elasto-Plastic (D) | Natural | 1 | High | Excellent | Research only |
+| Bilbao Exponential (E) | N/A | N/A | Very High | Reference-grade | Offline only |
+
 ### New DSP Components
 
 #### `BowExciter` — Layer 2 (processors)
 Location: `dsp/include/krate/dsp/processors/bow_exciter.h`
 
+**Interface:** `float process(float feedbackVelocity)` — unified with `ImpactExciter` (which ignores the feedback parameter). This ensures the voice engine can switch exciter types without branching on interface shape. See "Unified Exciter Interface" below.
+
 ```
 Input: continuous (runs every sample while note is held)
 Params: pressure (0-1), speed (0-1), position (0-1)
-Output: continuous excitation signal
+Output: continuous excitation signal (force injected into resonator)
 
-Model (simplified Friedlander friction curve):
-  - Velocity difference = bowSpeed - stringVelocity (from resonator feedback)
-  - Friction force = pressure * frictionCurve(velocityDifference)
-  - frictionCurve: hyperbolic shape with stick/slip transition
-  - Position: controls which harmonics are emphasized (node placement)
+Per-sample algorithm (STK power-law bow table):
+  1. bowAcceleration = attackAccel * envelope   // envelope controls acceleration, not velocity directly
+  2. bowVelocity += bowAcceleration * dt         // integrate to get velocity (Guettler-aware)
+  3. bowVelocity = clamp(bowVelocity, 0, maxVelocity * speed)  // speed param sets ceiling
+  4. deltaV = bowVelocity - feedbackVelocity     // from resonator feedback
+  5. slope = clamp(5.0 - 4.0 * pressure, 1.0, 10.0)  // cap to prevent float overflow in x^4
+  6. offset = frictionJitter                     // slow LFO + noise (see "Rosin Character" below)
+  7. x = |deltaV * slope + offset| + 0.75
+  8. reflectionCoeff = clamp(1/(x*x*x*x), 0.01, 0.98)
+  9. rawForce = deltaV * reflectionCoeff
+  10. rawForce = bowHairLPF.tick(rawForce)        // one-pole LPF ~8 kHz (see "Bow Hair Width" below)
+  11. rawForce *= positionImpedance               // position-dependent impedance scaling (see below)
+  12. excitationForce = rawForce * energyGain     // energy-aware scaling (see below)
+  13. Return excitationForce
+
+Acceleration-based bow envelope (Guettler compliance):
+  The Guettler diagram [G02] shows that attack quality depends on bow
+  ACCELERATION, not just velocity. Using velocity = speed * envelope
+  produces a fixed ramp shape regardless of attack time. Instead:
+  - The ADSR envelope drives acceleration (its derivative controls jerk)
+  - Velocity is the integral of acceleration
+  - Short ADSR attack = high acceleration = snappy, potentially scratchy onset
+  - Long ADSR attack = low acceleration = smooth, clean onset
+  - This naturally produces the clean vs scratchy attack spectrum without
+    separate transient modelling
+
+Position-dependent impedance scaling:
+  The impedance seen by the bow varies with position β. Near the bridge
+  (small β) or near the nut (β near 1), impedance is high — the string
+  is harder to excite. Near the centre, impedance is low — easier to excite.
+
+  positionImpedance = 1.0 / max(β * (1 - β) * 4.0, 0.1)
+
+  The factor of 4 normalises so that β=0.5 gives impedance=1.0.
+  The max(..., 0.1) prevents singularities at β=0 and β=1.
+
+  This gives:
+  - β = 0.13 (normal): impedance ≈ 2.2 (moderate effort to excite)
+  - β = 0.5 (centre): impedance = 1.0 (easiest to excite)
+  - β = 0.05 (ponticello): impedance ≈ 5.3 (hard to excite, needs more pressure)
+
+  Combined with the Schelleng boundaries, this makes position affect
+  playability (not just spectrum), matching real bowed string behaviour.
+
+Rosin character (friction jitter):
+  Real rosin isn't perfectly uniform — surface irregularities and thermal
+  micro-variations break the mathematical perfection of the stick-slip cycle.
+  Without jitter, the model produces a "perfect" static loop that sounds
+  distinctly digital. A small modulation of the bow table's offset parameter
+  prevents this:
+
+  frictionJitter = lfo(0.7 Hz, depth=0.003) + noise(highpassed @ 200 Hz, depth=0.001)
+
+  The LFO provides slow drift (simulating gradual rosin redistribution).
+  The noise provides per-sample variation (simulating rosin granularity).
+  Both are internal — not user-exposed. Depths are small enough to be
+  inaudible as pitch/timbre modulation but sufficient to break periodicity.
+
+Bow hair width (excitation LPF):
+  A real bow is a ribbon of hair (~10mm wide), not a mathematical point.
+  A point-source excitation erroneously excites arbitrarily high frequencies
+  that the finite bow width would physically damp. A one-pole LPF at ~8 kHz
+  on the excitation force simulates this:
+
+  bowHairLPF: one-pole lowpass, cutoff ≈ 8 kHz, applied to rawForce (step 10)
+
+  This is always-on and internal (not a parameter). It tames the "line-y"
+  quality of point-source excitation without audibly dulling the tone, since
+  the string loss filter already handles high-frequency decay per round-trip.
+
+Position effect (harmonic suppression):
+  Bowing at position β = 1/n suppresses the nth harmonic and its multiples.
+  Spectral envelope follows sin(n*π*β) / (n*π*β)  (sinc-like).
+  - β ≈ 0.08 (near bridge): few harmonics suppressed, bright metallic tone
+  - β ≈ 0.13 (normal position): modest suppression of high harmonics
+  - β ≈ 0.5 (over fingerboard): strong suppression of even harmonics, flute-like
 ```
 
 ### New Parameters
 
 | ID | Name | Range | Default | Description |
 |----|------|-------|---------|-------------|
-| `kBowPressureId` | Bow Pressure | 0.0–1.0 | 0.5 | Light (flautando) → Heavy (ponticello) |
-| `kBowSpeedId` | Bow Speed | 0.0–1.0 | 0.5 | Slow (quiet) → Fast (loud, brighter) |
-| `kBowPositionId` | Bow Position | 0.0–1.0 | 0.13 | Bridge → Fingerboard (harmonic emphasis) |
+| `kBowPressureId` | Bow Pressure | 0.0–1.0 | 0.3 | Light (flautando/surface sound) → Heavy (ponticello/raucous). Maps to friction curve slope: 5.0 - 4.0*pressure |
+| `kBowSpeedId` | Bow Speed | 0.0–1.0 | 0.5 | Slow (quiet, gentle attack) → Fast (loud, brighter, harder attack). Scales bow velocity: maxVelocity * speed |
+| `kBowPositionId` | Bow Position | 0.0–1.0 | 0.13 | Bridge (0.0) → Fingerboard (1.0). Controls harmonic emphasis via node placement. Default 0.13 ≈ 1/8 string length — classical violin bow point |
+
+**Playability mapping for pressure parameter:**
+- 0.0–0.1: Surface sound territory (below Schelleng F_min — airy, glassy, musical effect)
+- 0.1–0.8: Helmholtz region (clean, musical bowing — the sweet spot)
+- 0.8–1.0: Near-raucous territory (above Schelleng F_max — gritty, intense, distortion-like)
+
+**MIDI/MPE mapping recommendations:**
+- Velocity → bow speed (maxVelocity) + ADSR attack time (faster velocity = harder attack)
+- Aftertouch/MPE pressure → bow pressure (real-time timbral control)
+- MPE slide → bow position (real-time harmonic emphasis control)
 
 ### Design Note: Bow ↔ Resonance Coupling
 
-The bow model is unique because it needs **feedback from the resonator** — the friction force depends on the string's current velocity. This creates a coupling:
+The bow is a **nonlinear two-port scattering junction** [MSW83, S86] — it must sit *inside* the resonator feedback loop, not outside it. The friction force depends on the string's current velocity, creating a one-sample feedback coupling.
+
+#### With Waveguide Resonator
+
+The bow junction **splits the waveguide delay line** into two segments (neck-side and bridge-side). Per-sample signal flow:
 
 ```
-BowExciter.process(resonatorFeedback) → excitation → Resonator.process(excitation) → output
-                                                                    └──→ feedback to bow
+┌────────────────────┐                           ┌─────────────────────┐
+│ neckDelay           │                           │ bridgeDelay          │
+│ (nut side)          │←── incomingRight + force ──│ (bridge side)       │
+│ length: L*(1-β)     │                           │ length: L*β          │
+│ incomingLeft →      │──→ BOW JUNCTION ←─────────│ ← incomingRight     │
+│                     │                           │ (via bridge filter)  │
+└────────────────────┘                           └─────────────────────┘
+
+Per sample:
+  1. incomingLeft  = -neckDelay.lastOut()                    // from nut (inverted reflection)
+  2. incomingRight = -bridgeFilter.tick(bridgeDelay.lastOut()) // from bridge (filtered + inverted)
+  3. stringVelocity = incomingLeft + incomingRight            // sum = velocity at bow point
+  4. force = bowExciter.process(stringVelocity)               // includes friction, impedance, energy scaling
+  5. neckDelay.write(incomingRight + force)                   // propagate toward nut
+  6. bridgeDelay.write(incomingLeft + force)                  // propagate toward bridge
+  7. output = bridgeDelay.lastOut()                           // read from bridge end
 ```
 
-This is a one-sample feedback loop, same pattern as any feedback delay. The waveguide resonator naturally provides this; for the modal resonator, we sum the filter bank output as the feedback signal.
+Delay lengths: `bridgeDelay = totalDelay * β`, `neckDelay = totalDelay * (1 - β)`, where `β = bowPosition` and `totalDelay = sampleRate / frequency - filterDelayCompensation`.
+
+#### With Modal Resonator (Elements-Style Bowed Mode Subset)
+
+The modal resonator uses a **dedicated subset of 8 "bowed modes"** [MI] for the feedback loop — this is the only supported implementation. Summing all 96 modes per sample for feedback is both expensive and numerically problematic (the modal outputs are abstract amplitudes, not physical velocities — unit mismatch with the waveguide path). The bowed-mode subset operates in its own self-consistent domain, sidestepping this issue.
+
+```
+Architecture:
+  - 8 bowed modes (bandpass filters with short delay lines), tuned to the
+    first 8 mode frequencies, separate from the main 96-mode bank
+  - These provide the feedback velocity to the bow table
+  - The bow's excitation force feeds into ALL modes (up to 96),
+    weighted by sin((n+1) * π * bowPosition) for harmonic selectivity
+
+Per sample:
+  1. feedbackVelocity = 0
+     for n in bowedModes[0..7]:
+       feedbackVelocity += bowedModeOutput[n]          // small fixed-cost sum
+  2. excitation = bowExciter.process(feedbackVelocity)  // includes friction + energy scaling
+  3. for n in allModes[0..numModes]:
+       modeInput[n] += excitation * sin((n+1) * π * bowPosition)
+  4. Update bowed modes with excitation (same input as main modes)
+```
+
+**Why 8 bowed modes (not fewer, not more):**
+- Fewer than 4: coupling feels thin, hard to establish Helmholtz-like motion
+- 8: covers the first 8 partials, sufficient for stable self-oscillation and timbral richness
+- More than 8: diminishing returns — higher modes contribute little to the feedback and add CPU cost
+- Elements uses exactly this number and it ships in production hardware
+
+**CPU cost:** 8 bandpass filter evaluations + 8 delay reads per sample — comparable to a single biquad cascade, negligible next to the main 96-mode bank.
+
+**Key difference from waveguide:** Bowed bars/plates **slip** during most of the motion cycle (unlike bowed strings which **stick** for most of the cycle). Self-excited modal vibrations are dominated by the first few modes, with limiting values for normal force and bow velocity defining a "playability space" [ESC00].
+
+#### DC Blocking
+
+A **DC blocker** is essential in the bow-resonator feedback loop. The friction nonlinearity can inject DC offset that accumulates in the feedback path, causing waveform drift and eventual clipping.
+
+**Placement:** Strictly **after** the friction junction output but **before** the signal re-enters the delay lines. In the waveguide signal flow, this means filtering `force` between steps 9 and 10 (after bow table, before delay write). Placing it elsewhere (e.g., at the bridge termination) would not catch DC injected by the bow.
+
+**Cutoff:** 20 Hz first-order high-pass (not 30 Hz). The lower cutoff protects the fundamental of low-tuned strings — cello C2 is 65 Hz, and an aggressive 30 Hz cutoff with its -3 dB rolloff would audibly thin notes in the 50-80 Hz range. At 20 Hz, the attenuation at 65 Hz is negligible (~0.1 dB for first-order).
+
+#### Energy Control (Non-Negotiable)
+
+The bow is an **active exciter** — unlike the impact exciter (which injects a finite energy pulse), the bow continuously injects energy into the resonator. Without energy-aware gain control, high pressure + high speed will cause runaway amplitude, especially with low-loss waveguide resonators.
+
+**Integration with the existing energy model (Phase 3, "Energy as First-Class Observable"):**
+
+The resonator already computes `controlEnergy_` (τ ≈ 5ms) and `perceptualEnergy_` (τ ≈ 30ms). The bow exciter uses the control energy to modulate its output gain:
+
+```cpp
+// Inside BowExciter::process(), after computing rawForce:
+float currentEnergy = resonator->getControlEnergy();
+float energyRatio = currentEnergy / targetEnergy_;    // targetEnergy_ set by velocity/speed
+float energyGain = 1.0f;
+if (energyRatio > 1.0f) {
+    // Above target: attenuate force to prevent runaway
+    // Soft knee: gradual reduction, not hard clamp
+    energyGain = 1.0f / (1.0f + (energyRatio - 1.0f) * 2.0f);
+}
+excitationForce = rawForce * energyGain;
+```
+
+**Why this works:**
+- `targetEnergy_` is set from MIDI velocity / bow speed at note-on — louder notes have a higher energy ceiling
+- When the resonator is below target energy, the bow drives it up naturally (energyGain ≈ 1.0)
+- When the resonator exceeds target, the bow backs off smoothly (no hard clip, no pumping)
+- The 5ms time constant is fast enough to catch runaway but slow enough to not interfere with normal stick-slip dynamics
+- This is the same control energy follower already used for retrigger choking in the impact exciter — no new infrastructure needed
+
+**Without this:** Exploding amplitudes, inconsistent loudness across pitch range, unusable presets at high pressure. This is non-negotiable.
+
+### Extended Techniques as Parameter Configurations
+
+The three bow parameters naturally produce classic string techniques at their extremes:
+
+| Technique | Position | Pressure | Speed | Sonic Character |
+|-----------|----------|----------|-------|-----------------|
+| **Normal (arco)** | 0.10–0.15 | 0.2–0.5 | 0.3–0.7 | Warm, full bowed string tone |
+| **Sul ponticello** | 0.02–0.08 | 0.7–1.0 | 0.3–0.5 | Metallic, shimmery, prominent high harmonics |
+| **Sul tasto** | 0.30–0.50 | 0.1–0.3 | 0.3–0.5 | Soft, flute-like, fundamental-heavy |
+| **Flautando** | 0.35–0.50 | 0.05–0.15 | 0.2–0.4 | Pure, harmonic-sparse, ethereal |
+| **Crunchy attack** | 0.10–0.15 | 0.8–1.0 | 0.8–1.0 | Aggressive onset, raucous bite |
+| **Harmonics** | 0.50 (or 0.33, 0.25) | 0.1–0.2 | 0.3–0.5 | Even harmonics suppressed (at 0.5), fundamental suppressed |
+| **Tremolo** | any | any | LFO on speed | Rapid amplitude variation |
+
+### Unified Exciter Interface
+
+All exciter types (Residual, Impact, Bow) must share a single `process` signature so the voice engine can switch between them without interface branching:
+
+```cpp
+// Shared interface for all exciters
+float process(float feedbackVelocity);
+```
+
+- **Residual:** Ignores `feedbackVelocity`, returns next sample from residual buffer
+- **Impact:** Ignores `feedbackVelocity`, returns current excitation pulse sample
+- **Bow:** Uses `feedbackVelocity` for friction computation, returns excitation force
+
+This unifies the voice integration code (currently divergent in Phase 2):
+
+```cpp
+// Voice engine (unified — no exciter-type branching)
+float feedbackVelocity = resonator->getFeedbackVelocity();  // 0 for modal if not bowed
+float excitation = exciter->process(feedbackVelocity);
+float output = resonator->process(excitation);
+```
+
+**Retroactive change to Phase 2:** `ImpactExciter::process(float velocity)` (where `velocity` was MIDI velocity) should be refactored. MIDI velocity is a trigger-time parameter set via `trigger(float velocity)`, not a per-sample input. The per-sample `process(float feedbackVelocity)` then ignores the feedback and returns the current pulse sample. This is a minor change but must happen before Phase 4 implementation.
+
+### Anti-Aliasing: Switchable Oversampling
+
+The friction nonlinearity expands signal bandwidth. In a feedback loop, this bandwidth expansion compounds over time, causing aliasing [S10] — especially at high pressure, high stiffness, and on high-pitched notes. This is a **known problem** in nonlinear waveguide models, not a theoretical concern.
+
+**Built-in mitigations (always active):**
+- The power-law bow table is **smooth** (no discontinuities), which limits bandwidth expansion compared to piecewise-linear friction curves
+- The string loss filter in the feedback loop naturally removes high-frequency energy each round-trip
+- The DC blocker prevents sub-audible accumulation
+
+**Switchable oversampling (design it in from the start):**
+
+The bow-resonator loop must support a **2x oversampling path** toggled by a quality parameter:
+
+```
+1x mode (default): Normal sample rate. Sufficient for most settings.
+2x mode (quality): Upsample input to bow junction, run friction + immediate
+                   feedback at 2x rate, downsample output. Only the nonlinear
+                   junction and its immediate neighbors need oversampling —
+                   the full delay lines stay at 1x (adjust delay lengths by 2x).
+```
+
+**Why design it in now:** Retrofitting oversampling into a feedback loop is architecturally painful — the delay line lengths, filter coefficients, and energy scaling all change. If the interface supports it from day one, enabling it later is a parameter flip.
+
+**When to enable 2x:** Metallic aliasing on notes above ~1 kHz at pressure > 0.7. Evaluate empirically during implementation.
 
 ### Success Criteria
 
 - [ ] Sustained notes have organic micro-variation (not static)
-- [ ] Pressure sweep transitions smoothly from airy to gritty
+- [ ] Pressure sweep transitions smoothly from airy (surface sound) through clean (Helmholtz) to gritty (raucous)
 - [ ] Bow + Waveguide produces convincing cello/violin-like sustain
-- [ ] Bow + Modal produces interesting "bowed vibraphone" textures
-- [ ] CPU cost reasonable — friction model is per-sample but simple arithmetic
+- [ ] Bow + Modal (8 bowed modes) produces interesting "bowed vibraphone" textures
+- [ ] Bow position audibly changes harmonic emphasis (bright near bridge, dark near fingerboard)
+- [ ] Bow position affects playability (near-bridge requires higher pressure to sustain, matching Schelleng)
+- [ ] Attack transients range from clean to scratchy depending on speed/pressure/acceleration
+- [ ] No DC drift or instability at any parameter combination
+- [ ] No runaway amplitude at any pressure/speed combination (energy control verified)
+- [ ] Consistent loudness across pitch range (energy-aware scaling)
+- [ ] Unified exciter interface: voice engine uses `process(feedbackVelocity)` for all exciter types
+- [ ] 2x oversampling path functional (switchable, not necessarily default)
+- [ ] CPU cost reasonable — friction model is per-sample but simple arithmetic (~4 muls + 1 fabs + 1 clamp + energy check)
+
+### References
+
+| Tag | Citation | Relevance |
+|-----|----------|-----------|
+| [H1863] | Helmholtz, "On the Sensations of Tone", 1863 | Helmholtz corner motion pattern in bowed strings |
+| [F53] | Friedlander, "On the oscillations of a bowed string", Cambridge Phil. Soc. Proc. 49, 1953 | Original graphical solution for bow-string intersection problem |
+| [S73] | Schelleng, "The bowed string and the player", JASA 53(1):26-41, 1973 | Playability diagram: bow force vs position boundaries |
+| [MSW83] | McIntyre, Schumacher & Woodhouse, "On the oscillations of musical instruments", JASA 74(5):1325-1345, 1983 | Foundational paper for reflection function + nonlinear excitation framework |
+| [S86] | Smith, "Efficient simulation of the reed-bore and bow-string mechanisms", Proc. ICMC, 1986 | Digital waveguide implementation of bowed strings; introduced bow table concept |
+| [CS99] | Cook & Scavone, "The Synthesis ToolKit (STK)", Proc. ICMC, 1999. Code: https://github.com/thestk/stk | Reference real-time implementation (BowTable.h, Bowed.cpp) |
+| [SW00] | Smith & Woodhouse, "The tribology of rosin", J. Mechanics & Physics of Solids 48(8):1633-1681, 2000 | Thermal friction model — friction depends on rosin temperature, not just velocity |
+| [ESC00] | Essl, Serafin & Cook, "Measurements and efficient simulations of bowed bars", JASA, 2000 | Bowed bar/metal modal synthesis — playability space, limiting force/velocity values |
+| [D02] | Dupont, Hayward, Armstrong & Altpeter, "Single state elasto-plastic friction models", IEEE Trans. AC 47(5):787-792, 2002 | Bristle/elasto-plastic friction for pre-sliding deformation |
+| [G02] | Guettler, "On the creation of the Helmholtz motion in bowed strings", Acustica 88, 2002 | Guettler diagram: bow acceleration vs force for attack transient quality |
+| [W03] | Woodhouse, "Bowed string simulation using a thermal friction model", Acta Acustica united with Acustica 89(2), 2003 | Applied thermal friction to digital simulation; improved transient realism |
+| [S04] | Serafin, "The Sound of Friction: Real-time Models, Playability, and Musical Applications", PhD thesis, Stanford/CCRMA, 2004 | Extended bowed string models with thermodynamic friction and bow-hair compliance |
+| [B09] | Bilbao, "Numerical Sound Synthesis", Wiley, 2009 | Finite difference bowed string; exponential friction model |
+| [S10] | Smith, "Physical Audio Signal Processing", W3K Publishing, 2010. Online: https://ccrma.stanford.edu/~jos/pasp/ | Canonical textbook for waveguide synthesis including bowed strings (Ch. 9) |
+| [DB16] | Desvages & Bilbao, "Two-polarisation physical model of bowed strings", Applied Sciences 6(5):135, 2016. https://www.mdpi.com/2076-3417/6/5/135 | State-of-art FD bowed string with two polarizations |
+| [MI] | Gillet (Mutable Instruments), Elements resonator. https://github.com/pichenettes/eurorack/blob/master/elements/dsp/resonator.cc | Reference implementation of bow exciter coupled to modal resonator bank |
+| [FL] | GRAME, Faust physmodels.lib. https://faustlibraries.grame.fr/libs/physmodels/ | Functional implementation of violin bow model (same math as STK) |
+| [FR98] | Fletcher & Rossing, "The Physics of Musical Instruments", Springer, 1998 | Physical acoustics of bowed strings, Helmholtz motion |
+| [C02] | Cook, "Real Sound Synthesis for Interactive Applications", A.K. Peters, 2002 | Practical guide to implementing physical models including bowed strings |
 
 ---
 
