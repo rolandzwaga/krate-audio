@@ -435,9 +435,9 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ## Phase 14: Final Completion
 
-- [ ] T130 Run full test suite one final time: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
-- [ ] T131 Verify all spec work is committed to the `130-bow-model-exciter` branch: `git log --oneline main..HEAD`
-- [ ] T132 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user); if any gap exists, document it in spec.md before claiming completion
+- [X] T130 Run full test suite one final time: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
+- [X] T131 Verify all spec work is committed to the `130-bow-model-exciter` branch: `git log --oneline main..HEAD`
+- [X] T132 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user); if any gap exists, document it in spec.md before claiming completion
 
 **Checkpoint**: Spec implementation honestly complete.
 
