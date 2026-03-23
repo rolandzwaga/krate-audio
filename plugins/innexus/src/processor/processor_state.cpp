@@ -224,6 +224,11 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(impactBrightness_.load(std::memory_order_relaxed));
     streamer.writeFloat(impactPosition_.load(std::memory_order_relaxed));
 
+    // --- Waveguide String Resonance parameters (Spec 129) ---
+    streamer.writeFloat(resonanceType_.load(std::memory_order_relaxed));
+    streamer.writeFloat(waveguideStiffness_.load(std::memory_order_relaxed));
+    streamer.writeFloat(waveguidePickPosition_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -649,6 +654,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         impactBrightness_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))
         impactPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Waveguide String Resonance parameters (Spec 129, graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        resonanceType_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        waveguideStiffness_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        waveguidePickPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

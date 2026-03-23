@@ -38,7 +38,7 @@ static int voiceModeToCount(float norm)
     return kCounts[idx];
 }
 
-bool isMonoMode(float voiceModeNorm)
+static bool isMonoMode(float voiceModeNorm)
 {
     return voiceModeToCount(voiceModeNorm) == 1;
 }
@@ -153,7 +153,10 @@ static void initVoiceForNoteOn(
     float impactHardness,
     float impactMass,
     float impactBrightness,
-    float impactPosition)
+    float impactPosition,
+    int resonanceType,
+    float waveguideStiffness,
+    float waveguidePickPosition)
 {
     // FR-032: Detect retrigger (same note already playing) BEFORE overwriting midiNote.
     // On retrigger, the resonator state must NOT be reset so that existing vibration
@@ -309,6 +312,20 @@ static void initVoiceForNoteOn(
         voice.chokeEnvelope_ = 1.0f;
         voice.chokeMaxScale_ = 1.0f;
     }
+
+    // Spec 129: Initialize waveguide string on note-on
+    voice.activeResonanceType_ = resonanceType;
+    voice.waveguideString.setStiffness(waveguideStiffness);
+    voice.waveguideString.setPickPosition(waveguidePickPosition);
+    voice.waveguideString.setDecay(resonanceDecay);
+    voice.waveguideString.setBrightness(resonanceBrightness);
+    if (resonanceType == 1 && !isRetrigger)
+    {
+        float f0 = voice.morphedFrame.f0;
+        if (f0 <= 0.0f)
+            f0 = Krate::DSP::midiNoteToFrequency(noteNumber);
+        voice.waveguideString.noteOn(f0, velocity);
+    }
 }
 
 // ==============================================================================
@@ -349,6 +366,12 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
     const float impBrightness = impBrightnessNorm * 2.0f - 1.0f;
     const float impPosition = impactPosition_.load(std::memory_order_relaxed);
 
+    // Spec 129: Waveguide string parameters
+    const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
+    const int resType = std::clamp(static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
+    const float wgStiffness = waveguideStiffness_.load(std::memory_order_relaxed);
+    const float wgPickPos = waveguidePickPosition_.load(std::memory_order_relaxed);
+
     if (maxVoices == 1)
     {
         // === MONO MODE: last-note-priority (original behavior) ===
@@ -372,7 +395,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
             brightness, transientEmp,
             resDecay, resBrightness, resStretch, resScatter,
-            exciterType, impHardness, impMass, impBrightness, impPosition);
+            exciterType, impHardness, impMass, impBrightness, impPosition,
+            resType, wgStiffness, wgPickPos);
 
         // Apply modulators (mono mode uses processor-level modulators)
         const bool m1On = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -412,7 +436,8 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
                     brightness, transientEmp,
                     resDecay, resBrightness, resStretch, resScatter,
-                    exciterType, impHardness, impMass, impBrightness, impPosition);
+                    exciterType, impHardness, impMass, impBrightness, impPosition,
+                    resType, wgStiffness, wgPickPos);
                 break;
             }
             case Krate::DSP::VoiceEvent::Type::NoteOff:
@@ -452,7 +477,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
 // ==============================================================================
 // Handle Note Off (FR-049, FR-057)
 // ==============================================================================
-void Processor::handleNoteOff(int noteNumber, int32_t noteId)
+void Processor::handleNoteOff(int noteNumber, [[maybe_unused]] int32_t noteId)
 {
     const float modeNorm = voiceMode_.load(std::memory_order_relaxed);
     const int maxVoices = voiceModeToCount(modeNorm);

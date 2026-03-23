@@ -31,7 +31,7 @@ namespace {
 class OutlineButton : public VSTGUI::CView {
 public:
     OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
+                  const VSTGUI::CColor& frameColor = VSTGUI::CColor(64, 64, 72))
         : CView(size)
         , title_(std::move(title))
         , frameColor_(frameColor)

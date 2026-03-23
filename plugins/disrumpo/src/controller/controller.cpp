@@ -149,7 +149,7 @@ Steinberg::tresult PLUGIN_API Controller::terminate() {
 
 template <typename ParamSetter>
 bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t version,
-                                     ParamSetter&& setter) {
+                                     ParamSetter&& setter) { // NOLINT(cppcoreguidelines-missing-std-forward): setter is intentionally used as callable without forwarding
     // Global parameters (v1+)
     float inputGain = 0.5f;
     float outputGain = 0.5f;
@@ -255,7 +255,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
         if (streamer.readInt8(lfoSync))
             setter(makeSweepParamId(SweepParamType::kSweepLFOSync), lfoSync != 0 ? 1.0 : 0.0);
         if (streamer.readInt8(lfoNoteIndex)) {
-            int noteIdx = static_cast<int>(lfoNoteIndex);
+            int noteIdx = static_cast<int>(static_cast<unsigned char>(lfoNoteIndex));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
             setter(makeSweepParamId(SweepParamType::kSweepLFONoteValue),
@@ -307,7 +307,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kLFO1Sync), lfo1Sync != 0 ? 1.0 : 0.0);
         Steinberg::int8 lfo1NoteIdx = 0;
         if (streamer.readInt8(lfo1NoteIdx)) {
-            int noteIdx = static_cast<int>(lfo1NoteIdx);
+            int noteIdx = static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
             setter(makeModParamId(ModParamType::kLFO1NoteValue),
@@ -335,7 +335,7 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             setter(makeModParamId(ModParamType::kLFO2Sync), lfo2Sync != 0 ? 1.0 : 0.0);
         Steinberg::int8 lfo2NoteIdx = 0;
         if (streamer.readInt8(lfo2NoteIdx)) {
-            int noteIdx = static_cast<int>(lfo2NoteIdx);
+            int noteIdx = static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx));
             if (version <= 9)
                 noteIdx = kOldNoteIdxToNewDropdown[std::clamp(noteIdx, 0, 14)];
             setter(makeModParamId(ModParamType::kLFO2NoteValue),
@@ -470,18 +470,21 @@ bool Controller::parseComponentState(Steinberg::IBStreamer& streamer, int32_t ve
             int32_t dest = 0;
             if (streamer.readInt32(dest)) {
                 // v12: migrate dest indices from old 6-per-band to new 8-per-band layout
-                if (version <= 11 && dest >= static_cast<int32_t>(ModDest::kBandBase)) {
+                constexpr int32_t kBandBaseI = static_cast<int32_t>(ModDest::kBandBase);
+                constexpr int32_t kParamsPerBandI = static_cast<int32_t>(ModDest::kParamsPerBand);
+                constexpr int32_t kTotalDestsI = static_cast<int32_t>(ModDest::kTotalDestinations);
+                if (version <= 11 && dest >= kBandBaseI) {
                     constexpr int32_t kOldParamsPerBand = 6;
-                    const int32_t bandRelative = dest - static_cast<int32_t>(ModDest::kBandBase);
+                    const int32_t bandRelative = dest - kBandBaseI;
                     const int32_t oldBand = bandRelative / kOldParamsPerBand;
                     const int32_t oldOffset = bandRelative % kOldParamsPerBand;
-                    dest = static_cast<int32_t>(ModDest::kBandBase)
-                         + oldBand * static_cast<int32_t>(ModDest::kParamsPerBand)
+                    dest = kBandBaseI
+                         + oldBand * kParamsPerBandI
                          + oldOffset;
                 }
                 setter(makeRoutingParamId(r, 1),
-                       static_cast<double>(std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)))
-                       / static_cast<double>(ModDest::kTotalDestinations - 1));
+                       static_cast<double>(std::clamp(dest, 0, kTotalDestsI - 1))
+                       / static_cast<double>(kTotalDestsI - 1));
             }
             float amount = 0.0f;
             if (streamer.readFloat(amount))
@@ -679,7 +682,8 @@ Steinberg::tresult PLUGIN_API Controller::setState(Steinberg::IBStream* state) {
     if (!streamer.readInt32(version)) return Steinberg::kResultOk;
 
     if (version >= 2) {
-        double unusedWidth = 0.0, unusedHeight = 0.0;
+        double unusedWidth = 0.0;
+        double unusedHeight = 0.0;
         streamer.readDouble(unusedWidth);
         streamer.readDouble(unusedHeight);
 
@@ -916,12 +920,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 980.0, h = 200.0;
+            double w = 980.0;
+            double h = 200.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -966,12 +972,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 250.0, h = 200.0;
+            double w = 250.0;
+            double h = 200.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -1030,12 +1038,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 140.0, h = 22.0;
+            double w = 140.0;
+            double h = 22.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -1082,12 +1092,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 280.0, h = 230.0;
+            double w = 280.0;
+            double h = 230.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -1114,12 +1126,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 200.0, h = 150.0;
+            double w = 200.0;
+            double h = 150.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -1146,7 +1160,8 @@ VSTGUI::CView* Controller::createCustomView(
                 static_cast<uint8_t>(SweepParamType::kSweepCustomCurveP0Y) + p * 2);
             auto* xParam = getParameterObject(makeSweepParamId(xType));
             auto* yParam = getParameterObject(makeSweepParamId(yType));
-            float px = 0.0f, py = 0.0f;
+            float px = 0.0f;
+            float py = 0.0f;
             if (p == 0) px = 0.0f;
             else if (p == 7) px = 1.0f;
             if (xParam) px = static_cast<float>(xParam->getNormalized());
@@ -1236,12 +1251,14 @@ VSTGUI::CView* Controller::createCustomView(
         const std::string* originStr = attributes.getAttributeValue("origin");
         const std::string* sizeStr = attributes.getAttributeValue("size");
         if (originStr) {
-            double x = 0.0, y = 0.0;
+            double x = 0.0;
+            double y = 0.0;
             if (sscanf(originStr->c_str(), "%lf, %lf", &x, &y) == 2)
                 origin = VSTGUI::CPoint(x, y);
         }
         if (sizeStr) {
-            double w = 980.0, h = 200.0;
+            double w = 980.0;
+            double h = 200.0;
             if (sscanf(sizeStr->c_str(), "%lf, %lf", &w, &h) == 2)
                 size = VSTGUI::CPoint(w, h);
         } else {
@@ -1909,7 +1926,7 @@ void PLUGIN_API Controller::queueOpened(
     Steinberg::uint32 /*blockSize*/,
     Steinberg::TBool& dispatchOnBackgroundThread)
 {
-    dispatchOnBackgroundThread = false;
+    dispatchOnBackgroundThread = static_cast<Steinberg::TBool>(false);
 }
 
 void PLUGIN_API Controller::queueClosed(

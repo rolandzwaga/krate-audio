@@ -207,9 +207,9 @@ private:
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
 
     /// Helper: forward a single ADSR parameter change to a display
-    void forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
-                                   Steinberg::Vst::ParamID id,
-                                   float norm);
+    static void forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
+                                          Steinberg::Vst::ParamID id,
+                                          float norm);
 
     // Update Checker
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;

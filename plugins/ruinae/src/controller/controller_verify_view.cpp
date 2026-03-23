@@ -338,7 +338,7 @@ VSTGUI::CView* Controller::verifyView(
         // Sync disabled state from voice mode (chord/inversion require poly)
         {
             auto* vmParam = getParameterObject(kVoiceModeId);
-            bool isMono = vmParam && vmParam->getNormalized() >= 0.5;
+            bool isMono = (vmParam != nullptr) && vmParam->getNormalized() >= 0.5;
             chordLane_->setDisabled(isMono, "Chord lane requires Poly voice mode");
             inversionLane_->setDisabled(isMono, "Inversion lane requires Poly voice mode");
         }
@@ -732,7 +732,7 @@ VSTGUI::CView* Controller::verifyView(
                 // Compute effective speed from sync state
                 {
                     auto* syncParam = getParameterObject(kChaosModSyncId);
-                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                     if (synced) {
                         auto* nvParam = getParameterObject(kChaosModNoteValueId);
                         int nvIdx = nvParam ? static_cast<int>(
@@ -784,7 +784,7 @@ VSTGUI::CView* Controller::verifyView(
                 // Compute effective rate from sync state
                 {
                     auto* syncParam = getParameterObject(kSampleHoldSyncId);
-                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                     if (synced) {
                         auto* nvParam = getParameterObject(kSampleHoldNoteValueId);
                         int nvIdx = nvParam ? static_cast<int>(
@@ -811,7 +811,7 @@ VSTGUI::CView* Controller::verifyView(
                 // Compute effective rate from sync state
                 {
                     auto* syncParam = getParameterObject(kRandomSyncId);
-                    bool synced = syncParam && syncParam->getNormalized() >= 0.5;
+                    bool synced = (syncParam != nullptr) && syncParam->getNormalized() >= 0.5;
                     if (synced) {
                         auto* nvParam = getParameterObject(kRandomNoteValueId);
                         int nvIdx = nvParam ? static_cast<int>(

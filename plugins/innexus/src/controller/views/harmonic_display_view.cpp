@@ -81,8 +81,7 @@ void HarmonicDisplayView::draw(VSTGUI::CDrawContext* context)
     float barWidth = (barAreaWidth - static_cast<float>(numPartials - 1) * kGap)
                      / static_cast<float>(numPartials);
 
-    if (barWidth < 1.0f)
-        barWidth = 1.0f;
+    barWidth = std::max(barWidth, 1.0f);
 
     // Active partial color: cyan (#00bcd4)
     VSTGUI::CColor activeColor(0, 188, 212);

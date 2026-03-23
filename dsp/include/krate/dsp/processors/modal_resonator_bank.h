@@ -11,6 +11,7 @@
 // ==============================================================================
 
 #include <krate/dsp/core/dsp_utils.h>
+#include <krate/dsp/processors/iresonator.h>
 #include <krate/dsp/processors/modal_resonator_bank_simd.h>
 
 #include <algorithm>
@@ -21,12 +22,12 @@
 namespace Krate {
 namespace DSP {
 
-class ModalResonatorBank {
+class ModalResonatorBank : public IResonator {
 public:
     static constexpr int kMaxModes = 96;
 
     ModalResonatorBank() noexcept = default;
-    ~ModalResonatorBank() = default;
+    ~ModalResonatorBank() override = default;
 
     // Non-copyable (large aligned arrays), movable
     ModalResonatorBank(const ModalResonatorBank&) = delete;
@@ -35,11 +36,14 @@ public:
     ModalResonatorBank& operator=(ModalResonatorBank&&) noexcept = default;
 
     /// Prepare for processing at the given sample rate.
-    void prepare(double sampleRate) noexcept
+    void prepare(double sampleRate) noexcept override
     {
         sampleRate_ = static_cast<float>(sampleRate);
         smoothCoeff_ = std::exp(-1.0f / (kSmoothingTimeMs * 0.001f * sampleRate_));
         envelopeAttackCoeff_ = std::exp(-1.0f / (kEnvelopeAttackMs * 0.001f * sampleRate_));
+        // Energy follower EMA coefficients (FR-023)
+        controlAlpha_ = std::exp(-1.0f / (kControlEnergyTauMs * 0.001f * sampleRate_));
+        perceptualAlpha_ = std::exp(-1.0f / (kPerceptualEnergyTauMs * 0.001f * sampleRate_));
         prepared_ = true;
     }
 
@@ -173,6 +177,70 @@ public:
         return prepared_;
     }
 
+    // =========================================================================
+    // IResonator interface adapter methods (FR-020, FR-023, FR-024, FR-025)
+    // =========================================================================
+
+    /// Store frequency for use by the voice engine via IResonator.
+    /// ModalResonatorBank receives frequencies via setModes()/updateModes(),
+    /// so this stores the value for future setModes calls from the voice engine.
+    void setFrequency(float f0) noexcept override
+    {
+        storedFrequency_ = f0;
+    }
+
+    /// Store decay time for use via IResonator interface.
+    void setDecay(float t60) noexcept override
+    {
+        storedDecayTime_ = t60;
+    }
+
+    /// Store brightness for use via IResonator interface.
+    void setBrightness(float brightness) noexcept override
+    {
+        storedBrightness_ = brightness;
+    }
+
+    /// Process one sample through the resonator bank (IResonator interface).
+    /// Delegates to processSample() and updates energy followers.
+    [[nodiscard]] float process(float excitation) noexcept override
+    {
+        float output = processSample(excitation);
+        // Update dual energy followers (FR-023, FR-024)
+        float squaredOutput = output * output;
+        controlEnergy_ = controlAlpha_ * controlEnergy_
+                       + (1.0f - controlAlpha_) * squaredOutput;
+        perceptualEnergy_ = perceptualAlpha_ * perceptualEnergy_
+                          + (1.0f - perceptualAlpha_) * squaredOutput;
+        return output;
+    }
+
+    /// Get fast energy follower (tau ~5ms) (FR-023).
+    [[nodiscard]] float getControlEnergy() const noexcept override
+    {
+        return controlEnergy_;
+    }
+
+    /// Get slow energy follower (tau ~30ms) (FR-023).
+    [[nodiscard]] float getPerceptualEnergy() const noexcept override
+    {
+        return perceptualEnergy_;
+    }
+
+    /// Clear all internal state including energy followers (FR-025).
+    void silence() noexcept override
+    {
+        reset();
+        controlEnergy_ = 0.0f;
+        perceptualEnergy_ = 0.0f;
+    }
+
+    /// Modal resonator has no feedback velocity (returns 0.0f).
+    [[nodiscard]] float getFeedbackVelocity() const noexcept override
+    {
+        return 0.0f;
+    }
+
 private:
     // Voicing constants (may be promoted to parameters in future phases)
     // kTransientEmphasisGain may be promoted to a user-facing parameter in a future phase
@@ -184,6 +252,8 @@ private:
     static constexpr float kSmoothingTimeMs = 2.0f;
     static constexpr float kEnvelopeAttackMs = 5.0f;
     static constexpr float kSoftClipThreshold = 0.707f; // -3 dBFS
+    static constexpr float kControlEnergyTauMs = 5.0f;     // FR-023: fast energy follower
+    static constexpr float kPerceptualEnergyTauMs = 30.0f;  // FR-023: slow energy follower
 
     // Golden-ratio-derived scatter displacement constant
     static constexpr float kScatterD =
@@ -208,6 +278,17 @@ private:
     float previousEnvelope_ = 0.0f;
     float envelopeAttackCoeff_ = 0.0f;
     bool prepared_ = false;
+
+    // IResonator energy followers (FR-023)
+    float controlEnergy_ = 0.0f;
+    float perceptualEnergy_ = 0.0f;
+    float controlAlpha_ = 0.0f;
+    float perceptualAlpha_ = 0.0f;
+
+    // IResonator stored parameters (adapter state)
+    float storedFrequency_ = 440.0f;
+    float storedDecayTime_ = 0.5f;
+    float storedBrightness_ = 0.5f;
 
     /// Compute mode coefficients from partial data.
     void computeModeCoefficients(

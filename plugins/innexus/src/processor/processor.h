@@ -368,6 +368,11 @@ public:
     int getAdsrStage() const { return adsrStage_.load(std::memory_order_relaxed); }
     bool getAdsrActive() const { return adsrActive_.load(std::memory_order_relaxed); }
 
+    // Waveguide String Resonance (Spec 129) test accessors
+    float getResonanceType() const { return resonanceType_.load(std::memory_order_relaxed); }
+    float getWaveguideStiffness() const { return waveguideStiffness_.load(std::memory_order_relaxed); }
+    float getWaveguidePickPosition() const { return waveguidePickPosition_.load(std::memory_order_relaxed); }
+
     // Physical Modelling (Spec 127) test accessors
     float getPhysModelMix() const { return physModelMix_.load(std::memory_order_relaxed); }
     float getResonanceDecay() const { return resonanceDecay_.load(std::memory_order_relaxed); }
@@ -497,6 +502,11 @@ private:
     std::atomic<float> resonanceBrightness_{0.5f};       // 0.0-1.0, default 0.5
     std::atomic<float> resonanceStretch_{0.0f};          // 0.0-1.0, default 0.0
     std::atomic<float> resonanceScatter_{0.0f};          // 0.0-1.0, default 0.0
+
+    // Waveguide String Resonance parameters (Spec 129: 129-waveguide-string-resonance)
+    std::atomic<float> resonanceType_{0.0f};             // normalized, default 0 (Modal)
+    std::atomic<float> waveguideStiffness_{0.0f};        // 0.0-1.0, default 0.0
+    std::atomic<float> waveguidePickPosition_{0.13f};    // 0.0-1.0, default 0.13
 
     // Impact Exciter parameters (Spec 128: 128-impact-exciter)
     std::atomic<float> exciterType_{0.0f};               // normalized, default 0 (Residual)

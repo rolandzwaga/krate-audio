@@ -320,14 +320,14 @@ TEST_CASE("ImpactExciter rise-time is shorter at high hardness (SC-003)", "[proc
     auto bufferSoft = generateExciterBlock(exciterSoft, 0.7f, 0.1f, 0.5f, 0.0f, 0.0f, 440.0f);
 
     // Compute early energy ratio (first 2ms = ~88 samples at 44.1kHz)
-    int earlyWindow = static_cast<int>(0.002 * kSampleRate);
+    size_t earlyWindow = static_cast<size_t>(0.002 * kSampleRate);
     auto earlyEnergyRatio = [&](const std::vector<float>& buf) {
         float earlyEnergy = 0.0f;
         float totalEnergy = 0.0f;
         for (size_t i = 0; i < buf.size(); ++i) {
             float e = buf[i] * buf[i];
             totalEnergy += e;
-            if (i < static_cast<size_t>(earlyWindow))
+            if (i < earlyWindow)
                 earlyEnergy += e;
         }
         return (totalEnergy > 0.0f) ? earlyEnergy / totalEnergy : 0.0f;

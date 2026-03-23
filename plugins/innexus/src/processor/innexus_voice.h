@@ -21,6 +21,7 @@
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
+#include <krate/dsp/processors/waveguide_string.h>
 #include <krate/dsp/processors/impact_exciter.h>
 #include <krate/dsp/processors/residual_synthesizer.h>
 #include <krate/dsp/processors/residual_types.h>
@@ -45,7 +46,18 @@ struct InnexusVoice
     Krate::DSP::HarmonicOscillatorBank oscillatorBank;
     Krate::DSP::ResidualSynthesizer residualSynth;
     Krate::DSP::ModalResonatorBank modalResonator;
+    Krate::DSP::WaveguideString waveguideString;
     Krate::DSP::ImpactExciter impactExciter;
+
+    // Spec 129: Resonance type switching
+    int activeResonanceType_ = 0;  // 0=Modal, 1=Waveguide
+
+    // Crossfade state for resonance type switching (FR-029)
+    bool crossfadeActive = false;
+    int crossfadeSamplesRemaining = 0;
+    int crossfadeTotalSamples = 0;
+    int crossfadeFromType = 0;
+    int crossfadeToType = 0;
 
     // Mallet choke state (Spec 128 FR-035)
     float chokeDecayScale_ = 1.0f;     ///< current decay scale (1.0 = normal)
@@ -119,10 +131,12 @@ struct InnexusVoice
     // =========================================================================
 
     /// Prepare voice for processing at the given sample rate.
-    void prepare(double sampleRate)
+    void prepare(double sampleRate, uint32_t voiceIndex = 0)
     {
         oscillatorBank.prepare(sampleRate);
         modalResonator.prepare(sampleRate);
+        waveguideString.prepare(sampleRate);
+        waveguideString.prepareVoice(voiceIndex);
         adsr.prepare(static_cast<float>(sampleRate));
         adsr.reset();
         adsr.setRetriggerMode(Krate::DSP::RetriggerMode::Hard);
@@ -154,7 +168,12 @@ struct InnexusVoice
         oscillatorBank.reset();
         residualSynth.reset();
         modalResonator.reset();
+        waveguideString.silence();
         impactExciter.reset();
+
+        // Reset resonance type crossfade (Spec 129)
+        crossfadeActive = false;
+        crossfadeSamplesRemaining = 0;
 
         // Reset choke state (Spec 128)
         chokeDecayScale_ = 1.0f;

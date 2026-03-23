@@ -3634,12 +3634,12 @@ where: R = exp(-6.91 / (T60 * sampleRate)), theta = 2*pi*freq/sampleRate
 ## ModalResonatorBank
 **Path:** [modal_resonator_bank.h](../../dsp/include/krate/dsp/processors/modal_resonator_bank.h) | **Since:** Spec 127
 
-Bank of up to 96 parallel damped coupled-form resonators for modal synthesis. Uses the Gordon-Smith damped coupled-form topology with SoA (Structure of Arrays) layout, Chaigne-Lambourg frequency-dependent damping (b3 coefficient), stiff-string/scatter inharmonicity warping, and transient emphasis excitation conditioning. Designed for physically-motivated resonance driven by analyzed harmonic content in the Innexus resynthesis pipeline.
+Bank of up to 96 parallel damped coupled-form resonators for modal synthesis. Conforms to the `IResonator` interface (Spec 129), enabling interchangeable use with `WaveguideString` in the Innexus voice engine. Uses the Gordon-Smith damped coupled-form topology with SoA (Structure of Arrays) layout, Chaigne-Lambourg frequency-dependent damping (b3 coefficient), stiff-string/scatter inharmonicity warping, and transient emphasis excitation conditioning. Designed for physically-motivated resonance driven by analyzed harmonic content in the Innexus resynthesis pipeline.
 
 ```cpp
 namespace Krate::DSP {
 
-class ModalResonatorBank {
+class ModalResonatorBank : public IResonator {
     static constexpr size_t kMaxModes = 96;
 
     // Lifecycle
@@ -3662,6 +3662,15 @@ class ModalResonatorBank {
                       size_t numSamples) noexcept;
     void processBlock(const float* input, float* output,
                       size_t numSamples, float decayScale) noexcept;
+
+    // IResonator interface (Spec 129)
+    void setFrequency(float f0) noexcept override;
+    void setDecay(float t60) noexcept override;
+    void setBrightness(float brightness) noexcept override;
+    [[nodiscard]] float process(float excitation) noexcept override;
+    [[nodiscard]] float getControlEnergy() const noexcept override;
+    [[nodiscard]] float getPerceptualEnergy() const noexcept override;
+    void silence() noexcept override;
 
     // Maintenance
     void flushSilentModes() noexcept;
@@ -3698,7 +3707,134 @@ class ModalResonatorBank {
 
 **Performance:** 96 modes per voice, ~5 FLOPs per mode per sample. Target: < 5% single core for 96 modes x 8 voices at 44.1 kHz.
 
-**Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials)
+**Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials, iresonator.h for IResonator interface)
+
+---
+
+## IResonator
+**Path:** [iresonator.h](../../dsp/include/krate/dsp/processors/iresonator.h) | **Since:** Spec 129
+
+Shared interface for interchangeable resonator types in the Innexus voice engine. Defines the contract that both `ModalResonatorBank` and `WaveguideString` implement, enabling the voice engine to switch between resonator types through a common API with click-free crossfade.
+
+```cpp
+namespace Krate::DSP {
+
+class IResonator {
+    virtual ~IResonator() = default;
+
+    // Configuration
+    virtual void prepare(double sampleRate) noexcept = 0;
+    virtual void setFrequency(float f0) noexcept = 0;
+    virtual void setDecay(float t60) noexcept = 0;
+    virtual void setBrightness(float brightness) noexcept = 0;
+
+    // Processing
+    [[nodiscard]] virtual float process(float excitation) noexcept = 0;
+
+    // Energy followers (dual EMA: 5ms control, 30ms perceptual)
+    [[nodiscard]] virtual float getControlEnergy() const noexcept = 0;
+    [[nodiscard]] virtual float getPerceptualEnergy() const noexcept = 0;
+
+    // State management
+    virtual void silence() noexcept = 0;
+
+    // Phase 4 bow coupling readiness (default returns 0.0f)
+    [[nodiscard]] virtual float getFeedbackVelocity() const noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Any new resonator type in Innexus must implement this interface
+- Voice engine uses `IResonator*` to address whichever resonator is active
+- Crossfade logic uses `getPerceptualEnergy()` for gain matching between types
+- Phase 4 bow model will use `getFeedbackVelocity()` for coupling
+
+**Design decisions (FR-020 through FR-022):**
+- **No noteOn/noteOff**: Voice engine owns note lifecycle; resonator just processes samples
+- **No setParameter(int, float)**: Named setters preserve type safety
+- **Energy at output tap**: Automatic perceptual scale via dual EMA followers
+- **getFeedbackVelocity() default**: Returns 0.0f in Phase 3; waveguide overrides for Phase 4 bow readiness
+
+**Dependencies:** None (pure interface)
+
+---
+
+## WaveguideString
+**Path:** [waveguide_string.h](../../dsp/include/krate/dsp/processors/waveguide_string.h) | **Since:** Spec 129
+
+Digital waveguide string resonator with Extended Karplus-Strong (EKS) foundations. Implements the `IResonator` interface. Uses a delay-line feedback loop with weighted one-zero loss filter, DC blocker, 4-section first-order allpass dispersion cascade (Fletcher inharmonicity), soft clipper for nonlinear stability, and shaped noise burst excitation with pick-position comb filter. Velocity wave convention for Phase 4 bow readiness.
+
+```cpp
+namespace Krate::DSP {
+
+class WaveguideString : public IResonator {
+    // Constants
+    static constexpr int kMaxDispersionSections = 4;
+    static constexpr size_t kMinDelaySamples = 4;
+    static constexpr float kDefaultPickPosition = 0.13f;
+
+    // Lifecycle
+    WaveguideString() noexcept = default;
+    void prepare(double sampleRate) noexcept override;
+
+    // IResonator interface
+    void setFrequency(float f0) noexcept override;
+    void setDecay(float t60) noexcept override;
+    void setBrightness(float brightness) noexcept override;
+    [[nodiscard]] float process(float excitation) noexcept override;
+    [[nodiscard]] float getControlEnergy() const noexcept override;
+    [[nodiscard]] float getPerceptualEnergy() const noexcept override;
+    void silence() noexcept override;
+    [[nodiscard]] float getFeedbackVelocity() const noexcept override;
+
+    // Waveguide-specific configuration
+    void setStiffness(float stiffness) noexcept;    // [0, 1] -> B inharmonicity
+    void setPickPosition(float position) noexcept;   // [0, 1] normalized position
+
+    // Note lifecycle (voice engine calls these, not part of IResonator)
+    void noteOn(float f0Hz, float velocity) noexcept;
+    void prepareVoice(double sampleRate) noexcept;
+
+    // Scattering junction (Phase 3: PluckJunction; Phase 4: BowJunction)
+    struct ScatteringJunction { /* ... */ };
+    struct PluckJunction : ScatteringJunction { /* ... */ };
+};
+
+} // namespace Krate::DSP
+```
+
+**Signal flow:**
+```
+excitation -> (+) -> soft clip -> [delay line] -> [dispersion x4]
+               ^                                       |
+               |<-- output (velocity wave)             v
+               |                                 [tuning allpass]
+               |                                       |
+               v                                       v
+               +---- DC blocker <---- loss filter <----+
+```
+
+**When to use:**
+- Plucked/struck string timbres (guitar, harp, hammered dulcimer) in Innexus
+- Alternative to ModalResonatorBank when wave-propagation character is desired
+- Future bow model via BowJunction (Phase 4) for sustained string timbres
+
+**Key features:**
+- **Weighted one-zero loss filter**: Frequency-dependent damping controlled by brightness parameter
+- **4-section allpass dispersion**: Fletcher inharmonicity `f_n = n * f0 * sqrt(1 + B * n^2)` for stiff-string partial stretching
+- **Pick-position comb filter**: Spectral nulls at harmonics that are integer multiples of 1/beta
+- **Stiffness frozen at note onset**: Dispersion coefficients locked per-note (FR-010)
+- **Pick position frozen at note onset**: Comb filter applied to excitation only (FR-015)
+- **Dual energy followers**: 5ms control + 30ms perceptual for crossfade gain matching
+- **Soft clipper**: tanh nonlinearity prevents energy explosion
+- **DC blocker**: 3.5 Hz in-loop highpass prevents DC accumulation
+- **Log2-domain frequency smoothing**: Perceptually uniform pitch transitions (FR-033)
+
+**Performance:** Single string per voice, < 50ms for 8 voices processing 1 second of audio at 44.1 kHz (SC-013).
+
+**Dependencies:** Layer 0 (XorShift32, dsp_utils.h), Layer 1 (DelayLine, Biquad, DCBlocker, Smoother), Layer 2 (IResonator)
 
 ---
 

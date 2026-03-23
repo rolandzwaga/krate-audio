@@ -219,7 +219,7 @@ private:
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
 
     /// Update a sidechain indicator text label (active/inactive)
-    void updateSidechainIndicator(VSTGUI::CView* indicator);
+    void updateSidechainIndicator(VSTGUI::CView* indicator) const;
 
     /// Sync an ADSRDisplay from current parameter state
     void syncAdsrDisplay(Krate::Plugins::ADSRDisplay* display,

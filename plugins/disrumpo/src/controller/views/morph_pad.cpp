@@ -317,7 +317,7 @@ namespace {
 /// @brief Desaturate a color to greyscale using ITU-R BT.601 luminance weights.
 VSTGUI::CColor desaturateColor(const VSTGUI::CColor& color) {
     auto lum = static_cast<uint8_t>(0.299f * color.red + 0.587f * color.green + 0.114f * color.blue);
-    return VSTGUI::CColor(lum, lum, lum, color.alpha);
+    return {lum, lum, lum, color.alpha};
 }
 } // anonymous namespace
 

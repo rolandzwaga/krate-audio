@@ -158,7 +158,7 @@ TEST_CASE("HungarianAlgorithm: frequency distance cost matrix for partial tracki
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 4; ++j) {
             float dist = std::abs(prevFreqs[i] - peakFreqs[j]);
-            cost[static_cast<size_t>(i * 4 + j)] = (dist < kMaxDist) ? dist : kMaxDist * 100.0f;
+            cost[static_cast<size_t>(i) * 4 + static_cast<size_t>(j)] = (dist < kMaxDist) ? dist : kMaxDist * 100.0f;
         }
     }
 
@@ -183,7 +183,7 @@ TEST_CASE("HungarianAlgorithm: crossing partials resolved correctly",
     std::array<float, 4> cost;
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < 2; ++j) {
-            cost[static_cast<size_t>(i * 2 + j)] = std::abs(prevFreqs[i] - peakFreqs[j]);
+            cost[static_cast<size_t>(i) * 2 + static_cast<size_t>(j)] = std::abs(prevFreqs[i] - peakFreqs[j]);
         }
     }
     // cost = [8, 2, 2, 8]

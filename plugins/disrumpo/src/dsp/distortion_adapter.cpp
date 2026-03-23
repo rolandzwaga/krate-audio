@@ -602,7 +602,7 @@ void DistortionAdapter::routeParamsToProcessor() noexcept {
         // =================================================================
         // Saturation (D01-D06)
         // =================================================================
-        case DistortionType::SoftClip:
+        case DistortionType::SoftClip: // NOLINT(bugprone-branch-clone): intentionally same as HardClip — both use params directly in processRaw()
             // Curve and knee are used directly in processRaw()
             break;
 

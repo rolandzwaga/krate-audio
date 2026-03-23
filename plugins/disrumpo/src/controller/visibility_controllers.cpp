@@ -250,10 +250,10 @@ NodeSelectionController::NodeSelectionController(
         displayedTypeParam_->addDependent(this);
     }
 
-    for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
-        if (proxyParams_[i]) {
-            proxyParams_[i]->addRef();
-            proxyParams_[i]->addDependent(this);
+    for (auto* proxyParam : proxyParams_) {
+        if (proxyParam) {
+            proxyParam->addRef();
+            proxyParam->addDependent(this);
         }
     }
 
@@ -344,10 +344,7 @@ int NodeSelectionController::getSelectedNode() const {
 }
 
 bool NodeSelectionController::isProxyParam(Steinberg::Vst::Parameter* param) const {
-    for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
-        if (proxyParams_[i] == param) return true;
-    }
-    return false;
+    return std::ranges::any_of(proxyParams_, [param](const auto* p) { return p == param; });
 }
 
 void NodeSelectionController::editParam(Steinberg::Vst::ParamID id, double normValue) {
