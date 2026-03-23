@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <random>
+#include <utility>
 
 namespace Innexus {
 
@@ -155,6 +156,9 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
                     fftSize, hopSize, static_cast<float>(sampleRate_));
                 // Spec 128: Prepare impact exciter per voice
                 voice.impactExciter.prepare(sampleRate_, static_cast<uint32_t>(vi));
+                // Spec 129: Prepare waveguide string per voice
+                voice.waveguideString.prepare(sampleRate_);
+                voice.waveguideString.prepareVoice(static_cast<uint32_t>(vi));
             }
         }
 
@@ -587,7 +591,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // FR-055: If no analysis loaded (sample mode) or no note active, output silence
     // In sidechain mode, we can synthesize even without a loaded sample analysis
     // as long as a note is active and the live pipeline has produced a frame.
-    const bool hasSampleAnalysis = analysis && !analysis->frames.empty();
+    const bool hasSampleAnalysis = (analysis != nullptr) && !analysis->frames.empty();
     // A live frame is "available" if we have a valid pitch, OR we received
     // a noise-gated frame (signal was present but now silent — need to enter
     // confidence gate to trigger freeze + spectral decay), OR we're in an
@@ -912,6 +916,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const float exciterTypeNorm = exciterType_.load(std::memory_order_relaxed);
     const auto exciterType = static_cast<ExciterType>(
         std::clamp(static_cast<int>(std::round(exciterTypeNorm * 2.0f)), 0, 2));
+
+    // Spec 129 FR-029: Read resonance type once per block for crossfade detection
+    const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
+    const int targetResonanceType = std::clamp(
+        static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
 
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
@@ -1302,6 +1311,24 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     constexpr int kVoiceCounts[] = {1, 4, 8};
     const int maxVoicesThisBlock = kVoiceCounts[voiceModeIdx];
 
+    // Spec 129 FR-029: Detect resonance type change and initiate crossfade
+    // for all active voices whose active type differs from the target.
+    for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
+    {
+        auto& v = voices_[static_cast<size_t>(vi)];
+        if (!v.active) continue;
+        if (!v.crossfadeActive && v.activeResonanceType_ != targetResonanceType)
+        {
+            v.crossfadeActive = true;
+            v.crossfadeFromType = v.activeResonanceType_;
+            v.crossfadeToType = targetResonanceType;
+            // ~23ms at current sample rate
+            v.crossfadeTotalSamples = std::max(
+                static_cast<int>(0.023 * sampleRate_), 1);
+            v.crossfadeSamplesRemaining = v.crossfadeTotalSamples;
+        }
+    }
+
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
         // --- Frame advancement (FR-047) -- only in sample mode ---
@@ -1320,7 +1347,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 // This keeps the note alive indefinitely while the key is held.
                 if (adsrActive && voice_.sustainLoopStart < voice_.sustainLoopEnd &&
                     voice_.adsr.getStage() == Krate::DSP::ADSRStage::Sustain &&
-                    static_cast<int>(voice_.currentFrameIndex) >= voice_.sustainLoopEnd)
+                    std::cmp_greater_equal(voice_.currentFrameIndex, voice_.sustainLoopEnd))
                 {
                     voice_.currentFrameIndex = static_cast<size_t>(voice_.sustainLoopStart);
                 }
@@ -1630,8 +1657,59 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 v.chokeDecayScale_ = v.chokeMaxScale_
                     + (1.0f - v.chokeMaxScale_) * v.chokeEnvelope_;
             }
-            float physicalSample = v.modalResonator.processSample(
-                excitation, v.chokeDecayScale_);
+            // Spec 129: Route excitation to active resonator type
+            // FR-029/FR-030/FR-031: Crossfade between resonator types
+            float physicalSample = 0.0f;
+            if (v.crossfadeActive)
+            {
+                // During crossfade: run both resonators with same excitation
+                float modalOut = v.modalResonator.processSample(
+                    excitation, v.chokeDecayScale_);
+                float wgOut = v.waveguideString.process(excitation);
+
+                // Determine which is old/new
+                float oldOut = (v.crossfadeFromType == 1) ? wgOut : modalOut;
+                float newOut = (v.crossfadeToType == 1) ? wgOut : modalOut;
+
+                // FR-031: Energy-aware gain matching using perceptual energy
+                float eOld = (v.crossfadeFromType == 1)
+                    ? v.waveguideString.getPerceptualEnergy()
+                    : v.modalResonator.getPerceptualEnergy();
+                float eNew = (v.crossfadeToType == 1)
+                    ? v.waveguideString.getPerceptualEnergy()
+                    : v.modalResonator.getPerceptualEnergy();
+                float gainMatch = (eNew > 1e-20f)
+                    ? std::sqrt(eOld / eNew) : 1.0f;
+                gainMatch = std::clamp(gainMatch, 0.25f, 4.0f);
+
+                // FR-030: Equal-power cosine crossfade
+                float t = 1.0f - static_cast<float>(v.crossfadeSamplesRemaining)
+                    / static_cast<float>(v.crossfadeTotalSamples);
+                constexpr float kHalfPi = 1.5707963267948966f;
+                physicalSample = oldOut * std::cos(t * kHalfPi)
+                               + newOut * gainMatch * std::sin(t * kHalfPi);
+
+                v.crossfadeSamplesRemaining--;
+                if (v.crossfadeSamplesRemaining <= 0)
+                {
+                    // Crossfade complete: switch to new type
+                    v.activeResonanceType_ = v.crossfadeToType;
+                    v.crossfadeActive = false;
+                    // Silence the outgoing resonator
+                    if (v.crossfadeFromType == 1)
+                        v.waveguideString.silence();
+                    else
+                        v.modalResonator.reset();
+                }
+            }
+            else if (v.activeResonanceType_ == 1) {
+                // Waveguide mode
+                physicalSample = v.waveguideString.process(excitation);
+            } else {
+                // Modal mode (default)
+                physicalSample = v.modalResonator.processSample(
+                    excitation, v.chokeDecayScale_);
+            }
             float resContrib = residualSample * perVoiceResLevel;
 
             // Spec 127 FR-023: PhysicalModelMixer blends residual and physical paths

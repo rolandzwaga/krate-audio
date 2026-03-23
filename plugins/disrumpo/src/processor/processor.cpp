@@ -1285,9 +1285,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
             int idx;
             if (version <= 9) {
                 // v9: old 15-entry encoding (NoteValue*3+NoteModifier) → convert to 21-entry dropdown
-                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfoNoteIndex), 0, 14)];
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(lfoNoteIndex)), 0, 14)];
             } else {
-                idx = std::clamp(static_cast<int>(lfoNoteIndex), 0, kNoteValueCount - 1);
+                idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfoNoteIndex)), 0, kNoteValueCount - 1);
             }
             const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
             sweepLFO_.setNoteValue(mapping.note, mapping.modifier);
@@ -1365,9 +1365,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (streamer.readInt8(lfo1NoteIdx)) {
             int idx;
             if (version <= 9) {
-                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfo1NoteIdx), 0, 14)];
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx)), 0, 14)];
             } else {
-                idx = std::clamp(static_cast<int>(lfo1NoteIdx), 0, kNoteValueCount - 1);
+                idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfo1NoteIdx)), 0, kNoteValueCount - 1);
             }
             const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
             modulationEngine_.setLFO1NoteValue(mapping.note, mapping.modifier);
@@ -1401,9 +1401,9 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
         if (streamer.readInt8(lfo2NoteIdx)) {
             int idx;
             if (version <= 9) {
-                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(lfo2NoteIdx), 0, 14)];
+                idx = kOldNoteIdxToNewDropdown[std::clamp(static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx)), 0, 14)];
             } else {
-                idx = std::clamp(static_cast<int>(lfo2NoteIdx), 0, kNoteValueCount - 1);
+                idx = std::clamp(static_cast<int>(static_cast<unsigned char>(lfo2NoteIdx)), 0, kNoteValueCount - 1);
             }
             const auto mapping = Krate::DSP::getNoteValueFromDropdown(idx);
             modulationEngine_.setLFO2NoteValue(mapping.note, mapping.modifier);
@@ -1539,17 +1539,20 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state) {
                 // v12: kParamsPerBand changed from 6 to 8 (added Tone, Bias).
                 // Migrate old dest indices: old band offsets were at 6 + band*6 + param,
                 // new layout is 6 + band*8 + param.
-                if (version <= 11 && dest >= static_cast<int32_t>(ModDest::kBandBase)) {
+                constexpr int32_t kBandBaseI = static_cast<int32_t>(ModDest::kBandBase);
+                constexpr int32_t kParamsPerBandI = static_cast<int32_t>(ModDest::kParamsPerBand);
+                constexpr int32_t kTotalDestsI = static_cast<int32_t>(ModDest::kTotalDestinations);
+                if (version <= 11 && dest >= kBandBaseI) {
                     constexpr int32_t kOldParamsPerBand = 6;
-                    const int32_t bandRelative = dest - static_cast<int32_t>(ModDest::kBandBase);
+                    const int32_t bandRelative = dest - kBandBaseI;
                     const int32_t oldBand = bandRelative / kOldParamsPerBand;
                     const int32_t oldOffset = bandRelative % kOldParamsPerBand;
-                    dest = static_cast<int32_t>(ModDest::kBandBase)
-                         + oldBand * static_cast<int32_t>(ModDest::kParamsPerBand)
+                    dest = kBandBaseI
+                         + oldBand * kParamsPerBandI
                          + oldOffset;
                 }
                 routing.destParamId = static_cast<uint32_t>(
-                    std::clamp(dest, 0, static_cast<int32_t>(ModDest::kTotalDestinations - 1)));
+                    std::clamp(dest, 0, kTotalDestsI - 1));
             }
             if (!streamer.readFloat(routing.amount))
                 routing.amount = 0.0f;
@@ -2476,7 +2479,7 @@ Steinberg::tresult PLUGIN_API Processor::disconnect(
 // ==============================================================================
 
 void Processor::sendSpectrumBlock(
-    const float* inputL, const float* inputR,
+    const float* /*inputL*/, const float* /*inputR*/,
     const float* outputL, const float* outputR,
     Steinberg::int32 numSamples)
 {

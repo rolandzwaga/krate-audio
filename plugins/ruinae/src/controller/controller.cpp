@@ -801,7 +801,7 @@ void Controller::valueChanged(VSTGUI::CControl* control) {
 // Sidechain Indicator Update
 // ==============================================================================
 
-void Controller::updateSidechainIndicator(VSTGUI::CView* indicator) {
+void Controller::updateSidechainIndicator(VSTGUI::CView* indicator) const {
     auto* label = dynamic_cast<VSTGUI::CTextLabel*>(indicator);
     if (!label) return;
 

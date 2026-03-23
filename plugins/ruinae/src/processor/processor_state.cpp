@@ -295,7 +295,7 @@ void Processor::applyPresetSnapshot(const PresetSnapshot& snapshot) {
     if (snapshot.bytes.empty()) return;
 
     Steinberg::MemoryStream memStream(
-        const_cast<char*>(snapshot.bytes.data()),
+        const_cast<char*>(snapshot.bytes.data()), // NOLINT(cppcoreguidelines-pro-type-const-cast): Steinberg::MemoryStream API requires non-const char* for read-only access
         static_cast<Steinberg::TSize>(snapshot.bytes.size()));
     Steinberg::IBStreamer streamer(&memStream, kLittleEndian);
 

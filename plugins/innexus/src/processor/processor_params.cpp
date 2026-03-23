@@ -357,6 +357,20 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Waveguide String Resonance (Spec 129)
+            case kResonanceTypeId:
+                resonanceType_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kWaveguideStiffnessId:
+                waveguideStiffness_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kWaveguidePickPositionId:
+                waveguidePickPosition_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             // Impact Exciter (Spec 128)
             case kExciterTypeId:
                 exciterType_.store(

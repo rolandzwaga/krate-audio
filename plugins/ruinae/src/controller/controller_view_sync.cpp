@@ -231,7 +231,7 @@ Steinberg::tresult PLUGIN_API Controller::setParamNormalized(
             int stepIndex = static_cast<int>(tag - kArpInversionLaneStep0Id);
             auto invIdx = static_cast<uint8_t>(
                 std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3));
-            inversionLane_->setStepValue(stepIndex, invIdx);
+            inversionLane_->setStepValue(stepIndex, invIdx); // NOLINT(readability-suspicious-call-argument): order is correct — stepIndex is the step position, invIdx is the inversion value
             inversionLane_->setDirty(true);
         } else if (tag == kArpInversionLaneLengthId) {
             int steps = std::clamp(

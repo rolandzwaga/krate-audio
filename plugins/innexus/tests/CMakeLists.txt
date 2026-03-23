@@ -42,6 +42,9 @@ add_executable(innexus_tests
     # ADSR VST parameter registration tests (Spec 124: T026)
     unit/vst/test_adsr_vst_params.cpp
 
+    # Waveguide string parameter tests (Spec 129)
+    unit/vst/waveguide_param_test.cpp
+
     # State v10 tests (Modulator Tempo Sync)
     unit/vst/test_state_v10.cpp
 
@@ -128,6 +131,9 @@ add_executable(innexus_tests
     # Physical Model tests (Spec 127)
     unit/processor/test_physical_model.cpp
 
+    # Waveguide String integration tests (Spec 129)
+    unit/processor/waveguide_integration_test.cpp
+
     # Polyphonic MPE integration tests
     integration/test_polyphonic_mpe.cpp
 
@@ -190,6 +196,7 @@ if(NOT MSVC)
         integration/sidechain_integration_tests.cpp
         integration/test_sidechain_wav_quality.cpp
         unit/processor/test_physical_model.cpp
+        unit/processor/waveguide_integration_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()

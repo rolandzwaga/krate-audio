@@ -125,7 +125,7 @@ public:
 class OutlineButton : public VSTGUI::CView {
 public:
     OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  VSTGUI::CColor frameColor = VSTGUI::CColor(64, 64, 72))
+                  const VSTGUI::CColor& frameColor = VSTGUI::CColor(64, 64, 72))
         : CView(size)
         , title_(std::move(title))
         , frameColor_(frameColor)
@@ -259,7 +259,7 @@ class ADSRExpandButton : public OutlineButton {
 public:
     ADSRExpandButton(const VSTGUI::CRect& size, Ruinae::Controller* controller,
                      Ruinae::Controller::EnvelopeType envType,
-                     VSTGUI::CColor frameColor)
+                     const VSTGUI::CColor& frameColor)
         : OutlineButton(size, "Expand", frameColor)
         , controller_(controller)
         , envType_(envType) {}
@@ -534,8 +534,14 @@ bool Controller::loadStateCore(Steinberg::IBStreamer& streamer,
 
     // Voice routes — cache and apply to grid
     for (int i = 0; i < 16; ++i) {
-        Steinberg::int8 src = 0, dst = 0, curve = 0, scale = 0, bypass = 0, active = 0;
-        float amount = 0, smoothMs = 0;
+        Steinberg::int8 src = 0;
+        Steinberg::int8 dst = 0;
+        Steinberg::int8 curve = 0;
+        Steinberg::int8 scale = 0;
+        Steinberg::int8 bypass = 0;
+        Steinberg::int8 active = 0;
+        float amount = 0;
+        float smoothMs = 0;
         if (!streamer.readInt8(src) || !streamer.readInt8(dst) ||
             !streamer.readFloat(amount) || !streamer.readInt8(curve) ||
             !streamer.readFloat(smoothMs) || !streamer.readInt8(scale) ||

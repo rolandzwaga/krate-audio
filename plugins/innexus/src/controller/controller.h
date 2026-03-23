@@ -200,6 +200,9 @@ private:
     /// Update Impact exciter knob container visibility based on ExciterType
     void updateImpactKnobVisibility();
 
+    /// Update resonator knob containers visibility based on ResonanceType
+    void updateResonatorVisibility();
+
     /// Push current ADSR parameter values to the ADSRDisplay view(s)
     void updateAdsrDisplayFromParams();
 
@@ -207,9 +210,9 @@ private:
     void wireAdsrDisplay(Krate::Plugins::ADSRDisplay* display);
 
     /// Helper: forward a single ADSR parameter change to a display
-    void forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
-                                   Steinberg::Vst::ParamID id,
-                                   float norm);
+    static void forwardAdsrParamToDisplay(Krate::Plugins::ADSRDisplay* display,
+                                          Steinberg::Vst::ParamID id,
+                                          float norm);
 
     // Update Checker
     std::unique_ptr<Krate::Plugins::UpdateChecker> updateChecker_;
@@ -267,6 +270,10 @@ private:
 
     // Impact exciter knob container (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* impactKnobContainer_ = nullptr;
+
+    // Resonator knob containers (VSTGUI-owned, nulled in willClose)
+    VSTGUI::CViewContainer* modalKnobContainer_ = nullptr;
+    VSTGUI::CViewContainer* waveguideKnobContainer_ = nullptr;
 
     // Active editor pointer for visibility controllers
     VSTGUI::VST3Editor* activeEditor_ = nullptr;

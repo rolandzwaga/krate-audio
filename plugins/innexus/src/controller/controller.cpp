@@ -469,8 +469,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     auto* mod1NoteValParam = new Steinberg::Vst::StringListParameter(
         STR16("Mod 1 Note Value"), kMod1NoteValueId, nullptr,
         Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
-    for (int i = 0; i < Parameters::kNoteValueDropdownCount; ++i)
-        mod1NoteValParam->appendString(Parameters::kNoteValueDropdownStrings[i]);
+    for (const auto* noteStr : Parameters::kNoteValueDropdownStrings)
+        mod1NoteValParam->appendString(noteStr);
     mod1NoteValParam->getInfo().defaultNormalizedValue = 10.0 / 20.0; // 1/8 note
     parameters.addParameter(mod1NoteValParam);
 
@@ -530,8 +530,8 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     auto* mod2NoteValParam = new Steinberg::Vst::StringListParameter(
         STR16("Mod 2 Note Value"), kMod2NoteValueId, nullptr,
         Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
-    for (int i = 0; i < Parameters::kNoteValueDropdownCount; ++i)
-        mod2NoteValParam->appendString(Parameters::kNoteValueDropdownStrings[i]);
+    for (const auto* noteStr : Parameters::kNoteValueDropdownStrings)
+        mod2NoteValParam->appendString(noteStr);
     mod2NoteValParam->getInfo().defaultNormalizedValue = 10.0 / 20.0; // 1/8 note
     parameters.addParameter(mod2NoteValParam);
 
@@ -762,6 +762,27 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         STR16(""), 0.0, 1.0, 0.13, 0,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(impactPositionParam);
+
+    // Waveguide String Resonance (Spec 129)
+    auto* resonanceTypeParam = new Steinberg::Vst::StringListParameter(
+        STR16("Resonance Type"), kResonanceTypeId, nullptr,
+        Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
+    resonanceTypeParam->appendString(STR16("Modal"));
+    resonanceTypeParam->appendString(STR16("Waveguide"));
+    resonanceTypeParam->appendString(STR16("Body"));
+    parameters.addParameter(resonanceTypeParam);
+
+    auto* waveguideStiffnessParam = new Steinberg::Vst::RangeParameter(
+        STR16("Waveguide Stiffness"), kWaveguideStiffnessId,
+        STR16("%"), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(waveguideStiffnessParam);
+
+    auto* waveguidePickPosParam = new Steinberg::Vst::RangeParameter(
+        STR16("Waveguide Pick Position"), kWaveguidePickPositionId,
+        STR16(""), 0.0, 1.0, 0.13, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(waveguidePickPosParam);
 
     // NoteExpression types (Phase 4: MPE support)
     {
@@ -1253,6 +1274,20 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
                 static_cast<double>(std::clamp(ieVal, 0.0f, 1.0f)));
     }
 
+    // --- Waveguide String Resonance parameters (Spec 129, graceful fallback for old states) ---
+    {
+        float wgVal = 0.0f;
+        if (streamer.readFloat(wgVal))
+            setParamNormalized(kResonanceTypeId,
+                static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(wgVal))
+            setParamNormalized(kWaveguideStiffnessId,
+                static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(wgVal))
+            setParamNormalized(kWaveguidePickPositionId,
+                static_cast<double>(std::clamp(wgVal, 0.0f, 1.0f)));
+    }
+
     // SharedDisplayBridge: try to read instance ID from state trailer
     {
         Steinberg::int32 marker = 0;
@@ -1558,6 +1593,8 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleFilenameLabel_ = nullptr;
     sampleLoadContainer_ = nullptr;
     impactKnobContainer_ = nullptr;
+    modalKnobContainer_ = nullptr;
+    waveguideKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
     adsrExpandedOverlay_ = nullptr;
 
@@ -1582,7 +1619,7 @@ void PLUGIN_API Controller::queueOpened(
 {
     // Dispatch on UI thread so we can safely update cachedDisplayData_
     // without synchronization (timer also fires on UI thread).
-    dispatchOnBackgroundThread = false;
+    dispatchOnBackgroundThread = static_cast<Steinberg::TBool>(false);
 }
 
 void PLUGIN_API Controller::queueClosed(
@@ -1712,9 +1749,15 @@ Steinberg::tresult PLUGIN_API Controller::notify(
             return std::log(clamped / kMin) / kLogRatio;
         };
 
-        double attackMs = 10.0, decayMs = 100.0, sustainLevel = 1.0,
-               releaseMs = 100.0, amount = 0.0, timeScale = 1.0,
-               attackCurve = 0.0, decayCurve = 0.0, releaseCurve = 0.0;
+        double attackMs = 10.0;
+        double decayMs = 100.0;
+        double sustainLevel = 1.0;
+        double releaseMs = 100.0;
+        double amount = 0.0;
+        double timeScale = 1.0;
+        double attackCurve = 0.0;
+        double decayCurve = 0.0;
+        double releaseCurve = 0.0;
 
         attrs->getFloat("attackMs", attackMs);
         attrs->getFloat("decayMs", decayMs);
@@ -1938,6 +1981,61 @@ void Controller::updateImpactKnobVisibility()
 }
 
 // ==============================================================================
+// updateResonatorVisibility
+// ==============================================================================
+void Controller::updateResonatorVisibility()
+{
+    // Lazy-find the two resonator knob containers by locating children with
+    // unique tags: ResonanceStretch (803) for modal, WaveguideStiffness (811)
+    // for waveguide. Take their parent containers.
+    if ((!modalKnobContainer_ || !waveguideKnobContainer_) && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || (modalKnobContainer_ && waveguideKnobContainer_))
+                    return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kResonanceStretchId
+                            && !modalKnobContainer_) {
+                            modalKnobContainer_ = container;
+                        }
+                        if (control->getTag() == kWaveguideStiffnessId
+                            && !waveguideKnobContainer_) {
+                            waveguideKnobContainer_ = container;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    if (!modalKnobContainer_ || !waveguideKnobContainer_)
+        return;
+
+    // ResonanceType: StringListParameter with 3 values
+    // Normalized: 0.0 = Modal, 0.5 = Waveguide, 1.0 = Body
+    auto* param = getParameterObject(kResonanceTypeId);
+    if (!param)
+        return;
+
+    float norm = param->getNormalized();
+    bool isModal = (norm < 0.25f);     // Modal = 0.0
+    bool isWaveguide = (norm >= 0.25f && norm < 0.75f); // Waveguide = 0.5
+
+    modalKnobContainer_->setVisible(isModal);
+    waveguideKnobContainer_->setVisible(isWaveguide);
+
+    if (modalKnobContainer_->getParentView())
+        modalKnobContainer_->getParentView()->invalid();
+}
+
+// ==============================================================================
 // onDisplayTimerFired (T016: FR-049)
 // ==============================================================================
 void Controller::onDisplayTimerFired()
@@ -1947,6 +2045,9 @@ void Controller::onDisplayTimerFired()
 
     // Update impact exciter knob visibility based on exciter type
     updateImpactKnobVisibility();
+
+    // Update resonator knob containers based on resonance type
+    updateResonatorVisibility();
 
     // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
     // read directly from the processor's shared display buffer

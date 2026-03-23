@@ -279,11 +279,12 @@ TEST_CASE("PhysicalModel state round-trip preserves all 5 new params",
     // Step 2: Patch the 5 physical model params in the saved stream to
     // non-default values. The state format ends with:
     //   5 floats (phys model params) + 5 floats (impact exciter params)
+    //   + 3 floats (waveguide params, Spec 129)
     //   + int32 marker + int64 instance id
-    // So the 5 phys model floats start at (size - 10*4 - 4 - 8) = (size - 52).
+    // So the 5 phys model floats start at (size - 13*4 - 4 - 8) = (size - 64).
     size_t streamSize = defaultStream.size();
-    REQUIRE(streamSize > 52);
-    size_t physParamOffset = streamSize - 10 * sizeof(float)
+    REQUIRE(streamSize > 64);
+    size_t physParamOffset = streamSize - 13 * sizeof(float)
                              - sizeof(Steinberg::int32) - sizeof(Steinberg::int64);
     defaultStream.writeFloatAt(physParamOffset + 0 * sizeof(float), kTestMix);
     defaultStream.writeFloatAt(physParamOffset + 1 * sizeof(float), kTestDecay);

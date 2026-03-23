@@ -144,7 +144,7 @@ Steinberg::tresult PLUGIN_API Processor::initialize(FUnknown* context) {
         voiceRouteSyncMsg_->setMessageID("VoiceModRouteState");
         // Pre-warm the binary attribute with a dummy payload so the attribute
         // list allocates storage once, not on every sendVoiceModRouteState().
-        static constexpr size_t kRouteDataBytes = 14 * Krate::Plugins::kMaxVoiceRoutes;
+        static constexpr size_t kRouteDataBytes = 14 * static_cast<size_t>(Krate::Plugins::kMaxVoiceRoutes);
         uint8_t dummy[kRouteDataBytes]{};
         auto* attrs = voiceRouteSyncMsg_->getAttributes();
         if (attrs) {

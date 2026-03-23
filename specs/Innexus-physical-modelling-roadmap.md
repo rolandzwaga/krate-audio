@@ -726,9 +726,11 @@ float physicalSample = modalResonator.process(excitation);
 
 ## Phase 3: Waveguide String Resonance
 
-**Goal:** Add a Karplus-Strong style waveguide as an alternative resonance model. Where modal resonator sounds like struck rigid objects, waveguides sound like strings and tubes.
+**Goal:** Add a digital waveguide string resonator as an alternative to the modal resonator bank. The digital waveguide models wave propagation on a string via a delay-line feedback loop, producing timbres characteristic of strings and tubes rather than struck rigid bodies.
 
-**Sonic character:** Plucked strings, struck wires, metallic sustains. The waveguide's natural harmonic series aligns with the analyzed partials, but the physical feedback loop adds the characteristic "alive" quality.
+**Sonic character:** Plucked strings, struck wires, metallic sustains. The waveguide naturally produces a complete harmonic series from a single delay loop, and the physical feedback topology imparts the characteristic "alive" quality of real vibrating strings — including frequency-dependent decay, dispersion, and nonlinear interactions.
+
+**Scientific foundation:** The digital waveguide is the physical modelling interpretation of the Karplus-Strong algorithm (Karplus & Strong, 1983). Julius O. Smith III showed (Smith, 1992) that a delay-line feedback loop with a lowpass filter is equivalent to discretising the 1D wave equation for a lossy string, where the delay line models travelling-wave propagation and the loop filter models distributed energy losses. The Extended Karplus-Strong (EKS) algorithm (Jaffe & Smith, 1983) added pick-position filtering, stiffness allpass, dynamic-level control, and fractional-delay tuning.
 
 ### New DSP Components
 
@@ -736,30 +738,186 @@ float physicalSample = modalResonator.process(excitation);
 Location: `dsp/include/krate/dsp/processors/waveguide_string.h`
 
 ```
-Input: excitation signal
+Input: excitation signal (shaped noise burst or impulse)
 Config: fundamental frequency (from HarmonicFrame F0),
-        damping, brightness, inharmonicity
+        damping (T60), brightness, inharmonicity (stiffness coefficient B),
+        pick position
 Output: mono waveguide output
 
-Internal:
-  - Delay line tuned to F0 (length = sampleRate / f0)
-  - Fractional delay via allpass interpolation (Thiran 1st order)
-  - Feedback loop with:
-    - One-pole lowpass filter (brightness → cutoff)
-    - Loss factor (damping → feedback gain)
-    - Optional allpass for inharmonicity (stiffness)
+Signal flow (per sample):
+  excitation ──►(+)──► [Soft Clip] ──► [Delay Line: N samples] ──► [Dispersion Allpass] ──►
+                 ▲                                                                          │
+                 │                                                                          ▼
+                 │◄──── [DC Blocker] ◄── [Loss Filter] ◄────────── [Tuning Allpass] ◄───────┘
+                 │
+                 ▼
+              output (tap)
+
+Component details:
+
+  1. Delay line — Integer part of loop delay:
+     N = floor(fs / f0 - D_loss - D_dispersion - D_dc - D_tuning)
+     where D_loss, D_dispersion, D_dc are the group delays (in samples) of the
+     loss filter, dispersion allpass cascade, and DC blocker respectively,
+     all evaluated at f0. This is critical: the dispersion filter's group delay
+     at f0 changes with the stiffness coefficient B, so turning the Stiffness
+     knob changes the effective loop length. If only D_loss is subtracted (as in
+     simpler implementations), notes will go progressively flat as stiffness
+     increases. D_tuning is the fractional delay handled by the tuning allpass.
+     Reuses existing DelayLine from Layer 1.
+
+  2. Tuning allpass (fractional delay) — Thiran 1st-order allpass interpolation.
+     Compensates for fractional sample delay AND loop filter phase delay.
+     H_eta(z) = (eta + z^-1) / (1 + eta * z^-1)
+     where eta = (1 - Delta) / (1 + Delta), Delta = fractional part of total loop delay.
+     Thiran allpass provides maximally flat group delay at DC (Thiran, 1971),
+     which is optimal since pitch perception is most acute at low frequencies.
+     Alternative: Lagrange 3rd-order FIR for non-recursive option (no state to
+     manage on pitch changes), at the cost of slight high-frequency coloring.
+     WARNING: Lagrange filters are non-unitary (|H| < 1 at high frequencies),
+     which introduces pitch-dependent damping inside the feedback loop — higher
+     notes lose more energy per round trip than lower notes. This "accidental
+     damping" changes the timbral character unpredictably with pitch. Thiran
+     allpass preserves energy (|H| = 1 at all frequencies) and should be
+     preferred for in-loop use. Reserve Lagrange for output taps only.
+
+  3. Loss filter (damping + brightness) — Weighted one-zero filter:
+     H(z) = rho * [(1 - S) + S * z^-1]
+     where:
+       rho = frequency-independent loss per round trip = 10^(-3 / (T60 * f0))
+       S = brightness parameter (0 = no freq-dependent loss, 0.5 = original KS averaging)
+     At S = 0.5 this reduces to the original Karplus-Strong averaging filter
+     H(z) = 0.5 * (1 + z^-1), but the parameterised form allows independent
+     control of overall decay time (rho) and spectral tilt (S).
+
+     The gain constraint |H(e^{j*omega})| <= 1 must hold at ALL frequencies to
+     ensure passivity/stability (Smith, PASP). The filter models the combined
+     effect of all distributed losses in a real string:
+       - Air damping (frequency-independent, viscous drag)
+       - Internal friction (frequency-dependent, dominant loss mechanism)
+       - Bridge/nut radiation losses
+
+     Design target per harmonic: |H(omega_n)| = 10^(-3 / (T60(n) * f0))
+     For real strings, T60(n) ~ T60(1) / (1 + alpha * n^2) due to internal
+     friction being proportional to frequency squared (Vallette, 1995).
+
+     Tuning compensation: The loss filter's phase delay must be accounted for in
+     the total loop delay. Note that the analytical value (S samples at DC for the
+     one-zero filter) is only an approximation — it diverges at higher frequencies.
+     In practice, use empirical tuning correction: measure the actual pitch output
+     against the target F0 and apply a small correction LUT or polynomial fit
+     indexed by f0 and S. This is especially important at high stiffness settings
+     where dispersion interacts with loss filter phase to compound the tuning error.
+
+  4. DC blocker — First-order highpass, placed OUTSIDE the primary feedback loop
+     (between loop output and the final output tap) when possible, to avoid
+     introducing phase lag into the resonant loop. If placed inside the loop
+     (necessary when DC drift is severe), use a very low cutoff to minimise
+     pitch interaction:
+     H(z) = (1 - z^-1) / (1 - R * z^-1),  R = 0.9995 at 44.1 kHz (fc ~ 3.5 Hz)
+     At this cutoff, phase contribution at the lowest playable F0 (~20 Hz) is
+     negligible (<0.01 samples). If placed outside the loop, R = 0.995 (fc ~ 35 Hz)
+     is fine since it doesn't affect loop tuning.
+     Prevents DC offset accumulation from numerical round-off and asymmetric
+     excitation. The zero at z=1 kills DC exactly; the nearby pole preserves
+     bass content (Smith, PASP).
+
+  5. Dispersion allpass (stiffness/inharmonicity) — Cascade of 2nd-order allpass
+     sections (biquads) modelling frequency-dependent wave speed in stiff strings.
+     Real string partials follow Fletcher's formula:
+       f_n = n * f0 * sqrt(1 + B * n^2)
+     where B is the inharmonicity coefficient:
+       B = (pi^3 * E * a^4) / (16 * L^2 * K)
+       E = Young's modulus, a = string radius, L = length, K = tension
+     Typical B values: 0.00001 (piano bass) to 0.01+ (piano treble).
+     Guitar strings have much lower B.
+
+     The allpass filter provides the required frequency-dependent phase shift
+     without affecting amplitude. Design methods (in order of sophistication):
+       a) Van Duyne & Smith (1994): cascade of 1st-order allpass sections
+       b) Rauhala & Välimäki (2006): Thiran-based closed-form 2nd-order sections
+       c) Abel, Välimäki & Smith (2010): optimal biquad cascade from group delay —
+          state-of-the-art, numerically robust, always stable
+     For this implementation: 2-4 biquad sections sufficient for guitar/moderate
+     stiffness. 6-8+ sections needed for realistic piano bass strings.
+     User parameter "Stiffness" maps to B coefficient (0.0 = flexible string,
+     1.0 = maximum inharmonicity).
+
+     Stiffness modulation strategy: Changing B during a sounding note requires
+     updating allpass biquad coefficients. Direct coefficient replacement causes
+     state mismatch → audible "zing" or "chirp" transients. Two approaches:
+       a) Freeze-at-onset (simple): compute dispersion coefficients at note-on,
+          hold fixed for the note's lifetime. Stiffness knob only affects new notes.
+          This is the recommended Phase 3 approach.
+       b) Crossfaded interpolation (advanced): maintain two parallel dispersion
+          filter chains, crossfade output over 5-10 ms when coefficients change.
+          More expensive but allows real-time stiffness modulation. Consider for
+          Phase 4+ if musically justified.
+
+  6. In-loop soft clipper — Safety limiter placed before the delay line input:
+     y = (|x| < threshold) ? x : threshold * tanhf(x / threshold)
+     with threshold ≈ 1.0 (0 dBFS). Transparent at normal signal levels.
+     Purpose: fast parameter sweeps can temporarily violate passivity before
+     coefficient smoothing catches up, causing the loop to blow up. The soft
+     clipper bounds the signal regardless of filter state, mimicking the
+     physical limit of a string's maximum displacement. Cost: one comparison
+     + occasional tanhf per sample — negligible. This parallels the output
+     safety limiter already spec'd for ModalResonatorBank (Phase 1).
 ```
 
 This reuses the existing `DelayLine` from Layer 1 but wraps it in the waveguide feedback topology.
+
+**On filter ordering:** In the steady-state (fixed pitch, fixed parameters), all loop components are LTI and commute with the delay line (Smith, 1992), so their placement order does not affect the frequency response. However, **commutativity breaks under time-varying conditions** — pitch changes, stiffness modulation, and damping sweeps all violate the LTI assumption. In practice this means:
+- The chosen filter ordering is **fixed at design time** and must be validated empirically under modulation
+- Parameter changes must be smoothed (see Pitch Tracking and Stiffness Modulation sections) to keep the system "locally LTI" — i.e., parameters change slowly relative to the loop period
+- Phase 4 (bow model) introduces a nonlinear element that fundamentally cannot commute; the bow junction's position in the loop is physically determined and non-negotiable
+
+#### Excitation Design
+
+The excitation signal determines the initial timbre before the loop filter shapes the decay:
+
+- **Noise burst (default pluck):** Fill delay line with bandlimited noise. Lowpass-filtering the noise before injection provides dynamic level control — brighter noise = louder/harder pluck, matching how real instruments produce brighter timbres at higher dynamics (Karplus & Strong, 1983).
+- **Pick-position comb filter (EKS):** `H_beta(z) = 1 - z^{-round(beta*N)}` where beta is normalised pick position (0–1). Creates spectral nulls at harmonics that are integer multiples of 1/beta. Plucking at 1/5 kills the 5th, 10th, 15th... harmonics. Very cheap (one subtraction) and musically powerful. **Important:** The comb delay `round(beta*N)` depends on the delay line length N. Under pitch changes, N changes, so the spectral nulls would drift unless handled. **Policy: evaluate pick position at note onset and freeze for the note's lifetime.** This matches real instruments (you pluck at a fixed point; you don't move the pluck during a note). The pick-position parameter only affects new excitations.
+- **Shaped excitation from analysis:** Since Innexus has harmonic analysis data (F0, partial amplitudes), the excitation spectrum can be shaped to match the target spectral envelope. A filtered noise burst injected into the waveguide causes the loop filter to naturally evolve the spectrum over time.
+- **Commuted synthesis (advanced):** Body impulse response convolved with excitation into a single "aggregate excitation table" (Smith, 1993). Eliminates body filter from the per-sample loop. Relevant when Phase 5 (Body Resonance) is integrated.
+
+#### Architecture for Phase 4 (Bow Model) Compatibility
+
+The waveguide string must be designed to support bowing in Phase 4 without a fundamental redesign. Bowing requires a **nonlinear scattering junction** that cannot be added as an afterthought — it changes the core topology from a single delay loop to two coupled delay segments with a nonlinear two-port between them.
+
+**Phase 3 design requirements to avoid Phase 4 retrofit pain:**
+
+1. **Two delay segments, not one monolithic delay line.** The string is split at the interaction point into segment A (nut-side, length `beta*N` samples) and segment B (bridge-side, length `(1-beta)*N` samples). For Phase 3 pluck, excitation injects into the junction between them and both segments share the same loop filter. For Phase 4 bow, the junction becomes a nonlinear scattering element.
+
+2. **Scattering junction interface.** Define an abstract junction that takes two incoming velocity waves (one from each segment) and produces two outgoing waves:
+   ```
+   struct ScatteringJunction {
+       float characteristicImpedance = 1.0f;  // Z = sqrt(T * mu), normalised
+       // Phase 3: unused (pluck is impedance-independent)
+       // Phase 4: bow reflection coefficient depends on Z_bow / Z_string ratio
+
+       virtual void scatter(float v_in_left, float v_in_right,
+                           float& v_out_left, float& v_out_right) = 0;
+   };
+   ```
+   - Phase 3 `PluckJunction`: passes waves through with additive excitation injection. Trivial — effectively transparent except at the moment of excitation.
+   - Phase 4 `BowJunction`: implements velocity-dependent friction model. The bow-string interaction uses a memoryless nonlinear reflection function: `rho_t(v_d) = r(v_d) / (1 + r(v_d))` where `v_d = v_bow - (v_in_left + v_in_right)` is the differential velocity and `r()` encodes the static/dynamic friction characteristic (Smith, PASP Ch. 9).
+
+3. **Velocity waves, not displacement.** The waveguide should internally use velocity waves (not displacement), since bow interaction is defined in terms of velocity. Displacement output can be obtained by integration if needed. This is a design choice that costs nothing in Phase 3 but saves a rewrite in Phase 4.
+
+4. **Interaction point as runtime parameter.** The position dividing segments A and B must be changeable (pick position for pluck, bow position for bow). When the position changes, samples transfer between the two delay segments.
 
 ### New Parameters
 
 | ID | Name | Range | Default | Description |
 |----|------|-------|---------|-------------|
 | `kResonanceTypeId` | Resonance Type | 0–2 | 0 | Modal / Waveguide / Body (Phase 5) |
-| `kWaveguideStiffnessId` | Stiffness | 0.0–1.0 | 0.0 | String stiffness (inharmonicity) |
+| `kWaveguideStiffnessId` | Stiffness | 0.0–1.0 | 0.0 | String stiffness (inharmonicity coefficient B) |
+| `kWaveguidePickPositionId` | Pick Position | 0.0–1.0 | 0.13 | Normalised pluck/interaction point (0.13 ≈ guitar bridge pickup) |
 
-Reuses `kResonanceDecayId` and `kResonanceBrightnessId` from Phase 1 — same musical meaning, different implementation.
+Reuses `kResonanceDecayId` and `kResonanceBrightnessId` from Phase 1 — same musical meaning, different physical implementation:
+- **Decay** maps to `rho` (frequency-independent loss factor per round trip)
+- **Brightness** maps to `S` (spectral tilt of the one-zero loss filter; 0 = flat decay, 1 = maximum high-frequency damping)
 
 ### Design Note: Modal vs. Waveguide
 
@@ -767,17 +925,216 @@ Reuses `kResonanceDecayId` and `kResonanceBrightnessId` from Phase 1 — same mu
 |----------|----------------|-----------------|
 | Sound character | Struck rigid body (bells, bars) | Strings, tubes, wires |
 | Partial control | Independent per-partial | Coupled (harmonic series from F0) |
-| Inharmonicity | From analysis (each partial free) | From stiffness model (physically coupled) |
-| CPU cost | O(N) biquads, N = partial count | O(1) delay line + filters |
-| Best for | Complex spectral shapes | Harmonic/near-harmonic timbres |
+| Inharmonicity | From analysis (each partial free) | From stiffness model (physically coupled via Fletcher's formula) |
+| CPU cost | O(M) biquads, M = partial count (~9M ops/sample) | O(1) delay line + filters (~10-12 ops/sample) |
+| Harmonic content | Only explicitly modelled partials | All harmonics up to Nyquist (free) |
+| Memory | 4 state vars per mode | N samples for delay buffer (N = fs/f0) |
+| Best for | Complex spectral shapes, inharmonic timbres | Harmonic/near-harmonic timbres, string/tube sounds |
+| Pitch changes | Retune each biquad independently | Retune single delay length (+ allpass state update) |
+
+**CPU comparison:** For 32 modes at 44.1 kHz, the unvectorised modal bank costs ~288 ops/sample. A single waveguide string costs ~10-12 ops/sample. However, the modal bank is embarrassingly parallel (each biquad is independent) and benefits greatly from SIMD — with AVX2 processing 8 modes per vector op, effective cost drops to ~36-72 ops/sample equivalent. The waveguide loop is inherently sequential (feedback dependency) with limited SIMD opportunity within a single string. **Realistic advantage: ~5-10x cheaper per string** after SIMD optimisation of the modal path. Still a significant win, especially for polyphonic use and sympathetic resonance (Phase 6) where multiple waveguide strings run in parallel (and *can* be SIMD-vectorised across strings).
+
+### Energy Normalisation Across F0
+
+Without compensation, waveguide output level varies with pitch:
+- **Lower notes** have longer delay lines → more energy stored in the loop → louder output
+- **Higher notes** have shorter delay lines → less stored energy → quieter output
+- Additionally, the loop filter and fractional delay filter introduce pitch-dependent gain variations
+
+**Required compensation:**
+
+1. **Delay-length normalisation:** Scale excitation amplitude or output gain by `sqrt(f0 / f_ref)` where `f_ref` is a reference frequency (e.g., middle C, 261.6 Hz). This compensates for the energy density difference. The square root comes from the energy being proportional to the number of samples in the loop.
+
+2. **Loop gain verification per note:** At each note-on, compute the total loop gain `G_total = |H_loss| * |H_dc| * |H_dispersion|` at the fundamental frequency. Apply a correction factor `1 / G_total` to the excitation level to ensure consistent perceived loudness.
+
+3. **Velocity curve calibration:** After energy normalisation, the velocity-to-excitation-amplitude mapping must produce perceptually consistent dynamics across the pitch range. This requires empirical calibration — a linear mapping will not sound even.
+
+Without this, low notes will be noticeably louder than high notes, and velocity response will feel inconsistent across the keyboard.
+
+### Click-Free Model Switching
+
+Switching between Modal and Waveguide resonance types must be artifact-free:
+
+1. **Output-domain equal-power crossfade** over 20–30 ms (882–1323 samples at 44.1 kHz)
+2. During the crossfade, **both models run in parallel** receiving the same excitation
+3. Apply cosine crossfade: `out = old * cos(t*pi/2) + new * sin(t*pi/2)` for equal power
+4. Optionally: initialise the waveguide delay buffer from the modal bank's current output for phase continuity at the switch point
+
+The cost of running both models for 20 ms is negligible (~0.1% of a second of audio).
+
+### Resonator Interface (Shared Abstraction)
+
+Modal and Waveguide resonators must conform to a common interface. This is what turns "multiple synthesis engines" into "one instrument with interchangeable physics."
+
+**Scope:** This interface covers **per-voice resonators only** — components that consume excitation and produce resonated audio. It does NOT cover:
+- **Body Resonance (Phase 5):** A post-processing coloring stage that takes resonator output, not raw excitation. Different topology — it wraps a resonator, it isn't one.
+- **Sympathetic Resonance (Phase 6):** Global (post-voice-accumulation), not per-voice. Operates on summed output of all voices.
+- **Exciters (Impact, Bow):** These produce excitation signals. They are the resonator's input, not its peer.
+
+```cpp
+class IResonator {
+public:
+    virtual ~IResonator() = default;
+
+    // --- Configuration (called at note-on or on frame advance) ---
+    virtual void setFrequency(float f0) = 0;
+    virtual void setDecay(float t60) = 0;
+    virtual void setBrightness(float brightness) = 0;
+
+    // --- Per-sample processing ---
+    virtual float process(float excitation) = 0;  // returns audio sample
+
+    // --- Energy observation ---
+    virtual float getControlEnergy() const = 0;     // fast EMA (τ ≈ 5 ms)
+    virtual float getPerceptualEnergy() const = 0;  // slow EMA (τ ≈ 30 ms)
+
+    // --- State management ---
+    virtual void silence() = 0;            // clear all internal state (including energy followers)
+
+    // --- Bow coupling (Phase 4 forward-compatibility) ---
+    // Returns the resonator's current output velocity at the interaction point.
+    // For Phase 3: returns 0 (no feedback needed for pluck excitation).
+    // For Phase 4: waveguide returns velocity wave sum at bow position;
+    //              modal returns sum of mode outputs (approximation).
+    virtual float getFeedbackVelocity() const { return 0.0f; }
+};
+```
+
+**Design decisions:**
+- **No `noteOn`/`noteOff`:** The voice engine owns note lifecycle. Resonators are stateless w.r.t. note events — they respond to excitation and parameter changes. The voice calls `silence()` on voice steal and `setFrequency()` on new notes.
+- **No `setParameter(int, float)`:** Named setters preserve type safety. Each resonator type may have additional type-specific setters (e.g., `setStiffness()` on WaveguideString, `setStretch()`/`setScatter()` on ModalResonatorBank) called by the voice engine when it knows the active type.
+- **Per-sample `process(excitation)`:** Returns `float` (audio sample), not a struct. Energy is queried separately via `getControlEnergy()`/`getPerceptualEnergy()`, which the voice engine reads when needed (crossfade decisions, choking logic) — not every sample. This avoids per-sample struct overhead.
+- **`getFeedbackVelocity()`:** Forward-compatible hook for Phase 4 bow coupling. Default returns 0, so Phase 3 pluck doesn't need to implement it.
+
+#### Energy Model
+
+Energy is a **first-class architectural observable**, not a diagnostic. It serves as the shared perceptual coordinate system that makes all resonator types interchangeable.
+
+**Two energy layers with different time constants:**
+
+| Layer | Time constant | Purpose | Consumers |
+|-------|--------------|---------|-----------|
+| Control energy (fast) | τ ≈ 5 ms | Retrigger choking, excitation interaction limits, impact detection | Voice engine retrigger logic |
+| Perceptual energy (slow) | τ ≈ 30 ms | Crossfade normalisation, gain matching, voice balancing, UI metering | Voice engine crossfade, mixer |
+
+Using one time constant for both **will** cause audible problems: a fast τ makes crossfades pump; a slow τ makes choking laggy. These are fundamentally different use cases.
+
+**Implementation (identical for all resonator types):**
+
+Both energy followers are one-pole EMA filters applied to the squared output signal, computed inside `process()`:
+
+```cpp
+// Inside process(), after computing output sample:
+float x2 = output * output;
+controlEnergy_  = kControlAlpha  * controlEnergy_  + (1.0f - kControlAlpha)  * x2;
+perceptualEnergy_ = kPerceptualAlpha * perceptualEnergy_ + (1.0f - kPerceptualAlpha) * x2;
+
+// Constants (computed once at setSampleRate):
+// kControlAlpha    = expf(-1.0f / (0.005f * sampleRate));   // τ = 5 ms
+// kPerceptualAlpha = expf(-1.0f / (0.030f * sampleRate));   // τ = 30 ms
+```
+
+**Why measure at the output tap, not from internal state:**
+- Modal internal state (sum of mode energies) double-counts spectrally overlapping modes
+- Waveguide delay buffer energy is spatial, not perceptual (phase distribution matters)
+- By measuring the same thing (output power) with the same EMA, all resonator types are **automatically on the same perceptual scale** without per-model calibration factors
+- The output tap is the scattering junction for waveguides — exactly where energy should be measured
+
+**Cross-model energy contract:**
+
+> Equal perceived loudness → approximately equal `getPerceptualEnergy()` values, regardless of resonator type.
+
+This is achieved automatically because all types use the same EMA on the same signal (their output). No per-model normalisation factors needed — that complexity only arises when you try to compute energy from internal state.
+
+**Energy-aware crossfade (voice engine, during resonator type switch):**
+
+```cpp
+float a = oldResonator->process(excitation);
+float b = newResonator->process(excitation);
+float eA = oldResonator->getPerceptualEnergy();
+float eB = newResonator->getPerceptualEnergy();
+float gainMatch = (eB > 1e-20f) ? sqrtf(eA / eB) : 1.0f;
+float t = crossfadeProgress;  // 0→1 over 20-30 ms
+output = a * cosf(t * kHalfPi) + b * clampf(gainMatch, 0.25f, 4.0f) * sinf(t * kHalfPi);
+```
+
+The `gainMatch` clamp (0.25–4x = ±12 dB) prevents extreme corrections when one model is near-silent during startup transients.
+
+**Semantic guarantees (the real contract):**
+1. **Passive energy:** For zero excitation, both energy values must monotonically decay. No self-oscillation unless explicitly driven (bow model drives through excitation, not internally).
+2. **Causal:** `process(excitation)` must not depend on future excitation samples. No lookahead, no block-level buffering dependency.
+3. **Parameter smoothing:** All `set*()` calls must be internally smoothed to sample rate OR documented as note-onset-only (e.g., stiffness). Unsmoothed parameter changes cause clicks regardless of crossfade quality.
+4. **Deterministic:** Given identical excitation and parameter sequences, output and energy must be reproducible (no random internal state after `silence()`).
+
+### Pitch Tracking and Dynamic Retuning
+
+When the analysed F0 changes (new note, pitch bend, vibrato):
+
+- **Smooth delay length interpolation** over 5–20 ms prevents clicks
+- For perceptually linear portamento, interpolate in log-frequency space: `delay = fs / exp(lerp(log(f_start), log(f_end), t))`
+- **Thiran allpass state update:** When the fractional delay coefficient changes, the allpass filter state must be updated to avoid transient clicks (Välimäki, Laakso & Mackenzie, 1995). The simplest approach: reset the allpass state to zero (acceptable for slow changes); for fast vibrato, use the state-variable update method from the cited paper.
+
+### Stability Constraints
+
+The waveguide feedback loop MUST satisfy these conditions:
+
+1. **Passivity:** `|H_loop(e^{j*omega})| <= 1` at ALL frequencies — the loop filter, DC blocker, and dispersion allpass combined must never amplify any frequency component
+2. **DC gain:** Set `H_loop(1) <= 1.0` (typically exactly 1.0 for maximum sustain, or slightly below for finite decay)
+3. **Verification:** After computing filter coefficients, sweep the frequency response and renormalise if any frequency exceeds unity gain (Smith, PASP)
+4. **Nonlinear extensions (future):** For bowed strings (Phase 4), use `tanh()` saturation to bound the feedback — `|tanh(a*x)| < |x|` for all `|x| > 0`, guaranteeing passivity
+
+**Numerical drift (practical concern):** Even with mathematically passive filters, floating-point round-off accumulates over long decays (>10 s). This manifests as:
+- Inconsistent decay tails across CPU architectures (x87 vs SSE vs ARM)
+- Residual low-level noise or DC offset that never fully decays
+
+Mitigations:
+- **Energy floor clamp:** After each loop iteration, if `|sample| < epsilon` (e.g., 1e-20), force to zero. This prevents denormal accumulation and ensures clean silence.
+- **Periodic renormalisation (optional):** Every N loop iterations, measure RMS energy in the delay buffer. If it exceeds expected decay envelope by more than a threshold, scale the buffer down. This is a safety net, not a primary mechanism — if it triggers frequently, the filter design has a bug.
+- **FTZ/DAZ:** Enable flush-to-zero and denormals-are-zero on x86 (already project policy). This eliminates the most common source of numerical drift in long tails.
 
 ### Success Criteria
 
-- [ ] Waveguide produces self-sustaining oscillation when excited
-- [ ] Pitch tracks the analyzed F0 accurately (< 1 cent error)
-- [ ] Brightness and damping controls produce distinct string materials
-- [ ] Stiffness adds audible inharmonicity (piano-like)
-- [ ] Can switch between Modal and Waveguide without clicks
+**Core function:**
+- [ ] Waveguide produces self-sustaining oscillation when excited with noise burst
+- [ ] Pitch tracks the analysed F0 accurately (< 1 cent error at fundamental, empirically verified)
+- [ ] Tuning compensation accounts for loop filter phase delay (empirical correction, not analytical-only)
+- [ ] Brightness and damping controls produce distinct string materials (nylon → steel → piano wire)
+- [ ] Stiffness adds audible, physically-correct inharmonicity following Fletcher's formula
+- [ ] Pick position creates audible spectral nulls at expected harmonics (frozen at note onset)
+
+**Stability and robustness:**
+- [ ] DC blocker prevents offset accumulation over sustained notes (> 30 s)
+- [ ] Loop filter gain verified <= 1.0 at all frequencies (passivity/stability)
+- [ ] Energy floor clamp prevents denormal accumulation in long decay tails
+- [ ] Consistent decay behaviour across x86 SSE and ARM (FTZ/DAZ enabled)
+
+**Energy and loudness:**
+- [ ] Output level consistent across F0 range (energy normalisation applied)
+- [ ] Velocity response perceptually even across pitch range
+
+**Integration:**
+- [ ] Can switch between Modal and Waveguide without clicks (equal-power crossfade via IResonator interface)
+- [ ] Stiffness parameter frozen at note onset (no modulation artifacts in Phase 3)
+- [ ] Two-segment delay line architecture ready for Phase 4 scattering junction
+- [ ] IResonator interface implemented by both ModalResonatorBank and WaveguideString
+
+### References
+
+| Ref | Citation | Relevance |
+|-----|----------|-----------|
+| [KS83] | Karplus & Strong, "Digital Synthesis of Plucked-String and Drum Timbres", CMJ 7(2), 1983 | Original algorithm |
+| [JS83] | Jaffe & Smith, "Extensions of the Karplus-Strong Plucked-String Algorithm", CMJ 7(2), 1983 | EKS: pick position, stiffness, tuning allpass, decay stretching |
+| [S92] | Smith, "Physical Modeling Using Digital Waveguides", CMJ 16(4), 1992 | Waveguide theory: delay line = wave equation discretisation |
+| [PASP] | Smith, "Physical Audio Signal Processing", CCRMA online book, 2010 | Definitive reference: loop filters, DC blocking, stability, commuted synthesis |
+| [T71] | Thiran, "Recursive Digital Filters with Maximally Flat Group Delay", IEEE Trans. Circuit Theory, 1971 | Thiran allpass fractional delay design |
+| [VL00] | Välimäki & Laakso, "Principles of Fractional Delay Filters", IEEE ICASSP, 2000 | Survey of fractional delay methods for waveguides |
+| [VLM95] | Välimäki, Laakso & Mackenzie, "Elimination of Transients in Time-Varying Allpass Fractional Delay Filters", ICMC, 1995 | Click-free pitch changes with allpass interpolation |
+| [BV03] | Bank & Välimäki, "Robust Loss Filter Design for Digital Waveguide Synthesis of String Tones", IEEE SPL 10(1), 2003 | Higher-order IIR loss filter design |
+| [VDS94] | Van Duyne & Smith, "A Simplified Approach to Modeling Dispersion Caused by Stiffness", ICMC, 1994 | First practical allpass dispersion filter |
+| [RV06] | Rauhala & Välimäki, "Tunable Dispersion Filter Design for Piano Synthesis", IEEE SPL 13, 2006 | Thiran-based closed-form dispersion biquads |
+| [AVS10] | Abel, Välimäki & Smith, "Robust, Efficient Design of Allpass Filters for Dispersive String Sound Synthesis", IEEE SPL 17(4), 2010 | State-of-art dispersion filter design |
+| [FR98] | Fletcher & Rossing, "The Physics of Musical Instruments", Springer, 1998 | Fletcher's inharmonicity formula: f_n = n*f0*sqrt(1+B*n^2) |
+| [V95] | Vallette, "The Mechanics of Vibrating Strings", Springer, 1995 | Physical loss mechanisms in strings |
 
 ---
 
@@ -938,6 +1295,7 @@ All physical modelling parameters in the 800–899 range:
 823  kImpactBrightnessId     // Phase 2 (trim: offsets hardness-derived cutoff)
 
 830  kWaveguideStiffnessId   // Phase 3
+831  kWaveguidePickPositionId // Phase 3
 
 840  kBowPressureId          // Phase 4
 841  kBowSpeedId             // Phase 4
