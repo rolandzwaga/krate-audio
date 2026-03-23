@@ -371,7 +371,7 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 - [X] T109b Verify SC-010 pitch-range loudness consistency: run BowExciter + WaveguideString at 65 Hz (cello C2), 220 Hz (A3), and 880 Hz (A5) with identical parameters (pressure=0.3, speed=0.5, position=0.13, velocity=0.8). Measure RMS output level at each pitch after 500 ms of steady state. Verify all three RMS values are within ±6 dB of each other. Document measured values in the compliance table.
 - [X] T110 Verify all bow parameters (`kBowPressureId`, `kBowSpeedId`, `kBowPositionId`, `kBowOversamplingId`) display correctly in the plugin UI -- confirm controller.cpp registration produces correct parameter labels and ranges
 - [X] T111 Run full test suite to verify no regressions from all phases: `ctest --test-dir build/windows-x64-release -C Release --output-on-failure 2>&1 | tail -10`
-- [ ] T112 Commit polish and edge case tests
+- [X] T112 Commit polish and edge case tests
 
 ---
 
@@ -379,13 +379,13 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 
 **Purpose**: Verify code quality with clang-tidy across all new and modified files.
 
-- [ ] T113 Generate `compile_commands.json` for clang-tidy via ninja preset: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (run from VS Developer PowerShell)
-- [ ] T114 Run clang-tidy on DSP targets: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
-- [ ] T115 Run clang-tidy on Innexus plugin: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja`
-- [ ] T116 Fix all clang-tidy errors (blocking issues) in new files: `bow_exciter.h`, `modal_resonator_bank.h`, `waveguide_string.h`, `impact_exciter.h`, `residual_synthesizer.h`
-- [ ] T117 Fix all clang-tidy errors in modified plugin files: `innexus_voice.h`, `processor.cpp`, `processor_params.cpp`, `processor_midi.cpp`, `processor_state.cpp`, `controller.cpp`
-- [ ] T118 Review clang-tidy warnings; fix where appropriate; add `// NOLINT(check-name): reason` for any intentionally suppressed warnings in DSP hot paths
-- [ ] T119 Commit static analysis fixes: `Fix clang-tidy warnings in bow exciter implementation`
+- [X] T113 Generate `compile_commands.json` for clang-tidy via ninja preset: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (run from VS Developer PowerShell)
+- [X] T114 Run clang-tidy on DSP targets: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja`
+- [X] T115 Run clang-tidy on Innexus plugin: `./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja`
+- [X] T116 Fix all clang-tidy errors (blocking issues) in new files: `bow_exciter.h`, `modal_resonator_bank.h`, `waveguide_string.h`, `impact_exciter.h`, `residual_synthesizer.h`
+- [X] T117 Fix all clang-tidy errors in modified plugin files: `innexus_voice.h`, `processor.cpp`, `processor_params.cpp`, `processor_midi.cpp`, `processor_state.cpp`, `controller.cpp`
+- [X] T118 Review clang-tidy warnings; fix where appropriate; add `// NOLINT(check-name): reason` for any intentionally suppressed warnings in DSP hot paths
+- [X] T119 Commit static analysis fixes: `Fix clang-tidy warnings in bow exciter implementation`
 
 **Checkpoint**: Static analysis clean. No suppressed warnings without documented justification.
 
@@ -395,9 +395,9 @@ The DC blocker relocation in WaveguideString (FR-021) is a prerequisite for corr
 
 **Purpose**: Update living architecture documentation per Constitution Principle XIII.
 
-- [ ] T120 Update `specs/_architecture_/layer-2-processors.md`: add `BowExciter` entry with purpose ("STK power-law stick-slip friction exciter for continuous physical modelling"), public API summary (prepare, trigger, release, process, setPressure, setSpeed, setPosition, setEnvelopeValue, setResonatorEnergy), file location (`dsp/include/krate/dsp/processors/bow_exciter.h`), and "when to use this" (continuous bowed string / bar excitation; requires resonator with getFeedbackVelocity())
-- [ ] T121 Update `specs/_architecture_/layer-2-processors.md`: add note to `ModalResonatorBank` entry documenting the 8 bowed-mode bandpass velocity taps (Q~50) and `setBowModeActive()`/`setBowPosition()` API
-- [ ] T122 Update `specs/_architecture_/layer-2-processors.md`: add note to `WaveguideString` entry documenting that DC blocker is positioned after the bow junction output (per spec 130, FR-021)
+- [X] T120 Update `specs/_architecture_/layer-2-processors.md`: add `BowExciter` entry with purpose ("STK power-law stick-slip friction exciter for continuous physical modelling"), public API summary (prepare, trigger, release, process, setPressure, setSpeed, setPosition, setEnvelopeValue, setResonatorEnergy), file location (`dsp/include/krate/dsp/processors/bow_exciter.h`), and "when to use this" (continuous bowed string / bar excitation; requires resonator with getFeedbackVelocity())
+- [X] T121 Update `specs/_architecture_/layer-2-processors.md`: add note to `ModalResonatorBank` entry documenting the 8 bowed-mode bandpass velocity taps (Q~50) and `setBowModeActive()`/`setBowPosition()` API
+- [X] T122 Update `specs/_architecture_/layer-2-processors.md`: add note to `WaveguideString` entry documenting that DC blocker is positioned after the bow junction output (per spec 130, FR-021)
 - [ ] T123 Commit architecture documentation: `docs: update layer-2-processors architecture for BowExciter and bowed-mode coupling`
 
 **Checkpoint**: Architecture documentation reflects all new components and modifications.
