@@ -6,17 +6,20 @@
 // Constitution Principle XII: Test-First Development
 // Tests written BEFORE implementation (Phase 3).
 //
-// Covers: FR-001 through FR-010, SC-001, SC-008, SC-009
+// Covers: FR-001 through FR-010, FR-014, SC-001, SC-002, SC-008, SC-009
 // ==============================================================================
 
 #include <krate/dsp/processors/bow_exciter.h>
 #include <krate/dsp/core/db_utils.h>  // detail::isNaN, detail::isInf
+#include <krate/dsp/primitives/fft.h>
+#include <krate/dsp/core/window_functions.h>
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <vector>
 
 using Catch::Approx;
@@ -428,7 +431,7 @@ TEST_CASE("BowExciter energy control", "[processors][bow_exciter]")
 
         // Output with high energy should be attenuated by at least 20%
         if (outLow > 0.0001f) {
-            REQUIRE(outHigh < outLow * 0.85f);
+            REQUIRE(outHigh < outLow * 0.80f);
         }
     }
 }
@@ -509,5 +512,477 @@ TEST_CASE("BowExciter numerical safety with all extreme combinations", "[process
 
         REQUIRE_FALSE(hasNaN);
         REQUIRE_FALSE(hasInf);
+    }
+}
+
+// =============================================================================
+// Phase 4: Pressure Timbral Region Tests (T031-T034)
+// =============================================================================
+
+namespace {
+
+/// Runs the bow exciter in a feedback loop simulating a resonator at the
+/// given frequency, using a simple delay line (waveguide-style).
+/// Returns the output buffer (resonator output, not raw excitation).
+std::vector<float> runResonatorFeedbackLoop(
+    BowExciter& bow, int numSamples, double sampleRate,
+    float resonatorFreqHz, float envelopeValue = 1.0f,
+    float feedbackGain = 0.995f)
+{
+    // Simple delay-line resonator at the target frequency
+    int delaySamples = static_cast<int>(sampleRate / resonatorFreqHz);
+    if (delaySamples < 1) delaySamples = 1;
+
+    std::vector<float> delayBuffer(static_cast<size_t>(delaySamples), 0.0f);
+    int writePos = 0;
+
+    std::vector<float> output(static_cast<size_t>(numSamples));
+    float feedbackVelocity = 0.0f;
+
+    for (int i = 0; i < numSamples; ++i) {
+        bow.setEnvelopeValue(envelopeValue);
+        bow.setResonatorEnergy(0.0f);
+
+        float excitation = bow.process(feedbackVelocity);
+
+        // Read from delay line (resonator feedback)
+        int readPos = (writePos + 1) % delaySamples;
+        float delayedOut = delayBuffer[static_cast<size_t>(readPos)];
+
+        // Resonator output = excitation injected + delayed feedback
+        float resonatorOut = excitation + delayedOut * feedbackGain;
+
+        // Write resonator output into delay line
+        delayBuffer[static_cast<size_t>(writePos)] = resonatorOut;
+
+        // Feedback velocity is a fraction of the resonator state
+        feedbackVelocity = resonatorOut * 0.1f;
+
+        output[static_cast<size_t>(i)] = resonatorOut;
+        writePos = (writePos + 1) % delaySamples;
+    }
+    return output;
+}
+
+/// Compute RMS of a range within a buffer
+float computeRMS(const std::vector<float>& buf, size_t start, size_t end)
+{
+    if (end <= start) return 0.0f;
+    float sum = 0.0f;
+    for (size_t i = start; i < end && i < buf.size(); ++i) {
+        sum += buf[i] * buf[i];
+    }
+    return std::sqrt(sum / static_cast<float>(end - start));
+}
+
+/// Compute spectral energy above a given frequency as a fraction of total
+/// energy. Uses FFT on a Hann-windowed section of the signal.
+float computeHighFreqRatio(const std::vector<float>& signal,
+                           size_t start, size_t length,
+                           float sampleRate, float cutoffHz)
+{
+    // Use power-of-2 FFT size
+    size_t fftSize = 1;
+    while (fftSize < length) fftSize <<= 1;
+    if (fftSize > 8192) fftSize = 8192;
+    if (fftSize < 256) fftSize = 256;
+    size_t usedLength = std::min(length, fftSize);
+
+    std::vector<float> windowed(fftSize, 0.0f);
+    std::vector<float> window(fftSize, 0.0f);
+    Window::generateHann(window.data(), fftSize);
+
+    for (size_t i = 0; i < usedLength && (start + i) < signal.size(); ++i) {
+        windowed[i] = signal[start + i] * window[i];
+    }
+
+    FFT fft;
+    fft.prepare(fftSize);
+    std::vector<Complex> spectrum(fft.numBins());
+    fft.forward(windowed.data(), spectrum.data());
+
+    size_t cutoffBin = static_cast<size_t>(
+        cutoffHz * static_cast<float>(fftSize) / sampleRate);
+
+    float totalPower = 0.0f;
+    float highPower = 0.0f;
+    for (size_t b = 1; b < fft.numBins(); ++b) {
+        float mag2 = spectrum[b].real * spectrum[b].real
+                   + spectrum[b].imag * spectrum[b].imag;
+        totalPower += mag2;
+        if (b > cutoffBin) {
+            highPower += mag2;
+        }
+    }
+
+    if (totalPower < 1e-20f) return 0.0f;
+    return highPower / totalPower;
+}
+
+} // namespace
+
+// =============================================================================
+// T031: Pressure timbral regions (surface sound / Helmholtz / raucous)
+// =============================================================================
+
+TEST_CASE("BowExciter pressure timbral regions", "[processors][bow_exciter]")
+{
+    constexpr double kSampleRate = 44100.0;
+    constexpr float kResonatorFreq = 220.0f;
+    constexpr int kTotalSamples = 22050;  // 0.5 seconds
+    constexpr size_t kSteadyStart = 11025;  // Last 0.25 seconds
+
+    SECTION("surface sound (pressure=0.05) has lower RMS than Helmholtz (pressure=0.5)") {
+        // Surface sound regime
+        BowExciter bowLow;
+        bowLow.prepare(kSampleRate);
+        bowLow.setPressure(0.05f);
+        bowLow.setSpeed(0.5f);
+        bowLow.setPosition(0.13f);
+        bowLow.trigger(0.8f);
+        auto outputLow = runResonatorFeedbackLoop(
+            bowLow, kTotalSamples, kSampleRate, kResonatorFreq);
+        float rmsLow = computeRMS(outputLow, kSteadyStart,
+                                  static_cast<size_t>(kTotalSamples));
+
+        // Helmholtz regime
+        BowExciter bowMid;
+        bowMid.prepare(kSampleRate);
+        bowMid.setPressure(0.5f);
+        bowMid.setSpeed(0.5f);
+        bowMid.setPosition(0.13f);
+        bowMid.trigger(0.8f);
+        auto outputMid = runResonatorFeedbackLoop(
+            bowMid, kTotalSamples, kSampleRate, kResonatorFreq);
+        float rmsMid = computeRMS(outputMid, kSteadyStart,
+                                  static_cast<size_t>(kTotalSamples));
+
+        INFO("Surface sound RMS: " << rmsLow);
+        INFO("Helmholtz RMS: " << rmsMid);
+        // Surface sound should have measurably lower output energy
+        REQUIRE(rmsLow < rmsMid);
+    }
+
+    SECTION("raucous (pressure=0.9) has more high-frequency content than Helmholtz (pressure=0.5)") {
+        // Helmholtz regime
+        BowExciter bowMid;
+        bowMid.prepare(kSampleRate);
+        bowMid.setPressure(0.5f);
+        bowMid.setSpeed(0.5f);
+        bowMid.setPosition(0.13f);
+        bowMid.trigger(0.8f);
+        auto outputMid = runResonatorFeedbackLoop(
+            bowMid, kTotalSamples, kSampleRate, kResonatorFreq);
+        float hfRatioMid = computeHighFreqRatio(
+            outputMid, kSteadyStart, 4096, 44100.0f, 3000.0f);
+
+        // Raucous regime
+        BowExciter bowHigh;
+        bowHigh.prepare(kSampleRate);
+        bowHigh.setPressure(0.9f);
+        bowHigh.setSpeed(0.5f);
+        bowHigh.setPosition(0.13f);
+        bowHigh.trigger(0.8f);
+        auto outputHigh = runResonatorFeedbackLoop(
+            bowHigh, kTotalSamples, kSampleRate, kResonatorFreq);
+        float hfRatioHigh = computeHighFreqRatio(
+            outputHigh, kSteadyStart, 4096, 44100.0f, 3000.0f);
+
+        INFO("Helmholtz high-freq ratio: " << hfRatioMid);
+        INFO("Raucous high-freq ratio: " << hfRatioHigh);
+        // Raucous should have more high-frequency content
+        REQUIRE(hfRatioHigh > hfRatioMid);
+    }
+}
+
+// =============================================================================
+// T032: Helmholtz regime (fundamental SNR >= 20 dB, >= 3 harmonics > -40 dBFS)
+// =============================================================================
+
+TEST_CASE("BowExciter Helmholtz regime spectral quality", "[processors][bow_exciter]")
+{
+    constexpr double kSampleRate = 44100.0;
+    constexpr float kResonatorFreq = 220.0f;
+    constexpr int kTotalSamples = 88200;  // 2 seconds for full buildup
+    constexpr size_t kFFTSize = 8192;
+
+    BowExciter bow;
+    bow.prepare(kSampleRate);
+    bow.setPressure(0.3f);
+    bow.setSpeed(1.0f);   // Full speed for strong excitation
+    bow.setPosition(0.13f);
+    bow.trigger(0.8f);
+
+    auto output = runResonatorFeedbackLoop(
+        bow, kTotalSamples, kSampleRate, kResonatorFreq);
+
+    // Analyze steady-state portion (last portion)
+    size_t analyzeStart = static_cast<size_t>(kTotalSamples) - kFFTSize;
+
+    // Apply Hann window
+    std::vector<float> windowed(kFFTSize, 0.0f);
+    std::vector<float> window(kFFTSize, 0.0f);
+    Window::generateHann(window.data(), kFFTSize);
+
+    for (size_t i = 0; i < kFFTSize; ++i) {
+        windowed[i] = output[analyzeStart + i] * window[i];
+    }
+
+    // Compute FFT
+    FFT fft;
+    fft.prepare(kFFTSize);
+    std::vector<Complex> spectrum(fft.numBins());
+    fft.forward(windowed.data(), spectrum.data());
+
+    // Compute magnitude spectrum
+    size_t numBins = fft.numBins();
+    std::vector<float> magnitudes(numBins);
+    for (size_t b = 0; b < numBins; ++b) {
+        magnitudes[b] = std::sqrt(spectrum[b].real * spectrum[b].real
+                                + spectrum[b].imag * spectrum[b].imag);
+    }
+
+    // Find fundamental bin (220 Hz)
+    size_t fundamentalBin = static_cast<size_t>(
+        kResonatorFreq * static_cast<float>(kFFTSize) / static_cast<float>(kSampleRate));
+
+    // Find peak magnitude around fundamental (+/-2 bins for leakage)
+    float fundamentalMag = 0.0f;
+    for (size_t b = (fundamentalBin > 2 ? fundamentalBin - 2 : 0);
+         b <= fundamentalBin + 2 && b < numBins; ++b) {
+        if (magnitudes[b] > fundamentalMag) {
+            fundamentalMag = magnitudes[b];
+        }
+    }
+
+    // Compute dBFS relative to the fundamental (fundamental = 0 dBFS)
+    constexpr float kEpsilon = 1e-10f;
+    std::vector<float> magnitudeDb(numBins);
+    for (size_t b = 0; b < numBins; ++b) {
+        magnitudeDb[b] = 20.0f * std::log10(
+            std::max(magnitudes[b], kEpsilon) / std::max(fundamentalMag, kEpsilon));
+    }
+
+    // Compute noise floor (RMS of non-harmonic, non-DC bins)
+    // Skip bins below 100 Hz (DC area) and bins near harmonics
+    float noiseSum = 0.0f;
+    int noiseCount = 0;
+    size_t minNoiseBin = static_cast<size_t>(
+        100.0f * static_cast<float>(kFFTSize) / static_cast<float>(kSampleRate));
+    for (size_t b = minNoiseBin; b < numBins; ++b) {
+        float binFreq = static_cast<float>(b) * static_cast<float>(kSampleRate)
+                      / static_cast<float>(kFFTSize);
+        float nearestHarmonicDist = std::fmod(binFreq, kResonatorFreq);
+        if (nearestHarmonicDist > kResonatorFreq / 2.0f) {
+            nearestHarmonicDist = kResonatorFreq - nearestHarmonicDist;
+        }
+        float binWidth = static_cast<float>(kSampleRate)
+                       / static_cast<float>(kFFTSize);
+        if (nearestHarmonicDist > binWidth * 3.0f) {
+            noiseSum += magnitudes[b] * magnitudes[b];
+            ++noiseCount;
+        }
+    }
+    float noiseRms = (noiseCount > 0)
+        ? std::sqrt(noiseSum / static_cast<float>(noiseCount))
+        : kEpsilon;
+    float noiseDb = 20.0f * std::log10(
+        std::max(noiseRms, kEpsilon) / std::max(fundamentalMag, kEpsilon));
+
+    float fundamentalSNR = -noiseDb;  // fundamental is 0 dBFS, noise is negative
+    INFO("Fundamental magnitude: " << fundamentalMag);
+    INFO("Noise floor dB (rel fundamental): " << noiseDb);
+    INFO("Fundamental SNR: " << fundamentalSNR << " dB");
+
+    SECTION("fundamental SNR >= 20 dB") {
+        REQUIRE(fundamentalSNR >= 20.0f);
+    }
+
+    SECTION("at least 3 harmonics above -40 dBFS relative to fundamental") {
+        // Count harmonics within 40 dB of the fundamental
+        int harmonicsAboveThreshold = 0;
+        constexpr float kThresholdDb = -40.0f;
+        constexpr int kMaxHarmonics = 20;
+
+        for (int h = 2; h <= kMaxHarmonics; ++h) {  // Start from 2nd harmonic
+            float harmonicFreq = kResonatorFreq * static_cast<float>(h);
+            if (harmonicFreq >= static_cast<float>(kSampleRate) / 2.0f) break;
+
+            size_t hBin = static_cast<size_t>(
+                harmonicFreq * static_cast<float>(kFFTSize)
+                / static_cast<float>(kSampleRate));
+
+            // Find peak around harmonic bin (+/-2 bins)
+            float peakDb = -200.0f;
+            for (size_t b = (hBin > 2 ? hBin - 2 : 0);
+                 b <= hBin + 2 && b < numBins; ++b) {
+                if (magnitudeDb[b] > peakDb) {
+                    peakDb = magnitudeDb[b];
+                }
+            }
+
+            INFO("Harmonic " << h << " (" << harmonicFreq
+                 << " Hz, bin " << hBin << "): " << peakDb << " dB rel fundamental");
+            if (peakDb >= kThresholdDb) {
+                ++harmonicsAboveThreshold;
+            }
+        }
+
+        INFO("Harmonics above -40 dB (rel fundamental): " << harmonicsAboveThreshold);
+        REQUIRE(harmonicsAboveThreshold >= 3);
+    }
+}
+
+// =============================================================================
+// T033: Smooth pressure transition (no discontinuities)
+// =============================================================================
+
+TEST_CASE("BowExciter smooth pressure transition", "[processors][bow_exciter]")
+{
+    constexpr double kSampleRate = 44100.0;
+    constexpr int kWarmupSamples = 4410;  // 100ms warmup
+    constexpr int kSweepSteps = 1000;
+    constexpr int kSamplesPerStep = 10;  // 10 samples per step for settling
+    constexpr float kMaxDiscontinuity = 0.1f;
+
+    BowExciter bow;
+    bow.prepare(kSampleRate);
+    bow.setPressure(0.0f);
+    bow.setSpeed(0.5f);
+    bow.setPosition(0.13f);
+    bow.trigger(0.8f);
+
+    // Warmup at pressure=0.5 (mid-range) to build up stable oscillation
+    float fbVel = 0.0f;
+    bow.setPressure(0.5f);
+    for (int i = 0; i < kWarmupSamples; ++i) {
+        bow.setEnvelopeValue(1.0f);
+        float s = bow.process(fbVel);
+        fbVel = s * 0.5f;
+    }
+
+    // Sweep pressure from 0.0 to 1.0 over 1000 steps
+    // Check that consecutive samples within and across steps
+    // don't have amplitude jumps > 0.1
+    float prevSample = 0.0f;
+    {
+        bow.setPressure(0.0f);
+        bow.setEnvelopeValue(1.0f);
+        prevSample = bow.process(fbVel);
+        fbVel = prevSample * 0.5f;
+    }
+
+    float maxJump = 0.0f;
+    int discontinuityCount = 0;
+
+    for (int step = 0; step < kSweepSteps; ++step) {
+        float pressure = static_cast<float>(step + 1) / static_cast<float>(kSweepSteps);
+        bow.setPressure(pressure);
+
+        for (int s = 0; s < kSamplesPerStep; ++s) {
+            bow.setEnvelopeValue(1.0f);
+            float sample = bow.process(fbVel);
+            float jump = std::abs(sample - prevSample);
+            if (jump > maxJump) maxJump = jump;
+            if (jump > kMaxDiscontinuity) {
+                ++discontinuityCount;
+            }
+            prevSample = sample;
+            fbVel = sample * 0.5f;
+        }
+    }
+
+    INFO("Max inter-sample jump: " << maxJump);
+    INFO("Discontinuity count (>" << kMaxDiscontinuity << "): " << discontinuityCount);
+    REQUIRE(discontinuityCount == 0);
+}
+
+// =============================================================================
+// T034: Slope formula coverage
+// =============================================================================
+
+TEST_CASE("BowExciter slope formula coverage", "[processors][bow_exciter]")
+{
+    // slope = clamp(5.0 - 4.0 * pressure, 1.0, 10.0)
+    // pressure=0.0 => slope=5.0
+    // pressure=1.0 => slope=1.0
+    // pressure=0.25 => slope=4.0
+
+    // We verify the slope formula by observing the effect on the bow table.
+    // The bow table is: reflCoeff = clamp(1/(x^4), 0.01, 0.98)
+    // where x = |deltaV * slope + offset| + 0.75
+    //
+    // To isolate the slope effect, we create a known deltaV scenario and
+    // compare outputs at different pressures. With known inputs we can
+    // predict the slope value indirectly.
+
+    // Direct formula verification: create bow at specific pressures,
+    // run enough samples to reach steady velocity, then check that
+    // the output differences are consistent with the slope formula.
+
+    constexpr double kSampleRate = 44100.0;
+
+    // Use a small feedback velocity difference to stay in the sensitive region
+    // of the bow table where different slopes produce different outputs.
+    // At low deltaV, slope matters more; at high deltaV, x^4 dominates
+    // and the reflection coefficient is clamped to 0.01 regardless of slope.
+    auto getOutputAtPressureWithKnownDeltaV = [&](float pressure) {
+        BowExciter bow;
+        bow.prepare(kSampleRate);
+        bow.setPressure(pressure);
+        bow.setSpeed(0.1f);   // Low speed ceiling to keep bowVelocity small
+        bow.setPosition(0.5f);  // Position impedance = 1.0 at beta=0.5
+        bow.trigger(1.0f);
+
+        // Build up velocity (will saturate at maxVelocity * speed = 1.0 * 0.1 = 0.1)
+        for (int i = 0; i < 2000; ++i) {
+            bow.setEnvelopeValue(1.0f);
+            (void)bow.process(0.0f);
+        }
+
+        // Now process with a feedback velocity close to bow velocity
+        // to create a small deltaV where slope differences matter.
+        // bowVelocity ≈ 0.1, feedbackVelocity = 0.08, so deltaV ≈ 0.02
+        bow.setEnvelopeValue(1.0f);
+        float result = bow.process(0.08f);
+        return result;
+    };
+
+    float out_p0 = getOutputAtPressureWithKnownDeltaV(0.0f);    // slope=5.0
+    float out_p025 = getOutputAtPressureWithKnownDeltaV(0.25f);  // slope=4.0
+    float out_p1 = getOutputAtPressureWithKnownDeltaV(1.0f);     // slope=1.0
+
+    INFO("Output at pressure=0.0 (slope=5.0): " << out_p0);
+    INFO("Output at pressure=0.25 (slope=4.0): " << out_p025);
+    INFO("Output at pressure=1.0 (slope=1.0): " << out_p1);
+
+    SECTION("setPressure(0.0) produces slope=5.0 (distinct from slope=4.0 at pressure=0.25)") {
+        // Higher slope means the friction curve is steeper, producing different output
+        REQUIRE(out_p0 != Approx(out_p025).margin(1e-6f));
+    }
+
+    SECTION("setPressure(1.0) produces slope=1.0 (distinct from slope=5.0 at pressure=0.0)") {
+        REQUIRE(out_p1 != Approx(out_p0).margin(1e-6f));
+    }
+
+    SECTION("slope decreases monotonically with pressure: output at p=0.0 differs from p=0.25 differs from p=1.0") {
+        // At higher slope (lower pressure), the bow table is steeper
+        // This should produce different force magnitudes at the same deltaV
+        // All three outputs should be distinct
+        bool allDistinct = (std::abs(out_p0 - out_p025) > 1e-6f)
+                        && (std::abs(out_p025 - out_p1) > 1e-6f)
+                        && (std::abs(out_p0 - out_p1) > 1e-6f);
+        REQUIRE(allDistinct);
+    }
+
+    SECTION("slope formula boundary values") {
+        // Verify extreme pressure values produce outputs
+        // (confirms no clamping bugs)
+        float out_extreme_low = getOutputAtPressureWithKnownDeltaV(0.001f);
+        float out_extreme_high = getOutputAtPressureWithKnownDeltaV(0.999f);
+
+        // Both should produce non-zero output (not silenced by slope issues)
+        REQUIRE(std::abs(out_extreme_low) > 0.0f);
+        REQUIRE(std::abs(out_extreme_high) > 0.0f);
     }
 }

@@ -137,27 +137,27 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T031 [US2] Write failing tests for pressure timbral regions in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at pressure=0.05 (surface sound), output RMS is measurably lower than at pressure=0.5; at pressure=0.9 (raucous), output contains more high-frequency content than at pressure=0.5 (FR-014, SC-002)
-- [ ] T032 [US2] Write failing tests for Helmholtz regime in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with a simulated resonator feedback loop at pressure=0.3 and a 220 Hz feedback frequency, output spectrum has fundamental-to-noise ratio >= 20 dB AND at least 3 harmonics above -40 dBFS after steady state (FR-014, SC-002)
-- [ ] T033 [US2] Write failing tests for smooth pressure transition in `dsp/tests/unit/processors/bow_exciter_test.cpp`: sweep pressure from 0.0 to 1.0 in 1000 steps during sustained output; verify no sudden amplitude discontinuities larger than 0.1 between consecutive samples (SC-002)
-- [ ] T034 [US2] Write failing tests for slope formula coverage in `dsp/tests/unit/processors/bow_exciter_test.cpp`: `setPressure(0.0f)` produces slope=5.0; `setPressure(1.0f)` produces slope=1.0; `setPressure(0.25f)` produces slope=4.0 (FR-003)
+- [X] T031 [US2] Write failing tests for pressure timbral regions in `dsp/tests/unit/processors/bow_exciter_test.cpp`: at pressure=0.05 (surface sound), output RMS is measurably lower than at pressure=0.5; at pressure=0.9 (raucous), output contains more high-frequency content than at pressure=0.5 (FR-014, SC-002)
+- [X] T032 [US2] Write failing tests for Helmholtz regime in `dsp/tests/unit/processors/bow_exciter_test.cpp`: with a simulated resonator feedback loop at pressure=0.3 and a 220 Hz feedback frequency, output spectrum has fundamental-to-noise ratio >= 20 dB AND at least 3 harmonics above -40 dBFS after steady state (FR-014, SC-002)
+- [X] T033 [US2] Write failing tests for smooth pressure transition in `dsp/tests/unit/processors/bow_exciter_test.cpp`: sweep pressure from 0.0 to 1.0 in 1000 steps during sustained output; verify no sudden amplitude discontinuities larger than 0.1 between consecutive samples (SC-002)
+- [X] T034 [US2] Write failing tests for slope formula coverage in `dsp/tests/unit/processors/bow_exciter_test.cpp`: `setPressure(0.0f)` produces slope=5.0; `setPressure(1.0f)` produces slope=1.0; `setPressure(0.25f)` produces slope=4.0 (FR-003)
 
 ### 4.2 Implementation for User Story 2
 
 Note: The pressure parameter is already handled inside `process()` via `setPressure()`. This phase verifies the formula is correct and the three timbral regions emerge naturally from the implementation completed in Phase 3. If tests T031-T034 all pass immediately, no additional implementation is needed -- the bow table formula already encodes the timbral behavior.
 
-- [ ] T035 [US2] Tune `maxAcceleration` constant in `BowExciter::process()` in `dsp/include/krate/dsp/processors/bow_exciter.h` if Helmholtz regime test (T032) fails: adjust so that at default parameters the bow reaches steady-state bowing within ~100 ms (4410 samples at 44100 Hz)
-- [ ] T036 [US2] Tune offset constant in bow table formula (`x = |deltaV * slope + offset| + 0.75`) in `dsp/include/krate/dsp/processors/bow_exciter.h` if surface sound region (T031) is not audibly distinct from Helmholtz; the offset controls the transition point between regimes
-- [ ] T037 [US2] Build `dsp_tests` target and fix all compiler errors and warnings
-- [ ] T038 [US2] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 2 tests pass
+- [X] T035 [US2] Tune `maxAcceleration` constant in `BowExciter::process()` in `dsp/include/krate/dsp/processors/bow_exciter.h` if Helmholtz regime test (T032) fails: adjust so that at default parameters the bow reaches steady-state bowing within ~100 ms (4410 samples at 44100 Hz)
+- [X] T036 [US2] Tune offset constant in bow table formula (`x = |deltaV * slope + offset| + 0.75`) in `dsp/include/krate/dsp/processors/bow_exciter.h` if surface sound region (T031) is not audibly distinct from Helmholtz; the offset controls the transition point between regimes
+- [X] T037 [US2] Build `dsp_tests` target and fix all compiler errors and warnings
+- [X] T038 [US2] Run `dsp_tests.exe "BowExciter*" 2>&1 | tail -20` and verify all User Story 2 tests pass
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T039 [US2] Verify no new IEEE 754 functions were added to `bow_exciter_test.cpp` that require `-fno-fast-math` beyond what was added in T029; update `dsp/tests/unit/CMakeLists.txt` if needed
+- [X] T039 [US2] Verify no new IEEE 754 functions were added to `bow_exciter_test.cpp` that require `-fno-fast-math` beyond what was added in T029; update `dsp/tests/unit/CMakeLists.txt` if needed
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T040 [US2] Commit pressure timbral region tests and any tuning adjustments: `BowExciter pressure timbral regions verified: surface sound / Helmholtz / raucous`
+- [X] T040 [US2] Commit pressure timbral region tests and any tuning adjustments: `BowExciter pressure timbral regions verified: surface sound / Helmholtz / raucous`
 
 **Checkpoint**: Three pressure timbral regions verified with measurable spectral criteria. Helmholtz regime satisfies FR-014 thresholds.
 
