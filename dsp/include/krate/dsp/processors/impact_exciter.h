@@ -224,7 +224,9 @@ public:
     // =========================================================================
 
     /// Generate one sample of excitation signal.
-    [[nodiscard]] float process() noexcept
+    /// @param feedbackVelocity Resonator feedback velocity (unused by impact model,
+    ///        accepted for unified exciter interface FR-016).
+    [[nodiscard]] float process(float /*feedbackVelocity*/) noexcept
     {
         if (!pulseActive_ && !bounceActive_)
             return 0.0f;
@@ -308,7 +310,7 @@ public:
     void processBlock(float* output, int numSamples) noexcept
     {
         for (int i = 0; i < numSamples; ++i) {
-            output[i] = process();
+            output[i] = process(0.0f);
         }
     }
 

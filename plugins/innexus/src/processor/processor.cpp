@@ -1625,14 +1625,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             float vR = 0.0f;
             v.oscillatorBank.processStereo(vL, vR);
             // Spec 128 FR-030: Select excitation source based on exciter type
+            // FR-015/FR-016: Unified exciter interface — pass resonator feedback velocity
+            float feedbackVelocity = (v.activeResonanceType_ == 1)
+                ? v.waveguideString.getFeedbackVelocity()
+                : v.modalResonator.getFeedbackVelocity();
             float excitation = 0.0f;
             if (exciterType == ExciterType::Impact)
             {
-                excitation = v.impactExciter.process();
+                excitation = v.impactExciter.process(feedbackVelocity);
             }
             else
             {
-                excitation = hasResidual ? v.residualSynth.process() : 0.0f;
+                excitation = hasResidual ? v.residualSynth.process(feedbackVelocity) : 0.0f;
             }
             float residualSample = excitation;
 
