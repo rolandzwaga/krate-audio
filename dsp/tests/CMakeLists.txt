@@ -198,6 +198,7 @@ add_executable(dsp_tests
     unit/processors/test_modal_resonator_bank.cpp
     unit/processors/impact_exciter_test.cpp
     unit/processors/waveguide_string_test.cpp
+    unit/processors/bow_exciter_test.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -517,6 +518,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/test_modal_resonator_bank.cpp
         unit/processors/impact_exciter_test.cpp
         unit/processors/waveguide_string_test.cpp
+        unit/processors/bow_exciter_test.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 endif()
