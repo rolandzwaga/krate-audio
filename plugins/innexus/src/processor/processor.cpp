@@ -161,6 +161,8 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
                 // Spec 129: Prepare waveguide string per voice
                 voice.waveguideString.prepare(sampleRate_);
                 voice.waveguideString.prepareVoice(static_cast<uint32_t>(vi));
+                // Spec 131: Prepare body resonance per voice
+                voice.bodyResonance.prepare(sampleRate_);
             }
         }
 
@@ -924,6 +926,11 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     const int targetResonanceType = std::clamp(
         static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
 
+    // Spec 131: Read body resonance params once per block
+    const float bodySize = bodySize_.load(std::memory_order_relaxed);
+    const float bodyMaterial = bodyMaterial_.load(std::memory_order_relaxed);
+    const float bodyMix = bodyMix_.load(std::memory_order_relaxed);
+
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
                                     !analysis->residualFrames.empty() &&
@@ -1347,6 +1354,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         }
     }
 
+    // Spec 131: Set body resonance params per voice, once per block
+    for (int vi = 0; vi < maxVoicesThisBlock; ++vi)
+    {
+        auto& v = voices_[static_cast<size_t>(vi)];
+        if (!v.active) continue;
+        v.bodyResonance.setParams(bodySize, bodyMaterial, bodyMix);
+    }
+
     for (Steinberg::int32 s = 0; s < numSamples; ++s)
     {
         // --- Frame advancement (FR-047) -- only in sample mode ---
@@ -1747,6 +1762,10 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 physicalSample = v.modalResonator.processSample(
                     excitation, v.chokeDecayScale_);
             }
+
+            // Spec 131: Apply body resonance post-processing to all resonator paths
+            physicalSample = v.bodyResonance.process(physicalSample);
+
             float resContrib = residualSample * perVoiceResLevel;
 
             // Spec 127 FR-023: PhysicalModelMixer blends residual and physical paths

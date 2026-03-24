@@ -384,6 +384,11 @@ public:
     float getFeedbackAmount() const { return feedbackAmount_.load(std::memory_order_relaxed); }
     float getFeedbackDecay() const { return feedbackDecay_.load(std::memory_order_relaxed); }
 
+    // Body Resonance (Spec 131) test accessors
+    float getBodySize() const { return bodySize_.load(std::memory_order_relaxed); }
+    float getBodyMaterial() const { return bodyMaterial_.load(std::memory_order_relaxed); }
+    float getBodyMix() const { return bodyMix_.load(std::memory_order_relaxed); }
+
     /// @brief Get const reference to the feedback buffer (TEST ONLY, for SC-006 verification).
     const std::array<float, 8192>& getFeedbackBuffer() const { return feedbackBuffer_; }
 
@@ -513,6 +518,11 @@ private:
     std::atomic<float> bowSpeed_{0.5f};                  // 0.0-1.0, default 0.5
     std::atomic<float> bowPosition_{0.13f};              // 0.0-1.0, default 0.13
     std::atomic<float> bowOversampling_{0.0f};           // bool, default 0.0 (off)
+
+    // Body Resonance parameters (Spec 131: 131-body-resonance)
+    std::atomic<float> bodySize_{0.5f};                  // 0.0-1.0, default 0.5
+    std::atomic<float> bodyMaterial_{0.5f};              // 0.0-1.0, default 0.5
+    std::atomic<float> bodyMix_{0.0f};                   // 0.0-1.0, default 0.0
 
     // Impact Exciter parameters (Spec 128: 128-impact-exciter)
     std::atomic<float> exciterType_{0.0f};               // normalized, default 0 (Residual)

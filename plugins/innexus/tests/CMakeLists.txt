@@ -51,6 +51,9 @@ add_executable(innexus_tests
     unit/processor/innexus_voice_bow_test.cpp
     unit/processor/bow_exciter_switch_test.cpp
 
+    # Body resonance integration tests (Spec 131)
+    unit/processor/body_resonance_integration_tests.cpp
+
     # State v10 tests (Modulator Tempo Sync)
     unit/vst/test_state_v10.cpp
 

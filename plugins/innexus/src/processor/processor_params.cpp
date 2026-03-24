@@ -427,6 +427,20 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Body Resonance (Spec 131)
+            case kBodySizeId:
+                bodySize_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kBodyMaterialId:
+                bodyMaterial_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kBodyMixId:
+                bodyMix_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
