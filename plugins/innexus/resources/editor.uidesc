@@ -172,13 +172,18 @@
     <control-tag name="BowSpeed" tag="821"/>
     <control-tag name="BowPosition" tag="822"/>
     <control-tag name="BowOversampling" tag="823"/>
+
+    <!-- Body Resonance (850-852) -->
+    <control-tag name="BodySize" tag="850"/>
+    <control-tag name="BodyMaterial" tag="851"/>
+    <control-tag name="BodyMix" tag="852"/>
   </control-tags>
 
   <!-- ================================================================== -->
   <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 1030"
-            background-color="bg-primary" minSize="800, 1030" maxSize="800, 1030">
+  <template name="Editor" class="CViewContainer" size="800, 1130"
+            background-color="bg-primary" minSize="800, 1130" maxSize="800, 1130">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -1040,9 +1045,58 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- HARMONIC PHYSICS SECTION (Y 810-905)                           -->
+    <!-- BODY RESONANCE SECTION (Y 810-905)                             -->
+    <!-- Post-resonator body coloring: always visible, independent of   -->
+    <!-- resonance type (modal/waveguide output -> body -> physics)     -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 810" size="540, 95"
+    <view class="FieldsetContainer" origin="5, 810" size="790, 95"
+          title="Body Resonance" fieldset-title="Body Resonance" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <!-- Body Size (violin -> guitar -> cello scale) -->
+      <view class="ArcKnob" origin="100, 18" size="42, 42"
+            control-tag="BodySize" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="95, 60" size="52, 12"
+            control-tag="BodySize" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="95, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Size"/>
+
+      <!-- Material (wood <-> metal damping character) -->
+      <view class="ArcKnob" origin="350, 18" size="42, 42"
+            control-tag="BodyMaterial" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="345, 60" size="52, 12"
+            control-tag="BodyMaterial" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="345, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Material"/>
+
+      <!-- Body Mix (dry/wet, default 0 = off) -->
+      <view class="ArcKnob" origin="600, 18" size="42, 42"
+            control-tag="BodyMix" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="595, 60" size="52, 12"
+            control-tag="BodyMix" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="595, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Mix"/>
+    </view>
+
+    <!-- ============================================================== -->
+    <!-- HARMONIC PHYSICS SECTION (Y 910-1005)                          -->
+    <!-- ============================================================== -->
+    <view class="FieldsetContainer" origin="5, 910" size="540, 95"
           title="Harmonic Physics" fieldset-title="Harmonic Physics" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -1100,9 +1154,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ANALYSIS FEEDBACK SECTION (Y 810-905)                          -->
+    <!-- ANALYSIS FEEDBACK SECTION (Y 910-1005)                         -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="550, 810" size="245, 95"
+    <view class="FieldsetContainer" origin="550, 910" size="245, 95"
           title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -1134,9 +1188,9 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ADSR ENVELOPE SECTION (Y 910-1015)                             -->
+    <!-- ADSR ENVELOPE SECTION (Y 1010-1115)                            -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 910" size="790, 105"
+    <view class="FieldsetContainer" origin="5, 1010" size="790, 105"
           title="ADSR Envelope" fieldset-title="ADSR Envelope" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
@@ -1231,7 +1285,7 @@
 
     <!-- Bottom credit line (version from version.h) -->
     <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 1016" size="220, 14"
+          origin="575, 1116" size="220, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"/>
 
