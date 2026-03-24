@@ -235,6 +235,11 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(bowPosition_.load(std::memory_order_relaxed));
     streamer.writeFloat(bowOversampling_.load(std::memory_order_relaxed));
 
+    // --- Body Resonance parameters (Spec 131) ---
+    streamer.writeFloat(bodySize_.load(std::memory_order_relaxed));
+    streamer.writeFloat(bodyMaterial_.load(std::memory_order_relaxed));
+    streamer.writeFloat(bodyMix_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -678,6 +683,14 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         bowPosition_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))
         bowOversampling_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Body Resonance parameters (Spec 131, graceful fallback for old states) ---
+    if (streamer.readFloat(floatVal))
+        bodySize_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        bodyMaterial_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        bodyMix_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

@@ -809,6 +809,25 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(waveguidePickPosParam);
 
+    // Body Resonance (Spec 131)
+    auto* bodySizeParam = new Steinberg::Vst::RangeParameter(
+        STR16("Body Size"), kBodySizeId,
+        STR16(""), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bodySizeParam);
+
+    auto* bodyMaterialParam = new Steinberg::Vst::RangeParameter(
+        STR16("Material"), kBodyMaterialId,
+        STR16(""), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bodyMaterialParam);
+
+    auto* bodyMixParam = new Steinberg::Vst::RangeParameter(
+        STR16("Body Mix"), kBodyMixId,
+        STR16(""), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(bodyMixParam);
+
     // NoteExpression types (Phase 4: MPE support)
     {
         using namespace Steinberg::Vst;
@@ -1328,6 +1347,20 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
         if (streamer.readFloat(bowVal))
             setParamNormalized(kBowOversamplingId,
                 static_cast<double>(std::clamp(bowVal, 0.0f, 1.0f)));
+    }
+
+    // --- Body Resonance parameters (Spec 131, graceful fallback for old states) ---
+    {
+        float bodyVal = 0.0f;
+        if (streamer.readFloat(bodyVal))
+            setParamNormalized(kBodySizeId,
+                static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(bodyVal))
+            setParamNormalized(kBodyMaterialId,
+                static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
+        if (streamer.readFloat(bodyVal))
+            setParamNormalized(kBodyMixId,
+                static_cast<double>(std::clamp(bodyVal, 0.0f, 1.0f)));
     }
 
     // SharedDisplayBridge: try to read instance ID from state trailer

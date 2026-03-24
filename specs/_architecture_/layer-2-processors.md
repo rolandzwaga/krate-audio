@@ -3966,6 +3966,45 @@ class BowExciter {
 
 ---
 
+## BodyResonance
+**Path:** [body_resonance.h](../../dsp/include/krate/dsp/processors/body_resonance.h) | **Since:** Spec 131
+
+Hybrid modal bank + FDN post-resonator body coloring for instrument body simulation. Takes the output of a modal or waveguide resonator and applies the resonant character of an instrument body (violin, guitar, cello). Internal signal chain: coupling EQ (2 biquads) -> first-order crossover LP/HP split -> 8 parallel impulse-invariant modal biquads (LP path) + 4-line Hadamard FDN with Jot absorption filters (HP path) -> recombination -> 12 dB/oct radiation HPF -> dry/wet mix. Three parameters: body size (interpolates between violin/guitar/cello modal presets), material (wood vs metal damping character), and mix.
+
+```cpp
+namespace Krate::DSP {
+
+class BodyResonance {
+public:
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+    [[nodiscard]] bool isPrepared() const noexcept;
+    void setParams(float size, float material, float mix) noexcept;
+    [[nodiscard]] float process(float input) noexcept;
+    void processBlock(const float* input, float* output, size_t numSamples) noexcept;
+};
+
+} // namespace Krate::DSP
+```
+
+**When to use:**
+- Post-resonator coloring stage in physical modelling instruments (e.g., after ModalResonatorBank or WaveguideString)
+- Adding instrument body character (violin, guitar, cello) to synthesized excitation+resonator output
+- Controlled body size/material sweeps with artifact-free parameter smoothing (pole/zero domain interpolation)
+
+**Key design decisions:**
+- **CrossoverFilter was NOT reused**: The existing `CrossoverLR4` provides 24 dB/oct (Linkwitz-Riley 4th order), but the body resonance spec requires a 6 dB/oct first-order crossover for the modal/FDN band split. A simple inline one-pole filter is used instead.
+- **Header-only**: All implementation in the header for zero-cost integration
+- **Energy passive**: Gain normalization ensures `sum(|gain_i|) <= 1.0` across all parameter settings
+- **Impulse-invariant biquad design**: Modal bank uses R/theta pole placement for physically-informed resonance
+- **Pole/zero domain smoothing**: Per-block exponential interpolation of (R, theta) pairs prevents zipper noise during parameter changes
+
+**Performance:** ~8 biquad evaluations + 4-line FDN per sample. Target: < 0.5% single core per voice at 44.1 kHz.
+
+**Dependencies:** Layer 0 (math_constants.h), Layer 1 (Biquad, OnePoleSmoother)
+
+---
+
 ## StochasticFilter
 **Path:** [stochastic_filter.h](../../dsp/include/krate/dsp/processors/stochastic_filter.h) | **Since:** 0.15.0
 

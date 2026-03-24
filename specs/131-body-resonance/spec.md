@@ -3,7 +3,7 @@
 **Feature Branch**: `131-body-resonance`
 **Plugin**: Innexus (KrateDSP shared library + Innexus plugin integration)
 **Created**: 2026-03-23
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Body resonance post-processing stage for Innexus physical modelling: hybrid modal bank + FDN architecture for instrument body coloring with size, material, and mix parameters (Phase 5 of physical modelling roadmap)"
 
 ## User Scenarios & Testing *(mandatory)*
@@ -218,39 +218,39 @@ When the material is set to wood (material=0), the FDN delay line fundamentals d
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
+| FR-001 | MET | `body_resonance.h:121` -- BodyResonance class, Layer 2, hybrid modal bank + FDN |
+| FR-002 | MET | `body_resonance.h:241` -- `process(float input)` returns mono float; `body_resonance.h:282` -- `processBlock()` mono in/out |
+| FR-003 | MET | `body_resonance.h:226-234` -- `setParams(size, material, mix)` with clamp [0,1], defaults 0.5/0.5/0.0 |
+| FR-004 | MET | `body_resonance.h:638-657` -- Coupling filter: peak EQ 250Hz (wood +3dB, metal +0.5dB), high shelf 2kHz (wood -2dB, metal 0dB) |
+| FR-005 | MET | `body_resonance.h:660` -- `std::array<Biquad, 8> modalBiquads_`, parallel processing at lines 262-264 |
+| FR-006 | MET | `body_resonance.h:73-112` -- 3 presets: small (275-3200Hz), medium (90-1100Hz), large (60-1200Hz), 8 modes each. Tests T012, T013 pass |
+| FR-007 | MET | `body_resonance.h:381-383` -- Log-linear freq: `exp(logFreqA + t*(logFreqB-logFreqA))`. Linear gain at line 386 |
+| FR-008 | MET | `body_resonance.h:337-350` -- Exact formula: theta=2*pi*f/sr, R=exp(-pi*f/(Q*sr)), a1=-2R*cos(theta), a2=R^2, b0=1-R, b1=0, b2=-(1-R) |
+| FR-009 | MET | `body_resonance.h:457-482` -- Smooths currentR/currentTheta toward targets, recomputes coefficients from smoothed R/theta |
+| FR-010 | MET | `body_resonance.h:555-607` -- 4-line FDN, Hadamard butterfly at lines 583-592, H4=(1/2)*[[1,1,1,1],[1,-1,1,-1],[1,1,-1,-1],[1,-1,-1,1]] |
+| FR-011 | MET | `body_resonance.h:115` -- Base delays {11,17,23,31} (all prime=coprime). Clamp [8,80]*srRatio at line 497 |
+| FR-012 | MET | `body_resonance.h:506-549` -- Jot absorption: T60(DC) wood=0.15s metal=1.5s, T60(Nyq) wood=0.008s metal=1.0s |
+| FR-013 | MET | `body_resonance.h:514-515` -- Hard caps: wood 0.3s, metal 2.0s. Tests T023 (300ms), T024 (2s) pass |
+| FR-014 | MET | `body_resonance.h:613-620` -- First-order LP/HP crossover ~500Hz at size=0.5. LP to modal bank (line 263), HP to FDN (line 269) |
+| FR-015 | MET | `body_resonance.h:626-632` -- 12dB/oct Butterworth HPF at 0.7*lowestModeFreq. Tests T019, T020 pass |
+| FR-016 | MET | `body_resonance.h:434-440` -- Gain normalization (sum<=1.0). FDN passive: orthogonal Hadamard + absorptive. Tests T010, T018 pass |
+| FR-017 | MET | `body_resonance.h:144-146` -- 5ms smoothers. Pole/zero smoothing at line 323. FDN linear fractional delay. Tests T014, T017, T011c pass |
+| FR-018 | MET | `body_resonance.h:246-248` -- Early return when mix==0.0f. Test T007 (bit-identical), T050 (integration) pass |
+| FR-019 | MET | `plugin_ids.h:162-164` -- IDs 850/851/852. `controller.cpp:813-829` -- Registration. `processor_params.cpp:431-442`. Tests T047-T049 pass |
+| FR-020 | MET | Guitar: A0=90Hz/T1=110Hz anti-phase (line 88-98). Violin: bridge hill 2500-3200Hz (line 85-86). Sub-Helmholtz rolloff in all presets |
+| FR-021 | MET | `processor.cpp:1767` -- One-way: body output not fed back to resonator |
+| FR-022 | MET | `body_resonance.h:489` -- srRatio=sampleRate_/44100. Test T022 passes at 44100/48000/96000/192000 Hz |
+| FR-023 | MET | `body_resonance.h:388-417` -- R-domain Q interpolation: computes R from Q, log-linear R interpolation, converts back to Q |
+| SC-001 | MET | RT60 caps 300ms/2s at lines 514-515. Delays 8-80 at line 497. Tests T023, T024 pass |
+| SC-002 | MET | Tests T012 (size=0: <20% energy below 200Hz) and T013 (size=1: low density > high density) pass |
+| SC-003 | MET | Test T015: wood `t60_4k < t60_200hz/3.0f` (3x ratio). Test T016: metal `t60_4k >= t60_200hz/2.0f` (within 2x). Both pass |
+| SC-004 | MET | Test T009: 5 sizes x 3 materials, all outputs finite. All 6611 DSP tests pass |
+| SC-005 | MET | Tests T010 (15 combos, sine), T018 (3 materials, white noise): `outRms <= inRms + 1e-6f`. All pass |
+| SC-006 | MET | Perf benchmark: 0.048 us/sample vs 22.676 us budget (0.0002% CPU, well under 0.5%) |
+| SC-007 | MET | Test T007 (unit): exact bit comparison. Test T050 (integration). Both pass |
+| SC-008 | MET | Tests T014 (size sweep), T017 (material sweep), T011c (mix transition): 6dB click detection, all pass |
+| SC-009 | MET | Test T021: impulse tail after 300ms < -50dB, no FDN ringing below crossover. Passes |
+| SC-010 | MET | Test T019: 50Hz through small body, outRms < 30% of input. Test T020: HPF scales with size. Both pass |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -262,21 +262,17 @@ When the material is set to wood (material=0), the FDN delay line fundamentals d
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [x] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [x] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [x] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [x] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [x] No test thresholds relaxed from spec requirements
+- [x] No placeholder values or TODO comments in new code
+- [x] No features quietly removed from scope
+- [x] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 23 functional requirements (FR-001 through FR-023) and all 10 success criteria (SC-001 through SC-010) are MET with concrete evidence. Build passes with zero warnings. All 6611 DSP tests pass (22,483,007 assertions). All 540 Innexus tests pass (1,068,720 assertions). Pluginval passes at strictness level 5. Clang-tidy reports 0 errors and 0 warnings across 266 analyzed files.

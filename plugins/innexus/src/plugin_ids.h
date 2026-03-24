@@ -158,6 +158,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kBowPositionId = 822,              // RangeParameter: 0.0-1.0, default 0.13
     kBowOversamplingId = 823,          // Bool (stepCount=1), default 0.0 (off)
 
+    // Body Resonance (850-852) -- Spec 131
+    kBodySizeId = 850,                 // RangeParameter: 0.0-1.0, default 0.5
+    kBodyMaterialId = 851,             // RangeParameter: 0.0-1.0, default 0.5
+    kBodyMixId = 852,                  // RangeParameter: 0.0-1.0, default 0.0
+
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
     kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms
