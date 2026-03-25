@@ -506,7 +506,7 @@ Key rules:
 
 ### 13.1 Run Clang-Tidy Analysis
 
-- [ ] T068 Run clang-tidy on all modified/new source files:
+- [X] T068 Run clang-tidy on all modified/new source files:
   ```powershell
   # Windows (PowerShell) - requires Ninja build
   ./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja
@@ -515,8 +515,8 @@ Key rules:
 
 ### 13.2 Address Findings
 
-- [ ] T069 Fix all errors reported by clang-tidy (blocking issues)
-- [ ] T070 Review warnings and fix where appropriate; document suppressions with `// NOLINT(reason)` if any warnings are intentionally ignored (DSP-specific patterns)
+- [X] T069 Fix all errors reported by clang-tidy (blocking issues)
+- [X] T070 Review warnings and fix where appropriate; document suppressions with `// NOLINT(reason)` if any warnings are intentionally ignored (DSP-specific patterns)
 - [ ] T071 Commit any clang-tidy fixes
 
 **Checkpoint**: Static analysis clean -- ready for completion verification.

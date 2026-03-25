@@ -1685,7 +1685,7 @@ TEST_CASE("SympatheticResonance: beating present at 1 Hz separation", "[systems]
     for (int start = analysisStart; start + windowSize < totalSamples; start += hopSize) {
         float peak = 0.0f;
         for (int j = 0; j < windowSize; ++j) {
-            float absVal = std::abs(output[static_cast<size_t>(start + j)]);
+            float absVal = std::abs(output[static_cast<size_t>(start) + static_cast<size_t>(j)]);
             if (absVal > peak) peak = absVal;
         }
         envelope.push_back(peak);
