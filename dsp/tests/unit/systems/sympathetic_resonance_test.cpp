@@ -732,3 +732,246 @@ TEST_CASE("SympatheticResonance: output stays bounded for sustained driving",
     REQUIRE(maxAbs > 0.0f);    // Actually producing output
     REQUIRE(maxAbs < 1e6f);     // Not infinite / NaN
 }
+
+// =============================================================================
+// User Story 2: Sympathetic Amount Control (Phase 4)
+// =============================================================================
+
+TEST_CASE("SympatheticResonance US2: zero bypass produces exactly 0.0 for any input",
+          "[systems][sympathetic][amount]") {
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    sr.setAmount(0.0f);
+    sr.setDecay(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    // Even with active resonators, amount=0 should produce exactly 0
+    bool anyNonZero = false;
+    for (int i = 0; i < 500; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / 44100.0f);
+        float out = sr.process(input);
+        if (out != 0.0f) anyNonZero = true;
+    }
+    REQUIRE_FALSE(anyNonZero);
+    REQUIRE(sr.isBypassed());
+}
+
+TEST_CASE("SympatheticResonance US2: non-zero activation with tiny amount",
+          "[systems][sympathetic][amount]") {
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    sr.setDecay(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    // Set a tiny but non-zero amount
+    sr.setAmount(0.001f);
+
+    // The smoother needs time to ramp up from 0 to the target coupling gain.
+    // Process enough samples for the smoother to reach the target.
+    bool anyNonZero = false;
+    for (int i = 0; i < 4410; ++i) { // 100ms
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / 44100.0f);
+        float out = sr.process(input);
+        if (out != 0.0f) anyNonZero = true;
+    }
+
+    REQUIRE(anyNonZero);
+    REQUIRE_FALSE(sr.isBypassed());
+}
+
+TEST_CASE("SympatheticResonance US2: amount=1.0 produces more energy than amount=0.1",
+          "[systems][sympathetic][amount]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr int numSamples = 4410; // 100ms
+
+    // Test with amount=0.1
+    float rmsLow = 0.0f;
+    {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(0.1f);
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        std::vector<float> output;
+        processSineAndCollect(sr, 440.0f, sampleRate, numSamples, output);
+        rmsLow = computeRMS(output.data(), numSamples);
+    }
+
+    // Test with amount=1.0
+    float rmsHigh = 0.0f;
+    {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(1.0f);
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        std::vector<float> output;
+        processSineAndCollect(sr, 440.0f, sampleRate, numSamples, output);
+        rmsHigh = computeRMS(output.data(), numSamples);
+    }
+
+    INFO("rmsLow (amount=0.1) = " << rmsLow);
+    INFO("rmsHigh (amount=1.0) = " << rmsHigh);
+    REQUIRE(rmsHigh > rmsLow);
+}
+
+TEST_CASE("SympatheticResonance US2: smooth transition up (no clicks)",
+          "[systems][sympathetic][amount]") {
+    // Verify that transitioning amount from 0 to 1 produces no discontinuity
+    // at the transition point. We compare two instances: one with smoothing
+    // (normal setAmount) and check that the first sample after setAmount(1.0)
+    // is close to the last sample before (which was 0.0 since amount was 0).
+    // The smoother should ramp gradually from 0 to the target gain.
+    constexpr float sampleRate = 44100.0f;
+    constexpr int sweepSamples = 500;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    // Start at 0 and settle
+    sr.setAmount(0.0f);
+    for (int i = 0; i < 100; ++i) {
+        (void)sr.process(0.5f);
+    }
+
+    // Record last output at amount=0 (should be 0.0 due to bypass)
+    float lastAtZero = sr.process(0.5f);
+
+    // Now set amount to 1.0
+    sr.setAmount(1.0f);
+
+    // The first sample after transition should be close to the last (smooth ramp)
+    float firstAfterTransition = sr.process(0.5f);
+    float transitionDelta = std::abs(firstAfterTransition - lastAtZero);
+    INFO("transitionDelta = " << transitionDelta);
+    // Smoother starts at 0 and ramps to target; first sample should be near 0
+    REQUIRE(transitionDelta < 0.01f);
+
+    // Additionally verify the output grows over the sweep period (ramp, not step)
+    float peakFirst50 = 0.0f;
+    float peakLast50 = 0.0f;
+    for (int i = 0; i < sweepSamples; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / sampleRate);
+        float out = sr.process(input);
+        float a = std::abs(out);
+        if (i < 50) {
+            if (a > peakFirst50) peakFirst50 = a;
+        }
+        if (i >= sweepSamples - 50) {
+            if (a > peakLast50) peakLast50 = a;
+        }
+    }
+    // Output should grow over time as smoother ramps up
+    REQUIRE(peakLast50 > peakFirst50);
+}
+
+TEST_CASE("SympatheticResonance US2: smooth transition down (no clicks)",
+          "[systems][sympathetic][amount]") {
+    // Verify that transitioning amount from 1 to 0 produces no abrupt
+    // discontinuity. The smoother should fade the coupling gain gradually,
+    // and the resonators continue ringing with decaying excitation.
+    constexpr float sampleRate = 44100.0f;
+    constexpr int sweepSamples = 500;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.5f);
+    sr.setAmount(1.0f);
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    // Drive at full amount to reach steady state
+    for (int i = 0; i < 4410; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    // Record the last output before transition
+    float lastBeforeTransition = sr.process(0.5f);
+
+    // Now set amount to 0
+    sr.setAmount(0.0f);
+
+    // The first sample after should be very close to the last before
+    // (smoother hasn't had time to change much in one sample)
+    float firstAfterTransition = sr.process(0.5f);
+    float transitionDelta = std::abs(firstAfterTransition - lastBeforeTransition);
+    INFO("lastBeforeTransition = " << lastBeforeTransition);
+    INFO("firstAfterTransition = " << firstAfterTransition);
+    INFO("transitionDelta = " << transitionDelta);
+
+    // The change at the transition point should be small relative to the signal level
+    // The smoother ensures the coupling gain changes gradually
+    // Allow up to 5% of the signal magnitude as acceptable delta
+    float maxSignalLevel = std::max(std::abs(lastBeforeTransition),
+                                    std::abs(firstAfterTransition));
+    if (maxSignalLevel > 0.0f) {
+        float relativeDelta = transitionDelta / maxSignalLevel;
+        INFO("relativeDelta = " << relativeDelta);
+        REQUIRE(relativeDelta < 0.05f);
+    }
+
+    // Additionally verify the output decays over the sweep period (fade, not abrupt cut)
+    float peakFirst50 = 0.0f;
+    float peakLast50 = 0.0f;
+    for (int i = 0; i < sweepSamples; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / sampleRate);
+        float out = sr.process(input);
+        float a = std::abs(out);
+        if (i < 50) {
+            if (a > peakFirst50) peakFirst50 = a;
+        }
+        if (i >= sweepSamples - 50) {
+            if (a > peakLast50) peakLast50 = a;
+        }
+    }
+    // Output should decrease over time as smoother fades to 0
+    REQUIRE(peakFirst50 > peakLast50);
+}
+
+TEST_CASE("SympatheticResonance US2: snapTo makes isBypassed true immediately",
+          "[systems][sympathetic][amount]") {
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    // After prepare(), smoother is snapped to 0, and couplingGain_ is 0
+    sr.setAmount(0.0f);
+    REQUIRE(sr.isBypassed());
+}
+
+TEST_CASE("SympatheticResonance US2: setAmount called every block does not reset pool",
+          "[systems][sympathetic][amount]") {
+    constexpr float sampleRate = 44100.0f;
+    constexpr int blockSize = 64;
+    constexpr int numBlocks = 100;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.5f);
+    sr.setAmount(0.5f);
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+
+    // Simulate 100 blocks, calling setAmount before each block
+    float lastBlockRms = 0.0f;
+    for (int block = 0; block < numBlocks; ++block) {
+        sr.setAmount(0.5f); // Same value every block
+
+        float blockSum = 0.0f;
+        for (int s = 0; s < blockSize; ++s) {
+            int sampleIdx = block * blockSize + s;
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(sampleIdx) / sampleRate);
+            float out = sr.process(input);
+            blockSum += out * out;
+        }
+        lastBlockRms = std::sqrt(blockSum / static_cast<float>(blockSize));
+    }
+
+    // Resonators should still be active after 100 blocks
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+    // Last block should have meaningful output (not reset to silence)
+    REQUIRE(lastBlockRms > 0.0f);
+}

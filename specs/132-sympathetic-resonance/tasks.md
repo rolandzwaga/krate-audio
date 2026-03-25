@@ -184,7 +184,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T017 [US2] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append to existing file) covering:
+- [X] T017 [US2] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append to existing file) covering:
   - Zero bypass: Amount=0.0 produces exactly 0.0 for any input; `isBypassed()` returns true (FR-014, SC-009)
   - Non-zero activation: Amount=0.001 (just above zero) produces non-zero output for a sustained sine input with active resonators (FR-014)
   - Amount range: Amount=1.0 produces more total output energy than Amount=0.1 for the same 1000-sample sine burst with active resonators (spec: -40 dB at low, -20 dB at high)
@@ -195,20 +195,20 @@ Key rules:
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T018 [US2] Implement `setAmount(float amount)` in `dsp/include/krate/dsp/systems/sympathetic_resonance.h`:
+- [X] T018 [US2] Implement `setAmount(float amount)` in `dsp/include/krate/dsp/systems/sympathetic_resonance.h`:
   - Map normalized amount [0.0, 1.0] to coupling gain: `couplingGain_ = (amount == 0.0f) ? 0.0f : std::pow(10.0f, (-40.0f + 20.0f * amount) / 20.0f)` (maps 0.0 -> -40 dB = 0.01, 1.0 -> -20 dB = 0.1)
   - Set smoother target: `amountSmoother_.setTarget(couplingGain_)`
   - `isBypassed()` returns true when `amountSmoother_.getCurrentValue() == 0.0f && couplingGain_ == 0.0f`
 
-- [ ] T019 [US2] Verify all User Story 2 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T019 [US2] Verify all User Story 2 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T020 [US2] Verify IEEE 754 compliance for any new test code added in T017; add to `-fno-fast-math` list if needed
+- [X] T020 [US2] Verify IEEE 754 compliance for any new test code added in T017; add to `-fno-fast-math` list if needed
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T021 [US2] Commit completed User Story 2 work: amount control implementation + tests
+- [X] T021 [US2] Commit completed User Story 2 work: amount control implementation + tests
 
 **Checkpoint**: User Story 2 -- sympathetic amount control -- is fully functional, tested, and committed. Amount=0.0 is a true zero-cost bypass.
 
