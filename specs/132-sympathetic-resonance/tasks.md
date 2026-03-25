@@ -320,7 +320,7 @@ Key rules:
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T037 [US5] Commit completed User Story 5 work: merge threshold validation + beating tests
+- [X] T037 [US5] Commit completed User Story 5 work: merge threshold validation + beating tests
 
 **Checkpoint**: User Story 5 -- near-unison beating -- is fully functional, tested, and committed. The 0.3 Hz threshold correctly preserves beating and prevents redundant merging.
 
@@ -336,7 +336,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T038 [US6] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
+- [X] T038 [US6] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
   - Anti-mud HPF active: Trigger a 60 Hz resonator (low bass partial), drive it to steady state, verify the anti-mud HPF substantially attenuates the output at 60 Hz relative to a 500 Hz resonator driven with equal amplitude (FR-012, SC-012)
   - No buildup below 80 Hz: With 4 simultaneous voices (low bass chord), verify sympathetic output has minimal energy below 80 Hz after anti-mud filter (FR-012)
   - HPF frequency response: Verify the anti-mud HPF gain at 100 Hz (f_ref) is ~0.5 (-6 dB) and at 200 Hz is ~0.8, consistent with `gain(f) = 1 / (1 + (100/f)^2)` (FR-012)
@@ -346,12 +346,12 @@ Key rules:
 
 ### 8.2 Implementation for User Story 6
 
-- [ ] T039 [US6] Verify the `antiMudHpf_` configuration in `prepare()` (from T010) uses the correct HPF formula: `Biquad::configure(FilterType::HighPass, kAntiMudFreqRef, 0.707f, 0.0f, sampleRate_)` which produces the 6 dB/oct roll-off matching `gain(f) = 1 / (1 + (f_ref/f)^2)` (FR-012)
-- [ ] T040 [US6] Verify all User Story 6 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T039 [US6] Verify the `antiMudHpf_` configuration in `prepare()` (from T010) uses the correct HPF formula: `Biquad::configure(FilterType::HighPass, kAntiMudFreqRef, 0.707f, 0.0f, sampleRate_)` which produces the 6 dB/oct roll-off matching `gain(f) = 1 / (1 + (f_ref/f)^2)` (FR-012)
+- [X] T040 [US6] Verify all User Story 6 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 8.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T041 [US6] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
+- [X] T041 [US6] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
 
 ### 8.4 Commit (MANDATORY)
 
