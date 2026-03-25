@@ -879,9 +879,10 @@
               title="Pos"/>
 
         <!-- Oversampling (2x anti-aliasing toggle) -->
-        <view class="COnOffButton" origin="475, 28" size="32, 22"
-              control-tag="BowOversampling" default-value="0"/>
-        <view class="CTextLabel" origin="462, 52" size="58, 10"
+        <view class="ToggleButton" origin="475, 26" size="22, 22"
+              control-tag="BowOversampling" default-value="0"
+              on-color="accent" off-color="text-dim"/>
+        <view class="CTextLabel" origin="462, 50" size="48, 10"
               text-alignment="center" font="value-font"
               font-color="text-secondary" back-color="~ TransparentCColor"
               title="2x OS"/>
