@@ -231,7 +231,7 @@ Key rules:
   - Frequency-dependent Q at 440 Hz: `setDecay(x)` -> Q_user; at 440 Hz, `Q_eff = Q_user * clamp(500/440, 0.5, 1.0) = Q_user * 1.0` (below 500 Hz, full Q) (FR-013)
   - Frequency-dependent Q at 1000 Hz: at 1000 Hz, `Q_eff = Q_user * 0.5` (FR-013)
   - Frequency-dependent Q at 2000+ Hz: at 2000 Hz, `Q_eff = Q_user * clamp(500/2000, 0.5, 1.0) = Q_user * 0.5` (clamped at minimum) (FR-013)
-  - Ring-out duration: decay=0.0 (Q=100) ring-out for 440 Hz is < 200ms to -60 dB; decay=1.0 (Q=1000) ring-out is > 1500ms to -60 dB (verify time constant difference is order-of-magnitude) (SC-013, US3 acceptance scenarios 1-2)
+  - Ring-out duration: decay=0.0 (Q=100) ring-out for 440 Hz is < 800ms to -60 dB (theoretical T60 ~500ms at Q=100/440Hz; original 200ms target was physically unrealistic); decay=1.0 (Q=1000) ring-out is > 1500ms to -60 dB (verify time constant difference is order-of-magnitude) (SC-013, US3 acceptance scenarios 1-2)
   - Smooth decay sweep: `setDecay()` called while resonators are active; new resonators added after decay change use the new Q; no crash or assertion failure (US3 acceptance scenario 3)
 
 ### 5.2 Implementation for User Story 3
@@ -264,7 +264,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T027 [US4] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
+- [X] T027 [US4] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
   - Ring-out persists: After `noteOff(0)`, resonators remain active (`getActiveResonatorCount() == 4`); processing silence for 1 block does not reclaim them (FR-009, US4 acceptance scenario 1)
   - Natural decay: After `noteOff(0)` and processing silence for `N` samples (N chosen to be below the ring-out time), resonators are still present; after `M >> N` samples, they are reclaimed (FR-009)
   - -96 dB threshold: Resonators are reclaimed when envelope drops below `kReclaimThresholdLinear = 1.585e-5f` (FR-009, US4 acceptance scenario 2)
@@ -275,17 +275,17 @@ Key rules:
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T028 [US4] Review and harden `noteOff()` implementation from T012 to ensure refCount is decremented correctly for merged resonators -- a shared resonator (refCount > 1) should only be orphaned when its last owner calls noteOff (FR-009)
-- [ ] T029 [US4] Review and harden `process()` reclaim logic from T013 to ensure envelope-based reclaim correctly decrements `activeCount_` and marks the slot as inactive so subsequent noteOns can reuse it (FR-009, FR-010)
-- [ ] T030 [US4] Verify all User Story 4 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T028 [US4] Review and harden `noteOff()` implementation from T012 to ensure refCount is decremented correctly for merged resonators -- a shared resonator (refCount > 1) should only be orphaned when its last owner calls noteOff (FR-009)
+- [X] T029 [US4] Review and harden `process()` reclaim logic from T013 to ensure envelope-based reclaim correctly decrements `activeCount_` and marks the slot as inactive so subsequent noteOns can reuse it (FR-009, FR-010)
+- [X] T030 [US4] Verify all User Story 4 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T031 [US4] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
+- [X] T031 [US4] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T032 [US4] Commit completed User Story 4 work: ring-out + pool management hardening + tests
+- [X] T032 [US4] Commit completed User Story 4 work: ring-out + pool management hardening + tests
 
 **Checkpoint**: User Story 4 -- natural ring-out after voice steal -- is fully functional, tested, and committed. Pool management is solid under rapid voice stealing.
 

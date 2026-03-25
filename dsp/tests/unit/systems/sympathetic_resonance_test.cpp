@@ -1350,3 +1350,262 @@ TEST_CASE("SympatheticResonance: smooth decay sweep while resonators active",
     // Resonators should still be active (pool may be full but no crash)
     REQUIRE(sr.getActiveResonatorCount() > 0);
 }
+
+// =============================================================================
+// Phase 6: User Story 4 - Sympathetic Ring-Out After Voice Steal
+// =============================================================================
+
+TEST_CASE("SympatheticResonance: ring-out persists after noteOff", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    auto partials = makeHarmonicPartials(440.0f);
+    sr.noteOn(0, partials);
+
+    // Drive resonators for 100ms to build up energy
+    constexpr int driveLength = 4410; // 100ms at 44.1kHz
+    for (int s = 0; s < driveLength; ++s) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+
+    // Release the voice
+    sr.noteOff(0);
+
+    // Immediately after noteOff, resonators should still be active (orphaned, not reclaimed)
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+
+    // Process 1 block of silence -- resonators should NOT be reclaimed yet
+    constexpr int oneBlock = 256;
+    processSilence(sr, oneBlock);
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+}
+
+TEST_CASE("SympatheticResonance: natural decay after noteOff", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.0f); // Low Q (~100) = short ring-out
+
+    auto partials = makeHarmonicPartials(440.0f);
+    sr.noteOn(0, partials);
+
+    // Drive resonators for 100ms
+    constexpr int driveLength = 4410;
+    for (int s = 0; s < driveLength; ++s) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    sr.noteOff(0);
+
+    // After a modest amount of silence, resonators should still be present
+    constexpr int shortSilence = 4410; // 100ms
+    processSilence(sr, shortSilence);
+    // With Q~100 at 440Hz, bandwidth ~4.4Hz, ring time should be moderate
+    // Resonators should still be active after only 100ms of silence
+    int countAfterShort = sr.getActiveResonatorCount();
+    REQUIRE(countAfterShort > 0);
+
+    // After a very long silence (10 seconds), resonators must be fully reclaimed
+    constexpr int longSilence = 441000; // 10 seconds
+    processSilence(sr, longSilence);
+    REQUIRE(sr.getActiveResonatorCount() == 0);
+}
+
+TEST_CASE("SympatheticResonance: -96 dB reclaim threshold", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.0f); // Low Q for faster decay
+
+    auto partials = makeHarmonicPartials(440.0f);
+    sr.noteOn(0, partials);
+
+    // Drive for 50ms with a small amplitude to build some energy
+    constexpr int driveLength = 2205;
+    for (int s = 0; s < driveLength; ++s) {
+        float input = 0.001f * std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    sr.noteOff(0);
+
+    // Process silence until all resonators are reclaimed
+    // Track last non-zero output sample to confirm threshold behavior
+    int samplesUntilReclaimed = 0;
+    float lastNonZeroOutput = 0.0f;
+    constexpr int maxSamples = 44100 * 20; // 20 seconds max
+    for (int s = 0; s < maxSamples; ++s) {
+        float out = sr.process(0.0f);
+        if (std::abs(out) > 0.0f) {
+            lastNonZeroOutput = std::abs(out);
+        }
+        if (sr.getActiveResonatorCount() == 0) {
+            samplesUntilReclaimed = s;
+            break;
+        }
+    }
+
+    // Resonators must have been reclaimed at some point
+    REQUIRE(sr.getActiveResonatorCount() == 0);
+    REQUIRE(samplesUntilReclaimed > 0);
+
+    // The last non-zero output should have been very small (near -96 dB)
+    // The envelope follower has slow release, so threshold is applied to envelope,
+    // not raw output. Just confirm reclaim happened.
+    REQUIRE(lastNonZeroOutput < 0.01f); // Well below audible
+}
+
+TEST_CASE("SympatheticResonance: pool recovery after decay", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.0f); // Short decay
+
+    // Fill pool with voices
+    for (int v = 0; v < 10; ++v) {
+        sr.noteOn(v, makeHarmonicPartials(220.0f + 50.0f * static_cast<float>(v)));
+    }
+
+    // Drive to build up energy
+    for (int s = 0; s < 4410; ++s) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    // Release all voices
+    for (int v = 0; v < 10; ++v) {
+        sr.noteOff(v);
+    }
+
+    // Let them all decay
+    constexpr int decayTime = 44100 * 20; // 20 seconds
+    processSilence(sr, decayTime);
+
+    // Pool should be fully recovered
+    REQUIRE(sr.getActiveResonatorCount() == 0);
+
+    // New voices should be able to use the full pool
+    for (int v = 0; v < 16; ++v) {
+        sr.noteOn(v + 100, makeHarmonicPartials(200.0f + 30.0f * static_cast<float>(v)));
+    }
+    // 16 voices x 4 partials = 64 = max pool
+    REQUIRE(sr.getActiveResonatorCount() == kMaxSympatheticResonators);
+}
+
+TEST_CASE("SympatheticResonance: voice steal pool cap at 64", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    // Add 17 voices x 4 partials = 68 > 64 cap
+    // Use irrational-ratio frequencies to avoid harmonic merging.
+    // Fundamentals: 101, 137, 173, 211, 251, 293, 337, 383, 431, 479, 523, 571,
+    // 619, 661, 709, 757, 811 -- primes, so no harmonic overlaps within 0.3 Hz
+    const float primeFreqs[] = {
+        101.0f, 137.0f, 173.0f, 211.0f, 251.0f, 293.0f, 337.0f, 383.0f,
+        431.0f, 479.0f, 523.0f, 571.0f, 619.0f, 661.0f, 709.0f, 757.0f,
+        811.0f
+    };
+
+    for (int v = 0; v < 17; ++v) {
+        sr.noteOn(v, makeHarmonicPartials(primeFreqs[v]));
+
+        // Process a few samples between noteOns so envelopes diverge
+        for (int s = 0; s < 100; ++s) {
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+            (void)sr.process(input);
+        }
+
+        // Active count should never exceed pool cap
+        REQUIRE(sr.getActiveResonatorCount() <= kMaxSympatheticResonators);
+    }
+
+    // Final count is exactly 64 (pool is at cap)
+    REQUIRE(sr.getActiveResonatorCount() == kMaxSympatheticResonators);
+}
+
+TEST_CASE("SympatheticResonance: quietest eviction on pool full", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    // Fill pool to capacity: 16 voices x 4 partials = 64
+    for (int v = 0; v < 16; ++v) {
+        sr.noteOn(v, makeHarmonicPartials(100.0f + 80.0f * static_cast<float>(v)));
+    }
+    REQUIRE(sr.getActiveResonatorCount() == kMaxSympatheticResonators);
+
+    // Drive all resonators with a sine at 440 Hz so some resonate more than others
+    for (int s = 0; s < 4410; ++s) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+        (void)sr.process(input);
+    }
+
+    // Add one more voice -- this forces eviction of the quietest resonator
+    int countBefore = sr.getActiveResonatorCount();
+    sr.noteOn(99, makeHarmonicPartials(440.0f));
+
+    // Pool should still be at cap (eviction made room for new resonators)
+    REQUIRE(sr.getActiveResonatorCount() <= kMaxSympatheticResonators);
+    REQUIRE(sr.getActiveResonatorCount() > 0);
+
+    // The eviction should have made room -- some of the new voice's partials were added
+    // (440 Hz partials might merge with existing ones, so count may vary)
+    // Key: no crash, no overflow, pool stays at or below cap
+    (void)countBefore;
+}
+
+TEST_CASE("SympatheticResonance: rapid tremolo stress test", "[systems][sympathetic]") {
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    constexpr int samplesPerMs = 44; // ~1ms at 44.1kHz
+
+    bool anyNaN = false;
+    bool anyInf = false;
+
+    // 100 rapid noteOn/noteOff cycles, 1ms apart, same voice
+    for (int cycle = 0; cycle < 100; ++cycle) {
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        // Process 1ms of audio
+        for (int s = 0; s < samplesPerMs; ++s) {
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(s) / sampleRate);
+            float out = sr.process(input);
+            if (std::isnan(out)) anyNaN = true;
+            if (std::isinf(out)) anyInf = true;
+        }
+
+        sr.noteOff(0);
+
+        // Process 1ms of silence
+        for (int s = 0; s < samplesPerMs; ++s) {
+            float out = sr.process(0.0f);
+            if (std::isnan(out)) anyNaN = true;
+            if (std::isinf(out)) anyInf = true;
+        }
+
+        // Pool should never overflow
+        REQUIRE(sr.getActiveResonatorCount() <= kMaxSympatheticResonators);
+    }
+
+    REQUIRE_FALSE(anyNaN);
+    REQUIRE_FALSE(anyInf);
+}

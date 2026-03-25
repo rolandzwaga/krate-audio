@@ -58,6 +58,9 @@ inline constexpr float kQFreqRef = 500.0f;
 /// Minimum Q scaling factor (clamp floor for frequency-dependent Q).
 inline constexpr float kMinQScale = 0.5f;
 
+/// Maximum number of voice owners per resonator (for shared/merged tracking).
+inline constexpr int kMaxOwnersPerResonator = 8;
+
 // =============================================================================
 // SympatheticPartialInfo
 // =============================================================================
@@ -186,24 +189,29 @@ public:
             // Check for merge candidate
             int mergeIdx = findMergeCandidate(freq);
             if (mergeIdx >= 0) {
+                auto midx = static_cast<size_t>(mergeIdx);
                 // Merge: weighted average frequency
-                int rc = refCounts_[static_cast<size_t>(mergeIdx)];
-                float existingFreq = freqs_[static_cast<size_t>(mergeIdx)];
+                // Use refCount as weight for the existing frequency
+                int rc = refCounts_[midx];
+                float existingFreq = freqs_[midx];
                 float newFreq = (existingFreq * static_cast<float>(rc) + freq)
                                 / static_cast<float>(rc + 1);
-                freqs_[static_cast<size_t>(mergeIdx)] = newFreq;
-                refCounts_[static_cast<size_t>(mergeIdx)] = rc + 1;
+                freqs_[midx] = newFreq;
+                refCounts_[midx] = rc + 1;
 
-                // Update voiceId if it was orphaned
-                if (voiceIds_[static_cast<size_t>(mergeIdx)] == -1) {
-                    voiceIds_[static_cast<size_t>(mergeIdx)] = voiceId;
+                // Track this voice as a co-owner by adding to ownerVoiceIds
+                for (int ov = 0; ov < kMaxOwnersPerResonator; ++ov) {
+                    if (ownerVoiceIds_[midx][static_cast<size_t>(ov)] == -1) {
+                        ownerVoiceIds_[midx][static_cast<size_t>(ov)] = voiceId;
+                        break;
+                    }
                 }
 
                 // Recompute coefficients for updated frequency
                 float Q_eff = computeFreqDependentQ(userQ_, newFreq);
                 auto coeffs = computeResonatorCoeffs(newFreq, Q_eff, sampleRate_);
-                coeffs_[static_cast<size_t>(mergeIdx)] = coeffs.coeff;
-                rSquareds_[static_cast<size_t>(mergeIdx)] = coeffs.rSquared;
+                coeffs_[midx] = coeffs.coeff;
+                rSquareds_[midx] = coeffs.rSquared;
             } else {
                 // Acquire new slot
                 int slot = findFreeSlot();
@@ -230,6 +238,12 @@ public:
                 refCounts_[idx] = 1;
                 actives_[idx] = true;
                 activeCount_++;
+
+                // Initialize owner list with this voice
+                ownerVoiceIds_[idx][0] = voiceId;
+                for (int ov = 1; ov < kMaxOwnersPerResonator; ++ov) {
+                    ownerVoiceIds_[idx][static_cast<size_t>(ov)] = -1;
+                }
             }
         }
     }
@@ -240,14 +254,35 @@ public:
     void noteOff(int32_t voiceId) noexcept {
         for (int i = 0; i < kMaxSympatheticResonators; ++i) {
             auto idx = static_cast<size_t>(i);
-            if (actives_[idx] && voiceIds_[idx] == voiceId) {
-                refCounts_[idx]--;
-                if (refCounts_[idx] <= 0) {
-                    // Last owner released -- orphan the resonator
-                    voiceIds_[idx] = -1;
-                    refCounts_[idx] = 0;
+            if (!actives_[idx]) continue;
+
+            // Check if this voice is an owner of this resonator
+            bool isOwner = false;
+            for (int ov = 0; ov < kMaxOwnersPerResonator; ++ov) {
+                if (ownerVoiceIds_[idx][static_cast<size_t>(ov)] == voiceId) {
+                    // Remove this voice from owner list
+                    ownerVoiceIds_[idx][static_cast<size_t>(ov)] = -1;
+                    isOwner = true;
+                    break;
                 }
-                // If refCount > 0, another voice still owns it -- do not orphan
+            }
+
+            if (!isOwner) continue;
+
+            refCounts_[idx]--;
+            if (refCounts_[idx] <= 0) {
+                // Last owner released -- orphan the resonator
+                voiceIds_[idx] = -1;
+                refCounts_[idx] = 0;
+            } else {
+                // Update voiceId to the next remaining owner
+                voiceIds_[idx] = -1; // Default to orphaned
+                for (int ov = 0; ov < kMaxOwnersPerResonator; ++ov) {
+                    if (ownerVoiceIds_[idx][static_cast<size_t>(ov)] != -1) {
+                        voiceIds_[idx] = ownerVoiceIds_[idx][static_cast<size_t>(ov)];
+                        break;
+                    }
+                }
             }
         }
     }
@@ -309,6 +344,7 @@ public:
                 y1s_[idx] = 0.0f;
                 y2s_[idx] = 0.0f;
                 envelopes_[idx] = 0.0f;
+                ownerVoiceIds_[idx].fill(-1);
                 activeCount_--;
             }
         }
@@ -414,6 +450,7 @@ private:
             y1s_[idx] = 0.0f;
             y2s_[idx] = 0.0f;
             envelopes_[idx] = 0.0f;
+            ownerVoiceIds_[idx].fill(-1);
             activeCount_--;
         }
         return quietestIdx;
@@ -433,6 +470,11 @@ private:
         refCounts_.fill(0);
         actives_.fill(false);
         activeCount_ = 0;
+
+        // Initialize all owner voice ID slots to -1
+        for (auto& owners : ownerVoiceIds_) {
+            owners.fill(-1);
+        }
     }
 
     // =========================================================================
@@ -449,6 +491,7 @@ private:
     std::array<int32_t, kMaxSympatheticResonators> voiceIds_{};
     std::array<int, kMaxSympatheticResonators> partialNumbers_{};
     std::array<int, kMaxSympatheticResonators> refCounts_{};
+    std::array<std::array<int32_t, kMaxOwnersPerResonator>, kMaxSympatheticResonators> ownerVoiceIds_{};
     std::array<bool, kMaxSympatheticResonators> actives_{};
 
     // =========================================================================
