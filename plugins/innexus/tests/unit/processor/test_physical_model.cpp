@@ -282,11 +282,12 @@ TEST_CASE("PhysicalModel state round-trip preserves all 5 new params",
     //   + 3 floats (waveguide params, Spec 129)
     //   + 4 floats (bow exciter params, Spec 130)
     //   + 3 floats (body resonance params, Spec 131)
+    //   + 2 floats (sympathetic resonance params, Spec 132)
     //   + int32 marker + int64 instance id
-    // So the 5 phys model floats start at (size - 20*4 - 4 - 8) = (size - 92).
+    // So the 5 phys model floats start at (size - 22*4 - 4 - 8) = (size - 100).
     size_t streamSize = defaultStream.size();
-    REQUIRE(streamSize > 92);
-    size_t physParamOffset = streamSize - 20 * sizeof(float)
+    REQUIRE(streamSize > 100);
+    size_t physParamOffset = streamSize - 22 * sizeof(float)
                              - sizeof(Steinberg::int32) - sizeof(Steinberg::int64);
     defaultStream.writeFloatAt(physParamOffset + 0 * sizeof(float), kTestMix);
     defaultStream.writeFloatAt(physParamOffset + 1 * sizeof(float), kTestDecay);
@@ -360,12 +361,12 @@ TEST_CASE("PhysicalModel truncated state (pre-Spec127) gracefully uses defaults"
         proc->terminate();
     }
 
-    // The physical model params are 5 floats (20 bytes) written before the
-    // SharedDisplayBridge trailer (int32 marker + int64 id = 12 bytes).
-    // Truncate the last 32 bytes (5 floats + marker + id) to simulate
-    // a pre-Spec127 state.
+    // The physical model params are followed by impact (5 floats), waveguide
+    // (3 floats), bow (4 floats), body resonance (3 floats), sympathetic
+    // resonance (2 floats), and the SharedDisplayBridge trailer (int32 + int64).
+    // Truncate all 22 floats + trailer to simulate a pre-Spec127 state.
     size_t fullSize = fullStream.size();
-    size_t truncateAmount = 5 * sizeof(float) + sizeof(int32) + sizeof(int64);
+    size_t truncateAmount = 22 * sizeof(float) + sizeof(int32) + sizeof(int64);
     REQUIRE(fullSize > truncateAmount);
     fullStream.truncate(fullSize - truncateAmount);
 

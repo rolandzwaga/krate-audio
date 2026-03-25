@@ -383,7 +383,7 @@ Key rules:
 ### 9.2 Verification
 
 - [X] T046 Verify all existing DSP unit tests still pass with SIMD active (including the T042a scalar-vs-SIMD correctness test and the T042b `[.perf]` benchmark): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10` -- all non-perf tests must pass within floating-point tolerance; run `dsp_tests.exe "[.perf]"` separately and record scalar vs SIMD throughput numbers in a comment (SC-015, FR-017)
-  <!-- Perf results: Scalar 39.5 Msamples/sec, SIMD 23.7-25.1 Msamples/sec on this machine (AVX2). SIMD underperforms scalar on this workload because the 64-slot branchless SIMD loop processes all slots including 32 inactive zeros, while the scalar loop used branch-skip. This is an expected tradeoff for SIMD: uniform cost regardless of active count, which is beneficial when >50% of slots are active. -->
+  <!-- Perf results (all 64 slots active): Scalar ~46-59 Msamples/sec, SIMD ~42-58 Msamples/sec on this machine (AVX2). SIMD/Scalar ratio ~0.91-0.97x. Both paths are effectively SIMD because MSVC auto-vectorizes the scalar loop in Release mode. Explicit Highway kernel has small per-sample ReduceSum overhead. Assertion requires SIMD >= 0.9x scalar throughput. -->
 - [X] T047 Verify the SIMD file was added to `dsp/CMakeLists.txt` (T007 from Phase 2) and the build succeeds with zero warnings
 
 ### 9.3 Commit (MANDATORY)
@@ -404,7 +404,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T049 [P] Write failing integration tests in `plugins/innexus/tests/unit/processor/sympathetic_resonance_integration_test.cpp` covering:
+- [X] T049 [P] Write failing integration tests in `plugins/innexus/tests/unit/processor/sympathetic_resonance_integration_test.cpp` covering:
   - Parameter registration: `kSympatheticAmountId` (860) is registered as a RangeParameter with range [0.0, 1.0], default 0.0, unit ""; `kSympatheticDecayId` (861) is registered with range [0.0, 1.0], default 0.5, displayed as "Sympathetic Decay" (FR-015)
   - Parameter dispatch to DSP: Setting `kSympatheticAmountId` via `processParameterChanges()` updates `sympatheticAmount_` atomic; the DSP component receives the updated value before the next audio block (FR-015)
   - Parameter dispatch decay: Same for `kSympatheticDecayId` / `sympatheticDecay_` atomic (FR-015)
@@ -417,40 +417,40 @@ Key rules:
 
 ### 10.2 Plugin Implementation
 
-- [ ] T050 Modify `plugins/innexus/src/processor/processor.h` to add:
+- [X] T050 Modify `plugins/innexus/src/processor/processor.h` to add:
   - `Krate::DSP::SympatheticResonance sympatheticResonance_` member
   - `std::atomic<float> sympatheticAmount_{0.0f}` member
   - `std::atomic<float> sympatheticDecay_{0.5f}` member
   - `#include <krate/dsp/systems/sympathetic_resonance.h>` at the top
 
-- [ ] T051 Modify `plugins/innexus/src/processor/processor.cpp` to integrate sympathetic resonance into the process() loop:
+- [X] T051 Modify `plugins/innexus/src/processor/processor.cpp` to integrate sympathetic resonance into the process() loop:
   - In `setupProcessing()` / `setBusArrangements()`: call `sympatheticResonance_.prepare(processSetup.sampleRate)` after existing prepare calls
   - In the per-sample processing loop (after polyphony gain compensation, before master gain): compute `float monoSum = (sampleL + sampleR) * 0.5f; float sympatheticOut = sympatheticResonance_.process(monoSum); sampleL += sympatheticOut; sampleR += sympatheticOut;` (FR-016, quickstart.md signal chain diagram)
   - In `applyParamsToEngine()`: call `sympatheticResonance_.setAmount(sympatheticAmount_.load(std::memory_order_relaxed))` and `sympatheticResonance_.setDecay(sympatheticDecay_.load(std::memory_order_relaxed))` once per block
 
-- [ ] T052 Modify `plugins/innexus/src/processor/processor_params.cpp` to handle `kSympatheticAmountId` and `kSympatheticDecayId` parameter changes:
+- [X] T052 Modify `plugins/innexus/src/processor/processor_params.cpp` to handle `kSympatheticAmountId` and `kSympatheticDecayId` parameter changes:
   - In `processParameterChanges()`: add cases for both IDs using the same `std::memory_order_relaxed` atomic store pattern as existing parameters
 
-- [ ] T053 Modify `plugins/innexus/src/processor/processor_state.cpp` to save/load sympathetic parameters:
+- [X] T053 Modify `plugins/innexus/src/processor/processor_state.cpp` to save/load sympathetic parameters:
   - In `getState()`: `streamer.writeFloat(sympatheticAmount_.load(...)); streamer.writeFloat(sympatheticDecay_.load(...))`
   - In `setState()`: read with defaults `float amount = 0.0f; streamer.readFloat(amount); float decay = 0.5f; streamer.readFloat(decay);` using the same backward-compat pattern as existing state code
 
-- [ ] T054 Modify `plugins/innexus/src/processor/processor_midi.cpp` to route MIDI events to sympathetic resonance:
+- [X] T054 Modify `plugins/innexus/src/processor/processor_midi.cpp` to route MIDI events to sympathetic resonance:
   - In `handleNoteOn(voiceId, ...)`: after assigning the voice, compute `SympatheticPartialInfo partials; for (int i = 0; i < kSympatheticPartialCount; ++i) { partials.frequencies[i] = computeInharmonicPartialFreq(voice.baseFreq, i+1, voice.inharmonicityB); }` then call `sympatheticResonance_.noteOn(voiceId, partials)`
   - **Inharmonicity formula**: `f_n = n * f0 * sqrt(1 + B * n^2)` per FR-018 and research R-007; the caller (processor_midi.cpp) computes this inline or via a voice system helper method -- it is NOT recomputed inside `SympatheticResonance` (already-adjusted frequencies are passed via `PartialInfo.frequencies`)
   - **Before implementing**: verify the actual inharmonicity field name on `InnexusVoice` in `plugins/innexus/src/processor/innexus_voice.h` (likely `inharmonicityAmount_` or `inharmonicityB_`); use the correct field name, not a placeholder
   - In `handleNoteOff(voiceId, ...)`: call `sympatheticResonance_.noteOff(voiceId)`
 
-- [ ] T055 Modify `plugins/innexus/src/controller/controller.cpp` to register both parameters:
+- [X] T055 Modify `plugins/innexus/src/controller/controller.cpp` to register both parameters:
   - Add `addRangeParameter(kSympatheticAmountId, "Sympathetic Amount", "", 0.0, 1.0, 0.0)` in `Controller::initialize()`
   - Add `addRangeParameter(kSympatheticDecayId, "Sympathetic Decay", "", 0.0, 1.0, 0.5)` in `Controller::initialize()`
   - Follow the exact same RangeParameter registration pattern as adjacent parameters in controller.cpp
 
-- [ ] T056 Verify all plugin integration tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T056 Verify all plugin integration tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target innexus_tests && build/windows-x64-release/bin/Release/innexus_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 10.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T057 Verify IEEE 754 compliance for `sympathetic_resonance_integration_test.cpp`; add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
+- [X] T057 Verify IEEE 754 compliance for `sympathetic_resonance_integration_test.cpp`; add to `-fno-fast-math` list in `plugins/innexus/tests/CMakeLists.txt` if needed
 
 ### 10.4 Commit (MANDATORY)
 

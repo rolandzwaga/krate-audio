@@ -828,6 +828,19 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(bodyMixParam);
 
+    // Sympathetic Resonance (Spec 132)
+    auto* sympatheticAmountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sympathetic Amount"), kSympatheticAmountId,
+        STR16(""), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(sympatheticAmountParam);
+
+    auto* sympatheticDecayParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sympathetic Decay"), kSympatheticDecayId,
+        STR16(""), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(sympatheticDecayParam);
+
     // NoteExpression types (Phase 4: MPE support)
     {
         using namespace Steinberg::Vst;

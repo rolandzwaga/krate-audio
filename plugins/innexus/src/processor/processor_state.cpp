@@ -240,6 +240,10 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     streamer.writeFloat(bodyMaterial_.load(std::memory_order_relaxed));
     streamer.writeFloat(bodyMix_.load(std::memory_order_relaxed));
 
+    // --- Sympathetic Resonance parameters (Spec 132) ---
+    streamer.writeFloat(sympatheticAmount_.load(std::memory_order_relaxed));
+    streamer.writeFloat(sympatheticDecay_.load(std::memory_order_relaxed));
+
     // SharedDisplayBridge: append instance ID for Tier 3 fallback
     streamer.writeInt32(kInstanceIdMarker);
     streamer.writeInt64(static_cast<Steinberg::int64>(instanceId_));
@@ -691,6 +695,13 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
         bodyMaterial_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))
         bodyMix_.store(std::clamp(floatVal, 0.0f, 1.0f));
+
+    // --- Sympathetic Resonance parameters (Spec 132, graceful fallback) ---
+    // Old presets without these fields will use defaults (amount=0.0, decay=0.5)
+    if (streamer.readFloat(floatVal))
+        sympatheticAmount_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    if (streamer.readFloat(floatVal))
+        sympatheticDecay_.store(std::clamp(floatVal, 0.0f, 1.0f));
 
     // SharedDisplayBridge: try to read instance ID from state trailer
     {

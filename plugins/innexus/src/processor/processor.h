@@ -38,6 +38,7 @@
 #include <krate/dsp/processors/residual_types.h>
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/systems/sympathetic_resonance.h>
 #include <krate/dsp/systems/voice_allocator.h>
 #include <krate/dsp/core/midi_utils.h>
 #include <krate/dsp/core/pitch_utils.h>
@@ -389,6 +390,11 @@ public:
     float getBodyMaterial() const { return bodyMaterial_.load(std::memory_order_relaxed); }
     float getBodyMix() const { return bodyMix_.load(std::memory_order_relaxed); }
 
+    // Sympathetic Resonance (Spec 132) test accessors
+    float getSympatheticAmount() const { return sympatheticAmount_.load(std::memory_order_relaxed); }
+    float getSympatheticDecay() const { return sympatheticDecay_.load(std::memory_order_relaxed); }
+    int getSympatheticResonatorCount() const { return sympatheticResonance_.getActiveResonatorCount(); }
+
     /// @brief Get const reference to the feedback buffer (TEST ONLY, for SC-006 verification).
     const std::array<float, 8192>& getFeedbackBuffer() const { return feedbackBuffer_; }
 
@@ -523,6 +529,10 @@ private:
     std::atomic<float> bodySize_{0.5f};                  // 0.0-1.0, default 0.5
     std::atomic<float> bodyMaterial_{0.5f};              // 0.0-1.0, default 0.5
     std::atomic<float> bodyMix_{0.0f};                   // 0.0-1.0, default 0.0
+
+    // Sympathetic Resonance parameters (Spec 132: 132-sympathetic-resonance)
+    std::atomic<float> sympatheticAmount_{0.0f};         // 0.0-1.0, default 0.0
+    std::atomic<float> sympatheticDecay_{0.5f};          // 0.0-1.0, default 0.5
 
     // Impact Exciter parameters (Spec 128: 128-impact-exciter)
     std::atomic<float> exciterType_{0.0f};               // normalized, default 0 (Residual)
@@ -714,6 +724,12 @@ private:
     // Harmonic Physics (Spec A: 122-harmonic-physics)
     // =========================================================================
     HarmonicPhysics harmonicPhysics_;
+
+    // =========================================================================
+    // Sympathetic Resonance (Spec 132: 132-sympathetic-resonance)
+    // Global (non-per-voice) component: post-voice-accumulation, pre-master-gain
+    // =========================================================================
+    Krate::DSP::SympatheticResonance sympatheticResonance_;
 
     // =========================================================================
     // Display Data (M7: FR-048)

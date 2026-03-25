@@ -441,6 +441,16 @@ void Processor::processParameterChanges(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));
                 break;
 
+            // Sympathetic Resonance (Spec 132)
+            case kSympatheticAmountId:
+                sympatheticAmount_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+            case kSympatheticDecayId:
+                sympatheticDecay_.store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
+                break;
+
             default:
                 break;
             }
