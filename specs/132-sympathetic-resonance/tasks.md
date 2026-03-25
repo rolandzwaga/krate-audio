@@ -224,7 +224,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T022 [US3] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
+- [X] T022 [US3] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
   - Q range low: `setDecay(0.0)` followed by `noteOn` with 440 Hz partial; verify resonator `r` pole radius is consistent with Q=100 at 440 Hz: `r = exp(-pi * (440.0/100.0) / 44100.0)` (FR-006)
   - Q range high: `setDecay(1.0)` followed by `noteOn` with 440 Hz partial; verify `r` is consistent with Q=1000 at 440 Hz (FR-006)
   - Existing resonators unchanged: `noteOn` with Decay=0.5, then `setDecay(1.0)`; verify existing resonator `r` is unchanged (Q does not change mid-vibration) (research.md R-005)
@@ -236,19 +236,19 @@ Key rules:
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T023 [US3] Implement `setDecay(float decay)` in `dsp/include/krate/dsp/systems/sympathetic_resonance.h`:
+- [X] T023 [US3] Implement `setDecay(float decay)` in `dsp/include/krate/dsp/systems/sympathetic_resonance.h`:
   - Map normalized decay [0.0, 1.0] to Q: `userQ_ = 100.0f * std::pow(10.0f, decay)` (maps 0.0 -> Q=100, 1.0 -> Q=1000 via logarithmic mapping)
   - Store as `userQ_` member; do NOT recompute coefficients for existing active resonators (only new noteOns use the updated Q)
 
-- [ ] T024 [US3] Verify all User Story 3 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T024 [US3] Verify all User Story 3 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T025 [US3] Verify IEEE 754 compliance for any new test code added in T022; add to `-fno-fast-math` list if needed
+- [X] T025 [US3] Verify IEEE 754 compliance for any new test code added in T022; add to `-fno-fast-math` list if needed
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T026 [US3] Commit completed User Story 3 work: decay control implementation + tests
+- [X] T026 [US3] Commit completed User Story 3 work: decay control implementation + tests
 
 **Checkpoint**: User Story 3 -- sympathetic decay control -- is fully functional, tested, and committed. Short wash vs crystalline ring behavior verified.
 

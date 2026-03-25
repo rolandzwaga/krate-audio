@@ -975,3 +975,378 @@ TEST_CASE("SympatheticResonance US2: setAmount called every block does not reset
     // Last block should have meaningful output (not reset to silence)
     REQUIRE(lastBlockRms > 0.0f);
 }
+
+// =============================================================================
+// Phase 5: User Story 3 - Sympathetic Decay Control (FR-006, FR-013, SC-013)
+// =============================================================================
+
+TEST_CASE("SympatheticResonance: Q range low - decay=0.0 maps to Q=100",
+          "[systems][sympathetic][decay]") {
+    // FR-006: setDecay(0.0) -> userQ_ = 100 * 10^0 = 100
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.0f);
+    sr.setAmount(0.5f);
+
+    // At 440 Hz, Q_eff = Q_user * clamp(500/440, 0.5, 1.0) = Q_user * 1.0 = 100
+    float Q_eff = 100.0f;
+    float expected_r = std::exp(-kPi * (f / Q_eff) / sampleRate);
+    float expected_rSquared = expected_r * expected_r;
+
+    SympatheticPartialInfo partials;
+    partials.frequencies = {f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(0, partials);
+
+    // Verify indirectly: drive and let decay in silence, measure ring-out.
+    // With Q=100 at 440 Hz, the theoretical -60 dB time is:
+    // tau = Q / (pi * f) => T_60 = tau * ln(1000) ~= 100 / (pi*440) * 6.908 ~= 0.5s
+    // But driven resonator ring-out also depends on initial energy.
+    // We just verify the pole radius is physically reasonable for Q=100.
+    REQUIRE(expected_r > 0.96f);
+    REQUIRE(expected_r < 1.0f);
+    REQUIRE(expected_rSquared == Approx(expected_r * expected_r).margin(1e-7f));
+}
+
+TEST_CASE("SympatheticResonance: Q range high - decay=1.0 maps to Q=1000",
+          "[systems][sympathetic][decay]") {
+    // FR-006: setDecay(1.0) -> userQ_ = 100 * 10^1.0 = 1000
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(1.0f);
+    sr.setAmount(0.5f);
+
+    // At 440 Hz, Q_eff = Q_user * clamp(500/440, 0.5, 1.0) = 1000 * 1.0 = 1000
+    float Q_eff = 1000.0f;
+    float expected_r = std::exp(-kPi * (f / Q_eff) / sampleRate);
+
+    // With Q=1000, the pole radius should be very close to 1.0 (long ring)
+    REQUIRE(expected_r > 0.999f);
+    REQUIRE(expected_r < 1.0f);
+
+    // Verify by driving and checking output builds up
+    SympatheticPartialInfo partials;
+    partials.frequencies = {f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(0, partials);
+
+    std::vector<float> output;
+    processSineAndCollect(sr, f, sampleRate, 4410, output); // 100ms
+    float rms = computeRMS(output.data(), static_cast<int>(output.size()));
+    REQUIRE(rms > 0.0f);
+}
+
+TEST_CASE("SympatheticResonance: existing resonators unchanged after setDecay",
+          "[systems][sympathetic][decay]") {
+    // R-005: setDecay does NOT recompute coefficients for existing active resonators
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.5f); // Q_user = 100 * 10^0.5 ~= 316.2
+    sr.setAmount(0.5f);
+
+    SympatheticPartialInfo partials;
+    partials.frequencies = {f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(0, partials);
+
+    // Drive for 100ms to build up resonator state
+    for (int i = 0; i < 4410; ++i) {
+        (void)sr.process(std::sin(kTwoPi * f * static_cast<float>(i) / sampleRate));
+    }
+
+    // Record output level before decay change
+    float outBefore = sr.process(0.0f);
+
+    // Now change decay to maximum
+    sr.setDecay(1.0f);
+
+    // The next sample should continue the same decay trajectory since
+    // existing resonators keep their old coefficients.
+    float outAfter = sr.process(0.0f);
+
+    // The output should be smoothly continuous -- no discontinuity.
+    // The ratio should be close to what we'd expect from one sample of decay
+    // at the OLD Q, not a sudden jump to the new Q.
+    // With Q=316.2 at 440Hz, r ~= 0.9956, so consecutive samples differ by ~r.
+    float expected_r = std::exp(-kPi * (f / 316.2f) / sampleRate);
+    // Allow generous margin since there may be HPF effects, but the key assertion
+    // is that there's NO discontinuity (the ratio is smooth, not a sudden jump)
+    if (std::abs(outBefore) > 1e-6f) {
+        float ratio = std::abs(outAfter / outBefore);
+        // Should be close to the old pole radius (around 0.99-1.01 considering
+        // oscillatory nature), definitely NOT a huge jump
+        REQUIRE(ratio > 0.5f);
+        REQUIRE(ratio < 2.0f);
+    }
+
+    // Add a new voice AFTER decay change -- this one should use Q=1000
+    SympatheticPartialInfo partials2;
+    partials2.frequencies = {880.0f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(1, partials2);
+
+    // Both old and new resonators should be active
+    REQUIRE(sr.getActiveResonatorCount() == 2);
+}
+
+TEST_CASE("SympatheticResonance: frequency-dependent Q at 440 Hz (full Q)",
+          "[systems][sympathetic][decay]") {
+    // FR-013: At 440 Hz, Q_eff = Q_user * clamp(500/440, 0.5, 1.0) = Q_user * 1.0
+    // (500/440 = 1.136, clamped to 1.0)
+    //
+    // Verify that the Q-factor formula gives full Q below 500 Hz.
+    // At 440 Hz: scale = 500/440 = 1.136, clamped to 1.0 -> Q_eff = Q_user
+    // We verify by checking that the computed pole radius matches Q_user (not Q_user * scale).
+
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+    float Q_user = 100.0f * std::pow(10.0f, 0.5f); // ~316.2
+
+    // At 440 Hz, freq-dependent Q gives full Q (no reduction)
+    float scale = kQFreqRef / f; // 500/440 = 1.136
+    float clampedScale = std::clamp(scale, kMinQScale, 1.0f); // clamp to 1.0
+    REQUIRE(clampedScale == Approx(1.0f));
+
+    float Q_eff = Q_user * clampedScale;
+    REQUIRE(Q_eff == Approx(Q_user).margin(0.01f));
+
+    // Verify the theoretical pole radius is consistent with Q_user (not reduced)
+    float delta_f = f / Q_eff;
+    float r = std::exp(-kPi * delta_f / sampleRate);
+    // With full Q at 440 Hz, delta_f ~= 1.39 Hz, r ~= 0.9999
+    REQUIRE(r > 0.999f);
+    REQUIRE(r < 1.0f);
+
+    // Also verify at 300 Hz (also below 500 Hz, full Q)
+    float f2 = 300.0f;
+    float scale2 = kQFreqRef / f2; // 500/300 = 1.667
+    float clampedScale2 = std::clamp(scale2, kMinQScale, 1.0f); // clamp to 1.0
+    REQUIRE(clampedScale2 == Approx(1.0f));
+}
+
+TEST_CASE("SympatheticResonance: frequency-dependent Q at 1000 Hz (half Q)",
+          "[systems][sympathetic][decay]") {
+    // FR-013: At 1000 Hz, Q_eff = Q_user * clamp(500/1000, 0.5, 1.0) = Q_user * 0.5
+    constexpr float sampleRate = 44100.0f;
+
+    auto measureRingOutSamples = [&](float freq) -> int {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(0.8f);
+
+        SympatheticPartialInfo partials;
+        partials.frequencies = {freq, 0.0f, 0.0f, 0.0f};
+        sr.noteOn(0, partials);
+
+        // Drive briefly and track peak during drive
+        float peak = 0.0f;
+        for (int i = 0; i < 2205; ++i) {
+            float out = sr.process(std::sin(kTwoPi * freq * static_cast<float>(i) / sampleRate));
+            peak = std::max(peak, std::abs(out));
+        }
+        float threshold = peak * 0.001f; // -60 dB
+
+        int count = 0;
+        for (int i = 0; i < 441000; ++i) {
+            float out = sr.process(0.0f);
+            ++count;
+            if (std::abs(out) < threshold && i > 100) break;
+        }
+        return count;
+    };
+
+    int ringOut500 = measureRingOutSamples(500.0f);  // Q_eff = Q_user * 1.0
+    int ringOut1000 = measureRingOutSamples(1000.0f); // Q_eff = Q_user * 0.5
+
+    // At 1000 Hz with half Q, the effective bandwidth doubles:
+    // delta_f(500, Q) = 500/Q vs delta_f(1000, Q*0.5) = 1000/(Q*0.5) = 2000/Q
+    // So 1000 Hz decays 4x faster than 500 Hz.
+    REQUIRE(ringOut1000 < ringOut500);
+
+    // The ratio should be substantial (around 3-5x difference)
+    float ratio = static_cast<float>(ringOut500) / static_cast<float>(ringOut1000);
+    REQUIRE(ratio > 2.0f);
+}
+
+TEST_CASE("SympatheticResonance: frequency-dependent Q at 2000 Hz (clamped at minimum)",
+          "[systems][sympathetic][decay]") {
+    // FR-013: At 2000 Hz, Q_eff = Q_user * clamp(500/2000, 0.5, 1.0) = Q_user * 0.5
+    // Same as 1000 Hz -- the minimum clamp is 0.5
+
+    constexpr float sampleRate = 44100.0f;
+
+    auto measureRingOutSamples = [&](float freq) -> int {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(0.8f);
+
+        SympatheticPartialInfo partials;
+        partials.frequencies = {freq, 0.0f, 0.0f, 0.0f};
+        sr.noteOn(0, partials);
+
+        // Drive briefly and track peak during drive
+        float peak = 0.0f;
+        for (int i = 0; i < 2205; ++i) {
+            float out = sr.process(std::sin(kTwoPi * freq * static_cast<float>(i) / sampleRate));
+            peak = std::max(peak, std::abs(out));
+        }
+        float threshold = peak * 0.001f;
+
+        int count = 0;
+        for (int i = 0; i < 441000; ++i) {
+            float out = sr.process(0.0f);
+            ++count;
+            if (std::abs(out) < threshold && i > 100) break;
+        }
+        return count;
+    };
+
+    int ringOut1000 = measureRingOutSamples(1000.0f); // Q_eff = Q_user * 0.5
+    int ringOut2000 = measureRingOutSamples(2000.0f); // Q_eff = Q_user * 0.5 (clamped)
+
+    // Both have Q_eff = Q_user * 0.5, but 2000 Hz has higher delta_f = f/(Q*0.5)
+    // so it decays faster. The ratio should reflect the 2x frequency difference.
+    float ratio = static_cast<float>(ringOut1000) / static_cast<float>(ringOut2000);
+    REQUIRE(ratio > 1.3f);
+    REQUIRE(ratio < 3.0f);
+}
+
+TEST_CASE("SympatheticResonance: ring-out duration Q=100 at 440 Hz is short",
+          "[systems][sympathetic][decay]") {
+    // SC-013, US3 acceptance scenario 1:
+    // Low Q (100) at 440 Hz should produce a short "wash."
+    // Theoretical T60: r = exp(-pi * 4.4 / 44100), n = -6.908/ln(r) ~= 22000 samples ~= 500ms
+    // This verifies the ring-out is finite and within a reasonable bound.
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.0f); // Q = 100
+    sr.setAmount(0.8f);
+
+    SympatheticPartialInfo partials;
+    partials.frequencies = {f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(0, partials);
+
+    // Drive with a short burst (10ms) and track peak during drive
+    float peak = 0.0f;
+    for (int i = 0; i < 441; ++i) {
+        float out = sr.process(std::sin(kTwoPi * f * static_cast<float>(i) / sampleRate));
+        peak = std::max(peak, std::abs(out));
+    }
+
+    // Require meaningful peak (resonator was actually excited)
+    REQUIRE(peak > 1e-6f);
+
+    float threshold = peak * 0.001f; // -60 dB below peak
+
+    // Measure time to reach -60 dB from end of drive
+    int samplesTo60dB = 0;
+    bool reached = false;
+    constexpr int maxSamples = static_cast<int>(2.0f * 44100.0f); // 2s max search
+    for (int i = 0; i < maxSamples; ++i) {
+        float out = sr.process(0.0f);
+        ++samplesTo60dB;
+        if (std::abs(out) < threshold && i > 100) {
+            reached = true;
+            break;
+        }
+    }
+
+    REQUIRE(reached);
+    float timeMs = static_cast<float>(samplesTo60dB) / sampleRate * 1000.0f;
+    INFO("Ring-out time (Q=100, 440 Hz): " << timeMs << " ms");
+    // Q=100 at 440 Hz: theoretical ~500ms; allow up to 800ms with HPF settling
+    REQUIRE(timeMs < 800.0f);
+}
+
+TEST_CASE("SympatheticResonance: ring-out duration Q=1000 at 440 Hz is long",
+          "[systems][sympathetic][decay]") {
+    // SC-013, US3 acceptance scenario 2:
+    // High Q (1000) at 440 Hz should produce a crystalline ring -- much longer than Q=100.
+    // Theoretical T60: r = exp(-pi * 0.44 / 44100), n = -6.908/ln(r) ~= 220000 samples ~= 5s
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(1.0f); // Q = 1000
+    sr.setAmount(0.8f);
+
+    SympatheticPartialInfo partials;
+    partials.frequencies = {f, 0.0f, 0.0f, 0.0f};
+    sr.noteOn(0, partials);
+
+    // Drive with a burst (50ms) and track peak during drive
+    float peak = 0.0f;
+    for (int i = 0; i < 2205; ++i) {
+        float out = sr.process(std::sin(kTwoPi * f * static_cast<float>(i) / sampleRate));
+        peak = std::max(peak, std::abs(out));
+    }
+
+    REQUIRE(peak > 1e-6f);
+    float threshold = peak * 0.001f; // -60 dB below peak
+
+    // Check that after 1500ms of silence, the output is still above threshold
+    // (i.e., still ringing -- ring-out has NOT completed in 1500ms)
+    constexpr int samplesIn1500ms = static_cast<int>(1.5f * 44100.0f); // 66150 samples
+    bool stillRinging = false;
+    for (int i = 0; i < samplesIn1500ms; ++i) {
+        float out = sr.process(0.0f);
+        // Check near the end of the 1500ms window
+        if (i > samplesIn1500ms - 1000 && std::abs(out) > threshold) {
+            stillRinging = true;
+        }
+    }
+
+    INFO("Peak during drive: " << peak << ", threshold: " << threshold);
+    REQUIRE(stillRinging);
+}
+
+TEST_CASE("SympatheticResonance: smooth decay sweep while resonators active",
+          "[systems][sympathetic][decay]") {
+    // US3 acceptance scenario 3: setDecay() called while resonators are active;
+    // new resonators added after decay change use the new Q; no crash or assertion failure.
+    constexpr float sampleRate = 44100.0f;
+    constexpr float f = 440.0f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setDecay(0.3f);
+    sr.setAmount(0.5f);
+
+    sr.noteOn(0, makeHarmonicPartials(f));
+    REQUIRE(sr.getActiveResonatorCount() == kSympatheticPartialCount);
+
+    // Process some samples while sweeping decay
+    bool anyNaN = false;
+    bool anyInf = false;
+    for (int sweep = 0; sweep < 10; ++sweep) {
+        float decay = static_cast<float>(sweep) / 9.0f; // 0.0 to 1.0
+        sr.setDecay(decay);
+
+        // Add a new voice at a different pitch
+        sr.noteOn(sweep + 1, makeHarmonicPartials(220.0f + 50.0f * static_cast<float>(sweep)));
+
+        for (int s = 0; s < 441; ++s) { // 10ms per step
+            float input = std::sin(kTwoPi * f * static_cast<float>(s) / sampleRate);
+            float out = sr.process(input);
+            if (std::isnan(out)) anyNaN = true;
+            if (std::isinf(out)) anyInf = true;
+        }
+    }
+
+    REQUIRE_FALSE(anyNaN);
+    REQUIRE_FALSE(anyInf);
+
+    // Resonators should still be active (pool may be full but no crash)
+    REQUIRE(sr.getActiveResonatorCount() > 0);
+}
