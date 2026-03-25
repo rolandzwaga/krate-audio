@@ -365,6 +365,9 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     voice_.spectralDecay.prepare(sampleRate_, static_cast<size_t>(
         newSetup.maxSamplesPerBlock > 0 ? newSetup.maxSamplesPerBlock : 512));
 
+    // Spec 132: Prepare sympathetic resonance (global, non-per-voice)
+    sympatheticResonance_.prepare(sampleRate_);
+
     return AudioEffect::setupProcessing(newSetup);
 }
 
@@ -924,12 +927,18 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Spec 129 FR-029: Read resonance type once per block for crossfade detection
     const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
     const int targetResonanceType = std::clamp(
-        static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
+        static_cast<int>(std::round(resTypeNorm)), 0, 1);
 
     // Spec 131: Read body resonance params once per block
     const float bodySize = bodySize_.load(std::memory_order_relaxed);
     const float bodyMaterial = bodyMaterial_.load(std::memory_order_relaxed);
     const float bodyMix = bodyMix_.load(std::memory_order_relaxed);
+
+    // Spec 132: Apply sympathetic resonance params once per block
+    sympatheticResonance_.setAmount(
+        sympatheticAmount_.load(std::memory_order_relaxed));
+    sympatheticResonance_.setDecay(
+        sympatheticDecay_.load(std::memory_order_relaxed));
 
     // Check if residual synthesis is available
     const bool hasSampleResidual = hasSampleAnalysis &&
@@ -1898,6 +1907,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             sampleR = manualFreezeRecoveryOldLevel_ * fadeProgress +
                       sampleR * (1.0f - fadeProgress);
             manualFreezeRecoverySamplesRemaining_--;
+        }
+
+        // --- Spec 132: Sympathetic resonance (post-voice-sum, pre-master-gain) ---
+        {
+            float monoSum = (sampleL + sampleR) * 0.5f;
+            float sympatheticOut = sympatheticResonance_.process(monoSum);
+            sampleL += sympatheticOut;
+            sampleR += sympatheticOut;
         }
 
         // --- Master gain ---

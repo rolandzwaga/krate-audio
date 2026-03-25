@@ -794,7 +794,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         Steinberg::Vst::ParameterInfo::kCanAutomate | Steinberg::Vst::ParameterInfo::kIsList);
     resonanceTypeParam->appendString(STR16("Modal"));
     resonanceTypeParam->appendString(STR16("Waveguide"));
-    resonanceTypeParam->appendString(STR16("Body"));
     parameters.addParameter(resonanceTypeParam);
 
     auto* waveguideStiffnessParam = new Steinberg::Vst::RangeParameter(
@@ -827,6 +826,19 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         STR16(""), 0.0, 1.0, 0.0, 0,
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(bodyMixParam);
+
+    // Sympathetic Resonance (Spec 132)
+    auto* sympatheticAmountParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sympathetic Amount"), kSympatheticAmountId,
+        STR16(""), 0.0, 1.0, 0.0, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(sympatheticAmountParam);
+
+    auto* sympatheticDecayParam = new Steinberg::Vst::RangeParameter(
+        STR16("Sympathetic Decay"), kSympatheticDecayId,
+        STR16(""), 0.0, 1.0, 0.5, 0,
+        Steinberg::Vst::ParameterInfo::kCanAutomate);
+    parameters.addParameter(sympatheticDecayParam);
 
     // NoteExpression types (Phase 4: MPE support)
     {
@@ -2143,15 +2155,15 @@ void Controller::updateResonatorVisibility()
     if (!modalKnobContainer_ || !waveguideKnobContainer_)
         return;
 
-    // ResonanceType: StringListParameter with 3 values
-    // Normalized: 0.0 = Modal, 0.5 = Waveguide, 1.0 = Body
+    // ResonanceType: StringListParameter with 2 values
+    // Normalized: 0.0 = Modal, 1.0 = Waveguide
     auto* param = getParameterObject(kResonanceTypeId);
     if (!param)
         return;
 
     float norm = param->getNormalized();
-    bool isModal = (norm < 0.25f);     // Modal = 0.0
-    bool isWaveguide = (norm >= 0.25f && norm < 0.75f); // Waveguide = 0.5
+    bool isModal = (norm < 0.5f);      // Modal = 0.0
+    bool isWaveguide = (norm >= 0.5f); // Waveguide = 1.0
 
     modalKnobContainer_->setVisible(isModal);
     waveguideKnobContainer_->setVisible(isWaveguide);

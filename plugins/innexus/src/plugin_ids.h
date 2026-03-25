@@ -148,7 +148,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kImpactPositionId = 809,           // RangeParameter: 0.0-1.0, default 0.13
 
     // Waveguide String Resonance (810-812) -- Spec 129
-    kResonanceTypeId = 810,            // StringListParameter: "Modal"/"Waveguide"/"Body", default 0 (FR-040)
+    kResonanceTypeId = 810,            // StringListParameter: "Modal"/"Waveguide", default 0 (FR-040)
     kWaveguideStiffnessId = 811,       // RangeParameter: 0.0-1.0, default 0.0 (FR-041)
     kWaveguidePickPositionId = 812,    // RangeParameter: 0.0-1.0, default 0.13 (FR-042)
 
@@ -162,6 +162,10 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kBodySizeId = 850,                 // RangeParameter: 0.0-1.0, default 0.5
     kBodyMaterialId = 851,             // RangeParameter: 0.0-1.0, default 0.5
     kBodyMixId = 852,                  // RangeParameter: 0.0-1.0, default 0.0
+
+    // Sympathetic Resonance (860-861) -- Spec 132
+    kSympatheticAmountId = 860,        // RangeParameter: 0.0-1.0, default 0.0
+    kSympatheticDecayId = 861,         // RangeParameter: 0.0-1.0, default 0.5
 
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms

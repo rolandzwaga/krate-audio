@@ -2414,3 +2414,65 @@ class HarmonicModelBuilder {
 5. **HarmonicFrame assembly**: Packages smoothed partials + metadata into output frame
 
 **Dependencies:** Layer 0 (math_constants.h), Layer 1 (smoother.h: OnePoleSmoother), Layer 2 (harmonic_types.h: F0Estimate, Partial, HarmonicFrame, kMaxPartials)
+
+---
+
+## SympatheticResonance
+**Path:** [sympathetic_resonance.h](../../dsp/include/krate/dsp/systems/sympathetic_resonance.h) | **SIMD kernel:** [sympathetic_resonance_simd.cpp](../../dsp/include/krate/dsp/systems/sympathetic_resonance_simd.cpp) | **Since:** 0.16.0
+
+Global post-voice-accumulation sympathetic string resonance effect. Models the physical phenomenon where vibrating strings excite nearby strings at shared harmonic frequencies. A pool of second-order driven resonators is dynamically managed as voices are added and released, producing interval-dependent harmonic reinforcement (octaves reinforce strongly, dissonant intervals minimally).
+
+```cpp
+inline constexpr int kSympatheticPartialCount = 4;
+inline constexpr int kMaxSympatheticResonators = 64;
+inline constexpr float kMergeThresholdHz = 0.3f;
+
+struct SympatheticPartialInfo {
+    std::array<float, kSympatheticPartialCount> frequencies{};
+};
+
+class SympatheticResonance {
+    // Lifecycle
+    void prepare(double sampleRate) noexcept;
+    void reset() noexcept;
+
+    // Parameter control
+    void setAmount(float amount) noexcept;          // [0, 1] -> coupling gain (-40 dB to -20 dB)
+    void setDecay(float decay) noexcept;            // [0, 1] -> Q factor (100 to 1000, logarithmic)
+
+    // Voice management
+    void noteOn(int32_t voiceId, const SympatheticPartialInfo& partials) noexcept;
+    void noteOff(int32_t voiceId) noexcept;
+
+    // Processing (per-sample)
+    [[nodiscard]] float process(float input) noexcept;
+
+    // Queries
+    [[nodiscard]] int getActiveResonatorCount() const noexcept;
+    [[nodiscard]] bool isBypassed() const noexcept;
+};
+```
+
+**When to use:**
+- Global post-voice-accumulation sympathetic string resonance effect
+- Adding physically-modeled harmonic reinforcement to polyphonic instruments
+- Creating interval-dependent sustain and resonance (chords ring differently based on harmonic relationships)
+
+**Key Constants:**
+- `kSympatheticPartialCount = 4`: Number of partials per voice (fundamental + 3 harmonics)
+- `kMaxSympatheticResonators = 64`: Maximum simultaneous resonators in the pool
+- `kMergeThresholdHz = 0.3f`: Frequency threshold below which resonators are merged (preserves beating above this)
+
+**Key Features:**
+- SoA (Structure of Arrays) pool layout for SIMD-readiness
+- Second-order driven resonator recurrence: `y = coeff * y1 - r^2 * y2 + input * gain`
+- Frequency-dependent Q: `Q_eff = Q_user * clamp(500/f, 0.5, 1.0)` dampens high partials
+- Pool management: add, merge (within 0.3 Hz), evict (quietest), reclaim (below -96 dB)
+- Inharmonicity-adjusted partial frequencies via `SympatheticPartialInfo`
+- Per-resonator gain weighting: `1/sqrt(partialNumber)`
+- Anti-mud high-pass filter at 100 Hz on output
+- 5ms parameter smoothing on coupling amount (click-free)
+- Amount=0.0 is true zero-cost bypass
+- SIMD-accelerated inner loop via Google Highway (runtime dispatch)
+
+**Dependencies:** Layer 1 (biquad.h: Biquad), Layer 1 (smoother.h: OnePoleSmoother), Google Highway (PRIVATE, SIMD kernel only)

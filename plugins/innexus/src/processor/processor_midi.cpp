@@ -495,6 +495,27 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             }
         }
     }
+
+    // Spec 132: Route noteOn to sympathetic resonance (global, not per-voice).
+    // Compute inharmonic partial frequencies: f_n = n * f0 * sqrt(1 + B * n^2)
+    // B is derived from the inharmonicity parameter (0-1 -> B 0-0.001).
+    {
+        float f0 = Krate::DSP::midiNoteToFrequency(noteNumber);
+        float inharmNorm = inharmonicityAmount_.load(std::memory_order_relaxed);
+        // Map normalized 0-1 to inharmonicity coefficient B (0 to 0.001)
+        // B=0 is perfect harmonics, B=0.001 is moderate piano-like inharmonicity
+        float B = inharmNorm * 0.001f;
+
+        Krate::DSP::SympatheticPartialInfo partials;
+        for (int i = 0; i < Krate::DSP::kSympatheticPartialCount; ++i)
+        {
+            int n = i + 1;
+            float fn = static_cast<float>(n) * f0 *
+                       std::sqrt(1.0f + B * static_cast<float>(n * n));
+            partials.frequencies[static_cast<size_t>(i)] = fn;
+        }
+        sympatheticResonance_.noteOn(noteId, partials);
+    }
 }
 
 // ==============================================================================
@@ -553,6 +574,10 @@ void Processor::handleNoteOff(int noteNumber, [[maybe_unused]] int32_t noteId)
             }
         }
     }
+
+    // Spec 132: Route noteOff to sympathetic resonance.
+    // Resonators continue to ring out at their natural decay rate.
+    sympatheticResonance_.noteOff(noteId);
 }
 
 // ==============================================================================
