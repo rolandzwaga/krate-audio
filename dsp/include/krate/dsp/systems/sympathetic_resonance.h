@@ -20,6 +20,7 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/systems/sympathetic_resonance_simd.h>
 
 #include <algorithm>
 #include <array>
@@ -313,37 +314,29 @@ public:
 
         float sum = 0.0f;
 
-        // Process each active resonator
+        // SIMD-accelerated resonator loop: processes ALL kMaxSympatheticResonators
+        // slots. Inactive slots have coeffs=0, gains=0, y1s=0, y2s=0 so they
+        // produce zero output and zero state change -- safe to process in bulk.
+        processSympatheticBankSIMD(
+            y1s_.data(), y2s_.data(),
+            coeffs_.data(), rSquareds_.data(), gains_.data(),
+            kMaxSympatheticResonators, scaledInput, &sum,
+            envelopeReleaseCoeff_, envelopes_.data());
+
+        // Scalar reclaim pass: check envelopes and reclaim dead resonators.
+        // This runs after SIMD to avoid branching inside the vectorized loop.
         for (int i = 0; i < kMaxSympatheticResonators; ++i) {
             auto idx = static_cast<size_t>(i);
             if (!actives_[idx]) continue;
 
-            // Second-order recurrence: y[n] = coeff * y[n-1] - rSquared * y[n-2] + x[n]
-            float y = coeffs_[idx] * y1s_[idx]
-                    - rSquareds_[idx] * y2s_[idx]
-                    + scaledInput * gains_[idx];
-
-            // Update state
-            y2s_[idx] = y1s_[idx];
-            y1s_[idx] = y;
-
-            // Update envelope follower: peak follower with fast attack / slow release
-            float absY = std::abs(y);
-            if (absY > envelopes_[idx]) {
-                envelopes_[idx] = absY; // Instant attack
-            } else {
-                envelopes_[idx] *= envelopeReleaseCoeff_; // Slow release
-            }
-
-            // Accumulate output
-            sum += y;
-
-            // Reclaim if below threshold
             if (envelopes_[idx] < kReclaimThresholdLinear) {
                 actives_[idx] = false;
                 y1s_[idx] = 0.0f;
                 y2s_[idx] = 0.0f;
                 envelopes_[idx] = 0.0f;
+                gains_[idx] = 0.0f;
+                coeffs_[idx] = 0.0f;
+                rSquareds_[idx] = 0.0f;
                 ownerVoiceIds_[idx].fill(-1);
                 activeCount_--;
             }
@@ -459,6 +452,9 @@ private:
             y1s_[idx] = 0.0f;
             y2s_[idx] = 0.0f;
             envelopes_[idx] = 0.0f;
+            coeffs_[idx] = 0.0f;
+            rSquareds_[idx] = 0.0f;
+            gains_[idx] = 0.0f;
             ownerVoiceIds_[idx].fill(-1);
             activeCount_--;
         }
