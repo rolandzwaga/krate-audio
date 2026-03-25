@@ -177,6 +177,10 @@
     <control-tag name="BodySize" tag="850"/>
     <control-tag name="BodyMaterial" tag="851"/>
     <control-tag name="BodyMix" tag="852"/>
+
+    <!-- Sympathetic Resonance (860-861) -->
+    <control-tag name="SympatheticAmount" tag="860"/>
+    <control-tag name="SympatheticDecay" tag="861"/>
   </control-tags>
 
   <!-- ================================================================== -->
@@ -1049,48 +1053,80 @@
     <!-- Post-resonator body coloring: always visible, independent of   -->
     <!-- resonance type (modal/waveguide output -> body -> physics)     -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 810" size="790, 95"
+    <view class="FieldsetContainer" origin="5, 810" size="390, 95"
           title="Body Resonance" fieldset-title="Body Resonance" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
       <!-- Body Size (violin -> guitar -> cello scale) -->
-      <view class="ArcKnob" origin="100, 18" size="42, 42"
+      <view class="ArcKnob" origin="40, 18" size="42, 42"
             control-tag="BodySize" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="95, 60" size="52, 12"
+      <view class="CParamDisplay" origin="35, 60" size="52, 12"
             control-tag="BodySize" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="95, 72" size="52, 10"
+      <view class="CTextLabel" origin="35, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Size"/>
 
       <!-- Material (wood <-> metal damping character) -->
-      <view class="ArcKnob" origin="350, 18" size="42, 42"
+      <view class="ArcKnob" origin="165, 18" size="42, 42"
             control-tag="BodyMaterial" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="345, 60" size="52, 12"
+      <view class="CParamDisplay" origin="160, 60" size="52, 12"
             control-tag="BodyMaterial" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="345, 72" size="52, 10"
+      <view class="CTextLabel" origin="160, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Material"/>
 
       <!-- Body Mix (dry/wet, default 0 = off) -->
-      <view class="ArcKnob" origin="600, 18" size="42, 42"
+      <view class="ArcKnob" origin="290, 18" size="42, 42"
             control-tag="BodyMix" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="595, 60" size="52, 12"
+      <view class="CParamDisplay" origin="285, 60" size="52, 12"
             control-tag="BodyMix" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="595, 72" size="52, 10"
+      <view class="CTextLabel" origin="285, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Mix"/>
+    </view>
+
+    <!-- Sympathetic Resonance (right half of Body row) -->
+    <view class="FieldsetContainer" origin="400, 810" size="395, 95"
+          title="Sympathetic Resonance" fieldset-title="Sympathetic Resonance" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <!-- Sympathetic Amount (coupling strength, default 0 = off) -->
+      <view class="ArcKnob" origin="80, 18" size="42, 42"
+            control-tag="SympatheticAmount" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="75, 60" size="52, 12"
+            control-tag="SympatheticAmount" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="75, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Amount"/>
+
+      <!-- Sympathetic Decay (Q-factor / ring-out length, default 0.5) -->
+      <view class="ArcKnob" origin="240, 18" size="42, 42"
+            control-tag="SympatheticDecay" default-value="0.5"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="235, 60" size="52, 12"
+            control-tag="SympatheticDecay" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="235, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Decay"/>
     </view>
 
     <!-- ============================================================== -->

@@ -927,7 +927,7 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     // Spec 129 FR-029: Read resonance type once per block for crossfade detection
     const float resTypeNorm = resonanceType_.load(std::memory_order_relaxed);
     const int targetResonanceType = std::clamp(
-        static_cast<int>(std::round(resTypeNorm * 2.0f)), 0, 2);
+        static_cast<int>(std::round(resTypeNorm)), 0, 1);
 
     // Spec 131: Read body resonance params once per block
     const float bodySize = bodySize_.load(std::memory_order_relaxed);
