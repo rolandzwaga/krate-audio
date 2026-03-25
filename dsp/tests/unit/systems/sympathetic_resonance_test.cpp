@@ -1609,3 +1609,309 @@ TEST_CASE("SympatheticResonance: rapid tremolo stress test", "[systems][sympathe
     REQUIRE_FALSE(anyNaN);
     REQUIRE_FALSE(anyInf);
 }
+
+// =============================================================================
+// Phase 7: User Story 5 - Near-Unison Beating (SC-008, FR-008)
+// =============================================================================
+
+TEST_CASE("SympatheticResonance: no merge at 1 Hz separation", "[systems][sympathetic]") {
+    // FR-008: 440 Hz and 441 Hz are 1 Hz apart (> 0.3 Hz threshold) -> NOT merged
+    // SC-008: resonators remain separate so beating can occur
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    auto partials440 = makeHarmonicPartials(440.0f);
+    auto partials441 = makeHarmonicPartials(441.0f);
+
+    sr.noteOn(0, partials440);
+    sr.noteOn(1, partials441);
+
+    // 4 partials per voice x 2 voices = 8 resonators (no merging)
+    REQUIRE(sr.getActiveResonatorCount() == 8);
+}
+
+TEST_CASE("SympatheticResonance: beating present at 1 Hz separation", "[systems][sympathetic]") {
+    // SC-008: Two voices ~1 Hz apart produce audible amplitude modulation at ~1 Hz
+    // Drive the 440/441 Hz pair with sustained input over 3+ seconds and detect ~1 Hz AM
+    constexpr float sampleRate = 44100.0f;
+    constexpr float durationSec = 3.5f;
+    constexpr int totalSamples = static_cast<int>(sampleRate * durationSec);
+    constexpr float kTwoPi = 2.0f * 3.14159265358979323846f;
+
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.8f);
+    sr.setDecay(0.8f); // High Q for sustained resonance
+
+    // Use only fundamentals to isolate the beating effect
+    SympatheticPartialInfo partials440;
+    partials440.frequencies[0] = 440.0f;
+    partials440.frequencies[1] = 880.0f;
+    partials440.frequencies[2] = 1320.0f;
+    partials440.frequencies[3] = 1760.0f;
+
+    SympatheticPartialInfo partials441;
+    partials441.frequencies[0] = 441.0f;
+    partials441.frequencies[1] = 882.0f;
+    partials441.frequencies[2] = 1323.0f;
+    partials441.frequencies[3] = 1764.0f;
+
+    sr.noteOn(0, partials440);
+    sr.noteOn(1, partials441);
+
+    // Drive with broadband impulse to excite all resonators, then let them ring
+    constexpr int burstSamples = 4410; // 100ms burst
+    std::vector<float> output(static_cast<size_t>(totalSamples));
+    for (int s = 0; s < totalSamples; ++s) {
+        float input = (s < burstSamples)
+                          ? std::sin(kTwoPi * 440.5f * static_cast<float>(s) / sampleRate)
+                          : 0.0f;
+        output[static_cast<size_t>(s)] = sr.process(input);
+    }
+
+    // Detect amplitude modulation: compute envelope in windows and look for ~1 Hz periodicity
+    // Use 50ms windows with overlap to measure amplitude envelope
+    constexpr int windowSize = static_cast<int>(sampleRate * 0.05f); // 50ms = 2205 samples
+    constexpr int hopSize = windowSize / 2;
+    std::vector<float> envelope;
+
+    // Start analysis after the burst to avoid transient
+    int analysisStart = burstSamples + static_cast<int>(sampleRate * 0.2f); // 200ms after burst ends
+    for (int start = analysisStart; start + windowSize < totalSamples; start += hopSize) {
+        float peak = 0.0f;
+        for (int j = 0; j < windowSize; ++j) {
+            float absVal = std::abs(output[static_cast<size_t>(start + j)]);
+            if (absVal > peak) peak = absVal;
+        }
+        envelope.push_back(peak);
+    }
+
+    // The envelope should show ~1 Hz modulation
+    // At ~20 envelope samples per second (hop = 25ms), 1 Hz = ~20 samples per cycle
+    // Count zero-crossings of the envelope's deviation from its mean
+    float envSum = 0.0f;
+    for (float e : envelope) envSum += e;
+    float envMean = envSum / static_cast<float>(envelope.size());
+
+    int zeroCrossings = 0;
+    for (size_t i = 1; i < envelope.size(); ++i) {
+        bool prevAbove = envelope[i - 1] > envMean;
+        bool currAbove = envelope[i] > envMean;
+        if (prevAbove != currAbove) zeroCrossings++;
+    }
+
+    // 1 Hz beating over ~3 seconds of analysis = ~3 full cycles = ~6 zero-crossings
+    // Allow wide range since envelope detection is approximate
+    float envelopeDuration = static_cast<float>(envelope.size()) * (static_cast<float>(hopSize) / sampleRate);
+    float estimatedFreq = static_cast<float>(zeroCrossings) / (2.0f * envelopeDuration);
+
+    // The beating should be roughly 1 Hz (allow 0.3 - 3.0 Hz to account for analysis imprecision)
+    REQUIRE(estimatedFreq > 0.3f);
+    REQUIRE(estimatedFreq < 3.0f);
+
+    // Also verify that the envelope actually modulates (not flat)
+    float envMin = *std::min_element(envelope.begin(), envelope.end());
+    float envMax = *std::max_element(envelope.begin(), envelope.end());
+    float modulationDepth = (envMax - envMin) / (envMax + 1e-12f);
+    REQUIRE(modulationDepth > 0.1f); // At least 10% modulation depth
+}
+
+TEST_CASE("SympatheticResonance: merge at 0.2 Hz separation", "[systems][sympathetic]") {
+    // FR-008: Partials within 0.2 Hz of each other (< 0.3 Hz threshold) -> merged
+    // Note: With harmonic partials, only the fundamental pair is within 0.2 Hz;
+    // higher harmonics have proportionally larger separation (0.4, 0.6, 0.8 Hz).
+    // So we use custom partial frequencies where ALL pairs are 0.2 Hz apart.
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    SympatheticPartialInfo partials1;
+    partials1.frequencies[0] = 440.1f;
+    partials1.frequencies[1] = 880.1f;
+    partials1.frequencies[2] = 1320.1f;
+    partials1.frequencies[3] = 1760.1f;
+
+    SympatheticPartialInfo partials2;
+    partials2.frequencies[0] = 439.9f;
+    partials2.frequencies[1] = 879.9f;
+    partials2.frequencies[2] = 1319.9f;
+    partials2.frequencies[3] = 1759.9f;
+
+    sr.noteOn(0, partials1);
+    sr.noteOn(1, partials2);
+
+    // All 4 partial pairs are exactly 0.2 Hz apart -> all merge -> 4 resonators
+    REQUIRE(sr.getActiveResonatorCount() == 4);
+}
+
+TEST_CASE("SympatheticResonance: merged frequency is weighted average", "[systems][sympathetic]") {
+    // FR-008: After merging partials within 0.3 Hz, frequency = weighted average
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    // Use custom partial frequencies where ALL pairs are 0.2 Hz apart
+    SympatheticPartialInfo partials1;
+    partials1.frequencies[0] = 440.1f;
+    partials1.frequencies[1] = 880.1f;
+    partials1.frequencies[2] = 1320.1f;
+    partials1.frequencies[3] = 1760.1f;
+
+    SympatheticPartialInfo partials2;
+    partials2.frequencies[0] = 439.9f;
+    partials2.frequencies[1] = 879.9f;
+    partials2.frequencies[2] = 1319.9f;
+    partials2.frequencies[3] = 1759.9f;
+
+    sr.noteOn(0, partials1);
+    sr.noteOn(1, partials2);
+
+    REQUIRE(sr.getActiveResonatorCount() == 4);
+
+    // Find the merged resonators and check their frequencies
+    // With equal refCounts (1 each before merge, then 2 after), weighted avg:
+    // (440.1 * 1 + 439.9) / 2 = 440.0
+    bool foundFundamental = false;
+    for (int i = 0; i < kMaxSympatheticResonators; ++i) {
+        float freq = sr.getResonatorFrequency(i);
+        if (freq > 0.0f && freq < 500.0f) {
+            // This should be the merged fundamental
+            REQUIRE(freq == Approx(440.0f).margin(0.05f));
+            foundFundamental = true;
+        }
+    }
+    REQUIRE(foundFundamental);
+}
+
+TEST_CASE("SympatheticResonance: boundary at 0.3 Hz threshold", "[systems][sympathetic]") {
+    // FR-008: The merge threshold is strict less-than: |f_existing - f_new| < 0.3 Hz
+    constexpr float sampleRate = 44100.0f;
+
+    SECTION("just below threshold merges") {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setAmount(0.5f);
+        sr.setDecay(0.5f);
+
+        // Use frequencies where ALL partial pairs are within 0.29 Hz of each other
+        // By keeping the fundamental separation at 0.07 Hz, the 4th harmonic is 0.28 Hz
+        SympatheticPartialInfo partials1;
+        partials1.frequencies[0] = 440.0f;
+        partials1.frequencies[1] = 880.0f;
+        partials1.frequencies[2] = 1320.0f;
+        partials1.frequencies[3] = 1760.0f;
+
+        SympatheticPartialInfo partials2;
+        partials2.frequencies[0] = 440.07f;
+        partials2.frequencies[1] = 880.14f;
+        partials2.frequencies[2] = 1320.21f;
+        partials2.frequencies[3] = 1760.28f;
+
+        sr.noteOn(0, partials1);
+        sr.noteOn(1, partials2);
+
+        // All pairs within 0.3 Hz: 0.07, 0.14, 0.21, 0.28 Hz -> all merged -> 4 resonators
+        REQUIRE(sr.getActiveResonatorCount() == 4);
+    }
+
+    SECTION("just above threshold does not merge") {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setAmount(0.5f);
+        sr.setDecay(0.5f);
+
+        // 0.31 Hz apart -> above 0.3 Hz threshold -> should NOT merge
+        SympatheticPartialInfo partials1;
+        partials1.frequencies[0] = 440.0f;
+        partials1.frequencies[1] = 880.0f;
+        partials1.frequencies[2] = 1320.0f;
+        partials1.frequencies[3] = 1760.0f;
+
+        SympatheticPartialInfo partials2;
+        partials2.frequencies[0] = 440.31f;
+        partials2.frequencies[1] = 880.62f;
+        partials2.frequencies[2] = 1320.93f;
+        partials2.frequencies[3] = 1761.24f;
+
+        sr.noteOn(0, partials1);
+        sr.noteOn(1, partials2);
+
+        // 0.31 Hz > 0.3 Hz -> NOT merged -> 8 resonators
+        REQUIRE(sr.getActiveResonatorCount() == 8);
+    }
+
+    SECTION("IEEE 754 note: 440.3f rounds below 0.3 in float") {
+        // Due to IEEE 754 single-precision representation, 440.3f is actually
+        // ~440.2999878, so |440.0f - 440.3f| < 0.3f in float arithmetic.
+        // This is documented behavior: the threshold operates on float values.
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setAmount(0.5f);
+        sr.setDecay(0.5f);
+
+        SympatheticPartialInfo partials1;
+        partials1.frequencies[0] = 440.0f;
+        partials1.frequencies[1] = 5000.0f; // Far away, won't merge
+        partials1.frequencies[2] = 6000.0f;
+        partials1.frequencies[3] = 7000.0f;
+
+        SympatheticPartialInfo partials2;
+        partials2.frequencies[0] = 440.3f;
+        partials2.frequencies[1] = 5001.0f;
+        partials2.frequencies[2] = 6001.0f;
+        partials2.frequencies[3] = 7001.0f;
+
+        sr.noteOn(0, partials1);
+        sr.noteOn(1, partials2);
+
+        // 440.3f in IEEE 754 float is ~440.29999, so |440.0 - 440.3f| < 0.3f
+        // The fundamental pair WILL merge due to float representation.
+        // The other partials are far apart and won't merge.
+        // Result: 4 (voice A) + 3 new from voice B (440.3 merged) = 7
+        REQUIRE(sr.getActiveResonatorCount() == 7);
+    }
+}
+
+TEST_CASE("SympatheticResonance: no merge across different frequencies", "[systems][sympathetic]") {
+    // Partial 1 of voice A (440 Hz) vs partial 1 of voice B (441 Hz) -- not merged (1 Hz apart)
+    // Partial 1 of voice A (440 Hz) vs partial 2 of voice B (882 Hz) -- not merged (442 Hz apart!)
+    constexpr float sampleRate = 44100.0f;
+    SympatheticResonance sr;
+    sr.prepare(sampleRate);
+    sr.setAmount(0.5f);
+    sr.setDecay(0.5f);
+
+    // Voice A: 440 Hz fundamental, harmonic partials at 440, 880, 1320, 1760
+    auto partialsA = makeHarmonicPartials(440.0f);
+
+    // Voice B: 441 Hz fundamental, harmonic partials at 441, 882, 1323, 1764
+    auto partialsB = makeHarmonicPartials(441.0f);
+
+    sr.noteOn(0, partialsA);
+    sr.noteOn(1, partialsB);
+
+    // Each partial pair is 1 Hz apart at fundamental, 2 Hz at 2nd harmonic, etc.
+    // All > 0.3 Hz threshold -> no merging -> 8 resonators
+    REQUIRE(sr.getActiveResonatorCount() == 8);
+
+    // Voice C: 220 Hz fundamental (partial 2 = 440 Hz)
+    // Partial 2 of voice C (440 Hz) could potentially merge with partial 1 of voice A (440 Hz)
+    // because both are at exactly 440 Hz -- this IS correct behavior (they are at the same frequency)
+    auto partialsC = makeHarmonicPartials(220.0f);
+    sr.noteOn(2, partialsC);
+
+    // Voice C adds partials at 220, 440, 660, 880
+    // 220 Hz: new (no match) -> +1
+    // 440 Hz: matches voice A partial 1 (440 Hz, 0 Hz apart < 0.3) -> merged, not new
+    // 660 Hz: new -> +1
+    // 880 Hz: matches voice A partial 2 (880 Hz, 0 Hz apart < 0.3) -> merged, not new
+    // Total: 8 (from A+B) + 2 (new from C) = 10
+    REQUIRE(sr.getActiveResonatorCount() == 10);
+}

@@ -301,7 +301,7 @@ Key rules:
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins.
 
-- [ ] T033 [US5] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
+- [X] T033 [US5] Write failing tests in `dsp/tests/unit/systems/sympathetic_resonance_test.cpp` (append) covering:
   - No merge at 1 Hz separation: voices at 440 Hz and 441 Hz produce 8 active resonators (FR-008, US5 acceptance scenario 1, SC-008)
   - Beating present: Drive the 440/441 Hz pair with a sustained input; verify amplitude modulation at approximately 1 Hz in the output over 3+ seconds of samples (SC-008)
   - Merge at 0.2 Hz separation: voices at 440.1 Hz and 439.9 Hz produce 4 active resonators (merged) (FR-008, US5 acceptance scenario 2)
@@ -311,12 +311,12 @@ Key rules:
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T034 [US5] Review `findMergeCandidate()` implementation from T009 to ensure the 0.3 Hz threshold is `|f_existing - f_new| < kMergeThresholdHz` (strict less-than, correct direction) and does NOT merge across partial numbers if that matters for the use case
-- [ ] T035 [US5] Verify all User Story 5 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
+- [X] T034 [US5] Review `findMergeCandidate()` implementation from T009 to ensure the 0.3 Hz threshold is `|f_existing - f_new| < kMergeThresholdHz` (strict less-than, correct direction) and does NOT merge across partial numbers if that matters for the use case
+- [X] T035 [US5] Verify all User Story 5 tests pass: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target dsp_tests && build/windows-x64-release/bin/Release/dsp_tests.exe "SympatheticResonance*" 2>&1 | tail -10`
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T036 [US5] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
+- [X] T036 [US5] Verify IEEE 754 compliance for any new test code; add to `-fno-fast-math` list if needed
 
 ### 7.4 Commit (MANDATORY)
 

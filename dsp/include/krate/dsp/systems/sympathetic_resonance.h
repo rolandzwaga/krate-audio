@@ -369,6 +369,15 @@ public:
         return amountSmoother_.getCurrentValue() == 0.0f && couplingGain_ == 0.0f;
     }
 
+    /// Get the frequency of the resonator at the given pool index (for testing).
+    /// Returns 0.0f if the slot is inactive or index is out of range.
+    [[nodiscard]] float getResonatorFrequency(int index) const noexcept {
+        if (index < 0 || index >= kMaxSympatheticResonators) return 0.0f;
+        auto idx = static_cast<size_t>(index);
+        if (!actives_[idx]) return 0.0f;
+        return freqs_[idx];
+    }
+
 private:
     // =========================================================================
     // Internal Types
