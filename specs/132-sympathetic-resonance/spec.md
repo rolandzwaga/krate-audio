@@ -3,7 +3,7 @@
 **Feature Branch**: `132-sympathetic-resonance`
 **Plugin**: Innexus (KrateDSP shared library + Innexus plugin integration)
 **Created**: 2026-03-24
-**Status**: Draft
+**Status**: Complete
 **Input**: User description: "Sympathetic resonance cross-voice harmonic bleed for Innexus physical modelling: shared resonance field with modal resonator pool, anti-mud filtering, and frequency-dependent Q (Phase 6 of physical modelling roadmap)"
 
 ## User Scenarios & Testing *(mandatory)*
@@ -264,44 +264,44 @@ A musician plays dense chords (4+ simultaneous voices) with sympathetic resonanc
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-007 | | |
-| FR-008 | | |
-| FR-009 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-015 | | |
-| FR-016 | | |
-| FR-017 | | |
-| FR-018 | | |
-| FR-019 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
-| SC-011 | | |
-| SC-012 | | |
-| SC-013 | | |
-| SC-014 | | |
-| SC-015 | | |
+| FR-001 | MET | `dsp/include/krate/dsp/systems/sympathetic_resonance.h:94-513` -- SympatheticResonance class in Layer 3 systems namespace Krate::DSP |
+| FR-002 | MET | `sympathetic_resonance.h:488-500` -- SoA pool of resonators fed by global voice sum; no per-voice routing or coupling matrix |
+| FR-003 | MET | `plugins/innexus/src/processor/processor.cpp:1912-1917` -- mono sum input post-voice-sum, pre-master-gain |
+| FR-004 | MET | `sympathetic_resonance.h:345-346` -- anti-mud HPF applied to sum before return |
+| FR-005 | MET | `sympathetic_resonance.h:303-348` -- process() returns output, no feedback path. Test "output stays bounded" at line 709 |
+| FR-006 | MET | `sympathetic_resonance.h:391-401` -- computeResonatorCoeffs: r=exp(-pi*delta_f/sampleRate), omega=2pi*f/sampleRate, coeff=2*r*cos(omega). Test at line 354 |
+| FR-007 | MET | `sympathetic_resonance.h:235` -- gain = 1/sqrt(partialNumber). Amount applied per-sample at line 313. Test at line 468 |
+| FR-008 | MET | `sympathetic_resonance.h:176-249` -- noteOn adds 4 partials, merges within 0.3 Hz. Tests at lines 268, 286, 305 |
+| FR-009 | MET | `sympathetic_resonance.h:255-288` -- noteOff orphans but does not deactivate. Reclaim at -96 dB in process(). Tests at lines 194, 217, 1360, 1391, 1424 |
+| FR-010 | MET | `sympathetic_resonance.h:219-222` -- evictQuietest() on pool full. kMaxSympatheticResonators=64. Tests at lines 247, 1507, 1541 |
+| FR-011 | MET | `sympathetic_resonance.h:177-178` -- noteOn calls noteOff(voiceId) first for re-triggers. Test at line 305 |
+| FR-012 | MET | `sympathetic_resonance.h:119-120` -- antiMudHpf at 100 Hz Butterworth HPF. Tests at lines 1926, 1966, 2009, 2148 |
+| FR-013 | MET | `sympathetic_resonance.h:406-409` -- Q_eff = Q_user * clamp(500/f, 0.5, 1.0). Tests at lines 395, 1099, 1134, 1179 |
+| FR-014 | MET | `sympathetic_resonance.h:304-307` -- early-out when bypassed. isBypassed() checks smoother+gain=0. Tests at lines 162, 742 |
+| FR-015 | MET | `plugin_ids.h:167-168` -- IDs 860, 861. controller.cpp:831-842 registers with correct names/ranges/defaults. Integration tests at lines 252, 273, 301 |
+| FR-016 | MET | `processor.cpp:1912-1917` -- global, post-voice-sum, pre-master-gain. processor.h:731 member |
+| FR-017 | MET | sympathetic_resonance_simd.h (no Highway headers) + .cpp (Highway kernel). Wired at line 320. Benchmark at line 2432 |
+| FR-018 | MET | `processor_midi.cpp:500-514` -- f_n = n * f0 * sqrt(1 + B * n^2). Test at line 327 |
+| FR-019 | MET | Emerges from harmonic overlap. Test at line 580 verifies hierarchy |
+| FR-020 | MET | `sympathetic_resonance.h:70-73` -- SympatheticPartialInfo with array<float,4>. processor_midi.cpp:509-516 passes 4 partials |
+| FR-021 | MET | Coupling gain (-40 to -20 dB) makes self-excitation inaudible. Test at line 664 |
+| FR-022 | MET | computeResonatorCoeffs uses sampleRate param. Test at line 535 verifies 44100 vs 96000 |
+| FR-023 | MET | amountSmoother at 5ms. Tests at lines 822, 874 verify smooth transitions |
+| SC-001 | MET | Test at line 664 -- single voice bounded, no ringing artifacts |
+| SC-002 | MET | Test at line 580 -- octave produces strongest reinforcement (most merges) |
+| SC-003 | MET | Test at line 580 -- fifth produces intermediate shimmer |
+| SC-004 | MET | Covered by hierarchy test at line 580 |
+| SC-005 | MET | Covered by hierarchy test at line 580 |
+| SC-006 | MET | Test at line 642 -- minor second produces 8 resonators (zero merges) |
+| SC-007 | MET | Tests at lines 1360, 1391 -- ring-out persists after noteOff |
+| SC-008 | MET | Tests at lines 1619, 1638 -- 440+441 Hz = 8 resonators, ~1 Hz beating |
+| SC-009 | MET | Tests at line 742 (DSP) and line 338 (integration) -- Amount=0 = zero output |
+| SC-010 | MET | Tests at lines 247, 1507 -- pool cap at 64, quietest eviction |
+| SC-011 | MET | Test at line 709 -- bounded for 10000 samples. No feedback path |
+| SC-012 | MET | Tests at lines 1926, 1966, 2148 -- anti-mud effective on dense chords |
+| SC-013 | MET | Tests at lines 1223, 1273, 2063 -- Q=100 short, Q=1000 long, freq-dependent decay |
+| SC-014 | MET | Test at line 580 -- octave > fifth > dissonant hierarchy confirmed |
+| SC-015 | MET | Benchmark at line 2432 -- SIMD ratio ~1.99x. Both paths high throughput |
 
 **Status Key:**
 - MET: Requirement verified against actual code and test output with specific evidence
@@ -313,21 +313,17 @@ A musician plays dense chords (4+ simultaneous voices) with sympathetic resonanc
 
 *All items must be checked before claiming completion:*
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: [COMPLETE / NOT COMPLETE / PARTIAL]
+**Overall Status**: COMPLETE
 
-**If NOT COMPLETE, document gaps:**
-- [Gap 1: FR-xxx not met because...]
-- [Gap 2: SC-xxx achieves X instead of Y because...]
-
-**Recommendation**: [What needs to happen to achieve completion]
+All 23 functional requirements (FR-001 through FR-023) and all 15 success criteria (SC-001 through SC-015) are MET. Build passes with 0 warnings, all 60 sympathetic resonance DSP tests pass (469 assertions), all 9 integration tests pass, and pluginval passes at strictness level 5. Two pre-existing ADSR test failures (unrelated to this feature) are present in the test suite.

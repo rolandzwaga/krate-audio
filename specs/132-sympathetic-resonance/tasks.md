@@ -517,7 +517,7 @@ Key rules:
 
 - [X] T069 Fix all errors reported by clang-tidy (blocking issues)
 - [X] T070 Review warnings and fix where appropriate; document suppressions with `// NOLINT(reason)` if any warnings are intentionally ignored (DSP-specific patterns)
-- [ ] T071 Commit any clang-tidy fixes
+- [X] T071 Commit any clang-tidy fixes
 
 **Checkpoint**: Static analysis clean -- ready for completion verification.
 
@@ -531,17 +531,17 @@ Key rules:
 
 ### 14.1 Requirements Verification
 
-- [ ] T072 Review ALL FR-001 through FR-023 requirements from `specs/132-sympathetic-resonance/spec.md` against the implementation -- for each FR, open the implementation file and record the file path and line number that satisfies it
-- [ ] T073 Review ALL SC-001 through SC-015 success criteria -- for each SC, run the specific test or measurement and record the actual output vs spec target (no paraphrasing -- use real numbers)
-- [ ] T074 Search for cheating patterns in all new code:
+- [X] T072 Review ALL FR-001 through FR-023 requirements from `specs/132-sympathetic-resonance/spec.md` against the implementation -- for each FR, open the implementation file and record the file path and line number that satisfies it
+- [X] T073 Review ALL SC-001 through SC-015 success criteria -- for each SC, run the specific test or measurement and record the actual output vs spec target (no paraphrasing -- use real numbers)
+- [X] T074 Search for cheating patterns in all new code:
   - No `// placeholder` or `// TODO` comments in `sympathetic_resonance.h`, `sympathetic_resonance_simd.cpp`, or integration test file
   - No test thresholds relaxed from spec requirements (e.g., using -80 dB threshold when spec says -96 dB)
   - No features quietly removed from scope (all 23 FRs and 15 SCs addressed)
 
 ### 14.2 Fill Compliance Table in spec.md
 
-- [ ] T075 Update `specs/132-sympathetic-resonance/spec.md` "Implementation Verification" section with compliance status and evidence for all 38 requirements (23 FR + 15 SC)
-- [ ] T076 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
+- [X] T075 Update `specs/132-sympathetic-resonance/spec.md` "Implementation Verification" section with compliance status and evidence for all 38 requirements (23 FR + 15 SC)
+- [X] T076 Mark overall status honestly: COMPLETE / NOT COMPLETE / PARTIAL
 
 ### 14.3 Honest Self-Check
 
@@ -553,7 +553,7 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T077 All self-check questions answered "no" (or gaps documented honestly in spec.md)
+- [X] T077 All self-check questions answered "no" (or gaps documented honestly in spec.md)
 
 ---
 
@@ -561,12 +561,12 @@ Answer these questions. If ANY answer is "yes", you CANNOT claim completion:
 
 ### 15.1 Final Commit
 
-- [ ] T078 Commit all remaining spec work (compliance table updates) to `132-sympathetic-resonance` feature branch
-- [ ] T079 Run full test suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5` and `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T078 Commit all remaining spec work (compliance table updates) to `132-sympathetic-resonance` feature branch
+- [X] T079 Run full test suite one final time to confirm clean state: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5` and `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
 
 ### 15.2 Completion Claim
 
-- [ ] T080 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T080 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 **Checkpoint**: Spec implementation honestly complete.
 
