@@ -5,6 +5,28 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-03-25
+
+### Added
+
+- **Physical Modelling Layer** — Complete 6-phase physical modelling synthesis pipeline, transforming Innexus from a pure additive resynthesizer into a hybrid instrument with physically-inspired sound shaping
+- **Modal Resonator Bank** (Phase 1, Spec 127) — Parallel bank of up to 96 tuned coupled-form resonators driven by analyzed partial frequencies; Chaigne-Lambourg frequency-dependent damping; Gordon-Smith topology for amplitude stability; controls for Decay, Brightness, Stretch (inharmonicity), and Scatter
+- **Impact Exciter** (Phase 2, Spec 128) — Mallet/pluck excitation model with Hardness, Mass, Brightness, and Position controls; velocity-sensitive triggering; mallet choke envelope on retrigger for realistic damping behavior
+- **Waveguide String Resonance** (Phase 3, Spec 129) — Digital waveguide with fractional delay, 4-stage dispersion allpass cascade, frequency-dependent loss filter, and soft clipper; crossfade between Modal and Waveguide resonator types with energy-aware gain matching
+- **Bow Model Exciter** (Phase 4, Spec 130) — Continuous bow-string friction model with Pressure, Speed, and Position controls; optional 2x oversampling; ADSR-aware bow force scaling; bowed-mode coupling for modal resonator
+- **Body Resonance** (Phase 5, Spec 131) — Hybrid modal bank (8 biquads for low frequencies) + Hadamard FDN (4 delay lines for high frequencies) body coloring; 3 physically-informed presets (Small/violin, Medium/guitar, Large/cello) with continuous Size interpolation; Wood-to-Metal material crossfade; radiation HPF
+- **Sympathetic Resonance** (Phase 6, Spec 132) — Global pool of 64 driven second-order resonators tuned to the union of all active voices' low-order partials; SIMD-accelerated via Google Highway; frequency-dependent Q; anti-mud HPF; voice merge/orphan lifecycle with -96 dB reclaim threshold
+- **Physical Model Mix** — Continuous 0-100% crossfade between additive (harmonic + residual) and physical model output; at 0% the signal path is bit-exact with pre-physical-modelling behavior
+- **Parameter display formatting** — All knobs now show human-readable values with proper units (dB, ms, Hz, %, Small/Medium/Large, Wood/Metal) instead of raw 0.0-1.0 normalized values
+
+### Fixed
+
+- **Sympathetic resonance gain staging** — Resonators were amplifying signal by ~5000x due to uncompensated digital resonator peak gain; fixed with exact peak magnitude normalization per resonator and coupling range reduced to [-46, -26] dB per Lehtonen et al. (2007) piano sympathetic model research
+- **Modal resonator transient response** — Leaky-integrator (1-R) normalization was attenuating excitation by ~84 dB, making the physical model completely inaudible; removed normalization since the coupled-form oscillator's amplitude is naturally bounded by the decay radius
+- **ADSR envelope not resetting on note-on** — Stale envelope output from previous notes (or from being unprocessed while ADSR Amount was 0) caused the attack to start mid-way instead of from zero; now resets for non-retrigger notes
+- **Unused `isMonoMode` function** removed (C4505 warning)
+- **MSVC C4324 alignment warning** suppressed on `ModalResonatorBank` (intentional SIMD alignment)
+
 ## [0.10.0] - 2026-03-20
 
 ### Added
