@@ -105,6 +105,9 @@ add_executable(innexus_tests
     # Sidechain WAV quality diagnostics (real audio files)
     integration/test_sidechain_wav_quality.cpp
 
+    # Physical model output level & distortion diagnostics
+    integration/test_physical_model_output_levels.cpp
+
     # Enable/disable while playing + degraded host conditions
     integration/enable_disable_tests.cpp
 
@@ -118,6 +121,7 @@ add_executable(innexus_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_midi.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor_messages.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_param_display.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_presets.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
@@ -204,6 +208,7 @@ if(NOT MSVC)
         integration/test_adsr_phase8_verification.cpp
         integration/musical_control_tests.cpp
         integration/enable_disable_tests.cpp
+        integration/test_physical_model_output_levels.cpp
         integration/reset_trap_tests.cpp
         integration/sidechain_integration_tests.cpp
         integration/test_sidechain_wav_quality.cpp

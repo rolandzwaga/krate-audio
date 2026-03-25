@@ -1365,3 +1365,157 @@ TEST_CASE("ModalResonatorBank processBlock with decayScale",
     }
     REQUIRE(peak > 0.0f);
 }
+
+// =============================================================================
+// Transient Excitation Response Tests (Gain Staging Fix)
+// =============================================================================
+// The modal resonator must produce audible output from transient excitation
+// (impulses, plucks, impacts). The (1-R) leaky-integrator normalization was
+// attenuating excitation by ~84 dB, making the physical model inaudible.
+
+TEST_CASE("ModalResonatorBank: impulse produces audible ring-out",
+          "[modal_resonator_bank][gain-staging]")
+{
+    // A single impulse into the resonator should produce a decaying sinusoid
+    // at the mode frequency with peak amplitude proportional to the input.
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+    configureSingleMode(bank, 440.0f, 1.0f, 0.5f, 0.5f);
+
+    // Feed a unit impulse
+    float firstSample = bank.processSample(1.0f);
+
+    // Process 4410 samples (100ms) of silence — resonator should ring
+    float peak = std::abs(firstSample);
+    for (int i = 0; i < 4410; ++i)
+    {
+        float out = bank.processSample(0.0f);
+        peak = std::max(peak, std::abs(out));
+    }
+
+    INFO("Peak amplitude from unit impulse: " << peak);
+
+    // With proper gain staging, a unit impulse into a mode with amplitude=1.0
+    // should produce meaningful output (at least -20 dB, i.e., > 0.1)
+    // Before fix: peak ≈ 0.00013 (-78 dB) — inaudible
+    // After fix: peak should be > 0.1 (-20 dB) — clearly audible
+    REQUIRE(peak > 0.1f);
+}
+
+TEST_CASE("ModalResonatorBank: excitation amplitude scales with input level",
+          "[modal_resonator_bank][gain-staging]")
+{
+    // The resonator output should be proportional to excitation amplitude.
+    // This is critical for physical model expressiveness.
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+    configureSingleMode(bank, 440.0f, 1.0f, 0.5f, 0.5f);
+
+    // Soft excitation
+    float peakSoft = 0.0f;
+    {
+        (void)bank.processSample(0.1f); // quiet impulse
+        for (int i = 0; i < 4410; ++i)
+        {
+            float out = bank.processSample(0.0f);
+            peakSoft = std::max(peakSoft, std::abs(out));
+        }
+    }
+
+    bank.reset();
+    bank.prepare(kSampleRate);
+    configureSingleMode(bank, 440.0f, 1.0f, 0.5f, 0.5f);
+
+    // Hard excitation
+    float peakHard = 0.0f;
+    {
+        (void)bank.processSample(1.0f); // loud impulse
+        for (int i = 0; i < 4410; ++i)
+        {
+            float out = bank.processSample(0.0f);
+            peakHard = std::max(peakHard, std::abs(out));
+        }
+    }
+
+    INFO("Soft excitation peak: " << peakSoft);
+    INFO("Hard excitation peak: " << peakHard);
+
+    // Hard should be louder than soft. The ratio may be less than 10x due to
+    // the internal soft-clip limiter (kSoftClipThreshold = 0.707) compressing
+    // the louder impulse. We verify monotonic scaling and a reasonable ratio.
+    float ratio = peakHard / std::max(peakSoft, 1e-10f);
+    INFO("Hard/soft ratio: " << ratio << " (expected 5-10x, soft-clip compresses loud end)");
+    REQUIRE(ratio > 3.0f);
+    REQUIRE(ratio < 15.0f);
+}
+
+TEST_CASE("ModalResonatorBank: decay time parameter audibly affects ring-out",
+          "[modal_resonator_bank][gain-staging]")
+{
+    // Short decay should ring for less time than long decay.
+    // Both should produce initially audible output.
+
+    auto measurePeakAndDuration = [](float decayTime) -> std::pair<float, int> {
+        Krate::DSP::ModalResonatorBank bank;
+        bank.prepare(kSampleRate);
+        configureSingleMode(bank, 440.0f, 1.0f, decayTime, 0.5f);
+
+        (void)bank.processSample(1.0f); // impulse
+
+        float peak = 0.0f;
+        int durationSamples = 0;
+        for (int i = 0; i < 44100; ++i)
+        {
+            float out = bank.processSample(0.0f);
+            float a = std::abs(out);
+            peak = std::max(peak, a);
+            if (a > 0.001f) // -60 dB threshold
+                durationSamples = i;
+        }
+        return {peak, durationSamples};
+    };
+
+    auto [peakShort, durShort] = measurePeakAndDuration(0.1f);
+    auto [peakLong, durLong] = measurePeakAndDuration(2.0f);
+
+    INFO("Short decay (0.1s): peak=" << peakShort << " duration=" << durShort << " samples");
+    INFO("Long decay (2.0s): peak=" << peakLong << " duration=" << durLong << " samples");
+
+    // Both should produce audible output
+    REQUIRE(peakShort > 0.1f);
+    REQUIRE(peakLong > 0.1f);
+
+    // Long decay should ring noticeably longer
+    REQUIRE(durLong > durShort * 2);
+}
+
+TEST_CASE("ModalResonatorBank: multi-mode impulse response has harmonic content",
+          "[modal_resonator_bank][gain-staging]")
+{
+    // When configured with harmonic modes, an impulse should produce output
+    // rich enough to hear the tonal character (not just near-silence).
+    Krate::DSP::ModalResonatorBank bank;
+    bank.prepare(kSampleRate);
+    configureHarmonicModes(bank, 220.0f, 8, 0.5f, 0.5f);
+
+    // Feed impulse
+    (void)bank.processSample(1.0f);
+
+    // Collect 100ms of output
+    float peak = 0.0f;
+    double rmsSum = 0.0;
+    constexpr int kSamples = 4410;
+    for (int i = 0; i < kSamples; ++i)
+    {
+        float out = bank.processSample(0.0f);
+        peak = std::max(peak, std::abs(out));
+        rmsSum += static_cast<double>(out) * out;
+    }
+    float rms = static_cast<float>(std::sqrt(rmsSum / kSamples));
+
+    INFO("8-mode harmonic impulse: peak=" << peak << " rms=" << rms);
+
+    // Should be clearly audible
+    REQUIRE(peak > 0.05f);
+    REQUIRE(rms > 0.005f);
+}

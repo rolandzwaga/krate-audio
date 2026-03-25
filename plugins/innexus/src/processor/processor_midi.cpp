@@ -38,11 +38,6 @@ static int voiceModeToCount(float norm)
     return kCounts[idx];
 }
 
-static bool isMonoMode(float voiceModeNorm)
-{
-    return voiceModeToCount(voiceModeNorm) == 1;
-}
-
 // ==============================================================================
 // MIDI Dispatcher Callbacks
 // ==============================================================================
@@ -187,6 +182,12 @@ static void initVoiceForNoteOn(
     voice.velocityGain = velocity;
 
     // Spec 124 FR-012: Gate ADSR envelope on note-on (hard retrigger)
+    // For fresh voices (not retrigger), reset output to 0 so the attack starts
+    // from silence. Without this, a stale output_ from a previous note (or from
+    // being unprocessed while adsrAmount was 0) causes the envelope to start
+    // mid-way instead of from zero.
+    if (!isRetrigger)
+        voice.adsr.reset();
     voice.adsr.gate(true);
 
     // Start from first frame (FR-047)

@@ -402,130 +402,150 @@ TEST_CASE("SympatheticResonance: frequency-dependent Q scaling",
     // At f=1000 Hz: 500/1000 = 0.5, clamped to 0.5 -> Q_eff = Q_user * 0.5
     // At f=2000 Hz: 500/2000 = 0.25, clamped to 0.5 -> Q_eff = Q_user * 0.5
 
-    // We verify indirectly through decay time difference.
-    // A resonator at 1000 Hz should decay roughly twice as fast as one at 200 Hz
-    // (because Q_eff at 1000 Hz is half of Q_eff at 200 Hz).
+    // We verify through the per-period decay rate measured during free ring-out.
+    // A resonator at 1000 Hz (Q_eff = Q*0.5) should lose energy faster per
+    // oscillation period than one at 200 Hz (Q_eff = Q*1.0).
+    //
+    // Strategy: drive to steady state, then measure the ratio of peak amplitudes
+    // between successive periods during ring-out. This directly gives r^period,
+    // avoiding threshold-based timing issues.
 
     constexpr float sampleRate = 44100.0f;
 
-    // Test at low frequency: full Q
-    {
+    // Helper: measure per-period amplitude decay factor during free ring-out
+    auto measureDecayFactor = [&](float freq) -> float {
         SympatheticResonance sr;
         sr.prepare(sampleRate);
         sr.setDecay(0.5f);
         sr.setAmount(0.5f);
 
         SympatheticPartialInfo partials;
-        partials.frequencies = {200.0f, 0.0f, 0.0f, 0.0f};
+        partials.frequencies = {freq, 0.0f, 0.0f, 0.0f};
         sr.noteOn(0, partials);
 
-        // Drive briefly
-        for (int i = 0; i < 2000; ++i) {
-            (void)sr.process(std::sin(kTwoPi * 200.0f * static_cast<float>(i) / sampleRate));
+        // Drive to steady state (5τ for the slowest case)
+        constexpr int kDriveSamples = 150000;
+        for (int i = 0; i < kDriveSamples; ++i) {
+            float input = std::sin(kTwoPi * freq * static_cast<float>(i) / sampleRate);
+            (void)sr.process(input);
         }
 
         sr.noteOff(0);
 
-        // Measure how many samples to reach near silence
-        int samplesLow = 0;
-        for (int i = 0; i < 441000; ++i) {
-            float out = sr.process(0.0f);
-            ++samplesLow;
-            if (std::abs(out) < 1e-6f && i > 1000) break;
+        // Let transients settle for a few periods
+        int settleWindow = static_cast<int>(sampleRate / freq * 5.0f);
+        for (int i = 0; i < settleWindow; ++i)
+            (void)sr.process(0.0f);
+
+        // Measure peak over two consecutive periods
+        int samplesPerPeriod = static_cast<int>(sampleRate / freq);
+
+        float peak1 = 0.0f;
+        for (int i = 0; i < samplesPerPeriod; ++i) {
+            float a = std::abs(sr.process(0.0f));
+            if (a > peak1) peak1 = a;
         }
 
-        // Test at high frequency: half Q, should decay faster
-        SympatheticResonance sr2;
-        sr2.prepare(sampleRate);
-        sr2.setDecay(0.5f);
-        sr2.setAmount(0.5f);
+        // Skip a few more periods to get a clear measurement
+        for (int i = 0; i < samplesPerPeriod * 10; ++i)
+            (void)sr.process(0.0f);
 
-        SympatheticPartialInfo partials2;
-        partials2.frequencies = {1000.0f, 0.0f, 0.0f, 0.0f};
-        sr2.noteOn(0, partials2);
-
-        for (int i = 0; i < 2000; ++i) {
-            (void)sr2.process(std::sin(kTwoPi * 1000.0f * static_cast<float>(i) / sampleRate));
-        }
-        sr2.noteOff(0);
-
-        int samplesHigh = 0;
-        for (int i = 0; i < 441000; ++i) {
-            float out = sr2.process(0.0f);
-            ++samplesHigh;
-            if (std::abs(out) < 1e-6f && i > 1000) break;
+        float peak2 = 0.0f;
+        for (int i = 0; i < samplesPerPeriod; ++i) {
+            float a = std::abs(sr.process(0.0f));
+            if (a > peak2) peak2 = a;
         }
 
-        // High frequency should decay faster (fewer samples to silence)
-        REQUIRE(samplesHigh < samplesLow);
-    }
+        if (peak1 < 1e-15f) return 0.0f;
+        // Decay factor over 11 periods (1 measured + 10 skipped + 1 measured)
+        float totalDecay = peak2 / peak1;
+        // Convert to per-period factor
+        return std::pow(totalDecay, 1.0f / 11.0f);
+    };
+
+    float decayLow = measureDecayFactor(200.0f);
+    float decayHigh = measureDecayFactor(1000.0f);
+
+    INFO("200 Hz per-period decay factor: " << decayLow);
+    INFO("1000 Hz per-period decay factor: " << decayHigh);
+
+    // Both should be < 1.0 (decaying)
+    REQUIRE(decayLow < 1.0f);
+    REQUIRE(decayHigh < 1.0f);
+    REQUIRE(decayLow > 0.0f);
+    REQUIRE(decayHigh > 0.0f);
+
+    // 1000 Hz with Q_eff = Q*0.5 should have a SMALLER (faster) decay factor
+    // than 200 Hz with Q_eff = Q*1.0
+    REQUIRE(decayHigh < decayLow);
 }
 
 // =============================================================================
 // Per-Resonator Gain Weighting (FR-007)
 // =============================================================================
 
-TEST_CASE("SympatheticResonance: per-resonator gain = 1/sqrt(n)",
+TEST_CASE("SympatheticResonance: per-resonator gain includes 1/sqrt(n) weighting",
           "[systems][sympathetic]") {
-    // Partial 1: gain = 1/sqrt(1) = 1.0
-    // Partial 2: gain = 1/sqrt(2) ~= 0.7071
-    // Partial 3: gain = 1/sqrt(3) ~= 0.5774
-    // Partial 4: gain = 1/sqrt(4) = 0.5
-
-    // We verify indirectly: drive with a wideband signal and check that
-    // the fundamental resonator (partial 1) produces more output than the 4th partial.
-    // This is a behavioral test.
+    // Partial number weighting: 1/sqrt(n) where n is 1-based partial number.
+    // With peak-gain normalization, the 1/sqrt(n) factor is the only variable
+    // when comparing two resonators at the SAME frequency but different partial
+    // numbers. We test this by placing partial 1 and partial 4 at the same freq.
 
     constexpr float sampleRate = 44100.0f;
-    SympatheticResonance sr;
-    sr.prepare(sampleRate);
-    sr.setDecay(0.5f);
-    sr.setAmount(0.5f);
+    constexpr float testFreq = 440.0f;
 
-    // Use a frequency where partials are well separated for analysis
-    float f0 = 200.0f; // partials at 200, 400, 600, 800
-
-    // Test partial 1 alone vs partial 4 alone
-    SympatheticPartialInfo p1only;
-    p1only.frequencies = {f0, 0.0f, 0.0f, 0.0f}; // only partial 1
-
-    sr.noteOn(0, p1only);
-
-    // Drive with broadband noise-like signal
+    // Test partial 1: gain ∝ 1/sqrt(1) = 1.0
     float rmsPartial1 = 0.0f;
     {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(0.5f);
+
+        // Place only partial 1 at testFreq (first slot = partial number 1)
+        SympatheticPartialInfo p1only;
+        p1only.frequencies = {testFreq, 0.0f, 0.0f, 0.0f};
+        sr.noteOn(0, p1only);
+
         std::vector<float> out(4410);
         for (int i = 0; i < 4410; ++i) {
-            float input = std::sin(kTwoPi * f0 * static_cast<float>(i) / sampleRate);
+            float input = std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
             out[static_cast<size_t>(i)] = sr.process(input);
         }
         rmsPartial1 = computeRMS(out.data(), 4410);
     }
 
-    sr.reset();
-    sr.prepare(sampleRate);
-    sr.setDecay(0.5f);
-    sr.setAmount(0.5f);
-
-    // Test with partial 4 only (at 4*f0 = 800 Hz, gain = 0.5)
-    SympatheticPartialInfo p4only;
-    p4only.frequencies = {0.0f, 0.0f, 0.0f, f0 * 4.0f}; // only partial 4
-
-    sr.noteOn(1, p4only);
-
+    // Test partial 4: gain ∝ 1/sqrt(4) = 0.5
     float rmsPartial4 = 0.0f;
     {
+        SympatheticResonance sr;
+        sr.prepare(sampleRate);
+        sr.setDecay(0.5f);
+        sr.setAmount(0.5f);
+
+        // Place only partial 4 at testFreq (4th slot = partial number 4)
+        SympatheticPartialInfo p4only;
+        p4only.frequencies = {0.0f, 0.0f, 0.0f, testFreq};
+        sr.noteOn(0, p4only);
+
         std::vector<float> out(4410);
         for (int i = 0; i < 4410; ++i) {
-            float input = std::sin(kTwoPi * f0 * 4.0f * static_cast<float>(i) / sampleRate);
+            float input = std::sin(kTwoPi * testFreq * static_cast<float>(i) / sampleRate);
             out[static_cast<size_t>(i)] = sr.process(input);
         }
         rmsPartial4 = computeRMS(out.data(), 4410);
     }
 
-    // Partial 1 should produce more output than partial 4
-    // (gain 1.0 vs 0.5, plus frequency-dependent Q makes high freq decay faster)
+    INFO("RMS partial 1 (1/sqrt(1)): " << rmsPartial1);
+    INFO("RMS partial 4 (1/sqrt(4)): " << rmsPartial4);
+
+    // Same frequency, so peak-gain normalization is identical.
+    // Partial 1 should produce ~2x the output of partial 4 (1.0 vs 0.5).
     REQUIRE(rmsPartial1 > rmsPartial4);
+
+    float ratio = rmsPartial1 / std::max(rmsPartial4, 1e-10f);
+    INFO("Partial 1/4 RMS ratio: " << ratio << " (expected ~2.0)");
+    REQUIRE(ratio == Catch::Approx(2.0f).margin(0.3f));
 }
 
 // =============================================================================
@@ -2684,4 +2704,191 @@ TEST_CASE("SympatheticResonance: 8 voices same unison note merge correctly",
                           << ", expected = " << expected);
         REQUIRE(freq == Approx(expected).margin(0.1f));
     }
+}
+
+// =============================================================================
+// Gain Staging Fix Tests (Q-normalized resonator gain + coupling cap)
+// =============================================================================
+// These tests verify that sympathetic resonance output stays bounded even at
+// maximum settings. The root cause of distortion was:
+//   1. Resonator peak gain ≈ Q (up to 1000x) was not compensated
+//   2. Coupling gain at amount=1.0 was -20 dB (0.1), so effective gain per
+//      resonator at resonance was 0.1 * 1000 = 100 (+40 dB) — far too hot
+//
+// Fix: normalize resonator gain by 1/Q and cap coupling at -26 dB (0.05).
+// =============================================================================
+
+TEST_CASE("SympatheticResonance: output bounded at max amount with resonant input",
+          "[systems][sympathetic][gain-staging]") {
+    // Worst case: amount=1.0, high Q (decay=1.0 → Q=1000), input at resonant frequency
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    sr.setAmount(1.0f);   // Maximum coupling
+    sr.setDecay(1.0f);    // Maximum Q (1000)
+    sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+    // Drive with a 440 Hz sine at unity amplitude for 1 second (steady state)
+    constexpr int kSamples = 44100;
+    float peak = 0.0f;
+    for (int i = 0; i < kSamples; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / 44100.0f);
+        float out = sr.process(input);
+        float a = std::abs(out);
+        if (a > peak) peak = a;
+    }
+
+    INFO("Peak output with max amount + max Q + resonant input: " << peak);
+
+    // The output should be bounded well below 1.0 when driven with a unity sine.
+    // Before the fix: peak was ~30+ (resonator gain Q × coupling = 1000 × 0.1 = 100)
+    // After the fix: peak should be ≤ 0.25 (coupling 0.05 × gain 1/Q × Q ≈ 0.05)
+    // Allow some headroom for transient buildup and multiple resonators summing
+    REQUIRE(peak < 0.5f);
+    REQUIRE(peak > 0.0f); // Must still produce output
+}
+
+TEST_CASE("SympatheticResonance: output scales smoothly with amount parameter",
+          "[systems][sympathetic][gain-staging]") {
+    // Output RMS should roughly track the amount parameter without wild jumps
+    constexpr float kSampleRate = 44100.0f;
+    constexpr int kSettleSamples = 4410;  // 100ms settle
+    constexpr int kMeasureSamples = 22050; // 500ms measure
+
+    float rmsValues[3] = {};
+    float amounts[3] = {0.25f, 0.5f, 1.0f};
+
+    for (int a = 0; a < 3; ++a) {
+        SympatheticResonance sr;
+        sr.prepare(kSampleRate);
+        sr.setAmount(amounts[a]);
+        sr.setDecay(0.5f); // Q ≈ 316
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        // Settle
+        for (int i = 0; i < kSettleSamples; ++i) {
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / kSampleRate);
+            (void)sr.process(input);
+        }
+
+        // Measure
+        double sumSq = 0.0;
+        for (int i = 0; i < kMeasureSamples; ++i) {
+            float t = static_cast<float>(kSettleSamples + i);
+            float input = std::sin(kTwoPi * 440.0f * t / kSampleRate);
+            float out = sr.process(input);
+            sumSq += static_cast<double>(out) * out;
+        }
+        rmsValues[a] = static_cast<float>(std::sqrt(sumSq / kMeasureSamples));
+    }
+
+    INFO("RMS at amount=0.25: " << rmsValues[0]);
+    INFO("RMS at amount=0.50: " << rmsValues[1]);
+    INFO("RMS at amount=1.00: " << rmsValues[2]);
+
+    // Each step should increase — monotonic relationship
+    REQUIRE(rmsValues[1] > rmsValues[0]);
+    REQUIRE(rmsValues[2] > rmsValues[1]);
+
+    // The ratio between max and min should be reasonable (not 100:1)
+    float ratio = rmsValues[2] / std::max(rmsValues[0], 1e-10f);
+    INFO("Max/min RMS ratio: " << ratio);
+    REQUIRE(ratio < 20.0f); // Should be roughly proportional, not explosive
+}
+
+TEST_CASE("SympatheticResonance: high Q does not cause runaway output",
+          "[systems][sympathetic][gain-staging]") {
+    // Test across Q range: output should increase with Q but remain bounded
+    constexpr float kSampleRate = 44100.0f;
+    constexpr int kSamples = 44100; // 1 second
+
+    float peakAtLowQ = 0.0f;
+    float peakAtHighQ = 0.0f;
+
+    // Low Q: decay=0.0 → Q=100
+    {
+        SympatheticResonance sr;
+        sr.prepare(kSampleRate);
+        sr.setAmount(1.0f);
+        sr.setDecay(0.0f);
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        for (int i = 0; i < kSamples; ++i) {
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / kSampleRate);
+            float out = sr.process(input);
+            float a = std::abs(out);
+            if (a > peakAtLowQ) peakAtLowQ = a;
+        }
+    }
+
+    // High Q: decay=1.0 → Q=1000
+    {
+        SympatheticResonance sr;
+        sr.prepare(kSampleRate);
+        sr.setAmount(1.0f);
+        sr.setDecay(1.0f);
+        sr.noteOn(0, makeHarmonicPartials(440.0f));
+
+        for (int i = 0; i < kSamples; ++i) {
+            float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / kSampleRate);
+            float out = sr.process(input);
+            float a = std::abs(out);
+            if (a > peakAtHighQ) peakAtHighQ = a;
+        }
+    }
+
+    INFO("Peak at Q=100 (decay=0): " << peakAtLowQ);
+    INFO("Peak at Q=1000 (decay=1): " << peakAtHighQ);
+
+    // Both should be bounded
+    REQUIRE(peakAtLowQ < 0.5f);
+    REQUIRE(peakAtHighQ < 0.5f);
+
+    // High Q should produce more output (longer ringing, more buildup), but
+    // NOT 10x more — Q normalization should keep them in the same ballpark
+    float qRatio = peakAtHighQ / std::max(peakAtLowQ, 1e-10f);
+    INFO("High Q / Low Q peak ratio: " << qRatio);
+    REQUIRE(qRatio < 5.0f);
+}
+
+TEST_CASE("SympatheticResonance: coupling gain at amount=1.0 is approximately -26 dB",
+          "[systems][sympathetic][gain-staging]") {
+    // Verify the coupling gain range has been reduced from -20 dB to -26 dB max.
+    // We can't read couplingGain_ directly, so we test indirectly:
+    // Drive a single resonator at its exact resonant frequency and measure
+    // the steady-state gain. With Q-normalization, the steady-state output
+    // for a single resonator ≈ couplingGain × inputAmplitude (since Q/Q cancels).
+    SympatheticResonance sr;
+    sr.prepare(44100.0);
+    sr.setAmount(1.0f);
+    sr.setDecay(0.0f); // Low Q for faster convergence to steady state
+
+    // Create a voice with only one partial (f0) by using a very high f0
+    // so harmonics 2-4 are above Nyquist and get skipped
+    SympatheticPartialInfo singlePartial;
+    singlePartial.frequencies[0] = 440.0f;
+    singlePartial.frequencies[1] = 44100.0f; // Above Nyquist, skipped
+    singlePartial.frequencies[2] = 44100.0f;
+    singlePartial.frequencies[3] = 44100.0f;
+    sr.noteOn(0, singlePartial);
+    REQUIRE(sr.getActiveResonatorCount() == 1); // Only one valid resonator
+
+    // Drive at 440 Hz for 2 seconds to reach steady state
+    constexpr int kSamples = 88200;
+    float lastPeak = 0.0f;
+    for (int i = 0; i < kSamples; ++i) {
+        float input = std::sin(kTwoPi * 440.0f * static_cast<float>(i) / 44100.0f);
+        float out = sr.process(input);
+        if (i > kSamples / 2) {
+            float a = std::abs(out);
+            if (a > lastPeak) lastPeak = a;
+        }
+    }
+
+    INFO("Steady-state peak with 1 resonator at resonance: " << lastPeak);
+
+    // With coupling at -26 dB (≈0.05) and Q-normalized gain, the steady-state
+    // output of a single driven resonator should be roughly 0.05 × input.
+    // Allow factor of 2 tolerance for filter transient characteristics.
+    REQUIRE(lastPeak < 0.15f);
+    REQUIRE(lastPeak > 0.01f);
 }

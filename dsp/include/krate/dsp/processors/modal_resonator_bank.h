@@ -63,6 +63,11 @@ struct BowedModeBPF {
     }
 };
 
+// C4324: structure padded due to alignas -- intentional for SIMD arrays
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4324)
+#endif
 class ModalResonatorBank : public IResonator {
 public:
     static constexpr int kMaxModes = 96;
@@ -474,8 +479,13 @@ private:
             // Coupled-form frequency coefficient
             float eps_k = 2.0f * std::sin(std::numbers::pi_v<float> * f_w / sampleRate_);
 
-            // Leaky-integrator input gain normalization (FR-009)
-            float gain_k = amp * (1.0f - R_k);
+            // Input gain: amplitude-weighted excitation (FR-009)
+            // Note: the coupled-form oscillator's amplitude is naturally bounded
+            // by R_k (decay radius), so no (1-R_k) normalization is needed.
+            // That normalization was appropriate for leaky integrators with
+            // continuous driving but kills transient response (~-84 dB at
+            // typical decay settings), making the physical model inaudible.
+            float gain_k = amp;
 
             epsilonTarget_[k] = eps_k;
             radiusTarget_[k] = R_k;
@@ -605,6 +615,9 @@ private:
         return sample * emphasis;
     }
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 } // namespace DSP
 } // namespace Krate

@@ -143,15 +143,17 @@ public:
     // =========================================================================
 
     /// Set the coupling amount (0.0 = bypassed, 1.0 = maximum coupling).
-    /// Maps to approximately -40 dB (low) to -20 dB (high) coupling gain.
+    /// Maps to approximately -46 dB (low) to -26 dB (high) coupling gain.
+    /// Range calibrated per Lehtonen et al. (2007) piano sympathetic model
+    /// (0.005-0.015 = -46 to -36 dB) with artistic headroom up to -26 dB.
     /// Smoothed internally to prevent clicks.
     /// @param amount  Normalized amount [0.0, 1.0]
     void setAmount(float amount) noexcept {
         if (amount == 0.0f) {
             couplingGain_ = 0.0f;
         } else {
-            // Map [0,1] -> [-40, -20] dB -> linear
-            couplingGain_ = std::pow(10.0f, (-40.0f + 20.0f * amount) / 20.0f);
+            // Map [0,1] -> [-46, -26] dB -> linear
+            couplingGain_ = std::pow(10.0f, (-46.0f + 20.0f * amount) / 20.0f);
         }
         amountSmoother_.setTarget(couplingGain_);
     }
@@ -232,7 +234,13 @@ public:
                 rSquareds_[idx] = coeffs.rSquared;
                 y1s_[idx] = 0.0f;
                 y2s_[idx] = 0.0f;
-                gains_[idx] = 1.0f / std::sqrt(static_cast<float>(partialNumber));
+                // Gain-normalized so peak resonant response is approximately unity
+                // regardless of Q or frequency. The digital resonator's peak gain is:
+                //   |H(ω₀)| = 1 / [(1-r) × √(1 - 2r⋅cos(2ω₀) + r²)]
+                // We divide by this so the resonator contributes ≈1× at resonance.
+                // Per-partial weighting (1/sqrt(n)) still applied on top.
+                float peakGainInv = computeResonatorPeakGainInverse(coeffs, freq);
+                gains_[idx] = peakGainInv / std::sqrt(static_cast<float>(partialNumber));
                 envelopes_[idx] = 1.0f; // Start above reclaim threshold to prevent premature eviction
                 voiceIds_[idx] = voiceId;
                 partialNumbers_[idx] = partialNumber;
@@ -384,6 +392,31 @@ private:
     // =========================================================================
     // Private Helpers
     // =========================================================================
+
+    /// Compute the inverse of the resonator's peak gain at its resonant frequency.
+    /// For a driven second-order resonator y[n] = coeff*y1 - r²*y2 + x[n],
+    /// the peak gain at ω₀ is: 1 / [(1-r) × √(1 - 2r⋅cos(2ω₀) + r²)]
+    /// Returns the reciprocal so it can be used directly as a gain multiplier.
+    [[nodiscard]] static float computeResonatorPeakGainInverse(
+        const ResonatorCoeffs& c, float freq
+    ) noexcept {
+        // Recover r from r²
+        float r = std::sqrt(c.rSquared);
+        float oneMinusR = 1.0f - r;
+        if (oneMinusR < 1e-12f) return 1e-6f; // Degenerate: r≈1
+
+        // cos(2ω) from cos(ω): use double-angle identity
+        // coeff = 2*r*cos(ω), so cos(ω) = coeff / (2*r)
+        float cosOmega = (r > 1e-12f) ? c.coeff / (2.0f * r) : 1.0f;
+        float cos2Omega = 2.0f * cosOmega * cosOmega - 1.0f;
+
+        // |D|² = (1-r)² × (1 - 2r⋅cos(2ω) + r²)
+        float inner = 1.0f - 2.0f * r * cos2Omega + c.rSquared;
+        if (inner < 1e-12f) inner = 1e-12f;
+        float sqrtInner = std::sqrt(inner);
+
+        return oneMinusR * sqrtInner;
+    }
 
     /// Compute resonator coefficients from frequency, Q, and sample rate.
     /// r = exp(-pi * (f/Q) / sampleRate)

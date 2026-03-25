@@ -72,6 +72,12 @@ public:
         Steinberg::Vst::ParamID id,
         Steinberg::Vst::ParamValue value) override;
 
+    // --- Parameter Display Formatting ---
+    Steinberg::tresult PLUGIN_API getParamStringByValue(
+        Steinberg::Vst::ParamID id,
+        Steinberg::Vst::ParamValue valueNormalized,
+        Steinberg::Vst::String128 string) override;
+
     // --- VST3EditorDelegate ---
     Steinberg::IPlugView* PLUGIN_API createView(
         Steinberg::FIDString name) override;

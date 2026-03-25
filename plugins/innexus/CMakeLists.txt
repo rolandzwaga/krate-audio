@@ -61,6 +61,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/controller_param_display.cpp
     src/controller/controller_presets.cpp
     src/controller/display_data.h
     src/controller/modulator_sub_controller.h
