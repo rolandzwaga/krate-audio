@@ -54,6 +54,9 @@ add_executable(innexus_tests
     # Body resonance integration tests (Spec 131)
     unit/processor/body_resonance_integration_tests.cpp
 
+    # Sympathetic resonance integration tests (Spec 132)
+    unit/processor/sympathetic_resonance_integration_test.cpp
+
     # State v10 tests (Modulator Tempo Sync)
     unit/vst/test_state_v10.cpp
 

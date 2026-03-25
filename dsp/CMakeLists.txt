@@ -12,6 +12,7 @@ add_library(KrateDSP STATIC
     include/krate/dsp/effects/fdn_reverb_simd.cpp
     include/krate/dsp/processors/harmonic_oscillator_bank_simd.cpp
     include/krate/dsp/processors/modal_resonator_bank_simd.cpp
+    include/krate/dsp/systems/sympathetic_resonance_simd.cpp
 )
 
 # Public include directory for consumers

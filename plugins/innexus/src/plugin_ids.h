@@ -163,6 +163,10 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kBodyMaterialId = 851,             // RangeParameter: 0.0-1.0, default 0.5
     kBodyMixId = 852,                  // RangeParameter: 0.0-1.0, default 0.0
 
+    // Sympathetic Resonance (860-861) -- Spec 132
+    kSympatheticAmountId = 860,        // RangeParameter: 0.0-1.0, default 0.0
+    kSympatheticDecayId = 861,         // RangeParameter: 0.0-1.0, default 0.5
+
     // ADSR Envelope (720-728) -- Spec 124
     kAdsrAttackId = 720,           // RangeParameter: 1-5000ms, log mapping, default 10ms
     kAdsrDecayId = 721,            // RangeParameter: 1-5000ms, log mapping, default 100ms
