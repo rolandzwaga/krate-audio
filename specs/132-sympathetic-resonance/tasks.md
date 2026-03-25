@@ -454,7 +454,7 @@ Key rules:
 
 ### 10.4 Commit (MANDATORY)
 
-- [ ] T058 Commit completed plugin integration: processor member + signal chain + parameter dispatch + MIDI routing + state + controller registration + integration tests
+- [X] T058 Commit completed plugin integration: processor member + signal chain + parameter dispatch + MIDI routing + state + controller registration + integration tests
 
 **Checkpoint**: Plugin integration complete. SympatheticResonance is live in the Innexus audio chain. Both VST3 parameters are registered. MIDI routing is active.
 
@@ -464,12 +464,12 @@ Key rules:
 
 **Purpose**: Run pluginval, verify the complete build is warning-free, confirm all tests pass across both test targets, and address any edge cases identified during implementation.
 
-- [ ] T059 Build the full Innexus plugin (not just tests): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` and verify zero compilation warnings in all new files (`sympathetic_resonance.h`, `sympathetic_resonance_simd.h`, `sympathetic_resonance_simd.cpp`, and all modified plugin files)
-- [ ] T060 Run the full `dsp_tests` suite (all tests, not just new ones) and verify zero regressions: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
-- [ ] T061 Run the full `innexus_tests` suite and verify zero regressions: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
-- [ ] T062 Run pluginval on the Innexus plugin: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` -- verify PASS with no errors
-- [ ] T063 [P] Verify edge case: rapid noteOn/noteOff alternation (tremolo at 16th notes, 120 BPM) does not cause assertion failures or pool overflows; add a stress test to `sympathetic_resonance_test.cpp` if not already covered
-- [ ] T064 [P] Verify edge case: all 8 voices playing the same unison note (same voiceId re-trigger handled as duplicate merge per FR-011); verify `getActiveResonatorCount() == kSympatheticPartialCount` not 8x that
+- [X] T059 Build the full Innexus plugin (not just tests): `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release` and verify zero compilation warnings in all new files (`sympathetic_resonance.h`, `sympathetic_resonance_simd.h`, `sympathetic_resonance_simd.cpp`, and all modified plugin files)
+- [X] T060 Run the full `dsp_tests` suite (all tests, not just new ones) and verify zero regressions: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
+- [X] T061 Run the full `innexus_tests` suite and verify zero regressions: `build/windows-x64-release/bin/Release/innexus_tests.exe 2>&1 | tail -5`
+- [X] T062 Run pluginval on the Innexus plugin: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"` -- verify PASS with no errors
+- [X] T063 [P] Verify edge case: rapid noteOn/noteOff alternation (tremolo at 16th notes, 120 BPM) does not cause assertion failures or pool overflows; add a stress test to `sympathetic_resonance_test.cpp` if not already covered
+- [X] T064 [P] Verify edge case: all 8 voices playing the same unison note (same voiceId re-trigger handled as duplicate merge per FR-011); verify `getActiveResonatorCount() == kSympatheticPartialCount` not 8x that
 
 ---
 
@@ -481,7 +481,7 @@ Key rules:
 
 ### 12.1 Architecture Documentation Update
 
-- [ ] T065 Update `specs/_architecture_/layer-3-systems.md` with the new `SympatheticResonance` component entry:
+- [X] T065 Update `specs/_architecture_/layer-3-systems.md` with the new `SympatheticResonance` component entry:
   - Component name, purpose, public API summary (`prepare`, `setAmount`, `setDecay`, `noteOn`, `noteOff`, `process`)
   - File location: `dsp/include/krate/dsp/systems/sympathetic_resonance.h`
   - SIMD kernel location: `dsp/include/krate/dsp/systems/sympathetic_resonance_simd.cpp`
