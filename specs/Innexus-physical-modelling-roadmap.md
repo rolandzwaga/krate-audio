@@ -1809,9 +1809,55 @@ Internal architecture:
 
 ## Phase 6: Sympathetic Resonance
 
-**Goal:** Cross-voice harmonic bleed — when multiple notes play, their harmonics excite each other's resonators, like piano strings with sustain pedal held.
+**Goal:** Cross-voice harmonic bleed — when multiple notes play, their harmonics excite each other's resonators, modeling the physical coupling that occurs between strings sharing a common bridge/soundboard.
 
-**Sonic character:** Shimmering, halo-like reinforcement of shared harmonics across voices. Chords become richer than the sum of their parts.
+**Sonic character:** Shimmering, halo-like reinforcement of shared harmonics across voices. Chords become richer than the sum of their parts. The effect is most prominent at consonant intervals (octaves, fifths) and nearly absent at dissonant intervals — matching the behaviour of real acoustic instruments.
+
+### Physical Basis
+
+Sympathetic resonance occurs when the vibration of one string excites another string through a shared mechanical coupling medium (bridge → soundboard → bridge). The key conditions:
+
+**Harmonic overlap condition:** Two voices at fundamentals f_A and f_B couple when any partial of one coincides with (or falls within the resonance bandwidth of) any partial of the other:
+
+```
+n × f_A_n ≈ m × f_B_m    (for integers n, m)
+```
+
+where f_A_n is the nth (possibly inharmonic) partial of voice A. The coupling strength decreases as n and m increase because higher partials carry less energy and have narrower resonance bandwidths.
+
+**Coupling strength hierarchy** (strongest → weakest):
+1. Unison (1:1) — all partials align
+2. Octave (2:1) — every other partial aligns
+3. Twelfth / octave+fifth (3:1) — every 3rd partial
+4. Fifth (3:2) — partials align at 3:2 ratio multiples
+5. Fourth (4:3) — partials align at 4:3 ratio multiples
+6. Major third (5:4) — sparse alignment, subtle effect
+
+**Resonance bandwidth:** The bandwidth over which a resonator responds to external excitation is determined by its Q-factor. For a mode at frequency f₀ with quality factor Q:
+
+```
+Δf = f₀ / Q
+```
+
+A driving partial must fall within ±Δf/2 of the resonator's centre frequency for significant excitation. The Q of our sympathetic resonators is deliberately lower than real strings (Q ~100–1000 vs acoustic Q ~1000–3000) to widen the coupling bandwidth. This makes the effect musically useful across a wider range of intervals and compensates for the fact that our partials may not align as precisely as real strings. At Q=200 and 440 Hz, the bandwidth is ~2.2 Hz (~8.6 cents) — wide enough to catch slightly mistuned partials but narrow enough to remain frequency-selective.
+
+**Inharmonicity consideration:** Real stiff strings have stretched partials:
+
+```
+f_n = n × f₀ × √(1 + B × n²)
+```
+
+where B is the inharmonicity coefficient. This means that what would be perfect harmonic matches in ideal strings become near-misses at higher partial numbers. This naturally weakens sympathetic coupling for higher partials — a physically correct behaviour that our implementation inherits by computing actual partial frequencies rather than assuming perfect harmonic series.
+
+**Energy transfer regime:** In acoustic instruments, the bridge/soundboard coupling is weak relative to string damping (high-impedance coupling point), so energy transfer is slow and essentially unidirectional — the driving string excites the passive string, but the reverse feedback is negligible. This justifies a unidirectional coupling model (no feedback from sympathetic resonators back into the source voices), which is both physically reasonable and structurally stable.
+
+**Key references:**
+- Weinreich, "Coupled piano strings" (JASA 62(6), 1977) — foundational work on bridge-mediated string coupling
+- Smith, *Physical Audio Signal Processing* (CCRMA) — coupled strings and scattering junction formulation
+- Le Carrou et al., "Modelling of Sympathetic String Vibrations" (Acta Acustica, 2005) — state-vector/transfer-matrix model for coupled strings via soundboard
+- Lehtonen, Penttinen & Välimäki, "Analysis and modeling of piano sustain-pedal effects" (JASA 122(3), 2007) — efficient sympathetic resonance using only 12 string models at <5 multiplies/sample/note
+- Bank, "Physics-Based Sound Synthesis of the Piano" (PhD thesis, 2000) — comprehensive modal synthesis with sympathetic coupling
+- Bilbao, *Numerical Sound Synthesis* (Wiley, 2009) — energy-conserving coupling schemes for stability
 
 ### New DSP Components
 
@@ -1819,36 +1865,133 @@ Internal architecture:
 Location: `dsp/include/krate/dsp/systems/sympathetic_resonance.h`
 
 ```
-Input: summed voice output (post per-voice processing)
-Config: union of all active voices' partial frequencies
-Output: sympathetic signal added to master output
+Architecture: "Shared Resonance Field" — a pool of modal resonators tuned
+  to the union of all active voices' low-order partials. Fed by the global
+  voice sum. No per-voice routing or coupling matrix needed — the resonators
+  themselves are frequency-selective and naturally respond only to energy
+  near their resonant frequencies.
 
-Internal: Shared modal resonator bank tuned to the union of all
-  active partials. Fed by the summed voice output at low gain.
+Input: summed voice output (post per-voice processing, pre master gain).
+  The global sum is scaled by the coupling amount and fed into all active
+  resonators. Each resonator's bandpass response inherently rejects
+  non-matching frequencies — no explicit frequency matching needed.
 
-Key: only partials that are common across multiple voices
-  resonate strongly (reinforcement of shared harmonics).
+Output: sympathetic signal added to master output, post anti-mud filter.
+
+Self-excitation: A voice's own partials will weakly excite its own
+  resonators through the global sum. At the coupling gain levels used
+  (-40 to -20 dB), this is inaudible — it slightly extends sustain,
+  which is physically correct (real strings re-excite through the
+  soundboard too). No special routing needed to prevent it.
+
+Resonator bank management:
+  - On note-on: add resonators for the new voice's partials (f₀ through
+    ~4-6th partial). Merge with existing resonators only when frequencies
+    are within ~0.3 Hz (tighter than the naive 1 Hz to preserve natural
+    beating between near-unison partials — e.g., 440 Hz vs 441 Hz at
+    1 Hz apart should remain separate so the ~1 Hz beat is audible,
+    while sub-0.3 Hz differences are merged as barely perceptible). When merging,
+    use weighted-average frequency. True duplicates (same voice re-triggered)
+    always merge.
+  - On note-off: stop adding new resonators, but existing ones continue
+    to ring out at their natural decay rate. Reclaim when amplitude
+    drops below -96 dB threshold.
+  - Hard pool cap: maximum 64 resonators (or 128 in "Ultra" quality mode).
+    If the cap is reached, kill the quietest resonator to make room.
+    This prevents runaway allocation during rapid tremolo or arpeggios
+    where many "ghost" resonators haven't decayed yet.
+  - Resonator count: ~4-6 partials per voice × 8 voices = 32-48
+    resonators (before merging; after merging, fewer for consonant
+    chords where many partials overlap).
+
+Resonator implementation:
+  - Second-order resonator (biquad or complex one-pole):
+    y[n] = 2r·cos(ω)·y[n-1] - r²·y[n-2] + x[n]
+    where r = exp(-π·Δf/sampleRate), ω = 2π·f/sampleRate
+  - Gain per resonator: amount × (1/√n) where n is the partial number.
+    Using 1/√n rather than 1/n avoids over-suppressing higher partials
+    while still reflecting that lower partials carry more energy.
+  - SIMD: process 4-8 resonators in parallel (independent state, natural
+    fit for SSE/AVX).
+
+Anti-mud filter (CRITICAL):
+  - Applied to the sympathetic output before mixing into master.
+  - Two mechanisms work together to prevent muddiness:
+
+  1. Output high-pass (~80-120 Hz, 6 dB/oct): prevents sub-bass buildup.
+     The damping curve: gain(f) ∝ 1 / (1 + (f_ref / f)²) where f_ref
+     is a tuning point (~100 Hz). This progressively attenuates
+     sub-bass buildup while leaving mid and treble resonance clear.
+
+  2. Frequency-dependent Q per resonator: models the fact that real
+     soundboards absorb high frequencies faster than lows. Without this,
+     high-frequency "halo" rings unnaturally long relative to the
+     fundamental. Scale each resonator's effective Q:
+       Q_eff = Q_user × clamp(f_ref / f, 0.5, 1.0)
+     where f_ref ~= 500 Hz. This means:
+       - Below 500 Hz: Q_eff = Q_user (full sustain)
+       - At 1000 Hz: Q_eff = 0.5 × Q_user (half sustain)
+       - At 2000 Hz: Q_eff = 0.5 × Q_user (clamped — clamp(500/2000, 0.5, 1.0) = 0.5)
+     The clamp prevents excessive damping that would kill all shimmer.
+
+Coupling is UNIDIRECTIONAL: sympathetic output does NOT feed back into
+  the voice models. This prevents feedback instability and matches the
+  weak-coupling physics of real bridge-mediated interaction.
+
+CPU budget (realistic):
+  - ~7-10 operations per resonator per sample (biquad + gain + activation
+    check + output accumulation)
+  - 32-48 resonators × 10 ops = 320-480 operations/sample
+  - Plus anti-mud filter: ~10 ops/sample
+  - Total: ~330-490 ops/sample — well within budget
+  - With SIMD (4-wide SSE): effective cost drops to ~85-125 ops/sample,
+    leaving headroom for 8-10 partials per voice in a future "Ultra" mode
+  - Zero cost when Amount = 0.0 (bypassed entirely)
 ```
 
 ### New Parameters
 
 | ID | Name | Range | Default | Description |
 |----|------|-------|---------|-------------|
-| `kSympatheticAmountId` | Sympathetic | 0.0–1.0 | 0.0 | Cross-voice resonance amount |
-| `kSympatheticDampingId` | Sympathetic Decay | 0.0–1.0 | 0.5 | Ring time of sympathetic resonance |
+| `kSympatheticAmountId` | Sympathetic | 0.0–1.0 | 0.0 | Coupling gain into resonance field. Maps to ~-40 dB (subtle) to ~-20 dB (prominent). At 0.0, the component is bypassed entirely (zero CPU). |
+| `kSympatheticDecayId` | Sympathetic Decay | 0.0–1.0 | 0.5 | Controls Q-factor of sympathetic resonators. Low values = short ring, wide bandwidth (Q~100, Δf~4.4 Hz at 440 Hz), high values = long sustain, narrow bandwidth (Q~1000, Δf~0.44 Hz at 440 Hz). Higher Q = more selective coupling, longer ring-out, more "crystalline." Lower Q = broader coupling, shorter ring, more "wash." |
 
-### Design Note
+### Design Notes
 
-This is the only global (non-per-voice) physical modelling component. It lives post-voice-accumulation, pre-master-gain. The resonator bank is rebuilt whenever the set of active notes changes (voice on/off events).
+1. **Global component:** This is the only global (non-per-voice) physical modelling component. It lives post-voice-accumulation, pre-master-gain.
+
+2. **Shared resonance field, not coupling matrix:** The resonators ARE the coupling mechanism. A resonator tuned to 880 Hz will naturally respond to energy at 880 Hz in the global voice sum, regardless of which voice produced it. No explicit frequency-matching logic or coupling matrix is needed — the bandpass response of each resonator implicitly computes the coupling. This is simpler, cheaper, and produces equivalent results.
+
+3. **Why no coupling matrix:** A precomputed coupling matrix C[i][j] with Lorentzian weighting duplicates what the resonators already do. The resonator's transfer function IS a Lorentzian (second-order bandpass). Feeding the global sum into all resonators achieves the same frequency-selective coupling without any matrix computation. The key insight: don't model *who excites whom* — model *what frequencies are allowed to resonate*.
+
+4. **Unidirectional coupling:** Sympathetic output does not feed back into the voice models. This matches the physics (weak coupling regime where back-reaction is negligible) and guarantees stability without requiring energy-conserving numerical schemes.
+
+5. **Anti-mud filtering (critical):** Without frequency-dependent damping, sympathetic resonance produces low-frequency buildup and harmonic smear that makes chords sound muddy. This is the primary failure mode cited in both academic literature (Lehtonen et al. 2007) and commercial synthesizer forums (PianoClack, KVR). The anti-mud filter is not optional — it is essential for musical usability.
+
+6. **Frequency merging:** When two voices share a harmonic (e.g., C4 and C5 both have a partial at 1046.5 Hz), don't create two resonators — merge them into one. This naturally reduces CPU cost for consonant chords (where many partials overlap) and avoids double-counting.
+
+7. **Perceptual shortcuts (from Lehtonen et al. 2007):** Research shows that sympathetic resonance from only the first 4-6 partials per voice captures ~95% of audible sympathetic energy. Higher partials add subtle "shimmer" but at diminishing returns. Start with 4 partials per voice; tune upward only if the effect sounds too thin.
+
+8. **Amplitude weighting:** Using 1/√n (where n is partial number) for resonator gain provides a perceptually balanced rolloff. The alternative 1/n suppresses higher partials too aggressively and makes the effect inaudible above the 2nd partial. The alternative of flat weighting creates too much high-frequency content. 1/√n is a good middle ground confirmed by listening tests in piano synthesis literature.
+
+9. **Optional nonlinear saturation (stretch goal):** To make the resonance field feel more "alive," a subtle nonlinearity inside the resonator loop can mimic how a real soundboard saturates when driven hard by a loud chord. A soft-clip or `tanh()` waveshaper on the resonator state, applied only when the total sympathetic energy exceeds a threshold, would add phantom partials and subtle distortion that breathe life into dense chords. This is a refinement for after the linear model is validated — do not add it in the initial implementation.
 
 ### Success Criteria
 
-- [ ] Single note: no audible effect (nothing to sympathize with)
-- [ ] Octave: strong reinforcement (all harmonics shared)
-- [ ] Fifth: characteristic shimmer (alternating partial reinforcement)
-- [ ] Dissonant interval: minimal effect (few shared harmonics)
-- [ ] Voice steal: sympathetic ring-out persists briefly after voice dies
-- [ ] CPU cost scales with total active partials, not voice count × partials
+- [ ] Single note: minimal self-reinforcement only (slight sustain extension, no ringing artefacts)
+- [ ] Octave: strong reinforcement (all harmonics of the upper note align with even harmonics of the lower — maximum overlap)
+- [ ] Fifth (3:2): characteristic shimmer (partials align at 3rd harmonic of upper / 2nd of lower, then every 2nd-3rd partial thereafter — alternating reinforcement pattern)
+- [ ] Fourth (4:3): moderate, subtler reinforcement than fifth
+- [ ] Major third (5:4): sparse, delicate effect — only every 4th-5th partial overlaps
+- [ ] Dissonant interval (minor second, tritone): minimal to no effect (very few shared harmonics)
+- [ ] Voice steal: sympathetic ring-out persists after voice dies (resonators continue to decay naturally at their Q-determined rate)
+- [ ] Near-unison beating: two voices ~1 Hz apart produce audible sympathetic beating (not merged into a single resonator)
+- [ ] CPU: bypassed entirely when Amount = 0.0; when active, cost scales with total active resonators (merged), not voice count × partials
+- [ ] Pool cap: rapid tremolo/arpeggios do not exceed 64 resonators (128 in Ultra mode) — oldest/quietest evicted gracefully
+- [ ] No feedback instability: unidirectional coupling guarantees bounded output regardless of parameter settings
+- [ ] Anti-mud: dense chords (4+ voices) remain clear — no low-frequency buildup or harmonic smear
+- [ ] Frequency-dependent decay: high-frequency sympathetic partials decay faster than low ones (soundboard absorption model)
+- [ ] Coupling hierarchy validated: octave interval produces more sympathetic energy than fifth, which produces more than major third (matching the physical coupling hierarchy)
 
 ---
 
@@ -1883,7 +2026,7 @@ All physical modelling parameters in the 800–899 range:
 852  kBodyMixId              // Phase 5
 
 860  kSympatheticAmountId    // Phase 6
-861  kSympatheticDampingId   // Phase 6
+861  kSympatheticDecayId     // Phase 6
 ```
 
 ---

@@ -491,8 +491,8 @@ Key rules:
 
 ### 12.2 Final Commit
 
-- [ ] T066 Commit architecture documentation updates
-- [ ] T067 Verify all spec work is committed to the `132-sympathetic-resonance` feature branch (`git status` shows clean working tree)
+- [X] T066 Commit architecture documentation updates
+- [X] T067 Verify all spec work is committed to the `132-sympathetic-resonance` feature branch (`git status` shows clean working tree)
 
 **Checkpoint**: Architecture documentation reflects all new functionality.
 
