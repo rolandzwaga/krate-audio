@@ -118,6 +118,18 @@ public:
     /// Set the collapsed state. Fires collapseCallback if state changes.
     virtual void setCollapsed(bool collapsed) = 0;
 
+    /// Show or hide the collapse toggle button in the lane header.
+    virtual void setCollapseVisible(bool visible) = 0;
+
+    /// Set per-lane speed multiplier display value.
+    virtual void setSpeedMultiplier(float speed) = 0;
+
+    /// Set the parameter ID for the lane speed control.
+    virtual void setSpeedParamId(uint32_t id) = 0;
+
+    /// Set callback for lane speed changes.
+    virtual void setSpeedParamCallback(std::function<void(uint32_t, float)> cb) = 0;
+
     /// Set the current playhead step (-1 = no playhead).
     virtual void setPlayheadStep(int32_t step) = 0;
 

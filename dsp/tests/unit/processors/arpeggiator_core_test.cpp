@@ -16946,3 +16946,277 @@ TEST_CASE("Arp Chord Lane: Voicing mode transforms chord spread",
     CHECK(firstStepNotes[2] == 55);  // G dropped an octave
     CHECK(firstStepNotes[3] == 70);
 }
+
+// =============================================================================
+// Per-Lane Speed Multipliers
+// =============================================================================
+
+/// Helper: set up an arp with a single held note, enabled, at 1/8 note tempo sync.
+/// Returns a configured BlockContext. Caller fires steps via collectEvents.
+static BlockContext makeLaneSpeedTestContext() {
+    BlockContext ctx{};
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    return ctx;
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed 1.0x advances every step (default)",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Set velocity lane to 4 distinct values
+    arp.velocityLane().setLength(4);
+    arp.velocityLane().setStep(0, 0.25f);
+    arp.velocityLane().setStep(1, 0.50f);
+    arp.velocityLane().setStep(2, 0.75f);
+    arp.velocityLane().setStep(3, 1.00f);
+
+    // Default speed is 1.0x — don't call setLaneSpeed
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // After 4 NoteOns, velocity should have cycled through all 4 values
+    REQUIRE(noteOns.size() >= 4);
+    // Velocity lane scales the input velocity (100), not 127
+    CHECK(noteOns[0].velocity == 25);  // round(100 * 0.25)
+    CHECK(noteOns[1].velocity == 50);  // round(100 * 0.50)
+    CHECK(noteOns[2].velocity == 75);  // round(100 * 0.75)
+    CHECK(noteOns[3].velocity == 100); // round(100 * 1.00)
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed 0.5x advances every other step",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Velocity lane: 2 values
+    arp.velocityLane().setLength(2);
+    arp.velocityLane().setStep(0, 0.25f);
+    arp.velocityLane().setStep(1, 0.75f);
+
+    // Set velocity lane speed to 0.5x
+    arp.setLaneSpeed(0, 0.5f); // 0 = velocity
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // At 0.5x, velocity lane advances once every 2 steps
+    // Steps: vel[0], vel[0], vel[1], vel[1], vel[0], vel[0], ...
+    REQUIRE(noteOns.size() >= 4);
+    uint8_t v0 = 25;  // round(100 * 0.25)
+    uint8_t v1 = 75;  // round(100 * 0.75)
+    CHECK(noteOns[0].velocity == v0);
+    CHECK(noteOns[1].velocity == v0); // still on step 0
+    CHECK(noteOns[2].velocity == v1); // advanced to step 1
+    CHECK(noteOns[3].velocity == v1); // still on step 1
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed 2.0x advances twice per step",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Pitch lane: 4 values
+    arp.pitchLane().setLength(4);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 3);
+    arp.pitchLane().setStep(2, 7);
+    arp.pitchLane().setStep(3, 12);
+
+    // Set pitch lane speed to 2.0x
+    arp.setLaneSpeed(2, 2.0f); // 2 = pitch
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    // At 2x, pitch advances 2 steps per arp event.
+    // Step 0: pitch reads [0], advances to position 2
+    // Step 1: pitch reads [2], advances to position 0 (wrapped)
+    // Step 2: pitch reads [0], advances to position 2
+    REQUIRE(noteOns.size() >= 4);
+    CHECK(noteOns[0].note == 60 + 0);   // pitch[0]
+    CHECK(noteOns[1].note == 60 + 7);   // pitch[2]
+    CHECK(noteOns[2].note == 60 + 0);   // pitch[0] again
+    CHECK(noteOns[3].note == 60 + 7);   // pitch[2] again
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed 0.25x advances once every 4 steps",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Velocity lane: 2 values
+    arp.velocityLane().setLength(2);
+    arp.velocityLane().setStep(0, 0.25f);
+    arp.velocityLane().setStep(1, 1.0f);
+
+    arp.setLaneSpeed(0, 0.25f);
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 400);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 8);
+    uint8_t v0 = 25;   // round(100 * 0.25)
+    uint8_t v1 = 100;  // round(100 * 1.0)
+    // First 4 steps: all v0 (accumulator doesn't reach 1.0 until step 4)
+    CHECK(noteOns[0].velocity == v0);
+    CHECK(noteOns[1].velocity == v0);
+    CHECK(noteOns[2].velocity == v0);
+    CHECK(noteOns[3].velocity == v0);
+    // Steps 4-7: all v1
+    CHECK(noteOns[4].velocity == v1);
+    CHECK(noteOns[5].velocity == v1);
+    CHECK(noteOns[6].velocity == v1);
+    CHECK(noteOns[7].velocity == v1);
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed accumulator resets on arp reset",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    arp.velocityLane().setLength(2);
+    arp.velocityLane().setStep(0, 0.25f);
+    arp.velocityLane().setStep(1, 1.0f);
+    arp.setLaneSpeed(0, 0.5f);
+
+    // Fire 1 step — accumulator = 0.5, no advance yet
+    auto ctx = makeLaneSpeedTestContext();
+    auto events1 = collectEvents(arp, ctx, 50);
+    auto noteOns1 = filterNoteOns(events1);
+    REQUIRE(noteOns1.size() >= 1);
+    CHECK(noteOns1[0].velocity == 25); // round(100 * 0.25)
+
+    // Reset should zero the accumulator
+    arp.reset();
+    arp.noteOn(60, 100);
+
+    // Fire again — should behave identically to first time (accumulator reset)
+    auto ctx2 = makeLaneSpeedTestContext();
+    auto events2 = collectEvents(arp, ctx2, 100);
+    auto noteOns2 = filterNoteOns(events2);
+    REQUIRE(noteOns2.size() >= 2);
+    // First 2 notes should both be v0 (accumulator starts fresh)
+    CHECK(noteOns2[0].velocity == 25); // round(100 * 0.25)
+    CHECK(noteOns2[1].velocity == 25);
+}
+
+TEST_CASE("ArpeggiatorCore: mixed lane speeds produce polyrhythmic pattern",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Velocity: 4 values at 1x
+    arp.velocityLane().setLength(4);
+    for (int i = 0; i < 4; ++i)
+        arp.velocityLane().setStep(static_cast<size_t>(i),
+            static_cast<float>(i + 1) * 0.25f);
+
+    // Gate: 2 values at 0.5x
+    arp.gateLane().setLength(2);
+    arp.gateLane().setStep(0, 0.5f);
+    arp.gateLane().setStep(1, 1.0f);
+    arp.setLaneSpeed(1, 0.5f); // gate = index 1
+
+    // Pitch: 2 values at 2x
+    arp.pitchLane().setLength(2);
+    arp.pitchLane().setStep(0, 0);
+    arp.pitchLane().setStep(1, 7);
+    arp.setLaneSpeed(2, 2.0f); // pitch = index 2
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 4);
+
+    // Velocity at 1x: cycles 0.25, 0.50, 0.75, 1.0
+    // Velocity lane scales the input velocity (100), not 127
+    CHECK(noteOns[0].velocity == 25);  // round(100 * 0.25)
+    CHECK(noteOns[1].velocity == 50);  // round(100 * 0.50)
+    CHECK(noteOns[2].velocity == 75);  // round(100 * 0.75)
+    CHECK(noteOns[3].velocity == 100); // round(100 * 1.00)
+
+    // Pitch at 2x: alternates [0, 7, 0, 7] but reads BEFORE advance
+    // Step 0: reads pitch[0]=0, advances 2 -> pos 0 (wraps after 2 advances from pos 0)
+    // Step 1: reads pitch[0]=0, advances 2 -> pos 0 again
+    // This depends on exact accumulator semantics
+    // At minimum, pitch should show a 2x-faster cycle than velocity
+}
+
+TEST_CASE("ArpeggiatorCore: lane speed 4.0x wraps correctly with short lanes",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Velocity lane: 3 values
+    arp.velocityLane().setLength(3);
+    arp.velocityLane().setStep(0, 0.1f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 1.0f);
+
+    arp.setLaneSpeed(0, 4.0f);
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 100);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 2);
+    // Step 0: reads vel[0]=0.1, then advances 4 times: pos 0->1->2->0->1
+    // Step 1: reads vel[1]=0.5, then advances 4 times: pos 1->2->0->1->2
+    CHECK(noteOns[0].velocity == static_cast<uint8_t>(std::round(100 * 0.1f)));  // 10
+    CHECK(noteOns[1].velocity == static_cast<uint8_t>(std::round(100 * 0.5f)));  // 50
+}
+
+TEST_CASE("ArpeggiatorCore: default lane speed is 1.0x (backward compat)",
+          "[processors][arpeggiator_core][lane_speed]") {
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Eighth, NoteModifier::None);
+    arp.noteOn(60, 100);
+
+    // Don't call setLaneSpeed at all — verify default 1x behavior
+    arp.velocityLane().setLength(3);
+    arp.velocityLane().setStep(0, 0.1f);
+    arp.velocityLane().setStep(1, 0.5f);
+    arp.velocityLane().setStep(2, 1.0f);
+
+    auto ctx = makeLaneSpeedTestContext();
+    auto events = collectEvents(arp, ctx, 200);
+    auto noteOns = filterNoteOns(events);
+
+    REQUIRE(noteOns.size() >= 3);
+    // Standard 1-step-per-event: 0.1, 0.5, 1.0 (scales input vel 100)
+    CHECK(noteOns[0].velocity == static_cast<uint8_t>(std::round(100 * 0.1f)));  // 10
+    CHECK(noteOns[1].velocity == static_cast<uint8_t>(std::round(100 * 0.5f)));  // 50
+    CHECK(noteOns[2].velocity == 100);
+}

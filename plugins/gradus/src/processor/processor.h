@@ -1,0 +1,81 @@
+#pragma once
+
+// ==============================================================================
+// Gradus Processor — Audio Thread Component
+// ==============================================================================
+
+#include "../parameters/arpeggiator_params.h"
+#include "../dsp/audition_voice.h"
+
+#include <krate/dsp/processors/arpeggiator_core.h>
+
+#include "public.sdk/source/vst/vstaudioeffect.h"
+
+#include <array>
+#include <atomic>
+
+namespace Gradus {
+
+class Processor : public Steinberg::Vst::AudioEffect
+{
+public:
+    Processor();
+    ~Processor() override = default;
+
+    // --- IAudioProcessor ---
+    Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown* context) override;
+    Steinberg::tresult PLUGIN_API terminate() override;
+    Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+    Steinberg::tresult PLUGIN_API setupProcessing(
+        Steinberg::Vst::ProcessSetup& setup) override;
+    Steinberg::tresult PLUGIN_API setBusArrangements(
+        Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
+        Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
+    Steinberg::tresult PLUGIN_API process(
+        Steinberg::Vst::ProcessData& data) override;
+    Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
+    Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
+
+    static Steinberg::FUnknown* createInstance(void*)
+    {
+        return static_cast<Steinberg::Vst::IAudioProcessor*>(new Processor());
+    }
+
+private:
+    // Parameter handling
+    void processParameterChanges(Steinberg::Vst::IParameterChanges* changes);
+    void applyParamsToEngine();
+
+    // Arpeggiator
+    Krate::DSP::ArpeggiatorCore arpCore_;
+    std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
+    ArpeggiatorParams arpParams_;
+
+    // Previous arp param values — only call setters that reset internal state
+    // when the value actually changes.
+    Krate::DSP::ArpMode prevArpMode_{Krate::DSP::ArpMode::Up};
+    int prevArpOctaveRange_{1};
+    Krate::DSP::OctaveMode prevArpOctaveMode_{Krate::DSP::OctaveMode::Sequential};
+    int prevArpNoteValue_{10};
+    Krate::DSP::LatchMode prevArpLatchMode_{Krate::DSP::LatchMode::Off};
+    Krate::DSP::ArpRetriggerMode prevArpRetrigger_{Krate::DSP::ArpRetriggerMode::Off};
+
+    // Transport state
+    bool wasTransportPlaying_{false};
+    bool hostSupportsTransport_{false};
+    double prevProjectTimeMusic_{-1.0};
+
+    // Audition voice
+    AuditionVoice auditionVoice_;
+
+    // Audition sound params
+    std::atomic<bool>  auditionEnabled_{true};
+    std::atomic<float> auditionVolume_{0.7f};
+    std::atomic<int>   auditionWaveform_{0};
+    std::atomic<float> auditionDecay_{200.0f};
+
+    double sampleRate_ = 44100.0;
+    Steinberg::int32 maxBlockSize_ = 512;
+};
+
+} // namespace Gradus

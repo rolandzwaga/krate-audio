@@ -76,6 +76,11 @@ public:
         lengthParamCallback_ = std::move(cb);
     }
 
+    void setSpeedParamId(uint32_t id) { speedParamId_ = id; }
+    void setSpeedParamCallback(std::function<void(uint32_t, float)> cb) {
+        speedParamCallback_ = std::move(cb);
+    }
+
     // =========================================================================
     // Transform Button Constants (Phase 11c)
     // =========================================================================
@@ -114,6 +119,12 @@ public:
 
     void setCollapsed(bool collapsed) { isCollapsed_ = collapsed; }
     [[nodiscard]] bool isCollapsed() const { return isCollapsed_; }
+
+    void setCollapseVisible(bool visible) { collapseVisible_ = visible; }
+    [[nodiscard]] bool isCollapseVisible() const { return collapseVisible_; }
+
+    void setSpeedMultiplier(float speed) { speedMultiplier_ = speed; }
+    [[nodiscard]] float getSpeedMultiplier() const { return speedMultiplier_; }
 
     [[nodiscard]] float getHeight() const { return kHeight; }
 
@@ -338,6 +349,26 @@ public:
             context->drawGraphicsPath(triPath, VSTGUI::CDrawContext::kPathFilled);
         }
 
+        // Speed multiplier label (after length dropdown) — always visible
+        {
+            bool isDefault = std::abs(speedMultiplier_ - 1.0f) < 0.01f;
+            VSTGUI::CColor speedColor = isDefault
+                ? VSTGUI::CColor{100, 100, 108, 255}   // dim gray at 1x
+                : VSTGUI::CColor{accentColor_.red, accentColor_.green, accentColor_.blue, 200};
+            context->setFontColor(speedColor);
+
+            char speedBuf[8];
+            if (speedMultiplier_ == static_cast<int>(speedMultiplier_))
+                snprintf(speedBuf, sizeof(speedBuf), "%dx", static_cast<int>(speedMultiplier_));
+            else
+                snprintf(speedBuf, sizeof(speedBuf), "%.2gx", speedMultiplier_);
+
+            static constexpr float kSpeedLabelX = kLengthDropdownX + kLengthDropdownWidth + 4.0f;
+            VSTGUI::CRect speedRect(headerRect.left + kSpeedLabelX, headerRect.top + 1.0,
+                                     headerRect.left + kSpeedLabelX + 32.0, headerRect.top + kHeight - 1.0);
+            context->drawString(VSTGUI::UTF8String(speedBuf), speedRect, VSTGUI::kLeftText);
+        }
+
         // Transform buttons (right-aligned)
         drawTransformButtons(context, headerRect);
     }
@@ -356,7 +387,7 @@ public:
         float localX = static_cast<float>(where.x - headerRect.left);
 
         // Toggle zone is the left ~24px (triangle + padding)
-        if (localX < 24.0f) {
+        if (collapseVisible_ && localX < 24.0f) {
             isCollapsed_ = !isCollapsed_;
             if (collapseCallback_) {
                 collapseCallback_();
@@ -368,6 +399,14 @@ public:
         if (localX >= kLengthDropdownX &&
             localX < kLengthDropdownX + kLengthDropdownWidth) {
             openLengthDropdown(where, frame);
+            return true;
+        }
+
+        // Speed label click zone
+        static constexpr float kSpeedLabelX = kLengthDropdownX + kLengthDropdownWidth + 4.0f;
+        static constexpr float kSpeedLabelWidth = 32.0f;
+        if (localX >= kSpeedLabelX && localX < kSpeedLabelX + kSpeedLabelWidth) {
+            openSpeedDropdown(where, frame);
             return true;
         }
 
@@ -386,6 +425,8 @@ private:
 
     void drawCollapseTriangle(VSTGUI::CDrawContext* context,
                               const VSTGUI::CRect& headerRect) {
+        if (!collapseVisible_) return;
+
         auto path = VSTGUI::owned(context->createGraphicsPath());
         if (!path) return;
 
@@ -441,6 +482,51 @@ private:
                 if (lengthParamCallback_ && lengthParamId_ != 0) {
                     float normalized = static_cast<float>(newSteps - 1) / 31.0f;
                     lengthParamCallback_(lengthParamId_, normalized);
+                }
+            }
+        }
+
+        menu->forget();
+    }
+
+    void openSpeedDropdown(const VSTGUI::CPoint& where,
+                            VSTGUI::CFrame* frame) {
+        if (!frame) return;
+
+        static constexpr float kSpeedValues[] = {
+            0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f
+        };
+        static constexpr int kSpeedCount = 10;
+
+        VSTGUI::CRect menuRect(where.x, where.y, where.x + 1, where.y + 1);
+        auto* menu = new VSTGUI::COptionMenu(menuRect, nullptr, -1);
+
+        int currentIdx = 3; // default 1x
+        for (int i = 0; i < kSpeedCount; ++i) {
+            char buf[8];
+            if (kSpeedValues[i] == static_cast<int>(kSpeedValues[i]))
+                snprintf(buf, sizeof(buf), "%dx", static_cast<int>(kSpeedValues[i]));
+            else
+                snprintf(buf, sizeof(buf), "%.2gx", kSpeedValues[i]);
+            menu->addEntry(buf);
+            if (std::abs(kSpeedValues[i] - speedMultiplier_) < 0.01f)
+                currentIdx = i;
+        }
+        menu->setCurrent(currentIdx);
+
+        menu->setListener(nullptr);
+        menu->popup(frame, where);
+
+        int selectedIndex = menu->getCurrentIndex();
+        if (selectedIndex >= 0 && selectedIndex < kSpeedCount) {
+            float newSpeed = kSpeedValues[selectedIndex];
+            if (std::abs(newSpeed - speedMultiplier_) > 0.01f) {
+                speedMultiplier_ = newSpeed;
+
+                if (speedParamCallback_ && speedParamId_ != 0) {
+                    float normalized = static_cast<float>(selectedIndex) /
+                        static_cast<float>(kSpeedCount - 1);
+                    speedParamCallback_(speedParamId_, normalized);
                 }
             }
         }
@@ -584,10 +670,14 @@ private:
     std::string laneName_;
     VSTGUI::CColor accentColor_{208, 132, 92, 255};
     bool isCollapsed_ = false;
+    bool collapseVisible_ = true;
+    float speedMultiplier_ = 1.0f;
     int numSteps_ = 16;
     uint32_t lengthParamId_ = 0;
+    uint32_t speedParamId_ = 0;
     std::function<void()> collapseCallback_;
     std::function<void(uint32_t, float)> lengthParamCallback_;
+    std::function<void(uint32_t, float)> speedParamCallback_;
 
     // Phase 11c: transform + copy/paste callbacks and state
     TransformCallback transformCallback_;

@@ -101,6 +101,9 @@ public:
         return value;
     }
 
+    /// @brief Read current step value without advancing.
+    [[nodiscard]] T currentValue() const noexcept { return steps_[position_]; }
+
     /// @brief Reset position to step 0.
     void reset() noexcept { position_ = 0; }
 

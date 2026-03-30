@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+    <!-- Named Colors -->
+    <colors>
+        <color name="bg" rgba="#1a1a2eff"/>
+        <color name="bg-panel" rgba="#242438ff"/>
+        <color name="text" rgba="#e0e0e0ff"/>
+        <color name="text-secondary" rgba="#909098ff"/>
+        <color name="text-menu" rgba="#d0d0d8ff"/>
+        <color name="arpeggiator" rgba="#C87850ff"/>
+        <color name="knob-guide" rgba="#404050ff"/>
+        <color name="bg-dropdown" rgba="#2a2a3eff"/>
+        <color name="frame-dropdown" rgba="#505060ff"/>
+
+        <!-- Lane accent colors -->
+        <color name="arp.velocity.accent" rgba="#D0845Cff"/>
+        <color name="arp.velocity.dim" rgba="#D0845C66"/>
+        <color name="arp.velocity.fill" rgba="#D0845C40"/>
+        <color name="arp.gate.accent" rgba="#C8A464ff"/>
+        <color name="arp.gate.dim" rgba="#C8A46466"/>
+        <color name="arp.gate.fill" rgba="#C8A46440"/>
+        <color name="arp.pitch.accent" rgba="#6CA8A0ff"/>
+        <color name="arp.pitch.dim" rgba="#6CA8A066"/>
+        <color name="arp.pitch.fill" rgba="#6CA8A040"/>
+        <color name="arp.ratchet.accent" rgba="#9880B0ff"/>
+        <color name="arp.ratchet.dim" rgba="#9880B066"/>
+        <color name="arp.ratchet.fill" rgba="#9880B040"/>
+        <color name="arp.modifier.accent" rgba="#C0707Cff"/>
+        <color name="arp.modifier.dim" rgba="#C0707C66"/>
+        <color name="arp.modifier.fill" rgba="#C0707C40"/>
+        <color name="arp.condition.accent" rgba="#7C90B0ff"/>
+        <color name="arp.condition.dim" rgba="#7C90B066"/>
+        <color name="arp.condition.fill" rgba="#7C90B040"/>
+        <color name="arp.bottombar.neutral" rgba="#606068ff"/>
+    </colors>
+
+    <!-- Control Tags (parameter bindings) -->
+    <control-tags>
+        <!-- Arp base controls -->
+        <control-tag name="ArpMode" tag="3001"/>
+        <control-tag name="ArpOctaveRange" tag="3002"/>
+        <control-tag name="ArpOctaveMode" tag="3003"/>
+        <control-tag name="ArpTempoSync" tag="3004"/>
+        <control-tag name="ArpNoteValue" tag="3005"/>
+        <control-tag name="ArpFreeRate" tag="3006"/>
+        <control-tag name="ArpGateLength" tag="3007"/>
+        <control-tag name="ArpSwing" tag="3008"/>
+        <control-tag name="ArpLatchMode" tag="3009"/>
+        <control-tag name="ArpRetrigger" tag="3010"/>
+
+        <!-- Euclidean -->
+        <control-tag name="ArpEuclideanEnabled" tag="3230"/>
+        <control-tag name="ArpEuclideanHits" tag="3231"/>
+        <control-tag name="ArpEuclideanSteps" tag="3232"/>
+        <control-tag name="ArpEuclideanRotation" tag="3233"/>
+
+        <!-- Generative -->
+        <control-tag name="ArpFillToggle" tag="3280"/>
+        <control-tag name="ArpSpice" tag="3290"/>
+        <control-tag name="ArpDiceTrigger" tag="3291"/>
+        <control-tag name="ArpHumanize" tag="3292"/>
+        <control-tag name="ArpRatchetSwing" tag="3293"/>
+
+        <!-- Scale -->
+        <control-tag name="ArpScaleType" tag="3300"/>
+        <control-tag name="ArpRootNote" tag="3301"/>
+        <control-tag name="ArpScaleQuantizeInput" tag="3302"/>
+
+        <!-- Chord -->
+        <control-tag name="ArpVoicingMode" tag="3370"/>
+
+        <!-- Audition -->
+        <control-tag name="AuditionEnabled" tag="4000"/>
+        <control-tag name="AuditionVolume" tag="4001"/>
+        <control-tag name="AuditionWaveform" tag="4002"/>
+        <control-tag name="AuditionDecay" tag="4003"/>
+    </control-tags>
+
+    <!-- ================================================================ -->
+    <!-- Gradus - Step Arpeggiator                                       -->
+    <!-- Layout: 900 x 860                                               -->
+    <!-- ================================================================ -->
+    <template name="editor" size="900, 860"
+              background-color="bg"
+              class="CViewContainer">
+
+        <!-- ============================================================ -->
+        <!-- 1. Header row (y=0, h=36)                                   -->
+        <!-- ============================================================ -->
+        <view class="CViewContainer" origin="0, 0" size="900, 36"
+              background-color="bg-panel">
+            <view class="CTextLabel" origin="12, 0" size="120, 36"
+                  font="~ NormalFontBig" font-color="arpeggiator"
+                  text-alignment="left" transparent="true"
+                  title="GRADUS"/>
+            <view class="CTextLabel" origin="132, 0" size="200, 36"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="left" transparent="true"
+                  title="Step Arpeggiator"/>
+        </view>
+
+        <!-- ============================================================ -->
+        <!-- 2. Control row 1 (y=36, h=32) — Dropdowns                  -->
+        <!-- ============================================================ -->
+        <view class="CViewContainer" origin="0, 36" size="900, 32"
+              transparent="true">
+            <!-- Pattern -->
+            <view class="CTextLabel" origin="8, 0" size="48, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Pattern"/>
+            <view class="COptionMenu" origin="8, 13" size="80, 18"
+                  control-tag="ArpMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Arp pattern mode"/>
+
+            <!-- Octaves -->
+            <view class="CTextLabel" origin="96, 0" size="56, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Octaves"/>
+            <view class="COptionMenu" origin="96, 13" size="56, 18"
+                  control-tag="ArpOctaveRange" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Octave range"/>
+
+            <!-- Oct Mode -->
+            <view class="CTextLabel" origin="160, 0" size="64, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Oct Mode"/>
+            <view class="COptionMenu" origin="160, 13" size="64, 18"
+                  control-tag="ArpOctaveMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Octave traversal mode"/>
+
+            <!-- Latch -->
+            <view class="CTextLabel" origin="232, 0" size="56, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Latch"/>
+            <view class="COptionMenu" origin="232, 13" size="56, 18"
+                  control-tag="ArpLatchMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Latch mode"/>
+
+            <!-- Retrigger -->
+            <view class="CTextLabel" origin="296, 0" size="64, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Retrigger"/>
+            <view class="COptionMenu" origin="296, 13" size="64, 18"
+                  control-tag="ArpRetrigger" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Retrigger mode"/>
+
+            <!-- Scale -->
+            <view class="CTextLabel" origin="500, 0" size="80, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Scale"/>
+            <view class="COptionMenu" origin="500, 13" size="80, 18"
+                  control-tag="ArpScaleType" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Scale type"/>
+
+            <!-- Root -->
+            <view class="CTextLabel" origin="588, 0" size="48, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Root"/>
+            <view class="COptionMenu" origin="588, 13" size="48, 18"
+                  control-tag="ArpRootNote" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Root note"/>
+
+            <!-- Voicing -->
+            <view class="CTextLabel" origin="644, 0" size="72, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Voicing"/>
+            <view class="COptionMenu" origin="644, 13" size="72, 18"
+                  control-tag="ArpVoicingMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Voicing mode"/>
+
+            <!-- Scale Quantize Input toggle -->
+            <view class="ToggleButton" origin="810, 10" size="80, 18"
+                  control-tag="ArpScaleQuantizeInput"
+                  title="Quantize In"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Quantize input notes to scale"
+                  transparent="true"/>
+        </view>
+
+        <!-- ============================================================ -->
+        <!-- 3. Control row 2 (y=68, h=44) — Sync/Rate/Gate/Swing +     -->
+        <!--    Euclidean + Generative (merged)                          -->
+        <!-- ============================================================ -->
+        <view class="CViewContainer" origin="0, 68" size="900, 44"
+              transparent="true">
+
+            <!-- Tempo Sync toggle -->
+            <view class="ToggleButton" origin="8, 12" size="50, 20"
+                  control-tag="ArpTempoSync"
+                  title="Sync"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Tempo sync on/off"
+                  transparent="true"/>
+
+            <!-- Note Value dropdown -->
+            <view class="CTextLabel" origin="68, 2" size="56, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Note"/>
+            <view class="COptionMenu" origin="68, 14" size="56, 18"
+                  control-tag="ArpNoteValue" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Note value (tempo sync)"/>
+
+            <!-- Free Rate ArcKnob -->
+            <view class="CTextLabel" origin="134, 2" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Rate"/>
+            <view class="ArcKnob" origin="138, 13" size="28, 28"
+                  control-tag="ArpFreeRate" default-value="0.5"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  tooltip="Free rate (Hz)"/>
+
+            <!-- Gate Length -->
+            <view class="CTextLabel" origin="176, 2" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Gate"/>
+            <view class="ArcKnob" origin="180, 13" size="28, 28"
+                  control-tag="ArpGateLength" default-value="0.5"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  tooltip="Gate length"/>
+
+            <!-- Swing -->
+            <view class="CTextLabel" origin="218, 2" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Swing"/>
+            <view class="ArcKnob" origin="222, 13" size="28, 28"
+                  control-tag="ArpSwing" default-value="0.5"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  tooltip="Swing amount"/>
+
+            <!-- Separator -->
+            <view class="CTextLabel" origin="262, 6" size="1, 32"
+                  transparent="false" background-color="knob-guide"/>
+
+            <!-- Euclidean section -->
+            <view class="ToggleButton" origin="274, 12" size="60, 20"
+                  control-tag="ArpEuclideanEnabled"
+                  title="Euclid"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Enable Euclidean rhythm"
+                  transparent="true"/>
+
+            <view class="CTextLabel" origin="342, 2" size="32, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Hits"/>
+            <view class="ArcKnob" origin="344, 13" size="28, 28"
+                  control-tag="ArpEuclideanHits" default-value="0.5"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Euclidean hits"/>
+
+            <view class="CTextLabel" origin="380, 2" size="32, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Steps"/>
+            <view class="ArcKnob" origin="382, 13" size="28, 28"
+                  control-tag="ArpEuclideanSteps" default-value="0.5"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Euclidean steps"/>
+
+            <view class="CTextLabel" origin="418, 2" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Rotate"/>
+            <view class="ArcKnob" origin="424, 13" size="28, 28"
+                  control-tag="ArpEuclideanRotation" default-value="0"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Euclidean rotation"/>
+
+            <!-- Separator -->
+            <view class="CTextLabel" origin="464, 6" size="1, 32"
+                  transparent="false" background-color="knob-guide"/>
+
+            <!-- Generative section -->
+            <view class="CTextLabel" origin="476, 2" size="48, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Humanize"/>
+            <view class="ArcKnob" origin="486, 13" size="28, 28"
+                  control-tag="ArpHumanize" default-value="0"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Humanize timing"/>
+
+            <view class="CTextLabel" origin="524, 2" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Spice"/>
+            <view class="ArcKnob" origin="528, 13" size="28, 28"
+                  control-tag="ArpSpice" default-value="0"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Spice — random note variation"/>
+
+            <view class="CTextLabel" origin="566, 2" size="48, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Rtch Swg"/>
+            <view class="ArcKnob" origin="576, 13" size="28, 28"
+                  control-tag="ArpRatchetSwing" default-value="0.5"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  tooltip="Ratchet swing"/>
+
+            <!-- Dice button -->
+            <view class="ActionButton" origin="618, 14" size="24, 24"
+                  control-tag="ArpDiceTrigger" default-value="0"
+                  icon-style="regen" color="arp.bottombar.neutral"
+                  tooltip="Dice: randomize pattern variation"
+                  background-color="bg" transparent="false"/>
+
+            <!-- Fill toggle -->
+            <view class="ToggleButton" origin="652, 12" size="44, 20"
+                  control-tag="ArpFillToggle"
+                  title="Fill"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="arpeggiator"
+                  text-color="arpeggiator"
+                  tooltip="Fill mode"
+                  transparent="true"/>
+
+            <!-- Separator -->
+            <view class="CTextLabel" origin="710, 6" size="1, 32"
+                  transparent="false" background-color="knob-guide"/>
+
+            <!-- Preset buttons (wrapped in positioned containers) -->
+            <view class="CViewContainer" origin="722, 12" size="60, 20"
+                  transparent="true">
+                <view custom-view-name="PresetBrowserButton"
+                      origin="0, 0" size="60, 20"/>
+            </view>
+            <view class="CViewContainer" origin="790, 12" size="48, 20"
+                  transparent="true">
+                <view custom-view-name="SavePresetButton"
+                      origin="0, 0" size="48, 20"/>
+            </view>
+        </view>
+
+        <!-- ============================================================ -->
+        <!-- 4. Lane container (y=112, h=710) — all 8 lanes, no scroll  -->
+        <!-- ============================================================ -->
+        <view class="ArpLaneContainer" origin="8, 112" size="884, 710"
+              transparent="false"
+              custom-view-name="ArpLaneContainer"/>
+
+        <!-- ============================================================ -->
+        <!-- 5. Footer (y=826, h=34) — Audition + Krate Audio           -->
+        <!-- ============================================================ -->
+        <view class="CViewContainer" origin="0, 826" size="900, 34"
+              transparent="true">
+
+            <!-- Audition controls (left side) -->
+            <view class="ToggleButton" origin="8, 7" size="60, 20"
+                  control-tag="AuditionEnabled"
+                  title="Audition"
+                  title-position="right"
+                  font="~ NormalFontSmaller"
+                  font-color="text-secondary"
+                  text-color="text-secondary"
+                  tooltip="Enable built-in audition synth"
+                  transparent="true"/>
+
+            <view class="CTextLabel" origin="78, 2" size="28, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Vol"/>
+            <view class="ArcKnob" origin="78, 3" size="28, 28"
+                  control-tag="AuditionVolume" default-value="0.7"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  popup-position="top"
+                  tooltip="Audition volume"/>
+
+            <view class="CTextLabel" origin="116, 2" size="40, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Wave"/>
+            <view class="COptionMenu" origin="116, 9" size="56, 18"
+                  control-tag="AuditionWaveform" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Audition waveform"/>
+
+            <view class="CTextLabel" origin="182, 2" size="36, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Decay"/>
+            <view class="ArcKnob" origin="186, 3" size="28, 28"
+                  control-tag="AuditionDecay" default-value="0.5"
+                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
+                  popup-position="top"
+                  tooltip="Audition decay time"/>
+
+            <!-- Krate Audio label (right side) -->
+            <view class="CTextLabel" origin="680, 0" size="100, 34"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="right" transparent="true"
+                  title="Krate Audio"/>
+            <view class="CTextLabel" origin="786, 0" size="106, 34"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="right" transparent="true"
+                  custom-view-name="VersionLabel"
+                  title="v1.0.0"/>
+        </view>
+
+    </template>
+</vstgui-ui-description>

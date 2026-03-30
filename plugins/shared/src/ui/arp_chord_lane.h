@@ -147,6 +147,20 @@ public:
 
     [[nodiscard]] bool isCollapsed() const override { return header_.isCollapsed(); }
 
+    void setCollapseVisible(bool visible) override {
+        header_.setCollapseVisible(visible);
+    }
+
+    void setSpeedMultiplier(float speed) override {
+        header_.setSpeedMultiplier(speed);
+    }
+    void setSpeedParamId(uint32_t id) override {
+        header_.setSpeedParamId(id);
+    }
+    void setSpeedParamCallback(std::function<void(uint32_t, float)> cb) override {
+        header_.setSpeedParamCallback(std::move(cb));
+    }
+
     void setCollapsed(bool collapsed) override {
         bool wasCollapsed = header_.isCollapsed();
         header_.setCollapsed(collapsed);

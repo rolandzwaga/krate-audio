@@ -535,6 +535,14 @@ public:
     /// @brief Get the current voicing mode.
     [[nodiscard]] VoicingMode voicingMode() const noexcept { return voicingMode_; }
 
+    /// @brief Set per-lane speed multiplier.
+    /// Lane indices: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
+    ///               5=condition, 6=chord, 7=inversion
+    void setLaneSpeed(size_t laneIndex, float speed) noexcept {
+        if (laneIndex < 8)
+            laneSpeedMultipliers_[laneIndex] = std::clamp(speed, 0.25f, 4.0f);
+    }
+
     // =========================================================================
     // Fill Mode (076-conditional-trigs, FR-020, FR-021)
     // =========================================================================
@@ -1393,17 +1401,32 @@ private:
             const size_t ratchetStep = ratchetLane_.currentStep();
             const size_t condStep = conditionLane_.currentStep();
 
-            // Advance all lanes (once per step, regardless of chord size)
-            float velScale = velocityLane_.advance();
-            float gateScale = gateLane_.advance();
-            int8_t pitchOffset = pitchLane_.advance();
-            uint8_t modifierFlags = modifierLane_.advance();
-            uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.advance());  // 074-ratcheting (FR-004)
-            uint8_t condValue = conditionLane_.advance();  // 076-conditional-trigs (FR-006)
+            // Read current lane values BEFORE speed-based advancement
+            float velScale = velocityLane_.currentValue();
+            float gateScale = gateLane_.currentValue();
+            int8_t pitchOffset = pitchLane_.currentValue();
+            uint8_t modifierFlags = modifierLane_.currentValue();
+            uint8_t ratchetCount = std::max(uint8_t{1}, ratchetLane_.currentValue());
+            uint8_t condValue = conditionLane_.currentValue();
+            uint8_t chordTypeVal = chordLane_.currentValue();
+            uint8_t inversionVal = inversionLane_.currentValue();
 
-            // arp-chord-lane: advance chord and inversion lanes
-            uint8_t chordTypeVal = chordLane_.advance();
-            uint8_t inversionVal = inversionLane_.advance();
+            // Advance lanes using per-lane speed accumulators
+            auto advanceLaneBySpeed = [](auto& lane, float& accum, float speed) {
+                accum += speed;
+                while (accum >= 1.0f) {
+                    accum -= 1.0f;
+                    lane.advance();
+                }
+            };
+            advanceLaneBySpeed(velocityLane_,  laneAccumulators_[0], laneSpeedMultipliers_[0]);
+            advanceLaneBySpeed(gateLane_,      laneAccumulators_[1], laneSpeedMultipliers_[1]);
+            advanceLaneBySpeed(pitchLane_,     laneAccumulators_[2], laneSpeedMultipliers_[2]);
+            advanceLaneBySpeed(modifierLane_,  laneAccumulators_[3], laneSpeedMultipliers_[3]);
+            advanceLaneBySpeed(ratchetLane_,   laneAccumulators_[4], laneSpeedMultipliers_[4]);
+            advanceLaneBySpeed(conditionLane_, laneAccumulators_[5], laneSpeedMultipliers_[5]);
+            advanceLaneBySpeed(chordLane_,     laneAccumulators_[6], laneSpeedMultipliers_[6]);
+            advanceLaneBySpeed(inversionLane_, laneAccumulators_[7], laneSpeedMultipliers_[7]);
 
             // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
             if (spice_ > 0.0f) {
@@ -1908,10 +1931,17 @@ private:
             } // end ratchetCount == 1 else branch
         } else {
             // result.count == 0: buffer became empty between steps (defensive).
-            // Advance modifier lane in defensive branch too (FR-010)
-            modifierLane_.advance();
-            ratchetLane_.advance();          // 074-ratcheting: keep ratchet lane synchronized (FR-036)
-            conditionLane_.advance();        // 076-conditional-trigs: keep condition lane synchronized (FR-037)
+            // Advance lanes using speed accumulators to stay synchronized
+            auto advanceLaneDefensive = [](auto& lane, float& accum, float speed) {
+                accum += speed;
+                while (accum >= 1.0f) {
+                    accum -= 1.0f;
+                    lane.advance();
+                }
+            };
+            advanceLaneDefensive(modifierLane_,  laneAccumulators_[3], laneSpeedMultipliers_[3]);
+            advanceLaneDefensive(ratchetLane_,   laneAccumulators_[4], laneSpeedMultipliers_[4]);
+            advanceLaneDefensive(conditionLane_, laneAccumulators_[5], laneSpeedMultipliers_[5]);
             // 076-conditional-trigs: check condition lane wrap for loopCount_ increment (FR-037)
             if (conditionLane_.currentStep() == 0) {
                 ++loopCount_;
@@ -2051,6 +2081,8 @@ private:
         // velocityOverlay_, gateOverlay_, ratchetOverlay_, conditionOverlay_ preserved
         // spice_, humanize_ preserved (user-controlled parameters)
         // spiceDiceRng_, humanizeRng_ preserved (continuous randomness, like conditionRng_)
+        // Reset lane speed accumulators
+        laneAccumulators_.fill(0.0f);
     }
 
     // =========================================================================
@@ -2077,6 +2109,14 @@ private:
     ArpLane<uint8_t> chordLane_;     ///< Per-step ChordType (default: length=1, step[0]=0=None)
     ArpLane<uint8_t> inversionLane_; ///< Per-step InversionType (default: length=1, step[0]=0=Root)
     VoicingMode voicingMode_{VoicingMode::Close}; ///< Global voicing mode
+
+    // =========================================================================
+    // Per-Lane Speed Multipliers
+    // =========================================================================
+    // Lane index: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
+    //             5=condition, 6=chord, 7=inversion
+    std::array<float, 8> laneSpeedMultipliers_{{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
+    std::array<float, 8> laneAccumulators_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
     // =========================================================================
     // Modifier Configuration (073-per-step-mods)

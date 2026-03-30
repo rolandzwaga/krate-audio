@@ -1137,6 +1137,16 @@ void Processor::applyParamsToEngine() {
     arpCore_.setVoicingMode(static_cast<Krate::DSP::VoicingMode>(
         arpParams_.voicingMode.load(std::memory_order_relaxed)));
 
+    // Per-lane speed multipliers
+    arpCore_.setLaneSpeed(0, arpParams_.velocityLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(1, arpParams_.gateLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(2, arpParams_.pitchLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(3, arpParams_.modifierLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(4, arpParams_.ratchetLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(5, arpParams_.conditionLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(6, arpParams_.chordLaneSpeed.load(std::memory_order_relaxed));
+    arpCore_.setLaneSpeed(7, arpParams_.inversionLaneSpeed.load(std::memory_order_relaxed));
+
     // FR-017: setEnabled() LAST -- cleanup note-offs depend on all other params
     arpCore_.setEnabled(arpOpModeParam != kArpOff);
 }

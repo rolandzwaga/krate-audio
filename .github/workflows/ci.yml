@@ -55,6 +55,7 @@ jobs:
       disrumpo: ${{ steps.set-outputs.outputs.disrumpo }}
       ruinae: ${{ steps.set-outputs.outputs.ruinae }}
       innexus: ${{ steps.set-outputs.outputs.innexus }}
+      gradus: ${{ steps.set-outputs.outputs.gradus }}
       infra: ${{ steps.set-outputs.outputs.infra }}
     steps:
       - name: Checkout
@@ -78,6 +79,8 @@ jobs:
               - 'plugins/ruinae/**'
             innexus:
               - 'plugins/innexus/**'
+            gradus:
+              - 'plugins/gradus/**'
             infra:
               - 'tests/**'
               - 'extern/**'
@@ -95,7 +98,7 @@ jobs:
             echo "dsp=false" >> $GITHUB_OUTPUT
             echo "shared=false" >> $GITHUB_OUTPUT
             echo "infra=false" >> $GITHUB_OUTPUT
-            for p in iterum disrumpo ruinae innexus; do
+            for p in iterum disrumpo ruinae innexus gradus; do
               if [ "$p" = "$PLUGIN" ]; then
                 echo "$p=true" >> $GITHUB_OUTPUT
               else
@@ -110,6 +113,7 @@ jobs:
             echo "disrumpo=${{ steps.filter.outputs.disrumpo }}" >> $GITHUB_OUTPUT
             echo "ruinae=${{ steps.filter.outputs.ruinae }}" >> $GITHUB_OUTPUT
             echo "innexus=${{ steps.filter.outputs.innexus }}" >> $GITHUB_OUTPUT
+            echo "gradus=${{ steps.filter.outputs.gradus }}" >> $GITHUB_OUTPUT
             echo "infra=${{ steps.filter.outputs.infra }}" >> $GITHUB_OUTPUT
           fi
 
@@ -130,7 +134,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-vs-
 
@@ -167,6 +171,10 @@ jobs:
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus innexus_tests --parallel
 
+      - name: Build Gradus and Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus gradus_tests --parallel
+
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
@@ -186,6 +194,10 @@ jobs:
       - name: Run Innexus Tests
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -223,6 +235,14 @@ jobs:
           path: build/VST3/${{ env.BUILD_TYPE }}/Innexus.vst3
           if-no-files-found: warn
 
+      - name: Upload Gradus Artifact
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Gradus-Windows-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Gradus.vst3
+          if-no-files-found: warn
+
   build-macos:
     name: macOS (Clang)
     runs-on: macos-latest
@@ -251,7 +271,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
@@ -294,6 +314,10 @@ jobs:
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus Innexus_AU Innexus_AUV3 innexus_tests --parallel
 
+      - name: Build Gradus, AU, AUv3, and Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus Gradus_AU Gradus_AUV3 gradus_tests --parallel
+
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
@@ -313,6 +337,10 @@ jobs:
       - name: Run Innexus Tests
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -362,6 +390,17 @@ jobs:
           sleep 2
           auval -v aumu Innx KrAt
 
+      # Install AU and run auval validation for Gradus
+      - name: Run Gradus AU Validation
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          rm -rf ~/Library/Audio/Plug-Ins/Components/Gradus.component
+          cp -R build/VST3/${{ env.BUILD_TYPE }}/Gradus.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -v aumu Grad KrAt
+
       # Verify AUv3 bundle structure (per-plugin, matching build conditions)
       - name: Verify Iterum AUv3 Bundle
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -394,6 +433,14 @@ jobs:
           test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
           test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Innexus AUv3"; exit 1; }
           echo "[Innexus] AUv3 bundle OK"
+
+      - name: Verify Gradus AUv3 Bundle
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: |
+          APP="build/bin/${{ env.BUILD_TYPE }}/Gradus AUv3.app"
+          test -d "$APP" || { echo "FAIL: $APP not found"; exit 1; }
+          test -d "$APP/Contents/PlugIns" || { echo "FAIL: Missing PlugIns in Gradus AUv3"; exit 1; }
+          echo "[Gradus] AUv3 bundle OK"
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
@@ -444,6 +491,17 @@ jobs:
             build/bin/${{ env.BUILD_TYPE }}/Innexus AUv3.app
           if-no-files-found: warn
 
+      - name: Upload Gradus Artifacts
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Gradus-macOS
+          path: |
+            build/VST3/${{ env.BUILD_TYPE }}/Gradus.vst3
+            build/VST3/${{ env.BUILD_TYPE }}/Gradus.component
+            build/bin/${{ env.BUILD_TYPE }}/Gradus AUv3.app
+          if-no-files-found: warn
+
   # Linux build (optional per constitution - Platform Support Matrix)
   build-linux:
     name: Linux (GCC)
@@ -480,7 +538,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: build/_deps
-          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/iterum/CMakeLists.txt', 'plugins/ruinae/CMakeLists.txt', 'plugins/innexus/CMakeLists.txt', 'plugins/gradus/CMakeLists.txt', 'tests/CMakeLists.txt') }}
           restore-keys: |
             fetchcontent-${{ github.repository }}-${{ runner.os }}-
 
@@ -521,6 +579,10 @@ jobs:
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: cmake --build build --target Innexus innexus_tests --parallel
 
+      - name: Build Gradus and Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: cmake --build build --target Gradus gradus_tests --parallel
+
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
@@ -540,6 +602,10 @@ jobs:
       - name: Run Innexus Tests
         if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
         run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -580,4 +646,12 @@ jobs:
         with:
           name: Innexus-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Innexus.vst3
+          if-no-files-found: warn
+
+      - name: Upload Gradus Artifact
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Gradus-Linux-x64
+          path: build/VST3/${{ env.BUILD_TYPE }}/Gradus.vst3
           if-no-files-found: warn

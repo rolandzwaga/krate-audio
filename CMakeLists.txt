@@ -361,6 +361,7 @@ add_subdirectory(plugins/iterum)
 add_subdirectory(plugins/disrumpo)
 add_subdirectory(plugins/ruinae)
 add_subdirectory(plugins/innexus)
+add_subdirectory(plugins/gradus)
 
 # ==============================================================================
 # Tools (Shared development tools)
@@ -421,6 +422,23 @@ add_custom_target(generate_innexus_presets
     COMMAND innexus_preset_generator "${CMAKE_SOURCE_DIR}/plugins/innexus/resources/presets"
     DEPENDS innexus_preset_generator
     COMMENT "Generating Innexus factory presets (35 presets across 7 categories)"
+    VERBATIM
+)
+
+add_executable(gradus_preset_generator
+    tools/gradus_preset_generator.cpp
+)
+target_compile_features(gradus_preset_generator PRIVATE cxx_std_20)
+set_target_properties(gradus_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Custom target to regenerate Gradus factory presets on demand
+# Usage: cmake --build build --target generate_gradus_presets
+add_custom_target(generate_gradus_presets
+    COMMAND gradus_preset_generator "${CMAKE_SOURCE_DIR}/plugins/gradus/resources/presets"
+    DEPENDS gradus_preset_generator
+    COMMENT "Generating Gradus factory presets (25 presets across 8 categories)"
     VERBATIM
 )
 

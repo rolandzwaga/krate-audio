@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "name": "Gradus",
+  "description": "VST3 Step Arpeggiator",
+  "publisher": "Krate Audio",
+  "url": "https://rolandzwaga.github.io/krate-audio/gradus/",
+  "copyright": "Copyright (c) 2026 Krate Audio"
+}

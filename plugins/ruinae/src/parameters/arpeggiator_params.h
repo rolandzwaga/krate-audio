@@ -44,6 +44,13 @@ enum ArpOperatingMode {
     kArpMIDIMod = 3   // Arp dispatches notes AND outputs pitch as mod source
 };
 
+// Per-lane speed multiplier values (fixed discrete set)
+static constexpr float kLaneSpeedValues[] = {
+    0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f
+};
+static constexpr int kLaneSpeedCount = 10;
+static constexpr int kLaneSpeedDefault = 3; // index 3 = 1.0x
+
 struct ArpeggiatorParams {
     // Base arp params (Phase 3)
     std::atomic<int>   operatingMode{kArpOff};  // ArpOperatingMode (0-3)
@@ -119,6 +126,16 @@ struct ArpeggiatorParams {
 
     // --- Voicing Mode (arp-chord-lane) ---
     std::atomic<int>   voicingMode{0};             // 0-3 (VoicingMode, default 0=Close)
+
+    // --- Per-Lane Speed Multipliers ---
+    std::atomic<float> velocityLaneSpeed{1.0f};
+    std::atomic<float> gateLaneSpeed{1.0f};
+    std::atomic<float> pitchLaneSpeed{1.0f};
+    std::atomic<float> modifierLaneSpeed{1.0f};
+    std::atomic<float> ratchetLaneSpeed{1.0f};
+    std::atomic<float> conditionLaneSpeed{1.0f};
+    std::atomic<float> chordLaneSpeed{1.0f};
+    std::atomic<float> inversionLaneSpeed{1.0f};
 
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
@@ -425,6 +442,22 @@ inline void handleArpParamChange(
                     static_cast<int>(std::round(value * 3.0)), 0, 3);
                 params.inversionLaneSteps[id - kArpInversionLaneStep0Id].store(
                     step, std::memory_order_relaxed);
+            }
+            // Per-lane speed multipliers (3380-3387)
+            else if (id >= kArpVelocityLaneSpeedId && id <= kArpInversionLaneSpeedId) {
+                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))), 0, kLaneSpeedCount - 1);
+                float speed = kLaneSpeedValues[idx];
+                switch (id) {
+                    case kArpVelocityLaneSpeedId:  params.velocityLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpGateLaneSpeedId:      params.gateLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpPitchLaneSpeedId:     params.pitchLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpModifierLaneSpeedId:  params.modifierLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpRatchetLaneSpeedId:   params.ratchetLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpConditionLaneSpeedId: params.conditionLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpChordLaneSpeedId:     params.chordLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    case kArpInversionLaneSpeedId: params.inversionLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    default: break;
+                }
             }
             break;
     }
@@ -784,6 +817,31 @@ inline void registerArpParams(
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpChordPlayheadId);
     parameters.addParameter(STR16("Arp Inversion Playhead"), STR16(""), 0, 1.0,
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpInversionPlayheadId);
+
+    // --- Per-Lane Speed Multipliers ---
+    {
+        static const char* const kLaneNames[] = {
+            "Arp Velocity Lane Speed", "Arp Gate Lane Speed",
+            "Arp Pitch Lane Speed", "Arp Modifier Lane Speed",
+            "Arp Ratchet Lane Speed", "Arp Condition Lane Speed",
+            "Arp Chord Lane Speed", "Arp Inversion Lane Speed"
+        };
+        static constexpr ParamID kSpeedIds[] = {
+            kArpVelocityLaneSpeedId, kArpGateLaneSpeedId,
+            kArpPitchLaneSpeedId, kArpModifierLaneSpeedId,
+            kArpRatchetLaneSpeedId, kArpConditionLaneSpeedId,
+            kArpChordLaneSpeedId, kArpInversionLaneSpeedId
+        };
+        for (int i = 0; i < 8; ++i) {
+            Steinberg::Vst::String128 name16;
+            Steinberg::UString(name16, 128).fromAscii(kLaneNames[i]);
+            parameters.addParameter(
+                new RangeParameter(name16, kSpeedIds[i],
+                    STR16("x"), 0, 1, static_cast<double>(kLaneSpeedDefault) / (kLaneSpeedCount - 1),
+                    kLaneSpeedCount - 1,
+                    ParameterInfo::kCanAutomate));
+        }
+    }
 }
 
 // =============================================================================
@@ -1108,6 +1166,18 @@ inline Steinberg::tresult formatArpParam(
                 UString(string, 128).fromAscii(kInvNames[idx]);
                 return kResultOk;
             }
+            // Per-lane speed multipliers
+            if (id >= kArpVelocityLaneSpeedId && id <= kArpInversionLaneSpeedId) {
+                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))), 0, kLaneSpeedCount - 1);
+                float speed = kLaneSpeedValues[idx];
+                char buf[16];
+                if (speed == static_cast<int>(speed))
+                    snprintf(buf, sizeof(buf), "%dx", static_cast<int>(speed));
+                else
+                    snprintf(buf, sizeof(buf), "%.2fx", speed);
+                UString(string, 128).fromAscii(buf);
+                return kResultTrue;
+            }
             break;
     }
     return kResultFalse;
@@ -1211,6 +1281,16 @@ inline void saveArpParams(
 
     // --- Voicing Mode (arp-chord-lane, version 4+) ---
     streamer.writeInt32(params.voicingMode.load(std::memory_order_relaxed));
+
+    // Per-lane speed multipliers
+    streamer.writeFloat(params.velocityLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.gateLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.pitchLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.modifierLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ratchetLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.conditionLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.chordLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.inversionLaneSpeed.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1411,6 +1491,23 @@ inline bool loadArpParams(
 
         if (!streamer.readInt32(intVal)) return true;
         params.voicingMode.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+    }
+
+    // Per-lane speed multipliers (version 8+)
+    if (stateVersion >= 8) {
+        float speed = 1.0f;
+        auto loadSpeed = [&](std::atomic<float>& target) {
+            if (streamer.readFloat(speed))
+                target.store(speed, std::memory_order_relaxed);
+        };
+        loadSpeed(params.velocityLaneSpeed);
+        loadSpeed(params.gateLaneSpeed);
+        loadSpeed(params.pitchLaneSpeed);
+        loadSpeed(params.modifierLaneSpeed);
+        loadSpeed(params.ratchetLaneSpeed);
+        loadSpeed(params.conditionLaneSpeed);
+        loadSpeed(params.chordLaneSpeed);
+        loadSpeed(params.inversionLaneSpeed);
     }
 
     return true;
@@ -1658,6 +1755,28 @@ inline void loadArpParamsToController(
         if (!streamer.readInt32(iv)) return;
         setParam(kArpVoicingModeId,
             static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
+    }
+
+    // Per-lane speed multipliers (version 8+)
+    if (stateVersion >= 8) {
+        static constexpr Steinberg::Vst::ParamID kSpeedIds[] = {
+            kArpVelocityLaneSpeedId, kArpGateLaneSpeedId,
+            kArpPitchLaneSpeedId, kArpModifierLaneSpeedId,
+            kArpRatchetLaneSpeedId, kArpConditionLaneSpeedId,
+            kArpChordLaneSpeedId, kArpInversionLaneSpeedId
+        };
+        for (auto pid : kSpeedIds) {
+            if (streamer.readFloat(floatVal)) {
+                // Find the closest speed index for normalization
+                int bestIdx = kLaneSpeedDefault;
+                float bestDist = 999.0f;
+                for (int si = 0; si < kLaneSpeedCount; ++si) {
+                    float dist = std::abs(kLaneSpeedValues[si] - floatVal);
+                    if (dist < bestDist) { bestDist = dist; bestIdx = si; }
+                }
+                setParam(pid, static_cast<double>(bestIdx) / (kLaneSpeedCount - 1));
+            }
+        }
     }
 }
 

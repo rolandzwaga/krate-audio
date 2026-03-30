@@ -1187,9 +1187,18 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpVoicingModeId         = 3370,   // discrete: 0-3 (Close/Drop2/Spread/Random)
     kArpChordPlayheadId       = 3371,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
     kArpInversionPlayheadId   = 3372,   // hidden: 0.0-1.0 (step/32 encoding, not persisted)
-    // 3373-3399: reserved for future arp params
+    // --- Per-Lane Speed Multipliers (3380-3387) ---
+    kArpVelocityLaneSpeedId  = 3380,
+    kArpGateLaneSpeedId      = 3381,
+    kArpPitchLaneSpeedId     = 3382,
+    kArpModifierLaneSpeedId  = 3383,
+    kArpRatchetLaneSpeedId   = 3384,
+    kArpConditionLaneSpeedId = 3385,
+    kArpChordLaneSpeedId     = 3386,
+    kArpInversionLaneSpeedId = 3387,
+    // 3388-3399: reserved for future arp params
 
-    kArpEndId = 3372,
+    kArpEndId = 3387,
 
     // --- Sidechain Status (output parameter, not persisted) ---
     kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active

@@ -10,6 +10,7 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 - **Disrumpo**: Multi-band distortion plugin at `plugins/disrumpo/`
 - **Ruinae**: Synthesizer plugin at `plugins/ruinae/`
 - **Innexus**: Harmonic analysis/resynthesis instrument at `plugins/innexus/` (AU type: `aumu`)
+- **Gradus**: Standalone step arpeggiator at `plugins/gradus/` (AU type: `aumu`) — extracted from Ruinae's arp section, shares parameter IDs 3000-3372
 - **Shared plugin infrastructure** at `plugins/shared/` (presets, UI components, MIDI, platform)
 - **Steinberg VST3 SDK** (not JUCE or other frameworks)
 - **VSTGUI** for user interface
@@ -42,6 +43,10 @@ This is a **monorepo** for Krate Audio plugins, featuring:
 │   │   ├── src/              # Plugin source
 │   │   ├── tests/            # Plugin tests
 │   │   └── resources/        # UI, AU/AUv3 config
+│   ├── gradus/               # Gradus standalone step arpeggiator
+│   │   ├── src/              # Plugin source (arp params shared with Ruinae)
+│   │   ├── tests/            # Plugin tests
+│   │   └── resources/        # UI, presets, AU/AUv3 config
 │   └── shared/               # Shared plugin infrastructure
 │       ├── src/              # Presets, UI components, MIDI, platform
 │       └── tests/            # Shared tests
@@ -253,6 +258,17 @@ plugins/innexus/                  # Innexus harmonic resynthesis instrument
 │   └── integration/              # Full-processor pipeline integration tests
 └── resources/                    # UI, AU/AUv3 config, win32 resources
 
+plugins/gradus/                   # Gradus standalone step arpeggiator
+├── src/
+│   ├── entry.cpp, plugin_ids.h, version.h
+│   ├── processor/                # Audio processor (instrument: MIDI in/out, stereo out)
+│   ├── controller/               # UI controller + arp lane wiring
+│   ├── dsp/                      # Audition voice (minimal built-in synth)
+│   └── parameters/               # Arp parameter registration (shared IDs with Ruinae)
+├── tests/
+│   └── unit/                     # VST parameter & processor tests
+└── resources/                    # UI, presets, AU/AUv3 config
+
 plugins/shared/                   # Shared plugin infrastructure
 ├── src/
 │   ├── preset/                   # Preset manager, data source, browser logic
@@ -341,6 +357,9 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 # Innexus
 tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Innexus.vst3"
+
+# Gradus
+tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Gradus.vst3"
 ```
 
 Skip for docs-only, CI config, or test-only changes.
@@ -401,6 +420,7 @@ build/windows-x64-release/bin/Release/dsp_tests.exe
 "$CMAKE" --build build/windows-x64-release --config Release --target disrumpo_tests  # Disrumpo
 "$CMAKE" --build build/windows-x64-release --config Release --target ruinae_tests    # Ruinae
 "$CMAKE" --build build/windows-x64-release --config Release --target innexus_tests   # Innexus
+"$CMAKE" --build build/windows-x64-release --config Release --target gradus_tests    # Gradus
 "$CMAKE" --build build/windows-x64-release --config Release --target shared_tests    # Shared infra
 
 # Run all tests via CTest
@@ -416,6 +436,7 @@ ctest --test-dir build/windows-x64-release -C Release --output-on-failure
 - `build/windows-x64-release/VST3/Release/Disrumpo.vst3/`
 - `build/windows-x64-release/VST3/Release/Ruinae.vst3/`
 - `build/windows-x64-release/VST3/Release/Innexus.vst3/`
+- `build/windows-x64-release/VST3/Release/Gradus.vst3/`
 
 ### AddressSanitizer (ASan)
 
@@ -474,6 +495,7 @@ Use clang-tidy for static analysis to catch bugs, performance issues, and style 
 ./tools/run-clang-tidy.ps1 -Target disrumpo -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target ruinae -BuildDir build/windows-ninja
 ./tools/run-clang-tidy.ps1 -Target innexus -BuildDir build/windows-ninja
+./tools/run-clang-tidy.ps1 -Target gradus -BuildDir build/windows-ninja
 
 # Apply automatic fixes (use with caution, review changes)
 ./tools/run-clang-tidy.ps1 -Target all -BuildDir build/windows-ninja -Fix
@@ -506,15 +528,18 @@ cmake --preset linux-release   # or macos-release (generates compile_commands.js
 | Add Disrumpo parameter | plugins/disrumpo/src/plugin_ids.h → processor → controller → uidesc |
 | Add Ruinae parameter | plugins/ruinae/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add Innexus parameter | plugins/innexus/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
+| Add Gradus parameter | plugins/gradus/src/plugin_ids.h → parameters/ → processor → controller → uidesc |
 | Add DSP component | dsp/include/krate/dsp/{layer}/ → dsp/tests/unit/{layer}/ |
 | Add Iterum test | plugins/iterum/tests/unit/{section}/ |
 | Add Disrumpo test | plugins/disrumpo/tests/ |
 | Add Ruinae test | plugins/ruinae/tests/unit/ |
 | Add Innexus unit test | plugins/innexus/tests/unit/{processor,vst}/ |
 | Add Innexus integration test | plugins/innexus/tests/integration/ |
+| Add Gradus test | plugins/gradus/tests/unit/ |
 | Add shared component | plugins/shared/src/{section}/ → plugins/shared/tests/ |
 | Change Iterum UI | plugins/iterum/resources/editor.uidesc |
 | Change Disrumpo UI | plugins/disrumpo/resources/editor.uidesc |
+| Change Gradus UI | plugins/gradus/resources/editor.uidesc |
 
 | Your Layer | Location | Can Include |
 |------------|----------|-------------|
