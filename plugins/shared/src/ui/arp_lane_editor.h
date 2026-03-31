@@ -521,7 +521,9 @@ public:
         bool wasCollapsed = isCollapsed();
 
         // Delegate header interaction to ArpLaneHeader
-        if (header_.handleMouseDown(where, headerRect, getFrame())) {
+        VSTGUI::CPoint framePoint(where);
+        localToFrame(framePoint);
+        if (header_.handleMouseDown(where, framePoint, headerRect, getFrame())) {
             // If collapse state changed, fire the collapse callback
             if (isCollapsed() != wasCollapsed && collapseCallback_) {
                 collapseCallback_();

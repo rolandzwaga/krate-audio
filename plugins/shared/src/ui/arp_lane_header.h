@@ -377,7 +377,12 @@ public:
     // Interaction: returns true if the click was handled (in header area)
     // =========================================================================
 
+    /// @param where       Mouse position in local (view) coordinates — used for hit testing.
+    /// @param framePoint  Mouse position in frame coordinates — used for popup positioning.
+    /// @param headerRect  The header rect in local coordinates.
+    /// @param frame       The VSTGUI frame.
     bool handleMouseDown(const VSTGUI::CPoint& where,
+                         const VSTGUI::CPoint& framePoint,
                          const VSTGUI::CRect& headerRect,
                          VSTGUI::CFrame* frame) {
         if (!headerRect.pointInside(where)) {
@@ -398,7 +403,7 @@ public:
         // Length dropdown zone
         if (localX >= kLengthDropdownX &&
             localX < kLengthDropdownX + kLengthDropdownWidth) {
-            openLengthDropdown(where, frame);
+            openLengthDropdown(framePoint, frame);
             return true;
         }
 
@@ -406,7 +411,7 @@ public:
         static constexpr float kSpeedLabelX = kLengthDropdownX + kLengthDropdownWidth + 4.0f;
         static constexpr float kSpeedLabelWidth = 32.0f;
         if (localX >= kSpeedLabelX && localX < kSpeedLabelX + kSpeedLabelWidth) {
-            openSpeedDropdown(where, frame);
+            openSpeedDropdown(framePoint, frame);
             return true;
         }
 

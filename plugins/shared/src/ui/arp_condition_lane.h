@@ -415,7 +415,9 @@ public:
         bool wasCollapsed = isCollapsed();
 
         // Delegate header interaction
-        if (header_.handleMouseDown(where, headerRect, getFrame())) {
+        VSTGUI::CPoint framePoint(where);
+        localToFrame(framePoint);
+        if (header_.handleMouseDown(where, framePoint, headerRect, getFrame())) {
             if (isCollapsed() != wasCollapsed && collapseCallback_) {
                 collapseCallback_();
             }
