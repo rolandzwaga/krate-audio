@@ -5,6 +5,13 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-03-31
+
+### Added
+
+- **Per-lane speed multipliers** — Each arpeggiator lane (velocity, gate, pitch, modifier, ratchet, condition, chord, inversion) can run at its own clock rate from 0.25x to 4x, adding a second dimension of polyrhythmic complexity on top of independent lane lengths. Uses fractional accumulators for sample-accurate timing. Click the speed label in any lane header to select from 10 discrete values.
+- **8 new arp parameters** (IDs 3380-3387) — One speed multiplier per lane, registered as discrete RangeParameters with 10 steps. Fully automatable and preset-compatible with Gradus.
+
 ## [0.10.0] - 2026-03-20
 
 ### Added
