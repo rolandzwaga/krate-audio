@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradus - VST3 Step Arpeggiator</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <p class="breadcrumb"><a href="../">Krate Audio</a></p>
+            <h1>Gradus</h1>
+            <p class="tagline">VST3 Step Arpeggiator</p>
+            <p class="version">Version 1.0.0</p>
+        </header>
+
+        <section class="downloads">
+            <h2>Download</h2>
+            <p class="instructions">Choose your platform to download the plugin installer.</p>
+
+            <div class="download-buttons">
+                <a href="https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.0.0/Gradus-1.0.0-Windows-x64.exe" class="download-btn windows">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+                    </svg>
+                    <span class="platform">Windows</span>
+                    <span class="format">.exe installer</span>
+                </a>
+
+                <a href="https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.0.0/Gradus-1.0.0-macOS.pkg" class="download-btn macos">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                    </svg>
+                    <span class="platform">macOS</span>
+                    <span class="format">VST3 + Audio Unit</span>
+                </a>
+
+                <a href="https://github.com/rolandzwaga/krate-audio/releases/download/gradus/v1.0.0/Gradus-1.0.0-Linux-x64.tar.gz" class="download-btn linux">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/>
+                    </svg>
+                    <span class="platform">Linux</span>
+                    <span class="format">.tar.gz archive</span>
+                </a>
+            </div>
+        </section>
+
+        <section class="overview">
+            <h2>Overview</h2>
+            <p>Gradus is a standalone step arpeggiator that transforms held MIDI notes into intricate rhythmic and melodic patterns. It runs as a VST3 instrument plugin with MIDI output, so you can insert it before any synthesizer in your DAW and use it to drive any sound source. A built-in audition synth lets you hear patterns immediately without routing MIDI.</p>
+            <p>With 8 independent polymetric lanes, Euclidean rhythm generation, conditional triggers, chord voicing, scale quantization, and per-step ratcheting, Gradus covers everything from classic arpeggiator patterns to complex generative sequences. The same arpeggiator engine powers the arp section of Ruinae, and presets are fully interchangeable between the two plugins.</p>
+        </section>
+
+        <section class="features">
+            <h2>Features</h2>
+            <ul>
+                <li><strong>8 independent polymetric lanes</strong> &mdash; Velocity, Gate, Pitch, Chord, Inversion, Ratchet, Modifier, and Condition lanes each with independent step counts (1&ndash;32) for evolving, non-repeating patterns</li>
+                <li><strong>10 arpeggiator modes</strong> &mdash; Up, Down, Up/Down, Down/Up, Converge, Diverge, Random, Walk, As Played, and Chord</li>
+                <li><strong>Euclidean rhythm generation</strong> &mdash; Generate mathematically distributed rhythmic patterns with configurable hits, steps, and rotation offset</li>
+                <li><strong>Conditional triggers</strong> &mdash; 18 per-step conditions including probability (10%&ndash;90%), ratio patterns (1:2, 2:3, 3:4, etc.), first note, and fill/not-fill triggers</li>
+                <li><strong>Per-step ratcheting</strong> &mdash; 1&ndash;4 sub-divisions per step with independent ratchet swing for rapid-fire note bursts</li>
+                <li><strong>Per-step modifiers</strong> &mdash; Active, Tie, Slide, and Accent flags per step for expressive articulation control</li>
+                <li><strong>Chord generation</strong> &mdash; Per-step chord types (None, Dyad, Triad, 7th, 9th) with inversions (Root, 1st, 2nd, 3rd) and voicing modes (Close, Drop 2, Spread, Random)</li>
+                <li><strong>Scale quantization</strong> &mdash; 16 scale types with selectable root note; optionally quantize input notes to the selected scale</li>
+                <li><strong>Spice &amp; Dice</strong> &mdash; Blend in random pattern variations with adjustable amount; re-roll with the Dice button for fresh generative results</li>
+                <li><strong>Humanize</strong> &mdash; Add subtle timing variations for a more natural, less mechanical feel</li>
+                <li><strong>Latch modes</strong> &mdash; Off, Hold, and Add modes for hands-free pattern playback</li>
+                <li><strong>Built-in audition synth</strong> &mdash; Simple oscillator (sine/saw/square) with adjustable decay so you can hear patterns without external MIDI routing</li>
+                <li><strong>Tempo sync and free rate</strong> &mdash; Lock to host tempo with 30 note values (1/64T through 4/1D), or run at a free rate from 0.5&ndash;50 Hz</li>
+                <li><strong>Fill mode</strong> &mdash; Latching toggle for live performance &mdash; activates fill-conditional steps for build-ups and transitions</li>
+                <li><strong>Per-lane speed multipliers</strong> &mdash; Each lane can run at its own clock rate (0.25x to 4x), adding a second dimension of polyrhythmic complexity on top of independent lane lengths</li>
+                <li><strong>Copy/paste between lanes</strong> &mdash; Copy step data from any lane and paste into another for quick pattern duplication</li>
+                <li><strong>40 factory presets</strong> across 8 categories &mdash; Classic, Acid, Euclidean, Polymetric, Generative, Performance, Chords, and Advanced</li>
+                <li><strong>Preset sharing with Ruinae</strong> &mdash; Arp presets use the same parameter IDs, enabling cross-plugin preset exchange</li>
+                <li><strong>MIDI output</strong> &mdash; Arpeggiated notes output as standard MIDI events for driving any instrument in your DAW</li>
+                <li><strong>Full parameter automation</strong> and host preset management</li>
+                <li><strong>Cross-platform:</strong> VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+            </ul>
+        </section>
+
+        <section class="features">
+            <h2>Lane Types</h2>
+            <ul>
+                <li><strong>Velocity</strong> &mdash; Per-step velocity from 0% to 100%, controlling how hard each note is struck</li>
+                <li><strong>Gate</strong> &mdash; Per-step gate length from 0% to 200%, controlling how long each note sounds relative to the step duration</li>
+                <li><strong>Pitch</strong> &mdash; Per-step pitch offset from &minus;24 to +24 semitones, adding melodic contour to the arp pattern</li>
+                <li><strong>Chord</strong> &mdash; Per-step chord type selection (None, Dyad, Triad, 7th, 9th) for harmonic richness</li>
+                <li><strong>Inversion</strong> &mdash; Per-step chord inversion (Root, 1st, 2nd, 3rd) for voice leading control</li>
+                <li><strong>Ratchet</strong> &mdash; Per-step sub-division count (1&ndash;4) for rapid note repetitions within a single step</li>
+                <li><strong>Modifier</strong> &mdash; Per-step flags (Active, Tie, Slide, Accent) for detailed articulation</li>
+                <li><strong>Condition</strong> &mdash; Per-step trigger condition (probability, ratio, fill) for generative variation</li>
+            </ul>
+            <p style="color: var(--color-text-muted); margin-top: 1rem;">Each lane has an independent step count (1&ndash;32) and speed multiplier (0.25x&ndash;4x). Combining different lengths and speeds across lanes creates complex, evolving polyrhythmic patterns.</p>
+        </section>
+
+        <section class="installation">
+            <h2>Installation</h2>
+            <div class="install-instructions">
+                <div class="platform-install">
+                    <h3>Windows</h3>
+                    <p>Run the <code>.exe</code> installer. The plugin will be installed to:</p>
+                    <code>C:\Program Files\Common Files\VST3\Krate Audio\Gradus\Gradus.vst3</code>
+                </div>
+                <div class="platform-install">
+                    <h3>macOS</h3>
+                    <p>Double-click the <code>.pkg</code> installer. Both formats will be installed:</p>
+                    <code>/Library/Audio/Plug-Ins/VST3/Gradus.vst3</code><br>
+                    <code>/Library/Audio/Plug-Ins/Components/Gradus.component</code>
+                </div>
+                <div class="platform-install">
+                    <h3>Linux</h3>
+                    <p>Extract the archive and copy to your VST3 folder:</p>
+                    <code>cp -r Gradus.vst3 ~/.vst3/</code>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>
+                <a href="https://github.com/rolandzwaga/krate-audio">GitHub</a> |
+                <a href="https://github.com/rolandzwaga/krate-audio/releases">All Releases</a> |
+                <a href="https://github.com/rolandzwaga/krate-audio/issues">Report Issue</a>
+            </p>
+            <p class="copyright">Krate Audio</p>
+        </footer>
+    </div>
+</body>
+</html>

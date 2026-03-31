@@ -6,6 +6,11 @@
       "download_url": "https://rolandzwaga.github.io/krate-audio/disrumpo/",
       "release_notes": ""
     },
+    "Gradus": {
+      "version": "1.0.0",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/gradus/",
+      "release_notes": ""
+    },
     "Innexus": {
       "version": "0.10.0",
       "download_url": "https://rolandzwaga.github.io/krate-audio/innexus/",
