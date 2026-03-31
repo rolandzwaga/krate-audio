@@ -80,16 +80,17 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // Read state version
+    // Read and discard state version (single version, no migration needed)
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
+    (void)version;
 
     // Load arp params to controller (restores UI to match saved state)
     auto setParam = [this](ParamID id, ParamValue value) {
         setParamNormalized(id, value);
     };
-    loadArpParamsToController(streamer, setParam, version);
+    loadArpParamsToController(streamer, setParam);
 
     // Audition params are session-only — not restored from presets
 

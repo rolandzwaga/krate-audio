@@ -1301,21 +1301,14 @@ inline void saveArpParams(
 
 inline bool loadArpParams(
     ArpeggiatorParams& params,
-    Steinberg::IBStreamer& streamer,
-    Steinberg::int32 stateVersion = kCurrentStateVersion)
+    Steinberg::IBStreamer& streamer)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
     if (!streamer.readInt32(intVal)) return false;
-    if (stateVersion < 3) {
-        // v2 migration: old boolean enabled (0/1) -> operating mode (Off/MIDI)
-        params.operatingMode.store(intVal != 0 ? kArpMIDI : kArpOff,
-            std::memory_order_relaxed);
-    } else {
-        params.operatingMode.store(std::clamp(intVal, 0, 3),
-            std::memory_order_relaxed);
-    }
+    params.operatingMode.store(std::clamp(intVal, 0, 3),
+        std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
     params.mode.store(std::clamp(intVal, 0, 9), std::memory_order_relaxed);
@@ -1467,34 +1460,30 @@ inline bool loadArpParams(
     if (!streamer.readInt32(intVal)) return true;
     params.scaleQuantizeInput.store(intVal != 0, std::memory_order_relaxed);
 
-    // --- MIDI Output (version 2+) ---
-    if (stateVersion >= 2) {
-        if (!streamer.readInt32(intVal)) return true;
-        params.midiOut.store(intVal != 0, std::memory_order_relaxed);
+    // --- MIDI Output ---
+    if (!streamer.readInt32(intVal)) return true;
+    params.midiOut.store(intVal != 0, std::memory_order_relaxed);
+
+    // --- Chord Lane (arp-chord-lane) ---
+    if (!streamer.readInt32(intVal)) return true;
+    params.chordLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.chordLaneSteps[i].store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
     }
 
-    // --- Chord Lane (arp-chord-lane, version 4+) ---
-    if (stateVersion >= 4) {
-        if (!streamer.readInt32(intVal)) return true;
-        params.chordLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(intVal)) return false;
-            params.chordLaneSteps[i].store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
-        }
-
-        if (!streamer.readInt32(intVal)) return true;
-        params.inversionLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(intVal)) return false;
-            params.inversionLaneSteps[i].store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
-        }
-
-        if (!streamer.readInt32(intVal)) return true;
-        params.voicingMode.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return true;
+    params.inversionLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.inversionLaneSteps[i].store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
     }
 
-    // Per-lane speed multipliers (version 2+ for Gradus, version 8+ for Ruinae)
-    if (stateVersion >= 2 || stateVersion >= 8) {
+    if (!streamer.readInt32(intVal)) return true;
+    params.voicingMode.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+
+    // Per-lane speed multipliers
+    {
         float speed = 1.0f;
         auto loadSpeed = [&](std::atomic<float>& target) {
             if (streamer.readFloat(speed))
@@ -1520,21 +1509,14 @@ inline bool loadArpParams(
 template<typename SetParamFunc>
 inline void loadArpParamsToController(
     Steinberg::IBStreamer& streamer,
-    SetParamFunc setParam,
-    Steinberg::int32 stateVersion = kCurrentStateVersion)
+    SetParamFunc setParam)
 {
     Steinberg::int32 intVal = 0;
     float floatVal = 0.0f;
 
     // operatingMode (int32 -> normalized: index / 3)
     if (streamer.readInt32(intVal)) {
-        int mode;
-        if (stateVersion < 3) {
-            // v2 migration: old boolean enabled (0/1) -> operating mode (Off/MIDI)
-            mode = intVal != 0 ? kArpMIDI : kArpOff;
-        } else {
-            mode = std::clamp(intVal, 0, 3);
-        }
+        int mode = std::clamp(intVal, 0, 3);
         setParam(kArpOperatingModeId, static_cast<double>(mode) / 3.0);
     }
     else return;
@@ -1726,39 +1708,35 @@ inline void loadArpParamsToController(
     if (streamer.readInt32(iv))
         setParam(kArpScaleQuantizeInputId, iv != 0 ? 1.0 : 0.0);
 
-    // --- MIDI Output (version 2+) ---
-    if (stateVersion >= 2) {
-        if (streamer.readInt32(iv))
-            setParam(kArpMidiOutId, iv != 0 ? 1.0 : 0.0);
+    // --- MIDI Output ---
+    if (streamer.readInt32(iv))
+        setParam(kArpMidiOutId, iv != 0 ? 1.0 : 0.0);
+
+    // --- Chord Lane (arp-chord-lane) ---
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpChordLaneLengthId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(iv)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpChordLaneStep0Id + i),
+            static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
     }
 
-    // --- Chord Lane (arp-chord-lane, version 4+) ---
-    if (stateVersion >= 4) {
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpInversionLaneLengthId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
+    for (int i = 0; i < 32; ++i) {
         if (!streamer.readInt32(iv)) return;
-        setParam(kArpChordLaneLengthId,
-            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParam(static_cast<Steinberg::Vst::ParamID>(kArpChordLaneStep0Id + i),
-                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
-        }
-
-        if (!streamer.readInt32(iv)) return;
-        setParam(kArpInversionLaneLengthId,
-            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParam(static_cast<Steinberg::Vst::ParamID>(kArpInversionLaneStep0Id + i),
-                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
-        }
-
-        if (!streamer.readInt32(iv)) return;
-        setParam(kArpVoicingModeId,
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpInversionLaneStep0Id + i),
             static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
     }
 
-    // Per-lane speed multipliers (version 2+ for Gradus, version 8+ for Ruinae)
-    if (stateVersion >= 2 || stateVersion >= 8) {
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpVoicingModeId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
+
+    // Per-lane speed multipliers
+    {
         static constexpr Steinberg::Vst::ParamID kSpeedIds[] = {
             kArpVelocityLaneSpeedId, kArpGateLaneSpeedId,
             kArpPitchLaneSpeedId, kArpModifierLaneSpeedId,

@@ -189,16 +189,17 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Read and validate version
+    // Read and discard state version (single version, no migration needed)
     Steinberg::int32 version = 0;
     if (!streamer.readInt32(version))
         return false;
+    (void)version;
 
     // Load arp params with edit notifications
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
     };
-    loadArpParamsToController(streamer, setParam, version);
+    loadArpParamsToController(streamer, setParam);
 
     // Audition params are session-only — not loaded from presets
 

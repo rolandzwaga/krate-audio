@@ -286,13 +286,14 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // 1. Read state version
+    // 1. Read and discard state version (single version, no migration needed)
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
+    (void)version;
 
     // 2. Load arp params
-    if (!loadArpParams(arpParams_, streamer, version))
+    if (!loadArpParams(arpParams_, streamer))
         return kResultFalse;
 
     // Force arp to MIDI mode (always on in Gradus)

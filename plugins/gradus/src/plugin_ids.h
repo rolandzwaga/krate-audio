@@ -26,7 +26,7 @@ static const Steinberg::FUID kControllerUID(0x3D2C1B7A, 0x7B6A5F4E, 0x1F0E9D8C, 
 static constexpr auto kSubCategories = "Instrument|Synth";
 
 // State version for serialization
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+constexpr Steinberg::int32 kCurrentStateVersion = 1;
 
 // ==============================================================================
 // Parameter IDs
