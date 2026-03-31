@@ -448,7 +448,6 @@ TEST_CASE("ResetTrap: Full processor -- same-value params every block does not b
         params.addChange(Innexus::kHarmonicFilterTypeId, 0.0);
         params.addChange(Innexus::kResponsivenessId, 0.5);
         // M6 params at defaults
-        params.addChange(Innexus::kTimbralBlendId, 1.0);
         params.addChange(Innexus::kStereoSpreadId, 0.0);
         params.addChange(Innexus::kEvolutionEnableId, 0.0);
         params.addChange(Innexus::kMod1EnableId, 0.0);

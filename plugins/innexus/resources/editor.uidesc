@@ -73,7 +73,6 @@
     <control-tag name="LatencyMode" tag="501"/>
 
     <!-- Creative Extensions (600-699) -->
-    <control-tag name="TimbralBlend" tag="600"/>
     <control-tag name="StereoSpread" tag="601"/>
     <control-tag name="EvolutionEnable" tag="602"/>
     <control-tag name="EvolutionSpeed" tag="603"/>
@@ -491,21 +490,8 @@
     <!-- CROSS-SYNTHESIS / STEREO (Y 345-420) - FR-030, FR-031          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="180, 345" size="145, 115"
-          title="Cross / Stereo" fieldset-title="Cross / Stereo" fieldset-color="text-dim"
+          title="Stereo" fieldset-title="Stereo" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
-
-      <!-- FR-030: Timbral Blend -->
-      <view class="ArcKnob" origin="10, 22" size="42, 42"
-            control-tag="TimbralBlend" default-value="1"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="5, 64" size="52, 12"
-            control-tag="TimbralBlend" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="5, 76" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Blend"/>
 
       <!-- FR-031: Stereo Spread -->
       <view class="ArcKnob" origin="75, 22" size="42, 42"

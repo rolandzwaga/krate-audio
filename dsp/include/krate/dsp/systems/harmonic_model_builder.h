@@ -4,7 +4,7 @@
 // Harmonic Model Builder - Layer 3 System
 // ==============================================================================
 // Spec: specs/115-innexus-m1-core-instrument/spec.md
-// Covers: FR-029 (per-frame harmonic model), FR-030 (L2 normalization),
+// Covers: FR-029 (per-frame harmonic model),
 //         FR-031 (dual-timescale blending), FR-032 (spectral centroid/brightness),
 //         FR-033 (median filtering), FR-034 (global amplitude tracking)
 //
@@ -25,7 +25,6 @@ namespace Krate::DSP {
 /// Converts raw partial measurements into a stable, musically useful HarmonicFrame.
 ///
 /// Responsibilities:
-/// - L2 normalization: separates spectral shape from loudness (FR-030)
 /// - Dual-timescale blending: fast (~5ms) and slow (~100ms) layers (FR-031)
 /// - Spectral descriptors: centroid and brightness (FR-032)
 /// - Median filtering: per-partial amplitude, window of 5 (FR-033)
@@ -89,7 +88,7 @@ public:
     /// Build a HarmonicFrame from raw partial measurements.
     ///
     /// This is the main entry point, called once per analysis hop.
-    /// It applies median filtering, dual-timescale blending, L2 normalization,
+    /// It applies median filtering, dual-timescale blending,
     /// and computes spectral descriptors.
     ///
     /// @param partials     Array of tracked partials from PartialTracker
@@ -144,21 +143,10 @@ public:
             blendedAmps[i] = slowVal + responsiveness_ * (fastVal - slowVal);
         }
 
-        // ---- Step 3: L2 normalization (FR-030) ----
-        float sumSqr = 0.0f;
-        for (int i = 0; i < numPartials; ++i) {
-            sumSqr += blendedAmps[i] * blendedAmps[i];
-        }
-
-        float normFactor = 1.0f;
-        if (sumSqr > 1e-20f) {
-            normFactor = 1.0f / std::sqrt(sumSqr);
-        }
-
-        // ---- Step 4: Populate output partials ----
+        // ---- Step 3: Populate output partials ----
         for (int i = 0; i < numPartials; ++i) {
             frame.partials[i] = partials[i];
-            frame.partials[i].amplitude = blendedAmps[i] * normFactor;
+            frame.partials[i].amplitude = blendedAmps[i];
             // Smooth bandwidth with one-pole filter for stability
             float rawBw = partials[i].bandwidth;
             float& prevBw = smoothedBandwidth_[static_cast<size_t>(i)];

@@ -78,7 +78,6 @@ add_executable(innexus_tests
     integration/harmonic_memory_tests.cpp
 
     # Creative extensions integration (M6)
-    integration/test_cross_synthesis.cpp
     integration/test_evolution_engine.cpp
     integration/test_stereo_spread_integration.cpp
     integration/test_m6_pipeline_integration.cpp

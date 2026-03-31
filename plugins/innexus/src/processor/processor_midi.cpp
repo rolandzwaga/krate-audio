@@ -134,10 +134,8 @@ static void initVoiceForNoteOn(
     bool isSidechainMode,
     const Krate::DSP::HarmonicFrame& currentLiveFrame,
     const Krate::DSP::ResidualFrame& currentLiveResidualFrame,
-    float timbralBlend,
     int currentFilterType,
     const std::array<float, Krate::DSP::kMaxPartials>& filterMask,
-    const Krate::DSP::HarmonicFrame& pureHarmonicFrame,
     float brightness,
     float transientEmphasis,
     float resonanceDecay,
@@ -210,11 +208,6 @@ static void initVoiceForNoteOn(
             voice.morphedFrame = currentLiveFrame;
             voice.morphedResidualFrame = currentLiveResidualFrame;
 
-            // Apply timbral blend (cross-synthesis)
-            if (timbralBlend < 1.0f - 1e-6f)
-                voice.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                    pureHarmonicFrame, voice.morphedFrame, timbralBlend);
-
             // Apply harmonic filter
             if (currentFilterType != 0)
                 Krate::DSP::applyHarmonicMask(voice.morphedFrame, filterMask);
@@ -235,11 +228,6 @@ static void initVoiceForNoteOn(
         const auto& frame = analysis->getFrame(0);
         voice.lastGoodFrame = frame;
         voice.morphedFrame = frame;
-
-        // Apply timbral blend (cross-synthesis)
-        if (timbralBlend < 1.0f - 1e-6f)
-            voice.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                pureHarmonicFrame, voice.morphedFrame, timbralBlend);
 
         // Apply harmonic filter
         if (currentFilterType != 0)
@@ -362,7 +350,6 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
 
     const float modeNorm = voiceMode_.load(std::memory_order_relaxed);
     const int maxVoices = voiceModeToCount(modeNorm);
-    const float blend = timbralBlendSmoother_.getCurrentValue();
     const float brightness = brightnessSmoother_.getCurrentValue();
     const float transientEmp = transientEmphasisSmoother_.getCurrentValue();
 
@@ -414,7 +401,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
             voice.pitchBendSemitones,
             analysis, isSidechainMode,
             currentLiveFrame_, currentLiveResidualFrame_,
-            blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
+            currentFilterType_, filterMask_,
             brightness, transientEmp,
             resDecay, resBrightness, resStretch, resScatter,
             exciterType, impHardness, impMass, impBrightness, impPosition,
@@ -456,7 +443,7 @@ void Processor::handleNoteOn(int noteNumber, float velocity, int32_t noteId)
                     0.0f, // fresh pitch bend for new voice
                     analysis, isSidechainMode,
                     currentLiveFrame_, currentLiveResidualFrame_,
-                    blend, currentFilterType_, filterMask_, pureHarmonicFrame_,
+                    currentFilterType_, filterMask_,
                     brightness, transientEmp,
                     resDecay, resBrightness, resStretch, resScatter,
                     exciterType, impHardness, impMass, impBrightness, impPosition,

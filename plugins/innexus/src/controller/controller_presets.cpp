@@ -198,7 +198,7 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
 
     // Read and validate version
     Steinberg::int32 version = 0;
-    if (!streamer.readInt32(version) || version != 1)
+    if (!streamer.readInt32(version) || (version != 1 && version != 2))
         return false;
 
     // Lambda that calls editParamWithNotify instead of setParamNormalized
@@ -330,8 +330,9 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
     // --- M6 parameters ---
     {
         float m6Val = 0.0f;
-        if (streamer.readFloat(m6Val))
-            setParam(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        // v1 had timbralBlend here — read and discard to advance stream position
+        if (version == 1)
+            streamer.readFloat(m6Val);
         if (streamer.readFloat(m6Val))
             setParam(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))

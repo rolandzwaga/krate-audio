@@ -264,7 +264,7 @@ TEST_CASE("M6 State: round-trip preserves all 31 M6 parameters within 1e-6",
         REQUIRE(procB->setState(&stream) == kResultOk);
 
         constexpr float kTol = 1e-6f;
-        REQUIRE(procB->getTimbralBlend() == Approx(kTimbralBlend).margin(kTol));
+        // timbralBlend removed in v2 — v1 state still reads+discards it
         REQUIRE(procB->getStereoSpread() == Approx(kStereoSpread).margin(kTol));
         REQUIRE(procB->getEvolutionEnable() == Approx(kEvolutionEnable).margin(kTol));
         REQUIRE(procB->getEvolutionSpeed() == Approx(kEvolutionSpeed).margin(kTol));
@@ -324,7 +324,7 @@ TEST_CASE("M6 State: getState() then setState() round-trip preserves M6 values",
 
         constexpr float kTol = 1e-6f;
         // Default values per data-model.md
-        REQUIRE(procB->getTimbralBlend() == Approx(1.0f).margin(kTol));
+        // timbralBlend removed in v2
         REQUIRE(procB->getStereoSpread() == Approx(0.0f).margin(kTol));
         REQUIRE(procB->getEvolutionEnable() == Approx(0.0f).margin(kTol));
         REQUIRE(procB->getEvolutionDepth() == Approx(0.5f).margin(kTol));
@@ -374,7 +374,7 @@ TEST_CASE("M6 State: Controller setComponentState reads M6 parameters",
         streamer.writeInt32(0);
         for (int s = 0; s < 8; ++s) streamer.writeInt8(static_cast<int8>(0));
         // M6
-        streamer.writeFloat(0.42f);  // timbralBlend
+        streamer.writeFloat(0.42f);  // timbralBlend (removed in v2, but v1 format still writes it)
         streamer.writeFloat(0.73f);  // stereoSpread
         streamer.writeFloat(1.0f);   // evolutionEnable
         streamer.writeFloat(0.35f);  // evolutionSpeed
@@ -415,9 +415,7 @@ TEST_CASE("M6 State: Controller setComponentState reads M6 parameters",
     stream.resetReadPos();
     REQUIRE(controller.setComponentState(&stream) == kResultOk);
 
-    // Verify M6 parameters in controller
-    REQUIRE(controller.getParamNormalized(Innexus::kTimbralBlendId)
-            == Approx(0.42).margin(0.001));
+    // Verify M6 parameters in controller (timbralBlend removed in v2, skipped)
     REQUIRE(controller.getParamNormalized(Innexus::kStereoSpreadId)
             == Approx(0.73).margin(0.001));
     REQUIRE(controller.getParamNormalized(Innexus::kEvolutionEnableId)

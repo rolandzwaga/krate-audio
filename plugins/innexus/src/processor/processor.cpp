@@ -278,8 +278,6 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
 
     // M6: Configure stereo/detune smoothers
     const float sr = static_cast<float>(sampleRate_);
-    timbralBlendSmoother_.configure(5.0f, sr);
-    timbralBlendSmoother_.snapTo(timbralBlend_.load(std::memory_order_relaxed));
     stereoSpreadSmoother_.configure(10.0f, sr);
     stereoSpreadSmoother_.snapTo(stereoSpread_.load(std::memory_order_relaxed));
     evolutionSpeedSmoother_.configure(5.0f, sr);
@@ -311,41 +309,6 @@ Steinberg::tresult PLUGIN_API Processor::setupProcessing(
     entropySmoother_.configure(5.0f, sr);
     entropySmoother_.snapTo(entropy_.load(std::memory_order_relaxed));
     harmonicPhysics_.prepare(sampleRate_, 512); // default hop size
-
-    // M6 FR-004, R-004: Construct pure harmonic reference frame
-    // relativeFreq[n] = n+1 (1-indexed), rawAmp[n] = 1/(n+1), L2-normalized
-    {
-        pureHarmonicFrame_ = {};
-        pureHarmonicFrame_.numPartials = static_cast<int>(Krate::DSP::kMaxPartials);
-        pureHarmonicFrame_.f0 = 1.0f; // Placeholder; actual F0 comes from MIDI note
-        pureHarmonicFrame_.f0Confidence = 1.0f;
-        pureHarmonicFrame_.globalAmplitude = 1.0f;
-
-        // Build 1/n amplitude series and compute L2 norm
-        float sumSquares = 0.0f;
-        for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
-        {
-            const float n = static_cast<float>(i + 1);
-            auto& p = pureHarmonicFrame_.partials[i];
-            p.harmonicIndex = static_cast<int>(i + 1);
-            p.relativeFrequency = n;
-            p.amplitude = 1.0f / n; // Raw 1/n amplitude (pre-normalization)
-            p.inharmonicDeviation = 0.0f;
-            p.stability = 1.0f;
-            p.age = 1;
-            p.phase = 0.0f;
-            p.frequency = n; // Placeholder
-            sumSquares += p.amplitude * p.amplitude;
-        }
-
-        // L2-normalize amplitudes
-        const float l2Norm = std::sqrt(sumSquares);
-        if (l2Norm > 0.0f)
-        {
-            for (size_t i = 0; i < Krate::DSP::kMaxPartials; ++i)
-                pureHarmonicFrame_.partials[i].amplitude /= l2Norm;
-        }
-    }
 
     // M6 FR-014: Prepare evolution engine
     evolutionEngine_.prepare(sampleRate_);
@@ -1048,12 +1011,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
     entropySmoother_.advanceSamples(
         static_cast<size_t>(numSamples > 0 ? numSamples : 1));
 
-    // --- M6: Update timbral blend smoother (FR-001, FR-005) ---
-    timbralBlendSmoother_.setTarget(timbralBlend_.load(std::memory_order_relaxed));
-    timbralBlendSmoother_.advanceSamples(
-        static_cast<size_t>(numSamples > 0 ? numSamples : 1));
-    const float smoothedTimbralBlend = timbralBlendSmoother_.getCurrentValue();
-
     // M6: Read modulator enable flags (used in frame loading and per-sample loop)
     const bool mod1Enabled = mod1Enable_.load(std::memory_order_relaxed) > 0.5f;
     const bool mod2Enabled = mod2Enable_.load(std::memory_order_relaxed) > 0.5f;
@@ -1113,12 +1070,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 manualFrozenResidualFrame_, liveResidualFrame, smoothedMorph);
         }
 
-        // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
-        // Blend between pure harmonic reference and source model BEFORE filter.
-        if (smoothedTimbralBlend < 1.0f - 1e-6f)
-            voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
-
         // M4: Apply harmonic filter mask (FR-020, FR-026, T082)
         // Filter is applied AFTER morph+blend and BEFORE oscillator bank.
         // Residual passes through unmodified (FR-027).
@@ -1171,11 +1122,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             // M4: Store live frame as morphed (no freeze = pass-through)
             voice_.morphedFrame = currentLiveFrame_;
             voice_.morphedResidualFrame = currentLiveResidualFrame_;
-
-            // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
-            if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                    pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
             // Apply harmonic filter (FR-026, FR-027)
             if (currentFilterType_ != 0)
@@ -1418,11 +1364,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     // M4: Store frame as morphed (no freeze = pass-through)
                     voice_.morphedFrame = frame;
 
-                    // M6 FR-001, FR-002: Apply timbral blend (cross-synthesis)
-                    if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                        voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                            pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
-
                     // Apply harmonic filter (FR-026)
                     if (currentFilterType_ != 0)
                         Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
@@ -1477,11 +1418,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                 adsrAttackCurve_.store(evoAdsrInterp.adsrAttackCurve, std::memory_order_relaxed);
                 adsrDecayCurve_.store(evoAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
                 adsrReleaseCurve_.store(evoAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
-
-                // Apply timbral blend (cross-synthesis) to evolution output
-                if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                    voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                        pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
                 // Apply harmonic filter
                 if (currentFilterType_ != 0)
@@ -1550,11 +1486,6 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
                     adsrDecayCurve_.store(blendAdsrInterp.adsrDecayCurve, std::memory_order_relaxed);
                     adsrReleaseCurve_.store(blendAdsrInterp.adsrReleaseCurve, std::memory_order_relaxed);
                 }
-
-                // Apply timbral blend (cross-synthesis) to blended output
-                if (smoothedTimbralBlend < 1.0f - 1e-6f)
-                    voice_.morphedFrame = Krate::DSP::lerpHarmonicFrame(
-                        pureHarmonicFrame_, voice_.morphedFrame, smoothedTimbralBlend);
 
                 // Apply harmonic filter
                 if (currentFilterType_ != 0)

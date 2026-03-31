@@ -77,8 +77,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kAnalysisModeId = 502,         // 0 = Mono, 1 = Poly, 2 = Auto (StringListParameter)
 
     // Creative Extensions (600-699) -- M6
-    // Cross-Synthesis
-    kTimbralBlendId = 600,         // 0.0-1.0, default 1.0
+    // ID 600 reserved (was kTimbralBlendId, removed in v2)
     // Stereo Output
     kStereoSpreadId = 601,         // 0.0-1.0, default 0.0
     // Evolution Engine

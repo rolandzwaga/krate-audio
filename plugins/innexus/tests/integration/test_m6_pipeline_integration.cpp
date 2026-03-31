@@ -295,7 +295,6 @@ TEST_CASE("M6 pipeline: all features active produces non-silent non-NaN output",
     fix.injectAnalysis(makePipelineTestAnalysis());
 
     // Enable all M6 features simultaneously
-    fix.paramChanges.addChange(Innexus::kTimbralBlendId, 0.5);
     fix.paramChanges.addChange(Innexus::kStereoSpreadId, 0.5);
     fix.paramChanges.addChange(Innexus::kDetuneSpreadId, 0.5);
     fix.paramChanges.addChange(Innexus::kEvolutionEnableId, 1.0);
@@ -553,7 +552,6 @@ TEST_CASE("M6 pipeline: click-free parameter sweeps (SC-007)",
     };
 
     const ParamSweepInfo sweepParams[] = {
-        {Innexus::kTimbralBlendId, "TimbralBlend"},
         {Innexus::kStereoSpreadId, "StereoSpread"},
         {Innexus::kDetuneSpreadId, "DetuneSpread"},
         {Innexus::kMod1DepthId, "Mod1Depth"},
@@ -650,80 +648,6 @@ TEST_CASE("M6 pipeline: click-free parameter sweeps (SC-007)",
 }
 
 // =============================================================================
-// T055(e) additional: Verify timbral blend sweep produces smooth transitions
-// using single-instance static-then-sweep methodology (SC-007)
-// =============================================================================
-
-TEST_CASE("M6 pipeline: timbral blend sweep produces no additional clicks vs static (SC-007)",
-          "[innexus][m6][integration][pipeline]")
-{
-    // -80 dBFS in linear amplitude
-    constexpr float kClickThresholdLinear = 0.0001f;
-
-    // SC-007: measure static max delta across the full parameter range,
-    // then verify the sweep doesn't exceed this envelope.
-
-    // --- Static baseline across multiple timbralBlend values ---
-    float staticMaxDelta = 0.0f;
-    const double staticValues[] = {0.0, 0.25, 0.5, 0.75, 1.0};
-    for (double sv : staticValues)
-    {
-        PipelineTestFixture fixS(128, kPipelineTestSampleRate);
-        fixS.injectAnalysis(makePipelineTestAnalysis(20, 440.0f, 8, 0.5f));
-        fixS.paramChanges.addChange(Innexus::kTimbralBlendId, sv);
-        fixS.paramChanges.addChange(Innexus::kStereoSpreadId, 0.5);
-        fixS.events.addNoteOn(60, 0.8f);
-        fixS.processBlockWithParams();
-        fixS.events.clear();
-
-        for (int b = 0; b < 30; ++b)
-            fixS.processBlock();
-
-        float prev = fixS.outL.back();
-        for (int b = 0; b < 20; ++b)
-        {
-            fixS.processBlock();
-            float d = measureMaxDelta(fixS.outL, prev);
-            if (d > staticMaxDelta) staticMaxDelta = d;
-        }
-    }
-
-    // --- Sweep: timbralBlend 0 -> 1 ---
-    PipelineTestFixture fixSweep(128, kPipelineTestSampleRate);
-    fixSweep.injectAnalysis(makePipelineTestAnalysis(20, 440.0f, 8, 0.5f));
-    fixSweep.paramChanges.addChange(Innexus::kTimbralBlendId, 0.0);
-    fixSweep.paramChanges.addChange(Innexus::kStereoSpreadId, 0.5);
-    fixSweep.events.addNoteOn(60, 0.8f);
-    fixSweep.processBlockWithParams();
-    fixSweep.events.clear();
-
-    for (int b = 0; b < 30; ++b)
-        fixSweep.processBlock();
-
-    float prevSweep = fixSweep.outL.back();
-    float sweepMaxDelta = 0.0f;
-    for (int b = 0; b < 50; ++b)
-    {
-        float val = static_cast<float>(b) / 49.0f;
-        fixSweep.paramChanges.addChange(Innexus::kTimbralBlendId, static_cast<double>(val));
-        fixSweep.processBlockWithParams();
-        float d = measureMaxDelta(fixSweep.outL, prevSweep);
-        if (d > sweepMaxDelta) sweepMaxDelta = d;
-    }
-
-    float addedDiscontinuity = sweepMaxDelta - staticMaxDelta;
-
-    INFO("Static max delta (envelope) = " << staticMaxDelta);
-    INFO("Sweep max delta (0->1) = " << sweepMaxDelta);
-    INFO("Added discontinuity = " << addedDiscontinuity
-         << " (threshold = " << kClickThresholdLinear << ")");
-
-    // The sweep should not produce deltas exceeding the envelope of
-    // all static measurements by more than -80 dBFS (0.0001 linear).
-    REQUIRE(addedDiscontinuity < kClickThresholdLinear);
-}
-
-// =============================================================================
 // T057: CPU Benchmark (opt-in via [.perf] tag)
 // =============================================================================
 
@@ -745,7 +669,6 @@ TEST_CASE("M6 CPU benchmark: all features active < 2% total, < 1% delta (SC-008)
 
         if (enableM6)
         {
-            fix->paramChanges.addChange(Innexus::kTimbralBlendId, 0.5);
             fix->paramChanges.addChange(Innexus::kStereoSpreadId, 0.5);
             fix->paramChanges.addChange(Innexus::kDetuneSpreadId, 0.5);
             fix->paramChanges.addChange(Innexus::kEvolutionEnableId, 1.0);

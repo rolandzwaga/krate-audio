@@ -24,8 +24,8 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
 
     Steinberg::IBStreamer streamer(state, kLittleEndian);
 
-    // Write state version -- v1 (flat format, pre-release)
-    streamer.writeInt32(1);
+    // Write state version -- v2 (removed timbral blend / cross-synthesis)
+    streamer.writeInt32(2);
 
     // --- M1 parameters ---
     streamer.writeFloat(releaseTimeMs_.load(std::memory_order_relaxed));
@@ -135,7 +135,7 @@ Steinberg::tresult PLUGIN_API Processor::getState(Steinberg::IBStream* state)
     }
 
     // --- M6 parameters (creative extensions) ---
-    streamer.writeFloat(timbralBlend_.load(std::memory_order_relaxed));
+    // Note: timbralBlend was removed in v2 (no longer written)
     streamer.writeFloat(stereoSpread_.load(std::memory_order_relaxed));
     streamer.writeFloat(evolutionEnable_.load(std::memory_order_relaxed));
     streamer.writeFloat(evolutionSpeed_.load(std::memory_order_relaxed));
@@ -263,7 +263,7 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     if (!streamer.readInt32(version))
         return Steinberg::kResultFalse;
 
-    if (version != 1)
+    if (version != 1 && version != 2)
         return Steinberg::kResultFalse;
 
     float floatVal = 0.0f;
@@ -506,8 +506,10 @@ Steinberg::tresult PLUGIN_API Processor::setState(Steinberg::IBStream* state)
     }
 
     // --- M6 parameters (creative extensions) ---
-    if (streamer.readFloat(floatVal))
-        timbralBlend_.store(std::clamp(floatVal, 0.0f, 1.0f));
+    // v1 had timbralBlend here — read and discard to advance stream position
+    if (version == 1) {
+        streamer.readFloat(floatVal); // discard timbralBlend
+    }
     if (streamer.readFloat(floatVal))
         stereoSpread_.store(std::clamp(floatVal, 0.0f, 1.0f));
     if (streamer.readFloat(floatVal))

@@ -117,10 +117,6 @@ void Processor::processParameterChanges(
                 break;
 
             // M6 Creative Extensions parameters
-            case kTimbralBlendId:
-                timbralBlend_.store(
-                    std::clamp(static_cast<float>(value), 0.0f, 1.0f));
-                break;
             case kStereoSpreadId:
                 stereoSpread_.store(
                     std::clamp(static_cast<float>(value), 0.0f, 1.0f));

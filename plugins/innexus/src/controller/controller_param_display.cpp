@@ -227,7 +227,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     // =========================================================================
     // Creative Extensions (600-649)
     // =========================================================================
-    case kTimbralBlendId:
     case kStereoSpreadId:
     case kEvolutionDepthId:
     case kMod1DepthId:

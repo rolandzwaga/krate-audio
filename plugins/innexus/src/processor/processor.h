@@ -302,7 +302,6 @@ public:
     }
 
     // M6 Test Accessors
-    float getTimbralBlend() const { return timbralBlend_.load(std::memory_order_relaxed); }
     float getStereoSpread() const { return stereoSpread_.load(std::memory_order_relaxed); }
     float getEvolutionEnable() const { return evolutionEnable_.load(std::memory_order_relaxed); }
     float getEvolutionSpeed() const { return evolutionSpeed_.load(std::memory_order_relaxed); }
@@ -461,8 +460,6 @@ private:
     float previousRecallTrigger_ = 0.0f;
 
     // M6 Creative Extensions parameters (FR-043)
-    // Cross-Synthesis
-    std::atomic<float> timbralBlend_{1.0f};           // 0.0-1.0, default 1.0
     // Stereo Output
     std::atomic<float> stereoSpread_{0.0f};           // 0.0-1.0, default 0.0
     // Evolution Engine
@@ -571,7 +568,6 @@ private:
     Krate::DSP::OnePoleSmoother transientEmphasisSmoother_;
 
     // M6 Parameter smoothers
-    Krate::DSP::OnePoleSmoother timbralBlendSmoother_;      // 5ms (FR-005)
     Krate::DSP::OnePoleSmoother stereoSpreadSmoother_;      // 10ms (FR-011)
     Krate::DSP::OnePoleSmoother evolutionSpeedSmoother_;    // 5ms (FR-023)
     Krate::DSP::OnePoleSmoother evolutionDepthSmoother_;    // 5ms (FR-023)
@@ -698,11 +694,6 @@ private:
     // Harmonic Memory Slots (M5: FR-010)
     // =========================================================================
     std::array<Krate::DSP::MemorySlot, 8> memorySlots_{};
-
-    // =========================================================================
-    // M6: Pure Harmonic Reference (FR-004, R-004)
-    // =========================================================================
-    Krate::DSP::HarmonicFrame pureHarmonicFrame_{};
 
     // =========================================================================
     // M6: Evolution Engine (FR-014 to FR-023)

@@ -178,7 +178,7 @@ TEST_CASE("StateV9: getState writes version 1",
     IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 1);
+    REQUIRE(version == 2);
 
     proc->setActive(false);
     proc->terminate();

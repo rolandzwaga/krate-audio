@@ -49,7 +49,7 @@ public:
 
     /// Default noise gate threshold in dB (FR-007)
     /// -40 dB rejects low-level noise that would otherwise cause spurious
-    /// pitch detections during silence (especially with cross-synthesis blend).
+    /// pitch detections during silence.
     static constexpr float kDefaultNoiseGateThresholdDb = -50.0f;
 
     /// DC estimator pole frequency in Hz (FR-005)

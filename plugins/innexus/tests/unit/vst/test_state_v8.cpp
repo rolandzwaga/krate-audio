@@ -221,7 +221,7 @@ TEST_CASE("StateV8: getState writes current version (1)",
     IBStreamer reader(&stream, kLittleEndian);
     int32 version = 0;
     REQUIRE(reader.readInt32(version));
-    REQUIRE(version == 1);
+    REQUIRE(version == 2);
 
     proc->setActive(false);
     proc->terminate();

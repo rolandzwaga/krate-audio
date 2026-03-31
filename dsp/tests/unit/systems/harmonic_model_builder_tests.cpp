@@ -3,7 +3,7 @@
 // ==============================================================================
 // Spec: specs/115-innexus-m1-core-instrument/spec.md
 // Phase 8: FR-029 to FR-034
-// Tests: L2 normalization, dual-timescale blending, spectral centroid,
+// Tests: dual-timescale blending, spectral centroid,
 //        brightness, median filter, global amplitude, zero partials
 // ==============================================================================
 
@@ -38,16 +38,14 @@ static Partial makePartial(int harmonicIndex, float frequency, float amplitude,
 }
 
 // ===========================================================================
-// FR-030: L2 Normalization
+// Amplitude pass-through (no normalization)
 // ===========================================================================
-TEST_CASE("HarmonicModelBuilder: L2 normalization produces unit norm",
-          "[systems][harmonic_model_builder][FR-030]") {
+TEST_CASE("HarmonicModelBuilder: amplitudes pass through without normalization",
+          "[systems][harmonic_model_builder]") {
     HarmonicModelBuilder builder;
     builder.prepare(44100.0);
+    builder.setResponsiveness(1.0f); // Full fast layer for quick convergence
 
-    // Create partials with known amplitudes: [0.3, 0.4, 0.5]
-    // L2 norm = sqrt(0.09 + 0.16 + 0.25) = sqrt(0.5) = ~0.7071
-    // After normalization: each amp_i / norm => sum(amp_i^2) = 1.0
     std::array<Partial, kMaxPartials> partials{};
     partials[0] = makePartial(1, 440.0f, 0.3f, 1.0f);
     partials[1] = makePartial(2, 880.0f, 0.4f, 2.0f);
@@ -58,40 +56,17 @@ TEST_CASE("HarmonicModelBuilder: L2 normalization produces unit norm",
     f0.confidence = 0.9f;
     f0.voiced = true;
 
-    // Feed several frames to fill median filter buffer
+    // Feed enough frames for smoothing to settle
     HarmonicFrame frame;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 50; ++i) {
         frame = builder.build(partials, 3, f0, 0.5f);
     }
 
-    // Verify sum of squared normalized amplitudes is approximately 1.0
-    float sumSqr = 0.0f;
-    for (int i = 0; i < frame.numPartials; ++i) {
-        sumSqr += frame.partials[i].amplitude * frame.partials[i].amplitude;
-    }
-    REQUIRE(sumSqr == Approx(1.0f).margin(0.01f));
-}
-
-TEST_CASE("HarmonicModelBuilder: L2 normalization preserves relative ratios",
-          "[systems][harmonic_model_builder][FR-030]") {
-    HarmonicModelBuilder builder;
-    builder.prepare(44100.0);
-
-    std::array<Partial, kMaxPartials> partials{};
-    partials[0] = makePartial(1, 440.0f, 0.6f, 1.0f);
-    partials[1] = makePartial(2, 880.0f, 0.3f, 2.0f);
-
-    F0Estimate f0{440.0f, 0.9f, true};
-
-    HarmonicFrame frame;
-    for (int i = 0; i < 10; ++i) {
-        frame = builder.build(partials, 2, f0, 0.5f);
-    }
-
-    // Ratio of amplitudes should be preserved: 0.6/0.3 = 2.0
-    REQUIRE(frame.numPartials == 2);
-    float ratio = frame.partials[0].amplitude / frame.partials[1].amplitude;
-    REQUIRE(ratio == Approx(2.0f).margin(0.05f));
+    // Amplitudes should converge to the input values (no L2 normalization)
+    REQUIRE(frame.numPartials == 3);
+    REQUIRE(frame.partials[0].amplitude == Approx(0.3f).margin(0.02f));
+    REQUIRE(frame.partials[1].amplitude == Approx(0.4f).margin(0.02f));
+    REQUIRE(frame.partials[2].amplitude == Approx(0.5f).margin(0.02f));
 }
 
 // ===========================================================================

@@ -374,13 +374,6 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
     // M6 Creative Extensions parameters (FR-043)
     // ==================================================================
 
-    // Cross-Synthesis: Timbral Blend (FR-001)
-    auto* timbralBlendParam = new Steinberg::Vst::RangeParameter(
-        STR16("Timbral Blend"), kTimbralBlendId,
-        STR16("%"), 0.0, 1.0, 1.0, 0,
-        Steinberg::Vst::ParameterInfo::kCanAutomate);
-    parameters.addParameter(timbralBlendParam);
-
     // Stereo Spread (FR-006)
     auto* stereoSpreadParam = new Steinberg::Vst::RangeParameter(
         STR16("Stereo Spread"), kStereoSpreadId,
@@ -933,7 +926,7 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     if (!streamer.readInt32(version))
         return Steinberg::kResultFalse;
 
-    if (version != 1)
+    if (version != 1 && version != 2)
         return Steinberg::kResultFalse;
 
     float floatVal = 0.0f;
@@ -1122,8 +1115,9 @@ Steinberg::tresult PLUGIN_API Controller::setComponentState(
     // --- M6 parameters (creative extensions) ---
     {
         float m6Val = 0.0f;
-        if (streamer.readFloat(m6Val))
-            setParamNormalized(kTimbralBlendId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
+        // v1 had timbralBlend here — read and discard to advance stream position
+        if (version == 1)
+            streamer.readFloat(m6Val);
         if (streamer.readFloat(m6Val))
             setParamNormalized(kStereoSpreadId, static_cast<double>(std::clamp(m6Val, 0.0f, 1.0f)));
         if (streamer.readFloat(m6Val))
