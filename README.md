@@ -43,6 +43,10 @@ krate-audio/
 │   │   ├── src/              # Plugin source (processor, controller, DSP)
 │   │   ├── tests/            # Plugin-specific tests
 │   │   └── resources/        # UI assets, AU/AUv3 config
+│   ├── gradus/               # Gradus - Standalone step arpeggiator
+│   │   ├── src/              # Plugin source (processor, controller, audition voice)
+│   │   ├── tests/            # Plugin-specific tests
+│   │   └── resources/        # UI assets, presets, AU/AUv3 config
 │   └── shared/               # Shared plugin components (UI controls, presets, MIDI)
 │       ├── src/ui/           # Reusable VSTGUI controls
 │       └── tests/            # Shared component tests
@@ -84,7 +88,13 @@ A chaos/spectral hybrid synthesizer blending 10 oscillator types — from classi
 
 A harmonic analysis and resynthesis VST3/AU instrument. Analyzes audio samples or live sidechain input to extract harmonic content, then resynthesizes it as a playable instrument with independent control over harmonics, residual noise, and transients.
 
-[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/innexus//) | [**Plugin README**](plugins/innexus/README.md)
+[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/innexus/) | [**Plugin README**](plugins/innexus/README.md)
+
+### [Gradus](plugins/gradus/docs/index.html)
+
+A standalone step arpeggiator with 8 independent polymetric lanes, per-lane speed multipliers, Euclidean rhythms, conditional triggers, chord generation, and scale quantization. Runs as a VST3 instrument with MIDI output for driving any synth, plus a built-in audition voice. Shares arp parameter IDs with Ruinae for cross-plugin preset exchange.
+
+[**Website & Documentation**](https://rolandzwaga.github.io/krate-audio/gradus/) | [**Changelog**](plugins/gradus/CHANGELOG.md)
 
 ## KrateDSP Library
 
@@ -146,6 +156,7 @@ cmake --build build/windows-x64-release --target dsp_tests
 | Disrumpo plugin | `build/<preset>/VST3/Release/Disrumpo.vst3` |
 | Ruinae plugin | `build/<preset>/VST3/Release/Ruinae.vst3` |
 | Innexus plugin | `build/<preset>/VST3/Release/Innexus.vst3` |
+| Gradus plugin | `build/<preset>/VST3/Release/Gradus.vst3` |
 | DSP tests | `build/<preset>/bin/Release/dsp_tests` |
 | Plugin tests | `build/<preset>/bin/Release/<plugin>_tests` |
 | KrateDSP library | `build/<preset>/dsp/Release/KrateDSP.lib` |
