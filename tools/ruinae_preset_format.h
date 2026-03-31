@@ -45,7 +45,7 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 7;
+static constexpr int32_t kStateVersion = 8;
 
 // Trance gate state version marker (must match kTranceGateStateVersion in trance_gate_params.h)
 static constexpr int32_t kTranceGateStateVersion = 3;
@@ -987,6 +987,16 @@ struct ArpState {
     // Voicing mode (version 4+)
     int32_t voicingMode = 0;        // 0=Close
 
+    // Per-lane speed multipliers (version 8+)
+    float velocityLaneSpeed = 1.0f;
+    float gateLaneSpeed = 1.0f;
+    float pitchLaneSpeed = 1.0f;
+    float modifierLaneSpeed = 1.0f;
+    float ratchetLaneSpeed = 1.0f;
+    float conditionLaneSpeed = 1.0f;
+    float chordLaneSpeed = 1.0f;
+    float inversionLaneSpeed = 1.0f;
+
     ArpState() {
         // Velocity defaults to 1.0
         for (auto& step : velocityLaneSteps)
@@ -1084,6 +1094,16 @@ struct ArpState {
 
         // Voicing mode (version 4+)
         w.writeInt32(voicingMode);
+
+        // Per-lane speed multipliers (version 8+)
+        w.writeFloat(velocityLaneSpeed);
+        w.writeFloat(gateLaneSpeed);
+        w.writeFloat(pitchLaneSpeed);
+        w.writeFloat(modifierLaneSpeed);
+        w.writeFloat(ratchetLaneSpeed);
+        w.writeFloat(conditionLaneSpeed);
+        w.writeFloat(chordLaneSpeed);
+        w.writeFloat(inversionLaneSpeed);
     }
 };
 

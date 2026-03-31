@@ -2072,7 +2072,7 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
     }
 
     // Verify sentinels (updated for dual-reverb/flanger additions)
-    CHECK(kArpEndId == 3372);
+    CHECK(kArpEndId == 3387);
     CHECK(kNumParameters == 3401);
 }
 
@@ -2779,8 +2779,8 @@ TEST_CASE("loadArpParams: old preset without scale fields keeps defaults", "[arp
     fullStream.seek(0, Steinberg::IBStream::kIBSeekEnd, &fullSize);
 
     // Old preset = fullSize minus scale fields (3 int32) + midiOut (1 int32) + chord data (67 int32)
-    // = 71 * sizeof(int32) = 284 bytes
-    Steinberg::int64 oldSize = fullSize - 71 * static_cast<Steinberg::int64>(sizeof(Steinberg::int32));
+    // + lane speed (8 float) = 79 * sizeof(int32) = 316 bytes
+    Steinberg::int64 oldSize = fullSize - 79 * static_cast<Steinberg::int64>(sizeof(Steinberg::int32));
 
     // Read the full data and create a truncated stream
     std::vector<char> fullData(static_cast<size_t>(fullSize));

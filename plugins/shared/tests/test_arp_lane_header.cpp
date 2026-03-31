@@ -90,13 +90,13 @@ TEST_CASE("ArpLaneHeader handleMouseDown in collapse zone toggles state", "[arp_
 
     // Click at x=10 (within the 24px collapse zone), y=8 (vertical center)
     CPoint clickPoint(10, 8);
-    bool handled = header.handleMouseDown(clickPoint, headerRect, nullptr);
+    bool handled = header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
 
     REQUIRE(handled);
     REQUIRE(header.isCollapsed());
 
     // Click again to expand
-    handled = header.handleMouseDown(clickPoint, headerRect, nullptr);
+    handled = header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
     REQUIRE(handled);
     REQUIRE_FALSE(header.isCollapsed());
 }
@@ -110,7 +110,7 @@ TEST_CASE("ArpLaneHeader handleMouseDown in collapse zone fires collapseCallback
 
     CRect headerRect(0, 0, 500, 16);
     CPoint clickPoint(10, 8);
-    header.handleMouseDown(clickPoint, headerRect, nullptr);
+    header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
 
     REQUIRE(callbackFired);
 }
@@ -130,7 +130,7 @@ TEST_CASE("ArpLaneHeader handleMouseDown outside both zones returns false", "[ar
 
     // Click at x=50 (past collapse zone, before dropdown zone)
     CPoint clickPoint(50, 8);
-    bool handled = header.handleMouseDown(clickPoint, headerRect, nullptr);
+    bool handled = header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
 
     REQUIRE_FALSE(handled);
 }
@@ -142,7 +142,7 @@ TEST_CASE("ArpLaneHeader handleMouseDown outside header rect returns false", "[a
 
     // Click below header
     CPoint clickPoint(10, 20);
-    bool handled = header.handleMouseDown(clickPoint, headerRect, nullptr);
+    bool handled = header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
 
     REQUIRE_FALSE(handled);
 }
@@ -186,7 +186,7 @@ TEST_CASE("ArpLaneHeader handleMouseDown with offset headerRect works correctly"
     // Click in collapse zone: x relative to headerRect.left must be < 24
     // So absolute x must be between 100 and 124
     CPoint clickPoint(110, 58);
-    bool handled = header.handleMouseDown(clickPoint, headerRect, nullptr);
+    bool handled = header.handleMouseDown(clickPoint, clickPoint, headerRect, nullptr);
 
     REQUIRE(handled);
     REQUIRE(header.isCollapsed());
