@@ -173,7 +173,11 @@ jobs:
 
       - name: Build Gradus and Tests
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus gradus_tests --parallel
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -314,7 +318,11 @@ jobs:
 
       - name: Build Gradus, AU, AUv3, and Tests
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus Gradus_AU Gradus_AUV3 --parallel
+        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus Gradus_AU Gradus_AUV3 gradus_tests --parallel
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -577,7 +585,11 @@ jobs:
 
       - name: Build Gradus and Tests
         if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Gradus --parallel
+        run: cmake --build build --target Gradus gradus_tests --parallel
+
+      - name: Run Gradus Tests
+        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
 
       - name: Run DSP Tests
         if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
