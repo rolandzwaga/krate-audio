@@ -236,99 +236,240 @@ static constexpr int32_t kCondFill   = 16;
 std::vector<PresetDef> createAllPresets() {
     std::vector<PresetDef> presets;
 
-    // ==================== Classic Category (3 presets) ====================
+    // Additional mode constants not in the header constants above
+    static constexpr int32_t kModeDownUp   = 3;
+    static constexpr int32_t kModeConverge = 4;
+    static constexpr int32_t kModeDiverge  = 5;
+    static constexpr int32_t kModeWalk     = 7;
+    static constexpr int32_t kModeChord    = 9;
 
-    // "Basic Up 1/16"
+    // ========================================================================
+    // ARP CLASSIC (5 presets)
+    // Traditional patterns with velocity accents, gate variation, humanize,
+    // modifier ties/slides.
+    // ========================================================================
+
+    // 1. "Rising Accents" — Up 1/16 with strong downbeat accents, gate variation
     {
         PresetDef p;
-        p.name = "Basic Up 1/16";
+        p.name = "Rising Accents";
         p.category = "Arp Classic";
         setArpEnabled(p.state, true);
         setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 80.0f);
-        setArpSwing(p.state, 0.0f);
+        setArpGateLength(p.state, 75.0f);
+        setArpSwing(p.state, 10.0f);
         p.state.arp.octaveRange = 2;
-        float vel8[] = {0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f};
-        setVelocityLane(p.state, 8, vel8);
-        float gate8[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-        setGateLane(p.state, 8, gate8);
+        p.state.arp.humanize = 0.12f;
+        // Velocity: accented downbeats, ghost notes between
+        float vel16[] = {
+            1.0f, 0.45f, 0.6f, 0.5f,  0.9f, 0.4f, 0.55f, 0.5f,
+            0.85f, 0.42f, 0.58f, 0.48f, 0.95f, 0.4f, 0.62f, 0.52f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        // Gate: staccato on ghosts, legato on accents
+        float gate16[] = {
+            1.3f, 0.4f, 0.7f, 0.5f,  1.2f, 0.35f, 0.65f, 0.5f,
+            1.1f, 0.4f, 0.6f, 0.45f, 1.25f, 0.38f, 0.7f, 0.48f
+        };
+        setGateLane(p.state, 16, gate16);
+        // Modifier: tie across beats 3-4 and 7-8
+        int32_t mod16[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepTie, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepTie, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive, kStepActive
+        };
+        setModifierLane(p.state, 16, mod16, 40, 50.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Down 1/8"
+    // 2. "Falling Legato" — Down 1/8 with ties, smooth velocity curves
     {
         PresetDef p;
-        p.name = "Down 1/8";
+        p.name = "Falling Legato";
         p.category = "Arp Classic";
         setArpEnabled(p.state, true);
         setArpMode(p.state, kModeDown);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_8);
-        setArpGateLength(p.state, 90.0f);
-        setArpSwing(p.state, 0.0f);
-        p.state.arp.octaveRange = 2;
-        float vel8[] = {0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f};
+        setArpGateLength(p.state, 110.0f);
+        setArpSwing(p.state, 5.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.humanize = 0.08f;
+        // Velocity: descending swell then reset
+        float vel8[] = {0.95f, 0.85f, 0.75f, 0.65f, 1.0f, 0.88f, 0.7f, 0.55f};
         setVelocityLane(p.state, 8, vel8);
-        float gate8[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+        // Gate: long legato with occasional staccato
+        float gate8[] = {1.4f, 1.3f, 1.2f, 0.5f, 1.5f, 1.3f, 1.1f, 0.4f};
         setGateLane(p.state, 8, gate8);
+        // Modifier: ties on consecutive steps, accent on reset points
+        int32_t mod8[] = {
+            kStepActive | kStepAccent | kStepTie, kStepActive | kStepTie,
+            kStepActive | kStepTie, kStepActive,
+            kStepActive | kStepAccent | kStepTie, kStepActive | kStepTie,
+            kStepActive | kStepTie, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 30, 70.0f);
         presets.push_back(std::move(p));
     }
 
-    // "UpDown 1/8T"
+    // 3. "UpDown Bounce" — UpDown 1/8T with swing, ratchets on peaks
     {
         PresetDef p;
-        p.name = "UpDown 1/8T";
+        p.name = "UpDown Bounce";
         p.category = "Arp Classic";
         setArpEnabled(p.state, true);
         setArpMode(p.state, kModeUpDown);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_8T);
-        setArpGateLength(p.state, 75.0f);
-        setArpSwing(p.state, 0.0f);
+        setArpGateLength(p.state, 70.0f);
+        setArpSwing(p.state, 25.0f);
         p.state.arp.octaveRange = 2;
-        // Accent pattern: alternating 0.6/1.0
-        float velAccent8[] = {0.6f, 1.0f, 0.6f, 1.0f, 0.6f, 1.0f, 0.6f, 1.0f};
-        setVelocityLane(p.state, 8, velAccent8);
-        float gate8[] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+        p.state.arp.humanize = 0.15f;
+        // Velocity: crescendo to peak, decrescendo back
+        float vel8[] = {0.55f, 0.65f, 0.8f, 1.0f, 0.95f, 0.75f, 0.6f, 0.5f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: tighter at ends, legato in middle
+        float gate8[] = {0.5f, 0.7f, 1.0f, 1.3f, 1.2f, 0.9f, 0.6f, 0.4f};
         setGateLane(p.state, 8, gate8);
+        // Ratchet: doubles on peak notes
+        int32_t ratch8[] = {1, 1, 1, 2, 2, 1, 1, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Modifier: slides on ascending run
+        int32_t mod8[] = {
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive, kStepActive, kStepActive, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 35, 60.0f);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Acid Category (2 presets) ====================
-
-    // "Acid Line 303"
+    // 4. "Converge Pulse" — Converge with staccato/legato alternation
     {
         PresetDef p;
-        p.name = "Acid Line 303";
+        p.name = "Converge Pulse";
+        p.category = "Arp Classic";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeConverge);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 65.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.octaveMode = 1; // Interleaved
+        p.state.arp.humanize = 0.1f;
+        // Velocity: pulsing on/off pattern
+        float vel8[] = {1.0f, 0.35f, 0.9f, 0.3f, 0.85f, 0.32f, 0.95f, 0.28f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: staccato-legato alternation
+        float gate8[] = {1.1f, 0.3f, 1.0f, 0.25f, 0.95f, 0.3f, 1.2f, 0.2f};
+        setGateLane(p.state, 8, gate8);
+        // Pitch: subtle chromatic motion
+        int32_t pitch8[] = {0, 0, 1, 0, 0, -1, 0, 0};
+        setPitchLane(p.state, 8, pitch8);
+        // Modifier: accents on strong notes
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive, kStepActive,
+            kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 30, 40.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Dotted Eighth Drive" — Dotted 1/8 against bar, classic U2/delay feel
+    {
+        PresetDef p;
+        p.name = "Dotted Eighth Drive";
+        p.category = "Arp Classic";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8D);
+        setArpGateLength(p.state, 85.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.05f;
+        // Velocity: strong-weak-medium pattern (6 steps for polyrhythmic feel)
+        float vel6[] = {1.0f, 0.5f, 0.7f, 0.9f, 0.45f, 0.65f};
+        setVelocityLane(p.state, 6, vel6);
+        // Gate: mostly legato with one staccato break
+        float gate6[] = {1.2f, 1.0f, 1.1f, 0.4f, 1.0f, 1.15f};
+        setGateLane(p.state, 6, gate6);
+        // Ratchet: double on the staccato step for rhythmic interest
+        int32_t ratch6[] = {1, 1, 1, 2, 1, 1};
+        setRatchetLane(p.state, 6, ratch6);
+        // Modifier: slides for smooth motion, accent on 1
+        int32_t mod6[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive,
+            kStepActive | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 6, mod6, 25, 65.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP ACID (5 presets)
+    // 303-style with slides, accents, pitch bends, short gates, ratchets.
+    // Scale quantization to minor pentatonic or blues.
+    // ========================================================================
+
+    // 1. "Acid Bass 303" — Classic squelchy bassline
+    {
+        PresetDef p;
+        p.name = "Acid Bass 303";
         p.category = "Arp Acid";
         setArpEnabled(p.state, true);
         setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 60.0f);
-        float vel8[] = {0.75f, 0.75f, 0.75f, 0.75f,
-                        0.75f, 0.75f, 0.75f, 0.75f};
-        setVelocityLane(p.state, 8, vel8);
-        int32_t pitch8[] = {0, 0, 3, 0, 5, 0, 3, 7};
-        setPitchLane(p.state, 8, pitch8);
-        // Modifier lane: slide on steps 3,7; accent on steps 5; both on step 7
-        int32_t mod8[] = {
-            kStepActive,                            // step 1
-            kStepActive,                            // step 2
-            kStepActive | kStepSlide,               // step 3 (slide)
-            kStepActive,                            // step 4
-            kStepActive | kStepAccent,              // step 5 (accent)
-            kStepActive,                            // step 6
-            kStepActive | kStepSlide | kStepAccent, // step 7 (slide+accent)
-            kStepActive                             // step 8
+        setArpGateLength(p.state, 55.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 11; // MinPent
+        p.state.arp.rootNote = 0;   // C
+        p.state.arp.scaleQuantizeInput = 1;
+        // Velocity: resonance-friendly, accented notes drive filter
+        float vel16[] = {
+            0.9f, 0.4f, 0.5f, 0.35f,  1.0f, 0.38f, 0.45f, 0.6f,
+            0.85f, 0.35f, 0.5f, 0.4f,  1.0f, 0.5f, 0.42f, 0.55f
         };
-        setModifierLane(p.state, 8, mod8, 100, 50.0f);
+        setVelocityLane(p.state, 16, vel16);
+        // Gate: short staccato with occasional long notes
+        float gate16[] = {
+            0.8f, 0.3f, 0.4f, 0.25f,  1.4f, 0.3f, 0.35f, 0.5f,
+            0.7f, 0.25f, 0.4f, 0.3f,  1.3f, 0.4f, 0.3f, 0.45f
+        };
+        setGateLane(p.state, 16, gate16);
+        // Pitch: bass movement with octave jumps
+        int32_t pitch16[] = {
+            0, 0, 3, 0,  -12, 0, 5, 0,
+            0, 3, 0, 7,  -12, 0, 0, 5
+        };
+        setPitchLane(p.state, 16, pitch16);
+        // Modifier: classic 303 slide+accent pattern
+        int32_t mod16[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepSlide, kStepActive,
+            kStepActive | kStepAccent | kStepSlide, kStepActive, kStepActive, kStepActive | kStepSlide,
+            kStepActive | kStepAccent, kStepActive | kStepSlide, kStepActive, kStepActive,
+            kStepActive | kStepAccent | kStepSlide, kStepActive, kStepActive, kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 16, mod16, 110, 45.0f);
+        // Ratchet: doubles on accent notes
+        int32_t ratch16[] = {
+            2, 1, 1, 1,  2, 1, 1, 1,
+            2, 1, 1, 1,  2, 1, 1, 1
+        };
+        setRatchetLane(p.state, 16, ratch16);
         presets.push_back(std::move(p));
     }
 
-    // "Acid Stab"
+    // 2. "Acid Stab" — Aggressive accented stabs
     {
         PresetDef p;
         p.name = "Acid Stab";
@@ -337,77 +478,359 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeAsPlayed);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 40.0f);
-        float vel8[] = {0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f};
+        setArpGateLength(p.state, 35.0f);
+        setArpSwing(p.state, 8.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 12; // Blues
+        p.state.arp.rootNote = 5;   // F
+        p.state.arp.scaleQuantizeInput = 1;
+        // Velocity: all-out accented, with some ghost notes
+        float vel8[] = {1.0f, 0.3f, 1.0f, 0.25f, 1.0f, 0.3f, 0.9f, 1.0f};
         setVelocityLane(p.state, 8, vel8);
-        int32_t pitch8[] = {0, 0, 0, 0, 0, 0, 0, 0};
+        // Gate: very short stabs with one sustained
+        float gate8[] = {0.3f, 0.2f, 0.35f, 0.15f, 0.3f, 0.2f, 1.2f, 0.25f};
+        setGateLane(p.state, 8, gate8);
+        // Pitch: octave jumps for aggression
+        int32_t pitch8[] = {0, 12, 0, -12, 0, 12, 0, 0};
         setPitchLane(p.state, 8, pitch8);
-        // All steps: active + accent
+        // Modifier: accent on stabs, slide into sustained note
         int32_t mod8[] = {
-            kStepActive | kStepAccent, kStepActive | kStepAccent,
-            kStepActive | kStepAccent, kStepActive | kStepAccent,
-            kStepActive | kStepAccent, kStepActive | kStepAccent,
-            kStepActive | kStepAccent, kStepActive | kStepAccent
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepSlide, kStepActive | kStepAccent
         };
-        setModifierLane(p.state, 8, mod8, 110, 50.0f);
+        setModifierLane(p.state, 8, mod8, 120, 40.0f);
+        // Ratchet: triplet on final accent
+        int32_t ratch8[] = {1, 1, 1, 1, 1, 1, 1, 3};
+        setRatchetLane(p.state, 8, ratch8);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Euclidean Category (3 presets) ====================
+    // 3. "Acid Slide Machine" — Slide-heavy with long portamento
+    {
+        PresetDef p;
+        p.name = "Acid Slide Machine";
+        p.category = "Arp Acid";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 95.0f);
+        setArpSwing(p.state, 12.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 11; // MinPent
+        p.state.arp.rootNote = 9;   // A
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.humanize = 0.05f;
+        // Velocity: smooth contour, not flat
+        float vel8[] = {0.7f, 0.8f, 0.6f, 0.9f, 0.75f, 0.85f, 0.65f, 1.0f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: all long for slide effect
+        float gate8[] = {1.4f, 1.3f, 1.5f, 1.2f, 1.4f, 1.3f, 1.5f, 0.6f};
+        setGateLane(p.state, 8, gate8);
+        // Pitch: minor pentatonic walk
+        int32_t pitch8[] = {0, 3, 5, 7, 10, 7, 5, 3};
+        setPitchLane(p.state, 8, pitch8);
+        // Modifier: nearly all slides, accent on last (break) note
+        int32_t mod8[] = {
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 8, mod8, 100, 90.0f);
+        presets.push_back(std::move(p));
+    }
 
-    // "Tresillo E(3,8)"
+    // 4. "Acid Bubbles" — Fast 1/16 with random-ish pitch, probability gate
+    {
+        PresetDef p;
+        p.name = "Acid Bubbles";
+        p.category = "Arp Acid";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeRandom);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 45.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.scaleType = 12; // Blues
+        p.state.arp.rootNote = 2;   // D
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.spice = 0.3f;
+        p.state.arp.humanize = 0.1f;
+        // Velocity: random-ish highs and lows for filter movement
+        float vel16[] = {
+            0.9f, 0.3f, 0.7f, 1.0f,  0.4f, 0.8f, 0.35f, 0.95f,
+            0.5f, 1.0f, 0.3f, 0.75f, 0.9f, 0.4f, 0.85f, 0.3f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        // Gate: mostly short with occasional long
+        float gate16[] = {
+            0.4f, 0.25f, 0.35f, 1.0f,  0.3f, 0.4f, 0.2f, 0.8f,
+            0.35f, 0.9f, 0.25f, 0.4f,  0.3f, 0.3f, 0.7f, 0.2f
+        };
+        setGateLane(p.state, 16, gate16);
+        // Pitch: bouncy intervals
+        int32_t pitch16[] = {
+            0, 7, -5, 3,  12, -3, 5, 0,
+            7, -7, 3, 10, -5, 0, 12, -12
+        };
+        setPitchLane(p.state, 16, pitch16);
+        // Modifier: scattered slides and accents
+        int32_t mod16[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive, kStepActive | kStepSlide, kStepActive, kStepActive | kStepAccent,
+            kStepActive | kStepSlide, kStepActive, kStepActive, kStepActive | kStepAccent | kStepSlide,
+            kStepActive, kStepActive | kStepSlide, kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 16, mod16, 100, 50.0f);
+        // Condition: some probability for unpredictable gate
+        int32_t cond16[] = {
+            kCondAlways, kCondProb75, kCondAlways, kCondAlways,
+            kCondProb50, kCondAlways, kCondProb75, kCondAlways,
+            kCondAlways, kCondAlways, kCondProb50, kCondAlways,
+            kCondAlways, kCondProb75, kCondAlways, kCondProb50
+        };
+        setConditionLane(p.state, 16, cond16, 0);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Acid Hypnotic" — Repeating hypnotic pattern with ties
+    {
+        PresetDef p;
+        p.name = "Acid Hypnotic";
+        p.category = "Arp Acid";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 70.0f);
+        setArpSwing(p.state, 18.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 11; // MinPent
+        p.state.arp.rootNote = 7;   // G
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.ratchetSwing = 65.0f;
+        // Velocity: hypnotic pulsing
+        float vel8[] = {1.0f, 0.5f, 0.7f, 0.45f, 0.9f, 0.5f, 0.65f, 0.4f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: mostly short, long on tied notes
+        float gate8[] = {0.6f, 0.3f, 1.4f, 0.3f, 0.5f, 0.3f, 1.3f, 0.25f};
+        setGateLane(p.state, 8, gate8);
+        // Pitch: repetitive octave root movement
+        int32_t pitch8[] = {0, 0, 0, -12, 0, 0, 0, 12};
+        setPitchLane(p.state, 8, pitch8);
+        // Modifier: ties create connected phrases, accents on 1 and 5
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepTie | kStepSlide, kStepActive,
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepTie | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 105, 55.0f);
+        // Ratchet: triples on accented beat
+        int32_t ratch8[] = {3, 1, 1, 1, 2, 1, 1, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP EUCLIDEAN (5 presets)
+    // Different E(k,n,r) patterns with velocity accents, ratchets, conditions.
+    // Polymetric lane lengths.
+    // ========================================================================
+
+    // 1. "Tresillo E(3,8)" — Classic Afro-Cuban, accented velocity, ratchets
     {
         PresetDef p;
         p.name = "Tresillo E(3,8)";
         p.category = "Arp Euclidean";
         setArpEnabled(p.state, true);
-        setTempoSync(p.state, true);
-        setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 80.0f);
-        p.state.arp.octaveRange = 1;
-        setEuclidean(p.state, true, 3, 8, 0);
-        float vel8[] = {0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f, 0.8f};
-        setVelocityLane(p.state, 8, vel8);
-        presets.push_back(std::move(p));
-    }
-
-    // "Bossa E(5,16)"
-    {
-        PresetDef p;
-        p.name = "Bossa E(5,16)";
-        p.category = "Arp Euclidean";
-        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
         setArpGateLength(p.state, 75.0f);
-        p.state.arp.octaveRange = 1;
-        setEuclidean(p.state, true, 5, 16, 0);
-        float vel16[16];
-        for (int i = 0; i < 16; ++i) vel16[i] = 0.75f;
-        setVelocityLane(p.state, 16, vel16);
+        setArpSwing(p.state, 15.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.1f;
+        setEuclidean(p.state, true, 3, 8, 0);
+        // Velocity: strong on euclidean hits, ghost between (5-step polymetric)
+        float vel5[] = {1.0f, 0.4f, 0.85f, 0.35f, 0.9f};
+        setVelocityLane(p.state, 5, vel5);
+        // Gate: varied for rhythmic interest
+        float gate8[] = {1.1f, 0.4f, 0.9f, 0.35f, 1.0f, 0.4f, 0.85f, 0.3f};
+        setGateLane(p.state, 8, gate8);
+        // Ratchet: double on strong beats (3-step polymetric)
+        int32_t ratch3[] = {2, 1, 1};
+        setRatchetLane(p.state, 3, ratch3);
+        // Modifier: accents on euclidean downbeats
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 35, 50.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Samba E(7,16)"
+    // 2. "Bossa Nova E(5,16)" — Brazilian rhythm, pitch melody, conditions
     {
         PresetDef p;
-        p.name = "Samba E(7,16)";
+        p.name = "Bossa Nova E(5,16)";
         p.category = "Arp Euclidean";
         setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 70.0f);
-        p.state.arp.octaveRange = 2;
-        setEuclidean(p.state, true, 7, 16, 0);
-        float vel16[16];
-        for (int i = 0; i < 16; ++i) vel16[i] = 0.8f;
-        setVelocityLane(p.state, 16, vel16);
+        setArpGateLength(p.state, 80.0f);
+        setArpSwing(p.state, 10.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.humanize = 0.12f;
+        p.state.arp.scaleType = 4; // Dorian
+        p.state.arp.rootNote = 2;  // D
+        setEuclidean(p.state, true, 5, 16, 0);
+        // Velocity: melodic contour (7-step polymetric)
+        float vel7[] = {0.85f, 0.6f, 0.75f, 0.9f, 0.55f, 0.7f, 1.0f};
+        setVelocityLane(p.state, 7, vel7);
+        // Gate: legato for bossa feel
+        float gate5[] = {1.2f, 0.9f, 1.1f, 0.8f, 1.0f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch: melodic intervals
+        int32_t pitch5[] = {0, 2, 5, 3, 7};
+        setPitchLane(p.state, 5, pitch5);
+        // Condition: light probability for variation
+        int32_t cond8[] = {
+            kCondAlways, kCondAlways, kCondProb75, kCondAlways,
+            kCondAlways, kCondProb90, kCondAlways, kCondAlways
+        };
+        setConditionLane(p.state, 8, cond8, 0);
+        // Modifier: slides for smooth motion
+        int32_t mod5[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive, kStepActive | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 5, mod5, 25, 70.0f);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Polymetric Category (2 presets) ====================
+    // 3. "Samba Fiesta E(7,16,2)" — Dense, rotated, with ratchet fills
+    {
+        PresetDef p;
+        p.name = "Samba Fiesta E(7,16,2)";
+        p.category = "Arp Euclidean";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 65.0f);
+        setArpSwing(p.state, 20.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.15f;
+        p.state.arp.ratchetSwing = 60.0f;
+        setEuclidean(p.state, true, 7, 16, 2);
+        // Velocity: accented pattern (11-step polymetric for long evolution)
+        float vel11[] = {
+            1.0f, 0.5f, 0.7f, 0.85f, 0.4f, 0.9f,
+            0.45f, 0.8f, 0.5f, 0.95f, 0.4f
+        };
+        setVelocityLane(p.state, 11, vel11);
+        // Gate: rhythmic variation
+        float gate7[] = {0.9f, 0.5f, 0.7f, 1.1f, 0.4f, 0.8f, 0.6f};
+        setGateLane(p.state, 7, gate7);
+        // Ratchet: fills on select beats
+        int32_t ratch8[] = {1, 2, 1, 1, 3, 1, 2, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Pitch: rhythmic bass movement
+        int32_t pitch4[] = {0, 5, 0, 7};
+        setPitchLane(p.state, 4, pitch4);
+        // Modifier: accents follow euclidean density
+        int32_t mod7[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepSlide,
+            kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 7, mod7, 40, 55.0f);
+        presets.push_back(std::move(p));
+    }
 
-    // "3x5x7 Evolving"
+    // 4. "Sparse Pulse E(3,16,5)" — Minimal, wide spacing, ambient
+    {
+        PresetDef p;
+        p.name = "Sparse Pulse E(3,16,5)";
+        p.category = "Arp Euclidean";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 120.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.humanize = 0.08f;
+        p.state.arp.scaleType = 7; // Lydian
+        p.state.arp.rootNote = 5;  // F
+        setEuclidean(p.state, true, 3, 16, 5);
+        // Velocity: gentle swell
+        float vel4[] = {0.6f, 0.75f, 0.9f, 1.0f};
+        setVelocityLane(p.state, 4, vel4);
+        // Gate: very long, ambient
+        float gate3[] = {1.8f, 1.5f, 1.6f};
+        setGateLane(p.state, 3, gate3);
+        // Pitch: wide intervals for spaciousness
+        int32_t pitch3[] = {0, 7, -5};
+        setPitchLane(p.state, 3, pitch3);
+        // Chord: triads on hits
+        int32_t chords3[] = {kChordTriad, kChordNone, kChordTriad};
+        setChordLane(p.state, 3, chords3);
+        setVoicingMode(p.state, 2); // Spread
+        // Condition: occasional drops
+        int32_t cond4[] = {kCondAlways, kCondProb90, kCondAlways, kCondProb75};
+        setConditionLane(p.state, 4, cond4, 0);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Dense Machine E(11,16,3)" — Near-fill density, industrial
+    {
+        PresetDef p;
+        p.name = "Dense Machine E(11,16,3)";
+        p.category = "Arp Euclidean";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeAsPlayed);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 40.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 8; // Chromatic
+        p.state.arp.ratchetSwing = 40.0f;
+        setEuclidean(p.state, true, 11, 16, 3);
+        // Velocity: mechanical alternating pattern
+        float vel4[] = {1.0f, 0.6f, 0.8f, 0.5f};
+        setVelocityLane(p.state, 4, vel4);
+        // Gate: very short, percussive
+        float gate8[] = {0.3f, 0.25f, 0.35f, 0.2f, 0.3f, 0.28f, 0.32f, 0.22f};
+        setGateLane(p.state, 8, gate8);
+        // Ratchet: mechanical doubles and triples
+        int32_t ratch6[] = {1, 2, 1, 3, 1, 2};
+        setRatchetLane(p.state, 6, ratch6);
+        // Pitch: chromatic cluster
+        int32_t pitch6[] = {0, 1, -1, 2, -2, 0};
+        setPitchLane(p.state, 6, pitch6);
+        // Modifier: all accented, mechanical feel
+        int32_t mod4[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 4, mod4, 50, 30.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP POLYMETRIC (5 presets)
+    // Different lengths per lane (3, 5, 7, 11, etc.), creative pitch intervals,
+    // condition lanes, ratchet patterns shifting against main rhythm.
+    // ========================================================================
+
+    // 1. "3x5x7 Evolving" — Classic polymetric, three coprime lane lengths
     {
         PresetDef p;
         p.name = "3x5x7 Evolving";
@@ -416,45 +839,201 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 70.0f);
+        setArpSwing(p.state, 10.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.08f;
+        p.state.arp.scaleType = 1; // NatMinor
+        p.state.arp.rootNote = 9;  // A
         // Velocity lane length=3
-        float vel3[] = {0.5f, 0.8f, 1.0f};
+        float vel3[] = {1.0f, 0.55f, 0.75f};
         setVelocityLane(p.state, 3, vel3);
         // Gate lane length=5
-        float gate5[] = {0.8f, 1.2f, 0.6f, 1.0f, 0.4f};
+        float gate5[] = {1.1f, 0.5f, 0.8f, 1.3f, 0.4f};
         setGateLane(p.state, 5, gate5);
         // Pitch lane length=7
-        int32_t pitch7[] = {0, 3, 0, 7, 0, -2, 5};
+        int32_t pitch7[] = {0, 3, 0, 7, -2, 5, 0};
         setPitchLane(p.state, 7, pitch7);
         // Ratchet lane length=4
         int32_t ratch4[] = {1, 1, 2, 1};
         setRatchetLane(p.state, 4, ratch4);
+        // Modifier: ties and accents (length=3, shifts against others)
+        int32_t mod3[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 3, mod3, 30, 60.0f);
+        // Condition: probability layer (length=5)
+        int32_t cond5[] = {kCondAlways, kCondAlways, kCondProb75, kCondAlways, kCondProb90};
+        setConditionLane(p.state, 5, cond5, 0);
         presets.push_back(std::move(p));
     }
 
-    // "4x5 Shifting"
+    // 2. "5x11 Hypnosis" — Very long cycle, trance-inducing
     {
         PresetDef p;
-        p.name = "4x5 Shifting";
+        p.name = "5x11 Hypnosis";
+        p.category = "Arp Polymetric";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 80.0f);
+        setArpSwing(p.state, 5.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.1f;
+        p.state.arp.scaleType = 4; // Dorian
+        p.state.arp.rootNote = 2;  // D
+        // Velocity lane length=5
+        float vel5[] = {0.9f, 0.5f, 0.7f, 0.6f, 1.0f};
+        setVelocityLane(p.state, 5, vel5);
+        // Pitch lane length=11
+        int32_t pitch11[] = {0, 2, 5, 7, 3, -2, 0, 5, 7, 10, 12};
+        setPitchLane(p.state, 11, pitch11);
+        // Gate lane length=7
+        float gate7[] = {1.0f, 0.6f, 0.8f, 1.2f, 0.5f, 0.9f, 0.7f};
+        setGateLane(p.state, 7, gate7);
+        // Ratchet lane length=3
+        int32_t ratch3[] = {1, 2, 1};
+        setRatchetLane(p.state, 3, ratch3);
+        // Modifier: slides for legato feeling (length=5)
+        int32_t mod5[] = {
+            kStepActive | kStepSlide, kStepActive, kStepActive | kStepAccent,
+            kStepActive | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 5, mod5, 25, 75.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 3. "7x13 Phase Drift" — Maximally coprime, evolves over many bars
+    {
+        PresetDef p;
+        p.name = "7x13 Phase Drift";
+        p.category = "Arp Polymetric";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 60.0f);
+        setArpSwing(p.state, 15.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.octaveMode = 1; // Interleaved
+        p.state.arp.scaleType = 6;  // Phrygian
+        p.state.arp.rootNote = 4;   // E
+        // Velocity lane length=7
+        float vel7[] = {1.0f, 0.4f, 0.65f, 0.85f, 0.35f, 0.7f, 0.9f};
+        setVelocityLane(p.state, 7, vel7);
+        // Pitch lane length=13
+        int32_t pitch13[] = {0, 1, 5, 0, -1, 3, 7, 0, -3, 5, 1, 8, 0};
+        setPitchLane(p.state, 13, pitch13);
+        // Gate lane length=5
+        float gate5[] = {0.8f, 0.4f, 1.1f, 0.3f, 0.7f};
+        setGateLane(p.state, 5, gate5);
+        // Ratchet lane length=7
+        int32_t ratch7[] = {1, 1, 2, 1, 1, 1, 3};
+        setRatchetLane(p.state, 7, ratch7);
+        // Condition lane length=11
+        int32_t cond11[] = {
+            kCondAlways, kCondAlways, kCondProb75, kCondAlways, kCondAlways,
+            kCondProb50, kCondAlways, kCondAlways, kCondAlways, kCondProb90,
+            kCondAlways
+        };
+        setConditionLane(p.state, 11, cond11, 0);
+        // Modifier: slides at phrase boundaries
+        int32_t mod7[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive | kStepSlide,
+            kStepActive, kStepActive, kStepActive | kStepSlide,
+            kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 7, mod7, 30, 65.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 4. "4x5x6 Groove" — Moderate polymetry, funk-oriented
+    {
+        PresetDef p;
+        p.name = "4x5x6 Groove";
         p.category = "Arp Polymetric";
         setArpEnabled(p.state, true);
         setArpMode(p.state, kModeAsPlayed);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        // Ratchet lane length=4
-        int32_t ratch4[] = {1, 2, 1, 2};
-        setRatchetLane(p.state, 4, ratch4);
-        // Velocity lane length=5
-        float vel5[] = {0.6f, 1.0f, 0.7f, 0.9f, 0.5f};
-        setVelocityLane(p.state, 5, vel5);
-        // Gate lane length=6
-        float gate6[] = {0.8f, 1.1f, 0.7f, 1.0f, 0.6f, 0.9f};
-        setGateLane(p.state, 6, gate6);
+        setArpGateLength(p.state, 55.0f);
+        setArpSwing(p.state, 30.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.scaleType = 5; // Mixolydian
+        p.state.arp.rootNote = 7;  // G
+        p.state.arp.humanize = 0.15f;
+        // Velocity lane length=4: funky accent pattern
+        float vel4[] = {1.0f, 0.4f, 0.7f, 0.45f};
+        setVelocityLane(p.state, 4, vel4);
+        // Gate lane length=5: staccato-legato mix
+        float gate5[] = {0.5f, 1.3f, 0.4f, 0.8f, 0.6f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch lane length=6
+        int32_t pitch6[] = {0, 0, 5, 0, -5, 7};
+        setPitchLane(p.state, 6, pitch6);
+        // Ratchet lane length=5: rhythmic fills
+        int32_t ratch5[] = {1, 2, 1, 1, 2};
+        setRatchetLane(p.state, 5, ratch5);
+        // Modifier: accents and slides (length=4)
+        int32_t mod4[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepSlide, kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 4, mod4, 40, 45.0f);
+        // Chord: occasional dyads (length=6)
+        int32_t chords6[] = {kChordNone, kChordNone, kChordDyad, kChordNone, kChordNone, kChordDyad};
+        setChordLane(p.state, 6, chords6);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Generative Category (2 presets) ====================
+    // 5. "Prime Cascade 3x7x11" — Triple prime, maximum evolution length
+    {
+        PresetDef p;
+        p.name = "Prime Cascade 3x7x11";
+        p.category = "Arp Polymetric";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeConverge);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 75.0f);
+        setArpSwing(p.state, 8.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.scaleType = 2; // HarmMinor
+        p.state.arp.rootNote = 0;  // C
+        p.state.arp.humanize = 0.06f;
+        // Velocity lane length=3
+        float vel3[] = {1.0f, 0.6f, 0.8f};
+        setVelocityLane(p.state, 3, vel3);
+        // Gate lane length=7
+        float gate7[] = {0.9f, 0.5f, 1.2f, 0.4f, 0.8f, 1.1f, 0.6f};
+        setGateLane(p.state, 7, gate7);
+        // Pitch lane length=11: harmonic minor exploration
+        int32_t pitch11[] = {0, 3, 5, 7, 8, 11, 12, 8, 7, 5, 3};
+        setPitchLane(p.state, 11, pitch11);
+        // Ratchet lane length=5: asymmetric
+        int32_t ratch5[] = {1, 1, 2, 1, 3};
+        setRatchetLane(p.state, 5, ratch5);
+        // Modifier length=7
+        int32_t mod7[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide, kStepActive,
+            kStepActive | kStepTie, kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 7, mod7, 35, 70.0f);
+        // Condition length=3
+        int32_t cond3[] = {kCondAlways, kCondAlways, kCondProb75};
+        setConditionLane(p.state, 3, cond3, 0);
+        presets.push_back(std::move(p));
+    }
 
-    // "Spice Evolver"
+    // ========================================================================
+    // ARP GENERATIVE (5 presets)
+    // High spice, humanize, probability conditions, random/walk modes,
+    // euclidean timing — ever-evolving patterns.
+    // ========================================================================
+
+    // 1. "Spice Evolver" — Moderate randomization with structured backbone
     {
         PresetDef p;
         p.name = "Spice Evolver";
@@ -463,22 +1042,43 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 70.0f);
+        setArpSwing(p.state, 12.0f);
         p.state.arp.octaveRange = 2;
-        p.state.arp.spice = 0.7f;
-        p.state.arp.humanize = 0.3f;
-        // Condition lane length=8 with mixed conditions
+        p.state.arp.spice = 0.6f;
+        p.state.arp.humanize = 0.25f;
+        p.state.arp.scaleType = 10; // MajPent
+        p.state.arp.rootNote = 0;   // C
+        p.state.arp.scaleQuantizeInput = 1;
+        // Condition lane: mixed probabilities
         int32_t cond8[] = {
             kCondAlways, kCondProb50, kCondAlways, kCondProb75,
             kCondAlways, kCondProb25, kCondProb50, kCondAlways
         };
         setConditionLane(p.state, 8, cond8, 0);
-        // Varied velocity lane
+        // Velocity: organic wave pattern
         float vel8[] = {0.7f, 0.9f, 0.5f, 1.0f, 0.6f, 0.8f, 0.4f, 0.95f};
         setVelocityLane(p.state, 8, vel8);
+        // Gate: variation
+        float gate8[] = {0.8f, 0.5f, 1.1f, 0.6f, 0.9f, 0.4f, 1.0f, 0.7f};
+        setGateLane(p.state, 8, gate8);
+        // Pitch: pentatonic intervals
+        int32_t pitch5[] = {0, 2, 4, 7, 9};
+        setPitchLane(p.state, 5, pitch5);
+        // Ratchet: occasional bursts
+        int32_t ratch4[] = {1, 1, 2, 1};
+        setRatchetLane(p.state, 4, ratch4);
+        // Modifier: accents mark structural beats
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive, kStepActive, kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 8, mod8, 30, 60.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Chaos Garden"
+    // 2. "Chaos Garden" — High randomization, many probability layers
     {
         PresetDef p;
         p.name = "Chaos Garden";
@@ -487,29 +1087,183 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeRandom);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        p.state.arp.spice = 0.9f;
-        p.state.arp.humanize = 0.5f;
-        // Condition lane length=16 with cycling probabilities
+        setArpGateLength(p.state, 60.0f);
+        setArpSwing(p.state, 18.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.spice = 0.85f;
+        p.state.arp.humanize = 0.4f;
+        p.state.arp.scaleType = 13; // WholeTone
+        p.state.arp.rootNote = 6;   // F#
+        p.state.arp.scaleQuantizeInput = 1;
+        // Condition lane: heavy probability
         int32_t cond16[] = {
-            kCondProb10, kCondProb25, kCondProb50, kCondProb75,
-            kCondProb90, kCondProb10, kCondProb25, kCondProb50,
-            kCondProb75, kCondProb90, kCondProb10, kCondProb25,
-            kCondProb50, kCondProb75, kCondProb90, kCondProb10
+            kCondProb25, kCondProb50, kCondProb75, kCondAlways,
+            kCondProb10, kCondProb50, kCondAlways, kCondProb75,
+            kCondProb90, kCondProb25, kCondProb50, kCondAlways,
+            kCondProb75, kCondProb10, kCondAlways, kCondProb50
         };
         setConditionLane(p.state, 16, cond16, 0);
-        // Velocity lane 16 steps uniform
-        float vel16[16];
-        for (int i = 0; i < 16; ++i) vel16[i] = 0.8f;
-        setVelocityLane(p.state, 16, vel16);
-        // Pitch lane length=8
-        int32_t pitch8[] = {0, 2, 4, 7, 9, 12, -5, 0};
+        // Velocity: chaotic contour
+        float vel11[] = {
+            0.9f, 0.3f, 0.7f, 1.0f, 0.2f, 0.8f,
+            0.4f, 0.95f, 0.35f, 0.6f, 0.85f
+        };
+        setVelocityLane(p.state, 11, vel11);
+        // Gate: wide range
+        float gate7[] = {0.3f, 1.5f, 0.4f, 0.8f, 1.2f, 0.25f, 0.9f};
+        setGateLane(p.state, 7, gate7);
+        // Pitch: wide intervals
+        int32_t pitch8[] = {0, 6, -6, 12, -12, 4, 8, -4};
         setPitchLane(p.state, 8, pitch8);
+        // Ratchet: chaotic subdivisions
+        int32_t ratch5[] = {1, 3, 1, 2, 4};
+        setRatchetLane(p.state, 5, ratch5);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Performance Category (2 presets) ====================
+    // 3. "Random Walk Drift" — Walk mode, gentle randomization, ambient
+    {
+        PresetDef p;
+        p.name = "Random Walk Drift";
+        p.category = "Arp Generative";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeWalk);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 110.0f);
+        setArpSwing(p.state, 8.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.spice = 0.45f;
+        p.state.arp.humanize = 0.3f;
+        p.state.arp.scaleType = 7; // Lydian
+        p.state.arp.rootNote = 5;  // F
+        p.state.arp.scaleQuantizeInput = 1;
+        setEuclidean(p.state, true, 5, 8, 1);
+        // Velocity: gentle undulation
+        float vel6[] = {0.6f, 0.7f, 0.8f, 0.75f, 0.65f, 0.55f};
+        setVelocityLane(p.state, 6, vel6);
+        // Gate: long and flowing
+        float gate5[] = {1.3f, 1.1f, 1.5f, 0.9f, 1.2f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch: lydian intervals
+        int32_t pitch7[] = {0, 4, 7, 11, 7, 4, 2};
+        setPitchLane(p.state, 7, pitch7);
+        // Condition: very light probability
+        int32_t cond4[] = {kCondAlways, kCondAlways, kCondProb90, kCondAlways};
+        setConditionLane(p.state, 4, cond4, 0);
+        // Chord: occasional triads for richness
+        int32_t chords5[] = {kChordNone, kChordTriad, kChordNone, kChordNone, kChordDyad};
+        setChordLane(p.state, 5, chords5);
+        setVoicingMode(p.state, 2); // Spread
+        // Modifier: slides for drift feeling
+        int32_t mod4[] = {
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive, kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 4, mod4, 20, 85.0f);
+        presets.push_back(std::move(p));
+    }
 
-    // "Fill Cascade"
+    // 4. "Probability Machine" — Conditions on everything, structured chaos
+    {
+        PresetDef p;
+        p.name = "Probability Machine";
+        p.category = "Arp Generative";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 65.0f);
+        setArpSwing(p.state, 20.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.spice = 0.5f;
+        p.state.arp.humanize = 0.2f;
+        p.state.arp.scaleType = 3; // MelMinor
+        p.state.arp.rootNote = 11;  // B
+        p.state.arp.ratchetSwing = 40.0f;
+        setEuclidean(p.state, true, 7, 12, 2);
+        // Condition: every step has probability
+        int32_t cond12[] = {
+            kCondProb90, kCondProb50, kCondProb75, kCondAlways,
+            kCondProb25, kCondProb90, kCondAlways, kCondProb50,
+            kCondProb75, kCondProb90, kCondProb50, kCondAlways
+        };
+        setConditionLane(p.state, 12, cond12, 0);
+        // Velocity: dramatic swings (7-step polymetric)
+        float vel7[] = {1.0f, 0.3f, 0.8f, 0.2f, 0.9f, 0.4f, 0.7f};
+        setVelocityLane(p.state, 7, vel7);
+        // Gate: mixed lengths
+        float gate5[] = {0.5f, 1.2f, 0.3f, 0.8f, 1.5f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch: melodic minor intervals
+        int32_t pitch8[] = {0, 2, 3, 7, 9, 11, 7, 3};
+        setPitchLane(p.state, 8, pitch8);
+        // Ratchet: chaotic
+        int32_t ratch3[] = {1, 2, 3};
+        setRatchetLane(p.state, 3, ratch3);
+        // Modifier: mixed flags
+        int32_t mod6[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive, kStepActive | kStepTie,
+            kStepActive | kStepAccent | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 6, mod6, 35, 55.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Cosmic Entropy" — Maximum generative chaos
+    {
+        PresetDef p;
+        p.name = "Cosmic Entropy";
+        p.category = "Arp Generative";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeRandom);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8T);
+        setArpGateLength(p.state, 50.0f);
+        setArpSwing(p.state, 35.0f);
+        p.state.arp.octaveRange = 4;
+        p.state.arp.octaveMode = 1; // Interleaved
+        p.state.arp.spice = 1.0f;
+        p.state.arp.humanize = 0.5f;
+        p.state.arp.scaleType = 14; // DimWH
+        p.state.arp.rootNote = 3;   // Eb
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.ratchetSwing = 30.0f;
+        setEuclidean(p.state, true, 5, 13, 3);
+        // Condition: maximum probability variation
+        int32_t cond13[] = {
+            kCondProb10, kCondProb75, kCondAlways, kCondProb50, kCondProb25,
+            kCondAlways, kCondProb10, kCondProb90, kCondProb50, kCondAlways,
+            kCondProb75, kCondProb25, kCondProb90
+        };
+        setConditionLane(p.state, 13, cond13, 0);
+        // Velocity: extreme dynamics
+        float vel9[] = {1.0f, 0.15f, 0.6f, 0.95f, 0.1f, 0.7f, 0.2f, 0.85f, 0.3f};
+        setVelocityLane(p.state, 9, vel9);
+        // Gate: extremes
+        float gate7[] = {0.2f, 1.8f, 0.15f, 0.5f, 1.5f, 0.25f, 1.0f};
+        setGateLane(p.state, 7, gate7);
+        // Pitch: wide leaps
+        int32_t pitch11[] = {0, -12, 7, 15, -7, 3, 12, -5, 10, -10, 24};
+        setPitchLane(p.state, 11, pitch11);
+        // Ratchet: wild
+        int32_t ratch7[] = {1, 4, 1, 2, 3, 1, 4};
+        setRatchetLane(p.state, 7, ratch7);
+        // Chord: scattered chord types
+        int32_t chords5[] = {kChordNone, kChord7th, kChordNone, kChordTriad, kChordNone};
+        setChordLane(p.state, 5, chords5);
+        setVoicingMode(p.state, 3); // Random
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP PERFORMANCE (5 presets)
+    // Fill conditions, latch modes, retrigger, ratchet fills, designed for
+    // live performance transitions.
+    // ========================================================================
+
+    // 1. "Fill Cascade" — Fill conditions double density on toggle
     {
         PresetDef p;
         p.name = "Fill Cascade";
@@ -518,27 +1272,131 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 70.0f);
+        setArpSwing(p.state, 10.0f);
         p.state.arp.octaveRange = 2;
-        // Condition lane: Fill on steps 5-8 and 13-16 (0-indexed: 4-7, 12-15)
+        p.state.arp.latchMode = 1;   // Hold
+        p.state.arp.retrigger = 2;   // Beat
+        p.state.arp.humanize = 0.08f;
+        // Condition: fills add extra density between main beats
         int32_t cond16[] = {
-            kCondAlways, kCondAlways, kCondAlways, kCondAlways,
-            kCondFill,   kCondFill,   kCondFill,   kCondFill,
-            kCondAlways, kCondAlways, kCondAlways, kCondAlways,
-            kCondFill,   kCondFill,   kCondFill,   kCondFill
+            kCondAlways, kCondFill,   kCondAlways, kCondFill,
+            kCondAlways, kCondFill,   kCondFill,   kCondAlways,
+            kCondAlways, kCondFill,   kCondAlways, kCondFill,
+            kCondFill,   kCondAlways, kCondFill,   kCondFill
         };
         setConditionLane(p.state, 16, cond16, 0);
-        // Velocity lane 16 steps uniform
-        float vel16[16];
-        for (int i = 0; i < 16; ++i) vel16[i] = 0.8f;
+        // Velocity: accented main beats, lighter fills
+        float vel16[] = {
+            1.0f, 0.5f, 0.85f, 0.45f, 0.9f, 0.4f, 0.35f, 0.8f,
+            0.95f, 0.42f, 0.88f, 0.4f, 0.38f, 0.85f, 0.45f, 0.35f
+        };
         setVelocityLane(p.state, 16, vel16);
-        // Gate lane 16 steps uniform
-        float gate16[16];
-        for (int i = 0; i < 16; ++i) gate16[i] = 0.9f;
+        // Gate: short on fills, longer on main
+        float gate16[] = {
+            1.0f, 0.3f, 0.9f, 0.3f, 0.95f, 0.25f, 0.3f, 0.85f,
+            1.0f, 0.3f, 0.9f, 0.25f, 0.3f, 0.85f, 0.3f, 0.25f
+        };
         setGateLane(p.state, 16, gate16);
+        // Ratchet: doubles on fill-activated beats for buzz rolls
+        int32_t ratch8[] = {1, 2, 1, 2, 1, 2, 1, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Modifier: accents on downbeats
+        int32_t mod4[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 4, mod4, 35, 40.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Probability Waves"
+    // 2. "Latch Pad Builder" — Hold mode, slow rate, builds up chords
+    {
+        PresetDef p;
+        p.name = "Latch Pad Builder";
+        p.category = "Arp Performance";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_4);
+        setArpGateLength(p.state, 130.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.latchMode = 2;   // Add
+        p.state.arp.retrigger = 0;   // Off
+        p.state.arp.humanize = 0.12f;
+        p.state.arp.scaleType = 0;   // Major
+        p.state.arp.rootNote = 0;    // C
+        // Velocity: crescendo pattern
+        float vel8[] = {0.45f, 0.55f, 0.65f, 0.75f, 0.8f, 0.85f, 0.9f, 1.0f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: long, overlapping
+        float gate4[] = {1.5f, 1.4f, 1.6f, 1.3f};
+        setGateLane(p.state, 4, gate4);
+        // Chord: builds from none to triads to 7ths
+        int32_t chords8[] = {
+            kChordNone, kChordNone, kChordDyad, kChordDyad,
+            kChordTriad, kChordTriad, kChord7th, kChord7th
+        };
+        setChordLane(p.state, 8, chords8);
+        // Inversion: smooth voice leading
+        int32_t inv8[] = {
+            kInvRoot, kInvRoot, kInvRoot, kInv1st,
+            kInvRoot, kInv1st, kInv2nd, kInvRoot
+        };
+        setInversionLane(p.state, 8, inv8);
+        setVoicingMode(p.state, 1); // Drop2
+        // Modifier: ties for sustain
+        int32_t mod4[] = {
+            kStepActive | kStepTie, kStepActive | kStepTie,
+            kStepActive | kStepTie, kStepActive
+        };
+        setModifierLane(p.state, 4, mod4, 20, 80.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 3. "Retrigger Stutter" — Note retrigger, ratchet fills, stutter effect
+    {
+        PresetDef p;
+        p.name = "Retrigger Stutter";
+        p.category = "Arp Performance";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeAsPlayed);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 45.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.retrigger = 1;   // Note
+        p.state.arp.ratchetSwing = 35.0f;
+        // Velocity: strong stutter hits, quiet between
+        float vel8[] = {1.0f, 0.3f, 0.5f, 0.25f, 0.9f, 0.3f, 0.4f, 0.2f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: very short for stutter
+        float gate8[] = {0.4f, 0.2f, 0.3f, 0.15f, 0.35f, 0.2f, 0.25f, 0.15f};
+        setGateLane(p.state, 8, gate8);
+        // Ratchet: heavy subdivisions for stutter
+        int32_t ratch8[] = {4, 1, 2, 1, 3, 1, 2, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Pitch: repeating root with octave pops
+        int32_t pitch8[] = {0, 0, 0, 12, 0, 0, -12, 0};
+        setPitchLane(p.state, 8, pitch8);
+        // Condition: fill-activated extra ratchets
+        int32_t cond8[] = {
+            kCondAlways, kCondAlways, kCondFill, kCondAlways,
+            kCondAlways, kCondFill, kCondAlways, kCondFill
+        };
+        setConditionLane(p.state, 8, cond8, 0);
+        // Modifier: accents on main hits
+        int32_t mod4[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive, kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 4, mod4, 50, 30.0f);
+        presets.push_back(std::move(p));
+    }
+
+    // 4. "Probability Waves" — UpDown with probability-driven dynamics
     {
         PresetDef p;
         p.name = "Probability Waves";
@@ -547,38 +1405,103 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeUpDown);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        // Condition lane: Prob75 on even steps (1-indexed), Prob25 on odd
+        setArpGateLength(p.state, 65.0f);
+        setArpSwing(p.state, 15.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.latchMode = 1;   // Hold
+        p.state.arp.humanize = 0.1f;
+        p.state.arp.scaleType = 1;   // NatMinor
+        p.state.arp.rootNote = 2;    // D
+        // Condition: wave of probability
         int32_t cond16[] = {
-            kCondProb25, kCondProb75, kCondProb25, kCondProb75,
-            kCondProb25, kCondProb75, kCondProb25, kCondProb75,
-            kCondProb25, kCondProb75, kCondProb25, kCondProb75,
-            kCondProb25, kCondProb75, kCondProb25, kCondProb75
+            kCondAlways, kCondProb90, kCondProb75, kCondProb50,
+            kCondProb25, kCondProb50, kCondProb75, kCondProb90,
+            kCondAlways, kCondProb90, kCondProb75, kCondProb50,
+            kCondProb25, kCondProb50, kCondProb75, kCondProb90
         };
         setConditionLane(p.state, 16, cond16, 0);
-        // Velocity lane 8 steps alternating
-        float vel8[] = {0.6f, 1.0f, 0.6f, 1.0f, 0.6f, 1.0f, 0.6f, 1.0f};
-        setVelocityLane(p.state, 8, vel8);
-        // Modifier lane: accent on even steps (0-indexed 1,3,5,7)
+        // Velocity: mirrors probability wave
+        float vel16[] = {
+            1.0f, 0.9f, 0.75f, 0.55f, 0.35f, 0.55f, 0.75f, 0.9f,
+            1.0f, 0.9f, 0.75f, 0.55f, 0.35f, 0.55f, 0.75f, 0.9f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        // Gate: matches intensity
+        float gate8[] = {1.1f, 0.9f, 0.7f, 0.4f, 0.4f, 0.7f, 0.9f, 1.1f};
+        setGateLane(p.state, 8, gate8);
+        // Ratchet: doubles at peaks
+        int32_t ratch8[] = {2, 1, 1, 1, 1, 1, 1, 2};
+        setRatchetLane(p.state, 8, ratch8);
+        // Modifier: accents at wave peaks
         int32_t mod8[] = {
-            kStepActive,                // step 1 (odd)
-            kStepActive | kStepAccent,  // step 2 (even)
-            kStepActive,                // step 3 (odd)
-            kStepActive | kStepAccent,  // step 4 (even)
-            kStepActive,                // step 5 (odd)
-            kStepActive | kStepAccent,  // step 6 (even)
-            kStepActive,                // step 7 (odd)
-            kStepActive | kStepAccent   // step 8 (even)
+            kStepActive | kStepAccent, kStepActive, kStepActive, kStepActive,
+            kStepActive, kStepActive, kStepActive, kStepActive | kStepAccent
         };
         setModifierLane(p.state, 8, mod8, 30, 60.0f);
-        // Ratchet lane length=8
-        int32_t ratch8[] = {1, 2, 1, 2, 1, 2, 1, 2};
-        setRatchetLane(p.state, 8, ratch8);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Arp Chords Category (5 presets) ====================
+    // 5. "Build and Drop" — Fill builds intensity, main is sparse
+    {
+        PresetDef p;
+        p.name = "Build and Drop";
+        p.category = "Arp Performance";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 55.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.latchMode = 1;  // Hold
+        p.state.arp.retrigger = 2;  // Beat
+        p.state.arp.ratchetSwing = 55.0f;
+        p.state.arp.scaleType = 11; // MinPent
+        p.state.arp.rootNote = 9;   // A
+        // Condition: sparse main, fills add the build
+        int32_t cond16[] = {
+            kCondAlways, kCondFill, kCondFill, kCondFill,
+            kCondAlways, kCondFill, kCondFill, kCondFill,
+            kCondAlways, kCondFill, kCondFill, kCondFill,
+            kCondAlways, kCondFill, kCondFill, kCondFill
+        };
+        setConditionLane(p.state, 16, cond16, 0);
+        // Velocity: fills crescendo into main beats
+        float vel16[] = {
+            1.0f, 0.3f, 0.45f, 0.6f,  0.9f, 0.35f, 0.5f, 0.65f,
+            0.85f, 0.3f, 0.4f, 0.55f, 0.95f, 0.4f, 0.55f, 0.75f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        // Gate: main beats longer, fills short
+        float gate16[] = {
+            1.2f, 0.2f, 0.25f, 0.3f,  1.1f, 0.2f, 0.25f, 0.3f,
+            1.0f, 0.2f, 0.25f, 0.3f,  1.15f, 0.2f, 0.3f, 0.35f
+        };
+        setGateLane(p.state, 16, gate16);
+        // Ratchet: triplets on main beat for impact
+        int32_t ratch4[] = {3, 1, 1, 1};
+        setRatchetLane(p.state, 4, ratch4);
+        // Pitch: drops with fills ascending
+        int32_t pitch8[] = {0, 3, 5, 7, 0, 5, 7, 12};
+        setPitchLane(p.state, 8, pitch8);
+        // Modifier: accents on main, slides on fills
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepSlide,
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepSlide, kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 8, mod8, 40, 50.0f);
+        presets.push_back(std::move(p));
+    }
 
-    // "Diatonic Triads" - Rising triads in C Major, classic arpeggiated chords
+    // ========================================================================
+    // ARP CHORDS (5 presets)
+    // Rich chord progressions with inversions, voicing modes, scale
+    // quantization, velocity dynamics.
+    // ========================================================================
+
+    // 1. "Diatonic Triads" — Rising triads in C Major, classic arpeggiated
     {
         PresetDef p;
         p.name = "Diatonic Triads";
@@ -588,23 +1511,41 @@ std::vector<PresetDef> createAllPresets() {
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_8);
         setArpGateLength(p.state, 90.0f);
+        setArpSwing(p.state, 5.0f);
         p.state.arp.octaveRange = 2;
-        // Scale: C Major for proper diatonic chord stacking
+        p.state.arp.humanize = 0.06f;
         p.state.arp.scaleType = 0;  // Major
         p.state.arp.rootNote = 0;   // C
-        // Chord lane: alternating triads and single notes
+        // Chord lane: triads with passing singles
         int32_t chords8[] = {
             kChordTriad, kChordNone, kChordTriad, kChordNone,
             kChordTriad, kChordNone, kChordTriad, kChordNone
         };
         setChordLane(p.state, 8, chords8);
-        // Velocity: strong on chord steps, softer on single notes
-        float vel8[] = {1.0f, 0.6f, 0.9f, 0.5f, 0.85f, 0.55f, 0.95f, 0.5f};
+        // Inversion: smooth voice leading
+        int32_t inv8[] = {
+            kInvRoot, kInvRoot, kInv1st, kInvRoot,
+            kInv2nd, kInvRoot, kInvRoot, kInv1st
+        };
+        setInversionLane(p.state, 8, inv8);
+        // Velocity: strong on chords, soft on singles
+        float vel8[] = {1.0f, 0.5f, 0.9f, 0.45f, 0.85f, 0.5f, 0.95f, 0.4f};
         setVelocityLane(p.state, 8, vel8);
+        // Gate: legato chords, staccato singles
+        float gate8[] = {1.2f, 0.5f, 1.1f, 0.45f, 1.15f, 0.5f, 1.2f, 0.4f};
+        setGateLane(p.state, 8, gate8);
+        // Modifier: accents on chord hits
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepAccent, kStepActive
+        };
+        setModifierLane(p.state, 8, mod8, 25, 50.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Minor 7th Pulse" - Dark minor 7th chords with rhythmic gate
+    // 2. "Minor 7th Pulse" — Dark minor 7th chords, rhythmic gate, Drop2
     {
         PresetDef p;
         p.name = "Minor 7th Pulse";
@@ -613,29 +1554,48 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeAsPlayed);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 60.0f);
-        // Scale: A Natural Minor
+        setArpGateLength(p.state, 55.0f);
+        setArpSwing(p.state, 12.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.humanize = 0.1f;
         p.state.arp.scaleType = 1;  // NaturalMinor
         p.state.arp.rootNote = 9;   // A
-        // Chord lane: 7th chords on downbeats, dyads on offbeats
-        int32_t chords8[] = {
+        setVoicingMode(p.state, 1); // Drop2
+        // Chord lane: 7th on downbeats, dyads fill, rests breathe
+        int32_t chords16[] = {
             kChord7th, kChordDyad, kChordNone, kChordDyad,
-            kChord7th, kChordNone, kChordDyad, kChordNone
+            kChord7th, kChordNone, kChordDyad, kChordNone,
+            kChord7th, kChordDyad, kChordNone, kChordNone,
+            kChord7th, kChordNone, kChordDyad, kChordDyad
         };
-        setChordLane(p.state, 8, chords8);
-        // Inversion lane: vary voicings across steps
-        int32_t inv8[] = {
+        setChordLane(p.state, 16, chords16);
+        // Inversion: voice leading motion
+        int32_t inv16[] = {
             kInvRoot, kInv1st, kInvRoot, kInv2nd,
-            kInv1st, kInvRoot, kInv2nd, kInvRoot
+            kInv1st, kInvRoot, kInv2nd, kInvRoot,
+            kInvRoot, kInv1st, kInvRoot, kInvRoot,
+            kInv2nd, kInvRoot, kInv1st, kInvRoot
         };
-        setInversionLane(p.state, 8, inv8);
-        // Short staccato gate for pulse feel
-        float gate8[] = {0.8f, 0.4f, 0.3f, 0.4f, 0.8f, 0.3f, 0.5f, 0.3f};
+        setInversionLane(p.state, 16, inv16);
+        // Gate: staccato pulse with occasional sustain
+        float gate8[] = {0.7f, 0.3f, 0.25f, 0.35f, 0.8f, 0.25f, 0.4f, 0.3f};
         setGateLane(p.state, 8, gate8);
+        // Velocity: pulsing
+        float vel8[] = {0.95f, 0.55f, 0.35f, 0.5f, 0.9f, 0.3f, 0.6f, 0.4f};
+        setVelocityLane(p.state, 8, vel8);
+        // Ratchet: doubles on chord hits
+        int32_t ratch8[] = {2, 1, 1, 1, 2, 1, 1, 1};
+        setRatchetLane(p.state, 8, ratch8);
+        // Modifier: accents on 7ths
+        int32_t mod4[] = {
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive, kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 4, mod4, 30, 45.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Chord Cascade" - Polymetric chord/inversion evolving pattern
+    // 3. "Chord Cascade" — Polymetric chord/inversion, evolving harmonies
     {
         PresetDef p;
         p.name = "Chord Cascade";
@@ -645,8 +1605,9 @@ std::vector<PresetDef> createAllPresets() {
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
         setArpGateLength(p.state, 85.0f);
+        setArpSwing(p.state, 8.0f);
         p.state.arp.octaveRange = 2;
-        // Scale: D Dorian
+        p.state.arp.humanize = 0.08f;
         p.state.arp.scaleType = 4;  // Dorian
         p.state.arp.rootNote = 2;   // D
         // Chord lane length=5 (polymetric against 7-step inversion)
@@ -659,16 +1620,27 @@ std::vector<PresetDef> createAllPresets() {
             kInvRoot, kInv1st, kInv2nd, kInvRoot, kInv1st, kInv2nd, kInv3rd
         };
         setInversionLane(p.state, 7, inv7);
+        setVoicingMode(p.state, 1); // Drop2
         // Pitch lane length=3 for extra polymetry
         int32_t pitch3[] = {0, 5, -3};
         setPitchLane(p.state, 3, pitch3);
-        // Velocity 4 steps
-        float vel4[] = {0.9f, 0.6f, 0.8f, 0.5f};
+        // Velocity: dynamic contour (length=4)
+        float vel4[] = {0.9f, 0.55f, 0.8f, 0.45f};
         setVelocityLane(p.state, 4, vel4);
+        // Gate: varied
+        float gate5[] = {1.1f, 0.6f, 0.9f, 1.2f, 0.5f};
+        setGateLane(p.state, 5, gate5);
+        // Modifier: slides for smooth chord changes
+        int32_t mod5[] = {
+            kStepActive | kStepAccent | kStepSlide, kStepActive,
+            kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive
+        };
+        setModifierLane(p.state, 5, mod5, 25, 70.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Spread Ninths" - Wide voicing 9th chords, ambient
+    // 4. "Spread Ninths" — Wide voicing 9th chords, ambient lydian
     {
         PresetDef p;
         p.name = "Spread Ninths";
@@ -677,25 +1649,42 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeDown);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_4);
-        setArpGateLength(p.state, 100.0f);
-        // Scale: F Lydian for bright 9th chords
+        setArpGateLength(p.state, 120.0f);
+        setArpSwing(p.state, 0.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.1f;
         p.state.arp.scaleType = 7;  // Lydian
         p.state.arp.rootNote = 5;   // F
-        // Spread voicing for wide register
-        setVoicingMode(p.state, 2);  // Spread
-        // Chord lane: all 9th chords
-        int32_t chords4[] = {kChord9th, kChord9th, kChord7th, kChord9th};
-        setChordLane(p.state, 4, chords4);
-        // Inversion: cycle through
-        int32_t inv4[] = {kInvRoot, kInv1st, kInv2nd, kInvRoot};
-        setInversionLane(p.state, 4, inv4);
-        // Slow velocity swell
-        float vel4[] = {0.5f, 0.7f, 0.85f, 1.0f};
-        setVelocityLane(p.state, 4, vel4);
+        setVoicingMode(p.state, 2); // Spread
+        // Chord lane: lush 9th and 7th chords
+        int32_t chords6[] = {kChord9th, kChord7th, kChord9th, kChordTriad, kChord9th, kChord7th};
+        setChordLane(p.state, 6, chords6);
+        // Inversion: smooth cycling
+        int32_t inv6[] = {kInvRoot, kInv1st, kInv2nd, kInvRoot, kInv1st, kInv3rd};
+        setInversionLane(p.state, 6, inv6);
+        // Velocity: gentle crescendo-decrescendo
+        float vel6[] = {0.5f, 0.65f, 0.85f, 1.0f, 0.8f, 0.6f};
+        setVelocityLane(p.state, 6, vel6);
+        // Gate: very long, overlapping
+        float gate4[] = {1.6f, 1.4f, 1.7f, 1.5f};
+        setGateLane(p.state, 4, gate4);
+        // Modifier: ties for sustained pads
+        int32_t mod6[] = {
+            kStepActive | kStepTie, kStepActive | kStepTie | kStepSlide,
+            kStepActive | kStepTie, kStepActive | kStepAccent,
+            kStepActive | kStepTie | kStepSlide, kStepActive
+        };
+        setModifierLane(p.state, 6, mod6, 20, 90.0f);
+        // Condition: very occasional drops for breathing room
+        int32_t cond6[] = {
+            kCondAlways, kCondAlways, kCondAlways,
+            kCondProb90, kCondAlways, kCondAlways
+        };
+        setConditionLane(p.state, 6, cond6, 0);
         presets.push_back(std::move(p));
     }
 
-    // "Stab Machine" - Rhythmic chord stabs with ratchets
+    // 5. "Stab Machine" — Rhythmic chord stabs, funky with ratchets
     {
         PresetDef p;
         p.name = "Stab Machine";
@@ -704,11 +1693,13 @@ std::vector<PresetDef> createAllPresets() {
         setArpMode(p.state, kModeAsPlayed);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 50.0f);
-        setArpSwing(p.state, 15.0f);
-        // Scale: G Mixolydian for funky dominant feel
+        setArpGateLength(p.state, 45.0f);
+        setArpSwing(p.state, 22.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.humanize = 0.12f;
         p.state.arp.scaleType = 5;  // Mixolydian
         p.state.arp.rootNote = 7;   // G
+        p.state.arp.ratchetSwing = 55.0f;
         // Chord lane: stabs on strong beats, rests between
         int32_t chords16[] = {
             kChordTriad, kChordNone, kChordNone, kChordDyad,
@@ -717,148 +1708,334 @@ std::vector<PresetDef> createAllPresets() {
             kChordNone, kChordDyad, kChordNone, kChordNone
         };
         setChordLane(p.state, 16, chords16);
-        // Inversion: root position on triads, 1st on dyads for tighter voicing
+        // Inversion: varies per chord type
         int32_t inv16[] = {
             kInvRoot, kInvRoot, kInvRoot, kInv1st,
-            kInvRoot, kInvRoot, kInvRoot, kInvRoot,
-            kInv1st, kInvRoot, kInvRoot, kInv2nd,
+            kInvRoot, kInv1st, kInvRoot, kInvRoot,
+            kInv2nd, kInvRoot, kInvRoot, kInvRoot,
             kInvRoot, kInv1st, kInvRoot, kInvRoot
         };
         setInversionLane(p.state, 16, inv16);
-        // Ratchet for rhythmic interest
+        // Ratchet: syncopated doubles
         int32_t ratch8[] = {1, 1, 2, 1, 1, 1, 2, 1};
         setRatchetLane(p.state, 8, ratch8);
-        // Velocity: accented stabs
+        // Velocity: accented stabs, dead between
         float vel16[] = {
-            1.0f, 0.4f, 0.3f, 0.8f,
-            0.3f, 0.95f, 0.3f, 0.3f,
-            0.75f, 0.3f, 0.3f, 0.9f,
-            0.3f, 0.7f, 0.3f, 0.3f
+            1.0f, 0.25f, 0.2f, 0.8f,  0.2f, 0.95f, 0.2f, 0.2f,
+            0.75f, 0.2f, 0.2f, 0.9f,  0.2f, 0.7f, 0.2f, 0.2f
         };
         setVelocityLane(p.state, 16, vel16);
+        // Gate: very short stabs, longer on chord hits
+        float gate16[] = {
+            0.6f, 0.15f, 0.15f, 0.5f,  0.15f, 0.55f, 0.15f, 0.15f,
+            0.45f, 0.15f, 0.15f, 0.6f,  0.15f, 0.4f, 0.15f, 0.15f
+        };
+        setGateLane(p.state, 16, gate16);
+        // Modifier: accents on chord stabs
+        int32_t mod16[] = {
+            kStepActive | kStepAccent, kStepActive, kStepActive, kStepActive | kStepAccent,
+            kStepActive, kStepActive | kStepAccent, kStepActive, kStepActive,
+            kStepActive | kStepAccent, kStepActive, kStepActive, kStepActive | kStepAccent,
+            kStepActive, kStepActive | kStepAccent, kStepActive, kStepActive
+        };
+        setModifierLane(p.state, 16, mod16, 45, 35.0f);
         presets.push_back(std::move(p));
     }
 
-    // ==================== Arp Advanced Category (6 presets) ====================
-    // Ported from Ruinae "Arp Modulation" — arp pattern data only
+    // ========================================================================
+    // ARP ADVANCED (5 presets)
+    // Complex combinations: polymetric + euclidean + conditions + chords +
+    // ratchets. Push every parameter.
+    // ========================================================================
 
-    // "Arp Filter Sweep" - Pitch lane with chromatic walk
+    // 1. "Polyrhythmic Cathedral" — Euclidean + chords + polymetric lanes
     {
         PresetDef p;
-        p.name = "Arp Filter Sweep";
+        p.name = "Polyrhythmic Cathedral";
         p.category = "Arp Advanced";
         setArpEnabled(p.state, true);
-        setArpMode(p.state, kModeUp);
-        setTempoSync(p.state, true);
-        setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 70.0f);
-        p.state.arp.octaveRange = 2;
-        // Pitch lane: chromatic walk up and down
-        int32_t pitch8[] = {0, 2, 4, 7, 12, 7, 4, 2};
-        setPitchLane(p.state, 8, pitch8);
-        presets.push_back(std::move(p));
-    }
-
-    // "Arp Morph Sequence" - UpDown with pitch lane for melodic variation
-    {
-        PresetDef p;
-        p.name = "Arp Morph Sequence";
-        p.category = "Arp Advanced";
-        setArpEnabled(p.state, true);
-        setArpMode(p.state, kModeUpDown);
+        setArpMode(p.state, kModeConverge);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
         setArpGateLength(p.state, 80.0f);
-        setArpSwing(p.state, 15.0f);
-        p.state.arp.octaveRange = 2;
-        int32_t pitchM[] = {0, 3, 7, 12, 7, 3, 0, -5};
-        setPitchLane(p.state, 8, pitchM);
+        setArpSwing(p.state, 10.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.octaveMode = 1; // Interleaved
+        p.state.arp.humanize = 0.1f;
+        p.state.arp.spice = 0.2f;
+        p.state.arp.scaleType = 2;  // HarmMinor
+        p.state.arp.rootNote = 0;   // C
+        p.state.arp.ratchetSwing = 45.0f;
+        setEuclidean(p.state, true, 7, 12, 1);
+        // Chord lane length=5
+        int32_t chords5[] = {kChordTriad, kChordNone, kChord7th, kChordDyad, kChordTriad};
+        setChordLane(p.state, 5, chords5);
+        // Inversion lane length=7
+        int32_t inv7[] = {kInvRoot, kInv2nd, kInv1st, kInvRoot, kInv3rd, kInv1st, kInv2nd};
+        setInversionLane(p.state, 7, inv7);
+        setVoicingMode(p.state, 2); // Spread
+        // Velocity length=11
+        float vel11[] = {
+            1.0f, 0.45f, 0.7f, 0.85f, 0.3f, 0.6f,
+            0.9f, 0.4f, 0.75f, 0.5f, 0.95f
+        };
+        setVelocityLane(p.state, 11, vel11);
+        // Gate length=7
+        float gate7[] = {1.1f, 0.5f, 0.8f, 1.3f, 0.4f, 0.9f, 0.6f};
+        setGateLane(p.state, 7, gate7);
+        // Pitch length=13
+        int32_t pitch13[] = {0, 3, 7, 8, 0, -4, 3, 7, 11, 12, 8, 3, 0};
+        setPitchLane(p.state, 13, pitch13);
+        // Ratchet length=5
+        int32_t ratch5[] = {1, 2, 1, 1, 3};
+        setRatchetLane(p.state, 5, ratch5);
+        // Condition length=9
+        int32_t cond9[] = {
+            kCondAlways, kCondAlways, kCondProb75, kCondAlways, kCondProb50,
+            kCondAlways, kCondAlways, kCondProb90, kCondAlways
+        };
+        setConditionLane(p.state, 9, cond9, 0);
+        // Modifier length=5
+        int32_t mod5[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepTie, kStepActive | kStepAccent | kStepSlide,
+            kStepActive
+        };
+        setModifierLane(p.state, 5, mod5, 30, 65.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Arp Tilt Cascade" - Converge pattern with wider intervals
+    // 2. "Chaos Matrix" — Walk mode + euclidean + conditions + ratchets
     {
         PresetDef p;
-        p.name = "Arp Tilt Cascade";
+        p.name = "Chaos Matrix";
         p.category = "Arp Advanced";
         setArpEnabled(p.state, true);
-        setArpMode(p.state, 4); // Converge
+        setArpMode(p.state, kModeWalk);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
         setArpGateLength(p.state, 60.0f);
-        p.state.arp.octaveRange = 3;
-        // Pitch lane with wider intervals
-        int32_t pitchC[] = {0, 5, -3, 7, -7, 12, 0, -12};
-        setPitchLane(p.state, 8, pitchC);
-        // Velocity lane for dynamic accent
-        float velC[] = {1.0f, 0.6f, 0.8f, 0.5f, 1.0f, 0.7f, 0.9f, 0.4f};
-        setVelocityLane(p.state, 8, velC);
+        setArpSwing(p.state, 22.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.spice = 0.5f;
+        p.state.arp.humanize = 0.25f;
+        p.state.arp.scaleType = 15; // DimHW
+        p.state.arp.rootNote = 1;   // Db
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.ratchetSwing = 35.0f;
+        setEuclidean(p.state, true, 5, 11, 2);
+        // Velocity: dramatic swings (length=7)
+        float vel7[] = {1.0f, 0.2f, 0.7f, 0.95f, 0.15f, 0.8f, 0.3f};
+        setVelocityLane(p.state, 7, vel7);
+        // Gate: extremes (length=5)
+        float gate5[] = {0.3f, 1.4f, 0.2f, 0.8f, 1.6f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch: angular intervals (length=11)
+        int32_t pitch11[] = {0, -6, 3, 9, -3, 6, -9, 12, -12, 1, 5};
+        setPitchLane(p.state, 11, pitch11);
+        // Ratchet: wild (length=7)
+        int32_t ratch7[] = {1, 3, 1, 2, 4, 1, 2};
+        setRatchetLane(p.state, 7, ratch7);
+        // Condition: heavy probability (length=13)
+        int32_t cond13[] = {
+            kCondProb50, kCondAlways, kCondProb25, kCondProb75, kCondAlways,
+            kCondProb10, kCondAlways, kCondProb50, kCondProb90, kCondAlways,
+            kCondProb75, kCondProb25, kCondAlways
+        };
+        setConditionLane(p.state, 13, cond13, 0);
+        // Modifier: all the flags (length=9)
+        int32_t mod9[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive, kStepActive | kStepTie,
+            kStepActive | kStepAccent | kStepSlide, kStepActive,
+            kStepActive | kStepSlide, kStepActive | kStepAccent,
+            kStepActive | kStepTie | kStepSlide
+        };
+        setModifierLane(p.state, 9, mod9, 40, 55.0f);
+        // Chord: scattered (length=5)
+        int32_t chords5[] = {kChordNone, kChord7th, kChordNone, kChordTriad, kChordNone};
+        setChordLane(p.state, 5, chords5);
+        setVoicingMode(p.state, 3); // Random
         presets.push_back(std::move(p));
     }
 
-    // "Arp Chaos Matrix" - Random walk with complex lanes
+    // 3. "Metamorphosis" — Every lane different length, maximum polymetry
     {
         PresetDef p;
-        p.name = "Arp Chaos Matrix";
+        p.name = "Metamorphosis";
         p.category = "Arp Advanced";
         setArpEnabled(p.state, true);
-        setArpMode(p.state, 7); // Walk (random walk)
+        setArpMode(p.state, kModeDiverge);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 65.0f);
-        setArpSwing(p.state, 20.0f);
+        setArpGateLength(p.state, 72.0f);
+        setArpSwing(p.state, 14.0f);
         p.state.arp.octaveRange = 2;
-        p.state.arp.spice = 0.4f;
-        p.state.arp.humanize = 0.2f;
-        int32_t pitchX[] = {0, 3, -2, 5, 7, -4, 12, -7};
-        setPitchLane(p.state, 8, pitchX);
-        // Ratchet for rhythmic interest
-        int32_t ratchX[] = {1, 1, 2, 1, 1, 3, 1, 2};
-        setRatchetLane(p.state, 8, ratchX);
+        p.state.arp.humanize = 0.12f;
+        p.state.arp.spice = 0.3f;
+        p.state.arp.scaleType = 3;  // MelMinor
+        p.state.arp.rootNote = 7;   // G
+        p.state.arp.latchMode = 1;  // Hold
+        // Every lane has a different prime-ish length
+        // Velocity length=3
+        float vel3[] = {1.0f, 0.5f, 0.75f};
+        setVelocityLane(p.state, 3, vel3);
+        // Gate length=4
+        float gate4[] = {0.8f, 1.3f, 0.5f, 1.0f};
+        setGateLane(p.state, 4, gate4);
+        // Pitch length=5
+        int32_t pitch5[] = {0, 3, 7, 11, -2};
+        setPitchLane(p.state, 5, pitch5);
+        // Modifier length=7
+        int32_t mod7[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive, kStepActive | kStepTie,
+            kStepActive | kStepAccent, kStepActive,
+            kStepActive | kStepSlide
+        };
+        setModifierLane(p.state, 7, mod7, 35, 60.0f);
+        // Ratchet length=6
+        int32_t ratch6[] = {1, 1, 2, 1, 3, 1};
+        setRatchetLane(p.state, 6, ratch6);
+        // Condition length=8
+        int32_t cond8[] = {
+            kCondAlways, kCondProb75, kCondAlways, kCondAlways,
+            kCondProb50, kCondAlways, kCondProb90, kCondAlways
+        };
+        setConditionLane(p.state, 8, cond8, 0);
+        // Chord length=9
+        int32_t chords9[] = {
+            kChordTriad, kChordNone, kChordDyad, kChordNone, kChord7th,
+            kChordNone, kChordNone, kChordTriad, kChordNone
+        };
+        setChordLane(p.state, 9, chords9);
+        // Inversion length=11
+        int32_t inv11[] = {
+            kInvRoot, kInv1st, kInvRoot, kInv2nd, kInvRoot,
+            kInv1st, kInv3rd, kInvRoot, kInv2nd, kInv1st, kInvRoot
+        };
+        setInversionLane(p.state, 11, inv11);
+        setVoicingMode(p.state, 1); // Drop2
         presets.push_back(std::move(p));
     }
 
-    // "Arp FX Depth" - As-played with euclidean and swing
+    // 4. "Euclidean Chord Maze" — Euclidean gating + chord progression + fills
     {
         PresetDef p;
-        p.name = "Arp FX Depth";
+        p.name = "Euclidean Chord Maze";
         p.category = "Arp Advanced";
         setArpEnabled(p.state, true);
-        setArpMode(p.state, kModeAsPlayed);
+        setArpMode(p.state, kModeChord);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_8);
         setArpGateLength(p.state, 90.0f);
-        setArpSwing(p.state, 30.0f);
+        setArpSwing(p.state, 10.0f);
         p.state.arp.octaveRange = 1;
-        setEuclidean(p.state, true, 5, 8, 1);
-        int32_t pitchF[] = {0, 4, 7, 12, 0, -3, 5, 10};
-        setPitchLane(p.state, 8, pitchF);
-        // Gate lane with dynamic lengths
-        float gateF[] = {1.0f, 0.5f, 1.5f, 0.3f, 1.0f, 0.7f, 1.2f, 0.4f};
-        setGateLane(p.state, 8, gateF);
+        p.state.arp.humanize = 0.08f;
+        p.state.arp.scaleType = 0;   // Major
+        p.state.arp.rootNote = 5;    // F
+        p.state.arp.retrigger = 2;   // Beat
+        p.state.arp.ratchetSwing = 60.0f;
+        setEuclidean(p.state, true, 5, 8, 0);
+        // Chord lane: rich progression
+        int32_t chords8[] = {
+            kChord7th, kChordTriad, kChord9th, kChordTriad,
+            kChord7th, kChordDyad, kChord9th, kChordTriad
+        };
+        setChordLane(p.state, 8, chords8);
+        // Inversion: smooth voice leading
+        int32_t inv8[] = {
+            kInvRoot, kInv1st, kInv2nd, kInvRoot,
+            kInv1st, kInvRoot, kInv3rd, kInv2nd
+        };
+        setInversionLane(p.state, 8, inv8);
+        setVoicingMode(p.state, 2); // Spread
+        // Velocity: accent on euclidean hits
+        float vel8[] = {1.0f, 0.6f, 0.9f, 0.55f, 0.85f, 0.5f, 0.95f, 0.6f};
+        setVelocityLane(p.state, 8, vel8);
+        // Gate: legato chords
+        float gate8[] = {1.3f, 0.8f, 1.2f, 0.7f, 1.1f, 0.6f, 1.4f, 0.75f};
+        setGateLane(p.state, 8, gate8);
+        // Ratchet: gentle
+        int32_t ratch4[] = {1, 1, 2, 1};
+        setRatchetLane(p.state, 4, ratch4);
+        // Condition: fill activates extra chords
+        int32_t cond8[] = {
+            kCondAlways, kCondFill, kCondAlways, kCondAlways,
+            kCondFill, kCondAlways, kCondAlways, kCondFill
+        };
+        setConditionLane(p.state, 8, cond8, 0);
+        // Modifier: ties and slides for smooth transitions
+        int32_t mod8[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepTie, kStepActive,
+            kStepActive | kStepAccent | kStepSlide, kStepActive,
+            kStepActive | kStepTie, kStepActive | kStepAccent
+        };
+        setModifierLane(p.state, 8, mod8, 25, 75.0f);
         presets.push_back(std::move(p));
     }
 
-    // "Arp Self Modulator" - UpDown with slides and accents
+    // 5. "Kitchen Sink" — Absolutely everything at once
     {
         PresetDef p;
-        p.name = "Arp Self Modulator";
+        p.name = "Kitchen Sink";
         p.category = "Arp Advanced";
         setArpEnabled(p.state, true);
-        setArpMode(p.state, kModeUpDown);
+        setArpMode(p.state, kModeDownUp);
         setTempoSync(p.state, true);
         setArpRate(p.state, kNote1_16);
-        setArpGateLength(p.state, 75.0f);
-        p.state.arp.octaveRange = 2;
-        int32_t pitchS[] = {0, 2, 4, 5, 7, 9, 11, 12};
-        setPitchLane(p.state, 8, pitchS);
-        // Modifiers: slides on steps 4 and 8, accents on 1 and 5
-        int32_t modS[] = {
-            kStepActive | kStepAccent, kStepActive, kStepActive,
-            kStepActive | kStepSlide, kStepActive | kStepAccent,
-            kStepActive, kStepActive, kStepActive | kStepSlide
+        setArpGateLength(p.state, 68.0f);
+        setArpSwing(p.state, 25.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.octaveMode = 1;  // Interleaved
+        p.state.arp.latchMode = 2;   // Add
+        p.state.arp.retrigger = 1;   // Note
+        p.state.arp.spice = 0.4f;
+        p.state.arp.humanize = 0.2f;
+        p.state.arp.scaleType = 6;   // Phrygian
+        p.state.arp.rootNote = 4;    // E
+        p.state.arp.scaleQuantizeInput = 1;
+        p.state.arp.ratchetSwing = 38.0f;
+        setEuclidean(p.state, true, 9, 16, 3);
+        // Velocity length=7
+        float vel7[] = {1.0f, 0.3f, 0.7f, 0.85f, 0.2f, 0.6f, 0.9f};
+        setVelocityLane(p.state, 7, vel7);
+        // Gate length=5
+        float gate5[] = {0.5f, 1.3f, 0.3f, 0.9f, 1.5f};
+        setGateLane(p.state, 5, gate5);
+        // Pitch length=11: Phrygian intervals
+        int32_t pitch11[] = {0, 1, 3, 5, 7, 8, 10, 12, 8, 5, 1};
+        setPitchLane(p.state, 11, pitch11);
+        // Modifier length=9: every flag combination
+        int32_t mod9[] = {
+            kStepActive | kStepAccent, kStepActive | kStepSlide,
+            kStepActive | kStepTie, kStepActive,
+            kStepActive | kStepAccent | kStepSlide | kStepTie,
+            kStepActive, kStepActive | kStepAccent,
+            kStepActive | kStepSlide | kStepTie, kStepActive
         };
-        setModifierLane(p.state, 8, modS, 35, 80.0f);
+        setModifierLane(p.state, 9, mod9, 45, 60.0f);
+        // Ratchet length=6: varied subdivisions
+        int32_t ratch6[] = {1, 2, 1, 3, 1, 4};
+        setRatchetLane(p.state, 6, ratch6);
+        // Condition length=13: mixed probability + fills
+        int32_t cond13[] = {
+            kCondAlways, kCondProb75, kCondFill, kCondAlways, kCondProb50,
+            kCondAlways, kCondFill, kCondProb90, kCondAlways, kCondProb25,
+            kCondFill, kCondAlways, kCondProb75
+        };
+        setConditionLane(p.state, 13, cond13, 0);
+        // Chord length=8: full progression
+        int32_t chords8[] = {
+            kChordTriad, kChordNone, kChord7th, kChordDyad,
+            kChord9th, kChordNone, kChordTriad, kChord7th
+        };
+        setChordLane(p.state, 8, chords8);
+        // Inversion length=5
+        int32_t inv5[] = {kInvRoot, kInv2nd, kInv1st, kInv3rd, kInvRoot};
+        setInversionLane(p.state, 5, inv5);
+        setVoicingMode(p.state, 3); // Random
         presets.push_back(std::move(p));
     }
 
