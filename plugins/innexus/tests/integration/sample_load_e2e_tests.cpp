@@ -275,12 +275,50 @@ private:
 };
 
 // =============================================================================
+// Minimal parameter change infrastructure for E2E tests
+// =============================================================================
+
+class E2EParamValueQueue : public IParamValueQueue {
+public:
+    E2EParamValueQueue(ParamID id, ParamValue val) : id_(id), value_(val) {}
+    ParamID PLUGIN_API getParameterId() override { return id_; }
+    int32 PLUGIN_API getPointCount() override { return 1; }
+    tresult PLUGIN_API getPoint(int32, int32& sampleOffset, ParamValue& value) override {
+        sampleOffset = 0; value = value_; return kResultTrue;
+    }
+    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+private:
+    ParamID id_; ParamValue value_;
+};
+
+class E2EParameterChanges : public IParameterChanges {
+public:
+    void addChange(ParamID id, ParamValue val) { queues_.emplace_back(id, val); }
+    int32 PLUGIN_API getParameterCount() override { return static_cast<int32>(queues_.size()); }
+    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override {
+        if (index < 0 || index >= static_cast<int32>(queues_.size())) return nullptr;
+        return &queues_[static_cast<size_t>(index)];
+    }
+    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+    void clear() { queues_.clear(); }
+private:
+    std::vector<E2EParamValueQueue> queues_;
+};
+
+// =============================================================================
 // Test Fixture: Processor + audio buffers
 // =============================================================================
 
 struct E2EFixture {
     Innexus::Processor processor;
     TestEventList events;
+    E2EParameterChanges paramChanges;
     float outL[4096] = {};
     float outR[4096] = {};
 
@@ -323,7 +361,9 @@ struct E2EFixture {
 
         data.inputEvents = &events;
         data.outputEvents = nullptr;
-        data.inputParameterChanges = nullptr;
+        // Apply pending parameter changes if any
+        data.inputParameterChanges = paramChanges.getParameterCount() > 0
+            ? &paramChanges : nullptr;
         data.outputParameterChanges = nullptr;
 
         std::memset(outL, 0, sizeof(float) * static_cast<size_t>(blockSize));
@@ -331,6 +371,7 @@ struct E2EFixture {
 
         processor.process(data);
         events.clear();
+        paramChanges.clear();
     }
 
     /// Process N blocks and accumulate output into a buffer.
@@ -519,10 +560,13 @@ TEST_CASE("E2E: Different MIDI notes produce different pitches",
     auto analysis2 = std::make_unique<Innexus::SampleAnalysis>(*analysis);
 
     // --- Test with A4 (note 69 = 440 Hz) ---
+    // Disable residual so noise shaped at the analysis frequency (440 Hz)
+    // doesn't interfere with pitch detection of transposed harmonics.
     float freqA4 = 0.0f;
     {
         E2EFixture fix;
         fix.processor.testInjectAnalysis(analysis.release());
+        fix.paramChanges.addChange(Innexus::kResidualLevelId, 0.0);
         fix.events.addNoteOn(69, 1.0f); // A4
         fix.processBlocks(4); // warmup
         auto output = fix.processBlocks(16);
@@ -539,6 +583,7 @@ TEST_CASE("E2E: Different MIDI notes produce different pitches",
     {
         E2EFixture fix;
         fix.processor.testInjectAnalysis(analysis2.release());
+        fix.paramChanges.addChange(Innexus::kResidualLevelId, 0.0);
         fix.events.addNoteOn(57, 1.0f); // A3
         fix.processBlocks(4); // warmup
         auto output = fix.processBlocks(16);

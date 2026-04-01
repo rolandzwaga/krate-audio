@@ -6,6 +6,7 @@
 
 #include <krate/dsp/processors/harmonic_oscillator_bank.h>
 #include <krate/dsp/processors/harmonic_types.h>
+#include <krate/dsp/primitives/fft.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/db_utils.h>
 
@@ -544,6 +545,140 @@ TEST_CASE("HarmonicOscillatorBank: unprepared bank produces silence",
     for (size_t i = 0; i < 512; ++i) {
         REQUIRE(buffer[i] == 0.0f);
     }
+}
+
+// =============================================================================
+// Bandwidth modulation noise filter: steep LP at ~500 Hz
+// =============================================================================
+// Loris uses a 3rd-order Chebyshev Type I LP at 500 Hz with 1 dB ripple for
+// the noise used in bandwidth-enhanced synthesis. The filter ensures the
+// noise modulation is a smooth, low-frequency "wobble" rather than harsh
+// high-frequency noise. Verify the filter attenuates energy above 500 Hz.
+
+TEST_CASE("HarmonicOscillatorBank: bandwidth noise is LP-filtered below 500 Hz",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    constexpr double kSampleRate = 44100.0;
+
+    HarmonicOscillatorBank bank;
+    bank.prepare(kSampleRate);
+
+    // Single partial at 5000 Hz with full bandwidth (pure noise-modulated sine).
+    // With bandwidth=1.0: ampMod = noise * sqrt(2), so output = sine * amp * noise * sqrt(2).
+    // This is AM: the spectrum is the carrier convolved with the noise spectrum.
+    // If noise is LP-filtered at 500 Hz, energy concentrates within ±500 Hz of carrier.
+    auto frame = makeSimpleFrame(5000.0f, 1.0f);
+    frame.partials[0].bandwidth = 1.0f;
+    bank.loadFrame(frame, 5000.0f);
+
+    constexpr size_t kFFTSize = 16384;
+    std::vector<float> output(kFFTSize, 0.0f);
+    constexpr size_t kBlockSize = 512;
+
+    // Warm up filter state
+    std::array<float, kBlockSize> warmup{};
+    for (int i = 0; i < 40; ++i)
+        bank.processBlock(warmup.data(), kBlockSize);
+
+    // Capture output
+    for (size_t offset = 0; offset < kFFTSize; offset += kBlockSize)
+        bank.processBlock(output.data() + offset, kBlockSize);
+
+    // Apply Hann window
+    for (size_t i = 0; i < kFFTSize; ++i) {
+        float w = 0.5f * (1.0f - std::cos(2.0f * kPi * static_cast<float>(i)
+                                           / static_cast<float>(kFFTSize)));
+        output[i] *= w;
+    }
+
+    FFT fft;
+    fft.prepare(kFFTSize);
+    std::vector<Complex> spectrum(kFFTSize / 2 + 1);
+    fft.forward(output.data(), spectrum.data());
+
+    // Measure AM sideband energy around the 5000 Hz carrier.
+    // Near sidebands: carrier ± 0-400 Hz (4600-5400 Hz) — should be high
+    // Far sidebands: carrier ± 1000-2000 Hz (3000-4000 or 6000-7000 Hz) — should be low
+    const float binHz = static_cast<float>(kSampleRate) / static_cast<float>(kFFTSize);
+    float nearEnergy = 0.0f;
+    float farEnergy = 0.0f;
+
+    for (size_t k = 0; k < kFFTSize / 2 + 1; ++k) {
+        float freq = static_cast<float>(k) * binHz;
+        float mag2 = spectrum[k].real * spectrum[k].real
+                   + spectrum[k].imag * spectrum[k].imag;
+        // Near sidebands: within ±400 Hz of carrier
+        if (freq > 4600.0f && freq < 5400.0f) {
+            nearEnergy += mag2;
+        }
+        // Far sidebands: ±1000 to ±2000 Hz from carrier (both sides)
+        if ((freq > 3000.0f && freq < 4000.0f) ||
+            (freq > 6000.0f && freq < 7000.0f)) {
+            farEnergy += mag2;
+        }
+    }
+
+    float nearDB = 10.0f * std::log10(std::max(nearEnergy, 1e-20f));
+    float farDB = 10.0f * std::log10(std::max(farEnergy, 1e-20f));
+    float rolloffDB = nearDB - farDB;
+
+    INFO("Near sideband energy (4600-5400 Hz): " << nearDB << " dB");
+    INFO("Far sideband energy (3000-4000 + 6000-7000 Hz): " << farDB << " dB");
+    INFO("Sideband rolloff: " << rolloffDB << " dB");
+
+    // A 4th-order Chebyshev LP at 500 Hz should provide steep rolloff in
+    // the noise modulation. The near-to-far sideband ratio should be > 25 dB.
+    REQUIRE(rolloffDB > 25.0f);
+}
+
+// =============================================================================
+// Per-partial noise independence: each partial gets its own filtered noise
+// =============================================================================
+
+TEST_CASE("HarmonicOscillatorBank: per-partial bandwidth noise is independent",
+          "[dsp][processors][harmonic_osc_bank][bandwidth]") {
+    constexpr double kSampleRate = 44100.0;
+    constexpr size_t kBlockSize = 512;
+
+    // Run 1: single partial with bandwidth
+    HarmonicOscillatorBank bank1;
+    bank1.prepare(kSampleRate);
+    auto frame1 = makeSimpleFrame(1000.0f, 1.0f);
+    frame1.partials[0].bandwidth = 0.5f;
+    bank1.loadFrame(frame1, 1000.0f);
+
+    std::array<float, kBlockSize> buf1{};
+    for (int i = 0; i < 10; ++i) bank1.processBlock(buf1.data(), kBlockSize);
+    bank1.processBlock(buf1.data(), kBlockSize);
+
+    // Run 2: two partials, both with bandwidth — the first partial should
+    // produce different noise than in run 1 (because per-partial filters
+    // provide independent noise)
+    HarmonicOscillatorBank bank2;
+    bank2.prepare(kSampleRate);
+    auto frame2 = makeHarmonicFrame(1000.0f, 2, 1.0f);
+    frame2.partials[0].bandwidth = 0.5f;
+    frame2.partials[1].bandwidth = 0.5f;
+    bank2.loadFrame(frame2, 1000.0f);
+
+    std::array<float, kBlockSize> buf2{};
+    for (int i = 0; i < 10; ++i) bank2.processBlock(buf2.data(), kBlockSize);
+    bank2.processBlock(buf2.data(), kBlockSize);
+
+    // Both should produce non-zero output
+    float rms1 = computeRMS(buf1.data(), kBlockSize);
+    float rms2 = computeRMS(buf2.data(), kBlockSize);
+    REQUIRE(rms1 > 1e-4f);
+    REQUIRE(rms2 > 1e-4f);
+
+    // The outputs should be different (second partial contributes different noise)
+    float diffRms = 0.0f;
+    for (size_t i = 0; i < kBlockSize; ++i) {
+        float d = buf1[i] - buf2[i];
+        diffRms += d * d;
+    }
+    diffRms = std::sqrt(diffRms / static_cast<float>(kBlockSize));
+    INFO("RMS difference between 1-partial and 2-partial runs: " << diffRms);
+    REQUIRE(diffRms > 1e-4f); // must be different
 }
 
 // =============================================================================

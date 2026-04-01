@@ -221,19 +221,26 @@ TEST_CASE("PartialTracker: bandwidth estimation - wide peaks have higher bandwid
     SpectralBuffer spectrum;
     spectrum.prepare(kTestFFTSize);
 
-    // Create a wide, noisy peak (more energy spread across bins)
+    // Create a noisy partial: peak with significant noise floor around it.
+    // A clean sinusoid concentrates energy in the main lobe (±2 bins).
+    // Noise spreads energy to all surrounding bins.
     const size_t numBins = kTestFFTSize / 2 + 1;
     for (size_t b = 0; b < numBins; ++b) {
         spectrum.setCartesian(b, 0.0f, 0.0f);
     }
-    // Simulate a noisy partial: broad energy spread
     const float binSpacing = kTestSampleRate / static_cast<float>(kTestFFTSize);
     const size_t centerBin = static_cast<size_t>(440.0f / binSpacing);
-    // Wide peak: almost equal amplitude across 5 bins (flat top = noisy)
-    for (int offset = -2; offset <= 2; ++offset) {
-        size_t b = centerBin + static_cast<size_t>(offset);
-        float amp = 0.5f - 0.02f * static_cast<float>(std::abs(offset));
-        spectrum.setCartesian(b, amp, 0.0f);
+    // Peak at center with main lobe
+    spectrum.setCartesian(centerBin, 0.5f, 0.0f);
+    spectrum.setCartesian(centerBin - 1, 0.15f, 0.0f);
+    spectrum.setCartesian(centerBin + 1, 0.15f, 0.0f);
+    // Noise floor in surrounding bins (±3 to ±6): energy that a pure
+    // sinusoid wouldn't have, indicating noisiness
+    for (int offset = -6; offset <= 6; ++offset) {
+        if (std::abs(offset) <= 2) continue; // skip main lobe
+        auto b = static_cast<size_t>(static_cast<int>(centerBin) + offset);
+        if (b > 0 && b < numBins)
+            spectrum.setCartesian(b, 0.25f, 0.0f);
     }
 
     F0Estimate f0{440.0f, 0.8f, true};

@@ -30,6 +30,8 @@
 
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/harmonic_oscillator_bank_simd.h>
+#include <krate/dsp/primitives/biquad.h>
+#include <krate/dsp/core/filter_design.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/core/pitch_utils.h>
 
@@ -126,6 +128,20 @@ public:
         ampSmoothCoeff_ = 1.0f - std::exp(-1.0f /
             (kAmpSmoothTimeSec * static_cast<float>(sampleRate)));
 
+        // Per-partial noise LP filter for bandwidth modulation.
+        // 4th-order Chebyshev Type I at 500 Hz with 1 dB ripple (~24 dB/oct).
+        // Loris uses 3rd-order Chebyshev; 4th-order is even steeper and maps
+        // cleanly to 2 biquad stages without needing a 1st-order section.
+        constexpr float kNoiseLpCutoffHz = 500.0f;
+        constexpr float kNoiseLpRippleDb = 1.0f;
+        constexpr size_t kNoiseLpStages = 2;
+        for (size_t s = 0; s < kNoiseLpStages; ++s) {
+            float q = FilterDesign::chebyshevQ(s, kNoiseLpStages, kNoiseLpRippleDb);
+            noiseLpCoeffs_[s] = BiquadCoefficients::calculate(
+                FilterType::Lowpass, kNoiseLpCutoffHz, q, 0.0f,
+                static_cast<float>(sampleRate));
+        }
+
         // Crossfade length in samples (FR-040, default 3ms)
         crossfadeLengthSamples_ = static_cast<int>(
             kDefaultCrossfadeTimeSec * static_cast<float>(sampleRate));
@@ -171,6 +187,9 @@ public:
         panRight_.fill(kCenterGain);
         detuneMultiplier_.fill(1.0f);
         bandwidth_.fill(0.0f);
+        // Reset per-partial noise filter state
+        for (auto& arr : noiseLpZ1_) arr.fill(0.0f);
+        for (auto& arr : noiseLpZ2_) arr.fill(0.0f);
         sourcePitch_.fill(0.0f);
         sourceId_.fill(0);
         polyMode_ = false;
@@ -525,7 +544,7 @@ public:
                 float bw = bandwidth_[i];
                 float ampMod = 1.0f;
                 if (bw > 1e-4f) {
-                    float noise = nextNoiseSample();
+                    float noise = nextFilteredNoise(i);
                     ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
                 }
 
@@ -634,7 +653,7 @@ public:
             float bw = bandwidth_[i];
             float ampMod = 1.0f;
             if (bw > 1e-4f) {
-                float noise = nextNoiseSample();
+                float noise = nextFilteredNoise(i);
                 ampMod = std::sqrt(1.0f - bw) + noise * std::sqrt(2.0f * bw);
             }
 
@@ -737,13 +756,31 @@ private:
     // Private Methods
     // =========================================================================
 
-    /// @brief Generate a white noise sample using a simple LCG.
-    /// Returns a sample in [-1, 1].
-    [[nodiscard]] float nextNoiseSample() noexcept {
+    /// @brief Generate a LP-filtered noise sample for bandwidth modulation.
+    /// Uses a per-partial 4th-order Chebyshev Type I LP at 500 Hz (1 dB ripple)
+    /// for steep rolloff, matching Loris's filtered noise approach.
+    /// Each partial gets independent noise and filter state.
+    /// @param partialIdx Index of the partial [0, kMaxPartials)
+    /// @return Filtered noise sample
+    [[nodiscard]] float nextFilteredNoise(int partialIdx) noexcept {
         // Linear congruential generator (fast, sufficient for noise modulation)
         noiseState_ = noiseState_ * 1664525u + 1013904223u;
-        // Convert to float in [-1, 1]
-        return static_cast<float>(static_cast<int32_t>(noiseState_)) * (1.0f / 2147483648.0f);
+        float x = static_cast<float>(static_cast<int32_t>(noiseState_))
+            * (1.0f / 2147483648.0f);
+
+        // Apply 2-stage biquad cascade (4th-order Chebyshev Type I LP)
+        // using per-partial state and shared coefficients.
+        const auto pi = static_cast<size_t>(partialIdx);
+        for (size_t s = 0; s < kNoiseLpNumStages; ++s) {
+            const auto& c = noiseLpCoeffs_[s];
+            float& z1 = noiseLpZ1_[s][pi];
+            float& z2 = noiseLpZ2_[s][pi];
+            float y = c.b0 * x + z1;
+            z1 = c.b1 * x - c.a1 * y + z2;
+            z2 = c.b2 * x - c.a2 * y;
+            x = y;
+        }
+        return x;
     }
 
     /// @brief Compute per-partial frequency (FR-037).
@@ -936,6 +973,13 @@ private:
 
     // --- Noise generator for bandwidth enhancement ---
     uint32_t noiseState_ = 12345u;        ///< LCG state for noise generation
+
+    // Per-partial 4th-order Chebyshev Type I LP filter at 500 Hz (1 dB ripple).
+    // 2 biquad stages with shared coefficients and per-partial state.
+    static constexpr size_t kNoiseLpNumStages = 2;
+    std::array<BiquadCoefficients, kNoiseLpNumStages> noiseLpCoeffs_{};
+    std::array<std::array<float, kMaxPartials>, kNoiseLpNumStages> noiseLpZ1_{};
+    std::array<std::array<float, kMaxPartials>, kNoiseLpNumStages> noiseLpZ2_{};
 };
 
 } // namespace Krate::DSP

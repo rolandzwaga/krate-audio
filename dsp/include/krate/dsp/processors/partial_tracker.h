@@ -140,7 +140,8 @@ public:
         previousActiveCount_ = activeCount_;
 
         // Step 1: Peak detection (FR-022)
-        detectPeaks(spectrum, fftSize, sampleRate);
+        detectPeaks(spectrum, fftSize, sampleRate,
+                    f0.voiced ? f0.frequency : 0.0f);
 
         // Step 2: Harmonic sieve (FR-023) -- only if voiced
         if (f0.voiced && f0.frequency > 0.0f) {
@@ -186,7 +187,8 @@ private:
     /// interpolation for sub-bin frequency precision.
     void detectPeaks(const SpectralBuffer& spectrum,
                      size_t fftSize,
-                     float sampleRate) noexcept {
+                     float sampleRate,
+                     float f0Estimate = 0.0f) noexcept {
         numPeaks_ = 0;
         const size_t numBins = fftSize / 2 + 1;
         const float binSpacing = sampleRate / static_cast<float>(fftSize);
@@ -224,20 +226,57 @@ private:
                     peakAmp = mag - 0.25f * (magLeft - magRight) * delta;
                 }
 
-                // Estimate bandwidth from peak shape (Loris model)
-                // A narrow peak (large curvature) = tonal (bandwidth ~0)
-                // A wide peak (small curvature) = noisy (bandwidth ~1)
-                // We use the parabolic curvature: curvature = |denom| / mag
-                // Higher curvature = narrower peak = more tonal
+                // Estimate bandwidth via simplified spectral residue method
+                // (inspired by Loris/SMS residue bandwidth association).
+                // For each peak, compare the peak's energy to the total energy
+                // in a surrounding region. A pure tone concentrates energy in
+                // the main lobe (~3 bins for Hann window); noise spreads it.
+                // bandwidth = noiseEnergy / totalRegionEnergy
+                //
+                // IMPORTANT: The region width must not overlap adjacent harmonics.
+                // For a voice at 220 Hz with 1024 FFT at 44.1kHz, harmonics are
+                // only ~5 bins apart. The region half-width is clamped to at most
+                // half the distance to the nearest other detected peak.
                 float bw = 0.0f;
                 if (mag > 1e-10f) {
-                    float curvature = std::abs(denom) / mag;
-                    // Map curvature to bandwidth [0,1]
-                    // Typical curvature for pure tones: 1.0-2.0
-                    // Typical curvature for noise: 0.0-0.3
-                    // Using a sigmoid-like mapping
-                    constexpr float kCurvatureRef = 0.5f;
-                    bw = 1.0f / (1.0f + curvature / kCurvatureRef);
+                    // Main lobe energy: peak bin and immediate neighbors
+                    // For a Hann-windowed sinusoid, ~99% of energy is in ±2 bins
+                    float peakEnergy = mag * mag + magLeft * magLeft
+                        + magRight * magRight;
+                    if (b >= 2) {
+                        float m2 = spectrum.getMagnitude(b - 2);
+                        peakEnergy += m2 * m2;
+                    }
+                    if (b + 2 < numBins) {
+                        float m2 = spectrum.getMagnitude(b + 2);
+                        peakEnergy += m2 * m2;
+                    }
+
+                    // Wider region: use ±regionHalf bins, but limit to half the
+                    // harmonic spacing to avoid counting adjacent harmonics as noise.
+                    // Default to ±6 bins, but shrink for closely-spaced harmonics.
+                    int regionHalf = 6;
+                    if (f0Estimate > 0.0f) {
+                        float harmonicSpacingBins = f0Estimate / binSpacing;
+                        // Half the spacing, minus the main lobe width (2 bins)
+                        int maxRegion = std::max(3,
+                            static_cast<int>(harmonicSpacingBins * 0.5f) - 2);
+                        regionHalf = std::min(regionHalf, maxRegion);
+                    }
+
+                    float regionEnergy = 0.0f;
+                    const int lo = std::max(1, static_cast<int>(b) - regionHalf);
+                    const int hi = std::min(static_cast<int>(numBins) - 1,
+                                            static_cast<int>(b) + regionHalf);
+                    for (int k = lo; k <= hi; ++k) {
+                        float m = spectrum.getMagnitude(static_cast<size_t>(k));
+                        regionEnergy += m * m;
+                    }
+
+                    float noiseEnergy = std::max(0.0f, regionEnergy - peakEnergy);
+                    bw = (regionEnergy > 1e-20f)
+                        ? noiseEnergy / regionEnergy
+                        : 0.0f;
                     bw = std::clamp(bw, 0.0f, 1.0f);
                 }
 

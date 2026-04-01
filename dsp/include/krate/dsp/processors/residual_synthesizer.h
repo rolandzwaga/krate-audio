@@ -125,11 +125,12 @@ public:
         }
 
         // Step 5: Compute energy scale (FR-016, FR-023)
-        // totalEnergy is RMS of FFT magnitudes (freq-domain).
-        // Convert to time-domain RMS via Parseval: time_rms ≈ freq_rms / sqrt(N).
-        // Additional /sqrt(N) accounts for the noise FFT magnitudes (~sqrt(N) per bin).
+        // totalEnergy is RMS of residual FFT magnitudes (N-scaled from pffft).
+        // Divide by sqrt(fftSize) to convert to a scale compatible with the
+        // harmonic oscillator bank output. The sqrt accounts for the noise
+        // FFT's per-bin magnitude being ~sqrt(N) (white noise property).
         float energyScale = frame.totalEnergy
-            / static_cast<float>(fftSize_);
+            / std::sqrt(static_cast<float>(fftSize_));
         if (frame.transientFlag && transientEmphasis > 0.0f)
         {
             energyScale *= (1.0f + transientEmphasis);

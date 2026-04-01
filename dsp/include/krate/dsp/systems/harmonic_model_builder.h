@@ -158,17 +158,15 @@ public:
         for (int i = 0; i < numPartials; ++i) {
             frame.partials[i] = partials[i];
             frame.partials[i].amplitude = blendedAmps[i];
-            // Smooth bandwidth with one-pole filter for stability
+            // Smooth bandwidth with one-pole filter for stability.
+            // The partial tracker's spectral residue method produces bandwidth
+            // near 0 for clean harmonics and near 1 for noise, following
+            // the Loris bandwidth-enhanced model (Fitz & Haken).
             float rawBw = partials[i].bandwidth;
             float& prevBw = smoothedBandwidth_[static_cast<size_t>(i)];
             constexpr float kBwSmoothCoeff = 0.3f; // ~3 frames to settle
             prevBw += kBwSmoothCoeff * (rawBw - prevBw);
-            // Bandwidth synthesis disabled: the partial tracker's bandwidth
-            // estimation produces inflated values (~0.35-0.55) for clean harmonic
-            // peaks, causing the oscillator bank's Loris-model noise modulation
-            // to add audible noise to every partial. Until the bandwidth estimation
-            // is recalibrated, force zero to produce clean sine partials.
-            frame.partials[i].bandwidth = 0.0f;
+            frame.partials[i].bandwidth = prevBw;
         }
 
         // ---- Step 3b: Noise rejection ----

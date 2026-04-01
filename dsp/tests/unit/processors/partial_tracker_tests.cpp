@@ -613,3 +613,90 @@ TEST_CASE("PartialTracker: reset clears all state",
     tracker.reset();
     REQUIRE(tracker.getActiveCount() == 0);
 }
+
+// =============================================================================
+// Bandwidth estimation accuracy
+// =============================================================================
+
+TEST_CASE("PartialTracker: clean harmonic peaks produce bandwidth < 0.05",
+          "[dsp][partial_tracker][bandwidth]") {
+    PartialTracker tracker;
+    tracker.prepare(kTestFFTSize, kTestSampleRate);
+
+    SpectralBuffer spectrum;
+    spectrum.prepare(kTestFFTSize);
+
+    // Create a clean harmonic series (8 harmonics of 440 Hz)
+    fillHarmonicSpectrum(spectrum, 440.0f, 8, kTestFFTSize, kTestSampleRate);
+
+    F0Estimate f0;
+    f0.frequency = 440.0f;
+    f0.confidence = 0.95f;
+    f0.voiced = true;
+
+    // Process two frames to let tracking stabilize (birth age >= 1)
+    tracker.processFrame(spectrum, f0, kTestFFTSize, kTestSampleRate);
+    tracker.processFrame(spectrum, f0, kTestFFTSize, kTestSampleRate);
+
+    REQUIRE(tracker.getActiveCount() >= 4); // at least some harmonics detected
+
+    const auto& partials = tracker.getPartials();
+    for (int i = 0; i < tracker.getActiveCount(); ++i)
+    {
+        if (partials[i].frequency <= 0.0f) continue;
+
+        INFO("Partial " << i
+             << " freq=" << partials[i].frequency
+             << " harmonicIndex=" << partials[i].harmonicIndex
+             << " bandwidth=" << partials[i].bandwidth);
+
+        // Clean harmonic peaks should have bandwidth near zero.
+        // The Loris model defines bandwidth=0 as pure sine, bandwidth=1 as noise.
+        REQUIRE(partials[i].bandwidth < 0.05f);
+    }
+}
+
+TEST_CASE("PartialTracker: noise-like spectrum produces bandwidth > 0.3",
+          "[dsp][partial_tracker][bandwidth]") {
+    PartialTracker tracker;
+    tracker.prepare(kTestFFTSize, kTestSampleRate);
+
+    SpectralBuffer spectrum;
+    spectrum.prepare(kTestFFTSize);
+
+    const size_t numBins = kTestFFTSize / 2 + 1;
+
+    // Create a spectrum that mimics noise: many bins with similar magnitude
+    // but a peak at 440 Hz that barely rises above the noise floor
+    for (size_t b = 0; b < numBins; ++b) {
+        // Noise floor at 0.3 magnitude
+        float noiseMag = 0.3f + 0.1f * std::sin(static_cast<float>(b) * 0.7f);
+        spectrum.setCartesian(b, noiseMag, 0.0f);
+    }
+
+    // Add a weak peak at 440 Hz (barely above noise floor)
+    const float binFreq = kTestSampleRate / static_cast<float>(kTestFFTSize);
+    const size_t peakBin = static_cast<size_t>(440.0f / binFreq + 0.5f);
+    spectrum.setCartesian(peakBin, 0.5f, 0.0f);
+
+    F0Estimate f0;
+    f0.frequency = 440.0f;
+    f0.confidence = 0.5f;
+    f0.voiced = true;
+
+    tracker.processFrame(spectrum, f0, kTestFFTSize, kTestSampleRate);
+    tracker.processFrame(spectrum, f0, kTestFFTSize, kTestSampleRate);
+
+    const auto& partials = tracker.getPartials();
+    bool foundPeak = false;
+    for (int i = 0; i < tracker.getActiveCount(); ++i) {
+        if (std::abs(partials[i].frequency - 440.0f) < 20.0f) {
+            foundPeak = true;
+            INFO("Noisy peak bandwidth: " << partials[i].bandwidth);
+            // A peak barely above a noise floor should have high bandwidth
+            REQUIRE(partials[i].bandwidth > 0.3f);
+            break;
+        }
+    }
+    REQUIRE(foundPeak);
+}
