@@ -372,19 +372,13 @@ void SampleAnalyzer::analyzeOnThread(
         sampleIndex += blockSize;
     }
 
-    // --- Post-analysis: F0 stabilization and harmonic assignment ---
-    // The tracker ran without the harmonic sieve (voiced=false), so all
-    // spectral peaks were tracked freely.  Now we:
-    //   1. Find a stable reference F0 (median across voiced frames, or
-    //      the strongest multi-pitch candidate if the median is unstable)
-    //   2. Assign harmonicIndex and relativeFrequency for every partial
-    //      in every frame, relative to the reference F0
-    //
-    // This preserves ALL spectral content (including polyphonic "color")
-    // while providing correct pitch-shifting via the harmonic model.
+    // --- Post-analysis: detect polyphonic content and re-analyze if needed ---
+    // Check F0 stability across frames.  If the F0 varies wildly (IQR >10%
+    // of median), the input is polyphonic and the harmonic sieve damaged
+    // the spectral content.  Re-run the ENTIRE analysis with the sieve OFF
+    // and a fixed reference F0 so all spectral peaks are preserved.
     if (!analysis->frames.empty())
     {
-        // Collect all voiced F0 values
         std::vector<float> voicedF0s;
         voicedF0s.reserve(analysis->frames.size());
         for (const auto& fr : analysis->frames)
@@ -393,87 +387,186 @@ void SampleAnalyzer::analyzeOnThread(
                 voicedF0s.push_back(fr.f0);
         }
 
+        bool needsReanalysis = false;
         float referenceF0 = 0.0f;
 
         if (voicedF0s.size() >= 3)
         {
             std::sort(voicedF0s.begin(), voicedF0s.end());
-            referenceF0 = voicedF0s[voicedF0s.size() / 2]; // median
-
-            // Run multi-pitch detection on the strongest frame to see if
-            // a better F0 exists (e.g., for chords where YIN picks a
-            // subharmonic even after validation).
-            float bestGlobalAmp = 0.0f;
-            size_t bestFrameIdx = 0;
-            for (size_t i = 0; i < analysis->frames.size(); ++i)
-            {
-                if (analysis->frames[i].globalAmplitude > bestGlobalAmp)
-                {
-                    bestGlobalAmp = analysis->frames[i].globalAmplitude;
-                    bestFrameIdx = i;
-                }
-            }
-
-            const auto& bestFrame = analysis->frames[bestFrameIdx];
-            if (bestFrame.numPartials > 0)
-            {
-                std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
-                std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
-                int np = std::min(bestFrame.numPartials,
-                    static_cast<int>(Krate::DSP::kMaxPartials));
-                for (int i = 0; i < np; ++i)
-                {
-                    peakFreqs[static_cast<size_t>(i)] =
-                        bestFrame.partials[static_cast<size_t>(i)].frequency;
-                    peakAmps[static_cast<size_t>(i)] =
-                        bestFrame.partials[static_cast<size_t>(i)].amplitude;
-                }
-
-                auto multiF0 = multiPitchDetector.detect(
-                    peakFreqs.data(), peakAmps.data(), np);
-                if (multiF0.numDetected >= 1)
-                {
-                    referenceF0 = multiF0.estimates[0].frequency;
-                }
-            }
-        }
-        else if (!voicedF0s.empty())
-        {
-            referenceF0 = voicedF0s[0];
-        }
-
-        // Only stabilize F0 when there's high frame-to-frame variance
-        // (polyphonic content).  Monophonic signals are left as-is since
-        // the per-frame YIN + subharmonic validator produces correct F0.
-        if (referenceF0 > 0.0f)
-        {
+            float medianF0 = voicedF0s[voicedF0s.size() / 2];
             float q1 = voicedF0s[voicedF0s.size() / 4];
             float q3 = voicedF0s[voicedF0s.size() * 3 / 4];
-            float iqrRatio = (q3 - q1) / std::max(referenceF0, 1.0f);
+            float iqrRatio = (q3 - q1) / std::max(medianF0, 1.0f);
 
-            constexpr float kInstabilityThreshold = 0.1f; // 10%
+            // Check 1: F0 variance (jumpy F0 = polyphonic or unstable)
+            constexpr float kInstabilityThreshold = 0.1f;
+            bool f0Unstable = (iqrRatio > kInstabilityThreshold);
 
-            if (iqrRatio > kInstabilityThreshold)
+            // Check 2: High noisiness means most energy doesn't fit the
+            // detected harmonic grid — the F0 is likely wrong (e.g. YIN
+            // locked onto a subharmonic of a chord).
+            float medianNoisiness = 0.0f;
             {
-                // High variance: lock all frames to the reference F0
-                // and reassign harmonic indices.
-                for (auto& fr : analysis->frames)
+                std::vector<float> noisyVals;
+                noisyVals.reserve(analysis->frames.size());
+                for (const auto& fr : analysis->frames)
+                    if (fr.f0Confidence > 0.3f)
+                        noisyVals.push_back(fr.noisiness);
+                if (!noisyVals.empty())
                 {
-                    fr.f0 = referenceF0;
-                    fr.f0Confidence = 1.0f;
+                    std::sort(noisyVals.begin(), noisyVals.end());
+                    medianNoisiness = noisyVals[noisyVals.size() / 2];
+                }
+            }
+            constexpr float kHighNosinessThreshold = 0.5f;
+            bool tooNoisy = (medianNoisiness > kHighNosinessThreshold);
 
-                    for (int i = 0; i < fr.numPartials; ++i)
+            needsReanalysis = f0Unstable || tooNoisy;
+
+            if (needsReanalysis)
+            {
+                // Find the best reference F0 via multi-pitch on the strongest frame
+                referenceF0 = medianF0;
+                float bestGlobalAmp = 0.0f;
+                size_t bestFrameIdx = 0;
+                for (size_t i = 0; i < analysis->frames.size(); ++i)
+                {
+                    if (analysis->frames[i].globalAmplitude > bestGlobalAmp)
                     {
-                        auto& p = fr.partials[static_cast<size_t>(i)];
+                        bestGlobalAmp = analysis->frames[i].globalAmplitude;
+                        bestFrameIdx = i;
+                    }
+                }
+
+                const auto& bestFrame = analysis->frames[bestFrameIdx];
+                if (bestFrame.numPartials > 0)
+                {
+                    std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
+                    std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
+                    int np = std::min(bestFrame.numPartials,
+                        static_cast<int>(Krate::DSP::kMaxPartials));
+                    for (int i = 0; i < np; ++i)
+                    {
+                        peakFreqs[static_cast<size_t>(i)] =
+                            bestFrame.partials[static_cast<size_t>(i)].frequency;
+                        peakAmps[static_cast<size_t>(i)] =
+                            bestFrame.partials[static_cast<size_t>(i)].amplitude;
+                    }
+                    auto multiF0 = multiPitchDetector.detect(
+                        peakFreqs.data(), peakAmps.data(), np);
+                    if (multiF0.numDetected >= 1)
+                        referenceF0 = multiF0.estimates[0].frequency;
+                }
+            }
+        }
+
+        // --- PASS 2: Re-analyze with sieve OFF when F0 is unreliable ---
+        if (needsReanalysis && referenceF0 > 0.0f)
+        {
+            // Reset all analysis components for a clean second pass
+            tracker.reset();
+            modelBuilder.prepare(static_cast<double>(sampleRate));
+            modelBuilder.setHopSize(static_cast<int>(kShortWindowConfig.hopSize));
+
+            // Rebuild STFTs
+            Krate::DSP::STFT reShortStft;
+            reShortStft.prepare(
+                kShortWindowConfig.fftSize,
+                kShortWindowConfig.hopSize,
+                kShortWindowConfig.windowType);
+            Krate::DSP::SpectralBuffer reShortSpectrum;
+            reShortSpectrum.prepare(kShortWindowConfig.fftSize);
+
+            analysis->frames.clear();
+            analysis->residualFrames.clear();
+
+            // Fixed F0 for all frames (no sieve, consistent harmonic assignment)
+            Krate::DSP::F0Estimate fixedF0;
+            fixedF0.frequency = referenceF0;
+            fixedF0.confidence = 1.0f;
+            fixedF0.voiced = false; // NO harmonic sieve — track ALL peaks
+
+            size_t reIndex = 0;
+            while (reIndex < totalSamples)
+            {
+                if (cancelled_.load(std::memory_order_acquire))
+                {
+                    complete_.store(true, std::memory_order_release);
+                    return;
+                }
+
+                const size_t remaining = totalSamples - reIndex;
+                const size_t blockSz = std::min(remaining, kProcessBlockSize);
+
+                std::memcpy(processBuffer.data(), &audioData[reIndex],
+                             blockSz * sizeof(float));
+                preProcessing.processBlock(processBuffer.data(), blockSz);
+
+                reShortStft.pushSamples(processBuffer.data(), blockSz);
+
+                while (reShortStft.canAnalyze())
+                {
+                    reShortStft.analyze(reShortSpectrum);
+
+                    // RMS
+                    float rmsSum = 0.0f;
+                    const size_t rmsStart = (reIndex + blockSz >= shortHop)
+                        ? reIndex + blockSz - shortHop : 0;
+                    const size_t rmsEnd = std::min(rmsStart + shortHop, totalSamples);
+                    for (size_t i = rmsStart; i < rmsEnd; ++i)
+                        rmsSum += audioData[i] * audioData[i];
+                    const float inputRms = std::sqrt(
+                        rmsSum / static_cast<float>(std::max(rmsEnd - rmsStart, size_t(1))));
+
+                    // Track with NO sieve
+                    tracker.processFrame(reShortSpectrum, fixedF0,
+                                          kShortWindowConfig.fftSize, sampleRate);
+
+                    // Build frame
+                    Krate::DSP::HarmonicFrame frame = modelBuilder.build(
+                        tracker.getPartials(),
+                        tracker.getActiveCount(),
+                        fixedF0,
+                        inputRms);
+
+                    // Assign harmonics to the reference F0
+                    frame.f0 = referenceF0;
+                    frame.f0Confidence = 1.0f;
+                    for (int i = 0; i < frame.numPartials; ++i)
+                    {
+                        auto& p = frame.partials[static_cast<size_t>(i)];
                         float ratio = p.frequency / referenceF0;
                         p.harmonicIndex = std::max(1,
                             static_cast<int>(std::round(ratio)));
                         p.relativeFrequency = ratio;
                         p.inharmonicDeviation =
                             ratio - static_cast<float>(p.harmonicIndex);
+                        p.bandwidth = 0.0f; // no sieve = unreliable bandwidth
+                    }
+
+                    analysis->frames.push_back(frame);
+
+                    // Residual
+                    const size_t frameStart = (reIndex + blockSz >= kShortWindowConfig.fftSize)
+                        ? reIndex + blockSz - kShortWindowConfig.fftSize : 0;
+                    const size_t frameSamples = std::min(kShortWindowConfig.fftSize,
+                                                          totalSamples - frameStart);
+                    if (frameSamples >= kShortWindowConfig.fftSize)
+                    {
+                        auto residualFrame = residualAnalyzer.analyzeFrame(
+                            &audioData[frameStart], frameSamples, frame);
+                        analysis->residualFrames.push_back(residualFrame);
+                    }
+                    else
+                    {
+                        analysis->residualFrames.push_back(Krate::DSP::ResidualFrame{});
                     }
                 }
+
+                reIndex += blockSz;
             }
+
+            analysis->totalFrames = analysis->frames.size();
         }
     }
 
