@@ -42,7 +42,6 @@
 #include <krate/dsp/processors/partial_tracker.h>
 #include <krate/dsp/processors/residual_analyzer.h>
 #include <krate/dsp/processors/multi_pitch_detector.h>
-#include <krate/dsp/processors/multi_source_sieve.h>
 #include <krate/dsp/processors/subharmonic_validator.h>
 #include <krate/dsp/processors/yin_pitch_detector.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
@@ -330,83 +329,85 @@ void SampleAnalyzer::analyzeOnThread(
                 f0 = yin.detect(&audioData[yinStart], yinLength);
             }
 
-            // Subharmonic validation: check if YIN locked onto a subharmonic
-            // by comparing harmonic support at f0 vs f0*2 vs f0*4 in the STFT.
-            // This is the primary defense against octave errors on polyphonic
-            // content (Hermes 1988).
+            // --- F0 correction pipeline ---
+            // YIN is prone to severe subharmonic errors on polyphonic content
+            // (e.g. detecting 56 Hz for a guitar chord at 415 Hz).  We fix
+            // this in two stages BEFORE the partial tracker runs, so the
+            // tracker's harmonic sieve gets the correct F0 from the start.
+            //
+            // Stage 1: Subharmonic summation (Hermes 1988) — fixes octave errors
             if (f0.voiced) {
                 f0 = subharmonicValidator.validate(f0, shortSpectrum);
             }
 
-            // Partial tracking on short window spectrum (FR-022 to FR-028).
-            // Use the multi-pitch detector to find the strongest F0 from the
-            // spectral peaks.  This corrects YIN subharmonic errors (e.g. YIN
-            // locking onto 56 Hz for a guitar chord whose real notes are
-            // 400-1200 Hz).  ALL partials are kept and assigned to the
-            // corrected F0's harmonic series — extra energy from other chord
-            // tones becomes "inharmonic" content, producing a chord-colored
-            // timbre that pitch-shifts correctly (Harmor-style approach).
-            //
-            // Step 1: Run tracker with YIN F0 (standard sieve for peak assignment)
+            // Stage 2: Multi-pitch detection on raw spectral peaks.
+            // Extract peaks directly from the STFT (independently of the
+            // tracker) and find the strongest F0.  This catches non-octave
+            // errors that the subharmonic validator misses.
+            {
+                const size_t numBins = shortSpectrum.numBins();
+                const float binHz = sampleRate / static_cast<float>(
+                    kShortWindowConfig.fftSize);
+
+                // Simple peak detection on the magnitude spectrum
+                std::array<float, Krate::DSP::kMaxPartials> rawPeakFreqs{};
+                std::array<float, Krate::DSP::kMaxPartials> rawPeakAmps{};
+                int numRawPeaks = 0;
+
+                for (size_t b = 2; b + 2 < numBins &&
+                     numRawPeaks < static_cast<int>(Krate::DSP::kMaxPartials); ++b)
+                {
+                    float mag = shortSpectrum.getMagnitude(b);
+                    float magL = shortSpectrum.getMagnitude(b - 1);
+                    float magR = shortSpectrum.getMagnitude(b + 1);
+
+                    if (mag > magL && mag > magR && mag > 1e-8f)
+                    {
+                        // Parabolic interpolation for sub-bin precision
+                        float denom = magL - 2.0f * mag + magR;
+                        float interpBin = static_cast<float>(b);
+                        float peakAmp = mag;
+                        if (denom != 0.0f)
+                        {
+                            float delta = 0.5f * (magL - magR) / denom;
+                            interpBin += delta;
+                            peakAmp = mag - 0.25f * (magL - magR) * delta;
+                        }
+
+                        auto idx = static_cast<size_t>(numRawPeaks);
+                        rawPeakFreqs[idx] = interpBin * binHz;
+                        rawPeakAmps[idx] = peakAmp;
+                        numRawPeaks++;
+                    }
+                }
+
+                if (numRawPeaks > 0)
+                {
+                    auto multiF0 = multiPitchDetector.detect(
+                        rawPeakFreqs.data(), rawPeakAmps.data(), numRawPeaks);
+
+                    // The multi-pitch detector's salience function is more
+                    // robust than YIN for polyphonic content.  If it found
+                    // an F0, use it — even if YIN disagrees.
+                    if (multiF0.numDetected >= 1)
+                    {
+                        f0.frequency = multiF0.estimates[0].frequency;
+                        f0.confidence = std::max(
+                            f0.confidence, multiF0.estimates[0].confidence);
+                        f0.voiced = true;
+                    }
+                }
+            }
+
+            // Partial tracking with the corrected F0 (FR-022 to FR-028)
             tracker.processFrame(shortSpectrum, f0,
                                   kShortWindowConfig.fftSize, sampleRate);
 
-            const auto& trackedPartials = tracker.getPartials();
-            int trackedCount = tracker.getActiveCount();
-
-            // Step 2: Use multi-pitch detector to find the best F0
-            Krate::DSP::F0Estimate buildF0 = f0;
-
-            if (trackedCount > 0)
-            {
-                std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
-                std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
-                for (int i = 0; i < trackedCount; ++i)
-                {
-                    peakFreqs[static_cast<size_t>(i)] =
-                        trackedPartials[static_cast<size_t>(i)].frequency;
-                    peakAmps[static_cast<size_t>(i)] =
-                        trackedPartials[static_cast<size_t>(i)].amplitude;
-                }
-
-                auto multiF0 = multiPitchDetector.detect(
-                    peakFreqs.data(), peakAmps.data(), trackedCount);
-
-                // If the multi-pitch detector found an F0, use it instead of
-                // YIN's estimate.  This fixes subharmonic errors.
-                if (multiF0.numDetected >= 1)
-                {
-                    buildF0.frequency = multiF0.estimates[0].frequency;
-                    buildF0.confidence = multiF0.estimates[0].confidence;
-                    buildF0.voiced = true;
-                }
-            }
-
-            // Step 3: Reassign all partials to the corrected F0.
-            // Recompute harmonicIndex and relativeFrequency so that the
-            // oscillator bank pitch-shifts correctly from the true F0.
-            std::array<Krate::DSP::Partial, Krate::DSP::kMaxPartials> buildPartials = trackedPartials;
-            int buildCount = trackedCount;
-
-            if (buildF0.frequency > 0.0f)
-            {
-                for (int i = 0; i < buildCount; ++i)
-                {
-                    auto& p = buildPartials[static_cast<size_t>(i)];
-                    float ratio = p.frequency / buildF0.frequency;
-                    p.harmonicIndex = std::max(1,
-                        static_cast<int>(std::round(ratio)));
-                    p.relativeFrequency = ratio;
-                    p.inharmonicDeviation =
-                        ratio - static_cast<float>(p.harmonicIndex);
-                }
-            }
-
             // Build harmonic frame (FR-029 to FR-034)
             Krate::DSP::HarmonicFrame frame = modelBuilder.build(
-                buildPartials,
-                buildCount,
-                buildF0,
+                tracker.getPartials(),
+                tracker.getActiveCount(),
+                f0,
                 inputRms);
 
             analysis->frames.push_back(frame);
@@ -434,6 +435,63 @@ void SampleAnalyzer::analyzeOnThread(
         }
 
         sampleIndex += blockSize;
+    }
+
+    // --- Post-analysis F0 stabilization ---
+    // Per-frame F0 estimation can vary wildly, especially on polyphonic
+    // content.  Compute the median F0 across voiced frames and check if
+    // it differs significantly from individual frames.  If the F0 variance
+    // is high (polyphonic or unstable content), lock all frames to the
+    // median.  If stable (monophonic), leave frames as-is.
+    if (!analysis->frames.empty())
+    {
+        // Collect all voiced F0 values
+        std::vector<float> voicedF0s;
+        voicedF0s.reserve(analysis->frames.size());
+        for (const auto& fr : analysis->frames)
+        {
+            if (fr.f0 > 0.0f && fr.f0Confidence > 0.3f)
+                voicedF0s.push_back(fr.f0);
+        }
+
+        if (voicedF0s.size() >= 3)
+        {
+            // Compute median F0
+            std::sort(voicedF0s.begin(), voicedF0s.end());
+            float medianF0 = voicedF0s[voicedF0s.size() / 2];
+
+            // Check F0 stability: ratio of IQR to median.
+            // Stable monophonic signals have <5% variance.
+            // Polyphonic/unstable signals have much higher variance.
+            float q1 = voicedF0s[voicedF0s.size() / 4];
+            float q3 = voicedF0s[voicedF0s.size() * 3 / 4];
+            float iqrRatio = (q3 - q1) / std::max(medianF0, 1.0f);
+
+            constexpr float kInstabilityThreshold = 0.1f; // 10% IQR/median
+
+            if (iqrRatio > kInstabilityThreshold)
+            {
+                // High F0 variance: lock all frames to the median.
+                // This stabilizes polyphonic content where per-frame F0
+                // jumps between different chord tones or subharmonics.
+                for (auto& fr : analysis->frames)
+                {
+                    fr.f0 = medianF0;
+                    fr.f0Confidence = 1.0f;
+
+                    for (int i = 0; i < fr.numPartials; ++i)
+                    {
+                        auto& p = fr.partials[static_cast<size_t>(i)];
+                        float ratio = p.frequency / medianF0;
+                        p.harmonicIndex = std::max(1,
+                            static_cast<int>(std::round(ratio)));
+                        p.relativeFrequency = ratio;
+                        p.inharmonicDeviation =
+                            ratio - static_cast<float>(p.harmonicIndex);
+                    }
+                }
+            }
+        }
     }
 
     // Finalize

@@ -121,8 +121,8 @@ public:
         return corrected;
     }
 
-private:
     /// Compute harmonic support score for a candidate F0.
+    /// Public so callers can compare scores between different F0 candidates.
     /// Sums weighted spectral magnitudes at f0, 2*f0, 3*f0, ...
     /// Weight = 1/h (fundamental counts most, upper harmonics less).
     [[nodiscard]] float harmonicScore(
