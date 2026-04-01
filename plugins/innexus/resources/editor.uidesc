@@ -408,7 +408,7 @@
 
       <!-- FR-019: Residual Level -->
       <view class="ArcKnob" origin="200, 22" size="42, 42"
-            control-tag="ResidualLevel" default-value="0.5"
+            control-tag="ResidualLevel" default-value="0.15"
             arc-color="accent"/>
       <view class="CParamDisplay" origin="195, 64" size="52, 12"
             control-tag="ResidualLevel" font="value-font"

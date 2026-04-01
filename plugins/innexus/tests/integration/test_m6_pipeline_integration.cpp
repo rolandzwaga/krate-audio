@@ -18,6 +18,7 @@
 
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/residual_types.h>
+#include <krate/dsp/processors/residual_synthesizer.h>
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -645,6 +646,128 @@ TEST_CASE("M6 pipeline: click-free parameter sweeps (SC-007)",
             REQUIRE(addedDiscontinuity < kClickThresholdLinear);
         }
     }
+}
+
+// =============================================================================
+// Residual Level parameter must audibly affect output
+// =============================================================================
+
+static float computeRms(const std::vector<float>& buf)
+{
+    float sum = 0.0f;
+    for (float s : buf)
+        sum += s * s;
+    return std::sqrt(sum / static_cast<float>(buf.size()));
+}
+
+TEST_CASE("Residual level at 0 vs 1.0 produces measurably different output",
+          "[innexus][residual][integration]")
+{
+    // Helper: run processor with a given residual level, return RMS of output
+    auto measureWithResidualLevel = [](double resLevelNormalized) -> float
+    {
+        PipelineTestFixture fix;
+
+        // Create analysis with residual frames and set FFT/hop sizes
+        // 20 frames (short analysis). The processor must sustain the residual
+        // at the last frame via periodic re-loading for overlap-add.
+        auto* analysis = makePipelineTestAnalysis(20, 440.0f, 16, 0.5f);
+        analysis->analysisFFTSize = 1024;
+        analysis->analysisHopSize = 512;
+        // Add residual frames with meaningful energy
+        for (size_t i = 0; i < analysis->frames.size(); ++i)
+        {
+            Krate::DSP::ResidualFrame rf{};
+            rf.totalEnergy = 0.3f;
+            for (size_t b = 0; b < Krate::DSP::kResidualBands; ++b)
+                rf.bandEnergies[b] = 0.02f;
+            rf.transientFlag = false;
+            analysis->residualFrames.push_back(rf);
+        }
+        fix.injectAnalysis(analysis);
+
+        // Set residual level (normalized 0-1, maps to plain 0-2)
+        fix.paramChanges.addChange(Innexus::kResidualLevelId, resLevelNormalized);
+        // Set harmonic level to 0 so we only measure the residual path
+        fix.paramChanges.addChange(Innexus::kHarmonicLevelId, 0.0);
+        fix.events.addNoteOn(69, 0.8f); // A4
+        fix.processBlockWithParams();
+        fix.events.clear();
+
+        // Let smoothers settle
+        for (int b = 0; b < 20; ++b)
+            fix.processBlock();
+
+        // Measure RMS over several blocks
+        float totalRms = 0.0f;
+        int measureBlocks = 10;
+        for (int b = 0; b < measureBlocks; ++b)
+        {
+            fix.processBlock();
+            totalRms += computeRms(fix.outL);
+        }
+        return totalRms / static_cast<float>(measureBlocks);
+    };
+
+    // First, verify test infrastructure produces sound with harmonics on
+    {
+        PipelineTestFixture fix;
+        auto* analysis = makePipelineTestAnalysis(20, 440.0f, 16, 0.5f);
+        analysis->analysisFFTSize = 1024;
+        analysis->analysisHopSize = 512;
+        for (size_t i = 0; i < analysis->frames.size(); ++i) {
+            Krate::DSP::ResidualFrame rf{};
+            rf.totalEnergy = 0.3f;
+            for (auto& b : rf.bandEnergies) b = 0.02f;
+            analysis->residualFrames.push_back(rf);
+        }
+        fix.injectAnalysis(analysis);
+        fix.events.addNoteOn(69, 0.8f);
+        fix.processBlockWithParams();
+        fix.events.clear();
+        for (int b = 0; b < 20; ++b) fix.processBlock();
+        fix.processBlock();
+        float harmRms = computeRms(fix.outL);
+        INFO("Harmonic RMS (default levels): " << harmRms);
+        REQUIRE(harmRms > 1e-4f); // sanity: harmonics produce sound
+    }
+
+    // --- First: verify ResidualSynthesizer produces output directly ---
+    {
+        Krate::DSP::ResidualSynthesizer resSynth;
+        resSynth.prepare(1024, 512, static_cast<float>(kPipelineTestSampleRate));
+
+        Krate::DSP::ResidualFrame rf{};
+        rf.totalEnergy = 0.3f;
+        for (auto& b : rf.bandEnergies) b = 0.02f;
+
+        resSynth.loadFrame(rf, 0.0f, 0.0f);
+
+        float maxAbs = 0.0f;
+        for (size_t i = 0; i < 512; ++i) {
+            float s = resSynth.process(0.0f);
+            if (std::abs(s) > maxAbs) maxAbs = std::abs(s);
+        }
+        INFO("ResidualSynthesizer direct output max abs: " << maxAbs);
+        REQUIRE(maxAbs > 1e-6f);
+    }
+
+    float rmsAtZero = measureWithResidualLevel(0.0);   // plain 0.0
+    float rmsAtFull = measureWithResidualLevel(0.5);    // plain 1.0
+    float rmsAtMax  = measureWithResidualLevel(1.0);    // plain 2.0
+
+    INFO("RMS at residual level 0.0: " << rmsAtZero);
+    INFO("RMS at residual level 1.0: " << rmsAtFull);
+    INFO("RMS at residual level 2.0: " << rmsAtMax);
+
+    // At level 0, output should be near-silent (only residual path, harmonics off)
+    REQUIRE(rmsAtZero < 1e-5f);
+
+    // At level 1.0, output should be significantly louder than at 0
+    REQUIRE(rmsAtFull > rmsAtZero * 10.0f);
+
+    // At level 2.0, output should be louder than at 1.0
+    REQUIRE(rmsAtMax > rmsAtFull * 1.5f);
 }
 
 // =============================================================================

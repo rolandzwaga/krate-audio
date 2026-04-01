@@ -56,7 +56,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
 
     // Residual Model (400-499) -- M2
     kHarmonicLevelId = 400,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
-    kResidualLevelId = 401,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 1.0 (normalized 0.5)
+    kResidualLevelId = 401,        // plain 0.0-2.0, normalized 0.0-1.0, default plain 0.3 (normalized 0.15)
     kResidualBrightnessId = 402,   // plain -1.0 to +1.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.5)
     kTransientEmphasisId = 403,    // plain 0.0-2.0, normalized 0.0-1.0, default plain 0.0 (normalized 0.0)
 

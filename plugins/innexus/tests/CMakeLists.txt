@@ -82,6 +82,9 @@ add_executable(innexus_tests
     integration/test_stereo_spread_integration.cpp
     integration/test_m6_pipeline_integration.cpp
 
+    # Output quality diagnostics
+    integration/test_output_noise.cpp
+
     # Harmonic Physics integration tests (Spec A)
     integration/test_harmonic_physics_integration.cpp
 

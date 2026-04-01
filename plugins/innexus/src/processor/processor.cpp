@@ -170,7 +170,7 @@ Steinberg::tresult PLUGIN_API Processor::setActive(Steinberg::TBool state)
         harmonicLevelSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
         harmonicLevelSmoother_.snapTo(1.0f); // default plain value
         residualLevelSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
-        residualLevelSmoother_.snapTo(1.0f); // default plain value
+        residualLevelSmoother_.snapTo(0.3f); // default plain value
         brightnessSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
         brightnessSmoother_.snapTo(0.0f); // default plain value (neutral)
         transientEmphasisSmoother_.configure(5.0f, static_cast<float>(sampleRate_));
@@ -1324,64 +1324,74 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
         if (!manualFreezeActive_ && !isSidechainMode && hopSizeInSamples > 0 && totalFrames > 0)
         {
             voice_.frameSampleCounter++;
-            if (voice_.frameSampleCounter >= hopSizeInSamples &&
-                voice_.currentFrameIndex < totalFrames - 1)
+            if (voice_.frameSampleCounter >= hopSizeInSamples)
             {
-                voice_.frameSampleCounter = 0;
-                voice_.currentFrameIndex++;
-
-                // Spec 124: Sustain loop — when ADSR is in Sustain stage and
-                // a valid loop region exists, wrap frame index back to loop start.
-                // This keeps the note alive indefinitely while the key is held.
-                if (adsrActive && voice_.sustainLoopStart < voice_.sustainLoopEnd &&
-                    voice_.adsr.getStage() == Krate::DSP::ADSRStage::Sustain &&
-                    std::cmp_greater_equal(voice_.currentFrameIndex, voice_.sustainLoopEnd))
+                if (voice_.currentFrameIndex < totalFrames - 1)
                 {
-                    voice_.currentFrameIndex = static_cast<size_t>(voice_.sustainLoopStart);
-                }
+                    voice_.frameSampleCounter = 0;
+                    voice_.currentFrameIndex++;
 
-                // Get the new frame
-                const auto& frame = analysis->getFrame(voice_.currentFrameIndex);
-
-                // Confidence-gated freeze (FR-052) with hysteresis (FR-053)
-                float recoveryThreshold = voice_.isFrozen
-                    ? (kConfidenceThreshold + kConfidenceHysteresis)
-                    : kConfidenceThreshold;
-
-                if (frame.f0Confidence >= recoveryThreshold)
-                {
-                    if (voice_.isFrozen)
+                    // Spec 124: Sustain loop — when ADSR is in Sustain stage and
+                    // a valid loop region exists, wrap frame index back to loop start.
+                    // This keeps the note alive indefinitely while the key is held.
+                    if (adsrActive && voice_.sustainLoopStart < voice_.sustainLoopEnd &&
+                        voice_.adsr.getStage() == Krate::DSP::ADSRStage::Sustain &&
+                        std::cmp_greater_equal(voice_.currentFrameIndex, voice_.sustainLoopEnd))
                     {
-                        voice_.isFrozen = false;
-                        float captL = 0.0f;
-                        float captR = 0.0f;
-                        voice_.oscillatorBank.processStereo(captL, captR);
-                        voice_.freezeRecoveryOldLevel = (captL + captR) * 0.5f;
-                        voice_.freezeRecoverySamplesRemaining = voice_.freezeRecoveryLengthSamples;
+                        voice_.currentFrameIndex = static_cast<size_t>(voice_.sustainLoopStart);
                     }
-                    voice_.lastGoodFrame = frame;
 
-                    // M4: Store frame as morphed (no freeze = pass-through)
-                    voice_.morphedFrame = frame;
+                    // Get the new frame
+                    const auto& frame = analysis->getFrame(voice_.currentFrameIndex);
 
-                    // Apply harmonic filter (FR-026)
-                    if (currentFilterType_ != 0)
-                        Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
+                    // Confidence-gated freeze (FR-052) with hysteresis (FR-053)
+                    float recoveryThreshold = voice_.isFrozen
+                        ? (kConfidenceThreshold + kConfidenceHysteresis)
+                        : kConfidenceThreshold;
 
-                    // M6 FR-025: Apply modulator amplitude modulation
-                    applyModulatorAmplitude(mod1Enabled, mod2Enabled);
-                    applyHarmonicPhysics();
-
-                    if (hasSampleResidual)
+                    if (frame.f0Confidence >= recoveryThreshold)
                     {
-                        voice_.morphedResidualFrame =
-                            analysis->getResidualFrame(voice_.currentFrameIndex);
+                        if (voice_.isFrozen)
+                        {
+                            voice_.isFrozen = false;
+                            float captL = 0.0f;
+                            float captR = 0.0f;
+                            voice_.oscillatorBank.processStereo(captL, captR);
+                            voice_.freezeRecoveryOldLevel = (captL + captR) * 0.5f;
+                            voice_.freezeRecoverySamplesRemaining = voice_.freezeRecoveryLengthSamples;
+                        }
+                        voice_.lastGoodFrame = frame;
+
+                        // M4: Store frame as morphed (no freeze = pass-through)
+                        voice_.morphedFrame = frame;
+
+                        // Apply harmonic filter (FR-026)
+                        if (currentFilterType_ != 0)
+                            Krate::DSP::applyHarmonicMask(voice_.morphedFrame, filterMask_);
+
+                        // M6 FR-025: Apply modulator amplitude modulation
+                        applyModulatorAmplitude(mod1Enabled, mod2Enabled);
+                        applyHarmonicPhysics();
+
+                        if (hasSampleResidual)
+                        {
+                            voice_.morphedResidualFrame =
+                                analysis->getResidualFrame(voice_.currentFrameIndex);
+                        }
+                        broadcastFrameToVoices(activePartialCount, hasSampleResidual);
                     }
-                    broadcastFrameToVoices(activePartialCount, hasSampleResidual);
+                    else
+                    {
+                        voice_.isFrozen = true;
+                    }
                 }
-                else
+                else if (hasSampleResidual)
                 {
-                    voice_.isFrozen = true;
+                    // At the last frame: re-load residual to keep overlap-add
+                    // synthesis alive. The MCF oscillators sustain without reloading,
+                    // but the residual synth needs periodic loadFrame() calls.
+                    voice_.frameSampleCounter = 0;
+                    broadcastFrameToVoices(activePartialCount, true);
                 }
             }
         }

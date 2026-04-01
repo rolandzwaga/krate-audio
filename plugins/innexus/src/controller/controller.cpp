@@ -280,7 +280,7 @@ Steinberg::tresult PLUGIN_API Controller::initialize(Steinberg::FUnknown* contex
         STR16(""),
         0.0,    // min plain
         2.0,    // max plain
-        1.0,    // default plain
+        0.3,    // default plain
         0,      // stepCount (continuous)
         Steinberg::Vst::ParameterInfo::kCanAutomate);
     parameters.addParameter(residualLevelParam);

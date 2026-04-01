@@ -161,7 +161,7 @@ public:
         // Reset crossfade state
         crossfadeRemaining_ = 0;
         crossfadeOldLevel_ = 0.0f;
-        renormCounter_ = 0;
+        // (renormCounter_ removed — MCF determinant=1 needs no renormalization)
 
         // Reset stereo/detune arrays to center (mono)
         panPosition_.fill(0.0f);
@@ -493,15 +493,16 @@ public:
         float sumR = 0.0f;
         const int n = activePartials_;
 
-        ++renormCounter_;
-        const bool doRenorm = (renormCounter_ >= 16);
-        if (doRenorm) renormCounter_ = 0;
-
-        // Use SIMD path when no renormalization needed this sample.
+        // Use SIMD path when no bandwidth modulation is needed.
         // The SIMD path handles amplitude smoothing + MCF advance + stereo pan
         // for all active partials in batches of 4/8.
-        // Bandwidth modulation and renormalization remain scalar (rare/periodic).
-        if (!doRenorm && !hasBandwidth_) {
+        // Bandwidth modulation remains scalar (rare: only when partials have bw > 0).
+        //
+        // Note: No periodic renormalization. The MCF (Gordon-Smith modified coupled
+        // form) has determinant = 1, so amplitude is bounded in finite precision.
+        // Hard renormalization every N samples introduces step discontinuities
+        // that degrade SNR by ~10 dB. See Dattorro (AES 2002), Smith (CCRMA).
+        if (!hasBandwidth_) {
             processMcfBatchSIMD(
                 sinState_.data(), cosState_.data(),
                 epsilon_.data(), detuneMultiplier_.data(),
@@ -509,7 +510,7 @@ public:
                 antiAliasGain_.data(), panLeft_.data(), panRight_.data(),
                 ampSmoothCoeff_, n, sumL, sumR);
         } else {
-            // Scalar path: handles bandwidth modulation and renormalization
+            // Scalar path: handles bandwidth modulation
             for (int i = 0; i < n; ++i) {
                 // Amplitude smoothing (FR-041)
                 float target = targetAmplitude_[i] * antiAliasGain_[i];
@@ -537,16 +538,6 @@ public:
                 float sNew = s + eps * c;
                 float cNew = c - eps * sNew;
 
-                // Periodic renormalization
-                if (doRenorm) {
-                    float mag2 = sNew * sNew + cNew * cNew;
-                    if (mag2 > 0.0f) {
-                        float invMag = 1.0f / std::sqrt(mag2);
-                        sNew *= invMag;
-                        cNew *= invMag;
-                    }
-                }
-
                 sinState_[i] = sNew;
                 cosState_[i] = cNew;
             }
@@ -566,15 +557,6 @@ public:
 
                 float sNew = s + eps * c;
                 float cNew = c - eps * sNew;
-
-                if (doRenorm) {
-                    float mag2 = sNew * sNew + cNew * cNew;
-                    if (mag2 > 0.0f) {
-                        float invMag = 1.0f / std::sqrt(mag2);
-                        sNew *= invMag;
-                        cNew *= invMag;
-                    }
-                }
 
                 sinState_[i] = sNew;
                 cosState_[i] = cNew;
@@ -638,15 +620,6 @@ public:
         float sum = 0.0f;
         const int n = activePartials_;
 
-        // Periodic renormalization counter -- every 16 samples, correct amplitude
-        // drift in the MCF due to floating-point rounding at high epsilon values.
-        // Frequency of renormalization chosen to be fast enough for near-Nyquist
-        // partials (where the MCF has frequency-dependent amplitude scaling)
-        // while remaining efficient.
-        ++renormCounter_;
-        const bool doRenorm = (renormCounter_ >= 16);
-        if (doRenorm) renormCounter_ = 0;
-
         for (int i = 0; i < n; ++i) {
             // Amplitude smoothing (FR-041)
             float target = targetAmplitude_[i] * antiAliasGain_[i];
@@ -668,19 +641,9 @@ public:
             // Output: amplitude * sine * bandwidth modulation
             sum += s * currentAmplitude_[i] * ampMod;
 
-            // Advance phasor: Gordon-Smith MCF (determinant = 1)
+            // Advance phasor: Gordon-Smith MCF (determinant = 1, no renorm needed)
             float sNew = s + eps * c;
-            float cNew = c - eps * sNew; // uses updated sNew
-
-            // Periodic renormalization: correct amplitude drift
-            if (doRenorm) {
-                float mag2 = sNew * sNew + cNew * cNew;
-                if (mag2 > 0.0f) {
-                    float invMag = 1.0f / std::sqrt(mag2);
-                    sNew *= invMag;
-                    cNew *= invMag;
-                }
-            }
+            float cNew = c - eps * sNew;
 
             sinState_[i] = sNew;
             cosState_[i] = cNew;
@@ -698,15 +661,6 @@ public:
                 sum += s * currentAmplitude_[i];
                 float sNew = s + eps * c;
                 float cNew = c - eps * sNew;
-
-                if (doRenorm) {
-                    float mag2 = sNew * sNew + cNew * cNew;
-                    if (mag2 > 0.0f) {
-                        float invMag = 1.0f / std::sqrt(mag2);
-                        sNew *= invMag;
-                        cNew *= invMag;
-                    }
-                }
 
                 sinState_[i] = sNew;
                 cosState_[i] = cNew;
@@ -848,13 +802,21 @@ private:
 
         for (int i = 0; i < activePartials_; ++i) {
             float freq = computePartialFrequency(i);
+
+            // MCF elliptical orbit correction (Smith, CCRMA):
+            // The MCF sin output has amplitude 1/cos(pi*f/fs), so we
+            // pre-compensate by multiplying by cos(pi*f/fs).
+            float mcfCorrection = std::cos(kPi * freq * inverseSampleRate_);
+
+            float aaGain;
             if (freq <= fadeStart) {
-                antiAliasGain_[i] = 1.0f;
+                aaGain = 1.0f;
             } else if (freq >= nyquist_) {
-                antiAliasGain_[i] = 0.0f;
+                aaGain = 0.0f;
             } else {
-                antiAliasGain_[i] = (nyquist_ - freq) / fadeRange;
+                aaGain = (nyquist_ - freq) / fadeRange;
             }
+            antiAliasGain_[i] = aaGain * mcfCorrection;
         }
 
         // Zero gain for unused partials
@@ -966,7 +928,7 @@ private:
     // --- State ---
     int activePartials_ = 0;              ///< Number of active partials
     float lastOutputSample_ = 0.0f;       ///< For crossfade capture
-    int renormCounter_ = 0;               ///< Counter for periodic MCF renormalization
+    // renormCounter_ removed — MCF determinant=1 guarantees bounded amplitude
     bool prepared_ = false;               ///< Whether prepare() has been called
     bool frameLoaded_ = false;            ///< Whether loadFrame() has been called
     bool polyMode_ = false;               ///< Whether using polyphonic source-aware mode

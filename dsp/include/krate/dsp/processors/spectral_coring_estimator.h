@@ -152,7 +152,7 @@ private:
     size_t fftSize_ = 0;
     float sampleRate_ = 0.0f;
     size_t numBins_ = 0;
-    float coringBandwidthBins_ = 1.5f;
+    float coringBandwidthBins_ = 3.0f;
     bool prepared_ = false;
 };
 

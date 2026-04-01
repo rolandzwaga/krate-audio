@@ -438,7 +438,7 @@ private:
 
     // M2 Residual parameters (FR-021, FR-022, FR-023)
     std::atomic<float> harmonicLevel_{0.5f};       // normalized, default = 1.0 plain
-    std::atomic<float> residualLevel_{0.5f};       // normalized, default = 1.0 plain
+    std::atomic<float> residualLevel_{0.15f};      // normalized, default = 0.3 plain
     std::atomic<float> residualBrightness_{0.5f};  // normalized, default = 0.0 plain = neutral
     std::atomic<float> transientEmphasis_{0.0f};   // normalized, default = 0.0 plain
 
