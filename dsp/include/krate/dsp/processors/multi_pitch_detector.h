@@ -64,8 +64,9 @@ public:
     /// Harmonic weight decay factor (weight[h] = decay^(h-1))
     static constexpr float kHarmonicWeightDecay = 0.8f;
 
-    /// Minimum salience to accept a detected F0
-    static constexpr float kMinSalience = 0.05f;
+    /// Minimum salience to accept a detected F0 (relative to peak input amplitude).
+    /// The absolute threshold is computed as kMinSalienceRatio * maxAmplitude.
+    static constexpr float kMinSalienceRatio = 0.5f;
 
     /// Salience ratio threshold: stop when salience drops below this fraction
     /// of the strongest F0's salience
@@ -121,10 +122,16 @@ public:
 
         // Copy peak data into working buffers (we'll modify amplitudes during cancellation)
         const int np = std::min(numPeaks, static_cast<int>(kMaxPeaks));
+        float maxAmp = 0.0f;
         for (int i = 0; i < np; ++i) {
             workFreqs_[static_cast<size_t>(i)] = peakFreqs[i];
             workAmps_[static_cast<size_t>(i)] = peakAmps[i];
+            if (peakAmps[i] > maxAmp) maxAmp = peakAmps[i];
         }
+
+        // Adaptive salience threshold scales with input amplitude so the
+        // detector works at any amplitude scale (raw DFT or normalized).
+        const float minSalience = kMinSalienceRatio * maxAmp;
 
         float strongestSalience = 0.0f;
 
@@ -143,7 +150,7 @@ public:
                 }
             }
 
-            if (bestCandidate < 0 || bestSalience < kMinSalience) {
+            if (bestCandidate < 0 || bestSalience < minSalience) {
                 break;
             }
 

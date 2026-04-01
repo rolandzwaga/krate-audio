@@ -287,7 +287,12 @@ void LiveAnalysisPipeline::runAnalysis()
         }
     }
 
-    // Decide mono vs poly based on analysis mode and YIN confidence
+    // Decide mono vs poly based on analysis mode.
+    // Auto mode uses two heuristics:
+    //   1. YIN confidence below threshold (pitch ambiguity)
+    //   2. Multi-pitch detector finds >1 F0 in the previous frame's partials
+    //      (handles guitar chords where YIN locks onto the root with high
+    //       confidence despite multiple voices being present)
     bool usePolyPath = false;
     switch (analysisMode_)
     {
@@ -298,9 +303,32 @@ void LiveAnalysisPipeline::runAnalysis()
         usePolyPath = true;
         break;
     case Krate::DSP::AnalysisMode::Auto:
-        // Use poly when YIN confidence is low (suggests polyphonic content)
-        usePolyPath = (f0.confidence <= kPolyConfidenceThreshold);
+    {
+        // Primary: YIN confidence drop
+        bool yinSuggestsPoly = (f0.confidence <= kPolyConfidenceThreshold);
+
+        // Secondary: check if multi-pitch detector finds multiple F0s
+        // using the previous frame's tracked partials (still in tracker_).
+        bool multiF0SuggestsPoly = false;
+        int prevCount = tracker_.getActiveCount();
+        if (prevCount > 0 && f0.voiced)
+        {
+            const auto& prevPartials = tracker_.getPartials();
+            std::array<float, Krate::DSP::kMaxPartials> freqs{};
+            std::array<float, Krate::DSP::kMaxPartials> amps{};
+            for (int i = 0; i < prevCount; ++i)
+            {
+                freqs[static_cast<size_t>(i)] = prevPartials[static_cast<size_t>(i)].frequency;
+                amps[static_cast<size_t>(i)] = prevPartials[static_cast<size_t>(i)].amplitude;
+            }
+            auto multiResult = multiPitchDetector_.detect(
+                freqs.data(), amps.data(), prevCount);
+            multiF0SuggestsPoly = (multiResult.numDetected > 1);
+        }
+
+        usePolyPath = yinSuggestsPoly || multiF0SuggestsPoly;
         break;
+    }
     }
 
     // Detect mode switch and initiate crossfade

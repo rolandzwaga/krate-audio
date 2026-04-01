@@ -80,7 +80,7 @@ std::string ConfidenceIndicatorView::modeLabel(uint8_t analysisMode, bool isPoly
     case 0: return "MONO";
     case 1: return "POLY";
     case 2: // Auto
-        return isPolyphonic ? "AUTO>P" : "AUTO>M";
+        return isPolyphonic ? "AUTO>POLYPHONIC" : "AUTO>MONOPHONIC";
     default: return "AUTO";
     }
 }

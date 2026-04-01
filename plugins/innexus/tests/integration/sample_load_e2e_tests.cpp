@@ -715,3 +715,117 @@ TEST_CASE("E2E: Resynthesized output is tonal (not noise)",
 
     std::filesystem::remove(wavPath);
 }
+
+// =============================================================================
+// TEST: Polyphonic sample (guitar chord) produces usable resynthesis
+// =============================================================================
+// Verifies that a polyphonic audio sample (guitar chord) can be analyzed and
+// resynthesized at different MIDI pitches with correct pitch tracking and
+// audible output.  The analyzer should find a real chord tone as F0 (not a
+// false subharmonic) and assign all spectral peaks to that F0's harmonic
+// series, producing a "chord-colored" timbre that pitch-shifts correctly.
+// =============================================================================
+
+TEST_CASE("E2E: Polyphonic sample produces pitched resynthesis",
+          "[innexus][e2e][polyphonic][.real]")
+{
+    const char* wavPath = "C:/test/633815__argenisflores__guitar-note-sustained.wav";
+
+    if (!std::filesystem::exists(wavPath))
+    {
+        WARN("Guitar chord sample not found at: " << wavPath << " -- skipping");
+        return;
+    }
+
+    // --- Step 1: Analyze ---
+    Innexus::SampleAnalyzer analyzer;
+    analyzer.startAnalysis(wavPath);
+    for (int i = 0; i < 300; ++i)
+    {
+        if (analyzer.isComplete()) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    REQUIRE(analyzer.isComplete());
+
+    auto analysis = analyzer.takeResult();
+    REQUIRE(analysis != nullptr);
+    REQUIRE(!analysis->frames.empty());
+
+    // --- Step 2: Verify analysis quality ---
+    // Find a strong frame in the middle of the file
+    size_t midIdx = analysis->frames.size() / 2;
+    const auto& midFrame = analysis->frames[midIdx];
+
+    INFO("F0: " << midFrame.f0 << " Hz, confidence: " << midFrame.f0Confidence
+         << ", numPartials: " << midFrame.numPartials
+         << ", globalAmplitude: " << midFrame.globalAmplitude);
+
+    // F0 must be a real musical pitch, not a false subharmonic.
+    // Guitar fundamentals are typically 80-1200 Hz.  A subharmonic at 56 Hz
+    // would indicate the analyzer fell into the YIN subharmonic trap.
+    REQUIRE(midFrame.f0 > 80.0f);
+    REQUIRE(midFrame.f0Confidence > 0.5f);
+    REQUIRE(midFrame.numPartials >= 4);
+
+    // The first partial's harmonic index should be low (1-3), not a high
+    // number like 7 or 12 which indicates wrong F0 assignment.
+    REQUIRE(midFrame.partials[0].harmonicIndex <= 4);
+
+    // --- Step 3: Resynthesize at multiple MIDI notes ---
+    struct NoteTest {
+        int16_t midiNote;
+        const char* name;
+        float expectedHz;
+    };
+    NoteTest notes[] = {
+        {60, "C4",  261.63f},
+        {69, "A4",  440.00f},
+        {72, "C5",  523.25f},
+    };
+
+    for (const auto& note : notes)
+    {
+        auto analysisCopy = std::make_unique<Innexus::SampleAnalysis>(*analysis);
+
+        E2EFixture fix;
+        fix.processor.testInjectAnalysis(analysisCopy.release());
+        fix.events.addNoteOn(note.midiNote, 0.8f);
+
+        fix.processBlocks(6); // warmup
+        auto output = fix.processBlocks(32); // steady-state
+
+        // Measure output level
+        float rms = 0.0f;
+        float maxOut = 0.0f;
+        for (float s : output)
+        {
+            rms += s * s;
+            float a = std::abs(s);
+            if (a > maxOut) maxOut = a;
+        }
+        rms = std::sqrt(rms / static_cast<float>(output.size()));
+
+        float rmsDb = (rms > 1e-10f) ? 20.0f * std::log10(rms) : -200.0f;
+
+        // Measure energy at the expected fundamental and its 2nd harmonic.
+        // For chord-colored timbres, the sum of fundamental + 2nd harmonic
+        // is a better indicator than fundamental alone.
+        float sr = static_cast<float>(E2EFixture::sampleRate);
+        float magF1 = goertzelMagnitude(output.data(), output.size(),
+                                         note.expectedHz, sr);
+        float magF2 = goertzelMagnitude(output.data(), output.size(),
+                                         note.expectedHz * 2.0f, sr);
+        float magTarget = magF1 + magF2;
+
+        INFO(note.name << ": RMS=" << rmsDb << " dBFS"
+             << ", Goertzel@f1=" << magF1
+             << ", Goertzel@f2=" << magF2);
+
+        // SC-1: Output must be audible (RMS > -40 dBFS)
+        CHECK(rms > 0.01f);
+
+        // SC-2: The expected fundamental + 2nd harmonic must have meaningful
+        // energy above the noise floor.
+        CHECK(magTarget > 0.001f);
+    }
+}

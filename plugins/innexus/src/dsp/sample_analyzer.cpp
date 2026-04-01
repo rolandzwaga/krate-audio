@@ -41,6 +41,8 @@
 #include <krate/dsp/processors/harmonic_types.h>
 #include <krate/dsp/processors/partial_tracker.h>
 #include <krate/dsp/processors/residual_analyzer.h>
+#include <krate/dsp/processors/multi_pitch_detector.h>
+#include <krate/dsp/processors/multi_source_sieve.h>
 #include <krate/dsp/processors/yin_pitch_detector.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
 
@@ -222,6 +224,15 @@ void SampleAnalyzer::analyzeOnThread(
     modelBuilder.prepare(static_cast<double>(sampleRate));
     modelBuilder.setHopSize(static_cast<int>(kShortWindowConfig.hopSize));
 
+    // Multi-pitch detection: extracts clean monophonic timbre from
+    // polyphonic sources (guitar chords, piano chords, etc.) by identifying
+    // the dominant F0 and filtering out partials from other voices.
+    Krate::DSP::MultiPitchDetector multiPitchDetector;
+    multiPitchDetector.prepare(kShortWindowConfig.fftSize,
+                               static_cast<double>(sampleRate));
+    Krate::DSP::MultiSourceSieve multiSourceSieve;
+    multiSourceSieve.prepare(static_cast<double>(sampleRate));
+
     // Residual analyzer (FR-009: runs on background thread, FR-010: never audio thread)
     Krate::DSP::ResidualAnalyzer residualAnalyzer;
     residualAnalyzer.prepare(
@@ -314,15 +325,75 @@ void SampleAnalyzer::analyzeOnThread(
                 f0 = yin.detect(&audioData[yinStart], yinLength);
             }
 
-            // Partial tracking on short window spectrum (FR-022 to FR-028)
+            // Partial tracking on short window spectrum (FR-022 to FR-028).
+            // Use the multi-pitch detector to find the strongest F0 from the
+            // spectral peaks.  This corrects YIN subharmonic errors (e.g. YIN
+            // locking onto 56 Hz for a guitar chord whose real notes are
+            // 400-1200 Hz).  ALL partials are kept and assigned to the
+            // corrected F0's harmonic series — extra energy from other chord
+            // tones becomes "inharmonic" content, producing a chord-colored
+            // timbre that pitch-shifts correctly (Harmor-style approach).
+            //
+            // Step 1: Run tracker with YIN F0 (standard sieve for peak assignment)
             tracker.processFrame(shortSpectrum, f0,
                                   kShortWindowConfig.fftSize, sampleRate);
 
+            const auto& trackedPartials = tracker.getPartials();
+            int trackedCount = tracker.getActiveCount();
+
+            // Step 2: Use multi-pitch detector to find the best F0
+            Krate::DSP::F0Estimate buildF0 = f0;
+
+            if (trackedCount > 0)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
+                std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
+                for (int i = 0; i < trackedCount; ++i)
+                {
+                    peakFreqs[static_cast<size_t>(i)] =
+                        trackedPartials[static_cast<size_t>(i)].frequency;
+                    peakAmps[static_cast<size_t>(i)] =
+                        trackedPartials[static_cast<size_t>(i)].amplitude;
+                }
+
+                auto multiF0 = multiPitchDetector.detect(
+                    peakFreqs.data(), peakAmps.data(), trackedCount);
+
+                // If the multi-pitch detector found an F0, use it instead of
+                // YIN's estimate.  This fixes subharmonic errors.
+                if (multiF0.numDetected >= 1)
+                {
+                    buildF0.frequency = multiF0.estimates[0].frequency;
+                    buildF0.confidence = multiF0.estimates[0].confidence;
+                    buildF0.voiced = true;
+                }
+            }
+
+            // Step 3: Reassign all partials to the corrected F0.
+            // Recompute harmonicIndex and relativeFrequency so that the
+            // oscillator bank pitch-shifts correctly from the true F0.
+            std::array<Krate::DSP::Partial, Krate::DSP::kMaxPartials> buildPartials = trackedPartials;
+            int buildCount = trackedCount;
+
+            if (buildF0.frequency > 0.0f)
+            {
+                for (int i = 0; i < buildCount; ++i)
+                {
+                    auto& p = buildPartials[static_cast<size_t>(i)];
+                    float ratio = p.frequency / buildF0.frequency;
+                    p.harmonicIndex = std::max(1,
+                        static_cast<int>(std::round(ratio)));
+                    p.relativeFrequency = ratio;
+                    p.inharmonicDeviation =
+                        ratio - static_cast<float>(p.harmonicIndex);
+                }
+            }
+
             // Build harmonic frame (FR-029 to FR-034)
             Krate::DSP::HarmonicFrame frame = modelBuilder.build(
-                tracker.getPartials(),
-                tracker.getActiveCount(),
-                f0,
+                buildPartials,
+                buildCount,
+                buildF0,
                 inputRms);
 
             analysis->frames.push_back(frame);

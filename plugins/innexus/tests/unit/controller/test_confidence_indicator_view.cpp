@@ -110,12 +110,12 @@ TEST_CASE("ConfidenceIndicatorView modeLabel Poly", "[innexus][ui][confidence]")
 
 TEST_CASE("ConfidenceIndicatorView modeLabel Auto mono", "[innexus][ui][confidence]")
 {
-    REQUIRE(ConfidenceIndicatorView::modeLabel(2, false) == "AUTO>M");
+    REQUIRE(ConfidenceIndicatorView::modeLabel(2, false) == "AUTO>MONOPHONIC");
 }
 
 TEST_CASE("ConfidenceIndicatorView modeLabel Auto poly", "[innexus][ui][confidence]")
 {
-    REQUIRE(ConfidenceIndicatorView::modeLabel(2, true) == "AUTO>P");
+    REQUIRE(ConfidenceIndicatorView::modeLabel(2, true) == "AUTO>POLYPHONIC");
 }
 
 // =========================================================================

@@ -103,8 +103,21 @@ void Processor::sendDisplayData(Steinberg::Vst::ProcessData& data)
     const auto& polyFrame = currentLivePolyFrame_;
     int numVoices = std::min(polyFrame.numSources, 8);
     displayDataBuffer_.numVoices = static_cast<uint8_t>(numVoices);
-    displayDataBuffer_.isPolyphonic = liveAnalysis_.isPolyphonicActive() ? 1 : 0;
-    displayDataBuffer_.analysisMode = static_cast<uint8_t>(liveAnalysis_.getAnalysisMode());
+    // Auto-detection only applies in sidechain mode where the live pipeline
+    // performs real-time mono/poly switching.  In sample mode, the offline
+    // analyzer always produces monophonic frames, so report accordingly.
+    const bool isSidechainMode =
+        inputSource_.load(std::memory_order_relaxed) > 0.5f;
+    if (isSidechainMode)
+    {
+        displayDataBuffer_.isPolyphonic = liveAnalysis_.isPolyphonicActive() ? 1 : 0;
+        displayDataBuffer_.analysisMode = static_cast<uint8_t>(liveAnalysis_.getAnalysisMode());
+    }
+    else
+    {
+        displayDataBuffer_.isPolyphonic = 0;
+        displayDataBuffer_.analysisMode = 0; // Mono (sample analysis is always monophonic)
+    }
 
     for (int i = 0; i < numVoices; ++i)
     {
