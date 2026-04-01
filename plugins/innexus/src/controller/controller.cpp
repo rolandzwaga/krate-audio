@@ -1597,6 +1597,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Set initial visibility of bow exciter knobs
     updateBowVisibility();
 
+    // Set initial visibility of feedback section (sidechain only)
+    updateFeedbackVisibility();
+
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame())
     {
@@ -1678,6 +1681,8 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     sampleLoadContainer_ = nullptr;
     impactKnobContainer_ = nullptr;
     bowKnobContainer_ = nullptr;
+    feedbackContainer_ = nullptr;
+    latencyModeContainer_ = nullptr;
     modalKnobContainer_ = nullptr;
     waveguideKnobContainer_ = nullptr;
     adsrDisplayView_ = nullptr;
@@ -2167,6 +2172,80 @@ void Controller::updateResonatorVisibility()
 }
 
 // ==============================================================================
+// updateFeedbackVisibility
+// ==============================================================================
+void Controller::updateFeedbackVisibility()
+{
+    // Lazy-find the feedback container by locating a child with the
+    // FeedbackAmount tag (710) and taking its parent container.
+    if (!feedbackContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || feedbackContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kAnalysisFeedbackId) {
+                            feedbackContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    // Lazy-find the latency mode container by locating a child with the
+    // LatencyMode tag (501) and taking its parent container.
+    if (!latencyModeContainer_ && activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            std::function<void(VSTGUI::CViewContainer*)> search;
+            search = [this, &search](VSTGUI::CViewContainer* container) {
+                if (!container || latencyModeContainer_) return;
+                VSTGUI::ViewIterator it(container);
+                while (*it) {
+                    if (auto* control = dynamic_cast<VSTGUI::CControl*>(*it)) {
+                        if (control->getTag() == kLatencyModeId) {
+                            latencyModeContainer_ = container;
+                            return;
+                        }
+                    }
+                    if (auto* child = (*it)->asViewContainer())
+                        search(child);
+                    ++it;
+                }
+            };
+            search(frame);
+        }
+    }
+
+    // InputSource: 0 = Sample, 1 = Sidechain
+    // Both feedback and latency mode only work in sidechain mode.
+    auto* param = getParameterObject(kInputSourceId);
+    if (!param)
+        return;
+
+    bool isSidechain = param->getNormalized() >= 0.5;
+
+    if (feedbackContainer_) {
+        feedbackContainer_->setVisible(isSidechain);
+        if (feedbackContainer_->getParentView())
+            feedbackContainer_->getParentView()->invalid();
+    }
+
+    if (latencyModeContainer_) {
+        latencyModeContainer_->setVisible(isSidechain);
+        if (latencyModeContainer_->getParentView())
+            latencyModeContainer_->getParentView()->invalid();
+    }
+}
+
+// ==============================================================================
 // onDisplayTimerFired (T016: FR-049)
 // ==============================================================================
 void Controller::onDisplayTimerFired()
@@ -2182,6 +2261,9 @@ void Controller::onDisplayTimerFired()
 
     // Update resonator knob containers based on resonance type
     updateResonatorVisibility();
+
+    // Hide feedback section when not in sidechain mode
+    updateFeedbackVisibility();
 
     // Tier 3 fallback: if DataExchange hasn't delivered data after ~330ms,
     // read directly from the processor's shared display buffer

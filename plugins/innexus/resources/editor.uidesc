@@ -185,8 +185,8 @@
   <!-- ================================================================== -->
   <!-- Main Editor Template (800x710)                                     -->
   <!-- ================================================================== -->
-  <template name="Editor" class="CViewContainer" size="800, 1130"
-            background-color="bg-primary" minSize="800, 1130" maxSize="800, 1130">
+  <template name="Editor" class="CViewContainer" size="800, 1035"
+            background-color="bg-primary" minSize="800, 1035" maxSize="800, 1035">
 
     <!-- ============================================================== -->
     <!-- HEADER SECTION (Y 0-50) - FR-002, FR-003, FR-005, FR-006       -->
@@ -243,19 +243,21 @@
               text-truncation="head" title=""/>
       </view>
 
-      <!-- FR-008: Latency Mode selector (2 segments) -->
-      <view class="CTextLabel" origin="540, 2" size="150, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Latency"/>
-      <view class="CSegmentButton" origin="540, 12" size="150, 24"
-            control-tag="LatencyMode" default-value="0"
-            font="label-font" text-color="text-secondary"
-            text-color-highlighted="text-primary"
-            frame-color="text-dim" gradient="segment-bg"
-            gradient-highlighted="segment-bg-selected"
-            segment-names="Low Latency,High Precision"
-            style="horizontal" round-radius="3"/>
+      <!-- FR-008: Latency Mode selector (sidechain only) -->
+      <view class="CViewContainer" origin="540, 0" size="150, 40" transparent="true">
+        <view class="CTextLabel" origin="0, 2" size="150, 10"
+              text-alignment="center" font="value-font"
+              font-color="text-secondary" back-color="~ TransparentCColor"
+              title="Latency"/>
+        <view class="CSegmentButton" origin="0, 12" size="150, 24"
+              control-tag="LatencyMode" default-value="0"
+              font="label-font" text-color="text-secondary"
+              text-color-highlighted="text-primary"
+              frame-color="text-dim" gradient="segment-bg"
+              gradient-highlighted="segment-bg-selected"
+              segment-names="Low Latency,High Precision"
+              style="horizontal" round-radius="3"/>
+      </view>
     </view>
 
     <!-- ============================================================== -->
@@ -487,70 +489,87 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- CROSS-SYNTHESIS / STEREO (Y 345-420) - FR-030, FR-031          -->
+    <!-- STEREO / DETUNE (Y 345-460) - FR-030, FR-031, FR-041          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="180, 345" size="145, 115"
-          title="Stereo" fieldset-title="Stereo" fieldset-color="text-dim"
-          fieldset-title-color="text-fieldset">
+          title="Stereo / Detune" fieldset-title="Stereo / Detune"
+          fieldset-color="text-dim" fieldset-title-color="text-fieldset">
 
       <!-- FR-031: Stereo Spread -->
-      <view class="ArcKnob" origin="75, 22" size="42, 42"
+      <view class="ArcKnob" origin="15, 22" size="42, 42"
             control-tag="StereoSpread" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="70, 64" size="52, 12"
+      <view class="CParamDisplay" origin="10, 64" size="52, 12"
             control-tag="StereoSpread" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="70, 76" size="52, 10"
+      <view class="CTextLabel" origin="10, 76" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Stereo"/>
+
+      <!-- FR-041: Detune Spread -->
+      <view class="ArcKnob" origin="85, 22" size="42, 42"
+            control-tag="DetuneSpread" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="80, 64" size="52, 12"
+            control-tag="DetuneSpread" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="80, 76" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Detune"/>
     </view>
 
     <!-- ============================================================== -->
-    <!-- EVOLUTION SECTION (Y 345-470) - FR-032 to FR-036               -->
+    <!-- EVOLUTION SECTION (Y 345-460) - FR-032 to FR-036               -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="330, 345" size="200, 115"
+    <view class="FieldsetContainer" origin="330, 345" size="280, 115"
           title="Evolution" fieldset-title="Evolution" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
       <!-- FR-032: Evolution Enable -->
-      <view class="ToggleButton" origin="10, 22" size="28, 28"
+      <view class="ToggleButton" origin="15, 25" size="28, 28"
             control-tag="EvolutionEnable" default-value="0"
             on-color="accent" off-color="text-dim"/>
-      <view class="CTextLabel" origin="5, 52" size="38, 10"
+      <view class="CTextLabel" origin="10, 55" size="38, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Enable"/>
 
       <!-- FR-033: Evolution Speed -->
-      <view class="ArcKnob" origin="48, 18" size="38, 38"
+      <view class="ArcKnob" origin="65, 18" size="42, 42"
             control-tag="EvolutionSpeed" default-value="0.009"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="43, 56" size="48, 12"
+      <view class="CParamDisplay" origin="60, 60" size="52, 12"
             control-tag="EvolutionSpeed" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="43, 68" size="48, 10"
+      <view class="CTextLabel" origin="60, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Speed"/>
 
       <!-- FR-034: Evolution Depth -->
-      <view class="ArcKnob" origin="100, 18" size="38, 38"
+      <view class="ArcKnob" origin="135, 18" size="42, 42"
             control-tag="EvolutionDepth" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="95, 56" size="48, 12"
+      <view class="CParamDisplay" origin="130, 60" size="52, 12"
             control-tag="EvolutionDepth" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="95, 68" size="48, 10"
+      <view class="CTextLabel" origin="130, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Depth"/>
 
+      <!-- FR-036: Evolution Position (custom view) -->
+      <view class="CView" custom-view-name="EvolutionPosition"
+            origin="200, 18" size="50, 65"/>
+
       <!-- FR-035: Evolution Mode (3 segments) -->
-      <view class="CSegmentButton" origin="10, 82" size="180, 20"
+      <view class="CSegmentButton" origin="15, 85" size="250, 20"
             control-tag="EvolutionMode" default-value="0"
             font="value-font" text-color="text-secondary"
             text-color-highlighted="text-primary"
@@ -558,39 +577,10 @@
             gradient-highlighted="segment-bg-selected"
             segment-names="Cycle,PingPong,Random Walk"
             style="horizontal" round-radius="3"/>
-      <view class="CTextLabel" origin="10, 102" size="180, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Evol. Mode"/>
-
-      <!-- FR-036: Evolution Position (custom view) -->
-      <view class="CView" custom-view-name="EvolutionPosition"
-            origin="148, 20" size="40, 60"/>
     </view>
 
     <!-- ============================================================== -->
-    <!-- DETUNE SECTION (Y 345-420) - FR-041                            -->
-    <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="535, 345" size="75, 115"
-          title="Detune" fieldset-title="Detune" fieldset-color="text-dim"
-          fieldset-title-color="text-fieldset">
-
-      <!-- FR-041: Detune Spread -->
-      <view class="ArcKnob" origin="14, 22" size="42, 42"
-            control-tag="DetuneSpread" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="9, 64" size="52, 12"
-            control-tag="DetuneSpread" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="9, 76" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Spread"/>
-    </view>
-
-    <!-- ============================================================== -->
-    <!-- PRESET SECTION (next to Detune) - Browse & Save buttons        -->
+    <!-- PRESET SECTION - Browse & Save buttons                         -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="615, 345" size="180, 115"
           title="Presets" fieldset-title="Presets" fieldset-color="text-dim"
@@ -1036,141 +1026,130 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- BODY RESONANCE SECTION (Y 810-905)                             -->
-    <!-- Post-resonator body coloring: always visible, independent of   -->
-    <!-- resonance type (modal/waveguide output -> body -> physics)     -->
+    <!-- BODY / SYMPATHETIC / PHYSICS — all on one row (Y 810-905)     -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 810" size="390, 95"
+
+    <!-- Body Resonance: 3 knobs (Size, Material, Mix) -->
+    <view class="FieldsetContainer" origin="5, 810" size="215, 95"
           title="Body Resonance" fieldset-title="Body Resonance" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
-      <!-- Body Size (violin -> guitar -> cello scale) -->
-      <view class="ArcKnob" origin="40, 18" size="42, 42"
+      <view class="ArcKnob" origin="10, 18" size="42, 42"
             control-tag="BodySize" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="35, 60" size="52, 12"
+      <view class="CParamDisplay" origin="5, 60" size="52, 12"
             control-tag="BodySize" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="35, 72" size="52, 10"
+      <view class="CTextLabel" origin="5, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Size"/>
 
-      <!-- Material (wood <-> metal damping character) -->
-      <view class="ArcKnob" origin="165, 18" size="42, 42"
+      <view class="ArcKnob" origin="80, 18" size="42, 42"
             control-tag="BodyMaterial" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="160, 60" size="52, 12"
-            control-tag="BodyMaterial" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="160, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Material"/>
-
-      <!-- Body Mix (dry/wet, default 0 = off) -->
-      <view class="ArcKnob" origin="290, 18" size="42, 42"
-            control-tag="BodyMix" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="285, 60" size="52, 12"
-            control-tag="BodyMix" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="285, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Mix"/>
-    </view>
-
-    <!-- Sympathetic Resonance (right half of Body row) -->
-    <view class="FieldsetContainer" origin="400, 810" size="395, 95"
-          title="Sympathetic Resonance" fieldset-title="Sympathetic Resonance" fieldset-color="text-dim"
-          fieldset-title-color="text-fieldset">
-
-      <!-- Sympathetic Amount (coupling strength, default 0 = off) -->
-      <view class="ArcKnob" origin="80, 18" size="42, 42"
-            control-tag="SympatheticAmount" default-value="0"
-            arc-color="accent"/>
       <view class="CParamDisplay" origin="75, 60" size="52, 12"
-            control-tag="SympatheticAmount" font="value-font"
+            control-tag="BodyMaterial" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
       <view class="CTextLabel" origin="75, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Material"/>
+
+      <view class="ArcKnob" origin="155, 18" size="42, 42"
+            control-tag="BodyMix" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="150, 60" size="52, 12"
+            control-tag="BodyMix" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="150, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
+            title="Mix"/>
+    </view>
+
+    <!-- Sympathetic Resonance: 2 knobs (Amount, Decay) -->
+    <view class="FieldsetContainer" origin="225, 810" size="155, 95"
+          title="Sympathetic Resonance" fieldset-title="Sympathetic Resonance" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <view class="ArcKnob" origin="10, 18" size="42, 42"
+            control-tag="SympatheticAmount" default-value="0"
+            arc-color="accent"/>
+      <view class="CParamDisplay" origin="5, 60" size="52, 12"
+            control-tag="SympatheticAmount" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="5, 72" size="52, 10"
+            text-alignment="center" font="value-font"
+            font-color="text-secondary" back-color="~ TransparentCColor"
             title="Amount"/>
 
-      <!-- Sympathetic Decay (Q-factor / ring-out length, default 0.5) -->
-      <view class="ArcKnob" origin="240, 18" size="42, 42"
+      <view class="ArcKnob" origin="90, 18" size="42, 42"
             control-tag="SympatheticDecay" default-value="0.5"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="235, 60" size="52, 12"
+      <view class="CParamDisplay" origin="85, 60" size="52, 12"
             control-tag="SympatheticDecay" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="235, 72" size="52, 10"
+      <view class="CTextLabel" origin="85, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Decay"/>
     </view>
 
-    <!-- ============================================================== -->
-    <!-- HARMONIC PHYSICS SECTION (Y 910-1005)                          -->
-    <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 910" size="540, 95"
+    <!-- Harmonic Physics: 4 knobs (Warmth, Coupling, Stability, Entropy) -->
+    <view class="FieldsetContainer" origin="385, 810" size="410, 95"
           title="Harmonic Physics" fieldset-title="Harmonic Physics" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
-      <!-- Warmth -->
-      <view class="ArcKnob" origin="35, 18" size="42, 42"
+      <view class="ArcKnob" origin="30, 18" size="42, 42"
             control-tag="Warmth" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="30, 60" size="52, 12"
+      <view class="CParamDisplay" origin="25, 60" size="52, 12"
             control-tag="Warmth" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="30, 72" size="52, 10"
+      <view class="CTextLabel" origin="25, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Warmth"/>
 
-      <!-- Coupling -->
-      <view class="ArcKnob" origin="165, 18" size="42, 42"
+      <view class="ArcKnob" origin="125, 18" size="42, 42"
             control-tag="Coupling" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="160, 60" size="52, 12"
+      <view class="CParamDisplay" origin="120, 60" size="52, 12"
             control-tag="Coupling" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="160, 72" size="52, 10"
+      <view class="CTextLabel" origin="120, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Coupling"/>
 
-      <!-- Stability -->
-      <view class="ArcKnob" origin="295, 18" size="42, 42"
+      <view class="ArcKnob" origin="220, 18" size="42, 42"
             control-tag="Stability" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="290, 60" size="52, 12"
+      <view class="CParamDisplay" origin="215, 60" size="52, 12"
             control-tag="Stability" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="290, 72" size="52, 10"
+      <view class="CTextLabel" origin="215, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Stability"/>
 
-      <!-- Entropy -->
-      <view class="ArcKnob" origin="425, 18" size="42, 42"
+      <view class="ArcKnob" origin="320, 18" size="42, 42"
             control-tag="Entropy" default-value="0"
             arc-color="accent"/>
-      <view class="CParamDisplay" origin="420, 60" size="52, 12"
+      <view class="CParamDisplay" origin="315, 60" size="52, 12"
             control-tag="Entropy" font="value-font"
             font-color="text-primary" back-color="~ TransparentCColor"
             text-alignment="center"/>
-      <view class="CTextLabel" origin="420, 72" size="52, 10"
+      <view class="CTextLabel" origin="315, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Entropy"/>
@@ -1211,104 +1190,107 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ADSR ENVELOPE SECTION (Y 1010-1115)                            -->
+    <!-- ADSR ENVELOPE + FEEDBACK (Y 910-1015)                          -->
     <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="5, 1010" size="790, 105"
+    <view class="FieldsetContainer" origin="5, 910" size="640, 105"
           title="ADSR Envelope" fieldset-title="ADSR Envelope" fieldset-color="text-dim"
           fieldset-title-color="text-fieldset">
 
       <!-- ADSRDisplay custom view (T030/T031: interactive envelope visualization) -->
-      <view class="CView" custom-view-name="ADSRDisplay" origin="10, 24" size="365, 76"/>
+      <view class="CView" custom-view-name="ADSRDisplay" origin="10, 24" size="310, 76"/>
 
       <!-- Attack -->
-      <view class="ArcKnob" origin="385, 14" size="34, 34"
+      <view class="ArcKnob" origin="330, 14" size="34, 34"
             control-tag="AdsrAttack" default-value="0.27"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="381, 48" size="42, 10"
+      <view class="CTextLabel" origin="326, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Attack"/>
 
       <!-- Expand button to open full-width ADSR overlay (below Attack knob) -->
-      <view class="CView" custom-view-name="ADSRExpandButton" origin="381, 80" size="42, 14"/>
+      <view class="CView" custom-view-name="ADSRExpandButton" origin="326, 80" size="42, 14"/>
 
       <!-- Decay -->
-      <view class="ArcKnob" origin="430, 14" size="34, 34"
+      <view class="ArcKnob" origin="375, 14" size="34, 34"
             control-tag="AdsrDecay" default-value="0.54"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="426, 48" size="42, 10"
+      <view class="CTextLabel" origin="371, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Decay"/>
 
       <!-- Sustain -->
-      <view class="ArcKnob" origin="475, 14" size="34, 34"
+      <view class="ArcKnob" origin="420, 14" size="34, 34"
             control-tag="AdsrSustain" default-value="1.0"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="471, 48" size="42, 10"
+      <view class="CTextLabel" origin="416, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Sustain"/>
 
       <!-- Release -->
-      <view class="ArcKnob" origin="520, 14" size="34, 34"
+      <view class="ArcKnob" origin="465, 14" size="34, 34"
             control-tag="AdsrRelease" default-value="0.54"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="516, 48" size="42, 10"
+      <view class="CTextLabel" origin="461, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Release"/>
 
       <!-- Amount -->
-      <view class="ArcKnob" origin="575, 14" size="34, 34"
+      <view class="ArcKnob" origin="520, 14" size="34, 34"
             control-tag="AdsrAmount" default-value="0"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="571, 48" size="42, 10"
+      <view class="CTextLabel" origin="516, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Amount"/>
 
       <!-- Time Scale -->
-      <view class="ArcKnob" origin="620, 14" size="34, 34"
+      <view class="ArcKnob" origin="575, 14" size="34, 34"
             control-tag="AdsrTimeScale" default-value="0.2"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="616, 48" size="42, 10"
+      <view class="CTextLabel" origin="571, 48" size="42, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
             title="Scale"/>
 
-      <!-- Attack Curve -->
-      <view class="ArcKnob" origin="665, 14" size="34, 34"
-            control-tag="AdsrAttackCurve" default-value="0.5"
+    </view>
+
+    <!-- Feedback section (sidechain only, hidden in sample mode) -->
+    <view class="FieldsetContainer" origin="650, 910" size="145, 105"
+          title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
+          fieldset-title-color="text-fieldset">
+
+      <view class="ArcKnob" origin="10, 18" size="42, 42"
+            control-tag="FeedbackAmount" default-value="0"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="661, 48" size="42, 10"
+      <view class="CParamDisplay" origin="5, 60" size="52, 12"
+            control-tag="FeedbackAmount" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="5, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
-            title="A Crv"/>
+            title="Amount"/>
 
-      <!-- Decay Curve -->
-      <view class="ArcKnob" origin="710, 14" size="34, 34"
-            control-tag="AdsrDecayCurve" default-value="0.5"
+      <view class="ArcKnob" origin="85, 18" size="42, 42"
+            control-tag="FeedbackDecay" default-value="0.2"
             arc-color="accent"/>
-      <view class="CTextLabel" origin="706, 48" size="42, 10"
+      <view class="CParamDisplay" origin="80, 60" size="52, 12"
+            control-tag="FeedbackDecay" font="value-font"
+            font-color="text-primary" back-color="~ TransparentCColor"
+            text-alignment="center"/>
+      <view class="CTextLabel" origin="80, 72" size="52, 10"
             text-alignment="center" font="value-font"
             font-color="text-secondary" back-color="~ TransparentCColor"
-            title="D Crv"/>
-
-      <!-- Release Curve -->
-      <view class="ArcKnob" origin="755, 14" size="34, 34"
-            control-tag="AdsrReleaseCurve" default-value="0.5"
-            arc-color="accent"/>
-      <view class="CTextLabel" origin="751, 48" size="42, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="R Crv"/>
-
+            title="Decay"/>
     </view>
 
     <!-- Bottom credit line (version from version.h) -->
     <view class="CTextLabel" custom-view-name="VersionLabel"
-          origin="575, 1116" size="220, 14"
+          origin="575, 1016" size="220, 14"
           text-alignment="right" font="value-font"
           font-color="text-dim" back-color="~ TransparentCColor"/>
 

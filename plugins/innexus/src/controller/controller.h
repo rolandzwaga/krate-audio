@@ -212,6 +212,9 @@ private:
     /// Update resonator knob containers visibility based on ResonanceType
     void updateResonatorVisibility();
 
+    /// Show/hide the feedback section based on input source (sidechain only)
+    void updateFeedbackVisibility();
+
     /// Push current ADSR parameter values to the ADSRDisplay view(s)
     void updateAdsrDisplayFromParams();
 
@@ -282,6 +285,14 @@ private:
 
     // Bow exciter knob container (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* bowKnobContainer_ = nullptr;
+
+    // Feedback section container (VSTGUI-owned, nulled in willClose)
+    // Disabled when not in sidechain mode (feedback requires live input)
+    VSTGUI::CViewContainer* feedbackContainer_ = nullptr;
+
+    // Latency mode container (VSTGUI-owned, nulled in willClose)
+    // Only relevant in sidechain mode (configures live analysis pipeline)
+    VSTGUI::CViewContainer* latencyModeContainer_ = nullptr;
 
     // Resonator knob containers (VSTGUI-owned, nulled in willClose)
     VSTGUI::CViewContainer* modalKnobContainer_ = nullptr;
