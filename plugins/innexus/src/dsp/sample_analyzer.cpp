@@ -329,77 +329,12 @@ void SampleAnalyzer::analyzeOnThread(
                 f0 = yin.detect(&audioData[yinStart], yinLength);
             }
 
-            // --- F0 correction pipeline ---
-            // YIN is prone to severe subharmonic errors on polyphonic content
-            // (e.g. detecting 56 Hz for a guitar chord at 415 Hz).  We fix
-            // this in two stages BEFORE the partial tracker runs, so the
-            // tracker's harmonic sieve gets the correct F0 from the start.
-            //
-            // Stage 1: Subharmonic summation (Hermes 1988) — fixes octave errors
+            // Subharmonic validation (Hermes 1988)
             if (f0.voiced) {
                 f0 = subharmonicValidator.validate(f0, shortSpectrum);
             }
 
-            // Stage 2: Multi-pitch detection on raw spectral peaks.
-            // Extract peaks directly from the STFT (independently of the
-            // tracker) and find the strongest F0.  This catches non-octave
-            // errors that the subharmonic validator misses.
-            {
-                const size_t numBins = shortSpectrum.numBins();
-                const float binHz = sampleRate / static_cast<float>(
-                    kShortWindowConfig.fftSize);
-
-                // Simple peak detection on the magnitude spectrum
-                std::array<float, Krate::DSP::kMaxPartials> rawPeakFreqs{};
-                std::array<float, Krate::DSP::kMaxPartials> rawPeakAmps{};
-                int numRawPeaks = 0;
-
-                for (size_t b = 2; b + 2 < numBins &&
-                     numRawPeaks < static_cast<int>(Krate::DSP::kMaxPartials); ++b)
-                {
-                    float mag = shortSpectrum.getMagnitude(b);
-                    float magL = shortSpectrum.getMagnitude(b - 1);
-                    float magR = shortSpectrum.getMagnitude(b + 1);
-
-                    if (mag > magL && mag > magR && mag > 1e-8f)
-                    {
-                        // Parabolic interpolation for sub-bin precision
-                        float denom = magL - 2.0f * mag + magR;
-                        float interpBin = static_cast<float>(b);
-                        float peakAmp = mag;
-                        if (denom != 0.0f)
-                        {
-                            float delta = 0.5f * (magL - magR) / denom;
-                            interpBin += delta;
-                            peakAmp = mag - 0.25f * (magL - magR) * delta;
-                        }
-
-                        auto idx = static_cast<size_t>(numRawPeaks);
-                        rawPeakFreqs[idx] = interpBin * binHz;
-                        rawPeakAmps[idx] = peakAmp;
-                        numRawPeaks++;
-                    }
-                }
-
-                if (numRawPeaks > 0)
-                {
-                    auto multiF0 = multiPitchDetector.detect(
-                        rawPeakFreqs.data(), rawPeakAmps.data(), numRawPeaks);
-
-                    // The multi-pitch detector's salience function is more
-                    // robust than YIN for polyphonic content.  If it found
-                    // an F0, use it — even if YIN disagrees.
-                    if (multiF0.numDetected >= 1)
-                    {
-                        f0.frequency = multiF0.estimates[0].frequency;
-                        f0.confidence = std::max(
-                            f0.confidence, multiF0.estimates[0].confidence);
-                        f0.voiced = true;
-                    }
-                }
-            }
-
-            // Partial tracking with the corrected F0 (FR-022 to FR-028)
+            // Partial tracking with harmonic sieve (FR-022 to FR-028)
             tracker.processFrame(shortSpectrum, f0,
                                   kShortWindowConfig.fftSize, sampleRate);
 
@@ -437,12 +372,16 @@ void SampleAnalyzer::analyzeOnThread(
         sampleIndex += blockSize;
     }
 
-    // --- Post-analysis F0 stabilization ---
-    // Per-frame F0 estimation can vary wildly, especially on polyphonic
-    // content.  Compute the median F0 across voiced frames and check if
-    // it differs significantly from individual frames.  If the F0 variance
-    // is high (polyphonic or unstable content), lock all frames to the
-    // median.  If stable (monophonic), leave frames as-is.
+    // --- Post-analysis: F0 stabilization and harmonic assignment ---
+    // The tracker ran without the harmonic sieve (voiced=false), so all
+    // spectral peaks were tracked freely.  Now we:
+    //   1. Find a stable reference F0 (median across voiced frames, or
+    //      the strongest multi-pitch candidate if the median is unstable)
+    //   2. Assign harmonicIndex and relativeFrequency for every partial
+    //      in every frame, relative to the reference F0
+    //
+    // This preserves ALL spectral content (including polyphonic "color")
+    // while providing correct pitch-shifting via the harmonic model.
     if (!analysis->frames.empty())
     {
         // Collect all voiced F0 values
@@ -454,35 +393,79 @@ void SampleAnalyzer::analyzeOnThread(
                 voicedF0s.push_back(fr.f0);
         }
 
+        float referenceF0 = 0.0f;
+
         if (voicedF0s.size() >= 3)
         {
-            // Compute median F0
             std::sort(voicedF0s.begin(), voicedF0s.end());
-            float medianF0 = voicedF0s[voicedF0s.size() / 2];
+            referenceF0 = voicedF0s[voicedF0s.size() / 2]; // median
 
-            // Check F0 stability: ratio of IQR to median.
-            // Stable monophonic signals have <5% variance.
-            // Polyphonic/unstable signals have much higher variance.
+            // Run multi-pitch detection on the strongest frame to see if
+            // a better F0 exists (e.g., for chords where YIN picks a
+            // subharmonic even after validation).
+            float bestGlobalAmp = 0.0f;
+            size_t bestFrameIdx = 0;
+            for (size_t i = 0; i < analysis->frames.size(); ++i)
+            {
+                if (analysis->frames[i].globalAmplitude > bestGlobalAmp)
+                {
+                    bestGlobalAmp = analysis->frames[i].globalAmplitude;
+                    bestFrameIdx = i;
+                }
+            }
+
+            const auto& bestFrame = analysis->frames[bestFrameIdx];
+            if (bestFrame.numPartials > 0)
+            {
+                std::array<float, Krate::DSP::kMaxPartials> peakFreqs{};
+                std::array<float, Krate::DSP::kMaxPartials> peakAmps{};
+                int np = std::min(bestFrame.numPartials,
+                    static_cast<int>(Krate::DSP::kMaxPartials));
+                for (int i = 0; i < np; ++i)
+                {
+                    peakFreqs[static_cast<size_t>(i)] =
+                        bestFrame.partials[static_cast<size_t>(i)].frequency;
+                    peakAmps[static_cast<size_t>(i)] =
+                        bestFrame.partials[static_cast<size_t>(i)].amplitude;
+                }
+
+                auto multiF0 = multiPitchDetector.detect(
+                    peakFreqs.data(), peakAmps.data(), np);
+                if (multiF0.numDetected >= 1)
+                {
+                    referenceF0 = multiF0.estimates[0].frequency;
+                }
+            }
+        }
+        else if (!voicedF0s.empty())
+        {
+            referenceF0 = voicedF0s[0];
+        }
+
+        // Only stabilize F0 when there's high frame-to-frame variance
+        // (polyphonic content).  Monophonic signals are left as-is since
+        // the per-frame YIN + subharmonic validator produces correct F0.
+        if (referenceF0 > 0.0f)
+        {
             float q1 = voicedF0s[voicedF0s.size() / 4];
             float q3 = voicedF0s[voicedF0s.size() * 3 / 4];
-            float iqrRatio = (q3 - q1) / std::max(medianF0, 1.0f);
+            float iqrRatio = (q3 - q1) / std::max(referenceF0, 1.0f);
 
-            constexpr float kInstabilityThreshold = 0.1f; // 10% IQR/median
+            constexpr float kInstabilityThreshold = 0.1f; // 10%
 
             if (iqrRatio > kInstabilityThreshold)
             {
-                // High F0 variance: lock all frames to the median.
-                // This stabilizes polyphonic content where per-frame F0
-                // jumps between different chord tones or subharmonics.
+                // High variance: lock all frames to the reference F0
+                // and reassign harmonic indices.
                 for (auto& fr : analysis->frames)
                 {
-                    fr.f0 = medianF0;
+                    fr.f0 = referenceF0;
                     fr.f0Confidence = 1.0f;
 
                     for (int i = 0; i < fr.numPartials; ++i)
                     {
                         auto& p = fr.partials[static_cast<size_t>(i)];
-                        float ratio = p.frequency / medianF0;
+                        float ratio = p.frequency / referenceF0;
                         p.harmonicIndex = std::max(1,
                             static_cast<int>(std::round(ratio)));
                         p.relativeFrequency = ratio;
