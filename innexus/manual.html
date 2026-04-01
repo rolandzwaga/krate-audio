@@ -299,23 +299,15 @@
         Controls</a></li>
         </ul></li>
         <li><a href="#memory" id="toc-memory">Memory</a></li>
-        <li><a href="#cross-synthesis-stereo"
-        id="toc-cross-synthesis-stereo">Cross-Synthesis /
-        Stereo</a></li>
+        <li><a href="#stereo-detune" id="toc-stereo-detune">Stereo /
+        Detune</a></li>
         <li><a href="#evolution-engine"
         id="toc-evolution-engine">Evolution Engine</a>
         <ul>
         <li><a href="#evolution-modes"
         id="toc-evolution-modes">Evolution Modes</a></li>
         </ul></li>
-        <li><a href="#detune-presets" id="toc-detune-presets">Detune /
-        Presets</a>
-        <ul>
-        <li><a href="#detune-spread" id="toc-detune-spread">Detune
-        Spread</a></li>
-        <li><a href="#preset-management"
-        id="toc-preset-management">Preset Management</a></li>
-        </ul></li>
+        <li><a href="#presets" id="toc-presets">Presets</a></li>
         <li><a href="#modulators" id="toc-modulators">Modulators</a>
         <ul>
         <li><a href="#per-modulator-controls"
@@ -325,6 +317,30 @@
         </ul></li>
         <li><a href="#multi-source-blend"
         id="toc-multi-source-blend">Multi-Source Blend</a></li>
+        <li><a href="#exciter" id="toc-exciter">Exciter</a>
+        <ul>
+        <li><a href="#impact-exciter" id="toc-impact-exciter">Impact
+        Exciter</a></li>
+        <li><a href="#bow-exciter" id="toc-bow-exciter">Bow
+        Exciter</a></li>
+        </ul></li>
+        <li><a href="#resonator-bank" id="toc-resonator-bank">Resonator
+        Bank</a>
+        <ul>
+        <li><a href="#resonance-type" id="toc-resonance-type">Resonance
+        Type</a></li>
+        <li><a href="#modal-resonator-controls"
+        id="toc-modal-resonator-controls">Modal Resonator
+        Controls</a></li>
+        <li><a href="#waveguide-controls"
+        id="toc-waveguide-controls">Waveguide Controls</a></li>
+        <li><a href="#body-resonance" id="toc-body-resonance">Body
+        Resonance</a></li>
+        <li><a href="#physical-model-mix"
+        id="toc-physical-model-mix">Physical Model Mix</a></li>
+        </ul></li>
+        <li><a href="#sympathetic-resonance"
+        id="toc-sympathetic-resonance">Sympathetic Resonance</a></li>
         <li><a href="#harmonic-physics"
         id="toc-harmonic-physics">Harmonic Physics</a></li>
         <li><a href="#analysis-feedback"
@@ -342,6 +358,11 @@
         <li><a href="#shaping-controls"
         id="toc-shaping-controls">Shaping Controls</a></li>
         </ul></li>
+        <li><a href="#voice-mode" id="toc-voice-mode">Voice Mode</a>
+        <ul>
+        <li><a href="#mpe-support" id="toc-mpe-support">MPE
+        Support</a></li>
+        </ul></li>
         <li><a href="#tips-techniques" id="toc-tips-techniques">Tips
         &amp; Techniques</a>
         <ul>
@@ -353,6 +374,9 @@
         Tool</a></li>
         <li><a href="#memory-slot-workflows"
         id="toc-memory-slot-workflows">Memory Slot Workflows</a></li>
+        <li><a href="#building-physical-instruments"
+        id="toc-building-physical-instruments">Building Physical
+        Instruments</a></li>
         <li><a href="#feedback-for-self-evolving-textures"
         id="toc-feedback-for-self-evolving-textures">Feedback for
         Self-Evolving Textures</a></li>
@@ -368,11 +392,6 @@
         Drop</a></li>
         </ul></li>
         </ul>
-        <!-- IMG-01: Full screenshot of Innexus showing the complete plugin window with a sample loaded and harmonics visible in the analysis display -->
-        <figure>
-        <img src="images/IMG-01.png" alt="Innexus Overview" />
-        <figcaption aria-hidden="true">Innexus Overview</figcaption>
-        </figure>
         <h2 id="introduction">Introduction</h2>
         <p>Innexus is a harmonic analysis and resynthesis instrument
         that deconstructs audio into its fundamental components — pitch,
@@ -380,18 +399,18 @@
         synthesizer voice. Load a sample or feed live audio through the
         sidechain, and Innexus extracts up to 96 partials in real time
         using spectral analysis and pitch tracking. The resulting
-        harmonic model can be frozen, morphed, filtered, modulated, and
-        blended across multiple sources, turning any sound into a rich,
-        evolving instrument.</p>
+        harmonic model can be frozen, morphed, filtered, modulated,
+        blended across multiple sources, and physically modelled,
+        turning any sound into a rich, evolving instrument.</p>
         <p>At its core, Innexus uses a bank of amplitude-stable
-        Gordon-Smith oscillators (48–96 partials) driven by real-time
+        Gordon-Smith oscillators (48-96 partials) driven by real-time
         spectral analysis. The analysis pipeline detects fundamental
         frequencies, tracks individual harmonics, separates tonal
         content from noise residual, and builds a harmonic model that
         can be manipulated in ways impossible with conventional sampling
         or synthesis.</p>
-        <p>The interface is organized into a single window with clearly
-        labeled sections:</p>
+        <p>The interface is organized into a single scrollable window
+        with clearly labeled sections:</p>
         <ul>
         <li><strong>Header</strong> — Input source, sample loading,
         latency mode, and master gain</li>
@@ -403,22 +422,29 @@
         partial count, inharmonicity, levels, and residual shaping</li>
         <li><strong>Memory</strong> — 8 harmonic snapshot slots with
         capture and recall</li>
-        <li><strong>Cross-Synthesis / Stereo</strong> — Timbral blend
-        and stereo spread</li>
+        <li><strong>Stereo / Detune</strong> — Stereo spread and
+        per-partial detuning</li>
         <li><strong>Evolution Engine</strong> — Autonomous timbral
         morphing through memory slots</li>
-        <li><strong>Detune / Presets</strong> — Per-partial detuning and
-        preset management</li>
+        <li><strong>Presets</strong> — Preset management</li>
         <li><strong>Modulators</strong> — Two independent LFOs for
         per-partial modulation</li>
         <li><strong>Multi-Source Blend</strong> — Weighted mix of memory
         slots and live input</li>
+        <li><strong>Exciter</strong> — Residual, impact, and bow
+        excitation models</li>
+        <li><strong>Resonator Bank</strong> — Modal resonator, waveguide
+        string, and body resonance</li>
+        <li><strong>Sympathetic Resonance</strong> — Cross-voice
+        sympathetic string resonance</li>
         <li><strong>Harmonic Physics</strong> — Warmth, coupling,
         stability, and entropy</li>
         <li><strong>Analysis Feedback</strong> — Self-evolving feedback
         loop</li>
         <li><strong>ADSR Envelope</strong> — Auto-detected envelope
         shaping</li>
+        <li><strong>Voice Mode</strong> — Mono, 4-voice, and 8-voice
+        polyphony with MPE</li>
         </ul>
         <h3 id="quick-start">Quick Start</h3>
         <ol type="1">
@@ -447,7 +473,8 @@
   Pre-Processing (DC removal, 30 Hz high-pass, noise gate)
         |
         v
-  Analysis Pipeline (YIN pitch tracking, dual-window STFT, partial tracking)
+  Analysis Pipeline (YIN pitch tracking, dual-window STFT, partial tracking,
+                     DFT amplitude normalization, harmonic model building)
         |
         v
   Harmonic Model -----&gt; Memory Slots (capture/recall)
@@ -463,7 +490,7 @@
           Multi-Source Blend (8 slot weights + live weight)
                    |
                    v
-          Timbral Blend (pure harmonic series &lt;-&gt; source timbre)
+          Harmonic Physics (warmth, coupling, stability, entropy)
                    |
                    v
           Harmonic Modulators (LFO 1 &amp; 2: amplitude, frequency, pan)
@@ -471,42 +498,55 @@
                    v
           Oscillator Bank (48-96 Gordon-Smith oscillators)
                    |
-                   v
-          Harmonic Physics (warmth, coupling, stability, entropy)
-                   |
         +----------+----------+
         |                     |
         v                     v
-  Harmonic Output       Residual Synthesizer
-  (Harmonic Level)      (Residual Level, Brightness,
-        |                Transient Emphasis)
+  Harmonic Output         Exciter
+  (Harmonic Level)        (Residual / Impact / Bow)
+        |                     |
+        |                     v
+        |              Resonator Bank
+        |              (Modal / Waveguide)
+        |                     |
+        |                     v
+        |              Body Resonance
+        |              (Size, Material, Mix)
+        |                     |
+        |                     v
+        |              Residual Output
+        |              (Residual Level, Brightness,
+        |               Transient Emphasis,
+        |               Physical Model Mix)
         |                     |
         +----------+----------+
+                   |
+                   v
+          Per-Voice Gain (velocity, expression, ADSR envelope)
                    |
                    v
           Stereo Spread + Detune Spread
                    |
                    v
-          ADSR Envelope Shaping
+          Polyphonic Voice Sum (1/sqrt(N) gain compensation)
                    |
                    v
-          Master Gain --&gt; Output
+          Sympathetic Resonance (post-voice, pre-master)
+                   |
+                   v
+          Master Gain --&gt; Safety Limiter --&gt; Output
                    |
                    +---&gt; Analysis Feedback Loop (sidechain mode only)
                               |
                               +---&gt; back to Analysis Pipeline</code></pre>
-        <p>MIDI input (notes, velocity, pitch bend) controls the
-        oscillator bank pitch and triggering. The analysis provides the
-        <em>timbre</em> (harmonic amplitudes, frequencies, and noise
-        character), while MIDI provides the <em>musical control</em>
-        (which notes to play, dynamics, articulation).</p>
+        <p>MIDI input (notes, velocity, pitch bend, MPE expression)
+        controls the oscillator bank pitch and triggering. The analysis
+        provides the <em>timbre</em> (harmonic amplitudes, frequencies,
+        and noise character), while MIDI provides the <em>musical
+        control</em> (which notes to play, dynamics, articulation). In
+        polyphonic mode, each voice independently tracks its own pitch
+        and envelope.</p>
         <hr />
         <h2 id="header">Header</h2>
-        <!-- IMG-02: Close-up of the header bar showing the plugin title, source selector, sample load button/filename, latency mode selector, and master gain knob -->
-        <figure>
-        <img src="images/IMG-02.png" alt="Header" />
-        <figcaption aria-hidden="true">Header</figcaption>
-        </figure>
         <p>The header is always visible at the top of the plugin
         window.</p>
         <table>
@@ -549,18 +589,13 @@
         </tr>
         <tr class="even">
         <td><strong>Gain</strong></td>
-        <td>Master output level (0.0–2.0, default 0.8) — controls the
+        <td>Master output level (0.0-1.0, default 0.8) — controls the
         final output volume</td>
         </tr>
         </tbody>
         </table>
         <hr />
         <h2 id="analysis-display">Analysis Display</h2>
-        <!-- IMG-03: Close-up of the analysis display section showing the harmonic bar graph on the left with cyan bars representing active partials, and the pitch detection panel on the right showing detected fundamental frequency, note name, and confidence indicator -->
-        <figure>
-        <img src="images/IMG-03.png" alt="Analysis Display" />
-        <figcaption aria-hidden="true">Analysis Display</figcaption>
-        </figure>
         <p>The analysis display section provides real-time visual
         feedback of what Innexus is hearing and synthesizing.</p>
         <h3 id="harmonic-display">Harmonic Display</h3>
@@ -585,11 +620,6 @@
         </ul>
         <hr />
         <h2 id="musical-control">Musical Control</h2>
-        <!-- IMG-04: Close-up of the Musical Control section showing the Freeze toggle button, Morph knob, Response knob, and the 5-segment Harmonic Filter selector bar -->
-        <figure>
-        <img src="images/IMG-04.png" alt="Musical Control" />
-        <figcaption aria-hidden="true">Musical Control</figcaption>
-        </figure>
         <p>The Musical Control section provides real-time manipulation
         of the harmonic model.</p>
         <table>
@@ -616,7 +646,7 @@
         </tr>
         <tr class="even">
         <td><strong>Morph</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Blends between the frozen state (0.0) and live analysis
         (1.0). Only active when Freeze is engaged. Per-partial amplitude
         and frequency interpolation with smooth 7 ms filtering to
@@ -624,7 +654,7 @@
         </tr>
         <tr class="odd">
         <td><strong>Response</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Controls how quickly the live analysis updates (sidechain
         mode only). 0.0 = slowest/most stable, 1.0 = fastest/most
         responsive. Default 0.5.</td>
@@ -677,18 +707,8 @@
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Harmonic filters are a quick way to
-        dramatically reshape the timbre without changing the source
-        material. Try Odd Only on a voice sample for an instant
-        reed-like transformation.</p>
         <hr />
         <h2 id="oscillator-residual">Oscillator / Residual</h2>
-        <!-- IMG-05: Close-up of the Oscillator / Residual section showing the Release knob, Partial Count dropdown, Inharmonicity knob, Harmonic Level knob, Residual Level knob, Residual Brightness slider, and Transient Emphasis knob -->
-        <figure>
-        <img src="images/IMG-05.png" alt="Oscillator / Residual" />
-        <figcaption aria-hidden="true">Oscillator /
-        Residual</figcaption>
-        </figure>
         <p>This section controls the synthesis engine’s core parameters
         and the balance between tonal and noise components.</p>
         <h3 id="oscillator-controls">Oscillator Controls</h3>
@@ -708,10 +728,10 @@
         <tbody>
         <tr class="odd">
         <td><strong>Release</strong></td>
-        <td>20–5000 ms</td>
+        <td>20-5000 ms</td>
         <td>Exponential fade-out time on MIDI note-off. Controls how
         long harmonics ring out after releasing a key. Short values
-        (20–50 ms) for percussive sounds, longer values (500–5000 ms)
+        (20-50 ms) for percussive sounds, longer values (500-5000 ms)
         for pads.</td>
         </tr>
         <tr class="even">
@@ -724,12 +744,12 @@
         </tr>
         <tr class="odd">
         <td><strong>Inharm.</strong></td>
-        <td>0–100%</td>
+        <td>0-100%</td>
         <td>Inharmonicity amount. At 100%, the oscillators use the
         source’s exact analyzed frequency deviations (natural for bells,
         metallic instruments). At 0%, frequencies are forced to a
         perfect harmonic series (1f, 2f, 3f, …). Middle values blend
-        between pure and source-derived frequencies.</td>
+        between pure and source-derived frequencies. Default 100%.</td>
         </tr>
         </tbody>
         </table>
@@ -750,17 +770,17 @@
         <tbody>
         <tr class="odd">
         <td><strong>Harmonic Level</strong></td>
-        <td>0.0–2.0</td>
+        <td>0.0-2.0</td>
         <td>Output level of the tonal harmonic content. 0.0 = silence,
-        1.0 = unity, 2.0 = +6 dB boost.</td>
+        1.0 = unity, 2.0 = +6 dB boost. Default 1.0.</td>
         </tr>
         <tr class="even">
         <td><strong>Residual Level</strong></td>
-        <td>0.0–2.0</td>
+        <td>0.0-2.0</td>
         <td>Output level of the noise/residual component (non-harmonic
         spectral content: breath, fricatives, inharmonic shimmer). 0.0 =
         pure tones only, 1.0 = balanced mix, 2.0 = emphasis on noisy
-        textures.</td>
+        textures. Default 0.3.</td>
         </tr>
         <tr class="odd">
         <td><strong>Residual Brightness</strong></td>
@@ -771,24 +791,15 @@
         </tr>
         <tr class="even">
         <td><strong>Transient Emphasis</strong></td>
-        <td>0.0–2.0</td>
+        <td>0.0-2.0</td>
         <td>Boosts or suppresses detected attack transients. 0.0 = no
-        emphasis, 0.5–1.0 = gentle attack shaping, 2.0 = extreme
+        emphasis, 0.5-1.0 = gentle attack shaping, 2.0 = extreme
         percussive attack.</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> For pure, clean tones, set Residual
-        Level to 0.0 and Inharmonicity to 0%. For natural, realistic
-        resynthesis, keep both at their defaults. For lo-fi textures,
-        boost Residual Level and push Transient Emphasis high.</p>
         <hr />
         <h2 id="memory">Memory</h2>
-        <!-- IMG-06: Close-up of the Memory section showing the slot selector (1-8), Capture and Recall buttons, and the slot status grid indicating which slots are occupied -->
-        <figure>
-        <img src="images/IMG-06.png" alt="Memory" />
-        <figcaption aria-hidden="true">Memory</figcaption>
-        </figure>
         <p>The Memory section lets you capture, store, and recall up to
         8 harmonic snapshots. Each snapshot preserves the complete
         harmonic state (partial amplitudes, frequencies, and ADSR
@@ -807,7 +818,7 @@
         <tbody>
         <tr class="odd">
         <td><strong>Slot</strong></td>
-        <td>Selector for the active memory slot (1–8)</td>
+        <td>Selector for the active memory slot (1-8)</td>
         </tr>
         <tr class="even">
         <td><strong>Capture</strong></td>
@@ -829,20 +840,8 @@
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Capture interesting moments during a
-        live performance or while sweeping parameters. You don’t need to
-        plan ahead — just capture when you hear something you like, then
-        recall it later or feed the slots into the Evolution Engine.</p>
         <hr />
-        <h2 id="cross-synthesis-stereo">Cross-Synthesis / Stereo</h2>
-        <!-- IMG-07: Close-up of the Cross-Synthesis / Stereo section showing the Timbral Blend knob and Stereo Spread knob -->
-        <figure>
-        <img src="images/IMG-07.png" alt="Cross-Synthesis / Stereo" />
-        <figcaption aria-hidden="true">Cross-Synthesis /
-        Stereo</figcaption>
-        </figure>
-        <p>This section controls timbral blending and stereo
-        imaging.</p>
+        <h2 id="stereo-detune">Stereo / Detune</h2>
         <table>
         <colgroup>
         <col style="width: 31%" />
@@ -858,37 +857,27 @@
         </thead>
         <tbody>
         <tr class="odd">
-        <td><strong>Timbral Blend</strong></td>
-        <td>0.0–1.0</td>
-        <td>Interpolates between a pure harmonic series (0.0) and the
-        analyzed source timbre (1.0). At 0.0, all partials follow a
-        perfect sine series — like FM synthesis. At 1.0, the source’s
-        exact spectral content is preserved. Middle values create hybrid
-        cross-synthesized timbres.</td>
-        </tr>
-        <tr class="even">
         <td><strong>Stereo Spread</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Per-partial stereo panning for decorrelation. At 0.0, all
         partials are center-panned (mono). At 1.0, odd partials pan left
         and even partials pan right, with the fundamental reduced to
-        25%. Values of 0.3–0.7 create a lush, widened stereo image
-        without phasing artifacts.</td>
+        25%. Values of 0.3-0.7 create a lush, widened stereo image
+        without phasing artifacts. Default 0.0.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Detune Spread</strong></td>
+        <td>0.0-1.0</td>
+        <td>Per-partial frequency offset for chorus-like richness. Odd
+        partials detune positive, even partials detune negative. The
+        fundamental is excluded (less than 1 cent deviation). 0.0 = no
+        detune, 0.2-0.5 = subtle thickness, 1.0 = extreme detuning with
+        bell-like ensemble character. Default 0.0.</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Timbral Blend is one of Innexus’s most
-        powerful creative controls. Try loading a vocal sample and
-        sweeping Timbral Blend from 1.0 down to 0.0 — you’ll hear the
-        voice gradually transform into a pure organ-like tone while
-        retaining the pitch content.</p>
         <hr />
         <h2 id="evolution-engine">Evolution Engine</h2>
-        <!-- IMG-08: Close-up of the Evolution Engine section showing the Enable toggle, Speed knob, Depth knob, Mode selector, and the position indicator dot -->
-        <figure>
-        <img src="images/IMG-08.png" alt="Evolution Engine" />
-        <figcaption aria-hidden="true">Evolution Engine</figcaption>
-        </figure>
         <p>The Evolution Engine provides autonomous timbral morphing by
         smoothly interpolating between occupied memory slots over time.
         It runs continuously (not synced to MIDI notes), creating slow,
@@ -915,17 +904,17 @@
         </tr>
         <tr class="even">
         <td><strong>Speed</strong></td>
-        <td>0.01–10.0 Hz</td>
+        <td>0.01-10.0 Hz</td>
         <td>Rate of evolution. 0.01 Hz = 100 seconds per cycle, 0.1 Hz =
         10 seconds, 1.0 Hz = 1 second, 10.0 Hz = chaotic rapid
         morphing.</td>
         </tr>
         <tr class="odd">
         <td><strong>Depth</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>How deeply to explore the morph range between waypoints. 0.0
         = nearly static, 0.5 = balanced exploration, 1.0 = maximum morph
-        excursion.</td>
+        excursion. Default 0.5.</td>
         </tr>
         <tr class="even">
         <td><strong>Mode</strong></td>
@@ -955,13 +944,13 @@
         <tbody>
         <tr class="odd">
         <td><strong>Cycle</strong></td>
-        <td>1 → 2 → 3 → 4 → 1 → 2 → … Linear forward motion, wraps
-        around.</td>
+        <td>1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 1 -&gt; 2 -&gt; … Linear
+        forward motion, wraps around.</td>
         </tr>
         <tr class="even">
         <td><strong>PingPong</strong></td>
-        <td>1 → 2 → 3 → 4 → 3 → 2 → 1 → 2 → … Bounces back and
-        forth.</td>
+        <td>1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 3 -&gt; 2 -&gt; 1 -&gt; 2
+        -&gt; … Bounces back and forth.</td>
         </tr>
         <tr class="odd">
         <td><strong>Random Walk</strong></td>
@@ -970,45 +959,12 @@
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Evolution requires at least 2 occupied
-        memory slots. For best results, capture contrasting timbres —
-        e.g., a bright attack moment and a dark sustain — then let the
-        engine drift between them at a slow speed (0.05–0.2 Hz) for pad
-        textures.</p>
+        <p>Evolution requires at least 2 occupied memory slots. For best
+        results, capture contrasting timbres — e.g., a bright attack
+        moment and a dark sustain — then let the engine drift between
+        them at a slow speed (0.05-0.2 Hz) for pad textures.</p>
         <hr />
-        <h2 id="detune-presets">Detune / Presets</h2>
-        <!-- IMG-09: Close-up of the Detune / Presets section showing the Detune Spread knob, the Preset Browser button, and the Save Preset button -->
-        <figure>
-        <img src="images/IMG-09.png" alt="Detune / Presets" />
-        <figcaption aria-hidden="true">Detune / Presets</figcaption>
-        </figure>
-        <h3 id="detune-spread">Detune Spread</h3>
-        <table>
-        <colgroup>
-        <col style="width: 31%" />
-        <col style="width: 24%" />
-        <col style="width: 44%" />
-        </colgroup>
-        <thead>
-        <tr class="header">
-        <th>Control</th>
-        <th>Range</th>
-        <th>Description</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr class="odd">
-        <td><strong>Detune Spread</strong></td>
-        <td>0.0–1.0</td>
-        <td>Per-partial frequency offset for chorus-like richness. Odd
-        partials detune positive, even partials detune negative. The
-        fundamental is excluded (less than 1 cent deviation). 0.0 = no
-        detune, 0.2–0.5 = subtle thickness, 1.0 = extreme detuning with
-        bell-like ensemble character.</td>
-        </tr>
-        </tbody>
-        </table>
-        <h3 id="preset-management">Preset Management</h3>
+        <h2 id="presets">Presets</h2>
         <table>
         <colgroup>
         <col style="width: 40%" />
@@ -1023,10 +979,8 @@
         <tbody>
         <tr class="odd">
         <td><strong>Preset Browser</strong></td>
-        <td>Opens an overlay with 35 factory presets organized across 7
-        categories: Voice, Strings, Keys, Brass &amp; Winds, Drums &amp;
-        Perc, Pads, and Found Sound (5 each). Search and filter by name,
-        load with one click.</td>
+        <td>Opens an overlay with factory presets organized by category.
+        Search and filter by name, load with one click.</td>
         </tr>
         <tr class="even">
         <td><strong>Save</strong></td>
@@ -1037,11 +991,6 @@
         </table>
         <hr />
         <h2 id="modulators">Modulators</h2>
-        <!-- IMG-10: Close-up of the two Modulator panels (Modulator 1 and Modulator 2) side by side, showing the Enable toggle, Waveform selector, Rate knob, Depth knob, Range Start/End knobs, and Target selector -->
-        <figure>
-        <img src="images/IMG-10.png" alt="Modulators" />
-        <figcaption aria-hidden="true">Modulators</figcaption>
-        </figure>
         <p>Two independent LFO modulators provide per-partial animation.
         Each modulator applies its waveform to a selectable range of
         partials, targeting amplitude, frequency, or pan.</p>
@@ -1073,34 +1022,40 @@
         </tr>
         <tr class="odd">
         <td><strong>Rate</strong></td>
-        <td>0.01–20.0 Hz</td>
-        <td>LFO frequency. Can be free-running (Hz) or tempo-synced
-        (note values).</td>
+        <td>0.01-20.0 Hz</td>
+        <td>LFO frequency in free-running Hz mode</td>
         </tr>
         <tr class="even">
         <td><strong>Rate Sync</strong></td>
         <td>On/Off</td>
-        <td>When on, the Rate knob switches to note values (1/64T
-        through 4/1D). When off, Rate is in free Hz.</td>
+        <td>When on, the Rate control switches to note values for
+        tempo-synced modulation. When off, Rate is in free Hz. Default
+        on.</td>
         </tr>
         <tr class="odd">
+        <td><strong>Note Value</strong></td>
+        <td>21 values</td>
+        <td>Tempo-synced rate when Rate Sync is enabled. Ranges from
+        1/64 triplet through 4 bars dotted. Default 1/8 note.</td>
+        </tr>
+        <tr class="even">
         <td><strong>Depth</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>How much the LFO modulates the target. 0.0 = no modulation,
         1.0 = maximum.</td>
         </tr>
-        <tr class="even">
+        <tr class="odd">
         <td><strong>Range Start</strong></td>
-        <td>1–96</td>
+        <td>1-96</td>
         <td>First partial affected by this modulator</td>
         </tr>
-        <tr class="odd">
+        <tr class="even">
         <td><strong>Range End</strong></td>
-        <td>1–96</td>
+        <td>1-96</td>
         <td>Last partial affected by this modulator. Only partials
         between Start and End are modulated.</td>
         </tr>
-        <tr class="even">
+        <tr class="odd">
         <td><strong>Target</strong></td>
         <td>3 modes</td>
         <td>What the LFO modulates</td>
@@ -1127,30 +1082,21 @@
         </tr>
         <tr class="even">
         <td><strong>Frequency</strong></td>
-        <td>Additive pitch modulation in cents (up to ±50 cents).
+        <td>Additive pitch modulation in cents (up to +/-50 cents).
         Creates vibrato and pitch wobble effects. Bipolar.</td>
         </tr>
         <tr class="odd">
         <td><strong>Pan</strong></td>
-        <td>Stereo position offset (up to ±0.5). Partials drift left and
-        right. Bipolar.</td>
+        <td>Stereo position offset (up to +/-0.5). Partials drift left
+        and right. Bipolar.</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Set Modulator 1 to target Amplitude on
-        partials 1–16 at a slow rate (0.1 Hz), and Modulator 2 to target
-        Pan on partials 17–96 at a different rate. This creates
-        independent movement in the low and high harmonic ranges for
-        complex, organic textures. When two modulators overlap the same
-        partial range and target, their effects combine (multiply for
-        amplitude, add for frequency/pan).</p>
+        <p>When two modulators overlap the same partial range and
+        target, their effects combine (multiply for amplitude, add for
+        frequency/pan).</p>
         <hr />
         <h2 id="multi-source-blend">Multi-Source Blend</h2>
-        <!-- IMG-11: Close-up of the Multi-Source Blend section showing the Enable toggle, the 8 small slot weight knobs (with some set to non-zero values), and the Live Weight knob -->
-        <figure>
-        <img src="images/IMG-11.png" alt="Multi-Source Blend" />
-        <figcaption aria-hidden="true">Multi-Source Blend</figcaption>
-        </figure>
         <p>The Multi-Source Blend section provides a weighted mix of
         memory slots and live input, allowing hybrid timbres from
         multiple captured states simultaneously.</p>
@@ -1175,36 +1121,359 @@
         recall/freeze/evolution.</td>
         </tr>
         <tr class="even">
-        <td><strong>Slot 1–8</strong></td>
-        <td>0.0–1.0 each</td>
+        <td><strong>Slot 1-8</strong></td>
+        <td>0.0-1.0 each</td>
         <td>Individual weight for each memory slot. Only occupied slots
         contribute (empty slots add nothing). Weights are automatically
         normalized so that total output level stays consistent.</td>
         </tr>
         <tr class="odd">
         <td><strong>Live</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Weight of the live sidechain/sample analysis input. 0.0 =
         only recalled memories, 1.0 = only live input, 0.5 = 50/50
         blend.</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Set Slot 1 to 0.7 and Slot 3 to 0.3 for
-        a 70/30 blend of two captured timbres. Add a small Live weight
-        (0.1) to keep the blend responsive to the input. All-zero
-        weights produce silence.</p>
+        <hr />
+        <h2 id="exciter">Exciter</h2>
+        <p>The Exciter section controls how energy is injected into the
+        resonator bank. The exciter type determines the character of the
+        attack and sustain for the residual/physical model path.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Exciter Type</strong></td>
+        <td>3 modes</td>
+        <td>Selects the excitation source: <strong>Residual</strong>
+        (original analyzed noise), <strong>Impact</strong> (synthetic
+        mallet strike), or <strong>Bow</strong> (bowed string
+        model)</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="impact-exciter">Impact Exciter</h3>
+        <p>Available when Exciter Type is set to
+        <strong>Impact</strong>. Simulates a mallet or hammer striking
+        the resonator.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Hardness</strong></td>
+        <td>0.0-1.0</td>
+        <td>Mallet hardness. 0.0 = soft felt (muted, mellow), 0.5 =
+        medium rubber (balanced), 1.0 = hard metal (bright, percussive).
+        Default 0.5.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mass</strong></td>
+        <td>0.0-1.0</td>
+        <td>Mallet mass. Low values = light, snappy attack. High values
+        = heavy, booming impact with longer contact time. Default
+        0.3.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Brightness</strong></td>
+        <td>-1.0 to +1.0</td>
+        <td>Spectral coloration of the impact burst. Negative = darker,
+        0.0 = neutral, positive = brighter.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Position</strong></td>
+        <td>0.0-1.0</td>
+        <td>Strike point along the resonating body. 0.0 = near the
+        bridge (thin, metallic), 0.5 = center (full, fundamental-heavy),
+        1.0 = near the nut (muted, soft). Default 0.13.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="bow-exciter">Bow Exciter</h3>
+        <p>Available when Exciter Type is set to <strong>Bow</strong>.
+        Simulates a bow continuously exciting the resonator, producing
+        sustained tones.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Pressure</strong></td>
+        <td>0.0-1.0</td>
+        <td>Bow pressure against the string. Low = airy, flautando. High
+        = intense, crunchy. Default 0.3.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Speed</strong></td>
+        <td>0.0-1.0</td>
+        <td>Bow velocity. Low = slow, gentle. High = fast, aggressive.
+        Default 0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Position</strong></td>
+        <td>0.0-1.0</td>
+        <td>Bow contact point. 0.0 = sul ponticello (bridge, glassy
+        harmonics), 0.5 = normal position, 1.0 = sul tasto (fingerboard,
+        muted). Default 0.13.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Oversampling</strong></td>
+        <td>On/Off</td>
+        <td>Enables 2x oversampling for the bow model. Improves
+        high-frequency accuracy at the cost of additional CPU.</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="resonator-bank">Resonator Bank</h2>
+        <p>The Resonator Bank processes the exciter output through a
+        physical resonance model. Two resonator algorithms are
+        available, plus a body resonance post-processor.</p>
+        <h3 id="resonance-type">Resonance Type</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Resonance Type</strong></td>
+        <td>Modal / Waveguide</td>
+        <td>Selects the resonance algorithm. <strong>Modal</strong> uses
+        a bank of damped bandpass filters tuned to the analyzed
+        partials. <strong>Waveguide</strong> uses a digital waveguide
+        (Karplus-Strong family) for string-like resonance.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="modal-resonator-controls">Modal Resonator Controls</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Decay</strong></td>
+        <td>0.01-5.0 s</td>
+        <td>How long modal resonances ring. Short (0.01-0.1 s) for
+        percussive sounds, long (1-5 s) for sustained ringing. Default
+        0.5 s. Exponential mapping.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Brightness</strong></td>
+        <td>0.0-1.0</td>
+        <td>Spectral tilt of the resonator modes. 0.0 = dark (upper
+        modes decay faster), 0.5 = neutral, 1.0 = bright (all modes ring
+        equally). Default 0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Stretch</strong></td>
+        <td>0.0-1.0</td>
+        <td>Stretches the spacing of resonant modes. 0.0 = harmonic
+        (perfect integer ratios), 1.0 = fully stretched (piano-like
+        inharmonicity).</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Scatter</strong></td>
+        <td>0.0-1.0</td>
+        <td>Randomizes per-mode decay rates. 0.0 = uniform decay, 1.0 =
+        chaotic, with some modes ringing much longer than others.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="waveguide-controls">Waveguide Controls</h3>
+        <p>Available when Resonance Type is set to
+        <strong>Waveguide</strong>.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Stiffness</strong></td>
+        <td>0.0-1.0</td>
+        <td>String stiffness. 0.0 = ideal flexible string. Higher values
+        add inharmonic dispersion (higher partials go slightly sharp),
+        like a real piano or metallic string.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pick Position</strong></td>
+        <td>0.0-1.0</td>
+        <td>Pluck or excitation point on the string. Affects which
+        harmonics are present. 0.0 = bridge (all harmonics), 0.13 =
+        typical guitar position, 0.5 = center (suppresses even
+        harmonics).</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="body-resonance">Body Resonance</h3>
+        <p>Post-processor applied after either resonator type. Simulates
+        the resonant body (soundboard, cabinet, shell) of an acoustic
+        instrument.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Size</strong></td>
+        <td>0.0-1.0</td>
+        <td>Body size. Small values = compact, bright body (ukulele,
+        snare). Large values = spacious, deep body (cello, concert
+        grand). Default 0.5.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Material</strong></td>
+        <td>0.0-1.0</td>
+        <td>Body material character. 0.0 = dense, metallic. 0.5 = wood
+        (warm, balanced). 1.0 = thin, resonant membrane. Default
+        0.5.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>0.0-1.0</td>
+        <td>Body resonance contribution. 0.0 = no body (dry resonator
+        output), 1.0 = full body processing. Default 0.0 (off).</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="physical-model-mix">Physical Model Mix</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Phys Model Mix</strong></td>
+        <td>0.0-1.0</td>
+        <td>Blends between the standard residual path (0.0) and the
+        physical model resonator path (1.0). At 0.0, the output is
+        identical to pre-physical-model behavior. At 1.0, the residual
+        is entirely replaced by the resonator output. Default 0.0.</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="sympathetic-resonance">Sympathetic Resonance</h2>
+        <p>The Sympathetic Resonance module adds cross-voice resonance
+        that simulates the way untouched strings vibrate in sympathy
+        with played notes (like an open piano or sitar). It operates
+        post-voice-sum, before the master gain.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Amount</strong></td>
+        <td>0.0-1.0</td>
+        <td>Sympathetic string activation level. 0.0 = off, 0.5 = subtle
+        ringing, 1.0 = prominent resonance. When a MIDI note is played,
+        the resonator pool is populated with modes matching the note’s
+        partials. Default 0.0.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Decay</strong></td>
+        <td>0.0-1.0</td>
+        <td>How long sympathetic resonances ring after the excitation
+        ends. 0.0 = very short, 0.5 = moderate (natural), 1.0 = very
+        long tail. Default 0.5.</td>
+        </tr>
+        </tbody>
+        </table>
         <hr />
         <h2 id="harmonic-physics">Harmonic Physics</h2>
-        <!-- IMG-12: Close-up of the Harmonic Physics section showing the four knobs: Warmth, Coupling, Stability, and Entropy -->
-        <figure>
-        <img src="images/IMG-12.png" alt="Harmonic Physics" />
-        <figcaption aria-hidden="true">Harmonic Physics</figcaption>
-        </figure>
         <p>The Harmonic Physics section makes harmonics behave like a
         coupled physical system rather than independent sine waves.
         These four parameters add organic, instrument-like character to
-        the resynthesis.</p>
+        the resynthesis. They operate on the harmonic model
+        <em>before</em> oscillator synthesis.</p>
         <table>
         <colgroup>
         <col style="width: 31%" />
@@ -1221,55 +1490,46 @@
         <tbody>
         <tr class="odd">
         <td><strong>Warmth</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Soft saturation applied to partial amplitudes. Compresses
         dominant partials and relatively boosts quiet ones. 0.0 = linear
-        (clean), 0.5 = gentle warmth with 2–3 dB compression on peaks,
+        (clean), 0.5 = gentle warmth with 2-3 dB compression on peaks,
         1.0 = pronounced saturation with a vintage tube-like character.
-        Output energy is guaranteed not to exceed input.</td>
+        Output energy is guaranteed not to exceed input. Default
+        0.0.</td>
         </tr>
         <tr class="even">
         <td><strong>Coupling</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Nearest-neighbor energy sharing between adjacent harmonics.
         Creates spectral viscosity where partials influence each other.
         0.0 = independent partials, 0.5 = moderate smoothing, 1.0 =
         strong coupling where harmonics blend together and lose
-        individual clarity. Energy is conserved within 0.001%.</td>
+        individual clarity. Energy is conserved within 0.001%. Default
+        0.0.</td>
         </tr>
         <tr class="odd">
         <td><strong>Stability</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Inertia for partial amplitude changes. 0.0 = responsive
         (tracks input instantly), 0.5 = moderate damping (smooths out
         rapid changes), 1.0 = extreme lag where old amplitudes are
         heavily preserved. Reinforces persistent partials and resists
-        transient noise.</td>
+        transient noise. Default 0.0.</td>
         </tr>
         <tr class="even">
         <td><strong>Entropy</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Natural decay rate of partials. 0.0 = partials sustain
         indefinitely, 0.5 = gentle decay over approximately 10 analysis
         frames, 1.0 = rapid decay where ghost partials vanish quickly.
         Useful for clearing transient noise that doesn’t persist in the
-        input.</td>
+        input. Default 0.0.</td>
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> Warmth + Coupling together simulate the
-        nonlinear, coupled nature of real acoustic instruments. Try
-        moderate values of both (0.3–0.5) on a piano or voice sample for
-        added realism. High Stability (0.7+) paired with low Entropy
-        (0.1) creates a very smooth, slowly evolving tone that resists
-        changes — great for ambient drones.</p>
         <hr />
         <h2 id="analysis-feedback">Analysis Feedback</h2>
-        <!-- IMG-13: Close-up of the Analysis Feedback section showing the Feedback Amount knob and Feedback Decay knob -->
-        <figure>
-        <img src="images/IMG-13.png" alt="Analysis Feedback" />
-        <figcaption aria-hidden="true">Analysis Feedback</figcaption>
-        </figure>
         <p>The Analysis Feedback loop feeds the synthesizer’s output
         back into its own analysis pipeline, creating emergent,
         self-evolving harmonic behavior. This is available in sidechain
@@ -1290,43 +1550,31 @@
         <tbody>
         <tr class="odd">
         <td><strong>Feedback Amount</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Mix ratio of synth output fed back into the analysis input.
-        0.0 = normal operation, 0.3–0.5 = gentle self-reinforcement
+        0.0 = normal operation, 0.3-0.5 = gentle self-reinforcement
         (resonant, rich), 1.0 = full feedback (can create chaotic
-        states). A built-in soft limiter prevents clipping.</td>
+        states). A built-in soft limiter prevents clipping. Default
+        0.0.</td>
         </tr>
         <tr class="even">
         <td><strong>Feedback Decay</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Exponential entropy leak in the feedback buffer. 0.0 = no
         decay (feedback persists), 0.2 = moderate decay (stale signal
         fades over ~10 seconds), 1.0 = rapid decay (only recent feedback
-        survives, ~1 second memory). Behaves consistently regardless of
-        block size or sample rate.</td>
+        survives, ~1 second memory). Default 0.2.</td>
         </tr>
         </tbody>
         </table>
         <h3 id="safety">Safety</h3>
-        <p>The feedback loop includes a 5-layer safety stack: soft
+        <p>The feedback loop includes a multi-layer safety stack: soft
         limiter, energy budget normalization, hard clamp, confidence
         gate, and decay. It is automatically bypassed when Freeze is
         engaged, and the feedback buffer is cleared when Freeze is
         disengaged to prevent stale contamination.</p>
-        <p><strong>Tip:</strong> Start with very low Feedback Amount
-        (0.1–0.2) and moderate Decay (0.3). The effect is subtle at
-        first — harmonics that the synth produces get re-analyzed,
-        reinforcing certain partials and creating resonant, self-similar
-        textures. Higher values create more chaotic, unpredictable
-        behavior that can be musically interesting but needs careful
-        management.</p>
         <hr />
         <h2 id="adsr-envelope">ADSR Envelope</h2>
-        <!-- IMG-14: Close-up of the ADSR Envelope section showing the envelope display graph, the Attack/Decay/Sustain/Release knobs, the Amount knob, Time Scale knob, and the three curve shape knobs (Attack Curve, Decay Curve, Release Curve) -->
-        <figure>
-        <img src="images/IMG-14.png" alt="ADSR Envelope" />
-        <figcaption aria-hidden="true">ADSR Envelope</figcaption>
-        </figure>
         <p>Innexus auto-detects the amplitude envelope of loaded samples
         and allows real-time editing. The envelope shapes the
         synthesized output, making it respond dynamically to note events
@@ -1354,35 +1602,35 @@
         <tbody>
         <tr class="odd">
         <td><strong>Attack</strong></td>
-        <td>1–5000 ms</td>
+        <td>1-5000 ms</td>
         <td>Time from note-on to peak amplitude. Auto-detected from the
         sample’s leading edge. 1 ms = percussive click, 10 ms =
-        standard, 500 ms = smooth pad entry.</td>
+        standard, 500 ms = smooth pad entry. Default 10 ms.</td>
         </tr>
         <tr class="even">
         <td><strong>Decay</strong></td>
-        <td>1–5000 ms</td>
+        <td>1-5000 ms</td>
         <td>Time from peak to sustain level. Detected from the sample’s
-        post-attack settling.</td>
+        post-attack settling. Default 100 ms.</td>
         </tr>
         <tr class="odd">
         <td><strong>Sustain</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Level held while the MIDI note is pressed. 1.0 = full
-        amplitude, 0.0 = silence after decay.</td>
+        amplitude, 0.0 = silence after decay. Default 1.0.</td>
         </tr>
         <tr class="even">
         <td><strong>Release</strong></td>
-        <td>1–5000 ms</td>
+        <td>1-5000 ms</td>
         <td>Time from note-off to silence. Detected from the sample’s
-        tail decay.</td>
+        tail decay. Default 100 ms.</td>
         </tr>
         <tr class="odd">
         <td><strong>Amount</strong></td>
-        <td>0.0–1.0</td>
+        <td>0.0-1.0</td>
         <td>Blend between the detected envelope (1.0) and no envelope
-        shaping (0.0). Automatically enabled when envelope detection
-        runs on sample load.</td>
+        shaping (0.0). Automatically set when envelope detection runs on
+        sample load. Default 0.0 (no shaping).</td>
         </tr>
         </tbody>
         </table>
@@ -1403,10 +1651,10 @@
         <tbody>
         <tr class="odd">
         <td><strong>Time Scale</strong></td>
-        <td>0.25–4.0x</td>
+        <td>0.25-4.0x</td>
         <td>Multiplies all time parameters uniformly. 0.25x = 4x faster
-        (snappier), 1.0x = original, 4.0x = 4x slower (more
-        spacious).</td>
+        (snappier), 1.0x = original, 4.0x = 4x slower (more spacious).
+        Default 1.0x.</td>
         </tr>
         <tr class="even">
         <td><strong>Attack Curve</strong></td>
@@ -1429,11 +1677,73 @@
         </tr>
         </tbody>
         </table>
-        <p><strong>Tip:</strong> The auto-detected envelope is a great
-        starting point. For a drum sample, you’ll get a fast attack and
-        short decay automatically. To make it more playable as a pad,
-        increase Time Scale to 2.0–4.0x to stretch the envelope out, and
-        raise Sustain to keep the sound alive while keys are held.</p>
+        <hr />
+        <h2 id="voice-mode">Voice Mode</h2>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Voice Mode</strong></td>
+        <td>3 modes</td>
+        <td><strong>Mono</strong> = single voice (default). <strong>4
+        Voices</strong> = 4-voice polyphony. <strong>8 Voices</strong> =
+        8-voice polyphony. Higher voice counts increase CPU usage
+        proportionally. Automatic 1/sqrt(N) gain compensation prevents
+        clipping when multiple voices sound simultaneously.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="mpe-support">MPE Support</h3>
+        <p>In polyphonic mode, Innexus supports MIDI Polyphonic
+        Expression (MPE) via VST3 Note Expression:</p>
+        <table>
+        <colgroup>
+        <col style="width: 37%" />
+        <col style="width: 21%" />
+        <col style="width: 40%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Expression</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Tuning</strong></td>
+        <td>-1.0 to +1.0</td>
+        <td>Per-note pitch bend in semitones</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Volume</strong></td>
+        <td>0.0-1.0</td>
+        <td>Per-note volume (0.25 normalized = unity gain)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pan</strong></td>
+        <td>0.0-1.0</td>
+        <td>Per-note stereo position (0.5 = center)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Brightness</strong></td>
+        <td>0.0-1.0</td>
+        <td>Per-note harmonic/residual balance (0.5 = neutral, 0.0 =
+        harmonics boosted, 1.0 = residual boosted)</td>
+        </tr>
+        </tbody>
+        </table>
         <hr />
         <h2 id="tips-techniques">Tips &amp; Techniques</h2>
         <h3 id="from-sample-to-playable-instrument">From Sample to
@@ -1454,7 +1764,7 @@
         variation.</p>
         <h3 id="memory-slot-workflows">Memory Slot Workflows</h3>
         <ul>
-        <li><strong>Performance snapshots</strong>: Capture 4–5
+        <li><strong>Performance snapshots</strong>: Capture 4-5
         different timbral states before a performance, then recall them
         on the fly during playback</li>
         <li><strong>Evolution fuel</strong>: Populate all 8 slots with
@@ -1465,12 +1775,29 @@
         Blend with weighted slots to create timbres that don’t exist in
         any single source</li>
         </ul>
+        <h3 id="building-physical-instruments">Building Physical
+        Instruments</h3>
+        <p>The Exciter + Resonator Bank + Body Resonance chain turns
+        Innexus into a physically modelled instrument:</p>
+        <ol type="1">
+        <li>Set <strong>Exciter Type</strong> to Impact for percussion,
+        or Bow for sustained tones</li>
+        <li>Choose <strong>Modal</strong> for bell/marimba-like
+        resonance, or <strong>Waveguide</strong> for string-like
+        character</li>
+        <li>Dial in <strong>Body Resonance</strong> (Size + Material +
+        Mix) to add acoustic body character</li>
+        <li>Use <strong>Physical Model Mix</strong> to blend between the
+        original residual and the resonator output</li>
+        <li>Adjust <strong>Resonance Decay</strong> and
+        <strong>Brightness</strong> to shape the ring-out character</li>
+        </ol>
         <h3 id="feedback-for-self-evolving-textures">Feedback for
         Self-Evolving Textures</h3>
         <p>The Analysis Feedback loop is unique to Innexus. Unlike a
         delay or reverb, it creates a self-referential system where the
         synth’s own output influences what it “hears” and therefore what
-        it produces. At low amounts (0.1–0.3), this creates subtle
+        it produces. At low amounts (0.1-0.3), this creates subtle
         resonant reinforcement. At higher amounts, the system can enter
         attractor states — stable-but-complex patterns that evolve
         organically.</p>
@@ -1495,22 +1822,28 @@
         effective setups:</p>
         <ul>
         <li><strong>Slow amplitude mod on low partials</strong> (Rate
-        0.05 Hz, Depth 0.3, Range 1–8, Target Amplitude) — subtle
+        0.05 Hz, Depth 0.3, Range 1-8, Target Amplitude) — subtle
         breathing effect</li>
         <li><strong>Medium frequency mod on high partials</strong> (Rate
-        2 Hz, Depth 0.2, Range 32–96, Target Frequency) — shimmer and
+        2 Hz, Depth 0.2, Range 32-96, Target Frequency) — shimmer and
         sparkle</li>
-        <li><strong>Tempo-synced pan mod</strong> (Rate 1/8 note, Depth
-        0.5, Full range, Target Pan) — rhythmic stereo movement</li>
+        <li><strong>Tempo-synced pan mod</strong> (Rate Sync on, 1/8
+        note, Depth 0.5, Full range, Target Pan) — rhythmic stereo
+        movement</li>
         </ul>
         <h3 id="cpu-management">CPU Management</h3>
-        <p>If CPU usage is high: - Reduce <strong>Partial Count</strong>
-        from 96 to 48 — the difference is often subtle - Disable unused
-        <strong>Modulators</strong> - Turn off <strong>Evolution
-        Engine</strong> when not needed - Reduce <strong>Feedback
-        Amount</strong> to 0 when not using the feedback loop - In
-        sidechain mode, use <strong>Low Latency</strong> mode unless you
-        need bass precision</p>
+        <p>If CPU usage is high: - Reduce <strong>Voice Mode</strong>
+        from 8 Voices to 4 or Mono - Reduce <strong>Partial
+        Count</strong> from 96 to 48 — the difference is often subtle -
+        Disable unused <strong>Modulators</strong> - Turn off
+        <strong>Evolution Engine</strong> when not needed - Set
+        <strong>Physical Model Mix</strong> to 0 and <strong>Body
+        Mix</strong> to 0 if not using physical modelling - Disable
+        <strong>Bow Oversampling</strong> unless needed - Reduce
+        <strong>Feedback Amount</strong> to 0 when not using the
+        feedback loop - Reduce <strong>Sympathetic Amount</strong> to 0
+        when not needed - In sidechain mode, use <strong>Low
+        Latency</strong> mode unless you need bass precision</p>
         <h3 id="drag-and-drop">Drag and Drop</h3>
         <p>Drag .wav or .aiff files directly onto the Innexus window.
         The plugin provides visual feedback during the drag operation
