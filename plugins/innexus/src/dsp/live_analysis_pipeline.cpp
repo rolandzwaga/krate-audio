@@ -59,6 +59,9 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
         longSpectrum_.prepare(kLongWindowConfig.fftSize);
     }
 
+    // Subharmonic validator (Hermes 1988)
+    subharmonicValidator_.prepare(kShortWindowConfig.fftSize, sampleRate);
+
     // Partial tracker
     tracker_.prepare(kShortWindowConfig.fftSize, sampleRate);
     {
@@ -265,6 +268,11 @@ void LiveAnalysisPipeline::runAnalysis()
             yinContiguousBuffer_[i] = yinBuffer_[(yinWriteIndex_ + i) % yinWindowSize_];
         }
         f0 = yin_.detect(yinContiguousBuffer_.data(), yinWindowSize_);
+
+        // Subharmonic validation (Hermes 1988): correct YIN octave errors
+        if (f0.voiced) {
+            f0 = subharmonicValidator_.validate(f0, shortSpectrum_);
+        }
     }
     else
     {

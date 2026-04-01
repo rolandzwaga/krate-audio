@@ -189,6 +189,7 @@ add_executable(dsp_tests
     unit/processors/residual_analyzer_tests.cpp
     unit/processors/residual_synthesizer_tests.cpp
     unit/processors/spectral_coring_estimator_tests.cpp
+    unit/processors/subharmonic_validator_tests.cpp
     unit/processors/harmonic_frame_utils_tests.cpp
     unit/processors/harmonic_snapshot_tests.cpp
     unit/processors/test_harmonic_oscillator_bank_stereo.cpp
@@ -516,6 +517,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/residual_analyzer_tests.cpp
         unit/processors/residual_synthesizer_tests.cpp
         unit/processors/spectral_coring_estimator_tests.cpp
+        unit/processors/subharmonic_validator_tests.cpp
         unit/processors/harmonic_frame_utils_tests.cpp
         unit/processors/harmonic_snapshot_tests.cpp
         unit/processors/test_harmonic_oscillator_bank_stereo.cpp

@@ -37,6 +37,7 @@
 #include <krate/dsp/processors/multi_pitch_detector.h>
 #include <krate/dsp/processors/multi_source_sieve.h>
 #include <krate/dsp/processors/spectral_coring_estimator.h>
+#include <krate/dsp/processors/subharmonic_validator.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
 #include <krate/dsp/primitives/stft.h>
 #include <krate/dsp/primitives/spectral_buffer.h>
@@ -169,6 +170,7 @@ private:
     Krate::DSP::STFT longStft_;
     Krate::DSP::SpectralBuffer shortSpectrum_;
     Krate::DSP::SpectralBuffer longSpectrum_;
+    Krate::DSP::SubharmonicValidator subharmonicValidator_;
     Krate::DSP::PartialTracker tracker_;
     Krate::DSP::HarmonicModelBuilder modelBuilder_;
     Krate::DSP::SpectralCoringEstimator coringEstimator_;

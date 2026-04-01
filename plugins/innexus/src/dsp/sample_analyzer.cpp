@@ -43,6 +43,7 @@
 #include <krate/dsp/processors/residual_analyzer.h>
 #include <krate/dsp/processors/multi_pitch_detector.h>
 #include <krate/dsp/processors/multi_source_sieve.h>
+#include <krate/dsp/processors/subharmonic_validator.h>
 #include <krate/dsp/processors/yin_pitch_detector.h>
 #include <krate/dsp/systems/harmonic_model_builder.h>
 
@@ -224,14 +225,18 @@ void SampleAnalyzer::analyzeOnThread(
     modelBuilder.prepare(static_cast<double>(sampleRate));
     modelBuilder.setHopSize(static_cast<int>(kShortWindowConfig.hopSize));
 
-    // Multi-pitch detection: extracts clean monophonic timbre from
-    // polyphonic sources (guitar chords, piano chords, etc.) by identifying
-    // the dominant F0 and filtering out partials from other voices.
+    // Subharmonic validator: corrects YIN octave errors using spectral
+    // evidence (Hermes 1988 subharmonic summation).  Applied before the
+    // tracker so the harmonic sieve gets a correct F0 from the start.
+    Krate::DSP::SubharmonicValidator subharmonicValidator;
+    subharmonicValidator.prepare(kShortWindowConfig.fftSize,
+                                  static_cast<double>(sampleRate));
+
+    // Multi-pitch detection: finds the strongest F0 from spectral peaks
+    // when YIN's estimate may be unreliable (polyphonic content, low confidence).
     Krate::DSP::MultiPitchDetector multiPitchDetector;
     multiPitchDetector.prepare(kShortWindowConfig.fftSize,
                                static_cast<double>(sampleRate));
-    Krate::DSP::MultiSourceSieve multiSourceSieve;
-    multiSourceSieve.prepare(static_cast<double>(sampleRate));
 
     // Residual analyzer (FR-009: runs on background thread, FR-010: never audio thread)
     Krate::DSP::ResidualAnalyzer residualAnalyzer;
@@ -323,6 +328,14 @@ void SampleAnalyzer::analyzeOnThread(
             Krate::DSP::F0Estimate f0;
             if (yinLength >= kYinWindowSize) {
                 f0 = yin.detect(&audioData[yinStart], yinLength);
+            }
+
+            // Subharmonic validation: check if YIN locked onto a subharmonic
+            // by comparing harmonic support at f0 vs f0*2 vs f0*4 in the STFT.
+            // This is the primary defense against octave errors on polyphonic
+            // content (Hermes 1988).
+            if (f0.voiced) {
+                f0 = subharmonicValidator.validate(f0, shortSpectrum);
             }
 
             // Partial tracking on short window spectrum (FR-022 to FR-028).
