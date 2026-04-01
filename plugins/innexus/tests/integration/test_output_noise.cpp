@@ -398,8 +398,225 @@ static float measureSnrDb(const std::vector<float>& signal,
 }
 
 // =============================================================================
-// Test 0: Raw MCF oscillator math (no oscillator bank wrapper)
+// Test 0: Raw MCF precision — float32 vs float64 vs measurement method
 // =============================================================================
+TEST_CASE("Noise isolation: MCF precision and measurement validation",
+          "[innexus][noise][diagnostic]")
+{
+    constexpr double kSR = 44100.0;
+    constexpr float kFreq = 440.0f;
+    constexpr size_t kN = 4096;
+    std::vector<float> harmonics = {kFreq};
+
+    // --- A: float32 MCF (no renorm) ---
+    float snrF32 = 0.0f;
+    {
+        float epsilon = 2.0f * std::sin(3.14159265f * kFreq / static_cast<float>(kSR));
+        float s = 0.0f, c = 1.0f;
+        for (size_t i = 0; i < 8192; ++i) {
+            float sNew = s + epsilon * c;
+            float cNew = c - epsilon * sNew;
+            s = sNew; c = cNew;
+        }
+        std::vector<float> buf(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            float sNew = s + epsilon * c;
+            float cNew = c - epsilon * sNew;
+            buf[i] = sNew;
+            s = sNew; c = cNew;
+        }
+        snrF32 = measureSnrDb(buf, kSR, harmonics);
+        INFO("[float32 MCF] SNR = " << snrF32 << " dB");
+    }
+
+    // --- B: float64 MCF, cast to float32 for measurement ---
+    float snrF64 = 0.0f;
+    {
+        double epsilon = 2.0 * std::sin(3.14159265358979323846 * static_cast<double>(kFreq) / kSR);
+        double s = 0.0, c = 1.0;
+        for (size_t i = 0; i < 8192; ++i) {
+            double sNew = s + epsilon * c;
+            double cNew = c - epsilon * sNew;
+            s = sNew; c = cNew;
+        }
+        std::vector<float> buf(kN);
+        for (size_t i = 0; i < kN; ++i) {
+            double sNew = s + epsilon * c;
+            double cNew = c - epsilon * sNew;
+            buf[i] = static_cast<float>(sNew);
+            s = sNew; c = cNew;
+        }
+        snrF64 = measureSnrDb(buf, kSR, harmonics);
+        INFO("[float64 MCF] SNR = " << snrF64 << " dB");
+    }
+
+    // --- C: Reference std::sin (perfect, no recursion) ---
+    float snrRef = 0.0f;
+    {
+        std::vector<float> buf(kN);
+        double phase = 0.0;
+        double phaseInc = 2.0 * 3.14159265358979323846 * static_cast<double>(kFreq) / kSR;
+        // Advance past settle period
+        phase += phaseInc * 8192.0;
+        for (size_t i = 0; i < kN; ++i) {
+            buf[i] = static_cast<float>(std::sin(phase));
+            phase += phaseInc;
+        }
+        snrRef = measureSnrDb(buf, kSR, harmonics);
+        INFO("[std::sin reference] SNR = " << snrRef << " dB");
+    }
+
+    INFO("float32 MCF: " << snrF32 << " dB");
+    INFO("float64 MCF: " << snrF64 << " dB");
+    INFO("std::sin ref: " << snrRef << " dB");
+
+    // float64 should be dramatically better than float32
+    // std::sin should be the best (no recursive error)
+    // If float32 is already >80 dB, the noise is in our measurement, not the MCF
+    // At the FFT measurement ceiling, all three converge to ~50.6 dB
+    CHECK(std::abs(snrF64 - snrF32) < 1.0f);
+    CHECK(snrRef >= snrF64);
+
+    // Guard: float32 MCF should be at least 45 dB (regression)
+    REQUIRE(snrF32 > 45.0f);
+}
+
+// =============================================================================
+// Test 0b: Static vs varying analysis frames through full processor
+// =============================================================================
+TEST_CASE("Noise isolation: static frames vs varying frames",
+          "[innexus][noise][diagnostic]")
+{
+    constexpr float kF0 = 440.0f;
+    constexpr int kPartials = 8;
+    constexpr float kBaseAmp = 0.4f;
+
+    // Build a single static frame
+    Krate::DSP::HarmonicFrame staticFrame{};
+    staticFrame.f0 = kF0;
+    staticFrame.f0Confidence = 1.0f;
+    staticFrame.numPartials = kPartials;
+    staticFrame.globalAmplitude = kBaseAmp;
+    staticFrame.noisiness = 0.0f;
+    for (int p = 0; p < kPartials; ++p) {
+        auto& partial = staticFrame.partials[static_cast<size_t>(p)];
+        partial.harmonicIndex = p + 1;
+        partial.frequency = kF0 * static_cast<float>(p + 1);
+        partial.amplitude = kBaseAmp / static_cast<float>(p + 1);
+        partial.relativeFrequency = static_cast<float>(p + 1);
+        partial.stability = 1.0f;
+        partial.age = 20;
+    }
+
+    auto runWithAnalysis = [&](Innexus::SampleAnalysis* analysis) -> float
+    {
+        Innexus::Processor proc;
+        proc.initialize(nullptr);
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.maxSamplesPerBlock = kTestBlockSize;
+        setup.sampleRate = kTestSampleRate;
+        proc.setupProcessing(setup);
+        proc.setActive(true);
+        proc.testInjectAnalysis(analysis);
+
+        NoiseTestEventList events;
+        std::vector<float> outL(kTestBlockSize, 0.0f);
+        std::vector<float> outR(kTestBlockSize, 0.0f);
+        float* channels[2] = {outL.data(), outR.data()};
+        AudioBusBuffers outBus{}; outBus.numChannels = 2; outBus.channelBuffers32 = channels;
+        ProcessData data{};
+        data.processMode = kRealtime; data.symbolicSampleSize = kSample32;
+        data.numSamples = kTestBlockSize; data.numOutputs = 1; data.outputs = &outBus;
+        data.inputEvents = &events;
+
+        events.addNoteOn(69, 0.8f);
+        proc.process(data);
+        events.clear();
+
+        for (int b = 0; b < 50; ++b) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            proc.process(data);
+        }
+
+        constexpr size_t kN = 4096;
+        constexpr int kBlocks = kN / kTestBlockSize;
+        std::vector<float> buf(kN);
+        for (int b = 0; b < kBlocks; ++b) {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            proc.process(data);
+            std::copy(outL.begin(), outL.end(),
+                      buf.begin() + static_cast<size_t>(b) * kTestBlockSize);
+        }
+
+        proc.setActive(false);
+        proc.terminate();
+
+        std::vector<float> harmonics;
+        for (int h = 1; h <= kPartials; ++h)
+            harmonics.push_back(kF0 * static_cast<float>(h));
+        return measureSnrDb(buf, kTestSampleRate, harmonics);
+    };
+
+    // --- A: All frames identical (perfectly static) ---
+    float snrStatic;
+    {
+        auto* analysis = new Innexus::SampleAnalysis();
+        analysis->sampleRate = static_cast<float>(kTestSampleRate);
+        analysis->hopTimeSec = static_cast<float>(kTestBlockSize) / static_cast<float>(kTestSampleRate);
+        analysis->analysisFFTSize = 1024;
+        analysis->analysisHopSize = 512;
+        for (int f = 0; f < 200; ++f) {
+            analysis->frames.push_back(staticFrame);
+            Krate::DSP::ResidualFrame rf{};
+            analysis->residualFrames.push_back(rf);
+        }
+        analysis->totalFrames = analysis->frames.size();
+        analysis->filePath = "test_static.wav";
+        snrStatic = runWithAnalysis(analysis);
+        INFO("[Static frames] SNR = " << snrStatic << " dB");
+    }
+
+    // --- B: Frames with ±5% random amplitude variation per partial ---
+    float snrVarying;
+    {
+        auto* analysis = new Innexus::SampleAnalysis();
+        analysis->sampleRate = static_cast<float>(kTestSampleRate);
+        analysis->hopTimeSec = static_cast<float>(kTestBlockSize) / static_cast<float>(kTestSampleRate);
+        analysis->analysisFFTSize = 1024;
+        analysis->analysisHopSize = 512;
+
+        uint32_t rng = 42;
+        for (int f = 0; f < 200; ++f) {
+            Krate::DSP::HarmonicFrame frame = staticFrame;
+            for (int p = 0; p < kPartials; ++p) {
+                // Simple LCG for deterministic "randomness"
+                rng = rng * 1664525u + 1013904223u;
+                float jitter = (static_cast<float>(rng >> 16) / 32768.0f - 1.0f) * 0.05f;
+                frame.partials[static_cast<size_t>(p)].amplitude *= (1.0f + jitter);
+            }
+            analysis->frames.push_back(frame);
+            Krate::DSP::ResidualFrame rf{};
+            analysis->residualFrames.push_back(rf);
+        }
+        analysis->totalFrames = analysis->frames.size();
+        analysis->filePath = "test_varying.wav";
+        snrVarying = runWithAnalysis(analysis);
+        INFO("[Varying frames ±5%] SNR = " << snrVarying << " dB");
+    }
+
+    INFO("Static frames SNR: " << snrStatic << " dB");
+    INFO("Varying frames SNR: " << snrVarying << " dB");
+    INFO("Difference: " << (snrStatic - snrVarying) << " dB");
+
+    // Static should be clean (near measurement ceiling)
+    REQUIRE(snrStatic > 40.0f);
+    // If varying is much worse, frame variation is the noise source
+}
+
 // =============================================================================
 // Test 1: Oscillator bank, single load — regression test for MCF noise
 // =============================================================================

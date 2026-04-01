@@ -191,7 +191,10 @@ private:
         const size_t numBins = fftSize / 2 + 1;
         const float binSpacing = sampleRate / static_cast<float>(fftSize);
 
-        // Minimum magnitude threshold to reject noise floor
+        // Minimum magnitude threshold to reject noise floor.
+        // Kept low (-120 dB) so the tracker can follow partials all the way
+        // to silence during fade-outs. Noise rejection is handled downstream
+        // in HarmonicModelBuilder via relative amplitude gating.
         constexpr float kMinMagnitude = 1e-6f;
 
         // Scan for local maxima (bins 1..numBins-2 to have neighbors)

@@ -385,3 +385,92 @@ TEST_CASE("HarmonicModelBuilder: output frame has all required fields",
     REQUIRE(frame.noisiness <= 1.0f);
     REQUIRE(frame.globalAmplitude > 0.0f);
 }
+
+// ===========================================================================
+// Noise rejection: relative amplitude gate
+// ===========================================================================
+TEST_CASE("HarmonicModelBuilder: relative amplitude gate zeroes noise partials",
+          "[systems][harmonic_model_builder][noise]") {
+    HarmonicModelBuilder builder;
+    builder.prepare(44100.0);
+    builder.setResponsiveness(1.0f); // fast convergence
+
+    // Create partials: fundamental at 0.5, real harmonic at 0.1 (-14 dB below),
+    // noise partial at 0.0001 (-74 dB below fundamental)
+    std::array<Partial, kMaxPartials> partials{};
+    partials[0] = makePartial(1, 440.0f, 0.5f, 1.0f);
+    partials[1] = makePartial(2, 880.0f, 0.1f, 2.0f);
+    partials[2] = makePartial(3, 1320.0f, 0.0001f, 3.0f); // noise: -74 dB below peak
+
+    F0Estimate f0{};
+    f0.frequency = 440.0f;
+    f0.confidence = 0.9f;
+    f0.voiced = true;
+
+    // Feed frames until smoothing settles
+    HarmonicFrame frame;
+    for (int i = 0; i < 50; ++i) {
+        frame = builder.build(partials, 3, f0, 0.5f);
+    }
+
+    // Partial 0 (fundamental) should be present
+    REQUIRE(frame.partials[0].amplitude > 0.1f);
+    // Partial 1 (real harmonic, -14 dB below) should be present
+    REQUIRE(frame.partials[1].amplitude > 0.01f);
+    // Partial 2 (noise, -74 dB below) should be zeroed by the gate
+    REQUIRE(frame.partials[2].amplitude < 1e-6f);
+}
+
+TEST_CASE("HarmonicModelBuilder: partials within gate threshold are preserved",
+          "[systems][harmonic_model_builder][noise]") {
+    HarmonicModelBuilder builder;
+    builder.prepare(44100.0);
+    builder.setResponsiveness(1.0f);
+
+    // All partials within 40 dB of each other — all should survive the -60 dB gate
+    std::array<Partial, kMaxPartials> partials{};
+    partials[0] = makePartial(1, 440.0f, 0.5f, 1.0f);       // 0 dB ref
+    partials[1] = makePartial(2, 880.0f, 0.05f, 2.0f);      // -20 dB
+    partials[2] = makePartial(3, 1320.0f, 0.005f, 3.0f);    // -40 dB
+    partials[3] = makePartial(4, 1760.0f, 0.001f, 4.0f);    // -54 dB (still within -60 dB)
+
+    F0Estimate f0{440.0f, 0.9f, true};
+
+    HarmonicFrame frame;
+    for (int i = 0; i < 50; ++i) {
+        frame = builder.build(partials, 4, f0, 0.5f);
+    }
+
+    // All four should be preserved
+    REQUIRE(frame.partials[0].amplitude > 0.1f);
+    REQUIRE(frame.partials[1].amplitude > 0.01f);
+    REQUIRE(frame.partials[2].amplitude > 0.001f);
+    REQUIRE(frame.partials[3].amplitude > 0.0001f);
+}
+
+// ===========================================================================
+// Noise rejection: minimum track age
+// ===========================================================================
+TEST_CASE("HarmonicModelBuilder: young partials (age < 3) are suppressed",
+          "[systems][harmonic_model_builder][noise]") {
+    HarmonicModelBuilder builder;
+    builder.prepare(44100.0);
+    builder.setResponsiveness(1.0f);
+
+    // Create a partial with age = 0 (just born)
+    std::array<Partial, kMaxPartials> partials{};
+    partials[0] = makePartial(1, 440.0f, 0.5f, 1.0f);
+    partials[0].age = 20; // mature
+    partials[1] = makePartial(2, 880.0f, 0.3f, 2.0f);
+    partials[1].age = 0;  // just born — should be suppressed
+
+    F0Estimate f0{440.0f, 0.9f, true};
+
+    // Single frame (no settle needed — testing age gate on first encounter)
+    HarmonicFrame frame = builder.build(partials, 2, f0, 0.5f);
+
+    // Mature partial should have some amplitude
+    REQUIRE(frame.partials[0].amplitude > 0.0f);
+    // Newborn partial should be zeroed
+    REQUIRE(frame.partials[1].amplitude == 0.0f);
+}

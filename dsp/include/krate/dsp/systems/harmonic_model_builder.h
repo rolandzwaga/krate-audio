@@ -44,6 +44,17 @@ public:
     /// Median filter window size (odd, for proper median)
     static constexpr size_t kMedianWindowSize = 5;
 
+    /// Minimum partial age (in frames) before output. Noise peaks create
+    /// short-lived tracks; requiring ~3 frames (~35ms at 512-hop/44.1kHz)
+    /// rejects them. Based on SMS minSineDur (Serra, MTG-UPF).
+    static constexpr int kMinPartialAge = 3;
+
+    /// Relative amplitude gate threshold in dB. Partials more than this many dB
+    /// below the peak partial are zeroed as likely noise. SPEAR default: -60 dB
+    /// (Klingbeil). Converted to linear: 10^(-60/20) = 0.001.
+    static constexpr float kRelativeGateDb = -60.0f;
+    static constexpr float kRelativeGateLinear = 0.001f; // 10^(-60/20)
+
     /// Configure sample rate and internal state.
     /// @param sampleRate Audio sample rate in Hz
     void prepare(double sampleRate) noexcept {
@@ -152,10 +163,44 @@ public:
             float& prevBw = smoothedBandwidth_[static_cast<size_t>(i)];
             constexpr float kBwSmoothCoeff = 0.3f; // ~3 frames to settle
             prevBw += kBwSmoothCoeff * (rawBw - prevBw);
-            frame.partials[i].bandwidth = prevBw;
+            // Bandwidth synthesis disabled: the partial tracker's bandwidth
+            // estimation produces inflated values (~0.35-0.55) for clean harmonic
+            // peaks, causing the oscillator bank's Loris-model noise modulation
+            // to add audible noise to every partial. Until the bandwidth estimation
+            // is recalibrated, force zero to produce clean sine partials.
+            frame.partials[i].bandwidth = 0.0f;
         }
 
-        // ---- Step 5: Spectral centroid and brightness (FR-032) ----
+        // ---- Step 3b: Noise rejection ----
+        // (a) Minimum track age gate: suppress partials younger than 3 frames.
+        // Noise peaks create short-lived tracks; requiring age >= 3 (~35ms at
+        // 512-hop/44.1kHz) rejects them. Based on SMS minSineDur (Serra).
+        for (int i = 0; i < numPartials; ++i) {
+            if (frame.partials[i].age < kMinPartialAge) {
+                frame.partials[i].amplitude = 0.0f;
+            }
+        }
+
+        // (b) Relative amplitude gate: zero partials more than kRelativeGateDb
+        // below the peak partial. Noise peaks tracked as partials have tiny
+        // amplitudes relative to real harmonics. Standard technique in SPEAR
+        // (Klingbeil, default -60 dB) and SMS (Serra, fRefHarmMagDiffFromMax).
+        {
+            float peakAmp = 0.0f;
+            for (int i = 0; i < numPartials; ++i) {
+                if (frame.partials[i].amplitude > peakAmp)
+                    peakAmp = frame.partials[i].amplitude;
+            }
+            // Convert dB threshold to linear: -60 dB = 10^(-60/20) = 0.001
+            const float gateThreshold = peakAmp * kRelativeGateLinear;
+            for (int i = 0; i < numPartials; ++i) {
+                if (frame.partials[i].amplitude < gateThreshold) {
+                    frame.partials[i].amplitude = 0.0f;
+                }
+            }
+        }
+
+        // ---- Step 4: Spectral centroid and brightness (FR-032) ----
         frame.spectralCentroid = computeSpectralCentroid(partials, numPartials);
         if (f0.frequency > 0.0f) {
             frame.brightness = frame.spectralCentroid / f0.frequency;

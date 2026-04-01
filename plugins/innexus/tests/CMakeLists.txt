@@ -84,6 +84,7 @@ add_executable(innexus_tests
 
     # Output quality diagnostics
     integration/test_output_noise.cpp
+    integration/test_real_sample_noise.cpp
 
     # Harmonic Physics integration tests (Spec A)
     integration/test_harmonic_physics_integration.cpp
