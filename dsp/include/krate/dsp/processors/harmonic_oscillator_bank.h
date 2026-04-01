@@ -88,6 +88,13 @@ public:
     /// Output safety clamp
     static constexpr float kOutputClamp = 2.0f;
 
+    /// Target oscillator RMS for adaptive normalization (before harmonic level / master gain).
+    /// This is the "unity" output level when globalAmplitude = 1.0.
+    static constexpr float kTargetOscRms = 0.5f;
+
+    /// Maximum normalization gain to prevent extreme amplification of near-silent frames.
+    static constexpr float kMaxNormGain = 20.0f;
+
     /// Maximum detune per partial in cents at spread=1.0 (FR-030)
     static constexpr float kDetuneMaxCents = 15.0f;
 
@@ -249,6 +256,32 @@ public:
         for (size_t i = static_cast<size_t>(numPartials); i < kMaxPartials; ++i) {
             targetAmplitude_[i] = 0.0f;
             harmonicIndex_[i] = 0;
+        }
+
+        // Adaptive output normalization: scale partial amplitudes so the
+        // expected oscillator RMS hits a consistent target regardless of how
+        // many partials are active or how the DFT distributed the energy.
+        //
+        // For N sinusoids with peak amplitudes a_i:
+        //   expected RMS = sqrt(sum(a_i^2) / 2)
+        //
+        // We scale so that expected RMS ≈ kTargetOscRms.  This ensures the
+        // oscillator bank produces synth-level output (~-6 dBFS) that the
+        // user then shapes with Harmonic Level, velocity, and Master Gain.
+        // Relative dynamics between frames are preserved because frames with
+        // more partial energy naturally produce a higher expectedRms.
+        {
+            float sumSq = 0.0f;
+            for (int i = 0; i < numPartials; ++i)
+                sumSq += targetAmplitude_[i] * targetAmplitude_[i];
+
+            float expectedRms = std::sqrt(sumSq * 0.5f);
+            if (expectedRms > 1e-10f)
+            {
+                float scale = std::min(kTargetOscRms / expectedRms, kMaxNormGain);
+                for (int i = 0; i < numPartials; ++i)
+                    targetAmplitude_[i] *= scale;
+            }
         }
 
         // Recalculate frequencies and anti-aliasing for all active partials
