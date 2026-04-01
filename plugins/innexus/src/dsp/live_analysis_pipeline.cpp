@@ -61,6 +61,11 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
 
     // Partial tracker
     tracker_.prepare(kShortWindowConfig.fftSize, sampleRate);
+    {
+        float cg = Krate::DSP::Window::coherentGain(kShortWindowConfig.windowType);
+        float ampScale = 2.0f / (static_cast<float>(kShortWindowConfig.fftSize) * cg);
+        tracker_.setAmplitudeScale(ampScale);
+    }
 
     // Harmonic model builder
     modelBuilder_.prepare(sampleRate);

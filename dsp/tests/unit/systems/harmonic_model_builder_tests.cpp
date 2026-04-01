@@ -317,13 +317,15 @@ TEST_CASE("HarmonicModelBuilder: noisiness estimate",
     builder.prepare(44100.0);
     builder.setHopSize(256);
 
-    // If input RMS = 0.5, inputEnergy = 0.25
-    // If partial energy (sum of amp^2) = 0.20, inputEnergy = 0.25
-    // noisiness = 1.0 - 0.20 / 0.25 = 0.2
+    // Partial amplitudes are peak sinusoidal amplitudes (after DFT normalization).
+    // Mean-square power of a sinusoid with peak amplitude A = A^2/2.
+    // partialEnergy = sum(amp^2 * 0.5) = 0.5*0.4^2 + 0.5*0.2^2 = 0.08 + 0.02 = 0.10
+    // inputEnergy = inputRms^2 = 0.25
+    // noisiness = 1 - 0.10 / 0.25 = 0.60
     std::array<Partial, kMaxPartials> partials{};
-    partials[0] = makePartial(1, 440.0f, 0.4f, 1.0f);  // energy = 0.16
-    partials[1] = makePartial(2, 880.0f, 0.2f, 2.0f);  // energy = 0.04
-    // total partial energy = 0.20
+    partials[0] = makePartial(1, 440.0f, 0.4f, 1.0f);  // mean-sq = 0.08
+    partials[1] = makePartial(2, 880.0f, 0.2f, 2.0f);  // mean-sq = 0.02
+    // total partial mean-square power = 0.10
     F0Estimate f0{440.0f, 0.9f, true};
     float inputRms = 0.5f; // inputEnergy = 0.25
 
@@ -332,8 +334,8 @@ TEST_CASE("HarmonicModelBuilder: noisiness estimate",
         frame = builder.build(partials, 2, f0, inputRms);
     }
 
-    // noisiness = 1 - partialEnergy / inputEnergy = 1 - 0.20/0.25 = 0.2
-    REQUIRE(frame.noisiness == Approx(0.2f).margin(0.05f));
+    // noisiness = 1 - partialMeanSqPower / inputEnergy = 1 - 0.10/0.25 = 0.6
+    REQUIRE(frame.noisiness == Approx(0.6f).margin(0.05f));
 }
 
 // ===========================================================================

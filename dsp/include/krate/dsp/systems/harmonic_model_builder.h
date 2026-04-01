@@ -206,9 +206,11 @@ public:
 
         // ---- Step 6: Noisiness estimate (FR-029) ----
         // noisiness = 1.0 - partialEnergy / totalInputEnergy
+        // Partial amplitudes are peak sinusoidal amplitudes (after DFT normalization).
+        // Mean-square power of a sinusoid with peak amplitude A = A^2/2.
         float partialEnergy = 0.0f;
         for (int i = 0; i < numPartials; ++i) {
-            partialEnergy += partials[i].amplitude * partials[i].amplitude;
+            partialEnergy += partials[i].amplitude * partials[i].amplitude * 0.5f;
         }
         float totalInputEnergy = inputRms * inputRms;
         if (totalInputEnergy > 1e-20f) {

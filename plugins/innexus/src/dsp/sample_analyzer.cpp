@@ -208,6 +208,15 @@ void SampleAnalyzer::analyzeOnThread(
     Krate::DSP::PartialTracker tracker;
     tracker.prepare(kShortWindowConfig.fftSize, static_cast<double>(sampleRate));
 
+    // DFT amplitude normalization: convert raw magnitudes to sinusoidal amplitudes.
+    // Factor = 2 / (N * windowCoherentGain).  Without this, partial amplitudes
+    // are ~N*CG/2 times too large, causing the additive oscillator bank to clip.
+    {
+        float cg = Krate::DSP::Window::coherentGain(kShortWindowConfig.windowType);
+        float ampScale = 2.0f / (static_cast<float>(kShortWindowConfig.fftSize) * cg);
+        tracker.setAmplitudeScale(ampScale);
+    }
+
     // Harmonic model builder (FR-029 to FR-034)
     Krate::DSP::HarmonicModelBuilder modelBuilder;
     modelBuilder.prepare(static_cast<double>(sampleRate));

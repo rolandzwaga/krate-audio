@@ -1156,40 +1156,6 @@
     </view>
 
     <!-- ============================================================== -->
-    <!-- ANALYSIS FEEDBACK SECTION (Y 910-1005)                         -->
-    <!-- ============================================================== -->
-    <view class="FieldsetContainer" origin="550, 910" size="245, 95"
-          title="Feedback" fieldset-title="Feedback" fieldset-color="text-dim"
-          fieldset-title-color="text-fieldset">
-
-      <!-- Feedback Amount -->
-      <view class="ArcKnob" origin="30, 18" size="42, 42"
-            control-tag="FeedbackAmount" default-value="0"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="25, 60" size="52, 12"
-            control-tag="FeedbackAmount" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="25, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Amount"/>
-
-      <!-- Feedback Decay -->
-      <view class="ArcKnob" origin="145, 18" size="42, 42"
-            control-tag="FeedbackDecay" default-value="0.2"
-            arc-color="accent"/>
-      <view class="CParamDisplay" origin="140, 60" size="52, 12"
-            control-tag="FeedbackDecay" font="value-font"
-            font-color="text-primary" back-color="~ TransparentCColor"
-            text-alignment="center"/>
-      <view class="CTextLabel" origin="140, 72" size="52, 10"
-            text-alignment="center" font="value-font"
-            font-color="text-secondary" back-color="~ TransparentCColor"
-            title="Decay"/>
-    </view>
-
-    <!-- ============================================================== -->
     <!-- ADSR ENVELOPE + FEEDBACK (Y 910-1015)                          -->
     <!-- ============================================================== -->
     <view class="FieldsetContainer" origin="5, 910" size="640, 105"

@@ -1,14 +1,13 @@
 #pragma once
 
 // ==============================================================================
-// Innexus Preset Format Header
+// Innexus Preset Format Header (v2)
 // ==============================================================================
 // Shared format definitions for the Innexus preset generator and compatibility
 // tests. The serialize() method must produce byte-identical output to
 // Processor::getState() in processor_state.cpp.
 //
 // Reference: plugins/innexus/src/processor/processor_state.cpp getState()
-// Reference: tools/ruinae_preset_format.h (established pattern)
 // ==============================================================================
 
 #include <vector>
@@ -31,6 +30,11 @@ public:
         data.insert(data.end(), bytes, bytes + 4);
     }
 
+    void writeInt64(int64_t val) {
+        auto bytes = reinterpret_cast<const uint8_t*>(&val);
+        data.insert(data.end(), bytes, bytes + 8);
+    }
+
     void writeFloat(float val) {
         auto bytes = reinterpret_cast<const uint8_t*>(&val);
         data.insert(data.end(), bytes, bytes + 4);
@@ -45,19 +49,20 @@ public:
 // Constants
 // ==============================================================================
 
-static constexpr int32_t kStateVersion = 1;
+static constexpr int32_t kStateVersion = 2;
 static constexpr size_t kMaxPartials = 96;
 static constexpr size_t kResidualBands = 16;
+static constexpr int32_t kInstanceIdMarker = 0x4B524154; // "KRAT"
 
 // ==============================================================================
-// Preset State
+// Preset State (v2 — includes all physical modelling & voice parameters)
 // ==============================================================================
 
 struct InnexusPresetState {
     // --- M1 parameters ---
     float releaseTimeMs = 100.0f;       // 20-5000ms
     float inharmonicityAmount = 1.0f;   // normalized 0-1, default 1.0
-    float masterGain = 0.5f;            // normalized 0-1
+    float masterGain = 0.8f;            // normalized 0-1, default 0.8
     float bypass = 0.0f;               // 0 or 1
 
     // --- File path (empty for factory presets) ---
@@ -65,12 +70,9 @@ struct InnexusPresetState {
 
     // --- M2 parameters (stored as plain values) ---
     float harmonicLevelPlain = 1.0f;    // plain 0.0-2.0, default 1.0
-    float residualLevelPlain = 1.0f;    // plain 0.0-2.0, default 1.0
+    float residualLevelPlain = 0.3f;    // plain 0.0-2.0, default 0.3
     float brightnessPlain = 0.0f;       // plain -1.0 to +1.0, default 0.0
     float transientEmphasisPlain = 0.0f; // plain 0.0-2.0, default 0.0
-
-    // --- M2 residual frames (empty for factory presets) ---
-    // We write frameCount=0 to indicate no residual data
 
     // --- M3 parameters ---
     int32_t inputSource = 0;            // 0=Sample, 1=Sidechain
@@ -84,10 +86,8 @@ struct InnexusPresetState {
 
     // --- M5 parameters ---
     int32_t selectedSlot = 0;           // 0-7
-    // Memory slots: all empty for factory presets
 
     // --- M6 parameters (all normalized 0.0-1.0) ---
-    float timbralBlend = 1.0f;
     float stereoSpread = 0.0f;
     float evolutionEnable = 0.0f;       // 0 or 1
     float evolutionSpeed = 0.0f;        // normalized
@@ -136,10 +136,53 @@ struct InnexusPresetState {
     // --- Partial Count ---
     float partialCount = 0.0f;          // normalized: 0=48, 1/3=64, 2/3=80, 1=96
 
+    // --- Modulator Tempo Sync ---
+    float mod1RateSync = 1.0f;          // 0=off, 1=on (default on)
+    float mod1NoteValue = 0.5f;         // normalized (21 note values, default 1/8)
+    float mod2RateSync = 1.0f;
+    float mod2NoteValue = 0.5f;
+
+    // --- Voice Mode ---
+    float voiceMode = 0.0f;             // 0=Mono, 0.5=4Voices, 1.0=8Voices
+
+    // --- Physical Modelling: Modal Resonator (Spec 127) ---
+    float physModelMix = 0.0f;          // 0-1: blend residual vs physical model
+    float resonanceDecay = 0.6295f;     // normalized (log: 0.01*500^norm = 0.5s)
+    float resonanceBrightness = 0.5f;   // 0-1
+    float resonanceStretch = 0.0f;      // 0-1
+    float resonanceScatter = 0.0f;      // 0-1
+
+    // --- Impact Exciter (Spec 128) ---
+    float exciterType = 0.0f;           // 0=Residual, 0.5=Impact, 1.0=Bow
+    float impactHardness = 0.5f;        // 0-1
+    float impactMass = 0.3f;            // 0-1
+    float impactBrightness = 0.5f;      // normalized (0.5 = neutral, maps to 0.0 plain)
+    float impactPosition = 0.13f;       // 0-1
+
+    // --- Waveguide String (Spec 129) ---
+    float resonanceType = 0.0f;         // 0=Modal, 1=Waveguide
+    float waveguideStiffness = 0.0f;    // 0-1
+    float waveguidePickPosition = 0.13f; // 0-1
+
+    // --- Bow Exciter (Spec 130) ---
+    float bowPressure = 0.3f;           // 0-1
+    float bowSpeed = 0.5f;              // 0-1
+    float bowPosition = 0.13f;          // 0-1
+    float bowOversampling = 0.0f;       // 0=off, 1=on
+
+    // --- Body Resonance (Spec 131) ---
+    float bodySize = 0.5f;              // 0-1
+    float bodyMaterial = 0.5f;          // 0-1
+    float bodyMix = 0.0f;               // 0-1
+
+    // --- Sympathetic Resonance (Spec 132) ---
+    float sympatheticAmount = 0.0f;     // 0-1
+    float sympatheticDecay = 0.5f;      // 0-1
+
     std::vector<uint8_t> serialize() const {
         BinaryWriter w;
 
-        // 1. State version
+        // 1. State version (v2)
         w.writeInt32(kStateVersion);
 
         // --- M1 parameters ---
@@ -183,8 +226,7 @@ struct InnexusPresetState {
         for (int s = 0; s < 8; ++s)
             w.writeInt8(0); // not occupied
 
-        // --- M6 parameters ---
-        w.writeFloat(timbralBlend);
+        // --- M6 parameters (v2: no timbralBlend) ---
         w.writeFloat(stereoSpread);
         w.writeFloat(evolutionEnable);
         w.writeFloat(evolutionSpeed);
@@ -246,6 +288,53 @@ struct InnexusPresetState {
 
         // --- Partial Count ---
         w.writeFloat(partialCount);
+
+        // --- Modulator Tempo Sync ---
+        w.writeFloat(mod1RateSync);
+        w.writeFloat(mod1NoteValue);
+        w.writeFloat(mod2RateSync);
+        w.writeFloat(mod2NoteValue);
+
+        // --- Voice Mode ---
+        w.writeFloat(voiceMode);
+
+        // --- Physical Modelling: Modal Resonator (Spec 127) ---
+        w.writeFloat(physModelMix);
+        w.writeFloat(resonanceDecay);
+        w.writeFloat(resonanceBrightness);
+        w.writeFloat(resonanceStretch);
+        w.writeFloat(resonanceScatter);
+
+        // --- Impact Exciter (Spec 128) ---
+        w.writeFloat(exciterType);
+        w.writeFloat(impactHardness);
+        w.writeFloat(impactMass);
+        w.writeFloat(impactBrightness);
+        w.writeFloat(impactPosition);
+
+        // --- Waveguide String (Spec 129) ---
+        w.writeFloat(resonanceType);
+        w.writeFloat(waveguideStiffness);
+        w.writeFloat(waveguidePickPosition);
+
+        // --- Bow Exciter (Spec 130) ---
+        w.writeFloat(bowPressure);
+        w.writeFloat(bowSpeed);
+        w.writeFloat(bowPosition);
+        w.writeFloat(bowOversampling);
+
+        // --- Body Resonance (Spec 131) ---
+        w.writeFloat(bodySize);
+        w.writeFloat(bodyMaterial);
+        w.writeFloat(bodyMix);
+
+        // --- Sympathetic Resonance (Spec 132) ---
+        w.writeFloat(sympatheticAmount);
+        w.writeFloat(sympatheticDecay);
+
+        // --- Instance ID marker (for SharedDisplayBridge) ---
+        w.writeInt32(kInstanceIdMarker);
+        w.writeInt64(0); // instanceId = 0 for factory presets
 
         return w.data;
     }

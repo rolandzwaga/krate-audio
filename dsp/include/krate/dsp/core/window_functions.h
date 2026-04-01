@@ -307,6 +307,25 @@ inline void generateBlackmanHarris(float* output, size_t size) noexcept {
     return window;
 }
 
+/// @brief Return the coherent gain (mean value) of a window function.
+///
+/// The coherent gain is the DC coefficient of the window (a0 for cosine-sum
+/// windows).  It is needed to convert raw DFT magnitudes to true sinusoidal
+/// amplitudes: A_true = |X[k]| * 2 / (N * coherentGain).
+///
+/// @param type Window type
+/// @return Coherent gain (0, 1].  Returns 1.0 for Kaiser (approximate).
+[[nodiscard]] constexpr float coherentGain(WindowType type) noexcept {
+    switch (type) {
+        case WindowType::Hann:           return 0.5f;
+        case WindowType::Hamming:        return 0.54f;
+        case WindowType::Blackman:       return 0.42f;
+        case WindowType::BlackmanHarris: return 0.35875f;
+        case WindowType::Kaiser:         return 1.0f; // approximate; depends on beta
+    }
+    return 1.0f;
+}
+
 } // namespace Window
 
 } // namespace DSP

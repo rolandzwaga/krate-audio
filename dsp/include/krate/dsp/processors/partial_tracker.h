@@ -76,6 +76,18 @@ public:
 
     PartialTracker() noexcept = default;
 
+    /// @brief Set the DFT amplitude normalization factor.
+    ///
+    /// Raw DFT magnitudes must be multiplied by 2/(N*windowCoherentGain)
+    /// to yield true sinusoidal amplitudes. Call this after prepare() with
+    /// the correct factor for the analysis window being used.
+    ///
+    /// @param scale Normalization factor (e.g. 2.0/(fftSize * 0.35875) for Blackman-Harris)
+    /// @note NOT real-time safe
+    void setAmplitudeScale(float scale) noexcept {
+        amplitudeScale_ = scale;
+    }
+
     /// @brief Prepare the tracker for a given FFT size and sample rate.
     /// @param fftSize FFT size used by the STFT analysis
     /// @param sampleRate Audio sample rate in Hz
@@ -283,7 +295,7 @@ private:
                 const auto idx = static_cast<size_t>(numPeaks_);
                 peakBins_[idx] = interpolatedBin;
                 peakFreqs_[idx] = freq;
-                peakAmps_[idx] = peakAmp;
+                peakAmps_[idx] = peakAmp * amplitudeScale_;
                 peakPhases_[idx] = phase;
                 peakBandwidth_[idx] = bw;
                 peakHarmonicIndex_[idx] = 0; // Will be assigned in sieve
@@ -773,6 +785,9 @@ private:
 
     /// FFT size
     size_t fftSize_ = 0;
+
+    /// DFT amplitude normalization factor (default 1.0 = no normalization)
+    float amplitudeScale_ = 1.0f;
 
     /// Sample rate
     float sampleRate_ = 44100.0f;
