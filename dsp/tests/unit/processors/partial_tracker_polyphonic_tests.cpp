@@ -238,7 +238,7 @@ TEST_CASE("PartialTracker: bandwidth estimation - wide peaks have higher bandwid
     // sinusoid wouldn't have, indicating noisiness
     for (int offset = -6; offset <= 6; ++offset) {
         if (std::abs(offset) <= 2) continue; // skip main lobe
-        auto b = static_cast<size_t>(static_cast<int>(centerBin) + offset);
+        auto b = static_cast<size_t>(centerBin + offset);
         if (b > 0 && b < numBins)
             spectrum.setCartesian(b, 0.25f, 0.0f);
     }

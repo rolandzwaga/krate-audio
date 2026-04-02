@@ -176,7 +176,7 @@ VSTGUI::CView* Controller::createCustomView(
 {
     std::string viewName(name ? name : "");
     VSTGUI::CRect viewRect;
-    if (auto* sizeAttr = attributes.getAttributeValue("size")) {
+    if (const auto* sizeAttr = attributes.getAttributeValue("size")) {
         VSTGUI::CPoint p;
         VSTGUI::UIAttributes::stringToPoint(*sizeAttr, p);
         viewRect = VSTGUI::CRect(0, 0, p.x, p.y);

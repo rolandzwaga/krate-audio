@@ -77,8 +77,6 @@ void formatLogTimeMs(ParamValue norm, float minMs, float maxMs, String128 string
         std::snprintf(text, sizeof(text), "%.1f s", ms / 1000.0f);
     else if (ms >= 100.0f)
         std::snprintf(text, sizeof(text), "%.0f ms", ms);
-    else if (ms >= 10.0f)
-        std::snprintf(text, sizeof(text), "%.1f ms", ms);
     else
         std::snprintf(text, sizeof(text), "%.1f ms", ms);
     writeString(string, text);
@@ -219,14 +217,8 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     // =========================================================================
     case kMorphPositionId:
     case kResponsivenessId:
-        formatPercent(valueNormalized, string);
-        return Steinberg::kResultOk;
-
     // kFreezeId, kHarmonicFilterTypeId, kMemorySlotId, etc.: handled by SDK
-
-    // =========================================================================
     // Creative Extensions (600-649)
-    // =========================================================================
     case kStereoSpreadId:
     case kEvolutionDepthId:
     case kMod1DepthId:
@@ -263,22 +255,12 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     case kBlendSlotWeight7Id:
     case kBlendSlotWeight8Id:
     case kBlendLiveWeightId:
-        formatPercent(valueNormalized, string);
-        return Steinberg::kResultOk;
-
-    // =========================================================================
     // Harmonic Physics (700-703)
-    // =========================================================================
     case kWarmthId:
     case kCouplingId:
     case kStabilityId:
     case kEntropyId:
-        formatPercent(valueNormalized, string);
-        return Steinberg::kResultOk;
-
-    // =========================================================================
     // Analysis Feedback Loop (710-711)
-    // =========================================================================
     case kAnalysisFeedbackId:
     case kAnalysisFeedbackDecayId:
         formatPercent(valueNormalized, string);
@@ -340,9 +322,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     // Waveguide String
     case kWaveguideStiffnessId:
     case kWaveguidePickPositionId:
-        formatPercent(valueNormalized, string);
-        return Steinberg::kResultOk;
-
     // Bow Exciter
     case kBowPressureId:
     case kBowSpeedId:
@@ -380,9 +359,6 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
         return Steinberg::kResultOk;
     }
     case kBodyMixId:
-        formatPercent(valueNormalized, string);
-        return Steinberg::kResultOk;
-
     // Sympathetic Resonance
     case kSympatheticAmountId:
     case kSympatheticDecayId:
