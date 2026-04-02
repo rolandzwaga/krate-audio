@@ -26,6 +26,7 @@ digraph InnexusSignalFlow {
             <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Harmonic frame transformations</TD></TR>
             <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Creative extensions (M6)</TD></TR>
             <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Freeze / confidence gating</TD></TR>
+            <TR><TD BGCOLOR="#B8860B" WIDTH="20"> </TD><TD ALIGN="LEFT">Physical modelling</TD></TR>
             <TR><TD>&#x2501;&#x25B6;</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
             <TR><TD>- - &#x25B6;</TD><TD ALIGN="LEFT">Control / frame data</TD></TR>
             </TABLE>
@@ -41,7 +42,7 @@ digraph InnexusSignalFlow {
         color="#666666";
         bgcolor="#F0F0F0";
 
-        midi_in [label="MIDI Input\n(Notes, Velocity,\nPitch Bend ±12 semi)", shape=house, fillcolor="#CCDDEE"];
+        midi_in [label="MIDI Input\n(Notes, Velocity,\nPitch Bend ±12 semi,\nMPE Expression)", shape=house, fillcolor="#CCDDEE"];
         sidechain_in [label="Sidechain Audio\n(Auxiliary Stereo Bus)\nStereo-to-mono downmix", shape=house, fillcolor="#CCDDEE"];
         sample_load [label="Sample Loader\n(WAV/AIFF)\nBackground thread analysis\nLock-free atomic exchange", shape=house, fillcolor="#CCDDEE"];
         host_tempo [label="Host Tempo\n(BPM for mod sync)", shape=house, fillcolor="#CCDDEE"];
@@ -132,7 +133,7 @@ digraph InnexusSignalFlow {
         live_frame [label="HarmonicFrame\nF0, partials (up to 96),\nconfidence, amplitude,\nspectral descriptors", shape=box, fillcolor="#7BAFD4"];
         residual_frame [label="ResidualFrame\nSpectral envelope\nof noise residual", shape=box, fillcolor="#7BAFD4"];
         poly_frame [label="PolyphonicFrame\nUp to 8 source voices\n+ inharmonic partials\n(for UI display)", shape=box, fillcolor="#7BAFD4"];
-        sample_frames [label="Sample Analysis\n(offline)\nPre-computed frame\nsequence + ADSR detection", shape=box, fillcolor="#7BAFD4"];
+        sample_frames [label="Sample Analysis\n(offline)\nPre-computed frame\nsequence + ADSR detection\n+ sustain loop region", shape=box, fillcolor="#7BAFD4"];
     }
 
     mono_path -> live_frame [penwidth=2, color="#2A5080"];
@@ -218,7 +219,7 @@ digraph InnexusSignalFlow {
         penwidth=2;
 
         // Evolution Engine
-        evolution [label="Evolution Engine\n(FR-014 to FR-023)\nInterpolates between waypoint\nmemory slots over time\nSpeed, depth, mode controls\nFree-running phase", shape=box, fillcolor="#C49EE0"];
+        evolution [label="Evolution Engine\n(FR-014 to FR-023)\nCycle / PingPong / RandomWalk\nthrough occupied waypoints\nPer-sample interpolation\n+ ADSR interpolation", shape=box, fillcolor="#C49EE0"];
 
         // Multi-Source Blender
         blender [label="Multi-Source Blender\n(FR-034 to FR-042)\n8 slot weights + live weight\nNormalized weighted sum\nof spectral data\nSmoothed per-sample", shape=box, fillcolor="#C49EE0"];
@@ -238,7 +239,7 @@ digraph InnexusSignalFlow {
     // HARMONIC TRANSFORMATION CHAIN
     // =========================================================================
     subgraph cluster_transform {
-        label="Harmonic Transformation Chain  —  Always Applied";
+        label="Harmonic Transformation Chain  —  Per-Block + Per-Sample";
         style=rounded;
         color="#6BBF6B";
         bgcolor="#E5F5E5";
@@ -246,16 +247,13 @@ digraph InnexusSignalFlow {
         fontcolor="#2A6030";
         penwidth=2;
 
-        timbral_blend [label="Timbral Blend\n(Cross-Synthesis)\nBlend between analyzed\ntimbre and pure harmonic\nreference frame\n0.0 = pure, 1.0 = analyzed", shape=box, fillcolor="#A8DCA8"];
-
-        harmonic_filter [label="Harmonic Filter\n(FR-019 to FR-025)\n5 filter types:\nAll-pass, Odd, Even,\nComb, Random\nPer-partial amplitude mask", shape=box, fillcolor="#A8DCA8"];
+        harmonic_filter [label="Harmonic Filter\n(FR-019 to FR-025)\n5 filter types:\nAll-Pass, Odd-Only,\nEven-Only, Low-Harmonics,\nHigh-Harmonics\nPer-partial amplitude mask", shape=box, fillcolor="#A8DCA8"];
 
         modulators [label="Harmonic Modulators\n(FR-024 to FR-029)\nMod 1 + Mod 2 (independent)\n5 waveforms, tempo sync\nTargets: Amplitude, Frequency, Pan\nAdjustable partial range (1-96)", shape=box, fillcolor="#A8DCA8"];
 
-        physics [label="Harmonic Physics\n(Spec A: 122)\n• Warmth (soft saturation)\n• Coupling (neighbor energy share)\n• Stability (per-partial inertia)\n• Entropy (natural decay)\nAll smoothed per-block", shape=box, fillcolor="#A8DCA8"];
+        physics [label="Harmonic Physics\n(Spec A: 122)\n• Warmth (soft saturation)\n• Coupling (neighbor energy share)\n• Stability (per-partial inertia)\n• Entropy (natural decay)\nAll smoothed per-block (5ms)", shape=box, fillcolor="#A8DCA8"];
 
-        morph -> timbral_blend [penwidth=2, color="#3A8F3A"];
-        timbral_blend -> harmonic_filter [penwidth=2, color="#3A8F3A"];
+        morph -> harmonic_filter [penwidth=2, color="#3A8F3A"];
         harmonic_filter -> modulators [penwidth=2, color="#3A8F3A"];
         modulators -> physics [penwidth=2, color="#3A8F3A"];
     }
@@ -263,10 +261,10 @@ digraph InnexusSignalFlow {
     host_tempo -> modulators [style=dashed, color="#888888", label="BPM\n(tempo sync)"];
 
     // =========================================================================
-    // SYNTHESIS ENGINE
+    // VOICE ALLOCATION
     // =========================================================================
-    subgraph cluster_synthesis {
-        label="Synthesis Engine  —  Per-Sample Audio Generation";
+    subgraph cluster_voices {
+        label="Voice Allocation  —  Mono / 4-Voice / 8-Voice";
         style=rounded;
         color="#4A90D9";
         bgcolor="#EDF4FC";
@@ -274,17 +272,81 @@ digraph InnexusSignalFlow {
         fontcolor="#2A5080";
         penwidth=2;
 
-        osc_bank [label="Harmonic Oscillator Bank\n48-96 Gordon-Smith MCF oscillators\nAmplitude-stable magic circle phasors\nPitch bend, detune spread,\nstereo partial spread\n→ harmonicL, harmonicR", shape=box, fillcolor="#6AABEA"];
+        voice_alloc [label="VoiceAllocator\nMono: voice 0 only\n4/8 Voice: round-robin\nVoice steal with 20ms\nanti-click crossfade", shape=diamond, fillcolor="#6AABEA"];
 
-        residual_synth [label="Residual Synthesizer\nSTFT-domain noise shaping\nSpectral envelope from analysis\nBrightness tilt + transient emphasis\n→ residualSample (mono)", shape=box, fillcolor="#6AABEA"];
-
-        mix [label="Harmonic/Residual Mix\nsampleL = harmonicL × harmLevel\n           + residual × resLevel\nsampleR = harmonicR × harmLevel\n           + residual × resLevel\n(levels smoothed per-sample)", shape=box, fillcolor="#6AABEA"];
-
-        osc_bank -> mix [penwidth=2, color="#2A5080", label="stereo\nharmonics"];
-        residual_synth -> mix [penwidth=2, color="#2A5080", label="mono\nresidual"];
+        voice_frame [label="Broadcast Frame to Voices\nEach voice loads morphedFrame\nat pitch = midiNote + pitchBend\n+ expressionTuning\n+ inharmonicity scaling", shape=box, fillcolor="#6AABEA"];
     }
 
-    physics -> osc_bank [penwidth=2, color="#2A5080", label="load frame\n+ pitch bend"];
+    physics -> voice_frame [penwidth=2, color="#2A5080", label="morphedFrame\n+ residualFrame"];
+    midi_in -> voice_alloc [penwidth=2, label="note on/off\nvelocity\npitch bend\nMPE expression"];
+
+    // =========================================================================
+    // SYNTHESIS ENGINE (Per-Voice)
+    // =========================================================================
+    subgraph cluster_synthesis {
+        label="Per-Voice Synthesis  —  Per-Sample Audio Generation";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+        fontsize=13;
+        fontcolor="#2A5080";
+        penwidth=2;
+
+        osc_bank [label="Harmonic Oscillator Bank\n48-96 Gordon-Smith MCF oscillators\nAmplitude-stable magic circle phasors\nStereo partial spread, detune spread\n→ harmonicL, harmonicR", shape=box, fillcolor="#6AABEA"];
+
+        subgraph cluster_exciter {
+            label="Exciter Selection (Spec 128)";
+            style=dashed;
+            color="#B8860B";
+            bgcolor="#FFF8E0";
+
+            exciter_switch [label="Exciter Type\nResidual / Impact / Bow", shape=diamond, fillcolor="#E8D080"];
+
+            residual_synth [label="Residual Synthesizer\nSTFT-domain noise shaping\nSpectral envelope from analysis\nBrightness tilt + transient\nemphasis", shape=box, fillcolor="#E8D080"];
+
+            impact_exciter [label="Impact Exciter\n(Spec 128)\nVelocity-dependent strike\nHardness, mass, position\nChoke envelope (10ms)", shape=box, fillcolor="#E8D080"];
+
+            bow_exciter [label="Bow Exciter\n(Spec 130)\nPressure, speed, position\nADSR + resonator energy\nfeedback loop", shape=box, fillcolor="#E8D080"];
+
+            exciter_switch -> residual_synth [style=dashed, label="type 0"];
+            exciter_switch -> impact_exciter [style=dashed, label="type 1"];
+            exciter_switch -> bow_exciter [style=dashed, label="type 2"];
+        }
+
+        subgraph cluster_resonance {
+            label="Resonance Selection (Spec 129)";
+            style=dashed;
+            color="#B8860B";
+            bgcolor="#FFF8E0";
+
+            resonance_switch [label="Resonance Type\nModal / Waveguide\n23ms equal-power\ncosine crossfade", shape=diamond, fillcolor="#DBC878"];
+
+            modal_resonator [label="Modal Resonator Bank\n(Spec 127)\nDecay, brightness,\nstretch, scatter\nBowed-mode coupling", shape=box, fillcolor="#DBC878"];
+
+            waveguide_string [label="Waveguide String\n(Spec 129)\nStiffness + pick position\nDigital waveguide model", shape=box, fillcolor="#DBC878"];
+
+            body_resonance [label="Body Resonance\n(Spec 131)\nAcoustic body filter\nPost-resonance processing", shape=box, fillcolor="#DBC878"];
+
+            resonance_switch -> modal_resonator [style=dashed, label="modal"];
+            resonance_switch -> waveguide_string [style=dashed, label="waveguide"];
+            modal_resonator -> body_resonance [penwidth=2, color="#8B6914"];
+            waveguide_string -> body_resonance [penwidth=2, color="#8B6914"];
+        }
+
+        phys_mix [label="Physical Model Mixer\n(Spec 127)\nmono = harmonic\n+ (1-mix) × residual\n+ mix × physical\nmix=0: pure additive\nmix=1: modal replaces residual", shape=box, fillcolor="#6AABEA"];
+
+        voice_mix [label="Per-Voice Mix\nvL = vL × harmLevel + monoMix\nvR = vR × harmLevel + monoMix\nbrightScale adjusts ratio\nvia MPE expression", shape=box, fillcolor="#6AABEA"];
+
+        osc_bank -> voice_mix [penwidth=2, color="#2A5080", label="stereo\nharmonics"];
+        residual_synth -> phys_mix [penwidth=2, color="#2A5080", label="excitation"];
+        impact_exciter -> resonance_switch [penwidth=2, color="#8B6914", label="excitation"];
+        bow_exciter -> resonance_switch [penwidth=2, color="#8B6914", label="excitation"];
+        body_resonance -> phys_mix [penwidth=2, color="#8B6914", label="physical\noutput"];
+        residual_synth -> phys_mix [penwidth=2, color="#2A5080", label="residual\n(when not\nphysical)"];
+        phys_mix -> voice_mix [penwidth=2, color="#2A5080", label="mono\nmix"];
+    }
+
+    voice_frame -> osc_bank [penwidth=2, color="#2A5080", label="load frame\n+ pitch"];
     residual_frame -> residual_synth [penwidth=2, color="#2A5080", label="spectral\nenvelope"];
 
     // =========================================================================
@@ -299,13 +361,23 @@ digraph InnexusSignalFlow {
         fontcolor="#444444";
         penwidth=2;
 
-        crossfades [label="Crossfade Stack\n• Source switch (20ms)\n• Freeze recovery (7ms)\n• Manual freeze recovery (10ms)\n• Anti-click voice steal (20ms)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
+        crossfades [label="Crossfade Stack\n• Freeze recovery (7ms)\n• Anti-click voice steal (20ms)\n• Resonance type crossfade (23ms)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
 
         velocity [label="Velocity Scaling\nsample × velocityGain", shape=box, fillcolor="#888888", fontcolor="white"];
 
-        adsr [label="ADSR Envelope\n(Spec 124)\nAuto-detected from sample\nAttack/Decay/Sustain/Release\nBezier curves, time scale\nAmount blend: lerp(1, env, amt)\nSustain frame looping", shape=box, fillcolor="#888888", fontcolor="white"];
+        mpe_expr [label="MPE Expression\n(Per-Voice)\nVolume: 0-4× gain\nPan: constant-power law\nBrightness: harm/res ratio\nTuning: pitch offset", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        adsr [label="ADSR Envelope\n(Spec 124)\nAuto-detected from sample\nAttack/Decay/Sustain/Release\nBezier curves, time scale\nAmount blend: lerp(1, env, amt)\nSustain frame looping\n15ms amount smoother", shape=box, fillcolor="#888888", fontcolor="white"];
 
         release_env [label="Release Envelope\n(when ADSR Amount = 0)\nExponential decay\nEnd note at gain < 1e-6", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        voice_accum [label="Voice Accumulator\nsampleL += vL\nsampleR += vR\nPoly gain: 1/sqrt(N)", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        source_crossfade [label="Source Switch Crossfade\n20ms fade on\nSample ↔ Sidechain", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
+
+        freeze_crossfade [label="Manual Freeze Recovery\n10ms crossfade on\nfreeze disengage", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
+
+        sympathetic [label="Sympathetic Resonance\n(Spec 132)\nGlobal (non-per-voice)\nInharmonic partials:\nf_n = n·f0·√(1+B·n²)\nAmount + Decay control", shape=box, fillcolor="#888888", fontcolor="white"];
 
         master_gain [label="Master Gain\n(0.0 – 2.0)", shape=box, fillcolor="#888888", fontcolor="white"];
 
@@ -314,20 +386,32 @@ digraph InnexusSignalFlow {
         output [label="Audio Output\nStereo L / R", shape=invhouse, fillcolor="#CCDDEE"];
 
         crossfades -> velocity [penwidth=2];
-        velocity -> adsr [penwidth=2];
+        velocity -> mpe_expr [penwidth=2];
+        mpe_expr -> adsr [penwidth=2];
         adsr -> release_env [penwidth=2, label="fallback\n(amt=0)"];
-        adsr -> master_gain [penwidth=2, label="amt>0"];
-        release_env -> master_gain [penwidth=2];
+        adsr -> voice_accum [penwidth=2, label="amt>0"];
+        release_env -> voice_accum [penwidth=2];
+        voice_accum -> source_crossfade [penwidth=2];
+        source_crossfade -> freeze_crossfade [penwidth=2];
+        freeze_crossfade -> sympathetic [penwidth=2];
+        sympathetic -> master_gain [penwidth=2];
         master_gain -> soft_limiter [penwidth=2];
         soft_limiter -> output [penwidth=2];
     }
 
-    mix -> crossfades [penwidth=2, color="#2A5080"];
+    voice_mix -> crossfades [penwidth=2, color="#2A5080"];
 
     // =========================================================================
     // FEEDBACK LOOP (Output → Analysis)
     // =========================================================================
     output -> feedback_mix [style=bold, color="#C07020", label="mono sum\nof output\n(sidechain\nmode only)", constraint=false];
+
+    // =========================================================================
+    // MIDI ROUTING (additional connections)
+    // =========================================================================
+    midi_in -> adsr [style=dashed, label="note on\n(retrigger)"];
+    midi_in -> release_env [style=dashed, label="note off"];
+    midi_in -> sympathetic [style=dashed, label="note on/off\n(resonator\nallocation)"];
 
     // =========================================================================
     // DISPLAY DATA PIPELINE
@@ -346,13 +430,6 @@ digraph InnexusSignalFlow {
     memory_slots -> display [style=dashed, color="#888888", label="slot\nstatus"];
 
     // =========================================================================
-    // MIDI ROUTING
-    // =========================================================================
-    midi_in -> osc_bank [penwidth=2, label="note on/off\nvelocity\npitch bend"];
-    midi_in -> adsr [style=dashed, label="note on\n(retrigger)"];
-    midi_in -> release_env [style=dashed, label="note off"];
-
-    // =========================================================================
     // PROCESSING RATE ANNOTATIONS
     // =========================================================================
     subgraph cluster_rates {
@@ -366,13 +443,16 @@ digraph InnexusSignalFlow {
             <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
             <TR><TD ALIGN="LEFT"><B>Analysis:</B></TD><TD ALIGN="LEFT">Per-block (push samples → consume frames when new)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Frame transforms:</B></TD><TD ALIGN="LEFT">Per-block (filter, physics smoothers) + per-sample (evolution, blend, modulation)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (oscillator bank + residual synth)</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Output chain:</B></TD><TD ALIGN="LEFT">Per-sample (crossfades, velocity, ADSR, limiter)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (oscillator bank + exciter + resonator)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Output chain:</B></TD><TD ALIGN="LEFT">Per-sample (crossfades, velocity, MPE, ADSR, limiter)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Physical model:</B></TD><TD ALIGN="LEFT">Per-sample (exciter → resonator → body → mixer)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Sympathetic:</B></TD><TD ALIGN="LEFT">Per-sample, global (post-voice-accumulation)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Feedback loop:</B></TD><TD ALIGN="LEFT">Per-block (capture output → mix into next analysis block)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Display data:</B></TD><TD ALIGN="LEFT">~30Hz via DataExchange (throttled)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Parameters:</B></TD><TD ALIGN="LEFT">Per-block (atomic reads + smoother updates, 5-15ms)</TD></TR>
             <TR><TD ALIGN="LEFT"><B>Frame priority:</B></TD><TD ALIGN="LEFT">Manual Freeze → Recall → Evolution → Blender → Live → Sample</TD></TR>
-            <TR><TD ALIGN="LEFT"><B>Transform order:</B></TD><TD ALIGN="LEFT">Morph → Timbral Blend → Filter → Modulators → Physics → Oscillator Load</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Transform order:</B></TD><TD ALIGN="LEFT">Morph → Filter → Modulators → Physics → Voice Load</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice modes:</B></TD><TD ALIGN="LEFT">Mono (voice 0 only) / 4-Voice / 8-Voice polyphony</TD></TR>
             </TABLE>
         >];
     }
