@@ -126,8 +126,8 @@ jobs:
             fi
           done
 
-          # Copy robots.txt and sitemap.xml to site root
-          for f in docs/robots.txt docs/sitemap.xml; do
+          # Copy root-level site files (SEO, verification) to site root
+          for f in docs/robots.txt docs/sitemap.xml docs/google*.html; do
             [ -f "$f" ] && cp "$f" "_site/$(basename "$f")"
           done
 
