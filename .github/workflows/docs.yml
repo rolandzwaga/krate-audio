@@ -83,6 +83,7 @@ jobs:
               PLUGIN_NAME=$(jq -r '.name' "$version_file")
               DESCRIPTION=$(jq -r '.description' "$version_file")
               PUBLISHER=$(jq -r '.publisher' "$version_file")
+              PLUGIN_URL=$(jq -r '.url // empty' "$version_file")
               # Version comes exclusively from git tags (no release tag = no landing page)
               PLUGIN_LOWER=$(echo "$PLUGIN_NAME" | tr '[:upper:]' '[:lower:]')
               TAG=$(git tag -l "${PLUGIN_LOWER}/v*" --sort=-v:refname | head -1)
@@ -96,6 +97,7 @@ jobs:
 
               DESCRIPTION_ESC=$(printf '%s\n' "$DESCRIPTION" | sed 's/[&/\]/\\&/g')
               PUBLISHER_ESC=$(printf '%s\n' "$PUBLISHER" | sed 's/[&/\]/\\&/g')
+              URL_ESC=$(printf '%s\n' "$PLUGIN_URL" | sed 's/[&/\]/\\&/g')
 
               sed -e "s|{{VERSION}}|$VERSION|g" \
                   -e "s|{{TAG}}|$TAG_URL|g" \
@@ -103,6 +105,7 @@ jobs:
                   -e "s|{{NAME}}|$PLUGIN_NAME|g" \
                   -e "s|{{DESCRIPTION}}|$DESCRIPTION_ESC|g" \
                   -e "s|{{PUBLISHER}}|$PUBLISHER_ESC|g" \
+                  -e "s|{{URL}}|$URL_ESC|g" \
                   "$landing" > "_site/$plugin/index.html"
 
               # Copy plugin-specific assets
@@ -121,6 +124,11 @@ jobs:
                 "_site/$plugin/signal-flow.html"
               echo "  Generated signal flow diagram for $plugin"
             fi
+          done
+
+          # Copy robots.txt and sitemap.xml to site root
+          for f in docs/robots.txt docs/sitemap.xml; do
+            [ -f "$f" ] && cp "$f" "_site/$(basename "$f")"
           done
 
           # Copy shared root assets (favicon etc.) into _site and each plugin subdir
