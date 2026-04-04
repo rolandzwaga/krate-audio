@@ -190,15 +190,6 @@
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Retrigger mode"/>
 
-            <!-- v1.5: Transpose (semitones in chromatic, scale degrees in scale mode) -->
-            <view class="CTextLabel" origin="380, 0" size="64, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Transpose"/>
-            <view class="ArcKnob" origin="398, 2" size="28, 28"
-                  control-tag="ArpTranspose" default-value="0.5"
-                  arc-color="arpeggiator" guide-color="knob-guide"
-                  tooltip="Transpose -24 to +24 steps. In chromatic mode = semitones; in scale mode = scale degrees (stays in key)."/>
-
             <!-- Scale -->
             <view class="CTextLabel" origin="500, 0" size="80, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
@@ -535,38 +526,47 @@
               tooltip="Strum direction"/>
 
         <!-- v1.5 Part 3: Pitch-lane contextual controls —
-             Pin Note + Note Range Mapping (Lo/Hi/Mode).
+             Transpose + Pin Note + Note Range Mapping (Lo/Hi/Mode).
              All affect pitch output only, shown only on the Pitch tab.
              Per-step pin flags are editable via host automation. -->
+        <view class="CTextLabel" custom-view-name="TransposeLabel"
+              origin="836, 141" size="22, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Tr"/>
+        <view class="ArcKnob" origin="860, 136" size="28, 28"
+              control-tag="ArpTranspose" default-value="0.5"
+              arc-color="arp.pitch.accent" guide-color="knob-guide"
+              tooltip="Transpose -24 to +24 steps. Chromatic mode = semitones; scale mode = scale degrees (stays in key)."/>
+
         <view class="CTextLabel" custom-view-name="PinNoteLabel"
-              origin="820, 141" size="30, 14"
+              origin="890, 141" size="22, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Pin"/>
-        <view class="ArcKnob" origin="854, 136" size="28, 28"
+        <view class="ArcKnob" origin="914, 136" size="28, 28"
               control-tag="ArpPinNote" default-value="0.472"
               arc-color="arp.pitch.accent" guide-color="knob-guide"
               tooltip="Pinned note (pin flags via automation: ArpPinStep1-32)"/>
 
         <view class="CTextLabel" custom-view-name="RangeLoLabel"
-              origin="886, 141" size="24, 14"
+              origin="944, 141" size="18, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Lo"/>
-        <view class="ArcKnob" origin="914, 136" size="28, 28"
+        <view class="ArcKnob" origin="964, 136" size="28, 28"
               control-tag="ArpRangeLow" default-value="0"
               arc-color="arp.pitch.accent" guide-color="knob-guide"
               tooltip="Range low (MIDI note floor) — folds/clamps/skips notes below"/>
 
         <view class="CTextLabel" custom-view-name="RangeHiLabel"
-              origin="946, 141" size="24, 14"
+              origin="994, 141" size="18, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Hi"/>
-        <view class="ArcKnob" origin="974, 136" size="28, 28"
+        <view class="ArcKnob" origin="1014, 136" size="28, 28"
               control-tag="ArpRangeHigh" default-value="1"
               arc-color="arp.pitch.accent" guide-color="knob-guide"
               tooltip="Range high (MIDI note ceiling) — folds/clamps/skips notes above"/>
 
         <view class="COptionMenu" custom-view-name="RangeModeMenu"
-              origin="1006, 141" size="80, 18"
+              origin="1046, 141" size="44, 18"
               control-tag="ArpRangeMode" default-value="0.5"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"

@@ -140,7 +140,10 @@ private:
     VSTGUI::CView* velCurveLabel_ = nullptr;
     VSTGUI::CView* velCurveTypeMenu_ = nullptr;
     VSTGUI::CView* velCurveTypeLabel_ = nullptr;
-    // v1.5 Part 3: Pitch-lane contextual controls (Pin Note + Range Mapping)
+    // v1.5 Part 3: Pitch-lane contextual controls
+    // (Transpose + Pin Note + Note Range Mapping)
+    VSTGUI::CView* transposeKnob_ = nullptr;
+    VSTGUI::CView* transposeLabel_ = nullptr;
     VSTGUI::CView* pinNoteKnob_ = nullptr;
     VSTGUI::CView* pinNoteLabel_ = nullptr;
     VSTGUI::CView* rangeLowKnob_ = nullptr;

@@ -62,6 +62,9 @@ VSTGUI::CView* Controller::verifyView(
         } else if (name == "VelCurveTypeLabel") {
             velCurveTypeLabel_ = view;
             view->setVisible(false);
+        } else if (name == "TransposeLabel") {
+            transposeLabel_ = view;
+            view->setVisible(false);
         } else if (name == "PinNoteLabel") {
             pinNoteLabel_ = view;
             view->setVisible(false);
@@ -127,6 +130,10 @@ VSTGUI::CView* Controller::verifyView(
             view->setVisible(false);
         }
         // v1.5 Part 3: Pitch-lane contextual controls — only visible when Pitch (2) selected
+        if (tag == kArpTransposeId) {
+            transposeKnob_ = view;
+            view->setVisible(false);
+        }
         if (tag == kArpPinNoteId) {
             pinNoteKnob_ = view;
             view->setVisible(false);
@@ -646,8 +653,10 @@ void Controller::constructArpLanes()
                 if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
                 if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
                 // v1.5 Part 3: Toggle Pitch-lane contextual controls
-                // (Pin Note + Range Mapping, UI lane 2 = Pitch)
+                // (Transpose + Pin Note + Range Mapping, UI lane 2 = Pitch)
                 const bool showPitchContext = (laneIndex == 2);
+                if (transposeKnob_)  transposeKnob_->setVisible(showPitchContext);
+                if (transposeLabel_) transposeLabel_->setVisible(showPitchContext);
                 if (pinNoteKnob_)    pinNoteKnob_->setVisible(showPitchContext);
                 if (pinNoteLabel_)   pinNoteLabel_->setVisible(showPitchContext);
                 if (rangeLowKnob_)   rangeLowKnob_->setVisible(showPitchContext);
