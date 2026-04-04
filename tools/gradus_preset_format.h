@@ -128,6 +128,51 @@ struct ArpState {
     // Voicing mode
     int32_t voicingMode = 0;        // Close
 
+    // Per-lane speed multipliers (8 floats, defaults 1.0x)
+    float velocityLaneSpeed = 1.0f;
+    float gateLaneSpeed = 1.0f;
+    float pitchLaneSpeed = 1.0f;
+    float modifierLaneSpeed = 1.0f;
+    float ratchetLaneSpeed = 1.0f;
+    float conditionLaneSpeed = 1.0f;
+    float chordLaneSpeed = 1.0f;
+    float inversionLaneSpeed = 1.0f;
+
+    // --- v1.5: Ratchet Decay + Strum Mode + Per-Lane Swing ---
+    float ratchetDecay = 0.0f;      // 0-100%
+    float strumTime = 0.0f;         // 0-100 ms
+    int32_t strumDirection = 0;     // 0=Up, 1=Down, 2=Random, 3=Alternate
+    float velocityLaneSwing = 0.0f;
+    float gateLaneSwing = 0.0f;
+    float pitchLaneSwing = 0.0f;
+    float modifierLaneSwing = 0.0f;
+    float ratchetLaneSwing = 0.0f;
+    float conditionLaneSwing = 0.0f;
+    float chordLaneSwing = 0.0f;
+    float inversionLaneSwing = 0.0f;
+
+    // --- v1.5 Part 2: Velocity Curve + Transpose + Per-Lane Length Jitter ---
+    int32_t velocityCurveType = 0;       // 0=Linear, 1=Exp, 2=Log, 3=S-Curve
+    float velocityCurveAmount = 0.0f;    // 0-100%
+    int32_t transpose = 0;               // -24 to +24 (semitones or scale degrees)
+    int32_t velocityLaneJitter = 0;      // 0-4 steps
+    int32_t gateLaneJitter = 0;
+    int32_t pitchLaneJitter = 0;
+    int32_t modifierLaneJitter = 0;
+    int32_t ratchetLaneJitter = 0;
+    int32_t conditionLaneJitter = 0;
+    int32_t chordLaneJitter = 0;
+    int32_t inversionLaneJitter = 0;
+
+    // --- v1.5 Part 3: Note Range Mapping ---
+    int32_t rangeLow = 0;        // MIDI floor (0-127)
+    int32_t rangeHigh = 127;     // MIDI ceiling (0-127)
+    int32_t rangeMode = 1;       // 0=Wrap, 1=Clamp, 2=Skip
+
+    // --- v1.5 Part 3: Step Pinning ---
+    int32_t pinNote = 60;                // MIDI note, default C4
+    int32_t pinFlags[32]{};              // per-step 0/1
+
     ArpState() {
         for (auto& step : velocityLaneSteps) step = 1.0f;
         for (auto& step : gateLaneSteps) step = 1.0f;
@@ -192,6 +237,51 @@ struct ArpState {
         for (int i = 0; i < 32; ++i) w.writeInt32(inversionLaneSteps[i]);
 
         w.writeInt32(voicingMode);
+
+        // Per-lane speed multipliers
+        w.writeFloat(velocityLaneSpeed);
+        w.writeFloat(gateLaneSpeed);
+        w.writeFloat(pitchLaneSpeed);
+        w.writeFloat(modifierLaneSpeed);
+        w.writeFloat(ratchetLaneSpeed);
+        w.writeFloat(conditionLaneSpeed);
+        w.writeFloat(chordLaneSpeed);
+        w.writeFloat(inversionLaneSpeed);
+
+        // v1.5 Features: Ratchet Decay, Strum, Per-Lane Swing
+        w.writeFloat(ratchetDecay);
+        w.writeFloat(strumTime);
+        w.writeInt32(strumDirection);
+        w.writeFloat(velocityLaneSwing);
+        w.writeFloat(gateLaneSwing);
+        w.writeFloat(pitchLaneSwing);
+        w.writeFloat(modifierLaneSwing);
+        w.writeFloat(ratchetLaneSwing);
+        w.writeFloat(conditionLaneSwing);
+        w.writeFloat(chordLaneSwing);
+        w.writeFloat(inversionLaneSwing);
+
+        // v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter
+        w.writeInt32(velocityCurveType);
+        w.writeFloat(velocityCurveAmount);
+        w.writeInt32(transpose);
+        w.writeInt32(velocityLaneJitter);
+        w.writeInt32(gateLaneJitter);
+        w.writeInt32(pitchLaneJitter);
+        w.writeInt32(modifierLaneJitter);
+        w.writeInt32(ratchetLaneJitter);
+        w.writeInt32(conditionLaneJitter);
+        w.writeInt32(chordLaneJitter);
+        w.writeInt32(inversionLaneJitter);
+
+        // v1.5 Part 3: Note Range Mapping
+        w.writeInt32(rangeLow);
+        w.writeInt32(rangeHigh);
+        w.writeInt32(rangeMode);
+
+        // v1.5 Part 3: Step Pinning
+        w.writeInt32(pinNote);
+        for (int i = 0; i < 32; ++i) w.writeInt32(pinFlags[i]);
     }
 };
 

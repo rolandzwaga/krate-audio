@@ -201,6 +201,143 @@ void setEuclidean(GradusPresetState& s, bool enabled, int32_t hits,
 }
 
 // ==============================================================================
+// v1.5 Helpers
+// ==============================================================================
+
+// Per-lane speed multipliers (0.25x-4x, 10 discrete values)
+void setLaneSpeeds(GradusPresetState& s,
+                   float vel, float gate, float pitch, float mod,
+                   float ratchet, float cond, float chord, float inv) {
+    s.arp.velocityLaneSpeed  = vel;
+    s.arp.gateLaneSpeed      = gate;
+    s.arp.pitchLaneSpeed     = pitch;
+    s.arp.modifierLaneSpeed  = mod;
+    s.arp.ratchetLaneSpeed   = ratchet;
+    s.arp.conditionLaneSpeed = cond;
+    s.arp.chordLaneSpeed     = chord;
+    s.arp.inversionLaneSpeed = inv;
+}
+
+// Per-lane swing (0-75%)
+void setLaneSwings(GradusPresetState& s,
+                   float vel, float gate, float pitch, float mod,
+                   float ratchet, float cond, float chord, float inv) {
+    s.arp.velocityLaneSwing  = vel;
+    s.arp.gateLaneSwing      = gate;
+    s.arp.pitchLaneSwing     = pitch;
+    s.arp.modifierLaneSwing  = mod;
+    s.arp.ratchetLaneSwing   = ratchet;
+    s.arp.conditionLaneSwing = cond;
+    s.arp.chordLaneSwing     = chord;
+    s.arp.inversionLaneSwing = inv;
+}
+
+// Per-lane length jitter (0-4 steps)
+void setLaneJitters(GradusPresetState& s,
+                    int vel, int gate, int pitch, int mod,
+                    int ratchet, int cond, int chord, int inv) {
+    s.arp.velocityLaneJitter  = vel;
+    s.arp.gateLaneJitter      = gate;
+    s.arp.pitchLaneJitter     = pitch;
+    s.arp.modifierLaneJitter  = mod;
+    s.arp.ratchetLaneJitter   = ratchet;
+    s.arp.conditionLaneJitter = cond;
+    s.arp.chordLaneJitter     = chord;
+    s.arp.inversionLaneJitter = inv;
+}
+
+void setRatchetDecay(GradusPresetState& s, float percent) {
+    s.arp.ratchetDecay = percent;
+}
+
+void setStrum(GradusPresetState& s, float timeMs, int direction) {
+    s.arp.strumTime = timeMs;
+    s.arp.strumDirection = direction;
+}
+
+void setRatchetShuffle(GradusPresetState& s, float percent) {
+    // 50=Even, 66.67=Triplet, 75=Dotted
+    s.arp.ratchetSwing = percent;
+}
+
+void setVelocityCurve(GradusPresetState& s, int type, float amount) {
+    s.arp.velocityCurveType = type;
+    s.arp.velocityCurveAmount = amount;
+}
+
+void setTranspose(GradusPresetState& s, int steps) {
+    s.arp.transpose = steps;
+}
+
+void setNoteRange(GradusPresetState& s, int low, int high, int mode) {
+    s.arp.rangeLow = low;
+    s.arp.rangeHigh = high;
+    s.arp.rangeMode = mode;
+}
+
+void setPinNote(GradusPresetState& s, int midiNote) {
+    s.arp.pinNote = midiNote;
+}
+
+void setPinFlags(GradusPresetState& s, int length, const int* flags) {
+    for (int i = 0; i < length && i < 32; ++i)
+        s.arp.pinFlags[i] = flags[i];
+}
+
+void setScale(GradusPresetState& s, int scaleType, int rootNote) {
+    s.arp.scaleType = scaleType;
+    s.arp.rootNote = rootNote;
+}
+
+// ==============================================================================
+// Constants
+// ==============================================================================
+
+// v1.5 Strum directions
+static constexpr int32_t kStrumUp        = 0;
+static constexpr int32_t kStrumDown      = 1;
+static constexpr int32_t kStrumRandom    = 2;
+static constexpr int32_t kStrumAlternate = 3;
+
+// v1.5 Velocity curve types
+static constexpr int32_t kCurveLinear = 0;
+static constexpr int32_t kCurveExp    = 1;
+static constexpr int32_t kCurveLog    = 2;
+static constexpr int32_t kCurveS      = 3;
+
+// v1.5 Range modes
+static constexpr int32_t kRangeWrap  = 0;
+static constexpr int32_t kRangeClamp = 1;
+static constexpr int32_t kRangeSkip  = 2;
+
+// v1.5 Ratchet shuffle values
+static constexpr float kShuffleEven    = 50.0f;
+static constexpr float kShuffleTriplet = 66.6667f;
+static constexpr float kShuffleDotted  = 75.0f;
+
+// Scale type indices (from kArpScaleEnumToDisplay)
+// Major=0, NatMinor=1, HarmMinor=2, MelMinor=3, Dorian=4, Phrygian=5,
+// Lydian=6, Mixolydian=7, Chromatic=8, Locrian=9, MajorPenta=10,
+// MinorPenta=11, Blues=12, WholeTone=13, DimWH=14, DimHW=15
+static constexpr int32_t kScaleMajor      = 0;
+static constexpr int32_t kScaleNatMinor   = 1;
+static constexpr int32_t kScaleDorian     = 4;
+static constexpr int32_t kScalePhrygian   = 5;
+static constexpr int32_t kScaleMixolydian = 7;
+static constexpr int32_t kScaleChromatic  = 8;
+static constexpr int32_t kScaleMajorPenta = 10;
+static constexpr int32_t kScaleMinorPenta = 11;
+static constexpr int32_t kScaleBlues      = 12;
+
+// Note names for root note
+static constexpr int32_t kRootC = 0;
+static constexpr int32_t kRootD = 2;
+static constexpr int32_t kRootE = 4;
+static constexpr int32_t kRootF = 5;
+static constexpr int32_t kRootG = 7;
+static constexpr int32_t kRootA = 9;
+
+// ==============================================================================
 // Constants
 // ==============================================================================
 
@@ -242,6 +379,7 @@ std::vector<PresetDef> createAllPresets() {
     static constexpr int32_t kModeDiverge  = 5;
     static constexpr int32_t kModeWalk     = 7;
     static constexpr int32_t kModeChord    = 9;
+    static constexpr int32_t kModeGravity  = 10;  // v1.5
 
     // ========================================================================
     // ARP CLASSIC (5 presets)
@@ -2036,6 +2174,412 @@ std::vector<PresetDef> createAllPresets() {
         int32_t inv5[] = {kInvRoot, kInv2nd, kInv1st, kInv3rd, kInvRoot};
         setInversionLane(p.state, 5, inv5);
         setVoicingMode(p.state, 3); // Random
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP V1.5 SHOWCASE (10 presets)
+    // Each preset highlights one or more v1.5 features: ratchet decay, strum
+    // mode, per-lane swing, per-lane length jitter, velocity curve, transpose,
+    // note range mapping, Gravity arp mode, step pinning.
+    // ========================================================================
+
+    // 1. "Bouncing Ball Ratchets" — showcases Ratchet Decay
+    {
+        PresetDef p;
+        p.name = "Bouncing Ball Ratchets";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 85.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.06f;
+
+        // Varying ratchet counts — every step ratchets differently
+        int32_t rat8[] = {1, 2, 3, 4, 2, 3, 4, 2};
+        setRatchetLane(p.state, 8, rat8);
+        setRatchetDecay(p.state, 55.0f);         // 55% velocity decay per sub-step
+        setRatchetShuffle(p.state, kShuffleTriplet); // triplet feel
+
+        // Velocity pattern with strong downbeats
+        float vel8[] = {1.0f, 0.7f, 0.85f, 0.65f, 0.95f, 0.7f, 0.8f, 0.65f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // Gate shortened so each ratchet pop is tight
+        float gate8[] = {0.6f, 0.55f, 0.5f, 0.45f, 0.6f, 0.55f, 0.5f, 0.45f};
+        setGateLane(p.state, 8, gate8);
+
+        setScale(p.state, kScaleMinorPenta, kRootA);
+        presets.push_back(std::move(p));
+    }
+
+    // 2. "Guitar Strum Groove" — showcases Strum Mode
+    {
+        PresetDef p;
+        p.name = "Guitar Strum Groove";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeChord);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_4);
+        setArpGateLength(p.state, 90.0f);
+        p.state.arp.octaveRange = 1;
+        p.state.arp.humanize = 0.08f;
+        p.state.arp.swing = 15.0f;
+
+        // Chord lane: triad → 7th → triad → 9th
+        int32_t chords4[] = {kChordTriad, kChord7th, kChordTriad, kChord9th};
+        setChordLane(p.state, 4, chords4);
+
+        // Inversions cycle for voice leading
+        int32_t inv4[] = {kInvRoot, kInv1st, kInv2nd, kInv1st};
+        setInversionLane(p.state, 4, inv4);
+        setVoicingMode(p.state, 2); // Spread
+
+        // Strum: 60ms with Alternate direction for guitar up/down feel
+        setStrum(p.state, 60.0f, kStrumAlternate);
+
+        // Velocity accent on 1 and 3
+        float vel4[] = {1.0f, 0.75f, 0.9f, 0.7f};
+        setVelocityLane(p.state, 4, vel4);
+
+        setScale(p.state, kScaleMajor, kRootG);
+        presets.push_back(std::move(p));
+    }
+
+    // 3. "Polymetric Pulse" — showcases Per-Lane Swing + Per-Lane Speed
+    {
+        PresetDef p;
+        p.name = "Polymetric Pulse";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 65.0f);
+        p.state.arp.octaveRange = 2;
+
+        // Each lane swings independently — Velocity hard swing, Gate straight,
+        // Pitch light swing, Ratchet dotted feel
+        setLaneSwings(p.state,
+            60.0f,  // velocity
+            0.0f,   // gate
+            25.0f,  // pitch
+            0.0f,   // modifier
+            50.0f,  // ratchet (dotted-ish)
+            0.0f,   // condition
+            0.0f,   // chord
+            0.0f);  // inversion
+
+        // Different speeds too — velocity half time, pitch 2x
+        setLaneSpeeds(p.state,
+            0.5f,   // velocity lane at half speed
+            1.0f,   // gate normal
+            2.0f,   // pitch 2x
+            1.0f,   // modifier
+            1.0f,   // ratchet
+            1.0f,   // condition
+            1.0f, 1.0f);
+
+        float vel16[] = {
+            1.0f, 0.6f, 0.7f, 0.55f, 0.9f, 0.6f, 0.7f, 0.55f,
+            0.95f, 0.6f, 0.7f, 0.55f, 0.85f, 0.6f, 0.7f, 0.55f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        int32_t pitch16[] = {
+            0, 3, 7, 5, 0, 3, 7, 5, 0, 3, 7, 5, 0, 3, 7, 5
+        };
+        setPitchLane(p.state, 16, pitch16);
+
+        setScale(p.state, kScaleDorian, kRootE);
+        presets.push_back(std::move(p));
+    }
+
+    // 4. "Evolving Haze" — showcases Per-Lane Length Jitter
+    {
+        PresetDef p;
+        p.name = "Evolving Haze";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeRandom);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 130.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.humanize = 0.15f;
+        p.state.arp.spice = 0.3f;
+
+        // Every lane has a different jitter amount — pattern never repeats
+        setLaneJitters(p.state,
+            2,  // velocity ± 2 steps
+            3,  // gate ± 3
+            4,  // pitch ± 4
+            1,  // modifier ± 1
+            2,  // ratchet
+            1,  // condition
+            2,  // chord
+            1); // inversion
+
+        float vel16[] = {
+            0.9f, 0.6f, 0.8f, 0.7f, 0.85f, 0.65f, 0.75f, 0.55f,
+            0.9f, 0.6f, 0.8f, 0.7f, 0.85f, 0.65f, 0.75f, 0.55f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        float gate16[] = {
+            1.5f, 1.2f, 1.4f, 1.1f, 1.6f, 1.0f, 1.3f, 1.2f,
+            1.5f, 1.2f, 1.4f, 1.1f, 1.6f, 1.0f, 1.3f, 1.2f
+        };
+        setGateLane(p.state, 16, gate16);
+
+        int32_t pitch12[] = {0, 0, 5, 7, 12, 7, 5, 0, -5, 0, 5, 0};
+        setPitchLane(p.state, 12, pitch12);
+
+        setScale(p.state, kScaleMixolydian, kRootD);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Expressive Curve" — showcases Velocity Curve
+    {
+        PresetDef p;
+        p.name = "Expressive Curve";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 70.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.1f;
+
+        // Ramp velocity from soft to loud across the pattern — curve amplifies
+        float vel16[] = {
+            0.2f, 0.3f, 0.35f, 0.45f, 0.5f, 0.6f, 0.65f, 0.75f,
+            0.8f, 0.85f, 0.9f, 0.92f, 0.95f, 0.97f, 1.0f, 1.0f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        // S-Curve with 80% amount = smooth ease in/out of dynamics
+        setVelocityCurve(p.state, kCurveS, 80.0f);
+
+        float gate16[] = {
+            0.5f, 0.6f, 0.65f, 0.7f, 0.75f, 0.8f, 0.85f, 0.9f,
+            0.95f, 1.0f, 1.05f, 1.1f, 1.15f, 1.2f, 1.25f, 1.3f
+        };
+        setGateLane(p.state, 16, gate16);
+
+        setScale(p.state, kScaleMajor, kRootC);
+        presets.push_back(std::move(p));
+    }
+
+    // 6. "Key-Locked Wander" — showcases Scale-aware Transpose + Gravity mode
+    {
+        PresetDef p;
+        p.name = "Key-Locked Wander";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeGravity);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8T);
+        setArpGateLength(p.state, 100.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.08f;
+
+        // Transpose +5 scale degrees — shifts entire pattern up a 6th in scale
+        setTranspose(p.state, 5);
+
+        setScale(p.state, kScaleBlues, kRootE);
+
+        // Gentle velocity variation
+        float vel16[] = {
+            0.85f, 0.7f, 0.8f, 0.75f, 0.9f, 0.7f, 0.8f, 0.75f,
+            0.85f, 0.7f, 0.8f, 0.75f, 0.9f, 0.7f, 0.8f, 0.75f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        // Gravity mode picks nearest note — smooth stepwise feel
+        presets.push_back(std::move(p));
+    }
+
+    // 7. "Bass Register Lock" — showcases Note Range Mapping
+    {
+        PresetDef p;
+        p.name = "Bass Register Lock";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 80.0f);
+        p.state.arp.octaveRange = 4; // wide range, but...
+
+        // ...clamp to bass register: C1-C3 (MIDI 24-48)
+        setNoteRange(p.state, 24, 48, kRangeWrap);
+
+        // Pitch lane adds variation that would escape the register without wrap
+        int32_t pitch16[] = {
+            0, 12, 0, 7, 0, 12, -12, 7, 0, 12, 0, 7, -5, 12, 0, 7
+        };
+        setPitchLane(p.state, 16, pitch16);
+
+        // Velocity accents every 4
+        float vel16[] = {
+            1.0f, 0.65f, 0.8f, 0.7f, 0.95f, 0.65f, 0.8f, 0.7f,
+            0.9f, 0.65f, 0.8f, 0.7f, 0.95f, 0.65f, 0.8f, 0.7f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        float gate16[] = {
+            0.8f, 0.5f, 0.65f, 0.55f, 0.85f, 0.5f, 0.65f, 0.55f,
+            0.8f, 0.5f, 0.65f, 0.55f, 0.85f, 0.5f, 0.65f, 0.55f
+        };
+        setGateLane(p.state, 16, gate16);
+
+        setScale(p.state, kScalePhrygian, kRootE);
+        presets.push_back(std::move(p));
+    }
+
+    // 8. "Pedal Tone Melody" — showcases Step Pinning
+    {
+        PresetDef p;
+        p.name = "Pedal Tone Melody";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 90.0f);
+        p.state.arp.octaveRange = 2;
+        p.state.arp.humanize = 0.05f;
+
+        // Pin every other step to a low drone note (MIDI 36 = C2)
+        setPinNote(p.state, 36);
+        int pinFlags16[] = {
+            1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0
+        };
+        setPinFlags(p.state, 16, pinFlags16);
+
+        // The arpeggio fills in the unpinned steps
+        p.state.arp.pitchLaneLength = 16;
+
+        // Strong velocity on pinned drone steps
+        float vel16[] = {
+            1.0f, 0.6f, 0.7f, 0.55f, 1.0f, 0.6f, 0.7f, 0.55f,
+            1.0f, 0.6f, 0.7f, 0.55f, 1.0f, 0.6f, 0.7f, 0.55f
+        };
+        setVelocityLane(p.state, 16, vel16);
+
+        setScale(p.state, kScaleNatMinor, kRootC);
+        presets.push_back(std::move(p));
+    }
+
+    // 9. "Full Kitchen Sink" — uses ALL new features at once
+    {
+        PresetDef p;
+        p.name = "Full Kitchen Sink";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeGravity);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 85.0f);
+        p.state.arp.octaveRange = 3;
+        p.state.arp.humanize = 0.1f;
+        p.state.arp.spice = 0.2f;
+
+        // Ratchet with decay + triplet shuffle
+        int32_t rat16[] = {
+            1, 1, 2, 1, 1, 3, 1, 2,
+            1, 1, 4, 1, 1, 2, 3, 1
+        };
+        setRatchetLane(p.state, 16, rat16);
+        setRatchetDecay(p.state, 40.0f);
+        setRatchetShuffle(p.state, kShuffleTriplet);
+
+        // Chord lane with strum
+        int32_t chords8[] = {
+            kChordNone, kChordNone, kChordTriad, kChordNone,
+            kChordNone, kChord7th, kChordNone, kChord9th
+        };
+        setChordLane(p.state, 8, chords8);
+        setStrum(p.state, 35.0f, kStrumAlternate);
+        setVoicingMode(p.state, 2); // Spread
+
+        // Per-lane swing
+        setLaneSwings(p.state, 40.0f, 20.0f, 0.0f, 0.0f, 30.0f, 0.0f, 15.0f, 0.0f);
+
+        // Per-lane jitter
+        setLaneJitters(p.state, 1, 2, 1, 0, 2, 0, 1, 0);
+
+        // Per-lane speeds (polymetric)
+        setLaneSpeeds(p.state, 1.0f, 1.0f, 2.0f, 1.0f, 0.5f, 1.0f, 0.5f, 0.5f);
+
+        // Velocity curve
+        float vel16[] = {
+            0.9f, 0.55f, 0.75f, 0.6f, 0.95f, 0.55f, 0.7f, 0.6f,
+            0.85f, 0.55f, 0.75f, 0.6f, 1.0f, 0.55f, 0.7f, 0.6f
+        };
+        setVelocityLane(p.state, 16, vel16);
+        setVelocityCurve(p.state, kCurveExp, 50.0f);
+
+        // Note range (clamp to playable register)
+        setNoteRange(p.state, 36, 84, kRangeClamp);
+
+        // Transpose +2 scale degrees
+        setTranspose(p.state, 2);
+
+        // Pin first step of every bar to D2 (38)
+        setPinNote(p.state, 38);
+        int pinFlags16[] = {
+            1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
+        };
+        setPinFlags(p.state, 16, pinFlags16);
+
+        // Euclidean rhythm underneath it all
+        setEuclidean(p.state, true, 7, 16, 2);
+
+        setScale(p.state, kScaleDorian, kRootD);
+        presets.push_back(std::move(p));
+    }
+
+    // 10. "Cascading Harp" — Gravity mode + Strum + velocity curve
+    {
+        PresetDef p;
+        p.name = "Cascading Harp";
+        p.category = "Arp v1.5";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeGravity);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8T);
+        setArpGateLength(p.state, 140.0f);  // legato
+        p.state.arp.octaveRange = 3;
+        p.state.arp.humanize = 0.12f;
+
+        // Chord lane all triads → smooth voice-led chord sequence via Gravity
+        int32_t chords4[] = {kChordTriad, kChordTriad, kChordTriad, kChord7th};
+        setChordLane(p.state, 4, chords4);
+
+        // Strum 45ms Up direction — classic harp arpeggio feel
+        setStrum(p.state, 45.0f, kStrumUp);
+        setVoicingMode(p.state, 0); // Close voicing for clean harp
+
+        // Logarithmic velocity curve — fast rise, soft tail
+        setVelocityCurve(p.state, kCurveLog, 60.0f);
+
+        // Gentle velocity wave
+        float vel12[] = {
+            0.95f, 0.7f, 0.8f, 0.85f, 0.7f, 0.9f,
+            0.95f, 0.7f, 0.8f, 0.85f, 0.7f, 0.9f
+        };
+        setVelocityLane(p.state, 12, vel12);
+
+        // Light per-lane swing on velocity for breathing
+        setLaneSwings(p.state, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f);
+
+        setScale(p.state, kScaleMajor, kRootF);
         presets.push_back(std::move(p));
     }
 
