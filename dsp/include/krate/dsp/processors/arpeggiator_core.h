@@ -1277,25 +1277,27 @@ private:
         ++pendingNoteOffCount_;
     }
 
-    /// @brief Compute per-note strum offset in samples.
-    /// For a chord with `noteCount` notes, returns the sample offset for the
-    /// `noteIndex`-th note (0 = first, unstaggered). (v1.5 Strum Mode)
-    inline int32_t computeStrumOffset(size_t noteIndex, size_t noteCount) noexcept {
-        if (strumTimeMs_ <= 0.0f || noteCount <= 1) return 0;
+    /// @brief Precompute per-note strum offsets into strumOffsets_ for a chord.
+    /// Called ONCE at the start of each chord emission. Direction is picked
+    /// once per chord (important for Random/Alternate modes). (v1.5 Strum Mode)
+    inline void prepareStrumOffsets(size_t noteCount) noexcept {
+        // Clear first
+        strumOffsets_.fill(0);
+
+        if (strumTimeMs_ <= 0.0f || noteCount <= 1) return;
 
         const float totalSamples = strumTimeMs_ * 0.001f
             * static_cast<float>(sampleRate_);
         const float perNoteSamples = totalSamples
             / static_cast<float>(noteCount - 1);
 
+        // Pick a single direction for this entire chord
         int direction = strumDirection_;
         if (direction == 3) {
-            // Alternate: flip between Up and Down on each invocation
+            // Alternate: flip between Up and Down on each chord
             direction = (strumAlternateCounter_++ & 1u) == 0u ? 0 : 1;
-        }
-        if (direction == 2) {
-            // Random: shuffle the note order using xorshift
-            // For simplicity, random direction = Up or Down based on RNG
+        } else if (direction == 2) {
+            // Random: xorshift to pick Up or Down
             uint32_t& s = strumRandomState_;
             s ^= s << 13;
             s ^= s >> 17;
@@ -1303,16 +1305,17 @@ private:
             direction = (s & 1u) == 0u ? 0 : 1;
         }
 
-        float index;
-        if (direction == 0) {
-            // Up: first note immediate, last note latest
-            index = static_cast<float>(noteIndex);
-        } else {
-            // Down: last note immediate, first note latest
-            index = static_cast<float>(noteCount - 1 - noteIndex);
+        for (size_t i = 0; i < noteCount && i < 32; ++i) {
+            float index = (direction == 0)
+                ? static_cast<float>(i)                   // Up
+                : static_cast<float>(noteCount - 1 - i);  // Down
+            strumOffsets_[i] = static_cast<int32_t>(index * perNoteSamples);
         }
+    }
 
-        return static_cast<int32_t>(index * perNoteSamples);
+    /// @brief Get precomputed strum offset for a note index (after prepareStrumOffsets).
+    [[nodiscard]] inline int32_t strumOffsetFor(size_t noteIndex) const noexcept {
+        return (noteIndex < 32) ? strumOffsets_[noteIndex] : 0;
     }
 
     /// @brief Fire a ratchet sub-step: emit noteOn(s), schedule noteOff, advance state.
@@ -1345,12 +1348,13 @@ private:
         // (2) Emit noteOn for ratcheted note(s)
         if (ratchetNoteCount_ > 1) {
             // Chord mode: emit noteOn for all chord notes
+            // v1.5: Reuse strum offsets from main fireStep path for direction consistency
             for (size_t i = 0; i < ratchetNoteCount_ && eventCount < maxEvents; ++i) {
                 outputEvents[eventCount++] = ArpEvent{
                     ArpEvent::Type::NoteOn,
                     ratchetNotes_[i],
                     applyDecay(ratchetVelocities_[i]),
-                    sampleOffset,
+                    sampleOffset + strumOffsetFor(i),
                     false};  // Sub-steps after first are never legato
             }
             // Update currentArpNotes_ tracking
@@ -1391,8 +1395,10 @@ private:
         const size_t subGate = ratchetGateDurations_[ratchetSubStepIndex_];
         if (!suppressGateNoteOff) {
             if (ratchetNoteCount_ > 1) {
+                // v1.5: Apply strum offset to each chord note's gate duration
                 for (size_t i = 0; i < ratchetNoteCount_; ++i) {
-                    addPendingNoteOff(ratchetNotes_[i], subGate,
+                    const size_t strumOff = static_cast<size_t>(strumOffsetFor(i));
+                    addPendingNoteOff(ratchetNotes_[i], subGate + strumOff,
                                        outputEvents, eventCount, maxEvents);
                 }
             } else {
@@ -1882,14 +1888,14 @@ private:
                 }
 
                 // 077-spice-dice-humanize: Emit first sub-step noteOns at humanized offset (FR-019)
-                // v1.5: Apply strum offset for chord notes (result.count > 1)
+                // v1.5: Precompute strum offsets once per chord for consistent direction
+                prepareStrumOffsets(result.count);
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
-                    int32_t strumOffset = computeStrumOffset(i, result.count);
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        humanizedSampleOffset + strumOffset,
+                        humanizedSampleOffset + strumOffsetFor(i),
                         isSlide};  // legato on first sub-step if Slide
                 }
 
@@ -1921,8 +1927,11 @@ private:
 
                 // Schedule gate noteOff for first sub-step (sub-step index 0)
                 // First sub-step always schedules gate (look-ahead only on last sub-step)
+                // v1.5: Use precomputed strum offsets so each note gets the same gate length
                 for (size_t i = 0; i < result.count; ++i) {
-                    addPendingNoteOff(result.notes[i], ratchetGateDurations_[0],
+                    const size_t strumOff = static_cast<size_t>(strumOffsetFor(i));
+                    addPendingNoteOff(result.notes[i],
+                                       ratchetGateDurations_[0] + strumOff,
                                        outputEvents, eventCount, maxEvents);
                 }
             } else {
@@ -1937,14 +1946,14 @@ private:
 
                 if (result.count > 1) {
                     // Chord slide: emit legato noteOns for all new chord notes
-                    // v1.5: Apply strum offset for chords
+                    // v1.5: Precompute strum offsets once per chord
+                    prepareStrumOffsets(result.count);
                     for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
-                        int32_t strumOffset = computeStrumOffset(i, result.count);
                         outputEvents[eventCount++] = ArpEvent{
                             ArpEvent::Type::NoteOn,
                             result.notes[i],
                             result.velocities[i],
-                            humanizedSampleOffset + strumOffset,
+                            humanizedSampleOffset + strumOffsetFor(i),
                             true};  // legato=true
                     }
                     // Track all new chord notes as currently sounding
@@ -1969,10 +1978,13 @@ private:
 
                 // Schedule gate-based noteOffs for the new slide notes
                 // (unless next step is Tie or Slide)
+                // v1.5: Use precomputed strum offsets so strummed notes get equal gate
                 if (!suppressGateNoteOff) {
                     for (size_t i = 0; i < result.count; ++i) {
-                        addPendingNoteOff(result.notes[i], gateDuration, outputEvents,
-                                           eventCount, maxEvents);
+                        const size_t strumOff = (result.count > 1)
+                            ? static_cast<size_t>(strumOffsetFor(i)) : 0;
+                        addPendingNoteOff(result.notes[i], gateDuration + strumOff,
+                                           outputEvents, eventCount, maxEvents);
                     }
                 }
             } else if (result.count > 1) {
@@ -1985,14 +1997,14 @@ private:
                 currentArpNoteCount_ = 0;
 
                 // Emit NoteOn for ALL chord notes at the same humanized offset
-                // v1.5: Apply strum offset for chord notes
+                // v1.5: Precompute strum offsets once per chord
+                prepareStrumOffsets(result.count);
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
-                    int32_t strumOffset = computeStrumOffset(i, result.count);
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        humanizedSampleOffset + strumOffset};
+                        humanizedSampleOffset + strumOffsetFor(i)};
                 }
 
                 // Track all chord notes as currently sounding (FR-025)
@@ -2003,10 +2015,12 @@ private:
 
                 // Schedule PendingNoteOff for each chord note (FR-026)
                 // Skip if next step is Tie or Slide (FR-012, FR-015)
+                // v1.5: Use precomputed strum offsets so strummed notes get equal gate
                 if (!suppressGateNoteOff) {
                     for (size_t i = 0; i < result.count; ++i) {
-                        addPendingNoteOff(result.notes[i], gateDuration, outputEvents,
-                                           eventCount, maxEvents);
+                        const size_t strumOff = static_cast<size_t>(strumOffsetFor(i));
+                        addPendingNoteOff(result.notes[i], gateDuration + strumOff,
+                                           outputEvents, eventCount, maxEvents);
                     }
                 }
             } else {
@@ -2203,6 +2217,8 @@ private:
         // spiceDiceRng_, humanizeRng_ preserved (continuous randomness, like conditionRng_)
         // Reset lane speed accumulators
         laneAccumulators_.fill(0.0f);
+        // v1.5: Reset per-lane swing phase counters (net-zero drift after reset)
+        laneSwingCounters_.fill(0);
     }
 
     // =========================================================================
@@ -2270,6 +2286,7 @@ private:
     int strumDirection_{0};                    ///< 0=Up, 1=Down, 2=Random, 3=Alternate
     uint32_t strumAlternateCounter_{0};        ///< For Alternate direction
     uint32_t strumRandomState_{0xABCDEF01u};   ///< Xorshift state for Random
+    std::array<int32_t, 32> strumOffsets_{};   ///< Per-chord precomputed offsets
 
     // v1.5: Per-lane swing
     std::array<float, 8> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
