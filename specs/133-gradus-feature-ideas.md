@@ -2,105 +2,136 @@
 
 Brainstormed enhancements for the Gradus standalone step arpeggiator, plus a radial UI redesign concept.
 
+## Implementation Status
+
+**v1.5 (implemented):** 9 of 15 features below are implemented, plus the full circular ring UI from Part 2. See individual feature sections for status tags. Remaining features are deferred to v1.6 or later.
+
+| Status Legend | Meaning |
+|---|---|
+| ✅ **Shipped in 1.5** | Feature is fully implemented, UI wired, and included in factory presets |
+| ⏳ **Deferred** | Planned for v1.6 or later |
+
 ---
 
 ## Part 1: New Features
 
 ### High-Impact Additions
 
-#### 1. Pattern Morphing / Scene System
+#### 1. Pattern Morphing / Scene System ⏳ **Deferred**
 Store 2+ snapshots of all lane data and morph between them with a single crossfader knob. Numeric values (velocity, gate, pitch, ratchet) interpolate smoothly; discrete values (conditions, modifiers, chords) switch at a probability threshold.
 
 - Scene A / Scene B storage
 - Morph amount (0–100%)
 - Optional: morph automation via LFO or step lane
 
-#### 2. Per-Step Probability per Lane
+#### 2. Per-Step Probability per Lane ⏳ **Deferred**
 Independent per-lane probability overlay (0–100% per step), separate from the Condition lane. E.g., "this ratchet fires 50% of the time, but the pitch offset always applies."
 
-#### 3. Per-Lane Swing
+#### 3. Per-Lane Swing ✅ **Shipped in 1.5**
 Independent swing per lane (0–75%). Pairs naturally with existing per-lane speed multipliers. Creates polyrhythmic groove interactions.
 
-#### 4. Note Range / Register Mapping
+**Implementation:** 8 per-lane swing parameters (kArpVelocity/Gate/Pitch/Modifier/Ratchet/Condition/Chord/InversionLaneSwingId, IDs 3391–3398). Each lane's advance threshold alternates between `1+swing` and `1-swing` ticks in `advanceLaneBySpeed()`. UI: contextual swing knob per-lane tab in the detail strip.
+
+#### 4. Note Range / Register Mapping ✅ **Shipped in 1.5**
 Configurable floor and ceiling pitch. When arp + octave + pitch lane pushes a note outside bounds, it wraps or folds back.
 
 - Range Low (MIDI note, default C1)
 - Range High (MIDI note, default C6)
 - Out-of-range mode: Wrap / Clamp / Skip
 
-#### 5. Step Pinning (Absolute Note)
+**Implementation:** `kArpRangeLowId` (3410), `kArpRangeHighId` (3411), `kArpRangeModeId` (3412). Applied in `arpeggiator_core.h` fireStep after transpose (skipped for pinned steps). Wrap uses `((note - lo) % span + span) % span` for bidirectional folding. Skip mode compacts `result.count` and velocities. UI: contextual on the Pitch lane tab (Lo knob, Hi knob, Mode dropdown).
+
+#### 5. Step Pinning (Absolute Note) ✅ **Shipped in 1.5** (partial)
 Pin specific steps to absolute MIDI notes instead of following the arp pattern. Creates pedal tones, drone notes, anchor points.
 
 - One spare bit in Modifier bitmask (`kStepPinned = 0x10`)
 - Plus a Pin Note lane or per-step note value
 
-#### 6. Motion Recording
+**Implementation:** Global `kArpPinNoteId` (3413) + 32 per-step `kArpPinFlagStep0..31Id` (3414–3445). When the pitch lane's current step has its flag set, the output note is overridden to `pinNote_`, chord expansion is collapsed to a single note, and pitch offset/transpose/range mapping are all bypassed. UI: Pin Note knob is contextual on the Pitch lane tab; per-step pin flags are exposed as automation-only parameters for v1.5. A dedicated 32-cell pin-grid editor is planned for a later release.
+
+#### 6. Motion Recording ⏳ **Deferred**
 Record knob movements into a lane in real-time. Hold record, twist a knob, values written to steps as the arp plays. Standard on hardware sequencers, rare in software.
 
 ### Medium-Impact Tweaks
 
-#### 7. Velocity Curve / Response Shaping
+#### 7. Velocity Curve / Response Shaping ✅ **Shipped in 1.5**
 Global velocity curve applied after the velocity lane.
 
 - Curve type: Linear / Exponential / Logarithmic / S-Curve
 - Curve amount (0–100%)
 
-#### 8. Pattern Length Randomization
+**Implementation:** `kArpVelocityCurveTypeId` (3399) + `kArpVelocityCurveAmountId` (3400). Applied after velocity lane scaling, before accent capture, with blend formula `blended = normalized + (curved - normalized) * amount`. Exp = x², Log = √x, S-Curve = smoothstep `x²(3−2x)`. UI: contextual on the Velocity lane tab (Curve amount knob + Type dropdown).
+
+#### 8. Pattern Length Randomization ✅ **Shipped in 1.5** (as per-lane)
 "Length jitter" — pattern occasionally plays 1 step shorter or longer before cycling. Per-lane or global.
 
 - Length jitter amount (0–4 steps)
 
-#### 9. Ratchet Velocity Decay
+**Implementation:** 8 per-lane jitter parameters (`kArpVelocity/Gate/Pitch/Modifier/Ratchet/Condition/Chord/InversionLaneJitterId`, IDs 3402–3409). On each lane wrap (detected via `newStep < prevStep`), re-rolls a random offset in `[-jitter, +jitter]` using a shared xorshift RNG. Positive values trigger extra advances immediately (shortens that cycle); negative values schedule pending skips (lengthens next cycle). UI: contextual jitter knob per-lane tab in the detail strip.
+
+#### 9. Ratchet Velocity Decay ✅ **Shipped in 1.5**
 Subdivisions decay in velocity like a bouncing ball. `velocity * decay^n` per subdivision.
 
 - Ratchet decay (0–100%)
 
-#### 10. Transpose Lock to Scale
+**Implementation:** `kArpRatchetDecayId` (3388). In `fireSubStep()`, velocity is multiplied by `(1 - decay)^subStepIndex` before emission. UI: contextual on the Ratchet lane tab (Decay knob).
+
+#### 10. Transpose Lock to Scale ✅ **Shipped in 1.5**
 Transpose amount quantized through the selected scale. +2 in C major = C→D→E, not C→D→D#.
 
-#### 11. Step Skip / Mute Groups
+**Implementation:** `kArpTransposeId` (3401). In chromatic mode the value is semitones; in scale mode it's fed to `scaleHarmonizer_.calculate()` as scale degrees so the result always stays in key. Range: −24 to +24 steps. UI: contextual on the Pitch lane tab (Transpose knob).
+
+#### 11. Step Skip / Mute Groups ⏳ **Deferred**
 Quick-toggle groups of steps on/off. Predefined groups (odds, evens, halves) plus custom.
 
 ### Creative / Experimental
 
-#### 12. Gravity / Attraction Mode
+#### 12. Gravity / Attraction Mode ✅ **Shipped in 1.5**
 New arp mode: notes sorted by proximity to the last played note. Creates smooth stepwise motion through held chords.
 
-#### 13. Markov Chain Mode
+**Implementation:** Added `ArpMode::Gravity = 10` (11th entry in the arp mode enum) in `held_note_buffer.h`. `NoteSelector::advanceGravity()` tracks `lastGravityNote_`, iterates held notes, picks the one with minimum pitch distance from the last. First advance picks the lowest held note. Reset clears `lastGravityNote_` to -1.
+
+#### 13. Markov Chain Mode ⏳ **Deferred**
 Extend "Walk" with transition probability matrices between scale degrees. Ship with preset matrices (Jazz, Minimal, Ambient).
 
-#### 14. Euclidean per Lane
+#### 14. Euclidean per Lane ⏳ **Deferred**
 Each lane gets its own Euclidean pattern overlay instead of one global generator. 4 params per lane (enable, hits, steps, rotation).
 
-#### 15. Strum Mode for Chords
+#### 15. Strum Mode for Chords ✅ **Shipped in 1.5**
 Spread chord notes slightly in time.
 
 - Strum time (0–100ms)
 - Strum direction: Up / Down / Random / Alternate
 
+**Implementation:** `kArpStrumTimeId` (3389) + `kArpStrumDirectionId` (3390). `prepareStrumOffsets(noteCount)` precomputes per-note sample offsets into a `strumOffsets_[32]` array once per chord, ensuring consistent direction for Random/Alternate across the chord's notes. Applied at all 4 chord emission sites (main fireStep, slide, chord-mode, ratchet sub-step chords) plus matching note-off scheduling so each strummed note gets the same effective gate length. UI: contextual on the Chord/Inversion lane tabs (Strum Time knob + Direction dropdown).
+
 ### Priority Ranking
 
-| Priority | Feature | Effort | Impact |
-|----------|---------|--------|--------|
-| 1 | Ratchet Velocity Decay | Low | High |
-| 2 | Strum Mode | Low | High |
-| 3 | Per-Lane Swing | Low | High |
-| 4 | Step Pinning | Medium | High |
-| 5 | Velocity Curve | Low | Medium |
-| 6 | Transpose Lock to Scale | Low | Medium |
-| 7 | Gravity Mode | Medium | Medium |
-| 8 | Note Range Mapping | Medium | Medium |
-| 9 | Pattern Length Jitter | Low | Medium |
-| 10 | Motion Recording | Medium | High |
-| 11 | Per-Lane Probability | High | High |
-| 12 | Per-Lane Euclidean | High | Medium |
-| 13 | Pattern Morphing | High | Very High |
-| 14 | Markov Chain Mode | Medium | Medium |
-| 15 | Step Mute Groups | Medium | Medium |
+| Priority | Feature | Effort | Impact | Status |
+|----------|---------|--------|--------|--------|
+| 1 | Ratchet Velocity Decay | Low | High | ✅ Shipped in 1.5 |
+| 2 | Strum Mode | Low | High | ✅ Shipped in 1.5 |
+| 3 | Per-Lane Swing | Low | High | ✅ Shipped in 1.5 |
+| 4 | Step Pinning | Medium | High | ✅ Shipped in 1.5 (pin flags automation-only UI) |
+| 5 | Velocity Curve | Low | Medium | ✅ Shipped in 1.5 |
+| 6 | Transpose Lock to Scale | Low | Medium | ✅ Shipped in 1.5 |
+| 7 | Gravity Mode | Medium | Medium | ✅ Shipped in 1.5 |
+| 8 | Note Range Mapping | Medium | Medium | ✅ Shipped in 1.5 |
+| 9 | Pattern Length Jitter | Low | Medium | ✅ Shipped in 1.5 (per-lane, not global) |
+| 10 | Motion Recording | Medium | High | ⏳ Deferred |
+| 11 | Per-Lane Probability | High | High | ⏳ Deferred |
+| 12 | Per-Lane Euclidean | High | Medium | ⏳ Deferred |
+| 13 | Pattern Morphing | High | Very High | ⏳ Deferred |
+| 14 | Markov Chain Mode | Medium | Medium | ⏳ Deferred |
+| 15 | Step Mute Groups | Medium | Medium | ⏳ Deferred |
+
+**9 of 15 features shipped in v1.5.** Remaining 6 are deferred to v1.6 or later. A dedicated 32-cell pin-grid editor UI (completing Step Pinning) is also on the v1.6 list.
 
 ---
 
-## Part 2: Circular UI Redesign
+## Part 2: Circular UI Redesign ✅ **Shipped in 1.5**
+
+The full concentric ring display is implemented and is now the default (and only) UI for Gradus. Ruinae continues to use the original horizontal lane stack UI.
 
 ### Concept
 
