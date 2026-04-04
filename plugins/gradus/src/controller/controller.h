@@ -127,6 +127,9 @@ private:
     // v1.5: Ratchet Decay knob + label (only visible when Ratchet lane selected)
     VSTGUI::CView* ratchetDecayKnob_ = nullptr;
     VSTGUI::CView* ratchetDecayLabel_ = nullptr;
+    // Ratchet sub-step shuffle (Ratchet lane only)
+    VSTGUI::CView* ratchetSubSwingKnob_ = nullptr;
+    VSTGUI::CView* ratchetSubSwingLabel_ = nullptr;
     // v1.5: Strum controls + labels (only visible when Chord or Inversion lane selected)
     VSTGUI::CView* strumTimeKnob_ = nullptr;
     VSTGUI::CView* strumTimeLabel_ = nullptr;

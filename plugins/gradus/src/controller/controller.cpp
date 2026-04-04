@@ -248,6 +248,8 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     laneJitterKnobs_.fill(nullptr);
     ratchetDecayKnob_ = nullptr;
     ratchetDecayLabel_ = nullptr;
+    ratchetSubSwingKnob_ = nullptr;
+    ratchetSubSwingLabel_ = nullptr;
     strumTimeKnob_ = nullptr;
     strumTimeLabel_ = nullptr;
     strumDirectionMenu_ = nullptr;

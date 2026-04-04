@@ -47,6 +47,9 @@ VSTGUI::CView* Controller::verifyView(
         if (name == "RatchetDecayLabel") {
             ratchetDecayLabel_ = view;
             view->setVisible(false);
+        } else if (name == "RatchetSubSwingLabel") {
+            ratchetSubSwingLabel_ = view;
+            view->setVisible(false);
         } else if (name == "StrumTimeLabel") {
             strumTimeLabel_ = view;
             view->setVisible(false);
@@ -90,6 +93,11 @@ VSTGUI::CView* Controller::verifyView(
         if (tag == kArpRatchetDecayId) {
             ratchetDecayKnob_ = view;
             view->setVisible(false); // hidden until Ratchet tab selected
+        }
+        // Ratchet sub-step shuffle — also Ratchet lane only
+        if (tag == kArpRatchetSwingId) {
+            ratchetSubSwingKnob_ = view;
+            view->setVisible(false);
         }
         // v1.5: Strum controls — only visible when Chord (6) or Inversion (7) selected
         if (tag == kArpStrumTimeId) {
@@ -593,10 +601,12 @@ void Controller::constructArpLanes()
                     if (laneJitterKnobs_[i])
                         laneJitterKnobs_[i]->setVisible(i == laneIndex);
                 }
-                // Toggle Ratchet Decay (UI lane 5 = Ratchet)
+                // Toggle Ratchet-specific controls (UI lane 5 = Ratchet)
                 const bool showDecay = (laneIndex == 5);
-                if (ratchetDecayKnob_)  ratchetDecayKnob_->setVisible(showDecay);
-                if (ratchetDecayLabel_) ratchetDecayLabel_->setVisible(showDecay);
+                if (ratchetDecayKnob_)      ratchetDecayKnob_->setVisible(showDecay);
+                if (ratchetDecayLabel_)     ratchetDecayLabel_->setVisible(showDecay);
+                if (ratchetSubSwingKnob_)   ratchetSubSwingKnob_->setVisible(showDecay);
+                if (ratchetSubSwingLabel_)  ratchetSubSwingLabel_->setVisible(showDecay);
                 // Toggle Strum (UI lanes 6 = Chord, 7 = Inversion)
                 const bool showStrum = (laneIndex == 6 || laneIndex == 7);
                 if (strumTimeKnob_)       strumTimeKnob_->setVisible(showStrum);
