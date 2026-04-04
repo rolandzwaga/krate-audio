@@ -621,55 +621,65 @@ void Controller::constructArpLanes()
                 performEdit(paramId, static_cast<double>(value));
             });
 
+        // Visibility logic for per-lane contextual controls. Extracted into a
+        // lambda so we can call it once at startup (DetailStrip::selectLane()
+        // early-returns when selectedLane_ already matches, so the initial
+        // default lane's contextual controls would otherwise stay hidden).
+        auto updateContextualVisibility = [this, renderer](int laneIndex) {
+            renderer->setSelectedLane(laneIndex);
+            renderer->invalid();
+            // Toggle swing + jitter knob visibility (per-lane, stacked)
+            for (int i = 0; i < 8; ++i) {
+                if (laneSwingKnobs_[i])
+                    laneSwingKnobs_[i]->setVisible(i == laneIndex);
+                if (laneJitterKnobs_[i])
+                    laneJitterKnobs_[i]->setVisible(i == laneIndex);
+            }
+            // Toggle Ratchet-specific controls (UI lane 5 = Ratchet)
+            const bool showDecay = (laneIndex == 5);
+            if (ratchetDecayKnob_)      ratchetDecayKnob_->setVisible(showDecay);
+            if (ratchetDecayLabel_)     ratchetDecayLabel_->setVisible(showDecay);
+            if (ratchetSubSwingKnob_)   ratchetSubSwingKnob_->setVisible(showDecay);
+            if (ratchetSubSwingLabel_)  ratchetSubSwingLabel_->setVisible(showDecay);
+            // Toggle Strum (UI lanes 6 = Chord, 7 = Inversion)
+            const bool showStrum = (laneIndex == 6 || laneIndex == 7);
+            if (strumTimeKnob_)       strumTimeKnob_->setVisible(showStrum);
+            if (strumTimeLabel_)      strumTimeLabel_->setVisible(showStrum);
+            if (strumDirectionMenu_)  strumDirectionMenu_->setVisible(showStrum);
+            if (strumDirectionLabel_) strumDirectionLabel_->setVisible(showStrum);
+            // v1.5 Part 2: Toggle Velocity Curve (UI lane 0 = Velocity)
+            const bool showVelCurve = (laneIndex == 0);
+            if (velCurveKnob_)      velCurveKnob_->setVisible(showVelCurve);
+            if (velCurveLabel_)     velCurveLabel_->setVisible(showVelCurve);
+            if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
+            if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
+            // v1.5 Part 3: Toggle Pitch-lane contextual controls
+            // (Transpose + Pin Note + Range Mapping, UI lane 2 = Pitch)
+            const bool showPitchContext = (laneIndex == 2);
+            if (transposeKnob_)  transposeKnob_->setVisible(showPitchContext);
+            if (transposeLabel_) transposeLabel_->setVisible(showPitchContext);
+            if (pinNoteKnob_)    pinNoteKnob_->setVisible(showPitchContext);
+            if (pinNoteLabel_)   pinNoteLabel_->setVisible(showPitchContext);
+            if (rangeLowKnob_)   rangeLowKnob_->setVisible(showPitchContext);
+            if (rangeLowLabel_)  rangeLowLabel_->setVisible(showPitchContext);
+            if (rangeHighKnob_)  rangeHighKnob_->setVisible(showPitchContext);
+            if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
+            if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
+        };
+
         // Wire bidirectional selection: detail strip ↔ ring renderer
-        // Also toggles per-lane swing knob visibility and contextual controls
-        detailStrip_->setLaneSelectedCallback(
-            [this, renderer](int laneIndex) {
-                renderer->setSelectedLane(laneIndex);
-                renderer->invalid();
-                // Toggle swing + jitter knob visibility (per-lane, stacked)
-                for (int i = 0; i < 8; ++i) {
-                    if (laneSwingKnobs_[i])
-                        laneSwingKnobs_[i]->setVisible(i == laneIndex);
-                    if (laneJitterKnobs_[i])
-                        laneJitterKnobs_[i]->setVisible(i == laneIndex);
-                }
-                // Toggle Ratchet-specific controls (UI lane 5 = Ratchet)
-                const bool showDecay = (laneIndex == 5);
-                if (ratchetDecayKnob_)      ratchetDecayKnob_->setVisible(showDecay);
-                if (ratchetDecayLabel_)     ratchetDecayLabel_->setVisible(showDecay);
-                if (ratchetSubSwingKnob_)   ratchetSubSwingKnob_->setVisible(showDecay);
-                if (ratchetSubSwingLabel_)  ratchetSubSwingLabel_->setVisible(showDecay);
-                // Toggle Strum (UI lanes 6 = Chord, 7 = Inversion)
-                const bool showStrum = (laneIndex == 6 || laneIndex == 7);
-                if (strumTimeKnob_)       strumTimeKnob_->setVisible(showStrum);
-                if (strumTimeLabel_)      strumTimeLabel_->setVisible(showStrum);
-                if (strumDirectionMenu_)  strumDirectionMenu_->setVisible(showStrum);
-                if (strumDirectionLabel_) strumDirectionLabel_->setVisible(showStrum);
-                // v1.5 Part 2: Toggle Velocity Curve (UI lane 0 = Velocity)
-                const bool showVelCurve = (laneIndex == 0);
-                if (velCurveKnob_)      velCurveKnob_->setVisible(showVelCurve);
-                if (velCurveLabel_)     velCurveLabel_->setVisible(showVelCurve);
-                if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
-                if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
-                // v1.5 Part 3: Toggle Pitch-lane contextual controls
-                // (Transpose + Pin Note + Range Mapping, UI lane 2 = Pitch)
-                const bool showPitchContext = (laneIndex == 2);
-                if (transposeKnob_)  transposeKnob_->setVisible(showPitchContext);
-                if (transposeLabel_) transposeLabel_->setVisible(showPitchContext);
-                if (pinNoteKnob_)    pinNoteKnob_->setVisible(showPitchContext);
-                if (pinNoteLabel_)   pinNoteLabel_->setVisible(showPitchContext);
-                if (rangeLowKnob_)   rangeLowKnob_->setVisible(showPitchContext);
-                if (rangeLowLabel_)  rangeLowLabel_->setVisible(showPitchContext);
-                if (rangeHighKnob_)  rangeHighKnob_->setVisible(showPitchContext);
-                if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
-                if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
-            });
+        detailStrip_->setLaneSelectedCallback(updateContextualVisibility);
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {
                 if (detailStrip_)
                     detailStrip_->selectLane(laneIndex);
             });
+
+        // Initialize contextual visibility for the default-selected lane.
+        // DetailStrip::selectLane(selectedLane_) is a no-op because the
+        // selected lane is already selectedLane_, so we invoke the logic
+        // directly with the current selected lane index.
+        updateContextualVisibility(detailStrip_->selectedLane());
 
         renderer->invalid();
     }
