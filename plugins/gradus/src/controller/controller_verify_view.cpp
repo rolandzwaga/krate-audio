@@ -61,6 +61,15 @@ VSTGUI::CView* Controller::verifyView(
             ratchetDecayKnob_ = view;
             view->setVisible(false); // hidden until Ratchet tab selected
         }
+        // v1.5: Strum controls — only visible when Chord (6) or Inversion (7) selected
+        if (tag == kArpStrumTimeId) {
+            strumTimeKnob_ = view;
+            view->setVisible(false);
+        }
+        if (tag == kArpStrumDirectionId) {
+            strumDirectionMenu_ = view;
+            view->setVisible(false);
+        }
     }
 
     return view;
@@ -546,6 +555,10 @@ void Controller::constructArpLanes()
                 // Toggle Ratchet Decay knob visibility (UI lane 5 = Ratchet)
                 if (ratchetDecayKnob_)
                     ratchetDecayKnob_->setVisible(laneIndex == 5);
+                // Toggle Strum controls (UI lanes 6 = Chord, 7 = Inversion)
+                const bool showStrum = (laneIndex == 6 || laneIndex == 7);
+                if (strumTimeKnob_) strumTimeKnob_->setVisible(showStrum);
+                if (strumDirectionMenu_) strumDirectionMenu_->setVisible(showStrum);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

@@ -31,6 +31,8 @@
         <color name="arp.condition.accent" rgba="#7C90B0ff"/>
         <color name="arp.condition.dim" rgba="#7C90B066"/>
         <color name="arp.condition.fill" rgba="#7C90B040"/>
+        <color name="arp.chord.accent" rgba="#A88CC8ff"/>
+        <color name="arp.inversion.accent" rgba="#88A8C8ff"/>
         <color name="arp.bottombar.neutral" rgba="#606068ff"/>
     </colors>
 
@@ -354,35 +356,13 @@
             <view class="CTextLabel" origin="710, 6" size="1, 32"
                   transparent="false" background-color="knob-guide"/>
 
-            <!-- v1.5: Strum Time + Direction (chord-global, stay in row 2) -->
-            <view class="CTextLabel" origin="716, 2" size="40, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Strum"/>
-            <view class="ArcKnob" origin="722, 13" size="28, 28"
-                  control-tag="ArpStrumTime" default-value="0"
-                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
-                  tooltip="Strum time for chord notes (0-100ms)"/>
-
-            <view class="CTextLabel" origin="756, 2" size="60, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Direction"/>
-            <view class="COptionMenu" origin="756, 13" size="60, 18"
-                  control-tag="ArpStrumDirection" default-value="0"
-                  font="~ NormalFontSmaller" font-color="text-menu"
-                  back-color="bg-dropdown" frame-color="frame-dropdown"
-                  tooltip="Strum direction"/>
-
-            <!-- Separator -->
-            <view class="CTextLabel" origin="822, 6" size="1, 32"
-                  transparent="false" background-color="knob-guide"/>
-
             <!-- Preset buttons (wrapped in positioned containers) -->
-            <view class="CViewContainer" origin="834, 12" size="60, 20"
+            <view class="CViewContainer" origin="722, 12" size="60, 20"
                   transparent="true">
                 <view custom-view-name="PresetBrowserButton"
                       origin="0, 0" size="60, 20"/>
             </view>
-            <view class="CViewContainer" origin="902, 12" size="48, 20"
+            <view class="CViewContainer" origin="790, 12" size="48, 20"
                   transparent="true">
                 <view custom-view-name="SavePresetButton"
                       origin="0, 0" size="48, 20"/>
@@ -447,6 +427,17 @@
               control-tag="ArpRatchetDecay" default-value="0"
               arc-color="arp.ratchet.accent" guide-color="knob-guide"
               tooltip="Ratchet velocity decay per subdivision"/>
+
+        <!-- v1.5: Strum Time + Direction — contextual, shown when Chord or Inversion lane selected -->
+        <view class="ArcKnob" origin="810, 136" size="28, 28"
+              control-tag="ArpStrumTime" default-value="0"
+              arc-color="arp.chord.accent" guide-color="knob-guide"
+              tooltip="Strum time for chord notes (0-100ms)"/>
+        <view class="COptionMenu" origin="846, 141" size="60, 18"
+              control-tag="ArpStrumDirection" default-value="0"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"
+              tooltip="Strum direction"/>
 
         <!-- ============================================================ -->
         <!-- 5. Footer (y=826, h=34) — Audition + Krate Audio           -->
