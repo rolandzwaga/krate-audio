@@ -165,6 +165,13 @@ struct ArpeggiatorParams {
     std::atomic<int>   chordLaneJitter{0};
     std::atomic<int>   inversionLaneJitter{0};
 
+    // --- v1.5 Part 3 ---
+    std::atomic<int>   rangeLow{0};
+    std::atomic<int>   rangeHigh{127};
+    std::atomic<int>   rangeMode{1};
+    std::atomic<int>   pinNote{60};
+    std::array<std::atomic<int>, 32> pinFlags{};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);

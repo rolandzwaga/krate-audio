@@ -633,6 +633,34 @@ public:
         transpose_ = std::clamp(semitones, -24, 24);
     }
 
+    /// @brief Set note range floor (MIDI 0-127).
+    void setRangeLow(int midiNote) noexcept {
+        rangeLow_ = std::clamp(midiNote, 0, 127);
+    }
+
+    /// @brief Set note range ceiling (MIDI 0-127).
+    void setRangeHigh(int midiNote) noexcept {
+        rangeHigh_ = std::clamp(midiNote, 0, 127);
+    }
+
+    /// @brief Set note range mode: 0=Wrap, 1=Clamp, 2=Skip.
+    void setRangeMode(int mode) noexcept {
+        rangeMode_ = std::clamp(mode, 0, 2);
+    }
+
+    /// @brief Set the global pin note (MIDI 0-127). All pinned steps
+    /// emit this note instead of the arp-pattern note.
+    void setPinNote(int midiNote) noexcept {
+        pinNote_ = static_cast<uint8_t>(std::clamp(midiNote, 0, 127));
+    }
+
+    /// @brief Set per-step pin flag (0-31). When a step is pinned, the
+    /// output note is overridden to the current pinNote_ (bypasses the
+    /// arp pattern, octave, pitch offset, transpose, and range mapping).
+    void setStepPinned(size_t stepIndex, bool pinned) noexcept {
+        if (stepIndex < 32) pinFlags_[stepIndex] = pinned;
+    }
+
     /// @brief Set per-lane length jitter in steps (0-4).
     /// Each time the given lane wraps, jitter randomly extends or shortens
     /// its effective length by up to +/- `steps` to create evolving patterns.
@@ -1527,6 +1555,18 @@ private:
         ArpNoteResult result = selector_.advance(heldNotes_);
 
         if (result.count > 0) {
+            // v1.5 Part 3: Step Pinning — if the current pitch-lane step is
+            // pinned, override the arp-pattern note(s) with the global pin note.
+            // Indexed by the pitch lane's current step (pitch lane is the natural
+            // "pattern position" for pitch overrides).
+            const size_t pitchStepIdx = pitchLane_.currentStep();
+            const bool isPinnedStep = (pitchStepIdx < 32 && pinFlags_[pitchStepIdx]);
+            if (isPinnedStep) {
+                // Collapse to a single pinned note (chord expansion disabled for pinned steps)
+                result.notes[0] = pinNote_;
+                result.count = 1;
+            }
+
             // 077-spice-dice-humanize: capture overlay indices BEFORE lane advances (FR-010)
             const size_t velStep = velocityLane_.currentStep();
             const size_t gateStep = gateLane_.currentStep();
@@ -1889,20 +1929,23 @@ private:
             }
 
             // Apply pitch offset to all notes in this step (FR-005, FR-006, FR-008, 084-arp-scale-mode)
-            for (size_t i = 0; i < result.count; ++i) {
-                if (scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0) {
-                    // Scale mode: interpret pitchOffset as scale degrees
-                    auto interval = scaleHarmonizer_.calculate(
-                        static_cast<int>(result.notes[i]),
-                        static_cast<int>(pitchOffset));
-                    result.notes[i] = static_cast<uint8_t>(
-                        std::clamp(interval.targetNote, 0, 127));
-                } else {
-                    // Chromatic mode or zero offset: direct semitone addition
-                    int offsetNote = static_cast<int>(result.notes[i]) +
-                                     static_cast<int>(pitchOffset);
-                    result.notes[i] = static_cast<uint8_t>(
-                        std::clamp(offsetNote, 0, 127));
+            // v1.5: Skipped for pinned steps (pinned note bypasses pitch processing)
+            if (!isPinnedStep) {
+                for (size_t i = 0; i < result.count; ++i) {
+                    if (scaleHarmonizer_.getScale() != ScaleType::Chromatic && pitchOffset != 0) {
+                        // Scale mode: interpret pitchOffset as scale degrees
+                        auto interval = scaleHarmonizer_.calculate(
+                            static_cast<int>(result.notes[i]),
+                            static_cast<int>(pitchOffset));
+                        result.notes[i] = static_cast<uint8_t>(
+                            std::clamp(interval.targetNote, 0, 127));
+                    } else {
+                        // Chromatic mode or zero offset: direct semitone addition
+                        int offsetNote = static_cast<int>(result.notes[i]) +
+                                         static_cast<int>(pitchOffset);
+                        result.notes[i] = static_cast<uint8_t>(
+                            std::clamp(offsetNote, 0, 127));
+                    }
                 }
             }
 
@@ -1912,7 +1955,8 @@ private:
             // ("steps") so the result always stays diatonic. The spec example
             // "+2 in C major = C→D→E" confirms scale-degree semantics when a
             // scale is active (C + 2 degrees = E).
-            if (transpose_ != 0) {
+            // v1.5: Transpose skipped for pinned steps
+            if (transpose_ != 0 && !isPinnedStep) {
                 for (size_t i = 0; i < result.count; ++i) {
                     if (scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
                         auto interval = scaleHarmonizer_.calculate(
@@ -1926,6 +1970,43 @@ private:
                         result.notes[i] = static_cast<uint8_t>(std::clamp(tn, 0, 127));
                     }
                 }
+            }
+
+            // v1.5 Part 3: Apply Note Range Mapping (after all pitch processing)
+            // Mode 0=Wrap, 1=Clamp, 2=Skip (drop notes that fall outside).
+            if (rangeLow_ > 0 || rangeHigh_ < 127) {
+                const int lo = std::min(rangeLow_, rangeHigh_);
+                const int hi = std::max(rangeLow_, rangeHigh_);
+                const int span = hi - lo + 1;
+                size_t writeIdx = 0;
+                for (size_t i = 0; i < result.count; ++i) {
+                    int note = static_cast<int>(result.notes[i]);
+                    bool keep = true;
+                    if (note < lo || note > hi) {
+                        switch (rangeMode_) {
+                            case 0: // Wrap
+                                if (span > 0) {
+                                    int offset = ((note - lo) % span + span) % span;
+                                    note = lo + offset;
+                                }
+                                break;
+                            case 1: // Clamp
+                                note = std::clamp(note, lo, hi);
+                                break;
+                            case 2: // Skip
+                                keep = false;
+                                break;
+                        }
+                    }
+                    if (keep) {
+                        result.notes[writeIdx] = static_cast<uint8_t>(note);
+                        if (writeIdx != i) {
+                            result.velocities[writeIdx] = result.velocities[i];
+                        }
+                        ++writeIdx;
+                    }
+                }
+                result.count = writeIdx;
             }
 
             // 077-spice-dice-humanize: Humanize offsets (FR-014, FR-022 steps 11-14)
@@ -2419,6 +2500,15 @@ private:
     std::array<int8_t, 8> lanePendingSkips_{};  ///< Positive = skip next N advances (lengthens)
     std::array<uint8_t, 8> laneLastSteps_{};    ///< Previous step position for wrap detection
     uint32_t lengthJitterRng_{0xFEEDBEEFu};     ///< Xorshift state for jitter re-rolls
+
+    // v1.5 Part 3: Note Range Mapping
+    int rangeLow_{0};    ///< MIDI floor (0-127)
+    int rangeHigh_{127}; ///< MIDI ceiling (0-127)
+    int rangeMode_{1};   ///< 0=Wrap, 1=Clamp, 2=Skip
+
+    // v1.5 Part 3: Step Pinning
+    uint8_t pinNote_{60};               ///< MIDI note for pinned steps
+    std::array<bool, 32> pinFlags_{};   ///< Per-step pin state (indexed by pitch lane step)
 
     // =========================================================================
     // Euclidean Timing State (075-euclidean-timing, FR-001)

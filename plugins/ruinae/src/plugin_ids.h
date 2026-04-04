@@ -1227,7 +1227,17 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpChordLaneJitterId     = 3408,
     kArpInversionLaneJitterId = 3409,
 
-    kArpEndId = 3409,
+    // --- v1.5 Part 3: Note Range Mapping (3410-3412) ---
+    kArpRangeLowId   = 3410,
+    kArpRangeHighId  = 3411,
+    kArpRangeModeId  = 3412,
+
+    // --- v1.5 Part 3: Step Pinning (3413-3445) ---
+    kArpPinNoteId       = 3413,
+    kArpPinFlagStep0Id  = 3414,
+    kArpPinFlagStep31Id = 3445,
+
+    kArpEndId = 3445,
 
     // --- Sidechain Status (output parameter, not persisted) ---
     kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active

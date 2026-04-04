@@ -411,7 +411,18 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kArpChordLaneJitterId     = 3408,
     kArpInversionLaneJitterId = 3409,
 
-    kArpEndId = 3409,
+    // --- v1.5 Part 3: Note Range Mapping (3410-3412) ---
+    kArpRangeLowId       = 3410,  // MIDI 0-127, default 0
+    kArpRangeHighId      = 3411,  // MIDI 0-127, default 127
+    kArpRangeModeId      = 3412,  // 0=Wrap, 1=Clamp, 2=Skip
+
+    // --- v1.5 Part 3: Step Pinning (3413-3445) ---
+    kArpPinNoteId        = 3413,  // MIDI 0-127, default 60 (C4) — global pin note
+    kArpPinFlagStep0Id   = 3414,  // 0=unpinned, 1=pinned
+    // kArpPinFlagStep1Id .. kArpPinFlagStep31Id = 3415..3445
+    kArpPinFlagStep31Id  = 3445,
+
+    kArpEndId = 3445,
 
     // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific

@@ -62,6 +62,9 @@ VSTGUI::CView* Controller::verifyView(
         } else if (name == "VelCurveTypeLabel") {
             velCurveTypeLabel_ = view;
             view->setVisible(false);
+        } else if (name == "PinNoteLabel") {
+            pinNoteLabel_ = view;
+            view->setVisible(false);
         }
     }
 
@@ -115,6 +118,11 @@ VSTGUI::CView* Controller::verifyView(
         }
         if (tag == kArpVelocityCurveTypeId) {
             velCurveTypeMenu_ = view;
+            view->setVisible(false);
+        }
+        // v1.5 Part 3: Pin Note knob — only visible when Pitch (2) selected
+        if (tag == kArpPinNoteId) {
+            pinNoteKnob_ = view;
             view->setVisible(false);
         }
     }
@@ -619,6 +627,10 @@ void Controller::constructArpLanes()
                 if (velCurveLabel_)     velCurveLabel_->setVisible(showVelCurve);
                 if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
                 if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
+                // v1.5 Part 3: Toggle Pin Note (UI lane 2 = Pitch)
+                const bool showPinNote = (laneIndex == 2);
+                if (pinNoteKnob_)  pinNoteKnob_->setVisible(showPinNote);
+                if (pinNoteLabel_) pinNoteLabel_->setVisible(showPinNote);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

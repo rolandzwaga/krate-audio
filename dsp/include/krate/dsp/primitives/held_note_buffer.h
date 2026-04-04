@@ -46,7 +46,8 @@ enum class ArpMode : uint8_t {
     Random,       ///< Uniform random selection
     Walk,         ///< Random +/-1 step, clamped to bounds
     AsPlayed,     ///< Insertion order (chronological)
-    Chord         ///< All notes simultaneously
+    Chord,        ///< All notes simultaneously
+    Gravity       ///< Nearest-neighbor: next note = held note closest to the last-played note
 };
 
 /// @brief Octave expansion ordering mode.
@@ -294,6 +295,10 @@ public:
                 }
                 break;
             }
+            case ArpMode::Gravity: {
+                advanceGravity(pitched, size, result);
+                break;
+            }
         }
 
         return result;
@@ -307,6 +312,7 @@ public:
         walkIndex_ = 0;
         convergeStep_ = 0;
         direction_ = 1;
+        lastGravityNote_ = -1;
     }
 
 private:
@@ -572,6 +578,43 @@ private:
         }
     }
 
+    /// @brief Gravity mode: pick the held note closest in pitch to the last
+    /// played note. On the first advance (no last note), picks the lowest
+    /// held note. Creates smooth stepwise motion through chords.
+    void advanceGravity(std::span<const HeldNote> pitched, size_t size,
+                         ArpNoteResult& result) noexcept {
+        size_t pickIdx = 0;
+        if (lastGravityNote_ < 0) {
+            // First advance: start from lowest held note
+            pickIdx = 0;
+        } else {
+            // Find held note closest in pitch to lastGravityNote_
+            int bestDistance = 256;
+            for (size_t i = 0; i < size; ++i) {
+                int d = std::abs(static_cast<int>(pitched[i].note)
+                                 - lastGravityNote_);
+                if (d < bestDistance) {
+                    bestDistance = d;
+                    pickIdx = i;
+                }
+            }
+        }
+
+        result.notes[0] = applyOctave(pitched[pickIdx].note, octaveOffset_);
+        result.velocities[0] = pitched[pickIdx].velocity;
+        result.count = 1;
+        lastGravityNote_ = static_cast<int>(pitched[pickIdx].note);
+
+        if (octaveMode_ == OctaveMode::Sequential) {
+            advanceOctaveSequentialAscending();
+        } else {
+            ++octaveOffset_;
+            if (octaveOffset_ >= octaveRange_) {
+                octaveOffset_ = 0;
+            }
+        }
+    }
+
     /// @brief AsPlayed mode: insertion order with octave support.
     void advanceAsPlayed(const HeldNoteBuffer& held, size_t size,
                          ArpNoteResult& result) noexcept {
@@ -606,6 +649,7 @@ private:
     size_t convergeStep_{0};
     size_t walkIndex_{0};
     int octaveOffset_{0};
+    int lastGravityNote_{-1};  ///< Last note emitted by Gravity mode (-1 = none)
     Xorshift32 rng_;
 };
 

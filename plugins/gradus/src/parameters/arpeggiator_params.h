@@ -170,6 +170,15 @@ struct ArpeggiatorParams {
     std::atomic<int>   chordLaneJitter{0};
     std::atomic<int>   inversionLaneJitter{0};
 
+    // --- v1.5 Part 3: Note Range Mapping (global) ---
+    std::atomic<int>   rangeLow{0};     // MIDI 0-127, default 0 (no low clamp)
+    std::atomic<int>   rangeHigh{127};  // MIDI 0-127, default 127 (no high clamp)
+    std::atomic<int>   rangeMode{1};    // 0=Wrap, 1=Clamp, 2=Skip (default Clamp)
+
+    // --- v1.5 Part 3: Step Pinning ---
+    std::atomic<int>   pinNote{60};   // MIDI 0-127, default C4
+    std::array<std::atomic<int>, 32> pinFlags{};  // 0/1 per step
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -209,9 +218,9 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
         case kArpModeId:
-            // StringListParameter: 0-1 -> 0-9 (10 entries, stepCount=9)
+            // StringListParameter: 0-1 -> 0-10 (11 entries, stepCount=10)
             params.mode.store(
-                std::clamp(static_cast<int>(value * 9.0 + 0.5), 0, 9),
+                std::clamp(static_cast<int>(value * 10.0 + 0.5), 0, 10),
                 std::memory_order_relaxed);
             break;
         case kArpOctaveRangeId:
@@ -546,6 +555,33 @@ inline void handleArpParamChange(
                     std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
                     std::memory_order_relaxed);
             }
+            // v1.5 Part 3: Note Range Mapping (3410-3412)
+            else if (id == kArpRangeLowId) {
+                params.rangeLow.store(
+                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+                    std::memory_order_relaxed);
+            }
+            else if (id == kArpRangeHighId) {
+                params.rangeHigh.store(
+                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+                    std::memory_order_relaxed);
+            }
+            else if (id == kArpRangeModeId) {
+                params.rangeMode.store(
+                    std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
+                    std::memory_order_relaxed);
+            }
+            // v1.5 Part 3: Step Pinning
+            else if (id == kArpPinNoteId) {
+                params.pinNote.store(
+                    std::clamp(static_cast<int>(std::round(value * 127.0)), 0, 127),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpPinFlagStep0Id && id <= kArpPinFlagStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpPinFlagStep0Id);
+                params.pinFlags[stepIdx].store(
+                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            }
             // v1.5 Part 2: Per-lane Length Jitter (3402-3409)
             else if (id >= kArpVelocityLaneJitterId && id <= kArpInversionLaneJitterId) {
                 int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
@@ -581,12 +617,13 @@ inline void registerArpParams(
         STR16("Arp Operating Mode"), kArpOperatingModeId,
         {STR16("Off"), STR16("MIDI"), STR16("Mod"), STR16("MIDI+Mod")}));
 
-    // Arp Mode: StringListParameter (10 entries), default 0 (Up)
+    // Arp Mode: StringListParameter (11 entries), default 0 (Up)
     parameters.addParameter(createDropdownParameter(
         STR16("Arp Mode"), kArpModeId,
         {STR16("Up"), STR16("Down"), STR16("UpDown"), STR16("DownUp"),
          STR16("Converge"), STR16("Diverge"), STR16("Random"),
-         STR16("Walk"), STR16("AsPlayed"), STR16("Chord")}));
+         STR16("Walk"), STR16("AsPlayed"), STR16("Chord"),
+         STR16("Gravity")}));
 
     // Arp Octave Range: RangeParameter 1-4, default 1, stepCount 3
     parameters.addParameter(
@@ -1032,6 +1069,46 @@ inline void registerArpParams(
                     4, ParameterInfo::kCanAutomate));
         }
     }
+
+    // --- v1.5 Part 3: Note Range Mapping ---
+
+    // Range Low: 0-127, default 0
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Range Low"), kArpRangeLowId,
+            STR16(""), 0.0, 127.0, 0.0,
+            127, ParameterInfo::kCanAutomate));
+
+    // Range High: 0-127, default 127
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Range High"), kArpRangeHighId,
+            STR16(""), 0.0, 127.0, 127.0,
+            127, ParameterInfo::kCanAutomate));
+
+    // Range Mode: StringListParameter (3 entries), default 1 (Clamp)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Range Mode"), kArpRangeModeId,
+        {STR16("Wrap"), STR16("Clamp"), STR16("Skip")}));
+
+    // --- v1.5 Part 3: Step Pinning ---
+
+    // Pin Note (global, MIDI 0-127, default 60 = C4)
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Pin Note"), kArpPinNoteId,
+            STR16(""), 0.0, 127.0, 60.0,
+            127, ParameterInfo::kCanAutomate));
+
+    // Pin Flags (32 steps, binary 0/1)
+    for (int i = 0; i < 32; ++i) {
+        char nameBuf[32];
+        snprintf(nameBuf, sizeof(nameBuf), "Arp Pin Step %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(nameBuf);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpPinFlagStep0Id + i),
+                STR16(""), 0.0, 1.0, 0.0,
+                1, ParameterInfo::kCanAutomate));
+    }
 }
 
 // =============================================================================
@@ -1049,9 +1126,9 @@ inline Steinberg::tresult formatArpParam(
         case kArpModeId: {
             static const char* const kModeNames[] = {
                 "Up", "Down", "UpDown", "DownUp", "Converge",
-                "Diverge", "Random", "Walk", "AsPlayed", "Chord"
+                "Diverge", "Random", "Walk", "AsPlayed", "Chord", "Gravity"
             };
-            int idx = std::clamp(static_cast<int>(value * 9.0 + 0.5), 0, 9);
+            int idx = std::clamp(static_cast<int>(value * 10.0 + 0.5), 0, 10);
             UString(string, 128).fromAscii(kModeNames[idx]);
             return kResultOk;
         }
@@ -1282,6 +1359,36 @@ inline Steinberg::tresult formatArpParam(
             char8 text[32];
             int steps = static_cast<int>(std::round(value * 4.0));
             snprintf(text, sizeof(text), "%d step%s", steps, steps == 1 ? "" : "s");
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+
+        // --- v1.5 Part 3: Note Range ---
+        case kArpRangeLowId:
+        case kArpRangeHighId: {
+            char8 text[32];
+            int midi = static_cast<int>(std::round(value * 127.0));
+            // Format as note name: C-1, C0, ..., G9
+            static const char* const kNoteNames[] = {
+                "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+            };
+            int octave = (midi / 12) - 1;
+            snprintf(text, sizeof(text), "%s%d", kNoteNames[midi % 12], octave);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpRangeModeId:
+            return kResultFalse; // StringListParameter handles
+
+        // --- v1.5 Part 3: Step Pinning ---
+        case kArpPinNoteId: {
+            char8 text[32];
+            int midi = static_cast<int>(std::round(value * 127.0));
+            static const char* const kNoteNames[] = {
+                "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"
+            };
+            int octave = (midi / 12) - 1;
+            snprintf(text, sizeof(text), "%s%d", kNoteNames[midi % 12], octave);
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
@@ -1550,6 +1657,17 @@ inline void saveArpParams(
     streamer.writeInt32(params.conditionLaneJitter.load(std::memory_order_relaxed));
     streamer.writeInt32(params.chordLaneJitter.load(std::memory_order_relaxed));
     streamer.writeInt32(params.inversionLaneJitter.load(std::memory_order_relaxed));
+
+    // --- v1.5 Part 3: Note Range Mapping ---
+    streamer.writeInt32(params.rangeLow.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.rangeHigh.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.rangeMode.load(std::memory_order_relaxed));
+
+    // --- v1.5 Part 3: Step Pinning ---
+    streamer.writeInt32(params.pinNote.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.pinFlags[i].load(std::memory_order_relaxed));
+    }
 }
 
 // =============================================================================
@@ -1570,7 +1688,7 @@ inline bool loadArpParams(
         std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
-    params.mode.store(std::clamp(intVal, 0, 9), std::memory_order_relaxed);
+    params.mode.store(std::clamp(intVal, 0, 10), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
     params.octaveRange.store(std::clamp(intVal, 1, 4), std::memory_order_relaxed);
@@ -1807,6 +1925,22 @@ inline bool loadArpParams(
         if (!loadJitter(params.inversionLaneJitter)) return true;
     }
 
+    // --- v1.5 Part 3: Note Range Mapping ---
+    if (!streamer.readInt32(intVal)) return true;
+    params.rangeLow.store(std::clamp(intVal, 0, 127), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return true;
+    params.rangeHigh.store(std::clamp(intVal, 0, 127), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return true;
+    params.rangeMode.store(std::clamp(intVal, 0, 2), std::memory_order_relaxed);
+
+    // --- v1.5 Part 3: Step Pinning ---
+    if (!streamer.readInt32(intVal)) return true;
+    params.pinNote.store(std::clamp(intVal, 0, 127), std::memory_order_relaxed);
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return true;
+        params.pinFlags[i].store(intVal ? 1 : 0, std::memory_order_relaxed);
+    }
+
     return true;
 }
 
@@ -1831,7 +1965,7 @@ inline void loadArpParamsToController(
 
     // mode (int32 -> normalized: index / 9)
     if (streamer.readInt32(intVal))
-        setParam(kArpModeId, static_cast<double>(std::clamp(intVal, 0, 9)) / 9.0);
+        setParam(kArpModeId, static_cast<double>(std::clamp(intVal, 0, 10)) / 10.0);
     else return;
 
     // octaveRange (int32 -> normalized: (range - 1) / 3)
@@ -2119,6 +2253,27 @@ inline void loadArpParamsToController(
                     static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
             }
         }
+    }
+
+    // --- v1.5 Part 3: Note Range Mapping ---
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpRangeLowId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 127)) / 127.0);
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpRangeHighId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 127)) / 127.0);
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpRangeModeId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 2)) / 2.0);
+
+    // --- v1.5 Part 3: Step Pinning ---
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpPinNoteId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 127)) / 127.0);
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(iv)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpPinFlagStep0Id + i),
+            iv ? 1.0 : 0.0);
     }
 }
 

@@ -580,6 +580,18 @@ void Processor::applyParamsToEngine()
     arpCore_.setLaneLengthJitter(6, arpParams_.chordLaneJitter.load(std::memory_order_relaxed));
     arpCore_.setLaneLengthJitter(7, arpParams_.inversionLaneJitter.load(std::memory_order_relaxed));
 
+    // v1.5 Part 3: Note Range Mapping
+    arpCore_.setRangeLow(arpParams_.rangeLow.load(std::memory_order_relaxed));
+    arpCore_.setRangeHigh(arpParams_.rangeHigh.load(std::memory_order_relaxed));
+    arpCore_.setRangeMode(arpParams_.rangeMode.load(std::memory_order_relaxed));
+
+    // v1.5 Part 3: Step Pinning
+    arpCore_.setPinNote(arpParams_.pinNote.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        arpCore_.setStepPinned(static_cast<size_t>(i),
+            arpParams_.pinFlags[i].load(std::memory_order_relaxed) != 0);
+    }
+
     // Always enabled in Gradus (no operating mode selector)
     arpCore_.setEnabled(true);
 }

@@ -97,6 +97,14 @@
         <control-tag name="ArpChordLaneJitter" tag="3408"/>
         <control-tag name="ArpInversionLaneJitter" tag="3409"/>
 
+        <!-- v1.5 Part 3: Note Range Mapping -->
+        <control-tag name="ArpRangeLow" tag="3410"/>
+        <control-tag name="ArpRangeHigh" tag="3411"/>
+        <control-tag name="ArpRangeMode" tag="3412"/>
+
+        <!-- v1.5 Part 3: Step Pinning -->
+        <control-tag name="ArpPinNote" tag="3413"/>
+
         <!-- Audition -->
         <control-tag name="AuditionEnabled" tag="4000"/>
         <control-tag name="AuditionVolume" tag="4001"/>
@@ -221,8 +229,29 @@
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Voicing mode"/>
 
+            <!-- v1.5 Part 3: Note Range (Low / High) + Range Mode -->
+            <view class="CTextLabel" origin="720, 0" size="64, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Range"/>
+            <view class="ArcKnob" origin="720, 2" size="28, 28"
+                  control-tag="ArpRangeLow" default-value="0"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  tooltip="Range low (MIDI note floor)"/>
+            <view class="ArcKnob" origin="752, 2" size="28, 28"
+                  control-tag="ArpRangeHigh" default-value="1"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  tooltip="Range high (MIDI note ceiling)"/>
+            <view class="CTextLabel" origin="786, 0" size="56, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="Mode"/>
+            <view class="COptionMenu" origin="786, 13" size="56, 18"
+                  control-tag="ArpRangeMode" default-value="0.5"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Range mode: Wrap (fold), Clamp, or Skip out-of-range notes"/>
+
             <!-- Scale Quantize Input toggle -->
-            <view class="ToggleButton" origin="810, 10" size="80, 18"
+            <view class="ToggleButton" origin="850, 10" size="80, 18"
                   control-tag="ArpScaleQuantizeInput"
                   title="Quantize In"
                   title-position="right"
@@ -525,6 +554,17 @@
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"
               tooltip="Strum direction"/>
+
+        <!-- v1.5 Part 3: Pin Note (contextual — Pitch lane only).
+             Per-step pin flags are editable via host automation. -->
+        <view class="CTextLabel" custom-view-name="PinNoteLabel"
+              origin="844, 141" size="40, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Pin"/>
+        <view class="ArcKnob" origin="888, 136" size="28, 28"
+              control-tag="ArpPinNote" default-value="0.472"
+              arc-color="arp.pitch.accent" guide-color="knob-guide"
+              tooltip="Pinned note (pin flags via automation: ArpPinStep1-32)"/>
 
         <!-- v1.5 Part 2: Velocity Curve (contextual — Velocity lane only) -->
         <view class="CTextLabel" custom-view-name="VelCurveLabel"
