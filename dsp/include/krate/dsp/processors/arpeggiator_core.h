@@ -1576,8 +1576,14 @@ private:
                                 static_cast<int>(s % static_cast<uint32_t>(range))
                                 - lengthJitter_;
                             if (jitter > 0) {
-                                // Extra advances now: shorten this cycle
-                                for (int j = 0; j < jitter; ++j) lane.advance();
+                                // Extra advances now: shorten this cycle.
+                                // Also increment the swing counter for each so
+                                // per-lane swing phase stays aligned with the
+                                // actual step position.
+                                for (int j = 0; j < jitter; ++j) {
+                                    lane.advance();
+                                    ++counter;
+                                }
                             } else if (jitter < 0) {
                                 // Schedule skips: lengthen next cycle
                                 lanePendingSkips_[laneIdx] =
@@ -1897,12 +1903,15 @@ private:
                 }
             }
 
-            // v1.5: Apply global Transpose (scale-quantized when a scale is active)
+            // v1.5: Apply global Transpose. Semantics match the existing pitch
+            // lane (spec 084-arp-scale-mode): in Chromatic mode the value is
+            // treated as semitones; in scale mode it's treated as scale degrees
+            // ("steps") so the result always stays diatonic. The spec example
+            // "+2 in C major = C→D→E" confirms scale-degree semantics when a
+            // scale is active (C + 2 degrees = E).
             if (transpose_ != 0) {
                 for (size_t i = 0; i < result.count; ++i) {
                     if (scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
-                        // Scale-quantized transpose: treat semitone input as scale degrees
-                        // to keep result diatonic. Divide by ~2 for a degree-like feel.
                         auto interval = scaleHarmonizer_.calculate(
                             static_cast<int>(result.notes[i]),
                             transpose_);

@@ -175,14 +175,14 @@
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Retrigger mode"/>
 
-            <!-- v1.5: Transpose (scale-quantized when scale active) -->
+            <!-- v1.5: Transpose (semitones in chromatic, scale degrees in scale mode) -->
             <view class="CTextLabel" origin="380, 0" size="64, 12"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Transpose"/>
             <view class="ArcKnob" origin="398, 2" size="28, 28"
                   control-tag="ArpTranspose" default-value="0.5"
                   arc-color="arpeggiator" guide-color="knob-guide"
-                  tooltip="Transpose (-24 to +24 semitones, snapped to scale when active)"/>
+                  tooltip="Transpose -24 to +24 steps. In chromatic mode = semitones; in scale mode = scale degrees (stays in key)."/>
 
             <!-- Scale -->
             <view class="CTextLabel" origin="500, 0" size="80, 12"
