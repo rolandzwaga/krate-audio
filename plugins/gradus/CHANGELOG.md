@@ -5,6 +5,22 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - Unreleased
+
+### Added
+
+- **Concentric ring display** — Replaced horizontal lane stack with a circular step sequencer where steps are arranged radially across 4 concentric rings combining all 8 lanes; per-step colored playhead highlights race around at independent lane speeds, visually communicating polymetric relationships
+- **Detail strip with lane tabs** — 8 color-coded tabs (VEL, GATE, PITCH, MOD, COND, RATCH, CHORD, INV) alongside the ring display, each opening a familiar linear step editor for precision editing; bidirectional selection syncs ring and tab
+- **Direct ring editing** — Drag radially on velocity, gate, pitch, and ratchet rings to adjust values; click to cycle chord, inversion, modifier, and condition values
+- **Euclidean center visualizer** — Bjorklund-algorithm dot ring in the center of the circular display showing the current Euclidean rhythm pattern (hits, steps, rotation)
+- **Hover indicators** — Per-lane colored highlight on ring segments when hovering; vertical resize cursor on bar-type lanes in both ring and linear editors
+- **Ring playhead trails** — Fading trail behind each lane's playhead highlight, using existing trail alpha levels for visual continuity
+
+### Changed
+
+- **Window size** — Increased from 900x860 to 1100x816 to accommodate the ring display and detail strip side-by-side
+- **UI architecture** — Lane views are now constructed in `didOpen()` and routed to the DetailStrip container; RingDataBridge reads lane data via the existing IArpLane interface without modifying shared code
+
 ## [1.0.0] - 2026-03-31
 
 ### Added
