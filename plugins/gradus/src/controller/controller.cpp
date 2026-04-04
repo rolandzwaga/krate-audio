@@ -251,6 +251,10 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     strumTimeLabel_ = nullptr;
     strumDirectionMenu_ = nullptr;
     strumDirectionLabel_ = nullptr;
+    velCurveKnob_ = nullptr;
+    velCurveLabel_ = nullptr;
+    velCurveTypeMenu_ = nullptr;
+    velCurveTypeLabel_ = nullptr;
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
     activeEditor_ = nullptr;

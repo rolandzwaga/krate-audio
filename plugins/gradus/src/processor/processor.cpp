@@ -567,6 +567,12 @@ void Processor::applyParamsToEngine()
     arpCore_.setLaneSwing(6, arpParams_.chordLaneSwing.load(std::memory_order_relaxed));
     arpCore_.setLaneSwing(7, arpParams_.inversionLaneSwing.load(std::memory_order_relaxed));
 
+    // v1.5 Part 2 Features
+    arpCore_.setVelocityCurveType(arpParams_.velocityCurveType.load(std::memory_order_relaxed));
+    arpCore_.setVelocityCurveAmount(arpParams_.velocityCurveAmount.load(std::memory_order_relaxed));
+    arpCore_.setTranspose(arpParams_.transpose.load(std::memory_order_relaxed));
+    arpCore_.setLengthJitter(arpParams_.lengthJitter.load(std::memory_order_relaxed));
+
     // Always enabled in Gradus (no operating mode selector)
     arpCore_.setEnabled(true);
 }

@@ -130,6 +130,11 @@ private:
     VSTGUI::CView* strumTimeLabel_ = nullptr;
     VSTGUI::CView* strumDirectionMenu_ = nullptr;
     VSTGUI::CView* strumDirectionLabel_ = nullptr;
+    // v1.5 Part 2: Velocity Curve controls (only visible when Velocity lane selected)
+    VSTGUI::CView* velCurveKnob_ = nullptr;
+    VSTGUI::CView* velCurveLabel_ = nullptr;
+    VSTGUI::CView* velCurveTypeMenu_ = nullptr;
+    VSTGUI::CView* velCurveTypeLabel_ = nullptr;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

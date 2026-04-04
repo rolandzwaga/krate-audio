@@ -615,6 +615,32 @@ public:
         laneSwingAmounts_[laneIndex] = std::clamp(percent, 0.0f, 75.0f) / 100.0f;
     }
 
+    /// @brief Set velocity curve type: 0=Linear, 1=Exponential, 2=Logarithmic, 3=S-Curve.
+    void setVelocityCurveType(int type) noexcept {
+        velocityCurveType_ = std::clamp(type, 0, 3);
+    }
+
+    /// @brief Set velocity curve amount as percentage 0-100%.
+    /// 0% = no curve (linear passthrough), 100% = maximum curve shaping.
+    void setVelocityCurveAmount(float percent) noexcept {
+        velocityCurveAmount_ = std::clamp(percent, 0.0f, 100.0f) / 100.0f;
+    }
+
+    /// @brief Set global transpose in semitones (-24 to +24).
+    /// When a non-chromatic scale is active, the transpose is quantized
+    /// through the scale so the result always stays in key.
+    void setTranspose(int semitones) noexcept {
+        transpose_ = std::clamp(semitones, -24, 24);
+    }
+
+    /// @brief Set pattern length jitter in steps (0-4).
+    /// Each time the main step counter wraps, jitter randomly extends or
+    /// shortens the effective length by up to +/- `steps` to create
+    /// evolving non-repeating patterns.
+    void setLengthJitter(int steps) noexcept {
+        lengthJitter_ = std::clamp(steps, 0, 4);
+    }
+
     // =========================================================================
     // Spice/Dice & Humanize (077-spice-dice-humanize)
     // =========================================================================
@@ -1277,6 +1303,23 @@ private:
         ++pendingNoteOffCount_;
     }
 
+    /// @brief Apply a curve transform to a normalized 0-1 velocity value.
+    /// Returns the curved value (also 0-1). (v1.5 Velocity Curve)
+    [[nodiscard]] inline float applyVelocityCurve(float x) const noexcept {
+        x = std::clamp(x, 0.0f, 1.0f);
+        switch (velocityCurveType_) {
+            case 1: // Exponential — slow rise, fast end (x^2)
+                return x * x;
+            case 2: // Logarithmic — fast rise, slow end (sqrt)
+                return std::sqrt(x);
+            case 3: // S-Curve — smooth ease in/out (smoothstep)
+                return x * x * (3.0f - 2.0f * x);
+            case 0:
+            default:
+                return x; // Linear (no change)
+        }
+    }
+
     /// @brief Precompute per-note strum offsets into strumOffsets_ for a chord.
     /// Called ONCE at the start of each chord emission. Direction is picked
     /// once per chord (important for Random/Alternate modes). (v1.5 Strum Mode)
@@ -1501,6 +1544,7 @@ private:
             // Advance lanes using per-lane speed accumulators with per-lane swing
             // v1.5: Per-lane swing skews the advance threshold — even advances
             // take (1+swing) ticks, odd advances take (1-swing) ticks.
+            // v1.5 Part 2: Length Jitter re-rolls pattern length on wrap.
             auto advanceLaneBySpeed = [this](auto& lane, size_t laneIdx) {
                 float& accum = laneAccumulators_[laneIdx];
                 const float speed = laneSpeedMultipliers_[laneIdx];
@@ -1514,7 +1558,36 @@ private:
 
                 while (accum >= threshold) {
                     accum -= threshold;
-                    lane.advance();
+
+                    // v1.5: Length jitter — skip this advance if pending skips
+                    if (lanePendingSkips_[laneIdx] > 0) {
+                        --lanePendingSkips_[laneIdx];
+                    } else {
+                        const int prevStep = static_cast<int>(lane.currentStep());
+                        lane.advance();
+                        const int newStep = static_cast<int>(lane.currentStep());
+
+                        // Detect wrap (new step < previous step)
+                        if (lengthJitter_ > 0 && newStep < prevStep) {
+                            uint32_t& s = lengthJitterRng_;
+                            s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+                            const int range = 2 * lengthJitter_ + 1;
+                            const int jitter =
+                                static_cast<int>(s % static_cast<uint32_t>(range))
+                                - lengthJitter_;
+                            if (jitter > 0) {
+                                // Extra advances now: shorten this cycle
+                                for (int j = 0; j < jitter; ++j) lane.advance();
+                            } else if (jitter < 0) {
+                                // Schedule skips: lengthen next cycle
+                                lanePendingSkips_[laneIdx] =
+                                    static_cast<int8_t>(-jitter);
+                            }
+                        }
+                        laneLastSteps_[laneIdx] =
+                            static_cast<uint8_t>(lane.currentStep());
+                    }
+
                     ++counter;
                     if (swing > 0.0f) {
                         threshold = (counter & 1u) == 0u
@@ -1742,6 +1815,18 @@ private:
                     std::clamp(scaledVel, 1, 127));
             }
 
+            // v1.5: Apply velocity curve (after lane scaling, before accent)
+            if (velocityCurveAmount_ > 0.0f && velocityCurveType_ != 0) {
+                for (size_t i = 0; i < result.count; ++i) {
+                    float normalized = static_cast<float>(result.velocities[i]) / 127.0f;
+                    float curved = applyVelocityCurve(normalized);
+                    // Blend linear and curved by amount
+                    float blended = normalized + (curved - normalized) * velocityCurveAmount_;
+                    result.velocities[i] = static_cast<uint8_t>(
+                        std::clamp(static_cast<int>(std::round(blended * 127.0f)), 1, 127));
+                }
+            }
+
             // 074-ratcheting (FR-020): Capture pre-accent velocities for
             // subsequent sub-steps. Accent applies to first sub-step only;
             // remaining sub-steps use these un-accented velocities.
@@ -1809,6 +1894,25 @@ private:
                                      static_cast<int>(pitchOffset);
                     result.notes[i] = static_cast<uint8_t>(
                         std::clamp(offsetNote, 0, 127));
+                }
+            }
+
+            // v1.5: Apply global Transpose (scale-quantized when a scale is active)
+            if (transpose_ != 0) {
+                for (size_t i = 0; i < result.count; ++i) {
+                    if (scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
+                        // Scale-quantized transpose: treat semitone input as scale degrees
+                        // to keep result diatonic. Divide by ~2 for a degree-like feel.
+                        auto interval = scaleHarmonizer_.calculate(
+                            static_cast<int>(result.notes[i]),
+                            transpose_);
+                        result.notes[i] = static_cast<uint8_t>(
+                            std::clamp(interval.targetNote, 0, 127));
+                    } else {
+                        // Chromatic mode: direct semitone addition
+                        int tn = static_cast<int>(result.notes[i]) + transpose_;
+                        result.notes[i] = static_cast<uint8_t>(std::clamp(tn, 0, 127));
+                    }
                 }
             }
 
@@ -2219,6 +2323,9 @@ private:
         laneAccumulators_.fill(0.0f);
         // v1.5: Reset per-lane swing phase counters (net-zero drift after reset)
         laneSwingCounters_.fill(0);
+        // v1.5 Part 2: Reset length jitter state
+        lanePendingSkips_.fill(0);
+        laneLastSteps_.fill(0);
     }
 
     // =========================================================================
@@ -2291,6 +2398,15 @@ private:
     // v1.5: Per-lane swing
     std::array<float, 8> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
     std::array<uint8_t, 8> laneSwingCounters_{{0, 0, 0, 0, 0, 0, 0, 0}};
+
+    // v1.5 Part 2
+    int velocityCurveType_{0};        ///< 0=Linear, 1=Exp, 2=Log, 3=S-Curve
+    float velocityCurveAmount_{0.0f}; ///< 0.0-1.0 blend amount
+    int transpose_{0};                ///< -24 to +24 semitones
+    int lengthJitter_{0};             ///< 0-4 steps
+    std::array<int8_t, 8> lanePendingSkips_{};  ///< Positive = skip next N advances (lengthens)
+    std::array<uint8_t, 8> laneLastSteps_{};    ///< Previous step position for wrap detection
+    uint32_t lengthJitterRng_{0xFEEDBEEFu};     ///< Xorshift state for jitter re-rolls
 
     // =========================================================================
     // Euclidean Timing State (075-euclidean-timing, FR-001)

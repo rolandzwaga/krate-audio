@@ -150,6 +150,12 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSwing{0.0f};
     std::atomic<float> inversionLaneSwing{0.0f};
 
+    // --- v1.5 Part 2 ---
+    std::atomic<int>   velocityCurveType{0};
+    std::atomic<float> velocityCurveAmount{0.0f};
+    std::atomic<int>   transpose{0};
+    std::atomic<int>   lengthJitter{0};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);

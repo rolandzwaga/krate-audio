@@ -396,7 +396,13 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kArpChordLaneSwingId     = 3397,
     kArpInversionLaneSwingId = 3398,
 
-    kArpEndId = 3398,
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter (3399-3402) ---
+    kArpVelocityCurveTypeId   = 3399,  // 0=Linear, 1=Exp, 2=Log, 3=S-Curve
+    kArpVelocityCurveAmountId = 3400,  // 0-100%
+    kArpTransposeId           = 3401,  // -24 to +24 semitones, scale-quantized
+    kArpLengthJitterId        = 3402,  // 0-4 steps
+
+    kArpEndId = 3402,
 
     // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific

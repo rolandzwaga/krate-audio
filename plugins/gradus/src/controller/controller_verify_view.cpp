@@ -53,6 +53,12 @@ VSTGUI::CView* Controller::verifyView(
         } else if (name == "StrumDirectionLabel") {
             strumDirectionLabel_ = view;
             view->setVisible(false);
+        } else if (name == "VelCurveLabel") {
+            velCurveLabel_ = view;
+            view->setVisible(false);
+        } else if (name == "VelCurveTypeLabel") {
+            velCurveTypeLabel_ = view;
+            view->setVisible(false);
         }
     }
 
@@ -83,6 +89,15 @@ VSTGUI::CView* Controller::verifyView(
         }
         if (tag == kArpStrumDirectionId) {
             strumDirectionMenu_ = view;
+            view->setVisible(false);
+        }
+        // v1.5 Part 2: Velocity Curve controls — only visible when Velocity (0) selected
+        if (tag == kArpVelocityCurveAmountId) {
+            velCurveKnob_ = view;
+            view->setVisible(false);
+        }
+        if (tag == kArpVelocityCurveTypeId) {
+            velCurveTypeMenu_ = view;
             view->setVisible(false);
         }
     }
@@ -577,6 +592,12 @@ void Controller::constructArpLanes()
                 if (strumTimeLabel_)      strumTimeLabel_->setVisible(showStrum);
                 if (strumDirectionMenu_)  strumDirectionMenu_->setVisible(showStrum);
                 if (strumDirectionLabel_) strumDirectionLabel_->setVisible(showStrum);
+                // v1.5 Part 2: Toggle Velocity Curve (UI lane 0 = Velocity)
+                const bool showVelCurve = (laneIndex == 0);
+                if (velCurveKnob_)      velCurveKnob_->setVisible(showVelCurve);
+                if (velCurveLabel_)     velCurveLabel_->setVisible(showVelCurve);
+                if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
+                if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

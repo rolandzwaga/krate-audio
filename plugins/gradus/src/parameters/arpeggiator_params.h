@@ -155,6 +155,12 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSwing{0.0f};
     std::atomic<float> inversionLaneSwing{0.0f};
 
+    // --- v1.5 Part 2 ---
+    std::atomic<int>   velocityCurveType{0};     // 0=Linear, 1=Exp, 2=Log, 3=S
+    std::atomic<float> velocityCurveAmount{0.0f}; // 0-100%
+    std::atomic<int>   transpose{0};             // -24 to +24 semitones (scale-quantized)
+    std::atomic<int>   lengthJitter{0};          // 0-4 steps
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -509,6 +515,30 @@ inline void handleArpParamChange(
                     case kArpInversionLaneSwingId: params.inversionLaneSwing.store(swing, std::memory_order_relaxed); break;
                     default: break;
                 }
+            }
+            // v1.5 Part 2: Velocity Curve Type (0-3)
+            else if (id == kArpVelocityCurveTypeId) {
+                params.velocityCurveType.store(
+                    std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                    std::memory_order_relaxed);
+            }
+            // v1.5 Part 2: Velocity Curve Amount (0-100%)
+            else if (id == kArpVelocityCurveAmountId) {
+                params.velocityCurveAmount.store(
+                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+                    std::memory_order_relaxed);
+            }
+            // v1.5 Part 2: Transpose (-24 to +24)
+            else if (id == kArpTransposeId) {
+                params.transpose.store(
+                    std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
+                    std::memory_order_relaxed);
+            }
+            // v1.5 Part 2: Length Jitter (0-4)
+            else if (id == kArpLengthJitterId) {
+                params.lengthJitter.store(
+                    std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4),
+                    std::memory_order_relaxed);
             }
             break;
     }
@@ -936,6 +966,32 @@ inline void registerArpParams(
                     0, ParameterInfo::kCanAutomate));
         }
     }
+
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+
+    // Velocity Curve Type: StringListParameter (4 entries), default 0 (Linear)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Velocity Curve Type"), kArpVelocityCurveTypeId,
+        {STR16("Linear"), STR16("Exponential"), STR16("Logarithmic"), STR16("S-Curve")}));
+
+    // Velocity Curve Amount: 0-100%, default 0
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Velocity Curve Amount"), kArpVelocityCurveAmountId,
+            STR16("%"), 0.0, 100.0, 0.0,
+            0, ParameterInfo::kCanAutomate));
+
+    // Transpose: -24 to +24 semitones (scale-quantized), default 0
+    // Normalized default: (0 - (-24)) / 48 = 0.5
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Transpose"), kArpTransposeId,
+            STR16("st"), -24.0, 24.0, 0.0,
+            48, ParameterInfo::kCanAutomate));
+
+    // Length Jitter: 0-4 steps, default 0
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Length Jitter"), kArpLengthJitterId,
+            STR16("steps"), 0.0, 4.0, 0.0,
+            4, ParameterInfo::kCanAutomate));
 }
 
 // =============================================================================
@@ -1162,6 +1218,30 @@ inline Steinberg::tresult formatArpParam(
         }
         case kArpStrumDirectionId:
             return kResultFalse; // StringListParameter handles
+
+        // --- v1.5 Part 2 ---
+        case kArpVelocityCurveTypeId:
+            return kResultFalse; // StringListParameter handles
+        case kArpVelocityCurveAmountId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpTransposeId: {
+            char8 text[32];
+            int semi = static_cast<int>(std::round(value * 48.0 - 24.0));
+            snprintf(text, sizeof(text), "%+d st", semi);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpLengthJitterId: {
+            char8 text[32];
+            int steps = static_cast<int>(std::round(value * 4.0));
+            snprintf(text, sizeof(text), "%d step%s", steps, steps == 1 ? "" : "s");
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
 
         // --- Scale Mode (084-arp-scale-mode) ---
         // Let StringListParameter handle display for these
@@ -1414,6 +1494,12 @@ inline void saveArpParams(
     streamer.writeFloat(params.conditionLaneSwing.load(std::memory_order_relaxed));
     streamer.writeFloat(params.chordLaneSwing.load(std::memory_order_relaxed));
     streamer.writeFloat(params.inversionLaneSwing.load(std::memory_order_relaxed));
+
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    streamer.writeInt32(params.velocityCurveType.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.velocityCurveAmount.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.transpose.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.lengthJitter.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1644,6 +1730,19 @@ inline bool loadArpParams(
         if (!loadFloat(params.conditionLaneSwing)) return true;
         if (!loadFloat(params.chordLaneSwing)) return true;
         if (!loadFloat(params.inversionLaneSwing)) return true;
+    }
+
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    {
+        if (!streamer.readInt32(intVal)) return true;
+        params.velocityCurveType.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+        if (!streamer.readFloat(floatVal)) return true;
+        params.velocityCurveAmount.store(
+            std::clamp(floatVal, 0.0f, 100.0f), std::memory_order_relaxed);
+        if (!streamer.readInt32(intVal)) return true;
+        params.transpose.store(std::clamp(intVal, -24, 24), std::memory_order_relaxed);
+        if (!streamer.readInt32(intVal)) return true;
+        params.lengthJitter.store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
     }
 
     return true;
@@ -1927,6 +2026,20 @@ inline void loadArpParamsToController(
             }
         }
     }
+
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpVelocityCurveTypeId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpVelocityCurveAmountId,
+        static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpTransposeId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), -24, 24) + 24) / 48.0);
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpLengthJitterId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
 }
 
 } // namespace Gradus

@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ratchet velocity decay** — New "Rtch Dcy" parameter (0-100%) applies exponential velocity falloff across ratchet subdivisions, giving ratcheted notes a natural bouncing-ball feel instead of flat-velocity bursts
 - **Strum mode for chords** — New "Strum" (0-100ms) and "Direction" (Up/Down/Random/Alternate) parameters spread chord note-on events in time, producing a guitar-strum effect for generated chords
 - **Per-lane swing** — 8 new swing parameters (0-75%), one per lane, shown contextually in the detail strip for the selected lane; each lane's swing independently skews its advance timing, creating polymetric groove interactions on top of the existing per-lane speed multipliers
+- **Velocity curve** — New curve shaping (Linear / Exponential / Logarithmic / S-Curve) with an amount knob (0-100%), applied after the velocity lane; shapes the dynamic feel of the whole pattern without redrawing every step. Shown contextually on the Velocity lane.
+- **Transpose** — New global transpose knob (-24 to +24 semitones) in control row 1; when a non-chromatic scale is active the transpose snaps through the scale so the result always stays in key.
+- **Length jitter** — New knob (0-4 steps) in control row 2; occasionally extends or shortens each lane's effective cycle length when it wraps, creating evolving non-repeating patterns.
 
 ### Changed
 
