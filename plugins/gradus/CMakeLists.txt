@@ -68,6 +68,15 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # VST3 SDK Common Sources (for MemoryStream used by preset saving)
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
+    # Circular Ring UI (Gradus-specific)
+    src/ui/ring_geometry.h
+    src/ui/ring_data_bridge.h
+    src/ui/ring_renderer.h
+    src/ui/ring_display.h
+    src/ui/euclidean_center.h
+    src/ui/detail_strip.h
+    src/ui/lane_tab_bar.h
+
     # Shared
     src/plugin_ids.h
     src/version.h

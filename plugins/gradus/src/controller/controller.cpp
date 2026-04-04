@@ -9,13 +9,14 @@
 #include "../preset/gradus_preset_config.h"
 
 #include "ui/arp_lane_editor.h"
-#include "ui/arp_lane_container.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
 #include "ui/preset_browser_view.h"
 #include "ui/save_preset_dialog_view.h"
+#include "../ui/ring_display.h"
+#include "../ui/detail_strip.h"
 
 #include "public.sdk/source/common/memorystream.h"
 #include "base/source/fstreamer.h"
@@ -175,17 +176,28 @@ VSTGUI::CView* Controller::createCustomView(
     [[maybe_unused]] VSTGUI::VST3Editor* editor)
 {
     std::string viewName(name ? name : "");
-    VSTGUI::CRect viewRect;
-    if (const auto* sizeAttr = attributes.getAttributeValue("size")) {
-        VSTGUI::CPoint p;
-        VSTGUI::UIAttributes::stringToPoint(*sizeAttr, p);
-        viewRect = VSTGUI::CRect(0, 0, p.x, p.y);
-    }
+    VSTGUI::CPoint origin(0, 0);
+    VSTGUI::CPoint size(100, 100);
+    attributes.getPointAttribute("origin", origin);
+    attributes.getPointAttribute("size", size);
+    VSTGUI::CRect viewRect(origin.x, origin.y, origin.x + size.x, origin.y + size.y);
 
     if (viewName == "PresetBrowserButton")
         return createPresetButton(viewRect, true);
     if (viewName == "SavePresetButton")
         return createPresetButton(viewRect, false);
+
+    if (viewName == "RingDisplay") {
+        auto* display = new RingDisplay(viewRect);
+        ringDisplay_ = display;
+        return display;
+    }
+
+    if (viewName == "DetailStrip") {
+        auto* strip = new DetailStrip(viewRect);
+        detailStrip_ = strip;
+        return strip;
+    }
 
     return nullptr;
 }
@@ -193,7 +205,10 @@ VSTGUI::CView* Controller::createCustomView(
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
 {
     activeEditor_ = editor;
-    wireCopyPasteCallbacks();
+
+    // Construct arp lanes and wire to ring display + detail strip
+    // (must happen here, after all views are created from uidesc)
+    constructArpLanes();
 
     // Create preset browser and save dialog overlay views
     if (auto* frame = editor->getFrame()) {
@@ -226,7 +241,9 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     conditionLane_ = nullptr;
     chordLane_ = nullptr;
     inversionLane_ = nullptr;
-    arpLaneContainer_ = nullptr;
+    ringDataBridge_.clearLanes();
+    ringDisplay_ = nullptr;
+    detailStrip_ = nullptr;
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
     activeEditor_ = nullptr;

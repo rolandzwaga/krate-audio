@@ -10,6 +10,7 @@
 #include "../plugin_ids.h"
 #include "../parameters/arpeggiator_params.h"
 #include "../parameters/dropdown_mappings.h"
+#include "../ui/ring_display.h"
 
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
@@ -158,23 +159,26 @@ tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // --- Playhead parameters → lane views ---
-    auto setPlayhead = [](Krate::Plugins::IArpLane* lane, double val) {
+    // --- Playhead parameters → lane views + ring display ---
+    auto setPlayhead = [this](Krate::Plugins::IArpLane* lane, int laneIndex,
+                              double val) {
+        int step = static_cast<int32_t>(val * 32.0);
         if (lane) {
-            lane->setPlayheadStep(static_cast<int32_t>(val * 32.0));
+            lane->setPlayheadStep(step);
             auto* view = lane->getView();
             if (view) view->invalid();
         }
+        ringDataBridge_.setPlayheadStep(laneIndex, step);
     };
 
-    if (tag == kArpVelocityPlayheadId)  setPlayhead(velocityLane_, value);
-    if (tag == kArpGatePlayheadId)      setPlayhead(gateLane_, value);
-    if (tag == kArpPitchPlayheadId)     setPlayhead(pitchLane_, value);
-    if (tag == kArpRatchetPlayheadId)   setPlayhead(ratchetLane_, value);
-    if (tag == kArpModifierPlayheadId)  setPlayhead(modifierLane_, value);
-    if (tag == kArpConditionPlayheadId) setPlayhead(conditionLane_, value);
-    if (tag == kArpChordPlayheadId)     setPlayhead(chordLane_, value);
-    if (tag == kArpInversionPlayheadId) setPlayhead(inversionLane_, value);
+    if (tag == kArpVelocityPlayheadId)  setPlayhead(velocityLane_, 0, value);
+    if (tag == kArpGatePlayheadId)      setPlayhead(gateLane_, 1, value);
+    if (tag == kArpPitchPlayheadId)     setPlayhead(pitchLane_, 2, value);
+    if (tag == kArpModifierPlayheadId)  setPlayhead(modifierLane_, 3, value);
+    if (tag == kArpConditionPlayheadId) setPlayhead(conditionLane_, 4, value);
+    if (tag == kArpRatchetPlayheadId)   setPlayhead(ratchetLane_, 5, value);
+    if (tag == kArpChordPlayheadId)     setPlayhead(chordLane_, 6, value);
+    if (tag == kArpInversionPlayheadId) setPlayhead(inversionLane_, 7, value);
 
     // --- Scale type → pitch lane (for popup suffix display) ---
     if (tag == kArpScaleTypeId) {
@@ -210,6 +214,51 @@ tresult PLUGIN_API Controller::setParamNormalized(
             targetLane->setSpeedMultiplier(speed);
             auto* view = targetLane->getView();
             if (view) view->invalid();
+        }
+    }
+
+    // --- Euclidean parameters → ring data bridge ---
+    if (tag == kArpEuclideanEnabledId || tag == kArpEuclideanHitsId ||
+        tag == kArpEuclideanStepsId || tag == kArpEuclideanRotationId) {
+        auto getParamInt = [this](ParamID id, double scale, int offset = 0) -> int {
+            auto* p = getParameterObject(id);
+            return p ? offset + static_cast<int>(std::round(p->getNormalized() * scale))
+                     : 0;
+        };
+        ringDataBridge_.setEuclideanState(
+            getParamInt(kArpEuclideanEnabledId, 1.0) > 0,
+            getParamInt(kArpEuclideanHitsId, 32.0),
+            std::clamp(getParamInt(kArpEuclideanStepsId, 30.0, 2), 2, 32),
+            getParamInt(kArpEuclideanRotationId, 31.0));
+    }
+
+    // --- Lane length changes → update ring geometry step counts ---
+    auto syncLaneLength = [this, tag](ParamID lengthId, int laneIndex) {
+        if (tag == lengthId) {
+            auto* p = getParameterObject(lengthId);
+            if (p && ringDisplay_) {
+                int steps = std::clamp(
+                    static_cast<int>(1.0 + std::round(p->getNormalized() * 31.0)), 1, 32);
+                ringDisplay_->getRenderer()->geometry().setLaneStepCount(
+                    laneIndex, steps);
+            }
+        }
+    };
+    syncLaneLength(kArpVelocityLaneLengthId, 0);
+    syncLaneLength(kArpGateLaneLengthId, 1);
+    syncLaneLength(kArpPitchLaneLengthId, 2);
+    syncLaneLength(kArpModifierLaneLengthId, 3);
+    syncLaneLength(kArpConditionLaneLengthId, 4);
+    syncLaneLength(kArpRatchetLaneLengthId, 5);
+    syncLaneLength(kArpChordLaneLengthId, 6);
+    syncLaneLength(kArpInversionLaneLengthId, 7);
+
+    // --- Invalidate ring display for any arp parameter change ---
+    if (ringDisplay_) {
+        bool isArpParam = (tag >= 3001 && tag <= 3400);
+        if (isArpParam) {
+            auto* renderer = ringDisplay_->getRenderer();
+            if (renderer) renderer->invalid();
         }
     }
 

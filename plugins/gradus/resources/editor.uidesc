@@ -80,14 +80,14 @@
     <!-- Gradus - Step Arpeggiator                                       -->
     <!-- Layout: 900 x 860                                               -->
     <!-- ================================================================ -->
-    <template name="editor" size="900, 860"
+    <template name="editor" size="1100, 816"
               background-color="bg"
               class="CViewContainer">
 
         <!-- ============================================================ -->
         <!-- 1. Header row (y=0, h=36)                                   -->
         <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 0" size="900, 36"
+        <view class="CViewContainer" origin="0, 0" size="1100, 36"
               background-color="bg-panel">
             <view class="CTextLabel" origin="12, 0" size="120, 36"
                   font="~ NormalFontBig" font-color="arpeggiator"
@@ -102,7 +102,7 @@
         <!-- ============================================================ -->
         <!-- 2. Control row 1 (y=36, h=32) — Dropdowns                  -->
         <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 36" size="900, 32"
+        <view class="CViewContainer" origin="0, 36" size="1100, 32"
               transparent="true">
             <!-- Pattern -->
             <view class="CTextLabel" origin="8, 0" size="48, 12"
@@ -200,7 +200,7 @@
         <!-- 3. Control row 2 (y=68, h=44) — Sync/Rate/Gate/Swing +     -->
         <!--    Euclidean + Generative (merged)                          -->
         <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 68" size="900, 44"
+        <view class="CViewContainer" origin="0, 68" size="1100, 44"
               transparent="true">
 
             <!-- Tempo Sync toggle -->
@@ -357,14 +357,20 @@
         <!-- ============================================================ -->
         <!-- 4. Lane container (y=112, h=710) — all 8 lanes, no scroll  -->
         <!-- ============================================================ -->
-        <view class="ArpLaneContainer" origin="8, 112" size="884, 710"
-              transparent="false"
-              custom-view-name="ArpLaneContainer"/>
+        <!-- Ring Display (concentric circular step sequencer) -->
+        <view custom-view-name="RingDisplay"
+              origin="8, 112" size="660, 660"
+              transparent="false"/>
+
+        <!-- Detail Strip (lane tabs + linear editor) -->
+        <view custom-view-name="DetailStrip"
+              origin="676, 112" size="416, 660"
+              transparent="false"/>
 
         <!-- ============================================================ -->
         <!-- 5. Footer (y=826, h=34) — Audition + Krate Audio           -->
         <!-- ============================================================ -->
-        <view class="CViewContainer" origin="0, 826" size="900, 34"
+        <view class="CViewContainer" origin="0, 778" size="1100, 34"
               transparent="true">
 
             <!-- Audition controls (left side) -->
@@ -406,11 +412,11 @@
                   tooltip="Audition decay time"/>
 
             <!-- Krate Audio label (right side) -->
-            <view class="CTextLabel" origin="680, 0" size="100, 34"
+            <view class="CTextLabel" origin="880, 0" size="100, 34"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="right" transparent="true"
                   title="Krate Audio"/>
-            <view class="CTextLabel" origin="786, 0" size="106, 34"
+            <view class="CTextLabel" origin="986, 0" size="106, 34"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="right" transparent="true"
                   custom-view-name="VersionLabel"

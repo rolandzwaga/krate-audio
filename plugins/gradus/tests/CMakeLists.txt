@@ -5,6 +5,9 @@
 add_executable(gradus_tests
     unit/test_main.cpp
 
+    # Ring geometry unit tests (no VSTGUI dependency)
+    unit/ui/ring_geometry_tests.cpp
+
     # VST3 validation and parameter tests
     unit/vst/gradus_vst_tests.cpp
 

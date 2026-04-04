@@ -16,6 +16,7 @@
 #include "color_utils.h"
 
 #include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/cframe.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
@@ -628,7 +629,16 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override {
 
-        if (!isDragging_) return VSTGUI::kMouseEventNotHandled;
+        if (!isDragging_) {
+            // Show resize cursor when hovering over bar area
+            int step = getStepFromPoint(where);
+            if (auto* frame = getFrame()) {
+                frame->setCursor(step >= 0
+                    ? VSTGUI::kCursorVSize
+                    : VSTGUI::kCursorDefault);
+            }
+            return VSTGUI::kMouseEventNotHandled;
+        }
 
         // Update fine mode from current modifier state
         fineMode_ = (buttons.getModifierState() & VSTGUI::kShift) != 0;
@@ -680,11 +690,23 @@ public:
         isDragging_ = false;
         dirtySteps_.reset();
         lastDragStep_ = -1;
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorVSize); // Still over bar area
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(
+        VSTGUI::CPoint& /*where*/,
+        const VSTGUI::CButtonState& /*buttons*/) override {
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
         return VSTGUI::kMouseEventHandled;
     }
 
     VSTGUI::CMouseEventResult onMouseCancel() override {
         cancelDrag();
+        if (auto* frame = getFrame())
+            frame->setCursor(VSTGUI::kCursorDefault);
         return VSTGUI::kMouseEventHandled;
     }
 

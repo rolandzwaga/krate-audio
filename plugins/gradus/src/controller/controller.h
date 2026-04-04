@@ -5,6 +5,7 @@
 // ==============================================================================
 
 #include "ui/arp_lane.h"
+#include "ui/ring_data_bridge.h"
 #include "preset/preset_manager.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -18,10 +19,14 @@ class MemoryStream;
 }
 
 namespace Krate::Plugins {
-class ArpLaneContainer;
 class PresetBrowserView;
 class SavePresetDialogView;
 } // namespace Krate::Plugins
+
+namespace Gradus {
+class RingDisplay;
+class DetailStrip;
+} // namespace Gradus
 
 namespace Gradus {
 
@@ -68,6 +73,7 @@ public:
     void willClose(VSTGUI::VST3Editor* editor) override;
 
     // Arp lane management
+    void constructArpLanes();
     void handleArpSkipEvent(int lane, int step);
     Krate::Plugins::IArpLane* getArpLane(int index);
     uint32_t getArpLaneStepBaseParamId(int index);
@@ -105,8 +111,14 @@ private:
     Krate::Plugins::IArpLane* chordLane_ = nullptr;
     Krate::Plugins::IArpLane* inversionLane_ = nullptr;
 
-    // Arp lane container (VSTGUI-owned, nulled in willClose)
-    Krate::Plugins::ArpLaneContainer* arpLaneContainer_ = nullptr;
+    // Circular ring display (VSTGUI-owned, nulled in willClose)
+    RingDisplay* ringDisplay_ = nullptr;
+
+    // Detail strip with lane tabs (VSTGUI-owned, nulled in willClose)
+    DetailStrip* detailStrip_ = nullptr;
+
+    // Ring data bridge (owned by controller, reads from IArpLane pointers)
+    RingDataBridge ringDataBridge_;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};
