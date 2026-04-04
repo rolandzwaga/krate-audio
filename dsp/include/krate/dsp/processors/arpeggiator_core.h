@@ -1974,7 +1974,9 @@ private:
 
             // v1.5 Part 3: Apply Note Range Mapping (after all pitch processing)
             // Mode 0=Wrap, 1=Clamp, 2=Skip (drop notes that fall outside).
-            if (rangeLow_ > 0 || rangeHigh_ < 127) {
+            // Pinned steps bypass range mapping — the pin note is the user's
+            // explicit target and should not be folded/clamped.
+            if (!isPinnedStep && (rangeLow_ > 0 || rangeHigh_ < 127)) {
                 const int lo = std::min(rangeLow_, rangeHigh_);
                 const int hi = std::max(rangeLow_, rangeHigh_);
                 const int span = hi - lo + 1;
