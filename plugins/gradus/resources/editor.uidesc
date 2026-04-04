@@ -354,43 +354,35 @@
             <view class="CTextLabel" origin="710, 6" size="1, 32"
                   transparent="false" background-color="knob-guide"/>
 
-            <!-- v1.5: Ratchet Decay, Strum Time, Strum Direction -->
-            <view class="CTextLabel" origin="716, 2" size="48, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Rtch Dcy"/>
-            <view class="ArcKnob" origin="726, 13" size="28, 28"
-                  control-tag="ArpRatchetDecay" default-value="0"
-                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
-                  tooltip="Ratchet velocity decay per subdivision"/>
-
-            <view class="CTextLabel" origin="762, 2" size="40, 10"
+            <!-- v1.5: Strum Time + Direction (chord-global, stay in row 2) -->
+            <view class="CTextLabel" origin="716, 2" size="40, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Strum"/>
-            <view class="ArcKnob" origin="768, 13" size="28, 28"
+            <view class="ArcKnob" origin="722, 13" size="28, 28"
                   control-tag="ArpStrumTime" default-value="0"
                   arc-color="arp.bottombar.neutral" guide-color="knob-guide"
                   tooltip="Strum time for chord notes (0-100ms)"/>
 
-            <view class="CTextLabel" origin="802, 2" size="60, 10"
+            <view class="CTextLabel" origin="756, 2" size="60, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Direction"/>
-            <view class="COptionMenu" origin="802, 13" size="60, 18"
+            <view class="COptionMenu" origin="756, 13" size="60, 18"
                   control-tag="ArpStrumDirection" default-value="0"
                   font="~ NormalFontSmaller" font-color="text-menu"
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Strum direction"/>
 
             <!-- Separator -->
-            <view class="CTextLabel" origin="872, 6" size="1, 32"
+            <view class="CTextLabel" origin="822, 6" size="1, 32"
                   transparent="false" background-color="knob-guide"/>
 
             <!-- Preset buttons (wrapped in positioned containers) -->
-            <view class="CViewContainer" origin="884, 12" size="60, 20"
+            <view class="CViewContainer" origin="834, 12" size="60, 20"
                   transparent="true">
                 <view custom-view-name="PresetBrowserButton"
                       origin="0, 0" size="60, 20"/>
             </view>
-            <view class="CViewContainer" origin="952, 12" size="48, 20"
+            <view class="CViewContainer" origin="902, 12" size="48, 20"
                   transparent="true">
                 <view custom-view-name="SavePresetButton"
                       origin="0, 0" size="48, 20"/>
@@ -446,6 +438,15 @@
               control-tag="ArpInversionLaneSwing" default-value="0"
               arc-color="arp.condition.accent" guide-color="knob-guide"
               tooltip="Inversion lane swing"/>
+
+        <!-- v1.5: Ratchet Decay — contextual, shown only when Ratchet lane selected -->
+        <view class="CTextLabel" origin="810, 138" size="40, 12"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="left" transparent="true" title="Decay"/>
+        <view class="ArcKnob" origin="846, 136" size="28, 28"
+              control-tag="ArpRatchetDecay" default-value="0"
+              arc-color="arp.ratchet.accent" guide-color="knob-guide"
+              tooltip="Ratchet velocity decay per subdivision"/>
 
         <!-- ============================================================ -->
         <!-- 5. Footer (y=826, h=34) — Audition + Krate Audio           -->

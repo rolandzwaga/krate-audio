@@ -56,6 +56,11 @@ VSTGUI::CView* Controller::verifyView(
                 view->setVisible(uiLane == 0);
             }
         }
+        // v1.5: Ratchet Decay knob — only visible when Ratchet lane (5) selected
+        if (tag == kArpRatchetDecayId) {
+            ratchetDecayKnob_ = view;
+            view->setVisible(false); // hidden until Ratchet tab selected
+        }
     }
 
     return view;
@@ -528,7 +533,7 @@ void Controller::constructArpLanes()
             });
 
         // Wire bidirectional selection: detail strip ↔ ring renderer
-        // Also toggles per-lane swing knob visibility
+        // Also toggles per-lane swing knob visibility and contextual controls
         detailStrip_->setLaneSelectedCallback(
             [this, renderer](int laneIndex) {
                 renderer->setSelectedLane(laneIndex);
@@ -538,6 +543,9 @@ void Controller::constructArpLanes()
                     if (laneSwingKnobs_[i])
                         laneSwingKnobs_[i]->setVisible(i == laneIndex);
                 }
+                // Toggle Ratchet Decay knob visibility (UI lane 5 = Ratchet)
+                if (ratchetDecayKnob_)
+                    ratchetDecayKnob_->setVisible(laneIndex == 5);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

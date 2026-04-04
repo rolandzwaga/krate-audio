@@ -122,6 +122,8 @@ private:
 
     // v1.5: Per-lane swing knobs (captured in verifyView, toggled in selectLane)
     std::array<VSTGUI::CView*, 8> laneSwingKnobs_{};
+    // v1.5: Ratchet Decay knob (only visible when Ratchet lane selected)
+    VSTGUI::CView* ratchetDecayKnob_ = nullptr;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};
