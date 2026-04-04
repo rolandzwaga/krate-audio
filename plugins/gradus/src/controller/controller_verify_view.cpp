@@ -29,7 +29,7 @@ namespace Gradus {
 
 VSTGUI::CView* Controller::verifyView(
     VSTGUI::CView* view,
-    const VSTGUI::UIAttributes& /*attributes*/,
+    const VSTGUI::UIAttributes& attributes,
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/) {
 
@@ -40,6 +40,21 @@ VSTGUI::CView* Controller::verifyView(
     // Capture DetailStrip pointer (created by createCustomView)
     if (auto* strip = dynamic_cast<DetailStrip*>(view))
         detailStrip_ = strip;
+
+    // Capture contextual labels by custom-view-name (no control-tag available)
+    if (const auto* nameAttr = attributes.getAttributeValue("custom-view-name")) {
+        const std::string& name = *nameAttr;
+        if (name == "RatchetDecayLabel") {
+            ratchetDecayLabel_ = view;
+            view->setVisible(false);
+        } else if (name == "StrumTimeLabel") {
+            strumTimeLabel_ = view;
+            view->setVisible(false);
+        } else if (name == "StrumDirectionLabel") {
+            strumDirectionLabel_ = view;
+            view->setVisible(false);
+        }
+    }
 
     // Capture per-lane swing knobs by control-tag
     if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view)) {
@@ -552,13 +567,16 @@ void Controller::constructArpLanes()
                     if (laneSwingKnobs_[i])
                         laneSwingKnobs_[i]->setVisible(i == laneIndex);
                 }
-                // Toggle Ratchet Decay knob visibility (UI lane 5 = Ratchet)
-                if (ratchetDecayKnob_)
-                    ratchetDecayKnob_->setVisible(laneIndex == 5);
-                // Toggle Strum controls (UI lanes 6 = Chord, 7 = Inversion)
+                // Toggle Ratchet Decay (UI lane 5 = Ratchet)
+                const bool showDecay = (laneIndex == 5);
+                if (ratchetDecayKnob_)  ratchetDecayKnob_->setVisible(showDecay);
+                if (ratchetDecayLabel_) ratchetDecayLabel_->setVisible(showDecay);
+                // Toggle Strum (UI lanes 6 = Chord, 7 = Inversion)
                 const bool showStrum = (laneIndex == 6 || laneIndex == 7);
-                if (strumTimeKnob_) strumTimeKnob_->setVisible(showStrum);
-                if (strumDirectionMenu_) strumDirectionMenu_->setVisible(showStrum);
+                if (strumTimeKnob_)       strumTimeKnob_->setVisible(showStrum);
+                if (strumTimeLabel_)      strumTimeLabel_->setVisible(showStrum);
+                if (strumDirectionMenu_)  strumDirectionMenu_->setVisible(showStrum);
+                if (strumDirectionLabel_) strumDirectionLabel_->setVisible(showStrum);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

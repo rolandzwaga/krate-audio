@@ -122,11 +122,14 @@ private:
 
     // v1.5: Per-lane swing knobs (captured in verifyView, toggled in selectLane)
     std::array<VSTGUI::CView*, 8> laneSwingKnobs_{};
-    // v1.5: Ratchet Decay knob (only visible when Ratchet lane selected)
+    // v1.5: Ratchet Decay knob + label (only visible when Ratchet lane selected)
     VSTGUI::CView* ratchetDecayKnob_ = nullptr;
-    // v1.5: Strum controls (only visible when Chord or Inversion lane selected)
+    VSTGUI::CView* ratchetDecayLabel_ = nullptr;
+    // v1.5: Strum controls + labels (only visible when Chord or Inversion lane selected)
     VSTGUI::CView* strumTimeKnob_ = nullptr;
+    VSTGUI::CView* strumTimeLabel_ = nullptr;
     VSTGUI::CView* strumDirectionMenu_ = nullptr;
+    VSTGUI::CView* strumDirectionLabel_ = nullptr;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

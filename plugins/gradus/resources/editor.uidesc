@@ -382,58 +382,79 @@
               origin="676, 112" size="416, 660"
               transparent="false"/>
 
-        <!-- v1.5: Per-lane swing knobs (stacked at same position, shown one at a time) -->
-        <view class="CTextLabel" origin="684, 138" size="80, 12"
+        <!-- ============================================================ -->
+        <!-- v1.5: Per-lane detail strip control row                     -->
+        <!-- Layout: [Swing label] [swing knob]   [Decay/Strum label]   -->
+        <!--         [knob]  [Dir label] [direction dropdown]            -->
+        <!-- The swing knob swaps per lane; Decay is shown only when    -->
+        <!-- Ratchet is selected, Strum only when Chord/Inversion.      -->
+        <!-- ============================================================ -->
+
+        <!-- Swing label (always visible) -->
+        <view class="CTextLabel" origin="688, 141" size="40, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Lane Swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+              text-alignment="right" transparent="true" title="Swing"/>
+
+        <!-- 8 lane swing knobs stacked at the same position (controller toggles visibility) -->
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpVelocityLaneSwing" default-value="0"
               arc-color="arp.velocity.accent" guide-color="knob-guide"
               tooltip="Velocity lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpGateLaneSwing" default-value="0"
               arc-color="arp.gate.accent" guide-color="knob-guide"
               tooltip="Gate lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpPitchLaneSwing" default-value="0"
               arc-color="arp.pitch.accent" guide-color="knob-guide"
               tooltip="Pitch lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpModifierLaneSwing" default-value="0"
               arc-color="arp.modifier.accent" guide-color="knob-guide"
               tooltip="Modifier lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpConditionLaneSwing" default-value="0"
               arc-color="arp.condition.accent" guide-color="knob-guide"
               tooltip="Condition lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpRatchetLaneSwing" default-value="0"
               arc-color="arp.ratchet.accent" guide-color="knob-guide"
               tooltip="Ratchet lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpChordLaneSwing" default-value="0"
-              arc-color="arp.modifier.accent" guide-color="knob-guide"
+              arc-color="arp.chord.accent" guide-color="knob-guide"
               tooltip="Chord lane swing"/>
-        <view class="ArcKnob" origin="770, 136" size="28, 28"
+        <view class="ArcKnob" origin="732, 136" size="28, 28"
               control-tag="ArpInversionLaneSwing" default-value="0"
-              arc-color="arp.condition.accent" guide-color="knob-guide"
+              arc-color="arp.inversion.accent" guide-color="knob-guide"
               tooltip="Inversion lane swing"/>
 
-        <!-- v1.5: Ratchet Decay — contextual, shown only when Ratchet lane selected -->
-        <view class="CTextLabel" origin="810, 138" size="40, 12"
+        <!-- Decay label (contextual — Ratchet lane only) -->
+        <view class="CTextLabel" custom-view-name="RatchetDecayLabel"
+              origin="782, 141" size="40, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
-              text-alignment="left" transparent="true" title="Decay"/>
-        <view class="ArcKnob" origin="846, 136" size="28, 28"
+              text-alignment="right" transparent="true" title="Decay"/>
+        <view class="ArcKnob" origin="826, 136" size="28, 28"
               control-tag="ArpRatchetDecay" default-value="0"
               arc-color="arp.ratchet.accent" guide-color="knob-guide"
               tooltip="Ratchet velocity decay per subdivision"/>
 
-        <!-- v1.5: Strum Time + Direction — contextual, shown when Chord or Inversion lane selected -->
-        <view class="ArcKnob" origin="810, 136" size="28, 28"
+        <!-- Strum label (contextual — Chord/Inversion lanes) -->
+        <view class="CTextLabel" custom-view-name="StrumTimeLabel"
+              origin="782, 141" size="40, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Strum"/>
+        <view class="ArcKnob" origin="826, 136" size="28, 28"
               control-tag="ArpStrumTime" default-value="0"
               arc-color="arp.chord.accent" guide-color="knob-guide"
               tooltip="Strum time for chord notes (0-100ms)"/>
-        <view class="COptionMenu" origin="846, 141" size="60, 18"
+
+        <!-- Strum Direction (contextual — Chord/Inversion lanes) -->
+        <view class="CTextLabel" custom-view-name="StrumDirectionLabel"
+              origin="860, 141" size="24, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Dir"/>
+        <view class="COptionMenu" origin="888, 141" size="60, 18"
               control-tag="ArpStrumDirection" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"
