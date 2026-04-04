@@ -137,6 +137,19 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSpeed{1.0f};
     std::atomic<float> inversionLaneSpeed{1.0f};
 
+    // --- v1.5 Features (shared ID range with Gradus for preset compat) ---
+    std::atomic<float> ratchetDecay{0.0f};
+    std::atomic<float> strumTime{0.0f};
+    std::atomic<int>   strumDirection{0};
+    std::atomic<float> velocityLaneSwing{0.0f};
+    std::atomic<float> gateLaneSwing{0.0f};
+    std::atomic<float> pitchLaneSwing{0.0f};
+    std::atomic<float> modifierLaneSwing{0.0f};
+    std::atomic<float> ratchetLaneSwing{0.0f};
+    std::atomic<float> conditionLaneSwing{0.0f};
+    std::atomic<float> chordLaneSwing{0.0f};
+    std::atomic<float> inversionLaneSwing{0.0f};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);

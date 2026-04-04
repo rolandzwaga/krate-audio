@@ -1196,9 +1196,23 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpConditionLaneSpeedId = 3385,
     kArpChordLaneSpeedId     = 3386,
     kArpInversionLaneSpeedId = 3387,
-    // 3388-3399: reserved for future arp params
 
-    kArpEndId = 3387,
+    // --- v1.5 Features: Ratchet Decay, Strum, Per-Lane Swing (3388-3398) ---
+    kArpRatchetDecayId       = 3388,  // 0-100% velocity decay per ratchet subdivision
+    kArpStrumTimeId          = 3389,  // 0-100ms chord note stagger
+    kArpStrumDirectionId     = 3390,  // 0=Up, 1=Down, 2=Random, 3=Alternate
+
+    // Per-lane swing (3391-3398)
+    kArpVelocityLaneSwingId  = 3391,
+    kArpGateLaneSwingId      = 3392,
+    kArpPitchLaneSwingId     = 3393,
+    kArpModifierLaneSwingId  = 3394,
+    kArpRatchetLaneSwingId   = 3395,
+    kArpConditionLaneSwingId = 3396,
+    kArpChordLaneSwingId     = 3397,
+    kArpInversionLaneSwingId = 3398,
+
+    kArpEndId = 3398,
 
     // --- Sidechain Status (output parameter, not persisted) ---
     kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active

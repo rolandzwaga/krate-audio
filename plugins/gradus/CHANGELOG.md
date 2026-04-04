@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Euclidean center visualizer** — Bjorklund-algorithm dot ring in the center of the circular display showing the current Euclidean rhythm pattern (hits, steps, rotation)
 - **Hover indicators** — Per-lane colored highlight on ring segments when hovering; vertical resize cursor on bar-type lanes in both ring and linear editors
 - **Ring playhead trails** — Fading trail behind each lane's playhead highlight, using existing trail alpha levels for visual continuity
+- **Ratchet velocity decay** — New "Rtch Dcy" parameter (0-100%) applies exponential velocity falloff across ratchet subdivisions, giving ratcheted notes a natural bouncing-ball feel instead of flat-velocity bursts
+- **Strum mode for chords** — New "Strum" (0-100ms) and "Direction" (Up/Down/Random/Alternate) parameters spread chord note-on events in time, producing a guitar-strum effect for generated chords
+- **Per-lane swing** — 8 new swing parameters (0-75%), one per lane, shown contextually in the detail strip for the selected lane; each lane's swing independently skews its advance timing, creating polymetric groove interactions on top of the existing per-lane speed multipliers
 
 ### Changed
 

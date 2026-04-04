@@ -137,6 +137,24 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSpeed{1.0f};
     std::atomic<float> inversionLaneSpeed{1.0f};
 
+    // --- v1.5 Features ---
+    // Ratchet velocity decay (0-100%, 0 = flat, 100 = rapid exponential falloff)
+    std::atomic<float> ratchetDecay{0.0f};
+
+    // Strum mode for chords
+    std::atomic<float> strumTime{0.0f};       // 0-100ms
+    std::atomic<int>   strumDirection{0};     // 0=Up, 1=Down, 2=Random, 3=Alternate
+
+    // Per-lane swing (0-75%, mirrors per-lane speed)
+    std::atomic<float> velocityLaneSwing{0.0f};
+    std::atomic<float> gateLaneSwing{0.0f};
+    std::atomic<float> pitchLaneSwing{0.0f};
+    std::atomic<float> modifierLaneSwing{0.0f};
+    std::atomic<float> ratchetLaneSwing{0.0f};
+    std::atomic<float> conditionLaneSwing{0.0f};
+    std::atomic<float> chordLaneSwing{0.0f};
+    std::atomic<float> inversionLaneSwing{0.0f};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -456,6 +474,39 @@ inline void handleArpParamChange(
                     case kArpConditionLaneSpeedId: params.conditionLaneSpeed.store(speed, std::memory_order_relaxed); break;
                     case kArpChordLaneSpeedId:     params.chordLaneSpeed.store(speed, std::memory_order_relaxed); break;
                     case kArpInversionLaneSpeedId: params.inversionLaneSpeed.store(speed, std::memory_order_relaxed); break;
+                    default: break;
+                }
+            }
+            // v1.5: Ratchet Decay (0-100%)
+            else if (id == kArpRatchetDecayId) {
+                params.ratchetDecay.store(
+                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+                    std::memory_order_relaxed);
+            }
+            // v1.5: Strum Time (0-100ms)
+            else if (id == kArpStrumTimeId) {
+                params.strumTime.store(
+                    std::clamp(static_cast<float>(value * 100.0), 0.0f, 100.0f),
+                    std::memory_order_relaxed);
+            }
+            // v1.5: Strum Direction (0-3)
+            else if (id == kArpStrumDirectionId) {
+                params.strumDirection.store(
+                    std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                    std::memory_order_relaxed);
+            }
+            // v1.5: Per-lane swing (3391-3398)
+            else if (id >= kArpVelocityLaneSwingId && id <= kArpInversionLaneSwingId) {
+                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+                switch (id) {
+                    case kArpVelocityLaneSwingId:  params.velocityLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpGateLaneSwingId:      params.gateLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpPitchLaneSwingId:     params.pitchLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpModifierLaneSwingId:  params.modifierLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpRatchetLaneSwingId:   params.ratchetLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpConditionLaneSwingId: params.conditionLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpChordLaneSwingId:     params.chordLaneSwing.store(swing, std::memory_order_relaxed); break;
+                    case kArpInversionLaneSwingId: params.inversionLaneSwing.store(swing, std::memory_order_relaxed); break;
                     default: break;
                 }
             }
@@ -842,6 +893,49 @@ inline void registerArpParams(
                     ParameterInfo::kCanAutomate));
         }
     }
+
+    // --- v1.5 Features: Ratchet Decay, Strum, Per-Lane Swing ---
+
+    // Ratchet Velocity Decay: 0-100%, default 0
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Ratchet Decay"), kArpRatchetDecayId,
+            STR16("%"), 0.0, 100.0, 0.0,
+            0, ParameterInfo::kCanAutomate));
+
+    // Strum Time: 0-100ms, default 0
+    parameters.addParameter(
+        new RangeParameter(STR16("Arp Strum Time"), kArpStrumTimeId,
+            STR16("ms"), 0.0, 100.0, 0.0,
+            0, ParameterInfo::kCanAutomate));
+
+    // Strum Direction: StringListParameter (4 entries), default 0 (Up)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Strum Direction"), kArpStrumDirectionId,
+        {STR16("Up"), STR16("Down"), STR16("Random"), STR16("Alternate")}));
+
+    // Per-lane swing (8 parameters, 0-75%)
+    {
+        static const char* const kSwingNames[] = {
+            "Arp Velocity Lane Swing", "Arp Gate Lane Swing",
+            "Arp Pitch Lane Swing", "Arp Modifier Lane Swing",
+            "Arp Ratchet Lane Swing", "Arp Condition Lane Swing",
+            "Arp Chord Lane Swing", "Arp Inversion Lane Swing"
+        };
+        static constexpr ParamID kSwingIds[] = {
+            kArpVelocityLaneSwingId, kArpGateLaneSwingId,
+            kArpPitchLaneSwingId, kArpModifierLaneSwingId,
+            kArpRatchetLaneSwingId, kArpConditionLaneSwingId,
+            kArpChordLaneSwingId, kArpInversionLaneSwingId
+        };
+        for (int i = 0; i < 8; ++i) {
+            Steinberg::Vst::String128 name16;
+            Steinberg::UString(name16, 128).fromAscii(kSwingNames[i]);
+            parameters.addParameter(
+                new RangeParameter(name16, kSwingIds[i],
+                    STR16("%"), 0.0, 75.0, 0.0,
+                    0, ParameterInfo::kCanAutomate));
+        }
+    }
 }
 
 // =============================================================================
@@ -1052,6 +1146,22 @@ inline Steinberg::tresult formatArpParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
+
+        // --- v1.5 Features ---
+        case kArpRatchetDecayId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f%%", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpStrumTimeId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%.0f ms", value * 100.0);
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
+        case kArpStrumDirectionId:
+            return kResultFalse; // StringListParameter handles
 
         // --- Scale Mode (084-arp-scale-mode) ---
         // Let StringListParameter handle display for these
@@ -1291,6 +1401,19 @@ inline void saveArpParams(
     streamer.writeFloat(params.conditionLaneSpeed.load(std::memory_order_relaxed));
     streamer.writeFloat(params.chordLaneSpeed.load(std::memory_order_relaxed));
     streamer.writeFloat(params.inversionLaneSpeed.load(std::memory_order_relaxed));
+
+    // --- v1.5 Features: Ratchet Decay, Strum, Per-Lane Swing ---
+    streamer.writeFloat(params.ratchetDecay.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.strumTime.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.strumDirection.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.velocityLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.gateLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.pitchLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.modifierLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ratchetLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.conditionLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.chordLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.inversionLaneSwing.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1497,6 +1620,30 @@ inline bool loadArpParams(
         loadSpeed(params.conditionLaneSpeed);
         loadSpeed(params.chordLaneSpeed);
         loadSpeed(params.inversionLaneSpeed);
+    }
+
+    // --- v1.5 Features (optional, for backward compatibility) ---
+    {
+        float f = 0.0f;
+        auto loadFloat = [&](std::atomic<float>& target) -> bool {
+            if (!streamer.readFloat(f)) return false;
+            target.store(f, std::memory_order_relaxed);
+            return true;
+        };
+
+        if (!loadFloat(params.ratchetDecay)) return true;
+        if (!loadFloat(params.strumTime)) return true;
+        if (!streamer.readInt32(intVal)) return true;
+        params.strumDirection.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
+
+        if (!loadFloat(params.velocityLaneSwing)) return true;
+        if (!loadFloat(params.gateLaneSwing)) return true;
+        if (!loadFloat(params.pitchLaneSwing)) return true;
+        if (!loadFloat(params.modifierLaneSwing)) return true;
+        if (!loadFloat(params.ratchetLaneSwing)) return true;
+        if (!loadFloat(params.conditionLaneSwing)) return true;
+        if (!loadFloat(params.chordLaneSwing)) return true;
+        if (!loadFloat(params.inversionLaneSwing)) return true;
     }
 
     return true;
@@ -1753,6 +1900,30 @@ inline void loadArpParamsToController(
                     if (dist < bestDist) { bestDist = dist; bestIdx = si; }
                 }
                 setParam(pid, static_cast<double>(bestIdx) / (kLaneSpeedCount - 1));
+            }
+        }
+    }
+
+    // --- v1.5 Features (optional, backward compatible) ---
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpRatchetDecayId, static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+
+    if (!streamer.readFloat(floatVal)) return;
+    setParam(kArpStrumTimeId, static_cast<double>(std::clamp(floatVal, 0.0f, 100.0f)) / 100.0);
+
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpStrumDirectionId, static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
+
+    {
+        static constexpr Steinberg::Vst::ParamID kSwingIds[] = {
+            kArpVelocityLaneSwingId, kArpGateLaneSwingId,
+            kArpPitchLaneSwingId, kArpModifierLaneSwingId,
+            kArpRatchetLaneSwingId, kArpConditionLaneSwingId,
+            kArpChordLaneSwingId, kArpInversionLaneSwingId
+        };
+        for (auto pid : kSwingIds) {
+            if (streamer.readFloat(floatVal)) {
+                setParam(pid, static_cast<double>(std::clamp(floatVal, 0.0f, 75.0f)) / 75.0);
             }
         }
     }

@@ -49,10 +49,10 @@ public:
         auto* laneView = lane->getView();
         if (!laneView) return;
 
-        // Position below tab bar, filling remaining width and height
+        // Position below tab bar + per-lane control row
         float w = static_cast<float>(getViewSize().getWidth());
-        float h = static_cast<float>(getViewSize().getHeight()) - kTabBarHeight;
-        laneView->setViewSize(VSTGUI::CRect(0, kTabBarHeight, w, kTabBarHeight + h));
+        float h = static_cast<float>(getViewSize().getHeight()) - kHeaderHeight;
+        laneView->setViewSize(VSTGUI::CRect(0, kHeaderHeight, w, kHeaderHeight + h));
         laneView->setMouseableArea(laneView->getViewSize());
         laneView->setVisible(index == selectedLane_);
 
@@ -103,6 +103,8 @@ public:
 
 private:
     static constexpr float kTabBarHeight = 24.0f;
+    static constexpr float kPerLaneRowHeight = 32.0f;
+    static constexpr float kHeaderHeight = kTabBarHeight + kPerLaneRowHeight;
 
     LaneTabBar* tabBar_ = nullptr;  // Owned by CViewContainer
     std::array<Krate::Plugins::IArpLane*, 8> lanes_{};

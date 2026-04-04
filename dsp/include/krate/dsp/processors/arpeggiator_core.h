@@ -585,6 +585,36 @@ public:
         ratchetSwing_ = std::clamp(percent, 50.0f, 75.0f) / 100.0f;
     }
 
+    /// @brief Set ratchet velocity decay as percentage 0-100%.
+    /// Each subdivision's velocity is multiplied by (1 - decay)^subIndex,
+    /// producing a bouncing-ball falloff. 0% = flat velocity, 100% = rapid decay.
+    /// Stored internally as 0.0-1.0 (divided by 100).
+    void setRatchetDecay(float percent) noexcept {
+        ratchetDecay_ = std::clamp(percent, 0.0f, 100.0f) / 100.0f;
+    }
+
+    /// @brief Set strum time in milliseconds (0-100ms).
+    /// Spreads chord note-on events in time for a guitar strum effect.
+    /// 0ms = no strum (all notes simultaneous).
+    void setStrumTime(float ms) noexcept {
+        strumTimeMs_ = std::clamp(ms, 0.0f, 100.0f);
+    }
+
+    /// @brief Set strum direction: 0=Up, 1=Down, 2=Random, 3=Alternate.
+    void setStrumDirection(int direction) noexcept {
+        strumDirection_ = std::clamp(direction, 0, 3);
+    }
+
+    /// @brief Set per-lane swing as percentage 0-75%.
+    /// laneIndex: 0=velocity, 1=gate, 2=pitch, 3=modifier,
+    ///            4=ratchet, 5=condition, 6=chord, 7=inversion
+    /// Skews each lane's advance timing independently: odd advances are
+    /// delayed (even ones advanced) by the swing amount.
+    void setLaneSwing(size_t laneIndex, float percent) noexcept {
+        if (laneIndex >= 8) return;
+        laneSwingAmounts_[laneIndex] = std::clamp(percent, 0.0f, 75.0f) / 100.0f;
+    }
+
     // =========================================================================
     // Spice/Dice & Humanize (077-spice-dice-humanize)
     // =========================================================================
@@ -1247,6 +1277,44 @@ private:
         ++pendingNoteOffCount_;
     }
 
+    /// @brief Compute per-note strum offset in samples.
+    /// For a chord with `noteCount` notes, returns the sample offset for the
+    /// `noteIndex`-th note (0 = first, unstaggered). (v1.5 Strum Mode)
+    inline int32_t computeStrumOffset(size_t noteIndex, size_t noteCount) noexcept {
+        if (strumTimeMs_ <= 0.0f || noteCount <= 1) return 0;
+
+        const float totalSamples = strumTimeMs_ * 0.001f
+            * static_cast<float>(sampleRate_);
+        const float perNoteSamples = totalSamples
+            / static_cast<float>(noteCount - 1);
+
+        int direction = strumDirection_;
+        if (direction == 3) {
+            // Alternate: flip between Up and Down on each invocation
+            direction = (strumAlternateCounter_++ & 1u) == 0u ? 0 : 1;
+        }
+        if (direction == 2) {
+            // Random: shuffle the note order using xorshift
+            // For simplicity, random direction = Up or Down based on RNG
+            uint32_t& s = strumRandomState_;
+            s ^= s << 13;
+            s ^= s >> 17;
+            s ^= s << 5;
+            direction = (s & 1u) == 0u ? 0 : 1;
+        }
+
+        float index;
+        if (direction == 0) {
+            // Up: first note immediate, last note latest
+            index = static_cast<float>(noteIndex);
+        } else {
+            // Down: last note immediate, first note latest
+            index = static_cast<float>(noteCount - 1 - noteIndex);
+        }
+
+        return static_cast<int32_t>(index * perNoteSamples);
+    }
+
     /// @brief Fire a ratchet sub-step: emit noteOn(s), schedule noteOff, advance state.
     /// Called from processBlock() when NextEvent::SubStep fires or when a NoteOff
     /// coincides with a sub-step boundary. (074-ratcheting, FR-015)
@@ -1261,6 +1329,19 @@ private:
         // 078-ratchet-swing: advance sub-step index to the sub-step being fired
         ++ratchetSubStepIndex_;
 
+        // v1.5: Ratchet Velocity Decay — each sub-step applies decay^n to velocity.
+        // ratchetDecay_ is 0.0-1.0 (UI 0-100%). factor = (1.0 - decay)^subStepIndex.
+        // subStepIndex 1 = second sub-step (first subdivision is emitted by the normal
+        // step emission path, not fireSubStep).
+        const float decayFactor = (ratchetDecay_ > 0.0f)
+            ? std::pow(1.0f - ratchetDecay_, static_cast<float>(ratchetSubStepIndex_))
+            : 1.0f;
+
+        auto applyDecay = [decayFactor](uint8_t v) -> uint8_t {
+            float scaled = static_cast<float>(v) * decayFactor;
+            return static_cast<uint8_t>(std::clamp(scaled, 0.0f, 127.0f));
+        };
+
         // (2) Emit noteOn for ratcheted note(s)
         if (ratchetNoteCount_ > 1) {
             // Chord mode: emit noteOn for all chord notes
@@ -1268,7 +1349,7 @@ private:
                 outputEvents[eventCount++] = ArpEvent{
                     ArpEvent::Type::NoteOn,
                     ratchetNotes_[i],
-                    ratchetVelocities_[i],
+                    applyDecay(ratchetVelocities_[i]),
                     sampleOffset,
                     false};  // Sub-steps after first are never legato
             }
@@ -1283,7 +1364,7 @@ private:
                 outputEvents[eventCount++] = ArpEvent{
                     ArpEvent::Type::NoteOn,
                     ratchetNote_,
-                    ratchetVelocity_,
+                    applyDecay(ratchetVelocity_),
                     sampleOffset,
                     false};  // Sub-steps after first are never legato
             }
@@ -1411,22 +1492,39 @@ private:
             uint8_t chordTypeVal = chordLane_.currentValue();
             uint8_t inversionVal = inversionLane_.currentValue();
 
-            // Advance lanes using per-lane speed accumulators
-            auto advanceLaneBySpeed = [](auto& lane, float& accum, float speed) {
+            // Advance lanes using per-lane speed accumulators with per-lane swing
+            // v1.5: Per-lane swing skews the advance threshold — even advances
+            // take (1+swing) ticks, odd advances take (1-swing) ticks.
+            auto advanceLaneBySpeed = [this](auto& lane, size_t laneIdx) {
+                float& accum = laneAccumulators_[laneIdx];
+                const float speed = laneSpeedMultipliers_[laneIdx];
+                const float swing = laneSwingAmounts_[laneIdx];
+                uint8_t& counter = laneSwingCounters_[laneIdx];
+
                 accum += speed;
-                while (accum >= 1.0f) {
-                    accum -= 1.0f;
+                float threshold = (swing > 0.0f)
+                    ? ((counter & 1u) == 0u ? 1.0f + swing : 1.0f - swing)
+                    : 1.0f;
+
+                while (accum >= threshold) {
+                    accum -= threshold;
                     lane.advance();
+                    ++counter;
+                    if (swing > 0.0f) {
+                        threshold = (counter & 1u) == 0u
+                            ? 1.0f + swing
+                            : 1.0f - swing;
+                    }
                 }
             };
-            advanceLaneBySpeed(velocityLane_,  laneAccumulators_[0], laneSpeedMultipliers_[0]);
-            advanceLaneBySpeed(gateLane_,      laneAccumulators_[1], laneSpeedMultipliers_[1]);
-            advanceLaneBySpeed(pitchLane_,     laneAccumulators_[2], laneSpeedMultipliers_[2]);
-            advanceLaneBySpeed(modifierLane_,  laneAccumulators_[3], laneSpeedMultipliers_[3]);
-            advanceLaneBySpeed(ratchetLane_,   laneAccumulators_[4], laneSpeedMultipliers_[4]);
-            advanceLaneBySpeed(conditionLane_, laneAccumulators_[5], laneSpeedMultipliers_[5]);
-            advanceLaneBySpeed(chordLane_,     laneAccumulators_[6], laneSpeedMultipliers_[6]);
-            advanceLaneBySpeed(inversionLane_, laneAccumulators_[7], laneSpeedMultipliers_[7]);
+            advanceLaneBySpeed(velocityLane_,  0);
+            advanceLaneBySpeed(gateLane_,      1);
+            advanceLaneBySpeed(pitchLane_,     2);
+            advanceLaneBySpeed(modifierLane_,  3);
+            advanceLaneBySpeed(ratchetLane_,   4);
+            advanceLaneBySpeed(conditionLane_, 5);
+            advanceLaneBySpeed(chordLane_,     6);
+            advanceLaneBySpeed(inversionLane_, 7);
 
             // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
             if (spice_ > 0.0f) {
@@ -1784,12 +1882,14 @@ private:
                 }
 
                 // 077-spice-dice-humanize: Emit first sub-step noteOns at humanized offset (FR-019)
+                // v1.5: Apply strum offset for chord notes (result.count > 1)
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
+                    int32_t strumOffset = computeStrumOffset(i, result.count);
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        humanizedSampleOffset,
+                        humanizedSampleOffset + strumOffset,
                         isSlide};  // legato on first sub-step if Slide
                 }
 
@@ -1837,12 +1937,14 @@ private:
 
                 if (result.count > 1) {
                     // Chord slide: emit legato noteOns for all new chord notes
+                    // v1.5: Apply strum offset for chords
                     for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
+                        int32_t strumOffset = computeStrumOffset(i, result.count);
                         outputEvents[eventCount++] = ArpEvent{
                             ArpEvent::Type::NoteOn,
                             result.notes[i],
                             result.velocities[i],
-                            humanizedSampleOffset,
+                            humanizedSampleOffset + strumOffset,
                             true};  // legato=true
                     }
                     // Track all new chord notes as currently sounding
@@ -1883,12 +1985,14 @@ private:
                 currentArpNoteCount_ = 0;
 
                 // Emit NoteOn for ALL chord notes at the same humanized offset
+                // v1.5: Apply strum offset for chord notes
                 for (size_t i = 0; i < result.count && eventCount < maxEvents; ++i) {
+                    int32_t strumOffset = computeStrumOffset(i, result.count);
                     outputEvents[eventCount++] = ArpEvent{
                         ArpEvent::Type::NoteOn,
                         result.notes[i],
                         result.velocities[i],
-                        humanizedSampleOffset};
+                        humanizedSampleOffset + strumOffset};
                 }
 
                 // Track all chord notes as currently sounding (FR-025)
@@ -1932,16 +2036,32 @@ private:
         } else {
             // result.count == 0: buffer became empty between steps (defensive).
             // Advance lanes using speed accumulators to stay synchronized
-            auto advanceLaneDefensive = [](auto& lane, float& accum, float speed) {
+            // v1.5: Apply per-lane swing here too for consistency
+            auto advanceLaneDefensive = [this](auto& lane, size_t laneIdx) {
+                float& accum = laneAccumulators_[laneIdx];
+                const float speed = laneSpeedMultipliers_[laneIdx];
+                const float swing = laneSwingAmounts_[laneIdx];
+                uint8_t& counter = laneSwingCounters_[laneIdx];
+
                 accum += speed;
-                while (accum >= 1.0f) {
-                    accum -= 1.0f;
+                float threshold = (swing > 0.0f)
+                    ? ((counter & 1u) == 0u ? 1.0f + swing : 1.0f - swing)
+                    : 1.0f;
+
+                while (accum >= threshold) {
+                    accum -= threshold;
                     lane.advance();
+                    ++counter;
+                    if (swing > 0.0f) {
+                        threshold = (counter & 1u) == 0u
+                            ? 1.0f + swing
+                            : 1.0f - swing;
+                    }
                 }
             };
-            advanceLaneDefensive(modifierLane_,  laneAccumulators_[3], laneSpeedMultipliers_[3]);
-            advanceLaneDefensive(ratchetLane_,   laneAccumulators_[4], laneSpeedMultipliers_[4]);
-            advanceLaneDefensive(conditionLane_, laneAccumulators_[5], laneSpeedMultipliers_[5]);
+            advanceLaneDefensive(modifierLane_,  3);
+            advanceLaneDefensive(ratchetLane_,   4);
+            advanceLaneDefensive(conditionLane_, 5);
             // 076-conditional-trigs: check condition lane wrap for loopCount_ increment (FR-037)
             if (conditionLane_.currentStep() == 0) {
                 ++loopCount_;
@@ -2143,6 +2263,17 @@ private:
     std::array<uint8_t, 32> ratchetVelocities_{}; ///< Chord mode velocities
     size_t ratchetNoteCount_{0};               ///< Chord mode note count
     float ratchetSwing_{0.50f};                ///< Ratchet swing ratio 0.50-0.75
+    float ratchetDecay_{0.0f};                 ///< Ratchet velocity decay 0.0-1.0 (v1.5)
+
+    // v1.5: Strum Mode state
+    float strumTimeMs_{0.0f};                  ///< Strum time in milliseconds
+    int strumDirection_{0};                    ///< 0=Up, 1=Down, 2=Random, 3=Alternate
+    uint32_t strumAlternateCounter_{0};        ///< For Alternate direction
+    uint32_t strumRandomState_{0xABCDEF01u};   ///< Xorshift state for Random
+
+    // v1.5: Per-lane swing
+    std::array<float, 8> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+    std::array<uint8_t, 8> laneSwingCounters_{{0, 0, 0, 0, 0, 0, 0, 0}};
 
     // =========================================================================
     // Euclidean Timing State (075-euclidean-timing, FR-001)

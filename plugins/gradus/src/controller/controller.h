@@ -120,6 +120,9 @@ private:
     // Ring data bridge (owned by controller, reads from IArpLane pointers)
     RingDataBridge ringDataBridge_;
 
+    // v1.5: Per-lane swing knobs (captured in verifyView, toggled in selectLane)
+    std::array<VSTGUI::CView*, 8> laneSwingKnobs_{};
+
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};
 

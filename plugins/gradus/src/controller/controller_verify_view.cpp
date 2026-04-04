@@ -41,6 +41,23 @@ VSTGUI::CView* Controller::verifyView(
     if (auto* strip = dynamic_cast<DetailStrip*>(view))
         detailStrip_ = strip;
 
+    // Capture per-lane swing knobs by control-tag
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view)) {
+        int32_t tag = ctrl->getTag();
+        if (tag >= kArpVelocityLaneSwingId && tag <= kArpInversionLaneSwingId) {
+            int laneIdx = static_cast<int>(tag - kArpVelocityLaneSwingId);
+            // Map param order (Vel, Gate, Pitch, Mod, Ratchet, Cond, Chord, Inv)
+            // to lane index (0=Vel, 1=Gate, 2=Pitch, 3=Mod, 4=Cond, 5=Ratchet, 6=Chord, 7=Inv)
+            static constexpr int kParamToLane[8] = {0, 1, 2, 3, 5, 4, 6, 7};
+            int uiLane = kParamToLane[laneIdx];
+            if (uiLane >= 0 && uiLane < 8) {
+                laneSwingKnobs_[uiLane] = view;
+                // Hide all except lane 0 initially
+                view->setVisible(uiLane == 0);
+            }
+        }
+    }
+
     return view;
 }
 
@@ -511,10 +528,16 @@ void Controller::constructArpLanes()
             });
 
         // Wire bidirectional selection: detail strip ↔ ring renderer
+        // Also toggles per-lane swing knob visibility
         detailStrip_->setLaneSelectedCallback(
-            [renderer](int laneIndex) {
+            [this, renderer](int laneIndex) {
                 renderer->setSelectedLane(laneIndex);
                 renderer->invalid();
+                // Toggle swing knob visibility
+                for (int i = 0; i < 8; ++i) {
+                    if (laneSwingKnobs_[i])
+                        laneSwingKnobs_[i]->setVisible(i == laneIndex);
+                }
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

@@ -554,6 +554,19 @@ void Processor::applyParamsToEngine()
     arpCore_.setLaneSpeed(6, arpParams_.chordLaneSpeed.load(std::memory_order_relaxed));
     arpCore_.setLaneSpeed(7, arpParams_.inversionLaneSpeed.load(std::memory_order_relaxed));
 
+    // v1.5 Features
+    arpCore_.setRatchetDecay(arpParams_.ratchetDecay.load(std::memory_order_relaxed));
+    arpCore_.setStrumTime(arpParams_.strumTime.load(std::memory_order_relaxed));
+    arpCore_.setStrumDirection(arpParams_.strumDirection.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(0, arpParams_.velocityLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(1, arpParams_.gateLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(2, arpParams_.pitchLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(3, arpParams_.modifierLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(4, arpParams_.ratchetLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(5, arpParams_.conditionLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(6, arpParams_.chordLaneSwing.load(std::memory_order_relaxed));
+    arpCore_.setLaneSwing(7, arpParams_.inversionLaneSwing.load(std::memory_order_relaxed));
+
     // Always enabled in Gradus (no operating mode selector)
     arpCore_.setEnabled(true);
 }
