@@ -1212,13 +1212,22 @@ enum ParameterIDs : Steinberg::Vst::ParamID {
     kArpChordLaneSwingId     = 3397,
     kArpInversionLaneSwingId = 3398,
 
-    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter (3399-3402) ---
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter (3399-3409) ---
     kArpVelocityCurveTypeId   = 3399,
     kArpVelocityCurveAmountId = 3400,
     kArpTransposeId           = 3401,
-    kArpLengthJitterId        = 3402,
 
-    kArpEndId = 3402,
+    // Per-lane length jitter (3402-3409)
+    kArpVelocityLaneJitterId  = 3402,
+    kArpGateLaneJitterId      = 3403,
+    kArpPitchLaneJitterId     = 3404,
+    kArpModifierLaneJitterId  = 3405,
+    kArpRatchetLaneJitterId   = 3406,
+    kArpConditionLaneJitterId = 3407,
+    kArpChordLaneJitterId     = 3408,
+    kArpInversionLaneJitterId = 3409,
+
+    kArpEndId = 3409,
 
     // --- Sidechain Status (output parameter, not persisted) ---
     kSidechainActiveId        = 3400,   // hidden: 0.0 = inactive, 1.0 = active

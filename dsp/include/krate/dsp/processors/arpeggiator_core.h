@@ -633,12 +633,14 @@ public:
         transpose_ = std::clamp(semitones, -24, 24);
     }
 
-    /// @brief Set pattern length jitter in steps (0-4).
-    /// Each time the main step counter wraps, jitter randomly extends or
-    /// shortens the effective length by up to +/- `steps` to create
-    /// evolving non-repeating patterns.
-    void setLengthJitter(int steps) noexcept {
-        lengthJitter_ = std::clamp(steps, 0, 4);
+    /// @brief Set per-lane length jitter in steps (0-4).
+    /// Each time the given lane wraps, jitter randomly extends or shortens
+    /// its effective length by up to +/- `steps` to create evolving patterns.
+    /// laneIndex: 0=velocity, 1=gate, 2=pitch, 3=modifier,
+    ///            4=ratchet, 5=condition, 6=chord, 7=inversion
+    void setLaneLengthJitter(size_t laneIndex, int steps) noexcept {
+        if (laneIndex >= 8) return;
+        laneLengthJitters_[laneIndex] = std::clamp(steps, 0, 4);
     }
 
     // =========================================================================
@@ -1559,7 +1561,7 @@ private:
                 while (accum >= threshold) {
                     accum -= threshold;
 
-                    // v1.5: Length jitter — skip this advance if pending skips
+                    // v1.5: Per-lane length jitter — skip this advance if pending skips
                     if (lanePendingSkips_[laneIdx] > 0) {
                         --lanePendingSkips_[laneIdx];
                     } else {
@@ -1568,13 +1570,14 @@ private:
                         const int newStep = static_cast<int>(lane.currentStep());
 
                         // Detect wrap (new step < previous step)
-                        if (lengthJitter_ > 0 && newStep < prevStep) {
+                        const int laneJitter = laneLengthJitters_[laneIdx];
+                        if (laneJitter > 0 && newStep < prevStep) {
                             uint32_t& s = lengthJitterRng_;
                             s ^= s << 13; s ^= s >> 17; s ^= s << 5;
-                            const int range = 2 * lengthJitter_ + 1;
+                            const int range = 2 * laneJitter + 1;
                             const int jitter =
                                 static_cast<int>(s % static_cast<uint32_t>(range))
-                                - lengthJitter_;
+                                - laneJitter;
                             if (jitter > 0) {
                                 // Extra advances now: shorten this cycle.
                                 // Also increment the swing counter for each so
@@ -2412,7 +2415,7 @@ private:
     int velocityCurveType_{0};        ///< 0=Linear, 1=Exp, 2=Log, 3=S-Curve
     float velocityCurveAmount_{0.0f}; ///< 0.0-1.0 blend amount
     int transpose_{0};                ///< -24 to +24 semitones
-    int lengthJitter_{0};             ///< 0-4 steps
+    std::array<int, 8> laneLengthJitters_{};    ///< Per-lane jitter amount (0-4 steps)
     std::array<int8_t, 8> lanePendingSkips_{};  ///< Positive = skip next N advances (lengthens)
     std::array<uint8_t, 8> laneLastSteps_{};    ///< Previous step position for wrap detection
     uint32_t lengthJitterRng_{0xFEEDBEEFu};     ///< Xorshift state for jitter re-rolls

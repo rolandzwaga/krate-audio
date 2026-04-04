@@ -88,7 +88,14 @@
         <control-tag name="ArpVelocityCurveType" tag="3399"/>
         <control-tag name="ArpVelocityCurveAmount" tag="3400"/>
         <control-tag name="ArpTranspose" tag="3401"/>
-        <control-tag name="ArpLengthJitter" tag="3402"/>
+        <control-tag name="ArpVelocityLaneJitter" tag="3402"/>
+        <control-tag name="ArpGateLaneJitter" tag="3403"/>
+        <control-tag name="ArpPitchLaneJitter" tag="3404"/>
+        <control-tag name="ArpModifierLaneJitter" tag="3405"/>
+        <control-tag name="ArpRatchetLaneJitter" tag="3406"/>
+        <control-tag name="ArpConditionLaneJitter" tag="3407"/>
+        <control-tag name="ArpChordLaneJitter" tag="3408"/>
+        <control-tag name="ArpInversionLaneJitter" tag="3409"/>
 
         <!-- Audition -->
         <control-tag name="AuditionEnabled" tag="4000"/>
@@ -341,32 +348,23 @@
                   arc-color="arp.bottombar.neutral" guide-color="knob-guide"
                   tooltip="Spice — random note variation"/>
 
-            <!-- v1.5: Length Jitter -->
-            <view class="CTextLabel" origin="562, 2" size="36, 10"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Jitter"/>
-            <view class="ArcKnob" origin="566, 13" size="28, 28"
-                  control-tag="ArpLengthJitter" default-value="0"
-                  arc-color="arp.bottombar.neutral" guide-color="knob-guide"
-                  tooltip="Length jitter (0-4 steps) — varies pattern length each cycle"/>
-
-            <view class="CTextLabel" origin="604, 2" size="48, 10"
+            <view class="CTextLabel" origin="566, 2" size="48, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="Rtch Swg"/>
-            <view class="ArcKnob" origin="614, 13" size="28, 28"
+            <view class="ArcKnob" origin="576, 13" size="28, 28"
                   control-tag="ArpRatchetSwing" default-value="0.5"
                   arc-color="arp.bottombar.neutral" guide-color="knob-guide"
                   tooltip="Ratchet swing"/>
 
             <!-- Dice button -->
-            <view class="ActionButton" origin="654, 14" size="24, 24"
+            <view class="ActionButton" origin="618, 14" size="24, 24"
                   control-tag="ArpDiceTrigger" default-value="0"
                   icon-style="regen" color="arp.bottombar.neutral"
                   tooltip="Dice: randomize pattern variation"
                   background-color="bg" transparent="false"/>
 
             <!-- Fill toggle -->
-            <view class="ToggleButton" origin="686, 12" size="44, 20"
+            <view class="ToggleButton" origin="652, 12" size="44, 20"
                   control-tag="ArpFillToggle"
                   title="Fill"
                   title-position="right"
@@ -377,16 +375,16 @@
                   transparent="true"/>
 
             <!-- Separator -->
-            <view class="CTextLabel" origin="736, 6" size="1, 32"
+            <view class="CTextLabel" origin="710, 6" size="1, 32"
                   transparent="false" background-color="knob-guide"/>
 
             <!-- Preset buttons (wrapped in positioned containers) -->
-            <view class="CViewContainer" origin="748, 12" size="60, 20"
+            <view class="CViewContainer" origin="722, 12" size="60, 20"
                   transparent="true">
                 <view custom-view-name="PresetBrowserButton"
                       origin="0, 0" size="60, 20"/>
             </view>
-            <view class="CViewContainer" origin="816, 12" size="48, 20"
+            <view class="CViewContainer" origin="790, 12" size="48, 20"
                   transparent="true">
                 <view custom-view-name="SavePresetButton"
                       origin="0, 0" size="48, 20"/>
@@ -453,32 +451,71 @@
               arc-color="arp.inversion.accent" guide-color="knob-guide"
               tooltip="Inversion lane swing"/>
 
+        <!-- Jitter label (always visible) -->
+        <view class="CTextLabel" origin="764, 141" size="36, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Jitter"/>
+
+        <!-- 8 lane length-jitter knobs stacked at the same position (toggled by tab) -->
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpVelocityLaneJitter" default-value="0"
+              arc-color="arp.velocity.accent" guide-color="knob-guide"
+              tooltip="Velocity lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpGateLaneJitter" default-value="0"
+              arc-color="arp.gate.accent" guide-color="knob-guide"
+              tooltip="Gate lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpPitchLaneJitter" default-value="0"
+              arc-color="arp.pitch.accent" guide-color="knob-guide"
+              tooltip="Pitch lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpModifierLaneJitter" default-value="0"
+              arc-color="arp.modifier.accent" guide-color="knob-guide"
+              tooltip="Modifier lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpConditionLaneJitter" default-value="0"
+              arc-color="arp.condition.accent" guide-color="knob-guide"
+              tooltip="Condition lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpRatchetLaneJitter" default-value="0"
+              arc-color="arp.ratchet.accent" guide-color="knob-guide"
+              tooltip="Ratchet lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpChordLaneJitter" default-value="0"
+              arc-color="arp.chord.accent" guide-color="knob-guide"
+              tooltip="Chord lane length jitter (0-4 steps)"/>
+        <view class="ArcKnob" origin="804, 136" size="28, 28"
+              control-tag="ArpInversionLaneJitter" default-value="0"
+              arc-color="arp.inversion.accent" guide-color="knob-guide"
+              tooltip="Inversion lane length jitter (0-4 steps)"/>
+
         <!-- Decay label (contextual — Ratchet lane only) -->
         <view class="CTextLabel" custom-view-name="RatchetDecayLabel"
-              origin="782, 141" size="40, 14"
+              origin="844, 141" size="40, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Decay"/>
-        <view class="ArcKnob" origin="826, 136" size="28, 28"
+        <view class="ArcKnob" origin="888, 136" size="28, 28"
               control-tag="ArpRatchetDecay" default-value="0"
               arc-color="arp.ratchet.accent" guide-color="knob-guide"
               tooltip="Ratchet velocity decay per subdivision"/>
 
         <!-- Strum label (contextual — Chord/Inversion lanes) -->
         <view class="CTextLabel" custom-view-name="StrumTimeLabel"
-              origin="782, 141" size="40, 14"
+              origin="844, 141" size="40, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Strum"/>
-        <view class="ArcKnob" origin="826, 136" size="28, 28"
+        <view class="ArcKnob" origin="888, 136" size="28, 28"
               control-tag="ArpStrumTime" default-value="0"
               arc-color="arp.chord.accent" guide-color="knob-guide"
               tooltip="Strum time for chord notes (0-100ms)"/>
 
         <!-- Strum Direction (contextual — Chord/Inversion lanes) -->
         <view class="CTextLabel" custom-view-name="StrumDirectionLabel"
-              origin="860, 141" size="24, 14"
+              origin="922, 141" size="24, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Dir"/>
-        <view class="COptionMenu" origin="888, 141" size="60, 18"
+        <view class="COptionMenu" origin="950, 141" size="60, 18"
               control-tag="ArpStrumDirection" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"
@@ -486,18 +523,18 @@
 
         <!-- v1.5 Part 2: Velocity Curve (contextual — Velocity lane only) -->
         <view class="CTextLabel" custom-view-name="VelCurveLabel"
-              origin="782, 141" size="40, 14"
+              origin="844, 141" size="40, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Curve"/>
-        <view class="ArcKnob" origin="826, 136" size="28, 28"
+        <view class="ArcKnob" origin="888, 136" size="28, 28"
               control-tag="ArpVelocityCurveAmount" default-value="0"
               arc-color="arp.velocity.accent" guide-color="knob-guide"
               tooltip="Velocity curve amount (0-100%)"/>
         <view class="CTextLabel" custom-view-name="VelCurveTypeLabel"
-              origin="860, 141" size="24, 14"
+              origin="922, 141" size="24, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Type"/>
-        <view class="COptionMenu" origin="888, 141" size="60, 18"
+        <view class="COptionMenu" origin="950, 141" size="60, 18"
               control-tag="ArpVelocityCurveType" default-value="0"
               font="~ NormalFontSmaller" font-color="text-menu"
               back-color="bg-dropdown" frame-color="frame-dropdown"

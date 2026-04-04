@@ -122,6 +122,8 @@ private:
 
     // v1.5: Per-lane swing knobs (captured in verifyView, toggled in selectLane)
     std::array<VSTGUI::CView*, 8> laneSwingKnobs_{};
+    // v1.5 Part 2: Per-lane length jitter knobs
+    std::array<VSTGUI::CView*, 8> laneJitterKnobs_{};
     // v1.5: Ratchet Decay knob + label (only visible when Ratchet lane selected)
     VSTGUI::CView* ratchetDecayKnob_ = nullptr;
     VSTGUI::CView* ratchetDecayLabel_ = nullptr;

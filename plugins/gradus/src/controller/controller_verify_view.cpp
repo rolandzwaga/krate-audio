@@ -65,15 +65,24 @@ VSTGUI::CView* Controller::verifyView(
     // Capture per-lane swing knobs by control-tag
     if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view)) {
         int32_t tag = ctrl->getTag();
+        // Map param order (Vel, Gate, Pitch, Mod, Ratchet, Cond, Chord, Inv)
+        // to UI lane index (0=Vel, 1=Gate, 2=Pitch, 3=Mod, 4=Cond, 5=Ratchet, 6=Chord, 7=Inv)
+        static constexpr int kParamToLane[8] = {0, 1, 2, 3, 5, 4, 6, 7};
+
         if (tag >= kArpVelocityLaneSwingId && tag <= kArpInversionLaneSwingId) {
             int laneIdx = static_cast<int>(tag - kArpVelocityLaneSwingId);
-            // Map param order (Vel, Gate, Pitch, Mod, Ratchet, Cond, Chord, Inv)
-            // to lane index (0=Vel, 1=Gate, 2=Pitch, 3=Mod, 4=Cond, 5=Ratchet, 6=Chord, 7=Inv)
-            static constexpr int kParamToLane[8] = {0, 1, 2, 3, 5, 4, 6, 7};
             int uiLane = kParamToLane[laneIdx];
             if (uiLane >= 0 && uiLane < 8) {
                 laneSwingKnobs_[uiLane] = view;
-                // Hide all except lane 0 initially
+                view->setVisible(uiLane == 0);
+            }
+        }
+        // v1.5 Part 2: Per-lane length jitter knobs
+        if (tag >= kArpVelocityLaneJitterId && tag <= kArpInversionLaneJitterId) {
+            int laneIdx = static_cast<int>(tag - kArpVelocityLaneJitterId);
+            int uiLane = kParamToLane[laneIdx];
+            if (uiLane >= 0 && uiLane < 8) {
+                laneJitterKnobs_[uiLane] = view;
                 view->setVisible(uiLane == 0);
             }
         }
@@ -577,10 +586,12 @@ void Controller::constructArpLanes()
             [this, renderer](int laneIndex) {
                 renderer->setSelectedLane(laneIndex);
                 renderer->invalid();
-                // Toggle swing knob visibility
+                // Toggle swing + jitter knob visibility (per-lane, stacked)
                 for (int i = 0; i < 8; ++i) {
                     if (laneSwingKnobs_[i])
                         laneSwingKnobs_[i]->setVisible(i == laneIndex);
+                    if (laneJitterKnobs_[i])
+                        laneJitterKnobs_[i]->setVisible(i == laneIndex);
                 }
                 // Toggle Ratchet Decay (UI lane 5 = Ratchet)
                 const bool showDecay = (laneIndex == 5);

@@ -154,7 +154,16 @@ struct ArpeggiatorParams {
     std::atomic<int>   velocityCurveType{0};
     std::atomic<float> velocityCurveAmount{0.0f};
     std::atomic<int>   transpose{0};
-    std::atomic<int>   lengthJitter{0};
+
+    // Per-lane length jitter (0-4 steps)
+    std::atomic<int>   velocityLaneJitter{0};
+    std::atomic<int>   gateLaneJitter{0};
+    std::atomic<int>   pitchLaneJitter{0};
+    std::atomic<int>   modifierLaneJitter{0};
+    std::atomic<int>   ratchetLaneJitter{0};
+    std::atomic<int>   conditionLaneJitter{0};
+    std::atomic<int>   chordLaneJitter{0};
+    std::atomic<int>   inversionLaneJitter{0};
 
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {

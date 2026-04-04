@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-lane swing** — 8 new swing parameters (0-75%), one per lane, shown contextually in the detail strip for the selected lane; each lane's swing independently skews its advance timing, creating polymetric groove interactions on top of the existing per-lane speed multipliers
 - **Velocity curve** — New curve shaping (Linear / Exponential / Logarithmic / S-Curve) with an amount knob (0-100%), applied after the velocity lane; shapes the dynamic feel of the whole pattern without redrawing every step. Shown contextually on the Velocity lane.
 - **Transpose** — New global transpose knob (-24 to +24 semitones) in control row 1; when a non-chromatic scale is active the transpose snaps through the scale so the result always stays in key.
-- **Length jitter** — New knob (0-4 steps) in control row 2; occasionally extends or shortens each lane's effective cycle length when it wraps, creating evolving non-repeating patterns.
+- **Per-lane length jitter** — 8 new jitter parameters (0-4 steps), one per lane, shown contextually in the detail strip alongside per-lane swing. Each lane independently re-rolls a random offset when it wraps, extending or shortening its effective cycle length — creating evolving non-repeating patterns that differ per lane.
 
 ### Changed
 

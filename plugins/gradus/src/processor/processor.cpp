@@ -571,7 +571,14 @@ void Processor::applyParamsToEngine()
     arpCore_.setVelocityCurveType(arpParams_.velocityCurveType.load(std::memory_order_relaxed));
     arpCore_.setVelocityCurveAmount(arpParams_.velocityCurveAmount.load(std::memory_order_relaxed));
     arpCore_.setTranspose(arpParams_.transpose.load(std::memory_order_relaxed));
-    arpCore_.setLengthJitter(arpParams_.lengthJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(0, arpParams_.velocityLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(1, arpParams_.gateLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(2, arpParams_.pitchLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(3, arpParams_.modifierLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(4, arpParams_.ratchetLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(5, arpParams_.conditionLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(6, arpParams_.chordLaneJitter.load(std::memory_order_relaxed));
+    arpCore_.setLaneLengthJitter(7, arpParams_.inversionLaneJitter.load(std::memory_order_relaxed));
 
     // Always enabled in Gradus (no operating mode selector)
     arpCore_.setEnabled(true);

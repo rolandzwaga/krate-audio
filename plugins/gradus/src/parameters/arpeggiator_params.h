@@ -159,7 +159,16 @@ struct ArpeggiatorParams {
     std::atomic<int>   velocityCurveType{0};     // 0=Linear, 1=Exp, 2=Log, 3=S
     std::atomic<float> velocityCurveAmount{0.0f}; // 0-100%
     std::atomic<int>   transpose{0};             // -24 to +24 semitones (scale-quantized)
-    std::atomic<int>   lengthJitter{0};          // 0-4 steps
+
+    // Per-lane length jitter (0-4 steps)
+    std::atomic<int>   velocityLaneJitter{0};
+    std::atomic<int>   gateLaneJitter{0};
+    std::atomic<int>   pitchLaneJitter{0};
+    std::atomic<int>   modifierLaneJitter{0};
+    std::atomic<int>   ratchetLaneJitter{0};
+    std::atomic<int>   conditionLaneJitter{0};
+    std::atomic<int>   chordLaneJitter{0};
+    std::atomic<int>   inversionLaneJitter{0};
 
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
@@ -534,11 +543,20 @@ inline void handleArpParamChange(
                     std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
                     std::memory_order_relaxed);
             }
-            // v1.5 Part 2: Length Jitter (0-4)
-            else if (id == kArpLengthJitterId) {
-                params.lengthJitter.store(
-                    std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4),
-                    std::memory_order_relaxed);
+            // v1.5 Part 2: Per-lane Length Jitter (3402-3409)
+            else if (id >= kArpVelocityLaneJitterId && id <= kArpInversionLaneJitterId) {
+                int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
+                switch (id) {
+                    case kArpVelocityLaneJitterId:  params.velocityLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpGateLaneJitterId:      params.gateLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpPitchLaneJitterId:     params.pitchLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpModifierLaneJitterId:  params.modifierLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpRatchetLaneJitterId:   params.ratchetLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpConditionLaneJitterId: params.conditionLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpChordLaneJitterId:     params.chordLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    case kArpInversionLaneJitterId: params.inversionLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    default: break;
+                }
             }
             break;
     }
@@ -987,11 +1005,29 @@ inline void registerArpParams(
             STR16("st"), -24.0, 24.0, 0.0,
             48, ParameterInfo::kCanAutomate));
 
-    // Length Jitter: 0-4 steps, default 0
-    parameters.addParameter(
-        new RangeParameter(STR16("Arp Length Jitter"), kArpLengthJitterId,
-            STR16("steps"), 0.0, 4.0, 0.0,
-            4, ParameterInfo::kCanAutomate));
+    // Per-lane Length Jitter: 0-4 steps per lane, default 0
+    {
+        static const char* const kJitterNames[] = {
+            "Arp Velocity Lane Jitter", "Arp Gate Lane Jitter",
+            "Arp Pitch Lane Jitter", "Arp Modifier Lane Jitter",
+            "Arp Ratchet Lane Jitter", "Arp Condition Lane Jitter",
+            "Arp Chord Lane Jitter", "Arp Inversion Lane Jitter"
+        };
+        static constexpr ParamID kJitterIds[] = {
+            kArpVelocityLaneJitterId, kArpGateLaneJitterId,
+            kArpPitchLaneJitterId, kArpModifierLaneJitterId,
+            kArpRatchetLaneJitterId, kArpConditionLaneJitterId,
+            kArpChordLaneJitterId, kArpInversionLaneJitterId
+        };
+        for (int i = 0; i < 8; ++i) {
+            Steinberg::Vst::String128 name16;
+            Steinberg::UString(name16, 128).fromAscii(kJitterNames[i]);
+            parameters.addParameter(
+                new RangeParameter(name16, kJitterIds[i],
+                    STR16("steps"), 0.0, 4.0, 0.0,
+                    4, ParameterInfo::kCanAutomate));
+        }
+    }
 }
 
 // =============================================================================
@@ -1235,7 +1271,14 @@ inline Steinberg::tresult formatArpParam(
             UString(string, 128).fromAscii(text);
             return kResultOk;
         }
-        case kArpLengthJitterId: {
+        case kArpVelocityLaneJitterId:
+        case kArpGateLaneJitterId:
+        case kArpPitchLaneJitterId:
+        case kArpModifierLaneJitterId:
+        case kArpRatchetLaneJitterId:
+        case kArpConditionLaneJitterId:
+        case kArpChordLaneJitterId:
+        case kArpInversionLaneJitterId: {
             char8 text[32];
             int steps = static_cast<int>(std::round(value * 4.0));
             snprintf(text, sizeof(text), "%d step%s", steps, steps == 1 ? "" : "s");
@@ -1495,11 +1538,18 @@ inline void saveArpParams(
     streamer.writeFloat(params.chordLaneSwing.load(std::memory_order_relaxed));
     streamer.writeFloat(params.inversionLaneSwing.load(std::memory_order_relaxed));
 
-    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter ---
     streamer.writeInt32(params.velocityCurveType.load(std::memory_order_relaxed));
     streamer.writeFloat(params.velocityCurveAmount.load(std::memory_order_relaxed));
     streamer.writeInt32(params.transpose.load(std::memory_order_relaxed));
-    streamer.writeInt32(params.lengthJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.velocityLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.gateLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.pitchLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.modifierLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.ratchetLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.conditionLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.chordLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.inversionLaneJitter.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -1732,7 +1782,7 @@ inline bool loadArpParams(
         if (!loadFloat(params.inversionLaneSwing)) return true;
     }
 
-    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter ---
     {
         if (!streamer.readInt32(intVal)) return true;
         params.velocityCurveType.store(std::clamp(intVal, 0, 3), std::memory_order_relaxed);
@@ -1741,8 +1791,20 @@ inline bool loadArpParams(
             std::clamp(floatVal, 0.0f, 100.0f), std::memory_order_relaxed);
         if (!streamer.readInt32(intVal)) return true;
         params.transpose.store(std::clamp(intVal, -24, 24), std::memory_order_relaxed);
-        if (!streamer.readInt32(intVal)) return true;
-        params.lengthJitter.store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
+
+        auto loadJitter = [&](std::atomic<int>& target) -> bool {
+            if (!streamer.readInt32(intVal)) return false;
+            target.store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
+            return true;
+        };
+        if (!loadJitter(params.velocityLaneJitter)) return true;
+        if (!loadJitter(params.gateLaneJitter)) return true;
+        if (!loadJitter(params.pitchLaneJitter)) return true;
+        if (!loadJitter(params.modifierLaneJitter)) return true;
+        if (!loadJitter(params.ratchetLaneJitter)) return true;
+        if (!loadJitter(params.conditionLaneJitter)) return true;
+        if (!loadJitter(params.chordLaneJitter)) return true;
+        if (!loadJitter(params.inversionLaneJitter)) return true;
     }
 
     return true;
@@ -2027,7 +2089,7 @@ inline void loadArpParamsToController(
         }
     }
 
-    // --- v1.5 Part 2: Velocity Curve, Transpose, Length Jitter ---
+    // --- v1.5 Part 2: Velocity Curve, Transpose, Per-Lane Length Jitter ---
     if (!streamer.readInt32(iv)) return;
     setParam(kArpVelocityCurveTypeId,
         static_cast<double>(std::clamp(static_cast<int>(iv), 0, 3)) / 3.0);
@@ -2037,9 +2099,21 @@ inline void loadArpParamsToController(
     if (!streamer.readInt32(iv)) return;
     setParam(kArpTransposeId,
         static_cast<double>(std::clamp(static_cast<int>(iv), -24, 24) + 24) / 48.0);
-    if (!streamer.readInt32(iv)) return;
-    setParam(kArpLengthJitterId,
-        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
+
+    {
+        static constexpr Steinberg::Vst::ParamID kJitterIds[] = {
+            kArpVelocityLaneJitterId, kArpGateLaneJitterId,
+            kArpPitchLaneJitterId, kArpModifierLaneJitterId,
+            kArpRatchetLaneJitterId, kArpConditionLaneJitterId,
+            kArpChordLaneJitterId, kArpInversionLaneJitterId
+        };
+        for (auto pid : kJitterIds) {
+            if (streamer.readInt32(iv)) {
+                setParam(pid,
+                    static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
+            }
+        }
+    }
 }
 
 } // namespace Gradus

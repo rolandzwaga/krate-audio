@@ -245,6 +245,7 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     ringDisplay_ = nullptr;
     detailStrip_ = nullptr;
     laneSwingKnobs_.fill(nullptr);
+    laneJitterKnobs_.fill(nullptr);
     ratchetDecayKnob_ = nullptr;
     ratchetDecayLabel_ = nullptr;
     strumTimeKnob_ = nullptr;
