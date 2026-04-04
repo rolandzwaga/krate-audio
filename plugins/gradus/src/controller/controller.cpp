@@ -260,6 +260,11 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     velCurveTypeLabel_ = nullptr;
     pinNoteKnob_ = nullptr;
     pinNoteLabel_ = nullptr;
+    rangeLowKnob_ = nullptr;
+    rangeLowLabel_ = nullptr;
+    rangeHighKnob_ = nullptr;
+    rangeHighLabel_ = nullptr;
+    rangeModeMenu_ = nullptr;
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
     activeEditor_ = nullptr;

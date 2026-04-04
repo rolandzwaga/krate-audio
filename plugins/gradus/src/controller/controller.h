@@ -140,9 +140,14 @@ private:
     VSTGUI::CView* velCurveLabel_ = nullptr;
     VSTGUI::CView* velCurveTypeMenu_ = nullptr;
     VSTGUI::CView* velCurveTypeLabel_ = nullptr;
-    // v1.5 Part 3: Pin Note knob + label (Pitch lane only)
+    // v1.5 Part 3: Pitch-lane contextual controls (Pin Note + Range Mapping)
     VSTGUI::CView* pinNoteKnob_ = nullptr;
     VSTGUI::CView* pinNoteLabel_ = nullptr;
+    VSTGUI::CView* rangeLowKnob_ = nullptr;
+    VSTGUI::CView* rangeLowLabel_ = nullptr;
+    VSTGUI::CView* rangeHighKnob_ = nullptr;
+    VSTGUI::CView* rangeHighLabel_ = nullptr;
+    VSTGUI::CView* rangeModeMenu_ = nullptr;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

@@ -65,6 +65,12 @@ VSTGUI::CView* Controller::verifyView(
         } else if (name == "PinNoteLabel") {
             pinNoteLabel_ = view;
             view->setVisible(false);
+        } else if (name == "RangeLoLabel") {
+            rangeLowLabel_ = view;
+            view->setVisible(false);
+        } else if (name == "RangeHiLabel") {
+            rangeHighLabel_ = view;
+            view->setVisible(false);
         }
     }
 
@@ -120,9 +126,21 @@ VSTGUI::CView* Controller::verifyView(
             velCurveTypeMenu_ = view;
             view->setVisible(false);
         }
-        // v1.5 Part 3: Pin Note knob — only visible when Pitch (2) selected
+        // v1.5 Part 3: Pitch-lane contextual controls — only visible when Pitch (2) selected
         if (tag == kArpPinNoteId) {
             pinNoteKnob_ = view;
+            view->setVisible(false);
+        }
+        if (tag == kArpRangeLowId) {
+            rangeLowKnob_ = view;
+            view->setVisible(false);
+        }
+        if (tag == kArpRangeHighId) {
+            rangeHighKnob_ = view;
+            view->setVisible(false);
+        }
+        if (tag == kArpRangeModeId) {
+            rangeModeMenu_ = view;
             view->setVisible(false);
         }
     }
@@ -627,10 +645,16 @@ void Controller::constructArpLanes()
                 if (velCurveLabel_)     velCurveLabel_->setVisible(showVelCurve);
                 if (velCurveTypeMenu_)  velCurveTypeMenu_->setVisible(showVelCurve);
                 if (velCurveTypeLabel_) velCurveTypeLabel_->setVisible(showVelCurve);
-                // v1.5 Part 3: Toggle Pin Note (UI lane 2 = Pitch)
-                const bool showPinNote = (laneIndex == 2);
-                if (pinNoteKnob_)  pinNoteKnob_->setVisible(showPinNote);
-                if (pinNoteLabel_) pinNoteLabel_->setVisible(showPinNote);
+                // v1.5 Part 3: Toggle Pitch-lane contextual controls
+                // (Pin Note + Range Mapping, UI lane 2 = Pitch)
+                const bool showPitchContext = (laneIndex == 2);
+                if (pinNoteKnob_)    pinNoteKnob_->setVisible(showPitchContext);
+                if (pinNoteLabel_)   pinNoteLabel_->setVisible(showPitchContext);
+                if (rangeLowKnob_)   rangeLowKnob_->setVisible(showPitchContext);
+                if (rangeLowLabel_)  rangeLowLabel_->setVisible(showPitchContext);
+                if (rangeHighKnob_)  rangeHighKnob_->setVisible(showPitchContext);
+                if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
+                if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
             });
         renderer->setLaneSelectedCallback(
             [this](int laneIndex) {

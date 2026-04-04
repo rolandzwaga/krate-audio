@@ -229,29 +229,8 @@
                   back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Voicing mode"/>
 
-            <!-- v1.5 Part 3: Note Range (Low / High) + Range Mode -->
-            <view class="CTextLabel" origin="720, 0" size="64, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Range"/>
-            <view class="ArcKnob" origin="720, 2" size="28, 28"
-                  control-tag="ArpRangeLow" default-value="0"
-                  arc-color="arpeggiator" guide-color="knob-guide"
-                  tooltip="Range low (MIDI note floor)"/>
-            <view class="ArcKnob" origin="752, 2" size="28, 28"
-                  control-tag="ArpRangeHigh" default-value="1"
-                  arc-color="arpeggiator" guide-color="knob-guide"
-                  tooltip="Range high (MIDI note ceiling)"/>
-            <view class="CTextLabel" origin="786, 0" size="56, 12"
-                  font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="Mode"/>
-            <view class="COptionMenu" origin="786, 13" size="56, 18"
-                  control-tag="ArpRangeMode" default-value="0.5"
-                  font="~ NormalFontSmaller" font-color="text-menu"
-                  back-color="bg-dropdown" frame-color="frame-dropdown"
-                  tooltip="Range mode: Wrap (fold), Clamp, or Skip out-of-range notes"/>
-
             <!-- Scale Quantize Input toggle -->
-            <view class="ToggleButton" origin="850, 10" size="80, 18"
+            <view class="ToggleButton" origin="810, 10" size="80, 18"
                   control-tag="ArpScaleQuantizeInput"
                   title="Quantize In"
                   title-position="right"
@@ -555,16 +534,43 @@
               back-color="bg-dropdown" frame-color="frame-dropdown"
               tooltip="Strum direction"/>
 
-        <!-- v1.5 Part 3: Pin Note (contextual — Pitch lane only).
+        <!-- v1.5 Part 3: Pitch-lane contextual controls —
+             Pin Note + Note Range Mapping (Lo/Hi/Mode).
+             All affect pitch output only, shown only on the Pitch tab.
              Per-step pin flags are editable via host automation. -->
         <view class="CTextLabel" custom-view-name="PinNoteLabel"
-              origin="844, 141" size="40, 14"
+              origin="820, 141" size="30, 14"
               font="~ NormalFontSmaller" font-color="text-secondary"
               text-alignment="right" transparent="true" title="Pin"/>
-        <view class="ArcKnob" origin="888, 136" size="28, 28"
+        <view class="ArcKnob" origin="854, 136" size="28, 28"
               control-tag="ArpPinNote" default-value="0.472"
               arc-color="arp.pitch.accent" guide-color="knob-guide"
               tooltip="Pinned note (pin flags via automation: ArpPinStep1-32)"/>
+
+        <view class="CTextLabel" custom-view-name="RangeLoLabel"
+              origin="886, 141" size="24, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Lo"/>
+        <view class="ArcKnob" origin="914, 136" size="28, 28"
+              control-tag="ArpRangeLow" default-value="0"
+              arc-color="arp.pitch.accent" guide-color="knob-guide"
+              tooltip="Range low (MIDI note floor) — folds/clamps/skips notes below"/>
+
+        <view class="CTextLabel" custom-view-name="RangeHiLabel"
+              origin="946, 141" size="24, 14"
+              font="~ NormalFontSmaller" font-color="text-secondary"
+              text-alignment="right" transparent="true" title="Hi"/>
+        <view class="ArcKnob" origin="974, 136" size="28, 28"
+              control-tag="ArpRangeHigh" default-value="1"
+              arc-color="arp.pitch.accent" guide-color="knob-guide"
+              tooltip="Range high (MIDI note ceiling) — folds/clamps/skips notes above"/>
+
+        <view class="COptionMenu" custom-view-name="RangeModeMenu"
+              origin="1006, 141" size="80, 18"
+              control-tag="ArpRangeMode" default-value="0.5"
+              font="~ NormalFontSmaller" font-color="text-menu"
+              back-color="bg-dropdown" frame-color="frame-dropdown"
+              tooltip="Range mode: Wrap (fold), Clamp, or Skip out-of-range notes"/>
 
         <!-- v1.5 Part 2: Velocity Curve (contextual — Velocity lane only) -->
         <view class="CTextLabel" custom-view-name="VelCurveLabel"
