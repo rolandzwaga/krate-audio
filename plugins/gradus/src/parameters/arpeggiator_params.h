@@ -373,13 +373,16 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
 
-        // --- Ratchet Swing (078-ratchet-swing) ---
-        case kArpRatchetSwingId:
-            // Continuous Parameter: 0-1 -> 50-75%
-            params.ratchetSwing.store(
-                std::clamp(static_cast<float>(50.0 + value * 25.0), 50.0f, 75.0f),
+        // --- Ratchet Shuffle (078-ratchet-swing, snapped to 3 positions) ---
+        case kArpRatchetSwingId: {
+            // 3 discrete values: 0=Even(50%), 1=Triplet(~66.67%), 2=Dotted(75%)
+            const int idx = std::clamp(
+                static_cast<int>(std::round(value * 2.0)), 0, 2);
+            static constexpr float kShuffleValues[3] = {50.0f, 66.6667f, 75.0f};
+            params.ratchetSwing.store(kShuffleValues[idx],
                 std::memory_order_relaxed);
             break;
+        }
 
         // --- Scale Mode (084-arp-scale-mode) ---
         case kArpScaleTypeId: {
@@ -813,11 +816,12 @@ inline void registerArpParams(
     parameters.addParameter(STR16("Arp Humanize"), STR16("%"), 0, 0.0,
         ParameterInfo::kCanAutomate, kArpHumanizeId);
 
-    // --- Ratchet Swing (078-ratchet-swing) ---
-    // Ratchet swing: Continuous 0-1, default 0.0 (= 50%)
-    // Normalized default: (50 - 50) / 25 = 0.0
-    parameters.addParameter(STR16("Arp Ratchet Swing"), STR16("%"), 0, 0.0,
-        ParameterInfo::kCanAutomate, kArpRatchetSwingId);
+    // --- Ratchet Shuffle (078-ratchet-swing, snapped to 3 positions) ---
+    // 3 discrete values: Even (50%), Triplet (~66.67%), Dotted (75%)
+    // Default = 0 (Even). StringListParameter gives automatic snapping.
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Ratchet Shuffle"), kArpRatchetSwingId,
+        {STR16("Even"), STR16("Triplet"), STR16("Dotted")}));
 
     // --- Scale Mode (084-arp-scale-mode) ---
 
@@ -1231,13 +1235,9 @@ inline Steinberg::tresult formatArpParam(
             return kResultOk;
         }
 
-        // --- Ratchet Swing (078-ratchet-swing) ---
-        case kArpRatchetSwingId: {
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", 50.0 + value * 25.0);
-            UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
+        // --- Ratchet Shuffle — StringListParameter handles display ---
+        case kArpRatchetSwingId:
+            return kResultFalse;
 
         // --- v1.5 Features ---
         case kArpRatchetDecayId: {
@@ -1996,12 +1996,18 @@ inline void loadArpParamsToController(
     setParam(kArpHumanizeId, static_cast<double>(std::clamp(floatVal, 0.0f, 1.0f)));
     // diceTrigger is NOT synced (transient action)
 
-    // --- Ratchet Swing (078-ratchet-swing) ---
-    // EOF-safe: if ratchet swing data is missing (Phase 9 preset), keep controller default
+    // --- Ratchet Shuffle (was continuous 50-75%, now snapped to 3 positions) ---
+    // Backward-compat: old presets store 50-75% float; map to nearest of
+    // {Even=50, Triplet=66.67, Dotted=75} → index 0/1/2 → normalized 0.0/0.5/1.0.
     if (!streamer.readFloat(floatVal)) return;
-    // float [50, 75] -> normalized: (val - 50) / 25
-    setParam(kArpRatchetSwingId,
-        static_cast<double>((std::clamp(floatVal, 50.0f, 75.0f) - 50.0f) / 25.0f));
+    {
+        const float clamped = std::clamp(floatVal, 50.0f, 75.0f);
+        int idx;
+        if (clamped < 58.33f)       idx = 0;  // < midpoint between 50 and 66.67
+        else if (clamped < 70.83f)  idx = 1;  // < midpoint between 66.67 and 75
+        else                        idx = 2;
+        setParam(kArpRatchetSwingId, static_cast<double>(idx) / 2.0);
+    }
 
     // --- Scale Mode (084-arp-scale-mode) ---
     // EOF-safe: if scale data is missing (pre-scale-mode preset), keep controller defaults

@@ -503,7 +503,7 @@
         <view class="ArcKnob" origin="956, 136" size="28, 28"
               control-tag="ArpRatchetSwing" default-value="0"
               arc-color="arp.ratchet.accent" guide-color="knob-guide"
-              tooltip="Ratchet sub-step shuffle — 50% = even, 67% = triplet, 75% = dotted"/>
+              tooltip="Ratchet sub-step shuffle: Even / Triplet / Dotted"/>
 
         <!-- Strum label (contextual — Chord/Inversion lanes) -->
         <view class="CTextLabel" custom-view-name="StrumTimeLabel"
