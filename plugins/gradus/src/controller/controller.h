@@ -27,6 +27,7 @@ namespace Gradus {
 class RingDisplay;
 class DetailStrip;
 class PinFlagStrip;
+class MarkovMatrixEditor;
 } // namespace Gradus
 
 namespace Gradus {
@@ -154,6 +155,15 @@ private:
     VSTGUI::CView* rangeModeMenu_ = nullptr;
     // v1.6: Inline 32-cell pin toggle row (Pitch lane contextual)
     PinFlagStrip* pinFlagStrip_ = nullptr;
+
+    // v1.7: Markov Chain mode editor (visible only when Markov arp mode active)
+    MarkovMatrixEditor* markovEditor_ = nullptr;
+    // Guard against recursive loads when state recall fires setParamNormalized
+    // for kArpMarkovPresetId (otherwise it would overwrite cell values loaded
+    // from the same state blob).
+    bool suppressMarkovPresetLoad_ = false;
+    // Guard against cell-edit → preset-to-Custom ping-pong.
+    bool suppressMarkovCellEcho_ = false;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

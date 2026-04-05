@@ -375,6 +375,191 @@ TEST_CASE("Gradus pin flag denormalization is binary",
     CHECK(params.pinFlags[31].load() == 1);
 }
 
+// =============================================================================
+// v1.7 Markov Chain mode — parameter registration
+// =============================================================================
+
+TEST_CASE("Gradus kArpMarkovPresetId registered as 6-entry StringList",
+          "[gradus][vst][markov]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    int32 paramCount = controller.getParameterCount();
+    ParameterInfo info{};
+    bool found = false;
+    for (int32 i = 0; i < paramCount; ++i) {
+        controller.getParameterInfo(i, info);
+        if (info.id == Gradus::kArpMarkovPresetId) {
+            found = true;
+            CHECK(info.stepCount == 5);  // 6 entries → stepCount 5
+            CHECK(info.defaultNormalizedValue == Approx(0.0));  // Uniform
+            break;
+        }
+    }
+    CHECK(found);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus Markov cell parameters all registered with uniform default",
+          "[gradus][vst][markov]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    int32 paramCount = controller.getParameterCount();
+    ParameterInfo info{};
+    constexpr double kExpectedDefault = 1.0 / 7.0;
+
+    for (int cell = 0; cell < 49; ++cell) {
+        const ParamID expectedId =
+            static_cast<ParamID>(Gradus::kArpMarkovCell00Id + cell);
+        bool found = false;
+        for (int32 i = 0; i < paramCount; ++i) {
+            controller.getParameterInfo(i, info);
+            if (info.id == expectedId) {
+                found = true;
+                CHECK(info.defaultNormalizedValue == Approx(kExpectedDefault).margin(1e-5));
+                break;
+            }
+        }
+        CHECK(found);
+    }
+
+    // Sanity check the last ID
+    bool foundLast = false;
+    for (int32 i = 0; i < paramCount; ++i) {
+        controller.getParameterInfo(i, info);
+        if (info.id == Gradus::kArpMarkovCell66Id) { foundLast = true; break; }
+    }
+    CHECK(foundLast);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus kArpModeId extended to 12 entries including Markov",
+          "[gradus][vst][markov]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    int32 paramCount = controller.getParameterCount();
+    ParameterInfo info{};
+    bool found = false;
+    for (int32 i = 0; i < paramCount; ++i) {
+        controller.getParameterInfo(i, info);
+        if (info.id == Gradus::kArpModeId) {
+            found = true;
+            CHECK(info.stepCount == 11);  // 12 entries → stepCount 11
+            break;
+        }
+    }
+    CHECK(found);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus Markov cell denormalization clamps to [0,1]",
+          "[gradus][vst][markov]")
+{
+    Gradus::ArpeggiatorParams params;
+
+    // Default: every cell ≈ 1/7
+    for (int i = 0; i < 49; ++i) {
+        CHECK(params.markovMatrix[i].load() == Approx(1.0f / 7.0f).margin(1e-6));
+    }
+
+    // Write a value to cell 5
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 5), 0.75);
+    CHECK(params.markovMatrix[5].load() == Approx(0.75f));
+
+    // Out-of-range values should be clamped (VST boundary enforces [0,1] but
+    // the denormalizer uses std::clamp for safety).
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 10), 1.0);
+    CHECK(params.markovMatrix[10].load() == Approx(1.0f));
+
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 20), 0.0);
+    CHECK(params.markovMatrix[20].load() == Approx(0.0f));
+}
+
+TEST_CASE("Gradus Controller: selecting Jazz preset writes 49 matrix cells",
+          "[gradus][vst][markov]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Select Jazz (index 1 of 6)
+    const double jazzNorm = 1.0 / 5.0;  // 6 entries, stepCount 5
+    REQUIRE(controller.setParamNormalized(Gradus::kArpMarkovPresetId, jazzNorm) == kResultOk);
+
+    // Verify that cell (1,4) [ii→V] has a high value reflecting the Jazz matrix
+    const ParamID iiToV = static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 1 * 7 + 4);
+    const double iiToVValue = controller.getParamNormalized(iiToV);
+    CHECK(iiToVValue > 0.4);
+
+    // And cell (4,0) [V→I]
+    const ParamID vToI = static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 4 * 7 + 0);
+    const double vToIValue = controller.getParamNormalized(vToI);
+    CHECK(vToIValue > 0.4);
+
+    // Switch to Classical and verify V→I is even stronger
+    const double classicalNorm = 4.0 / 5.0;
+    REQUIRE(controller.setParamNormalized(Gradus::kArpMarkovPresetId, classicalNorm) == kResultOk);
+    const double vToIClassical = controller.getParamNormalized(vToI);
+    CHECK(vToIClassical > 0.5);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus Controller: editing a Markov cell flips preset to Custom",
+          "[gradus][vst][markov]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Start at Uniform (default)
+    CHECK(controller.getParamNormalized(Gradus::kArpMarkovPresetId) == Approx(0.0));
+
+    // Edit a cell — should flip preset to Custom (5)
+    REQUIRE(controller.setParamNormalized(
+        static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 10), 0.9) == kResultOk);
+
+    const double presetNorm = controller.getParamNormalized(Gradus::kArpMarkovPresetId);
+    const int preset = std::clamp(static_cast<int>(presetNorm * 5.0 + 0.5), 0, 5);
+    CHECK(preset == 5);  // Custom
+
+    // The edit should have stuck (not overwritten by preset reload)
+    const double cellValue = controller.getParamNormalized(
+        static_cast<ParamID>(Gradus::kArpMarkovCell00Id + 10));
+    CHECK(cellValue == Approx(0.9));
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus Markov preset denormalizes to int 0..5",
+          "[gradus][vst][markov]")
+{
+    Gradus::ArpeggiatorParams params;
+
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovPresetId), 0.0);
+    CHECK(params.markovPreset.load() == 0);  // Uniform
+
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovPresetId), 1.0 / 5.0);
+    CHECK(params.markovPreset.load() == 1);  // Jazz
+
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpMarkovPresetId), 1.0);
+    CHECK(params.markovPreset.load() == 5);  // Custom
+}
+
+// -----------------------------------------------------------------------------
+
 TEST_CASE("Gradus Controller::setParamNormalized safely handles pin flag IDs without UI",
           "[gradus][vst][pin]")
 {

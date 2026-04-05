@@ -19,6 +19,10 @@ using Krate::DSP::NoteSelector;
 using Krate::DSP::ArpMode;
 using Krate::DSP::OctaveMode;
 using Krate::DSP::ArpNoteResult;
+using Krate::DSP::ScaleType;
+using Krate::DSP::ScaleHarmonizer;
+using Krate::DSP::kMarkovMatrixDim;
+using Krate::DSP::kMarkovMatrixSize;
 
 // =============================================================================
 // HeldNoteBuffer Tests (User Story 1)
@@ -1140,4 +1144,291 @@ TEST_CASE("NoteSelector - all modes with 2 notes", "[note_selector_edge_cases]")
         REQUIRE(result.notes[0] == 60);
         REQUIRE(result.notes[1] == 67);
     }
+}
+
+// =============================================================================
+// Markov Mode (v1.7)
+// =============================================================================
+
+namespace {
+
+// Build a row-stochastic uniform matrix (every cell = 1/7).
+inline std::array<float, kMarkovMatrixSize> makeUniformMatrix() {
+    std::array<float, kMarkovMatrixSize> m{};
+    for (auto& c : m) c = 1.0f / static_cast<float>(kMarkovMatrixDim);
+    return m;
+}
+
+// Build a matrix where row `fromDegree` → col `toDegree` has ~90% probability,
+// everything else is small uniform fill.
+inline std::array<float, kMarkovMatrixSize> makeBiasedMatrix(int fromDegree, int toDegree) {
+    std::array<float, kMarkovMatrixSize> m{};
+    for (auto& c : m) c = 0.017f;  // ~0.017 * 6 = 0.1, + 0.9 = 1.0
+    m[static_cast<size_t>(fromDegree) * kMarkovMatrixDim + static_cast<size_t>(toDegree)] = 0.9f;
+    return m;
+}
+
+} // namespace
+
+TEST_CASE("NoteSelector - Markov mode emits a held note", "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);  // C4 — degree 0 in C Major
+    held.noteOn(64, 100);  // E4 — degree 2
+    held.noteOn(67, 100);  // G4 — degree 4
+
+    NoteSelector selector(42);
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    auto result = selector.advance(held);
+    REQUIRE(result.count == 1);
+    // Must be one of the held notes
+    const uint8_t n = result.notes[0];
+    CHECK((n == 60 || n == 64 || n == 67));
+}
+
+TEST_CASE("NoteSelector - Markov uniform matrix gives balanced distribution",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);  // degree 0
+    held.noteOn(62, 100);  // degree 1
+    held.noteOn(64, 100);  // degree 2
+    held.noteOn(65, 100);  // degree 3
+    held.noteOn(67, 100);  // degree 4
+    held.noteOn(69, 100);  // degree 5
+    held.noteOn(71, 100);  // degree 6
+
+    NoteSelector selector(12345);
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    std::array<int, 7> counts{};
+    constexpr int iterations = 7000;
+    for (int i = 0; i < iterations; ++i) {
+        auto r = selector.advance(held);
+        REQUIRE(r.count == 1);
+        // Map the emitted MIDI note back to its degree within our test set
+        const int midi = r.notes[0];
+        const int deg = ScaleHarmonizer::noteToScaleDegree(ScaleType::Major, 0, midi);
+        REQUIRE(deg >= 0);
+        REQUIRE(deg < 7);
+        ++counts[static_cast<size_t>(deg)];
+    }
+    // Each bucket should be ~1000; allow 30% tolerance for RNG variance
+    for (int c : counts) {
+        CHECK(c > 700);
+        CHECK(c < 1300);
+    }
+}
+
+TEST_CASE("NoteSelector - Markov biased matrix favors target degree",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);  // deg 0
+    held.noteOn(62, 100);  // deg 1
+    held.noteOn(64, 100);  // deg 2
+    held.noteOn(65, 100);  // deg 3
+    held.noteOn(67, 100);  // deg 4
+    held.noteOn(69, 100);  // deg 5
+    held.noteOn(71, 100);  // deg 6
+
+    // Matrix biases every row strongly toward degree 3 (IV, note F = MIDI 65).
+    std::array<float, kMarkovMatrixSize> m{};
+    for (size_t row = 0; row < 7; ++row) {
+        for (size_t col = 0; col < 7; ++col) {
+            m[row * 7 + col] = 0.017f;
+        }
+        m[row * 7 + 3] = 0.9f;
+    }
+
+    NoteSelector selector(7);
+    selector.setMarkovMatrix(m);
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    int hits = 0;
+    constexpr int iterations = 1000;
+    for (int i = 0; i < iterations; ++i) {
+        auto r = selector.advance(held);
+        if (r.notes[0] == 65) ++hits;  // F4 = degree 3
+    }
+    // ~90% expected, allow 5% tolerance
+    CHECK(hits > 850);
+    CHECK(hits < 950);
+}
+
+TEST_CASE("NoteSelector - Markov falls back to held-note indexing in Chromatic",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);
+    held.noteOn(61, 100);
+    held.noteOn(63, 100);
+
+    NoteSelector selector(1);
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Chromatic, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    // With uniform matrix and Chromatic fallback, every note should still be
+    // one of the 3 held notes (no crash, no out-of-range index).
+    for (int i = 0; i < 100; ++i) {
+        auto r = selector.advance(held);
+        REQUIRE(r.count == 1);
+        const uint8_t n = r.notes[0];
+        CHECK((n == 60 || n == 61 || n == 63));
+    }
+}
+
+TEST_CASE("NoteSelector - Markov handles single held note without transition",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);
+
+    NoteSelector selector;
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    for (int i = 0; i < 20; ++i) {
+        auto r = selector.advance(held);
+        REQUIRE(r.count == 1);
+        CHECK(r.notes[0] == 60);
+    }
+}
+
+TEST_CASE("NoteSelector - Markov handles empty buffer gracefully",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+
+    NoteSelector selector;
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    auto r = selector.advance(held);
+    CHECK(r.count == 0);
+}
+
+TEST_CASE("NoteSelector - Markov normalizes rows with user-edited cells",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);  // deg 0
+    held.noteOn(64, 100);  // deg 2
+    held.noteOn(67, 100);  // deg 4
+
+    // Unnormalized matrix: row 0 has weights 0.0, 0.0, 5.0, 0.0, 5.0, 0.0, 0.0
+    // (user cranked cells without normalizing). Should still sample fairly
+    // between degrees 2 and 4.
+    std::array<float, kMarkovMatrixSize> m{};
+    for (size_t row = 0; row < 7; ++row) {
+        m[row * 7 + 2] = 5.0f;
+        m[row * 7 + 4] = 5.0f;
+    }
+
+    NoteSelector selector(999);
+    selector.setMarkovMatrix(m);
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    int deg2Hits = 0;
+    int deg4Hits = 0;
+    constexpr int iterations = 1000;
+    for (int i = 0; i < iterations; ++i) {
+        auto r = selector.advance(held);
+        if (r.notes[0] == 64) ++deg2Hits;
+        else if (r.notes[0] == 67) ++deg4Hits;
+    }
+    // Should be ~50/50 split between degrees 2 and 4
+    CHECK(deg2Hits > 400);
+    CHECK(deg2Hits < 600);
+    CHECK(deg4Hits > 400);
+    CHECK(deg4Hits < 600);
+    CHECK((deg2Hits + deg4Hits) == iterations);
+}
+
+TEST_CASE("NoteSelector - Markov handles degenerate all-zero row",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);
+    held.noteOn(64, 100);
+    held.noteOn(67, 100);
+
+    std::array<float, kMarkovMatrixSize> m{};  // all zeros
+    NoteSelector selector(555);
+    selector.setMarkovMatrix(m);
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    // Should fall back to uniform random — must never crash, must always
+    // return a valid held note.
+    for (int i = 0; i < 50; ++i) {
+        auto r = selector.advance(held);
+        REQUIRE(r.count == 1);
+        const uint8_t n = r.notes[0];
+        CHECK((n == 60 || n == 64 || n == 67));
+    }
+}
+
+TEST_CASE("NoteSelector - Markov nearest-degree fallback when degree not held",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);  // deg 0 (I)
+    held.noteOn(67, 100);  // deg 4 (V)
+    // Note: no degree 3 (IV) held
+
+    // Force the matrix to always transition to degree 3 (IV).
+    std::array<float, kMarkovMatrixSize> m{};
+    for (size_t row = 0; row < 7; ++row) {
+        m[row * 7 + 3] = 1.0f;
+    }
+
+    NoteSelector selector(321);
+    selector.setMarkovMatrix(m);
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+    selector.setOctaveRange(1);
+
+    // The sampler wants degree 3, but it's not held. Nearest held degrees
+    // are 0 and 4; distance 3 to 4 is 1, distance 3 to 0 is 3 → pick 4 (G).
+    for (int i = 0; i < 10; ++i) {
+        auto r = selector.advance(held);
+        REQUIRE(r.count == 1);
+        CHECK(r.notes[0] == 67);  // G4
+    }
+}
+
+TEST_CASE("NoteSelector - Markov resets degree state on setMode",
+          "[note_selector_markov]") {
+    HeldNoteBuffer held;
+    held.noteOn(60, 100);
+    held.noteOn(64, 100);
+    held.noteOn(67, 100);
+
+    NoteSelector selector(1);
+    selector.setMarkovMatrix(makeUniformMatrix());
+    selector.setMarkovScaleContext(ScaleType::Major, 0);
+    selector.setMode(ArpMode::Markov);
+
+    // Advance a few times to build up state
+    for (int i = 0; i < 5; ++i) {
+        (void)selector.advance(held);
+    }
+
+    // Switch mode and switch back — degree state should reset
+    selector.setMode(ArpMode::Up);
+    selector.setMode(ArpMode::Markov);
+
+    // Should not crash, should emit a valid note
+    auto r = selector.advance(held);
+    REQUIRE(r.count == 1);
 }

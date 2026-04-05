@@ -87,11 +87,20 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         return kResultFalse;
     (void)version;
 
+    // v1.7: Suppress Markov preset auto-load while restoring state. Otherwise
+    // the stored kArpMarkovPresetId value would trigger a batch rewrite of the
+    // 49 cell params, overwriting the cell values that were ALSO saved in
+    // state (producing the wrong final matrix for presets saved as "Custom"
+    // or any user-edited preset).
+    suppressMarkovPresetLoad_ = true;
+
     // Load arp params to controller (restores UI to match saved state)
     auto setParam = [this](ParamID id, ParamValue value) {
         setParamNormalized(id, value);
     };
     loadArpParamsToController(streamer, setParam);
+
+    suppressMarkovPresetLoad_ = false;
 
     // Audition params are session-only — not restored from presets
 
@@ -268,6 +277,7 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     rangeHighLabel_ = nullptr;
     rangeModeMenu_ = nullptr;
     pinFlagStrip_ = nullptr;
+    markovEditor_ = nullptr;
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
     activeEditor_ = nullptr;

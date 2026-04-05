@@ -409,6 +409,27 @@ public:
         return detail::kScaleIntervals[static_cast<size_t>(static_cast<uint8_t>(type))];
     }
 
+    /// Map a MIDI note to its nearest scale degree for the given key/scale.
+    ///
+    /// Returns a degree index in [0, degreeCount-1]. Tie-breaks toward the
+    /// lower degree. In Chromatic mode, returns the pitch class directly
+    /// (0-11). Callers that care about "does this note belong to the scale"
+    /// should pair this with quantizeToScale() and compare.
+    ///
+    /// @param type Scale type
+    /// @param rootNote Root note of the key (0=C ... 11=B, wrapped via modulo)
+    /// @param midiNote Input MIDI note number
+    /// @return Degree index in [0, degreeCount-1]
+    [[nodiscard]] static int noteToScaleDegree(ScaleType type,
+                                               int rootNote,
+                                               int midiNote) noexcept {
+        const int rootClass = ((rootNote % 12) + 12) % 12;
+        const int pitchClass = ((midiNote % 12) + 12) % 12;
+        const int offset = ((pitchClass - rootClass) % 12 + 12) % 12;
+        const int scaleIdx = static_cast<int>(static_cast<uint8_t>(type));
+        return detail::kReverseLookup[static_cast<size_t>(scaleIdx)][static_cast<size_t>(offset)];
+    }
+
 private:
     int rootNote_ = 0;                       ///< Root key (0=C through 11=B)
     ScaleType scale_ = ScaleType::Major;     ///< Current scale type

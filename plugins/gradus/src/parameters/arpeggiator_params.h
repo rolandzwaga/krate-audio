@@ -179,6 +179,12 @@ struct ArpeggiatorParams {
     std::atomic<int>   pinNote{60};   // MIDI 0-127, default C4
     std::array<std::atomic<int>, 32> pinFlags{};  // 0/1 per step
 
+    // --- v1.7: Markov Chain Mode ---
+    std::atomic<int>   markovPreset{0};  // 0=Uniform..4=Classical, 5=Custom
+    // 7x7 row-major matrix. Each cell is 0.0-1.0. Rows are auto-normalized at
+    // sample time in NoteSelector::advanceMarkov, so users can edit freely.
+    std::array<std::atomic<float>, 49> markovMatrix{};
+
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
             step.store(1.0f, std::memory_order_relaxed);
@@ -196,6 +202,12 @@ struct ArpeggiatorParams {
             step.store(1, std::memory_order_relaxed);
         }
         // conditionLaneSteps default to 0 (TrigCondition::Always) via value-initialization -- correct
+
+        // v1.7 Markov: initialize matrix to Uniform (1/7 per cell)
+        constexpr float kUniformCell = 1.0f / 7.0f;
+        for (auto& cell : markovMatrix) {
+            cell.store(kUniformCell, std::memory_order_relaxed);
+        }
     }
 };
 
@@ -218,9 +230,9 @@ inline void handleArpParamChange(
                 std::memory_order_relaxed);
             break;
         case kArpModeId:
-            // StringListParameter: 0-1 -> 0-10 (11 entries, stepCount=10)
+            // StringListParameter: 0-1 -> 0-11 (12 entries, stepCount=11)
             params.mode.store(
-                std::clamp(static_cast<int>(value * 10.0 + 0.5), 0, 10),
+                std::clamp(static_cast<int>(value * 11.0 + 0.5), 0, 11),
                 std::memory_order_relaxed);
             break;
         case kArpOctaveRangeId:
@@ -582,6 +594,19 @@ inline void handleArpParamChange(
                 params.pinFlags[stepIdx].store(
                     value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
             }
+            // v1.7: Markov Chain mode
+            else if (id == kArpMarkovPresetId) {
+                // StringListParameter: 0-1 -> 0-5 (6 entries, stepCount=5)
+                params.markovPreset.store(
+                    std::clamp(static_cast<int>(value * 5.0 + 0.5), 0, 5),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMarkovCell00Id && id <= kArpMarkovCell66Id) {
+                int cellIdx = static_cast<int>(id - kArpMarkovCell00Id);
+                params.markovMatrix[static_cast<size_t>(cellIdx)].store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                    std::memory_order_relaxed);
+            }
             // v1.5 Part 2: Per-lane Length Jitter (3402-3409)
             else if (id >= kArpVelocityLaneJitterId && id <= kArpInversionLaneJitterId) {
                 int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
@@ -617,13 +642,13 @@ inline void registerArpParams(
         STR16("Arp Operating Mode"), kArpOperatingModeId,
         {STR16("Off"), STR16("MIDI"), STR16("Mod"), STR16("MIDI+Mod")}));
 
-    // Arp Mode: StringListParameter (11 entries), default 0 (Up)
+    // Arp Mode: StringListParameter (12 entries), default 0 (Up)
     parameters.addParameter(createDropdownParameter(
         STR16("Arp Mode"), kArpModeId,
         {STR16("Up"), STR16("Down"), STR16("UpDown"), STR16("DownUp"),
          STR16("Converge"), STR16("Diverge"), STR16("Random"),
          STR16("Walk"), STR16("AsPlayed"), STR16("Chord"),
-         STR16("Gravity")}));
+         STR16("Gravity"), STR16("Markov")}));
 
     // Arp Octave Range: RangeParameter 1-4, default 1, stepCount 3
     parameters.addParameter(
@@ -1108,6 +1133,33 @@ inline void registerArpParams(
                 static_cast<ParamID>(kArpPinFlagStep0Id + i),
                 STR16(""), 0.0, 1.0, 0.0,
                 1, ParameterInfo::kCanAutomate));
+    }
+
+    // --- v1.7: Markov Chain Mode ---
+
+    // Markov Preset: StringListParameter (6 entries), default 0 (Uniform)
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Markov Preset"), kArpMarkovPresetId,
+        {STR16("Uniform"), STR16("Jazz"), STR16("Minimal"),
+         STR16("Ambient"), STR16("Classical"), STR16("Custom")}));
+
+    // Markov Cells: 49 RangeParams (0.0-1.0). Default to Uniform (1/7) so that
+    // the matrix is usable out-of-the-box before any preset is loaded.
+    constexpr double kUniformCell = 1.0 / 7.0;
+    for (int row = 0; row < 7; ++row) {
+        for (int col = 0; col < 7; ++col) {
+            const int idx = row * 7 + col;
+            char nameBuf[48];
+            snprintf(nameBuf, sizeof(nameBuf),
+                     "Arp Markov Cell %d-%d", row, col);
+            Steinberg::Vst::String128 name16;
+            Steinberg::UString(name16, 128).fromAscii(nameBuf);
+            parameters.addParameter(
+                new RangeParameter(name16,
+                    static_cast<ParamID>(kArpMarkovCell00Id + idx),
+                    STR16(""), 0.0, 1.0, kUniformCell,
+                    0, ParameterInfo::kCanAutomate));
+        }
     }
 }
 

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <krate/dsp/core/random.h>
+#include <krate/dsp/core/scale_harmonizer.h>
 
 #include <algorithm>
 #include <array>
@@ -47,8 +48,13 @@ enum class ArpMode : uint8_t {
     Walk,         ///< Random +/-1 step, clamped to bounds
     AsPlayed,     ///< Insertion order (chronological)
     Chord,        ///< All notes simultaneously
-    Gravity       ///< Nearest-neighbor: next note = held note closest to the last-played note
+    Gravity,      ///< Nearest-neighbor: next note = held note closest to the last-played note
+    Markov        ///< Transition probability matrix over scale degrees (7x7 diatonic)
 };
+
+/// @brief Size of the Markov transition matrix (7x7 = 49 cells).
+inline constexpr size_t kMarkovMatrixDim = 7;
+inline constexpr size_t kMarkovMatrixSize = kMarkovMatrixDim * kMarkovMatrixDim;
 
 /// @brief Octave expansion ordering mode.
 enum class OctaveMode : uint8_t {
@@ -238,6 +244,20 @@ public:
         octaveMode_ = mode;
     }
 
+    /// @brief Set the 7x7 Markov transition matrix (row-major).
+    /// Rows need not sum to 1.0 — the sampler normalizes on the fly.
+    /// Only consulted when mode is ArpMode::Markov.
+    void setMarkovMatrix(const std::array<float, kMarkovMatrixSize>& matrix) noexcept {
+        markovMatrix_ = matrix;
+    }
+
+    /// @brief Set scale context for Markov mode's held-note-to-degree mapping.
+    /// Chromatic scale falls back to held-note-index indexing.
+    void setMarkovScaleContext(ScaleType scale, int rootNote) noexcept {
+        markovScale_ = scale;
+        markovRoot_ = rootNote;
+    }
+
     /// @brief Advance to the next note(s) in the pattern.
     [[nodiscard]] ArpNoteResult advance(const HeldNoteBuffer& held) noexcept {
         if (held.empty()) {
@@ -299,6 +319,10 @@ public:
                 advanceGravity(pitched, size, result);
                 break;
             }
+            case ArpMode::Markov: {
+                advanceMarkov(pitched, size, result);
+                break;
+            }
         }
 
         return result;
@@ -313,6 +337,7 @@ public:
         convergeStep_ = 0;
         direction_ = 1;
         lastGravityNote_ = -1;
+        lastMarkovDegree_ = -1;
     }
 
 private:
@@ -615,6 +640,136 @@ private:
         }
     }
 
+    /// @brief Markov mode: sample next scale degree from a 7x7 transition
+    /// matrix, then emit the held note matching (or nearest to) that degree.
+    /// Falls back to held-note-index indexing when scale is Chromatic.
+    void advanceMarkov(std::span<const HeldNote> pitched, size_t size,
+                       ArpNoteResult& result) noexcept {
+        if (size == 0) {
+            return;
+        }
+        if (size == 1) {
+            result.notes[0] = applyOctave(pitched[0].note, octaveOffset_);
+            result.velocities[0] = pitched[0].velocity;
+            result.count = 1;
+            advanceMarkovOctave();
+            return;
+        }
+
+        // Build degree → held-note-index mapping.
+        // Chromatic fallback: treat held notes as degrees 0..N-1 directly,
+        // clamped to the matrix dimension.
+        std::array<int, kMarkovMatrixDim> heldNotesByDegree{};
+        heldNotesByDegree.fill(-1);
+
+        const bool chromatic = (markovScale_ == ScaleType::Chromatic);
+        if (chromatic) {
+            const size_t n = std::min<size_t>(size, kMarkovMatrixDim);
+            for (size_t i = 0; i < n; ++i) {
+                heldNotesByDegree[i] = static_cast<int>(i);
+            }
+        } else {
+            for (size_t i = 0; i < size; ++i) {
+                const int deg = ScaleHarmonizer::noteToScaleDegree(
+                    markovScale_, markovRoot_,
+                    static_cast<int>(pitched[i].note));
+                if (deg >= 0 && deg < static_cast<int>(kMarkovMatrixDim)) {
+                    // First-come wins on conflict (lowest pitch with that degree)
+                    if (heldNotesByDegree[static_cast<size_t>(deg)] < 0) {
+                        heldNotesByDegree[static_cast<size_t>(deg)] =
+                            static_cast<int>(i);
+                    }
+                }
+            }
+        }
+
+        // Determine the current row (from lastMarkovDegree_). If no prior
+        // state, pick the lowest available degree as the starting row.
+        int currentDegree = lastMarkovDegree_;
+        if (currentDegree < 0 ||
+            currentDegree >= static_cast<int>(kMarkovMatrixDim)) {
+            currentDegree = 0;
+            for (int d = 0; d < static_cast<int>(kMarkovMatrixDim); ++d) {
+                if (heldNotesByDegree[static_cast<size_t>(d)] >= 0) {
+                    currentDegree = d;
+                    break;
+                }
+            }
+        }
+
+        // Sample next degree from matrix row [currentDegree].
+        // Normalize on-the-fly (row sum may not equal 1.0 after user edits).
+        const size_t rowStart =
+            static_cast<size_t>(currentDegree) * kMarkovMatrixDim;
+        float rowSum = 0.0f;
+        for (size_t i = 0; i < kMarkovMatrixDim; ++i) {
+            rowSum += markovMatrix_[rowStart + i];
+        }
+
+        int nextDegree = currentDegree;
+        if (rowSum > 1e-6f) {
+            // 24-bit-mantissa uniform in [0, 1)
+            const float r = (rng_.next() & 0x00FFFFFFu) / 16777216.0f;
+            const float target = r * rowSum;
+            float cumulative = 0.0f;
+            for (size_t i = 0; i < kMarkovMatrixDim; ++i) {
+                cumulative += markovMatrix_[rowStart + i];
+                if (cumulative >= target) {
+                    nextDegree = static_cast<int>(i);
+                    break;
+                }
+            }
+        } else {
+            // Degenerate row (all zero) — fall back to uniform random degree
+            nextDegree = static_cast<int>(rng_.next() % kMarkovMatrixDim);
+        }
+
+        // Find a held note for nextDegree. If none at that degree, pick the
+        // nearest degree that has a held note (prefer lower on ties).
+        int pickIdx = heldNotesByDegree[static_cast<size_t>(nextDegree)];
+        if (pickIdx < 0) {
+            const int targetDegree = nextDegree;
+            int bestDistance = static_cast<int>(kMarkovMatrixDim) + 1;
+            int bestDegree = -1;
+            for (int d = 0; d < static_cast<int>(kMarkovMatrixDim); ++d) {
+                const int held = heldNotesByDegree[static_cast<size_t>(d)];
+                if (held < 0) continue;
+                const int dist = std::abs(d - targetDegree);
+                if (dist < bestDistance) {
+                    bestDistance = dist;
+                    pickIdx = held;
+                    bestDegree = d;
+                }
+            }
+            if (bestDegree >= 0) nextDegree = bestDegree;
+        }
+        if (pickIdx < 0) {
+            // No held notes matched any degree — shouldn't happen because
+            // at least one degree must have a held note (size > 0).
+            pickIdx = 0;
+        }
+
+        const auto& picked = pitched[static_cast<size_t>(pickIdx)];
+        result.notes[0] = applyOctave(picked.note, octaveOffset_);
+        result.velocities[0] = picked.velocity;
+        result.count = 1;
+        lastMarkovDegree_ = nextDegree;
+
+        advanceMarkovOctave();
+    }
+
+    /// @brief Octave advancement shared between Markov and similar modes.
+    void advanceMarkovOctave() noexcept {
+        if (octaveMode_ == OctaveMode::Sequential) {
+            advanceOctaveSequentialAscending();
+        } else {
+            ++octaveOffset_;
+            if (octaveOffset_ >= octaveRange_) {
+                octaveOffset_ = 0;
+            }
+        }
+    }
+
     /// @brief AsPlayed mode: insertion order with octave support.
     void advanceAsPlayed(const HeldNoteBuffer& held, size_t size,
                          ArpNoteResult& result) noexcept {
@@ -650,6 +805,13 @@ private:
     size_t walkIndex_{0};
     int octaveOffset_{0};
     int lastGravityNote_{-1};  ///< Last note emitted by Gravity mode (-1 = none)
+
+    // v1.7 Markov mode state
+    std::array<float, kMarkovMatrixSize> markovMatrix_{};  ///< 7x7 row-major transition probs
+    ScaleType markovScale_{ScaleType::Chromatic};          ///< Scale context (Chromatic = fallback)
+    int markovRoot_{0};                                    ///< Root note 0=C..11=B
+    int lastMarkovDegree_{-1};                             ///< Last sampled degree (-1 = none)
+
     Xorshift32 rng_;
 };
 

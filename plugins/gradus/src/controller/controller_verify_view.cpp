@@ -13,6 +13,7 @@
 #include "../ui/ring_display.h"
 #include "../ui/detail_strip.h"
 #include "../ui/pin_flag_strip.h"
+#include "../ui/markov_matrix_editor.h"
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
@@ -559,6 +560,47 @@ void Controller::constructArpLanes()
         pinStrip->setVisible(false);
         detailStrip_->addView(pinStrip);
         pinFlagStrip_ = pinStrip;
+    }
+
+    // ========================================================================
+    // v1.7: Construct Markov Matrix Editor
+    // ========================================================================
+    // 7x7 probability matrix editor. Visible only when the current arp mode
+    // is Markov (index 11). Placed as a floating panel overlaying the top
+    // portion of the DetailStrip lane area — roughly 160x160 centered.
+    {
+        const auto stripSize = detailStrip_->getViewSize();
+        const VSTGUI::CCoord w = stripSize.getWidth();
+        constexpr VSTGUI::CCoord kSize = 160.0;
+        const VSTGUI::CCoord x = (w - kSize) * 0.5;  // center horizontally
+        const VSTGUI::CCoord y = DetailStrip::pinRowTop() + DetailStrip::pinRowHeight() + 4.0;
+        VSTGUI::CRect rect(x, y, x + kSize, y + kSize);
+        auto* editor = new MarkovMatrixEditor(rect);
+
+        editor->setParameterCallback(
+            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        editor->setBeginEditCallback(
+            [this](Steinberg::Vst::ParamID paramId) { beginEdit(paramId); });
+        editor->setEndEditCallback(
+            [this](Steinberg::Vst::ParamID paramId) { endEdit(paramId); });
+
+        // Initialize cells from current parameter state
+        for (int i = 0; i < 49; ++i) {
+            const auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpMarkovCell00Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                editor->setCellValueFlat(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        editor->setVisible(false);  // shown only when Markov mode selected
+        detailStrip_->addView(editor);
+        markovEditor_ = editor;
     }
 
     // ========================================================================

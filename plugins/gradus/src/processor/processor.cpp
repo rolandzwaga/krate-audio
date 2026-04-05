@@ -517,6 +517,17 @@ void Processor::applyParamsToEngine()
     arpCore_.setScaleQuantizeInput(
         arpParams_.scaleQuantizeInput.load(std::memory_order_relaxed));
 
+    // --- v1.7: Markov Matrix (49 cells) ---
+    // Copy atomic snapshots into a plain array for the NoteSelector.
+    {
+        std::array<float, Krate::DSP::kMarkovMatrixSize> matrix{};
+        for (size_t i = 0; i < Krate::DSP::kMarkovMatrixSize; ++i) {
+            matrix[i] =
+                arpParams_.markovMatrix[i].load(std::memory_order_relaxed);
+        }
+        arpCore_.setMarkovMatrix(matrix);
+    }
+
     // --- Chord Lane ---
     {
         const auto chordLen = arpParams_.chordLaneLength.load(std::memory_order_relaxed);

@@ -88,8 +88,10 @@ New arp mode: notes sorted by proximity to the last played note. Creates smooth 
 
 **Implementation:** Added `ArpMode::Gravity = 10` (11th entry in the arp mode enum) in `held_note_buffer.h`. `NoteSelector::advanceGravity()` tracks `lastGravityNote_`, iterates held notes, picks the one with minimum pitch distance from the last. First advance picks the lowest held note. Reset clears `lastGravityNote_` to -1.
 
-#### 13. Markov Chain Mode ⏳ **Deferred**
+#### 13. Markov Chain Mode ✅ **Shipped in 1.7**
 Extend "Walk" with transition probability matrices between scale degrees. Ship with preset matrices (Jazz, Minimal, Ambient).
+
+**Implementation:** Added `ArpMode::Markov = 11` (12th entry in the arp mode enum) in `held_note_buffer.h`. `NoteSelector::advanceMarkov()` uses a 7×7 row-major transition matrix indexed by scale degree: at advance time it maps each held note to its degree via `ScaleHarmonizer::noteToScaleDegree` (falling back to held-note indexing in Chromatic mode), samples the next degree from the matrix row (normalized on-the-fly so user-edited cells don't need manual balancing), then picks the held note matching that degree — or the nearest degree with a held note if the target isn't held. Edge cases: single-note and empty buffers, degenerate all-zero rows (falls back to uniform), and state reset on `setMode` all covered by unit tests. 5 hardcoded preset matrices in a new `dsp/include/krate/dsp/processors/markov_matrices.h` (Uniform / Jazz / Minimal / Ambient / Classical) plus a Custom sentinel. Plugin exposes `kArpMarkovPresetId` (3446) + 49 `kArpMarkovCell{row}{col}Id` params (3447–3495). Controller batch-writes cells when a preset is picked (guarded against state-recall echo) and flips the preset dropdown to "Custom" when any cell is edited. UI: 160×160 `MarkovMatrixEditor` custom CView (humble-object pattern: pure logic in `markov_matrix_editor_logic.h`) with 7×7 click-drag grid and I/ii/iii/IV/V/vi/vii° labels, visible only when Markov mode is selected.
 
 #### 14. Euclidean per Lane ⏳ **Deferred**
 Each lane gets its own Euclidean pattern overlay instead of one global generator. 4 params per lane (enable, hits, steps, rotation).
@@ -118,10 +120,10 @@ Spread chord notes slightly in time.
 | 10 | Per-Lane Probability | High | High | ⏳ Deferred |
 | 11 | Per-Lane Euclidean | High | Medium | ⏳ Deferred |
 | 12 | Pattern Morphing | High | Very High | ⏳ Deferred |
-| 13 | Markov Chain Mode | Medium | Medium | ⏳ Deferred |
+| 13 | Markov Chain Mode | Medium | Medium | ✅ Shipped in 1.7 |
 | 14 | Step Mute Groups | Medium | Medium | ⏳ Deferred |
 
-**9 of 14 features shipped in v1.5**, and the v1.6 release completes Step Pinning with the inline 32-cell `PinFlagStrip`. Remaining 5 features are deferred to v1.7 or later.
+**9 of 14 features shipped in v1.5**, v1.6 completed Step Pinning with the inline 32-cell `PinFlagStrip`, and v1.7 adds the Markov Chain arp mode with 5 preset matrices and an editable 7×7 matrix UI. Remaining 4 features are deferred to v1.8 or later.
 
 ---
 

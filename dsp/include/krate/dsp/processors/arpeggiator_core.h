@@ -721,11 +721,25 @@ public:
     /// When non-Chromatic, pitch lane values are interpreted as scale degree offsets.
     /// When Chromatic, pitch lane values remain as semitone offsets (backward compatible).
     /// Does NOT reset arp state; safe to call unconditionally every block.
-    void setScaleType(ScaleType type) noexcept { scaleHarmonizer_.setScale(type); }
+    void setScaleType(ScaleType type) noexcept {
+        scaleHarmonizer_.setScale(type);
+        // v1.7: Mirror into NoteSelector for Markov mode's scale-degree mapping.
+        selector_.setMarkovScaleContext(type, scaleHarmonizer_.getKey());
+    }
 
     /// Set the root note for the scale (0=C through 11=B).
     /// Does NOT reset arp state; safe to call unconditionally every block.
-    void setRootNote(int rootNote) noexcept { scaleHarmonizer_.setKey(rootNote); }
+    void setRootNote(int rootNote) noexcept {
+        scaleHarmonizer_.setKey(rootNote);
+        // v1.7: Mirror into NoteSelector for Markov mode's scale-degree mapping.
+        selector_.setMarkovScaleContext(scaleHarmonizer_.getScale(), rootNote);
+    }
+
+    /// v1.7: Set the 7x7 Markov transition matrix for ArpMode::Markov.
+    /// Safe to call every block; no reset.
+    void setMarkovMatrix(const std::array<float, kMarkovMatrixSize>& matrix) noexcept {
+        selector_.setMarkovMatrix(matrix);
+    }
 
     /// Enable/disable input note quantization.
     /// When enabled and scale is non-Chromatic, incoming noteOn pitches are

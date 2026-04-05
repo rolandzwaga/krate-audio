@@ -422,7 +422,15 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // kArpPinFlagStep1Id .. kArpPinFlagStep31Id = 3415..3445
     kArpPinFlagStep31Id  = 3445,
 
-    kArpEndId = 3445,
+    // --- v1.7: Markov Chain Mode (3446-3495) ---
+    // 1 preset dropdown + 49 matrix cells (7x7 row-major: row * 7 + col).
+    // Cell values are 0.0-1.0; rows auto-normalize at sample time.
+    kArpMarkovPresetId   = 3446,  // 0=Uniform,1=Jazz,2=Minimal,3=Ambient,4=Classical,5=Custom
+    kArpMarkovCell00Id   = 3447,  // row 0, col 0 (I -> I)
+    // kArpMarkovCell01Id .. kArpMarkovCell66Id = 3448..3495
+    kArpMarkovCell66Id   = 3495,  // row 6, col 6 (vii° -> vii°)
+
+    kArpEndId = 3495,
 
     // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific

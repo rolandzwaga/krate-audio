@@ -12,6 +12,10 @@
 #include "../parameters/dropdown_mappings.h"
 #include "../ui/ring_display.h"
 #include "../ui/pin_flag_strip.h"
+#include "../ui/markov_matrix_editor.h"
+
+#include "krate/dsp/processors/markov_matrices.h"
+#include "krate/dsp/primitives/held_note_buffer.h"
 
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
@@ -153,6 +157,73 @@ tresult PLUGIN_API Controller::setParamNormalized(
             int steps = std::clamp(
                 static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             pinFlagStrip_->setNumSteps(steps);
+        }
+    }
+
+    // --- v1.7: Arp mode changed → show/hide Markov matrix editor ---
+    if (tag == kArpModeId && markovEditor_) {
+        // 12 entries → Markov is index 11 → normalized 11/11 = 1.0
+        const int modeIdx = std::clamp(static_cast<int>(value * 11.0 + 0.5), 0, 11);
+        const bool showMarkov = (modeIdx == 11);
+        markovEditor_->setVisible(showMarkov);
+    }
+
+    // --- v1.7: Cell param changed → mirror to editor widget ---
+    if (markovEditor_ && tag >= kArpMarkovCell00Id && tag <= kArpMarkovCell66Id) {
+        const int flat = static_cast<int>(tag - kArpMarkovCell00Id);
+        markovEditor_->setCellValueFlat(flat, static_cast<float>(value));
+    }
+
+    // --- v1.7: Markov preset → batch-load matrix cells ---
+    //
+    // When the user picks a preset from the dropdown, rewrite the 49 cell
+    // params with the hardcoded values. Skipped during state recall (the
+    // saved cell values should win over the saved preset selection).
+    //
+    // If the preset is Custom (5) we leave the cells alone — Custom means
+    // "whatever the current cells contain."
+    if (tag == kArpMarkovPresetId && !suppressMarkovPresetLoad_) {
+        const int presetIdx = std::clamp(
+            static_cast<int>(value * 5.0 + 0.5), 0, 5);
+        if (presetIdx >= 0 && presetIdx <= 4) {
+            const auto& matrix = Krate::DSP::getMarkovPresetMatrix(
+                static_cast<Krate::DSP::MarkovPreset>(presetIdx));
+            // Suppress the cell-edit echo during the batch write, otherwise
+            // the first cell write would flip the preset back to Custom.
+            suppressMarkovCellEcho_ = true;
+            for (size_t i = 0; i < Krate::DSP::kMarkovMatrixSize; ++i) {
+                const auto cellId =
+                    static_cast<ParamID>(kArpMarkovCell00Id + static_cast<int>(i));
+                beginEdit(cellId);
+                setParamNormalized(cellId, static_cast<double>(matrix[i]));
+                performEdit(cellId, static_cast<double>(matrix[i]));
+                endEdit(cellId);
+            }
+            suppressMarkovCellEcho_ = false;
+        }
+    }
+
+    // --- v1.7: Cell edit → flip preset to Custom ---
+    //
+    // Any cell edit that doesn't come from a preset load should flip the
+    // dropdown to "Custom" so the user knows the matrix no longer matches
+    // any hardcoded preset.
+    if (tag >= kArpMarkovCell00Id && tag <= kArpMarkovCell66Id &&
+        !suppressMarkovCellEcho_ && !suppressMarkovPresetLoad_) {
+        // Only flip if not already Custom (to avoid unnecessary churn).
+        const double presetNorm = getParamNormalized(kArpMarkovPresetId);
+        const int currentPreset = std::clamp(
+            static_cast<int>(presetNorm * 5.0 + 0.5), 0, 5);
+        if (currentPreset != 5) {
+            constexpr double kCustomNormalized = 1.0;  // index 5 of 6 (stepCount=5)
+            // Use the same suppress guard so the preset change doesn't trigger
+            // a matrix reload that would overwrite the cell we just edited.
+            suppressMarkovPresetLoad_ = true;
+            beginEdit(kArpMarkovPresetId);
+            setParamNormalized(kArpMarkovPresetId, kCustomNormalized);
+            performEdit(kArpMarkovPresetId, kCustomNormalized);
+            endEdit(kArpMarkovPresetId);
+            suppressMarkovPresetLoad_ = false;
         }
     }
 

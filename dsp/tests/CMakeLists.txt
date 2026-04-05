@@ -107,6 +107,7 @@ add_executable(dsp_tests
     unit/primitives/arp_lane_test.cpp
 
     # Layer 2: Processors
+    unit/processors/markov_matrices_test.cpp
     unit/processors/multimode_filter_test.cpp
     unit/processors/saturation_processor_test.cpp
     unit/processors/envelope_follower_test.cpp
