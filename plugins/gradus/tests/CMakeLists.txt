@@ -8,6 +8,9 @@ add_executable(gradus_tests
     # Ring geometry unit tests (no VSTGUI dependency)
     unit/ui/ring_geometry_tests.cpp
 
+    # Pin flag strip (v1.6 Step Pinning UI) unit tests
+    unit/ui/pin_flag_strip_tests.cpp
+
     # VST3 validation and parameter tests
     unit/vst/gradus_vst_tests.cpp
 

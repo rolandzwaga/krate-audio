@@ -10,8 +10,8 @@
 #define MAJOR_VERSION_STR "1"
 #define MAJOR_VERSION_INT 1
 
-#define SUB_VERSION_STR "0"
-#define SUB_VERSION_INT 0
+#define SUB_VERSION_STR "5"
+#define SUB_VERSION_INT 5
 
 #define RELEASE_NUMBER_STR "0"
 #define RELEASE_NUMBER_INT 0

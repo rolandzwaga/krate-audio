@@ -11,6 +11,7 @@
 #include "../parameters/arpeggiator_params.h"
 #include "../parameters/dropdown_mappings.h"
 #include "../ui/ring_display.h"
+#include "../ui/pin_flag_strip.h"
 
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
@@ -139,6 +140,19 @@ tresult PLUGIN_API Controller::setParamNormalized(
                 static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
             lane->setNumSteps(steps);
             lane->setDirty(true);
+        }
+    }
+
+    // --- v1.6: Pin flag strip (Pitch lane contextual) ---
+    if (pinFlagStrip_) {
+        if (tag >= kArpPinFlagStep0Id && tag <= kArpPinFlagStep31Id) {
+            int stepIndex = static_cast<int>(tag - kArpPinFlagStep0Id);
+            pinFlagStrip_->setStepValue(stepIndex, static_cast<float>(value));
+        } else if (tag == kArpPitchLaneLengthId) {
+            // Keep visible cell count aligned with the pitch lane's length.
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32);
+            pinFlagStrip_->setNumSteps(steps);
         }
     }
 

@@ -12,6 +12,7 @@
 #include "../parameters/dropdown_mappings.h"
 #include "../ui/ring_display.h"
 #include "../ui/detail_strip.h"
+#include "../ui/pin_flag_strip.h"
 #include "ui/arp_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
@@ -504,6 +505,63 @@ void Controller::constructArpLanes()
     detailStrip_->setLane(4, condLane);
 
     // ========================================================================
+    // v1.6: Construct Pin Flag Strip (Pitch lane contextual)
+    // ========================================================================
+    // 32-cell toggle row placed in DetailStrip's reserved pin-row slot,
+    // immediately above the lane editors (which DetailStrip::setLane has
+    // already positioned below kHeaderHeight + kPinRowHeight).
+    //
+    // Horizontal frame matches the pitch lane's *bar area*, not the full
+    // lane width: the left edge is inset by ArpLaneEditor::kStepContentLeftMargin
+    // (40px) so each pin cell lines up column-by-column with the pitch bar
+    // underneath. Only visible when Pitch lane is active.
+    {
+        const auto stripSize = detailStrip_->getViewSize();
+        const VSTGUI::CCoord stripWidth = stripSize.getWidth();
+        const VSTGUI::CCoord pinTop    = DetailStrip::pinRowTop();
+        const VSTGUI::CCoord pinBottom = pinTop + DetailStrip::pinRowHeight();
+        const auto pinLeft = static_cast<VSTGUI::CCoord>(
+            Krate::Plugins::ArpLaneEditor::kStepContentLeftMargin);
+        VSTGUI::CRect pinRect(pinLeft, pinTop, stripWidth, pinBottom);
+        auto* pinStrip = new PinFlagStrip(pinRect);
+        pinStrip->setParameterCallback(
+            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+                setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                performEdit(paramId, static_cast<double>(normalizedValue));
+            });
+        pinStrip->setBeginEditCallback(
+            [this](Steinberg::Vst::ParamID paramId) { beginEdit(paramId); });
+        pinStrip->setEndEditCallback(
+            [this](Steinberg::Vst::ParamID paramId) { endEdit(paramId); });
+
+        // Initialize each cell from current parameter state
+        for (int i = 0; i < 32; ++i) {
+            const auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                kArpPinFlagStep0Id + i);
+            auto* paramObj = getParameterObject(paramId);
+            if (paramObj) {
+                pinStrip->setStepValue(i,
+                    static_cast<float>(paramObj->getNormalized()));
+            }
+        }
+
+        // Sync visible cell count to the pitch lane's current active length
+        // so cells align 1:1 with the pitch bars underneath. Kept in sync by
+        // Controller::setParamNormalized (see controller_view_sync.cpp).
+        if (auto* lenParam = getParameterObject(kArpPitchLaneLengthId)) {
+            const double lenNorm = lenParam->getNormalized();
+            const int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(lenNorm * 31.0)), 1, 32);
+            pinStrip->setNumSteps(steps);
+        }
+
+        // Hidden until Pitch lane selected; visibility managed below.
+        pinStrip->setVisible(false);
+        detailStrip_->addView(pinStrip);
+        pinFlagStrip_ = pinStrip;
+    }
+
+    // ========================================================================
     // Wire transform callbacks
     // ========================================================================
     auto wireBarLaneTransform = [this](
@@ -665,6 +723,7 @@ void Controller::constructArpLanes()
             if (rangeHighKnob_)  rangeHighKnob_->setVisible(showPitchContext);
             if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
             if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
+            if (pinFlagStrip_)   pinFlagStrip_->setVisible(showPitchContext);
         };
 
         // Wire bidirectional selection: detail strip ↔ ring renderer

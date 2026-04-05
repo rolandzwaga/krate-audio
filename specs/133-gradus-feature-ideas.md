@@ -4,7 +4,7 @@ Brainstormed enhancements for the Gradus standalone step arpeggiator, plus a rad
 
 ## Implementation Status
 
-**v1.5 (implemented):** 9 of 15 features below are implemented, plus the full circular ring UI from Part 2. See individual feature sections for status tags. Remaining features are deferred to v1.6 or later.
+**v1.5 (implemented):** 9 of 14 features below are implemented, plus the full circular ring UI from Part 2. See individual feature sections for status tags. Remaining features are deferred to v1.6 or later.
 
 | Status Legend | Meaning |
 |---|---|
@@ -41,16 +41,13 @@ Configurable floor and ceiling pitch. When arp + octave + pitch lane pushes a no
 
 **Implementation:** `kArpRangeLowId` (3410), `kArpRangeHighId` (3411), `kArpRangeModeId` (3412). Applied in `arpeggiator_core.h` fireStep after transpose (skipped for pinned steps). Wrap uses `((note - lo) % span + span) % span` for bidirectional folding. Skip mode compacts `result.count` and velocities. UI: contextual on the Pitch lane tab (Lo knob, Hi knob, Mode dropdown).
 
-#### 5. Step Pinning (Absolute Note) ✅ **Shipped in 1.5** (partial)
+#### 5. Step Pinning (Absolute Note) ✅ **Shipped in 1.5 / completed in 1.6**
 Pin specific steps to absolute MIDI notes instead of following the arp pattern. Creates pedal tones, drone notes, anchor points.
 
 - One spare bit in Modifier bitmask (`kStepPinned = 0x10`)
 - Plus a Pin Note lane or per-step note value
 
-**Implementation:** Global `kArpPinNoteId` (3413) + 32 per-step `kArpPinFlagStep0..31Id` (3414–3445). When the pitch lane's current step has its flag set, the output note is overridden to `pinNote_`, chord expansion is collapsed to a single note, and pitch offset/transpose/range mapping are all bypassed. UI: Pin Note knob is contextual on the Pitch lane tab; per-step pin flags are exposed as automation-only parameters for v1.5. A dedicated 32-cell pin-grid editor is planned for a later release.
-
-#### 6. Motion Recording ⏳ **Deferred**
-Record knob movements into a lane in real-time. Hold record, twist a knob, values written to steps as the arp plays. Standard on hardware sequencers, rare in software.
+**Implementation:** Global `kArpPinNoteId` (3413) + 32 per-step `kArpPinFlagStep0..31Id` (3414–3445). When the pitch lane's current step has its flag set, the output note is overridden to `pinNote_`, chord expansion is collapsed to a single note, and pitch offset/transpose/range mapping are all bypassed. **v1.5 UI:** Pin Note knob contextual on the Pitch lane tab; per-step pin flags initially exposed as automation-only parameters. **v1.6 UI (completion):** inline 32-cell `PinFlagStrip` custom `CControl` placed inside `DetailStrip` (reserved per-lane row, y=[24,38]), visible only when the Pitch lane is active. Click a cell to toggle the corresponding `kArpPinFlagStepNId` via `beginEdit`/`performEdit`/`endEdit`; host-side changes are mirrored back to the strip via `Controller::setParamNormalized`. Per-step pin *notes* (vs. the single global pin note) remain deferred on YAGNI grounds — the cell layout has room for a future per-cell dropdown affordance if usage justifies it.
 
 ### Medium-Impact Tweaks
 
@@ -112,20 +109,19 @@ Spread chord notes slightly in time.
 | 1 | Ratchet Velocity Decay | Low | High | ✅ Shipped in 1.5 |
 | 2 | Strum Mode | Low | High | ✅ Shipped in 1.5 |
 | 3 | Per-Lane Swing | Low | High | ✅ Shipped in 1.5 |
-| 4 | Step Pinning | Medium | High | ✅ Shipped in 1.5 (pin flags automation-only UI) |
+| 4 | Step Pinning | Medium | High | ✅ Shipped in 1.5 / pin-grid UI completed in 1.6 |
 | 5 | Velocity Curve | Low | Medium | ✅ Shipped in 1.5 |
 | 6 | Transpose Lock to Scale | Low | Medium | ✅ Shipped in 1.5 |
 | 7 | Gravity Mode | Medium | Medium | ✅ Shipped in 1.5 |
 | 8 | Note Range Mapping | Medium | Medium | ✅ Shipped in 1.5 |
 | 9 | Pattern Length Jitter | Low | Medium | ✅ Shipped in 1.5 (per-lane, not global) |
-| 10 | Motion Recording | Medium | High | ⏳ Deferred |
-| 11 | Per-Lane Probability | High | High | ⏳ Deferred |
-| 12 | Per-Lane Euclidean | High | Medium | ⏳ Deferred |
-| 13 | Pattern Morphing | High | Very High | ⏳ Deferred |
-| 14 | Markov Chain Mode | Medium | Medium | ⏳ Deferred |
-| 15 | Step Mute Groups | Medium | Medium | ⏳ Deferred |
+| 10 | Per-Lane Probability | High | High | ⏳ Deferred |
+| 11 | Per-Lane Euclidean | High | Medium | ⏳ Deferred |
+| 12 | Pattern Morphing | High | Very High | ⏳ Deferred |
+| 13 | Markov Chain Mode | Medium | Medium | ⏳ Deferred |
+| 14 | Step Mute Groups | Medium | Medium | ⏳ Deferred |
 
-**9 of 15 features shipped in v1.5.** Remaining 6 are deferred to v1.6 or later. A dedicated 32-cell pin-grid editor UI (completing Step Pinning) is also on the v1.6 list.
+**9 of 14 features shipped in v1.5**, and the v1.6 release completes Step Pinning with the inline 32-cell `PinFlagStrip`. Remaining 5 features are deferred to v1.7 or later.
 
 ---
 

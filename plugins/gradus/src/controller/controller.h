@@ -26,6 +26,7 @@ class SavePresetDialogView;
 namespace Gradus {
 class RingDisplay;
 class DetailStrip;
+class PinFlagStrip;
 } // namespace Gradus
 
 namespace Gradus {
@@ -151,6 +152,8 @@ private:
     VSTGUI::CView* rangeHighKnob_ = nullptr;
     VSTGUI::CView* rangeHighLabel_ = nullptr;
     VSTGUI::CView* rangeModeMenu_ = nullptr;
+    // v1.6: Inline 32-cell pin toggle row (Pitch lane contextual)
+    PinFlagStrip* pinFlagStrip_ = nullptr;
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

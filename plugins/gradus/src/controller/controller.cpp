@@ -267,6 +267,7 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     rangeHighKnob_ = nullptr;
     rangeHighLabel_ = nullptr;
     rangeModeMenu_ = nullptr;
+    pinFlagStrip_ = nullptr;
     presetBrowserView_ = nullptr;
     savePresetDialogView_ = nullptr;
     activeEditor_ = nullptr;

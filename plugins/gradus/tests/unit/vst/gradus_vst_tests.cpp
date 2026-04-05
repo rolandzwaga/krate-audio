@@ -7,6 +7,7 @@
 
 #include "processor/processor.h"
 #include "controller/controller.h"
+#include "parameters/arpeggiator_params.h"
 #include "plugin_ids.h"
 
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -277,4 +278,126 @@ TEST_CASE("Gradus audition voice produces non-zero output after noteOn",
 
     REQUIRE(processor.setActive(false) == kResultOk);
     REQUIRE(processor.terminate() == kResultOk);
+}
+
+// =============================================================================
+// v1.5 Step Pinning — backend regression (guards v1.6 UI work)
+// =============================================================================
+
+TEST_CASE("Gradus pin flag parameters are registered",
+          "[gradus][vst][pin]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    int32 paramCount = controller.getParameterCount();
+    ParameterInfo info{};
+
+    for (int step = 0; step < 32; ++step) {
+        const ParamID expectedId =
+            static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + step);
+        bool found = false;
+        for (int32 i = 0; i < paramCount; ++i) {
+            controller.getParameterInfo(i, info);
+            if (info.id == expectedId) {
+                found = true;
+                CHECK(info.stepCount == 1);          // binary
+                CHECK(info.defaultNormalizedValue == Approx(0.0)); // default unpinned
+                break;
+            }
+        }
+        CHECK(found);
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus pin note parameter is registered with MIDI range and default C4",
+          "[gradus][vst][pin]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    int32 paramCount = controller.getParameterCount();
+    ParameterInfo info{};
+    bool found = false;
+    for (int32 i = 0; i < paramCount; ++i) {
+        controller.getParameterInfo(i, info);
+        if (info.id == Gradus::kArpPinNoteId) {
+            found = true;
+            CHECK(info.stepCount == 127);
+            // Default 60/127 ≈ 0.4724 (registered as plain value 60.0)
+            CHECK(info.defaultNormalizedValue == Approx(60.0 / 127.0).margin(1e-4));
+            break;
+        }
+    }
+    CHECK(found);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus pin flag denormalization is binary",
+          "[gradus][vst][pin]")
+{
+    Gradus::ArpeggiatorParams params;
+
+    // All pin flags default to 0
+    for (int i = 0; i < 32; ++i) {
+        CHECK(params.pinFlags[i].load() == 0);
+    }
+
+    // Below threshold → 0
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + 5), 0.3);
+    CHECK(params.pinFlags[5].load() == 0);
+
+    // At/above threshold → 1
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + 5), 0.7);
+    CHECK(params.pinFlags[5].load() == 1);
+
+    // Exact threshold 0.5 → 1 (>= 0.5)
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + 10), 0.5);
+    CHECK(params.pinFlags[10].load() == 1);
+
+    // Back to 0
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + 10), 0.0);
+    CHECK(params.pinFlags[10].load() == 0);
+
+    // Boundary steps
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + 0), 1.0);
+    CHECK(params.pinFlags[0].load() == 1);
+    Gradus::handleArpParamChange(params,
+        static_cast<ParamID>(Gradus::kArpPinFlagStep31Id), 1.0);
+    CHECK(params.pinFlags[31].load() == 1);
+}
+
+TEST_CASE("Gradus Controller::setParamNormalized safely handles pin flag IDs without UI",
+          "[gradus][vst][pin]")
+{
+    // v1.6: Controller forwards pin flag ID changes to PinFlagStrip, but
+    // pinFlagStrip_ is null until the editor opens. This test confirms the
+    // forward path tolerates a null strip (i.e., preset load / automation
+    // arriving before the UI exists doesn't crash).
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Hit every pin flag param — should not crash, should update param store.
+    for (int step = 0; step < 32; ++step) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + step);
+        REQUIRE(controller.setParamNormalized(id, 1.0) == kResultOk);
+        CHECK(controller.getParamNormalized(id) == Approx(1.0));
+    }
+    for (int step = 0; step < 32; ++step) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpPinFlagStep0Id + step);
+        REQUIRE(controller.setParamNormalized(id, 0.0) == kResultOk);
+        CHECK(controller.getParamNormalized(id) == Approx(0.0));
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
 }

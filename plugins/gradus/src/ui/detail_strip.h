@@ -41,6 +41,11 @@ public:
 
     /// Set a lane view for a given index. The view is added as a child but
     /// hidden until its tab is selected.
+    ///
+    /// Lane views are positioned below the header (tab bar + per-lane control
+    /// row) AND below the reserved pin-row slot (kPinRowHeight px). The pin
+    /// row slot is empty for non-Pitch lanes; the PinFlagStrip widget is
+    /// placed in that slot by the Controller and shown only on the Pitch tab.
     void setLane(int index, Krate::Plugins::IArpLane* lane)
     {
         if (index < 0 || index >= 8 || !lane) return;
@@ -49,15 +54,22 @@ public:
         auto* laneView = lane->getView();
         if (!laneView) return;
 
-        // Position below tab bar + per-lane control row
         float w = static_cast<float>(getViewSize().getWidth());
-        float h = static_cast<float>(getViewSize().getHeight()) - kHeaderHeight;
-        laneView->setViewSize(VSTGUI::CRect(0, kHeaderHeight, w, kHeaderHeight + h));
+        const float laneTop = kHeaderHeight + kPinRowHeight;
+        float h = static_cast<float>(getViewSize().getHeight()) - laneTop;
+        laneView->setViewSize(VSTGUI::CRect(0, laneTop, w, laneTop + h));
         laneView->setMouseableArea(laneView->getViewSize());
         laneView->setVisible(index == selectedLane_);
 
         addView(laneView);
     }
+
+    // Vertical slot reserved above the lane editors for the v1.6
+    // PinFlagStrip widget (only shown when Pitch lane is selected).
+    // Exposed so the Controller can position its child strip at
+    // [0, kHeaderHeight, w, kHeaderHeight + kPinRowHeight].
+    static constexpr float pinRowTop()    { return kHeaderHeight; }
+    static constexpr float pinRowHeight() { return kPinRowHeight; }
 
     /// Select a lane by index, showing its editor and hiding others.
     void selectLane(int index)
@@ -105,6 +117,9 @@ private:
     static constexpr float kTabBarHeight = 24.0f;
     static constexpr float kPerLaneRowHeight = 32.0f;
     static constexpr float kHeaderHeight = kTabBarHeight + kPerLaneRowHeight;
+    // v1.6: Reserved slot above lane editors for the PinFlagStrip widget.
+    // Non-Pitch lanes leave this empty; the strip is only visible on Pitch.
+    static constexpr float kPinRowHeight = 14.0f;
 
     LaneTabBar* tabBar_ = nullptr;  // Owned by CViewContainer
     std::array<Krate::Plugins::IArpLane*, 8> lanes_{};
