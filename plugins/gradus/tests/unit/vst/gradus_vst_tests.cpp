@@ -582,6 +582,85 @@ TEST_CASE("Gradus Controller: editing a Markov cell flips preset to Custom",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
+TEST_CASE("Gradus Markov custom matrix survives state save/load round-trip",
+          "[gradus][vst][markov][state]")
+{
+    // Regression test: before v1.7 state persistence was added, custom
+    // Markov matrices were silently reverted after close/reopen.
+
+    Gradus::ArpeggiatorParams src;
+    for (size_t i = 0; i < 49; ++i) {
+        src.markovMatrix[i].store(
+            static_cast<float>((i + 1) * 0.01), std::memory_order_relaxed);
+    }
+    src.markovPreset.store(5, std::memory_order_relaxed);  // Custom
+
+    auto* stream = new MemoryStream();
+    Steinberg::IBStreamer writer(stream, kLittleEndian);
+    Gradus::saveArpParams(src, writer);
+
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer reader(stream, kLittleEndian);
+    Gradus::ArpeggiatorParams dst;
+    REQUIRE(Gradus::loadArpParams(dst, reader) == true);
+
+    for (size_t i = 0; i < 49; ++i) {
+        const float expected = static_cast<float>((i + 1) * 0.01);
+        const float actual = dst.markovMatrix[i].load();
+        INFO("cell " << i << " expected " << expected << " got " << actual);
+        CHECK(actual == Approx(expected).margin(1e-5));
+    }
+    CHECK(dst.markovPreset.load() == 5);
+
+    stream->release();
+}
+
+TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.7 presets",
+          "[gradus][vst][markov][state]")
+{
+    // Write a state ending after Step Pinning (as v1.5/v1.6 did) — loading
+    // must succeed and leave markov defaults intact.
+    Gradus::ArpeggiatorParams src;
+
+    auto* stream = new MemoryStream();
+    Steinberg::IBStreamer writer(stream, kLittleEndian);
+    Gradus::saveArpParams(src, writer);
+
+    // Simulate pre-v1.7 preset by copying everything EXCEPT the Markov
+    // tail (1 int32 + 49 floats = 200 bytes) into a fresh stream.
+    Steinberg::int64 size = 0;
+    stream->seek(0, IBStream::kIBSeekEnd, &size);
+    const Steinberg::int64 truncatedSize = size - 200;
+
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    std::vector<char> buf(static_cast<size_t>(truncatedSize));
+    int32 bytesRead = 0;
+    REQUIRE(stream->read(buf.data(),
+        static_cast<int32>(truncatedSize), &bytesRead) == kResultOk);
+    REQUIRE(bytesRead == truncatedSize);
+
+    auto* truncated = new MemoryStream();
+    int32 written = 0;
+    truncated->write(buf.data(), static_cast<int32>(truncatedSize), &written);
+    truncated->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    Steinberg::IBStreamer reader(truncated, kLittleEndian);
+    Gradus::ArpeggiatorParams dst;
+    // Set non-default markov values to verify they survive the truncated load
+    dst.markovPreset.store(3, std::memory_order_relaxed);
+    dst.markovMatrix[0].store(0.9f, std::memory_order_relaxed);
+
+    REQUIRE(Gradus::loadArpParams(dst, reader) == true);
+
+    // Defaults preserved because loadArpParams hit EOF before the Markov
+    // section and returned true without touching them.
+    CHECK(dst.markovPreset.load() == 3);
+    CHECK(dst.markovMatrix[0].load() == Approx(0.9f));
+
+    stream->release();
+    truncated->release();
+}
+
 TEST_CASE("Gradus Markov preset denormalizes to int 0..5",
           "[gradus][vst][markov]")
 {

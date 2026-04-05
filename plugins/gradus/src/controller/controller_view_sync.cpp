@@ -182,10 +182,20 @@ tresult PLUGIN_API Controller::setParamNormalized(
     //
     // If the preset is Custom (5) we leave the cells alone — Custom means
     // "whatever the current cells contain."
-    if (tag == kArpMarkovPresetId && !suppressMarkovPresetLoad_) {
+    if (tag == kArpMarkovPresetId) {
         const int presetIdx = std::clamp(
             static_cast<int>(value * 5.0 + 0.5), 0, 5);
-        if (presetIdx >= 0 && presetIdx <= 4) {
+
+        // Mirror into the editor's dropdown widget (any source: user click,
+        // automation, cell-edit auto-flip-to-Custom, state recall).
+        if (markovEditor_) {
+            markovEditor_->setPresetValue(presetIdx);
+        }
+
+        // Batch-load preset cells when appropriate. Skipped during state
+        // recall (saved cells should win) and skipped when switching TO
+        // Custom (which should leave current cells alone).
+        if (!suppressMarkovPresetLoad_ && presetIdx >= 0 && presetIdx <= 4) {
             const auto& matrix = Krate::DSP::getMarkovPresetMatrix(
                 static_cast<Krate::DSP::MarkovPreset>(presetIdx));
             // Suppress the cell-edit echo during the batch write, otherwise

@@ -1,11 +1,18 @@
 // =============================================================================
-// MarkovMatrixEditor — 7x7 Matrix Editor (Markov Chain Mode)
+// MarkovMatrixEditor — Self-contained Markov Chain editing panel
 // =============================================================================
-// Spec 133 (Gradus v1.7): custom CControl that renders a 7x7 grid of cells
-// (scale-degree transition probabilities) with click-drag editing.
+// Spec 133 (Gradus v1.7): CViewContainer hosting a 7x7 transition matrix
+// grid (scale-degree probabilities) PLUS an embedded preset dropdown
+// (Uniform / Jazz / Minimal / Ambient / Classical / Custom) at the top.
 //
-// Humble object: all testable logic lives in markov_matrix_editor_logic.h.
-// This file only wires drawing, mouse handling, and callback dispatch.
+// Two visual states:
+//  - Expanded: 160x180 (top 20px = preset dropdown, bottom 160x160 = grid,
+//              minimize button in top-right corner)
+//  - Collapsed: 32x32 trigger button the user clicks to re-expand
+//
+// Humble object: the grid/hit-test geometry lives in
+// markov_matrix_editor_logic.h. This file wires drawing, mouse handling,
+// callback dispatch, and the child dropdown.
 // =============================================================================
 
 #pragma once
@@ -13,7 +20,8 @@
 #include "plugin_ids.h"
 #include "markov_matrix_editor_logic.h"
 
-#include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/controls/coptionmenu.h"
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cfont.h"
@@ -26,30 +34,59 @@
 
 namespace Gradus {
 
-class MarkovMatrixEditor : public VSTGUI::CControl {
+class MarkovMatrixEditor : public VSTGUI::CViewContainer,
+                           public VSTGUI::IControlListener {
 public:
     static constexpr int kDim = MarkovMatrixEditorLogic::kDim;
     static constexpr int kNumCells = kDim * kDim;
+    static constexpr int kNumPresets = 6;
 
-    // Expanded view is the full 7x7 editor; collapsed view is a small
+    // Expanded view is the full editor; collapsed view is a small
     // trigger button the user can click to re-expand.
-    static constexpr VSTGUI::CCoord kExpandedSize  = 160.0;
-    static constexpr VSTGUI::CCoord kCollapsedSize = 32.0;
-    // Size of the "×" minimize button rendered in the top-right corner
-    // of the expanded view.
-    static constexpr VSTGUI::CCoord kMinimizeBtn   = 14.0;
+    static constexpr VSTGUI::CCoord kExpandedWidth  = 160.0;
+    static constexpr VSTGUI::CCoord kExpandedHeight = 180.0;  // includes 20px dropdown strip
+    static constexpr VSTGUI::CCoord kCollapsedSize  = 32.0;
+    static constexpr VSTGUI::CCoord kDropdownStrip  = 20.0;   // top strip for preset dropdown
+    static constexpr VSTGUI::CCoord kMinimizeBtn    = 14.0;
 
     explicit MarkovMatrixEditor(const VSTGUI::CRect& anchor)
-        : CControl(VSTGUI::CRect(anchor.left, anchor.top,
-                                 anchor.left + kExpandedSize,
-                                 anchor.top + kExpandedSize),
-                   nullptr, -1, nullptr)
+        : CViewContainer(VSTGUI::CRect(anchor.left, anchor.top,
+                                       anchor.left + kExpandedWidth,
+                                       anchor.top + kExpandedHeight))
         , anchorTopLeft_(anchor.left, anchor.top)
     {
+        setBackgroundColor({0, 0, 0, 0});  // our draw() paints the background
+        setTransparency(true);
+
         // Initialize cells to Uniform (1/7) so the widget is usable before
         // any host-side sync arrives.
         constexpr float kUniform = 1.0f / 7.0f;
         for (auto& c : cellValues_) c = kUniform;
+
+        // Create the preset dropdown child. It lives in the top 18px strip
+        // (y=2..20) with a small right-side gap for the minimize button.
+        const VSTGUI::CCoord dropLeft   = 4.0;
+        const VSTGUI::CCoord dropRight  = kExpandedWidth - kMinimizeBtn - 6.0;
+        const VSTGUI::CCoord dropTop    = 2.0;
+        const VSTGUI::CCoord dropBottom = kDropdownStrip;
+        presetDropdown_ = new VSTGUI::COptionMenu(
+            VSTGUI::CRect(dropLeft, dropTop, dropRight, dropBottom),
+            this,  // IControlListener
+            static_cast<int32_t>(Gradus::kArpMarkovPresetId));
+        presetDropdown_->addEntry("Uniform");
+        presetDropdown_->addEntry("Jazz");
+        presetDropdown_->addEntry("Minimal");
+        presetDropdown_->addEntry("Ambient");
+        presetDropdown_->addEntry("Classical");
+        presetDropdown_->addEntry("Custom");
+        presetDropdown_->setMin(0.0f);
+        presetDropdown_->setMax(static_cast<float>(kNumPresets - 1));
+        presetDropdown_->setValue(0.0f);
+        presetDropdown_->setBackColor({0x22, 0x22, 0x28, 0xFF});
+        presetDropdown_->setFrameColor({0x50, 0x50, 0x60, 0xFF});
+        presetDropdown_->setFontColor({0xE0, 0xE0, 0xE8, 0xFF});
+        presetDropdown_->setFont(VSTGUI::kNormalFontSmaller);
+        addView(presetDropdown_);
     }
 
     ~MarkovMatrixEditor() override = default;
@@ -65,11 +102,11 @@ public:
         if (expand == expanded_) return;
         expanded_ = expand;
 
-        const VSTGUI::CCoord size = expand ? kExpandedSize : kCollapsedSize;
+        const VSTGUI::CCoord w = expand ? kExpandedWidth  : kCollapsedSize;
+        const VSTGUI::CCoord h = expand ? kExpandedHeight : kCollapsedSize;
         VSTGUI::CRect newFrame(anchorTopLeft_.x, anchorTopLeft_.y,
-                               anchorTopLeft_.x + size,
-                               anchorTopLeft_.y + size);
-        // Invalidate the larger of old and new rect so any parent redraws both.
+                               anchorTopLeft_.x + w,
+                               anchorTopLeft_.y + h);
         if (auto* parent = getParentView()) {
             VSTGUI::CRect dirty = getViewSize();
             dirty.unite(newFrame);
@@ -77,11 +114,16 @@ public:
         }
         setViewSize(newFrame);
         setMouseableArea(newFrame);
+
+        // Hide the child dropdown entirely when collapsed (otherwise it
+        // would still capture clicks inside its own rect).
+        if (presetDropdown_) presetDropdown_->setVisible(expand);
+
         invalid();
     }
 
     // -------------------------------------------------------------------------
-    // State accessors
+    // Cell state accessors
     // -------------------------------------------------------------------------
 
     [[nodiscard]] float getCellValue(int row, int col) const
@@ -104,11 +146,23 @@ public:
         }
     }
 
-    /// Flat-index accessor (for batch sync).
     void setCellValueFlat(int flatIdx, float value)
     {
         if (flatIdx < 0 || flatIdx >= kNumCells) return;
         setCellValue(flatIdx / kDim, flatIdx % kDim, value);
+    }
+
+    /// Host-driven preset dropdown sync. Does NOT fire valueChanged.
+    void setPresetValue(int presetIndex)
+    {
+        if (!presetDropdown_) return;
+        if (presetIndex < 0 || presetIndex >= kNumPresets) return;
+        const float v = static_cast<float>(presetIndex);
+        if (presetDropdown_->getValue() != v) {
+            // setValueNormalized directly so valueChanged doesn't fire
+            presetDropdown_->setValue(v);
+            presetDropdown_->invalid();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -125,25 +179,133 @@ public:
     void setEndEditCallback  (EditGateCallback cb)  { endEditCallback_ = std::move(cb); }
 
     // -------------------------------------------------------------------------
-    // CControl overrides
+    // IControlListener (for the embedded preset dropdown)
     // -------------------------------------------------------------------------
 
-    void draw(VSTGUI::CDrawContext* context) override
+    void valueChanged(VSTGUI::CControl* control) override
+    {
+        if (control != presetDropdown_) return;
+        const int presetIdx = static_cast<int>(
+            presetDropdown_->getValue() + 0.5f);
+        if (presetIdx < 0 || presetIdx >= kNumPresets) return;
+
+        // Normalize index 0..5 onto [0, 1] for VST3 (stepCount=5 → 6 entries)
+        const float normalized =
+            static_cast<float>(presetIdx) / static_cast<float>(kNumPresets - 1);
+
+        const auto paramId = static_cast<Steinberg::Vst::ParamID>(
+            Gradus::kArpMarkovPresetId);
+        if (beginEditCallback_) beginEditCallback_(paramId);
+        if (paramCallback_)     paramCallback_(paramId, normalized);
+        if (endEditCallback_)   endEditCallback_(paramId);
+    }
+
+    // -------------------------------------------------------------------------
+    // CViewContainer overrides
+    // -------------------------------------------------------------------------
+
+    void drawBackgroundRect(VSTGUI::CDrawContext* context,
+                            const VSTGUI::CRect& /*updateRect*/) override
     {
         if (expanded_) {
             drawExpanded(context);
         } else {
             drawCollapsed(context);
         }
-        setDirty(false);
     }
+
+    VSTGUI::CMouseEventResult onMouseDown(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        // Let children (the preset dropdown) handle clicks inside their bounds
+        // first. CViewContainer::onMouseDown dispatches to children and returns
+        // handled if one of them consumed the event.
+        auto childResult = CViewContainer::onMouseDown(where, buttons);
+        if (childResult == VSTGUI::kMouseEventHandled) {
+            return childResult;
+        }
+
+        if (!buttons.isLeftButton()) return VSTGUI::kMouseEventNotHandled;
+
+        // Collapsed: any click expands the editor.
+        if (!expanded_) {
+            setExpanded(true);
+            return VSTGUI::kMouseEventHandled;
+        }
+
+        // Expanded: check minimize button first (frame coords — `where` is
+        // in parent's coordinate space).
+        if (minimizeButtonFrameRect().pointInside(where)) {
+            setExpanded(false);
+            return VSTGUI::kMouseEventHandled;
+        }
+
+        // Cell edit (grid lives below the dropdown strip)
+        const VSTGUI::CRect bounds = getViewSize();
+        const float localX = static_cast<float>(where.x - bounds.left);
+        const float localY = static_cast<float>(where.y - bounds.top - kDropdownStrip);
+        const float gridW = static_cast<float>(bounds.getWidth());
+        const float gridH = static_cast<float>(bounds.getHeight() - kDropdownStrip);
+        const auto hit = MarkovMatrixEditorLogic::cellAtPoint(localX, localY, gridW, gridH);
+        if (!hit.valid()) return VSTGUI::kMouseEventNotHandled;
+
+        dragCell_ = hit;
+        dragEditStarted_ = false;
+        updateCellFromDrag(localY);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseMoved(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        // Dropdown popup consumes its own moves while open
+        auto childResult = CViewContainer::onMouseMoved(where, buttons);
+        if (childResult == VSTGUI::kMouseEventHandled) return childResult;
+
+        if (!expanded_) return VSTGUI::kMouseEventNotHandled;
+        if (!buttons.isLeftButton() || !dragCell_.valid())
+            return VSTGUI::kMouseEventNotHandled;
+
+        const VSTGUI::CRect bounds = getViewSize();
+        const float localY = static_cast<float>(where.y - bounds.top - kDropdownStrip);
+        updateCellFromDrag(localY);
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseUp(
+        VSTGUI::CPoint& where,
+        const VSTGUI::CButtonState& buttons) override
+    {
+        auto childResult = CViewContainer::onMouseUp(where, buttons);
+        if (childResult == VSTGUI::kMouseEventHandled) return childResult;
+
+        if (dragCell_.valid() && dragEditStarted_ && endEditCallback_) {
+            const auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                Gradus::kArpMarkovCell00Id + dragCell_.flatIndex());
+            endEditCallback_(paramId);
+        }
+        dragCell_ = {-1, -1};
+        dragEditStarted_ = false;
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    CLASS_METHODS(MarkovMatrixEditor, CViewContainer)
+
+private:
+    // Drawing note: inside drawBackgroundRect, the CDrawContext is already
+    // translated so that (0, 0) is the container's top-left. All drawing
+    // here uses container-LOCAL coordinates, not frame-relative getViewSize().
+    // (See vstgui/lib/cviewcontainer.cpp drawRect: CDrawContext::Transform
+    // offsetTransform is installed before drawBackgroundRect is called.)
 
     void drawCollapsed(VSTGUI::CDrawContext* context)
     {
-        const VSTGUI::CRect bounds = getViewSize();
+        const VSTGUI::CCoord w = getWidth();
+        const VSTGUI::CCoord h = getHeight();
+        const VSTGUI::CRect bounds(0, 0, w, h);
 
-        // Filled amber rounded-rect button with a tiny 3x3 dot-grid icon
-        // suggesting "matrix".
         context->setFillColor({0x22, 0x22, 0x28, 0xF0});
         context->drawRect(bounds, VSTGUI::kDrawFilled);
         context->setFrameColor({0xE8, 0xC8, 0x4C, 0xFF});
@@ -151,8 +313,8 @@ public:
         context->drawRect(bounds, VSTGUI::kDrawStroked);
 
         // Mini 3x3 dot grid centered inside
-        const VSTGUI::CCoord cx = (bounds.left + bounds.right) * 0.5;
-        const VSTGUI::CCoord cy = (bounds.top + bounds.bottom) * 0.5;
+        const VSTGUI::CCoord cx = w * 0.5;
+        const VSTGUI::CCoord cy = h * 0.5;
         context->setFillColor({0xE8, 0xC8, 0x4C, 0xFF});
         for (int r = -1; r <= 1; ++r) {
             for (int c = -1; c <= 1; ++c) {
@@ -166,36 +328,39 @@ public:
 
     void drawExpanded(VSTGUI::CDrawContext* context)
     {
-        const VSTGUI::CRect bounds = getViewSize();
-        const float w = static_cast<float>(bounds.getWidth());
-        const float h = static_cast<float>(bounds.getHeight());
-        if (w <= 0.0f || h <= 0.0f) return;
+        const VSTGUI::CCoord w = getWidth();
+        const VSTGUI::CCoord h = getHeight();
+        const VSTGUI::CRect bounds(0, 0, w, h);
 
-        const float bLeft = static_cast<float>(bounds.left);
-        const float bTop  = static_cast<float>(bounds.top);
-
-        // Background
+        // Panel background
         context->setFillColor({0x16, 0x16, 0x1C, 0xE0});
         context->drawRect(bounds, VSTGUI::kDrawFilled);
 
-        // Border
+        // Panel border
         context->setFrameColor({0x44, 0x44, 0x4A, 0xFF});
         context->setLineWidth(1.0);
         context->drawRect(bounds, VSTGUI::kDrawStroked);
 
-        // Draw the 7x7 grid of cells. Brightness encodes the cell value.
+        // Grid area (local coords, below the dropdown strip)
+        const VSTGUI::CCoord gridTop    = kDropdownStrip;
+        const VSTGUI::CCoord gridLeft   = 0.0;
+        const VSTGUI::CCoord gridRight  = w;
+        const VSTGUI::CCoord gridBottom = h;
+        const float gridW = static_cast<float>(gridRight - gridLeft);
+        const float gridH = static_cast<float>(gridBottom - gridTop);
+
         const VSTGUI::CColor cellBgLow  {0x22, 0x22, 0x28, 0xFF};
-        const VSTGUI::CColor cellBgHi   {0xE8, 0xC8, 0x4C, 0xFF};  // amber/gold
+        const VSTGUI::CColor cellBgHi   {0xE8, 0xC8, 0x4C, 0xFF};
         const VSTGUI::CColor cellStroke {0x33, 0x33, 0x3A, 0xFF};
 
         for (int row = 0; row < kDim; ++row) {
             for (int col = 0; col < kDim; ++col) {
-                auto cr = MarkovMatrixEditorLogic::rectForCell(row, col, w, h);
+                auto cr = MarkovMatrixEditorLogic::rectForCell(row, col, gridW, gridH);
                 VSTGUI::CRect cell(
-                    bLeft + static_cast<VSTGUI::CCoord>(cr.left) + 1.0,
-                    bTop  + static_cast<VSTGUI::CCoord>(cr.top) + 1.0,
-                    bLeft + static_cast<VSTGUI::CCoord>(cr.right) - 1.0,
-                    bTop  + static_cast<VSTGUI::CCoord>(cr.bottom) - 1.0);
+                    gridLeft + static_cast<VSTGUI::CCoord>(cr.left) + 1.0,
+                    gridTop  + static_cast<VSTGUI::CCoord>(cr.top) + 1.0,
+                    gridLeft + static_cast<VSTGUI::CCoord>(cr.right) - 1.0,
+                    gridTop  + static_cast<VSTGUI::CCoord>(cr.bottom) - 1.0);
 
                 const float v = cellValues_[static_cast<size_t>(row * kDim + col)];
                 VSTGUI::CColor blended;
@@ -216,28 +381,26 @@ public:
         context->setFontColor({0xC0, 0xC0, 0xC8, 0xFF});
         context->setFont(VSTGUI::kNormalFontSmaller);
 
-        auto layout = MarkovMatrixEditorLogic::computeLayout(w, h);
+        auto layout = MarkovMatrixEditorLogic::computeLayout(gridW, gridH);
         for (int i = 0; i < kDim; ++i) {
-            // Column labels (top)
             VSTGUI::CRect colLabel(
-                bLeft + static_cast<VSTGUI::CCoord>(layout.left + i * layout.cellW),
-                bTop,
-                bLeft + static_cast<VSTGUI::CCoord>(layout.left + (i + 1) * layout.cellW),
-                bTop + static_cast<VSTGUI::CCoord>(layout.top));
+                gridLeft + static_cast<VSTGUI::CCoord>(layout.left + i * layout.cellW),
+                gridTop,
+                gridLeft + static_cast<VSTGUI::CCoord>(layout.left + (i + 1) * layout.cellW),
+                gridTop + static_cast<VSTGUI::CCoord>(layout.top));
             context->drawString(VSTGUI::UTF8String(kLabels[i]), colLabel,
                 VSTGUI::kCenterText);
-            // Row labels (left)
             VSTGUI::CRect rowLabel(
-                bLeft,
-                bTop + static_cast<VSTGUI::CCoord>(layout.top + i * layout.cellH),
-                bLeft + static_cast<VSTGUI::CCoord>(layout.left),
-                bTop + static_cast<VSTGUI::CCoord>(layout.top + (i + 1) * layout.cellH));
+                gridLeft,
+                gridTop + static_cast<VSTGUI::CCoord>(layout.top + i * layout.cellH),
+                gridLeft + static_cast<VSTGUI::CCoord>(layout.left),
+                gridTop + static_cast<VSTGUI::CCoord>(layout.top + (i + 1) * layout.cellH));
             context->drawString(VSTGUI::UTF8String(kLabels[i]), rowLabel,
                 VSTGUI::kCenterText);
         }
 
-        // Minimize button ("×") in top-right corner
-        const VSTGUI::CRect btn = minimizeButtonRect();
+        // Minimize button ("-") in local coords, top-right corner
+        const VSTGUI::CRect btn = minimizeButtonLocalRect();
         context->setFillColor({0x33, 0x33, 0x3A, 0xFF});
         context->drawRect(btn, VSTGUI::kDrawFilled);
         context->setFrameColor({0x88, 0x88, 0x8E, 0xFF});
@@ -246,93 +409,40 @@ public:
         context->drawString(VSTGUI::UTF8String("-"), btn, VSTGUI::kCenterText);
     }
 
-    [[nodiscard]] VSTGUI::CRect minimizeButtonRect() const
+    // Local (container 0-based) coordinates — used by draw().
+    [[nodiscard]] VSTGUI::CRect minimizeButtonLocalRect() const
+    {
+        const VSTGUI::CCoord w = getWidth();
+        return VSTGUI::CRect(
+            w - kMinimizeBtn - 3.0,
+            3.0,
+            w - 3.0,
+            3.0 + kMinimizeBtn);
+    }
+
+    // Frame (parent-relative) coordinates — used by onMouseDown which
+    // receives `where` in parent coordinates.
+    [[nodiscard]] VSTGUI::CRect minimizeButtonFrameRect() const
     {
         const VSTGUI::CRect bounds = getViewSize();
         return VSTGUI::CRect(
-            bounds.right - kMinimizeBtn - 2.0,
-            bounds.top + 2.0,
-            bounds.right - 2.0,
-            bounds.top + 2.0 + kMinimizeBtn);
+            bounds.right - kMinimizeBtn - 3.0,
+            bounds.top + 3.0,
+            bounds.right - 3.0,
+            bounds.top + 3.0 + kMinimizeBtn);
     }
 
-    VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (!buttons.isLeftButton()) return VSTGUI::kMouseEventNotHandled;
-
-        // Collapsed: any click expands the editor.
-        if (!expanded_) {
-            setExpanded(true);
-            return VSTGUI::kMouseEventHandled;
-        }
-
-        // Expanded: check minimize button first.
-        if (minimizeButtonRect().pointInside(where)) {
-            setExpanded(false);
-            return VSTGUI::kMouseEventHandled;
-        }
-
-        // Cell edit
-        const VSTGUI::CRect bounds = getViewSize();
-        const float localX = static_cast<float>(where.x - bounds.left);
-        const float localY = static_cast<float>(where.y - bounds.top);
-        const auto hit = MarkovMatrixEditorLogic::cellAtPoint(
-            localX, localY,
-            static_cast<float>(bounds.getWidth()),
-            static_cast<float>(bounds.getHeight()));
-        if (!hit.valid()) return VSTGUI::kMouseEventNotHandled;
-
-        dragCell_ = hit;
-        dragEditStarted_ = false;
-        updateCellFromDrag(localY);
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseMoved(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& buttons) override
-    {
-        if (!expanded_) return VSTGUI::kMouseEventNotHandled;
-        if (!buttons.isLeftButton() || !dragCell_.valid())
-            return VSTGUI::kMouseEventNotHandled;
-
-        const VSTGUI::CRect bounds = getViewSize();
-        const float localY = static_cast<float>(where.y - bounds.top);
-        updateCellFromDrag(localY);
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseUp(
-        VSTGUI::CPoint& where,
-        const VSTGUI::CButtonState& /*buttons*/) override
-    {
-        (void)where;
-        if (dragCell_.valid() && dragEditStarted_ && endEditCallback_) {
-            const auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                Gradus::kArpMarkovCell00Id + dragCell_.flatIndex());
-            endEditCallback_(paramId);
-        }
-        dragCell_ = {-1, -1};
-        dragEditStarted_ = false;
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    CLASS_METHODS(MarkovMatrixEditor, CControl)
-
-private:
-    void updateCellFromDrag(float localY)
+    void updateCellFromDrag(float localYInGrid)
     {
         if (!dragCell_.valid()) return;
 
         const VSTGUI::CRect bounds = getViewSize();
-        const float w = static_cast<float>(bounds.getWidth());
-        const float h = static_cast<float>(bounds.getHeight());
+        const float gridW = static_cast<float>(bounds.getWidth());
+        const float gridH = static_cast<float>(bounds.getHeight() - kDropdownStrip);
         const auto cr = MarkovMatrixEditorLogic::rectForCell(
-            dragCell_.row, dragCell_.col, w, h);
+            dragCell_.row, dragCell_.col, gridW, gridH);
         const float newValue = MarkovMatrixEditorLogic::valueFromDragY(
-            localY, cr.top, cr.bottom);
+            localYInGrid, cr.top, cr.bottom);
 
         const size_t idx = static_cast<size_t>(dragCell_.flatIndex());
         if (cellValues_[idx] == newValue) return;
@@ -353,10 +463,10 @@ private:
     MarkovMatrixEditorLogic::CellIndex dragCell_{-1, -1};
     bool dragEditStarted_ = false;
 
-    // Expand/collapse state. `anchorTopLeft_` is the top-left corner used
-    // by both states — the view resizes from this anchor, not center.
     bool expanded_ = true;
     VSTGUI::CPoint anchorTopLeft_{0, 0};
+
+    VSTGUI::COptionMenu* presetDropdown_ = nullptr;  // VSTGUI owns after addView
 
     ParameterCallback paramCallback_;
     EditGateCallback  beginEditCallback_;

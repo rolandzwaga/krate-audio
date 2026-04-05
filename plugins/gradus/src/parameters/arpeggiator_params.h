@@ -1683,6 +1683,13 @@ inline void saveArpParams(
     for (int i = 0; i < 32; ++i) {
         streamer.writeInt32(params.pinFlags[i].load(std::memory_order_relaxed));
     }
+
+    // --- v1.7: Markov Chain Mode ---
+    // Preset selector (0..5) + 49 matrix cells (float 0-1, row-major).
+    streamer.writeInt32(params.markovPreset.load(std::memory_order_relaxed));
+    for (size_t i = 0; i < 49; ++i) {
+        streamer.writeFloat(params.markovMatrix[i].load(std::memory_order_relaxed));
+    }
 }
 
 // =============================================================================
@@ -1703,7 +1710,8 @@ inline bool loadArpParams(
         std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
-    params.mode.store(std::clamp(intVal, 0, 10), std::memory_order_relaxed);
+    // 12 entries (0=Up..11=Markov) as of v1.7
+    params.mode.store(std::clamp(intVal, 0, 11), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
     params.octaveRange.store(std::clamp(intVal, 1, 4), std::memory_order_relaxed);
@@ -1956,6 +1964,17 @@ inline bool loadArpParams(
         params.pinFlags[i].store(intVal ? 1 : 0, std::memory_order_relaxed);
     }
 
+    // --- v1.7: Markov Chain Mode ---
+    // EOF-safe: if Markov data is missing (pre-v1.7 preset), keep defaults.
+    // From here, EOF signals a corrupt stream (preset was present but cells are not).
+    if (!streamer.readInt32(intVal)) return true;
+    params.markovPreset.store(std::clamp(intVal, 0, 5), std::memory_order_relaxed);
+    for (size_t i = 0; i < 49; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.markovMatrix[i].store(
+            std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+
     return true;
 }
 
@@ -1978,9 +1997,9 @@ inline void loadArpParamsToController(
     }
     else return;
 
-    // mode (int32 -> normalized: index / 9)
+    // mode (int32 -> normalized: index / 11 for 12 entries as of v1.7)
     if (streamer.readInt32(intVal))
-        setParam(kArpModeId, static_cast<double>(std::clamp(intVal, 0, 10)) / 10.0);
+        setParam(kArpModeId, static_cast<double>(std::clamp(intVal, 0, 11)) / 11.0);
     else return;
 
     // octaveRange (int32 -> normalized: (range - 1) / 3)
@@ -2289,6 +2308,21 @@ inline void loadArpParamsToController(
         if (!streamer.readInt32(iv)) return;
         setParam(static_cast<Steinberg::Vst::ParamID>(kArpPinFlagStep0Id + i),
             iv ? 1.0 : 0.0);
+    }
+
+    // --- v1.7: Markov Chain Mode ---
+    // Preset selector normalized over 5 steps (6 entries); 49 cell floats.
+    // Note: the Controller's setParamNormalized override has
+    // suppressMarkovPresetLoad_ set during state recall, so writing the
+    // preset value here will NOT clobber the cell values we load after it.
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpMarkovPresetId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 5)) / 5.0);
+    for (int i = 0; i < 49; ++i) {
+        float f = 0.0f;
+        if (!streamer.readFloat(f)) return;
+        setParam(static_cast<Steinberg::Vst::ParamID>(kArpMarkovCell00Id + i),
+            static_cast<double>(std::clamp(f, 0.0f, 1.0f)));
     }
 }
 

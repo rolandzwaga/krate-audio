@@ -602,6 +602,14 @@ void Controller::constructArpLanes()
                 }
             }
 
+            // Initialize preset dropdown from current parameter state
+            if (auto* presetParam = getParameterObject(kArpMarkovPresetId)) {
+                const int idx = std::clamp(
+                    static_cast<int>(presetParam->getNormalized() * 5.0 + 0.5),
+                    0, 5);
+                editor->setPresetValue(idx);
+            }
+
             // Reflect current arp mode: visible only when mode == Markov
             bool showMarkov = false;
             if (auto* modeParam = getParameterObject(kArpModeId)) {
