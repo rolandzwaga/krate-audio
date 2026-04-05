@@ -16,6 +16,8 @@
 
 #include <cstring>
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
 
 using namespace Steinberg;
@@ -456,6 +458,46 @@ TEST_CASE("Gradus kArpModeId extended to 12 entries including Markov",
         }
     }
     CHECK(found);
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("Gradus kArpModeId getParamStringByValue returns each name exactly once",
+          "[gradus][vst][markov]")
+{
+    // Regression guard: catches the class of bug where a hand-written display
+    // formatter falls out of sync with the StringListParameter's registered
+    // entry count (e.g. 12 entries but scaling formula uses * 10.0, causing
+    // duplicates and truncation). The correct pattern is to let
+    // StringListParameter::toString handle display — this test ensures that
+    // happens by querying every normalized slot and verifying unique, ordered
+    // strings.
+
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    static const char* const kExpected[] = {
+        "Up", "Down", "UpDown", "DownUp", "Converge",
+        "Diverge", "Random", "Walk", "AsPlayed", "Chord",
+        "Gravity", "Markov Chain"
+    };
+    constexpr int kNumEntries = 12;
+    constexpr int kStepCount = kNumEntries - 1;  // = 11
+
+    std::set<std::string> seen;
+    for (int i = 0; i < kNumEntries; ++i) {
+        const double norm = static_cast<double>(i) / static_cast<double>(kStepCount);
+        String128 str{};
+        REQUIRE(controller.getParamStringByValue(Gradus::kArpModeId, norm, str) == kResultTrue);
+        char ascii[128]{};
+        UString(str, 128).toAscii(ascii, 128);
+        INFO("entry " << i << " (norm=" << norm << ") => '" << ascii
+             << "' expected '" << kExpected[i] << "'");
+        CHECK(std::string(ascii) == kExpected[i]);
+        seen.insert(ascii);
+    }
+    // Every name appears exactly once (no duplicates from mis-scaled formatters)
+    CHECK(seen.size() == kNumEntries);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

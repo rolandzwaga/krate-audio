@@ -648,7 +648,7 @@ inline void registerArpParams(
         {STR16("Up"), STR16("Down"), STR16("UpDown"), STR16("DownUp"),
          STR16("Converge"), STR16("Diverge"), STR16("Random"),
          STR16("Walk"), STR16("AsPlayed"), STR16("Chord"),
-         STR16("Gravity"), STR16("Markov")}));
+         STR16("Gravity"), STR16("Markov Chain")}));
 
     // Arp Octave Range: RangeParameter 1-4, default 1, stepCount 3
     parameters.addParameter(
@@ -1175,46 +1175,11 @@ inline Steinberg::tresult formatArpParam(
 {
     using namespace Steinberg;
     switch (id) {
-        case kArpModeId: {
-            static const char* const kModeNames[] = {
-                "Up", "Down", "UpDown", "DownUp", "Converge",
-                "Diverge", "Random", "Walk", "AsPlayed", "Chord", "Gravity"
-            };
-            int idx = std::clamp(static_cast<int>(value * 10.0 + 0.5), 0, 10);
-            UString(string, 128).fromAscii(kModeNames[idx]);
-            return kResultOk;
-        }
         case kArpOctaveRangeId: {
             char8 text[32];
             int range = std::clamp(static_cast<int>(1.0 + std::round(value * 3.0)), 1, 4);
             snprintf(text, sizeof(text), "%d", range);
             UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpOctaveModeId: {
-            static const char* const kOctModeNames[] = {"Sequential", "Interleaved"};
-            int idx = std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1);
-            UString(string, 128).fromAscii(kOctModeNames[idx]);
-            return kResultOk;
-        }
-        case kArpNoteValueId: {
-            // Map normalized -> dropdown index, then display same string as TG
-            static const char* const kNoteNames[] = {
-                "1/64T", "1/64", "1/64D",
-                "1/32T", "1/32", "1/32D",
-                "1/16T", "1/16", "1/16D",
-                "1/8T",  "1/8",  "1/8D",
-                "1/4T",  "1/4",  "1/4D",
-                "1/2T",  "1/2",  "1/2D",
-                "1/1T",  "1/1",  "1/1D",
-                "2/1T",  "2/1",  "2/1D",
-                "3/1T",  "3/1",  "3/1D",
-                "4/1T",  "4/1",  "4/1D",
-            };
-            int idx = std::clamp(
-                static_cast<int>(value * (Parameters::kNoteValueDropdownCount - 1) + 0.5),
-                0, Parameters::kNoteValueDropdownCount - 1);
-            UString(string, 128).fromAscii(kNoteNames[idx]);
             return kResultOk;
         }
         case kArpFreeRateId: {
@@ -1233,18 +1198,6 @@ inline Steinberg::tresult formatArpParam(
             char8 text[32];
             snprintf(text, sizeof(text), "%.0f%%", value * 75.0);
             UString(string, 128).fromAscii(text);
-            return kResultOk;
-        }
-        case kArpLatchModeId: {
-            static const char* const kLatchNames[] = {"Off", "Hold", "Add"};
-            int idx = std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2);
-            UString(string, 128).fromAscii(kLatchNames[idx]);
-            return kResultOk;
-        }
-        case kArpRetriggerId: {
-            static const char* const kRetrigNames[] = {"Off", "Note", "Beat"};
-            int idx = std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2);
-            UString(string, 128).fromAscii(kRetrigNames[idx]);
             return kResultOk;
         }
 
@@ -1446,12 +1399,22 @@ inline Steinberg::tresult formatArpParam(
         }
 
         // --- Scale Mode (084-arp-scale-mode) ---
-        // Let StringListParameter handle display for these
+        // Let StringListParameter handle display for these.
+        // StringListParameter::toString reads from the list registered via
+        // createDropdownParameter() in registerArpParams(), so adding a new
+        // StringList param only requires updating ONE source of truth.
+        case kArpOperatingModeId:
+        case kArpModeId:
+        case kArpOctaveModeId:
+        case kArpNoteValueId:
+        case kArpLatchModeId:
+        case kArpRetriggerId:
         case kArpScaleTypeId:
         case kArpRootNoteId:
         case kArpScaleQuantizeInputId:
         case kArpMidiOutId:
         case kArpVoicingModeId:
+        case kArpMarkovPresetId:
             return kResultFalse;
 
         default:

@@ -31,8 +31,20 @@ public:
     static constexpr int kDim = MarkovMatrixEditorLogic::kDim;
     static constexpr int kNumCells = kDim * kDim;
 
-    explicit MarkovMatrixEditor(const VSTGUI::CRect& size)
-        : CControl(size, nullptr, -1, nullptr)
+    // Expanded view is the full 7x7 editor; collapsed view is a small
+    // trigger button the user can click to re-expand.
+    static constexpr VSTGUI::CCoord kExpandedSize  = 160.0;
+    static constexpr VSTGUI::CCoord kCollapsedSize = 32.0;
+    // Size of the "×" minimize button rendered in the top-right corner
+    // of the expanded view.
+    static constexpr VSTGUI::CCoord kMinimizeBtn   = 14.0;
+
+    explicit MarkovMatrixEditor(const VSTGUI::CRect& anchor)
+        : CControl(VSTGUI::CRect(anchor.left, anchor.top,
+                                 anchor.left + kExpandedSize,
+                                 anchor.top + kExpandedSize),
+                   nullptr, -1, nullptr)
+        , anchorTopLeft_(anchor.left, anchor.top)
     {
         // Initialize cells to Uniform (1/7) so the widget is usable before
         // any host-side sync arrives.
@@ -41,6 +53,32 @@ public:
     }
 
     ~MarkovMatrixEditor() override = default;
+
+    // -------------------------------------------------------------------------
+    // Expand / collapse
+    // -------------------------------------------------------------------------
+
+    [[nodiscard]] bool isExpanded() const { return expanded_; }
+
+    void setExpanded(bool expand)
+    {
+        if (expand == expanded_) return;
+        expanded_ = expand;
+
+        const VSTGUI::CCoord size = expand ? kExpandedSize : kCollapsedSize;
+        VSTGUI::CRect newFrame(anchorTopLeft_.x, anchorTopLeft_.y,
+                               anchorTopLeft_.x + size,
+                               anchorTopLeft_.y + size);
+        // Invalidate the larger of old and new rect so any parent redraws both.
+        if (auto* parent = getParentView()) {
+            VSTGUI::CRect dirty = getViewSize();
+            dirty.unite(newFrame);
+            parent->invalidRect(dirty);
+        }
+        setViewSize(newFrame);
+        setMouseableArea(newFrame);
+        invalid();
+    }
 
     // -------------------------------------------------------------------------
     // State accessors
@@ -91,6 +129,42 @@ public:
     // -------------------------------------------------------------------------
 
     void draw(VSTGUI::CDrawContext* context) override
+    {
+        if (expanded_) {
+            drawExpanded(context);
+        } else {
+            drawCollapsed(context);
+        }
+        setDirty(false);
+    }
+
+    void drawCollapsed(VSTGUI::CDrawContext* context)
+    {
+        const VSTGUI::CRect bounds = getViewSize();
+
+        // Filled amber rounded-rect button with a tiny 3x3 dot-grid icon
+        // suggesting "matrix".
+        context->setFillColor({0x22, 0x22, 0x28, 0xF0});
+        context->drawRect(bounds, VSTGUI::kDrawFilled);
+        context->setFrameColor({0xE8, 0xC8, 0x4C, 0xFF});
+        context->setLineWidth(1.5);
+        context->drawRect(bounds, VSTGUI::kDrawStroked);
+
+        // Mini 3x3 dot grid centered inside
+        const VSTGUI::CCoord cx = (bounds.left + bounds.right) * 0.5;
+        const VSTGUI::CCoord cy = (bounds.top + bounds.bottom) * 0.5;
+        context->setFillColor({0xE8, 0xC8, 0x4C, 0xFF});
+        for (int r = -1; r <= 1; ++r) {
+            for (int c = -1; c <= 1; ++c) {
+                VSTGUI::CRect dot(
+                    cx + c * 6.0 - 1.5, cy + r * 6.0 - 1.5,
+                    cx + c * 6.0 + 1.5, cy + r * 6.0 + 1.5);
+                context->drawRect(dot, VSTGUI::kDrawFilled);
+            }
+        }
+    }
+
+    void drawExpanded(VSTGUI::CDrawContext* context)
     {
         const VSTGUI::CRect bounds = getViewSize();
         const float w = static_cast<float>(bounds.getWidth());
@@ -162,7 +236,24 @@ public:
                 VSTGUI::kCenterText);
         }
 
-        setDirty(false);
+        // Minimize button ("×") in top-right corner
+        const VSTGUI::CRect btn = minimizeButtonRect();
+        context->setFillColor({0x33, 0x33, 0x3A, 0xFF});
+        context->drawRect(btn, VSTGUI::kDrawFilled);
+        context->setFrameColor({0x88, 0x88, 0x8E, 0xFF});
+        context->drawRect(btn, VSTGUI::kDrawStroked);
+        context->setFontColor({0xE0, 0xE0, 0xE8, 0xFF});
+        context->drawString(VSTGUI::UTF8String("-"), btn, VSTGUI::kCenterText);
+    }
+
+    [[nodiscard]] VSTGUI::CRect minimizeButtonRect() const
+    {
+        const VSTGUI::CRect bounds = getViewSize();
+        return VSTGUI::CRect(
+            bounds.right - kMinimizeBtn - 2.0,
+            bounds.top + 2.0,
+            bounds.right - 2.0,
+            bounds.top + 2.0 + kMinimizeBtn);
     }
 
     VSTGUI::CMouseEventResult onMouseDown(
@@ -171,6 +262,19 @@ public:
     {
         if (!buttons.isLeftButton()) return VSTGUI::kMouseEventNotHandled;
 
+        // Collapsed: any click expands the editor.
+        if (!expanded_) {
+            setExpanded(true);
+            return VSTGUI::kMouseEventHandled;
+        }
+
+        // Expanded: check minimize button first.
+        if (minimizeButtonRect().pointInside(where)) {
+            setExpanded(false);
+            return VSTGUI::kMouseEventHandled;
+        }
+
+        // Cell edit
         const VSTGUI::CRect bounds = getViewSize();
         const float localX = static_cast<float>(where.x - bounds.left);
         const float localY = static_cast<float>(where.y - bounds.top);
@@ -190,6 +294,7 @@ public:
         VSTGUI::CPoint& where,
         const VSTGUI::CButtonState& buttons) override
     {
+        if (!expanded_) return VSTGUI::kMouseEventNotHandled;
         if (!buttons.isLeftButton() || !dragCell_.valid())
             return VSTGUI::kMouseEventNotHandled;
 
@@ -247,6 +352,11 @@ private:
 
     MarkovMatrixEditorLogic::CellIndex dragCell_{-1, -1};
     bool dragEditStarted_ = false;
+
+    // Expand/collapse state. `anchorTopLeft_` is the top-left corner used
+    // by both states — the view resizes from this anchor, not center.
+    bool expanded_ = true;
+    VSTGUI::CPoint anchorTopLeft_{0, 0};
 
     ParameterCallback paramCallback_;
     EditGateCallback  beginEditCallback_;

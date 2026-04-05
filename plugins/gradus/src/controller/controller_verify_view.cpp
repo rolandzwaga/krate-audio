@@ -566,41 +566,55 @@ void Controller::constructArpLanes()
     // v1.7: Construct Markov Matrix Editor
     // ========================================================================
     // 7x7 probability matrix editor. Visible only when the current arp mode
-    // is Markov (index 11). Placed as a floating panel overlaying the top
-    // portion of the DetailStrip lane area — roughly 160x160 centered.
-    {
-        const auto stripSize = detailStrip_->getViewSize();
-        const VSTGUI::CCoord w = stripSize.getWidth();
-        constexpr VSTGUI::CCoord kSize = 160.0;
-        const VSTGUI::CCoord x = (w - kSize) * 0.5;  // center horizontally
-        const VSTGUI::CCoord y = DetailStrip::pinRowTop() + DetailStrip::pinRowHeight() + 4.0;
-        VSTGUI::CRect rect(x, y, x + kSize, y + kSize);
-        auto* editor = new MarkovMatrixEditor(rect);
+    // is Markov (index 11). Added to the frame (not DetailStrip) so it can
+    // overlay the RingDisplay at its top-left corner. Anchored at (12, 120)
+    // in frame coordinates — just below the control bars, visually anchored
+    // to the Pattern dropdown in the top-left.
+    //
+    // Two states: expanded (160x160 full 7x7 grid) and collapsed (32x32
+    // trigger button). Starts expanded when first created; user can minimize
+    // via the "-" button in the editor's top-right corner. While Markov mode
+    // is active but the editor is collapsed, the trigger button remains in
+    // the top-left corner of the ring display.
+    if (activeEditor_) {
+        if (auto* frame = activeEditor_->getFrame()) {
+            VSTGUI::CRect anchor(12.0, 120.0, 12.0, 120.0);  // top-left point
+            auto* editor = new MarkovMatrixEditor(anchor);
 
-        editor->setParameterCallback(
-            [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
-                setParamNormalized(paramId, static_cast<double>(normalizedValue));
-                performEdit(paramId, static_cast<double>(normalizedValue));
-            });
-        editor->setBeginEditCallback(
-            [this](Steinberg::Vst::ParamID paramId) { beginEdit(paramId); });
-        editor->setEndEditCallback(
-            [this](Steinberg::Vst::ParamID paramId) { endEdit(paramId); });
+            editor->setParameterCallback(
+                [this](Steinberg::Vst::ParamID paramId, float normalizedValue) {
+                    setParamNormalized(paramId, static_cast<double>(normalizedValue));
+                    performEdit(paramId, static_cast<double>(normalizedValue));
+                });
+            editor->setBeginEditCallback(
+                [this](Steinberg::Vst::ParamID paramId) { beginEdit(paramId); });
+            editor->setEndEditCallback(
+                [this](Steinberg::Vst::ParamID paramId) { endEdit(paramId); });
 
-        // Initialize cells from current parameter state
-        for (int i = 0; i < 49; ++i) {
-            const auto paramId = static_cast<Steinberg::Vst::ParamID>(
-                kArpMarkovCell00Id + i);
-            auto* paramObj = getParameterObject(paramId);
-            if (paramObj) {
-                editor->setCellValueFlat(i,
-                    static_cast<float>(paramObj->getNormalized()));
+            // Initialize cells from current parameter state
+            for (int i = 0; i < 49; ++i) {
+                const auto paramId = static_cast<Steinberg::Vst::ParamID>(
+                    kArpMarkovCell00Id + i);
+                auto* paramObj = getParameterObject(paramId);
+                if (paramObj) {
+                    editor->setCellValueFlat(i,
+                        static_cast<float>(paramObj->getNormalized()));
+                }
             }
-        }
 
-        editor->setVisible(false);  // shown only when Markov mode selected
-        detailStrip_->addView(editor);
-        markovEditor_ = editor;
+            // Reflect current arp mode: visible only when mode == Markov
+            bool showMarkov = false;
+            if (auto* modeParam = getParameterObject(kArpModeId)) {
+                const int modeIdx = std::clamp(
+                    static_cast<int>(modeParam->getNormalized() * 11.0 + 0.5),
+                    0, 11);
+                showMarkov = (modeIdx == 11);
+            }
+            editor->setVisible(showMarkov);
+
+            frame->addView(editor);
+            markovEditor_ = editor;
+        }
     }
 
     // ========================================================================
