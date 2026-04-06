@@ -604,9 +604,7 @@ private:
                 static_cast<float>(playheadStep_) * stepWidth;
             float overlayRight = overlayLeft + stepWidth;
 
-            VSTGUI::CColor overlayColor = accentColor_;
-            overlayColor.alpha = 40;
-            context->setFillColor(overlayColor);
+            context->setFillColor(VSTGUI::CColor(255, 255, 255, 45));
             VSTGUI::CRect overlay(overlayLeft, bodyTop, overlayRight, bodyBottom);
             context->drawRect(overlay, VSTGUI::kDrawFilled);
         }

@@ -105,11 +105,23 @@
         <!-- v1.5 Part 3: Step Pinning -->
         <control-tag name="ArpPinNote" tag="3413"/>
 
+        <!-- Speed Curve Depth (per-lane) -->
+        <control-tag name="ArpVelocityLaneSpeedCurveDepth" tag="3500"/>
+        <control-tag name="ArpGateLaneSpeedCurveDepth" tag="3501"/>
+        <control-tag name="ArpPitchLaneSpeedCurveDepth" tag="3502"/>
+        <control-tag name="ArpModifierLaneSpeedCurveDepth" tag="3503"/>
+        <control-tag name="ArpRatchetLaneSpeedCurveDepth" tag="3504"/>
+        <control-tag name="ArpConditionLaneSpeedCurveDepth" tag="3505"/>
+        <control-tag name="ArpChordLaneSpeedCurveDepth" tag="3506"/>
+        <control-tag name="ArpInversionLaneSpeedCurveDepth" tag="3507"/>
+
         <!-- Audition -->
         <control-tag name="AuditionEnabled" tag="4000"/>
         <control-tag name="AuditionVolume" tag="4001"/>
         <control-tag name="AuditionWaveform" tag="4002"/>
         <control-tag name="AuditionDecay" tag="4003"/>
+        <!-- Version display -->
+        <control-tag name="VersionLabel" tag="9999"/>
     </control-tags>
 
     <!-- ================================================================ -->
@@ -592,6 +604,11 @@
               tooltip="Velocity curve type"/>
 
         <!-- ============================================================ -->
+        <!-- Speed Curve controls: all created programmatically in      -->
+        <!-- constructArpLanes() inside a CViewContainer with bg color. -->
+        <!-- ============================================================ -->
+
+        <!-- ============================================================ -->
         <!-- 5. Footer (y=826, h=34) — Audition + Krate Audio           -->
         <!-- ============================================================ -->
         <view class="CViewContainer" origin="0, 778" size="1100, 34"
@@ -643,7 +660,7 @@
             <view class="CTextLabel" origin="986, 0" size="106, 34"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="right" transparent="true"
-                  custom-view-name="VersionLabel"
+                  control-tag="VersionLabel"
                   title="v1.0.0"/>
         </view>
 

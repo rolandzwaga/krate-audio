@@ -22,10 +22,13 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
+#include "../ui/speed_curve_data.h"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdio>
+#include <mutex>
 
 namespace Gradus {
 
@@ -179,11 +182,33 @@ struct ArpeggiatorParams {
     std::atomic<int>   pinNote{60};   // MIDI 0-127, default C4
     std::array<std::atomic<int>, 32> pinFlags{};  // 0/1 per step
 
-    // --- v1.7: Markov Chain Mode ---
+    // --- Markov Chain Mode ---
     std::atomic<int>   markovPreset{0};  // 0=Uniform..4=Classical, 5=Custom
     // 7x7 row-major matrix. Each cell is 0.0-1.0. Rows are auto-normalized at
     // sample time in NoteSelector::advanceMarkov, so users can edit freely.
     std::array<std::atomic<float>, 49> markovMatrix{};
+
+    // --- Per-Lane Speed Curve Depth ---
+    std::atomic<float> velocityLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> gateLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> pitchLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> modifierLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> ratchetLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> conditionLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> chordLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> inversionLaneSpeedCurveDepth{0.0f};
+
+    // Per-lane speed curve data (serialized in state, not automatable).
+    // Protected by speedCurveMutex_ for thread-safe access during
+    // save/load (audio thread) and IMessage handling (message thread).
+    mutable std::mutex speedCurveMutex_;
+    std::array<SpeedCurveData, 8> speedCurves;
+
+    // Baked curve tables + enabled flags. Written by IMessage notify() on the
+    // message thread, consumed by applyParamsToEngine on the audio thread.
+    // Uses ArpeggiatorCore's staging buffer pattern (atomic dirty flags).
+    // Also updated directly by the processor from speedCurves[] on state load.
+    std::array<std::atomic<bool>, 8> speedCurveEnabledFlags{};
 
     ArpeggiatorParams() {
         for (auto& step : velocityLaneSteps) {
@@ -203,7 +228,7 @@ struct ArpeggiatorParams {
         }
         // conditionLaneSteps default to 0 (TrigCondition::Always) via value-initialization -- correct
 
-        // v1.7 Markov: initialize matrix to Uniform (1/7 per cell)
+        // Markov: initialize matrix to Uniform (1/7 per cell)
         constexpr float kUniformCell = 1.0f / 7.0f;
         for (auto& cell : markovMatrix) {
             cell.store(kUniformCell, std::memory_order_relaxed);
@@ -594,7 +619,7 @@ inline void handleArpParamChange(
                 params.pinFlags[stepIdx].store(
                     value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
             }
-            // v1.7: Markov Chain mode
+            // Markov Chain mode
             else if (id == kArpMarkovPresetId) {
                 // StringListParameter: 0-1 -> 0-5 (6 entries, stepCount=5)
                 params.markovPreset.store(
@@ -619,6 +644,22 @@ inline void handleArpParamChange(
                     case kArpConditionLaneJitterId: params.conditionLaneJitter.store(jitter, std::memory_order_relaxed); break;
                     case kArpChordLaneJitterId:     params.chordLaneJitter.store(jitter, std::memory_order_relaxed); break;
                     case kArpInversionLaneJitterId: params.inversionLaneJitter.store(jitter, std::memory_order_relaxed); break;
+                    default: break;
+                }
+            }
+            // v1.6: Per-lane Speed Curve Depth (3500-3507)
+            else if (id >= kArpVelocityLaneSpeedCurveDepthId &&
+                     id <= kArpInversionLaneSpeedCurveDepthId) {
+                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                switch (id) {
+                    case kArpVelocityLaneSpeedCurveDepthId:  params.velocityLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpGateLaneSpeedCurveDepthId:      params.gateLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpPitchLaneSpeedCurveDepthId:     params.pitchLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpModifierLaneSpeedCurveDepthId:  params.modifierLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpRatchetLaneSpeedCurveDepthId:   params.ratchetLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpConditionLaneSpeedCurveDepthId: params.conditionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpChordLaneSpeedCurveDepthId:     params.chordLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
+                    case kArpInversionLaneSpeedCurveDepthId: params.inversionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
                     default: break;
                 }
             }
@@ -1135,7 +1176,7 @@ inline void registerArpParams(
                 1, ParameterInfo::kCanAutomate));
     }
 
-    // --- v1.7: Markov Chain Mode ---
+    // --- Markov Chain Mode ---
 
     // Markov Preset: StringListParameter (6 entries), default 0 (Uniform)
     parameters.addParameter(createDropdownParameter(
@@ -1160,6 +1201,27 @@ inline void registerArpParams(
                     STR16(""), 0.0, 1.0, kUniformCell,
                     0, ParameterInfo::kCanAutomate));
         }
+    }
+
+    // v1.6: Per-lane Speed Curve Depth (0.0-1.0, default 0.0 = off)
+    static constexpr struct {
+        const Steinberg::char16* name;
+        ParamID id;
+    } kSpeedCurveDepthParams[] = {
+        {STR16("Velocity Speed Curve Depth"), kArpVelocityLaneSpeedCurveDepthId},
+        {STR16("Gate Speed Curve Depth"),     kArpGateLaneSpeedCurveDepthId},
+        {STR16("Pitch Speed Curve Depth"),    kArpPitchLaneSpeedCurveDepthId},
+        {STR16("Modifier Speed Curve Depth"), kArpModifierLaneSpeedCurveDepthId},
+        {STR16("Ratchet Speed Curve Depth"),  kArpRatchetLaneSpeedCurveDepthId},
+        {STR16("Condition Speed Curve Depth"),kArpConditionLaneSpeedCurveDepthId},
+        {STR16("Chord Speed Curve Depth"),    kArpChordLaneSpeedCurveDepthId},
+        {STR16("Inversion Speed Curve Depth"),kArpInversionLaneSpeedCurveDepthId},
+    };
+    for (const auto& p : kSpeedCurveDepthParams) {
+        parameters.addParameter(
+            new RangeParameter(p.name, p.id,
+                STR16("%"), 0.0, 1.0, 0.0,
+                0, ParameterInfo::kCanAutomate));
     }
 }
 
@@ -1534,6 +1596,20 @@ inline Steinberg::tresult formatArpParam(
                 return kResultTrue;
             }
             break;
+        // Speed Curve Depth: display as 0-100%
+        case kArpVelocityLaneSpeedCurveDepthId:
+        case kArpGateLaneSpeedCurveDepthId:
+        case kArpPitchLaneSpeedCurveDepthId:
+        case kArpModifierLaneSpeedCurveDepthId:
+        case kArpRatchetLaneSpeedCurveDepthId:
+        case kArpConditionLaneSpeedCurveDepthId:
+        case kArpChordLaneSpeedCurveDepthId:
+        case kArpInversionLaneSpeedCurveDepthId: {
+            char8 text[32];
+            snprintf(text, sizeof(text), "%d%%", static_cast<int>(std::round(value * 100.0)));
+            UString(string, 128).fromAscii(text);
+            return kResultOk;
+        }
     }
     return kResultFalse;
 }
@@ -1684,11 +1760,40 @@ inline void saveArpParams(
         streamer.writeInt32(params.pinFlags[i].load(std::memory_order_relaxed));
     }
 
-    // --- v1.7: Markov Chain Mode ---
+    // --- Markov Chain Mode ---
     // Preset selector (0..5) + 49 matrix cells (float 0-1, row-major).
     streamer.writeInt32(params.markovPreset.load(std::memory_order_relaxed));
     for (size_t i = 0; i < 49; ++i) {
         streamer.writeFloat(params.markovMatrix[i].load(std::memory_order_relaxed));
+    }
+
+    // --- Per-Lane Speed Curve Depth + Curve Data ---
+    streamer.writeFloat(params.velocityLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.gateLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.pitchLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.modifierLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.ratchetLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.conditionLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.chordLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.inversionLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+
+    // Per-lane speed curve point data (free-form bezier curves)
+    {
+        std::lock_guard<std::mutex> lock(params.speedCurveMutex_);
+        for (int lane = 0; lane < 8; ++lane) {
+            const auto& curve = params.speedCurves[static_cast<size_t>(lane)];
+            streamer.writeInt32(curve.enabled ? 1 : 0);
+            streamer.writeInt32(curve.presetIndex);
+            streamer.writeInt32(static_cast<Steinberg::int32>(curve.points.size()));
+            for (const auto& pt : curve.points) {
+                streamer.writeFloat(pt.x);
+                streamer.writeFloat(pt.y);
+                streamer.writeFloat(pt.cpLeftX);
+                streamer.writeFloat(pt.cpLeftY);
+                streamer.writeFloat(pt.cpRightX);
+                streamer.writeFloat(pt.cpRightY);
+            }
+        }
     }
 }
 
@@ -1964,7 +2069,7 @@ inline bool loadArpParams(
         params.pinFlags[i].store(intVal ? 1 : 0, std::memory_order_relaxed);
     }
 
-    // --- v1.7: Markov Chain Mode ---
+    // --- Markov Chain Mode ---
     // EOF-safe: if Markov data is missing (pre-v1.7 preset), keep defaults.
     // From here, EOF signals a corrupt stream (preset was present but cells are not).
     if (!streamer.readInt32(intVal)) return true;
@@ -1973,6 +2078,56 @@ inline bool loadArpParams(
         if (!streamer.readFloat(floatVal)) return false;
         params.markovMatrix[i].store(
             std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+
+    // --- Per-Lane Speed Curve Depth ---
+    // EOF-safe: pre-v1.6 presets don't have this data — keep defaults.
+    {
+        auto loadDepth = [&](std::atomic<float>& target) -> bool {
+            if (!streamer.readFloat(floatVal)) return false;
+            target.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+            return true;
+        };
+        if (!loadDepth(params.velocityLaneSpeedCurveDepth)) return true;
+        if (!loadDepth(params.gateLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.pitchLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.modifierLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.ratchetLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.conditionLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.chordLaneSpeedCurveDepth)) return false;
+        if (!loadDepth(params.inversionLaneSpeedCurveDepth)) return false;
+    }
+
+    // Per-lane speed curve point data
+    {
+        std::lock_guard<std::mutex> lock(params.speedCurveMutex_);
+        for (int lane = 0; lane < 8; ++lane) {
+            auto& curve = params.speedCurves[static_cast<size_t>(lane)];
+            Steinberg::int32 enabledInt = 0;
+            if (!streamer.readInt32(enabledInt)) return true;  // EOF = pre-curve preset
+            curve.enabled = (enabledInt != 0);
+
+            Steinberg::int32 presetIdx = 0;
+            if (!streamer.readInt32(presetIdx)) return false;
+            curve.presetIndex = presetIdx;
+
+            Steinberg::int32 numPoints = 0;
+            if (!streamer.readInt32(numPoints)) return false;
+            numPoints = std::clamp(numPoints, Steinberg::int32{0}, Steinberg::int32{64});
+
+            curve.points.clear();
+            curve.points.reserve(static_cast<size_t>(numPoints));
+            for (Steinberg::int32 p = 0; p < numPoints; ++p) {
+                SpeedCurvePoint pt;
+                if (!streamer.readFloat(pt.x)) return false;
+                if (!streamer.readFloat(pt.y)) return false;
+                if (!streamer.readFloat(pt.cpLeftX)) return false;
+                if (!streamer.readFloat(pt.cpLeftY)) return false;
+                if (!streamer.readFloat(pt.cpRightX)) return false;
+                if (!streamer.readFloat(pt.cpRightY)) return false;
+                curve.points.push_back(pt);
+            }
+        }
     }
 
     return true;
@@ -2310,7 +2465,7 @@ inline void loadArpParamsToController(
             iv ? 1.0 : 0.0);
     }
 
-    // --- v1.7: Markov Chain Mode ---
+    // --- Markov Chain Mode ---
     // Preset selector normalized over 5 steps (6 entries); 49 cell floats.
     // Note: the Controller's setParamNormalized override has
     // suppressMarkovPresetLoad_ set during state recall, so writing the
@@ -2323,6 +2478,25 @@ inline void loadArpParamsToController(
         if (!streamer.readFloat(f)) return;
         setParam(static_cast<Steinberg::Vst::ParamID>(kArpMarkovCell00Id + i),
             static_cast<double>(std::clamp(f, 0.0f, 1.0f)));
+    }
+
+    // --- Per-Lane Speed Curve Depth ---
+    {
+        static constexpr Steinberg::Vst::ParamID kDepthIds[] = {
+            kArpVelocityLaneSpeedCurveDepthId,
+            kArpGateLaneSpeedCurveDepthId,
+            kArpPitchLaneSpeedCurveDepthId,
+            kArpModifierLaneSpeedCurveDepthId,
+            kArpRatchetLaneSpeedCurveDepthId,
+            kArpConditionLaneSpeedCurveDepthId,
+            kArpChordLaneSpeedCurveDepthId,
+            kArpInversionLaneSpeedCurveDepthId,
+        };
+        for (auto depthId : kDepthIds) {
+            float f = 0.0f;
+            if (!streamer.readFloat(f)) return;
+            setParam(depthId, static_cast<double>(std::clamp(f, 0.0f, 1.0f)));
+        }
     }
 }
 

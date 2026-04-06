@@ -489,6 +489,7 @@ public:
                 drawDiscreteBlocks(context);
             } else {
                 StepPatternEditor::draw(context);
+                drawBarPlaybackOverlay(context);
             }
             // Draw Euclidean linear dot overlay (081-interaction-polish US5)
             drawEuclideanLinearOverlay(context);
@@ -828,6 +829,29 @@ private:
     }
 
     /// Draw a playback overlay in bipolar mode
+    /// Draw playback overlay for standard bar lanes (VEL, GATE).
+    /// Full-height semi-transparent accent column on the current step.
+    /// Draw playback overlay for standard bar lanes (VEL, GATE).
+    /// White lighten overlay — visible at all bar heights/colors.
+    void drawBarPlaybackOverlay(VSTGUI::CDrawContext* context) {
+        int step = getPlaybackStep();
+        if (step < 0 || step >= getNumSteps()) return;
+
+        VSTGUI::CRect barArea = getBarArea();
+        float barAreaWidth = static_cast<float>(barArea.getWidth());
+        int numSteps = getNumSteps();
+        if (numSteps <= 0) return;
+
+        float stepWidth = barAreaWidth / static_cast<float>(numSteps);
+        float barLeft = static_cast<float>(barArea.left) + static_cast<float>(step) * stepWidth;
+        float barRight = barLeft + stepWidth;
+
+        // White lighten: visible on both dark bg and bright bars
+        context->setFillColor(VSTGUI::CColor(255, 255, 255, 45));
+        VSTGUI::CRect overlay(barLeft, barArea.top, barRight, barArea.bottom);
+        context->drawRect(overlay, VSTGUI::kDrawFilled);
+    }
+
     void drawBipolarPlaybackOverlay(VSTGUI::CDrawContext* context) {
         int step = getPlaybackStep();
         if (step < 0 || step >= getNumSteps()) return;
@@ -841,9 +865,7 @@ private:
         float barLeft = static_cast<float>(barArea.left) + static_cast<float>(step) * stepWidth;
         float barRight = barLeft + stepWidth;
 
-        VSTGUI::CColor overlayColor = accentColor_;
-        overlayColor.alpha = 40;
-        context->setFillColor(overlayColor);
+        context->setFillColor(VSTGUI::CColor(255, 255, 255, 45));
         VSTGUI::CRect overlay(barLeft, barArea.top, barRight, barArea.bottom);
         context->drawRect(overlay, VSTGUI::kDrawFilled);
     }
@@ -1150,9 +1172,7 @@ private:
             static_cast<float>(step) * stepWidth;
         float barRight = barLeft + stepWidth;
 
-        VSTGUI::CColor overlayColor = accentColor_;
-        overlayColor.alpha = 40;
-        context->setFillColor(overlayColor);
+        context->setFillColor(VSTGUI::CColor(255, 255, 255, 45));
         VSTGUI::CRect overlay(barLeft, barArea.top, barRight, barArea.bottom);
         context->drawRect(overlay, VSTGUI::kDrawFilled);
     }

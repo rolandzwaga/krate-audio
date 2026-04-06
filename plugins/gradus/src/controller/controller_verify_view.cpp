@@ -14,7 +14,14 @@
 #include "../ui/detail_strip.h"
 #include "../ui/pin_flag_strip.h"
 #include "../ui/markov_matrix_editor.h"
+#include "../ui/speed_curve_editor.h"
 #include "ui/arp_lane_editor.h"
+
+#include "ui/toggle_button.h"
+#include "ui/arc_knob.h"
+#include "vstgui/lib/controls/coptionmenu.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/cfont.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
 #include "ui/arp_chord_lane.h"
@@ -22,6 +29,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+
+namespace {
+// Lightweight IControlListener that forwards to a std::function
+class LambdaListener : public VSTGUI::IControlListener {
+public:
+    using Callback = std::function<void(VSTGUI::CControl*, float)>;
+    explicit LambdaListener(Callback cb) : cb_(std::move(cb)) {}
+    void valueChanged(VSTGUI::CControl* control) override {
+        if (cb_) cb_(control, control->getValueNormalized());
+    }
+private:
+    Callback cb_;
+};
+} // anonymous namespace
 
 namespace Gradus {
 
@@ -152,6 +174,7 @@ VSTGUI::CView* Controller::verifyView(
             rangeModeMenu_ = view;
             view->setVisible(false);
         }
+        // (Speed curve depth knobs are created programmatically in constructArpLanes)
     }
 
     return view;
@@ -684,6 +707,197 @@ void Controller::constructArpLanes()
     wireCopyPasteCallbacks();
 
     // ========================================================================
+    // Per-lane Speed Curve Editors (overlay on lane editor area)
+    // ========================================================================
+    {
+        // Position the overlay to match the lane editor's bar area (where
+        // step rectangles are drawn), excluding the header, phase-offset
+        // strip, step labels, and playback indicator.
+        auto stripSize = detailStrip_->getViewSize();
+        constexpr float kLaneEditorTop = 70.0f;  // tab(24) + per-lane(32) + pin(14)
+        constexpr float kBarAreaTopInset = 28.0f; // header(16) + phaseOffset(12)
+        constexpr float kBarAreaBottomInset = 20.0f; // stepLabels(12) + playbackIndicator(8)
+        constexpr float kBarAreaLeftInset = 40.0f; // kStepContentLeftMargin
+        VSTGUI::CRect overlayRect(
+            stripSize.left + kBarAreaLeftInset,
+            stripSize.top + kLaneEditorTop + kBarAreaTopInset,
+            stripSize.right,
+            stripSize.bottom - kBarAreaBottomInset);
+
+        for (int i = 0; i < 8; ++i) {
+            auto* editor = new SpeedCurveEditor(overlayRect);
+            editor->setVisible(false);
+            // Committed callback: sends IMessage on mouse-up / preset change
+            editor->setCurveCommittedCallback(
+                [this, i](const SpeedCurveData& data) {
+                    sendSpeedCurveTable(static_cast<size_t>(i), data);
+                });
+            speedCurveEditors_[i] = editor;
+            // Add to the DetailStrip's parent (the frame) so it overlays
+            if (auto* frame = activeEditor_->getFrame())
+                frame->addView(editor);
+        }
+
+        // Create speed curve control bar in a container with background
+        // that cleanly overlaps the pin row area.
+        if (auto* frame = activeEditor_->getFrame()) {
+            // Container starts narrow (just the toggle) and grows when enabled
+            constexpr float kContainerY = 56.0f;  // pin row y within strip
+            constexpr float kContainerH = 14.0f;
+            constexpr float kCollapsedW = 18.0f;  // toggle + padding
+            VSTGUI::CRect containerRect(
+                stripSize.left, stripSize.top + kContainerY,
+                stripSize.left + kCollapsedW, stripSize.top + kContainerY + kContainerH);
+            auto* container = new VSTGUI::CViewContainer(containerRect);
+            container->setBackgroundColor(VSTGUI::CColor(26, 26, 46, 255)); // matches bg
+            speedCurveContainer_ = container;
+            frame->addView(container);
+
+            // All child coordinates are local to the container (0,0 = top-left)
+            // Layout: [power toggle 14x14] [4px gap] [Depth label 36x14] [knob 18x18] [4px] [preset 70x14]
+
+            // Toggle button
+            VSTGUI::CRect toggleRect(2, 0, 16, 14);
+            auto* toggle = new Krate::Plugins::ToggleButton(toggleRect, nullptr, -1);
+            toggle->setOnColor(VSTGUI::CColor(208, 132, 92, 255));
+            toggle->setOffColor(VSTGUI::CColor(80, 80, 96, 255));
+            toggle->setIconStyle(Krate::Plugins::IconStyle::kPower);
+            toggle->setValueNormalized(0.0);
+            speedCurveToggle_ = toggle;
+            container->addView(toggle);
+
+            // "Depth" label
+            VSTGUI::CRect depthLabelRect(20, 0, 56, 14);
+            auto* depthLabel = new VSTGUI::CTextLabel(depthLabelRect);
+            depthLabel->setFont(VSTGUI::kNormalFontSmaller);
+            depthLabel->setFontColor(VSTGUI::CColor(144, 144, 152, 255));
+            depthLabel->setBackColor(VSTGUI::CColor(0, 0, 0, 0));
+            depthLabel->setFrameColor(VSTGUI::CColor(0, 0, 0, 0));
+            depthLabel->setText("Depth");
+            depthLabel->setHoriAlign(VSTGUI::kRightText);
+            depthLabel->setVisible(false);
+            speedCurveDepthLabel_ = depthLabel;
+            container->addView(depthLabel);
+
+            // 8 depth knobs (ArcKnob) stacked at same position, toggled per lane
+            static constexpr VSTGUI::CColor kLaneColors[8] = {
+                {208, 132, 92, 255},  // velocity
+                {200, 164, 100, 255}, // gate
+                {108, 168, 160, 255}, // pitch
+                {192, 112, 124, 255}, // modifier
+                {124, 144, 176, 255}, // condition
+                {152, 128, 176, 255}, // ratchet
+                {168, 140, 200, 255}, // chord
+                {136, 168, 200, 255}, // inversion
+            };
+            // Param IDs in lane-param order (Vel, Gate, Pitch, Mod, Ratchet, Cond, Chord, Inv)
+            // but UI lane order is (Vel, Gate, Pitch, Mod, Cond, Ratchet, Chord, Inv)
+            static constexpr uint32_t kDepthParamIds[8] = {
+                kArpVelocityLaneSpeedCurveDepthId,
+                kArpGateLaneSpeedCurveDepthId,
+                kArpPitchLaneSpeedCurveDepthId,
+                kArpModifierLaneSpeedCurveDepthId,
+                kArpConditionLaneSpeedCurveDepthId,
+                kArpRatchetLaneSpeedCurveDepthId,
+                kArpChordLaneSpeedCurveDepthId,
+                kArpInversionLaneSpeedCurveDepthId,
+            };
+            // Depth knob sub-listener: sends updated depth via IMessage alongside
+            // the current curve table, so the processor always has both values.
+            speedCurveDepthListener_ = std::make_shared<LambdaListener>(
+                [this]([[maybe_unused]] VSTGUI::CControl* ctrl,
+                       [[maybe_unused]] float value) {
+                    int lane = selectedLaneIndex_;
+                    if (lane < 0 || lane >= 8) return;
+                    auto laneIdx = static_cast<size_t>(lane);
+                    if (speedCurveEditors_[laneIdx])
+                        sendSpeedCurveTable(laneIdx,
+                            speedCurveEditors_[laneIdx]->curveData());
+                });
+
+            VSTGUI::CRect knobRect(58, -2, 76, 16);
+            for (int i = 0; i < 8; ++i) {
+                // Primary listener: VST3Editor for host parameter wiring
+                auto* knob = new Krate::Plugins::ArcKnob(knobRect, activeEditor_,
+                    static_cast<int32_t>(kDepthParamIds[i]));
+                knob->setArcColor(kLaneColors[i]);
+                knob->setGuideColor(VSTGUI::CColor(64, 64, 80, 255));
+                knob->setMin(0.0f);
+                knob->setMax(1.0f);
+                knob->setDefaultValue(0.0f);
+                knob->setVisible(false);
+                // Sub-listener: sends depth via IMessage to processor
+                knob->registerControlListener(speedCurveDepthListener_.get());
+                speedCurveDepthKnobs_[i] = knob;
+                container->addView(knob);
+            }
+
+            // Preset dropdown
+            VSTGUI::CRect presetRect(80, 0, 150, 14);
+            auto* presetMenu = new VSTGUI::COptionMenu(presetRect, nullptr, -1);
+            presetMenu->setFont(VSTGUI::kNormalFontSmaller);
+            presetMenu->setFontColor(VSTGUI::CColor(208, 208, 216, 255));
+            presetMenu->setBackColor(VSTGUI::CColor(42, 42, 62, 255));
+            presetMenu->setFrameColor(VSTGUI::CColor(80, 80, 96, 255));
+            for (int p = 0; p < kSpeedCurvePresetCount; ++p) {
+                presetMenu->addEntry(
+                    speedCurvePresetName(static_cast<SpeedCurvePreset>(p)));
+            }
+            presetMenu->setVisible(false);
+            speedCurvePresetMenu_ = presetMenu;
+            container->addView(presetMenu);
+
+            // Wire toggle listener
+            constexpr float kExpandedW = 154.0f;  // toggle + label + knob + preset + padding
+            speedCurveToggleListener_ = std::make_shared<LambdaListener>(
+                [this, kCollapsedW, kExpandedW]
+                ([[maybe_unused]] VSTGUI::CControl* ctrl, float value) {
+                    bool enabled = value > 0.5f;
+                    int lane = selectedLaneIndex_;
+                    if (lane < 0 || lane >= 8) return;
+                    auto laneIdx = static_cast<size_t>(lane);
+                    if (speedCurveEditors_[laneIdx]) {
+                        auto data = speedCurveEditors_[laneIdx]->curveData();
+                        data.enabled = enabled;
+                        speedCurveEditors_[laneIdx]->setCurveData(data);
+                        sendSpeedCurveTable(laneIdx, data);
+                    }
+                    showSpeedCurveForLane(lane);
+                    // Show/hide depth knob + label + preset
+                    if (speedCurveDepthLabel_) speedCurveDepthLabel_->setVisible(enabled);
+                    if (speedCurvePresetMenu_) speedCurvePresetMenu_->setVisible(enabled);
+                    for (int i = 0; i < 8; ++i) {
+                        if (speedCurveDepthKnobs_[i])
+                            speedCurveDepthKnobs_[i]->setVisible(i == lane && enabled);
+                    }
+                    // Resize container
+                    if (speedCurveContainer_) {
+                        auto r = speedCurveContainer_->getViewSize();
+                        r.right = r.left + (enabled ? kExpandedW : kCollapsedW);
+                        speedCurveContainer_->setViewSize(r);
+                        speedCurveContainer_->setMouseableArea(r);
+                        speedCurveContainer_->invalid();
+                    }
+                });
+            toggle->registerControlListener(speedCurveToggleListener_.get());
+
+            // Wire preset menu listener
+            speedCurvePresetListener_ = std::make_shared<LambdaListener>(
+                [this](VSTGUI::CControl* ctrl, [[maybe_unused]] float value) {
+                    auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(ctrl);
+                    if (!menu) return;
+                    int presetIdx = static_cast<int>(menu->getCurrentIndex());
+                    int lane = selectedLaneIndex_;
+                    if (lane < 0 || lane >= 8) return;
+                    if (speedCurveEditors_[static_cast<size_t>(lane)])
+                        speedCurveEditors_[static_cast<size_t>(lane)]->applyPreset(
+                            static_cast<SpeedCurvePreset>(presetIdx));
+                });
+            presetMenu->registerControlListener(speedCurvePresetListener_.get());
+        }
+    }
+
+    // ========================================================================
     // Wire ring data bridge
     // ========================================================================
     ringDataBridge_.clearLanes();
@@ -788,6 +1002,42 @@ void Controller::constructArpLanes()
             if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
             if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
             if (pinFlagStrip_)   pinFlagStrip_->setVisible(showPitchContext);
+            // Show speed curve editor for selected lane (if enabled)
+            selectedLaneIndex_ = laneIndex;
+            showSpeedCurveForLane(laneIndex);
+            // Sync toggle, depth knob, label, and preset menu for selected lane
+            bool curveEnabled = false;
+            if (laneIndex >= 0 && laneIndex < 8 &&
+                speedCurveEditors_[laneIndex]) {
+                curveEnabled = speedCurveEditors_[laneIndex]->curveData().enabled;
+            }
+            if (auto* toggle = dynamic_cast<VSTGUI::CControl*>(speedCurveToggle_))
+                toggle->setValueNormalized(curveEnabled ? 1.0 : 0.0);
+            if (speedCurveDepthLabel_)
+                speedCurveDepthLabel_->setVisible(curveEnabled);
+            if (speedCurvePresetMenu_)
+                speedCurvePresetMenu_->setVisible(curveEnabled);
+            for (int i = 0; i < 8; ++i) {
+                if (speedCurveDepthKnobs_[i])
+                    speedCurveDepthKnobs_[i]->setVisible(i == laneIndex && curveEnabled);
+            }
+            // Sync preset menu selection
+            if (curveEnabled && speedCurvePresetMenu_ && laneIndex >= 0 && laneIndex < 8) {
+                auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(speedCurvePresetMenu_);
+                if (menu && speedCurveEditors_[laneIndex]) {
+                    int presetIdx = speedCurveEditors_[laneIndex]->curveData().presetIndex;
+                    if (presetIdx >= 0 && presetIdx < kSpeedCurvePresetCount)
+                        menu->setCurrent(presetIdx);
+                }
+            }
+            // Resize container to match state
+            if (speedCurveContainer_) {
+                auto r = speedCurveContainer_->getViewSize();
+                r.right = r.left + (curveEnabled ? 154.0f : 18.0f);
+                speedCurveContainer_->setViewSize(r);
+                speedCurveContainer_->setMouseableArea(r);
+                speedCurveContainer_->invalid();
+            }
         };
 
         // Wire bidirectional selection: detail strip ↔ ring renderer

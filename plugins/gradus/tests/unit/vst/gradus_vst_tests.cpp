@@ -627,10 +627,12 @@ TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.7 presets
     Gradus::saveArpParams(src, writer);
 
     // Simulate pre-v1.7 preset by copying everything EXCEPT the Markov
-    // tail (1 int32 + 49 floats = 200 bytes) into a fresh stream.
+    // tail (200 bytes), speed curve depth (32 bytes), and curve point data
+    // (8 lanes × 60 bytes = 480 bytes) into a fresh stream.
+    // Total tail: 200 + 32 + 480 = 712 bytes.
     Steinberg::int64 size = 0;
     stream->seek(0, IBStream::kIBSeekEnd, &size);
-    const Steinberg::int64 truncatedSize = size - 200;
+    const Steinberg::int64 truncatedSize = size - 712;
 
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     std::vector<char> buf(static_cast<size_t>(truncatedSize));

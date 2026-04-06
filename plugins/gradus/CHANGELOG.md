@@ -5,10 +5,12 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.0] - 2026-04-05
+## [1.6.0] - 2026-04-05
 
 ### Added
 
+- **Pin grid editor UI** — Completes the v1.5 Step Pinning feature. A new inline 32-cell pin toggle row appears above the pitch bars on the Pitch lane tab, column-aligned 1:1 with the pitch step bars (the row shrinks to match the lane's active length from 1 to 32 steps). Click a cell to toggle pin state for that step without dropping into host automation. Cell alignment matches the pitch lane's bar-area left margin (`kStepContentLeftMargin` = 40px) so each pin cell sits directly above its corresponding pitch bar regardless of the chosen lane length.
+- **Pin row host sync** — Preset loads, DAW automation, and undo/redo all mirror back into the pin row widget without echo loops. Host-side updates use `setDirty(true)` rather than `invalid()` for thread-safe display refresh when automation arrives on a non-UI thread.
 - **Markov Chain arp mode** — New 12th arp pattern mode that picks the next held note by sampling a 7×7 transition probability matrix keyed by scale degree (I/ii/iii/IV/V/vi/vii°). Held notes are mapped to degrees using the active scale type and root note; in Chromatic mode it falls back to held-note-index indexing. When the sampled degree isn't held, the nearest held degree wins. Row-stochasticity is enforced on the fly so user-edited cells don't need manual balancing.
 - **5 hardcoded Markov preset matrices** — **Uniform** (flat baseline, equivalent to Random), **Jazz** (ii→V→I voice leading with circle-of-fifths turnarounds), **Minimal** (strong self-loops + ±1 step motion for meditative patterns), **Ambient** (favors wide jumps 3-5 degrees away for spacious non-stepwise motion), and **Classical** (I–IV–V–I circle-of-fifths bias). Plus a **Custom** sentinel that activates automatically whenever any matrix cell is hand-edited.
 - **Editable 7×7 matrix editor** — Custom overlay view anchored in the top-left corner of the ring display, directly below the Pattern dropdown that activates Markov mode. Click-drag cells vertically like mini sliders (top = 1.0, bottom = 0.0); brightness encodes each cell's probability. Row and column labels show Roman numerals for scale degrees. Visible only when Markov mode is the active arp pattern.
@@ -21,13 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Arp mode dropdown duplicate entry** — Extending the arp mode list to 12 entries exposed a duplicate "Diverge" label caused by a stale `value * 10.0 + 0.5` scaling formula in a hand-written display formatter. Root-caused via the refactor above.
-
-## [1.6.0] - 2026-04-05
-
-### Added
-
-- **Pin grid editor UI** — Completes the v1.5 Step Pinning feature. A new inline 32-cell pin toggle row appears above the pitch bars on the Pitch lane tab, column-aligned 1:1 with the pitch step bars (the row shrinks to match the lane's active length from 1 to 32 steps). Click a cell to toggle pin state for that step without dropping into host automation. Cell alignment matches the pitch lane's bar-area left margin (`kStepContentLeftMargin` = 40px) so each pin cell sits directly above its corresponding pitch bar regardless of the chosen lane length.
-- **Pin row host sync** — Preset loads, DAW automation, and undo/redo all mirror back into the pin row widget without echo loops. Host-side updates use `setDirty(true)` rather than `invalid()` for thread-safe display refresh when automation arrives on a non-UI thread.
 
 ## [1.5.0] - 2026-04-05
 

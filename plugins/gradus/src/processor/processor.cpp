@@ -16,6 +16,8 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 
 #include <algorithm>
+#include <cstring>
+
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -110,6 +112,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 
     // --- 3. Apply params to arp engine ---
     applyParamsToEngine();
+    arpCore_.consumePendingCurveTables();
 
     // --- 4. Transport sync ---
     if (data.processContext) {
@@ -299,9 +302,110 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     // Force arp to MIDI mode (always on in Gradus)
     arpParams_.operatingMode.store(kArpMIDI, std::memory_order_relaxed);
 
+    // Bake speed curve tables from deserialized curve data and apply to arpCore
+    {
+        std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+        for (size_t i = 0; i < 8; ++i) {
+            const auto& curve = arpParams_.speedCurves[i];
+            arpParams_.speedCurveEnabledFlags[i].store(
+                curve.enabled, std::memory_order_relaxed);
+            std::array<float, 256> table{};
+            curve.bakeToTable(table);
+            arpCore_.setLaneSpeedCurveTable(i, table);
+            arpCore_.setLaneSpeedCurveEnabled(i, curve.enabled);
+        }
+    }
+
     // Audition params are session-only — not loaded from presets
 
     return kResultOk;
+}
+
+// ==============================================================================
+// IMessage Handler — receives speed curve tables from controller
+// ==============================================================================
+
+tresult PLUGIN_API Processor::notify(IMessage* message)
+{
+    if (!message) return kResultFalse;
+
+    if (strcmp(message->getMessageID(), "SpeedCurveTable") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs) return kResultFalse;
+
+        int64 lane = 0;
+        int64 enabled = 0;
+        if (attrs->getInt("lane", lane) != kResultOk) return kResultFalse;
+        if (lane < 0 || lane >= 8) return kResultFalse;
+        attrs->getInt("enabled", enabled);
+
+        auto laneIdx = static_cast<size_t>(lane);
+        arpParams_.speedCurveEnabledFlags[laneIdx].store(
+            enabled != 0, std::memory_order_relaxed);
+
+        // Read depth value sent directly from controller
+        int64 depthBits = 0;
+        if (attrs->getInt("depth", depthBits) == kResultOk) {
+            float depthVal = 0.0f;
+            std::memcpy(&depthVal, &depthBits, sizeof(float));
+            arpCore_.setLaneSpeedCurveDepth(laneIdx, depthVal);
+        }
+
+        // Read baked table from binary attribute (256 floats = 1024 bytes)
+        const void* data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("table", data, size) == kResultOk &&
+            data && size == 256 * sizeof(float)) {
+            std::array<float, 256> table{};
+            std::memcpy(table.data(), data, size);
+            arpCore_.setLaneSpeedCurveTable(laneIdx, table);
+        }
+
+        // Read curve point data for serialization (JSON-like binary blob)
+        const void* curveData = nullptr;
+        Steinberg::uint32 curveSize = 0;
+        if (attrs->getBinary("curveData", curveData, curveSize) == kResultOk &&
+            curveData && curveSize > 0) {
+            std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+            auto& curve = arpParams_.speedCurves[laneIdx];
+            curve.enabled = (enabled != 0);
+
+            // Deserialize: presetIndex(int32) + numPoints(int32) + points(6 floats each)
+            auto* bytes = static_cast<const char*>(curveData);
+            Steinberg::uint32 offset = 0;
+            auto readInt = [&](int32& val) -> bool {
+                if (offset + sizeof(int32) > curveSize) return false;
+                std::memcpy(&val, bytes + offset, sizeof(int32));
+                offset += sizeof(int32);
+                return true;
+            };
+            auto readFloat = [&](float& val) -> bool {
+                if (offset + sizeof(float) > curveSize) return false;
+                std::memcpy(&val, bytes + offset, sizeof(float));
+                offset += sizeof(float);
+                return true;
+            };
+
+            int32 presetIdx = 0, numPoints = 0;
+            if (readInt(presetIdx) && readInt(numPoints)) {
+                curve.presetIndex = presetIdx;
+                numPoints = std::clamp(numPoints, int32{0}, int32{64});
+                curve.points.clear();
+                curve.points.reserve(static_cast<size_t>(numPoints));
+                for (int32 i = 0; i < numPoints; ++i) {
+                    SpeedCurvePoint pt;
+                    if (!readFloat(pt.x) || !readFloat(pt.y) ||
+                        !readFloat(pt.cpLeftX) || !readFloat(pt.cpLeftY) ||
+                        !readFloat(pt.cpRightX) || !readFloat(pt.cpRightY)) break;
+                    curve.points.push_back(pt);
+                }
+            }
+        }
+
+        return kResultOk;
+    }
+
+    return AudioEffect::notify(message);
 }
 
 // ==============================================================================
@@ -564,6 +668,19 @@ void Processor::applyParamsToEngine()
     arpCore_.setLaneSpeed(5, arpParams_.conditionLaneSpeed.load(std::memory_order_relaxed));
     arpCore_.setLaneSpeed(6, arpParams_.chordLaneSpeed.load(std::memory_order_relaxed));
     arpCore_.setLaneSpeed(7, arpParams_.inversionLaneSpeed.load(std::memory_order_relaxed));
+
+    // Per-lane speed curve depth: read from IMessage-set values stored
+    // directly on arpCore_ (arpParams_ atomics are unreliable for
+    // programmatically-created knobs — the host may not relay performEdit
+    // back through processParameterChanges). Depth is set in notify().
+
+    // Per-lane speed curve: apply enabled flags. Consume any pending table
+    // updates from IMessage (staging → active).
+    for (size_t i = 0; i < 8; ++i) {
+        arpCore_.setLaneSpeedCurveEnabled(i,
+            arpParams_.speedCurveEnabledFlags[i].load(std::memory_order_relaxed));
+    }
+
 
     // v1.5 Features
     arpCore_.setRatchetDecay(arpParams_.ratchetDecay.load(std::memory_order_relaxed));

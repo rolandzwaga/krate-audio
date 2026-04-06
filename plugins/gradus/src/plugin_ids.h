@@ -26,7 +26,7 @@ static const Steinberg::FUID kControllerUID(0x3D2C1B7A, 0x7B6A5F4E, 0x1F0E9D8C, 
 static constexpr auto kSubCategories = "Instrument|Synth";
 
 // State version for serialization
-constexpr Steinberg::int32 kCurrentStateVersion = 1;
+constexpr Steinberg::int32 kCurrentStateVersion = 2;
 
 // ==============================================================================
 // Parameter IDs
@@ -422,7 +422,7 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // kArpPinFlagStep1Id .. kArpPinFlagStep31Id = 3415..3445
     kArpPinFlagStep31Id  = 3445,
 
-    // --- v1.7: Markov Chain Mode (3446-3495) ---
+    // --- Markov Chain Mode (3446-3495) ---
     // 1 preset dropdown + 49 matrix cells (7x7 row-major: row * 7 + col).
     // Cell values are 0.0-1.0; rows auto-normalize at sample time.
     kArpMarkovPresetId   = 3446,  // 0=Uniform,1=Jazz,2=Minimal,3=Ambient,4=Classical,5=Custom
@@ -431,6 +431,16 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kArpMarkovCell66Id   = 3495,  // row 6, col 6 (vii° -> vii°)
 
     kArpEndId = 3495,
+
+    // --- Speed Curve Depth (per-lane, 0.0-1.0) ---
+    kArpVelocityLaneSpeedCurveDepthId  = 3500,
+    kArpGateLaneSpeedCurveDepthId      = 3501,
+    kArpPitchLaneSpeedCurveDepthId     = 3502,
+    kArpModifierLaneSpeedCurveDepthId  = 3503,
+    kArpRatchetLaneSpeedCurveDepthId   = 3504,
+    kArpConditionLaneSpeedCurveDepthId = 3505,
+    kArpChordLaneSpeedCurveDepthId     = 3506,
+    kArpInversionLaneSpeedCurveDepthId = 3507,
 
     // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific

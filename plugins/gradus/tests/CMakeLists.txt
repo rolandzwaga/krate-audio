@@ -14,6 +14,9 @@ add_executable(gradus_tests
     # Markov matrix editor (v1.7 Markov mode UI) unit tests
     unit/ui/markov_matrix_editor_tests.cpp
 
+    # Speed curve data model unit tests
+    unit/ui/speed_curve_data_tests.cpp
+
     # VST3 validation and parameter tests
     unit/vst/gradus_vst_tests.cpp
 

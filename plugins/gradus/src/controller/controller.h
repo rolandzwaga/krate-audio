@@ -10,6 +10,7 @@
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/lib/controls/icontrollistener.h"
 
 #include <array>
 #include <memory>
@@ -28,6 +29,8 @@ class RingDisplay;
 class DetailStrip;
 class PinFlagStrip;
 class MarkovMatrixEditor;
+class SpeedCurveEditor;
+struct SpeedCurveData;
 } // namespace Gradus
 
 namespace Gradus {
@@ -156,6 +159,18 @@ private:
     // v1.6: Inline 32-cell pin toggle row (Pitch lane contextual)
     PinFlagStrip* pinFlagStrip_ = nullptr;
 
+    // Per-lane speed curve editors (overlay on lane editor)
+    std::array<SpeedCurveEditor*, 8> speedCurveEditors_{};
+    std::array<VSTGUI::CView*, 8> speedCurveDepthKnobs_{};
+    VSTGUI::CView* speedCurveContainer_ = nullptr;  // CViewContainer with bg
+    VSTGUI::CView* speedCurveToggle_ = nullptr;     // inside container
+    VSTGUI::CView* speedCurveDepthLabel_ = nullptr;  // inside container
+    VSTGUI::CView* speedCurvePresetMenu_ = nullptr;  // inside container
+    std::shared_ptr<VSTGUI::IControlListener> speedCurveToggleListener_;
+    std::shared_ptr<VSTGUI::IControlListener> speedCurvePresetListener_;
+    std::shared_ptr<VSTGUI::IControlListener> speedCurveDepthListener_;
+    int selectedLaneIndex_ = 0;
+
     // v1.7: Markov Chain mode editor (visible only when Markov arp mode active)
     MarkovMatrixEditor* markovEditor_ = nullptr;
     // Guard against recursive loads when state recall fires setParamNormalized
@@ -164,6 +179,10 @@ private:
     bool suppressMarkovPresetLoad_ = false;
     // Guard against cell-edit → preset-to-Custom ping-pong.
     bool suppressMarkovCellEcho_ = false;
+
+    // Speed curve IMessage helper
+    void sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data);
+    void showSpeedCurveForLane(int laneIndex);
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

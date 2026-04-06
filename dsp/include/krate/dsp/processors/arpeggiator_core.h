@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -541,6 +542,43 @@ public:
     void setLaneSpeed(size_t laneIndex, float speed) noexcept {
         if (laneIndex < 8)
             laneSpeedMultipliers_[laneIndex] = std::clamp(speed, 0.25f, 4.0f);
+    }
+
+    /// @brief Stage a baked speed curve lookup table for a lane.
+    /// Safe to call from any thread — the table is copied to a staging buffer
+    /// and an atomic dirty flag is set. The audio thread consumes it via
+    /// consumePendingCurveTables().
+    /// @param laneIndex Lane 0-7
+    /// @param table 256-entry table with values in [0, 1] (0.5 = center)
+    void setLaneSpeedCurveTable(size_t laneIndex,
+                                const std::array<float, 256>& table) noexcept {
+        if (laneIndex < 8) {
+            laneSpeedCurveTablesStaging_[laneIndex] = table;
+            laneSpeedCurveTableDirty_[laneIndex].store(true, std::memory_order_release);
+        }
+    }
+
+    /// @brief Consume pending curve table updates. Call from audio thread only
+    /// (e.g., at the start of process()).
+    void consumePendingCurveTables() noexcept {
+        for (size_t i = 0; i < 8; ++i) {
+            if (laneSpeedCurveTableDirty_[i].load(std::memory_order_acquire)) {
+                laneSpeedCurveTables_[i] = laneSpeedCurveTablesStaging_[i];
+                laneSpeedCurveTableDirty_[i].store(false, std::memory_order_relaxed);
+            }
+        }
+    }
+
+    /// @brief Set speed curve depth for a lane (0 = off, 1 = full range).
+    void setLaneSpeedCurveDepth(size_t laneIndex, float depth) noexcept {
+        if (laneIndex < 8)
+            laneSpeedCurveDepths_[laneIndex] = std::clamp(depth, 0.0f, 1.0f);
+    }
+
+    /// @brief Enable/disable speed curve for a lane. Thread-safe (atomic store).
+    void setLaneSpeedCurveEnabled(size_t laneIndex, bool enabled) noexcept {
+        if (laneIndex < 8)
+            laneSpeedCurveEnabled_[laneIndex].store(enabled, std::memory_order_relaxed);
     }
 
     // =========================================================================
@@ -1603,7 +1641,24 @@ private:
             // v1.5 Part 2: Length Jitter re-rolls pattern length on wrap.
             auto advanceLaneBySpeed = [this](auto& lane, size_t laneIdx) {
                 float& accum = laneAccumulators_[laneIdx];
-                const float speed = laneSpeedMultipliers_[laneIdx];
+                float speed = laneSpeedMultipliers_[laneIdx];
+
+                // Apply speed curve modulation: curve offsets the center speed
+                if (laneSpeedCurveEnabled_[laneIdx].load(std::memory_order_relaxed) &&
+                    laneSpeedCurveDepths_[laneIdx] > 0.0f) {
+                    float loopPos = static_cast<float>(lane.currentStep())
+                                  / std::max(1.0f, static_cast<float>(lane.length()));
+                    int tableIdx = std::clamp(
+                        static_cast<int>(loopPos * 255.0f), 0, 255);
+                    float curveVal = laneSpeedCurveTables_[laneIdx]
+                                     [static_cast<size_t>(tableIdx)];
+                    // curveVal 0.5 = no offset, 0.0 = -depth, 1.0 = +depth
+                    float offset = (curveVal - 0.5f) * 2.0f
+                                 * laneSpeedCurveDepths_[laneIdx];
+                    speed *= (1.0f + offset);
+                    speed = std::clamp(speed, 0.1f, 8.0f);
+                }
+
                 const float swing = laneSwingAmounts_[laneIdx];
                 uint8_t& counter = laneSwingCounters_[laneIdx];
 
@@ -2469,6 +2524,22 @@ private:
     //             5=condition, 6=chord, 7=inversion
     std::array<float, 8> laneSpeedMultipliers_{{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
     std::array<float, 8> laneAccumulators_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+
+    // =========================================================================
+    // Per-Lane Speed Curves
+    // =========================================================================
+    // Baked 256-entry lookup tables modulate the speed multiplier over one loop
+    // cycle. curveDepths_ controls the offset range; curveEnabled_ gates the
+    // effect. Tables are sent from the controller via IMessage.
+    //
+    // Thread safety: tables are written from the message thread (via notify())
+    // into staging buffers, then copied to the active tables on the audio thread
+    // in consumePendingCurveTables(). The atomic dirty flags gate the copy.
+    std::array<std::array<float, 256>, 8> laneSpeedCurveTables_{};
+    std::array<std::array<float, 256>, 8> laneSpeedCurveTablesStaging_{};
+    std::array<std::atomic<bool>, 8> laneSpeedCurveTableDirty_{};
+    std::array<float, 8> laneSpeedCurveDepths_{};
+    std::array<std::atomic<bool>, 8> laneSpeedCurveEnabled_{};
 
     // =========================================================================
     // Modifier Configuration (073-per-step-mods)
