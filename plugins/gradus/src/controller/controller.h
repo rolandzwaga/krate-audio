@@ -171,7 +171,7 @@ private:
     std::shared_ptr<VSTGUI::IControlListener> speedCurveDepthListener_;
     int selectedLaneIndex_ = 0;
 
-    // v1.7: Markov Chain mode editor (visible only when Markov arp mode active)
+    // Markov Chain mode editor (visible only when Markov arp mode active)
     MarkovMatrixEditor* markovEditor_ = nullptr;
     // Guard against recursive loads when state recall fires setParamNormalized
     // for kArpMarkovPresetId (otherwise it would overwrite cell values loaded

@@ -586,7 +586,7 @@ void Controller::constructArpLanes()
     }
 
     // ========================================================================
-    // v1.7: Construct Markov Matrix Editor
+    // Construct Markov Matrix Editor
     // ========================================================================
     // 7x7 probability matrix editor. Visible only when the current arp mode
     // is Markov (index 11). Added to the frame (not DetailStrip) so it can

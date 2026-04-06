@@ -1,7 +1,7 @@
 // =============================================================================
 // MarkovMatrixEditor — Pure Logic (Humble Object Pattern)
 // =============================================================================
-// Spec 133 (Gradus v1.7).
+// Spec 133 (Gradus v1.6).
 // VSTGUI-free logic for the 7x7 Markov transition matrix editor. The CControl
 // subclass in markov_matrix_editor.h delegates to these functions and only
 // adds drawing, mouse handling, and callback dispatch on top.

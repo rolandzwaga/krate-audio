@@ -1,7 +1,7 @@
 // =============================================================================
 // MarkovMatrixEditor — Self-contained Markov Chain editing panel
 // =============================================================================
-// Spec 133 (Gradus v1.7): CViewContainer hosting a 7x7 transition matrix
+// Spec 133 (Gradus v1.6): CViewContainer hosting a 7x7 transition matrix
 // grid (scale-degree probabilities) PLUS an embedded preset dropdown
 // (Uniform / Jazz / Minimal / Ambient / Classical / Custom) at the top.
 //

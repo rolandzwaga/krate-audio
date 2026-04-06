@@ -621,7 +621,7 @@ void Processor::applyParamsToEngine()
     arpCore_.setScaleQuantizeInput(
         arpParams_.scaleQuantizeInput.load(std::memory_order_relaxed));
 
-    // --- v1.7: Markov Matrix (49 cells) ---
+    // --- Markov Matrix (49 cells) ---
     // Copy atomic snapshots into a plain array for the NoteSelector.
     {
         std::array<float, Krate::DSP::kMarkovMatrixSize> matrix{};

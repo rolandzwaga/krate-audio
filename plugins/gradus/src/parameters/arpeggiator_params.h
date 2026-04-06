@@ -1815,7 +1815,7 @@ inline bool loadArpParams(
         std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
-    // 12 entries (0=Up..11=Markov) as of v1.7
+    // 12 entries (0=Up..11=Markov)
     params.mode.store(std::clamp(intVal, 0, 11), std::memory_order_relaxed);
 
     if (!streamer.readInt32(intVal)) return false;
@@ -2070,7 +2070,7 @@ inline bool loadArpParams(
     }
 
     // --- Markov Chain Mode ---
-    // EOF-safe: if Markov data is missing (pre-v1.7 preset), keep defaults.
+    // EOF-safe: if Markov data is missing (pre-v1.6 preset), keep defaults.
     // From here, EOF signals a corrupt stream (preset was present but cells are not).
     if (!streamer.readInt32(intVal)) return true;
     params.markovPreset.store(std::clamp(intVal, 0, 5), std::memory_order_relaxed);
@@ -2152,7 +2152,7 @@ inline void loadArpParamsToController(
     }
     else return;
 
-    // mode (int32 -> normalized: index / 11 for 12 entries as of v1.7)
+    // mode (int32 -> normalized: index / 11 for 12 entries)
     if (streamer.readInt32(intVal))
         setParam(kArpModeId, static_cast<double>(std::clamp(intVal, 0, 11)) / 11.0);
     else return;

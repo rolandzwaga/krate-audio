@@ -1,7 +1,7 @@
 // =============================================================================
 // MarkovMatrixEditor Logic Unit Tests
 // =============================================================================
-// Spec 133 (Gradus v1.7) — 7x7 matrix editor grid.
+// Spec 133 (Gradus v1.6) — 7x7 matrix editor grid.
 //
 // Humble-object pattern: all testable logic lives in markov_matrix_editor_logic.h
 // with no VSTGUI dependency. The CControl subclass is a thin wrapper that is

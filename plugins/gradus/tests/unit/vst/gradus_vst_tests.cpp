@@ -378,7 +378,7 @@ TEST_CASE("Gradus pin flag denormalization is binary",
 }
 
 // =============================================================================
-// v1.7 Markov Chain mode — parameter registration
+// Markov Chain mode — parameter registration
 // =============================================================================
 
 TEST_CASE("Gradus kArpMarkovPresetId registered as 6-entry StringList",
@@ -585,7 +585,7 @@ TEST_CASE("Gradus Controller: editing a Markov cell flips preset to Custom",
 TEST_CASE("Gradus Markov custom matrix survives state save/load round-trip",
           "[gradus][vst][markov][state]")
 {
-    // Regression test: before v1.7 state persistence was added, custom
+    // Regression test: before Markov state persistence was added, custom
     // Markov matrices were silently reverted after close/reopen.
 
     Gradus::ArpeggiatorParams src;
@@ -615,7 +615,7 @@ TEST_CASE("Gradus Markov custom matrix survives state save/load round-trip",
     stream->release();
 }
 
-TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.7 presets",
+TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.6 presets",
           "[gradus][vst][markov][state]")
 {
     // Write a state ending after Step Pinning (as v1.5/v1.6 did) — loading
@@ -626,7 +626,7 @@ TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.7 presets
     Steinberg::IBStreamer writer(stream, kLittleEndian);
     Gradus::saveArpParams(src, writer);
 
-    // Simulate pre-v1.7 preset by copying everything EXCEPT the Markov
+    // Simulate pre-v1.6 preset by copying everything EXCEPT the Markov
     // tail (200 bytes), speed curve depth (32 bytes), and curve point data
     // (8 lanes × 60 bytes = 480 bytes) into a fresh stream.
     // Total tail: 200 + 32 + 480 = 712 bytes.

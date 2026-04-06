@@ -160,7 +160,7 @@ tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // --- v1.7: Arp mode changed → show/hide Markov matrix editor ---
+    // --- Arp mode changed → show/hide Markov matrix editor ---
     if (tag == kArpModeId && markovEditor_) {
         // 12 entries → Markov is index 11 → normalized 11/11 = 1.0
         const int modeIdx = std::clamp(static_cast<int>(value * 11.0 + 0.5), 0, 11);
@@ -168,13 +168,13 @@ tresult PLUGIN_API Controller::setParamNormalized(
         markovEditor_->setVisible(showMarkov);
     }
 
-    // --- v1.7: Cell param changed → mirror to editor widget ---
+    // --- Cell param changed → mirror to editor widget ---
     if (markovEditor_ && tag >= kArpMarkovCell00Id && tag <= kArpMarkovCell66Id) {
         const int flat = static_cast<int>(tag - kArpMarkovCell00Id);
         markovEditor_->setCellValueFlat(flat, static_cast<float>(value));
     }
 
-    // --- v1.7: Markov preset → batch-load matrix cells ---
+    // --- Markov preset → batch-load matrix cells ---
     //
     // When the user picks a preset from the dropdown, rewrite the 49 cell
     // params with the hardcoded values. Skipped during state recall (the
@@ -213,7 +213,7 @@ tresult PLUGIN_API Controller::setParamNormalized(
         }
     }
 
-    // --- v1.7: Cell edit → flip preset to Custom ---
+    // --- Cell edit → flip preset to Custom ---
     //
     // Any cell edit that doesn't come from a preset load should flip the
     // dropdown to "Custom" so the user knows the matrix no longer matches

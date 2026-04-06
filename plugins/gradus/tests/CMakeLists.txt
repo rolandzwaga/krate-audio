@@ -11,7 +11,7 @@ add_executable(gradus_tests
     # Pin flag strip (v1.6 Step Pinning UI) unit tests
     unit/ui/pin_flag_strip_tests.cpp
 
-    # Markov matrix editor (v1.7 Markov mode UI) unit tests
+    # Markov matrix editor unit tests
     unit/ui/markov_matrix_editor_tests.cpp
 
     # Speed curve data model unit tests

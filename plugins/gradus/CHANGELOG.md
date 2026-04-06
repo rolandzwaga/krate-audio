@@ -16,13 +16,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editable 7×7 matrix editor** — Custom overlay view anchored in the top-left corner of the ring display, directly below the Pattern dropdown that activates Markov mode. Click-drag cells vertically like mini sliders (top = 1.0, bottom = 0.0); brightness encodes each cell's probability. Row and column labels show Roman numerals for scale degrees. Visible only when Markov mode is the active arp pattern.
 - **Collapsible Markov editor** — The matrix editor can be minimized to a compact 32×32 trigger button (with a mini 3×3 dot-grid icon) via the "–" button in its top-right corner. Click the trigger button to re-expand. The expand/collapse state is session-only and lets you hide the editor when you want full visibility of the ring display while Markov mode keeps playing.
 
+- **Per-lane speed curve** — Each lane's speed multiplier can now vary over one loop cycle via a free-form Bezier curve. A toggle button, depth knob (0-100%), and shape preset dropdown (Flat, Sine, Triangle, Saw Up/Down, Square, Exponential) appear in the pin-row area when enabled. The curve editor overlays the lane's step bars: double-click to add points, click to select, Delete/Backspace to remove, drag handles for curvature. The center+offset model means the existing speed multiplier acts as center, and the curve offsets around it scaled by depth — creating accelerando/ritardando effects within each loop cycle.
+- **Dynamic version label** — The UI now renders the plugin version from `version.h` instead of a hardcoded "v1.0.0" string.
+
 ### Changed
 
 - **Arp mode display names use single source of truth** — Deleted 5 redundant display formatters in `formatArpParam` that duplicated strings already registered with their `StringListParameter`. Adding or renaming any arp-mode entry now requires updating exactly one location (the `createDropdownParameter` call). This also fixes a latent class of bug where display scaling formulas fell out of sync with dropdown entry counts — a regression test now guards against it.
+- **Playhead indicator visibility** — All 8 lane editors now use a white-lighten overlay (instead of accent-color alpha) for the current-step playhead, ensuring visibility at all bar heights and colors.
 
 ### Fixed
 
 - **Arp mode dropdown duplicate entry** — Extending the arp mode list to 12 entries exposed a duplicate "Diverge" label caused by a stale `value * 10.0 + 0.5` scaling formula in a hand-written display formatter. Root-caused via the refactor above.
+- **Missing playhead indicator on VEL/GATE lanes** — The velocity and gate lane editors were missing the playback step overlay because they relied on a base-class `isPlaying_` flag that was never set. Now all lanes use a consistent overlay that only requires a valid step index.
 
 ## [1.5.0] - 2026-04-05
 
