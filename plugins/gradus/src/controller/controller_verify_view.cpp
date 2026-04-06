@@ -738,13 +738,21 @@ void Controller::constructArpLanes()
                 frame->addView(editor);
         }
 
+        // Apply pending speed curve data from setComponentState
+        if (hasPendingSpeedCurves_) {
+            for (int i = 0; i < 8; ++i) {
+                if (speedCurveEditors_[i])
+                    speedCurveEditors_[i]->setCurveData(pendingSpeedCurves_[static_cast<size_t>(i)]);
+            }
+        }
+
         // Create speed curve control bar in a container with background
         // that cleanly overlaps the pin row area.
         if (auto* frame = activeEditor_->getFrame()) {
             // Container starts narrow (just the toggle) and grows when enabled
             constexpr float kContainerY = 56.0f;  // pin row y within strip
             constexpr float kContainerH = 14.0f;
-            constexpr float kCollapsedW = 18.0f;  // toggle + padding
+            constexpr float kCollapsedW = 74.0f;  // toggle + "Speed Curve" label + padding
             VSTGUI::CRect containerRect(
                 stripSize.left, stripSize.top + kContainerY,
                 stripSize.left + kCollapsedW, stripSize.top + kContainerY + kContainerH);
@@ -763,11 +771,23 @@ void Controller::constructArpLanes()
             toggle->setOffColor(VSTGUI::CColor(80, 80, 96, 255));
             toggle->setIconStyle(Krate::Plugins::IconStyle::kPower);
             toggle->setValueNormalized(0.0);
+            toggle->setTooltipText("Enable speed curve for this lane");
             speedCurveToggle_ = toggle;
             container->addView(toggle);
 
+            // "Speed Curve" label (always visible)
+            VSTGUI::CRect speedLabelRect(17, 0, 78, 14);
+            auto* speedLabel = new VSTGUI::CTextLabel(speedLabelRect);
+            speedLabel->setFont(VSTGUI::kNormalFontSmaller);
+            speedLabel->setFontColor(VSTGUI::CColor(144, 144, 152, 255));
+            speedLabel->setBackColor(VSTGUI::CColor(0, 0, 0, 0));
+            speedLabel->setFrameColor(VSTGUI::CColor(0, 0, 0, 0));
+            speedLabel->setText("Speed Curve");
+            speedLabel->setHoriAlign(VSTGUI::kLeftText);
+            container->addView(speedLabel);
+
             // "Depth" label
-            VSTGUI::CRect depthLabelRect(20, 0, 56, 14);
+            VSTGUI::CRect depthLabelRect(74, 0, 110, 14);
             auto* depthLabel = new VSTGUI::CTextLabel(depthLabelRect);
             depthLabel->setFont(VSTGUI::kNormalFontSmaller);
             depthLabel->setFontColor(VSTGUI::CColor(144, 144, 152, 255));
@@ -815,7 +835,7 @@ void Controller::constructArpLanes()
                             speedCurveEditors_[laneIdx]->curveData());
                 });
 
-            VSTGUI::CRect knobRect(58, -2, 76, 16);
+            VSTGUI::CRect knobRect(112, -2, 130, 16);
             for (int i = 0; i < 8; ++i) {
                 // Primary listener: VST3Editor for host parameter wiring
                 auto* knob = new Krate::Plugins::ArcKnob(knobRect, activeEditor_,
@@ -824,7 +844,10 @@ void Controller::constructArpLanes()
                 knob->setGuideColor(VSTGUI::CColor(64, 64, 80, 255));
                 knob->setMin(0.0f);
                 knob->setMax(1.0f);
-                knob->setDefaultValue(0.0f);
+                knob->setDefaultValue(0.5f);
+                knob->setValueNormalized(static_cast<float>(
+                    getParamNormalized(kDepthParamIds[i])));
+                knob->setTooltipText("How much the speed curve affects step timing");
                 knob->setVisible(false);
                 // Sub-listener: sends depth via IMessage to processor
                 knob->registerControlListener(speedCurveDepthListener_.get());
@@ -833,7 +856,7 @@ void Controller::constructArpLanes()
             }
 
             // Preset dropdown
-            VSTGUI::CRect presetRect(80, 0, 150, 14);
+            VSTGUI::CRect presetRect(134, 0, 204, 14);
             auto* presetMenu = new VSTGUI::COptionMenu(presetRect, nullptr, -1);
             presetMenu->setFont(VSTGUI::kNormalFontSmaller);
             presetMenu->setFontColor(VSTGUI::CColor(208, 208, 216, 255));
@@ -848,7 +871,7 @@ void Controller::constructArpLanes()
             container->addView(presetMenu);
 
             // Wire toggle listener
-            constexpr float kExpandedW = 154.0f;  // toggle + label + knob + preset + padding
+            constexpr float kExpandedW = 208.0f;  // toggle + "Speed Curve" + depth label + knob + preset + padding
             speedCurveToggleListener_ = std::make_shared<LambdaListener>(
                 [this, kCollapsedW, kExpandedW]
                 ([[maybe_unused]] VSTGUI::CControl* ctrl, float value) {
@@ -1033,7 +1056,7 @@ void Controller::constructArpLanes()
             // Resize container to match state
             if (speedCurveContainer_) {
                 auto r = speedCurveContainer_->getViewSize();
-                r.right = r.left + (curveEnabled ? 154.0f : 18.0f);
+                r.right = r.left + (curveEnabled ? 208.0f : 74.0f);
                 speedCurveContainer_->setViewSize(r);
                 speedCurveContainer_->setMouseableArea(r);
                 speedCurveContainer_->invalid();

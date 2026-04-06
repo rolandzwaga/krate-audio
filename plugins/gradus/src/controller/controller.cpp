@@ -142,8 +142,13 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         }
         if (!ok) break;
 
-        // Update the speed curve editor if it exists
         auto laneIdx = static_cast<size_t>(lane);
+
+        // Store for later application when editors are created
+        pendingSpeedCurves_[laneIdx] = curve;
+        hasPendingSpeedCurves_ = true;
+
+        // Update the speed curve editor if it already exists
         if (speedCurveEditors_[laneIdx])
             speedCurveEditors_[laneIdx]->setCurveData(curve);
 
@@ -409,6 +414,38 @@ void Controller::sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& dat
     data.bakeToTable(table);
     attrs->setBinary("table", table.data(),
         static_cast<Steinberg::uint32>(table.size() * sizeof(float)));
+
+    // Send curve point data for state serialization on the processor side
+    {
+        // Format: presetIndex(int32) + numPoints(int32) + points(6 floats each)
+        auto numPoints = static_cast<Steinberg::int32>(data.points.size());
+        Steinberg::uint32 curveSize = 2 * sizeof(Steinberg::int32)
+            + static_cast<Steinberg::uint32>(numPoints) * 6 * sizeof(float);
+        std::vector<char> curveBlob(curveSize);
+        Steinberg::uint32 offset = 0;
+
+        auto writeInt = [&](Steinberg::int32 val) {
+            std::memcpy(curveBlob.data() + offset, &val, sizeof(val));
+            offset += sizeof(val);
+        };
+        auto writeFloat = [&](float val) {
+            std::memcpy(curveBlob.data() + offset, &val, sizeof(val));
+            offset += sizeof(val);
+        };
+
+        writeInt(data.presetIndex);
+        writeInt(numPoints);
+        for (const auto& pt : data.points) {
+            writeFloat(pt.x);
+            writeFloat(pt.y);
+            writeFloat(pt.cpLeftX);
+            writeFloat(pt.cpLeftY);
+            writeFloat(pt.cpRightX);
+            writeFloat(pt.cpRightY);
+        }
+
+        attrs->setBinary("curveData", curveBlob.data(), curveSize);
+    }
 
     sendMessage(msg);
 }

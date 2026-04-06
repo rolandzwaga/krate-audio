@@ -10,6 +10,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 using Catch::Matchers::WithinAbs;
@@ -20,9 +21,9 @@ TEST_CASE("SpeedCurveData default is flat at 0.5", "[speed-curve]") {
     curve.bakeToTable(table);
 
     // Every entry should be ~0.5 (center = no offset)
-    for (size_t i = 0; i < 256; ++i) {
-        REQUIRE_THAT(table[i], WithinAbs(0.5, 0.01));
-    }
+    auto [minIt, maxIt] = std::minmax_element(table.begin(), table.end());
+    REQUIRE(*minIt >= 0.49f);
+    REQUIRE(*maxIt <= 0.51f);
 }
 
 TEST_CASE("SpeedCurveData linear ramp bakes correctly", "[speed-curve]") {
@@ -52,9 +53,9 @@ TEST_CASE("SpeedCurveData linear ramp bakes correctly", "[speed-curve]") {
     REQUIRE_THAT(table[255], WithinAbs(1.0, 0.02));
 
     // Monotonicity check
-    for (size_t i = 1; i < 256; ++i) {
-        REQUIRE(table[i] >= table[i - 1] - 0.001f);
-    }
+    bool monotonic = std::adjacent_find(table.begin(), table.end(),
+        [](float a, float b) { return b < a - 0.001f; }) == table.end();
+    REQUIRE(monotonic);
 }
 
 TEST_CASE("SpeedCurveData multi-point curve", "[speed-curve]") {
@@ -283,10 +284,9 @@ TEST_CASE("Speed curve presets bake to reasonable values", "[speed-curve]") {
         std::array<float, 256> table{};
         data.bakeToTable(table);
 
-        for (size_t j = 0; j < 256; ++j) {
-            REQUIRE(table[j] >= -0.01f);
-            REQUIRE(table[j] <= 1.01f);
-        }
+        auto [lo, hi] = std::minmax_element(table.begin(), table.end());
+        REQUIRE(*lo >= -0.01f);
+        REQUIRE(*hi <= 1.01f);
     }
 
     // Flat preset should be constant at 0.5
@@ -294,9 +294,9 @@ TEST_CASE("Speed curve presets bake to reasonable values", "[speed-curve]") {
     flat.points = Gradus::generatePreset(SpeedCurvePreset::Flat);
     std::array<float, 256> table{};
     flat.bakeToTable(table);
-    for (size_t i = 0; i < 256; ++i) {
-        REQUIRE_THAT(table[i], WithinAbs(0.5, 0.01));
-    }
+    auto [flatLo, flatHi] = std::minmax_element(table.begin(), table.end());
+    REQUIRE(*flatLo >= 0.49f);
+    REQUIRE(*flatHi <= 0.51f);
 
     // Triangle should peak near the middle
     SpeedCurveData tri;

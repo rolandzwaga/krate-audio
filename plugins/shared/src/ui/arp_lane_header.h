@@ -43,8 +43,12 @@ public:
 
     static constexpr float kHeight = 16.0f;
     static constexpr float kCollapseTriangleSize = 8.0f;
-    static constexpr float kLengthDropdownX = 80.0f;
-    static constexpr float kLengthDropdownWidth = 36.0f;
+    static constexpr float kStepsLabelX = 78.0f;
+    static constexpr float kStepsLabelWidth = 30.0f;
+    static constexpr float kLengthDropdownX = 108.0f;
+    static constexpr float kLengthDropdownWidth = 28.0f;
+    static constexpr float kSpeedLabelTextX = 140.0f;
+    static constexpr float kSpeedLabelTextWidth = 56.0f;
     static constexpr int kMinSteps = 1;
     static constexpr int kMaxSteps = 32;
 
@@ -325,10 +329,18 @@ public:
         context->drawString(VSTGUI::UTF8String(laneName_), nameRect,
                            VSTGUI::kLeftText);
 
-        // Length dropdown label (shows current step count)
+        // "Steps" label + step count dropdown
+        VSTGUI::CColor dimLabelColor{100, 100, 108, 255};
         VSTGUI::CColor labelColor{160, 160, 165, 255};
-        context->setFontColor(labelColor);
 
+        context->setFontColor(dimLabelColor);
+        VSTGUI::CRect stepsLabelRect(headerRect.left + kStepsLabelX, headerRect.top + 1.0,
+                                      headerRect.left + kStepsLabelX + kStepsLabelWidth,
+                                      headerRect.top + kHeight - 1.0);
+        context->drawString(VSTGUI::UTF8String("Steps"), stepsLabelRect,
+                           VSTGUI::kRightText);
+
+        context->setFontColor(labelColor);
         std::string lengthText = std::to_string(numSteps_);
         VSTGUI::CRect lengthRect(headerRect.left + kLengthDropdownX, headerRect.top + 1.0,
                                   headerRect.left + kLengthDropdownX + kLengthDropdownWidth,
@@ -349,13 +361,15 @@ public:
             context->drawGraphicsPath(triPath, VSTGUI::CDrawContext::kPathFilled);
         }
 
-        // Speed multiplier label (after length dropdown) — always visible
+        // "Speed" label + speed multiplier value — always visible
         {
-            bool isDefault = std::abs(speedMultiplier_ - 1.0f) < 0.01f;
-            VSTGUI::CColor speedColor = isDefault
-                ? VSTGUI::CColor{100, 100, 108, 255}   // dim gray at 1x
-                : VSTGUI::CColor{accentColor_.red, accentColor_.green, accentColor_.blue, 200};
-            context->setFontColor(speedColor);
+            context->setFontColor(dimLabelColor);
+            VSTGUI::CRect speedLblRect(headerRect.left + kSpeedLabelTextX, headerRect.top + 1.0,
+                                        headerRect.left + kSpeedLabelTextX + kSpeedLabelTextWidth,
+                                        headerRect.top + kHeight - 1.0);
+            context->drawString(VSTGUI::UTF8String("Speed Modifier"), speedLblRect, VSTGUI::kRightText);
+
+            context->setFontColor(labelColor);
 
             char speedBuf[8];
             if (speedMultiplier_ == static_cast<int>(speedMultiplier_))
@@ -363,10 +377,25 @@ public:
             else
                 snprintf(speedBuf, sizeof(speedBuf), "%.2gx", speedMultiplier_);
 
-            static constexpr float kSpeedLabelX = kLengthDropdownX + kLengthDropdownWidth + 4.0f;
-            VSTGUI::CRect speedRect(headerRect.left + kSpeedLabelX, headerRect.top + 1.0,
-                                     headerRect.left + kSpeedLabelX + 32.0, headerRect.top + kHeight - 1.0);
-            context->drawString(VSTGUI::UTF8String(speedBuf), speedRect, VSTGUI::kLeftText);
+            static constexpr float kSpeedValueX = kSpeedLabelTextX + kSpeedLabelTextWidth + 2.0f;
+            static constexpr float kSpeedValueWidth = 28.0f;
+            VSTGUI::CRect speedRect(headerRect.left + kSpeedValueX, headerRect.top + 1.0,
+                                     headerRect.left + kSpeedValueX + kSpeedValueWidth,
+                                     headerRect.top + kHeight - 1.0);
+            context->drawString(VSTGUI::UTF8String(speedBuf), speedRect, VSTGUI::kCenterText);
+
+            // Chevron triangle (same style as steps dropdown)
+            float sTriX = static_cast<float>(headerRect.left) + kSpeedValueX + kSpeedValueWidth - 6.0f;
+            float sTriY = static_cast<float>(headerRect.top) + kHeight / 2.0f;
+            auto speedTriPath = VSTGUI::owned(context->createGraphicsPath());
+            if (speedTriPath) {
+                speedTriPath->beginSubpath(VSTGUI::CPoint(sTriX - 2.5, sTriY - 1.5));
+                speedTriPath->addLine(VSTGUI::CPoint(sTriX + 2.5, sTriY - 1.5));
+                speedTriPath->addLine(VSTGUI::CPoint(sTriX, sTriY + 1.5));
+                speedTriPath->closeSubpath();
+                context->setFillColor(labelColor);
+                context->drawGraphicsPath(speedTriPath, VSTGUI::CDrawContext::kPathFilled);
+            }
         }
 
         // Transform buttons (right-aligned)
@@ -407,10 +436,9 @@ public:
             return true;
         }
 
-        // Speed label click zone
-        static constexpr float kSpeedLabelX = kLengthDropdownX + kLengthDropdownWidth + 4.0f;
-        static constexpr float kSpeedLabelWidth = 32.0f;
-        if (localX >= kSpeedLabelX && localX < kSpeedLabelX + kSpeedLabelWidth) {
+        // Speed click zone (label + value)
+        static constexpr float kSpeedValueX = kSpeedLabelTextX + kSpeedLabelTextWidth + 2.0f;
+        if (localX >= kSpeedLabelTextX && localX < kSpeedValueX + 28.0f) {
             openSpeedDropdown(framePoint, frame);
             return true;
         }

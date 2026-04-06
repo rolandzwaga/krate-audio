@@ -6,6 +6,7 @@
 
 #include "ui/arp_lane.h"
 #include "ui/ring_data_bridge.h"
+#include "ui/speed_curve_data.h"
 #include "preset/preset_manager.h"
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -30,7 +31,6 @@ class DetailStrip;
 class PinFlagStrip;
 class MarkovMatrixEditor;
 class SpeedCurveEditor;
-struct SpeedCurveData;
 } // namespace Gradus
 
 namespace Gradus {
@@ -170,6 +170,9 @@ private:
     std::shared_ptr<VSTGUI::IControlListener> speedCurvePresetListener_;
     std::shared_ptr<VSTGUI::IControlListener> speedCurveDepthListener_;
     int selectedLaneIndex_ = 0;
+    // Pending speed curve data from setComponentState (applied when editors are created)
+    std::array<SpeedCurveData, 8> pendingSpeedCurves_{};
+    bool hasPendingSpeedCurves_ = false;
 
     // Markov Chain mode editor (visible only when Markov arp mode active)
     MarkovMatrixEditor* markovEditor_ = nullptr;

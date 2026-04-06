@@ -189,14 +189,14 @@ struct ArpeggiatorParams {
     std::array<std::atomic<float>, 49> markovMatrix{};
 
     // --- Per-Lane Speed Curve Depth ---
-    std::atomic<float> velocityLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> gateLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> pitchLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> modifierLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> ratchetLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> conditionLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> chordLaneSpeedCurveDepth{0.0f};
-    std::atomic<float> inversionLaneSpeedCurveDepth{0.0f};
+    std::atomic<float> velocityLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> gateLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> pitchLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> modifierLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> ratchetLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> conditionLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> chordLaneSpeedCurveDepth{0.5f};
+    std::atomic<float> inversionLaneSpeedCurveDepth{0.5f};
 
     // Per-lane speed curve data (serialized in state, not automatable).
     // Protected by speedCurveMutex_ for thread-safe access during
@@ -1220,7 +1220,7 @@ inline void registerArpParams(
     for (const auto& p : kSpeedCurveDepthParams) {
         parameters.addParameter(
             new RangeParameter(p.name, p.id,
-                STR16("%"), 0.0, 1.0, 0.0,
+                STR16("%"), 0.0, 1.0, 0.5,
                 0, ParameterInfo::kCanAutomate));
     }
 }
