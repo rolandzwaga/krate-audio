@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gradus User Manual - Step Arpeggiator | Krate Audio</title>
+    <meta name="description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin. Covers arp modes, lanes, speed curves, Markov chains, and presets.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://rolandzwaga.github.io/krate-audio/gradus/manual.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Gradus User Manual - Step Arpeggiator">
+    <meta property="og:description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://rolandzwaga.github.io/krate-audio/gradus/manual.html">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Gradus User Manual">
+    <meta name="twitter:description" content="Complete user manual for Gradus, a free open-source polymetric step arpeggiator VST3 plugin.">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base — matches Gradus landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #c87850;
+            --color-accent-hover: #e0946c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        /* Header */
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* Table of contents */
+        #TOC {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        #TOC > ul { list-style: none; }
+        #TOC ul { list-style: none; padding-left: 1.25rem; }
+        #TOC > ul > li { margin-bottom: 0.5rem; }
+        #TOC li { margin-bottom: 0.25rem; }
+
+        #TOC a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        #TOC a:hover { color: var(--color-accent); }
+        #TOC > ul > li > a { font-weight: 600; }
+
+        /* Headings */
+        h1 { font-size: 2rem; font-weight: 700; margin: 3rem 0 1rem; }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+        h4 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+        h5 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: var(--color-text-muted); }
+
+        /* Paragraphs & text */
+        p { margin-bottom: 1rem; }
+        strong { font-weight: 600; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--color-accent-hover); }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+        li { margin-bottom: 0.35rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        thead {
+            background: rgba(200, 120, 80, 0.08);
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: top;
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        /* Code */
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* Images */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--color-border);
+            margin: 1rem 0 1.5rem;
+            display: block;
+        }
+
+        /* Horizontal rules */
+        hr {
+            border: none;
+            border-top: 1px solid var(--color-border);
+            margin: 2.5rem 0;
+        }
+
+        /* Blockquotes (tips) */
+        blockquote {
+            border-left: 3px solid var(--color-accent);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0 1.5rem;
+            background: rgba(200, 120, 80, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+
+        blockquote p { margin-bottom: 0; }
+
+        /* Footer */
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+            h2 { font-size: 1.25rem; }
+            table { font-size: 0.85rem; }
+            th, td { padding: 0.5rem 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Gradus</a>
+            </p>
+            <h1>Gradus — User Manual</h1>
+            <p class="subtitle">Polymetric Step Arpeggiator</p>
+        </div>
+
+        <ul>
+        <li><a href="#introduction"
+        id="toc-introduction">Introduction</a>
+        <ul>
+        <li><a href="#quick-start" id="toc-quick-start">Quick
+        Start</a></li>
+        </ul></li>
+        <li><a href="#interface-overview"
+        id="toc-interface-overview">Interface Overview</a></li>
+        <li><a href="#control-row-1" id="toc-control-row-1">Control Row
+        1</a></li>
+        <li><a href="#control-row-2" id="toc-control-row-2">Control Row
+        2</a>
+        <ul>
+        <li><a href="#timing" id="toc-timing">Timing</a></li>
+        <li><a href="#euclidean" id="toc-euclidean">Euclidean</a></li>
+        <li><a href="#generative"
+        id="toc-generative">Generative</a></li>
+        </ul></li>
+        <li><a href="#arp-modes" id="toc-arp-modes">Arp Modes</a></li>
+        <li><a href="#ring-display" id="toc-ring-display">Ring
+        Display</a>
+        <ul>
+        <li><a href="#direct-ring-editing"
+        id="toc-direct-ring-editing">Direct Ring Editing</a></li>
+        <li><a href="#euclidean-visualizer"
+        id="toc-euclidean-visualizer">Euclidean Visualizer</a></li>
+        </ul></li>
+        <li><a href="#detail-strip" id="toc-detail-strip">Detail
+        Strip</a>
+        <ul>
+        <li><a href="#lane-tabs" id="toc-lane-tabs">Lane Tabs</a></li>
+        <li><a href="#lane-editor" id="toc-lane-editor">Lane
+        Editor</a></li>
+        <li><a href="#per-lane-controls"
+        id="toc-per-lane-controls">Per-Lane Controls</a></li>
+        <li><a href="#lane-transforms" id="toc-lane-transforms">Lane
+        Transforms</a></li>
+        <li><a href="#per-lane-speed" id="toc-per-lane-speed">Per-Lane
+        Speed</a></li>
+        </ul></li>
+        <li><a href="#speed-curve" id="toc-speed-curve">Speed Curve</a>
+        <ul>
+        <li><a href="#enabling" id="toc-enabling">Enabling</a></li>
+        <li><a href="#curve-editor" id="toc-curve-editor">Curve
+        Editor</a></li>
+        <li><a href="#editing-the-curve"
+        id="toc-editing-the-curve">Editing the Curve</a></li>
+        <li><a href="#how-it-works" id="toc-how-it-works">How It
+        Works</a></li>
+        </ul></li>
+        <li><a href="#step-pinning" id="toc-step-pinning">Step
+        Pinning</a>
+        <ul>
+        <li><a href="#pin-grid" id="toc-pin-grid">Pin Grid</a></li>
+        <li><a href="#parameters"
+        id="toc-parameters">Parameters</a></li>
+        </ul></li>
+        <li><a href="#note-range-mapping"
+        id="toc-note-range-mapping">Note Range Mapping</a></li>
+        <li><a href="#markov-chain-mode"
+        id="toc-markov-chain-mode">Markov Chain Mode</a>
+        <ul>
+        <li><a href="#how-it-works-1" id="toc-how-it-works-1">How It
+        Works</a></li>
+        <li><a href="#matrix-editor" id="toc-matrix-editor">Matrix
+        Editor</a></li>
+        </ul></li>
+        <li><a href="#audition-synth" id="toc-audition-synth">Audition
+        Synth</a></li>
+        <li><a href="#preset-browser" id="toc-preset-browser">Preset
+        Browser</a>
+        <ul>
+        <li><a href="#saving-presets" id="toc-saving-presets">Saving
+        Presets</a></li>
+        <li><a href="#preset-sharing-with-ruinae"
+        id="toc-preset-sharing-with-ruinae">Preset Sharing with
+        Ruinae</a></li>
+        </ul></li>
+        <li><a href="#midi-output" id="toc-midi-output">MIDI
+        Output</a></li>
+        <li><a href="#tips-and-techniques"
+        id="toc-tips-and-techniques">Tips and Techniques</a>
+        <ul>
+        <li><a href="#creating-polymetric-patterns"
+        id="toc-creating-polymetric-patterns">Creating Polymetric
+        Patterns</a></li>
+        <li><a href="#accelerando-ritardando"
+        id="toc-accelerando-ritardando">Accelerando /
+        Ritardando</a></li>
+        <li><a href="#evolving-patterns-with-jitter"
+        id="toc-evolving-patterns-with-jitter">Evolving Patterns with
+        Jitter</a></li>
+        <li><a href="#anchoring-with-pin-notes"
+        id="toc-anchoring-with-pin-notes">Anchoring with Pin
+        Notes</a></li>
+        <li><a href="#probabilistic-melodies-with-markov"
+        id="toc-probabilistic-melodies-with-markov">Probabilistic
+        Melodies with Markov</a></li>
+        <li><a href="#bouncing-ball-ratchets"
+        id="toc-bouncing-ball-ratchets">Bouncing Ball Ratchets</a></li>
+        </ul></li>
+        <li><a href="#system-requirements"
+        id="toc-system-requirements">System Requirements</a></li>
+        </ul>
+        <h2 id="introduction">Introduction</h2>
+        <p>Gradus is a standalone step arpeggiator and MIDI pattern
+        generator. It takes held notes and transforms them into complex,
+        evolving melodic and rhythmic patterns through eight independent
+        polymetric lanes, each with its own step count, speed, and
+        timing behavior.</p>
+        <p>Unlike a simple arpeggiator that cycles through held notes in
+        order, Gradus gives you per-step control over velocity, gate
+        length, pitch offset, chord voicing, ratcheting, articulation
+        modifiers, and conditional triggers — all running at independent
+        speeds and lengths to create patterns that never quite
+        repeat.</p>
+        <p>Gradus outputs standard MIDI events, so it can drive any
+        instrument in your DAW. It also includes a lightweight built-in
+        audition synth for previewing patterns without routing to an
+        external instrument.</p>
+        <h3 id="quick-start">Quick Start</h3>
+        <ol type="1">
+        <li>Load Gradus as an instrument on a MIDI track</li>
+        <li>Route Gradus’s MIDI output to your target instrument (or
+        enable the built-in audition synth)</li>
+        <li>Hold some notes on your MIDI keyboard</li>
+        <li>Explore the factory presets to hear what’s possible</li>
+        <li>Edit the step pattern in the lane editors to build your own
+        patterns</li>
+        </ol>
+        <hr />
+        <h2 id="interface-overview">Interface Overview</h2>
+        <p>The interface is organized into three zones:</p>
+        <ul>
+        <li><strong>Control Rows</strong> (top) — Global arp parameters:
+        pattern mode, octave range, tempo sync, rate, gate length,
+        swing, Euclidean settings, scale quantization, and generative
+        controls</li>
+        <li><strong>Ring Display</strong> (left) — Circular step
+        sequencer showing all 8 lanes as concentric rings with animated
+        playhead highlights</li>
+        <li><strong>Detail Strip</strong> (right) — Lane tab selector
+        and linear step editor for precision editing of the selected
+        lane</li>
+        </ul>
+        <hr />
+        <h2 id="control-row-1">Control Row 1</h2>
+        <p>The first control row holds the core arp settings:</p>
+        <ul>
+        <li><strong>Pattern</strong> — Selects the arp mode (see <a
+        href="#arp-modes">Arp Modes</a> below)</li>
+        <li><strong>Octaves</strong> — Octave range (1-4). Higher values
+        spread the held notes across more octaves.</li>
+        <li><strong>Oct Mode</strong> — How octaves are traversed:
+        Sequential (up through each octave), Ping-Pong (up then down),
+        or Random</li>
+        <li><strong>Latch</strong> — Off (notes only play while held),
+        Hold (notes latch on key press, release all to stop), or Add
+        (each new note adds to the held set)</li>
+        <li><strong>Retrigger</strong> — Off (pattern continues), Note
+        (restart pattern on new note), or Beat (restart on beat
+        boundaries)</li>
+        <li><strong>Scale</strong> — Scale quantization type (16 scales
+        from Major to Diminished). Chromatic disables quantization.</li>
+        <li><strong>Root</strong> — Root note for scale quantization (C
+        through B)</li>
+        <li><strong>Voicing</strong> — Chord voicing mode: Close, Drop
+        2, Spread, or Random</li>
+        <li><strong>Quantize</strong> — Toggle input note quantization
+        to the selected scale</li>
+        </ul>
+        <hr />
+        <h2 id="control-row-2">Control Row 2</h2>
+        <p>The second control row holds timing and generative
+        controls:</p>
+        <h3 id="timing">Timing</h3>
+        <ul>
+        <li><strong>Sync</strong> — Toggle between tempo-synced and
+        free-running mode</li>
+        <li><strong>Note Value</strong> — When synced, selects the step
+        rate from 30 note values (1/64T through 4/1D)</li>
+        <li><strong>Rate</strong> — When free-running, sets the step
+        rate from 0.5 to 50 Hz</li>
+        <li><strong>Gate</strong> — Gate length as a percentage of the
+        step duration (1-200%). Values over 100% create overlapping
+        legato notes.</li>
+        <li><strong>Swing</strong> — Global swing amount (0-75%). Skews
+        the timing of even/odd steps.</li>
+        </ul>
+        <h3 id="euclidean">Euclidean</h3>
+        <ul>
+        <li><strong>Euclidean</strong> — Toggle Euclidean rhythm
+        generation on/off</li>
+        <li><strong>Hits</strong> — Number of active hits in the
+        Euclidean pattern (0-32)</li>
+        <li><strong>Steps</strong> — Total steps in the Euclidean
+        pattern (2-32)</li>
+        <li><strong>Rotation</strong> — Rotational offset of the
+        Euclidean pattern (0-31)</li>
+        </ul>
+        <h3 id="generative">Generative</h3>
+        <ul>
+        <li><strong>Spice</strong> — Blend amount for random pattern
+        variations (0-100%)</li>
+        <li><strong>Dice</strong> — Re-roll the random variation
+        seed</li>
+        <li><strong>Humanize</strong> — Subtle timing randomization
+        (0-100%) for a more natural feel</li>
+        <li><strong>Fill</strong> — Toggle fill mode for live
+        performance (activates fill-conditional steps)</li>
+        </ul>
+        <hr />
+        <h2 id="arp-modes">Arp Modes</h2>
+        <p>Gradus offers 12 arpeggiator modes that determine the order
+        in which held notes are played:</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Mode</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Up</strong></td>
+        <td>Ascend through held notes from lowest to highest</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Down</strong></td>
+        <td>Descend from highest to lowest</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Up/Down</strong></td>
+        <td>Ascend then descend (inclusive — top and bottom notes play
+        once)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Down/Up</strong></td>
+        <td>Descend then ascend</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Converge</strong></td>
+        <td>Alternates between the lowest and highest remaining notes,
+        working inward</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Diverge</strong></td>
+        <td>Starts from the middle and alternates outward</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Random</strong></td>
+        <td>Pick a random held note each step</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Walk</strong></td>
+        <td>Random walk: move up or down one note from the current
+        position</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>As Played</strong></td>
+        <td>Play notes in the order they were pressed</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Chord</strong></td>
+        <td>All held notes play simultaneously on each step</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Gravity</strong></td>
+        <td>Pick the held note closest in pitch to the last played note
+        — creates smooth stepwise voice-leading</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Markov</strong></td>
+        <td>Probabilistic mode using a 7x7 transition matrix keyed by
+        scale degree (see <a href="#markov-chain-mode">Markov Chain
+        Mode</a>)</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="ring-display">Ring Display</h2>
+        <p>The circular ring display provides a visual overview of all 8
+        lanes simultaneously. Steps are arranged radially around 4
+        concentric rings:</p>
+        <ul>
+        <li><strong>Outer ring</strong> — Velocity (copper) + Gate
+        (sand)</li>
+        <li><strong>Second ring</strong> — Pitch (sage) + Modifier
+        (rose)</li>
+        <li><strong>Third ring</strong> — Condition (steel) + Ratchet
+        (lavender)</li>
+        <li><strong>Inner ring</strong> — Chord (purple) + Inversion
+        (blue)</li>
+        </ul>
+        <p>Each lane has its own animated playhead highlight that races
+        around at the lane’s independent speed, visually communicating
+        the polymetric relationships between lanes.</p>
+        <h3 id="direct-ring-editing">Direct Ring Editing</h3>
+        <p>You can edit values directly on the ring: - <strong>Velocity,
+        Gate, Pitch, Ratchet</strong> — Drag radially to adjust the step
+        value - <strong>Chord, Inversion, Modifier, Condition</strong> —
+        Click to cycle through values</p>
+        <h3 id="euclidean-visualizer">Euclidean Visualizer</h3>
+        <p>When Euclidean mode is enabled, a dot pattern in the center
+        of the ring shows the current Euclidean rhythm distribution.</p>
+        <hr />
+        <h2 id="detail-strip">Detail Strip</h2>
+        <p>The detail strip on the right side provides precise linear
+        editing for one lane at a time.</p>
+        <h3 id="lane-tabs">Lane Tabs</h3>
+        <p>Eight color-coded tabs select the active lane: -
+        <strong>VEL</strong> (copper) — Velocity per step (0-100%) -
+        <strong>GATE</strong> (sand) — Gate length per step (0-100%) -
+        <strong>PITCH</strong> (sage) — Pitch offset per step (-12 to
+        +12 semitones) - <strong>MOD</strong> (rose) — Per-step
+        modifiers (Active, Tie, Slide, Accent) - <strong>COND</strong>
+        (steel) — Conditional triggers per step - <strong>RATCH</strong>
+        (lavender) — Ratchet subdivisions per step (1-4) -
+        <strong>CHORD</strong> (purple) — Chord type per step (None,
+        Dyad, Triad, 7th, 9th) - <strong>INV</strong> (blue) — Chord
+        inversion per step (Root, 1st, 2nd, 3rd)</p>
+        <h3 id="lane-editor">Lane Editor</h3>
+        <p>Each lane editor shows a bar chart of step values. Click and
+        drag to edit values. The lane header shows the lane name, step
+        count (adjustable 1-32), and speed multiplier.</p>
+        <h3 id="per-lane-controls">Per-Lane Controls</h3>
+        <p>When a lane tab is selected, contextual controls appear:</p>
+        <ul>
+        <li><strong>Swing</strong> — Per-lane swing amount (0-75%). Each
+        lane can swing independently.</li>
+        <li><strong>Jitter</strong> — Per-lane length jitter (0-4
+        steps). The lane re-rolls a random length offset each time it
+        wraps, creating evolving non-repeating patterns.</li>
+        </ul>
+        <p>Additional contextual controls appear for specific lanes:</p>
+        <ul>
+        <li><strong>Velocity lane</strong> — Curve type
+        (Linear/Exponential/Logarithmic/S-Curve) + Curve amount
+        (0-100%)</li>
+        <li><strong>Pitch lane</strong> — Transpose (-24 to +24), Pin
+        Note (MIDI 0-127), Range Low/High, Range Mode (Wrap/Clamp/Skip),
+        and the Pin Grid editor</li>
+        <li><strong>Ratchet lane</strong> — Decay (0-100%) for velocity
+        falloff across subdivisions, Shuffle for sub-step timing</li>
+        <li><strong>Chord/Inversion lanes</strong> — Strum time
+        (0-100ms) and Strum direction (Up/Down/Random/Alternate)</li>
+        </ul>
+        <h3 id="lane-transforms">Lane Transforms</h3>
+        <p>Right-click a lane (or use the lane header buttons) to access
+        transform operations: - <strong>Copy / Paste</strong> — Copy
+        step data between lanes - <strong>Invert</strong> — Flip all
+        values - <strong>Shift Left / Right</strong> — Rotate the
+        pattern - <strong>Randomize</strong> — Generate random
+        values</p>
+        <h3 id="per-lane-speed">Per-Lane Speed</h3>
+        <p>Each lane runs at its own clock rate, selectable from the
+        lane header: 0.25x, 0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x, 3x,
+        or 4x. Combined with independent lane lengths, this creates
+        complex polymetric and polyrhythmic patterns.</p>
+        <hr />
+        <h2 id="speed-curve">Speed Curve</h2>
+        <p>Each lane’s speed can vary over the course of one loop cycle,
+        creating accelerando (speeding up) and ritardando (slowing down)
+        effects within a pattern.</p>
+        <h3 id="enabling">Enabling</h3>
+        <p>Click the power icon toggle in the pin-row area (between the
+        per-lane controls and the lane editor). When enabled, additional
+        controls appear:</p>
+        <ul>
+        <li><strong>Depth</strong> (knob, 0-100%) — How much the curve
+        affects the speed. At 0% the curve has no effect; at 100% the
+        full curve range is applied.</li>
+        <li><strong>Preset</strong> (dropdown) — Choose from 7 shape
+        presets: Flat, Sine, Triangle, Saw Up, Saw Down, Square,
+        Exponential.</li>
+        </ul>
+        <h3 id="curve-editor">Curve Editor</h3>
+        <p>When the speed curve is enabled, a semi-transparent overlay
+        appears on the lane editor showing the curve shape. The curve
+        represents speed offset over one loop cycle:</p>
+        <ul>
+        <li><strong>X-axis</strong> — Position in the loop (left =
+        start, right = end)</li>
+        <li><strong>Y-axis</strong> — Speed offset (center line = no
+        change, above = faster, below = slower)</li>
+        </ul>
+        <h3 id="editing-the-curve">Editing the Curve</h3>
+        <ul>
+        <li><strong>Double-click</strong> empty space to add a new
+        control point</li>
+        <li><strong>Click</strong> a point to select it (shown with a
+        golden glow)</li>
+        <li><strong>Drag</strong> a point to reposition it (endpoints
+        are locked to x=0 and x=1)</li>
+        <li><strong>Drag</strong> the diamond-shaped bezier handles to
+        adjust curve shape</li>
+        <li><strong>Delete</strong> or <strong>Backspace</strong>
+        removes the selected point (endpoints cannot be removed)</li>
+        <li><strong>Shift+drag</strong> for fine adjustment</li>
+        </ul>
+        <h3 id="how-it-works">How It Works</h3>
+        <p>The speed curve uses a center+offset model: - The lane’s
+        existing speed multiplier (e.g., 1x) acts as the center - The
+        curve offsets the speed above and below the center, scaled by
+        the depth knob - For example: with a 1x speed and 100% depth, a
+        curve that ramps from top to bottom would start at 2x speed and
+        slow down to near 0x (clamped to 0.1x minimum)</p>
+        <hr />
+        <h2 id="step-pinning">Step Pinning</h2>
+        <p>Step Pinning lets you lock specific steps to a fixed MIDI
+        note, creating pedal tones, drone notes, or anchor points within
+        moving patterns.</p>
+        <h3 id="pin-grid">Pin Grid</h3>
+        <p>On the Pitch lane tab, a row of toggle cells appears above
+        the step bars. Click a cell to pin/unpin that step. Pinned steps
+        output the global Pin Note value instead of the arp-generated
+        note.</p>
+        <h3 id="parameters">Parameters</h3>
+        <ul>
+        <li><strong>Pin Note</strong> (Pitch lane contextual knob) — The
+        MIDI note output by pinned steps (0-127, default C4)</li>
+        <li><strong>Pin Flags</strong> — Per-step toggles (32
+        parameters, automatable by the host)</li>
+        </ul>
+        <p>Pinned steps bypass pitch offset, transpose, scale
+        quantization, and range mapping.</p>
+        <hr />
+        <h2 id="note-range-mapping">Note Range Mapping</h2>
+        <p>Constrains all output notes to a MIDI note range:</p>
+        <ul>
+        <li><strong>Range Low</strong> — Minimum MIDI note (floor)</li>
+        <li><strong>Range High</strong> — Maximum MIDI note
+        (ceiling)</li>
+        <li><strong>Range Mode</strong> — What happens when a note falls
+        outside the range:
+        <ul>
+        <li><strong>Wrap</strong> — Fold the note back into range by
+        octave transposition</li>
+        <li><strong>Clamp</strong> — Force the note to the nearest range
+        boundary</li>
+        <li><strong>Skip</strong> — Drop the note entirely (silence on
+        that step)</li>
+        </ul></li>
+        </ul>
+        <hr />
+        <h2 id="markov-chain-mode">Markov Chain Mode</h2>
+        <p>When the arp mode is set to <strong>Markov</strong>, note
+        selection is driven by a probabilistic transition matrix instead
+        of a deterministic pattern.</p>
+        <h3 id="how-it-works-1">How It Works</h3>
+        <p>The 7x7 matrix represents transition probabilities between
+        scale degrees (I, ii, iii, IV, V, vi, vii). Each row determines
+        the probability of moving to each degree FROM the current
+        degree. Held notes are mapped to the nearest scale degree based
+        on the active scale type and root note.</p>
+        <h3 id="matrix-editor">Matrix Editor</h3>
+        <p>When Markov mode is active, an overlay appears on the ring
+        display: - <strong>7x7 grid</strong> — Click-drag cells
+        vertically to adjust probability (top = 1.0, bottom = 0.0).
+        Brightness encodes probability. - <strong>Row/column
+        labels</strong> — Roman numerals (I, ii, iii, IV, V, vi, vii) -
+        <strong>Preset dropdown</strong> — Choose from 5 presets: -
+        <strong>Uniform</strong> — Equal probability (equivalent to
+        Random mode) - <strong>Jazz</strong> — ii-V-I voice leading with
+        circle-of-fifths turnarounds - <strong>Minimal</strong> — Strong
+        self-loops + stepwise motion for meditative patterns -
+        <strong>Ambient</strong> — Favors wide jumps (3-5 degrees) for
+        spacious motion - <strong>Classical</strong> — I-IV-V-I
+        circle-of-fifths bias - <strong>Custom</strong> — Activates
+        automatically when any cell is hand-edited - <strong>Collapse
+        button</strong> (“–”) — Minimizes the editor to a 32x32 trigger
+        button</p>
+        <p>Rows are automatically normalized at sample time, so you
+        don’t need to manually balance probabilities.</p>
+        <hr />
+        <h2 id="audition-synth">Audition Synth</h2>
+        <p>Gradus includes a lightweight built-in synthesizer for
+        previewing patterns without routing to an external instrument.
+        The audition synth is session-only — its settings are not saved
+        in presets.</p>
+        <ul>
+        <li><strong>Enable</strong> — Toggle the audition synth
+        on/off</li>
+        <li><strong>Volume</strong> — Output level (0-100%)</li>
+        <li><strong>Waveform</strong> — Sine, Sawtooth, or Square</li>
+        <li><strong>Decay</strong> — Envelope decay time (10-2000
+        ms)</li>
+        </ul>
+        <p>The audition synth is monophonic with a simple linear
+        envelope. For polyphonic playback or richer sounds, route
+        Gradus’s MIDI output to your preferred instrument plugin.</p>
+        <hr />
+        <h2 id="preset-browser">Preset Browser</h2>
+        <p>Click the preset name in the header to open the preset
+        browser. Presets are organized into 8 categories:</p>
+        <ul>
+        <li><strong>Classic</strong> — Traditional arp patterns</li>
+        <li><strong>Acid</strong> — Acid-style sequences with slides and
+        accents</li>
+        <li><strong>Euclidean</strong> — Mathematically distributed
+        rhythmic patterns</li>
+        <li><strong>Polymetric</strong> — Complex polyrhythmic
+        combinations using different lane lengths and speeds</li>
+        <li><strong>Generative</strong> — Evolving patterns using
+        jitter, spice, and conditional triggers</li>
+        <li><strong>Performance</strong> — Patterns designed for live
+        use with fill mode</li>
+        <li><strong>Chords</strong> — Chord-focused patterns with
+        voicings and strums</li>
+        <li><strong>Advanced</strong> — Complex multi-lane
+        configurations</li>
+        </ul>
+        <h3 id="saving-presets">Saving Presets</h3>
+        <p>Click the Save button to save the current settings as a user
+        preset. Choose a name and category.</p>
+        <h3 id="preset-sharing-with-ruinae">Preset Sharing with
+        Ruinae</h3>
+        <p>Gradus shares arpeggiator parameter IDs (3000-3387) with
+        Ruinae’s arpeggiator section. Presets saved in one plugin can be
+        loaded in the other for cross-plugin pattern exchange.</p>
+        <hr />
+        <h2 id="midi-output">MIDI Output</h2>
+        <p>Gradus outputs arpeggiated notes as standard VST3 MIDI
+        events. To use Gradus as a pattern source for another
+        instrument:</p>
+        <ol type="1">
+        <li>Load Gradus on an instrument track</li>
+        <li>Create a MIDI routing from Gradus’s output to your target
+        instrument (method varies by DAW)</li>
+        <li>Hold notes on Gradus’s input — the generated pattern drives
+        your instrument</li>
+        </ol>
+        <p>Note-On events include velocity from the velocity lane.
+        Note-Off events are timed by the gate lane. Slide modifiers
+        generate overlapping notes for portamento effects on instruments
+        that support it.</p>
+        <hr />
+        <h2 id="tips-and-techniques">Tips and Techniques</h2>
+        <h3 id="creating-polymetric-patterns">Creating Polymetric
+        Patterns</h3>
+        <p>Set different lane lengths (e.g., Velocity = 7 steps, Gate =
+        5 steps, Pitch = 3 steps). The different cycle lengths create a
+        pattern that takes many bars to repeat — or never truly repeats
+        if the lengths are coprime.</p>
+        <h3 id="accelerando-ritardando">Accelerando / Ritardando</h3>
+        <p>Enable the Speed Curve on a lane and select the “Saw Down”
+        preset with 100% depth. The lane will start fast and
+        progressively slow down each cycle, creating a natural
+        ritardando effect.</p>
+        <h3 id="evolving-patterns-with-jitter">Evolving Patterns with
+        Jitter</h3>
+        <p>Set per-lane jitter to 2-3 steps on several lanes. Each lane
+        will subtly shift its effective length on every wrap, causing
+        the pattern to continuously evolve without ever settling into a
+        fixed loop.</p>
+        <h3 id="anchoring-with-pin-notes">Anchoring with Pin Notes</h3>
+        <p>Pin a few key steps on the Pitch lane to a root or fifth
+        note. The unpinned steps follow the arp pattern while pinned
+        steps provide a harmonic anchor — great for creating ostinato
+        figures with moving voices.</p>
+        <h3 id="probabilistic-melodies-with-markov">Probabilistic
+        Melodies with Markov</h3>
+        <p>Select the Jazz Markov preset and hold a chord. The arp will
+        follow common jazz voice-leading patterns (ii-V-I), creating
+        melodies that feel composed rather than random. Edit individual
+        cells to bias specific transitions.</p>
+        <h3 id="bouncing-ball-ratchets">Bouncing Ball Ratchets</h3>
+        <p>Set ratchet to 4 subdivisions on selected steps and increase
+        the Decay parameter. The rapid-fire notes will fade out
+        naturally, creating a bouncing-ball effect.</p>
+        <hr />
+        <h2 id="system-requirements">System Requirements</h2>
+        <ul>
+        <li><strong>Formats</strong> — VST3 (Windows, macOS, Linux),
+        Audio Unit v2/v3 (macOS)</li>
+        <li><strong>Minimum</strong> — Any DAW that supports VST3
+        instruments with MIDI output</li>
+        <li><strong>Validated</strong> — Passes pluginval strictness
+        level 5 on all platforms</li>
+        </ul>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Gradus</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

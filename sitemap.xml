@@ -32,4 +32,8 @@
     <loc>https://rolandzwaga.github.io/krate-audio/innexus/manual.html</loc>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://rolandzwaga.github.io/krate-audio/gradus/manual.html</loc>
+    <priority>0.7</priority>
+  </url>
 </urlset>
