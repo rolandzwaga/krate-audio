@@ -46,10 +46,10 @@ tresult PLUGIN_API Controller::setParamNormalized(
 
     // --- Classify parameter into dirty categories ---
 
-    // Lane step/length parameters
-    if (tag >= kArpVelocityLaneStep0Id && tag <= kArpVelocityLaneLengthId)
+    // Lane step/length parameters (LengthId is always 1 below Step0Id)
+    if ((tag >= kArpVelocityLaneStep0Id && tag < kArpVelocityLaneStep0Id + 32) || tag == kArpVelocityLaneLengthId)
         viewDirtyFlags_.fetch_or(kDirtyVelocityLane | kDirtyLaneLengths | kDirtyRing, std::memory_order_relaxed);
-    else if (tag >= kArpGateLaneStep0Id && tag <= kArpGateLaneLengthId)
+    else if ((tag >= kArpGateLaneStep0Id && tag < kArpGateLaneStep0Id + 32) || tag == kArpGateLaneLengthId)
         viewDirtyFlags_.fetch_or(kDirtyGateLane | kDirtyLaneLengths | kDirtyRing, std::memory_order_relaxed);
     else if ((tag >= kArpPitchLaneStep0Id && tag < kArpPitchLaneStep0Id + 32) || tag == kArpPitchLaneLengthId)
         viewDirtyFlags_.fetch_or(kDirtyPitchLane | kDirtyPinFlags | kDirtyLaneLengths | kDirtyRing, std::memory_order_relaxed);
