@@ -76,8 +76,25 @@ tresult PLUGIN_API Controller::setParamNormalized(
     else if ((tag >= kArpMarkovCell00Id && tag <= kArpMarkovCell66Id) || tag == kArpMarkovPresetId)
         viewDirtyFlags_.fetch_or(kDirtyMarkov | kDirtyRing, std::memory_order_relaxed);
 
-    // Playhead parameters
-    else if (tag >= kArpVelocityPlayheadId && tag <= kArpMidiDelayPlayheadId)
+    // MIDI Delay lane (must be checked BEFORE playhead range — delay IDs
+    // 3510-3739 overlap the naive playhead range 3294-3740)
+    else if (tag == kArpMidiDelayLaneLengthId)
+        viewDirtyFlags_.fetch_or(kDirtyMidiDelayLane | kDirtyLaneLengths | kDirtyRing, std::memory_order_relaxed);
+    else if ((tag >= kArpMidiDelayActiveStep0Id && tag < kArpMidiDelayActiveStep0Id + 32) ||
+             (tag >= kArpMidiDelayTimeModeStep0Id && tag < kArpMidiDelayTimeModeStep0Id + 32) ||
+             (tag >= kArpMidiDelayTimeStep0Id && tag < kArpMidiDelayTimeStep0Id + 32) ||
+             (tag >= kArpMidiDelayFeedbackStep0Id && tag < kArpMidiDelayFeedbackStep0Id + 32) ||
+             (tag >= kArpMidiDelayVelDecayStep0Id && tag < kArpMidiDelayVelDecayStep0Id + 32) ||
+             (tag >= kArpMidiDelayPitchShiftStep0Id && tag < kArpMidiDelayPitchShiftStep0Id + 32) ||
+             (tag >= kArpMidiDelayGateScaleStep0Id && tag < kArpMidiDelayGateScaleStep0Id + 32))
+        viewDirtyFlags_.fetch_or(kDirtyMidiDelayLane, std::memory_order_relaxed);
+
+    // Playhead parameters (9 specific IDs, NOT a broad range)
+    else if (tag == kArpVelocityPlayheadId || tag == kArpGatePlayheadId ||
+             tag == kArpPitchPlayheadId || tag == kArpRatchetPlayheadId ||
+             tag == kArpModifierPlayheadId || tag == kArpConditionPlayheadId ||
+             tag == kArpChordPlayheadId || tag == kArpInversionPlayheadId ||
+             tag == kArpMidiDelayPlayheadId)
         viewDirtyFlags_.fetch_or(kDirtyPlayheads, std::memory_order_relaxed);
 
     // Scale type
@@ -92,18 +109,6 @@ tresult PLUGIN_API Controller::setParamNormalized(
     else if (tag == kArpEuclideanEnabledId || tag == kArpEuclideanHitsId ||
              tag == kArpEuclideanStepsId || tag == kArpEuclideanRotationId)
         viewDirtyFlags_.fetch_or(kDirtyEuclidean, std::memory_order_relaxed);
-
-    // MIDI Delay lane
-    else if (tag == kArpMidiDelayLaneLengthId)
-        viewDirtyFlags_.fetch_or(kDirtyMidiDelayLane | kDirtyLaneLengths | kDirtyRing, std::memory_order_relaxed);
-    else if ((tag >= kArpMidiDelayActiveStep0Id && tag < kArpMidiDelayActiveStep0Id + 32) ||
-             (tag >= kArpMidiDelayTimeModeStep0Id && tag < kArpMidiDelayTimeModeStep0Id + 32) ||
-             (tag >= kArpMidiDelayTimeStep0Id && tag < kArpMidiDelayTimeStep0Id + 32) ||
-             (tag >= kArpMidiDelayFeedbackStep0Id && tag < kArpMidiDelayFeedbackStep0Id + 32) ||
-             (tag >= kArpMidiDelayVelDecayStep0Id && tag < kArpMidiDelayVelDecayStep0Id + 32) ||
-             (tag >= kArpMidiDelayPitchShiftStep0Id && tag < kArpMidiDelayPitchShiftStep0Id + 32) ||
-             (tag >= kArpMidiDelayGateScaleStep0Id && tag < kArpMidiDelayGateScaleStep0Id + 32))
-        viewDirtyFlags_.fetch_or(kDirtyMidiDelayLane, std::memory_order_relaxed);
 
     // Generic arp range → ring invalidation
     else if (tag >= 3001 && tag <= 3400)
