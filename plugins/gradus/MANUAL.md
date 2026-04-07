@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Gradus is a standalone step arpeggiator and MIDI pattern generator. It takes held notes and transforms them into complex, evolving melodic and rhythmic patterns through eight independent polymetric lanes, each with its own step count, speed, and timing behavior.
+Gradus is a standalone step arpeggiator and MIDI pattern generator. It takes held notes and transforms them into complex, evolving melodic and rhythmic patterns through nine independent polymetric lanes, each with its own step count, speed, and timing behavior.
 
-Unlike a simple arpeggiator that cycles through held notes in order, Gradus gives you per-step control over velocity, gate length, pitch offset, chord voicing, ratcheting, articulation modifiers, and conditional triggers — all running at independent speeds and lengths to create patterns that never quite repeat.
+Unlike a simple arpeggiator that cycles through held notes in order, Gradus gives you per-step control over velocity, gate length, pitch offset, chord voicing, ratcheting, articulation modifiers, conditional triggers, and MIDI echo delays — all running at independent speeds and lengths to create patterns that never quite repeat.
 
 Gradus outputs standard MIDI events, so it can drive any instrument in your DAW. It also includes a lightweight built-in audition synth for previewing patterns without routing to an external instrument.
 
@@ -92,12 +92,13 @@ Gradus offers 12 arpeggiator modes that determine the order in which held notes 
 
 ## Ring Display
 
-The circular ring display provides a visual overview of all 8 lanes simultaneously. Steps are arranged radially around 4 concentric rings:
+The circular ring display provides a visual overview of all 9 lanes simultaneously. Steps are arranged radially around concentric rings:
 
 - **Outer ring** — Velocity (copper) + Gate (sand)
 - **Second ring** — Pitch (sage) + Modifier (rose)
 - **Third ring** — Condition (steel) + Ratchet (lavender)
-- **Inner ring** — Chord (purple) + Inversion (blue)
+- **Fourth ring** — Chord (purple) + Inversion (blue)
+- **Inner ring** — MIDI Delay (gold)
 
 Each lane has its own animated playhead highlight that races around at the lane's independent speed, visually communicating the polymetric relationships between lanes.
 
@@ -119,7 +120,7 @@ The detail strip on the right side provides precise linear editing for one lane 
 
 ### Lane Tabs
 
-Eight color-coded tabs select the active lane:
+Nine color-coded tabs select the active lane:
 - **VEL** (copper) — Velocity per step (0-100%)
 - **GATE** (sand) — Gate length per step (0-100%)
 - **PITCH** (sage) — Pitch offset per step (-12 to +12 semitones)
@@ -128,6 +129,7 @@ Eight color-coded tabs select the active lane:
 - **RATCH** (lavender) — Ratchet subdivisions per step (1-4)
 - **CHORD** (purple) — Chord type per step (None, Dyad, Triad, 7th, 9th)
 - **INV** (blue) — Chord inversion per step (Root, 1st, 2nd, 3rd)
+- **DELAY** (gold) — MIDI echo delay parameters per step (see [MIDI Delay Lane](#midi-delay-lane))
 
 ### Lane Editor
 
@@ -227,6 +229,50 @@ Constrains all output notes to a MIDI note range:
 
 ---
 
+## MIDI Delay Lane
+
+The MIDI Delay lane is a per-step echo post-processor that generates delayed copies of arp output notes as real MIDI events. Unlike audio delay effects, MIDI delays produce new note-on/off messages — meaning the echoes play through your instrument with full voice allocation, polyphony, and per-note processing.
+
+The delay lane sits at the end of the signal path, after all other lane transforms (velocity, gate, pitch, chords, etc.) have been applied. It operates as the 9th lane in the polymetric engine, with its own independent step count, speed multiplier, swing, and jitter.
+
+### Grid Editor
+
+Selecting the **DELAY** tab opens a multi-knob grid editor instead of the bar-chart editor used by other lanes. Each step column contains 7 controls stacked vertically:
+
+| Row | Control | Range | Description |
+|-----|---------|-------|-------------|
+| **Active** | Toggle button | On/Off | Enables or disables echo generation for this step. When off, the step's parameter controls are hidden for a cleaner view. |
+| **Sync** | Toggle button | Free/Synced | Switches the delay time between millisecond values and tempo-synced note values. |
+| **Time** | Arc knob | 10-2000 ms (free) or 1/64T-4/1D (synced) | The delay between the original note and the first echo. When synced, snaps to 30 discrete note values. |
+| **Feedback** | Arc knob | 0-16 repeats | Number of echo repetitions. Each repeat applies the velocity decay, pitch shift, and gate scaling. |
+| **Vel Decay** | Arc knob | 0-100% | Velocity reduction per echo repeat. 100% means each echo is silent; 0% means all echoes play at full velocity. |
+| **Pitch** | Arc knob | -24 to +24 semitones | Pitch transposition applied cumulatively per echo. For example, +7 semitones produces echoes stacked in fifths. |
+| **Gate** | Arc knob | 10-200% | Gate length scaling per echo repeat. Values below 100% progressively shorten echoes; values above 100% lengthen them. |
+
+### Scrolling
+
+When the lane step count exceeds 10, the grid scrolls horizontally. Use the mouse wheel over the grid area to scroll, or drag the scrollbar at the bottom. A step number bar runs along the bottom edge with the current playhead step highlighted.
+
+### Per-Step Active Toggle
+
+The active toggle at the top of each column controls whether echoes are generated for that step. Inactive steps pass notes through unchanged. When a step is toggled off, the 6 parameter controls below it are hidden, leaving just the muted toggle button for a cleaner layout.
+
+### How Echo Processing Works
+
+1. The arpeggiator generates an output note (with velocity, gate, pitch, and chord transforms already applied)
+2. The delay lane checks the current step's active flag
+3. If active, it schedules echo copies at intervals of the step's delay time
+4. Each successive echo applies: velocity *= (1 - decay), pitch += pitch shift, gate *= gate scaling
+5. Echoes continue until the feedback count is exhausted or velocity drops below 1
+
+The echo scheduler is sample-accurate across process block boundaries. If the echo buffer fills (256 pending echoes), emergency note-off events are sent to prevent stuck notes.
+
+### Tempo-Synced Delays
+
+When Sync is enabled on a step, the Time knob snaps to 30 discrete note values (1/64T through 4/1D). The delay time is calculated from the host's current tempo. This keeps echoes rhythmically locked to the beat regardless of tempo changes.
+
+---
+
 ## Markov Chain Mode
 
 When the arp mode is set to **Markov**, note selection is driven by a probabilistic transition matrix instead of a deterministic pattern.
@@ -255,7 +301,7 @@ Rows are automatically normalized at sample time, so you don't need to manually 
 
 ## Audition Synth
 
-Gradus includes a lightweight built-in synthesizer for previewing patterns without routing to an external instrument. The audition synth is session-only — its settings are not saved in presets.
+Gradus includes a lightweight built-in synthesizer for previewing patterns without routing to an external instrument. The audition synth defaults to off and is session-only — its settings are not saved in presets.
 
 - **Enable** — Toggle the audition synth on/off
 - **Volume** — Output level (0-100%)
@@ -297,7 +343,7 @@ Gradus outputs arpeggiated notes as standard VST3 MIDI events. To use Gradus as 
 2. Create a MIDI routing from Gradus's output to your target instrument (method varies by DAW)
 3. Hold notes on Gradus's input — the generated pattern drives your instrument
 
-Note-On events include velocity from the velocity lane. Note-Off events are timed by the gate lane. Slide modifiers generate overlapping notes for portamento effects on instruments that support it.
+Note-On events include velocity from the velocity lane. Note-Off events are timed by the gate lane. Slide modifiers generate overlapping notes for portamento effects on instruments that support it. When the MIDI Delay lane is active, echo copies are output as additional MIDI events with their own velocity, pitch, and gate values.
 
 ---
 
@@ -320,6 +366,15 @@ Select the Jazz Markov preset and hold a chord. The arp will follow common jazz 
 
 ### Bouncing Ball Ratchets
 Set ratchet to 4 subdivisions on selected steps and increase the Decay parameter. The rapid-fire notes will fade out naturally, creating a bouncing-ball effect.
+
+### Harmonic Echo Cascades
+On the MIDI Delay lane, set Pitch to +7 semitones and Feedback to 3-4. Each echo stacks a fifth above the previous one, creating ascending harmonic cascades that audio delays cannot produce. Try +12 for octave cascades.
+
+### Rhythmic Delay Patterns
+Set different steps on the MIDI Delay lane to different synced time values (e.g., step 1 = 1/8, step 2 = 1/8D, step 3 = 1/4T). As the delay lane cycles through steps at its own speed, the echo rhythm constantly shifts, creating complex polyrhythmic textures.
+
+### Fading Canon
+Enable the MIDI Delay lane with Sync on, Time set to 1/4 note, Feedback at 4, and Vel Decay around 20%. The arp pattern plays as a self-chasing round with each voice entering one beat later and progressively softer — a MIDI-generated canon effect.
 
 ---
 
