@@ -155,6 +155,9 @@ public:
             stepValues_[step][static_cast<int>(row)] = std::clamp(normalized, 0.0f, 1.0f);
             // Update the corresponding control if it exists
             updateControlValue(step, row);
+            // Show/hide column controls when Active toggle changes programmatically
+            if (row == KnobRow::kActive)
+                updateColumnVisibility(step, normalized >= 0.5f);
         }
     }
 
