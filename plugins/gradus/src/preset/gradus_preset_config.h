@@ -15,7 +15,7 @@ inline Krate::Plugins::PresetManagerConfig makeGradusPresetConfig() {
         /*.subcategoryNames =*/ {
             "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
             "Arp Generative", "Arp Performance", "Arp Chords", "Arp Advanced",
-            "Arp v1.5"
+            "Arp v1.5", "Arp v1.6", "Arp v1.7"
         }
     };
 }
@@ -25,7 +25,7 @@ inline std::vector<std::string> getGradusTabLabels() {
         "All",
         "Arp Classic", "Arp Acid", "Arp Euclidean", "Arp Polymetric",
         "Arp Generative", "Arp Performance", "Arp Chords", "Arp Advanced",
-        "Arp v1.5"
+        "Arp v1.5", "Arp v1.6", "Arp v1.7"
     };
 }
 
