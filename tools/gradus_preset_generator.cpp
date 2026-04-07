@@ -367,6 +367,76 @@ static constexpr int32_t kCondProb90 = 5;
 static constexpr int32_t kCondFill   = 16;
 
 // ==============================================================================
+// v1.6 Helpers — Speed Curves
+// ==============================================================================
+
+// Speed curve preset indices (match SpeedCurveEditor::applyPreset)
+static constexpr int32_t kCurveFlat     = 0;
+static constexpr int32_t kCurveSine     = 1;
+static constexpr int32_t kCurveTriangle = 2;
+static constexpr int32_t kCurveSawUp    = 3;
+static constexpr int32_t kCurveSawDown  = 4;
+static constexpr int32_t kCurveSquare   = 5;
+static constexpr int32_t kCurveExpo     = 6;
+
+/// Enable a speed curve on a lane using a preset shape.
+/// Preset curves use simple 2-point (endpoint) geometry — the preset
+/// index tells the plugin to apply the built-in shape.
+void setSpeedCurve(GradusPresetState& s, int lane, bool enabled,
+                   int presetIdx, float depth) {
+    if (lane < 0 || lane >= 8) return;
+    auto& curve = s.arp.speedCurves[lane];
+    curve.enabled = enabled ? 1 : 0;
+    curve.presetIndex = presetIdx;
+    // Depth is stored per-lane in the depth array
+    float* depths[] = {
+        &s.arp.velocityLaneSpeedCurveDepth,
+        &s.arp.gateLaneSpeedCurveDepth,
+        &s.arp.pitchLaneSpeedCurveDepth,
+        &s.arp.modifierLaneSpeedCurveDepth,
+        &s.arp.ratchetLaneSpeedCurveDepth,
+        &s.arp.conditionLaneSpeedCurveDepth,
+        &s.arp.chordLaneSpeedCurveDepth,
+        &s.arp.inversionLaneSpeedCurveDepth,
+    };
+    *depths[lane] = depth;
+}
+
+// ==============================================================================
+// v1.7 Helpers — MIDI Delay Lane
+// ==============================================================================
+
+/// Set MIDI Delay lane length and speed.
+void setMidiDelayLane(GradusPresetState& s, int length, float speed = 1.0f,
+                      float swing = 0.0f, int jitter = 0) {
+    s.arp.midiDelayLaneLength = std::clamp(length, 1, 32);
+    s.arp.midiDelayLaneSpeed = speed;
+    s.arp.midiDelayLaneSwing = swing;
+    s.arp.midiDelayLaneJitter = jitter;
+}
+
+/// Configure a single MIDI delay step.
+/// timeNorm: 0-1 (maps to 10-2000ms free or note index 0-29 synced)
+/// feedback: 0-16, velDecay: 0-1, pitchShift: -24 to +24, gateScale: 0-1 normalized
+void setMidiDelayStep(GradusPresetState& s, int step, bool active,
+                      bool synced, float timeNorm, int feedback,
+                      float velDecay, int pitchShift, float gateScaleNorm) {
+    if (step < 0 || step >= 32) return;
+    s.arp.midiDelayActiveSteps[step] = active ? 1 : 0;
+    s.arp.midiDelayTimeModeSteps[step] = synced ? 1 : 0;
+    s.arp.midiDelayTimeSteps[step] = std::clamp(timeNorm, 0.0f, 1.0f);
+    s.arp.midiDelayFeedbackSteps[step] = std::clamp(feedback, 0, 16);
+    s.arp.midiDelayVelDecaySteps[step] = std::clamp(velDecay, 0.0f, 1.0f);
+    s.arp.midiDelayPitchShiftSteps[step] = std::clamp(pitchShift, -24, 24);
+    s.arp.midiDelayGateScaleSteps[step] = std::clamp(gateScaleNorm, 0.0f, 1.0f);
+}
+
+/// Helper: note value index to normalized time value for synced delays
+float noteToDelayNorm(int noteIdx) {
+    return static_cast<float>(std::clamp(noteIdx, 0, 29)) / 29.0f;
+}
+
+// ==============================================================================
 // Factory Preset Definitions
 // ==============================================================================
 
@@ -380,6 +450,7 @@ std::vector<PresetDef> createAllPresets() {
     static constexpr int32_t kModeWalk     = 7;
     static constexpr int32_t kModeChord    = 9;
     static constexpr int32_t kModeGravity  = 10;  // v1.5
+    static constexpr int32_t kModeMarkov   = 11;  // v1.6
 
     // ========================================================================
     // ARP CLASSIC (5 presets)
@@ -2580,6 +2651,311 @@ std::vector<PresetDef> createAllPresets() {
         setLaneSwings(p.state, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f);
 
         setScale(p.state, kScaleMajor, kRootF);
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP v1.6 (5 presets)
+    // Speed curves, Markov mode
+    // ========================================================================
+
+    // 1. "Breathing Pulse" — Sine speed curve on velocity lane
+    {
+        PresetDef p;
+        p.name = "Breathing Pulse";
+        p.category = "Arp v1.6";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 60.0f);
+        p.state.arp.octaveRange = 2;
+
+        float vel8[] = {1.0f, 0.6f, 0.8f, 0.5f, 0.9f, 0.6f, 0.7f, 0.5f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // Sine speed curve on velocity lane → breathing dynamic pulse
+        setSpeedCurve(p.state, 0, true, kCurveSine, 0.7f);
+
+        setScale(p.state, kScaleMinorPenta, kRootA);
+        presets.push_back(std::move(p));
+    }
+
+    // 2. "Accelerando Rush" — Saw Down speed curve on main lanes
+    {
+        PresetDef p;
+        p.name = "Accelerando Rush";
+        p.category = "Arp v1.6";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 90.0f);
+        p.state.arp.octaveRange = 3;
+
+        // Saw Down on velocity + gate → starts fast, slows to end of loop
+        setSpeedCurve(p.state, 0, true, kCurveSawDown, 0.85f);
+        setSpeedCurve(p.state, 1, true, kCurveSawDown, 0.85f);
+
+        float vel6[] = {1.0f, 0.85f, 0.7f, 0.6f, 0.75f, 0.9f};
+        setVelocityLane(p.state, 6, vel6);
+
+        setScale(p.state, kScaleDorian, kRootD);
+        presets.push_back(std::move(p));
+    }
+
+    // 3. "Polymetric Drift" — Different speed curves per lane
+    {
+        PresetDef p;
+        p.name = "Polymetric Drift";
+        p.category = "Arp v1.6";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 70.0f);
+        p.state.arp.octaveRange = 2;
+
+        // Velocity: 7 steps, sine curve
+        float vel7[] = {0.95f, 0.7f, 0.8f, 1.0f, 0.6f, 0.85f, 0.7f};
+        setVelocityLane(p.state, 7, vel7);
+        setSpeedCurve(p.state, 0, true, kCurveSine, 0.6f);
+
+        // Gate: 5 steps, triangle curve → different phase
+        float gate5[] = {0.8f, 0.5f, 1.0f, 0.5f, 0.7f};
+        setGateLane(p.state, 5, gate5);
+        setSpeedCurve(p.state, 1, true, kCurveTriangle, 0.5f);
+
+        // Pitch: 3 steps, saw up curve
+        int32_t pitch3[] = {0, 7, 5};
+        setPitchLane(p.state, 3, pitch3);
+        setSpeedCurve(p.state, 2, true, kCurveSawUp, 0.4f);
+
+        // Different lane speeds for polymetric effect
+        setLaneSpeeds(p.state, 1.0f, 0.75f, 1.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+
+        setScale(p.state, kScaleMajor, kRootC);
+        presets.push_back(std::move(p));
+    }
+
+    // 4. "Jazz Improv" — Markov Jazz preset with scale quantization
+    {
+        PresetDef p;
+        p.name = "Jazz Improv";
+        p.category = "Arp v1.6";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeMarkov);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8T);
+        setArpGateLength(p.state, 85.0f);
+        setArpSwing(p.state, 35.0f);
+        p.state.arp.octaveRange = 2;
+
+        // Jazz Markov preset (index 1)
+        p.state.arp.markovPreset = 1;
+
+        float vel8[] = {0.9f, 0.6f, 0.75f, 0.5f, 0.85f, 0.65f, 0.8f, 0.55f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // Exponential velocity curve for jazz dynamics
+        setVelocityCurve(p.state, kCurveExp, 40.0f);
+        p.state.arp.humanize = 0.15f;
+
+        setScale(p.state, kScaleDorian, kRootD);
+        p.state.arp.scaleQuantizeInput = 1;
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Meditative Loops" — Markov Minimal + sine speed curves
+    {
+        PresetDef p;
+        p.name = "Meditative Loops";
+        p.category = "Arp v1.6";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeMarkov);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_4);
+        setArpGateLength(p.state, 150.0f); // legato
+        p.state.arp.octaveRange = 2;
+
+        // Minimal Markov preset (index 2) — strong self-loops
+        p.state.arp.markovPreset = 2;
+
+        float vel4[] = {0.8f, 0.6f, 0.7f, 0.55f};
+        setVelocityLane(p.state, 4, vel4);
+
+        // Gentle sine speed curve on velocity and gate for breathing
+        setSpeedCurve(p.state, 0, true, kCurveSine, 0.3f);
+        setSpeedCurve(p.state, 1, true, kCurveSine, 0.2f);
+
+        p.state.arp.humanize = 0.2f;
+        setScale(p.state, kScaleMajorPenta, kRootG);
+        presets.push_back(std::move(p));
+    }
+
+    // ========================================================================
+    // ARP v1.7 (5 presets)
+    // MIDI Delay lane
+    // ========================================================================
+
+    // 1. "Dotted Echo" — Classic dotted-eighth delay on every step
+    {
+        PresetDef p;
+        p.name = "Dotted Echo";
+        p.category = "Arp v1.7";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 75.0f);
+        p.state.arp.octaveRange = 2;
+
+        float vel8[] = {1.0f, 0.7f, 0.85f, 0.6f, 0.9f, 0.65f, 0.8f, 0.55f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // Delay lane: 8 steps, all active, synced to dotted 8th
+        setMidiDelayLane(p.state, 8);
+        for (int i = 0; i < 8; ++i) {
+            setMidiDelayStep(p.state, i, true, true,
+                noteToDelayNorm(kNote1_8D),  // dotted 8th
+                3,      // 3 repeats
+                0.35f,  // 35% velocity decay
+                0,      // no pitch shift
+                (1.0f - 0.1f) / 1.9f);  // 1.0x gate
+        }
+
+        setScale(p.state, kScaleMajorPenta, kRootC);
+        presets.push_back(std::move(p));
+    }
+
+    // 2. "Fifth Cascade" — Pitch shift echoes stacked in fifths
+    {
+        PresetDef p;
+        p.name = "Fifth Cascade";
+        p.category = "Arp v1.7";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUpDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 90.0f);
+        p.state.arp.octaveRange = 1;
+
+        // 4 steps with triads
+        int32_t chords4[] = {kChordTriad, kChordNone, kChordTriad, kChordNone};
+        setChordLane(p.state, 4, chords4);
+
+        // Delay: synced 1/4 note, +7 semitones per repeat (stacked fifths)
+        setMidiDelayLane(p.state, 4);
+        for (int i = 0; i < 4; ++i) {
+            setMidiDelayStep(p.state, i, true, true,
+                noteToDelayNorm(kNote1_4),
+                4,      // 4 repeats → root, 5th, 9th, 13th
+                0.25f,  // gentle decay
+                7,      // +7 semitones (perfect fifth)
+                (0.8f - 0.1f) / 1.9f);  // slightly shorter gates on echoes
+        }
+
+        setScale(p.state, kScaleMajor, kRootC);
+        setNoteRange(p.state, 36, 96, kRangeWrap);
+        presets.push_back(std::move(p));
+    }
+
+    // 3. "Scatter Delay" — Different delay times per step for rhythmic complexity
+    {
+        PresetDef p;
+        p.name = "Scatter Delay";
+        p.category = "Arp v1.7";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeUp);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 50.0f);
+        p.state.arp.octaveRange = 2;
+
+        float vel8[] = {1.0f, 0.5f, 0.8f, 0.4f, 0.9f, 0.5f, 0.7f, 0.4f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // Each step has a different synced delay time
+        setMidiDelayLane(p.state, 8);
+        int delayNotes[] = {kNote1_8, kNote1_8D, kNote1_4T, kNote1_16,
+                            kNote1_8T, kNote1_4, kNote1_16D, kNote1_8};
+        for (int i = 0; i < 8; ++i) {
+            setMidiDelayStep(p.state, i,
+                (i % 2 == 0),   // active on even steps only
+                true,
+                noteToDelayNorm(delayNotes[i]),
+                2,      // 2 repeats
+                0.4f,   // 40% decay
+                0,      // no pitch shift
+                (1.0f - 0.1f) / 1.9f);
+        }
+
+        setScale(p.state, kScaleMinorPenta, kRootE);
+        presets.push_back(std::move(p));
+    }
+
+    // 4. "Fading Canon" — Self-chasing round at 1/4 note intervals
+    {
+        PresetDef p;
+        p.name = "Fading Canon";
+        p.category = "Arp v1.7";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeGravity);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_8);
+        setArpGateLength(p.state, 120.0f); // legato for canon feel
+        p.state.arp.octaveRange = 2;
+
+        float vel8[] = {0.95f, 0.7f, 0.85f, 0.65f, 0.9f, 0.7f, 0.8f, 0.6f};
+        setVelocityLane(p.state, 8, vel8);
+
+        // All steps active, synced 1/4, high feedback, gentle decay
+        setMidiDelayLane(p.state, 8);
+        for (int i = 0; i < 8; ++i) {
+            setMidiDelayStep(p.state, i, true, true,
+                noteToDelayNorm(kNote1_4),
+                6,      // 6 repeats — long trailing canon
+                0.18f,  // very gentle decay for sustained rounds
+                0,      // no pitch shift
+                (0.9f - 0.1f) / 1.9f);  // slightly shorter gates
+        }
+
+        p.state.arp.humanize = 0.1f;
+        setScale(p.state, kScaleMajor, kRootF);
+        presets.push_back(std::move(p));
+    }
+
+    // 5. "Octave Rain" — Octave-shifted echoes with speed curve
+    {
+        PresetDef p;
+        p.name = "Octave Rain";
+        p.category = "Arp v1.7";
+        setArpEnabled(p.state, true);
+        setArpMode(p.state, kModeDown);
+        setTempoSync(p.state, true);
+        setArpRate(p.state, kNote1_16);
+        setArpGateLength(p.state, 40.0f); // short staccato
+        p.state.arp.octaveRange = 1;
+
+        float vel6[] = {1.0f, 0.4f, 0.7f, 0.35f, 0.8f, 0.3f};
+        setVelocityLane(p.state, 6, vel6);
+
+        // Delay with +12 semitones (octave up per repeat), fast decay
+        setMidiDelayLane(p.state, 6);
+        for (int i = 0; i < 6; ++i) {
+            setMidiDelayStep(p.state, i, true, true,
+                noteToDelayNorm(kNote1_16),
+                3,      // 3 repeats → root, +8va, +15ma, +22ma
+                0.3f,   // moderate decay
+                12,     // +12 semitones (octave)
+                (0.6f - 0.1f) / 1.9f);  // progressively shorter
+        }
+
+        // Saw down speed curve on velocity → ritardando feel
+        setSpeedCurve(p.state, 0, true, kCurveSawDown, 0.5f);
+
+        setNoteRange(p.state, 24, 108, kRangeClamp);
+        setScale(p.state, kScaleNatMinor, kRootA);
         presets.push_back(std::move(p));
     }
 

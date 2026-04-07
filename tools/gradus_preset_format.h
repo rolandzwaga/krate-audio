@@ -173,11 +173,67 @@ struct ArpState {
     int32_t pinNote = 60;                // MIDI note, default C4
     int32_t pinFlags[32]{};              // per-step 0/1
 
+    // --- v1.6: Markov Chain ---
+    int32_t markovPreset = 0;            // 0=Uniform..4=Classical, 5=Custom
+    float markovMatrix[49]{};            // 7x7 row-major
+
+    // --- v1.6: Per-Lane Speed Curve Depth ---
+    float velocityLaneSpeedCurveDepth = 0.5f;
+    float gateLaneSpeedCurveDepth = 0.5f;
+    float pitchLaneSpeedCurveDepth = 0.5f;
+    float modifierLaneSpeedCurveDepth = 0.5f;
+    float ratchetLaneSpeedCurveDepth = 0.5f;
+    float conditionLaneSpeedCurveDepth = 0.5f;
+    float chordLaneSpeedCurveDepth = 0.5f;
+    float inversionLaneSpeedCurveDepth = 0.5f;
+
+    // --- v1.6: Per-Lane Speed Curve Point Data ---
+    struct SpeedCurvePoint {
+        float x = 0.0f, y = 0.5f;
+        float cpLeftX = 0.0f, cpLeftY = 0.5f;
+        float cpRightX = 0.0f, cpRightY = 0.5f;
+    };
+    struct SpeedCurve {
+        int32_t enabled = 0;
+        int32_t presetIndex = 0;    // 0=Flat, 1=Sine, 2=Triangle, 3=SawUp, 4=SawDown, 5=Square, 6=Exp
+        std::vector<SpeedCurvePoint> points;
+        SpeedCurve() {
+            // Default flat: two endpoints at y=0.5
+            points.push_back({0.0f, 0.5f, 0.0f, 0.5f, 0.0f, 0.5f});
+            points.push_back({1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f});
+        }
+    };
+    SpeedCurve speedCurves[8];
+
+    // --- v1.7: MIDI Delay Lane ---
+    int32_t midiDelayLaneLength = 16;
+    int32_t midiDelayTimeModeSteps[32]{};       // 0=Free, 1=Synced (all default synced)
+    float   midiDelayTimeSteps[32]{};           // normalized 0-1 (default ~1/8 note)
+    int32_t midiDelayFeedbackSteps[32]{};       // 0-16 repeats
+    float   midiDelayVelDecaySteps[32]{};       // 0-1
+    int32_t midiDelayPitchShiftSteps[32]{};     // -24 to +24
+    float   midiDelayGateScaleSteps[32]{};      // 0-1 normalized (maps to 0.1-2.0x)
+    int32_t midiDelayActiveSteps[32]{};         // 0 or 1
+    float   midiDelayLaneSpeed = 1.0f;
+    float   midiDelayLaneSwing = 0.0f;
+    int32_t midiDelayLaneJitter = 0;
+    float   midiDelayLaneSpeedCurveDepth = 0.5f;
+
     ArpState() {
         for (auto& step : velocityLaneSteps) step = 1.0f;
         for (auto& step : gateLaneSteps) step = 1.0f;
         for (auto& step : modifierLaneSteps) step = kStepActive;
         for (auto& step : ratchetLaneSteps) step = 1;
+        // Default Markov matrix: uniform 1/7 probabilities
+        for (auto& cell : markovMatrix) cell = 1.0f / 7.0f;
+        // Default MIDI delay: all synced, 1/8 note, inactive
+        for (auto& v : midiDelayTimeModeSteps) v = 1;     // synced
+        for (auto& v : midiDelayTimeSteps) v = 10.0f / 29.0f; // ~1/8 note
+        for (auto& v : midiDelayFeedbackSteps) v = 3;     // 3 repeats
+        for (auto& v : midiDelayVelDecaySteps) v = 0.5f;  // 50% decay
+        for (auto& v : midiDelayPitchShiftSteps) v = 0;   // no shift
+        for (auto& v : midiDelayGateScaleSteps) v = (1.0f - 0.1f) / 1.9f; // 1.0x
+        for (auto& v : midiDelayActiveSteps) v = 0;       // inactive
     }
 
     void serialize(BinaryWriter& w) const {
@@ -282,6 +338,50 @@ struct ArpState {
         // v1.5 Part 3: Step Pinning
         w.writeInt32(pinNote);
         for (int i = 0; i < 32; ++i) w.writeInt32(pinFlags[i]);
+
+        // v1.6: Markov Chain
+        w.writeInt32(markovPreset);
+        for (int i = 0; i < 49; ++i) w.writeFloat(markovMatrix[i]);
+
+        // v1.6: Per-Lane Speed Curve Depth
+        w.writeFloat(velocityLaneSpeedCurveDepth);
+        w.writeFloat(gateLaneSpeedCurveDepth);
+        w.writeFloat(pitchLaneSpeedCurveDepth);
+        w.writeFloat(modifierLaneSpeedCurveDepth);
+        w.writeFloat(ratchetLaneSpeedCurveDepth);
+        w.writeFloat(conditionLaneSpeedCurveDepth);
+        w.writeFloat(chordLaneSpeedCurveDepth);
+        w.writeFloat(inversionLaneSpeedCurveDepth);
+
+        // v1.6: Per-Lane Speed Curve Point Data
+        for (int lane = 0; lane < 8; ++lane) {
+            const auto& curve = speedCurves[lane];
+            w.writeInt32(curve.enabled);
+            w.writeInt32(curve.presetIndex);
+            w.writeInt32(static_cast<int32_t>(curve.points.size()));
+            for (const auto& pt : curve.points) {
+                w.writeFloat(pt.x);
+                w.writeFloat(pt.y);
+                w.writeFloat(pt.cpLeftX);
+                w.writeFloat(pt.cpLeftY);
+                w.writeFloat(pt.cpRightX);
+                w.writeFloat(pt.cpRightY);
+            }
+        }
+
+        // v1.7: MIDI Delay Lane
+        w.writeInt32(midiDelayLaneLength);
+        for (int i = 0; i < 32; ++i) w.writeInt32(midiDelayTimeModeSteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeFloat(midiDelayTimeSteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeInt32(midiDelayFeedbackSteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeFloat(midiDelayVelDecaySteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeInt32(midiDelayPitchShiftSteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeFloat(midiDelayGateScaleSteps[i]);
+        for (int i = 0; i < 32; ++i) w.writeInt32(midiDelayActiveSteps[i]);
+        w.writeFloat(midiDelayLaneSpeed);
+        w.writeFloat(midiDelayLaneSwing);
+        w.writeInt32(midiDelayLaneJitter);
+        w.writeFloat(midiDelayLaneSpeedCurveDepth);
     }
 };
 
