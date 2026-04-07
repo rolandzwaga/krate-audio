@@ -198,6 +198,22 @@ struct ArpeggiatorParams {
     std::atomic<float> chordLaneSpeedCurveDepth{0.5f};
     std::atomic<float> inversionLaneSpeedCurveDepth{0.5f};
 
+    // --- MIDI Delay Lane ---
+    std::atomic<int>   midiDelayLaneLength{16};     // 1-32
+    std::array<std::atomic<int>, 32> midiDelayTimeModeSteps{};    // 0=Free, 1=Synced (default Synced)
+    std::array<std::atomic<float>, 32> midiDelayTimeSteps{};      // Free: 10-2000ms, Synced: note value idx 0-29
+    std::array<std::atomic<int>, 32> midiDelayFeedbackSteps{};    // 0-16 repeats (default 0 = off)
+    std::array<std::atomic<float>, 32> midiDelayVelDecaySteps{};  // 0-100% (default 50%)
+    std::array<std::atomic<int>, 32> midiDelayPitchShiftSteps{};  // -24..+24 semitones (default 0)
+    std::array<std::atomic<float>, 32> midiDelayGateScaleSteps{}; // 10-200% (default 100%)
+    std::array<std::atomic<int>, 32> midiDelayActiveSteps{};      // 0=inactive, 1=active (default 0)
+
+    // MIDI delay lane metadata
+    std::atomic<float> midiDelayLaneSpeed{1.0f};
+    std::atomic<float> midiDelayLaneSwing{0.0f};
+    std::atomic<int>   midiDelayLaneJitter{0};
+    std::atomic<float> midiDelayLaneSpeedCurveDepth{0.5f};
+
     // Per-lane speed curve data (serialized in state, not automatable).
     // Protected by speedCurveMutex_ for thread-safe access during
     // save/load (audio thread) and IMessage handling (message thread).
@@ -232,6 +248,26 @@ struct ArpeggiatorParams {
         constexpr float kUniformCell = 1.0f / 7.0f;
         for (auto& cell : markovMatrix) {
             cell.store(kUniformCell, std::memory_order_relaxed);
+        }
+
+        // MIDI delay lane defaults
+        for (auto& step : midiDelayTimeModeSteps) {
+            step.store(1, std::memory_order_relaxed);  // 1 = Synced
+        }
+        for (auto& step : midiDelayTimeSteps) {
+            step.store(10.0f / 29.0f, std::memory_order_relaxed);  // Normalized: 10/29 ≈ 0.345 → index 10 (1/8 note)
+        }
+        // midiDelayFeedbackSteps default to 3 repeats
+        for (auto& step : midiDelayFeedbackSteps) {
+            step.store(3, std::memory_order_relaxed);
+        }
+        // midiDelayActiveSteps default to 0 (inactive) via value-initialization
+        for (auto& step : midiDelayVelDecaySteps) {
+            step.store(0.5f, std::memory_order_relaxed);  // 50% decay
+        }
+        // midiDelayPitchShiftSteps default to 0 via value-initialization
+        for (auto& step : midiDelayGateScaleSteps) {
+            step.store(1.0f, std::memory_order_relaxed);  // 100% gate scaling
         }
     }
 };
@@ -647,6 +683,73 @@ inline void handleArpParamChange(
                     default: break;
                 }
             }
+            // --- MIDI Delay Lane (3510-3707) ---
+            else if (id == kArpMidiDelayLaneLengthId) {
+                params.midiDelayLaneLength.store(
+                    std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayTimeModeStep0Id && id <= kArpMidiDelayTimeModeStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayTimeModeStep0Id);
+                params.midiDelayTimeModeSteps[stepIdx].store(
+                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayTimeStep0Id && id <= kArpMidiDelayTimeStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayTimeStep0Id);
+                // Stored raw 0-1 normalized; processor interprets based on time mode:
+                // Free: 10 + value * 1990 = 10-2000ms
+                // Synced: value * 29 = note value index 0-29
+                params.midiDelayTimeSteps[stepIdx].store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayFeedbackStep0Id && id <= kArpMidiDelayFeedbackStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayFeedbackStep0Id);
+                params.midiDelayFeedbackSteps[stepIdx].store(
+                    std::clamp(static_cast<int>(std::round(value * 16.0)), 0, 16),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayVelDecayStep0Id && id <= kArpMidiDelayVelDecayStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayVelDecayStep0Id);
+                params.midiDelayVelDecaySteps[stepIdx].store(
+                    std::clamp(static_cast<float>(value), 0.0f, 1.0f),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayPitchShiftStep0Id && id <= kArpMidiDelayPitchShiftStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayPitchShiftStep0Id);
+                params.midiDelayPitchShiftSteps[stepIdx].store(
+                    std::clamp(static_cast<int>(std::round(value * 48.0 - 24.0)), -24, 24),
+                    std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayGateScaleStep0Id && id <= kArpMidiDelayGateScaleStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayGateScaleStep0Id);
+                // 0-1 → 10-200%: value * 190 + 10, stored as fraction: 0.1-2.0
+                float scale = std::clamp(static_cast<float>(0.1 + value * 1.9), 0.1f, 2.0f);
+                params.midiDelayGateScaleSteps[stepIdx].store(
+                    scale, std::memory_order_relaxed);
+            }
+            else if (id >= kArpMidiDelayActiveStep0Id && id <= kArpMidiDelayActiveStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpMidiDelayActiveStep0Id);
+                params.midiDelayActiveSteps[stepIdx].store(
+                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            }
+            else if (id == kArpMidiDelayLaneSpeedId) {
+                int idx = std::clamp(static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
+                    0, kLaneSpeedCount - 1);
+                params.midiDelayLaneSpeed.store(kLaneSpeedValues[idx], std::memory_order_relaxed);
+            }
+            else if (id == kArpMidiDelayLaneSwingId) {
+                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+                params.midiDelayLaneSwing.store(swing, std::memory_order_relaxed);
+            }
+            else if (id == kArpMidiDelayLaneJitterId) {
+                int jitter = std::clamp(static_cast<int>(std::round(value * 4.0)), 0, 4);
+                params.midiDelayLaneJitter.store(jitter, std::memory_order_relaxed);
+            }
+            else if (id == kArpMidiDelayLaneSpeedCurveDepthId) {
+                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                params.midiDelayLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed);
+            }
             // v1.6: Per-lane Speed Curve Depth (3500-3507)
             else if (id >= kArpVelocityLaneSpeedCurveDepthId &&
                      id <= kArpInversionLaneSpeedCurveDepthId) {
@@ -1019,9 +1122,9 @@ inline void registerArpParams(
         {STR16("Close"), STR16("Drop-2"), STR16("Spread"), STR16("Random")}));
 
     // Chord/Inversion playhead parameters (hidden, non-automatable)
-    parameters.addParameter(STR16("Arp Chord Playhead"), STR16(""), 0, 1.0,
+    parameters.addParameter(STR16("Arp Chord Playhead"), STR16(""), 0, 0.0,
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpChordPlayheadId);
-    parameters.addParameter(STR16("Arp Inversion Playhead"), STR16(""), 0, 1.0,
+    parameters.addParameter(STR16("Arp Inversion Playhead"), STR16(""), 0, 0.0,
         ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly, kArpInversionPlayheadId);
 
     // --- Per-Lane Speed Multipliers ---
@@ -1223,6 +1326,108 @@ inline void registerArpParams(
                 STR16("%"), 0.0, 1.0, 0.5,
                 0, ParameterInfo::kCanAutomate));
     }
+
+    // =========================================================================
+    // MIDI Delay Lane Parameters (3510-3707) — Gradus-specific
+    // =========================================================================
+
+    // Lane length (1-32, default 16)
+    parameters.addParameter(
+        new RangeParameter(STR16("MIDI Delay Lane Length"),
+            kArpMidiDelayLaneLengthId, STR16(""),
+            1.0, 32.0, 16.0, 31, ParameterInfo::kCanAutomate));
+
+    // Per-step parameters (32 steps each)
+    for (int step = 0; step < 32; ++step) {
+        char nameBuf[64];
+        Steinberg::Vst::String128 name16;
+        auto toStr16 = [&](const char* ascii) {
+            Steinberg::UString(name16, 128).fromAscii(ascii);
+            return name16;
+        };
+
+        // Time Mode: toggle (0=Free, 1=Synced), default Synced
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Time Mode %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayTimeModeStep0Id + step),
+                STR16(""), 0.0, 1.0, 1.0, 1, ParameterInfo::kCanAutomate));
+
+        // Delay Time: normalized 0-1 (processor interprets per time mode)
+        // Default 10/29 ≈ 0.345 which maps to note value index 10 (1/8 note)
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Time %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayTimeStep0Id + step),
+                STR16(""), 0.0, 1.0, 10.0 / 29.0, 0, ParameterInfo::kCanAutomate));
+
+        // Feedback: 0-16 repeats, default 3
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Feedback %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayFeedbackStep0Id + step),
+                STR16(""), 0.0, 16.0, 3.0, 16, ParameterInfo::kCanAutomate));
+
+        // Velocity Decay: 0-100%, default 50%
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Vel Decay %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayVelDecayStep0Id + step),
+                STR16("%"), 0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+
+        // Pitch Shift: -24 to +24 semitones, default 0
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Pitch Shift %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayPitchShiftStep0Id + step),
+                STR16("st"), -24.0, 24.0, 0.0, 48, ParameterInfo::kCanAutomate));
+
+        // Gate Scaling: 10-200%, default 100% (normalized: (1.0-0.1)/1.9 ≈ 0.474)
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Gate Scale %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayGateScaleStep0Id + step),
+                STR16("%"), 0.0, 1.0, (1.0 - 0.1) / 1.9, 0, ParameterInfo::kCanAutomate));
+
+        // Active toggle: 0=inactive (default), 1=active
+        snprintf(nameBuf, sizeof(nameBuf), "Delay Active %d", step + 1);
+        parameters.addParameter(
+            new RangeParameter(toStr16(nameBuf),
+                static_cast<ParamID>(kArpMidiDelayActiveStep0Id + step),
+                STR16(""), 0.0, 1.0, 0.0, 1, ParameterInfo::kCanAutomate));
+    }
+
+    // Lane speed multiplier
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("MIDI Delay Lane Speed"), kArpMidiDelayLaneSpeedId,
+        kLaneSpeedDefault,
+        {STR16("0.25x"), STR16("0.5x"), STR16("0.75x"), STR16("1x"),
+         STR16("1.25x"), STR16("1.5x"), STR16("1.75x"), STR16("2x"),
+         STR16("3x"), STR16("4x")}));
+
+    // Lane swing (0-75%)
+    parameters.addParameter(
+        new RangeParameter(STR16("MIDI Delay Lane Swing"),
+            kArpMidiDelayLaneSwingId, STR16("%"),
+            0.0, 75.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // Lane jitter (0-4 steps)
+    parameters.addParameter(
+        new RangeParameter(STR16("MIDI Delay Lane Jitter"),
+            kArpMidiDelayLaneJitterId, STR16(""),
+            0.0, 4.0, 0.0, 4, ParameterInfo::kCanAutomate));
+
+    // Speed curve depth (0-100%)
+    parameters.addParameter(
+        new RangeParameter(STR16("MIDI Delay Speed Curve Depth"),
+            kArpMidiDelayLaneSpeedCurveDepthId, STR16("%"),
+            0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+
+    // Playhead (hidden, output-only)
+    auto* delayPlayhead = new RangeParameter(
+        STR16("MIDI Delay Playhead"), kArpMidiDelayPlayheadId,
+        STR16(""), 0.0, 1.0, 0.0, 0, ParameterInfo::kIsReadOnly);
+    parameters.addParameter(delayPlayhead);
 }
 
 // =============================================================================
@@ -1795,6 +2000,34 @@ inline void saveArpParams(
             }
         }
     }
+
+    // --- MIDI Delay Lane ---
+    streamer.writeInt32(params.midiDelayLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.midiDelayTimeModeSteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeFloat(params.midiDelayTimeSteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.midiDelayFeedbackSteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeFloat(params.midiDelayVelDecaySteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.midiDelayPitchShiftSteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeFloat(params.midiDelayGateScaleSteps[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(params.midiDelayActiveSteps[i].load(std::memory_order_relaxed));
+    }
+    streamer.writeFloat(params.midiDelayLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.midiDelayLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.midiDelayLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.midiDelayLaneSpeedCurveDepth.load(std::memory_order_relaxed));
 }
 
 // =============================================================================
@@ -2129,6 +2362,49 @@ inline bool loadArpParams(
             }
         }
     }
+
+    // --- MIDI Delay Lane ---
+    // EOF-safe: if MIDI delay data is missing (pre-delay preset), keep defaults
+    if (!streamer.readInt32(intVal)) return true;
+    params.midiDelayLaneLength.store(std::clamp(intVal, 1, 32), std::memory_order_relaxed);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.midiDelayTimeModeSteps[i].store(std::clamp(intVal, 0, 1), std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.midiDelayTimeSteps[i].store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.midiDelayFeedbackSteps[i].store(std::clamp(intVal, 0, 16), std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.midiDelayVelDecaySteps[i].store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.midiDelayPitchShiftSteps[i].store(std::clamp(intVal, -24, 24), std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readFloat(floatVal)) return false;
+        params.midiDelayGateScaleSteps[i].store(std::clamp(floatVal, 0.1f, 2.0f), std::memory_order_relaxed);
+    }
+    // Active flags — EOF-safe: if missing (pre-active-flag preset), keep defaults
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return true;
+        params.midiDelayActiveSteps[i].store(std::clamp(intVal, 0, 1), std::memory_order_relaxed);
+    }
+    if (!streamer.readFloat(floatVal)) return false;
+    params.midiDelayLaneSpeed.store(std::clamp(floatVal, 0.25f, 4.0f), std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.midiDelayLaneSwing.store(std::clamp(floatVal, 0.0f, 75.0f), std::memory_order_relaxed);
+    if (!streamer.readInt32(intVal)) return false;
+    params.midiDelayLaneJitter.store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
+    if (!streamer.readFloat(floatVal)) return false;
+    params.midiDelayLaneSpeedCurveDepth.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
 
     return true;
 }

@@ -26,6 +26,7 @@
 #include "ui/arp_condition_lane.h"
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
+#include "../ui/midi_delay_lane_editor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -413,6 +414,65 @@ void Controller::constructArpLanes()
     wireSpeedParam(invLane, kArpInversionLaneSpeedId);
     inversionLane_ = invLane;
     detailStrip_->setLane(7, invLane);
+
+    // ========================================================================
+    // Construct MIDI delay lane (multi-knob grid editor)
+    // ========================================================================
+    auto* delayLane = new MidiDelayLaneEditor(
+        VSTGUI::CRect(0, 0, 500, 400));
+    delayLane->setLengthParamId(kArpMidiDelayLaneLengthId);
+    delayLane->setParameterCallback(
+        [this](uint32_t paramId, float normalizedValue) {
+            setParamNormalized(paramId, static_cast<double>(normalizedValue));
+            performEdit(paramId, static_cast<double>(normalizedValue));
+        });
+    delayLane->setBeginEditCallback(
+        [this](uint32_t paramId) { beginEdit(paramId); });
+    delayLane->setEndEditCallback(
+        [this](uint32_t paramId) { endEdit(paramId); });
+    delayLane->setLengthParamCallback(
+        [this](uint32_t paramId, float normalizedValue) {
+            beginEdit(paramId);
+            setParamNormalized(paramId, static_cast<double>(normalizedValue));
+            performEdit(paramId, static_cast<double>(normalizedValue));
+            endEdit(paramId);
+        });
+
+    // Sync all 6 per-step parameter rows from current host state
+    for (int step = 0; step < 32; ++step) {
+        auto syncRow = [&](MidiDelayLaneEditor::KnobRow row, uint32_t baseId) {
+            auto pid = static_cast<Steinberg::Vst::ParamID>(baseId + step);
+            auto* param = getParameterObject(pid);
+            if (param) {
+                float val = static_cast<float>(param->getNormalized());
+                delayLane->setStepValue(step, row, val);
+            }
+        };
+        syncRow(MidiDelayLaneEditor::KnobRow::kActive,    kArpMidiDelayActiveStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kTimeMode,  kArpMidiDelayTimeModeStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kDelayTime,  kArpMidiDelayTimeStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kFeedback,   kArpMidiDelayFeedbackStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kVelDecay,   kArpMidiDelayVelDecayStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kPitchShift, kArpMidiDelayPitchShiftStep0Id);
+        syncRow(MidiDelayLaneEditor::KnobRow::kGateScale,  kArpMidiDelayGateScaleStep0Id);
+    }
+    wireSpeedParam(delayLane, kArpMidiDelayLaneSpeedId);
+    midiDelayLane_ = delayLane;
+    detailStrip_->setLane(8, delayLane);
+
+    // Sync lane length AFTER setLane so the view has its final size
+    // (rebuildControls needs the actual dimensions to position knobs)
+    {
+        auto* lenParam = getParameterObject(kArpMidiDelayLaneLengthId);
+        if (lenParam) {
+            double val = lenParam->getNormalized();
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(val * 31.0)), 1, 32);
+            delayLane->setNumSteps(steps);
+        } else {
+            delayLane->setNumSteps(16);  // trigger rebuildControls with final size
+        }
+    }
 
     // ========================================================================
     // Construct ratchet lane

@@ -34,7 +34,7 @@ public:
 
     void setSelectedTab(int index)
     {
-        if (index >= 0 && index < 8 && index != selectedTab_) {
+        if (index >= 0 && index < kLaneCount && index != selectedTab_) {
             selectedTab_ = index;
             invalid();
         }
@@ -45,7 +45,7 @@ public:
     /// Set a pulsing activity indicator on a tab (playhead active).
     void setTabActive(int index, bool active)
     {
-        if (index >= 0 && index < 8) {
+        if (index >= 0 && index < kLaneCount) {
             tabActive_[index] = active;
             invalid();
         }
@@ -62,11 +62,11 @@ public:
 
         auto viewSize = getViewSize();
         float totalWidth = static_cast<float>(viewSize.getWidth());
-        float tabWidth = totalWidth / 8.0f;
+        float tabWidth = totalWidth / static_cast<float>(kLaneCount);
 
         const auto& colors = getLaneColors();
 
-        for (int i = 0; i < 8; ++i) {
+        for (int i = 0; i < kLaneCount; ++i) {
             float x = viewSize.left + static_cast<float>(i) * tabWidth;
             VSTGUI::CRect tabRect(x, viewSize.top,
                                   x + tabWidth - 1.0, viewSize.bottom);
@@ -166,19 +166,19 @@ private:
         auto viewSize = getViewSize();
         if (!viewSize.pointInside(where)) return -1;
 
-        float tabWidth = static_cast<float>(viewSize.getWidth()) / 8.0f;
+        float tabWidth = static_cast<float>(viewSize.getWidth()) / static_cast<float>(kLaneCount);
         float relX = static_cast<float>(where.x - viewSize.left);
         int tab = static_cast<int>(relX / tabWidth);
-        return std::clamp(tab, 0, 7);
+        return std::clamp(tab, 0, kLaneCount - 1);
     }
 
-    static constexpr const char* kTabLabels[8] = {
-        "VEL", "GATE", "PITCH", "MOD", "COND", "RATCH", "CHORD", "INV"
+    static constexpr const char* kTabLabels[kLaneCount] = {
+        "VEL", "GATE", "PITCH", "MOD", "COND", "RATCH", "CHORD", "INV", "DELAY"
     };
 
     int selectedTab_ = 0;
     int hoveredTab_ = -1;
-    std::array<bool, 8> tabActive_{};
+    std::array<bool, kLaneCount> tabActive_{};
     TabSelectedCallback callback_;
 
     CLASS_METHODS(LaneTabBar, CView)

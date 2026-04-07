@@ -615,6 +615,196 @@ TEST_CASE("Gradus Markov custom matrix survives state save/load round-trip",
     stream->release();
 }
 
+TEST_CASE("Gradus MIDI delay lane survives state save/load round-trip",
+          "[gradus][vst][delay][state]")
+{
+    Gradus::ArpeggiatorParams src;
+    // Set non-default delay values
+    src.midiDelayLaneLength.store(4, std::memory_order_relaxed);
+    src.midiDelayActiveSteps[0].store(1, std::memory_order_relaxed);
+    src.midiDelayActiveSteps[1].store(1, std::memory_order_relaxed);
+    src.midiDelayFeedbackSteps[0].store(8, std::memory_order_relaxed);
+    src.midiDelayTimeModeSteps[0].store(0, std::memory_order_relaxed);  // Free
+    src.midiDelayTimeSteps[0].store(0.75f, std::memory_order_relaxed);
+    src.midiDelayVelDecaySteps[0].store(0.3f, std::memory_order_relaxed);
+    src.midiDelayPitchShiftSteps[0].store(7, std::memory_order_relaxed);
+    src.midiDelayGateScaleSteps[0].store(0.5f, std::memory_order_relaxed);
+
+    auto* stream = new MemoryStream();
+    Steinberg::IBStreamer writer(stream, kLittleEndian);
+    Gradus::saveArpParams(src, writer);
+
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    Steinberg::IBStreamer reader(stream, kLittleEndian);
+    Gradus::ArpeggiatorParams dst;
+    REQUIRE(Gradus::loadArpParams(dst, reader) == true);
+
+    CHECK(dst.midiDelayLaneLength.load() == 4);
+    CHECK(dst.midiDelayActiveSteps[0].load() == 1);
+    CHECK(dst.midiDelayActiveSteps[1].load() == 1);
+    CHECK(dst.midiDelayActiveSteps[2].load() == 0);  // default
+    CHECK(dst.midiDelayFeedbackSteps[0].load() == 8);
+    CHECK(dst.midiDelayTimeModeSteps[0].load() == 0);  // Free
+    CHECK(dst.midiDelayTimeSteps[0].load() == Approx(0.75f));
+    CHECK(dst.midiDelayVelDecaySteps[0].load() == Approx(0.3f));
+    CHECK(dst.midiDelayPitchShiftSteps[0].load() == 7);
+    CHECK(dst.midiDelayGateScaleSteps[0].load() == Approx(0.5f));
+
+    stream->release();
+}
+
+TEST_CASE("Gradus MIDI delay controller state round-trip",
+          "[gradus][vst][delay][state]")
+{
+    // Simulate full controller-side state restore: save from processor params,
+    // then load via loadArpParamsToController + speed curves + delay lambda.
+    using namespace Steinberg;
+    using namespace Steinberg::Vst;
+
+    Gradus::ArpeggiatorParams src;
+    src.midiDelayLaneLength.store(4, std::memory_order_relaxed);
+    src.midiDelayActiveSteps[0].store(1, std::memory_order_relaxed);
+    src.midiDelayFeedbackSteps[0].store(8, std::memory_order_relaxed);
+    src.midiDelayPitchShiftSteps[0].store(7, std::memory_order_relaxed);
+
+    // Save
+    auto* stream = new MemoryStream();
+    IBStreamer writer(stream, kLittleEndian);
+    // Write state version
+    writer.writeInt32(Gradus::kCurrentStateVersion);
+    Gradus::saveArpParams(src, writer);
+
+    // Load controller side: skip version, run loadArpParamsToController,
+    // read speed curves, read delay params
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    IBStreamer reader(stream, kLittleEndian);
+
+    int32 version = 0;
+    REQUIRE(reader.readInt32(version));
+
+    // Collect params set by controller
+    std::map<ParamID, double> params;
+    auto setParam = [&](ParamID id, double value) {
+        params[id] = value;
+    };
+    Gradus::loadArpParamsToController(reader, setParam);
+
+    // Skip speed curve point data (mirrors controller.cpp lines 115-157)
+    for (int lane = 0; lane < 8; ++lane) {
+        int32 enabledInt = 0, presetIdx = 0, numPoints = 0;
+        if (!reader.readInt32(enabledInt)) break;
+        if (!reader.readInt32(presetIdx)) break;
+        if (!reader.readInt32(numPoints)) break;
+        numPoints = std::clamp(numPoints, int32{0}, int32{64});
+        for (int32 p = 0; p < numPoints; ++p) {
+            float dummy;
+            reader.readFloat(dummy); reader.readFloat(dummy);
+            reader.readFloat(dummy); reader.readFloat(dummy);
+            reader.readFloat(dummy); reader.readFloat(dummy);
+        }
+    }
+
+    // Read delay params (mirrors controller.cpp lambda at lines 162-230)
+    {
+        int32 iv = 0;
+        float fv = 0.0f;
+        bool ok = reader.readInt32(iv);
+        REQUIRE(ok);  // Lane length must be readable
+        CHECK(std::clamp(static_cast<int>(iv), 1, 32) == 4);
+
+        // Read 32 time modes
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readInt32(iv));
+        }
+        // Read 32 times
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readFloat(fv));
+        }
+        // Read 32 feedback
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readInt32(iv));
+            if (i == 0) CHECK(iv == 8);
+        }
+        // Read 32 vel decay
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readFloat(fv));
+        }
+        // Read 32 pitch shift
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readInt32(iv));
+            if (i == 0) CHECK(iv == 7);
+        }
+        // Read 32 gate scale
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readFloat(fv));
+        }
+        // Read 32 active flags
+        for (int i = 0; i < 32; ++i) {
+            REQUIRE(reader.readInt32(iv));
+            if (i == 0) CHECK(iv == 1);
+        }
+        // Read metadata
+        REQUIRE(reader.readFloat(fv));  // speed
+        REQUIRE(reader.readFloat(fv));  // swing
+        REQUIRE(reader.readInt32(iv));  // jitter
+        REQUIRE(reader.readFloat(fv));  // curve depth
+    }
+
+    stream->release();
+}
+
+TEST_CASE("Gradus Controller restores MIDI delay params from setComponentState",
+          "[gradus][vst][delay][state]")
+{
+    using namespace Steinberg;
+    using namespace Steinberg::Vst;
+
+    // 1. Create processor params with non-default delay settings
+    Gradus::ArpeggiatorParams src;
+    src.midiDelayLaneLength.store(4, std::memory_order_relaxed);
+    src.midiDelayActiveSteps[0].store(1, std::memory_order_relaxed);
+    src.midiDelayFeedbackSteps[0].store(8, std::memory_order_relaxed);
+    src.midiDelayPitchShiftSteps[0].store(7, std::memory_order_relaxed);
+
+    // 2. Save processor state (version + arp params)
+    auto* stream = new MemoryStream();
+    IBStreamer writer(stream, kLittleEndian);
+    writer.writeInt32(Gradus::kCurrentStateVersion);
+    Gradus::saveArpParams(src, writer);
+
+    // 3. Create controller and initialize
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // 4. Load state into controller
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(controller.setComponentState(stream) == kResultOk);
+
+    // 5. Check delay params were stored in controller's parameter objects
+    auto checkParam = [&](ParamID id, double expected, const char* name) {
+        auto* param = controller.getParameterObject(id);
+        REQUIRE(param);
+        double actual = param->getNormalized();
+        INFO(name << ": expected " << expected << " got " << actual);
+        CHECK(actual == Catch::Approx(expected).margin(0.02));
+    };
+
+    // Lane length: 4 → normalized (4-1)/31 ≈ 0.0968
+    checkParam(Gradus::kArpMidiDelayLaneLengthId, 3.0 / 31.0, "lane length");
+
+    // Active step 0: 1 → normalized 1.0
+    checkParam(Gradus::kArpMidiDelayActiveStep0Id, 1.0, "active[0]");
+
+    // Feedback step 0: 8 → normalized 8/16 = 0.5
+    checkParam(Gradus::kArpMidiDelayFeedbackStep0Id, 8.0 / 16.0, "feedback[0]");
+
+    // Pitch shift step 0: 7 → normalized (7+24)/48 ≈ 0.6458
+    checkParam(Gradus::kArpMidiDelayPitchShiftStep0Id, 31.0 / 48.0, "pitch[0]");
+
+    REQUIRE(controller.terminate() == kResultOk);
+    stream->release();
+}
+
 TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.6 presets",
           "[gradus][vst][markov][state]")
 {
@@ -627,12 +817,13 @@ TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.6 presets
     Gradus::saveArpParams(src, writer);
 
     // Simulate pre-v1.6 preset by copying everything EXCEPT the Markov
-    // tail (200 bytes), speed curve depth (32 bytes), and curve point data
-    // (8 lanes × 60 bytes = 480 bytes) into a fresh stream.
-    // Total tail: 200 + 32 + 480 = 712 bytes.
+    // tail (200 bytes), speed curve depth (32 bytes), curve point data
+    // (8 lanes × 60 bytes = 480 bytes), and MIDI delay lane data
+    // (788 + 128 active flags = 916 bytes) into a fresh stream.
+    // Total tail: 200 + 32 + 480 + 916 = 1628 bytes.
     Steinberg::int64 size = 0;
     stream->seek(0, IBStream::kIBSeekEnd, &size);
-    const Steinberg::int64 truncatedSize = size - 712;
+    const Steinberg::int64 truncatedSize = size - 1628;
 
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     std::vector<char> buf(static_cast<size_t>(truncatedSize));

@@ -35,7 +35,7 @@ class SpeedCurveEditor;
 
 namespace Gradus {
 
-static constexpr int kArpLaneCount = 8;
+static constexpr int kArpLaneCount = 9;
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
                    public VSTGUI::VST3EditorDelegate
@@ -115,6 +115,7 @@ private:
     Krate::Plugins::IArpLane* conditionLane_ = nullptr;
     Krate::Plugins::IArpLane* chordLane_ = nullptr;
     Krate::Plugins::IArpLane* inversionLane_ = nullptr;
+    Krate::Plugins::IArpLane* midiDelayLane_ = nullptr;
 
     // Circular ring display (VSTGUI-owned, nulled in willClose)
     RingDisplay* ringDisplay_ = nullptr;

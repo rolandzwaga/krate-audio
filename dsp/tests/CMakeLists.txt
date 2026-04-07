@@ -180,6 +180,7 @@ add_executable(dsp_tests
     unit/processors/note_processor_test.cpp
     unit/processors/trance_gate_test.cpp
     unit/processors/arpeggiator_core_test.cpp
+    unit/processors/midi_note_delay_test.cpp
     unit/processors/ring_modulator_test.cpp
     unit/processors/harmonic_types_tests.cpp
     unit/processors/yin_pitch_detector_tests.cpp

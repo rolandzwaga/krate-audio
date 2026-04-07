@@ -56,7 +56,8 @@ tresult PLUGIN_API Processor::terminate()
 tresult PLUGIN_API Processor::setActive(TBool state)
 {
     if (state) {
-        arpCore_.reset();
+        arpCore_.reset();  // Also resets midiDelayLane_ inside
+        midiDelay_.reset();
     }
     return AudioEffect::setActive(state);
 }
@@ -137,7 +138,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
 
         if (isPlaying && !wasTransportPlaying_) {
-            arpCore_.reset();
+            arpCore_.reset();  // Also resets midiDelayLane_ inside
+            midiDelay_.reset();
         }
         wasTransportPlaying_ = isPlaying;
     }
@@ -167,10 +169,20 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     size_t numArpEvents = arpCore_.processBlock(
         blockCtx, std::span<ArpEvent>(arpEvents_.data(), arpEvents_.size()));
 
-    // --- 6. Route arp events → MIDI output ---
+    // --- 5b. MIDI delay post-processing ---
+    // The delay lane is now inside arpCore_ and advances with the other 8 lanes.
+    size_t currentDelayStep = arpCore_.midiDelayLane().currentStep();
+    size_t numCombinedEvents = midiDelay_.process(
+        blockCtx,
+        std::span<const ArpEvent>(arpEvents_.data(), numArpEvents),
+        numArpEvents,
+        std::span<ArpEvent>(combinedEvents_.data(), combinedEvents_.size()),
+        currentDelayStep);
+
+    // --- 6. Route combined events → MIDI output ---
     if (data.outputEvents) {
-        for (size_t i = 0; i < numArpEvents; ++i) {
-            const auto& evt = arpEvents_[i];
+        for (size_t i = 0; i < numCombinedEvents; ++i) {
+            const auto& evt = combinedEvents_[i];
 
             Event outEvent{};
             outEvent.busIndex = 0;
@@ -234,6 +246,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             static_cast<float>(arpCore_.chordLane().currentStep()) / 32.0f);
         outputPlayhead(kArpInversionPlayheadId,
             static_cast<float>(arpCore_.inversionLane().currentStep()) / 32.0f);
+        outputPlayhead(kArpMidiDelayPlayheadId,
+            static_cast<float>(arpCore_.midiDelayLane().currentStep()) / 32.0f);
     }
 
     // --- 8. Audio output: audition voice ---
@@ -429,8 +443,10 @@ void Processor::processParameterChanges(IParameterChanges* changes)
         if (queue->getPoint(numPoints - 1, sampleOffset, value) != kResultOk)
             continue;
 
-        // Try arp params first
-        if (id >= kArpBaseId && id <= kArpEndId) {
+        // Try arp params (base range 3000-3495 + speed curve 3500-3507 + delay 3510-3740)
+        if ((id >= kArpBaseId && id <= kArpEndId) ||
+            (id >= kArpVelocityLaneSpeedCurveDepthId && id <= kArpInversionLaneSpeedCurveDepthId) ||
+            (id >= kArpMidiDelayLaneLengthId && id <= kArpMidiDelayPlayheadId)) {
             handleArpParamChange(arpParams_, id, value);
             continue;
         }
@@ -722,6 +738,37 @@ void Processor::applyParamsToEngine()
 
     // Always enabled in Gradus (no operating mode selector)
     arpCore_.setEnabled(true);
+
+    // --- MIDI Delay Lane ---
+    {
+        using namespace Krate::DSP;
+        const auto delayLen = arpParams_.midiDelayLaneLength.load(std::memory_order_relaxed);
+        arpCore_.midiDelayLane().setLength(static_cast<size_t>(delayLen));
+
+        for (int i = 0; i < 32; ++i) {
+            MidiDelayStepConfig cfg;
+            cfg.timeMode = arpParams_.midiDelayTimeModeSteps[i].load(std::memory_order_relaxed)
+                           ? TimeMode::Synced : TimeMode::Free;
+
+            float rawTime = arpParams_.midiDelayTimeSteps[i].load(std::memory_order_relaxed);
+            if (cfg.timeMode == TimeMode::Free) {
+                // Normalized 0-1 → 10-2000ms
+                cfg.delayTimeMs = 10.0f + rawTime * 1990.0f;
+            } else {
+                // Normalized 0-1 → note value index 0-29
+                cfg.noteValueIndex = std::clamp(
+                    static_cast<int>(std::round(rawTime * 29.0f)), 0, 29);
+            }
+
+            cfg.active = arpParams_.midiDelayActiveSteps[i].load(std::memory_order_relaxed) != 0;
+            cfg.feedbackCount = arpParams_.midiDelayFeedbackSteps[i].load(std::memory_order_relaxed);
+            cfg.velocityDecay = arpParams_.midiDelayVelDecaySteps[i].load(std::memory_order_relaxed);
+            cfg.pitchShiftPerRepeat = arpParams_.midiDelayPitchShiftSteps[i].load(std::memory_order_relaxed);
+            cfg.gateScaling = arpParams_.midiDelayGateScaleSteps[i].load(std::memory_order_relaxed);
+
+            midiDelay_.setStepConfig(static_cast<size_t>(i), cfg);
+        }
+    }
 }
 
 } // namespace Gradus

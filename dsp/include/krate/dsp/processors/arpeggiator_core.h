@@ -148,6 +148,7 @@ public:
 
     static constexpr size_t kMaxEvents = 128;
     static constexpr size_t kMaxPendingNoteOffs = 32;
+    static constexpr size_t kNumLanes = 9;  ///< 8 original lanes + MIDI delay
     static constexpr double kMinSampleRate = 1000.0;
     static constexpr float kMinFreeRate = 0.5f;
     static constexpr float kMaxFreeRate = 50.0f;
@@ -530,6 +531,21 @@ public:
         return inversionLane_;
     }
 
+    // =========================================================================
+    // MIDI Delay Lane Accessor
+    // =========================================================================
+
+    /// @brief Access the MIDI delay step-tracking lane.
+    /// The delay lane participates in the same polymetric advancement as the
+    /// other 8 lanes — it advances in fireStep with its own speed/swing/jitter.
+    /// The actual echo scheduling is handled by the external MidiNoteDelay
+    /// post-processor, which reads currentStep() from this lane.
+    ArpLane<uint8_t>& midiDelayLane() noexcept { return midiDelayLane_; }
+
+    [[nodiscard]] const ArpLane<uint8_t>& midiDelayLane() const noexcept {
+        return midiDelayLane_;
+    }
+
     /// @brief Set the global voicing mode.
     void setVoicingMode(VoicingMode mode) noexcept { voicingMode_ = mode; }
 
@@ -540,7 +556,7 @@ public:
     /// Lane indices: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
     ///               5=condition, 6=chord, 7=inversion
     void setLaneSpeed(size_t laneIndex, float speed) noexcept {
-        if (laneIndex < 8)
+        if (laneIndex < kNumLanes)
             laneSpeedMultipliers_[laneIndex] = std::clamp(speed, 0.25f, 4.0f);
     }
 
@@ -552,7 +568,7 @@ public:
     /// @param table 256-entry table with values in [0, 1] (0.5 = center)
     void setLaneSpeedCurveTable(size_t laneIndex,
                                 const std::array<float, 256>& table) noexcept {
-        if (laneIndex < 8) {
+        if (laneIndex < kNumLanes) {
             laneSpeedCurveTablesStaging_[laneIndex] = table;
             laneSpeedCurveTableDirty_[laneIndex].store(true, std::memory_order_release);
         }
@@ -571,13 +587,13 @@ public:
 
     /// @brief Set speed curve depth for a lane (0 = off, 1 = full range).
     void setLaneSpeedCurveDepth(size_t laneIndex, float depth) noexcept {
-        if (laneIndex < 8)
+        if (laneIndex < kNumLanes)
             laneSpeedCurveDepths_[laneIndex] = std::clamp(depth, 0.0f, 1.0f);
     }
 
     /// @brief Enable/disable speed curve for a lane. Thread-safe (atomic store).
     void setLaneSpeedCurveEnabled(size_t laneIndex, bool enabled) noexcept {
-        if (laneIndex < 8)
+        if (laneIndex < kNumLanes)
             laneSpeedCurveEnabled_[laneIndex].store(enabled, std::memory_order_relaxed);
     }
 
@@ -649,7 +665,7 @@ public:
     /// Skews each lane's advance timing independently: odd advances are
     /// delayed (even ones advanced) by the swing amount.
     void setLaneSwing(size_t laneIndex, float percent) noexcept {
-        if (laneIndex >= 8) return;
+        if (laneIndex >= kNumLanes) return;
         laneSwingAmounts_[laneIndex] = std::clamp(percent, 0.0f, 75.0f) / 100.0f;
     }
 
@@ -705,7 +721,7 @@ public:
     /// laneIndex: 0=velocity, 1=gate, 2=pitch, 3=modifier,
     ///            4=ratchet, 5=condition, 6=chord, 7=inversion
     void setLaneLengthJitter(size_t laneIndex, int steps) noexcept {
-        if (laneIndex >= 8) return;
+        if (laneIndex >= kNumLanes) return;
         laneLengthJitters_[laneIndex] = std::clamp(steps, 0, 4);
     }
 
@@ -1722,6 +1738,7 @@ private:
             advanceLaneBySpeed(conditionLane_, 5);
             advanceLaneBySpeed(chordLane_,     6);
             advanceLaneBySpeed(inversionLane_, 7);
+            advanceLaneBySpeed(midiDelayLane_, 8);
 
             // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
             if (spice_ > 0.0f) {
@@ -2476,6 +2493,7 @@ private:
         conditionLane_.reset();              // 076-conditional-trigs: reset condition lane position
         chordLane_.reset();                  // arp-chord-lane: reset chord lane position
         inversionLane_.reset();              // arp-chord-lane: reset inversion lane position
+        midiDelayLane_.reset();              // MIDI delay lane: reset position
         loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
         // fillActive_ intentionally NOT reset (FR-022: performance control)
         // conditionRng_ intentionally NOT reset (FR-035: continuous randomness)
@@ -2515,6 +2533,7 @@ private:
 
     ArpLane<uint8_t> chordLane_;     ///< Per-step ChordType (default: length=1, step[0]=0=None)
     ArpLane<uint8_t> inversionLane_; ///< Per-step InversionType (default: length=1, step[0]=0=Root)
+    ArpLane<uint8_t> midiDelayLane_; ///< MIDI delay step tracking (lane index 8)
     VoicingMode voicingMode_{VoicingMode::Close}; ///< Global voicing mode
 
     // =========================================================================
@@ -2522,8 +2541,8 @@ private:
     // =========================================================================
     // Lane index: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
     //             5=condition, 6=chord, 7=inversion
-    std::array<float, 8> laneSpeedMultipliers_{{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
-    std::array<float, 8> laneAccumulators_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+    std::array<float, kNumLanes> laneSpeedMultipliers_{{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
+    std::array<float, kNumLanes> laneAccumulators_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
     // =========================================================================
     // Per-Lane Speed Curves
@@ -2535,11 +2554,11 @@ private:
     // Thread safety: tables are written from the message thread (via notify())
     // into staging buffers, then copied to the active tables on the audio thread
     // in consumePendingCurveTables(). The atomic dirty flags gate the copy.
-    std::array<std::array<float, 256>, 8> laneSpeedCurveTables_{};
-    std::array<std::array<float, 256>, 8> laneSpeedCurveTablesStaging_{};
-    std::array<std::atomic<bool>, 8> laneSpeedCurveTableDirty_{};
-    std::array<float, 8> laneSpeedCurveDepths_{};
-    std::array<std::atomic<bool>, 8> laneSpeedCurveEnabled_{};
+    std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTables_{};
+    std::array<std::array<float, 256>, kNumLanes> laneSpeedCurveTablesStaging_{};
+    std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveTableDirty_{};
+    std::array<float, kNumLanes> laneSpeedCurveDepths_{};
+    std::array<std::atomic<bool>, kNumLanes> laneSpeedCurveEnabled_{};
 
     // =========================================================================
     // Modifier Configuration (073-per-step-mods)
@@ -2576,16 +2595,16 @@ private:
     std::array<int32_t, 32> strumOffsets_{};   ///< Per-chord precomputed offsets
 
     // v1.5: Per-lane swing
-    std::array<float, 8> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
-    std::array<uint8_t, 8> laneSwingCounters_{{0, 0, 0, 0, 0, 0, 0, 0}};
+    std::array<float, kNumLanes> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+    std::array<uint8_t, kNumLanes> laneSwingCounters_{{0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
     // v1.5 Part 2
     int velocityCurveType_{0};        ///< 0=Linear, 1=Exp, 2=Log, 3=S-Curve
     float velocityCurveAmount_{0.0f}; ///< 0.0-1.0 blend amount
     int transpose_{0};                ///< -24 to +24 semitones
-    std::array<int, 8> laneLengthJitters_{};    ///< Per-lane jitter amount (0-4 steps)
-    std::array<int8_t, 8> lanePendingSkips_{};  ///< Positive = skip next N advances (lengthens)
-    std::array<uint8_t, 8> laneLastSteps_{};    ///< Previous step position for wrap detection
+    std::array<int, kNumLanes> laneLengthJitters_{};    ///< Per-lane jitter amount (0-4 steps)
+    std::array<int8_t, kNumLanes> lanePendingSkips_{};  ///< Positive = skip next N advances (lengthens)
+    std::array<uint8_t, kNumLanes> laneLastSteps_{};    ///< Previous step position for wrap detection
     uint32_t lengthJitterRng_{0xFEEDBEEFu};     ///< Xorshift state for jitter re-rolls
 
     // v1.5 Part 3: Note Range Mapping

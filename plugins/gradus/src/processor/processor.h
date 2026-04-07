@@ -8,6 +8,7 @@
 #include "../dsp/audition_voice.h"
 
 #include <krate/dsp/processors/arpeggiator_core.h>
+#include <krate/dsp/processors/midi_note_delay.h>
 
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
@@ -50,7 +51,11 @@ private:
     // Arpeggiator
     Krate::DSP::ArpeggiatorCore arpCore_;
     std::array<Krate::DSP::ArpEvent, 128> arpEvents_{};
+    std::array<Krate::DSP::ArpEvent, 512> combinedEvents_{};  // arp + delay echoes
     ArpeggiatorParams arpParams_;
+
+    // MIDI delay post-processor (echo scheduling; lane tracking is inside arpCore_)
+    Krate::DSP::MidiNoteDelay midiDelay_;
 
     // Previous arp param values — only call setters that reset internal state
     // when the value actually changes.
@@ -70,7 +75,7 @@ private:
     AuditionVoice auditionVoice_;
 
     // Audition sound params
-    std::atomic<bool>  auditionEnabled_{true};
+    std::atomic<bool>  auditionEnabled_{false};
     std::atomic<float> auditionVolume_{0.7f};
     std::atomic<int>   auditionWaveform_{0};
     std::atomic<float> auditionDecay_{200.0f};

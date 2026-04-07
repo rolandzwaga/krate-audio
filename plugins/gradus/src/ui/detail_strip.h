@@ -48,7 +48,7 @@ public:
     /// placed in that slot by the Controller and shown only on the Pitch tab.
     void setLane(int index, Krate::Plugins::IArpLane* lane)
     {
-        if (index < 0 || index >= 8 || !lane) return;
+        if (index < 0 || index >= kLaneCount || !lane) return;
 
         lanes_[index] = lane;
         auto* laneView = lane->getView();
@@ -74,7 +74,7 @@ public:
     /// Select a lane by index, showing its editor and hiding others.
     void selectLane(int index)
     {
-        if (index < 0 || index >= 8 || index == selectedLane_) return;
+        if (index < 0 || index >= kLaneCount || index == selectedLane_) return;
 
         // Hide current
         if (selectedLane_ >= 0 && lanes_[selectedLane_]) {
@@ -87,7 +87,10 @@ public:
         // Show new
         if (lanes_[index]) {
             auto* view = lanes_[index]->getView();
-            if (view) view->setVisible(true);
+            if (view) {
+                view->setVisible(true);
+                view->invalidRect(view->getViewSize());
+            }
         }
 
         // Sync tab bar
@@ -122,7 +125,7 @@ private:
     static constexpr float kPinRowHeight = 14.0f;
 
     LaneTabBar* tabBar_ = nullptr;  // Owned by CViewContainer
-    std::array<Krate::Plugins::IArpLane*, 8> lanes_{};
+    std::array<Krate::Plugins::IArpLane*, kLaneCount> lanes_{};
     int selectedLane_ = 0;
 
     LaneSelectedCallback laneSelectedCallback_;

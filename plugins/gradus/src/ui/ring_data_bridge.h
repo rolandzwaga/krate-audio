@@ -7,6 +7,7 @@
 // RingDataBridge is the concrete adapter that reads from IArpLane pointers.
 // ==============================================================================
 
+#include "lane_constants.h"
 #include "ui/arp_lane.h"
 
 #include <array>
@@ -57,7 +58,7 @@ public:
 
     void setLane(int laneIndex, Krate::Plugins::IArpLane* lane)
     {
-        if (laneIndex >= 0 && laneIndex < 8)
+        if (laneIndex >= 0 && laneIndex < kLaneCount)
             lanes_[laneIndex] = lane;
     }
 
@@ -84,14 +85,14 @@ public:
 
     void setPlayheadStep(int laneIndex, int step)
     {
-        if (laneIndex >= 0 && laneIndex < 8)
+        if (laneIndex >= 0 && laneIndex < kLaneCount)
             playheadSteps_[laneIndex] = step;
     }
 
     void setTrailState(int laneIndex,
                        const Krate::Plugins::PlayheadTrailState& state)
     {
-        if (laneIndex >= 0 && laneIndex < 8)
+        if (laneIndex >= 0 && laneIndex < kLaneCount)
             trailStates_[laneIndex] = state;
     }
 
@@ -116,7 +117,7 @@ public:
 
     [[nodiscard]] int getPlayheadStep(int laneIndex) const override
     {
-        if (laneIndex >= 0 && laneIndex < 8)
+        if (laneIndex >= 0 && laneIndex < kLaneCount)
             return playheadSteps_[laneIndex];
         return -1;
     }
@@ -124,7 +125,7 @@ public:
     [[nodiscard]] const Krate::Plugins::PlayheadTrailState&
     getTrailState(int laneIndex) const override
     {
-        if (laneIndex >= 0 && laneIndex < 8)
+        if (laneIndex >= 0 && laneIndex < kLaneCount)
             return trailStates_[laneIndex];
         static const Krate::Plugins::PlayheadTrailState empty{};
         return empty;
@@ -153,14 +154,14 @@ public:
 private:
     [[nodiscard]] Krate::Plugins::IArpLane* getLane(int index) const
     {
-        if (index >= 0 && index < 8)
+        if (index >= 0 && index < kLaneCount)
             return lanes_[index];
         return nullptr;
     }
 
-    std::array<Krate::Plugins::IArpLane*, 8> lanes_{};
-    std::array<int, 8> playheadSteps_{};
-    std::array<Krate::Plugins::PlayheadTrailState, 8> trailStates_{};
+    std::array<Krate::Plugins::IArpLane*, kLaneCount> lanes_{};
+    std::array<int, kLaneCount> playheadSteps_{};
+    std::array<Krate::Plugins::PlayheadTrailState, kLaneCount> trailStates_{};
 
     bool euclideanEnabled_ = false;
     int euclideanHits_ = 0;

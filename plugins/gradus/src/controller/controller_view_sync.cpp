@@ -18,6 +18,7 @@
 #include "krate/dsp/primitives/held_note_buffer.h"
 
 #include "ui/arp_lane_editor.h"
+#include "../ui/midi_delay_lane_editor.h"
 #include "ui/arp_modifier_lane.h"
 #include "ui/arp_condition_lane.h"
 #include "ui/arp_chord_lane.h"
@@ -261,7 +262,9 @@ tresult PLUGIN_API Controller::setParamNormalized(
         if (lane) {
             lane->setPlayheadStep(step);
             auto* view = lane->getView();
-            if (view) view->invalid();
+            if (view && view->isVisible()) {
+                view->invalidRect(view->getViewSize());
+            }
         }
         ringDataBridge_.setPlayheadStep(laneIndex, step);
     };
@@ -274,6 +277,7 @@ tresult PLUGIN_API Controller::setParamNormalized(
     if (tag == kArpRatchetPlayheadId)   setPlayhead(ratchetLane_, 5, value);
     if (tag == kArpChordPlayheadId)     setPlayhead(chordLane_, 6, value);
     if (tag == kArpInversionPlayheadId) setPlayhead(inversionLane_, 7, value);
+    if (tag == kArpMidiDelayPlayheadId) setPlayhead(midiDelayLane_, 8, value);
 
     // --- Scale type → pitch lane (for popup suffix display) ---
     if (tag == kArpScaleTypeId) {
@@ -347,6 +351,35 @@ tresult PLUGIN_API Controller::setParamNormalized(
     syncLaneLength(kArpRatchetLaneLengthId, 5);
     syncLaneLength(kArpChordLaneLengthId, 6);
     syncLaneLength(kArpInversionLaneLengthId, 7);
+    syncLaneLength(kArpMidiDelayLaneLengthId, 8);
+
+    // --- MIDI Delay lane length → update editor step count ---
+    if (tag == kArpMidiDelayLaneLengthId && midiDelayLane_) {
+        auto* p = getParameterObject(kArpMidiDelayLaneLengthId);
+        if (p) {
+            int steps = std::clamp(
+                static_cast<int>(1.0 + std::round(p->getNormalized() * 31.0)), 1, 32);
+            midiDelayLane_->setLength(steps);
+        }
+    }
+
+    // --- MIDI Delay lane step sync ---
+    if (auto* delayEditor = dynamic_cast<MidiDelayLaneEditor*>(
+            static_cast<Krate::Plugins::IArpLane*>(midiDelayLane_))) {
+        auto syncDelayRow = [&](uint32_t baseId, MidiDelayLaneEditor::KnobRow row) {
+            if (tag >= baseId && tag < baseId + 32) {
+                int stepIndex = static_cast<int>(tag - baseId);
+                delayEditor->setStepValue(stepIndex, row, static_cast<float>(value));
+            }
+        };
+        syncDelayRow(kArpMidiDelayActiveStep0Id,     MidiDelayLaneEditor::KnobRow::kActive);
+        syncDelayRow(kArpMidiDelayTimeModeStep0Id,  MidiDelayLaneEditor::KnobRow::kTimeMode);
+        syncDelayRow(kArpMidiDelayTimeStep0Id,       MidiDelayLaneEditor::KnobRow::kDelayTime);
+        syncDelayRow(kArpMidiDelayFeedbackStep0Id,   MidiDelayLaneEditor::KnobRow::kFeedback);
+        syncDelayRow(kArpMidiDelayVelDecayStep0Id,   MidiDelayLaneEditor::KnobRow::kVelDecay);
+        syncDelayRow(kArpMidiDelayPitchShiftStep0Id, MidiDelayLaneEditor::KnobRow::kPitchShift);
+        syncDelayRow(kArpMidiDelayGateScaleStep0Id,  MidiDelayLaneEditor::KnobRow::kGateScale);
+    }
 
     // --- Invalidate ring display for any arp parameter change ---
     if (ringDisplay_) {

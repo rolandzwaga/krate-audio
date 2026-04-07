@@ -5,6 +5,25 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-04-07
+
+### Added
+
+- **MIDI Delay lane** — New 9th lane that generates delayed echo copies of arp output notes as MIDI events. Each of the 32 steps has 7 independent parameters: Active (on/off toggle), Sync (free/synced), Delay Time (10-2000ms or note value 1/64T-4/1D), Feedback (0-16 repeats), Velocity Decay (0-100%), Pitch Shift (-24 to +24 semitones per repeat), and Gate Scaling (10-200% per repeat). Delay processing sits at the end of the signal path after all other lane transforms.
+- **Multi-knob grid editor** — The DELAY tab shows a scrollable grid of ArcKnob and ToggleButton controls (7 rows x N steps). Horizontal scrolling activates when step count exceeds 10, with mouse wheel support and a draggable scrollbar. Step number bar at the bottom with playhead-highlighted current step.
+- **Per-step active toggle** — Each step column has an ACTIVE power button at the top. When off, the 6 parameter controls below are hidden for a cleaner UI. When on, all controls appear and echoes are generated for that step.
+- **Tempo-synced delay** — Time knob snaps to 30 discrete note values (1/64T through 4/1D) when Sync is on, with note value labels in the value popup. Free mode shows milliseconds.
+- **Pitch cascade echoes** — Pitch Shift parameter transposes each successive echo by N semitones, enabling stacked intervals (fifths, octaves, etc.) that audio delay cannot produce.
+- **MidiNoteDelay DSP processor** — Real-time safe echo scheduler with 256-entry fixed-size pending buffer, emergency NoteOff on overflow, iterative velocity/gate decay (no std::pow on audio thread), and sample-accurate timing across process block boundaries.
+- **Delay lane integrated into ArpeggiatorCore** — The delay lane is the 9th lane inside the arpeggiator engine, advancing with the same polymetric speed/swing/jitter infrastructure as the other 8 lanes. Resets correctly on retrigger.
+
+### Changed
+
+- **Lane tab bar expanded to 9 tabs** — New "DELAY" tab with warm gold accent color (#D4A856).
+- **Audition sound defaults to OFF** — Previously defaulted to on, causing the built-in synth to play even when routed to an external instrument.
+- **Chord/inversion playhead parameter defaults** — Fixed from 1.0 to 0.0 to prevent the playhead indicator from being stuck out of range on initial load.
+- **Detail strip invalidates lane view on tab switch** — Ensures playhead state renders immediately when switching to a lane that received updates while hidden.
+
 ## [1.6.0] - 2026-04-05
 
 ### Added

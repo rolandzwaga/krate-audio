@@ -35,9 +35,9 @@ struct LaneColors {
     VSTGUI::CColor highlight;  ///< Playhead highlight color
 };
 
-inline const std::array<LaneColors, 8>& getLaneColors()
+inline const std::array<LaneColors, kLaneCount>& getLaneColors()
 {
-    static const std::array<LaneColors, 8> colors = {{
+    static const std::array<LaneColors, kLaneCount> colors = {{
         // Velocity
         {{0xD0, 0x84, 0x5C, 0xFF}, {0x00, 0xE0, 0xE0, 0xFF}},
         // Gate
@@ -54,6 +54,8 @@ inline const std::array<LaneColors, 8>& getLaneColors()
         {{0xA8, 0x8C, 0xC8, 0xFF}, {0x40, 0x80, 0xE0, 0xFF}},
         // Inversion
         {{0x88, 0xA8, 0xC8, 0xFF}, {0x40, 0xB0, 0xB0, 0xFF}},
+        // MIDI Delay
+        {{0xD4, 0xA8, 0x56, 0xFF}, {0xE0, 0xC0, 0x60, 0xFF}},
     }};
     return colors;
 }

@@ -44,7 +44,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
 
     // Audition sound parameters
     parameters.addParameter(STR16("Audition Enabled"), nullptr, 1,
-        1.0, ParameterInfo::kCanAutomate, kAuditionEnabledId);
+        0.0, ParameterInfo::kCanAutomate, kAuditionEnabledId);
 
     parameters.addParameter(
         new RangeParameter(STR16("Audition Volume"), kAuditionVolumeId,
@@ -156,6 +156,84 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         sendSpeedCurveTable(laneIdx, curve);
     }
 
+    // --- MIDI Delay Lane parameters ---
+    // Read after speed curve point data, mirroring saveArpParams order.
+    // Uses a lambda with early return instead of goto for structured control flow.
+    [&]() {
+        int32 iv = 0;
+        float fv = 0.0f;
+
+        // Lane length
+        if (!streamer.readInt32(iv)) return;
+        setParamNormalized(kArpMidiDelayLaneLengthId,
+            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
+
+        // Per-step time mode (32 steps)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayTimeModeStep0Id + i),
+                iv ? 1.0 : 0.0);
+        }
+        // Per-step delay time (32 steps, stored as normalized 0-1)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readFloat(fv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayTimeStep0Id + i),
+                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
+        }
+        // Per-step feedback (32 steps)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayFeedbackStep0Id + i),
+                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 16)) / 16.0);
+        }
+        // Per-step velocity decay (32 steps)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readFloat(fv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayVelDecayStep0Id + i),
+                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
+        }
+        // Per-step pitch shift (32 steps)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayPitchShiftStep0Id + i),
+                static_cast<double>(std::clamp(static_cast<int>(iv), -24, 24) + 24) / 48.0);
+        }
+        // Per-step gate scaling (32 steps)
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readFloat(fv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayGateScaleStep0Id + i),
+                static_cast<double>(std::clamp(fv, 0.1f, 2.0f) - 0.1f) / 1.9);
+        }
+        // Per-step active flags (32 steps) — EOF-safe for pre-active presets
+        for (int i = 0; i < 32; ++i) {
+            if (!streamer.readInt32(iv)) return;
+            setParamNormalized(static_cast<ParamID>(kArpMidiDelayActiveStep0Id + i),
+                iv ? 1.0 : 0.0);
+        }
+        // Lane metadata
+        if (!streamer.readFloat(fv)) return;
+        {
+            float speed = std::clamp(fv, 0.25f, 4.0f);
+            int bestIdx = 3;
+            float bestDist = 99.0f;
+            for (int i = 0; i < kLaneSpeedCount; ++i) {
+                float dist = std::abs(kLaneSpeedValues[i] - speed);
+                if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+            }
+            setParamNormalized(kArpMidiDelayLaneSpeedId,
+                static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1));
+        }
+        if (streamer.readFloat(fv))
+            setParamNormalized(kArpMidiDelayLaneSwingId,
+                static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
+        if (streamer.readInt32(iv))
+            setParamNormalized(kArpMidiDelayLaneJitterId,
+                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
+        if (streamer.readFloat(fv))
+            setParamNormalized(kArpMidiDelayLaneSpeedCurveDepthId,
+                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
+    }();
+
     // Audition params are session-only — not restored from presets
 
     return kResultOk;
@@ -190,6 +268,77 @@ tresult PLUGIN_API Controller::getParamStringByValue(
         }
         default:
             break;
+    }
+
+    // MIDI Delay: per-step time display (depends on sync mode)
+    if (id >= kArpMidiDelayTimeStep0Id && id <= kArpMidiDelayTimeStep31Id) {
+        int step = static_cast<int>(id - kArpMidiDelayTimeStep0Id);
+        auto syncId = static_cast<ParamID>(kArpMidiDelayTimeModeStep0Id + step);
+        auto* syncParam = getParameterObject(syncId);
+        bool synced = syncParam ? (syncParam->getNormalized() >= 0.5) : true;
+
+        if (synced) {
+            // Note value display: snap to nearest of 30 entries
+            int idx = std::clamp(static_cast<int>(std::round(valueNormalized * 29.0)), 0, 29);
+            static constexpr const char* kNoteLabels[30] = {
+                "1/64T","1/64","1/64D","1/32T","1/32","1/32D",
+                "1/16T","1/16","1/16D","1/8T","1/8","1/8D",
+                "1/4T","1/4","1/4D","1/2T","1/2","1/2D",
+                "1/1T","1/1","1/1D","2/1T","2/1","2/1D",
+                "3/1T","3/1","3/1D","4/1T","4/1","4/1D"
+            };
+            Steinberg::UString(string, 128).fromAscii(kNoteLabels[idx]);
+        } else {
+            float ms = static_cast<float>(10.0 + valueNormalized * 1990.0);
+            char text[32];
+            if (ms >= 1000.0f)
+                snprintf(text, sizeof(text), "%.2f s", static_cast<double>(ms) / 1000.0);
+            else
+                snprintf(text, sizeof(text), "%.0f ms", static_cast<double>(ms));
+            Steinberg::UString(string, 128).fromAscii(text);
+        }
+        return kResultTrue;
+    }
+    // MIDI Delay: feedback count
+    if (id >= kArpMidiDelayFeedbackStep0Id && id <= kArpMidiDelayFeedbackStep31Id) {
+        int count = static_cast<int>(std::round(valueNormalized * 16.0));
+        char text[32];
+        snprintf(text, sizeof(text), "%d", count);
+        Steinberg::UString(string, 128).fromAscii(text);
+        return kResultTrue;
+    }
+    // MIDI Delay: velocity decay
+    if (id >= kArpMidiDelayVelDecayStep0Id && id <= kArpMidiDelayVelDecayStep31Id) {
+        char text[32];
+        snprintf(text, sizeof(text), "%.0f%%", valueNormalized * 100.0);
+        Steinberg::UString(string, 128).fromAscii(text);
+        return kResultTrue;
+    }
+    // MIDI Delay: pitch shift
+    if (id >= kArpMidiDelayPitchShiftStep0Id && id <= kArpMidiDelayPitchShiftStep31Id) {
+        int semi = static_cast<int>(std::round(valueNormalized * 48.0 - 24.0));
+        char text[32];
+        snprintf(text, sizeof(text), "%+d st", semi);
+        Steinberg::UString(string, 128).fromAscii(text);
+        return kResultTrue;
+    }
+    // MIDI Delay: gate scaling
+    if (id >= kArpMidiDelayGateScaleStep0Id && id <= kArpMidiDelayGateScaleStep31Id) {
+        float pct = static_cast<float>(0.1 + valueNormalized * 1.9) * 100.0f;
+        char text[32];
+        snprintf(text, sizeof(text), "%.0f%%", static_cast<double>(pct));
+        Steinberg::UString(string, 128).fromAscii(text);
+        return kResultTrue;
+    }
+    // MIDI Delay: time mode
+    if (id >= kArpMidiDelayTimeModeStep0Id && id <= kArpMidiDelayTimeModeStep31Id) {
+        Steinberg::UString(string, 128).fromAscii(valueNormalized >= 0.5 ? "Sync" : "Free");
+        return kResultTrue;
+    }
+    // MIDI Delay: active toggle
+    if (id >= kArpMidiDelayActiveStep0Id && id <= kArpMidiDelayActiveStep31Id) {
+        Steinberg::UString(string, 128).fromAscii(valueNormalized >= 0.5 ? "On" : "Off");
+        return kResultTrue;
     }
 
     return EditControllerEx1::getParamStringByValue(id, valueNormalized, string);
@@ -327,6 +476,7 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     conditionLane_ = nullptr;
     chordLane_ = nullptr;
     inversionLane_ = nullptr;
+    midiDelayLane_ = nullptr;
     ringDataBridge_.clearLanes();
     ringDisplay_ = nullptr;
     detailStrip_ = nullptr;

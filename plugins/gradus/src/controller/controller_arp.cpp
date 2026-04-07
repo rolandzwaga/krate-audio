@@ -19,7 +19,7 @@ void Controller::handleArpSkipEvent(int lane, int step) {
     Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
         velocityLane_, gateLane_, pitchLane_,
         ratchetLane_, modifierLane_, conditionLane_,
-        chordLane_, inversionLane_
+        chordLane_, inversionLane_, midiDelayLane_
     };
 
     auto* targetLane = lanes[lane];
@@ -37,7 +37,7 @@ Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
     Krate::Plugins::IArpLane* lanes[kArpLaneCount] = {
         velocityLane_, gateLane_, pitchLane_,
         ratchetLane_, modifierLane_, conditionLane_,
-        chordLane_, inversionLane_
+        chordLane_, inversionLane_, midiDelayLane_
     };
     if (index < 0 || index >= kArpLaneCount) return nullptr;
     return lanes[index];
@@ -45,7 +45,7 @@ Krate::Plugins::IArpLane* Controller::getArpLane(int index) {
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 uint32_t Controller::getArpLaneStepBaseParamId(int index) {
-    static constexpr uint32_t kStepBaseIds[8] = {
+    static constexpr uint32_t kStepBaseIds[kArpLaneCount] = {
         kArpVelocityLaneStep0Id,
         kArpGateLaneStep0Id,
         kArpPitchLaneStep0Id,
@@ -53,7 +53,8 @@ uint32_t Controller::getArpLaneStepBaseParamId(int index) {
         kArpModifierLaneStep0Id,
         kArpConditionLaneStep0Id,
         kArpChordLaneStep0Id,
-        kArpInversionLaneStep0Id
+        kArpInversionLaneStep0Id,
+        kArpMidiDelayFeedbackStep0Id  // MIDI Delay: use feedback as primary step value
     };
     if (index < 0 || index >= kArpLaneCount) return 0;
     return kStepBaseIds[index];
@@ -61,7 +62,7 @@ uint32_t Controller::getArpLaneStepBaseParamId(int index) {
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 uint32_t Controller::getArpLaneLengthParamId(int index) {
-    static constexpr uint32_t kLengthIds[8] = {
+    static constexpr uint32_t kLengthIds[kArpLaneCount] = {
         kArpVelocityLaneLengthId,
         kArpGateLaneLengthId,
         kArpPitchLaneLengthId,
@@ -69,7 +70,8 @@ uint32_t Controller::getArpLaneLengthParamId(int index) {
         kArpModifierLaneLengthId,
         kArpConditionLaneLengthId,
         kArpChordLaneLengthId,
-        kArpInversionLaneLengthId
+        kArpInversionLaneLengthId,
+        kArpMidiDelayLaneLengthId
     };
     if (index < 0 || index >= kArpLaneCount) return 0;
     return kLengthIds[index];

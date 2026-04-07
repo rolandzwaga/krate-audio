@@ -443,14 +443,68 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kArpInversionLaneSpeedCurveDepthId = 3507,
 
     // ==========================================================================
+    // MIDI Delay Lane (3510-3707) — Gradus-specific
+    // ==========================================================================
+    // Per-step echo post-processor. Each step has 6 parameters:
+    // time mode, delay time, feedback, velocity decay, pitch shift, gate scaling.
+
+    kArpMidiDelayLaneLengthId         = 3510,   // 1-32 steps
+
+    // Per-step time mode (32 params): 3511-3542
+    kArpMidiDelayTimeModeStep0Id      = 3511,   // 0=Free, 1=Synced
+    // kArpMidiDelayTimeModeStep1Id .. Step31Id = 3512..3542
+    kArpMidiDelayTimeModeStep31Id     = 3542,
+
+    // Per-step delay time (32 params): 3543-3574
+    // Free mode: normalized 0-1 → 10-2000ms
+    // Synced mode: normalized 0-1 → note value index 0-29
+    kArpMidiDelayTimeStep0Id          = 3543,
+    // kArpMidiDelayTimeStep1Id .. Step31Id = 3544..3574
+    kArpMidiDelayTimeStep31Id         = 3574,
+
+    // Per-step feedback count (32 params): 3575-3606
+    kArpMidiDelayFeedbackStep0Id      = 3575,   // 0-16 repeats
+    // kArpMidiDelayFeedbackStep1Id .. Step31Id = 3576..3606
+    kArpMidiDelayFeedbackStep31Id     = 3606,
+
+    // Per-step velocity decay (32 params): 3607-3638
+    kArpMidiDelayVelDecayStep0Id      = 3607,   // 0-100%
+    // kArpMidiDelayVelDecayStep1Id .. Step31Id = 3608..3638
+    kArpMidiDelayVelDecayStep31Id     = 3638,
+
+    // Per-step pitch shift (32 params): 3639-3670
+    kArpMidiDelayPitchShiftStep0Id    = 3639,   // -24..+24 semitones per repeat
+    // kArpMidiDelayPitchShiftStep1Id .. Step31Id = 3640..3670
+    kArpMidiDelayPitchShiftStep31Id   = 3670,
+
+    // Per-step gate scaling (32 params): 3671-3702
+    kArpMidiDelayGateScaleStep0Id     = 3671,   // 10-200%
+    // kArpMidiDelayGateScaleStep1Id .. Step31Id = 3672..3702
+    kArpMidiDelayGateScaleStep31Id    = 3702,
+
+    // Lane metadata (polymetric support)
+    kArpMidiDelayLaneSpeedId          = 3703,   // 0.25-4.0x
+    kArpMidiDelayLaneSwingId          = 3704,   // 0-75%
+    kArpMidiDelayLaneJitterId         = 3705,   // 0-4 steps
+    kArpMidiDelayLaneSpeedCurveDepthId = 3706,  // 0-100%
+
+    // Per-step active toggle (32 params): 3708-3739
+    kArpMidiDelayActiveStep0Id        = 3708,   // 0=inactive, 1=active (default 0)
+    // kArpMidiDelayActiveStep1Id .. Step31Id = 3709..3739
+    kArpMidiDelayActiveStep31Id       = 3739,
+
+    // Playhead (hidden, output-only)
+    kArpMidiDelayPlayheadId           = 3740,
+
+    // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific
     // ==========================================================================
-    kAuditionEnabledId  = 4000,    // on/off toggle, default on
+    kAuditionEnabledId  = 4000,    // on/off toggle, default off
     kAuditionVolumeId   = 4001,    // 0.0-1.0, default 0.7
     kAuditionWaveformId = 4002,    // 0=Sine, 1=Saw, 2=Square
     kAuditionDecayId    = 4003,    // 10-2000ms, default 200ms
 
-    kNumParameters = 4004,
+    kNumParameters = 4004,  // Sentinel: one past highest ID (4003). MIDI delay IDs 3510-3707 fill the gap.
 };
 
 // Operating mode constants are defined in arpeggiator_params.h (ArpOperatingMode enum)
