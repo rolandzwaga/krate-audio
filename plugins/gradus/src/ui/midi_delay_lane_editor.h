@@ -169,6 +169,8 @@ public:
 
     void setNumSteps(int count) {
         int newCount = std::clamp(count, 1, kMaxSteps);
+        if (newCount == numSteps_ && !controlPtrs_.empty())
+            return;  // No change — don't rebuild and destroy controls mid-drag
         numSteps_ = newCount;
         header_.setNumSteps(numSteps_);
         // Only rebuild if we have a valid size (attached to parent)
