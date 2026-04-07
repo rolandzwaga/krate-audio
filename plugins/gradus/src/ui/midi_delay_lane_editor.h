@@ -131,6 +131,9 @@ public:
         setBackgroundColor({0x16, 0x16, 0x1C, 0xC0});
         header_.setLaneName("DELAY");
         header_.setAccentColor(accentColor_);
+        // Hide Invert (bit 0) — doesn't apply to multi-param grid.
+        // Keep ShiftLeft(1), ShiftRight(2), Randomize(3).
+        header_.setTransformMask(0x0E);
 
         for (int s = 0; s < kMaxSteps; ++s) {
             stepValues_[s][static_cast<int>(KnobRow::kActive)] = 0.0f;

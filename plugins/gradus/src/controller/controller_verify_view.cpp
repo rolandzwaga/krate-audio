@@ -29,8 +29,10 @@
 #include "../ui/midi_delay_lane_editor.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
+#include <random>
 
 namespace {
 // Lightweight IControlListener that forwards to a std::function
@@ -763,6 +765,73 @@ void Controller::constructArpLanes()
     wireNonBarTransform(condLane, kArpConditionLaneStep0Id);
     wireNonBarTransform(chdLane, kArpChordLaneStep0Id);
     wireNonBarTransform(invLane, kArpInversionLaneStep0Id);
+
+    // --- MIDI Delay lane transforms (shift left/right, randomize) ---
+    if (delayLane) {
+        delayLane->setTransformCallback(
+            [this, delayLane](int transformType) {
+                auto type = static_cast<Krate::Plugins::TransformType>(transformType);
+                int32_t len = delayLane->getActiveLength();
+                if (len <= 0) return;
+
+                // Per-row param base IDs matching KnobRow order
+                static constexpr uint32_t kRowBaseIds[] = {
+                    kArpMidiDelayActiveStep0Id,
+                    kArpMidiDelayTimeModeStep0Id,
+                    kArpMidiDelayTimeStep0Id,
+                    kArpMidiDelayFeedbackStep0Id,
+                    kArpMidiDelayVelDecayStep0Id,
+                    kArpMidiDelayPitchShiftStep0Id,
+                    kArpMidiDelayGateScaleStep0Id,
+                };
+                static constexpr int kRows = 7;
+
+                if (type == Krate::Plugins::TransformType::kShiftLeft ||
+                    type == Krate::Plugins::TransformType::kShiftRight) {
+                    // Rotate all rows together by 1 step
+                    for (int row = 0; row < kRows; ++row) {
+                        auto knobRow = static_cast<MidiDelayLaneEditor::KnobRow>(row);
+                        std::array<float, 32> vals{};
+                        for (int i = 0; i < len; ++i)
+                            vals[i] = delayLane->getStepValue(i, knobRow);
+
+                        std::array<float, 32> shifted{};
+                        for (int i = 0; i < len; ++i) {
+                            int src = (type == Krate::Plugins::TransformType::kShiftLeft)
+                                ? (i + 1) % len : (i - 1 + len) % len;
+                            shifted[i] = vals[src];
+                        }
+
+                        for (int i = 0; i < len; ++i) {
+                            uint32_t paramId = kRowBaseIds[row] + static_cast<uint32_t>(i);
+                            beginEdit(paramId);
+                            performEdit(paramId, static_cast<double>(shifted[i]));
+                            setParamNormalized(paramId, static_cast<double>(shifted[i]));
+                            endEdit(paramId);
+                            delayLane->setStepValue(i, knobRow, shifted[i]);
+                        }
+                    }
+                } else if (type == Krate::Plugins::TransformType::kRandomize) {
+                    // Randomize all per-step values with sensible ranges
+                    std::mt19937 rng(static_cast<unsigned>(
+                        std::chrono::steady_clock::now().time_since_epoch().count()));
+                    std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
+                    for (int i = 0; i < len; ++i) {
+                        for (int row = 0; row < kRows; ++row) {
+                            auto knobRow = static_cast<MidiDelayLaneEditor::KnobRow>(row);
+                            float val = dist01(rng);
+                            uint32_t paramId = kRowBaseIds[row] + static_cast<uint32_t>(i);
+                            beginEdit(paramId);
+                            performEdit(paramId, static_cast<double>(val));
+                            setParamNormalized(paramId, static_cast<double>(val));
+                            endEdit(paramId);
+                            delayLane->setStepValue(i, knobRow, val);
+                        }
+                    }
+                }
+                delayLane->setDirty(true);
+            });
+    }
 
     wireCopyPasteCallbacks();
 

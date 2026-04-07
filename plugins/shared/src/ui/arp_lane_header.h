@@ -102,6 +102,11 @@ public:
         transformCallback_ = std::move(cb);
     }
 
+    /// Bitmask controlling which transform buttons are visible.
+    /// Bit 0 = Invert, 1 = ShiftLeft, 2 = ShiftRight, 3 = Randomize.
+    /// Default 0x0F = all visible.
+    void setTransformMask(uint8_t mask) { transformMask_ = mask; }
+
     // =========================================================================
     // Copy/Paste Callbacks (Phase 11c)
     // =========================================================================
@@ -157,6 +162,7 @@ public:
             VSTGUI::CLineStyle::kLineJoinRound));
 
         for (int i = 0; i < 4; ++i) {
+            if (!(transformMask_ & (1u << i))) continue; // skip hidden buttons
             VSTGUI::CRect btnRect = getButtonRect(headerRect, i);
             float cx = static_cast<float>(btnRect.left + btnRect.right) / 2.0f;
             float cy = static_cast<float>(btnRect.top + btnRect.bottom) / 2.0f;
@@ -194,6 +200,7 @@ public:
         if (!transformCallback_) return false;
 
         for (int i = 0; i < 4; ++i) {
+            if (!(transformMask_ & (1u << i))) continue; // skip hidden buttons
             VSTGUI::CRect btnRect = getButtonRect(headerRect, i);
             if (btnRect.pointInside(where)) {
                 transformCallback_(static_cast<TransformType>(i));
@@ -263,6 +270,7 @@ public:
         int prev = hoveredButton_;
         hoveredButton_ = -1;
         for (int i = 0; i < 4; ++i) {
+            if (!(transformMask_ & (1u << i))) continue; // skip hidden buttons
             if (getButtonRect(headerRect, i).pointInside(where)) {
                 hoveredButton_ = i;
                 break;
@@ -718,6 +726,7 @@ private:
     PasteCallback pasteCallback_;
     bool pasteEnabled_ = false;
     int hoveredButton_ = -1; // -1 = none, 0-3 = button index
+    uint8_t transformMask_ = 0x0F; // all 4 buttons visible by default
 };
 
 } // namespace Krate::Plugins
