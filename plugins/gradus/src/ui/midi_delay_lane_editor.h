@@ -208,21 +208,16 @@ public:
         // Map tag back to step/row and update our cache
         auto [step, row] = tagToStepRow(tag);
         if (step >= 0 && step < kMaxSteps && static_cast<int>(row) < kRowCount) {
-            // When ACTIVE toggle changes, show/hide controls in this column
-            if (row == KnobRow::kActive) {
-                updateColumnVisibility(step, value >= 0.5f);
-            }
-
             // Snap TIME knob to note value grid when SYNC is on
             if (row == KnobRow::kDelayTime) {
                 bool synced = stepValues_[step][static_cast<int>(KnobRow::kTimeMode)] >= 0.5f;
                 if (synced) {
-                    // Snap to 1 of 30 note values
                     value = std::round(value * 29.0f) / 29.0f;
                     control->setValue(value);
                 }
             }
-            stepValues_[step][static_cast<int>(row)] = value;
+            // Single path for cache + visibility (setStepValue handles Active toggle)
+            setStepValue(step, row, value);
         }
 
         if (paramCallback_) paramCallback_(tag, value);
