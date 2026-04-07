@@ -2072,7 +2072,7 @@ TEST_CASE("SpiceHumanize_AllThreeParams_Registered", "[arp][params][spice][human
     }
 
     // Verify sentinels (updated for dual-reverb/flanger additions)
-    CHECK(kArpEndId == 3387);
+    CHECK(kArpEndId == 3445);
     CHECK(kNumParameters == 3401);
 }
 

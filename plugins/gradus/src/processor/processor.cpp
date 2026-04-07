@@ -195,7 +195,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 outEvent.noteOn.channel = 0;
                 outEvent.noteOn.pitch = static_cast<int16>(evt.note);
                 outEvent.noteOn.velocity = static_cast<float>(evt.velocity) / 127.0f;
-                outEvent.noteOn.noteId = -1;
+                outEvent.noteOn.noteId = -1;  // Gradus doesn't track note IDs
                 outEvent.noteOn.tuning = 0.0f;
                 outEvent.noteOn.length = 0;
                 data.outputEvents->addEvent(outEvent);
@@ -209,7 +209,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 outEvent.noteOff.channel = 0;
                 outEvent.noteOff.pitch = static_cast<int16>(evt.note);
                 outEvent.noteOff.velocity = 0.0f;
-                outEvent.noteOff.noteId = -1;
+                outEvent.noteOff.noteId = -1;  // Gradus doesn't track note IDs
                 outEvent.noteOff.tuning = 0.0f;
                 data.outputEvents->addEvent(outEvent);
 
@@ -230,24 +230,20 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             }
         };
 
-        outputPlayhead(kArpVelocityPlayheadId,
-            static_cast<float>(arpCore_.velocityLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpGatePlayheadId,
-            static_cast<float>(arpCore_.gateLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpPitchPlayheadId,
-            static_cast<float>(arpCore_.pitchLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpRatchetPlayheadId,
-            static_cast<float>(arpCore_.ratchetLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpModifierPlayheadId,
-            static_cast<float>(arpCore_.modifierLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpConditionPlayheadId,
-            static_cast<float>(arpCore_.conditionLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpChordPlayheadId,
-            static_cast<float>(arpCore_.chordLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpInversionPlayheadId,
-            static_cast<float>(arpCore_.inversionLane().currentStep()) / 32.0f);
-        outputPlayhead(kArpMidiDelayPlayheadId,
-            static_cast<float>(arpCore_.midiDelayLane().currentStep()) / 32.0f);
+        const std::pair<ParamID, size_t> playheads[] = {
+            {kArpVelocityPlayheadId,  arpCore_.velocityLane().currentStep()},
+            {kArpGatePlayheadId,      arpCore_.gateLane().currentStep()},
+            {kArpPitchPlayheadId,     arpCore_.pitchLane().currentStep()},
+            {kArpRatchetPlayheadId,   arpCore_.ratchetLane().currentStep()},
+            {kArpModifierPlayheadId,  arpCore_.modifierLane().currentStep()},
+            {kArpConditionPlayheadId, arpCore_.conditionLane().currentStep()},
+            {kArpChordPlayheadId,     arpCore_.chordLane().currentStep()},
+            {kArpInversionPlayheadId, arpCore_.inversionLane().currentStep()},
+            {kArpMidiDelayPlayheadId, arpCore_.midiDelayLane().currentStep()},
+        };
+        for (const auto& [id, step] : playheads) {
+            outputPlayhead(id, static_cast<float>(step) / kMaxLaneStepsF);
+        }
     }
 
     // --- 8. Audio output: audition voice ---
@@ -436,6 +432,8 @@ void Processor::processParameterChanges(IParameterChanges* changes)
 
         ParamID id = queue->getParameterId();
         int32 numPoints = queue->getPointCount();
+        if (numPoints <= 0) continue;
+
         ParamValue value = 0.0;
         int32 sampleOffset = 0;
 
@@ -457,10 +455,11 @@ void Processor::processParameterChanges(IParameterChanges* changes)
         } else if (id == kAuditionVolumeId) {
             auditionVolume_.store(static_cast<float>(value), std::memory_order_relaxed);
         } else if (id == kAuditionWaveformId) {
-            int wf = static_cast<int>(value * 2.0 + 0.5);
-            auditionWaveform_.store(std::clamp(wf, 0, 2), std::memory_order_relaxed);
+            int wf = static_cast<int>(std::round(value * (kAuditionWaveformCount - 1)));
+            auditionWaveform_.store(std::clamp(wf, 0, kAuditionWaveformCount - 1),
+                std::memory_order_relaxed);
         } else if (id == kAuditionDecayId) {
-            float decay = static_cast<float>(10.0 + value * 1990.0);
+            float decay = kAuditionDecayMinMs + static_cast<float>(value) * kAuditionDecayRangeMs;
             auditionDecay_.store(decay, std::memory_order_relaxed);
         }
     }
@@ -531,47 +530,45 @@ void Processor::applyParamsToEngine()
         }
     }
 
-    // --- Velocity Lane ---
-    {
-        const auto velLen = arpParams_.velocityLaneLength.load(std::memory_order_relaxed);
-        arpCore_.velocityLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            arpCore_.velocityLane().setStep(
-                static_cast<size_t>(i),
-                arpParams_.velocityLaneSteps[i].load(std::memory_order_relaxed));
+    // --- Sync float-step lanes (Velocity, Gate) ---
+    auto syncFloatLane = [&](auto& lane, const std::atomic<float>* steps,
+                             const std::atomic<int>& lengthParam) {
+        const auto len = lengthParam.load(std::memory_order_relaxed);
+        lane.setLength(kMaxLaneSteps);
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            lane.setStep(static_cast<size_t>(i),
+                steps[i].load(std::memory_order_relaxed));
         }
-        arpCore_.velocityLane().setLength(static_cast<size_t>(velLen));
-    }
-    // --- Gate Lane ---
-    {
-        const auto gateLen = arpParams_.gateLaneLength.load(std::memory_order_relaxed);
-        arpCore_.gateLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            arpCore_.gateLane().setStep(
-                static_cast<size_t>(i),
-                arpParams_.gateLaneSteps[i].load(std::memory_order_relaxed));
+        lane.setLength(static_cast<size_t>(len));
+    };
+    syncFloatLane(arpCore_.velocityLane(), arpParams_.velocityLaneSteps.data(),
+        arpParams_.velocityLaneLength);
+    syncFloatLane(arpCore_.gateLane(), arpParams_.gateLaneSteps.data(),
+        arpParams_.gateLaneLength);
+
+    // --- Sync int-step lanes (Pitch, Modifier, Ratchet, Condition, Chord, Inversion) ---
+    auto syncIntLane = [&](auto& lane, const auto* steps,
+                           const std::atomic<int>& lengthParam,
+                           auto minVal, auto maxVal) {
+        const auto len = lengthParam.load(std::memory_order_relaxed);
+        lane.setLength(kMaxLaneSteps);
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            auto val = std::clamp(steps[i].load(std::memory_order_relaxed),
+                static_cast<decltype(steps[0].load())>(minVal),
+                static_cast<decltype(steps[0].load())>(maxVal));
+            lane.setStep(static_cast<size_t>(i),
+                static_cast<decltype(lane.getStep(0))>(val));
         }
-        arpCore_.gateLane().setLength(static_cast<size_t>(gateLen));
-    }
-    // --- Pitch Lane ---
-    {
-        const auto pitchLen = arpParams_.pitchLaneLength.load(std::memory_order_relaxed);
-        arpCore_.pitchLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            int val = std::clamp(
-                arpParams_.pitchLaneSteps[i].load(std::memory_order_relaxed), -24, 24);
-            arpCore_.pitchLane().setStep(
-                static_cast<size_t>(i), static_cast<int8_t>(val));
-        }
-        arpCore_.pitchLane().setLength(static_cast<size_t>(pitchLen));
-    }
-    // --- Modifier Lane ---
+        lane.setLength(static_cast<size_t>(len));
+    };
+    syncIntLane(arpCore_.pitchLane(), arpParams_.pitchLaneSteps.data(),
+        arpParams_.pitchLaneLength, -24, 24);
+    // Modifier lane: uint8_t steps, no clamping needed (full range)
     {
         const auto modLen = arpParams_.modifierLaneLength.load(std::memory_order_relaxed);
-        arpCore_.modifierLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            arpCore_.modifierLane().setStep(
-                static_cast<size_t>(i),
+        arpCore_.modifierLane().setLength(kMaxLaneSteps);
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            arpCore_.modifierLane().setStep(static_cast<size_t>(i),
                 static_cast<uint8_t>(arpParams_.modifierLaneSteps[i].load(
                     std::memory_order_relaxed)));
         }
@@ -580,18 +577,8 @@ void Processor::applyParamsToEngine()
     arpCore_.setAccentVelocity(arpParams_.accentVelocity.load(std::memory_order_relaxed));
     arpCore_.setSlideTime(arpParams_.slideTime.load(std::memory_order_relaxed));
 
-    // --- Ratchet Lane ---
-    {
-        const auto ratchetLen = arpParams_.ratchetLaneLength.load(std::memory_order_relaxed);
-        arpCore_.ratchetLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            int val = std::clamp(
-                arpParams_.ratchetLaneSteps[i].load(std::memory_order_relaxed), 1, 4);
-            arpCore_.ratchetLane().setStep(
-                static_cast<size_t>(i), static_cast<uint8_t>(val));
-        }
-        arpCore_.ratchetLane().setLength(static_cast<size_t>(ratchetLen));
-    }
+    syncIntLane(arpCore_.ratchetLane(), arpParams_.ratchetLaneSteps.data(),
+        arpParams_.ratchetLaneLength, 1, 4);
 
     // --- Euclidean Timing ---
     arpCore_.setEuclideanSteps(
@@ -603,18 +590,8 @@ void Processor::applyParamsToEngine()
     arpCore_.setEuclideanEnabled(
         arpParams_.euclideanEnabled.load(std::memory_order_relaxed));
 
-    // --- Condition Lane ---
-    {
-        const auto condLen = arpParams_.conditionLaneLength.load(std::memory_order_relaxed);
-        arpCore_.conditionLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            int val = std::clamp(
-                arpParams_.conditionLaneSteps[i].load(std::memory_order_relaxed), 0, 17);
-            arpCore_.conditionLane().setStep(
-                static_cast<size_t>(i), static_cast<uint8_t>(val));
-        }
-        arpCore_.conditionLane().setLength(static_cast<size_t>(condLen));
-    }
+    syncIntLane(arpCore_.conditionLane(), arpParams_.conditionLaneSteps.data(),
+        arpParams_.conditionLaneLength, 0, 17);
     arpCore_.setFillActive(arpParams_.fillToggle.load(std::memory_order_relaxed));
 
     // --- Dice & Humanize ---
@@ -648,30 +625,10 @@ void Processor::applyParamsToEngine()
         arpCore_.setMarkovMatrix(matrix);
     }
 
-    // --- Chord Lane ---
-    {
-        const auto chordLen = arpParams_.chordLaneLength.load(std::memory_order_relaxed);
-        arpCore_.chordLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            int val = std::clamp(
-                arpParams_.chordLaneSteps[i].load(std::memory_order_relaxed), 0, 4);
-            arpCore_.chordLane().setStep(
-                static_cast<size_t>(i), static_cast<uint8_t>(val));
-        }
-        arpCore_.chordLane().setLength(static_cast<size_t>(chordLen));
-    }
-    // --- Inversion Lane ---
-    {
-        const auto invLen = arpParams_.inversionLaneLength.load(std::memory_order_relaxed);
-        arpCore_.inversionLane().setLength(32);
-        for (int i = 0; i < 32; ++i) {
-            int val = std::clamp(
-                arpParams_.inversionLaneSteps[i].load(std::memory_order_relaxed), 0, 3);
-            arpCore_.inversionLane().setStep(
-                static_cast<size_t>(i), static_cast<uint8_t>(val));
-        }
-        arpCore_.inversionLane().setLength(static_cast<size_t>(invLen));
-    }
+    syncIntLane(arpCore_.chordLane(), arpParams_.chordLaneSteps.data(),
+        arpParams_.chordLaneLength, 0, 4);
+    syncIntLane(arpCore_.inversionLane(), arpParams_.inversionLaneSteps.data(),
+        arpParams_.inversionLaneLength, 0, 3);
     arpCore_.setVoicingMode(static_cast<Krate::DSP::VoicingMode>(
         arpParams_.voicingMode.load(std::memory_order_relaxed)));
 
@@ -753,7 +710,7 @@ void Processor::applyParamsToEngine()
             float rawTime = arpParams_.midiDelayTimeSteps[i].load(std::memory_order_relaxed);
             if (cfg.timeMode == TimeMode::Free) {
                 // Normalized 0-1 → 10-2000ms
-                cfg.delayTimeMs = 10.0f + rawTime * 1990.0f;
+                cfg.delayTimeMs = kAuditionDecayMinMs + rawTime * kAuditionDecayRangeMs;
             } else {
                 // Normalized 0-1 → note value index 0-29
                 cfg.noteValueIndex = std::clamp(

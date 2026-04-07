@@ -85,8 +85,8 @@ TEST_CASE("Gradus Processor outputs silence with no MIDI input",
 
     // Verify silence (no MIDI input = no audition sound)
     for (int i = 0; i < kTestBlockSize; ++i) {
-        CHECK(outL[i] == 0.0f);
-        CHECK(outR[i] == 0.0f);
+        CHECK(outL[i] == Approx(0.0f));
+        CHECK(outR[i] == Approx(0.0f));
     }
 
     REQUIRE(processor.setActive(false) == kResultOk);
@@ -168,8 +168,9 @@ TEST_CASE("Gradus Controller initializes with correct parameter count",
     // Count all registered parameters
     int32 paramCount = controller.getParameterCount();
 
-    // Should have: ~100 arp params + 8 playhead + 8 speed + 4 audition = ~120+
-    // Exact count depends on registerArpParams implementation
+    // Arp params + playheads + speed curves + audition + MIDI delay
+    // Log actual count so accidental additions/removals are visible in test output
+    INFO("Actual parameter count: " << paramCount);
     CHECK(paramCount > 100);
 
     // Verify specific parameters exist

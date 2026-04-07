@@ -20,6 +20,8 @@
 #include "../ui/speed_curve_editor.h"
 #include "../ui/speed_curve_data.h"
 
+#include "controller_state_helpers.h"
+#include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/lib/cviewcontainer.h"
 
@@ -109,130 +111,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
     suppressMarkovPresetLoad_ = false;
 
-    // Restore speed curve data from the state stream.
-    // loadArpParamsToController consumed the depth params; now read the curve
-    // point data that follows. This mirrors the load path in loadArpParams.
-    for (int lane = 0; lane < 8; ++lane) {
-        int32 enabledInt = 0;
-        if (!streamer.readInt32(enabledInt)) break;  // pre-curve preset
-
-        int32 presetIdx = 0;
-        if (!streamer.readInt32(presetIdx)) break;
-
-        int32 numPoints = 0;
-        if (!streamer.readInt32(numPoints)) break;
-        numPoints = std::clamp(numPoints, int32{0}, int32{64});
-
-        SpeedCurveData curve;
-        curve.enabled = (enabledInt != 0);
-        curve.presetIndex = presetIdx;
-        curve.points.clear();
-        curve.points.reserve(static_cast<size_t>(numPoints));
-
-        bool ok = true;
-        for (int32 p = 0; p < numPoints; ++p) {
-            SpeedCurvePoint pt;
-            if (!streamer.readFloat(pt.x) || !streamer.readFloat(pt.y) ||
-                !streamer.readFloat(pt.cpLeftX) || !streamer.readFloat(pt.cpLeftY) ||
-                !streamer.readFloat(pt.cpRightX) || !streamer.readFloat(pt.cpRightY)) {
-                ok = false;
-                break;
-            }
-            curve.points.push_back(pt);
-        }
-        if (!ok) break;
-
-        auto laneIdx = static_cast<size_t>(lane);
-
-        // Store for later application when editors are created
-        pendingSpeedCurves_[laneIdx] = curve;
-        hasPendingSpeedCurves_ = true;
-
-        // Update the speed curve editor if it already exists
-        if (speedCurveEditors_[laneIdx])
-            speedCurveEditors_[laneIdx]->setCurveData(curve);
-
-        // Send baked table to processor
-        sendSpeedCurveTable(laneIdx, curve);
-    }
-
-    // --- MIDI Delay Lane parameters ---
-    // Read after speed curve point data, mirroring saveArpParams order.
-    // Uses a lambda with early return instead of goto for structured control flow.
-    [&]() {
-        int32 iv = 0;
-        float fv = 0.0f;
-
-        // Lane length
-        if (!streamer.readInt32(iv)) return;
-        setParamNormalized(kArpMidiDelayLaneLengthId,
-            static_cast<double>(std::clamp(static_cast<int>(iv), 1, 32) - 1) / 31.0);
-
-        // Per-step time mode (32 steps)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayTimeModeStep0Id + i),
-                iv ? 1.0 : 0.0);
-        }
-        // Per-step delay time (32 steps, stored as normalized 0-1)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readFloat(fv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayTimeStep0Id + i),
-                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
-        }
-        // Per-step feedback (32 steps)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayFeedbackStep0Id + i),
-                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 16)) / 16.0);
-        }
-        // Per-step velocity decay (32 steps)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readFloat(fv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayVelDecayStep0Id + i),
-                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
-        }
-        // Per-step pitch shift (32 steps)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayPitchShiftStep0Id + i),
-                static_cast<double>(std::clamp(static_cast<int>(iv), -24, 24) + 24) / 48.0);
-        }
-        // Per-step gate scaling (32 steps)
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readFloat(fv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayGateScaleStep0Id + i),
-                static_cast<double>(std::clamp(fv, 0.1f, 2.0f) - 0.1f) / 1.9);
-        }
-        // Per-step active flags (32 steps) — EOF-safe for pre-active presets
-        for (int i = 0; i < 32; ++i) {
-            if (!streamer.readInt32(iv)) return;
-            setParamNormalized(static_cast<ParamID>(kArpMidiDelayActiveStep0Id + i),
-                iv ? 1.0 : 0.0);
-        }
-        // Lane metadata
-        if (!streamer.readFloat(fv)) return;
-        {
-            float speed = std::clamp(fv, 0.25f, 4.0f);
-            int bestIdx = 3;
-            float bestDist = 99.0f;
-            for (int i = 0; i < kLaneSpeedCount; ++i) {
-                float dist = std::abs(kLaneSpeedValues[i] - speed);
-                if (dist < bestDist) { bestDist = dist; bestIdx = i; }
-            }
-            setParamNormalized(kArpMidiDelayLaneSpeedId,
-                static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1));
-        }
-        if (streamer.readFloat(fv))
-            setParamNormalized(kArpMidiDelayLaneSwingId,
-                static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
-        if (streamer.readInt32(iv))
-            setParamNormalized(kArpMidiDelayLaneJitterId,
-                static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
-        if (streamer.readFloat(fv))
-            setParamNormalized(kArpMidiDelayLaneSpeedCurveDepthId,
-                static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
-    }();
+    // Restore speed curve and MIDI delay data from the state stream.
+    // Reuse setParam lambda from above (same setter function).
+    loadSpeedCurvesFromStream(streamer, setParam);
+    loadMidiDelayFromStream(streamer, setParam);
 
     // Audition params are session-only — not restored from presets
 
@@ -422,6 +304,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // (must happen here, after all views are created from uidesc)
     constructArpLanes();
 
+    // Start UI sync timer (~30fps) for thread-safe deferred view updates
+    viewSyncTimer_ = VSTGUI::makeOwned<VSTGUI::CVSTGUITimer>(
+        [this](VSTGUI::CVSTGUITimer*) { syncViewsFromParams(); }, 33);
+
     // Dynamic version label (tag 9999)
     if (auto* frame = editor->getFrame()) {
         std::function<VSTGUI::CTextLabel*(VSTGUI::CViewContainer*, int32_t)> findTextLabel;
@@ -467,6 +353,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
 
 void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 {
+    // Stop the sync timer before tearing down views
+    viewSyncTimer_ = nullptr;
+
     // Null all lane pointers (VSTGUI owns their lifetime)
     velocityLane_ = nullptr;
     gateLane_ = nullptr;
@@ -518,6 +407,21 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     } else {
         speedCurveEditors_.fill(nullptr);
         speedCurveContainer_ = nullptr;
+    }
+    // Unregister listeners from controls before resetting shared_ptrs (W9)
+    if (speedCurveToggle_) {
+        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurveToggle_))
+            ctrl->unregisterControlListener(speedCurveToggleListener_.get());
+    }
+    if (speedCurvePresetMenu_) {
+        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurvePresetMenu_))
+            ctrl->unregisterControlListener(speedCurvePresetListener_.get());
+    }
+    for (auto* knob : speedCurveDepthKnobs_) {
+        if (knob) {
+            if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(knob))
+                ctrl->unregisterControlListener(speedCurveDepthListener_.get());
+        }
     }
     speedCurveToggle_ = nullptr;
     speedCurveDepthLabel_ = nullptr;

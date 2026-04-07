@@ -51,21 +51,18 @@ public:
     void noteOff() noexcept {
         if (active_) {
             envPhase_ = EnvPhase::Release;
+            // Pre-calculate fixed release rate so it's sample-rate-independent
+            releaseRate_ = envLevel_ /
+                std::max(1.0f, kReleaseMs * 0.001f * static_cast<float>(sampleRate_));
         }
     }
 
     void processBlock(float* outL, float* outR, size_t numSamples) noexcept {
         if (!active_) return;
 
-        constexpr float kAttackMs = 2.0f;
-        constexpr float kSustainLevel = 0.6f;
-        constexpr float kReleaseMs = 30.0f;
-
         const float attackInc = 1.0f / (kAttackMs * 0.001f * static_cast<float>(sampleRate_));
         const float decayInc = (1.0f - kSustainLevel) /
             (decayMs_ * 0.001f * static_cast<float>(sampleRate_));
-        const float releaseInc = envLevel_ /
-            std::max(1.0f, kReleaseMs * 0.001f * static_cast<float>(sampleRate_));
 
         for (size_t i = 0; i < numSamples; ++i) {
             // Advance envelope
@@ -88,7 +85,7 @@ public:
                     // Hold at sustain level
                     break;
                 case EnvPhase::Release:
-                    envLevel_ -= releaseInc;
+                    envLevel_ -= releaseRate_;
                     if (envLevel_ <= 0.0f) {
                         envLevel_ = 0.0f;
                         active_ = false;
@@ -98,6 +95,8 @@ public:
             }
 
             float sample = osc_.process() * envLevel_ * velocity_ * volume_;
+            // Sanitize NaN/Inf from oscillator or arithmetic edge cases
+            if (!std::isfinite(sample)) sample = 0.0f;
             outL[i] += sample;
             outR[i] += sample;
         }
@@ -108,12 +107,18 @@ public:
 private:
     enum class EnvPhase { Attack, Decay, Sustain, Release };
 
+    // Envelope timing constants
+    static constexpr float kAttackMs = 2.0f;
+    static constexpr float kSustainLevel = 0.6f;
+    static constexpr float kReleaseMs = 30.0f;
+
     Krate::DSP::PolyBlepOscillator osc_;
     double sampleRate_ = 44100.0;
     float velocity_ = 0.0f;
     float volume_ = 0.7f;
     float decayMs_ = 200.0f;
     float envLevel_ = 0.0f;
+    float releaseRate_ = 0.0f;  // Pre-calculated at noteOff for SR-independence
     EnvPhase envPhase_ = EnvPhase::Release;
     bool active_ = false;
 };

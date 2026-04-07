@@ -52,9 +52,9 @@ TEST_CASE("SpeedCurveData linear ramp bakes correctly", "[speed-curve]") {
     REQUIRE_THAT(table[127], WithinAbs(0.5, 0.05));
     REQUIRE_THAT(table[255], WithinAbs(1.0, 0.02));
 
-    // Monotonicity check
+    // Strict monotonicity check (non-decreasing)
     bool monotonic = std::adjacent_find(table.begin(), table.end(),
-        [](float a, float b) { return b < a - 0.001f; }) == table.end();
+        [](float a, float b) { return b < a; }) == table.end();
     REQUIRE(monotonic);
 }
 

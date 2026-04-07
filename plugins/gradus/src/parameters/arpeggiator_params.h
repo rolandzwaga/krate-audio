@@ -287,13 +287,13 @@ inline void handleArpParamChange(
         case kArpOperatingModeId:
             // StringListParameter: 0-1 -> 0-3 (4 entries, stepCount=3)
             params.operatingMode.store(
-                std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
                 std::memory_order_relaxed);
             break;
         case kArpModeId:
             // StringListParameter: 0-1 -> 0-11 (12 entries, stepCount=11)
             params.mode.store(
-                std::clamp(static_cast<int>(value * 11.0 + 0.5), 0, 11),
+                std::clamp(static_cast<int>(std::round(value * 11.0)), 0, 11),
                 std::memory_order_relaxed);
             break;
         case kArpOctaveRangeId:
@@ -305,7 +305,7 @@ inline void handleArpParamChange(
         case kArpOctaveModeId:
             // StringListParameter: 0-1 -> 0-1 (2 entries, stepCount=1)
             params.octaveMode.store(
-                std::clamp(static_cast<int>(value * 1.0 + 0.5), 0, 1),
+                std::clamp(static_cast<int>(std::round(value * 1.0)), 0, 1),
                 std::memory_order_relaxed);
             break;
         case kArpTempoSyncId:
@@ -339,13 +339,13 @@ inline void handleArpParamChange(
         case kArpLatchModeId:
             // StringListParameter: 0-1 -> 0-2 (3 entries, stepCount=2)
             params.latchMode.store(
-                std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
+                std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
                 std::memory_order_relaxed);
             break;
         case kArpRetriggerId:
             // StringListParameter: 0-1 -> 0-2 (3 entries, stepCount=2)
             params.retrigger.store(
-                std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
+                std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
                 std::memory_order_relaxed);
             break;
 
@@ -502,7 +502,7 @@ inline void handleArpParamChange(
             return;
         case kArpVoicingModeId:
             params.voicingMode.store(
-                std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
                 std::memory_order_relaxed);
             return;
 
@@ -592,7 +592,7 @@ inline void handleArpParamChange(
             // v1.5: Strum Direction (0-3)
             else if (id == kArpStrumDirectionId) {
                 params.strumDirection.store(
-                    std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                    std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
                     std::memory_order_relaxed);
             }
             // v1.5: Per-lane swing (3391-3398)
@@ -613,7 +613,7 @@ inline void handleArpParamChange(
             // v1.5 Part 2: Velocity Curve Type (0-3)
             else if (id == kArpVelocityCurveTypeId) {
                 params.velocityCurveType.store(
-                    std::clamp(static_cast<int>(value * 3.0 + 0.5), 0, 3),
+                    std::clamp(static_cast<int>(std::round(value * 3.0)), 0, 3),
                     std::memory_order_relaxed);
             }
             // v1.5 Part 2: Velocity Curve Amount (0-100%)
@@ -641,7 +641,7 @@ inline void handleArpParamChange(
             }
             else if (id == kArpRangeModeId) {
                 params.rangeMode.store(
-                    std::clamp(static_cast<int>(value * 2.0 + 0.5), 0, 2),
+                    std::clamp(static_cast<int>(std::round(value * 2.0)), 0, 2),
                     std::memory_order_relaxed);
             }
             // v1.5 Part 3: Step Pinning
@@ -659,7 +659,7 @@ inline void handleArpParamChange(
             else if (id == kArpMarkovPresetId) {
                 // StringListParameter: 0-1 -> 0-5 (6 entries, stepCount=5)
                 params.markovPreset.store(
-                    std::clamp(static_cast<int>(value * 5.0 + 0.5), 0, 5),
+                    std::clamp(static_cast<int>(std::round(value * 5.0)), 0, 5),
                     std::memory_order_relaxed);
             }
             else if (id >= kArpMarkovCell00Id && id <= kArpMarkovCell66Id) {

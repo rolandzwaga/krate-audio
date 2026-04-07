@@ -12,12 +12,15 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/controls/icontrollistener.h"
+#include "vstgui/lib/cvstguitimer.h"
 
 #include <array>
+#include <atomic>
 #include <memory>
 
 namespace Steinberg {
 class MemoryStream;
+class IBStreamer;
 }
 
 namespace Krate::Plugins {
@@ -106,6 +109,33 @@ private:
     // Preset button factory (called from createCustomView)
     VSTGUI::CView* createPresetButton(const VSTGUI::CRect& rect, bool isBrowse);
 
+    // --- Deferred UI sync (thread-safe setParamNormalized) ---
+    // Dirty flags categorize which UI regions need syncing.
+    // setParamNormalized sets flags; a timer flushes on the UI thread.
+    enum DirtyFlags : uint32_t {
+        kDirtyVelocityLane  = 1u << 0,
+        kDirtyGateLane      = 1u << 1,
+        kDirtyPitchLane     = 1u << 2,
+        kDirtyRatchetLane   = 1u << 3,
+        kDirtyModifierLane  = 1u << 4,
+        kDirtyConditionLane = 1u << 5,
+        kDirtyChordLane     = 1u << 6,
+        kDirtyInversionLane = 1u << 7,
+        kDirtyMidiDelayLane = 1u << 8,
+        kDirtyPinFlags      = 1u << 9,
+        kDirtyMarkov        = 1u << 10,
+        kDirtyPlayheads     = 1u << 11,
+        kDirtyRing          = 1u << 12,
+        kDirtyScaleType     = 1u << 13,
+        kDirtyLaneSpeeds    = 1u << 14,
+        kDirtyEuclidean     = 1u << 15,
+        kDirtyLaneLengths   = 1u << 16,
+        kDirtyArpMode       = 1u << 17,
+    };
+    std::atomic<uint32_t> viewDirtyFlags_{0};
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> viewSyncTimer_;
+    void syncViewsFromParams();  // Runs on UI thread via timer
+
     // Arp lane pointers (VSTGUI-owned, nulled in willClose)
     Krate::Plugins::IArpLane* velocityLane_ = nullptr;
     Krate::Plugins::IArpLane* gateLane_ = nullptr;
@@ -187,6 +217,12 @@ private:
     // Speed curve IMessage helper
     void sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data);
     void showSpeedCurveForLane(int laneIndex);
+
+    // Shared state loading helpers (used by setComponentState + preset loading)
+    template<typename SetParamFn>
+    void loadSpeedCurvesFromStream(Steinberg::IBStreamer& streamer, SetParamFn setParam);
+    template<typename SetParamFn>
+    void loadMidiDelayFromStream(Steinberg::IBStreamer& streamer, SetParamFn setParam);
 
     // Clipboard for copy/paste
     Krate::Plugins::LaneClipboard clipboard_{};

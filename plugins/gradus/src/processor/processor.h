@@ -17,6 +17,14 @@
 
 namespace Gradus {
 
+// Shared constants
+static constexpr int kMaxLaneSteps = 32;
+static constexpr float kMaxLaneStepsF = 32.0f;
+static constexpr float kAuditionDecayMinMs = 10.0f;
+static constexpr float kAuditionDecayMaxMs = 2000.0f;
+static constexpr float kAuditionDecayRangeMs = kAuditionDecayMaxMs - kAuditionDecayMinMs;
+static constexpr int kAuditionWaveformCount = 3;
+
 class Processor : public Steinberg::Vst::AudioEffect
 {
 public:
