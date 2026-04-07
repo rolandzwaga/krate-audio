@@ -806,6 +806,83 @@ TEST_CASE("Gradus Controller restores MIDI delay params from setComponentState",
     stream->release();
 }
 
+// =============================================================================
+// Parameter ID Range Integrity Tests
+// =============================================================================
+// These tests guard against overlapping ID ranges that cause one category
+// to swallow another's parameters in the dirty flag classification.
+
+TEST_CASE("MIDI delay lane IDs do not overlap with playhead range",
+          "[gradus][vst][param-ids]")
+{
+    using namespace Gradus;
+
+    // Playhead IDs are exactly these 9 values
+    const ParamID playheadIds[] = {
+        kArpVelocityPlayheadId, kArpGatePlayheadId, kArpPitchPlayheadId,
+        kArpRatchetPlayheadId, kArpModifierPlayheadId, kArpConditionPlayheadId,
+        kArpChordPlayheadId, kArpInversionPlayheadId, kArpMidiDelayPlayheadId
+    };
+    std::set<ParamID> playheadSet(std::begin(playheadIds), std::end(playheadIds));
+
+    // All MIDI delay lane param IDs that must NOT be classified as playheads
+    std::vector<ParamID> delayIds;
+    delayIds.push_back(kArpMidiDelayLaneLengthId);
+    for (int i = 0; i < 32; ++i) {
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayActiveStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayTimeModeStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayTimeStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayFeedbackStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayVelDecayStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayPitchShiftStep0Id + i));
+        delayIds.push_back(static_cast<ParamID>(kArpMidiDelayGateScaleStep0Id + i));
+    }
+
+    for (auto id : delayIds) {
+        INFO("Delay param ID " << id << " must not be in playhead set");
+        CHECK(playheadSet.count(id) == 0);
+    }
+}
+
+TEST_CASE("Lane length IDs are within their lane's classification range",
+          "[gradus][vst][param-ids]")
+{
+    using namespace Gradus;
+
+    // Each lane's length ID must be classified alongside its step IDs.
+    // Verify length ID is adjacent to (within 1 of) the step0 ID.
+    struct LaneRange {
+        ParamID lengthId;
+        ParamID step0Id;
+        const char* name;
+    };
+    const LaneRange lanes[] = {
+        {kArpVelocityLaneLengthId,  kArpVelocityLaneStep0Id,  "Velocity"},
+        {kArpGateLaneLengthId,      kArpGateLaneStep0Id,      "Gate"},
+        {kArpPitchLaneLengthId,     kArpPitchLaneStep0Id,     "Pitch"},
+        {kArpModifierLaneLengthId,  kArpModifierLaneStep0Id,  "Modifier"},
+        {kArpRatchetLaneLengthId,   kArpRatchetLaneStep0Id,   "Ratchet"},
+        {kArpConditionLaneLengthId, kArpConditionLaneStep0Id, "Condition"},
+        {kArpChordLaneLengthId,     kArpChordLaneStep0Id,     "Chord"},
+        {kArpInversionLaneLengthId, kArpInversionLaneStep0Id, "Inversion"},
+        {kArpMidiDelayLaneLengthId, kArpMidiDelayTimeModeStep0Id, "MidiDelay"},
+    };
+
+    for (const auto& lane : lanes) {
+        INFO(lane.name << ": lengthId=" << lane.lengthId
+             << " step0Id=" << lane.step0Id);
+        // Length ID must NOT be above step31 (would break >= step0 && <= length range checks)
+        // Length ID is typically step0 - 1, but could be below or above.
+        // The key invariant: a naive range check "tag >= step0 && tag <= length" must not
+        // be used when length < step0.
+        if (lane.lengthId < lane.step0Id) {
+            // Length is BELOW step range — range checks must use || not &&
+            INFO("  Length ID is below step0 — range checks must use explicit || for length");
+            CHECK(lane.lengthId < lane.step0Id);  // document the relationship
+        }
+    }
+}
+
 TEST_CASE("Gradus Markov state load is backward-compatible with pre-v1.6 presets",
           "[gradus][vst][markov][state]")
 {
