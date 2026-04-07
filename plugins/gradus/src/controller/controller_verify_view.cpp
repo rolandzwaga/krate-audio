@@ -1085,13 +1085,22 @@ void Controller::constructArpLanes()
             if (rangeHighLabel_) rangeHighLabel_->setVisible(showPitchContext);
             if (rangeModeMenu_)  rangeModeMenu_->setVisible(showPitchContext);
             if (pinFlagStrip_)   pinFlagStrip_->setVisible(showPitchContext);
-            // Show speed curve editor for selected lane (if enabled)
+            // Show speed curve editor for selected lane (if enabled).
+            // The MIDI Delay lane (index 8) has no speed curve — hide everything.
             selectedLaneIndex_ = laneIndex;
-            showSpeedCurveForLane(laneIndex);
+            const bool hasSpeedCurve = (laneIndex >= 0 && laneIndex < 8);
+            if (hasSpeedCurve) {
+                showSpeedCurveForLane(laneIndex);
+            } else {
+                // Hide all speed curve editors when on the delay lane
+                for (int i = 0; i < 8; ++i) {
+                    if (speedCurveEditors_[i])
+                        speedCurveEditors_[i]->setVisible(false);
+                }
+            }
             // Sync toggle, depth knob, label, and preset menu for selected lane
             bool curveEnabled = false;
-            if (laneIndex >= 0 && laneIndex < 8 &&
-                speedCurveEditors_[laneIndex]) {
+            if (hasSpeedCurve && speedCurveEditors_[laneIndex]) {
                 curveEnabled = speedCurveEditors_[laneIndex]->curveData().enabled;
             }
             if (auto* toggle = dynamic_cast<VSTGUI::CControl*>(speedCurveToggle_))
@@ -1105,7 +1114,7 @@ void Controller::constructArpLanes()
                     speedCurveDepthKnobs_[i]->setVisible(i == laneIndex && curveEnabled);
             }
             // Sync preset menu selection
-            if (curveEnabled && speedCurvePresetMenu_ && laneIndex >= 0 && laneIndex < 8) {
+            if (curveEnabled && speedCurvePresetMenu_ && hasSpeedCurve) {
                 auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(speedCurvePresetMenu_);
                 if (menu && speedCurveEditors_[laneIndex]) {
                     int presetIdx = speedCurveEditors_[laneIndex]->curveData().presetIndex;
@@ -1113,13 +1122,19 @@ void Controller::constructArpLanes()
                         menu->setCurrent(presetIdx);
                 }
             }
-            // Resize container to match state
+            // Hide entire speed curve container on MIDI Delay lane,
+            // otherwise resize to match enabled/collapsed state
             if (speedCurveContainer_) {
-                auto r = speedCurveContainer_->getViewSize();
-                r.right = r.left + (curveEnabled ? 208.0f : 74.0f);
-                speedCurveContainer_->setViewSize(r);
-                speedCurveContainer_->setMouseableArea(r);
-                speedCurveContainer_->invalid();
+                if (!hasSpeedCurve) {
+                    speedCurveContainer_->setVisible(false);
+                } else {
+                    speedCurveContainer_->setVisible(true);
+                    auto r = speedCurveContainer_->getViewSize();
+                    r.right = r.left + (curveEnabled ? 208.0f : 74.0f);
+                    speedCurveContainer_->setViewSize(r);
+                    speedCurveContainer_->setMouseableArea(r);
+                    speedCurveContainer_->invalid();
+                }
             }
         };
 
