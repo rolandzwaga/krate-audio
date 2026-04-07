@@ -147,4 +147,22 @@ void Controller::loadMidiDelayFromStream(
             static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
 }
 
+// ==============================================================================
+// loadFullState — Single entry point for all state loading
+// ==============================================================================
+// Used by both setComponentState (host recall) and loadComponentStateWithNotify
+// (preset browser). Ensures the stream is consumed in the correct order and
+// all sections are always loaded from one code path.
+
+template<typename SetParamFn>
+void Controller::loadFullState(Steinberg::IBStreamer& streamer, SetParamFn setParam)
+{
+    suppressMarkovPresetLoad_ = true;
+    loadArpParamsToController(streamer, setParam);
+    suppressMarkovPresetLoad_ = false;
+
+    loadSpeedCurvesFromStream(streamer, setParam);
+    loadMidiDelayFromStream(streamer, setParam);
+}
+
 } // namespace Gradus

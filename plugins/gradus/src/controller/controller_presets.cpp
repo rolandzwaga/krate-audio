@@ -197,16 +197,11 @@ bool Controller::loadComponentStateWithNotify(Steinberg::IBStream* state) {
         return false;
     (void)version;
 
-    // Load arp params with edit notifications
+    // Single path for all state loading (arp params + speed curves + delay)
     auto setParam = [this](Steinberg::Vst::ParamID id, double value) {
         editParamWithNotify(id, value);
     };
-    loadArpParamsToController(streamer, setParam);
-
-    // Restore speed curve and MIDI delay data from the state stream.
-    // Reuse setParam lambda from above (same setter function).
-    loadSpeedCurvesFromStream(streamer, setParam);
-    loadMidiDelayFromStream(streamer, setParam);
+    loadFullState(streamer, setParam);
 
     // Audition params are session-only — not loaded from presets
 

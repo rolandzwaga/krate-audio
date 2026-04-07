@@ -100,6 +100,10 @@ public:
     void editParamWithNotify(Steinberg::Vst::ParamID id,
                              Steinberg::Vst::ParamValue value);
 
+    // Shared state loading (single path for both host recall and preset browser)
+    template<typename SetParamFn>
+    void loadFullState(Steinberg::IBStreamer& streamer, SetParamFn setParam);
+
     static Steinberg::FUnknown* createInstance(void*)
     {
         return static_cast<Steinberg::Vst::IEditController*>(new Controller());

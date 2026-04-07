@@ -96,25 +96,11 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         return kResultFalse;
     (void)version;
 
-    // Suppress Markov preset auto-load while restoring state. Otherwise
-    // the stored kArpMarkovPresetId value would trigger a batch rewrite of the
-    // 49 cell params, overwriting the cell values that were ALSO saved in
-    // state (producing the wrong final matrix for presets saved as "Custom"
-    // or any user-edited preset).
-    suppressMarkovPresetLoad_ = true;
-
-    // Load arp params to controller (restores UI to match saved state)
+    // Single path for all state loading (arp params + speed curves + delay)
     auto setParam = [this](ParamID id, ParamValue value) {
         setParamNormalized(id, value);
     };
-    loadArpParamsToController(streamer, setParam);
-
-    suppressMarkovPresetLoad_ = false;
-
-    // Restore speed curve and MIDI delay data from the state stream.
-    // Reuse setParam lambda from above (same setter function).
-    loadSpeedCurvesFromStream(streamer, setParam);
-    loadMidiDelayFromStream(streamer, setParam);
+    loadFullState(streamer, setParam);
 
     // Audition params are session-only — not restored from presets
 
