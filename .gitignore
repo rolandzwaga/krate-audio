@@ -62,6 +62,10 @@ tools/*.txt
 /plugins/ruinae/src/version.h
 /plugins/innexus/resources/win32resource.rc
 /plugins/innexus/src/version.h
+/plugins/gradus/resources/win32resource.rc
+/plugins/gradus/src/version.h
+/plugins/membrum/resources/win32resource.rc
+/plugins/membrum/src/version.h
 tmpclaude-*
 /compile_commands.json
 .cache/
