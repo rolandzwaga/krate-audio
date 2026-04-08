@@ -27,6 +27,10 @@ add_executable(shared_tests
     test_version_compare.cpp
     test_update_checker.cpp
     test_shared_display_bridge.cpp
+
+    # Stubs for GetPluginFactory and moduleHandle (needed by vstgui_support on Linux)
+    vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
 )
 
 target_link_libraries(shared_tests

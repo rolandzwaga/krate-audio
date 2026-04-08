@@ -146,8 +146,9 @@ add_executable(ruinae_tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
 
-    # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
+    # Stubs for GetPluginFactory/moduleHandle + SDK module init (Linux linker)
     vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
 )
 
 target_link_libraries(ruinae_tests

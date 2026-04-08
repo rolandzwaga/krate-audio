@@ -175,8 +175,9 @@ add_executable(innexus_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/modulator_activity_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/modulator_sub_controller.cpp
 
-    # Stub for GetPluginFactory (provided by entry.cpp in the real plugin, not in tests)
+    # Stubs for GetPluginFactory/moduleHandle + SDK module init (Linux linker)
     vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
 )
 
 target_link_libraries(innexus_tests

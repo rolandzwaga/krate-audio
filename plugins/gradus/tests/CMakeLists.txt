@@ -33,8 +33,9 @@ add_executable(gradus_tests
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
 
-    # Stub for GetPluginFactory
+    # Stubs for GetPluginFactory/moduleHandle + SDK module init (Linux linker)
     vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
 )
 
 target_link_libraries(gradus_tests
