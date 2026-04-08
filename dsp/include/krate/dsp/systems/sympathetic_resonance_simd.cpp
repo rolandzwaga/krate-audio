@@ -67,15 +67,19 @@ void ProcessSympatheticBankSIMDImpl(
     size_t i = 0;
     const size_t total = static_cast<size_t>(count);
 
-    // SIMD loop: process N resonators per iteration
+    // SIMD loop: process N resonators per iteration.
+    // Use LoadU/StoreU (unaligned) because the backing std::array<float>
+    // members have only 4-byte alignment.  ARM NEON's aligned Load faults
+    // on misaligned addresses, causing SIGSEGV on Apple Silicon.
+    // Unaligned loads have no penalty on modern ARM cores (M1+).
     for (; i + N <= total; i += N) {
         // Load per-resonator state
-        auto vY1 = hn::Load(d, y1s + i);
-        auto vY2 = hn::Load(d, y2s + i);
-        const auto vCoeff = hn::Load(d, coeffs + i);
-        const auto vRSq = hn::Load(d, rSquareds + i);
-        const auto vGain = hn::Load(d, gains + i);
-        auto vEnv = hn::Load(d, envelopes + i);
+        auto vY1 = hn::LoadU(d, y1s + i);
+        auto vY2 = hn::LoadU(d, y2s + i);
+        const auto vCoeff = hn::LoadU(d, coeffs + i);
+        const auto vRSq = hn::LoadU(d, rSquareds + i);
+        const auto vGain = hn::LoadU(d, gains + i);
+        auto vEnv = hn::LoadU(d, envelopes + i);
 
         // Second-order recurrence:
         // y = coeff * y1 - rSquared * y2 + scaledInput * gain
@@ -84,14 +88,14 @@ void ProcessSympatheticBankSIMDImpl(
         const auto vY = hn::MulAdd(vGain, vScaledInput, vCoeffY1MinusRSqY2); // + gain*scaledInput
 
         // Update state: y2 = y1, y1 = y
-        hn::Store(vY1, d, y2s + i);    // y2 = old y1
-        hn::Store(vY, d, y1s + i);     // y1 = new y
+        hn::StoreU(vY1, d, y2s + i);    // y2 = old y1
+        hn::StoreU(vY, d, y1s + i);     // y1 = new y
 
         // Envelope follower: env = max(|y|, env * releaseCoeff)
         const auto vAbsY = hn::Abs(vY);
         const auto vEnvDecayed = hn::Mul(vEnv, vReleaseCoeff);
         const auto vEnvNew = hn::Max(vAbsY, vEnvDecayed);
-        hn::Store(vEnvNew, d, envelopes + i);
+        hn::StoreU(vEnvNew, d, envelopes + i);
 
         // Accumulate output
         vSum = hn::Add(vSum, vY);

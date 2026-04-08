@@ -1138,9 +1138,14 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
             bool wasFrozen = voice_.isFrozen;
             voice_.isFrozen = true;
 
-            // Activate spectral decay on freeze transition
+            // Activate spectral decay on freeze transition.
+            // Use lastGoodFrame — morphedFrame may already be zeroed by
+            // the noise gate in the same block that triggers the freeze.
             if (!wasFrozen)
+            {
+                voice_.morphedFrame = voice_.lastGoodFrame;
                 voice_.spectralDecay.activate(voice_.morphedFrame);
+            }
 
             // Apply per-partial spectral decay to the held frame each block.
             // This produces a natural fade-out where higher partials die first.

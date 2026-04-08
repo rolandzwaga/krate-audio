@@ -134,11 +134,9 @@ target_include_directories(approval_tests
 
 target_compile_features(approval_tests PRIVATE cxx_std_20)
 
-# Approval tests need the approved files
-set_target_properties(approval_tests PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/approval
-)
-
+# ApprovalTests uses __FILE__ to locate .approved.txt files relative to the
+# source, so the binary can live in the standard output directory.
+# WORKING_DIRECTORY set for CTest convenience only.
 catch_discover_tests(approval_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/approval
     REPORTER console
