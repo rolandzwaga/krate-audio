@@ -73,8 +73,10 @@ inline constexpr size_t kLowLatencyHopSize = kShortWindowConfig.hopSize;      //
 inline constexpr size_t kHighPrecisionLongFftSize = kLongWindowConfig.fftSize;  // 4096
 inline constexpr size_t kHighPrecisionLongHopSize = kLongWindowConfig.hopSize;  // 2048
 
-// YIN window size for high-precision mode (half of long FFT for bass detection down to ~40 Hz)
-inline constexpr size_t kHighPrecisionYinWindowSize = kLongWindowConfig.fftSize / 2; // 2048
+// YIN window size for high-precision mode.
+// YIN searches lags up to N/2, so to detect F0 >= 40 Hz (period = SR/40 = 1102.5 samples)
+// we need N/2 >= 1103, i.e. N >= 2206. Use the full long FFT size (4096) for headroom.
+inline constexpr size_t kHighPrecisionYinWindowSize = kLongWindowConfig.fftSize; // 4096
 
 /// @brief Compute frequency resolution (Hz per bin) for a given FFT size and sample rate
 /// @param fftSize FFT size

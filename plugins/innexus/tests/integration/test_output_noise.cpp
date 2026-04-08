@@ -805,3 +805,174 @@ TEST_CASE("Noise isolation: oscillator bank alone produces clean output",
         proc.terminate();
     }
 }
+
+// =============================================================================
+// Signal path noise tracing: measure SNR with each processor stage disabled
+// to identify which stage introduces inter-harmonic noise.
+// =============================================================================
+
+TEST_CASE("Noise tracing: identify which processor stage adds noise",
+          "[innexus][noise][diagnostic][tracing]")
+{
+    constexpr double kSR = 44100.0;
+    constexpr float kF0 = 440.0f;
+    constexpr int kPartials = 8;
+    constexpr float kBaseAmp = 0.4f;
+
+    // Build a single clean HarmonicFrame
+    Krate::DSP::HarmonicFrame frame{};
+    frame.f0 = kF0;
+    frame.f0Confidence = 1.0f;
+    frame.numPartials = kPartials;
+    frame.globalAmplitude = kBaseAmp;
+    frame.noisiness = 0.0f;
+    for (int p = 0; p < kPartials; ++p)
+    {
+        auto& partial = frame.partials[static_cast<size_t>(p)];
+        partial.harmonicIndex = p + 1;
+        partial.frequency = kF0 * static_cast<float>(p + 1);
+        partial.amplitude = kBaseAmp / static_cast<float>(p + 1);
+        partial.relativeFrequency = static_cast<float>(p + 1);
+        partial.inharmonicDeviation = 0.0f;
+        partial.stability = 1.0f;
+        partial.age = 20;
+        partial.phase = 0.0f;
+    }
+
+    std::vector<float> harmonics;
+    for (int h = 1; h <= kPartials; ++h)
+        harmonics.push_back(kF0 * static_cast<float>(h));
+
+    // Helper: run full processor with given parameter overrides, return SNR
+    auto runWithParams = [&](
+        const std::vector<std::pair<Steinberg::Vst::ParamID, double>>& overrides,
+        const char* label) -> float
+    {
+        Innexus::Processor proc;
+        proc.initialize(nullptr);
+        ProcessSetup setup{};
+        setup.processMode = kRealtime;
+        setup.symbolicSampleSize = kSample32;
+        setup.maxSamplesPerBlock = kTestBlockSize;
+        setup.sampleRate = kSR;
+        proc.setupProcessing(setup);
+        proc.setActive(true);
+
+        auto* analysis = new Innexus::SampleAnalysis();
+        analysis->sampleRate = static_cast<float>(kSR);
+        analysis->hopTimeSec = static_cast<float>(kTestBlockSize) / static_cast<float>(kSR);
+        analysis->analysisFFTSize = 1024;
+        analysis->analysisHopSize = 512;
+        for (int f = 0; f < 100; ++f)
+        {
+            analysis->frames.push_back(frame);
+            Krate::DSP::ResidualFrame rf{};
+            analysis->residualFrames.push_back(rf);
+        }
+        analysis->totalFrames = analysis->frames.size();
+        analysis->filePath = "test.wav";
+        proc.testInjectAnalysis(analysis);
+
+        NoiseTestEventList events;
+        NoiseTestParameterChanges params;
+        std::vector<float> outL(kTestBlockSize, 0.0f);
+        std::vector<float> outR(kTestBlockSize, 0.0f);
+        float* channels[2] = {outL.data(), outR.data()};
+        AudioBusBuffers outBus{};
+        outBus.numChannels = 2;
+        outBus.channelBuffers32 = channels;
+        ProcessData data{};
+        data.processMode = kRealtime;
+        data.symbolicSampleSize = kSample32;
+        data.numSamples = kTestBlockSize;
+        data.numOutputs = 1;
+        data.outputs = &outBus;
+        data.inputEvents = &events;
+
+        // Apply parameter overrides
+        for (const auto& [id, val] : overrides)
+            params.addChange(id, val);
+        data.inputParameterChanges = &params;
+
+        events.addNoteOn(69, 0.8f);
+        proc.process(data);
+        events.clear();
+        params.clear();
+        data.inputParameterChanges = nullptr;
+
+        // Settle
+        for (int b = 0; b < 50; ++b)
+        {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            proc.process(data);
+        }
+
+        // Capture 4096 samples
+        constexpr size_t kN = 4096;
+        constexpr int kBlocks = static_cast<int>(kN / kTestBlockSize);
+        std::vector<float> buf(kN);
+        for (int b = 0; b < kBlocks; ++b)
+        {
+            std::fill(outL.begin(), outL.end(), 0.0f);
+            std::fill(outR.begin(), outR.end(), 0.0f);
+            proc.process(data);
+            std::copy(outL.begin(), outL.end(),
+                      buf.begin() + static_cast<size_t>(b) * kTestBlockSize);
+        }
+
+        proc.setActive(false);
+        proc.terminate();
+
+        float snr = measureSnrDb(buf, kSR, harmonics);
+        INFO("[" << label << "] SNR = " << snr << " dB");
+        return snr;
+    };
+
+    // Baseline: all noise sources disabled
+    float snrBaseline = runWithParams({
+        {Innexus::kResidualLevelId, 0.0},
+        {Innexus::kPhysModelMixId, 0.0},
+        {Innexus::kWarmthId, 0.0},
+        {Innexus::kCouplingId, 0.0},
+        {Innexus::kEntropyId, 0.0},
+        {Innexus::kStabilityId, 0.0},
+        {Innexus::kEvolutionEnableId, 0.0},
+        {Innexus::kMod1EnableId, 0.0},
+        {Innexus::kMod2EnableId, 0.0},
+        {Innexus::kStereoSpreadId, 0.0},
+        {Innexus::kDetuneSpreadId, 0.0},
+        {Innexus::kSympatheticAmountId, 0.0},
+    }, "Baseline (all features off)");
+
+    // Test each feature independently to find which degrades SNR
+    SECTION("Sympathetic resonance") {
+        float snr = runWithParams({
+            {Innexus::kResidualLevelId, 0.0},
+            {Innexus::kPhysModelMixId, 0.0},
+            {Innexus::kSympatheticAmountId, 0.5},
+        }, "Sympathetic resonance at 0.5");
+        INFO("SNR drop from baseline: " << (snrBaseline - snr) << " dB");
+    }
+
+    SECTION("Warmth") {
+        float snr = runWithParams({
+            {Innexus::kResidualLevelId, 0.0},
+            {Innexus::kPhysModelMixId, 0.0},
+            {Innexus::kWarmthId, 0.5},
+        }, "Warmth at 0.5");
+        INFO("SNR drop from baseline: " << (snrBaseline - snr) << " dB");
+    }
+
+    SECTION("Default settings (only residual+phys off)") {
+        float snr = runWithParams({
+            {Innexus::kResidualLevelId, 0.0},
+            {Innexus::kPhysModelMixId, 0.0},
+        }, "Default (only residual+phys off)");
+        INFO("SNR drop from baseline: " << (snrBaseline - snr) << " dB");
+        INFO("This should match the failing test's 37.5 dB");
+    }
+
+    // The baseline with ALL features off should match bare osc bank SNR
+    REQUIRE(snrBaseline > 40.0f);
+}

@@ -391,10 +391,20 @@ public:
                       mixBuffer_.data());
         } else {
             // CrossfadeMix mode: linear crossfade (FR-007)
-            const float mixA = 1.0f - mixPosition_;
-            const float mixB = mixPosition_;
-            for (size_t i = 0; i < numSamples; ++i) {
-                mixBuffer_[i] = oscABuffer_[i] * mixA + oscBBuffer_[i] * mixB;
+            // Explicit branches at extremes avoid FMA contraction issues on ARM
+            // where fma(oscA, 0.0f, oscB) can leak NaN/Inf from the zero-weighted osc.
+            if (mixPosition_ <= 0.0f) {
+                std::copy(oscABuffer_.data(), oscABuffer_.data() + numSamples,
+                          mixBuffer_.data());
+            } else if (mixPosition_ >= 1.0f) {
+                std::copy(oscBBuffer_.data(), oscBBuffer_.data() + numSamples,
+                          mixBuffer_.data());
+            } else {
+                const float mixA = 1.0f - mixPosition_;
+                const float mixB = mixPosition_;
+                for (size_t i = 0; i < numSamples; ++i) {
+                    mixBuffer_[i] = oscABuffer_[i] * mixA + oscBBuffer_[i] * mixB;
+                }
             }
         }
 

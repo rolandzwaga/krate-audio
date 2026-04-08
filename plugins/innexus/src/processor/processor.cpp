@@ -1864,9 +1864,23 @@ Steinberg::tresult PLUGIN_API Processor::process(Steinberg::Vst::ProcessData& da
 
         // --- Safety soft limiter (always on, no UI control) ---
         // Prevents output from exceeding [-1, 1] to protect speakers.
-        // Uses fast Padé tanh approximant from KrateDSP Layer 0.
-        sampleL = Krate::DSP::Sigmoid::tanh(sampleL);
-        sampleR = Krate::DSP::Sigmoid::tanh(sampleR);
+        // Only engages above ±kKnee to stay transparent at normal levels.
+        // tanh at signal levels below the knee adds measurable intermodulation
+        // noise between harmonics (~5 dB SNR degradation at RMS 0.5).
+        {
+            auto softLimit = [](float x) noexcept -> float {
+                constexpr float k = 0.85f;
+                float ax = std::abs(x);
+                if (ax <= k) return x;
+                // Cubic soft-clip: maps [knee, inf) to [knee, 1) smoothly
+                float excess = ax - k;
+                float limited = k + (1.0f - k) * Krate::DSP::Sigmoid::tanh(
+                    excess / (1.0f - k));
+                return (x >= 0.0f) ? limited : -limited;
+            };
+            sampleL = softLimit(sampleL);
+            sampleR = softLimit(sampleR);
+        }
 
         // Write stereo output (M6: FR-007), or sum to mono (FR-013)
         if (numOutputChannels >= 2) {

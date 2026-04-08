@@ -267,57 +267,12 @@ inline float NoiseOscillator::process() noexcept {
 }
 
 inline void NoiseOscillator::processBlock(float* output, size_t numSamples) noexcept {
-    // Process based on current color
-    // Using switch outside loop to avoid per-sample branching
-    switch (color_) {
-        case NoiseColor::White:
-            for (size_t i = 0; i < numSamples; ++i) {
-                output[i] = processWhite();
-            }
-            break;
-
-        case NoiseColor::Pink:
-            for (size_t i = 0; i < numSamples; ++i) {
-                float white = processWhite();
-                output[i] = processPink(white);
-            }
-            break;
-
-        case NoiseColor::Brown:
-            for (size_t i = 0; i < numSamples; ++i) {
-                float white = processWhite();
-                output[i] = processBrown(white);
-            }
-            break;
-
-        case NoiseColor::Blue:
-            for (size_t i = 0; i < numSamples; ++i) {
-                float white = processWhite();
-                float pink = processPink(white);
-                output[i] = processBlue(pink);
-            }
-            break;
-
-        case NoiseColor::Violet:
-            for (size_t i = 0; i < numSamples; ++i) {
-                float white = processWhite();
-                output[i] = processViolet(white);
-            }
-            break;
-
-        case NoiseColor::Grey:
-            for (size_t i = 0; i < numSamples; ++i) {
-                float white = processWhite();
-                output[i] = processGrey(white);
-            }
-            break;
-
-        default:
-            // Unknown color - generate white noise
-            for (size_t i = 0; i < numSamples; ++i) {
-                output[i] = processWhite();
-            }
-            break;
+    // Delegate to process() to guarantee bit-identical output regardless of
+    // compiler FMA contraction differences between loop and scalar contexts.
+    // Branch prediction handles the per-sample switch trivially since color
+    // never changes mid-block.
+    for (size_t i = 0; i < numSamples; ++i) {
+        output[i] = process();
     }
 }
 

@@ -5,6 +5,14 @@ All notable changes to Innexus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-04-08
+
+### Fixed
+
+- **Output noise from soft limiter** — The unconditional tanh limiter was adding ~10 dB of intermodulation noise between harmonics at normal signal levels (SNR dropped from 47 to 37 dB). Replaced with a knee-based soft clipper that is transparent below 0.85 and only engages near clipping. Clean harmonic input now produces 47+ dB SNR
+- **Click artifacts during parameter sweeps** — The adaptive normalization gain changed abruptly each frame, causing correlated amplitude steps across all partials. Added one-pole smoothing on the normalization gain factor to eliminate audible clicks during modulator depth and other parameter sweeps
+- **Bass pitch detection (41 Hz) failing** — YIN window size of 2048 gave max lag W=1024, which is shorter than the period of 41 Hz (1075 samples). Increased high-precision YIN window to 4096 (W=2048). Also fixed subharmonic validator using short FFT spectrum (43 Hz/bin) for low-frequency validation where it can't resolve the fundamental, and prevented the auto-mode multi-pitch detector from overriding confident time-domain estimates when the short spectrum lacks resolution
+
 ## [1.0.0] - 2026-03-25
 
 ### Added

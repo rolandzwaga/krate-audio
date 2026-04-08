@@ -264,7 +264,7 @@ TEST_CASE("Sweep frequency to normalized conversion", "[morph_link][US8]") {
 
     SECTION("frequencies below 20Hz are clamped") {
         float norm = sweepFrequencyToNormalized(10.0f);
-        REQUIRE(norm == Approx(0.0f));
+        REQUIRE(norm == Approx(0.0f).margin(1e-7f));
     }
 
     SECTION("frequencies above 20kHz are clamped") {

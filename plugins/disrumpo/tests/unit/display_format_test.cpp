@@ -13,6 +13,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <cmath>
 
 #include "plugin_ids.h"
 

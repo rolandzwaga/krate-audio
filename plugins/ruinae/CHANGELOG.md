@@ -5,6 +5,12 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-04-08
+
+### Fixed
+
+- **Oscillator mix leaking NaN/Inf on ARM (Apple Silicon)** — At mix position 0.0 or 1.0, the crossfade formula `oscA * 0.0 + oscB * 1.0` could leak NaN/Inf values from the Chaos oscillator through FMA contraction on ARM. Added explicit branches at mix extremes to bypass the multiply entirely
+
 ## [0.11.0] - 2026-03-31
 
 ### Added

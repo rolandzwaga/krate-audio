@@ -134,6 +134,7 @@ public:
         // tau = kAmpSmoothTimeSec
         ampSmoothCoeff_ = 1.0f - std::exp(-1.0f /
             (kAmpSmoothTimeSec * static_cast<float>(sampleRate)));
+        normGainSmoothed_ = 1.0f;
 
         // Per-partial noise LP filter for bandwidth modulation.
         // 4th-order Chebyshev Type I at 500 Hz with 1 dB ripple (~24 dB/oct).
@@ -270,18 +271,33 @@ public:
         // user then shapes with Harmonic Level, velocity, and Master Gain.
         // Relative dynamics between frames are preserved because frames with
         // more partial energy naturally produce a higher expectedRms.
+        //
+        // The normalization gain is smoothed with the same one-pole coefficient
+        // as partial amplitudes.  Without smoothing, every frame applies a
+        // potentially different scale to ALL partials simultaneously, creating
+        // a correlated step that manifests as broadband inter-harmonic noise.
+        // (DDSP, Engel et al. 2020 — amplitude smoothing prevents artifacts.)
         {
             float sumSq = 0.0f;
             for (int i = 0; i < numPartials; ++i)
                 sumSq += targetAmplitude_[i] * targetAmplitude_[i];
 
             float expectedRms = std::sqrt(sumSq * 0.5f);
+            float targetNormGain = 1.0f;
             if (expectedRms > 1e-10f)
             {
-                float scale = std::min(kTargetOscRms / expectedRms, kMaxNormGain);
-                for (int i = 0; i < numPartials; ++i)
-                    targetAmplitude_[i] *= scale;
+                targetNormGain = std::min(kTargetOscRms / expectedRms, kMaxNormGain);
             }
+
+            // Smooth the normalization gain to avoid correlated amplitude steps.
+            // Use a fast but non-instant coefficient (~0.3) so the gain tracks
+            // within 3-4 frames while eliminating abrupt jumps.  The per-partial
+            // one-pole smoother handles the remaining sub-frame smoothing.
+            constexpr float kNormSmoothCoeff = 0.3f;
+            normGainSmoothed_ += kNormSmoothCoeff * (targetNormGain - normGainSmoothed_);
+
+            for (int i = 0; i < numPartials; ++i)
+                targetAmplitude_[i] *= normGainSmoothed_;
         }
 
         // Recalculate frequencies and anti-aliasing for all active partials
@@ -988,6 +1004,7 @@ private:
 
     // --- Smoothing ---
     float ampSmoothCoeff_ = 0.0f;         ///< One-pole amplitude smoothing coefficient
+    float normGainSmoothed_ = 1.0f;       ///< Smoothed normalization gain (prevents correlated steps)
 
     // --- Crossfade (FR-040) ---
     int crossfadeLengthSamples_ = 0;      ///< Crossfade duration in samples

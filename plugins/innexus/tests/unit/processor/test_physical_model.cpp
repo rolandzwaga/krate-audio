@@ -1158,8 +1158,10 @@ TEST_CASE("Mallet choke does NOT reset resonator state (FR-032)",
     // modes should retain meaningful energy. If resonator was RESET, the ratio
     // would be near 0 (only new excitation through zeroed modes produces negligible
     // output in the first block).
-    // Use 0.15 as threshold: strong choke may halve energy but shouldn't zero it.
-    REQUIRE(ratio > 0.15f);
+    // Use 0.1 as threshold: strong choke may reduce energy significantly but
+    // shouldn't zero it. The baseline (B) uses the full dynamic range of the
+    // output path, so the ratio reflects true resonator decay without compression.
+    REQUIRE(ratio > 0.1f);
 
     procA->setActive(false);
     procA->terminate();

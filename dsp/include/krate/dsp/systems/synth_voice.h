@@ -367,7 +367,15 @@ public:
         const float osc2Sample = osc2_.process();
 
         // Step 2: Mix oscillators (FR-010)
-        const float mixed = (1.0f - oscMix_) * osc1Sample + oscMix_ * osc2Sample;
+        // Explicit branches at extremes avoid FMA contraction issues on ARM where
+        // fma(osc1, 0.0f, osc2) can leak NaN/Inf from the zero-weighted oscillator.
+        float mixed;
+        if (oscMix_ <= 0.0f)
+            mixed = osc1Sample;
+        else if (oscMix_ >= 1.0f)
+            mixed = osc2Sample;
+        else
+            mixed = (1.0f - oscMix_) * osc1Sample + oscMix_ * osc2Sample;
 
         // Step 3: Process filter envelope
         const float filterEnvLevel = filterEnv_.process();

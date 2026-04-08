@@ -151,6 +151,7 @@ jobs:
       # MSBuild's --parallel flag builds independent targets concurrently,
       # avoiding the overhead of re-parsing the solution file per invocation.
       - name: Build All Targets
+        shell: bash
         run: |
           TARGETS=""
           DSP="${{ needs.detect-changes.outputs.dsp }}"
@@ -194,6 +195,7 @@ jobs:
       # because CTest registers individual Catch2 case names, not executable names.
       - name: Run Tests
         shell: bash
+        timeout-minutes: 10
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
@@ -388,6 +390,7 @@ jobs:
 
       # Run test executables directly in parallel (Xcode multi-config layout).
       - name: Run Tests
+        timeout-minutes: 10
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
@@ -725,6 +728,7 @@ jobs:
 
       # Run test executables directly in parallel (Ninja single-config layout).
       - name: Run Tests
+        timeout-minutes: 10
         run: |
           BIN="build/bin"
           DSP="${{ needs.detect-changes.outputs.dsp }}"

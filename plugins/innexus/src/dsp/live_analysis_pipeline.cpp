@@ -30,7 +30,7 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
     // Determine YIN window size based on mode
     if (mode == LatencyMode::HighPrecision)
     {
-        yinWindowSize_ = kLongWindowConfig.fftSize / 2; // 2048 for bass detection
+        yinWindowSize_ = kHighPrecisionYinWindowSize; // 4096: W=2048 covers 40 Hz (period=1103)
     }
     else
     {
@@ -59,7 +59,8 @@ void LiveAnalysisPipeline::prepare(double sampleRate, LatencyMode mode)
         longSpectrum_.prepare(kLongWindowConfig.fftSize);
     }
 
-    // Subharmonic validator (Hermes 1988)
+    // Subharmonic validator (Hermes 1988) — prepared per-frame in runAnalysis()
+    // to match whichever spectrum (short or long) is available.
     subharmonicValidator_.prepare(kShortWindowConfig.fftSize, sampleRate);
 
     // Partial tracker
@@ -151,7 +152,7 @@ void LiveAnalysisPipeline::setLatencyMode(LatencyMode mode)
         longStftActive_ = true;
 
         // Expand YIN window
-        yinWindowSize_ = kLongWindowConfig.fftSize / 2;
+        yinWindowSize_ = kHighPrecisionYinWindowSize;
         yin_ = Krate::DSP::YinPitchDetector(yinWindowSize_);
         yin_.prepare(static_cast<double>(sampleRate_));
         yinBuffer_.resize(yinWindowSize_, 0.0f);
@@ -243,9 +244,11 @@ void LiveAnalysisPipeline::pushSamples(const float* data, size_t count)
         shortStft_.analyze(shortSpectrum_);
 
         // Also analyze long STFT if it's ready
+        longSpectrumReady_ = false;
         if (longStftActive_ && longStft_.canAnalyze())
         {
             longStft_.analyze(longSpectrum_);
+            longSpectrumReady_ = true;
         }
 
         runAnalysis();
@@ -269,9 +272,26 @@ void LiveAnalysisPipeline::runAnalysis()
         }
         f0 = yin_.detect(yinContiguousBuffer_.data(), yinWindowSize_);
 
-        // Subharmonic validation (Hermes 1988): correct YIN octave errors
+        // Subharmonic validation (Hermes 1988): correct YIN octave errors.
+        // Use the long spectrum when available — its finer bin spacing
+        // (10.8 Hz vs 43 Hz) is essential for validating low frequencies.
+        // When only the short spectrum is available, skip validation for
+        // frequencies below 2 bins of the short spectrum (the validator
+        // can't distinguish the fundamental from DC at that resolution).
         if (f0.voiced) {
-            f0 = subharmonicValidator_.validate(f0, shortSpectrum_);
+            if (longSpectrumReady_) {
+                subharmonicValidator_.prepare(kLongWindowConfig.fftSize,
+                                              static_cast<double>(sampleRate_));
+                f0 = subharmonicValidator_.validate(f0, longSpectrum_);
+            } else {
+                const float shortBinSpacing = sampleRate_
+                    / static_cast<float>(kShortWindowConfig.fftSize);
+                if (f0.frequency > shortBinSpacing * 2.0f) {
+                    subharmonicValidator_.prepare(kShortWindowConfig.fftSize,
+                                                  static_cast<double>(sampleRate_));
+                    f0 = subharmonicValidator_.validate(f0, shortSpectrum_);
+                }
+            }
         }
     }
     else
@@ -317,9 +337,21 @@ void LiveAnalysisPipeline::runAnalysis()
 
         // Secondary: check if multi-pitch detector finds multiple F0s
         // using the previous frame's tracked partials (still in tracker_).
+        //
+        // Skip this check when the YIN F0 is below the short spectrum's
+        // frequency resolution (~2 bins). At such low frequencies the
+        // short FFT can't resolve the fundamental, so the partial tracker
+        // sees only harmonics and the multi-pitch detector produces false
+        // positives — overriding a correct time-domain estimate with a
+        // spectral artefact. (Hermes 1988; PMC6445256 §harmonic features)
         bool multiF0SuggestsPoly = false;
+        const float shortBinSpacing = sampleRate_
+            / static_cast<float>(kShortWindowConfig.fftSize);
+        const bool spectrumCanResolveF0 =
+            !f0.voiced || f0.frequency > shortBinSpacing * 2.5f;
+
         int prevCount = tracker_.getActiveCount();
-        if (prevCount > 0 && f0.voiced)
+        if (prevCount > 0 && f0.voiced && spectrumCanResolveF0)
         {
             const auto& prevPartials = tracker_.getPartials();
             std::array<float, Krate::DSP::kMaxPartials> freqs{};

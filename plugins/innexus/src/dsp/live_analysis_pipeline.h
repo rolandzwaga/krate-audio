@@ -211,6 +211,7 @@ private:
     float sampleRate_ = 44100.0f;
     bool prepared_ = false;
     bool longStftActive_ = false;
+    bool longSpectrumReady_ = false; ///< True when long STFT was analyzed this hop
 
     // =========================================================================
     // Mode switching state
