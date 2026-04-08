@@ -29,11 +29,11 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                            0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
 
     parameters.addParameter(
-        new RangeParameter(STR16("Decay"), kDecayId, nullptr,
+        new RangeParameter(STR16("Resonance"), kDecayId, nullptr,
                            0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
 
     parameters.addParameter(
-        new RangeParameter(STR16("Strike Position"), kStrikePositionId, nullptr,
+        new RangeParameter(STR16("Strike Point"), kStrikePositionId, nullptr,
                            0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
 
     parameters.addParameter(

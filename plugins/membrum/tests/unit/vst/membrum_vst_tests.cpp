@@ -81,8 +81,8 @@ TEST_CASE("Membrum Controller parameter metadata matches contract",
     const ExpectedParam expected[] = {
         {Membrum::kMaterialId, "Material", 0.5},
         {Membrum::kSizeId, "Size", 0.5},
-        {Membrum::kDecayId, "Decay", 0.3},
-        {Membrum::kStrikePositionId, "Strike Position", 0.3},
+        {Membrum::kDecayId, "Resonance", 0.3},
+        {Membrum::kStrikePositionId, "Strike Point", 0.3},
         {Membrum::kLevelId, "Level", 0.8},
     };
 
