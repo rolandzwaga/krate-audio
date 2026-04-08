@@ -178,6 +178,7 @@ add_executable(innexus_tests
     # Stubs for GetPluginFactory/moduleHandle + SDK module init (Linux linker)
     vstgui_test_stubs.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
 )
 
 target_link_libraries(innexus_tests

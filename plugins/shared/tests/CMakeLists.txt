@@ -31,6 +31,7 @@ add_executable(shared_tests
     # Stubs for GetPluginFactory and moduleHandle (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
 )
 
 target_link_libraries(shared_tests

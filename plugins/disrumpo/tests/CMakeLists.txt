@@ -134,9 +134,10 @@ add_executable(disrumpo_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/dynamic_node_selector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/node_editor_border.cpp
 
-    # Stubs for GetPluginFactory and moduleHandle (needed by vstgui_support on Linux)
+    # Stubs for GetPluginFactory/moduleHandle + SDK symbols (needed by vstgui_support on Linux)
     vstgui_test_stubs.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
 )
 
 target_link_libraries(disrumpo_tests
