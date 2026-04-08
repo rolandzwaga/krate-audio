@@ -168,12 +168,15 @@ void BatchLog10Impl(const float* HWY_RESTRICT input,
     size_t k = 0;
     for (; k + N <= count; k += N) {
         auto v = hn::LoadU(d, input + k);
-        v = hn::Max(v, minVal);  // Branchless clamp
+        // Clamp via IfThenElse: robust against -ffast-math on ARM where
+        // Max with negative floats may be optimized incorrectly.
+        const auto mask = hn::Lt(v, minVal);
+        v = hn::IfThenElse(mask, minVal, v);
         hn::StoreU(hn::Log10(d, v), d, output + k);
     }
     // Scalar tail
     for (; k < count; ++k) {
-        float val = std::max(input[k], 1e-10f);
+        float val = input[k] < 1e-10f ? 1e-10f : input[k];
         output[k] = std::log10(val);
     }
 }
