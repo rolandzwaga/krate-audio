@@ -9,6 +9,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
+#include <cmath>
 
 #include "dsp/morph_engine.h"
 #include "dsp/morph_node.h"
