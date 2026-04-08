@@ -149,8 +149,9 @@ jobs:
                   ).strip()
               except Exception:
                   tag = ''
-              if tag:
-                  data['version'] = tag.split('/v')[-1]
+              if not tag:
+                  continue  # No release tag = unreleased plugin, skip card
+              data['version'] = tag.split('/v')[-1]
               plugins.append(data)
 
           cards = '\n'.join([
