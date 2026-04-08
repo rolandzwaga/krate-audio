@@ -1,6 +1,6 @@
 # Spec 135 — Membrum: Synthesized Drum Machine
 
-**Status:** Phase 1 In Progress (see `specs/136-membrum-phase1-scaffold/`)  
+**Status:** Phase 1 Complete (see `specs/136-membrum-phase1-scaffold/`)  
 **Plugin:** Membrum  
 **Type:** Instrument (`aumu`)  
 **Location:** `plugins/membrum/`
@@ -1135,7 +1135,7 @@ Higher modes require more bow pressure to sustain. BowExciter already implements
 
 Each phase is a self-contained deliverable suitable for its own speckit spec (FRs, SCs, tasks). Phases are ordered by dependency — each builds on the previous.
 
-### Phase 1 — Plugin Scaffold + Single Voice
+### Phase 1 — Plugin Scaffold + Single Voice ✅ Complete
 
 **Goal:** Get sound out. Minimal viable drum synth with one exciter and one body.
 
