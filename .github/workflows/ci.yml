@@ -345,6 +345,17 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
 
+      # The AudioUnitSDK Xcode project has an "Install clang-format hook"
+      # script phase that fails on CI (no writable git repo at the expected
+      # path). Patch all shell scripts in the project to no-ops.
+      - name: Patch AudioUnitSDK script phases
+        run: |
+          PBXPROJ="build/_deps/audiounitsdk-src/AudioUnitSDK.xcodeproj/project.pbxproj"
+          if [ -f "$PBXPROJ" ]; then
+            sed -i '' 's/shellScript = "[^"]*"/shellScript = "exit 0"/' "$PBXPROJ"
+            echo "Patched AudioUnitSDK script phases"
+          fi
+
       # Build all changed targets in a single cmake invocation.
       # Xcode's --parallel flag builds independent targets concurrently,
       # avoiding the overhead of re-parsing the project file per invocation.
