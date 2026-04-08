@@ -57,7 +57,7 @@
 param(
     [string]$BuildDir = "build/windows-x64-release",
     [switch]$Fix,
-    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus")]
+    [ValidateSet("all", "dsp", "dsp-lib", "dsp-tests", "iterum", "disrumpo", "ruinae", "innexus", "gradus", "membrum")]
     [string]$Target = "all",
     [switch]$Quiet,
     [int]$Jobs = 0
@@ -187,6 +187,12 @@ switch ($Target) {
         $IncludeDirs += "plugins/gradus/src"
         $IncludeDirs += "extern/vst3sdk"
     }
+    "membrum" {
+        $SourceDirs += "plugins/membrum/src"
+        $IncludeDirs += "dsp/include"
+        $IncludeDirs += "plugins/membrum/src"
+        $IncludeDirs += "extern/vst3sdk"
+    }
     "all" {
         $SourceDirs += "dsp/include"
         $SourceDirs += "dsp/tests"
@@ -196,12 +202,14 @@ switch ($Target) {
         $SourceDirs += "plugins/ruinae/src"
         $SourceDirs += "plugins/innexus/src"
         $SourceDirs += "plugins/gradus/src"
+        $SourceDirs += "plugins/membrum/src"
         $IncludeDirs += "dsp/include"
         $IncludeDirs += "plugins/iterum/src"
         $IncludeDirs += "plugins/disrumpo/src"
         $IncludeDirs += "plugins/ruinae/src"
         $IncludeDirs += "plugins/innexus/src"
         $IncludeDirs += "plugins/gradus/src"
+        $IncludeDirs += "plugins/membrum/src"
         $IncludeDirs += "extern/vst3sdk"
     }
 }

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membrum - VST3 Synthesized Drum Machine | Krate Audio</title>
+    <meta name="description" content="Free open-source synthesized drum machine VST3 plugin with modal synthesis, membrane resonance, and velocity-sensitive excitation. Windows, macOS, Linux.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://rolandzwaga.github.io/krate-audio/membrum/">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Membrum - VST3 Synthesized Drum Machine">
+    <meta property="og:description" content="Free open-source synthesized drum machine VST3 plugin with modal synthesis and membrane resonance.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://rolandzwaga.github.io/krate-audio/membrum/">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Membrum - VST3 Synthesized Drum Machine">
+    <meta name="twitter:description" content="Free open-source synthesized drum machine VST3 with modal synthesis. Windows, macOS, Linux.">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Membrum",
+        "description": "Free open-source synthesized drum machine VST3 plugin with modal synthesis, membrane resonance, and velocity-sensitive excitation.",
+        "applicationCategory": "MultimediaApplication",
+        "applicationSubCategory": "Audio Plugin",
+        "operatingSystem": "Windows 10+, macOS 12+, Linux",
+        "softwareVersion": "0.1.0",
+        "url": "https://rolandzwaga.github.io/krate-audio/membrum/",
+        "downloadUrl": "https://github.com/{{REPO}}/releases",
+        "author": {
+            "@type": "Organization",
+            "name": "Krate Audio",
+            "url": "https://rolandzwaga.github.io/krate-audio/"
+        },
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "license": "https://opensource.org/licenses/MIT"
+    }
+    </script>
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="assets/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <p class="breadcrumb"><a href="../">Krate Audio</a></p>
+            <h1>Membrum</h1>
+            <p class="tagline">VST3 Synthesized Drum Machine</p>
+            <p class="version">Version 0.1.0</p>
+        </header>
+
+        <section class="overview">
+            <h2>Overview</h2>
+            <p>Membrum is a synthesized drum machine that generates drum sounds from first principles using modal synthesis. Instead of playing back samples, it models the physical behavior of vibrating membranes, shells, and plates to create expressive, velocity-sensitive drum sounds that respond naturally to how you play.</p>
+            <p>Phase 1 delivers a single membrane drum voice with 5 parameters: Material, Size, Decay, Strike Position, and Level. The voice combines an impact exciter with a 16-mode modal resonator bank using circular membrane Bessel function ratios for physically accurate frequency relationships.</p>
+        </section>
+
+        <section class="features">
+            <h2>Features</h2>
+            <ul>
+                <li><strong>Modal synthesis engine</strong> -- 16 parallel Gordon-Smith resonators modeling circular membrane vibration modes with Bessel function frequency ratios</li>
+                <li><strong>Velocity-sensitive excitation</strong> -- Soft hits produce dark, muted tones; hard hits produce bright, punchy sounds with wider bandwidth excitation</li>
+                <li><strong>Material control</strong> -- Sweep from woody (high damping, fast HF decay) to metallic (even decay, long sustain)</li>
+                <li><strong>Size control</strong> -- Exponential frequency mapping from small (500 Hz) to large (50 Hz) with proportional mode scaling</li>
+                <li><strong>Decay control</strong> -- Global decay time scaling that preserves material character</li>
+                <li><strong>Strike position</strong> -- Center strike excites fundamental modes; edge strike excites higher-order modes for complex timbres</li>
+                <li><strong>Real-time safe</strong> -- Zero allocations in the audio thread; all DSP pre-allocated</li>
+                <li><strong>Cross-platform</strong> -- VST3 (Windows, macOS, Linux) + Audio Unit (macOS)</li>
+            </ul>
+        </section>
+
+        <section class="installation">
+            <h2>Installation</h2>
+            <div class="install-instructions">
+                <div class="platform-install">
+                    <h3>Windows</h3>
+                    <p>Copy the VST3 bundle to your VST3 folder:</p>
+                    <code>C:\Program Files\Common Files\VST3\Krate Audio\Membrum\Membrum.vst3</code>
+                </div>
+                <div class="platform-install">
+                    <h3>macOS</h3>
+                    <p>Copy the VST3 and AU bundles:</p>
+                    <code>/Library/Audio/Plug-Ins/VST3/Membrum.vst3</code><br>
+                    <code>/Library/Audio/Plug-Ins/Components/Membrum.component</code>
+                </div>
+                <div class="platform-install">
+                    <h3>Linux</h3>
+                    <p>Extract and copy to your VST3 folder:</p>
+                    <code>cp -r Membrum.vst3 ~/.vst3/</code>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>
+                <a href="https://github.com/{{REPO}}">GitHub</a> |
+                <a href="https://github.com/{{REPO}}/releases">All Releases</a> |
+                <a href="https://github.com/{{REPO}}/issues">Report Issue</a>
+            </p>
+            <p class="copyright">Krate Audio</p>
+        </footer>
+    </div>
+</body>
+</html>
