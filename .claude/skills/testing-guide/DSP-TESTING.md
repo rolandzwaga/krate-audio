@@ -1,5 +1,35 @@
 # DSP Testing Strategies
 
+## Cross-Platform DSP Pitfalls (ARM vs x86)
+
+These issues compile and pass on Windows/macOS-x86 but fail on ARM (Apple Silicon) or Linux:
+
+### FMA Contraction (ARM Clang `-ffp-contract=fast`)
+
+ARM Clang fuses `a * b + c` into a single FMA instruction with one rounding instead of two. This causes:
+- **Block vs sample-by-sample divergence**: `processBlock()` loop may use FMA while scalar `process()` does not. Fix: have `processBlock()` delegate to `process()`.
+- **Zero multiply doesn't zero**: `fma(x, 0.0f, y)` may not equal `y` if `x` is NaN/Inf. Fix: use explicit `if (mix <= 0.0f)` branches at crossfade extremes instead of relying on `x * 0.0f == 0.0f`.
+
+### SIMD Alignment (Highway / NEON)
+
+- `hn::Load`/`hn::Store` require 16-byte aligned memory. `std::array<float>` only has 4-byte alignment. ARM NEON faults on misaligned aligned loads (**SIGSEGV**), x86 SSE does not.
+- Fix: use `hn::LoadU`/`hn::StoreU` (unaligned) — no performance penalty on M1+.
+- Alternative: `alignas(16)` on arrays, but this doesn't help when the containing class is heap-allocated with default `operator new`.
+
+### Soft Limiter / Nonlinearity on Output
+
+An unconditional `tanh()` on every output sample adds measurable intermodulation noise between harmonics (~10 dB SNR degradation at RMS 0.5). Use a knee-based soft clipper that's transparent below ~0.85 and only engages near clipping.
+
+### Spectral Validation at Low Frequencies
+
+Subharmonic validators and multi-pitch detectors using the short FFT (1024-point, 43 Hz/bin) **cannot resolve fundamentals below ~100 Hz**. At those frequencies, the time-domain estimate (YIN) should be trusted over spectral validation. Check `f0 > binSpacing * 2.5` before running spectral validation.
+
+### YIN Window Size
+
+YIN searches lags up to `W = N/2`. To detect F0 at frequency `f`, you need `W >= sampleRate / f`. Example: 41 Hz at 44.1 kHz needs W >= 1075, so window size N >= 2150 (use 4096).
+
+---
+
 ## Test Signal Types
 
 Use standard test signals to verify DSP behavior:

@@ -219,6 +219,63 @@ if (result == Steinberg::kResultOk) { /* ... */ }
 
 ---
 
+## Cross-Platform Test Executable Setup
+
+### Required Stubs for vstgui_support
+
+Any test executable that links `vstgui_support` needs these symbols that normally come from the plugin entry point and platform main:
+
+1. **`GetPluginFactory`** — provided by a `vstgui_test_stubs.cpp` file:
+```cpp
+#include "pluginterfaces/base/ipluginbase.h"
+extern "C" {
+Steinberg::IPluginFactory* PLUGIN_API GetPluginFactory() { return nullptr; }
+} // extern "C"
+```
+
+2. **`moduleHandle`** — provided by `test_main.cpp`:
+```cpp
+void* moduleHandle = nullptr;
+```
+
+3. **`ModuleInitializer`, `ModuleTerminator`, `getPlatformModuleHandle`** — provided by linking the SDK's `moduleinit.cpp`:
+```cmake
+${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+```
+
+**Without all three, the Linux linker fails** with undefined references. Windows and macOS may resolve these transitively, but Linux's strict linker does not.
+
+### CMakeLists.txt Pattern
+
+```cmake
+add_executable(my_plugin_tests
+    unit/test_main.cpp
+    # ... test files ...
+
+    # Stubs for GetPluginFactory/moduleHandle + SDK module init (Linux linker)
+    vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+)
+```
+
+**IMPORTANT:** Do not define `moduleHandle` in both `test_main.cpp` and `vstgui_test_stubs.cpp` — this causes duplicate symbol linker errors on Windows (LNK2005).
+
+### Missing `#include <cmath>` on Linux (GCC)
+
+GCC does not transitively include `<cmath>` through Catch2 or other headers, unlike MSVC and Clang. Any test file using `std::pow`, `std::round`, `std::sqrt`, `std::sin`, `std::cos`, `std::log`, `std::exp`, `std::abs` (float overload), `std::floor`, or `std::ceil` **must explicitly** `#include <cmath>`. Without it, the build passes on Windows/macOS but fails on Linux with errors like `'round' is not a member of 'std'`.
+
+### Performance Tests on CI
+
+Tests with timing assertions (`cpuPercent < X`, `speedup >= Y`, `BENCHMARK()`) are **unreliable on CI runners** due to variable system load and shared VMs. Exclude them with the Catch2 tag filter:
+
+```bash
+"$exe" "~[performance]~[perf]~[!benchmark]"
+```
+
+Tags `[.perf]` (dot prefix) are already hidden by default in Catch2. Run performance tests locally on dedicated hardware for reliable results.
+
+---
+
 ## Validation Checklist
 
 Before releasing, ensure:
