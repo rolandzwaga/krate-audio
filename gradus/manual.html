@@ -343,6 +343,20 @@
         </ul></li>
         <li><a href="#note-range-mapping"
         id="toc-note-range-mapping">Note Range Mapping</a></li>
+        <li><a href="#midi-delay-lane" id="toc-midi-delay-lane">MIDI
+        Delay Lane</a>
+        <ul>
+        <li><a href="#grid-editor" id="toc-grid-editor">Grid
+        Editor</a></li>
+        <li><a href="#scrolling" id="toc-scrolling">Scrolling</a></li>
+        <li><a href="#per-step-active-toggle"
+        id="toc-per-step-active-toggle">Per-Step Active Toggle</a></li>
+        <li><a href="#how-echo-processing-works"
+        id="toc-how-echo-processing-works">How Echo Processing
+        Works</a></li>
+        <li><a href="#tempo-synced-delays"
+        id="toc-tempo-synced-delays">Tempo-Synced Delays</a></li>
+        </ul></li>
         <li><a href="#markov-chain-mode"
         id="toc-markov-chain-mode">Markov Chain Mode</a>
         <ul>
@@ -384,6 +398,13 @@
         Melodies with Markov</a></li>
         <li><a href="#bouncing-ball-ratchets"
         id="toc-bouncing-ball-ratchets">Bouncing Ball Ratchets</a></li>
+        <li><a href="#harmonic-echo-cascades"
+        id="toc-harmonic-echo-cascades">Harmonic Echo Cascades</a></li>
+        <li><a href="#rhythmic-delay-patterns"
+        id="toc-rhythmic-delay-patterns">Rhythmic Delay
+        Patterns</a></li>
+        <li><a href="#fading-canon" id="toc-fading-canon">Fading
+        Canon</a></li>
         </ul></li>
         <li><a href="#system-requirements"
         id="toc-system-requirements">System Requirements</a></li>
@@ -391,15 +412,15 @@
         <h2 id="introduction">Introduction</h2>
         <p>Gradus is a standalone step arpeggiator and MIDI pattern
         generator. It takes held notes and transforms them into complex,
-        evolving melodic and rhythmic patterns through eight independent
+        evolving melodic and rhythmic patterns through nine independent
         polymetric lanes, each with its own step count, speed, and
         timing behavior.</p>
         <p>Unlike a simple arpeggiator that cycles through held notes in
         order, Gradus gives you per-step control over velocity, gate
         length, pitch offset, chord voicing, ratcheting, articulation
-        modifiers, and conditional triggers — all running at independent
-        speeds and lengths to create patterns that never quite
-        repeat.</p>
+        modifiers, conditional triggers, and MIDI echo delays — all
+        running at independent speeds and lengths to create patterns
+        that never quite repeat.</p>
         <p>Gradus outputs standard MIDI events, so it can drive any
         instrument in your DAW. It also includes a lightweight built-in
         audition synth for previewing patterns without routing to an
@@ -569,8 +590,8 @@
         </table>
         <hr />
         <h2 id="ring-display">Ring Display</h2>
-        <p>The circular ring display provides a visual overview of all 8
-        lanes simultaneously. Steps are arranged radially around 4
+        <p>The circular ring display provides a visual overview of all 9
+        lanes simultaneously. Steps are arranged radially around
         concentric rings:</p>
         <ul>
         <li><strong>Outer ring</strong> — Velocity (copper) + Gate
@@ -579,8 +600,9 @@
         (rose)</li>
         <li><strong>Third ring</strong> — Condition (steel) + Ratchet
         (lavender)</li>
-        <li><strong>Inner ring</strong> — Chord (purple) + Inversion
+        <li><strong>Fourth ring</strong> — Chord (purple) + Inversion
         (blue)</li>
+        <li><strong>Inner ring</strong> — MIDI Delay (gold)</li>
         </ul>
         <p>Each lane has its own animated playhead highlight that races
         around at the lane’s independent speed, visually communicating
@@ -598,7 +620,7 @@
         <p>The detail strip on the right side provides precise linear
         editing for one lane at a time.</p>
         <h3 id="lane-tabs">Lane Tabs</h3>
-        <p>Eight color-coded tabs select the active lane: -
+        <p>Nine color-coded tabs select the active lane: -
         <strong>VEL</strong> (copper) — Velocity per step (0-100%) -
         <strong>GATE</strong> (sand) — Gate length per step (0-100%) -
         <strong>PITCH</strong> (sage) — Pitch offset per step (-12 to
@@ -608,7 +630,9 @@
         (lavender) — Ratchet subdivisions per step (1-4) -
         <strong>CHORD</strong> (purple) — Chord type per step (None,
         Dyad, Triad, 7th, 9th) - <strong>INV</strong> (blue) — Chord
-        inversion per step (Root, 1st, 2nd, 3rd)</p>
+        inversion per step (Root, 1st, 2nd, 3rd) -
+        <strong>DELAY</strong> (gold) — MIDI echo delay parameters per
+        step (see <a href="#midi-delay-lane">MIDI Delay Lane</a>)</p>
         <h3 id="lane-editor">Lane Editor</h3>
         <p>Each lane editor shows a bar chart of step values. Click and
         drag to edit values. The lane header shows the lane name, step
@@ -733,6 +757,125 @@
         </ul></li>
         </ul>
         <hr />
+        <h2 id="midi-delay-lane">MIDI Delay Lane</h2>
+        <p>The MIDI Delay lane is a per-step echo post-processor that
+        generates delayed copies of arp output notes as real MIDI
+        events. Unlike audio delay effects, MIDI delays produce new
+        note-on/off messages — meaning the echoes play through your
+        instrument with full voice allocation, polyphony, and per-note
+        processing.</p>
+        <p>The delay lane sits at the end of the signal path, after all
+        other lane transforms (velocity, gate, pitch, chords, etc.) have
+        been applied. It operates as the 9th lane in the polymetric
+        engine, with its own independent step count, speed multiplier,
+        swing, and jitter.</p>
+        <h3 id="grid-editor">Grid Editor</h3>
+        <p>Selecting the <strong>DELAY</strong> tab opens a multi-knob
+        grid editor instead of the bar-chart editor used by other lanes.
+        Each step column contains 7 controls stacked vertically:</p>
+        <table>
+        <colgroup>
+        <col style="width: 14%" />
+        <col style="width: 26%" />
+        <col style="width: 20%" />
+        <col style="width: 38%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Row</th>
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Active</strong></td>
+        <td>Toggle button</td>
+        <td>On/Off</td>
+        <td>Enables or disables echo generation for this step. When off,
+        the step’s parameter controls are hidden for a cleaner
+        view.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Sync</strong></td>
+        <td>Toggle button</td>
+        <td>Free/Synced</td>
+        <td>Switches the delay time between millisecond values and
+        tempo-synced note values.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Time</strong></td>
+        <td>Arc knob</td>
+        <td>10-2000 ms (free) or 1/64T-4/1D (synced)</td>
+        <td>The delay between the original note and the first echo. When
+        synced, snaps to 30 discrete note values.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Feedback</strong></td>
+        <td>Arc knob</td>
+        <td>0-16 repeats</td>
+        <td>Number of echo repetitions. Each repeat applies the velocity
+        decay, pitch shift, and gate scaling.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Vel Decay</strong></td>
+        <td>Arc knob</td>
+        <td>0-100%</td>
+        <td>Velocity reduction per echo repeat. 100% means each echo is
+        silent; 0% means all echoes play at full velocity.</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pitch</strong></td>
+        <td>Arc knob</td>
+        <td>-24 to +24 semitones</td>
+        <td>Pitch transposition applied cumulatively per echo. For
+        example, +7 semitones produces echoes stacked in fifths.</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Gate</strong></td>
+        <td>Arc knob</td>
+        <td>10-200%</td>
+        <td>Gate length scaling per echo repeat. Values below 100%
+        progressively shorten echoes; values above 100% lengthen
+        them.</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="scrolling">Scrolling</h3>
+        <p>When the lane step count exceeds 10, the grid scrolls
+        horizontally. Use the mouse wheel over the grid area to scroll,
+        or drag the scrollbar at the bottom. A step number bar runs
+        along the bottom edge with the current playhead step
+        highlighted.</p>
+        <h3 id="per-step-active-toggle">Per-Step Active Toggle</h3>
+        <p>The active toggle at the top of each column controls whether
+        echoes are generated for that step. Inactive steps pass notes
+        through unchanged. When a step is toggled off, the 6 parameter
+        controls below it are hidden, leaving just the muted toggle
+        button for a cleaner layout.</p>
+        <h3 id="how-echo-processing-works">How Echo Processing
+        Works</h3>
+        <ol type="1">
+        <li>The arpeggiator generates an output note (with velocity,
+        gate, pitch, and chord transforms already applied)</li>
+        <li>The delay lane checks the current step’s active flag</li>
+        <li>If active, it schedules echo copies at intervals of the
+        step’s delay time</li>
+        <li>Each successive echo applies: velocity <em>= (1 - decay),
+        pitch += pitch shift, gate </em>= gate scaling</li>
+        <li>Echoes continue until the feedback count is exhausted or
+        velocity drops below 1</li>
+        </ol>
+        <p>The echo scheduler is sample-accurate across process block
+        boundaries. If the echo buffer fills (256 pending echoes),
+        emergency note-off events are sent to prevent stuck notes.</p>
+        <h3 id="tempo-synced-delays">Tempo-Synced Delays</h3>
+        <p>When Sync is enabled on a step, the Time knob snaps to 30
+        discrete note values (1/64T through 4/1D). The delay time is
+        calculated from the host’s current tempo. This keeps echoes
+        rhythmically locked to the beat regardless of tempo changes.</p>
+        <hr />
         <h2 id="markov-chain-mode">Markov Chain Mode</h2>
         <p>When the arp mode is set to <strong>Markov</strong>, note
         selection is driven by a probabilistic transition matrix instead
@@ -766,8 +909,8 @@
         <h2 id="audition-synth">Audition Synth</h2>
         <p>Gradus includes a lightweight built-in synthesizer for
         previewing patterns without routing to an external instrument.
-        The audition synth is session-only — its settings are not saved
-        in presets.</p>
+        The audition synth defaults to off and is session-only — its
+        settings are not saved in presets.</p>
         <ul>
         <li><strong>Enable</strong> — Toggle the audition synth
         on/off</li>
@@ -823,7 +966,9 @@
         <p>Note-On events include velocity from the velocity lane.
         Note-Off events are timed by the gate lane. Slide modifiers
         generate overlapping notes for portamento effects on instruments
-        that support it.</p>
+        that support it. When the MIDI Delay lane is active, echo copies
+        are output as additional MIDI events with their own velocity,
+        pitch, and gate values.</p>
         <hr />
         <h2 id="tips-and-techniques">Tips and Techniques</h2>
         <h3 id="creating-polymetric-patterns">Creating Polymetric
@@ -858,6 +1003,23 @@
         <p>Set ratchet to 4 subdivisions on selected steps and increase
         the Decay parameter. The rapid-fire notes will fade out
         naturally, creating a bouncing-ball effect.</p>
+        <h3 id="harmonic-echo-cascades">Harmonic Echo Cascades</h3>
+        <p>On the MIDI Delay lane, set Pitch to +7 semitones and
+        Feedback to 3-4. Each echo stacks a fifth above the previous
+        one, creating ascending harmonic cascades that audio delays
+        cannot produce. Try +12 for octave cascades.</p>
+        <h3 id="rhythmic-delay-patterns">Rhythmic Delay Patterns</h3>
+        <p>Set different steps on the MIDI Delay lane to different
+        synced time values (e.g., step 1 = 1/8, step 2 = 1/8D, step 3 =
+        1/4T). As the delay lane cycles through steps at its own speed,
+        the echo rhythm constantly shifts, creating complex polyrhythmic
+        textures.</p>
+        <h3 id="fading-canon">Fading Canon</h3>
+        <p>Enable the MIDI Delay lane with Sync on, Time set to 1/4
+        note, Feedback at 4, and Vel Decay around 20%. The arp pattern
+        plays as a self-chasing round with each voice entering one beat
+        later and progressively softer — a MIDI-generated canon
+        effect.</p>
         <hr />
         <h2 id="system-requirements">System Requirements</h2>
         <ul>
