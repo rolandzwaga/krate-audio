@@ -51,6 +51,8 @@ This architecture documentation is split into the following sections:
 | [Plugin Parameter System](plugin-parameter-system.md) | Parameter pack pattern, mod source parameter flows, denormalization mappings |
 | [Plugin State Persistence](plugin-state-persistence.md) | State version history, stream format, ModSource enum migration, backward compatibility |
 | [Plugin UI Patterns](plugin-ui-patterns.md) | Sync visibility switching, mod source dropdown view switching, IArpLane, ArpLaneHeader (+ transform buttons), ArpLaneEditor, ArpModifierLane, ArpConditionLane, ArpLaneContainer, EuclideanDotDisplay, PlayheadTrailState, template conventions |
+| [Innexus Plugin](innexus-plugin.md) | Innexus-specific DSP components (LiveAnalysisPipeline, SampleAnalyzer, PhysicalModelMixer), bus config, harmonic memory |
+| [Membrum Plugin](membrum-plugin.md) | Membrum-specific DSP components (DrumVoice, membrane_modes.h), bus config, parameters |
 | [Testing](testing.md) | Testing layers, test helpers infrastructure (artifact detection, signal metrics, golden reference) |
 | [Quick Reference](quick-reference.md) | Layer inclusion rules, common include patterns, ODR prevention |
 
