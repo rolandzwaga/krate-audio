@@ -239,7 +239,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" &
+            "$exe" "~[performance]~[perf]~[!benchmark]" &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
@@ -434,7 +434,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" &
+            "$exe" "~[performance]~[perf]~[!benchmark]" &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
@@ -772,7 +772,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" &
+            "$exe" "~[performance]~[perf]~[!benchmark]" &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
