@@ -5,6 +5,7 @@
 // and NaN defense -- all pure logic, no VSTGUI draw context needed.
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 

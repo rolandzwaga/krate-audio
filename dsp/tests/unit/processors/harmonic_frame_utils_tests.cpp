@@ -9,6 +9,7 @@
 // Requirements: FR-011 to FR-015, FR-020 to FR-025
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 

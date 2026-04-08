@@ -52,6 +52,7 @@
 // other Layer 0 utilities.
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <krate/dsp/core/scale_harmonizer.h>
 #include <array>

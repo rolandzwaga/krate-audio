@@ -7,6 +7,7 @@
 // Reference: specs/057-macros-rungler/spec.md FR-005, FR-007, FR-011
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 

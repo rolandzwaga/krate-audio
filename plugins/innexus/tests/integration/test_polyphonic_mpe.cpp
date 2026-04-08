@@ -1,5 +1,6 @@
 // Polyphonic MPE Integration Tests
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include "processor/processor.h"
 #include "plugin_ids.h"

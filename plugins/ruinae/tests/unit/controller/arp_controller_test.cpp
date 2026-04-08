@@ -5,6 +5,7 @@
 // parameter registration verification, velocity/gate lane wiring.
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "parameters/arpeggiator_params.h"

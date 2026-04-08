@@ -7,6 +7,7 @@
 // Test-First Development: These tests written BEFORE implementation (Principle XII)
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <krate/dsp/core/crossfade_utils.h>

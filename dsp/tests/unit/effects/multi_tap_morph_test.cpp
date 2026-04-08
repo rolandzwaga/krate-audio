@@ -16,6 +16,7 @@
 // These tests verify the distinction between immediate and morphed transitions.
 // ==============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>

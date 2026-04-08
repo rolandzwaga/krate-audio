@@ -5,6 +5,7 @@
 // Following humble object pattern: tests pure logic functions without VSTGUI
 // =============================================================================
 
+#include <cmath>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include "ui/tap_pattern_editor_logic.h"
