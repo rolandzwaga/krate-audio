@@ -147,75 +147,110 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
-      - name: Build DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
+      # Build all changed targets in a single cmake invocation.
+      # MSBuild's --parallel flag builds independent targets concurrently,
+      # avoiding the overhead of re-parsing the solution file per invocation.
+      - name: Build All Targets
+        run: |
+          TARGETS=""
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS dsp_tests"
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS shared_tests"
+          fi
+          for plugin_info in \
+            "iterum:Iterum:plugin_tests approval_tests validator" \
+            "disrumpo:Disrumpo:disrumpo_tests" \
+            "ruinae:Ruinae:ruinae_tests" \
+            "innexus:Innexus:innexus_tests" \
+            "gradus:Gradus:gradus_tests" \
+            "membrum:Membrum:membrum_tests"; do
+            IFS=: read -r key target extras <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              TARGETS="$TARGETS $target $extras"
+            fi
+          done
+          if [ -n "$TARGETS" ]; then
+            echo "Building targets:$TARGETS"
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
+          else
+            echo "No targets to build"
+          fi
 
-      - name: Build Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
-
-      - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
-
-      - name: Build Iterum and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum validator --parallel
-
-      - name: Build Disrumpo
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo --parallel
-
-      - name: Build Ruinae and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae ruinae_tests --parallel
-
-      - name: Build Innexus and Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus innexus_tests --parallel
-
-      - name: Build Gradus and Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus gradus_tests --parallel
-
-      - name: Build Membrum and Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Membrum membrum_tests --parallel
-
-      - name: Run Gradus Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
-
-      - name: Run Membrum Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "membrum_tests"
-
-      - name: Run DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
-
-      - name: Run Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
-
-      - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
-
-      - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
-
-      - name: Run Innexus Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
-
-
+      # Run test executables directly in parallel.
+      # Note: ctest -R "dsp_tests" doesn't work with catch_discover_tests
+      # because CTest registers individual Catch2 case names, not executable names.
+      - name: Run Tests
+        shell: bash
+        run: |
+          BIN="build/bin/${{ env.BUILD_TYPE }}"
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          EXES=()
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/dsp_tests.exe")
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/shared_tests.exe")
+          fi
+          for plugin_info in \
+            "iterum:plugin_tests.exe approval_tests.exe" \
+            "disrumpo:disrumpo_tests.exe" \
+            "ruinae:ruinae_tests.exe" \
+            "innexus:innexus_tests.exe" \
+            "gradus:gradus_tests.exe" \
+            "membrum:membrum_tests.exe"; do
+            IFS=: read -r key test_exes <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              for exe in $test_exes; do
+                EXES+=("$BIN/$exe")
+              done
+            fi
+          done
+          if [ ${#EXES[@]} -eq 0 ]; then
+            echo "No tests to run"
+            exit 0
+          fi
+          echo "Running ${#EXES[@]} test executables in parallel..."
+          PIDS=()
+          FAILED=0
+          for exe in "${EXES[@]}"; do
+            echo "  Starting: $(basename $exe)"
+            "$exe" &
+            PIDS+=($!)
+          done
+          for i in "${!PIDS[@]}"; do
+            if ! wait "${PIDS[$i]}"; then
+              echo "FAILED: ${EXES[$i]}"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: build/bin/${{ env.BUILD_TYPE }}/validator.exe -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
 
       - name: Upload Iterum Artifact
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
@@ -308,75 +343,108 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
 
-      - name: Build DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target dsp_tests --parallel
+      # Build all changed targets in a single cmake invocation.
+      # Xcode's --parallel flag builds independent targets concurrently,
+      # avoiding the overhead of re-parsing the project file per invocation.
+      # macOS includes AU and AUv3 targets for each plugin.
+      - name: Build All Targets
+        run: |
+          TARGETS=""
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS dsp_tests"
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS shared_tests"
+          fi
+          for plugin_info in \
+            "iterum:Iterum:Iterum_AU Iterum_AUV3 plugin_tests approval_tests validator" \
+            "disrumpo:Disrumpo:Disrumpo_AU Disrumpo_AUV3 disrumpo_tests" \
+            "ruinae:Ruinae:Ruinae_AU Ruinae_AUV3 ruinae_tests" \
+            "innexus:Innexus:Innexus_AU Innexus_AUV3 innexus_tests" \
+            "gradus:Gradus:Gradus_AU Gradus_AUV3 gradus_tests" \
+            "membrum:Membrum:Membrum_AU Membrum_AUV3 membrum_tests"; do
+            IFS=: read -r key target extras <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              TARGETS="$TARGETS $target $extras"
+            fi
+          done
+          if [ -n "$TARGETS" ]; then
+            echo "Building targets:$TARGETS"
+            cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
+          else
+            echo "No targets to build"
+          fi
 
-      - name: Build Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target shared_tests --parallel
-
-      - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target plugin_tests approval_tests --parallel
-
-      - name: Build Iterum, AU, AUv3, and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Iterum Iterum_AU Iterum_AUV3 validator --parallel
-
-      - name: Build Disrumpo, AU, and AUv3
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Disrumpo Disrumpo_AU Disrumpo_AUV3 --parallel
-
-      - name: Build Ruinae, AU, AUv3, and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Ruinae Ruinae_AU Ruinae_AUV3 ruinae_tests --parallel
-
-      - name: Build Innexus, AU, AUv3, and Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Innexus Innexus_AU Innexus_AUV3 innexus_tests --parallel
-
-      - name: Build Gradus, AU, AUv3, and Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Gradus Gradus_AU Gradus_AUV3 gradus_tests --parallel
-
-      - name: Build Membrum, AU, AUv3, and Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target Membrum Membrum_AU Membrum_AUV3 membrum_tests --parallel
-
-      - name: Run Gradus Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
-
-      - name: Run Membrum Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "membrum_tests"
-
-      - name: Run DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
-
-      - name: Run Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
-
-      - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
-
-      - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
-
-      - name: Run Innexus Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
-
-
+      # Run test executables directly in parallel (Xcode multi-config layout).
+      - name: Run Tests
+        run: |
+          BIN="build/bin/${{ env.BUILD_TYPE }}"
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          EXES=()
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/dsp_tests")
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/shared_tests")
+          fi
+          for plugin_info in \
+            "iterum:plugin_tests approval_tests" \
+            "disrumpo:disrumpo_tests" \
+            "ruinae:ruinae_tests" \
+            "innexus:innexus_tests" \
+            "gradus:gradus_tests" \
+            "membrum:membrum_tests"; do
+            IFS=: read -r key test_exes <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              for exe in $test_exes; do
+                EXES+=("$BIN/$exe")
+              done
+            fi
+          done
+          if [ ${#EXES[@]} -eq 0 ]; then
+            echo "No tests to run"
+            exit 0
+          fi
+          echo "Running ${#EXES[@]} test executables in parallel..."
+          PIDS=()
+          FAILED=0
+          for exe in "${EXES[@]}"; do
+            echo "  Starting: $(basename $exe)"
+            "$exe" &
+            PIDS+=($!)
+          done
+          for i in "${!PIDS[@]}"; do
+            if ! wait "${PIDS[$i]}"; then
+              echo "FAILED: ${EXES[$i]}"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
 
       # Install AU and run auval validation for Iterum
       - name: Run Iterum AU Validation
@@ -613,75 +681,107 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target dsp_tests --parallel
+      # Build all changed targets in a single cmake invocation.
+      # Ninja already parallelizes compilation, but a single invocation avoids
+      # repeated dependency graph evaluation and allows better scheduling.
+      - name: Build All Targets
+        run: |
+          TARGETS=""
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS dsp_tests"
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            TARGETS="$TARGETS shared_tests"
+          fi
+          for plugin_info in \
+            "iterum:Iterum:plugin_tests approval_tests validator" \
+            "disrumpo:Disrumpo:disrumpo_tests" \
+            "ruinae:Ruinae:ruinae_tests" \
+            "innexus:Innexus:innexus_tests" \
+            "gradus:Gradus:gradus_tests" \
+            "membrum:Membrum:membrum_tests"; do
+            IFS=: read -r key target extras <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              TARGETS="$TARGETS $target $extras"
+            fi
+          done
+          if [ -n "$TARGETS" ]; then
+            echo "Building targets:$TARGETS"
+            cmake --build build --parallel --target $TARGETS
+          else
+            echo "No targets to build"
+          fi
 
-      - name: Build Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target shared_tests --parallel
-
-      - name: Build Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target plugin_tests approval_tests --parallel
-
-      - name: Build Iterum and Validator
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Iterum validator --parallel
-
-      - name: Build Disrumpo
-        if: needs.detect-changes.outputs.disrumpo == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Disrumpo --parallel
-
-      - name: Build Ruinae and Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Ruinae ruinae_tests --parallel
-
-      - name: Build Innexus and Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Innexus innexus_tests --parallel
-
-      - name: Build Gradus and Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Gradus gradus_tests --parallel
-
-      - name: Build Membrum and Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: cmake --build build --target Membrum membrum_tests --parallel
-
-      - name: Run Gradus Tests
-        if: needs.detect-changes.outputs.gradus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "gradus_tests"
-
-      - name: Run Membrum Tests
-        if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "membrum_tests"
-
-      - name: Run DSP Tests
-        if: needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "dsp_tests"
-
-      - name: Run Shared Tests
-        if: needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "shared_tests"
-
-      - name: Run Iterum Tests
-        if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "plugin_tests|approval_tests"
-
-      - name: Run Ruinae Tests
-        if: needs.detect-changes.outputs.ruinae == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "ruinae_tests"
-
-      - name: Run Innexus Tests
-        if: needs.detect-changes.outputs.innexus == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "innexus_tests"
-
-
+      # Run test executables directly in parallel (Ninja single-config layout).
+      - name: Run Tests
+        run: |
+          BIN="build/bin"
+          DSP="${{ needs.detect-changes.outputs.dsp }}"
+          SHARED="${{ needs.detect-changes.outputs.shared }}"
+          INFRA="${{ needs.detect-changes.outputs.infra }}"
+          EXES=()
+          if [ "$DSP" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/dsp_tests")
+          fi
+          if [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+            EXES+=("$BIN/shared_tests")
+          fi
+          for plugin_info in \
+            "iterum:plugin_tests approval_tests" \
+            "disrumpo:disrumpo_tests" \
+            "ruinae:ruinae_tests" \
+            "innexus:innexus_tests" \
+            "gradus:gradus_tests" \
+            "membrum:membrum_tests"; do
+            IFS=: read -r key test_exes <<< "$plugin_info"
+            case "$key" in
+              iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
+              disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
+              ruinae)   CHANGED="${{ needs.detect-changes.outputs.ruinae }}" ;;
+              innexus)  CHANGED="${{ needs.detect-changes.outputs.innexus }}" ;;
+              gradus)   CHANGED="${{ needs.detect-changes.outputs.gradus }}" ;;
+              membrum)  CHANGED="${{ needs.detect-changes.outputs.membrum }}" ;;
+            esac
+            if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
+              for exe in $test_exes; do
+                EXES+=("$BIN/$exe")
+              done
+            fi
+          done
+          if [ ${#EXES[@]} -eq 0 ]; then
+            echo "No tests to run"
+            exit 0
+          fi
+          echo "Running ${#EXES[@]} test executables in parallel..."
+          PIDS=()
+          FAILED=0
+          for exe in "${EXES[@]}"; do
+            echo "  Starting: $(basename $exe)"
+            "$exe" &
+            PIDS+=($!)
+          done
+          for i in "${!PIDS[@]}"; do
+            if ! wait "${PIDS[$i]}"; then
+              echo "FAILED: ${EXES[$i]}"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: ctest --test-dir build -C ${{ env.BUILD_TYPE }} --output-on-failure -R "vst3_validator_extensive"
+        run: build/bin/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
