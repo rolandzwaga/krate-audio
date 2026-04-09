@@ -39,6 +39,7 @@ target_link_libraries(shared_tests
         KratePluginsShared
         KrateDSP
         Catch2::Catch2
+        test_helpers
         sdk
         vstgui_support
         nlohmann_json::nlohmann_json

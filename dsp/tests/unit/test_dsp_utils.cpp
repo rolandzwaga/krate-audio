@@ -10,9 +10,11 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
+#include <enable_ftz_daz.h>
 
 // Provide main for Catch2
 int main(int argc, char* argv[]) {
+    enableFTZDAZ();
     return Catch::Session().run(argc, argv);
 }
 

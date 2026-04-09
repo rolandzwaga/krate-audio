@@ -26,6 +26,7 @@
 #define APPROVALS_CATCH2_V3
 #include <ApprovalTests.hpp>
 #include <catch2/catch_session.hpp>
+#include <enable_ftz_daz.h>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_approx.hpp>
 
@@ -50,6 +51,8 @@ using Catch::Approx;
 // ==============================================================================
 
 int main(int argc, char* argv[]) {
+    enableFTZDAZ();
+
     // Configure ApprovalTests to use subdirectory for approved files
     auto directoryDisposer = ApprovalTests::Approvals::useApprovalsSubdirectory("approved");
 

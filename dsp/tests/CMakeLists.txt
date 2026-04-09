@@ -537,6 +537,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/body_resonance_tests.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
+
+    # GCC 13+ -O3 causes pathological performance regression in the reverb
+    # processing loop (100x+ slower than -O2). This is a known class of GCC
+    # auto-vectorization bug. Cap these files at -O2 on GCC/Clang.
+    set_source_files_properties(
+        unit/effects/reverb_test.cpp
+        unit/effects/fdn_reverb_test.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only -O2"
+    )
 endif()
 
 # ==============================================================================

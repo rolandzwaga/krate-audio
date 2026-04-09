@@ -124,6 +124,7 @@ target_link_libraries(approval_tests
         KrateDSP
         Catch2::Catch2
         ApprovalTests::ApprovalTests
+        test_helpers
 )
 
 target_include_directories(approval_tests

@@ -316,7 +316,8 @@ public:
         const float sr = static_cast<float>(sampleRate);
         decaySmoother_.configure(kSmoothingTimeMs, sr);
         dampingSmoother_.configure(kSmoothingTimeMs, sr);
-        mixSmoother_.configure(kSmoothingTimeMs, sr);
+        dryGainSmoother_.configure(kSmoothingTimeMs, sr);
+        wetGainSmoother_.configure(kSmoothingTimeMs, sr);
         widthSmoother_.configure(kSmoothingTimeMs, sr);
         inputGainSmoother_.configure(kSmoothingTimeMs, sr);
         preDelaySmoother_.configure(kSmoothingTimeMs, sr);
@@ -331,7 +332,8 @@ public:
 
         decaySmoother_.snapTo(defaultDecay);
         dampingSmoother_.snapTo(defaultDampCutoff);
-        mixSmoother_.snapTo(defaultParams.mix);
+        dryGainSmoother_.snapTo(std::cos(defaultParams.mix * kHalfPi));
+        wetGainSmoother_.snapTo(std::sin(defaultParams.mix * kHalfPi));
         widthSmoother_.snapTo(defaultParams.width);
         inputGainSmoother_.snapTo(1.0f);
         float defaultPreDelaySamples = static_cast<float>(
@@ -441,7 +443,8 @@ public:
         }
 
         decaySmoother_.setTarget(targetDecay);
-        mixSmoother_.setTarget(mix);
+        dryGainSmoother_.setTarget(std::cos(mix * kHalfPi));
+        wetGainSmoother_.setTarget(std::sin(mix * kHalfPi));
         widthSmoother_.setTarget(width);
         modDepthSmoother_.setTarget(modDepth);
 
@@ -491,7 +494,8 @@ public:
         // -- Step 3: Advance parameter smoothers --
         float decay = decaySmoother_.process();
         const float dampCutoff = dampingSmoother_.process();
-        const float mix = mixSmoother_.process();
+        const float dryGain = dryGainSmoother_.process();
+        const float wetGain = wetGainSmoother_.process();
         const float width = widthSmoother_.process();
         float inputGain = inputGainSmoother_.process();
         const float preDelaySamples = preDelaySmoother_.process();
@@ -517,8 +521,8 @@ public:
         inputDiffCoeff2_ = diff2;
 
         // Process one sample with the core algorithm
-        processOneSample(left, right, dryL, dryR, decay, mix, width,
-                         inputGain, preDelaySamples, modDepth);
+        processOneSample(left, right, dryL, dryR, decay, dryGain, wetGain,
+                         width, inputGain, preDelaySamples, modDepth);
     }
 
     /// @brief Process a block of stereo samples in-place (FR-024).
@@ -538,7 +542,8 @@ public:
             // -- Update smoothers once per sub-block (FR-002) --
             float decay = decaySmoother_.process();
             const float dampCutoff = dampingSmoother_.process();
-            const float mix = mixSmoother_.process();
+            const float dryGain = dryGainSmoother_.process();
+            const float wetGain = wetGainSmoother_.process();
             const float width = widthSmoother_.process();
             float inputGain = inputGainSmoother_.process();
             const float preDelaySamples = preDelaySmoother_.process();
@@ -550,7 +555,8 @@ public:
             if (blockLen > 1) {
                 decaySmoother_.advanceSamples(blockLen - 1);
                 dampingSmoother_.advanceSamples(blockLen - 1);
-                mixSmoother_.advanceSamples(blockLen - 1);
+                dryGainSmoother_.advanceSamples(blockLen - 1);
+                wetGainSmoother_.advanceSamples(blockLen - 1);
                 widthSmoother_.advanceSamples(blockLen - 1);
                 inputGainSmoother_.advanceSamples(blockLen - 1);
                 preDelaySmoother_.advanceSamples(blockLen - 1);
@@ -583,8 +589,8 @@ public:
                 const float dryL = l;
                 const float dryR = r;
 
-                processOneSample(l, r, dryL, dryR, decay, mix, width,
-                                 inputGain, preDelaySamples, modDepth);
+                processOneSample(l, r, dryL, dryR, decay, dryGain, wetGain,
+                                 width, inputGain, preDelaySamples, modDepth);
             }
 
             offset += blockLen;
@@ -670,8 +676,9 @@ private:
 
     void processOneSample(float& left, float& right,
                           float dryL, float dryR,
-                          float decay, float mix, float width,
-                          float inputGain, float preDelaySamples,
+                          float decay, float dryGain, float wetGain,
+                          float width, float inputGain,
+                          float preDelaySamples,
                           float modDepth) noexcept {
         using namespace reverb_detail;
 
@@ -822,8 +829,7 @@ private:
         float wetR = mid - width * side;
 
         // -- Dry/wet mix (FR-011) --
-        const float dryGain = std::cos(mix * kHalfPi);
-        const float wetGain = std::sin(mix * kHalfPi);
+        // dryGain/wetGain are pre-computed equal-power gains from smoothers
         left = dryGain * dryL + wetGain * wetL;
         right = dryGain * dryR + wetGain * wetR;
 
@@ -934,7 +940,8 @@ private:
     // =========================================================================
     OnePoleSmoother decaySmoother_;
     OnePoleSmoother dampingSmoother_;
-    OnePoleSmoother mixSmoother_;
+    OnePoleSmoother dryGainSmoother_;   ///< Pre-computed cos(mix * pi/2)
+    OnePoleSmoother wetGainSmoother_;   ///< Pre-computed sin(mix * pi/2)
     OnePoleSmoother widthSmoother_;
     OnePoleSmoother inputGainSmoother_;
     OnePoleSmoother preDelaySmoother_;
