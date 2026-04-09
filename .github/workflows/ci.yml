@@ -726,11 +726,12 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables directly in parallel (Ninja single-config layout).
+      # Run test executables directly in parallel.
+      # Ninja single-config: SDK sets CMAKE_RUNTIME_OUTPUT_DIRECTORY to bin/${CMAKE_BUILD_TYPE}
       - name: Run Tests
         timeout-minutes: 10
         run: |
-          BIN="build/bin"
+          BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
