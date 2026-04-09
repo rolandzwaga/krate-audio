@@ -797,7 +797,7 @@ jobs:
 
       - name: Run VST3 Validator (Iterum)
         if: needs.detect-changes.outputs.iterum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
-        run: build/bin/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
+        run: build/bin/${{ env.BUILD_TYPE }}/validator -e build/VST3/${{ env.BUILD_TYPE }}/Iterum.vst3
 
       # Show ccache statistics for debugging cache effectiveness
       - name: Show ccache stats
