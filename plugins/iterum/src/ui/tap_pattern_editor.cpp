@@ -127,7 +127,7 @@ void TapPatternEditor::drawTaps(VSTGUI::CDrawContext* context) {
         context->drawRect(handleRect, VSTGUI::kDrawFilled);
 
         // Draw tap number label at bottom of bar
-        char tapNumStr[4];
+        char tapNumStr[24];
         snprintf(tapNumStr, sizeof(tapNumStr), "%zu", i + 1);
         VSTGUI::CRect labelRect(
             centerX - halfBarWidth - 2,

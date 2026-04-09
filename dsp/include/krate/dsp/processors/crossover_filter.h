@@ -128,10 +128,10 @@ public:
         , frequencySmoother_(std::move(other.frequencySmoother_))
         , sampleRate_(other.sampleRate_)
         , lastCoefficientFreq_(other.lastCoefficientFreq_)
+        , prepared_(other.prepared_)
         , crossoverFrequency_(other.crossoverFrequency_.load(std::memory_order_relaxed))
         , smoothingTimeMs_(other.smoothingTimeMs_.load(std::memory_order_relaxed))
-        , trackingMode_(other.trackingMode_.load(std::memory_order_relaxed))
-        , prepared_(other.prepared_) {
+        , trackingMode_(other.trackingMode_.load(std::memory_order_relaxed)) {
     }
 
     CrossoverLR4& operator=(CrossoverLR4&& other) noexcept {

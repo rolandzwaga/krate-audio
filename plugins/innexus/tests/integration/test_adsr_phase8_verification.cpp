@@ -408,7 +408,7 @@ TEST_CASE("Phase 8 T064: Amount 0->1 during active note has no gain jump > 0.01/
 // The ADSR-only delta should be <0.1% of single core at 44.1kHz
 // =============================================================================
 TEST_CASE("Phase 8 T064b: ADSR CPU overhead < 0.1% of single core",
-          "[adsr][phase8][cpu][sc005]")
+          "[adsr][phase8][cpu][sc005][performance]")
 {
     // Create two processors: one with Amount=0.0 (bypass), one with Amount=1.0
     Innexus::Processor procBypass;

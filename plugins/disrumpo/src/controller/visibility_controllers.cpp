@@ -219,9 +219,9 @@ NodeSelectionController::NodeSelectionController(
     ShapeShadowStorage* shadowStorage)
 : controller_(controller)
 , band_(band)
-, shapeShadowPtr_(shadowStorage)
 , selectedNodeParam_(controller->getParameterObject(
       makeBandParamId(band, BandParamType::kBandSelectedNode)))
+, shapeShadowPtr_(shadowStorage)
 {
     for (int i = 0; i < kNumDisplayedProxyParams; ++i) {
         proxyParams_[i] = controller_->getParameterObject(
