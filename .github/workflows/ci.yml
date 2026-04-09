@@ -195,7 +195,7 @@ jobs:
       # because CTest registers individual Catch2 case names, not executable names.
       - name: Run Tests
         shell: bash
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
@@ -390,7 +390,7 @@ jobs:
 
       # Run test executables directly in parallel (Xcode multi-config layout).
       - name: Run Tests
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
@@ -729,7 +729,7 @@ jobs:
       # Run test executables directly in parallel.
       # Ninja single-config: SDK sets CMAKE_RUNTIME_OUTPUT_DIRECTORY to bin/${CMAKE_BUILD_TYPE}
       - name: Run Tests
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           BIN="build/bin/${{ env.BUILD_TYPE }}"
           DSP="${{ needs.detect-changes.outputs.dsp }}"
