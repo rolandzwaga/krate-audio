@@ -2152,7 +2152,11 @@ void Processor::broadcastFrameToVoices(int activePartialCount, bool loadResidual
             v.pitchBendSemitones + v.expressionTuning);
         float targetPitch = basePitch * bendRatio;
 
-        v.oscillatorBank.loadFrame(v.morphedFrame, targetPitch);
+        // Skip normalization during spectral decay — the decay envelope is
+        // intentionally reducing amplitudes toward zero.
+        const bool decaying = voice_.spectralDecay.isActive() &&
+                              !voice_.spectralDecay.isFullyDecayed();
+        v.oscillatorBank.loadFrame(v.morphedFrame, targetPitch, decaying);
 
         // Spec 127 FR-019: Update modal resonator modes on frame advance
         // (does NOT clear filter states -- modes ring through transitions)

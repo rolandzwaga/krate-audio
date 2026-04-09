@@ -462,7 +462,7 @@ TEST_CASE("Sidechain signal end: gradual fade produces better transition than ab
 }
 
 TEST_CASE("Sidechain signal end: confidence gate holds last good frame on silence",
-          "[sidechain][signal-end][confidence][!mayfail]")
+          "[sidechain][signal-end][confidence]")
 {
     // Verify that the confidence-gated freeze mechanism (FR-052) engages
     // when sidechain goes silent, and what that sounds like.

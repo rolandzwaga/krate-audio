@@ -216,7 +216,8 @@ public:
     /// @param frame The harmonic analysis frame
     /// @param targetPitch The target playback pitch in Hz (from MIDI note)
     /// @note Real-time safe
-    void loadFrame(const HarmonicFrame& frame, float targetPitch) noexcept {
+    void loadFrame(const HarmonicFrame& frame, float targetPitch,
+                   bool skipNormalization = false) noexcept {
         if (!prepared_) return;
 
         // Detect large pitch jumps for crossfade (FR-040)
@@ -277,6 +278,13 @@ public:
         // potentially different scale to ALL partials simultaneously, creating
         // a correlated step that manifests as broadband inter-harmonic noise.
         // (DDSP, Engel et al. 2020 — amplitude smoothing prevents artifacts.)
+        // Skip normalization during spectral decay — the decay envelope is
+        // intentionally reducing amplitudes toward zero, and renormalization
+        // would fight the decay (boosting gain to compensate for the drop).
+        // On ARM/NEON with FMA, the normalization gain diverges from x86 due
+        // to different intermediate rounding in the sumSq accumulation,
+        // causing catastrophic amplitude collapse instead of gradual fade.
+        if (!skipNormalization)
         {
             float sumSq = 0.0f;
             for (int i = 0; i < numPartials; ++i)
