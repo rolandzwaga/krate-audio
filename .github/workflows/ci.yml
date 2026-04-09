@@ -399,7 +399,9 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables directly in parallel (Xcode multi-config layout).
+      # Run test executables sequentially on macOS — the 3-vCPU / 7 GB ARM
+      # runner causes flaky segfaults when multiple heavy DSP test suites run
+      # concurrently (same issue as Windows CI).
       - name: Run Tests
         timeout-minutes: 20
         run: |
@@ -440,17 +442,12 @@ jobs:
             echo "No tests to run"
             exit 0
           fi
-          echo "Running ${#EXES[@]} test executables in parallel..."
-          PIDS=()
+          echo "Running ${#EXES[@]} test executables..."
           FAILED=0
           for exe in "${EXES[@]}"; do
-            echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
-            PIDS+=($!)
-          done
-          for i in "${!PIDS[@]}"; do
-            if ! wait "${PIDS[$i]}"; then
-              echo "FAILED: ${EXES[$i]}"
+            echo "  Running: $(basename $exe)"
+            if ! "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks; then
+              echo "FAILED: $exe"
               FAILED=1
             fi
           done
@@ -737,7 +734,8 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables directly in parallel.
+      # Run test executables sequentially — parallel execution causes flaky
+      # segfaults on resource-constrained CI runners (2-4 vCPU / 7 GB RAM).
       # Ninja single-config: SDK sets CMAKE_RUNTIME_OUTPUT_DIRECTORY to bin/${CMAKE_BUILD_TYPE}
       - name: Run Tests
         timeout-minutes: 20
@@ -779,17 +777,12 @@ jobs:
             echo "No tests to run"
             exit 0
           fi
-          echo "Running ${#EXES[@]} test executables in parallel..."
-          PIDS=()
+          echo "Running ${#EXES[@]} test executables..."
           FAILED=0
           for exe in "${EXES[@]}"; do
-            echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
-            PIDS+=($!)
-          done
-          for i in "${!PIDS[@]}"; do
-            if ! wait "${PIDS[$i]}"; then
-              echo "FAILED: ${EXES[$i]}"
+            echo "  Running: $(basename $exe)"
+            if ! "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks; then
+              echo "FAILED: $exe"
               FAILED=1
             fi
           done
