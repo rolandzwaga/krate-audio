@@ -59,8 +59,8 @@ void ComputePolarImpl(const float* HWY_RESTRICT complexData, size_t numBins,
         // Phase: atan2(im, re)
         const auto phase = hn::Atan2(d, im, re);
 
-        hn::Store(mag, d, mags + k);
-        hn::Store(phase, d, phases + k);
+        hn::StoreU(mag, d, mags + k);
+        hn::StoreU(phase, d, phases + k);
     }
 
     // Scalar tail for remaining bins
@@ -88,8 +88,8 @@ void ReconstructCartesianImpl(const float* HWY_RESTRICT mags,
 
     // SIMD loop: process N bins per iteration
     for (; k + N <= numBins; k += N) {
-        const auto mag = hn::Load(d, mags + k);
-        const auto phase = hn::Load(d, phases + k);
+        const auto mag = hn::LoadU(d, mags + k);
+        const auto phase = hn::LoadU(d, phases + k);
 
         // Compute sin(phase) and cos(phase)
         const auto sinVal = hn::Sin(d, phase);

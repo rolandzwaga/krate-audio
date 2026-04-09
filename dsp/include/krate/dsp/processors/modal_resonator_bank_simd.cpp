@@ -64,11 +64,11 @@ void ProcessModalBankSampleSIMDImpl(
     // SIMD loop: process N modes per iteration
     for (; i + N <= count; i += N) {
         // Load per-mode state
-        auto vSin = hn::Load(d, sinState + i);
-        auto vCos = hn::Load(d, cosState + i);
-        const auto vEps = hn::Load(d, epsilon + i);
-        const auto vR = hn::Load(d, radius + i);
-        const auto vGain = hn::Load(d, inputGain + i);
+        auto vSin = hn::LoadU(d, sinState + i);
+        auto vCos = hn::LoadU(d, cosState + i);
+        const auto vEps = hn::LoadU(d, epsilon + i);
+        const auto vR = hn::LoadU(d, radius + i);
+        const auto vGain = hn::LoadU(d, inputGain + i);
 
         // Coupled-form resonator (FR-003):
         // s_new = R * (s + eps * c) + gain * excitation
@@ -84,8 +84,8 @@ void ProcessModalBankSampleSIMDImpl(
         vSum = hn::Add(vSum, vSNew);
 
         // Write back state
-        hn::Store(vSNew, d, sinState + i);
-        hn::Store(vCNew, d, cosState + i);
+        hn::StoreU(vSNew, d, sinState + i);
+        hn::StoreU(vCNew, d, cosState + i);
     }
 
     // Horizontal sum of SIMD accumulator

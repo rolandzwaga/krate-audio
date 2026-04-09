@@ -52,16 +52,16 @@ void ApplyFilterBankSIMDImpl(const float* HWY_RESTRICT inputs,
 
     size_t i = 0;
     for (; i + N <= numChannels; i += N) {
-        const auto input = hn::Load(d, inputs + i);
-        const auto state = hn::Load(d, states + i);
-        const auto coeff = hn::Load(d, coeffs + i);
+        const auto input = hn::LoadU(d, inputs + i);
+        const auto state = hn::LoadU(d, states + i);
+        const auto coeff = hn::LoadU(d, coeffs + i);
 
         // newState = coeff * input + (1 - coeff) * state
         const auto oneMinusCoeff = hn::Sub(one, coeff);
         const auto newState = hn::MulAdd(coeff, input, hn::Mul(oneMinusCoeff, state));
 
-        hn::Store(newState, d, states + i);
-        hn::Store(newState, d, outputs + i);
+        hn::StoreU(newState, d, states + i);
+        hn::StoreU(newState, d, outputs + i);
     }
 
     // Scalar tail
@@ -85,10 +85,10 @@ void ApplyHadamardSIMDImpl(float* HWY_RESTRICT data,
 
     // Stage 1: stride = 4 (SIMD: lo[0:3] +/- hi[4:7])
     {
-        auto lo = hn::Load(d4, data);
-        auto hi = hn::Load(d4, data + 4);
-        hn::Store(hn::Add(lo, hi), d4, data);
-        hn::Store(hn::Sub(lo, hi), d4, data + 4);
+        auto lo = hn::LoadU(d4, data);
+        auto hi = hn::LoadU(d4, data + 4);
+        hn::StoreU(hn::Add(lo, hi), d4, data);
+        hn::StoreU(hn::Sub(lo, hi), d4, data + 4);
     }
 
     // Stage 2: stride = 2 (scalar — requires interleaved pairs)
@@ -112,8 +112,8 @@ void ApplyHadamardSIMDImpl(float* HWY_RESTRICT data,
     // SIMD normalization: 2x 4-wide multiply by 1/sqrt(8)
     constexpr float kNorm = 0.35355339059327373f;
     const auto norm = hn::Set(d4, kNorm);
-    hn::Store(hn::Mul(hn::Load(d4, data), norm), d4, data);
-    hn::Store(hn::Mul(hn::Load(d4, data + 4), norm), d4, data + 4);
+    hn::StoreU(hn::Mul(hn::LoadU(d4, data), norm), d4, data);
+    hn::StoreU(hn::Mul(hn::LoadU(d4, data + 4), norm), d4, data + 4);
 }
 
 // -----------------------------------------------------------------------------
@@ -128,8 +128,8 @@ void ApplyHouseholderSIMDImpl(float* HWY_RESTRICT data,
     const hn::FixedTag<float, 4> d4;
 
     // Load two halves
-    const auto lo = hn::Load(d4, data);
-    const auto hi = hn::Load(d4, data + 4);
+    const auto lo = hn::LoadU(d4, data);
+    const auto hi = hn::LoadU(d4, data + 4);
 
     // Sum all 8 elements
     const float sumLo = hn::ReduceSum(d4, lo);
@@ -138,8 +138,8 @@ void ApplyHouseholderSIMDImpl(float* HWY_RESTRICT data,
 
     // Broadcast scaled sum and subtract
     const auto scaled = hn::Set(d4, sum * 0.25f);  // 2/8 = 0.25
-    hn::Store(hn::Sub(lo, scaled), d4, data);
-    hn::Store(hn::Sub(hi, scaled), d4, data + 4);
+    hn::StoreU(hn::Sub(lo, scaled), d4, data);
+    hn::StoreU(hn::Sub(hi, scaled), d4, data + 4);
 }
 
 // -----------------------------------------------------------------------------
@@ -158,9 +158,9 @@ void ApplyFeedbackSIMDImpl(float* HWY_RESTRICT data,
 
     size_t i = 0;
     for (; i + N <= numChannels; i += N) {
-        const auto val = hn::Load(d, data + i);
-        const auto gain = hn::Load(d, gains + i);
-        hn::Store(hn::MulAdd(val, gain, inputVec), d, data + i);
+        const auto val = hn::LoadU(d, data + i);
+        const auto gain = hn::LoadU(d, gains + i);
+        hn::StoreU(hn::MulAdd(val, gain, inputVec), d, data + i);
     }
 
     // Scalar tail

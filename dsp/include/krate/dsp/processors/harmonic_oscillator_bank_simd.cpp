@@ -71,15 +71,15 @@ void ProcessMcfBatchSIMDImpl(
     // SIMD loop: process N partials per iteration
     for (; i + N <= count; i += N) {
         // Load per-partial state
-        auto vSin = hn::Load(d, sinState + i);
-        auto vCos = hn::Load(d, cosState + i);
-        auto vEps = hn::Load(d, epsilon + i);
-        auto vDetune = hn::Load(d, detuneMultiplier + i);
-        auto vAmp = hn::Load(d, currentAmplitude + i);
-        const auto vTarget = hn::Load(d, targetAmplitude + i);
-        const auto vAA = hn::Load(d, antiAliasGain + i);
-        const auto vPanL = hn::Load(d, panLeft + i);
-        const auto vPanR = hn::Load(d, panRight + i);
+        auto vSin = hn::LoadU(d, sinState + i);
+        auto vCos = hn::LoadU(d, cosState + i);
+        auto vEps = hn::LoadU(d, epsilon + i);
+        auto vDetune = hn::LoadU(d, detuneMultiplier + i);
+        auto vAmp = hn::LoadU(d, currentAmplitude + i);
+        const auto vTarget = hn::LoadU(d, targetAmplitude + i);
+        const auto vAA = hn::LoadU(d, antiAliasGain + i);
+        const auto vPanL = hn::LoadU(d, panLeft + i);
+        const auto vPanR = hn::LoadU(d, panRight + i);
 
         // 1. Amplitude smoothing: amp += coeff * (target*aa - amp)
         const auto vTargetAA = hn::Mul(vTarget, vAA);
@@ -99,9 +99,9 @@ void ProcessMcfBatchSIMDImpl(
         const auto vCosNew = hn::NegMulAdd(vEpsEff, vSinNew, vCos);
 
         // 5. Write back state
-        hn::Store(vSinNew, d, sinState + i);
-        hn::Store(vCosNew, d, cosState + i);
-        hn::Store(vAmp, d, currentAmplitude + i);
+        hn::StoreU(vSinNew, d, sinState + i);
+        hn::StoreU(vCosNew, d, cosState + i);
+        hn::StoreU(vAmp, d, currentAmplitude + i);
     }
 
     // Horizontal sum of SIMD accumulators
