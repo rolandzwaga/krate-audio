@@ -190,7 +190,9 @@ jobs:
             echo "No targets to build"
           fi
 
-      # Run test executables directly in parallel.
+      # Run test executables sequentially on Windows — the 2-vCPU runner gets
+      # negligible benefit from parallelism, and concurrent heavy DSP tests
+      # (FFT, spectral processing) cause memory pressure leading to segfaults.
       # Note: ctest -R "dsp_tests" doesn't work with catch_discover_tests
       # because CTest registers individual Catch2 case names, not executable names.
       - name: Run Tests
@@ -234,17 +236,12 @@ jobs:
             echo "No tests to run"
             exit 0
           fi
-          echo "Running ${#EXES[@]} test executables in parallel..."
-          PIDS=()
+          echo "Running ${#EXES[@]} test executables..."
           FAILED=0
           for exe in "${EXES[@]}"; do
-            echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
-            PIDS+=($!)
-          done
-          for i in "${!PIDS[@]}"; do
-            if ! wait "${PIDS[$i]}"; then
-              echo "FAILED: ${EXES[$i]}"
+            echo "  Running: $(basename $exe)"
+            if ! "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks; then
+              echo "FAILED: $exe"
               FAILED=1
             fi
           done
