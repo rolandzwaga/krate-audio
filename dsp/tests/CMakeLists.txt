@@ -312,6 +312,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/core/test_wavefold_math.cpp
         unit/core/pattern_freeze_types_test.cpp
         unit/core/test_euclidean_pattern.cpp
+        unit/core/spectral_simd_test.cpp
         unit/core/filter_design_test.cpp
         unit/core/filter_tables_test.cpp
         unit/core/midi_utils_tests.cpp

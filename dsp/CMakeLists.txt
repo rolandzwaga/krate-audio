@@ -55,6 +55,19 @@ else()
 endif()
 
 # ==============================================================================
+# IEEE 754 compliance for SIMD math
+# ==============================================================================
+# The VST3 SDK enables -ffast-math globally, which can break float comparisons
+# used for input clamping (e.g., clamping negatives before log10). On ARM/NEON,
+# this causes batchLog10 to produce NaN/inf for zero/negative inputs.
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    set_source_files_properties(
+        include/krate/dsp/core/spectral_simd.cpp
+        PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
+    )
+endif()
+
+# ==============================================================================
 # Header Files (for IDE visibility)
 # ==============================================================================
 # Layer 0: Core Utilities
