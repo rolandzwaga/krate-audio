@@ -345,13 +345,16 @@ jobs:
       - name: Configure CMake
         run: cmake -S . -B build -G Xcode -DUSE_CCACHE=ON -DSMTG_ENABLE_AUV2_BUILDS=ON -DSMTG_ENABLE_AUV3_BUILDS=ON -DSMTG_CODE_SIGN_IDENTITY_MAC="-" -DSMTG_DISABLE_CODE_SIGNING=ON
 
-      # Build all changed targets in a single cmake invocation.
-      # Xcode's --parallel flag builds independent targets concurrently,
-      # avoiding the overhead of re-parsing the project file per invocation.
-      # macOS includes AU and AUv3 targets for each plugin.
+      # Build targets in two phases:
+      # Phase 1: VST3 plugins, tests, and AUv3 targets (safe to parallelize)
+      # Phase 2: AU v2 targets (built sequentially to avoid AudioUnitSDK
+      #          database lock contention — each AU PreBuild script launches
+      #          a nested xcodebuild against the same AudioUnitSDK.xcodeproj
+      #          SYMROOT, and concurrent access causes SQLite "database is locked")
       - name: Build All Targets
         run: |
           TARGETS=""
+          AU_TARGETS=""
           DSP="${{ needs.detect-changes.outputs.dsp }}"
           SHARED="${{ needs.detect-changes.outputs.shared }}"
           INFRA="${{ needs.detect-changes.outputs.infra }}"
@@ -362,13 +365,13 @@ jobs:
             TARGETS="$TARGETS shared_tests"
           fi
           for plugin_info in \
-            "iterum:Iterum:Iterum_AU Iterum_AUV3 plugin_tests approval_tests validator" \
-            "disrumpo:Disrumpo:Disrumpo_AU Disrumpo_AUV3 disrumpo_tests" \
-            "ruinae:Ruinae:Ruinae_AU Ruinae_AUV3 ruinae_tests" \
-            "innexus:Innexus:Innexus_AU Innexus_AUV3 innexus_tests" \
-            "gradus:Gradus:Gradus_AU Gradus_AUV3 gradus_tests" \
-            "membrum:Membrum:Membrum_AU Membrum_AUV3 membrum_tests"; do
-            IFS=: read -r key target extras <<< "$plugin_info"
+            "iterum:Iterum:Iterum_AU:Iterum_AUV3 plugin_tests approval_tests validator" \
+            "disrumpo:Disrumpo:Disrumpo_AU:Disrumpo_AUV3 disrumpo_tests" \
+            "ruinae:Ruinae:Ruinae_AU:Ruinae_AUV3 ruinae_tests" \
+            "innexus:Innexus:Innexus_AU:Innexus_AUV3 innexus_tests" \
+            "gradus:Gradus:Gradus_AU:Gradus_AUV3 gradus_tests" \
+            "membrum:Membrum:Membrum_AU:Membrum_AUV3 membrum_tests"; do
+            IFS=: read -r key target au_target extras <<< "$plugin_info"
             case "$key" in
               iterum)   CHANGED="${{ needs.detect-changes.outputs.iterum }}" ;;
               disrumpo) CHANGED="${{ needs.detect-changes.outputs.disrumpo }}" ;;
@@ -379,12 +382,23 @@ jobs:
             esac
             if [ "$CHANGED" = "true" ] || [ "$DSP" = "true" ] || [ "$SHARED" = "true" ] || [ "$INFRA" = "true" ]; then
               TARGETS="$TARGETS $target $extras"
+              AU_TARGETS="$AU_TARGETS $au_target"
             fi
           done
+          # Phase 1: Build VST3 plugins, AUv3, and tests in parallel
           if [ -n "$TARGETS" ]; then
-            echo "Building targets:$TARGETS"
+            echo "Phase 1 - Building targets (parallel):$TARGETS"
             cmake --build build --config ${{ env.BUILD_TYPE }} --parallel --target $TARGETS
-          else
+          fi
+          # Phase 2: Build AU v2 targets one at a time (avoids AudioUnitSDK DB lock)
+          if [ -n "$AU_TARGETS" ]; then
+            echo "Phase 2 - Building AU targets (sequential):$AU_TARGETS"
+            for au in $AU_TARGETS; do
+              echo "  Building $au..."
+              cmake --build build --config ${{ env.BUILD_TYPE }} --target $au
+            done
+          fi
+          if [ -z "$TARGETS" ] && [ -z "$AU_TARGETS" ]; then
             echo "No targets to build"
           fi
 
