@@ -239,7 +239,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[!benchmark]' --skip-benchmarks &
+            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
@@ -434,7 +434,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[!benchmark]' --skip-benchmarks &
+            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
@@ -773,7 +773,7 @@ jobs:
           FAILED=0
           for exe in "${EXES[@]}"; do
             echo "  Starting: $(basename $exe)"
-            "$exe" '~[performance]~[perf]~[!benchmark]' --skip-benchmarks &
+            "$exe" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks &
             PIDS+=($!)
           done
           for i in "${!PIDS[@]}"; do
