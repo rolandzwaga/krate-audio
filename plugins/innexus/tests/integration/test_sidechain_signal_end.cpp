@@ -536,15 +536,15 @@ TEST_CASE("Sidechain signal end: confidence gate holds last good frame on silenc
             ++decayingBlocks;
     }
 
-    INFO("After sidechain stops (over ~3 seconds):");
-    INFO("  Steady-state RMS: " << steadyRMS);
-    INFO("  Frozen blocks (within 6dB of steady): " << frozenBlocks);
-    INFO("  Decaying blocks: " << decayingBlocks);
-    INFO("  Silent blocks (< -60 dBFS): " << silentBlocks);
-
-    // Dump first 20 blocks of RMS history for ARM debugging
+    // Use WARN for ARM CI diagnostics — INFO is only shown on failure
+    // and gets interleaved with [KrateBridge] log output from parallel tests.
+    WARN("After sidechain stops (over ~3 seconds):");
+    WARN("  Steady-state RMS: " << steadyRMS);
+    WARN("  Frozen blocks (within 6dB of steady): " << frozenBlocks);
+    WARN("  Decaying blocks: " << decayingBlocks);
+    WARN("  Silent blocks (< -60 dBFS): " << silentBlocks);
     for (size_t b = 0; b < 20 && b < silenceBlocks; ++b)
-        INFO("  RMS[" << b << "] = " << rmsHistory[b]);
+        WARN("  RMS[" << b << "] = " << rmsHistory[b]);
 
     // With spectral decay, we expect:
     // - Some frozen blocks (initial plateau before confidence gate triggers)
