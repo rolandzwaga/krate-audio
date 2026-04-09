@@ -77,21 +77,12 @@ public:
         {
             auto idx = static_cast<size_t>(p);
 
-            // Apply per-block exponential decay to partial amplitude
+            // Apply per-block exponential decay directly to partial amplitude
             frame.partials[idx].amplitude *= decayCoeffs_[idx];
 
-            // Track cumulative gain separately for the silence check.
-            // On ARM NEON with FTZ (flush-to-zero), small frame amplitudes
-            // can be flushed to 0.0f prematurely when the multiply result
-            // hits the denormal range. The gain envelope starts at 1.0 and
-            // stays in normal float range much longer, giving an accurate
-            // picture of whether we've actually reached -80 dBFS.
-            partialGains_[idx] *= decayCoeffs_[idx];
-
-            if (partialGains_[idx] >= kSilenceThreshold)
-                allBelowThreshold = false;
-
             float amp = frame.partials[idx].amplitude;
+            if (amp >= kSilenceThreshold)
+                allBelowThreshold = false;
 
             // Accumulate for centroid calculation
             weightedFreqSum += frame.partials[idx].frequency * amp;
