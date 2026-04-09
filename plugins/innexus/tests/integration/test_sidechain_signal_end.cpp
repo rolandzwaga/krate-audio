@@ -504,6 +504,7 @@ TEST_CASE("Sidechain signal end: confidence gate holds last good frame on silenc
 
     float steadyRMS = computeRMS(outL.data(), blockSize);
     REQUIRE(steadyRMS > 0.001f);
+    INFO("Steady-state RMS: " << steadyRMS);
 
     // Send silence - track decay over ~6 seconds (fundamental tau=0.6s,
     // need ~8.5 tau for -80dB → ~5.1s, plus initial plateau)
@@ -536,9 +537,14 @@ TEST_CASE("Sidechain signal end: confidence gate holds last good frame on silenc
     }
 
     INFO("After sidechain stops (over ~3 seconds):");
+    INFO("  Steady-state RMS: " << steadyRMS);
     INFO("  Frozen blocks (within 6dB of steady): " << frozenBlocks);
     INFO("  Decaying blocks: " << decayingBlocks);
     INFO("  Silent blocks (< -60 dBFS): " << silentBlocks);
+
+    // Dump first 20 blocks of RMS history for ARM debugging
+    for (size_t b = 0; b < 20 && b < silenceBlocks; ++b)
+        INFO("  RMS[" << b << "] = " << rmsHistory[b]);
 
     // With spectral decay, we expect:
     // - Some frozen blocks (initial plateau before confidence gate triggers)
