@@ -48,6 +48,17 @@ struct MembraneBody
     {
         return sharedBank.processSample(excitation);
     }
+
+    // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
+    // Delegates to ModalResonatorBank::processBlock, which uses the Highway
+    // SIMD kernel (processModalBankSampleSIMD) for the per-mode inner loop.
+    void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
+                      const float* excitation,
+                      float* out,
+                      int numSamples) noexcept
+    {
+        sharedBank.processBlock(excitation, out, numSamples);
+    }
 };
 
 } // namespace Membrum

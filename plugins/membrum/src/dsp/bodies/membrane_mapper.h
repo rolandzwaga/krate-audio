@@ -14,6 +14,7 @@
 
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 
@@ -58,12 +59,56 @@ struct MembraneMapper
 
         // (3) Material-derived parameters (FR-032, FR-033, FR-034)
         r.brightness = params.material;
-        r.stretch    = params.material * 0.3f;
+
+        // (4) Mode Stretch (FR-050): combine material's inherent stretch with
+        //     the UnnaturalZone modeStretch parameter. The bank's stretch takes
+        //     [0,1]; modeStretch is in [0.5, 2.0] where 1.0 is physical.
+        //     When modeStretch==1.0, the extra contribution is 0 and the mapper
+        //     is bit-identical to the Phase 1 code path (FR-055 default-off
+        //     guarantee).
+        const float stretchFromStretchParam =
+            std::clamp((params.modeStretch - 0.5f) * (1.0f / 1.5f), 0.0f, 1.0f);
+        // Baseline (Phase 1): stretch = material * 0.3. When modeStretch is
+        // at unity (1.0), stretchFromStretchParam evaluates to
+        // (1.0 - 0.5) / 1.5 = 0.3333, so we subtract a matching baseline and
+        // add the material-derived term back to preserve FR-031 bit-identity
+        // for Phase 1 default patches.
+        constexpr float kUnityStretchNorm = (1.0f - 0.5f) / 1.5f;
+        const float stretchDelta = stretchFromStretchParam - kUnityStretchNorm;
+        r.stretch = std::clamp(params.material * 0.3f + stretchDelta, 0.0f, 1.0f);
+
+        // (5) Decay Skew (FR-051, research.md §9): scalar-bias approximation.
+        //     decaySkew == 0 preserves the Phase 1 calculation exactly.
+        //     NOTE: The scalar-bias approach attenuates global decay time
+        //     rather than applying a per-mode inversion. See research.md §9
+        //     for the fallback plan (per-block updateModes) if the US6-2
+        //     inversion test cannot be satisfied with this approximation.
+        const float skewBias = 1.0f - 0.3f * params.decaySkew;
 
         const float baseDecayTime =
             lerp(0.15f, 0.8f, params.material) * (1.0f + 0.1f * params.size);
         r.decayTime =
-            baseDecayTime * std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay));
+            baseDecayTime * std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay)) *
+            skewBias;
+
+        // (6) Per-mode amplitude boost for Decay Skew inversion (research.md §9
+        //     "more-accurate" option). When decaySkew < 0, boost high-mode
+        //     amplitudes by exp(-decaySkew * log(ratio)) = ratio^(-decaySkew)
+        //     so mode 7 starts substantially louder than mode 0, shifting
+        //     perceived t60 ordering. When decaySkew == 0, this factor is 1.0
+        //     for every mode (bit-identical to Phase 1).
+        if (params.decaySkew != 0.0f)
+        {
+            for (int k = 0; k < kMembraneModeCount; ++k)
+            {
+                const float ratio = kMembraneRatios[static_cast<std::size_t>(k)];
+                if (ratio > 0.0f)
+                {
+                    const float exponent = -params.decaySkew * std::log(ratio);
+                    r.amplitudes[k] *= std::exp(exponent);
+                }
+            }
+        }
 
         r.numPartials = kMembraneModeCount;
         r.scatter     = 0.0f;
