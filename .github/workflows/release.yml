@@ -568,24 +568,22 @@ jobs:
 
           plugins = []
           for vj in sorted(glob.glob('plugins/*/version.json')):
-              with open(vj) as f:
-                  data = json.load(f)
               plugin_dir = os.path.basename(os.path.dirname(vj))
-              data['dir'] = plugin_dir
-              # Only link to plugins that have a landing page
-              has_page = os.path.isfile(f'plugins/{plugin_dir}/docs/index.html')
-              data['has_page'] = has_page
-              # Get version from latest git tag
-              plugin_lower = data['name'].lower()
+              # Check for a release tag first — unreleased plugins get no card
               try:
                   tag = subprocess.check_output(
-                      f'git tag -l "{plugin_lower}/v*" --sort=-v:refname | head -1',
+                      f'git tag -l "{plugin_dir}/v*" --sort=-v:refname | head -1',
                       shell=True, text=True
                   ).strip()
               except Exception:
                   tag = ''
-              if tag:
-                  data['version'] = tag.split('/v')[-1]
+              if not tag:
+                  continue
+              with open(vj) as f:
+                  data = json.load(f)
+              data['dir'] = plugin_dir
+              data['has_page'] = os.path.isfile(f'plugins/{plugin_dir}/docs/index.html')
+              data['version'] = tag.split('/v')[-1]
               plugins.append(data)
 
           cards = '\n'.join([
