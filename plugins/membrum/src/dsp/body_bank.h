@@ -76,6 +76,45 @@ public:
         return out;
     }
 
+    // Block-level entry point (Phase 9 SIMD emergency fallback / plan.md §SIMD).
+    // Single std::visit dispatch per block. Each body variant implements
+    // processBlock(sharedBank, excitation, out, numSamples) which routes the
+    // modal work through ModalResonatorBank::processBlock — the SIMD-accelerated
+    // fast path (Highway kernel processModalBankSampleSIMD). This is what makes
+    // the per-voice CPU budget meetable at 40 NoiseBody modes.
+    //
+    //   out        : pointer to numSamples floats to overwrite
+    //   excitation : pointer to numSamples input samples
+    //   numSamples : block size
+    void processBlock(float* out,
+                      const float* excitation,
+                      int numSamples) noexcept
+    {
+        std::visit(
+            [this, out, excitation, numSamples](auto& b) noexcept {
+                b.processBlock(sharedBank_, excitation, out, numSamples);
+                if (numSamples > 0)
+                    lastOutput_ = out[numSamples - 1];
+            },
+            active_);
+    }
+
+    // Single-visit helper: invokes `fn` with a reference to the currently
+    // active body alternative and the shared ModalResonatorBank. Callers can
+    // then drive the body per-sample using direct typed calls, so the
+    // std::variant dispatch happens exactly ONCE per block per voice
+    // (research.md §1 / T043 / FR-001, FR-002). Used by DrumVoice::processBlock
+    // to run the exciter×body inner sample loop without a per-sample visit.
+    template <typename Fn>
+    void withActive(Fn&& fn) noexcept
+    {
+        std::visit(
+            [this, &fn](auto& b) noexcept { fn(b, sharedBank_); },
+            active_);
+    }
+
+    void setLastOutput(float y) noexcept { lastOutput_ = y; }
+
     [[nodiscard]] float getLastOutput() const noexcept { return lastOutput_; }
 
     [[nodiscard]] BodyModelType getCurrentType() const noexcept { return currentType_; }

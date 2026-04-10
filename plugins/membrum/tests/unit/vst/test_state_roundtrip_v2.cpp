@@ -126,6 +126,127 @@ TEST_CASE("State v2: round-trip bit-exactly preserves all 34 parameters",
     REQUIRE(processor.terminate() == kResultOk);
 }
 
+// ==============================================================================
+// Phase 9 T126 / FR-094 / SC-006:
+// Round-trip all 34 Phase 1+2 parameters with explicitly distinct non-default
+// values and verify bit-identical normalized values after load. This is the
+// per-parameter version of the generic round-trip test above: it guards
+// against a future reordering of the serialization blob by making each field
+// individually identifiable.
+// ==============================================================================
+TEST_CASE("State v2 Phase9: all 34 parameters round-trip bit-exactly per-parameter",
+          "[membrum][vst][state_v2][phase9]")
+{
+    Membrum::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+
+    auto setup = makeSetup();
+    REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    REQUIRE(processor.setActive(true) == kResultOk);
+
+    // All 5 Phase-1 floats, non-default.
+    const double material      = 0.17;
+    const double size          = 0.83;
+    const double decay         = 0.42;
+    const double strikePos     = 0.61;
+    const double level         = 0.93;
+
+    // 2 selectors, non-default.
+    const int32  exciterI32    = 4;  // FMImpulse
+    const int32  bodyI32       = 5;  // NoiseBody
+
+    // All 27 Phase-2 floats, each a distinct non-default.
+    // 202-205 (4 floats): secondary exciter params
+    const double exciterFMRatio       = 0.11;
+    const double exciterFbAmt         = 0.22;
+    const double exciterNoiseDur      = 0.33;
+    const double exciterFricPressure  = 0.44;
+    // 210-219 (10 floats): tone shaper
+    const double tsFilterType         = 0.55; // maps to BP via 0.5..0.833
+    const double tsFilterCutoff       = 0.66;
+    const double tsFilterResonance    = 0.77;
+    const double tsFilterEnvAmount    = 0.88;
+    const double tsDriveAmount        = 0.09;
+    const double tsFoldAmount         = 0.18;
+    const double tsPitchEnvStart      = 0.27;
+    const double tsPitchEnvEnd        = 0.36;
+    const double tsPitchEnvTime       = 0.45;
+    const double tsPitchEnvCurve      = 0.54;
+    // 220-223 (4 floats): filter env sub-parameters
+    const double tsFilterEnvAttack    = 0.63;
+    const double tsFilterEnvDecay     = 0.72;
+    const double tsFilterEnvSustain   = 0.81;
+    const double tsFilterEnvRelease   = 0.905;
+    // 230-233 (4 floats): unnatural zone
+    const double uzModeStretch        = 0.13;
+    const double uzDecaySkew          = 0.24;
+    const double uzModeInject         = 0.35;
+    const double uzNonlinearCoupling  = 0.46;
+    // 240-244 (5 floats): material morph
+    const double mmEnabled            = 0.99; // > 0.5 → enabled
+    const double mmStart              = 0.15;
+    const double mmEnd                = 0.26;
+    const double mmDurationMs         = 0.37;
+    const double mmCurve              = 0.48;
+
+    const double phase1[5] = {material, size, decay, strikePos, level};
+
+    const double phase2[kPhase2FloatCount] = {
+        exciterFMRatio, exciterFbAmt, exciterNoiseDur, exciterFricPressure,
+        tsFilterType,
+        tsFilterCutoff, tsFilterResonance, tsFilterEnvAmount,
+        tsDriveAmount, tsFoldAmount,
+        tsPitchEnvStart, tsPitchEnvEnd, tsPitchEnvTime, tsPitchEnvCurve,
+        tsFilterEnvAttack, tsFilterEnvDecay, tsFilterEnvSustain, tsFilterEnvRelease,
+        uzModeStretch, uzDecaySkew, uzModeInject, uzNonlinearCoupling,
+        mmEnabled, mmStart, mmEnd, mmDurationMs, mmCurve,
+    };
+    static_assert(sizeof(phase2) / sizeof(phase2[0]) == kPhase2FloatCount,
+                  "Phase 2 parameter list must cover all 27 floats");
+
+    auto* inStream = new MemoryStream();
+    writeV2State(inStream, phase1, exciterI32, bodyI32, phase2);
+    inStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(processor.setState(inStream) == kResultOk);
+    inStream->release();
+
+    auto* outStream = new MemoryStream();
+    REQUIRE(processor.getState(outStream) == kResultOk);
+    outStream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    int32 readVersion = 0;
+    outStream->read(&readVersion, sizeof(readVersion), nullptr);
+    CHECK(readVersion == 2);
+
+    // Phase 1 parameters.
+    double rd = 0.0;
+    outStream->read(&rd, sizeof(double), nullptr); CHECK(rd == Approx(material).margin(0.0));
+    outStream->read(&rd, sizeof(double), nullptr); CHECK(rd == Approx(size).margin(0.0));
+    outStream->read(&rd, sizeof(double), nullptr); CHECK(rd == Approx(decay).margin(0.0));
+    outStream->read(&rd, sizeof(double), nullptr); CHECK(rd == Approx(strikePos).margin(0.0));
+    outStream->read(&rd, sizeof(double), nullptr); CHECK(rd == Approx(level).margin(0.0));
+
+    // Selectors.
+    int32 readExc = 0, readBody = 0;
+    outStream->read(&readExc,  sizeof(readExc),  nullptr);
+    outStream->read(&readBody, sizeof(readBody), nullptr);
+    CHECK(readExc  == exciterI32);
+    CHECK(readBody == bodyI32);
+
+    // Phase 2 parameters (in the same order as written).
+    for (int i = 0; i < kPhase2FloatCount; ++i)
+    {
+        double v = 0.0;
+        outStream->read(&v, sizeof(v), nullptr);
+        INFO("Phase 2 float index=" << i);
+        CHECK(v == Approx(phase2[i]).margin(0.0));
+    }
+
+    outStream->release();
+    REQUIRE(processor.setActive(false) == kResultOk);
+    REQUIRE(processor.terminate() == kResultOk);
+}
+
 TEST_CASE("State v2: Phase 1 blob (version=1) loads with Phase 2 defaults",
           "[membrum][vst][state_v2][backcompat]")
 {

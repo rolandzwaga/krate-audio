@@ -28,41 +28,42 @@ struct Phase2Slot
 };
 
 constexpr Phase2Slot kPhase2Slots[] = {
-    { kExciterFMRatioId,            0.133333 },
-    { kExciterFeedbackAmountId,     0.0 },
-    { kExciterNoiseBurstDurationId, 0.230769 },
-    { kExciterFrictionPressureId,   0.3 },
+    { .id = kExciterFMRatioId,            .defaultValue = 0.133333 },
+    { .id = kExciterFeedbackAmountId,     .defaultValue = 0.0 },
+    { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769 },
+    { .id = kExciterFrictionPressureId,   .defaultValue = 0.3 },
 
-    { kToneShaperFilterTypeId,       0.0 },
-    { kToneShaperFilterCutoffId,     1.0 },
-    { kToneShaperFilterResonanceId,  0.0 },
-    { kToneShaperFilterEnvAmountId,  0.5 },
-    { kToneShaperDriveAmountId,      0.0 },
-    { kToneShaperFoldAmountId,       0.0 },
-    { kToneShaperPitchEnvStartId,    0.070721 },
-    { kToneShaperPitchEnvEndId,      0.0 },
-    { kToneShaperPitchEnvTimeId,     0.0 },
-    { kToneShaperPitchEnvCurveId,    0.0 },
+    { .id = kToneShaperFilterTypeId,       .defaultValue = 0.0 },
+    { .id = kToneShaperFilterCutoffId,     .defaultValue = 1.0 },
+    { .id = kToneShaperFilterResonanceId,  .defaultValue = 0.0 },
+    { .id = kToneShaperFilterEnvAmountId,  .defaultValue = 0.5 },
+    { .id = kToneShaperDriveAmountId,      .defaultValue = 0.0 },
+    { .id = kToneShaperFoldAmountId,       .defaultValue = 0.0 },
+    { .id = kToneShaperPitchEnvStartId,    .defaultValue = 0.070721 },
+    { .id = kToneShaperPitchEnvEndId,      .defaultValue = 0.0 },
+    { .id = kToneShaperPitchEnvTimeId,     .defaultValue = 0.0 },
+    { .id = kToneShaperPitchEnvCurveId,    .defaultValue = 0.0 },
 
-    { kToneShaperFilterEnvAttackId,  0.0 },
-    { kToneShaperFilterEnvDecayId,   0.1 },
-    { kToneShaperFilterEnvSustainId, 0.0 },
-    { kToneShaperFilterEnvReleaseId, 0.1 },
+    { .id = kToneShaperFilterEnvAttackId,  .defaultValue = 0.0 },
+    { .id = kToneShaperFilterEnvDecayId,   .defaultValue = 0.1 },
+    { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0 },
+    { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1 },
 
-    { kUnnaturalModeStretchId,       0.333333 },
-    { kUnnaturalDecaySkewId,         0.5 },
-    { kUnnaturalModeInjectAmountId,  0.0 },
-    { kUnnaturalNonlinearCouplingId, 0.0 },
+    { .id = kUnnaturalModeStretchId,       .defaultValue = 0.333333 },
+    { .id = kUnnaturalDecaySkewId,         .defaultValue = 0.5 },
+    { .id = kUnnaturalModeInjectAmountId,  .defaultValue = 0.0 },
+    { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0 },
 
-    { kMorphEnabledId,    0.0 },
-    { kMorphStartId,      1.0 },
-    { kMorphEndId,        0.0 },
-    { kMorphDurationMsId, 0.095477 },
-    { kMorphCurveId,      0.0 },
+    { .id = kMorphEnabledId,    .defaultValue = 0.0 },
+    { .id = kMorphStartId,      .defaultValue = 1.0 },
+    { .id = kMorphEndId,        .defaultValue = 0.0 },
+    { .id = kMorphDurationMsId, .defaultValue = 0.095477 },
+    { .id = kMorphCurveId,      .defaultValue = 0.0 },
 };
 
-constexpr int kPhase2SlotCount =
-    static_cast<int>(sizeof(kPhase2Slots) / sizeof(kPhase2Slots[0]));
+static_assert(sizeof(kPhase2Slots) / sizeof(kPhase2Slots[0]) == 27,
+              "Phase 2 is expected to expose 27 continuous parameters "
+              "(29 total minus the 2 integer selectors).");
 
 } // namespace
 
@@ -131,37 +132,37 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     };
 
     static const Phase2ParamSpec kPhase2Specs[] = {
-        { kExciterFMRatioId,            "Exciter FM Ratio",            0.133333, nullptr },
-        { kExciterFeedbackAmountId,     "Exciter Feedback Amount",     0.0,      nullptr },
-        { kExciterNoiseBurstDurationId, "Exciter NoiseBurst Duration", 0.230769, "ms" },
-        { kExciterFrictionPressureId,   "Exciter Friction Pressure",   0.3,      nullptr },
+        { .id = kExciterFMRatioId,            .name = "Exciter FM Ratio",            .defaultValue = 0.133333, .unit = nullptr },
+        { .id = kExciterFeedbackAmountId,     .name = "Exciter Feedback Amount",     .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kExciterNoiseBurstDurationId, .name = "Exciter NoiseBurst Duration", .defaultValue = 0.230769, .unit = "ms" },
+        { .id = kExciterFrictionPressureId,   .name = "Exciter Friction Pressure",   .defaultValue = 0.3,      .unit = nullptr },
 
-        { kToneShaperFilterTypeId,      "Tone Shaper Filter Type",     0.0,      nullptr },
-        { kToneShaperFilterCutoffId,    "Tone Shaper Filter Cutoff",   1.0,      "Hz" },
-        { kToneShaperFilterResonanceId, "Tone Shaper Filter Resonance",0.0,      nullptr },
-        { kToneShaperFilterEnvAmountId, "Tone Shaper Filter Env Amt",  0.5,      nullptr },
-        { kToneShaperDriveAmountId,     "Tone Shaper Drive",           0.0,      nullptr },
-        { kToneShaperFoldAmountId,      "Tone Shaper Fold",            0.0,      nullptr },
-        { kToneShaperPitchEnvStartId,   "Tone Shaper PitchEnv Start",  0.070721, "Hz" },
-        { kToneShaperPitchEnvEndId,     "Tone Shaper PitchEnv End",    0.0,      "Hz" },
-        { kToneShaperPitchEnvTimeId,    "Tone Shaper PitchEnv Time",   0.0,      "ms" },
-        { kToneShaperPitchEnvCurveId,   "Tone Shaper PitchEnv Curve",  0.0,      nullptr },
+        { .id = kToneShaperFilterTypeId,      .name = "Tone Shaper Filter Type",     .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kToneShaperFilterCutoffId,    .name = "Tone Shaper Filter Cutoff",   .defaultValue = 1.0,      .unit = "Hz" },
+        { .id = kToneShaperFilterResonanceId, .name = "Tone Shaper Filter Resonance",.defaultValue = 0.0,      .unit = nullptr },
+        { .id = kToneShaperFilterEnvAmountId, .name = "Tone Shaper Filter Env Amt",  .defaultValue = 0.5,      .unit = nullptr },
+        { .id = kToneShaperDriveAmountId,     .name = "Tone Shaper Drive",           .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kToneShaperFoldAmountId,      .name = "Tone Shaper Fold",            .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kToneShaperPitchEnvStartId,   .name = "Tone Shaper PitchEnv Start",  .defaultValue = 0.070721, .unit = "Hz" },
+        { .id = kToneShaperPitchEnvEndId,     .name = "Tone Shaper PitchEnv End",    .defaultValue = 0.0,      .unit = "Hz" },
+        { .id = kToneShaperPitchEnvTimeId,    .name = "Tone Shaper PitchEnv Time",   .defaultValue = 0.0,      .unit = "ms" },
+        { .id = kToneShaperPitchEnvCurveId,   .name = "Tone Shaper PitchEnv Curve",  .defaultValue = 0.0,      .unit = nullptr },
 
-        { kToneShaperFilterEnvAttackId,  "Tone Shaper Filter Atk",  0.0, "ms" },
-        { kToneShaperFilterEnvDecayId,   "Tone Shaper Filter Dec",  0.1, "ms" },
-        { kToneShaperFilterEnvSustainId, "Tone Shaper Filter Sus",  0.0, nullptr },
-        { kToneShaperFilterEnvReleaseId, "Tone Shaper Filter Rel",  0.1, "ms" },
+        { .id = kToneShaperFilterEnvAttackId,  .name = "Tone Shaper Filter Atk",  .defaultValue = 0.0, .unit = "ms" },
+        { .id = kToneShaperFilterEnvDecayId,   .name = "Tone Shaper Filter Dec",  .defaultValue = 0.1, .unit = "ms" },
+        { .id = kToneShaperFilterEnvSustainId, .name = "Tone Shaper Filter Sus",  .defaultValue = 0.0, .unit = nullptr },
+        { .id = kToneShaperFilterEnvReleaseId, .name = "Tone Shaper Filter Rel",  .defaultValue = 0.1, .unit = "ms" },
 
-        { kUnnaturalModeStretchId,       "Mode Stretch",          0.333333, nullptr },
-        { kUnnaturalDecaySkewId,         "Decay Skew",            0.5,      nullptr },
-        { kUnnaturalModeInjectAmountId,  "Mode Inject",           0.0,      nullptr },
-        { kUnnaturalNonlinearCouplingId, "Nonlinear Coupling",    0.0,      nullptr },
+        { .id = kUnnaturalModeStretchId,       .name = "Mode Stretch",          .defaultValue = 0.333333, .unit = nullptr },
+        { .id = kUnnaturalDecaySkewId,         .name = "Decay Skew",            .defaultValue = 0.5,      .unit = nullptr },
+        { .id = kUnnaturalModeInjectAmountId,  .name = "Mode Inject",           .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kUnnaturalNonlinearCouplingId, .name = "Nonlinear Coupling",    .defaultValue = 0.0,      .unit = nullptr },
 
-        { kMorphEnabledId,    "Morph Enabled",   0.0,      nullptr },
-        { kMorphStartId,      "Morph Start",     1.0,      nullptr },
-        { kMorphEndId,        "Morph End",       0.0,      nullptr },
-        { kMorphDurationMsId, "Morph Duration",  0.095477, "ms" },
-        { kMorphCurveId,      "Morph Curve",     0.0,      nullptr },
+        { .id = kMorphEnabledId,    .name = "Morph Enabled",   .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kMorphStartId,      .name = "Morph Start",     .defaultValue = 1.0,      .unit = nullptr },
+        { .id = kMorphEndId,        .name = "Morph End",       .defaultValue = 0.0,      .unit = nullptr },
+        { .id = kMorphDurationMsId, .name = "Morph Duration",  .defaultValue = 0.095477, .unit = "ms" },
+        { .id = kMorphCurveId,      .name = "Morph Curve",     .defaultValue = 0.0,      .unit = nullptr },
     };
 
     constexpr int kPhase2SpecCount =
@@ -262,15 +263,15 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
             setParamNormalized(kBodyModelId, norm);
         }
 
-        for (int i = 0; i < kPhase2SlotCount; ++i)
+        for (const auto& slot : kPhase2Slots)
         {
-            double value = kPhase2Slots[i].defaultValue;
+            double value = slot.defaultValue;
             if (state->read(&value, sizeof(value), nullptr) != kResultOk)
             {
-                setParamNormalized(kPhase2Slots[i].id, kPhase2Slots[i].defaultValue);
+                setParamNormalized(slot.id, slot.defaultValue);
                 continue;
             }
-            setParamNormalized(kPhase2Slots[i].id, value);
+            setParamNormalized(slot.id, value);
         }
     }
     else
@@ -278,8 +279,8 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         // Phase 1 blob -- fill Phase 2 with defaults.
         setParamNormalized(kExciterTypeId, 0.5 / static_cast<double>(ExciterType::kCount));
         setParamNormalized(kBodyModelId,   0.5 / static_cast<double>(BodyModelType::kCount));
-        for (int i = 0; i < kPhase2SlotCount; ++i)
-            setParamNormalized(kPhase2Slots[i].id, kPhase2Slots[i].defaultValue);
+        for (const auto& slot : kPhase2Slots)
+            setParamNormalized(slot.id, slot.defaultValue);
     }
 
     return kResultOk;

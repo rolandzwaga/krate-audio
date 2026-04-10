@@ -29,6 +29,8 @@
 #include "dsp/drum_voice.h"
 #include "dsp/exciter_type.h"
 
+#include <allocation_detector.h>
+
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -305,4 +307,159 @@ TEST_CASE("ExciterBodyMatrix: body swap while sounding is deferred",
     CHECK_FALSE(newNote.hasDenormal);
     CHECK(newNote.peakAbs > 0.001f);
     CHECK(newNote.peakAbs <= 1.0f);
+}
+
+// ==============================================================================
+// Phase 9 T125 / FR-090 extended / SC-011 extended:
+// 144-combination functional matrix (6 exciter × 6 body × 2 tone_shaper ×
+// 2 unnatural). Non-perf gate — runs in regular CI (no [.perf] tag) alongside
+// the CPU benchmark. For each of the 144 cells:
+//   - Trigger at velocity 100, process 500 ms.
+//   - Assert: no NaN/Inf, peak ≤ 0 dBFS (FR-090 extended), non-silent.
+//   - Wrap the hot path in an AllocationScope and assert zero heap activity
+//     (SC-011 extended).
+// ==============================================================================
+namespace {
+
+// Configure the voice for a (exciter, body, toneShaperOn, unnaturalOn) cell
+// using the same plausible "on" settings as the CPU benchmark (T123) so the
+// two gates drive identical code paths.
+void configureFor144(Membrum::DrumVoice& voice,
+                     Membrum::ExciterType ex,
+                     Membrum::BodyModelType body,
+                     bool toneShaperOn,
+                     bool unnaturalOn)
+{
+    voice.prepare(kSampleRate, 0u);
+    voice.setMaterial(0.5f);
+    voice.setSize(0.5f);
+    voice.setDecay(0.5f);
+    voice.setStrikePosition(0.3f);
+    voice.setLevel(0.8f);
+    voice.setExciterType(ex);
+    voice.setBodyModel(body);
+
+    auto& ts = voice.toneShaper();
+    auto& uz = voice.unnaturalZone();
+
+    if (toneShaperOn)
+    {
+        ts.setFilterType(Membrum::ToneShaperFilterType::Lowpass);
+        ts.setFilterCutoff(3000.0f);
+        ts.setFilterResonance(0.5f);
+        ts.setFilterEnvAmount(0.6f);
+        ts.setFilterEnvAttackMs(1.0f);
+        ts.setFilterEnvDecayMs(150.0f);
+        ts.setFilterEnvSustain(0.2f);
+        ts.setFilterEnvReleaseMs(200.0f);
+        ts.setDriveAmount(0.5f);
+        ts.setFoldAmount(0.3f);
+        ts.setPitchEnvStartHz(160.0f);
+        ts.setPitchEnvEndHz(50.0f);
+        ts.setPitchEnvTimeMs(20.0f);
+        ts.setPitchEnvCurve(Membrum::ToneShaperCurve::Exponential);
+    }
+    else
+    {
+        ts.setFilterCutoff(20000.0f);
+        ts.setFilterResonance(0.0f);
+        ts.setFilterEnvAmount(0.0f);
+        ts.setDriveAmount(0.0f);
+        ts.setFoldAmount(0.0f);
+        ts.setPitchEnvTimeMs(0.0f);
+    }
+
+    if (unnaturalOn)
+    {
+        uz.setModeStretch(1.2f);
+        uz.setDecaySkew(0.3f);
+        uz.modeInject.setAmount(0.3f);
+        uz.nonlinearCoupling.setAmount(0.3f);
+        uz.materialMorph.setEnabled(true);
+        uz.materialMorph.setStart(0.2f);
+        uz.materialMorph.setEnd(0.8f);
+        uz.materialMorph.setDurationMs(300.0f);
+    }
+    else
+    {
+        uz.setModeStretch(1.0f);
+        uz.setDecaySkew(0.0f);
+        uz.modeInject.setAmount(0.0f);
+        uz.nonlinearCoupling.setAmount(0.0f);
+        uz.materialMorph.setEnabled(false);
+    }
+}
+
+} // namespace
+
+TEST_CASE("ExciterBodyMatrix144: all 144 combos audible finite bounded alloc-free",
+          "[membrum][matrix][phase9]")
+{
+    constexpr int kNumExciters = static_cast<int>(Membrum::ExciterType::kCount);
+    constexpr int kNumBodies   = static_cast<int>(Membrum::BodyModelType::kCount);
+
+    constexpr float kMinPeak = 0.001f; // −60 dBFS (audible floor)
+    constexpr float kMaxPeak = 1.0f;   //   0 dBFS
+
+    int passed = 0;
+    int tested = 0;
+
+    for (int e = 0; e < kNumExciters; ++e)
+    {
+        for (int b = 0; b < kNumBodies; ++b)
+        {
+            for (int ts = 0; ts < 2; ++ts)
+            {
+                for (int un = 0; un < 2; ++un)
+                {
+                    const auto ex   = static_cast<Membrum::ExciterType>(e);
+                    const auto body = static_cast<Membrum::BodyModelType>(b);
+                    const bool toneShaperOn = (ts != 0);
+                    const bool unnaturalOn  = (un != 0);
+
+                    Membrum::DrumVoice voice;
+                    configureFor144(voice, ex, body, toneShaperOn, unnaturalOn);
+
+                    // noteOn() touches deferred swap paths and the morph
+                    // trigger — include it in the allocation scope so any
+                    // heap activity on the audio thread is caught.
+                    BlockStats stats{};
+                    std::size_t allocCount = 0;
+                    {
+                        TestHelpers::AllocationScope scope;
+                        voice.noteOn(kVelocity100);
+                        stats = processAndCollect(voice, kProcessSamples);
+                        allocCount = scope.getAllocationCount();
+                    }
+
+                    const std::string label =
+                        std::string(exciterName(ex)) + "+" + bodyName(body)
+                        + " ts=" + (toneShaperOn ? "on" : "off")
+                        + " un=" + (unnaturalOn  ? "on" : "off");
+                    INFO("combo=" << label
+                         << "  peakAbs=" << stats.peakAbs
+                         << "  alloc=" << allocCount);
+
+                    CHECK_FALSE(stats.hasNaNOrInf);
+                    CHECK_FALSE(stats.hasDenormal);
+                    CHECK(stats.peakAbs > kMinPeak);
+                    CHECK(stats.peakAbs <= kMaxPeak);
+                    CHECK(allocCount == 0);
+
+                    ++tested;
+                    if (!stats.hasNaNOrInf
+                        && !stats.hasDenormal
+                        && stats.peakAbs > kMinPeak
+                        && stats.peakAbs <= kMaxPeak
+                        && allocCount == 0)
+                    {
+                        ++passed;
+                    }
+                }
+            }
+        }
+    }
+
+    CHECK(tested == 144);
+    CHECK(passed == 144);
 }

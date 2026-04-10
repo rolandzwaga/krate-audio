@@ -66,6 +66,49 @@ public:
             active_);
     }
 
+    // Block-level entry point (research.md §1 / T043 / FR-001, FR-002):
+    // performs exactly ONE std::visit dispatch per block, with the inner
+    // sample loop running inside the visitor lambda. This is the hot path the
+    // audio thread must use; the per-sample process() above is preserved for
+    // unit tests that drive exciters sample-by-sample.
+    //
+    //   out            : pointer to numSamples floats to overwrite
+    //   bodyFeedback   : pointer to numSamples floats (one feedback sample per
+    //                    output sample); may be nullptr, in which case 0 is
+    //                    used for all samples
+    //   numSamples     : block size
+    void processBlock(float* out,
+                      const float* bodyFeedback,
+                      int numSamples) noexcept
+    {
+        std::visit(
+            [out, bodyFeedback, numSamples](auto& e) noexcept {
+                if (bodyFeedback != nullptr)
+                {
+                    for (int i = 0; i < numSamples; ++i)
+                        out[i] = e.process(bodyFeedback[i]);
+                }
+                else
+                {
+                    for (int i = 0; i < numSamples; ++i)
+                        out[i] = e.process(0.0f);
+                }
+            },
+            active_);
+    }
+
+    // Single-visit helper: invokes `fn` with a reference to the currently
+    // active exciter alternative. Callers can then process an entire block
+    // (or any other multi-sample operation) using direct typed calls, so
+    // the std::variant dispatch happens exactly ONCE per block per voice
+    // (research.md §1 / T043 / FR-001, FR-002). Used by DrumVoice::processBlock
+    // to run the exciter×body inner sample loop without a per-sample visit.
+    template <typename Fn>
+    void withActive(Fn&& fn) noexcept
+    {
+        std::visit([&fn](auto& e) noexcept { fn(e); }, active_);
+    }
+
     [[nodiscard]] bool isActive() const noexcept
     {
         return std::visit([](const auto& e) noexcept { return e.isActive(); },

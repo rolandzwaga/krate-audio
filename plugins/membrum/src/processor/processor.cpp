@@ -19,6 +19,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Membrum {
@@ -41,37 +42,37 @@ struct Phase2FloatSlot
 // Defaults here are normalized (0..1) values chosen so that loading a
 // Phase 1 blob (version == 1) produces "all Phase 2 bypass" behaviour.
 constexpr Phase2FloatSlot kPhase2FloatSlots[] = {
-    { kExciterFMRatioId,            0.133333f },
-    { kExciterFeedbackAmountId,     0.0f },
-    { kExciterNoiseBurstDurationId, 0.230769f },
-    { kExciterFrictionPressureId,   0.3f },
+    { .id = kExciterFMRatioId,            .defaultValue = 0.133333f },
+    { .id = kExciterFeedbackAmountId,     .defaultValue = 0.0f },
+    { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769f },
+    { .id = kExciterFrictionPressureId,   .defaultValue = 0.3f },
 
-    { kToneShaperFilterTypeId,       0.0f },
-    { kToneShaperFilterCutoffId,     1.0f },
-    { kToneShaperFilterResonanceId,  0.0f },
-    { kToneShaperFilterEnvAmountId,  0.5f },
-    { kToneShaperDriveAmountId,      0.0f },
-    { kToneShaperFoldAmountId,       0.0f },
-    { kToneShaperPitchEnvStartId,    0.070721f },
-    { kToneShaperPitchEnvEndId,      0.0f },
-    { kToneShaperPitchEnvTimeId,     0.0f },
-    { kToneShaperPitchEnvCurveId,    0.0f },
+    { .id = kToneShaperFilterTypeId,       .defaultValue = 0.0f },
+    { .id = kToneShaperFilterCutoffId,     .defaultValue = 1.0f },
+    { .id = kToneShaperFilterResonanceId,  .defaultValue = 0.0f },
+    { .id = kToneShaperFilterEnvAmountId,  .defaultValue = 0.5f },
+    { .id = kToneShaperDriveAmountId,      .defaultValue = 0.0f },
+    { .id = kToneShaperFoldAmountId,       .defaultValue = 0.0f },
+    { .id = kToneShaperPitchEnvStartId,    .defaultValue = 0.070721f },
+    { .id = kToneShaperPitchEnvEndId,      .defaultValue = 0.0f },
+    { .id = kToneShaperPitchEnvTimeId,     .defaultValue = 0.0f },
+    { .id = kToneShaperPitchEnvCurveId,    .defaultValue = 0.0f },
 
-    { kToneShaperFilterEnvAttackId,  0.0f },
-    { kToneShaperFilterEnvDecayId,   0.1f },
-    { kToneShaperFilterEnvSustainId, 0.0f },
-    { kToneShaperFilterEnvReleaseId, 0.1f },
+    { .id = kToneShaperFilterEnvAttackId,  .defaultValue = 0.0f },
+    { .id = kToneShaperFilterEnvDecayId,   .defaultValue = 0.1f },
+    { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0f },
+    { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1f },
 
-    { kUnnaturalModeStretchId,       0.333333f },
-    { kUnnaturalDecaySkewId,         0.5f },
-    { kUnnaturalModeInjectAmountId,  0.0f },
-    { kUnnaturalNonlinearCouplingId, 0.0f },
+    { .id = kUnnaturalModeStretchId,       .defaultValue = 0.333333f },
+    { .id = kUnnaturalDecaySkewId,         .defaultValue = 0.5f },
+    { .id = kUnnaturalModeInjectAmountId,  .defaultValue = 0.0f },
+    { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0f },
 
-    { kMorphEnabledId,    0.0f },
-    { kMorphStartId,      1.0f },
-    { kMorphEndId,        0.0f },
-    { kMorphDurationMsId, 0.095477f },
-    { kMorphCurveId,      0.0f },
+    { .id = kMorphEnabledId,    .defaultValue = 0.0f },
+    { .id = kMorphStartId,      .defaultValue = 1.0f },
+    { .id = kMorphEndId,        .defaultValue = 0.0f },
+    { .id = kMorphDurationMsId, .defaultValue = 0.095477f },
+    { .id = kMorphCurveId,      .defaultValue = 0.0f },
 };
 
 constexpr int kPhase2FloatSlotCount =
@@ -245,25 +246,97 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 {
                     phase2Slots[slot]->store(fValue);
 
-                    // Forward to the stub tone shaper / unnatural zone so
-                    // they retain the latest normalized value. Real mapping
-                    // happens in Phase 5 (tone shaper) / Phase 6 (unnatural).
+                    // Forward to the Tone Shaper / Unnatural Zone. Phase 7
+                    // denormalizes continuous tone shaper params per
+                    // tone_shaper_contract.md §Parameter ranges.
                     switch (paramId)
                     {
+                    // ---- Unnatural Zone (Phase 8, T114) ----
+                    // Denormalize per spec ranges (data-model.md §9):
+                    //   modeStretch [0.5, 2.0] linear
+                    //   decaySkew   [-1.0, +1.0] linear
+                    //   morph duration [10, 2000] ms
                     case kUnnaturalModeStretchId:
-                        voice_.unnaturalZone().setModeStretch(fValue);
+                    {
+                        const float denorm = 0.5f + std::clamp(fValue, 0.0f, 1.0f) * 1.5f;
+                        voice_.unnaturalZone().setModeStretch(denorm);
                         break;
+                    }
                     case kUnnaturalDecaySkewId:
-                        voice_.unnaturalZone().setDecaySkew(fValue);
+                    {
+                        const float denorm = std::clamp(fValue, 0.0f, 1.0f) * 2.0f - 1.0f;
+                        voice_.unnaturalZone().setDecaySkew(denorm);
                         break;
+                    }
                     case kUnnaturalModeInjectAmountId:
-                        voice_.unnaturalZone().modeInject.setAmount(fValue);
+                        voice_.unnaturalZone().modeInject.setAmount(
+                            std::clamp(fValue, 0.0f, 1.0f));
                         break;
                     case kUnnaturalNonlinearCouplingId:
-                        voice_.unnaturalZone().nonlinearCoupling.setAmount(fValue);
+                        voice_.unnaturalZone().nonlinearCoupling.setAmount(
+                            std::clamp(fValue, 0.0f, 1.0f));
                         break;
+
+                    // ---- Material Morph (Phase 8, T114) ----
+                    case kMorphEnabledId:
+                        voice_.unnaturalZone().materialMorph.setEnabled(fValue >= 0.5f);
+                        break;
+                    case kMorphStartId:
+                        voice_.unnaturalZone().materialMorph.setStart(
+                            std::clamp(fValue, 0.0f, 1.0f));
+                        break;
+                    case kMorphEndId:
+                        voice_.unnaturalZone().materialMorph.setEnd(
+                            std::clamp(fValue, 0.0f, 1.0f));
+                        break;
+                    case kMorphDurationMsId:
+                    {
+                        // [10, 2000] ms linear
+                        const float ms = 10.0f + std::clamp(fValue, 0.0f, 1.0f) * 1990.0f;
+                        voice_.unnaturalZone().materialMorph.setDurationMs(ms);
+                        break;
+                    }
+                    case kMorphCurveId:
+                        // 0 = Linear, 1 = Exponential
+                        voice_.unnaturalZone().materialMorph.setCurve(fValue >= 0.5f);
+                        break;
+
+                    // ---- Tone Shaper (Phase 7, T097) ----
+                    case kToneShaperFilterTypeId:
+                    {
+                        // 0..1 normalized -> LP/HP/BP (3 discrete values).
+                        const int typeIdx = std::clamp(static_cast<int>(fValue * 3.0f), 0, 2);
+                        voice_.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(typeIdx));
+                        break;
+                    }
                     case kToneShaperFilterCutoffId:
-                        voice_.toneShaper().setFilterCutoff(fValue);
+                    {
+                        // Log scale: 20 Hz .. 20000 Hz (3 decades).
+                        const float hz = 20.0f * std::pow(1000.0f, std::clamp(fValue, 0.0f, 1.0f));
+                        voice_.toneShaper().setFilterCutoff(hz);
+                        break;
+                    }
+                    case kToneShaperFilterResonanceId:
+                        voice_.toneShaper().setFilterResonance(fValue);
+                        break;
+                    case kToneShaperFilterEnvAmountId:
+                        // Normalized 0..1 -> -1..+1 bipolar.
+                        voice_.toneShaper().setFilterEnvAmount(fValue * 2.0f - 1.0f);
+                        break;
+                    case kToneShaperFilterEnvAttackId:
+                        // 0..500 ms
+                        voice_.toneShaper().setFilterEnvAttackMs(fValue * 500.0f);
+                        break;
+                    case kToneShaperFilterEnvDecayId:
+                        // 0..2000 ms
+                        voice_.toneShaper().setFilterEnvDecayMs(fValue * 2000.0f);
+                        break;
+                    case kToneShaperFilterEnvSustainId:
+                        voice_.toneShaper().setFilterEnvSustain(fValue);
+                        break;
+                    case kToneShaperFilterEnvReleaseId:
+                        // 0..2000 ms
+                        voice_.toneShaper().setFilterEnvReleaseMs(fValue * 2000.0f);
                         break;
                     case kToneShaperDriveAmountId:
                         voice_.toneShaper().setDriveAmount(fValue);
@@ -271,6 +344,30 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     case kToneShaperFoldAmountId:
                         voice_.toneShaper().setFoldAmount(fValue);
                         break;
+                    case kToneShaperPitchEnvStartId:
+                    {
+                        // Log scale: 20 Hz .. 2000 Hz
+                        const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
+                        voice_.toneShaper().setPitchEnvStartHz(hz);
+                        break;
+                    }
+                    case kToneShaperPitchEnvEndId:
+                    {
+                        // Log scale: 20 Hz .. 2000 Hz
+                        const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
+                        voice_.toneShaper().setPitchEnvEndHz(hz);
+                        break;
+                    }
+                    case kToneShaperPitchEnvTimeId:
+                        // 0..500 ms
+                        voice_.toneShaper().setPitchEnvTimeMs(fValue * 500.0f);
+                        break;
+                    case kToneShaperPitchEnvCurveId:
+                    {
+                        const int idx = std::clamp(static_cast<int>(fValue * 2.0f), 0, 1);
+                        voice_.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(idx));
+                        break;
+                    }
                     default:
                         break;
                     }
@@ -336,12 +433,14 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         float* outL = data.outputs[0].channelBuffers32[0];
         float* outR = data.outputs[0].channelBuffers32[1];
 
+        // T043 / FR-001 / FR-002 / research.md §1: hot path must use the
+        // block-level entry point so ExciterBank/BodyBank variant dispatch
+        // happens exactly ONCE per block, not per sample.
+        voice_.processBlock(outL, data.numSamples);
+
+        // Mirror mono output to the right channel without a second dispatch.
         for (int32 i = 0; i < data.numSamples; ++i)
-        {
-            float s = voice_.process();
-            outL[i] = s;
-            outR[i] = s;
-        }
+            outR[i] = outL[i];
 
         data.outputs[0].silenceFlags = voice_.isActive() ? 0 : 3;
     }
@@ -414,9 +513,9 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         &morphCurve_,
     };
 
-    for (int i = 0; i < kPhase2FloatSlotCount; ++i)
+    for (auto* slot : phase2Slots)
     {
-        double v = static_cast<double>(phase2Slots[i]->load());
+        double v = static_cast<double>(slot->load());
         state->write(&v, sizeof(v), nullptr);
     }
 
@@ -535,13 +634,64 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     // Sync selected Phase 2 stub setters so the next process block reflects
     // the restored normalized values.
-    voice_.unnaturalZone().setModeStretch(unnaturalModeStretch_.load());
-    voice_.unnaturalZone().setDecaySkew(unnaturalDecaySkew_.load());
-    voice_.unnaturalZone().modeInject.setAmount(unnaturalModeInjectAmount_.load());
-    voice_.unnaturalZone().nonlinearCoupling.setAmount(unnaturalNonlinearCoupling_.load());
-    voice_.toneShaper().setFilterCutoff(toneShaperFilterCutoff_.load());
-    voice_.toneShaper().setDriveAmount(toneShaperDriveAmount_.load());
-    voice_.toneShaper().setFoldAmount(toneShaperFoldAmount_.load());
+    // Denormalize per data-model.md §9 / T114:
+    //   modeStretch [0.5, 2.0] linear; decaySkew [-1, 1] linear;
+    //   morph duration [10, 2000] ms linear.
+    {
+        const float normStretch = std::clamp(unnaturalModeStretch_.load(), 0.0f, 1.0f);
+        voice_.unnaturalZone().setModeStretch(0.5f + normStretch * 1.5f);
+
+        const float normSkew = std::clamp(unnaturalDecaySkew_.load(), 0.0f, 1.0f);
+        voice_.unnaturalZone().setDecaySkew(normSkew * 2.0f - 1.0f);
+
+        voice_.unnaturalZone().modeInject.setAmount(
+            std::clamp(unnaturalModeInjectAmount_.load(), 0.0f, 1.0f));
+        voice_.unnaturalZone().nonlinearCoupling.setAmount(
+            std::clamp(unnaturalNonlinearCoupling_.load(), 0.0f, 1.0f));
+
+        voice_.unnaturalZone().materialMorph.setEnabled(morphEnabled_.load() >= 0.5f);
+        voice_.unnaturalZone().materialMorph.setStart(
+            std::clamp(morphStart_.load(), 0.0f, 1.0f));
+        voice_.unnaturalZone().materialMorph.setEnd(
+            std::clamp(morphEnd_.load(), 0.0f, 1.0f));
+        const float normDur = std::clamp(morphDurationMs_.load(), 0.0f, 1.0f);
+        voice_.unnaturalZone().materialMorph.setDurationMs(10.0f + normDur * 1990.0f);
+        voice_.unnaturalZone().materialMorph.setCurve(morphCurve_.load() >= 0.5f);
+    }
+
+    // Tone Shaper: denormalize stored normalized values and push into the voice.
+    {
+        const float normFilterType   = toneShaperFilterType_.load();
+        const int   filterTypeIdx    = std::clamp(static_cast<int>(normFilterType * 3.0f), 0, 2);
+        voice_.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
+
+        const float normCutoff = toneShaperFilterCutoff_.load();
+        const float cutoffHz   = 20.0f * std::pow(1000.0f, std::clamp(normCutoff, 0.0f, 1.0f));
+        voice_.toneShaper().setFilterCutoff(cutoffHz);
+
+        voice_.toneShaper().setFilterResonance(toneShaperFilterResonance_.load());
+        voice_.toneShaper().setFilterEnvAmount(toneShaperFilterEnvAmount_.load() * 2.0f - 1.0f);
+        voice_.toneShaper().setFilterEnvAttackMs(toneShaperFilterEnvAttack_.load() * 500.0f);
+        voice_.toneShaper().setFilterEnvDecayMs(toneShaperFilterEnvDecay_.load() * 2000.0f);
+        voice_.toneShaper().setFilterEnvSustain(toneShaperFilterEnvSustain_.load());
+        voice_.toneShaper().setFilterEnvReleaseMs(toneShaperFilterEnvRelease_.load() * 2000.0f);
+        voice_.toneShaper().setDriveAmount(toneShaperDriveAmount_.load());
+        voice_.toneShaper().setFoldAmount(toneShaperFoldAmount_.load());
+
+        const float normStart = toneShaperPitchEnvStart_.load();
+        const float startHz   = 20.0f * std::pow(100.0f, std::clamp(normStart, 0.0f, 1.0f));
+        voice_.toneShaper().setPitchEnvStartHz(startHz);
+
+        const float normEnd = toneShaperPitchEnvEnd_.load();
+        const float endHz   = 20.0f * std::pow(100.0f, std::clamp(normEnd, 0.0f, 1.0f));
+        voice_.toneShaper().setPitchEnvEndHz(endHz);
+
+        voice_.toneShaper().setPitchEnvTimeMs(toneShaperPitchEnvTime_.load() * 500.0f);
+
+        const float normCurve = toneShaperPitchEnvCurve_.load();
+        const int   curveIdx  = std::clamp(static_cast<int>(normCurve * 2.0f), 0, 1);
+        voice_.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
+    }
 
     return kResultOk;
 }
