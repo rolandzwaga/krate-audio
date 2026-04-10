@@ -1,20 +1,30 @@
 #pragma once
 
 // ==============================================================================
-// DrumVoice -- Single drum voice for Membrum Phase 1
+// DrumVoice -- Phase 2 refactored single drum voice
 // ==============================================================================
-// Signal path: ImpactExciter -> ModalResonatorBank (16 modes) -> ADSREnvelope
-// Implements FR-030 through FR-039.
+// Signal path:
+//   ExciterBank -> BodyBank -> ToneShaper -> UnnaturalZone::NonlinearCoupling
+//   -> amp envelope -> level
+//
+// Phase 2.A default configuration (Impulse + Membrane + bypassed tone shaper +
+// bypassed unnatural zone) is bit-identical to Phase 1's inline
+// ImpactExciter + ModalResonatorBank path (FR-007, FR-031, FR-095).
 // ==============================================================================
 
-#include "membrane_modes.h"
+#include "body_bank.h"
+#include "bodies/membrane_mapper.h"
+#include "exciter_bank.h"
+#include "exciter_type.h"
+#include "body_model_type.h"
+#include "tone_shaper.h"
+#include "unnatural/unnatural_zone.h"
+#include "voice_common_params.h"
 
 #include <krate/dsp/primitives/adsr_envelope.h>
-#include <krate/dsp/processors/impact_exciter.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
-#include <algorithm>
-#include <cmath>
+#include <cstdint>
 
 namespace Membrum {
 
@@ -27,20 +37,28 @@ public:
     // Lifecycle
     // ------------------------------------------------------------------
 
-    /// Prepare all sub-components for the given sample rate.
+    /// Phase 1-compatible overload (voiceId defaulted to 0).
     void prepare(double sampleRate) noexcept
     {
-        exciter_.prepare(sampleRate, 0);
-        modalBank_.prepare(sampleRate);
+        prepare(sampleRate, 0u);
+    }
+
+    void prepare(double sampleRate, std::uint32_t voiceId) noexcept
+    {
+        sampleRate_ = sampleRate;
+        voiceId_    = voiceId;
+
+        exciterBank_.prepare(sampleRate, voiceId);
+        bodyBank_.prepare(sampleRate, voiceId);
+        toneShaper_.prepare(sampleRate);
+        unnaturalZone_.prepare(sampleRate, voiceId);
+
         ampEnvelope_.prepare(static_cast<float>(sampleRate));
-
-        // FR-038: ADSR defaults for membrane drum
-        ampEnvelope_.setAttack(0.0f);   // instant attack
-        ampEnvelope_.setDecay(200.0f);  // 200ms decay
-        ampEnvelope_.setSustain(0.0f);  // no sustain
-        ampEnvelope_.setRelease(300.0f); // 300ms release
-
-        // Enable velocity scaling so amplitude follows velocity
+        // FR-038: ADSR defaults for membrane drum (Phase 1 carry-over)
+        ampEnvelope_.setAttack(0.0f);
+        ampEnvelope_.setDecay(200.0f);
+        ampEnvelope_.setSustain(0.0f);
+        ampEnvelope_.setRelease(300.0f);
         ampEnvelope_.setVelocityScaling(true);
     }
 
@@ -48,52 +66,38 @@ public:
     // Note control
     // ------------------------------------------------------------------
 
-    /// Trigger the drum voice with the given normalized velocity [0,1].
-    /// Computes all mode parameters from current cached values.
     void noteOn(float velocity) noexcept
     {
-        // (1) Compute mode frequencies from size_ (FR-033)
-        float f0 = 500.0f * std::pow(0.1f, size_);
-        float freqs[16];
-        for (int k = 0; k < 16; ++k)
-            freqs[k] = f0 * kMembraneRatios[static_cast<size_t>(k)];
+        // Push cached parameters into the common bundle.
+        params_.material   = material_;
+        params_.size       = size_;
+        params_.decay      = decay_;
+        params_.strikePos  = strikePos_;
+        params_.level      = level_;
+        params_.modeStretch = unnaturalZone_.getModeStretch();
+        params_.decaySkew   = unnaturalZone_.getDecaySkew();
 
-        // (2) Compute per-mode amplitudes from strike position (FR-035)
-        float r_over_a = strikePos_ * 0.9f;
-        float amps[16];
-        for (int k = 0; k < 16; ++k)
-        {
-            int m = kMembraneBesselOrder[static_cast<size_t>(k)];
-            float jmn = kMembraneBesselZeros[static_cast<size_t>(k)];
-            amps[k] = std::abs(evaluateBesselJ(m, jmn * r_over_a));
-        }
+        // Control-plane query (Phase 2.A stub returns the configured start Hz).
+        const float pitchHz = toneShaper_.processPitchEnvelope();
 
-        // (3) Compute material-derived parameters (FR-032, FR-033, FR-034)
-        float brightness = material_;
-        float stretch = material_ * 0.3f;
-        float baseDecayTime = lerp(0.15f, 0.8f, material_) * (1.0f + 0.1f * size_);
-        float decayTime = baseDecayTime * std::exp(lerp(std::log(0.3f), std::log(3.0f), decay_));
+        // Configure the body for this note (applies deferred body-model swap).
+        bodyBank_.configureForNoteOn(params_, pitchHz);
 
-        // (4) Set modes on modal bank (clears filter state for new note)
-        modalBank_.setModes(freqs, amps, 16, decayTime, brightness, stretch, 0.0f);
+        // Tone shaper + unnatural zone lifecycle hooks.
+        toneShaper_.noteOn(velocity);
 
-        // (5) Compute exciter parameters from velocity (FR-037)
-        float hardness = lerp(0.3f, 0.8f, velocity);
-        float excBrightness = lerp(0.15f, 0.4f, velocity);
+        // Trigger exciter (applies deferred exciter-type swap).
+        exciterBank_.trigger(velocity);
 
-        // (6) Trigger exciter: mass=0.3, position=0, f0=0 (comb disabled Phase 1)
-        exciter_.trigger(velocity, hardness, 0.3f, excBrightness, 0.0f, 0.0f);
-
-        // (7) Set velocity and gate on envelope
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
-
         active_ = true;
     }
 
-    /// Release the voice (trigger ADSR release phase, no abrupt cut).
     void noteOff() noexcept
     {
+        exciterBank_.release();
+        toneShaper_.noteOff();
         ampEnvelope_.gate(false);
     }
 
@@ -101,31 +105,31 @@ public:
     // Processing
     // ------------------------------------------------------------------
 
-    /// Process one sample. Returns mono output.
     [[nodiscard]] float process() noexcept
     {
-        // Early-out for silent voice (FR-039)
         if (!ampEnvelope_.isActive())
         {
             active_ = false;
             return 0.0f;
         }
 
-        float exc = exciter_.process(0.0f);
-        float body = modalBank_.processSample(exc);
-        float env = ampEnvelope_.process();
-
-        return body * env * level_;
+        // Exciter takes the body's last output as feedback (only FeedbackExciter
+        // uses it; all other backends ignore it).
+        const float exc  = exciterBank_.process(bodyBank_.getLastOutput());
+        const float body = bodyBank_.processSample(exc);
+        const float shaped = toneShaper_.processSample(body);
+        const float coupled = unnaturalZone_.nonlinearCoupling.processSample(shaped);
+        const float env  = ampEnvelope_.process();
+        return coupled * env * level_;
     }
 
-    /// Returns true if the voice is producing output.
     [[nodiscard]] bool isActive() const noexcept
     {
         return ampEnvelope_.isActive();
     }
 
     // ------------------------------------------------------------------
-    // Parameter setters (cache + live update)
+    // Phase 1 parameter setters (unchanged API; FR-007)
     // ------------------------------------------------------------------
 
     void setMaterial(float v) noexcept
@@ -156,58 +160,77 @@ public:
             updateModalParameters();
     }
 
-    void setLevel(float v) noexcept
+    void setLevel(float v) noexcept { level_ = v; }
+
+    // ------------------------------------------------------------------
+    // Phase 2 setters
+    // ------------------------------------------------------------------
+
+    void setExciterType(ExciterType type) noexcept
     {
-        level_ = v;
+        exciterBank_.setExciterType(type);
     }
+
+    void setBodyModel(BodyModelType type) noexcept
+    {
+        bodyBank_.setBodyModel(type);
+    }
+
+    [[nodiscard]] ToneShaper& toneShaper() noexcept { return toneShaper_; }
+    [[nodiscard]] UnnaturalZone& unnaturalZone() noexcept { return unnaturalZone_; }
+
+    // Exposed for testing and state helpers
+    [[nodiscard]] const ExciterBank& exciterBank() const noexcept { return exciterBank_; }
+    [[nodiscard]] const BodyBank& bodyBank() const noexcept { return bodyBank_; }
 
 private:
-    /// Linear interpolation helper.
-    static float lerp(float a, float b, float t) noexcept
-    {
-        return a + (b - a) * t;
-    }
-
-    /// Recompute and update modal bank parameters without clearing filter state.
-    /// Uses updateModes() to preserve resonator state mid-note.
+    /// Recompute body mapping without clearing filter state (Phase 1 behavior).
+    ///
+    /// Only the Membrane body supports mid-note parameter updates in Phase 2.A.
+    /// All other body types are stubs that do not produce audio, so their
+    /// "live update" path reduces to a no-op.
     void updateModalParameters() noexcept
     {
-        float f0 = 500.0f * std::pow(0.1f, size_);
-        float freqs[16];
-        for (int k = 0; k < 16; ++k)
-            freqs[k] = f0 * kMembraneRatios[static_cast<size_t>(k)];
+        if (bodyBank_.getCurrentType() != BodyModelType::Membrane)
+            return;
 
-        float r_over_a = strikePos_ * 0.9f;
-        float amps[16];
-        for (int k = 0; k < 16; ++k)
-        {
-            int m = kMembraneBesselOrder[static_cast<size_t>(k)];
-            float jmn = kMembraneBesselZeros[static_cast<size_t>(k)];
-            amps[k] = std::abs(evaluateBesselJ(m, jmn * r_over_a));
-        }
+        VoiceCommonParams p{};
+        p.material   = material_;
+        p.size       = size_;
+        p.decay      = decay_;
+        p.strikePos  = strikePos_;
+        p.level      = level_;
+        p.modeStretch = unnaturalZone_.getModeStretch();
+        p.decaySkew   = unnaturalZone_.getDecaySkew();
 
-        float brightness = material_;
-        float stretch = material_ * 0.3f;
-        float baseDecayTime = lerp(0.15f, 0.8f, material_) * (1.0f + 0.1f * size_);
-        float decayTime = baseDecayTime * std::exp(lerp(std::log(0.3f), std::log(3.0f), decay_));
-
-        // updateModes preserves filter state (no reset)
-        modalBank_.updateModes(freqs, amps, 16, decayTime, brightness, stretch, 0.0f);
+        const auto r = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
+        bodyBank_.getSharedBank().updateModes(
+            r.frequencies, r.amplitudes, r.numPartials,
+            r.decayTime, r.brightness, r.stretch, r.scatter);
     }
 
     // Sub-components
-    Krate::DSP::ImpactExciter exciter_;
-    Krate::DSP::ModalResonatorBank modalBank_;
-    Krate::DSP::ADSREnvelope ampEnvelope_;
+    ExciterBank                exciterBank_;
+    BodyBank                   bodyBank_;
+    ToneShaper                 toneShaper_;
+    UnnaturalZone              unnaturalZone_;
+    Krate::DSP::ADSREnvelope   ampEnvelope_;
 
-    // Cached parameters (normalized 0-1)
-    float material_ = 0.5f;
-    float size_ = 0.5f;
-    float decay_ = 0.3f;
+    // Reusable parameter bundle (populated on every noteOn to avoid alloc).
+    VoiceCommonParams params_{};
+
+    // Cached Phase 1 parameters (normalized 0-1)
+    float material_  = 0.5f;
+    float size_      = 0.5f;
+    float decay_     = 0.3f;
     float strikePos_ = 0.3f;
-    float level_ = 0.8f;
+    float level_     = 0.8f;
 
-    // Voice state
+    // Voice identity
+    std::uint32_t voiceId_    = 0;
+    double        sampleRate_ = 0.0;
+
+    // State
     bool active_ = false;
 };
 

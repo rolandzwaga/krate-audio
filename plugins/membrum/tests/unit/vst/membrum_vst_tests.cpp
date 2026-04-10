@@ -53,14 +53,15 @@ static std::string tcharToString(const TChar* str)
 // Parameter Registration (FR-020)
 // =============================================================================
 
-TEST_CASE("Membrum Controller registers exactly 5 parameters",
+TEST_CASE("Membrum Controller registers all Phase 2 parameters",
           "[membrum][vst][params]")
 {
     Membrum::Controller controller;
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
+    // Phase 2: 5 Phase-1 params + 2 selectors + 27 Phase-2 continuous = 34.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 5);
+    CHECK(paramCount == 34);
 
     REQUIRE(controller.terminate() == kResultOk);
 }
