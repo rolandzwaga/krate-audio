@@ -46,6 +46,11 @@ struct ImpulseExciter
 
     [[nodiscard]] float process(float /*bodyFeedback*/) noexcept
     {
+        // FR-010 bit-identical-to-Phase-1: do NOT clamp here. Phase 1 ran the
+        // raw ImpactExciter output straight into ModalResonatorBank, which
+        // attenuates the transient. Clamping here would break the Phase 1
+        // regression golden. The contract's ≤0 dBFS peak is enforced at the
+        // voice level after the body + amp envelope stages.
         return core_.process(0.0f);
     }
 
