@@ -580,11 +580,69 @@ int VoicePool::applyFastRelease(int slot,
     return liveCount;
 }
 
-void VoicePool::processChokeGroups(std::uint8_t /*newNote*/) noexcept
+void VoicePool::processChokeGroups(std::uint8_t newNote) noexcept
 {
-    // Phase 3.1 scaffolding stub -- Phase 3.3 fills in the choke-iteration
-    // body. Leaving this empty is safe in Phase 3.1: tests exercising choke
-    // behaviour land in Phase 3.3.
+    // FR-132 / FR-133 / FR-134 / FR-135 / FR-136 / FR-137 / FR-138:
+    // On every note-on, before the allocator selects a slot, we iterate the
+    // pool and fast-release every voice that shares the new note's choke
+    // group. Group 0 means "no choke" and we early-out without iterating
+    // (FR-136 -- zero pool iteration overhead for the default case).
+    //
+    // Both arrays must be scanned:
+    //   - `meta_`          : Active main voices -- these are the normal
+    //                        targets; beginFastRelease swaps them into the
+    //                        shadow array and starts the 5 ms ramp.
+    //   - `releasingMeta_` : Voices already fast-releasing from a prior
+    //                        steal or choke. If their choke group matches
+    //                        we leave them alone -- beginFastRelease is
+    //                        idempotent (FR-127) and the shadow slot is
+    //                        already terminating. Iterating them is the
+    //                        spec's "active + releasing" language for
+    //                        FR-133 completeness but in practice
+    //                        `beginFastRelease` short-circuits on
+    //                        FastReleasing. We still test the condition so
+    //                        the intent is explicit.
+    //
+    // The newly-triggered voice is NOT yet in `meta_[]` at this point
+    // (allocator.noteOn runs AFTER this call in VoicePool::noteOn), so it
+    // cannot accidentally self-choke.
+    const std::uint8_t group = chokeGroups_.lookup(newNote);
+    if (group == 0U)
+        return;  // FR-136 early-out
+
+    for (int slot = 0; slot < kMaxVoices; ++slot)
+    {
+        // FR-133: check active main voices first.
+        if (meta_[slot].state == VoiceSlotState::Active &&
+            meta_[slot].originatingChoke == group)
+        {
+            // FR-134: reuse the Phase 3.2 fast-release path for click-free
+            // group-wide mute. beginFastRelease swaps the main voice into
+            // the shadow slot and starts the 5 ms ramp.
+            beginFastRelease(slot);
+            // FR-133: mark the main slot Free so subsequent allocator
+            // bookkeeping sees it as available. We also release the
+            // allocator's view by issuing a noteOff + voiceFinished pair
+            // on the originating note -- otherwise the allocator would
+            // still believe the slot is Active and would issue a Steal
+            // event on a later note-on, causing a double-fade.
+            const std::uint8_t victimNote = meta_[slot].originatingNote;
+            meta_[slot].state = VoiceSlotState::Free;
+            (void)allocator_.noteOff(victimNote);
+            allocator_.voiceFinished(static_cast<std::size_t>(slot));
+            continue;
+        }
+
+        // FR-133 completeness: match voices that are already fast-releasing
+        // but share the choke group. beginFastRelease is idempotent
+        // (FR-127) so this is a no-op for slots already terminating, but
+        // we preserve the pattern per the spec.
+        if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing &&
+            releasingMeta_[slot].originatingChoke == group)
+        {
+            beginFastRelease(slot);
+        }
+    }
 }
 
 } // namespace Membrum
