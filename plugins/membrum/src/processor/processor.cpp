@@ -7,6 +7,7 @@
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "dsp/tone_shaper.h"
+#include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
 
 #include "pluginterfaces/base/ibstream.h"
@@ -573,6 +574,32 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         state->write(&v, sizeof(v), nullptr);
     }
 
+    // ------------------------------------------------------------------
+    // Phase 3 tail (FR-141, Clarification Q1): written unconditionally on
+    // every save -- no length prefix, no feature flag, strictly additive.
+    //   offset 268: uint8  maxPolyphony          [4, 16]
+    //   offset 269: uint8  voiceStealingPolicy   [0, 2]
+    //   offset 270: uint8  chokeGroupAssignments[32]
+    //   offset 302: END
+    // ------------------------------------------------------------------
+    {
+        std::uint8_t maxPolyByte =
+            static_cast<std::uint8_t>(std::clamp(maxPolyphony_.load(), 4, 16));
+        state->write(&maxPolyByte, sizeof(maxPolyByte), nullptr);
+
+        const int policyInt = voiceStealingPolicy_.load();
+        std::uint8_t policyByte =
+            static_cast<std::uint8_t>((policyInt < 0 || policyInt > 2) ? 0 : policyInt);
+        state->write(&policyByte, sizeof(policyByte), nullptr);
+
+        const auto chokes = voicePool_.getChokeGroupAssignments();
+        for (std::size_t i = 0; i < chokes.size(); ++i)
+        {
+            std::uint8_t b = chokes[i];
+            state->write(&b, sizeof(b), nullptr);
+        }
+    }
+
     return kResultOk;
 }
 
@@ -583,6 +610,11 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     int32 version = 0;
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
+        return kResultFalse;
+
+    // FR-141 / Q1: we know about v1, v2, v3. A future v4+ blob MUST be
+    // rejected so we do not silently drop unknown fields.
+    if (version > kCurrentStateVersion)
         return kResultFalse;
 
     // ---- Phase 1 params ----
@@ -762,6 +794,61 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         const int   curveIdx  = std::clamp(static_cast<int>(normCurve * 2.0f), 0, 1);
         v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
     });
+
+    // ------------------------------------------------------------------
+    // Phase 3 tail (FR-140, FR-141, FR-142, FR-143, FR-144)
+    //
+    //   v1 or v2 input: apply Phase 3 defaults -- maxPoly=8, policy=Oldest,
+    //                   all choke assignments = 0.
+    //   v3 input      : read the 34-byte tail, clamping every field to its
+    //                   valid range (corrupt values are clamped, NEVER
+    //                   rejected -- preserves user projects).
+    // ------------------------------------------------------------------
+    int          loadedMaxPoly = 8;  // FR-142 / FR-143 default
+    int          loadedPolicy  = 0;  // Oldest
+    std::array<std::uint8_t, ChokeGroupTable::kSize> loadedChokes{};  // all 0
+
+    if (version >= 3)
+    {
+        // FR-141: read exactly 34 bytes in the documented order.
+        std::uint8_t rawMaxPoly = 8;
+        std::uint8_t rawPolicy  = 0;
+        if (state->read(&rawMaxPoly, sizeof(rawMaxPoly), nullptr) != kResultOk)
+            rawMaxPoly = 8;
+        if (state->read(&rawPolicy, sizeof(rawPolicy), nullptr) != kResultOk)
+            rawPolicy = 0;
+
+        // FR-144: clamp-on-load. maxPoly into [4, 16]; anything outside
+        // snaps to the nearest valid endpoint.
+        loadedMaxPoly = std::clamp(static_cast<int>(rawMaxPoly), 4, 16);
+
+        // FR-144: policy > 2 -> 0 (Oldest).
+        loadedPolicy = (static_cast<int>(rawPolicy) > 2)
+                           ? 0
+                           : static_cast<int>(rawPolicy);
+
+        // FR-141 / FR-144: 32 choke assignment bytes; per-byte clamp.
+        for (std::size_t i = 0; i < loadedChokes.size(); ++i)
+        {
+            std::uint8_t b = 0;
+            if (state->read(&b, sizeof(b), nullptr) != kResultOk)
+                b = 0;
+            loadedChokes[i] = (b > 8U) ? std::uint8_t{0} : b;
+        }
+    }
+    // else: v1 or v2 -- apply Phase 3 documented defaults as initialized
+    // above. No additional parsing (v1/v2 blobs have no Phase 3 tail).
+
+    maxPolyphony_.store(loadedMaxPoly);
+    voiceStealingPolicy_.store(loadedPolicy);
+    // Note: chokeGroup_ (the "current" kChokeGroupId parameter value) is NOT
+    // part of the persisted state. The per-pad table held by VoicePool is
+    // the single source of truth for choke assignments; the parameter itself
+    // is re-applied by the host when it re-sends parameter changes.
+
+    voicePool_.setMaxPolyphony(loadedMaxPoly);
+    voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(loadedPolicy));
+    voicePool_.loadChokeGroupAssignments(loadedChokes);
 
     return kResultOk;
 }
