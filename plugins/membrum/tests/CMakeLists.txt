@@ -10,6 +10,13 @@ add_executable(membrum_tests
     unit/vst/test_membrum_parameters_v2.cpp
     unit/vst/test_state_roundtrip_v2.cpp
 
+    # Phase 3: VST3 parameter + state tests (scaffolded Phase 3.0)
+    unit/vst/test_phase3_params.cpp
+    unit/vst/test_state_roundtrip_v3.cpp
+    unit/vst/test_state_migration_v2_to_v3.cpp
+    unit/vst/test_state_migration_v1_to_v3.cpp
+    unit/vst/test_state_corruption_clamp.cpp
+
     # Processor tests
     unit/processor/membrum_processor_tests.cpp
 
@@ -58,9 +65,29 @@ add_executable(membrum_tests
     perf/test_benchmark_144.cpp
     perf/test_noise_body_cpu.cpp
 
+    # Phase 3: voice pool unit tests (scaffolded Phase 3.0)
+    unit/voice_pool/test_voice_pool_scaffold.cpp
+    unit/voice_pool/test_voice_pool_allocate.cpp
+    unit/voice_pool/test_voice_pool_stealing_policies.cpp
+    unit/voice_pool/test_voice_pool_allocation_free.cpp
+    unit/voice_pool/test_steal_click_free.cpp
+    unit/voice_pool/test_fast_release_denormals.cpp
+    unit/voice_pool/test_fast_release_double_steal.cpp
+    unit/voice_pool/test_choke_group.cpp
+    unit/voice_pool/test_choke_click_free.cpp
+    unit/voice_pool/test_choke_allocation_free.cpp
+    unit/voice_pool/test_polyphony_allocation_matrix.cpp
+    unit/voice_pool/test_phase2_regression_maxpoly1.cpp
+    unit/voice_pool/test_poly_change_live.cpp
+
+    # Phase 3: CPU benchmarks / 16-voice stress (tagged [.perf], scaffolded)
+    perf/test_polyphony_benchmark.cpp
+    perf/test_polyphony_stress_16.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
     # SDK hosting helpers (HostMessage, HostAttributeList) for IMessage tests

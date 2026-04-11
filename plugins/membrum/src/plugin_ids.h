@@ -23,9 +23,9 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 static constexpr auto kSubCategories = "Instrument|Drum";
 
 // State version for serialization.
-// Phase 1 = 1, Phase 2 = 2. Loader accepts version 1 blobs and fills Phase 2
-// parameters with defaults (FR-082).
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3. Loader accepts version 1 and 2 blobs
+// and fills later-phase parameters with defaults (FR-082, FR-142, FR-143).
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 // ==============================================================================
 // Parameter IDs
@@ -33,6 +33,7 @@ constexpr Steinberg::int32 kCurrentStateVersion = 2;
 // Phase 1 parameter range: 100-199 (integer values 100-104 are FROZEN)
 // Phase 2 parameter range: 200-249 (Exciter/Body selectors, Tone Shaper,
 //                                   Unnatural Zone, Material Morph)
+// Phase 3 parameter range: 250-259 (Polyphony, Voice Stealing, Choke Groups)
 // ==============================================================================
 
 enum ParameterIds : Steinberg::Vst::ParamID
@@ -84,6 +85,13 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kMorphEndId                   = 242,  // 0..1, default 0
     kMorphDurationMsId            = 243,  // 10..2000 ms, default 200
     kMorphCurveId                 = 244,  // StringListParameter: Lin/Exp
+
+    // ====== Phase 3 ======
+
+    // 250-259: Polyphony / Voice Stealing / Choke Groups
+    kMaxPolyphonyId               = 250,  // RangeParameter stepped [4,16], default 8
+    kVoiceStealingId              = 251,  // StringListParameter {Oldest,Quietest,Priority}
+    kChokeGroupId                 = 252,  // RangeParameter stepped [0,8], default 0
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -92,5 +100,13 @@ static_assert(kLevelId < kExciterTypeId,
               "Phase 1 and Phase 2 parameter ID ranges must not overlap");
 static_assert(kCurrentStateVersion >= 2,
               "Phase 2 requires state version >= 2");
+
+// Phase 3 collision guards (FR-151). kMorphCurveId (244) is the last Phase 2
+// ID; kMaxPolyphonyId (250) opens the Phase 3 range. The gap 245..249 is
+// reserved for Phase 2 follow-ups.
+static_assert(kMorphCurveId < kMaxPolyphonyId,
+              "Phase 2 and Phase 3 parameter ID ranges must not overlap");
+static_assert(kCurrentStateVersion == 3,
+              "Phase 3 requires state version 3");
 
 } // namespace Membrum
