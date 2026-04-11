@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 namespace Membrum {
 
@@ -263,16 +264,36 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
         }
     }
 
-    // Phase 3.1: shadow slots are NOT rendered. beginFastRelease set the
-    // FastReleasing state for bookkeeping only; here we terminate each
-    // releasing slot immediately (accepting the click on steal -- Phase 3.2
-    // replaces this with the 5 ms exponential tail).
+    // T3.2.6 / FR-124 / Q5: render every fast-releasing shadow voice, apply
+    // the per-sample exponential decay to the scratch buffer, then
+    // accumulate only the live (pre-floor) samples into the output per
+    // FR-124's "does NOT accumulate those zeroed samples into the output"
+    // clause.
     for (int slot = 0; slot < kMaxVoices; ++slot)
     {
-        if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing)
+        if (releasingMeta_[slot].state != VoiceSlotState::FastReleasing)
+            continue;
+
+        // Render the shadow copy of the drum voice into scratchL_.
+        VP_RVOICES[slot].processBlock(scratch, numSamples);
+
+        // Apply the exponential fast-release ramp. Returns the count of
+        // samples before the 1e-6 floor triggered (numSamples if the fade
+        // continues into the next block).
+        const int liveCount = applyFastRelease(slot, scratch, numSamples);
+
+        for (int i = 0; i < liveCount; ++i)
         {
-            releasingMeta_[slot].state = VoiceSlotState::Free;
+            outL[i] += scratch[i];
+            outR[i] += scratch[i];
         }
+
+        // When the slot has transitioned back to Free (floor triggered),
+        // the main-slot allocator bookkeeping was already cleared by
+        // `noteOn`'s Steal event handler. The shadow slot does not need
+        // its own voiceFinished() call because the main slot was
+        // already released from the allocator's perspective at the
+        // moment of the steal.
     }
 
     sampleCounter_ += static_cast<std::uint64_t>(numSamples);
@@ -448,49 +469,109 @@ void VoicePool::beginFastRelease(int slot) noexcept
         return;
 
     // FR-127: idempotent. If the shadow slot is already fast-releasing,
-    // leave the in-flight fade alone.
+    // leave the in-flight fade alone so a double-steal does NOT re-snapshot
+    // the gain.
     if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing)
         return;
 
-    // Phase 3.1 stub: mark the shadow-slot bookkeeping so Phase 3.1 tests
-    // can observe the FastReleasing transition (FR-111 / SC-031). We do NOT
-    // copy voices_[slot] into releasingVoices_[slot] here because DrumVoice
-    // is not std::is_trivially_copyable -- a bitwise copy would be UB.
-    // Phase 3.2 replaces this with a real crossfade snapshot and enables
-    // the audible fast-release tail.
-    releasingMeta_[slot].fastReleaseGain   = kFastReleaseFloor;
+    // FR-124 / Q5 / T3.2.4: snapshot the currently-sounding DrumVoice into
+    // the shadow slot. DrumVoice's implicit COPY assignment is DELETED by
+    // the compiler (one of the exciter variant alternatives,
+    // FrictionExciter -> Krate::DSP::BowExciter, explicitly deletes its
+    // copy operators). DrumVoice's MOVE assignment is however defaulted
+    // and functional -- BowExciter declares `= default` move ops and
+    // std::variant of move-only alternatives is itself move-assignable.
+    // We therefore snapshot via `std::swap`, which is implemented in
+    // terms of move-assignment. After the swap:
+    //   - releasingVoices_[slot] now holds the currently-sounding voice
+    //     state (the "live" voice that must fade out).
+    //   - voices_[slot] holds the previous contents of
+    //     releasingVoices_[slot] -- either a freshly-prepared idle
+    //     DrumVoice (first steal on that slot) or a naturally-ended
+    //     fast-releasing voice from a prior fade (both of which are
+    //     valid DSP states ready to receive a new noteOn).
+    // The subsequent allocator NoteOn path calls
+    // `applySharedParamsToSlot(slot)` + `voices_[slot].noteOn(v)` which
+    // fully re-initializes the envelope and re-triggers the exciter, so
+    // any residual state in voices_[slot] after the swap is overwritten
+    // cleanly. We must call noteOff() on the re-acquired voice first to
+    // gate the envelope off and release the exciter, otherwise a lingering
+    // amp-envelope from a prior fade could add a tiny transient to the new
+    // note's attack.
+    static_assert(std::is_move_assignable_v<DrumVoice>,
+                  "DrumVoice must be move-assignable for the shadow swap "
+                  "technique (Phase 3.2 fast-release).");
+    std::swap(VP_RVOICES[slot], VP_VOICES[slot]);
+    // The re-acquired main voice receives a fresh noteOn from the
+    // subsequent allocator NoteOn event, which fully re-initializes
+    // the envelope and re-triggers the exciter. We do NOT call
+    // noteOff() on it here: that would add unnecessary DSP state
+    // churn (small but non-zero) and could introduce bit-level
+    // differences versus a freshly-prepared DrumVoice.
+
+    // Starting gain is UNITY. The shadow slot's DrumVoice already produces
+    // the voice's absolute amplitude via its own envelopes and filters;
+    // the fast-release ramp is a multiplicative decay applied on top of
+    // that, starting from 1.0 so the transition is perfectly continuous
+    // at the steal sample (FR-124: "applied starting from the voice's
+    // current amplitude at the moment of steal" -- the voice's amplitude
+    // IS the shadow's native output, which starts at unity gain).
+    releasingMeta_[slot].fastReleaseGain   = 1.0f;
     releasingMeta_[slot].originatingNote   = meta_[slot].originatingNote;
     releasingMeta_[slot].originatingChoke  = meta_[slot].originatingChoke;
     releasingMeta_[slot].noteOnSampleCount = meta_[slot].noteOnSampleCount;
     releasingMeta_[slot].currentLevel      = 0.0f;
     releasingMeta_[slot].state             = VoiceSlotState::FastReleasing;
 
-    // Hard-stop the main voice. Phase 3.1 still accepts audible clicks at
-    // steal time, but the envelope must release so a later retrigger on
-    // this slot starts from a clean envelope state. DrumVoice::noteOff()
-    // gates the amp envelope off and releases the exciter; it does NOT
-    // allocate.
-    VP_VOICES[slot].noteOff();
+    // NOTE: We deliberately do NOT call VP_VOICES[slot].noteOff() here.
+    // The main slot is about to be overwritten by the new note's
+    // `applySharedParamsToSlot` + `noteOn(velocity)` call, which will reset
+    // the amp envelope and exciter cleanly. Calling noteOff first would
+    // waste a few instructions and could affect envelope timing on the
+    // new note's attack. The shadow copy retains its own independent state
+    // because we duplicated the DrumVoice above.
 }
 
-void VoicePool::applyFastRelease(int slot,
-                                 float* scratch,
-                                 int numSamples) noexcept
+int VoicePool::applyFastRelease(int slot,
+                                float* scratch,
+                                int numSamples) noexcept
 {
-    if (slot < 0 || slot >= kMaxVoices || scratch == nullptr)
-        return;
+    if (slot < 0 || slot >= kMaxVoices || scratch == nullptr || numSamples <= 0)
+        return 0;
 
-    // Phase 3.1 stub: apply a constant gain equal to the snapshotted
-    // fastReleaseGain for one block, then immediately transition the slot
-    // back to Free. Phase 3.2 replaces this with the full 5 ms exponential
-    // decay + 1e-6 denormal floor (FR-124, FR-164).
-    const float gain = releasingMeta_[slot].fastReleaseGain;
+    // FR-124 / FR-125 / FR-164 / Q2 / Q5 / T3.2.5: per-sample exponential
+    // decay. The 5 ms time constant is encoded in `fastReleaseK_`, computed
+    // once during `prepare()` as exp(-1 / (0.005 * sampleRate)).
+    //
+    // The mandatory 1e-6 denormal floor is UNCONDITIONAL regardless of
+    // FTZ/DAZ: when the running gain drops below `kFastReleaseFloor`, we
+    // zero the remainder of the scratch buffer in-place, mark the slot
+    // Free, return the count of pre-floor ("live") samples, and the
+    // caller (`VoicePool::processBlock`) accumulates only those samples
+    // into the output per FR-124's "does NOT accumulate those zeroed
+    // samples into the output" clause.
+    float gain = releasingMeta_[slot].fastReleaseGain;
+    const float k = fastReleaseK_;
+
+    int liveCount = numSamples;
     for (int i = 0; i < numSamples; ++i)
+    {
         scratch[i] *= gain;
+        gain *= k;
+        if (gain < kFastReleaseFloor)
+        {
+            gain = 0.0f;
+            // Zero the remainder of the scratch buffer.
+            for (int j = i + 1; j < numSamples; ++j)
+                scratch[j] = 0.0f;
+            releasingMeta_[slot].state = VoiceSlotState::Free;
+            liveCount = i + 1;
+            break;
+        }
+    }
 
-    // Immediate termination — Phase 3.1 accepts clicks on steal (the tests
-    // that validate click-free steals live in Phase 3.2).
-    releasingMeta_[slot].state = VoiceSlotState::Free;
+    releasingMeta_[slot].fastReleaseGain = gain;
+    return liveCount;
 }
 
 void VoicePool::processChokeGroups(std::uint8_t /*newNote*/) noexcept

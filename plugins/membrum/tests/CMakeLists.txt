@@ -139,5 +139,19 @@ endif()
 # (isNaNBits/isInfBits via memcpy + integer comparison), NOT std::isnan/std::isfinite.
 # Therefore, -fno-fast-math is NOT needed for this test file.
 
+# Phase 3.2 (T3.2.2): test_fast_release_denormals.cpp classifies denormals via
+# IEEE-754 exponent bits (memcpy + mask), but tasks.md §NaN Detection Pattern
+# mandates that any test reasoning about non-finite or denormal floats be
+# compiled with -fno-fast-math so downstream optimisers cannot elide the
+# checks. This is a no-op on MSVC (which does not enable -ffast-math by
+# default) but required for Clang/GCC.
+if(NOT MSVC)
+    set_source_files_properties(
+        unit/voice_pool/test_fast_release_denormals.cpp
+        PROPERTIES
+            COMPILE_OPTIONS "-fno-fast-math"
+    )
+endif()
+
 # CTest Integration
 catch_discover_tests(membrum_tests REPORTER console)

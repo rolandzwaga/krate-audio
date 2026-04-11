@@ -224,9 +224,18 @@ private:
     void beginFastRelease(int slot) noexcept;
 
     /// Phase 3.2 hook — per-sample exponential decay applied to `scratch`
-    /// with `releasingMeta_[slot].fastReleaseGain`. Phase 3.1 stub applies a
-    /// constant unity gain.
-    void applyFastRelease(int slot, float* scratch, int numSamples) noexcept;
+    /// with `releasingMeta_[slot].fastReleaseGain`. Returns the number of
+    /// "live" samples written (i.e. samples where the gain was >= the
+    /// denormal floor before multiplication). Samples past the termination
+    /// point are zeroed in-place and MUST NOT be accumulated into the
+    /// caller's output per FR-124's explicit clause. When the slot is
+    /// still fast-releasing after processing, the return value is always
+    /// `numSamples`; when the floor triggered partway through, the return
+    /// value is the pre-floor sample count and the slot transitions to
+    /// `Free`.
+    [[nodiscard]] int applyFastRelease(int slot,
+                                       float* scratch,
+                                       int numSamples) noexcept;
 
     /// Phase 3.3 hook — iterates active + releasing slots on note-on and
     /// fast-releases any voice sharing the choke group of `newNote`. Phase
