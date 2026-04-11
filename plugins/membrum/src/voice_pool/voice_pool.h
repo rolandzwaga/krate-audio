@@ -67,7 +67,14 @@ namespace Membrum {
 
 constexpr int   kMaxVoices         = 16;      // FR-110
 constexpr int   kVoicePoolMaxBlock = 8192;    // FR-117 scratch buffer max block size
-constexpr float kFastReleaseSecs   = 0.005f;  // FR-124 exponential 5 ms tau
+// FR-124 (Option B): kFastReleaseSecs is the TOTAL wall-clock decay time to
+// the 1e-6 denormal floor, NOT the time constant τ. The per-sample decay
+// coefficient is `k = exp(-kFastReleaseLnFloor / (kFastReleaseSecs * sr))`
+// which reaches 1e-6 after exactly `kFastReleaseSecs` seconds. The resulting
+// time constant is τ ≈ kFastReleaseSecs / ln(1e6) ≈ 362 μs, guaranteeing
+// click-free voice steal within 5 ms wall-clock regardless of sample rate.
+constexpr float kFastReleaseSecs   = 0.005f;  // FR-124 total wall-clock decay to 1e-6 floor
+constexpr float kFastReleaseLnFloor = 13.8155106f;  // ln(1e6), used in k computation
 constexpr float kFastReleaseFloor  = 1e-6f;   // FR-164 denormal guard
 
 class VoicePool

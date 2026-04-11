@@ -128,17 +128,20 @@ TEST_CASE("VoicePool fast-release: no non-finite or denormal samples (FTZ/DAZ ON
 {
     enableFTZDAZ();
 
-    // FR-124: `k = exp(-1/(0.005*sr))` with 1e-6 floor reaches termination
-    // after ~ln(1e6)*tau = ~69 ms. Use 100 ms as a generous bound.
+    // FR-124 (Option B): `k = exp(-ln(1e6) / (kFastReleaseSecs * sr))` with
+    // kFastReleaseSecs = 0.005 reaches the 1e-6 floor in exactly 5 ms ± 1
+    // sample regardless of sample rate. Use 6 ms (`ceil(0.006 * sr)`) as a
+    // tight bound that still tolerates the +1 ms slack in FR-124.
     const double rates[] = {22050.0, 44100.0, 48000.0, 96000.0, 192000.0};
     for (double sr : rates)
     {
-        const int bound = static_cast<int>(std::ceil(0.100 * sr));
+        const int bound = static_cast<int>(std::ceil(0.006 * sr));
         const int maxBlocks = std::max(16, bound / kBlockSize + 4);
         const Outcome r = driveFastRelease(sr, maxBlocks);
 
         INFO("FTZ/DAZ=on sr=" << sr
-             << " terminationSamples=" << r.terminationSamples);
+             << " terminationSamples=" << r.terminationSamples
+             << " bound=" << bound);
 
         REQUIRE_FALSE(r.anyNonFinite);
         REQUIRE_FALSE(r.anyDenormal);
@@ -157,12 +160,13 @@ TEST_CASE("VoicePool fast-release: software 1e-6 floor prevents denormals with F
     const double rates[] = {22050.0, 44100.0, 48000.0, 96000.0, 192000.0};
     for (double sr : rates)
     {
-        const int bound = static_cast<int>(std::ceil(0.100 * sr));
+        const int bound = static_cast<int>(std::ceil(0.006 * sr));
         const int maxBlocks = std::max(16, bound / kBlockSize + 4);
         const Outcome r = driveFastRelease(sr, maxBlocks);
 
         INFO("FTZ/DAZ=off sr=" << sr
-             << " terminationSamples=" << r.terminationSamples);
+             << " terminationSamples=" << r.terminationSamples
+             << " bound=" << bound);
 
         REQUIRE_FALSE(r.anyNonFinite);
         REQUIRE_FALSE(r.anyDenormal);

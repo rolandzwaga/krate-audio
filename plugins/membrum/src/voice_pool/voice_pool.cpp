@@ -63,9 +63,15 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     scratchL_ = std::make_unique<float[]>(static_cast<std::size_t>(maxBlockSize_));
     scratchR_ = std::make_unique<float[]>(static_cast<std::size_t>(maxBlockSize_));
 
-    // FR-124/FR-125: 5 ms exponential decay coefficient.
+    // FR-124 (Option B) / FR-125: per-sample decay coefficient. `kFastReleaseSecs`
+    // is the total wall-clock decay time to the 1e-6 denormal floor (NOT τ). For
+    // `gain(t) = exp(-t/τ)` to hit 1e-6 at t = kFastReleaseSecs, we need
+    // τ = kFastReleaseSecs / ln(1e6), and the per-sample coefficient becomes
+    //     k = exp(-1 / (τ * sr)) = exp(-ln(1e6) / (kFastReleaseSecs * sr)).
+    // This gives τ ≈ 362 μs and reaches the floor in exactly 5 ms ± 1 sample at
+    // any supported sample rate.
     fastReleaseK_ =
-        std::exp(-1.0f / (kFastReleaseSecs * static_cast<float>(sampleRate_)));
+        std::exp(-kFastReleaseLnFloor / (kFastReleaseSecs * static_cast<float>(sampleRate_)));
 
     // Prepare every main + shadow voice with a unique voiceId so per-voice
     // PRNGs (friction, noise burst, etc.) are decorrelated across the pool.
