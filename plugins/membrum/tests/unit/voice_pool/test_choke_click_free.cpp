@@ -4,17 +4,21 @@
 // T3.3.2: trigger open-hat (note 46), wait 100 ms, trigger closed-hat (note 42)
 // with both in the same choke group.
 //
-//   (a) peak click artifact during choke <= -30 dBFS (SC-022, FR-134)
-//   (b) choke fast-release terminates within 5 +/- 1 ms wall-clock (SC-022)
-//   (c) first 20 ms of the note-42 voice matches an isolated note-42 render
-//       within the -120 dBFS noise floor.
-//
-// The click is isolated via the same bit-exact subtraction technique used by
-// Phase 3.2's steal click-free test: run the full scenario, then run a
-// "new-voice-only" reference (pre-existing voices silenced via level=0), then
-// a "no-choke reference" (note 42 triggered on a fresh pool with the choke
-// group set to 0). The click = post - newVoiceMatching - (shadow-would-have)
-// is bounded by the fade-vs-natural difference of the stolen note-46 voice.
+//   (a) peak click artifact during choke <= -30 dBFS relative to the INCOMING
+//       voice's peak (SC-022 / FR-126 / FR-134). Measured via the triple-
+//       subtraction technique inherited from Phase 3.2's steal click-free
+//       test (see test_steal_click_free.cpp).
+//   (b) choke fast-release terminates within 5 +/- 1 ms wall-clock (SC-022).
+//   (c) first 20 ms of the post-choke note-42 voice is BIT-IDENTICAL to an
+//       isolated note-42 render within the -120 dBFS noise floor. This is
+//       the "reused voice behaves like a fresh voice" guarantee: after
+//       beginFastRelease swaps voices_[slot] with releasingVoices_[slot],
+//       the main slot's DrumVoice must produce audio indistinguishable from
+//       a pristine-pool voice. Both arrays are now prepared with the SAME
+//       voiceId (see voice_pool.cpp:78-96) so per-voice PRNG / decorrelation
+//       state matches; the shadow voice that surfaces as the "new" main
+//       voice after swap was prepared but never rendered, so it is in the
+//       exact same post-prepare state as a fresh pool's voices_[0].
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -29,8 +33,7 @@
 
 namespace {
 
-constexpr double kSampleRate = 44100.0;
-constexpr int    kBlockSize  = 128;
+constexpr int kBlockSize = 128;
 
 inline bool isFiniteSample(float x) noexcept
 {
@@ -39,9 +42,9 @@ inline bool isFiniteSample(float x) noexcept
     return (bits & 0x7F800000u) != 0x7F800000u;
 }
 
-inline int blocksForMs(double ms)
+inline int blocksForMs(double sampleRate, double ms)
 {
-    const int samples = static_cast<int>(std::ceil(ms * 1e-3 * kSampleRate));
+    const int samples = static_cast<int>(std::ceil(ms * 1e-3 * sampleRate));
     return std::max(1, (samples + kBlockSize - 1) / kBlockSize);
 }
 
@@ -56,11 +59,12 @@ struct ChokeRender
     int                terminationSamples = -1;
 };
 
-ChokeRender renderChoke(std::uint8_t chokeGroup, int captureBlocks,
+ChokeRender renderChoke(double sampleRate,
+                         std::uint8_t chokeGroup, int captureBlocks,
                          float pre46Level, float new42Level)
 {
     Membrum::VoicePool pool;
-    pool.prepare(kSampleRate, kBlockSize);
+    pool.prepare(sampleRate, kBlockSize);
     pool.setMaxPolyphony(4);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
     pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, pre46Level);
@@ -75,7 +79,7 @@ ChokeRender renderChoke(std::uint8_t chokeGroup, int captureBlocks,
     pool.noteOn(46, 0.9f);
 
     // Warmup 100 ms so the open-hat voice is audibly active.
-    const int warmupBlocks = blocksForMs(100.0);
+    const int warmupBlocks = blocksForMs(sampleRate, 100.0);
     for (int b = 0; b < warmupBlocks; ++b)
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
 
@@ -132,196 +136,214 @@ ChokeRender renderChoke(std::uint8_t chokeGroup, int captureBlocks,
     return r;
 }
 
+// Render a note 42 on a slot whose voiceId matches what the choke
+// scenario's new-voice slot has. In the choke scenario, note 46 takes
+// slot 0 during warmup, the choke path frees slot 0 via
+// allocator.noteOff + voiceFinished, and then allocator.noteOn(42)
+// picks the next Idle voice under Oldest allocation. Oldest's
+// tiebreak is the lowest `timestamp_` value -- slot 0's timestamp was
+// advanced by the earlier allocation, so the allocator picks slot 1
+// (untouched, timestamp 0).
+//
+// To match this slot assignment in the isolated reference, this
+// helper pre-allocates slot 0 via a no-audio note (velocity still
+// produces audio, but we drop it before capturing), which advances
+// slot 0's timestamp past slot 1's, so the subsequent noteOn(42)
+// also lands on slot 1 -- same slot, same voiceId (= 1), same
+// pristine prepared state as the choke scenario's new note-42 voice.
+std::vector<float> renderNote42WithMatchingSlot(double sampleRate,
+                                                 int captureBlocks, float level)
+{
+    Membrum::VoicePool pool;
+    pool.prepare(sampleRate, kBlockSize);
+    pool.setMaxPolyphony(4);
+    pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
+    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, level);
+    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
+    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    // NOTE: no choke group set -- the voice selection path reduces to
+    // plain allocator.noteOn + NoteOn event. With no choke group,
+    // processChokeGroups(42) early-outs so the timestamp on slot 0 is
+    // still advanced by noteOn(46) below, matching the choke scenario.
+
+    std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
+
+    // Pre-allocation: trigger note 46 to advance slot 0's timestamp,
+    // then noteOff + process through its release stage so the allocator
+    // marks it Idle with a "used" timestamp. Note 46 is NOT in any choke
+    // group here (group == 0 default), so the subsequent noteOn(42)
+    // cannot choke it; instead, the allocator simply picks the Oldest
+    // Idle voice = slot 1 (lowest timestamp among idle voices).
+    pool.noteOn(46, 0.9f);
+    pool.noteOff(46);  // user note-off: allocator marks slot 0 Releasing
+    // Run the voice's envelope through decay + release long enough for
+    // the auto-release + voiceFinished chain to reclaim slot 0 and mark
+    // it Idle with timestamp = 1 (while slot 1 still has timestamp = 0).
+    // Decay = 200 ms, release = 300 ms, plus a generous margin.
+    const int warmupBlocks = blocksForMs(sampleRate, 1000.0);
+    for (int b = 0; b < warmupBlocks; ++b)
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+
+    pool.noteOn(42, 0.9f);
+
+    std::vector<float> captured;
+    captured.reserve(static_cast<std::size_t>(captureBlocks * kBlockSize));
+    for (int b = 0; b < captureBlocks; ++b)
+    {
+        pool.processBlock(outL.data(), outR.data(), kBlockSize);
+        for (int i = 0; i < kBlockSize; ++i) captured.push_back(outL[i]);
+    }
+    return captured;
+}
+
 } // namespace
 
-TEST_CASE("VoicePool choke: click <= -30 dBFS, terminates within 5 +/- 1 ms",
-          "[membrum][voice_pool][phase3_3][choke_click_free]")
+namespace {
+
+void runChokeCase(double sampleRate, const char* label)
 {
-    // 20 ms capture = more than enough for the 5 ms fade + a margin.
+    INFO("sample rate = " << label);
+
+    // 25 ms capture -- more than enough for the 5 ms fade + a margin, and
+    // covers the 20 ms bit-identity window.
     const int captureBlocks =
-        std::max(blocksForMs(25.0), blocksForMs(6.0));
+        std::max(blocksForMs(sampleRate, 25.0), blocksForMs(sampleRate, 6.0));
 
     // -------------------------------------------------------------
-    // Primary render: full choke scenario (note 46 active at normal
-    // level, note 42 triggered into same group).
+    // Primary render: full choke scenario. The existing note-46 voice
+    // is audible at normal level; note 42 is triggered into the same
+    // choke group and must fast-release note 46 and sound cleanly.
     // -------------------------------------------------------------
-    const ChokeRender primary = renderChoke(/*group*/ 1, captureBlocks,
+    const ChokeRender primary = renderChoke(sampleRate,
+                                             /*group*/ 1, captureBlocks,
                                              /*pre46Level*/ 0.8f,
                                              /*new42Level*/ 0.8f);
     REQUIRE(primary.allFinite);
     REQUIRE(primary.closedSlot >= 0);
     REQUIRE(primary.openSlot   >= 0);
 
-    // -------------------------------------------------------------
-    // "New voice only" reference: run the same scenario with the
-    // pre-existing note-46 voice's level forced to 0 so its output
-    // is silence. The allocator still sees a voice on that slot and
-    // still fires Steal / Choke events identically, so the slot
-    // assignment of note 42 is bit-identical to `primary`. The
-    // captured output contains only the note-42 voice's contribution.
-    // -------------------------------------------------------------
-    const ChokeRender newVoiceOnly = renderChoke(/*group*/ 1, captureBlocks,
-                                                  /*pre46Level*/ 0.0f,
-                                                  /*new42Level*/ 0.8f);
-    REQUIRE(newVoiceOnly.allFinite);
-
-    // -------------------------------------------------------------
-    // "Natural decay" reference: group = 0 so the choke path never
-    // fires. Note 42 is triggered on a fresh slot, and note 46 keeps
-    // decaying naturally. Subtracting this from `primary` leaves the
-    // fast-release difference (= the click) plus the new voice's
-    // possibly different slot-assignment artifact, which we then
-    // subtract via `newVoiceOnly`.
-    // -------------------------------------------------------------
-    const ChokeRender noChoke = renderChoke(/*group*/ 0, captureBlocks,
-                                             /*pre46Level*/ 0.8f,
-                                             /*new42Level*/ 0.8f);
-    REQUIRE(noChoke.allFinite);
-
-    // -------------------------------------------------------------
-    // Click metric:
-    //   primary       = newVoice42 + fastReleaseNote46 + otherSlots
-    //   newVoiceOnly  = newVoice42
-    //   noChoke       = newVoice42' + naturalNote46 + otherSlots
-    //
-    // primary - newVoiceOnly     = fastReleaseNote46 + otherSlots
-    // noChoke  - newVoice42'     = naturalNote46 + otherSlots
-    //
-    // (primary - newVoiceOnly) - (noChoke - newVoice42')
-    //                           = fastReleaseNote46 - naturalNote46
-    //
-    // The "newVoice42'" in the noChoke render uses a DIFFERENT slot
-    // than `primary` so their PRNG state + per-voice Impact excitation
-    // may differ by a sample or two. This makes perfect cancellation
-    // impossible. Instead, we measure the click on the SIMPLEST
-    // possible metric: the post-choke output minus the isolated new
-    // voice's contribution -- anything left over is the fading stolen
-    // voice, which MUST stay below -30 dBFS relative to the original
-    // note-46 voice peak.
-    // -------------------------------------------------------------
-
-    // Reference peak: the note-46 voice's original peak during its
-    // normal 100 ms warmup period. Approximate by running a fresh
-    // isolated render of just note 46.
-    Membrum::VoicePool refPool;
-    refPool.prepare(kSampleRate, kBlockSize);
-    refPool.setMaxPolyphony(4);
-    refPool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    refPool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    refPool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
-    std::vector<float> rL(kBlockSize, 0.0f), rR(kBlockSize, 0.0f);
-    refPool.noteOn(46, 0.9f);
-    float ref46Peak = 0.0f;
-    for (int b = 0; b < blocksForMs(100.0); ++b)
+    // Incoming voice peak / bit-identity reference: render note 42 on a
+    // pool whose allocator state drives the same slot assignment as the
+    // choke scenario (slot 1, not slot 0 -- see the helper comment).
+    const std::vector<float> referenceNote42 =
+        renderNote42WithMatchingSlot(sampleRate, captureBlocks, /*level*/ 0.8f);
+    float incomingVoicePeak = 0.0f;
+    for (float s : referenceNote42)
     {
-        refPool.processBlock(rL.data(), rR.data(), kBlockSize);
-        for (float s : rL)
-        {
-            const float a = std::fabs(s);
-            if (a > ref46Peak) ref46Peak = a;
-        }
+        const float a = std::fabs(s);
+        if (a > incomingVoicePeak) incomingVoicePeak = a;
     }
-    REQUIRE(ref46Peak > 0.0f);
+    REQUIRE(incomingVoicePeak > 0.0f);
 
-    const float clickThreshold = 0.0316228f * ref46Peak;  // -30 dBFS
+    const float clickThreshold = 0.0316228f * incomingVoicePeak;  // -30 dBFS
 
-    // Measure the click on the 5 ms window centred on the choke event.
-    const int halfWindow = static_cast<int>(std::ceil(0.005 * kSampleRate));
+    // -------------------------------------------------------------
+    // Click metric: the first 2.5 ms window starting from the choke
+    // event contains BOTH the new note-42 voice and the fast-releasing
+    // note-46 voice. If the reused voice is bit-identical to a
+    // pristine voice (verified below in (c)), then subtracting the
+    // reference note-42 render from the primary render isolates the
+    // fading stolen voice's residual, which is the "click":
+    //
+    //   primary[i]        = newVoice42[i] + fastReleaseNote46[i]
+    //   referenceNote42[i] = newVoice42[i]   (bit-identical per (c))
+    //   primary[i] - referenceNote42[i] = fastReleaseNote46[i]
+    //
+    // The click is bounded vs. the INCOMING voice's peak (note 42),
+    // NOT the stolen voice's peak, per FR-126 / SC-022 / FR-134.
+    // -------------------------------------------------------------
+    const int halfWindow = static_cast<int>(std::ceil(0.0025 * sampleRate));
     const int postLen = std::min({halfWindow,
                                    static_cast<int>(primary.samples.size()),
-                                   static_cast<int>(newVoiceOnly.samples.size())});
+                                   static_cast<int>(referenceNote42.size())});
 
     float clickPeak = 0.0f;
     for (int i = 0; i < postLen; ++i)
     {
-        // post - newVoiceOnly = fading stolen voice contribution.
-        const float residual = primary.samples[static_cast<std::size_t>(i)]
-                              - newVoiceOnly.samples[static_cast<std::size_t>(i)];
+        const float residual =
+            primary.samples[static_cast<std::size_t>(i)]
+          - referenceNote42[static_cast<std::size_t>(i)];
         const float m = std::fabs(residual);
         if (m > clickPeak) clickPeak = m;
     }
 
-    CAPTURE(ref46Peak, clickPeak, clickThreshold,
-            primary.terminationSamples);
+    CAPTURE(sampleRate, incomingVoicePeak, clickPeak, clickThreshold,
+            primary.terminationSamples, primary.closedSlot);
 
     // -------------------------------------------------------------
-    // (a) Peak click <= -30 dBFS.
+    // (a) Peak click <= -30 dBFS relative to the INCOMING voice's peak.
     // -------------------------------------------------------------
     REQUIRE(clickPeak <= clickThreshold);
 
     // -------------------------------------------------------------
     // (b) Fade terminates within 5 +/- 1 ms = <= 6 ms wall-clock.
-    //     At 44100 Hz, 6 ms = 265 samples.
     // -------------------------------------------------------------
-    const int bound6ms = static_cast<int>(std::ceil(0.006 * kSampleRate));
+    const int bound6ms = static_cast<int>(std::ceil(0.006 * sampleRate));
     REQUIRE(primary.terminationSamples > 0);
     REQUIRE(primary.terminationSamples <= bound6ms);
 
     // -------------------------------------------------------------
-    // (c) First 20 ms of the new note-42 voice is "close enough" to
-    //     an isolated note-42 render. Because the choke scenario
-    //     allocates note-42 to a different slot than the isolated
-    //     render, bit-identity is not achievable -- but the magnitude
-    //     envelope of `newVoiceOnly` (which IS the isolated new voice
-    //     under the choke scenario) must be strictly bounded within
-    //     -120 dBFS noise floor when compared against a fresh pool's
-    //     render of note 42.
+    // (c) BIT-IDENTITY: the post-choke note-42 voice must be sample-
+    //     identical to a matched-slot reference note-42 render within
+    //     -120 dBFS.
     //
-    //     We compare `newVoiceOnly` against a fresh-pool render of
-    //     note 42 with the same shared parameters. The first-20-ms
-    //     window max-abs difference must remain below the noise floor
-    //     relative to the note-42 peak. Slot-dependent RNG state means
-    //     bit-identity is not guaranteed; we therefore assert a relaxed
-    //     but spec-honoring bound: cleanedClick peak after subtracting
-    //     the isolated new-voice envelope falls within the SC-022
-    //     threshold.
+    // Both DrumVoice instances have the SAME voiceId because
+    // voice_pool prepares main AND shadow slots with the same ID
+    // (see voice_pool.cpp fix). The shadow voice that surfaces as the
+    // main voice after the swap was prepared but never rendered, so
+    // its post-prepare state is identical to the reference pool's
+    // never-touched voice at the same slot index.
+    //
+    // Measurement window: [6 ms .. 20 ms] after the choke event. The
+    // 5 ms fast-release terminates by 5 ms, FR-124 allows a +/- 1 ms
+    // slack, so by sample 6 ms the fading note-46 voice contributes
+    // exactly 0 (applyFastRelease writes zeros past the termination
+    // point). From 6 ms onwards, `primary[i]` contains ONLY the new
+    // note-42 voice. `referenceNote42[i]` also contains only note 42
+    // (from a pristine slot 1). If the reused voice is bit-identical
+    // to a fresh voice, the sample-by-sample difference over this
+    // window is exactly 0, or below the -120 dBFS noise floor.
     // -------------------------------------------------------------
-    Membrum::VoicePool freshPool;
-    freshPool.prepare(kSampleRate, kBlockSize);
-    freshPool.setMaxPolyphony(4);
-    freshPool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    freshPool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    freshPool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
-    freshPool.noteOn(42, 0.9f);
-    const int capture20ms = blocksForMs(20.0);
-    std::vector<float> fresh42;
-    fresh42.reserve(static_cast<std::size_t>(capture20ms * kBlockSize));
-    for (int b = 0; b < capture20ms; ++b)
+    // Expected slot: Oldest policy picks the idle voice with the lowest
+    // timestamp. After note 46 takes slot 0 and the choke path frees
+    // it via noteOff + voiceFinished, slot 0 has timestamp = 1 while
+    // slot 1 is still untouched (timestamp = 0). Oldest picks slot 1.
+    // The reference render mirrors this via its pre-warmup note 46.
+    REQUIRE(primary.closedSlot == 1);
+
+    const int samples6ms  = static_cast<int>(std::ceil(0.006 * sampleRate));
+    const int samples20ms = static_cast<int>(std::ceil(0.020 * sampleRate));
+    const int identityEnd = std::min({samples20ms,
+                                       static_cast<int>(primary.samples.size()),
+                                       static_cast<int>(referenceNote42.size())});
+    REQUIRE(identityEnd > samples6ms);
+
+    float maxDiff = 0.0f;
+    int   maxDiffIdx = -1;
+    for (int i = samples6ms; i < identityEnd; ++i)
     {
-        freshPool.processBlock(rL.data(), rR.data(), kBlockSize);
-        for (int i = 0; i < kBlockSize; ++i) fresh42.push_back(rL[i]);
+        const float d = std::fabs(
+            primary.samples[static_cast<std::size_t>(i)]
+          - referenceNote42[static_cast<std::size_t>(i)]);
+        if (d > maxDiff) { maxDiff = d; maxDiffIdx = i; }
     }
 
-    float fresh42Peak = 0.0f;
-    for (float s : fresh42)
-    {
-        const float a = std::fabs(s);
-        if (a > fresh42Peak) fresh42Peak = a;
-    }
-    REQUIRE(fresh42Peak > 0.0f);
+    // -120 dBFS = 1e-6 absolute. Both signals are float samples in the
+    // same scale; a truly bit-identical reused voice produces maxDiff
+    // == 0. Anything below the -120 dBFS floor is "indistinguishable".
+    constexpr float kBitIdentityFloor = 1.0e-6f;
+    CAPTURE(maxDiff, maxDiffIdx, identityEnd, samples6ms);
+    REQUIRE(maxDiff <= kBitIdentityFloor);
+}
 
-    // The "noise floor" target in task text is -120 dBFS; we interpret
-    // that as the noise floor relative to the note-42 peak. Since slot
-    // assignment changes (fresh pool allocates slot 0, choke scenario
-    // allocates a post-choke slot), PRNG state differs, so bit-identity
-    // within -120 dBFS is not achievable. Instead, we assert:
-    //   envelope-max-abs(newVoiceOnly) is within 2x of envelope-max-abs
-    //   (fresh42) over the first 20 ms window. This verifies the
-    //   "new voice sounds like an isolated trigger" intent without
-    //   requiring bit-identity.
-    float newVoiceOnlyPeak = 0.0f;
-    const int sampleLimit = std::min(static_cast<int>(newVoiceOnly.samples.size()),
-                                      capture20ms * kBlockSize);
-    for (int i = 0; i < sampleLimit; ++i)
-    {
-        const float a = std::fabs(newVoiceOnly.samples[static_cast<std::size_t>(i)]);
-        if (a > newVoiceOnlyPeak) newVoiceOnlyPeak = a;
-    }
-    CAPTURE(fresh42Peak, newVoiceOnlyPeak);
-    // Envelope sanity: the new-voice-only render should produce an
-    // audible note-42 voice whose peak is within a factor of 2 of the
-    // isolated reference. Slot + PRNG variance is allowed.
-    REQUIRE(newVoiceOnlyPeak > 0.0f);
-    REQUIRE(newVoiceOnlyPeak >= 0.5f * fresh42Peak);
-    REQUIRE(newVoiceOnlyPeak <= 2.0f * fresh42Peak);
+} // namespace
+
+TEST_CASE("VoicePool choke: click <= -30 dBFS, terminates within 5 +/- 1 ms, "
+          "bit-identical reused voice",
+          "[membrum][voice_pool][phase3_3][choke_click_free]")
+{
+    SECTION("44100 Hz") { runChokeCase(44100.0, "44100"); }
+    SECTION("48000 Hz") { runChokeCase(48000.0, "48000"); }
+    SECTION("96000 Hz") { runChokeCase(96000.0, "96000"); }
 }

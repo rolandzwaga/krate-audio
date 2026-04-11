@@ -73,15 +73,29 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     fastReleaseK_ =
         std::exp(-kFastReleaseLnFloor / (kFastReleaseSecs * static_cast<float>(sampleRate_)));
 
-    // Prepare every main + shadow voice with a unique voiceId so per-voice
-    // PRNGs (friction, noise burst, etc.) are decorrelated across the pool.
+    // Prepare every main + shadow voice with voiceId = slot index. Main and
+    // shadow slots at the same index share the same voiceId because the
+    // two-array fast-release crossfade (beginFastRelease) swaps them via
+    // std::swap, and any voiceId-derived state (PRNG seeds, per-voice
+    // decorrelation) must be IDENTICAL across the two arrays so that a
+    // freshly-swapped voice behaves BIT-IDENTICALLY to a pristine voice at
+    // that slot (FR-124 bit-identity clause / T3.3.2(c)). If the two arrays
+    // held distinct voiceIds, a reused voice after steal/choke would
+    // produce sample-level differences from an isolated fresh-pool voice,
+    // violating the -120 dBFS noise-floor bit-identity requirement.
+    //
+    // Shadow and main slots for the SAME index never render concurrently
+    // with the same state: at any moment either (a) the main slot is
+    // rendering and the shadow is idle-prepared, or (b) the shadow is
+    // fast-releasing the previous voice while the main slot renders the
+    // new note. Even in case (b) they are rendering DIFFERENT notes
+    // triggered at DIFFERENT times, so per-voice PRNG sequences diverge
+    // naturally; sharing the seed does not collapse them into lockstep.
     for (int i = 0; i < kMaxVoices; ++i)
     {
-        VP_VOICES[i].prepare(sampleRate_,
-                             static_cast<std::uint32_t>(i));
-        VP_RVOICES[i].prepare(
-            sampleRate_,
-            static_cast<std::uint32_t>(i + kMaxVoices));
+        const auto vid = static_cast<std::uint32_t>(i);
+        VP_VOICES[i].prepare(sampleRate_, vid);
+        VP_RVOICES[i].prepare(sampleRate_, vid);
 
         meta_[i]          = VoiceMeta{};
         releasingMeta_[i] = VoiceMeta{};
