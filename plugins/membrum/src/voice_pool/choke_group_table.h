@@ -47,24 +47,38 @@ private:
 };
 
 // ------------------------------------------------------------------
-// Inline stub bodies (Phase 3.0 scaffolding -- real implementations land
-// in Phase 3.3).
+// Inline method bodies (Phase 3.1 -- T3.1.7).
 // ------------------------------------------------------------------
+// Phase 3.1 implements setGlobal / lookup / loadFromRaw. Phase 3.3 then
+// wires the table into the note-on path via VoicePool::processChokeGroups.
 
-inline void ChokeGroupTable::setGlobal(std::uint8_t /*group*/) noexcept
+inline void ChokeGroupTable::setGlobal(std::uint8_t group) noexcept
 {
-    // Phase 3.0 scaffolding stub -- full implementation in Phase 3.3.
+    // FR-138: mirror the value across all 32 entries (Phase 3 single-pad
+    // template / Clarification Q1). Group is clamped to [0, 8] -- any larger
+    // byte is treated as "no choke" (FR-144 semantics).
+    const std::uint8_t clamped = (group > 8U) ? std::uint8_t{0} : group;
+    for (int i = 0; i < kSize; ++i)
+        entries_[static_cast<std::size_t>(i)] = clamped;
 }
 
-inline std::uint8_t ChokeGroupTable::lookup(std::uint8_t /*midiNote*/) const noexcept
+inline std::uint8_t ChokeGroupTable::lookup(std::uint8_t midiNote) const noexcept
 {
-    // Phase 3.0 scaffolding stub -- full implementation in Phase 3.3.
-    return 0;
+    // FR-132: return 0 for any note outside the GM drum-pad range [36, 67];
+    // otherwise return the assigned group (already in [0, 8]).
+    if (midiNote < 36U || midiNote > 67U)
+        return 0U;
+    return entries_[static_cast<std::size_t>(midiNote - 36U)];
 }
 
-inline void ChokeGroupTable::loadFromRaw(const std::array<std::uint8_t, kSize>& /*in*/) noexcept
+inline void ChokeGroupTable::loadFromRaw(const std::array<std::uint8_t, kSize>& in) noexcept
 {
-    // Phase 3.0 scaffolding stub -- full implementation in Phase 3.3.
+    // FR-144: clamp every byte on load; any value > 8 is stored as 0.
+    for (int i = 0; i < kSize; ++i)
+    {
+        const std::uint8_t v = in[static_cast<std::size_t>(i)];
+        entries_[static_cast<std::size_t>(i)] = (v > 8U) ? std::uint8_t{0} : v;
+    }
 }
 
 } // namespace Membrum

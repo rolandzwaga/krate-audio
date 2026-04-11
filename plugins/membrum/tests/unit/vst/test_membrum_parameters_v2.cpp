@@ -40,7 +40,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int kExpectedParameterCount = 34;
+constexpr int kExpectedParameterCount = 37;  // Phase 2 (34) + Phase 3 (3)
 constexpr int kExpectedExciterCount   = 6;
 constexpr int kExpectedBodyCount      = 6;
 
@@ -101,11 +101,16 @@ const std::array<ExpectedParam, kExpectedParameterCount> kExpectedParams = {{
     { Membrum::kMorphEndId,        false, 0 },
     { Membrum::kMorphDurationMsId, false, 0 },
     { Membrum::kMorphCurveId,      false, 0 },
+
+    // ----- Phase 3 polyphony / stealing / choke -----
+    { Membrum::kMaxPolyphonyId,    false, 0 },
+    { Membrum::kVoiceStealingId,   true,  2 },   // 3 entries -> stepCount 2
+    { Membrum::kChokeGroupId,      false, 0 },
 }};
 
 static_assert(kExpectedParams.size() == kExpectedParameterCount,
-              "kExpectedParams must list exactly 34 parameters (5 Phase-1 + "
-              "29 Phase-2)");
+              "kExpectedParams must list exactly 37 parameters (5 Phase-1 + "
+              "29 Phase-2 + 3 Phase-3)");
 
 } // namespace
 

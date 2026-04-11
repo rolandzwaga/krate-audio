@@ -210,6 +210,33 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
 
     (void)toTChar;  // helper kept as a reference for any future StringListParameter use
 
+    // ---- Phase 3 parameters (polyphony / stealing / choke) ----
+    // FR-150 / FR-151: stepped RangeParameter for Max Polyphony [4, 16]
+    // (12 steps between the 13 integer values), StringListParameter for
+    // Voice Stealing, stepped RangeParameter for Choke Group [0, 8] (8
+    // steps between the 9 integer values).
+    parameters.addParameter(
+        new RangeParameter(STR16("Max Polyphony"), kMaxPolyphonyId, STR16("voices"),
+                           4.0, 16.0, 8.0,
+                           /*stepCount=*/12,
+                           ParameterInfo::kCanAutomate));
+
+    {
+        auto* stealList = new StringListParameter(
+            STR16("Voice Stealing"), kVoiceStealingId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        stealList->appendString(STR16("Oldest"));
+        stealList->appendString(STR16("Quietest"));
+        stealList->appendString(STR16("Priority"));
+        parameters.addParameter(stealList);
+    }
+
+    parameters.addParameter(
+        new RangeParameter(STR16("Choke Group"), kChokeGroupId, STR16("group"),
+                           0.0, 8.0, 0.0,
+                           /*stepCount=*/8,
+                           ParameterInfo::kCanAutomate));
+
     return kResultOk;
 }
 

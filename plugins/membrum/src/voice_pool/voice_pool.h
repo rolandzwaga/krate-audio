@@ -49,7 +49,9 @@
 #include "voice_meta.h"
 #include "voice_stealing_policy.h"
 
+#include "../dsp/body_model_type.h"
 #include "../dsp/drum_voice.h"
+#include "../dsp/exciter_type.h"
 
 #include <krate/dsp/systems/voice_allocator.h>
 
@@ -64,14 +66,20 @@ namespace Membrum {
 // ------------------------------------------------------------------
 
 constexpr int   kMaxVoices         = 16;      // FR-110
-constexpr int   kVoicePoolMaxBlock = 2048;    // FR-117 scratch buffer max block size
+constexpr int   kVoicePoolMaxBlock = 8192;    // FR-117 scratch buffer max block size
 constexpr float kFastReleaseSecs   = 0.005f;  // FR-124 exponential 5 ms tau
 constexpr float kFastReleaseFloor  = 1e-6f;   // FR-164 denormal guard
 
 class VoicePool
 {
 public:
-    VoicePool() = default;
+    VoicePool();
+    ~VoicePool() = default;
+
+    VoicePool(const VoicePool&)            = delete;
+    VoicePool& operator=(const VoicePool&) = delete;
+    VoicePool(VoicePool&&)                 = delete;
+    VoicePool& operator=(VoicePool&&)      = delete;
 
     // ------------------------------------------------------------------
     // Lifecycle -- setup thread, allocation allowed only here
@@ -131,6 +139,45 @@ public:
                               float strikePos,
                               float level) noexcept;
 
+    /// Phase 2 selector snapshot (Exciter Type, Body Model). Stored in the
+    /// shared parameter bundle and applied to the allocated `DrumVoice` on
+    /// the next `noteOn`. Does not disturb currently-sounding voices.
+    void setSharedExciterType(ExciterType type) noexcept;
+    void setSharedBodyModel(BodyModelType model) noexcept;
+
+    // ------------------------------------------------------------------
+    // Direct-forward helpers for Phase 2 param changes that live inside the
+    // DrumVoice sub-components (ToneShaper / UnnaturalZone / MaterialMorph).
+    // Phase 3.1 keeps parameter behaviour bit-identical to Phase 2 by
+    // broadcasting parameter changes to every main slot -- tests at
+    // maxPolyphony=1 (FR-187) require this so only slot 0 is touched, and
+    // at higher polyphony every sounding voice sees the same edit. Since
+    // DrumVoice state is already written on the audio thread from the
+    // Processor's atomics, the broadcast is allocation-free.
+    // ------------------------------------------------------------------
+    template <typename Fn>
+    void forEachMainVoice(Fn&& fn) noexcept
+    {
+        for (int i = 0; i < kMaxVoices; ++i)
+            fn(mainVoiceRef(i));
+    }
+
+    // ------------------------------------------------------------------
+    // Query helpers
+    // ------------------------------------------------------------------
+
+    /// Number of slots currently rendering an Active voice (excludes slots
+    /// that are only in FastReleasing state via the shadow array).
+    [[nodiscard]] int getActiveVoiceCount() const noexcept;
+
+    /// Read access to main slot metadata (used by tests to verify
+    /// stealing-policy victim selection / tiebreakers).
+    [[nodiscard]] const VoiceMeta& voiceMeta(int slot) const noexcept;
+
+    /// Read access to shadow-slot metadata (tests that inspect fast-release
+    /// state transitions).
+    [[nodiscard]] const VoiceMeta& releasingMeta(int slot) const noexcept;
+
     // ------------------------------------------------------------------
     // State (non-audio thread)
     // ------------------------------------------------------------------
@@ -152,21 +199,64 @@ public:
     [[nodiscard]] int  maxPolyphony() const noexcept { return maxPolyphony_; }
     [[nodiscard]] bool isAnyVoiceActive() const noexcept;
 
+    // ------------------------------------------------------------------
+    // Direct read access for the forEachMainVoice helper (unique_ptr
+    // storage requires a non-inline helper method; kept public so the
+    // header-defined template below can reach it).
+    // ------------------------------------------------------------------
+    [[nodiscard]] DrumVoice& mainVoiceRef(int slot) noexcept;
+
 private:
+    // ------------------------------------------------------------------
+    // Private helpers (Phase 3.1)
+    // ------------------------------------------------------------------
+
+    /// Processor-layer-only Quietest victim selection (FR-122 / Clarification
+    /// Q3). Returns the index of the Active slot with the lowest
+    /// `currentLevel`, tiebreaking by oldest `noteOnSampleCount` (FR-128).
+    /// Returns -1 when no Active slot exists.
+    [[nodiscard]] int selectQuietestActiveSlot() const noexcept;
+
+    /// Phase 3.2 hook — snapshot a main slot into the shadow slot and start
+    /// the fast-release ramp. Phase 3.1 provides a scaffolding body that
+    /// transitions `releasingMeta_[slot]` to `FastReleasing`; Phase 3.2
+    /// replaces it with the full exponential decay.
+    void beginFastRelease(int slot) noexcept;
+
+    /// Phase 3.2 hook — per-sample exponential decay applied to `scratch`
+    /// with `releasingMeta_[slot].fastReleaseGain`. Phase 3.1 stub applies a
+    /// constant unity gain.
+    void applyFastRelease(int slot, float* scratch, int numSamples) noexcept;
+
+    /// Phase 3.3 hook — iterates active + releasing slots on note-on and
+    /// fast-releases any voice sharing the choke group of `newNote`. Phase
+    /// 3.1 stub is a no-op; Phase 3.3 fills in the body.
+    void processChokeGroups(std::uint8_t newNote) noexcept;
+
+    /// Apply the current `sharedParams_` snapshot to the `DrumVoice` at
+    /// `slot` (used by `noteOn`).
+    void applySharedParamsToSlot(int slot) noexcept;
+
+
     // ------------------------------------------------------------------
     // Main voice storage (FR-110) -- always sized `kMaxVoices`; the active
     // count is `maxPolyphony_`, controlled by `allocator_.setVoiceCount`.
+    // Heap-allocated via unique_ptr in the constructor so the 32 * 220 KiB
+    // DrumVoice footprint does not blow up the stack when VoicePool is an
+    // owning member of Processor. All pointer targets are fully constructed
+    // by the time `prepare()` runs; no audio-thread allocation occurs after
+    // construction (FR-116).
     // ------------------------------------------------------------------
-    std::array<DrumVoice, kMaxVoices> voices_{};
-    std::array<VoiceMeta, kMaxVoices> meta_{};
+    std::unique_ptr<std::array<DrumVoice, kMaxVoices>> voicesPtr_;
+    std::array<VoiceMeta, kMaxVoices>                  meta_{};
 
     // ------------------------------------------------------------------
     // Shadow voice storage for the two-array fast-release crossfade. One
     // fade-out in flight per slot at a time. See `voice_pool.h` comment at
     // top for the fallback decision criteria.
     // ------------------------------------------------------------------
-    std::array<DrumVoice, kMaxVoices> releasingVoices_{};
-    std::array<VoiceMeta, kMaxVoices> releasingMeta_{};
+    std::unique_ptr<std::array<DrumVoice, kMaxVoices>> releasingVoicesPtr_;
+    std::array<VoiceMeta, kMaxVoices>                  releasingMeta_{};
 
     // ------------------------------------------------------------------
     // Allocator + choke table
@@ -189,6 +279,27 @@ private:
     int                  maxPolyphony_  = 8;                           // FR-111
     VoiceStealingPolicy  stealingPolicy_= VoiceStealingPolicy::Oldest; // FR-120
     std::uint64_t        sampleCounter_ = 0;                           // FR-128
+
+    // ------------------------------------------------------------------
+    // Shared parameter snapshot -- FR-170. Propagated from the Processor's
+    // Phase 1/2 atomics via the set* methods and applied to the allocated
+    // DrumVoice on the next noteOn boundary. Normalized [0, 1] for
+    // continuous params, typed enums for the selectors.
+    // ------------------------------------------------------------------
+    struct SharedParams
+    {
+        // Phase 1 continuous
+        float material  = 0.5f;
+        float size      = 0.5f;
+        float decay     = 0.3f;
+        float strikePos = 0.3f;
+        float level     = 0.8f;
+
+        // Phase 2 selectors
+        ExciterType   exciterType = ExciterType::Impulse;
+        BodyModelType bodyModel   = BodyModelType::Membrane;
+    };
+    SharedParams sharedParams_{};
 };
 
 } // namespace Membrum

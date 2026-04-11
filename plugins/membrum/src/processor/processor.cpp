@@ -7,6 +7,7 @@
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "dsp/tone_shaper.h"
+#include "voice_pool/voice_stealing_policy.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -192,23 +193,38 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         // ---- Phase 1 ----
         case kMaterialId:
             material_.store(fValue);
-            voice_.setMaterial(fValue);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setMaterial(fValue); });
+            voicePool_.setSharedVoiceParams(
+                material_.load(), size_.load(), decay_.load(),
+                strikePosition_.load(), level_.load());
             break;
         case kSizeId:
             size_.store(fValue);
-            voice_.setSize(fValue);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setSize(fValue); });
+            voicePool_.setSharedVoiceParams(
+                material_.load(), size_.load(), decay_.load(),
+                strikePosition_.load(), level_.load());
             break;
         case kDecayId:
             decay_.store(fValue);
-            voice_.setDecay(fValue);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setDecay(fValue); });
+            voicePool_.setSharedVoiceParams(
+                material_.load(), size_.load(), decay_.load(),
+                strikePosition_.load(), level_.load());
             break;
         case kStrikePositionId:
             strikePosition_.store(fValue);
-            voice_.setStrikePosition(fValue);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setStrikePosition(fValue); });
+            voicePool_.setSharedVoiceParams(
+                material_.load(), size_.load(), decay_.load(),
+                strikePosition_.load(), level_.load());
             break;
         case kLevelId:
             level_.store(fValue);
-            voice_.setLevel(fValue);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setLevel(fValue); });
+            voicePool_.setSharedVoiceParams(
+                material_.load(), size_.load(), decay_.load(),
+                strikePosition_.load(), level_.load());
             break;
 
         // ---- Phase 2 selectors ----
@@ -219,7 +235,9 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 0,
                 static_cast<int>(ExciterType::kCount) - 1);
             exciterType_.store(idx);
-            voice_.setExciterType(static_cast<ExciterType>(idx));
+            const auto typeEnum = static_cast<ExciterType>(idx);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setExciterType(typeEnum); });
+            voicePool_.setSharedExciterType(typeEnum);
             break;
         }
         case kBodyModelId:
@@ -229,7 +247,41 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 0,
                 static_cast<int>(BodyModelType::kCount) - 1);
             bodyModel_.store(idx);
-            voice_.setBodyModel(static_cast<BodyModelType>(idx));
+            const auto modelEnum = static_cast<BodyModelType>(idx);
+            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setBodyModel(modelEnum); });
+            voicePool_.setSharedBodyModel(modelEnum);
+            break;
+        }
+
+        // ---- Phase 3 ----
+        case kMaxPolyphonyId:
+        {
+            // Stepped RangeParameter [4, 16]: normalized value covers 12 steps.
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            const int n = 4 + static_cast<int>(std::lround(clamped * 12.0f));
+            const int nClamped = std::clamp(n, 4, 16);
+            maxPolyphony_.store(nClamped);
+            voicePool_.setMaxPolyphony(nClamped);
+            break;
+        }
+        case kVoiceStealingId:
+        {
+            // StringListParameter with 3 choices: Oldest/Quietest/Priority.
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            const int idx = std::clamp(static_cast<int>(clamped * 3.0f), 0, 2);
+            voiceStealingPolicy_.store(idx);
+            voicePool_.setVoiceStealingPolicy(
+                static_cast<VoiceStealingPolicy>(idx));
+            break;
+        }
+        case kChokeGroupId:
+        {
+            // Stepped RangeParameter [0, 8]: 9 steps.
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            const int n = static_cast<int>(std::lround(clamped * 8.0f));
+            const int nClamped = std::clamp(n, 0, 8);
+            chokeGroup_.store(nClamped);
+            voicePool_.setChokeGroup(static_cast<std::uint8_t>(nClamped));
             break;
         }
 
@@ -246,9 +298,11 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 {
                     phase2Slots[slot]->store(fValue);
 
-                    // Forward to the Tone Shaper / Unnatural Zone. Phase 7
-                    // denormalizes continuous tone shaper params per
-                    // tone_shaper_contract.md §Parameter ranges.
+                    // Broadcast every Phase 2 param to every main voice slot
+                    // so the Phase 2 regression path (maxPolyphony=1, slot 0)
+                    // is bit-identical to Phase 2 and every sounding voice at
+                    // higher polyphony sees the same edit.
+                    voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept {
                     switch (paramId)
                     {
                     // ---- Unnatural Zone (Phase 8, T114) ----
@@ -259,46 +313,46 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     case kUnnaturalModeStretchId:
                     {
                         const float denorm = 0.5f + std::clamp(fValue, 0.0f, 1.0f) * 1.5f;
-                        voice_.unnaturalZone().setModeStretch(denorm);
+                        v.unnaturalZone().setModeStretch(denorm);
                         break;
                     }
                     case kUnnaturalDecaySkewId:
                     {
                         const float denorm = std::clamp(fValue, 0.0f, 1.0f) * 2.0f - 1.0f;
-                        voice_.unnaturalZone().setDecaySkew(denorm);
+                        v.unnaturalZone().setDecaySkew(denorm);
                         break;
                     }
                     case kUnnaturalModeInjectAmountId:
-                        voice_.unnaturalZone().modeInject.setAmount(
+                        v.unnaturalZone().modeInject.setAmount(
                             std::clamp(fValue, 0.0f, 1.0f));
                         break;
                     case kUnnaturalNonlinearCouplingId:
-                        voice_.unnaturalZone().nonlinearCoupling.setAmount(
+                        v.unnaturalZone().nonlinearCoupling.setAmount(
                             std::clamp(fValue, 0.0f, 1.0f));
                         break;
 
                     // ---- Material Morph (Phase 8, T114) ----
                     case kMorphEnabledId:
-                        voice_.unnaturalZone().materialMorph.setEnabled(fValue >= 0.5f);
+                        v.unnaturalZone().materialMorph.setEnabled(fValue >= 0.5f);
                         break;
                     case kMorphStartId:
-                        voice_.unnaturalZone().materialMorph.setStart(
+                        v.unnaturalZone().materialMorph.setStart(
                             std::clamp(fValue, 0.0f, 1.0f));
                         break;
                     case kMorphEndId:
-                        voice_.unnaturalZone().materialMorph.setEnd(
+                        v.unnaturalZone().materialMorph.setEnd(
                             std::clamp(fValue, 0.0f, 1.0f));
                         break;
                     case kMorphDurationMsId:
                     {
                         // [10, 2000] ms linear
                         const float ms = 10.0f + std::clamp(fValue, 0.0f, 1.0f) * 1990.0f;
-                        voice_.unnaturalZone().materialMorph.setDurationMs(ms);
+                        v.unnaturalZone().materialMorph.setDurationMs(ms);
                         break;
                     }
                     case kMorphCurveId:
                         // 0 = Linear, 1 = Exponential
-                        voice_.unnaturalZone().materialMorph.setCurve(fValue >= 0.5f);
+                        v.unnaturalZone().materialMorph.setCurve(fValue >= 0.5f);
                         break;
 
                     // ---- Tone Shaper (Phase 7, T097) ----
@@ -306,71 +360,72 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     {
                         // 0..1 normalized -> LP/HP/BP (3 discrete values).
                         const int typeIdx = std::clamp(static_cast<int>(fValue * 3.0f), 0, 2);
-                        voice_.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(typeIdx));
+                        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(typeIdx));
                         break;
                     }
                     case kToneShaperFilterCutoffId:
                     {
                         // Log scale: 20 Hz .. 20000 Hz (3 decades).
                         const float hz = 20.0f * std::pow(1000.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        voice_.toneShaper().setFilterCutoff(hz);
+                        v.toneShaper().setFilterCutoff(hz);
                         break;
                     }
                     case kToneShaperFilterResonanceId:
-                        voice_.toneShaper().setFilterResonance(fValue);
+                        v.toneShaper().setFilterResonance(fValue);
                         break;
                     case kToneShaperFilterEnvAmountId:
                         // Normalized 0..1 -> -1..+1 bipolar.
-                        voice_.toneShaper().setFilterEnvAmount(fValue * 2.0f - 1.0f);
+                        v.toneShaper().setFilterEnvAmount(fValue * 2.0f - 1.0f);
                         break;
                     case kToneShaperFilterEnvAttackId:
                         // 0..500 ms
-                        voice_.toneShaper().setFilterEnvAttackMs(fValue * 500.0f);
+                        v.toneShaper().setFilterEnvAttackMs(fValue * 500.0f);
                         break;
                     case kToneShaperFilterEnvDecayId:
                         // 0..2000 ms
-                        voice_.toneShaper().setFilterEnvDecayMs(fValue * 2000.0f);
+                        v.toneShaper().setFilterEnvDecayMs(fValue * 2000.0f);
                         break;
                     case kToneShaperFilterEnvSustainId:
-                        voice_.toneShaper().setFilterEnvSustain(fValue);
+                        v.toneShaper().setFilterEnvSustain(fValue);
                         break;
                     case kToneShaperFilterEnvReleaseId:
                         // 0..2000 ms
-                        voice_.toneShaper().setFilterEnvReleaseMs(fValue * 2000.0f);
+                        v.toneShaper().setFilterEnvReleaseMs(fValue * 2000.0f);
                         break;
                     case kToneShaperDriveAmountId:
-                        voice_.toneShaper().setDriveAmount(fValue);
+                        v.toneShaper().setDriveAmount(fValue);
                         break;
                     case kToneShaperFoldAmountId:
-                        voice_.toneShaper().setFoldAmount(fValue);
+                        v.toneShaper().setFoldAmount(fValue);
                         break;
                     case kToneShaperPitchEnvStartId:
                     {
                         // Log scale: 20 Hz .. 2000 Hz
                         const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        voice_.toneShaper().setPitchEnvStartHz(hz);
+                        v.toneShaper().setPitchEnvStartHz(hz);
                         break;
                     }
                     case kToneShaperPitchEnvEndId:
                     {
                         // Log scale: 20 Hz .. 2000 Hz
                         const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        voice_.toneShaper().setPitchEnvEndHz(hz);
+                        v.toneShaper().setPitchEnvEndHz(hz);
                         break;
                     }
                     case kToneShaperPitchEnvTimeId:
                         // 0..500 ms
-                        voice_.toneShaper().setPitchEnvTimeMs(fValue * 500.0f);
+                        v.toneShaper().setPitchEnvTimeMs(fValue * 500.0f);
                         break;
                     case kToneShaperPitchEnvCurveId:
                     {
                         const int idx = std::clamp(static_cast<int>(fValue * 2.0f), 0, 1);
-                        voice_.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(idx));
+                        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(idx));
                         break;
                     }
                     default:
                         break;
                     }
+                    });
                     break;
                 }
             }
@@ -380,7 +435,8 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
     }
 }
 
-// Process MIDI events: note-on/note-off for MIDI note 36 only
+// Process MIDI events: note-on/note-off on any MIDI note in [36, 67]
+// (FR-113 -- Phase 3 drops the Phase 1/2 single-note filter).
 void Processor::processEvents(IEventList* events)
 {
     if (!events)
@@ -397,21 +453,24 @@ void Processor::processEvents(IEventList* events)
         {
         case Event::kNoteOnEvent:
         {
-            if (event.noteOn.pitch != 36)
+            const int16 pitch = event.noteOn.pitch;
+            if (pitch < 36 || pitch > 67)
                 break;
             if (event.noteOn.velocity <= 0.0f)
             {
-                voice_.noteOff();
+                voicePool_.noteOff(static_cast<std::uint8_t>(pitch));
                 break;
             }
-            voice_.noteOn(event.noteOn.velocity);
+            voicePool_.noteOn(static_cast<std::uint8_t>(pitch),
+                              event.noteOn.velocity);
             break;
         }
         case Event::kNoteOffEvent:
         {
-            if (event.noteOff.pitch != 36)
+            const int16 pitch = event.noteOff.pitch;
+            if (pitch < 36 || pitch > 67)
                 break;
-            voice_.noteOff();
+            voicePool_.noteOff(static_cast<std::uint8_t>(pitch));
             break;
         }
         default:
@@ -433,16 +492,11 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         float* outL = data.outputs[0].channelBuffers32[0];
         float* outR = data.outputs[0].channelBuffers32[1];
 
-        // T043 / FR-001 / FR-002 / research.md §1: hot path must use the
-        // block-level entry point so ExciterBank/BodyBank variant dispatch
-        // happens exactly ONCE per block, not per sample.
-        voice_.processBlock(outL, data.numSamples);
+        // Phase 3 -- voice pool handles mixing of every active + fast-
+        // releasing voice into the stereo output buffer directly.
+        voicePool_.processBlock(outL, outR, data.numSamples);
 
-        // Mirror mono output to the right channel without a second dispatch.
-        for (int32 i = 0; i < data.numSamples; ++i)
-            outR[i] = outL[i];
-
-        data.outputs[0].silenceFlags = voice_.isActive() ? 0 : 3;
+        data.outputs[0].silenceFlags = voicePool_.isAnyVoiceActive() ? 0 : 3;
     }
 
     return kResultOk;
@@ -547,13 +601,17 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         phase1Atomics[i]->store(static_cast<float>(value));
     }
 
-    // Sync Phase 1 values into the voice so a note-on immediately after
+    // Sync Phase 1 values into every voice so a note-on immediately after
     // setState() uses the restored parameters.
-    voice_.setMaterial(material_.load());
-    voice_.setSize(size_.load());
-    voice_.setDecay(decay_.load());
-    voice_.setStrikePosition(strikePosition_.load());
-    voice_.setLevel(level_.load());
+    voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
+                                    strikePosition_.load(), level_.load());
+    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
+        v.setMaterial(material_.load());
+        v.setSize(size_.load());
+        v.setDecay(decay_.load());
+        v.setStrikePosition(strikePosition_.load());
+        v.setLevel(level_.load());
+    });
 
     // ---- Phase 2 params ----
     // Collect Phase 2 float atomics in slot order.
@@ -605,8 +663,14 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
         exciterType_.store(exciterTypeI32);
         bodyModel_.store(bodyModelI32);
-        voice_.setExciterType(static_cast<ExciterType>(exciterTypeI32));
-        voice_.setBodyModel(static_cast<BodyModelType>(bodyModelI32));
+        const auto excEnum  = static_cast<ExciterType>(exciterTypeI32);
+        const auto bodyEnum = static_cast<BodyModelType>(bodyModelI32);
+        voicePool_.setSharedExciterType(excEnum);
+        voicePool_.setSharedBodyModel(bodyEnum);
+        voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept {
+            v.setExciterType(excEnum);
+            v.setBodyModel(bodyEnum);
+        });
 
         // Read Phase 2 float params
         for (int i = 0; i < kPhase2FloatSlotCount; ++i)
@@ -625,73 +689,79 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         // FR-082: Phase 1 blob — fill Phase 2 with defaults (all bypass).
         exciterType_.store(0);
         bodyModel_.store(0);
-        voice_.setExciterType(ExciterType::Impulse);
-        voice_.setBodyModel(BodyModelType::Membrane);
+        voicePool_.setSharedExciterType(ExciterType::Impulse);
+        voicePool_.setSharedBodyModel(BodyModelType::Membrane);
+        voicePool_.forEachMainVoice([](DrumVoice& v) noexcept {
+            v.setExciterType(ExciterType::Impulse);
+            v.setBodyModel(BodyModelType::Membrane);
+        });
 
         for (int i = 0; i < kPhase2FloatSlotCount; ++i)
             phase2Slots[i]->store(kPhase2FloatSlots[i].defaultValue);
     }
 
     // Sync selected Phase 2 stub setters so the next process block reflects
-    // the restored normalized values.
+    // the restored normalized values. Broadcast to every main voice slot so
+    // Phase 2 regression (maxPolyphony=1 on slot 0) is bit-identical, and
+    // higher-polyphony sessions see every voice stamped with the same template.
     // Denormalize per data-model.md §9 / T114:
     //   modeStretch [0.5, 2.0] linear; decaySkew [-1, 1] linear;
     //   morph duration [10, 2000] ms linear.
-    {
+    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
         const float normStretch = std::clamp(unnaturalModeStretch_.load(), 0.0f, 1.0f);
-        voice_.unnaturalZone().setModeStretch(0.5f + normStretch * 1.5f);
+        v.unnaturalZone().setModeStretch(0.5f + normStretch * 1.5f);
 
         const float normSkew = std::clamp(unnaturalDecaySkew_.load(), 0.0f, 1.0f);
-        voice_.unnaturalZone().setDecaySkew(normSkew * 2.0f - 1.0f);
+        v.unnaturalZone().setDecaySkew(normSkew * 2.0f - 1.0f);
 
-        voice_.unnaturalZone().modeInject.setAmount(
+        v.unnaturalZone().modeInject.setAmount(
             std::clamp(unnaturalModeInjectAmount_.load(), 0.0f, 1.0f));
-        voice_.unnaturalZone().nonlinearCoupling.setAmount(
+        v.unnaturalZone().nonlinearCoupling.setAmount(
             std::clamp(unnaturalNonlinearCoupling_.load(), 0.0f, 1.0f));
 
-        voice_.unnaturalZone().materialMorph.setEnabled(morphEnabled_.load() >= 0.5f);
-        voice_.unnaturalZone().materialMorph.setStart(
+        v.unnaturalZone().materialMorph.setEnabled(morphEnabled_.load() >= 0.5f);
+        v.unnaturalZone().materialMorph.setStart(
             std::clamp(morphStart_.load(), 0.0f, 1.0f));
-        voice_.unnaturalZone().materialMorph.setEnd(
+        v.unnaturalZone().materialMorph.setEnd(
             std::clamp(morphEnd_.load(), 0.0f, 1.0f));
         const float normDur = std::clamp(morphDurationMs_.load(), 0.0f, 1.0f);
-        voice_.unnaturalZone().materialMorph.setDurationMs(10.0f + normDur * 1990.0f);
-        voice_.unnaturalZone().materialMorph.setCurve(morphCurve_.load() >= 0.5f);
-    }
+        v.unnaturalZone().materialMorph.setDurationMs(10.0f + normDur * 1990.0f);
+        v.unnaturalZone().materialMorph.setCurve(morphCurve_.load() >= 0.5f);
+    });
 
-    // Tone Shaper: denormalize stored normalized values and push into the voice.
-    {
+    // Tone Shaper: denormalize stored normalized values and push into every voice.
+    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
         const float normFilterType   = toneShaperFilterType_.load();
         const int   filterTypeIdx    = std::clamp(static_cast<int>(normFilterType * 3.0f), 0, 2);
-        voice_.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
+        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
 
         const float normCutoff = toneShaperFilterCutoff_.load();
         const float cutoffHz   = 20.0f * std::pow(1000.0f, std::clamp(normCutoff, 0.0f, 1.0f));
-        voice_.toneShaper().setFilterCutoff(cutoffHz);
+        v.toneShaper().setFilterCutoff(cutoffHz);
 
-        voice_.toneShaper().setFilterResonance(toneShaperFilterResonance_.load());
-        voice_.toneShaper().setFilterEnvAmount(toneShaperFilterEnvAmount_.load() * 2.0f - 1.0f);
-        voice_.toneShaper().setFilterEnvAttackMs(toneShaperFilterEnvAttack_.load() * 500.0f);
-        voice_.toneShaper().setFilterEnvDecayMs(toneShaperFilterEnvDecay_.load() * 2000.0f);
-        voice_.toneShaper().setFilterEnvSustain(toneShaperFilterEnvSustain_.load());
-        voice_.toneShaper().setFilterEnvReleaseMs(toneShaperFilterEnvRelease_.load() * 2000.0f);
-        voice_.toneShaper().setDriveAmount(toneShaperDriveAmount_.load());
-        voice_.toneShaper().setFoldAmount(toneShaperFoldAmount_.load());
+        v.toneShaper().setFilterResonance(toneShaperFilterResonance_.load());
+        v.toneShaper().setFilterEnvAmount(toneShaperFilterEnvAmount_.load() * 2.0f - 1.0f);
+        v.toneShaper().setFilterEnvAttackMs(toneShaperFilterEnvAttack_.load() * 500.0f);
+        v.toneShaper().setFilterEnvDecayMs(toneShaperFilterEnvDecay_.load() * 2000.0f);
+        v.toneShaper().setFilterEnvSustain(toneShaperFilterEnvSustain_.load());
+        v.toneShaper().setFilterEnvReleaseMs(toneShaperFilterEnvRelease_.load() * 2000.0f);
+        v.toneShaper().setDriveAmount(toneShaperDriveAmount_.load());
+        v.toneShaper().setFoldAmount(toneShaperFoldAmount_.load());
 
         const float normStart = toneShaperPitchEnvStart_.load();
         const float startHz   = 20.0f * std::pow(100.0f, std::clamp(normStart, 0.0f, 1.0f));
-        voice_.toneShaper().setPitchEnvStartHz(startHz);
+        v.toneShaper().setPitchEnvStartHz(startHz);
 
         const float normEnd = toneShaperPitchEnvEnd_.load();
         const float endHz   = 20.0f * std::pow(100.0f, std::clamp(normEnd, 0.0f, 1.0f));
-        voice_.toneShaper().setPitchEnvEndHz(endHz);
+        v.toneShaper().setPitchEnvEndHz(endHz);
 
-        voice_.toneShaper().setPitchEnvTimeMs(toneShaperPitchEnvTime_.load() * 500.0f);
+        v.toneShaper().setPitchEnvTimeMs(toneShaperPitchEnvTime_.load() * 500.0f);
 
         const float normCurve = toneShaperPitchEnvCurve_.load();
         const int   curveIdx  = std::clamp(static_cast<int>(normCurve * 2.0f), 0, 1);
-        voice_.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
-    }
+        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
+    });
 
     return kResultOk;
 }
@@ -703,15 +773,36 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 #endif
 
-    sampleRate_ = setup.sampleRate;
-    voice_.prepare(sampleRate_);
+    sampleRate_   = setup.sampleRate;
+    maxBlockSize_ = setup.maxSamplesPerBlock;
+    voicePool_.prepare(sampleRate_, maxBlockSize_);
+    // Seed the pool's shared-param snapshot from current atomics so the
+    // first note-on after setupProcessing uses the restored parameters.
+    voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
+                                    strikePosition_.load(), level_.load());
+    voicePool_.setSharedExciterType(static_cast<ExciterType>(exciterType_.load()));
+    voicePool_.setSharedBodyModel(static_cast<BodyModelType>(bodyModel_.load()));
+    voicePool_.setMaxPolyphony(maxPolyphony_.load());
+    voicePool_.setVoiceStealingPolicy(
+        static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
+    voicePool_.setChokeGroup(static_cast<std::uint8_t>(chokeGroup_.load()));
     return AudioEffect::setupProcessing(setup);
 }
 
 tresult PLUGIN_API Processor::setActive(TBool state)
 {
     if (state)
-        voice_.prepare(sampleRate_);
+    {
+        voicePool_.prepare(sampleRate_, maxBlockSize_);
+        voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
+                                        strikePosition_.load(), level_.load());
+        voicePool_.setSharedExciterType(static_cast<ExciterType>(exciterType_.load()));
+        voicePool_.setSharedBodyModel(static_cast<BodyModelType>(bodyModel_.load()));
+        voicePool_.setMaxPolyphony(maxPolyphony_.load());
+        voicePool_.setVoiceStealingPolicy(
+            static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
+        voicePool_.setChokeGroup(static_cast<std::uint8_t>(chokeGroup_.load()));
+    }
     return kResultOk;
 }
 
