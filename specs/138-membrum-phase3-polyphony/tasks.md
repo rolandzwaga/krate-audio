@@ -164,7 +164,7 @@ Add any test file using `std::isnan`/`std::isfinite` to the `-fno-fast-math` lis
 
 - [X] T3.2.8 Run pluginval — deferred to Phase 3.6 per implementation instructions.
 
-- [ ] T3.2.9 Commit: `"membrum: Phase 3.2 fast-release ramp — exponential decay tau=5ms, 1e-6f denormal floor, click-free steal SC-021 verified"`. Dependency: T3.2.7 and T3.2.8 green.
+- [X] T3.2.9 Commit: `"membrum: Phase 3.2 fast-release ramp — exponential decay tau=5ms, 1e-6f denormal floor, click-free steal SC-021 verified"`. Dependency: T3.2.7 and T3.2.8 green.
 
 ---
 
