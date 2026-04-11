@@ -94,6 +94,9 @@ TEST_CASE("Phase35: VoicePool 10-second fuzz is allocation-free",
     bool     foundNaNOrInf   = false;
     int      maxObservedActive = 0;
     int      observedMaxPoly = 16;
+    bool     activeExceededCurrentPoly = false;
+    int      worstExcessActive = 0;
+    int      worstExcessPoly   = 0;
 
     auto& detector = TestHelpers::AllocationDetector::instance();
     detector.startTracking();
@@ -149,12 +152,14 @@ TEST_CASE("Phase35: VoicePool 10-second fuzz is allocation-free",
         if (activeNow > maxObservedActive)
             maxObservedActive = activeNow;
 
-        // getActiveVoiceCount() must never exceed the current maxPolyphony.
-        // Capture the state only -- assert after the loop.
+        // FR-185: getActiveVoiceCount() must never exceed the CURRENT
+        // maxPolyphony setting — track violations vs the live value, not
+        // just the hard 16-voice ceiling.
         if (activeNow > observedMaxPoly)
         {
-            // Sentinel value so the post-loop assert fails loudly.
-            maxObservedActive = activeNow;
+            activeExceededCurrentPoly = true;
+            worstExcessActive         = activeNow;
+            worstExcessPoly           = observedMaxPoly;
             break;
         }
     }
@@ -165,8 +170,15 @@ TEST_CASE("Phase35: VoicePool 10-second fuzz is allocation-free",
                                    << "maxObservedActive=" << maxObservedActive
                                    << ", observedMaxPoly=" << observedMaxPoly
                                    << ", allocations=" << allocCount);
+    if (activeExceededCurrentPoly)
+    {
+        INFO("FR-185 violation: activeNow=" << worstExcessActive
+                                            << " > currentMaxPoly="
+                                            << worstExcessPoly);
+    }
 
-    CHECK(allocCount == 0);           // FR-163, FR-185, SC-027
-    CHECK_FALSE(foundNaNOrInf);        // FR-164 tail safety
-    CHECK(maxObservedActive <= 16);   // Hard upper bound (VoicePool kMaxVoices)
+    CHECK(allocCount == 0);                 // FR-163, FR-185, SC-027
+    CHECK_FALSE(foundNaNOrInf);             // FR-164 tail safety
+    CHECK(maxObservedActive <= 16);         // Hard upper bound (VoicePool kMaxVoices)
+    CHECK_FALSE(activeExceededCurrentPoly); // FR-185: active ≤ current maxPoly
 }
