@@ -60,6 +60,45 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/drum_voice.h
     src/dsp/membrane_modes.h
 
+    # Phase 2: shared DSP types
+    src/dsp/exciter_type.h
+    src/dsp/body_model_type.h
+    src/dsp/voice_common_params.h
+    src/dsp/exciter_bank.h
+    src/dsp/body_bank.h
+    src/dsp/tone_shaper.h
+
+    # Phase 2: exciter backends (header-only)
+    src/dsp/exciters/impulse_exciter.h
+    src/dsp/exciters/mallet_exciter.h
+    src/dsp/exciters/noise_burst_exciter.h
+    src/dsp/exciters/friction_exciter.h
+    src/dsp/exciters/fm_impulse_exciter.h
+    src/dsp/exciters/feedback_exciter.h
+
+    # Phase 2: body backends (header-only)
+    src/dsp/bodies/membrane_body.h
+    src/dsp/bodies/plate_body.h
+    src/dsp/bodies/shell_body.h
+    src/dsp/bodies/string_body.h
+    src/dsp/bodies/bell_body.h
+    src/dsp/bodies/noise_body.h
+    src/dsp/bodies/plate_modes.h
+    src/dsp/bodies/shell_modes.h
+    src/dsp/bodies/bell_modes.h
+    src/dsp/bodies/membrane_mapper.h
+    src/dsp/bodies/plate_mapper.h
+    src/dsp/bodies/shell_mapper.h
+    src/dsp/bodies/bell_mapper.h
+    src/dsp/bodies/string_mapper.h
+    src/dsp/bodies/noise_body_mapper.h
+
+    # Phase 2: unnatural zone modules (header-only)
+    src/dsp/unnatural/unnatural_zone.h
+    src/dsp/unnatural/material_morph.h
+    src/dsp/unnatural/mode_inject.h
+    src/dsp/unnatural/nonlinear_coupling.h
+
     # Shared
     src/plugin_ids.h
     src/version.h

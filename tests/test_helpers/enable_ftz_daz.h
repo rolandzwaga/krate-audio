@@ -13,13 +13,18 @@
 
 #pragma once
 
-#if defined(__SSE__)
+// Platform detection: x86/x64 covers MSVC (_M_X64/_M_IX86), Clang/GCC (__x86_64__/__i386__),
+// and the legacy __SSE__ macro (GCC/Clang only — MSVC does NOT define __SSE__ for x64
+// builds even when SSE is available, which is why the older `#if defined(__SSE__)` guard
+// silently no-op'd on Windows and caused denormal-driven 10× CPU spikes in modal DSP tests).
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__) || defined(__SSE__)
+#define KRATE_TEST_FTZ_DAZ_X86 1
 #include <xmmintrin.h> // _MM_SET_FLUSH_ZERO_MODE
 #include <pmmintrin.h> // _MM_SET_DENORMALS_ZERO_MODE
 #endif
 
 inline void enableFTZDAZ() {
-#if defined(__SSE__)
+#ifdef KRATE_TEST_FTZ_DAZ_X86
     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 #endif

@@ -22,23 +22,75 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 // VST3 subcategories: Instrument|Drum
 static constexpr auto kSubCategories = "Instrument|Drum";
 
-// State version for serialization
-constexpr Steinberg::int32 kCurrentStateVersion = 1;
+// State version for serialization.
+// Phase 1 = 1, Phase 2 = 2. Loader accepts version 1 blobs and fills Phase 2
+// parameters with defaults (FR-082).
+constexpr Steinberg::int32 kCurrentStateVersion = 2;
 
 // ==============================================================================
 // Parameter IDs
 // ==============================================================================
-// Phase 1 parameter range: 100-199
-// Phase 2+ will use higher ranges for per-pad parameters.
+// Phase 1 parameter range: 100-199 (integer values 100-104 are FROZEN)
+// Phase 2 parameter range: 200-249 (Exciter/Body selectors, Tone Shaper,
+//                                   Unnatural Zone, Material Morph)
 // ==============================================================================
 
 enum ParameterIds : Steinberg::Vst::ParamID
 {
+    // ====== Phase 1 (frozen) ======
     kMaterialId       = 100,  // 0.0 woody -- 1.0 metallic
     kSizeId           = 101,  // 0.0 small(500Hz) -- 1.0 large(50Hz)
     kDecayId          = 102,  // 0.0 short -- 1.0 long
     kStrikePositionId = 103,  // 0.0 center -- 1.0 edge
     kLevelId          = 104,  // 0.0 silent -- 1.0 full
+
+    // ====== Phase 2 ======
+
+    // 200-209: Exciter + Body selectors and secondary exciter params
+    kExciterTypeId               = 200,  // StringListParameter, 6 choices
+    kBodyModelId                 = 201,  // StringListParameter, 6 choices
+    kExciterFMRatioId            = 202,  // FM Impulse carrier:mod ratio (1.0..4.0, default 1.4)
+    kExciterFeedbackAmountId     = 203,  // Feedback exciter drive amount (0..1)
+    kExciterNoiseBurstDurationId = 204,  // Noise Burst duration ms (2..15, default 5)
+    kExciterFrictionPressureId   = 205,  // Friction bow pressure (0..1, default 0.3)
+
+    // 210-219: Tone Shaper (filter + drive + fold + pitch env)
+    kToneShaperFilterTypeId       = 210,  // StringListParameter: LP/HP/BP
+    kToneShaperFilterCutoffId     = 211,  // 20..20000 Hz, default 20000
+    kToneShaperFilterResonanceId  = 212,  // 0..1, default 0
+    kToneShaperFilterEnvAmountId  = 213,  // -1..1, default 0
+    kToneShaperDriveAmountId      = 214,  // 0..1, default 0
+    kToneShaperFoldAmountId       = 215,  // 0..1, default 0
+    kToneShaperPitchEnvStartId    = 216,  // 20..2000 Hz, default 160
+    kToneShaperPitchEnvEndId      = 217,  // 20..2000 Hz, default 50
+    kToneShaperPitchEnvTimeId     = 218,  // 0..500 ms, default 0 (disabled)
+    kToneShaperPitchEnvCurveId    = 219,  // StringListParameter: Exp/Lin
+
+    // 220-229: Tone Shaper filter envelope sub-parameters
+    kToneShaperFilterEnvAttackId  = 220,
+    kToneShaperFilterEnvDecayId   = 221,
+    kToneShaperFilterEnvSustainId = 222,
+    kToneShaperFilterEnvReleaseId = 223,
+
+    // 230-239: Unnatural Zone
+    kUnnaturalModeStretchId       = 230,  // 0.5..2.0, default 1.0
+    kUnnaturalDecaySkewId         = 231,  // -1..1, default 0
+    kUnnaturalModeInjectAmountId  = 232,  // 0..1, default 0
+    kUnnaturalNonlinearCouplingId = 233,  // 0..1, default 0
+
+    // 240-249: Material Morph
+    kMorphEnabledId               = 240,
+    kMorphStartId                 = 241,  // 0..1, default 1 (current Material)
+    kMorphEndId                   = 242,  // 0..1, default 0
+    kMorphDurationMsId            = 243,  // 10..2000 ms, default 200
+    kMorphCurveId                 = 244,  // StringListParameter: Lin/Exp
 };
+
+// Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
+// IDs (200-244). This static_assert keeps future editors honest.
+static_assert(kLevelId < kExciterTypeId,
+              "Phase 1 and Phase 2 parameter ID ranges must not overlap");
+static_assert(kCurrentStateVersion >= 2,
+              "Phase 2 requires state version >= 2");
 
 } // namespace Membrum

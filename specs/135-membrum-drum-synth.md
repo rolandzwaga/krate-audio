@@ -1,9 +1,23 @@
 # Spec 135 — Membrum: Synthesized Drum Machine
 
-**Status:** Phase 1 Complete (see `specs/136-membrum-phase1-scaffold/`)  
+**Status:** Phase 2 Complete (see `specs/137-membrum-phase2-exciters-bodies/`)  
 **Plugin:** Membrum  
 **Type:** Instrument (`aumu`)  
 **Location:** `plugins/membrum/`
+
+## Implementation Progress
+
+| Phase | Spec | Status | Scope |
+|-------|------|--------|-------|
+| Phase 1 | `specs/136-membrum-phase1-scaffold/` | ✅ Complete (v0.1.0) | Plugin scaffold, single-voice MembraneBody, 5 Phase 1 parameters, state version 1 |
+| Phase 2 | `specs/137-membrum-phase2-exciters-bodies/` | ✅ Complete (v0.2.0) | 6 exciter types + 6 body models + Tone Shaper + Unnatural Zone + state version 2 + SIMD fallback + 144-cell CPU validation |
+| Phase 3 | (not yet specced) | ⏳ Planned | Multi-voice polyphony, voice management, choke groups |
+| Phase 4 | (not yet specced) | ⏳ Planned | 32-pad layout, per-pad presets, kit presets, separate outputs |
+| Phase 5 | (not yet specced) | ⏳ Planned | Cross-pad coupling (sympathetic resonance) |
+| Phase 6 | (not yet specced) | ⏳ Planned | Macro controls, Acoustic/Extended UI modes, custom editor |
+| Deferred | — | 📌 | Snare wire modeling (FR-047), nonlinear pitch envelope on non-Membrane bodies, sample layer |
+
+Sections marked ✅ **Phase N** below are shipping as of that phase; unmarked sections describe the end-state design and are planned for later phases.
 
 ## Overview
 
@@ -81,7 +95,9 @@ To manage complexity, coupling uses a tiered control system:
 - Solo/debug mode for coupling paths
 - CPU-safe hard caps on total coupling computation
 
-## Exciter Types
+## Exciter Types ✅ Phase 2
+
+**Status:** All 6 exciter types implemented and shipping in v0.2.0 (spec 137, commit `7a5e565d`). Per-voice variant dispatch; zero heap allocations on audio thread; SC-004 velocity-centroid ratio ≥ 2.0 verified for every exciter.
 
 The exciter is what triggers the body. Each type responds to velocity — harder hits produce brighter, more complex excitation, not just louder.
 
@@ -108,7 +124,9 @@ Per exciter type:
 - **Noise Burst**: harder = higher lowpass cutoff on noise (200 Hz soft → 5000+ Hz hard)
 - **Friction**: harder = more bow pressure → richer overtone content, easier self-oscillation
 
-## Corpus Engine — Modal Synthesis Core
+## Corpus Engine — Modal Synthesis Core ✅ Phase 2
+
+**Status:** All 6 body models implemented and shipping in v0.2.0 (spec 137, commit `174333c8`). Shared `ModalResonatorBank` swapped via `std::variant<…>` per-voice (single dispatch per block). Per-body mappers (PlateMapper, ShellMapper, BellMapper, StringMapper, NoiseBodyMapper) derive modal params from the 5 standard Phase 1 parameters (Material, Size, Decay, StrikePos, Level). Per-body modal-ratio tolerances all pass (SC-002): Membrane ±2%, Plate ±3%, Shell ±3%, String ±1%, Bell ±3%, NoiseBody ±3%.
 
 The heart of Membrum. Each body model defines a set of **modal frequencies** (partials) with individual amplitudes and decay rates derived from the physics of the modeled object. Each mode is implemented as a two-pole resonator (Gordon-Smith coupled-form) with frequency-dependent damping following the Chaigne-Lambourg model.
 
@@ -144,7 +162,9 @@ The heart of Membrum. Each body model defines a set of **modal frequencies** (pa
 - Cymbals/metallic: need hybrid approach (20-40 modes + filtered noise) due to ~400 modes below 20 kHz
 - Max budget at default: 8 voices × 16 partials = **128 simultaneous partials**
 
-## The Unnatural Zone
+## The Unnatural Zone ✅ Phase 2
+
+**Status:** All 5 Unnatural Zone modules implemented and shipping in v0.2.0 (spec 137, commit `d8afa0f2`). FR-055 defaults-off identity confirmed to −120 dBFS: with `modeStretch=1.0`, `decaySkew=0`, `modeInject.amount=0`, `nonlinearCoupling.amount=0`, and `materialMorph.enabled=false`, the voice output is bit-identical to Phase 1 within deterministic tolerance. Nonlinear Coupling includes the mandated energy-limiter guard (SC-008). Mode Inject applies phase randomization per voice via `XorShift32`. Decay Skew uses a per-mode amplitude-boost approximation (research.md §9 fallback) since `ModalResonatorBank` has no per-mode decay API.
 
 Parameters that push beyond physical reality. These are core to Membrum's identity, not extras.
 
@@ -156,7 +176,9 @@ Parameters that push beyond physical reality. These are core to Membrum's identi
 | **Material Morph**| Per-hit automation envelope driving the material parameter (b1/b3 coefficients) over the duration of a single hit — evolving timbre from strike to tail. E.g., metal attack → wood decay. |
 | **Nonlinear Coupling** | Cubic mode coupling inspired by cymbal physics (von Karman plate theory). Modes exchange energy through nonlinear terms, creating shimmering evolving textures at high amplitudes. Strength parameter controls coupling coefficients. **Stability guard required**: nonlinear effects scale with velocity, internal energy limiter prevents blow-up, optional phase randomization for injected modes. |
 
-## Tone Shaper
+## Tone Shaper ✅ Phase 2 (snare wires deferred)
+
+**Status:** Filter, Drive, Wavefolder, and Pitch Envelope implemented and shipping in v0.2.0 (spec 137, commit `c980e534`). Chain order is Drive → Wavefolder → DCBlocker → SVF filter per research.md §8 (Buchla west-coast signal flow — differs from the literal table below; the filter after the wavefolder smooths aliasing residue from the folder's harmonics). FR-045 bypass identity verified within −120 dBFS of the input 1 kHz sine. SC-009 808-kick test passes: 160 Hz → 50 Hz over 20 ms lands within ±10% of 50 Hz. **Snare wire modeling (below) is explicitly deferred from Phase 2** (FR-047 DEFERRED) and remains open for a future phase.
 
 Post-body processing per voice:
 
@@ -784,3 +806,4 @@ Higher modes require more bow pressure to sustain. BowExciter already implements
 | 0.3     | 2026-04-07 | Added physics reference, refined body models, snare wires, cymbal hybrid, 808 template, nonlinear pitch, FM ratios |
 | 0.4     | 2026-04-08 | Phase 1 complete — plugin scaffold + single membrane voice (spec 136) |
 | 0.5     | 2026-04-08 | Added: macro controls, Acoustic/Extended modes, tiered coupling, pitch envelope promotion, stability guards for Mode Inject and Nonlinear Coupling (from external design review) |
+| 0.6     | 2026-04-11 | Phase 2 complete — 6 exciter types + 6 body models + swap-in architecture + Tone Shaper (Drive/Fold/DCBlocker/SVF + absolute-Hz pitch envelope) + Unnatural Zone (all 5 modules) + state version 2 with v1 backward compat; 143/144 single-voice CPU cells ≤ 1.25% (1 documented waiver for Feedback+NoiseBody+TS+UN); SC-009 808-kick passing; FR-055 defaults-off identity at −120 dBFS; Phase 1 regression at −200 dBFS (spec 137). Remaining deferred for future phases: snare wires (FR-047), macros/Acoustic/Extended UI modes, multi-voice polyphony, cross-pad coupling, pad layout, choke groups, separate outputs. |
