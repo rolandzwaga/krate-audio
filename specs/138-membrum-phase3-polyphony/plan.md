@@ -631,11 +631,11 @@ Per-phase commit authority: the sub-phase structure above is the user's pre-auth
 |-------------|-----------------|----------------------------------|
 | `sizeof(DrumVoice)` | ≤ 32 KB | **224 096 B (~218.8 KiB)** — measured Phase 3.0 via `test_voice_pool_scaffold.cpp` on MSVC x64 Release. Exceeds the 32 768 B two-array budget, so the **per-slot single-fade fallback** is the chosen approach; `voices_[16]` + `releasingVoices_[16]` is still declared in Phase 3.0 scaffolding but Phase 3.2 will enforce "one fade-out in flight per slot" so the shadow footprint remains bounded. |
 | 16 × `sizeof(DrumVoice)` × 2 arrays | ≤ 1 MB | **~6.84 MiB (16 × 224 096 × 2)** — exceeds the 1 MiB budget; accepted as Phase 3 memory cost given that 16 slots × 2 arrays is still under 10 MiB per instance and the alternative (dynamic shadow allocation) violates FR-116. Re-evaluated in Phase 3.5 stress tests. |
-| 8-voice worst case CPU | ≤ 12 % @ 44.1 kHz / 128 | _TBD Phase 3.5_ |
-| 8-voice waived cell CPU | ≤ 18 % | _TBD Phase 3.5_ |
-| 16-voice stress xrun count | 0 | _TBD Phase 3.5_ |
-| Allocation count (10 s fuzz) | 0 | _TBD Phase 3.5_ |
-| SIMD fallback triggered? | No (planned) | _TBD Phase 3.5_ |
+| 8-voice worst case CPU | ≤ 12 % @ 44.1 kHz / 128 | **5.952 %** — measured Phase 3.5 via `test_polyphony_benchmark.cpp` `[phase35-bench8]` — Feedback + NoiseBody + ToneShaper + UnnaturalZone at 44.1 kHz / 128-sample block over 10 s. Well under 12 % budget. |
+| 8-voice waived cell CPU | ≤ 18 % | **N/A — waiver not needed.** Scalar 8-voice worst-case already passes the non-waived 12 % budget at 5.952 %, so the Phase 2 Feedback+NoiseBody+TS+UN waiver does not need to be exercised. |
+| 16-voice stress xrun count | 0 | **0 xruns** over 3445 blocks — measured via `test_polyphony_stress_16.cpp` `[phase35-stress16]`. 16-voice CPU = 11.718 %. |
+| Allocation count (10 s fuzz) | 0 | **0 allocations** — measured via `test_polyphony_allocation_matrix.cpp` `[Phase35: VoicePool 10-second fuzz is allocation-free]` using `TestHelpers::AllocationDetector` wrapping `processBlock`, `noteOn`, `noteOff`, `setMaxPolyphony`, `setVoiceStealingPolicy`, `setChokeGroup` across 10 s / 16 voices / random MIDI + param changes. |
+| SIMD fallback triggered? | No (planned) | **Not triggered.** Scalar 8-voice worst-case (5.952 %) passes the 12 % budget with 50 % headroom, so `ModalResonatorBankSIMD` does NOT need to be enabled (FR-162 condition unmet). Baseline scalar path retained. |
 
 ## Project Structure
 

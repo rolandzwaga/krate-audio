@@ -318,4 +318,25 @@ private:
     SharedParams sharedParams_{};
 };
 
+// ------------------------------------------------------------------
+// SC-027a -- compile-time safety net on VoicePool struct size. The
+// definitive evidence for SC-027a is the allocation-detector fuzz test
+// `test_polyphony_allocation_matrix.cpp`; this static_assert exists to
+// catch any accidental addition of a heap-owning member (std::vector,
+// std::string, etc.) that would enlarge the sizeof at compile time.
+//
+// Budget: 32 * (sizeof(DrumVoice) + sizeof(VoiceMeta))
+//       + sizeof(Krate::DSP::VoiceAllocator)
+//       + sizeof(ChokeGroupTable)
+//       + 1 KiB slack for bookkeeping scalars and unique_ptr header fields.
+// Note that the two `unique_ptr<std::array<DrumVoice, 16>>` heap blocks are
+// intentionally included in the 32-slot budget (16 main + 16 shadow = 32).
+// ------------------------------------------------------------------
+constexpr std::size_t kVoicePoolSizeLimit =
+    32 * sizeof(DrumVoice) + 32 * sizeof(VoiceMeta)
+    + sizeof(Krate::DSP::VoiceAllocator) + sizeof(ChokeGroupTable) + 1024;
+
+static_assert(sizeof(VoicePool) <= kVoicePoolSizeLimit,
+              "VoicePool struct size exceeds budget");
+
 } // namespace Membrum

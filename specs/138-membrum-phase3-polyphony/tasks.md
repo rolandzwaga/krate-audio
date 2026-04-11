@@ -54,6 +54,27 @@ Add any test file using `std::isnan`/`std::isfinite` to the `-fno-fast-math` lis
 
 ---
 
+## ⚠️ MANDATORY: Tool Discipline — No Bash Redirection for File Content
+
+**Do NOT use Bash heredocs, `echo >`, `cat <<EOF`, `printf >`, or `>` / `>>` redirection to create or modify source files, test files, fixtures, or ANY textual content.** Use the **Write** or **Edit** tool exclusively.
+
+**Why:** Shell metacharacters in C++ test content (parentheses, brackets, quotes, `>`, `<`, `|`, `$`, backticks, `&`, `;`) collide with bash syntax. A misquoted redirect silently creates a garbage-named file (e.g. `(s)]`, `0.5f`, `maxDiff)`, `v3`) instead of the file you intended. One Phase 3.4 session wasted **~90 minutes and tens of thousands of tokens** on this exact failure mode before being cancelled.
+
+**Forbidden:**
+- `echo "content" > file.cpp`
+- `cat <<'EOF' > file.cpp ... EOF`
+- `printf '...' > file.cpp`
+- Any pipeline whose tail writes to a source/test/fixture path
+- Generating binary fixtures by shell-echoing hex bytes
+
+**Required:** use Write (new files) or Edit (existing files) for ALL file content. For the v2 golden fixture pattern specifically: write a one-shot C++ test (via Write) that calls `Processor::getState()` and dumps the buffer to disk; compile and run it via Bash; then read back via Read to verify size. Never try to synthesize the blob via shell bytes.
+
+**Allowed Bash uses:** build, test runs, `git`, `grep`, `ls`, `stat`, `mv`/`rm`, running compiled binaries, running Node.js scripts whose source was authored via Write.
+
+**If you reach for `>` or a heredoc to write file content: STOP. Use Write or Edit.**
+
+---
+
 ## Phase 3.0 — Scaffolding
 
 **Goal**: `VoicePool`, `VoiceMeta`, `ChokeGroupTable`, `VoiceSlotState`, `VoiceStealingPolicy` declared with stub bodies; new parameter IDs added; `kCurrentStateVersion` bumped to 3; CMake integrated; failing test stubs in place; `sizeof(DrumVoice)` decision made. Phase 2 tests still green.
@@ -250,23 +271,23 @@ Add any test file using `std::isnan`/`std::isfinite` to the `-fno-fast-math` lis
 
 ### 3.5.1 Tests (Write FIRST — Must FAIL)
 
-- [ ] T3.5.1 Write failing test `plugins/membrum/tests/unit/voice_pool/test_polyphony_allocation_matrix.cpp`. SC-027 / SC-027a: using `allocation_detector.h`, run 10 seconds at 44100 Hz / 128-sample blocks with 16 voices, fuzzed random MIDI note-ons every 5 ms (notes 36–67, random velocity, random choke groups), voice steals, choke events, mid-test parameter changes to `maxPolyphony`, `voiceStealingPolicy`, `chokeGroupAssignments`. Assert: (a) zero heap allocations throughout; (b) zero from `processBlock`, `noteOn`, `noteOff`, `setMaxPolyphony`, `setVoiceStealingPolicy`, `setChokeGroup`; (c) no NaN/Inf; (d) `getActiveVoiceCount() <= maxPolyphony` at all times. For SC-027a, add in `voice_pool.h` (outside any function) a `static_assert(sizeof(VoicePool) <= kVoicePoolSizeLimit, "VoicePool struct size exceeds budget")` where `kVoicePoolSizeLimit` is a constant set to `32 * sizeof(DrumVoice) + 32 * sizeof(VoiceMeta) + sizeof(Krate::DSP::VoiceAllocator) + sizeof(ChokeGroupTable) + 1024` (1 KB slack for bookkeeping fields). This catches any accidental addition of a `std::vector` or heap-owning member (which would be detected at runtime by allocation_detector but the static_assert provides a compile-time safety net). The definitive SC-027a evidence is the allocation_detector fuzz test showing zero allocations after `prepare()` returns. Verify tests FAIL. Satisfies FR-163, FR-185, SC-027, SC-027a.
+- [X] T3.5.1 Write failing test `plugins/membrum/tests/unit/voice_pool/test_polyphony_allocation_matrix.cpp`. SC-027 / SC-027a: using `allocation_detector.h`, run 10 seconds at 44100 Hz / 128-sample blocks with 16 voices, fuzzed random MIDI note-ons every 5 ms (notes 36–67, random velocity, random choke groups), voice steals, choke events, mid-test parameter changes to `maxPolyphony`, `voiceStealingPolicy`, `chokeGroupAssignments`. Assert: (a) zero heap allocations throughout; (b) zero from `processBlock`, `noteOn`, `noteOff`, `setMaxPolyphony`, `setVoiceStealingPolicy`, `setChokeGroup`; (c) no NaN/Inf; (d) `getActiveVoiceCount() <= maxPolyphony` at all times. For SC-027a, add in `voice_pool.h` (outside any function) a `static_assert(sizeof(VoicePool) <= kVoicePoolSizeLimit, "VoicePool struct size exceeds budget")` where `kVoicePoolSizeLimit` is a constant set to `32 * sizeof(DrumVoice) + 32 * sizeof(VoiceMeta) + sizeof(Krate::DSP::VoiceAllocator) + sizeof(ChokeGroupTable) + 1024` (1 KB slack for bookkeeping fields). This catches any accidental addition of a `std::vector` or heap-owning member (which would be detected at runtime by allocation_detector but the static_assert provides a compile-time safety net). The definitive SC-027a evidence is the allocation_detector fuzz test showing zero allocations after `prepare()` returns. Verify tests FAIL. Satisfies FR-163, FR-185, SC-027, SC-027a.
 
-- [ ] T3.5.2 Write failing test `plugins/membrum/tests/perf/test_polyphony_benchmark.cpp` (tagged `[.perf]`). SC-023: measure 8-voice worst-case CPU (Feedback + NoiseBody + Tone Shaper + all Unnatural Zone modules) at 44100 Hz / 128-sample block over 10 s. Hard-assert ≤ 12% for non-waived combinations; ≤ 18% for the Phase 2 waived Feedback+NoiseBody+TS+UN cell (documenting the waiver per Phase 2 precedent). Output to `membrum_phase3_benchmark.csv`. SC-024: 16-voice stress run — 16 voices, 10 s, random note-on every 5 ms, assert no xrun (wall-clock processing time < audio wall-clock per block), assert zero NaN/Inf. Verify tests FAIL (tagged `[.perf]` so they do not run in normal `membrum_tests.exe` invocations). Satisfies FR-160, FR-161, FR-186, SC-023, SC-024.
+- [X] T3.5.2 Write failing test `plugins/membrum/tests/perf/test_polyphony_benchmark.cpp` (tagged `[.perf]`). SC-023: measure 8-voice worst-case CPU (Feedback + NoiseBody + Tone Shaper + all Unnatural Zone modules) at 44100 Hz / 128-sample block over 10 s. Hard-assert ≤ 12% for non-waived combinations; ≤ 18% for the Phase 2 waived Feedback+NoiseBody+TS+UN cell (documenting the waiver per Phase 2 precedent). Output to `membrum_phase3_benchmark.csv`. SC-024: 16-voice stress run — 16 voices, 10 s, random note-on every 5 ms, assert no xrun (wall-clock processing time < audio wall-clock per block), assert zero NaN/Inf. Verify tests FAIL (tagged `[.perf]` so they do not run in normal `membrum_tests.exe` invocations). Satisfies FR-160, FR-161, FR-186, SC-023, SC-024.
 
 ### 3.5.2 Decision and Measurement
 
-- [ ] T3.5.3 Run the Phase 3.5 benchmarks and record results. Command: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target membrum_tests && build/windows-x64-release/bin/Release/membrum_tests.exe "[.perf]" 2>&1 | tee membrum-phase35-perf.log`. Record 8-voice CPU % and 16-voice xrun count in `plan.md §Complexity Tracking`. Acceptance evidence: log shows 8-voice CPU ≤ 12% (or ≤ 18% for waived cell); zero xruns; numbers filled into the Complexity Tracking table. Satisfies SC-023, SC-024.
+- [X] T3.5.3 Run the Phase 3.5 benchmarks and record results. Command: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target membrum_tests && build/windows-x64-release/bin/Release/membrum_tests.exe "[.perf]" 2>&1 | tee membrum-phase35-perf.log`. Record 8-voice CPU % and 16-voice xrun count in `plan.md §Complexity Tracking`. Acceptance evidence: log shows 8-voice CPU ≤ 12% (or ≤ 18% for waived cell); zero xruns; numbers filled into the Complexity Tracking table. Satisfies SC-023, SC-024.
 
-- [ ] T3.5.4 SIMD fallback decision (FR-162): if T3.5.3 shows 8-voice scalar worst-case > 12%: enable `ModalResonatorBankSIMD` inside `BodyBank::sharedBank_` (scope: `plugins/membrum/src/dsp/body_bank.h`, zero API change); re-run T3.5.3 to confirm it passes. If scalar path already passes: document "SIMD fallback: NOT triggered" in `plan.md §Complexity Tracking`. Acceptance evidence: either (a) scalar benchmark passes ≤ 12% OR (b) SIMD is enabled and benchmark passes, both paths documented. Satisfies FR-162.
+- [X] T3.5.4 SIMD fallback decision (FR-162): if T3.5.3 shows 8-voice scalar worst-case > 12%: enable `ModalResonatorBankSIMD` inside `BodyBank::sharedBank_` (scope: `plugins/membrum/src/dsp/body_bank.h`, zero API change); re-run T3.5.3 to confirm it passes. If scalar path already passes: document "SIMD fallback: NOT triggered" in `plan.md §Complexity Tracking`. Acceptance evidence: either (a) scalar benchmark passes ≤ 12% OR (b) SIMD is enabled and benchmark passes, both paths documented. Satisfies FR-162.
 
 ### 3.5.3 Verification
 
-- [ ] T3.5.5 Run full test suite: `membrum_tests.exe 2>&1 | tail -5` — all Phase 3.0–3.4 tests plus T3.5.1 pass. Run benchmark: `membrum_tests.exe "[.perf]" 2>&1 | tail -30` — T3.5.2 assertions pass. Zero compiler warnings. Acceptance evidence: `All tests passed` in standard run; benchmark asserts green in perf run.
+- [X] T3.5.5 Run full test suite: `membrum_tests.exe 2>&1 | tail -5` — all Phase 3.0–3.4 tests plus T3.5.1 pass. Run benchmark: `membrum_tests.exe "[.perf]" 2>&1 | tail -30` — T3.5.2 assertions pass. Zero compiler warnings. Acceptance evidence: `All tests passed` in standard run; benchmark asserts green in perf run.
 
-- [ ] T3.5.6 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3" 2>&1 | tee membrum-phase35-pluginval.log` — inspect log, zero errors.
+- [X] T3.5.6 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3" 2>&1 | tee membrum-phase35-pluginval.log` — inspect log, zero errors.
 
-- [ ] T3.5.7 Commit: `"membrum: Phase 3.5 CPU budget + 16-voice stress + allocation matrix — SC-023/SC-024/SC-027 verified"`. Dependency: T3.5.5 and T3.5.6 green.
+- [X] T3.5.7 Commit: `"membrum: Phase 3.5 CPU budget + 16-voice stress + allocation matrix — SC-023/SC-024/SC-027 verified"`. Dependency: T3.5.5 and T3.5.6 green.
 
 ---
 

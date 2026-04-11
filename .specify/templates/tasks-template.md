@@ -30,6 +30,27 @@ Before starting ANY implementation task, include these as EXPLICIT todo items:
 
 Skills auto-load when needed (testing-guide, vst-guide) - no manual context verification required.
 
+### ⚠️ MANDATORY: Tool Discipline (No Bash Redirection for File Content)
+
+**Do NOT use Bash heredocs, `echo >`, `cat <<EOF`, `printf >`, `>` / `>>` redirection, or any shell-based file writing to create or modify source files, tests, fixtures, helper scripts, or any textual content.** Use the **Write** or **Edit** tool exclusively for all file content.
+
+**Why this rule exists:**
+- Shell metacharacters in test content (parentheses, brackets, quotes, `>`, `<`, `|`, `$`, backticks, `&`, `;`) routinely collide with bash's own syntax.
+- A misquoted redirect silently creates a garbage-named file (e.g. `(s)]`, `0.5f`, `maxDiff)`, `v3`) instead of writing what you intended, and the agent then spirals debugging "why isn't the file there?"
+- One past implementation session wasted **~90 minutes and tens of thousands of tokens** on exactly this failure mode. See the post-mortem in the iterum project memory. This is not theoretical.
+- **Write and Edit tools are transactional, quoting-safe, and atomic.** There is zero reason to ever use shell redirection for file content.
+
+**Specifically forbidden:**
+- `echo "content" > file.cpp`
+- `cat <<'EOF' > file.cpp ... EOF`
+- `printf '...' > file.cpp`
+- Any pipeline whose tail writes to a source/test/fixture path
+- Generating binary fixtures by echoing hex bytes through bash — use a one-shot C++ test or Node.js script invoked via Bash, with the script itself authored via Write.
+
+**Allowed Bash uses:** build commands, test runs, `git`, `grep`/`Grep`, `ls`, `stat`, moving/deleting files (`mv`/`rm`), running compiled binaries (including one-shot fixture generators whose source was written via Write).
+
+**If you catch yourself reaching for `>` or a heredoc to write file content: STOP. Use Write or Edit.**
+
 ### Integration Tests (MANDATORY When Applicable)
 
 If the feature **wires a sub-component into the processor** (MIDI routing, audio chain, parameter application via `applyParamsToEngine()`, stateful per-block processing, or host context dependency), integration tests are **required** — not optional. See `INTEGRATION-TESTING.md` in the testing-guide skill for the full checklist and anti-patterns.
