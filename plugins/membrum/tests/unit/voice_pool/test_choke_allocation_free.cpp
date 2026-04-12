@@ -13,6 +13,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <allocation_detector.h>
 
@@ -43,9 +44,9 @@ TEST_CASE("VoicePool choke: 1000 alternations allocation-free + finite",
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     pool.setChokeGroup(1);  // both 42 and 46 in group 1
 
     std::vector<float> outL(kBlockSize, 0.0f);

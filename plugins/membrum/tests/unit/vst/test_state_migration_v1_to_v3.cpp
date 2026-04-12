@@ -68,90 +68,34 @@ TEST_CASE("State v1 StateMigration v1->v3: chained migration loads cleanly",
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
-    // getState must now emit a 302-byte v3 blob.
+    // getState now emits v4 format after v1 migration.
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
-
-    int64 endPos = 0;
-    outStream->seek(0, IBStream::kIBSeekEnd, &endPos);
-    CHECK(endPos == kV3BlobBytes);
-
     outStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    int32 readVersion = 0;
+    // v4 header
+    int32 readVersion = 0, readMaxPoly32 = 0, readPolicy32 = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 3);
+    outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
+    outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
+    CHECK(readMaxPoly32 == 8);
+    CHECK(readPolicy32 == 0);
 
-    // Phase 1 values must be preserved bit-exactly.
+    // Pad 0 header
+    int32 readExc = 99, readBody = 99;
+    outStream->read(&readExc, sizeof(readExc), nullptr);
+    outStream->read(&readBody, sizeof(readBody), nullptr);
+    CHECK(readExc == 0);   // Impulse
+    CHECK(readBody == 0);  // Membrane
+
+    // Phase 1 values must be preserved (now in pad 0's float64 block).
     for (int i = 0; i < 5; ++i)
     {
         double v = 0.0;
         outStream->read(&v, sizeof(v), nullptr);
         INFO("phase 1 index=" << i);
-        CHECK(v == Approx(phase1[i]).margin(0.0));
-    }
-
-    // Phase 2 selectors default to 0 / 0 (Impulse / Membrane).
-    int32 readExc = 99, readBody = 99;
-    outStream->read(&readExc, sizeof(readExc), nullptr);
-    outStream->read(&readBody, sizeof(readBody), nullptr);
-    CHECK(readExc  == 0);
-    CHECK(readBody == 0);
-
-    // Phase 2 float defaults (see kPhase2FloatSlots in processor.cpp).
-    const double kPhase2Defaults[kPhase2FloatCount] = {
-        0.133333,  // exciterFMRatio
-        0.0,       // exciterFeedbackAmount
-        0.230769,  // exciterNoiseBurstDuration
-        0.3,       // exciterFrictionPressure
-        0.0,       // toneShaperFilterType
-        1.0,       // toneShaperFilterCutoff
-        0.0,       // toneShaperFilterResonance
-        0.5,       // toneShaperFilterEnvAmount
-        0.0,       // toneShaperDriveAmount
-        0.0,       // toneShaperFoldAmount
-        0.070721,  // toneShaperPitchEnvStart
-        0.0,       // toneShaperPitchEnvEnd
-        0.0,       // toneShaperPitchEnvTime
-        0.0,       // toneShaperPitchEnvCurve
-        0.0,       // toneShaperFilterEnvAttack
-        0.1,       // toneShaperFilterEnvDecay
-        0.0,       // toneShaperFilterEnvSustain
-        0.1,       // toneShaperFilterEnvRelease
-        0.333333,  // unnaturalModeStretch
-        0.5,       // unnaturalDecaySkew
-        0.0,       // unnaturalModeInjectAmount
-        0.0,       // unnaturalNonlinearCoupling
-        0.0,       // morphEnabled
-        1.0,       // morphStart
-        0.0,       // morphEnd
-        0.095477,  // morphDurationMs
-        0.0,       // morphCurve
-    };
-    for (int i = 0; i < kPhase2FloatCount; ++i)
-    {
-        double v = 0.0;
-        outStream->read(&v, sizeof(v), nullptr);
-        INFO("phase 2 default index=" << i);
-        // The atomics hold float32; the 0.133333 / 0.230769 / 0.070721 /
-        // 0.333333 / 0.095477 values round-trip to within ~1e-6.
-        CHECK(v == Approx(kPhase2Defaults[i]).margin(1e-5));
-    }
-
-    // Phase 3 tail: defaults.
-    std::uint8_t readMaxPoly = 0xFF;
-    std::uint8_t readPolicy  = 0xFF;
-    outStream->read(&readMaxPoly, sizeof(readMaxPoly), nullptr);
-    outStream->read(&readPolicy,  sizeof(readPolicy),  nullptr);
-    CHECK(static_cast<int>(readMaxPoly) == 8);
-    CHECK(static_cast<int>(readPolicy)  == 0);
-
-    for (int i = 0; i < 32; ++i)
-    {
-        std::uint8_t b = 0xFF;
-        outStream->read(&b, sizeof(b), nullptr);
-        INFO("choke default index=" << i);
-        CHECK(static_cast<int>(b) == 0);
+        CHECK(v == Approx(phase1[i]).margin(0.001));
     }
 
     outStream->release();

@@ -20,8 +20,10 @@
 // 0.1.0 = (0 << 16) | (1 << 8) | 0 = 256
 #define kAUcomponentVersion       256
 
-// 0022 == one config: (0 in, 2 out) instrument only, no sidechain
-#define kSupportedNumChannels     0022
+// 00220032 == two configs:
+//   0022 = (0 in, 2 out) instrument main stereo only
+//   0032 = (0 in, 32 out) instrument with 16 stereo buses
+#define kSupportedNumChannels     00220032
 
 #define kAUcomponentFlags         0
 #define kAUcomponentFlagsMask     0

@@ -28,6 +28,9 @@ public:
     /// Write `group` into all 32 entries (FR-138 -- Phase 3 single-pad template).
     void setGlobal(std::uint8_t group) noexcept;
 
+    /// Write `group` into a single entry (Phase 4 per-pad choke groups).
+    void setEntry(std::size_t padIndex, std::uint8_t group) noexcept;
+
     /// Return the choke group assigned to `midiNote`. Notes outside [36, 67]
     /// return 0 (no choke).
     [[nodiscard]] std::uint8_t lookup(std::uint8_t midiNote) const noexcept;
@@ -60,6 +63,13 @@ inline void ChokeGroupTable::setGlobal(std::uint8_t group) noexcept
     const std::uint8_t clamped = (group > 8U) ? std::uint8_t{0} : group;
     for (int i = 0; i < kSize; ++i)
         entries_[static_cast<std::size_t>(i)] = clamped;
+}
+
+inline void ChokeGroupTable::setEntry(std::size_t padIndex, std::uint8_t group) noexcept
+{
+    if (padIndex >= static_cast<std::size_t>(kSize))
+        return;
+    entries_[padIndex] = (group > 8U) ? std::uint8_t{0} : group;
 }
 
 inline std::uint8_t ChokeGroupTable::lookup(std::uint8_t midiNote) const noexcept

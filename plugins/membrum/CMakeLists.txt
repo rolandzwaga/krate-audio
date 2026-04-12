@@ -68,6 +68,11 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/body_bank.h
     src/dsp/tone_shaper.h
 
+    # Phase 4: per-pad configuration and presets
+    src/dsp/pad_config.h
+    src/dsp/default_kit.h
+    src/preset/membrum_preset_config.h
+
     # Phase 2: exciter backends (header-only)
     src/dsp/exciters/impulse_exciter.h
     src/dsp/exciters/mallet_exciter.h
@@ -109,6 +114,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Shared
     src/plugin_ids.h
     src/version.h
+
+    # SDK helper: MemoryStream (needed by controller kit preset StateProvider)
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 # Link SDK, VSTGUI, and KrateDSP

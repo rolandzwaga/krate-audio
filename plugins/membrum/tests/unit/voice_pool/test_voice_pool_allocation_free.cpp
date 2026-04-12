@@ -12,6 +12,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <allocation_detector.h>
 
@@ -39,9 +40,9 @@ TEST_CASE("VoicePool: every audio-thread call is allocation-free",
 
     // Prime every main voice with one pass of each Phase 1 setter so any
     // first-touch lazy init is paid for OUTSIDE the tracking scope.
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     for (int i = 0; i < 16; ++i)
         pool.noteOn(static_cast<std::uint8_t>(36 + (i % 32)), 0.7f);
     pool.processBlock(outL.data(), outR.data(), kBlockSize);

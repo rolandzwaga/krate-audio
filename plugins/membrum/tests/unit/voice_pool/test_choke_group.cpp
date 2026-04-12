@@ -21,6 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <algorithm>
 #include <array>
@@ -60,9 +61,9 @@ void configurePool(Membrum::VoicePool& pool, std::uint8_t group)
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     pool.setChokeGroup(group);
 }
 
@@ -146,9 +147,9 @@ TEST_CASE("VoicePool choke: (b) 8-group orthogonality",
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
 
     // Assign notes 40..47 to groups 1..8 respectively.
     std::array<std::uint8_t, Membrum::ChokeGroupTable::kSize> raw{};
@@ -277,9 +278,9 @@ TEST_CASE("VoicePool choke: (d) cross-group isolation",
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
 
     std::array<std::uint8_t, Membrum::ChokeGroupTable::kSize> raw{};
     raw[static_cast<std::size_t>(40 - 36)] = 1;

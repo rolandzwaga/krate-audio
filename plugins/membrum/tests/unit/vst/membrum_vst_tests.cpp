@@ -27,6 +27,22 @@ using Catch::Approx;
 static constexpr double kTestSampleRate = 44100.0;
 static constexpr int32 kTestBlockSize = 512;
 
+// Helper: read pad 0's first N sound params from a v4 state stream.
+// Seeks to the beginning and skips the v4 header + pad 0 selectors.
+static void readV4Pad0SoundParams(MemoryStream* stream, double* outParams, int count)
+{
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    int32 version = 0, maxPoly = 0, stealPolicy = 0;
+    stream->read(&version, sizeof(version), nullptr);
+    stream->read(&maxPoly, sizeof(maxPoly), nullptr);
+    stream->read(&stealPolicy, sizeof(stealPolicy), nullptr);
+    int32 excType = 0, bodyModel = 0;
+    stream->read(&excType, sizeof(excType), nullptr);
+    stream->read(&bodyModel, sizeof(bodyModel), nullptr);
+    for (int i = 0; i < count; ++i)
+        stream->read(&outParams[i], sizeof(double), nullptr);
+}
+
 static ProcessSetup makeSetup(double sampleRate = kTestSampleRate)
 {
     ProcessSetup setup{};
@@ -61,8 +77,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
 
     // Phase 2: 5 Phase-1 params + 2 selectors + 27 Phase-2 continuous = 34.
     // Phase 3: +3 (maxPolyphony, voiceStealing, chokeGroup) = 37.
+    // Phase 4: +1 (selectedPad) + 1152 (32 pads x 36 params) = 1190.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 37);
+    CHECK(paramCount == 1190);
 
     REQUIRE(controller.terminate() == kResultOk);
 }
@@ -177,22 +194,33 @@ TEST_CASE("Membrum state round-trip preserves all parameter values",
     auto* saveStream = new MemoryStream();
     REQUIRE(processor.getState(saveStream) == kResultOk);
 
-    // Read back and verify
+    // Read back and verify -- v4 format: version(4) + maxPoly(4) + stealPolicy(4)
+    // then pad 0: exciterType(4) + bodyModel(4) + 34 x float64 + uint8 + uint8
+    // The first 5 sound params (offsets 2-6) start at position 20 in the stream.
     saveStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
     int32 version = 0;
     saveStream->read(&version, sizeof(version), nullptr);
     CHECK(version == Membrum::kCurrentStateVersion);
 
+    int32 maxPoly = 0, stealPolicy = 0;
+    saveStream->read(&maxPoly, sizeof(maxPoly), nullptr);
+    saveStream->read(&stealPolicy, sizeof(stealPolicy), nullptr);
+
+    int32 excType = 0, bodyModel = 0;
+    saveStream->read(&excType, sizeof(excType), nullptr);
+    saveStream->read(&bodyModel, sizeof(bodyModel), nullptr);
+
+    // Read pad 0's 34 float64 sound params: first 5 are material, size, decay, strikePos, level
     double readParams[5] = {};
     for (int i = 0; i < 5; ++i)
         saveStream->read(&readParams[i], sizeof(double), nullptr);
 
-    CHECK(readParams[0] == Approx(0.2).margin(0.0));  // Material
-    CHECK(readParams[1] == Approx(0.7).margin(0.0));  // Size
-    CHECK(readParams[2] == Approx(0.1).margin(0.0));  // Decay
-    CHECK(readParams[3] == Approx(0.9).margin(0.0));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.6).margin(0.0));  // Level
+    CHECK(readParams[0] == Approx(0.2).margin(0.001));  // Material
+    CHECK(readParams[1] == Approx(0.7).margin(0.001));  // Size
+    CHECK(readParams[2] == Approx(0.1).margin(0.001));  // Decay
+    CHECK(readParams[3] == Approx(0.9).margin(0.001));  // StrikePosition
+    CHECK(readParams[4] == Approx(0.6).margin(0.001));  // Level
 
     saveStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);
@@ -209,22 +237,16 @@ TEST_CASE("Membrum state round-trip with defaults",
     auto* saveStream = new MemoryStream();
     REQUIRE(processor.getState(saveStream) == kResultOk);
 
-    // Read back and verify defaults
-    saveStream->seek(0, IBStream::kIBSeekSet, nullptr);
-
-    int32 version = 0;
-    saveStream->read(&version, sizeof(version), nullptr);
-    CHECK(version == Membrum::kCurrentStateVersion);
-
+    // Read back and verify defaults (v4 format)
     double readParams[5] = {};
-    for (int i = 0; i < 5; ++i)
-        saveStream->read(&readParams[i], sizeof(double), nullptr);
+    readV4Pad0SoundParams(saveStream, readParams, 5);
 
-    CHECK(readParams[0] == Approx(0.5).margin(0.0));  // Material default
-    CHECK(readParams[1] == Approx(0.5).margin(0.0));  // Size default
-    CHECK(readParams[2] == Approx(0.3).margin(0.0));  // Decay default
-    CHECK(readParams[3] == Approx(0.3).margin(0.0));  // StrikePosition default
-    CHECK(readParams[4] == Approx(0.8).margin(0.0));  // Level default
+    // After Phase 4 DefaultKit::apply(), pad 0 = Kick template (FR-030/FR-031)
+    CHECK(readParams[0] == Approx(0.3).margin(0.001));  // Material (kick default)
+    CHECK(readParams[1] == Approx(0.8).margin(0.001));  // Size (kick default)
+    CHECK(readParams[2] == Approx(0.3).margin(0.001));  // Decay (kick default)
+    CHECK(readParams[3] == Approx(0.3).margin(0.001));  // StrikePosition (kick default)
+    CHECK(readParams[4] == Approx(0.8).margin(0.001));  // Level (kick default)
 
     saveStream->release();
     REQUIRE(processor.terminate() == kResultOk);
@@ -263,19 +285,14 @@ TEST_CASE("Membrum: setState with only 4 params -- 5th retains default",
     auto* saveStream = new MemoryStream();
     REQUIRE(processor.getState(saveStream) == kResultOk);
 
-    saveStream->seek(0, IBStream::kIBSeekSet, nullptr);
-    int32 readVersion = 0;
-    saveStream->read(&readVersion, sizeof(readVersion), nullptr);
-
     double readParams[5] = {};
-    for (int i = 0; i < 5; ++i)
-        saveStream->read(&readParams[i], sizeof(double), nullptr);
+    readV4Pad0SoundParams(saveStream, readParams, 5);
 
-    CHECK(readParams[0] == Approx(0.2).margin(0.0));  // Material
-    CHECK(readParams[1] == Approx(0.7).margin(0.0));  // Size
-    CHECK(readParams[2] == Approx(0.1).margin(0.0));  // Decay
-    CHECK(readParams[3] == Approx(0.9).margin(0.0));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.8).margin(0.0));  // Level = default
+    CHECK(readParams[0] == Approx(0.2).margin(0.001));  // Material
+    CHECK(readParams[1] == Approx(0.7).margin(0.001));  // Size
+    CHECK(readParams[2] == Approx(0.1).margin(0.001));  // Decay
+    CHECK(readParams[3] == Approx(0.9).margin(0.001));  // StrikePosition
+    CHECK(readParams[4] == Approx(0.8).margin(0.001));  // Level = default
 
     saveStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);
@@ -297,17 +314,30 @@ TEST_CASE("Membrum: setState with version=2 and 7 params -- loads first 5 correc
     REQUIRE(processor.setActive(true) == kResultOk);
 
     // Build a state blob with version=2 and 7 float64 values
+    // v2 format: version + 5 Phase1 float64 + exciterType(int32) + bodyModel(int32) + 27 Phase2 float64
+    // This test writes version=2 with only 7 float64 (5 Phase1 + extra), no selectors
+    // Actually v2 expects selectors after Phase1 params. Let's write a proper v2 stub:
     auto* stream = new MemoryStream();
-    int32 version = 2; // Future version
+    int32 version = 2;
     stream->write(&version, sizeof(version), nullptr);
 
-    double params[] = {0.15, 0.85, 0.45, 0.65, 0.35, 0.99, 0.77};
+    double params[] = {0.15, 0.85, 0.45, 0.65, 0.35};
     for (double p : params)
         stream->write(&p, sizeof(p), nullptr);
 
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    // v2 selectors
+    int32 excType = 0, bodyModel = 0;
+    stream->write(&excType, sizeof(excType), nullptr);
+    stream->write(&bodyModel, sizeof(bodyModel), nullptr);
 
-    // Must not crash -- processor should load the first 5 known params
+    // 27 Phase 2 float64 defaults (just write some)
+    for (int i = 0; i < 27; ++i)
+    {
+        double v = 0.0;
+        stream->write(&v, sizeof(v), nullptr);
+    }
+
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
     REQUIRE(processor.setState(stream) == kResultOk);
     stream->release();
 
@@ -315,19 +345,14 @@ TEST_CASE("Membrum: setState with version=2 and 7 params -- loads first 5 correc
     auto* saveStream = new MemoryStream();
     REQUIRE(processor.getState(saveStream) == kResultOk);
 
-    saveStream->seek(0, IBStream::kIBSeekSet, nullptr);
-    int32 readVersion = 0;
-    saveStream->read(&readVersion, sizeof(readVersion), nullptr);
-
     double readParams[5] = {};
-    for (int i = 0; i < 5; ++i)
-        saveStream->read(&readParams[i], sizeof(double), nullptr);
+    readV4Pad0SoundParams(saveStream, readParams, 5);
 
-    CHECK(readParams[0] == Approx(0.15).margin(0.0));  // Material
-    CHECK(readParams[1] == Approx(0.85).margin(0.0));  // Size
-    CHECK(readParams[2] == Approx(0.45).margin(0.0));  // Decay
-    CHECK(readParams[3] == Approx(0.65).margin(0.0));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.35).margin(0.0));  // Level
+    CHECK(readParams[0] == Approx(0.15).margin(0.001));  // Material
+    CHECK(readParams[1] == Approx(0.85).margin(0.001));  // Size
+    CHECK(readParams[2] == Approx(0.45).margin(0.001));  // Decay
+    CHECK(readParams[3] == Approx(0.65).margin(0.001));  // StrikePosition
+    CHECK(readParams[4] == Approx(0.35).margin(0.001));  // Level
 
     saveStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);

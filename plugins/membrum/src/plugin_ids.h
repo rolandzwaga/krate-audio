@@ -10,6 +10,7 @@
 
 #include "pluginterfaces/base/funknown.h"
 #include "pluginterfaces/vst/vsttypes.h"
+#include "dsp/pad_config.h"
 
 namespace Membrum {
 
@@ -23,9 +24,10 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 static constexpr auto kSubCategories = "Instrument|Drum";
 
 // State version for serialization.
-// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3. Loader accepts version 1 and 2 blobs
-// and fills later-phase parameters with defaults (FR-082, FR-142, FR-143).
-constexpr Steinberg::int32 kCurrentStateVersion = 3;
+// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4.
+// Loader accepts version 1-3 blobs and fills later-phase parameters with
+// defaults (FR-082, FR-142, FR-143).
+constexpr Steinberg::int32 kCurrentStateVersion = 4;
 
 // ==============================================================================
 // Parameter IDs
@@ -92,6 +94,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kMaxPolyphonyId               = 250,  // RangeParameter stepped [4,16], default 8
     kVoiceStealingId              = 251,  // StringListParameter {Oldest,Quietest,Priority}
     kChokeGroupId                 = 252,  // RangeParameter stepped [0,8], default 0
+
+    // ====== Phase 4 ======
+
+    // 260: Selected pad proxy selector
+    kSelectedPadId                = 260,  // RangeParameter stepped [0,31], default 0
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -106,7 +113,24 @@ static_assert(kCurrentStateVersion >= 2,
 // reserved for Phase 2 follow-ups.
 static_assert(kMorphCurveId < kMaxPolyphonyId,
               "Phase 2 and Phase 3 parameter ID ranges must not overlap");
-static_assert(kCurrentStateVersion == 3,
-              "Phase 3 requires state version 3");
+
+// ==============================================================================
+// Phase 4: Per-Pad Parameter Layout
+// ==============================================================================
+// Per-pad parameters live at kPadBaseId + padIndex * kPadParamStride + offset.
+// Pad 0: 1000-1063, Pad 1: 1064-1127, ..., Pad 31: 2984-3047.
+// Offsets 0-35 are active (kPadActiveParamCount); 36-63 reserved for Phase 5+.
+// ==============================================================================
+
+// Phase 4 per-pad constants (kPadBaseId, kPadParamStride, kNumPads,
+// kMaxOutputBuses, PadConfig, PadParamOffset, helper functions) are
+// defined in dsp/pad_config.h, included at the top of this file.
+
+// Phase 4 collision guards. kSelectedPadId (260) is the last global param;
+// kPadBaseId (1000) opens the per-pad range. Gap 261..999 is reserved.
+static_assert(kSelectedPadId < kPadBaseId,
+              "Phase 4 global and per-pad parameter ID ranges must not overlap");
+static_assert(kCurrentStateVersion == 4,
+              "Phase 4 requires state version 4");
 
 } // namespace Membrum

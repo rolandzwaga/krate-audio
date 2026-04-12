@@ -62,6 +62,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <algorithm>
 #include <cmath>
@@ -163,7 +164,7 @@ renderNewVoiceMatchingSteal(double                       sampleRate,
     std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
 
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.0f);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.0f);
 
     const std::uint8_t seedNotes[4] = {36, 37, 38, 39};
     for (int i = 0; i < 4; ++i)
@@ -176,7 +177,7 @@ renderNewVoiceMatchingSteal(double                       sampleRate,
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
     pool.processBlock(outL.data(), outR.data(), kBlockSize);  // baseline block
 
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.8f);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, /*level*/ 0.8f);
     pool.noteOn(67, 0.9f);
 
     std::vector<float> captured;

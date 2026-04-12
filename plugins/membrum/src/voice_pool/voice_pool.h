@@ -52,6 +52,7 @@
 #include "../dsp/body_model_type.h"
 #include "../dsp/drum_voice.h"
 #include "../dsp/exciter_type.h"
+#include "../dsp/pad_config.h"
 
 #include <krate/dsp/systems/voice_allocator.h>
 
@@ -116,7 +117,19 @@ public:
     // ------------------------------------------------------------------
 
     /// Render every active and fast-releasing voice into `outL` / `outR`.
+    /// Legacy overload (Phase 3 compat) -- routes all audio to main only.
     void processBlock(float* outL, float* outR, int numSamples) noexcept;
+
+    /// FR-044: Extended processBlock with multi-bus output support.
+    /// auxL/auxR: arrays of [numOutputBuses] buffer pointers.
+    /// busActive: boolean array indicating which buses are active.
+    /// After rendering each voice, audio is accumulated to main (always) and
+    /// to auxL[pad.outputBus]/auxR[pad.outputBus] if the bus is active and > 0.
+    void processBlock(float* outL, float* outR,
+                      float** auxL, float** auxR,
+                      const bool* busActive,
+                      int numOutputBuses,
+                      int numSamples) noexcept;
 
     // ------------------------------------------------------------------
     // Configuration -- audio thread via `processParameterChanges`
@@ -135,22 +148,31 @@ public:
     void setChokeGroup(std::uint8_t group) noexcept;
 
     // ------------------------------------------------------------------
-    // Shared parameter snapshots -- propagated from Processor atomics
+    // Per-pad configuration (Phase 4 -- replaces SharedParams)
     // ------------------------------------------------------------------
 
-    /// Phase 1 parameter snapshot, read on the next `noteOn`. Does not
-    /// disturb currently-sounding voices.
-    void setSharedVoiceParams(float material,
-                              float size,
-                              float decay,
-                              float strikePos,
-                              float level) noexcept;
+    /// Update a continuous float field in a specific pad's config.
+    /// Called from processParameterChanges. `offset` is a PadParamOffset.
+    void setPadConfigField(int padIndex, int offset, float normalizedValue) noexcept;
 
-    /// Phase 2 selector snapshot (Exciter Type, Body Model). Stored in the
-    /// shared parameter bundle and applied to the allocated `DrumVoice` on
-    /// the next `noteOn`. Does not disturb currently-sounding voices.
-    void setSharedExciterType(ExciterType type) noexcept;
-    void setSharedBodyModel(BodyModelType model) noexcept;
+    /// Set a discrete selector for a pad (ExciterType/BodyModel/etc.).
+    /// `offset` must be kPadExciterType or kPadBodyModel (or discrete TS params).
+    void setPadConfigSelector(int padIndex, int offset, int discreteValue) noexcept;
+
+    /// Read-only access to a pad's config (for state serialization).
+    [[nodiscard]] const PadConfig& padConfig(int padIndex) const noexcept;
+
+    /// Mutable access to a pad's config (for state deserialization / preset load).
+    [[nodiscard]] PadConfig& padConfigMut(int padIndex) noexcept;
+
+    /// Set the choke group for a specific pad (replaces setChokeGroup global).
+    void setPadChokeGroup(int padIndex, std::uint8_t group) noexcept;
+
+    /// Mutable accessor for the full padConfigs array (for DefaultKit::apply).
+    [[nodiscard]] std::array<PadConfig, kNumPads>& padConfigsArray() noexcept
+    {
+        return padConfigs_;
+    }
 
     // ------------------------------------------------------------------
     // Direct-forward helpers for Phase 2 param changes that live inside the
@@ -249,9 +271,9 @@ private:
     /// 3.1 stub is a no-op; Phase 3.3 fills in the body.
     void processChokeGroups(std::uint8_t newNote) noexcept;
 
-    /// Apply the current `sharedParams_` snapshot to the `DrumVoice` at
-    /// `slot` (used by `noteOn`).
-    void applySharedParamsToSlot(int slot) noexcept;
+    /// Apply pad N's configuration to a voice slot at noteOn time.
+    /// Called internally by noteOn() using the midiNote-to-pad mapping.
+    void applyPadConfigToSlot(int slot, int padIndex) noexcept;
 
 
     // ------------------------------------------------------------------
@@ -297,25 +319,10 @@ private:
     std::uint64_t        sampleCounter_ = 0;                           // FR-128
 
     // ------------------------------------------------------------------
-    // Shared parameter snapshot -- FR-170. Propagated from the Processor's
-    // Phase 1/2 atomics via the set* methods and applied to the allocated
-    // DrumVoice on the next noteOn boundary. Normalized [0, 1] for
-    // continuous params, typed enums for the selectors.
+    // Per-pad configuration storage (Phase 4). 32 pre-allocated PadConfig
+    // structs, one per GM drum map pad. Replaces the Phase 3 SharedParams.
     // ------------------------------------------------------------------
-    struct SharedParams
-    {
-        // Phase 1 continuous
-        float material  = 0.5f;
-        float size      = 0.5f;
-        float decay     = 0.3f;
-        float strikePos = 0.3f;
-        float level     = 0.8f;
-
-        // Phase 2 selectors
-        ExciterType   exciterType = ExciterType::Impulse;
-        BodyModelType bodyModel   = BodyModelType::Membrane;
-    };
-    SharedParams sharedParams_{};
+    std::array<PadConfig, kNumPads> padConfigs_{};
 };
 
 // ------------------------------------------------------------------
@@ -334,7 +341,8 @@ private:
 // ------------------------------------------------------------------
 constexpr std::size_t kVoicePoolSizeLimit =
     32 * sizeof(DrumVoice) + 32 * sizeof(VoiceMeta)
-    + sizeof(Krate::DSP::VoiceAllocator) + sizeof(ChokeGroupTable) + 1024;
+    + sizeof(Krate::DSP::VoiceAllocator) + sizeof(ChokeGroupTable)
+    + kNumPads * sizeof(PadConfig) + 2048;
 
 static_assert(sizeof(VoicePool) <= kVoicePoolSizeLimit,
               "VoicePool struct size exceeds budget");

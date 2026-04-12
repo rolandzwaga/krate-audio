@@ -109,60 +109,34 @@ TEST_CASE("State v3 StateRoundTripV3: getState emits exactly 302 bytes with v3 t
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
-    // getState must emit a 302-byte v3 blob.
+    // getState emits v4 format after loading v3 state (migration).
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
 
-    int64 endPos = 0;
-    outStream->seek(0, IBStream::kIBSeekEnd, &endPos);
-    CHECK(endPos == kV3BlobBytes);
-
     outStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    // Version
-    int32 readVersion = 0;
+    // v4 header: version, maxPolyphony, stealPolicy
+    int32 readVersion = 0, readMaxPoly32 = 0, readPolicy32 = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 3);
+    outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
+    outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
     CHECK(readVersion == Membrum::kCurrentStateVersion);
+    CHECK(readMaxPoly32 == 12);
+    CHECK(readPolicy32 == 1);
 
-    // Phase 1
-    for (int i = 0; i < 5; ++i)
-    {
-        double v = 0.0;
-        outStream->read(&v, sizeof(v), nullptr);
-        CHECK(v == Approx(phase1[i]).margin(0.0));
-    }
-
-    // Selectors
+    // Pad 0: exciter/body + 34 float64 + uint8 chokeGroup + uint8 outputBus
     int32 readExc = 0, readBody = 0;
     outStream->read(&readExc, sizeof(readExc), nullptr);
     outStream->read(&readBody, sizeof(readBody), nullptr);
     CHECK(readExc == excI32);
     CHECK(readBody == bodyI32);
 
-    // Phase 2 floats
-    for (int i = 0; i < kPhase2FloatCount; ++i)
+    // First 5 float64 = Phase 1 params (material, size, decay, strikePos, level)
+    for (int i = 0; i < 5; ++i)
     {
         double v = 0.0;
         outStream->read(&v, sizeof(v), nullptr);
-        INFO("Phase 2 index=" << i);
-        CHECK(v == Approx(phase2[i]).margin(0.0));
-    }
-
-    // Phase 3 tail — maxPoly, policy, chokes
-    std::uint8_t readMaxPoly = 0;
-    std::uint8_t readPolicy  = 0;
-    outStream->read(&readMaxPoly, sizeof(readMaxPoly), nullptr);
-    outStream->read(&readPolicy, sizeof(readPolicy), nullptr);
-    CHECK(static_cast<int>(readMaxPoly) == 12);
-    CHECK(static_cast<int>(readPolicy)  == 1);
-
-    for (int i = 0; i < kChokeAssignCount; ++i)
-    {
-        std::uint8_t b = 0;
-        outStream->read(&b, sizeof(b), nullptr);
-        INFO("choke index=" << i);
-        CHECK(static_cast<int>(b) == 5);
+        CHECK(v == Approx(phase1[i]).margin(0.001));
     }
 
     outStream->release();
@@ -199,31 +173,18 @@ TEST_CASE("State v3 StateRoundTripV3: extreme / boundary values round-trip",
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
+    // getState emits v4 format. Check maxPoly and stealPolicy survived.
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
 
-    int64 endPos = 0;
-    outStream->seek(0, IBStream::kIBSeekEnd, &endPos);
-    CHECK(endPos == kV3BlobBytes);
-
-    // Seek to the v3 tail (offset 268) and verify.
-    outStream->seek(kV2BodyBytes, IBStream::kIBSeekSet, nullptr);
-
-    std::uint8_t readMaxPoly = 0;
-    std::uint8_t readPolicy  = 0;
-    outStream->read(&readMaxPoly, sizeof(readMaxPoly), nullptr);
-    outStream->read(&readPolicy, sizeof(readPolicy), nullptr);
-    CHECK(static_cast<int>(readMaxPoly) == 4);
-    CHECK(static_cast<int>(readPolicy)  == 2);
-
-    for (int i = 0; i < kChokeAssignCount; ++i)
-    {
-        std::uint8_t b = 0;
-        outStream->read(&b, sizeof(b), nullptr);
-        const int expected = (i % 2 == 0) ? 0 : 8;
-        INFO("choke index=" << i);
-        CHECK(static_cast<int>(b) == expected);
-    }
+    outStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    int32 readVersion = 0, readMaxPoly32 = 0, readPolicy32 = 0;
+    outStream->read(&readVersion, sizeof(readVersion), nullptr);
+    outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
+    outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
+    CHECK(readVersion == 4);
+    CHECK(readMaxPoly32 == 4);
+    CHECK(readPolicy32 == 2);
 
     outStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);

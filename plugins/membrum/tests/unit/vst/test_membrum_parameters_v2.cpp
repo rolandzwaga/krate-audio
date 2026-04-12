@@ -40,7 +40,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int kExpectedParameterCount = 37;  // Phase 2 (34) + Phase 3 (3)
+constexpr int kExpectedParameterCount = 1190;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152)
 constexpr int kExpectedExciterCount   = 6;
 constexpr int kExpectedBodyCount      = 6;
 
@@ -53,25 +53,20 @@ struct ExpectedParam
     int     stepCountIfList;  // 0 for non-list parameters
 };
 
-const std::array<ExpectedParam, kExpectedParameterCount> kExpectedParams = {{
-    // ----- Phase 1 (5) -----
+// Global params to spot-check (first 37 Phase 1-3 params)
+constexpr int kGlobalParamCount = 37;
+const std::array<ExpectedParam, kGlobalParamCount> kGlobalExpectedParams = {{
     { Membrum::kMaterialId,       false, 0 },
     { Membrum::kSizeId,           false, 0 },
     { Membrum::kDecayId,          false, 0 },
     { Membrum::kStrikePositionId, false, 0 },
     { Membrum::kLevelId,          false, 0 },
-
-    // ----- Phase 2 selectors (StringListParameter) -----
     { Membrum::kExciterTypeId, true, kExpectedExciterCount - 1 },
     { Membrum::kBodyModelId,   true, kExpectedBodyCount    - 1 },
-
-    // ----- Phase 2 secondary exciter params (continuous) -----
     { Membrum::kExciterFMRatioId,            false, 0 },
     { Membrum::kExciterFeedbackAmountId,     false, 0 },
     { Membrum::kExciterNoiseBurstDurationId, false, 0 },
     { Membrum::kExciterFrictionPressureId,   false, 0 },
-
-    // ----- Phase 2 tone shaper (filter + drive + fold + pitch env) -----
     { Membrum::kToneShaperFilterTypeId,       false, 0 },
     { Membrum::kToneShaperFilterCutoffId,     false, 0 },
     { Membrum::kToneShaperFilterResonanceId,  false, 0 },
@@ -82,35 +77,23 @@ const std::array<ExpectedParam, kExpectedParameterCount> kExpectedParams = {{
     { Membrum::kToneShaperPitchEnvEndId,      false, 0 },
     { Membrum::kToneShaperPitchEnvTimeId,     false, 0 },
     { Membrum::kToneShaperPitchEnvCurveId,    false, 0 },
-
-    // ----- Phase 2 filter envelope sub-params -----
     { Membrum::kToneShaperFilterEnvAttackId,  false, 0 },
     { Membrum::kToneShaperFilterEnvDecayId,   false, 0 },
     { Membrum::kToneShaperFilterEnvSustainId, false, 0 },
     { Membrum::kToneShaperFilterEnvReleaseId, false, 0 },
-
-    // ----- Phase 2 unnatural zone -----
     { Membrum::kUnnaturalModeStretchId,       false, 0 },
     { Membrum::kUnnaturalDecaySkewId,         false, 0 },
     { Membrum::kUnnaturalModeInjectAmountId,  false, 0 },
     { Membrum::kUnnaturalNonlinearCouplingId, false, 0 },
-
-    // ----- Phase 2 material morph -----
     { Membrum::kMorphEnabledId,    false, 0 },
     { Membrum::kMorphStartId,      false, 0 },
     { Membrum::kMorphEndId,        false, 0 },
     { Membrum::kMorphDurationMsId, false, 0 },
     { Membrum::kMorphCurveId,      false, 0 },
-
-    // ----- Phase 3 polyphony / stealing / choke -----
     { Membrum::kMaxPolyphonyId,    false, 0 },
-    { Membrum::kVoiceStealingId,   true,  2 },   // 3 entries -> stepCount 2
+    { Membrum::kVoiceStealingId,   true,  2 },
     { Membrum::kChokeGroupId,      false, 0 },
 }};
-
-static_assert(kExpectedParams.size() == kExpectedParameterCount,
-              "kExpectedParams must list exactly 37 parameters (5 Phase-1 + "
-              "29 Phase-2 + 3 Phase-3)");
 
 } // namespace
 
@@ -151,7 +134,7 @@ TEST_CASE("Phase 2 contract: all 34 parameter IDs are unique and registered",
     }
 
     // Every expected ID must be present.
-    for (const auto& exp : kExpectedParams)
+    for (const auto& exp : kGlobalExpectedParams)
     {
         INFO("Missing expected parameter ID " << exp.id);
         CHECK(registeredIds.count(exp.id) == 1);
@@ -174,7 +157,7 @@ TEST_CASE("Phase 2 contract: setParamNormalized round-trips bit-exact for all 34
     std::mt19937 rng(0xC0FFEEu);
     std::uniform_real_distribution<double> dist(0.0, 1.0);
 
-    for (const auto& exp : kExpectedParams)
+    for (const auto& exp : kGlobalExpectedParams)
     {
         for (int trial = 0; trial < 5; ++trial)
         {
@@ -273,12 +256,12 @@ TEST_CASE("Phase 2 contract: setParamNormalized makes zero heap allocations",
 
     // Pre-touch every parameter once outside the tracking scope so any first-
     // call lazy host-side allocation (none expected, but defensive) is excluded.
-    for (const auto& exp : kExpectedParams)
+    for (const auto& exp : kGlobalExpectedParams)
         REQUIRE(controller.setParamNormalized(exp.id, 0.5) == kResultOk);
 
     {
         TestHelpers::AllocationScope scope;
-        for (const auto& exp : kExpectedParams)
+        for (const auto& exp : kGlobalExpectedParams)
         {
             for (int trial = 0; trial < 4; ++trial)
             {
