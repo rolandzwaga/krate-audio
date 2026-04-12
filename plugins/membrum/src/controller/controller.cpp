@@ -34,41 +34,41 @@ struct ProxyMapping
 };
 
 constexpr ProxyMapping kProxyMappings[] = {
-    { kMaterialId,                   kPadMaterial },
-    { kSizeId,                       kPadSize },
-    { kDecayId,                      kPadDecay },
-    { kStrikePositionId,             kPadStrikePosition },
-    { kLevelId,                      kPadLevel },
-    { kExciterTypeId,                kPadExciterType },
-    { kBodyModelId,                  kPadBodyModel },
-    { kExciterFMRatioId,             kPadFMRatio },
-    { kExciterFeedbackAmountId,      kPadFeedbackAmount },
-    { kExciterNoiseBurstDurationId,  kPadNoiseBurstDuration },
-    { kExciterFrictionPressureId,    kPadFrictionPressure },
-    { kToneShaperFilterTypeId,       kPadTSFilterType },
-    { kToneShaperFilterCutoffId,     kPadTSFilterCutoff },
-    { kToneShaperFilterResonanceId,  kPadTSFilterResonance },
-    { kToneShaperFilterEnvAmountId,  kPadTSFilterEnvAmount },
-    { kToneShaperDriveAmountId,      kPadTSDriveAmount },
-    { kToneShaperFoldAmountId,       kPadTSFoldAmount },
-    { kToneShaperPitchEnvStartId,    kPadTSPitchEnvStart },
-    { kToneShaperPitchEnvEndId,      kPadTSPitchEnvEnd },
-    { kToneShaperPitchEnvTimeId,     kPadTSPitchEnvTime },
-    { kToneShaperPitchEnvCurveId,    kPadTSPitchEnvCurve },
-    { kToneShaperFilterEnvAttackId,  kPadTSFilterEnvAttack },
-    { kToneShaperFilterEnvDecayId,   kPadTSFilterEnvDecay },
-    { kToneShaperFilterEnvSustainId, kPadTSFilterEnvSustain },
-    { kToneShaperFilterEnvReleaseId, kPadTSFilterEnvRelease },
-    { kUnnaturalModeStretchId,       kPadModeStretch },
-    { kUnnaturalDecaySkewId,         kPadDecaySkew },
-    { kUnnaturalModeInjectAmountId,  kPadModeInjectAmount },
-    { kUnnaturalNonlinearCouplingId, kPadNonlinearCoupling },
-    { kMorphEnabledId,               kPadMorphEnabled },
-    { kMorphStartId,                 kPadMorphStart },
-    { kMorphEndId,                   kPadMorphEnd },
-    { kMorphDurationMsId,            kPadMorphDuration },
-    { kMorphCurveId,                 kPadMorphCurve },
-    { kChokeGroupId,                 kPadChokeGroup },
+    {.globalId = kMaterialId,                   .padOffset = kPadMaterial },
+    {.globalId = kSizeId,                       .padOffset = kPadSize },
+    {.globalId = kDecayId,                      .padOffset = kPadDecay },
+    {.globalId = kStrikePositionId,             .padOffset = kPadStrikePosition },
+    {.globalId = kLevelId,                      .padOffset = kPadLevel },
+    {.globalId = kExciterTypeId,                .padOffset = kPadExciterType },
+    {.globalId = kBodyModelId,                  .padOffset = kPadBodyModel },
+    {.globalId = kExciterFMRatioId,             .padOffset = kPadFMRatio },
+    {.globalId = kExciterFeedbackAmountId,      .padOffset = kPadFeedbackAmount },
+    {.globalId = kExciterNoiseBurstDurationId,  .padOffset = kPadNoiseBurstDuration },
+    {.globalId = kExciterFrictionPressureId,    .padOffset = kPadFrictionPressure },
+    {.globalId = kToneShaperFilterTypeId,       .padOffset = kPadTSFilterType },
+    {.globalId = kToneShaperFilterCutoffId,     .padOffset = kPadTSFilterCutoff },
+    {.globalId = kToneShaperFilterResonanceId,  .padOffset = kPadTSFilterResonance },
+    {.globalId = kToneShaperFilterEnvAmountId,  .padOffset = kPadTSFilterEnvAmount },
+    {.globalId = kToneShaperDriveAmountId,      .padOffset = kPadTSDriveAmount },
+    {.globalId = kToneShaperFoldAmountId,       .padOffset = kPadTSFoldAmount },
+    {.globalId = kToneShaperPitchEnvStartId,    .padOffset = kPadTSPitchEnvStart },
+    {.globalId = kToneShaperPitchEnvEndId,      .padOffset = kPadTSPitchEnvEnd },
+    {.globalId = kToneShaperPitchEnvTimeId,     .padOffset = kPadTSPitchEnvTime },
+    {.globalId = kToneShaperPitchEnvCurveId,    .padOffset = kPadTSPitchEnvCurve },
+    {.globalId = kToneShaperFilterEnvAttackId,  .padOffset = kPadTSFilterEnvAttack },
+    {.globalId = kToneShaperFilterEnvDecayId,   .padOffset = kPadTSFilterEnvDecay },
+    {.globalId = kToneShaperFilterEnvSustainId, .padOffset = kPadTSFilterEnvSustain },
+    {.globalId = kToneShaperFilterEnvReleaseId, .padOffset = kPadTSFilterEnvRelease },
+    {.globalId = kUnnaturalModeStretchId,       .padOffset = kPadModeStretch },
+    {.globalId = kUnnaturalDecaySkewId,         .padOffset = kPadDecaySkew },
+    {.globalId = kUnnaturalModeInjectAmountId,  .padOffset = kPadModeInjectAmount },
+    {.globalId = kUnnaturalNonlinearCouplingId, .padOffset = kPadNonlinearCoupling },
+    {.globalId = kMorphEnabledId,               .padOffset = kPadMorphEnabled },
+    {.globalId = kMorphStartId,                 .padOffset = kPadMorphStart },
+    {.globalId = kMorphEndId,                   .padOffset = kPadMorphEnd },
+    {.globalId = kMorphDurationMsId,            .padOffset = kPadMorphDuration },
+    {.globalId = kMorphCurveId,                 .padOffset = kPadMorphCurve },
+    {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
 };
 
 constexpr int kProxyMappingCount =
@@ -85,42 +85,42 @@ struct PadParamSpec
 };
 
 const PadParamSpec kPadParamSpecs[] = {
-    { kPadExciterType,        "Exciter Type",        true,  5, 0.0 },
-    { kPadBodyModel,          "Body Model",          true,  5, 0.0 },
-    { kPadMaterial,           "Material",            false, 0, 0.5 },
-    { kPadSize,               "Size",                false, 0, 0.5 },
-    { kPadDecay,              "Decay",               false, 0, 0.3 },
-    { kPadStrikePosition,     "Strike Position",     false, 0, 0.3 },
-    { kPadLevel,              "Level",               false, 0, 0.8 },
-    { kPadTSFilterType,       "Filter Type",         true,  2, 0.0 },
-    { kPadTSFilterCutoff,     "Filter Cutoff",       false, 0, 1.0 },
-    { kPadTSFilterResonance,  "Filter Resonance",    false, 0, 0.0 },
-    { kPadTSFilterEnvAmount,  "Filter Env Amount",   false, 0, 0.5 },
-    { kPadTSDriveAmount,      "Drive Amount",        false, 0, 0.0 },
-    { kPadTSFoldAmount,       "Fold Amount",         false, 0, 0.0 },
-    { kPadTSPitchEnvStart,    "PitchEnv Start",      false, 0, 0.0 },
-    { kPadTSPitchEnvEnd,      "PitchEnv End",        false, 0, 0.0 },
-    { kPadTSPitchEnvTime,     "PitchEnv Time",       false, 0, 0.0 },
-    { kPadTSPitchEnvCurve,    "PitchEnv Curve",      true,  1, 0.0 },
-    { kPadTSFilterEnvAttack,  "Filter Env Atk",      false, 0, 0.0 },
-    { kPadTSFilterEnvDecay,   "Filter Env Dec",      false, 0, 0.1 },
-    { kPadTSFilterEnvSustain, "Filter Env Sus",      false, 0, 0.0 },
-    { kPadTSFilterEnvRelease, "Filter Env Rel",      false, 0, 0.1 },
-    { kPadModeStretch,        "Mode Stretch",        false, 0, 0.333333 },
-    { kPadDecaySkew,          "Decay Skew",          false, 0, 0.5 },
-    { kPadModeInjectAmount,   "Mode Inject",         false, 0, 0.0 },
-    { kPadNonlinearCoupling,  "Nonlinear Coupling",  false, 0, 0.0 },
-    { kPadMorphEnabled,       "Morph Enabled",       true,  1, 0.0 },
-    { kPadMorphStart,         "Morph Start",         false, 0, 1.0 },
-    { kPadMorphEnd,           "Morph End",           false, 0, 0.0 },
-    { kPadMorphDuration,      "Morph Duration",      false, 0, 0.095477 },
-    { kPadMorphCurve,         "Morph Curve",         true,  1, 0.0 },
-    { kPadChokeGroup,         "Choke Group",         true,  8, 0.0 },
-    { kPadOutputBus,          "Output Bus",          true, 15, 0.0 },
-    { kPadFMRatio,            "FM Ratio",            false, 0, 0.5 },
-    { kPadFeedbackAmount,     "Feedback Amount",     false, 0, 0.0 },
-    { kPadNoiseBurstDuration, "NoiseBurst Duration", false, 0, 0.5 },
-    { kPadFrictionPressure,   "Friction Pressure",   false, 0, 0.0 },
+    {.offset = kPadExciterType,        .name = "Exciter Type",        .isDiscrete = true,  .stepCount = 5, .defaultValue = 0.0 },
+    {.offset = kPadBodyModel,          .name = "Body Model",          .isDiscrete = true,  .stepCount = 5, .defaultValue = 0.0 },
+    {.offset = kPadMaterial,           .name = "Material",            .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadSize,               .name = "Size",                .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadDecay,              .name = "Decay",               .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
+    {.offset = kPadStrikePosition,     .name = "Strike Position",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
+    {.offset = kPadLevel,              .name = "Level",               .isDiscrete = false, .stepCount = 0, .defaultValue = 0.8 },
+    {.offset = kPadTSFilterType,       .name = "Filter Type",         .isDiscrete = true,  .stepCount = 2, .defaultValue = 0.0 },
+    {.offset = kPadTSFilterCutoff,     .name = "Filter Cutoff",       .isDiscrete = false, .stepCount = 0, .defaultValue = 1.0 },
+    {.offset = kPadTSFilterResonance,  .name = "Filter Resonance",    .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSFilterEnvAmount,  .name = "Filter Env Amount",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadTSDriveAmount,      .name = "Drive Amount",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSFoldAmount,       .name = "Fold Amount",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvStart,    .name = "PitchEnv Start",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvEnd,      .name = "PitchEnv End",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvTime,     .name = "PitchEnv Time",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvCurve,    .name = "PitchEnv Curve",      .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadTSFilterEnvAttack,  .name = "Filter Env Atk",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSFilterEnvDecay,   .name = "Filter Env Dec",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.1 },
+    {.offset = kPadTSFilterEnvSustain, .name = "Filter Env Sus",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadTSFilterEnvRelease, .name = "Filter Env Rel",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.1 },
+    {.offset = kPadModeStretch,        .name = "Mode Stretch",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.333333 },
+    {.offset = kPadDecaySkew,          .name = "Decay Skew",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadModeInjectAmount,   .name = "Mode Inject",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadNonlinearCoupling,  .name = "Nonlinear Coupling",  .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadMorphEnabled,       .name = "Morph Enabled",       .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadMorphStart,         .name = "Morph Start",         .isDiscrete = false, .stepCount = 0, .defaultValue = 1.0 },
+    {.offset = kPadMorphEnd,           .name = "Morph End",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadMorphDuration,      .name = "Morph Duration",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.095477 },
+    {.offset = kPadMorphCurve,         .name = "Morph Curve",         .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadChokeGroup,         .name = "Choke Group",         .isDiscrete = true,  .stepCount = 8, .defaultValue = 0.0 },
+    {.offset = kPadOutputBus,          .name = "Output Bus",          .isDiscrete = true,  .stepCount = 15, .defaultValue = 0.0 },
+    {.offset = kPadFMRatio,            .name = "FM Ratio",            .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadFeedbackAmount,     .name = "Feedback Amount",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadNoiseBurstDuration, .name = "NoiseBurst Duration", .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadFrictionPressure,   .name = "Friction Pressure",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
 };
 
 constexpr int kPadParamSpecCount =
@@ -199,33 +199,33 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     };
 
     static const Phase2ParamSpec kPhase2Specs[] = {
-        { kExciterFMRatioId,            "Exciter FM Ratio",            0.133333, nullptr },
-        { kExciterFeedbackAmountId,     "Exciter Feedback Amount",     0.0,      nullptr },
-        { kExciterNoiseBurstDurationId, "Exciter NoiseBurst Duration", 0.230769, "ms" },
-        { kExciterFrictionPressureId,   "Exciter Friction Pressure",   0.3,      nullptr },
-        { kToneShaperFilterTypeId,      "Tone Shaper Filter Type",     0.0,      nullptr },
-        { kToneShaperFilterCutoffId,    "Tone Shaper Filter Cutoff",   1.0,      "Hz" },
-        { kToneShaperFilterResonanceId, "Tone Shaper Filter Resonance",0.0,      nullptr },
-        { kToneShaperFilterEnvAmountId, "Tone Shaper Filter Env Amt",  0.5,      nullptr },
-        { kToneShaperDriveAmountId,     "Tone Shaper Drive",           0.0,      nullptr },
-        { kToneShaperFoldAmountId,      "Tone Shaper Fold",            0.0,      nullptr },
-        { kToneShaperPitchEnvStartId,   "Tone Shaper PitchEnv Start",  0.070721, "Hz" },
-        { kToneShaperPitchEnvEndId,     "Tone Shaper PitchEnv End",    0.0,      "Hz" },
-        { kToneShaperPitchEnvTimeId,    "Tone Shaper PitchEnv Time",   0.0,      "ms" },
-        { kToneShaperPitchEnvCurveId,   "Tone Shaper PitchEnv Curve",  0.0,      nullptr },
-        { kToneShaperFilterEnvAttackId,  "Tone Shaper Filter Atk",     0.0,      "ms" },
-        { kToneShaperFilterEnvDecayId,   "Tone Shaper Filter Dec",     0.1,      "ms" },
-        { kToneShaperFilterEnvSustainId, "Tone Shaper Filter Sus",     0.0,      nullptr },
-        { kToneShaperFilterEnvReleaseId, "Tone Shaper Filter Rel",     0.1,      "ms" },
-        { kUnnaturalModeStretchId,       "Mode Stretch",               0.333333, nullptr },
-        { kUnnaturalDecaySkewId,         "Decay Skew",                 0.5,      nullptr },
-        { kUnnaturalModeInjectAmountId,  "Mode Inject",                0.0,      nullptr },
-        { kUnnaturalNonlinearCouplingId, "Nonlinear Coupling",         0.0,      nullptr },
-        { kMorphEnabledId,    "Morph Enabled",   0.0,      nullptr },
-        { kMorphStartId,      "Morph Start",     1.0,      nullptr },
-        { kMorphEndId,        "Morph End",       0.0,      nullptr },
-        { kMorphDurationMsId, "Morph Duration",  0.095477, "ms" },
-        { kMorphCurveId,      "Morph Curve",     0.0,      nullptr },
+        {.id = kExciterFMRatioId,            .name = "Exciter FM Ratio",            .defaultValue = 0.133333, .unit = nullptr },
+        {.id = kExciterFeedbackAmountId,     .name = "Exciter Feedback Amount",     .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kExciterNoiseBurstDurationId, .name = "Exciter NoiseBurst Duration", .defaultValue = 0.230769, .unit = "ms" },
+        {.id = kExciterFrictionPressureId,   .name = "Exciter Friction Pressure",   .defaultValue = 0.3,      .unit = nullptr },
+        {.id = kToneShaperFilterTypeId,      .name = "Tone Shaper Filter Type",     .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperFilterCutoffId,    .name = "Tone Shaper Filter Cutoff",   .defaultValue = 1.0,      .unit = "Hz" },
+        {.id = kToneShaperFilterResonanceId, .name = "Tone Shaper Filter Resonance",.defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperFilterEnvAmountId, .name = "Tone Shaper Filter Env Amt",  .defaultValue = 0.5,      .unit = nullptr },
+        {.id = kToneShaperDriveAmountId,     .name = "Tone Shaper Drive",           .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperFoldAmountId,      .name = "Tone Shaper Fold",            .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperPitchEnvStartId,   .name = "Tone Shaper PitchEnv Start",  .defaultValue = 0.070721, .unit = "Hz" },
+        {.id = kToneShaperPitchEnvEndId,     .name = "Tone Shaper PitchEnv End",    .defaultValue = 0.0,      .unit = "Hz" },
+        {.id = kToneShaperPitchEnvTimeId,    .name = "Tone Shaper PitchEnv Time",   .defaultValue = 0.0,      .unit = "ms" },
+        {.id = kToneShaperPitchEnvCurveId,   .name = "Tone Shaper PitchEnv Curve",  .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperFilterEnvAttackId,  .name = "Tone Shaper Filter Atk",     .defaultValue = 0.0,      .unit = "ms" },
+        {.id = kToneShaperFilterEnvDecayId,   .name = "Tone Shaper Filter Dec",     .defaultValue = 0.1,      .unit = "ms" },
+        {.id = kToneShaperFilterEnvSustainId, .name = "Tone Shaper Filter Sus",     .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kToneShaperFilterEnvReleaseId, .name = "Tone Shaper Filter Rel",     .defaultValue = 0.1,      .unit = "ms" },
+        {.id = kUnnaturalModeStretchId,       .name = "Mode Stretch",               .defaultValue = 0.333333, .unit = nullptr },
+        {.id = kUnnaturalDecaySkewId,         .name = "Decay Skew",                 .defaultValue = 0.5,      .unit = nullptr },
+        {.id = kUnnaturalModeInjectAmountId,  .name = "Mode Inject",                .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kUnnaturalNonlinearCouplingId, .name = "Nonlinear Coupling",         .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kMorphEnabledId,    .name = "Morph Enabled",   .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kMorphStartId,      .name = "Morph Start",     .defaultValue = 1.0,      .unit = nullptr },
+        {.id = kMorphEndId,        .name = "Morph End",       .defaultValue = 0.0,      .unit = nullptr },
+        {.id = kMorphDurationMsId, .name = "Morph Duration",  .defaultValue = 0.095477, .unit = "ms" },
+        {.id = kMorphCurveId,      .name = "Morph Curve",     .defaultValue = 0.0,      .unit = nullptr },
     };
 
     for (const auto& spec : kPhase2Specs)
@@ -725,10 +725,10 @@ IBStream* Controller::kitPresetStateProvider()
             kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
             kPadMorphDuration, kPadMorphCurve,
         };
-        for (int j = 0; j < 28; ++j)
+        for (const auto& offset : continuousOffsets)
         {
             double v = getParamNormalized(
-                static_cast<ParamID>(padParamId(pad, continuousOffsets[j])));
+                static_cast<ParamID>(padParamId(pad, offset)));
             stream->write(&v, sizeof(v), nullptr);
         }
 
@@ -749,10 +749,10 @@ IBStream* Controller::kitPresetStateProvider()
         const int secOffsets[] = {
             kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
         };
-        for (int j = 0; j < 4; ++j)
+        for (const auto& offset : secOffsets)
         {
             double v = getParamNormalized(
-                static_cast<ParamID>(padParamId(pad, secOffsets[j])));
+                static_cast<ParamID>(padParamId(pad, offset)));
             stream->write(&v, sizeof(v), nullptr);
         }
 
@@ -825,9 +825,9 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
             (static_cast<double>(bodyModelI32) + 0.5) / static_cast<double>(BodyModelType::kCount));
 
         double vals[34] = {};
-        for (int j = 0; j < 34; ++j)
+        for (auto& val : vals)
         {
-            if (stream->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
+            if (stream->read(&val, sizeof(val), nullptr) != kResultOk)
                 return false;
         }
 
@@ -927,10 +927,10 @@ IBStream* Controller::padPresetStateProvider()
         kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
         kPadMorphDuration, kPadMorphCurve,
     };
-    for (int j = 0; j < 28; ++j)
+    for (const auto& offset : continuousOffsets)
     {
         double v = getParamNormalized(
-            static_cast<ParamID>(padParamId(pad, continuousOffsets[j])));
+            static_cast<ParamID>(padParamId(pad, offset)));
         stream->write(&v, sizeof(v), nullptr);
     }
 
@@ -951,10 +951,10 @@ IBStream* Controller::padPresetStateProvider()
     const int secOffsets[] = {
         kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
     };
-    for (int j = 0; j < 4; ++j)
+    for (const auto& offset : secOffsets)
     {
         double v = getParamNormalized(
-            static_cast<ParamID>(padParamId(pad, secOffsets[j])));
+            static_cast<ParamID>(padParamId(pad, offset)));
         stream->write(&v, sizeof(v), nullptr);
     }
 
@@ -990,9 +990,9 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
         return false;
 
     double vals[34] = {};
-    for (int j = 0; j < 34; ++j)
+    for (auto& val : vals)
     {
-        if (!readExact(&vals[j], sizeof(vals[j])))
+        if (!readExact(&val, sizeof(val)))
             return false;
     }
 

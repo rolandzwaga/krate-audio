@@ -263,12 +263,12 @@ Note: The core migration logic was implemented in Phase 5 (T031). This phase add
 
 ### 8.1 Integration Verification for User Story 6
 
-- [ ] T054 [US6] Verify the v3 migration integration test in `test_state_migration_v3_to_v4.cpp` (written in T027) passes against the T031 implementation — if any gaps, add missing edge-case tests and fix implementation
-- [ ] T055 [US6] Verify loading a v4 blob into a simulated "v3 reader" (version field mismatch) returns an error and does not corrupt state — add test case to `test_state_migration_v3_to_v4.cpp` if not already covered
+- [X] T054 [US6] Verify the v3 migration integration test in `test_state_migration_v3_to_v4.cpp` (written in T027) passes against the T031 implementation — if any gaps, add missing edge-case tests and fix implementation
+- [X] T055 [US6] Verify loading a v4 blob into a simulated "v3 reader" (version field mismatch) returns an error and does not corrupt state — add test case to `test_state_migration_v3_to_v4.cpp` if not already covered
 
 ### 8.2 Commit
 
-- [ ] T056 [US6] **Commit completed User Story 6 work** (migration edge case verification)
+- [X] T056 [US6] **Commit completed User Story 6 work** (migration edge case verification)
 
 **Checkpoint**: All state version paths verified. Migration chain v1/v2/v3 → v4 works. v4 future blobs rejected gracefully.
 
@@ -286,17 +286,17 @@ Note: The core migration logic was implemented in Phase 5 (T031). This phase add
 
 ### 9.2 Static Analysis (MANDATORY)
 
-- [ ] T060 Run clang-tidy against Membrum target and capture output: `./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja > build/clang-tidy-membrum.log 2>&1` (requires Ninja build preset first: `"$CMAKE" --preset windows-ninja`)
-- [ ] T061 Fix ALL clang-tidy errors and warnings reported in `build/clang-tidy-membrum.log` — no suppressions without NOLINT comments with justification
-- [ ] T062 Re-run clang-tidy after fixes and confirm clean output
+- [X] T060 Run clang-tidy against Membrum target and capture output: `./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja > build/clang-tidy-membrum.log 2>&1` (requires Ninja build preset first: `"$CMAKE" --preset windows-ninja`)
+- [X] T061 Fix ALL clang-tidy errors and warnings reported in `build/clang-tidy-membrum.log` — no suppressions without NOLINT comments with justification
+- [X] T062 Re-run clang-tidy after fixes and confirm clean output
 
 ### 9.3 SC-006 Performance Sanity Check
 
-- [ ] T063 Trigger 8 simultaneous voices (8 different pads) and measure wall-clock rendering time: render 10 ms of audio at 44.1 kHz (441 samples) with 8 active voices and assert that the wall-clock time for the `processBlock()` call is under 5 ms (i.e., less than 50% of real-time CPU budget). Add the timing test to `test_per_pad_dispatch.cpp` using `std::chrono::high_resolution_clock`. If the assertion cannot be reliably enforced in CI (due to VM variance), mark the test as `[.perf]` (skipped by default) and document the expected threshold in a comment.
+- [X] T063 Trigger 8 simultaneous voices (8 different pads) and measure wall-clock rendering time: render 10 ms of audio at 44.1 kHz (441 samples) with 8 active voices and assert that the wall-clock time for the `processBlock()` call is under 5 ms (i.e., less than 50% of real-time CPU budget). Add the timing test to `test_per_pad_dispatch.cpp` using `std::chrono::high_resolution_clock`. If the assertion cannot be reliably enforced in CI (due to VM variance), mark the test as `[.perf]` (skipped by default) and document the expected threshold in a comment.
 
 ### 9.4 SC-007 Zero Allocation Stress Test
 
-- [ ] T064 Verify no audio-thread allocations: confirm `AllocationDetector` guard (from `tests/test_helpers/allocation_detector.h`) passes a 10-second simulation test with 32 pads triggered, voice stealing active, and choke groups engaged — add test case to `test_per_pad_dispatch.cpp` or a new `tests/unit/processor/test_audio_thread_safety.cpp`
+- [X] T064 Verify no audio-thread allocations: confirm `AllocationDetector` guard (from `tests/test_helpers/allocation_detector.h`) passes a 10-second simulation test with 32 pads triggered, voice stealing active, and choke groups engaged — add test case to `test_per_pad_dispatch.cpp` or a new `tests/unit/processor/test_audio_thread_safety.cpp`
 
 ### 9.5 Commit
 

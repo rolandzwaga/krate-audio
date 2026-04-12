@@ -269,3 +269,73 @@ TEST_CASE("Migration: unknown future version rejected gracefully",
     REQUIRE(processor.setActive(false) == kResultOk);
     REQUIRE(processor.terminate() == kResultOk);
 }
+
+TEST_CASE("Migration: v4 blob with bumped version does not corrupt existing state",
+          "[membrum][vst][migration_v3_v4]")
+{
+    // Setup: load a known v3 state so pad 0 has specific values
+    Membrum::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+    auto setup = makeSetup();
+    REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    REQUIRE(processor.setActive(true) == kResultOk);
+
+    const double phase1[5] = {0.21, 0.72, 0.13, 0.84, 0.55};
+    const int32 excI32 = 3;   // Friction
+    const int32 bodyI32 = 2;  // Shell
+    double phase2[kPhase2FloatCount];
+    for (int i = 0; i < kPhase2FloatCount; ++i)
+        phase2[i] = 0.10 + i * 0.03;
+    std::array<std::uint8_t, kChokeAssignCount> chokes{};
+    chokes[0] = 3;
+
+    auto* v3Stream = new MemoryStream();
+    writeV3State(v3Stream, phase1, excI32, bodyI32, phase2, 12, 1, chokes);
+    v3Stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(processor.setState(v3Stream) == kResultOk);
+    v3Stream->release();
+
+    // Verify pad 0 has the v3 values before the rejection test
+    const auto& pad0Before = processor.voicePoolForTest().padConfig(0);
+    REQUIRE(pad0Before.material == Approx(0.21f).margin(0.001f));
+    REQUIRE(static_cast<int>(pad0Before.exciterType) == excI32);
+
+    // Save the current v4 state
+    auto* savedStream = new MemoryStream();
+    REQUIRE(processor.getState(savedStream) == kResultOk);
+
+    // Tamper the version field to simulate a future version (v5)
+    savedStream->seek(0, IBStream::kIBSeekSet, nullptr);
+    int32 futureVersion = 5;
+    savedStream->write(&futureVersion, sizeof(futureVersion), nullptr);
+    savedStream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    // Attempt to load the tampered blob — should fail
+    CHECK(processor.setState(savedStream) == kResultFalse);
+    savedStream->release();
+
+    // Verify existing state was NOT corrupted by the failed load
+    const auto& pad0After = processor.voicePoolForTest().padConfig(0);
+    CHECK(pad0After.material == Approx(0.21f).margin(0.001f));
+    CHECK(pad0After.size == Approx(0.72f).margin(0.001f));
+    CHECK(pad0After.decay == Approx(0.13f).margin(0.001f));
+    CHECK(pad0After.strikePosition == Approx(0.84f).margin(0.001f));
+    CHECK(pad0After.level == Approx(0.55f).margin(0.001f));
+    CHECK(static_cast<int>(pad0After.exciterType) == excI32);
+    CHECK(static_cast<int>(pad0After.bodyModel) == bodyI32);
+
+    // Pads 1-31 should still have GM defaults (not corrupted)
+    std::array<Membrum::PadConfig, Membrum::kNumPads> gmDefaults;
+    Membrum::DefaultKit::apply(gmDefaults);
+    for (int p = 1; p < Membrum::kNumPads; ++p)
+    {
+        const auto& loaded = processor.voicePoolForTest().padConfig(p);
+        const auto& expected = gmDefaults[static_cast<std::size_t>(p)];
+        INFO("Pad " << p);
+        CHECK(static_cast<int>(loaded.exciterType) == static_cast<int>(expected.exciterType));
+        CHECK(loaded.material == Approx(expected.material).margin(1e-5f));
+    }
+
+    REQUIRE(processor.setActive(false) == kResultOk);
+    REQUIRE(processor.terminate() == kResultOk);
+}

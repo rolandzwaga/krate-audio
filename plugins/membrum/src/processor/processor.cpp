@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 namespace Membrum {
 
@@ -723,10 +724,10 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             // Read 34 float64 values (offsets 2-35 in order, including
             // chokeGroup and outputBus as float64 at positions 28-29)
             double vals[34] = {};
-            for (int j = 0; j < 34; ++j)
+            for (auto& val : vals)
             {
-                if (state->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
-                    vals[j] = 0.0;
+                if (state->read(&val, sizeof(val), nullptr) != kResultOk)
+                    val = 0.0;
             }
 
             // Map back to PadConfig fields
@@ -830,15 +831,15 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         pad0.bodyModel = static_cast<BodyModelType>(bodyModelI32);
 
         // Read Phase 2 float params into pad 0
-        for (int i = 0; i < kPhase2FloatSlotCount; ++i)
+        for (const auto& slot : kPhase2FloatSlots)
         {
-            double value = static_cast<double>(kPhase2FloatSlots[i].defaultValue);
+            double value = static_cast<double>(slot.defaultValue);
             if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-                value = static_cast<double>(kPhase2FloatSlots[i].defaultValue);
+                value = static_cast<double>(slot.defaultValue);
             const float fVal = static_cast<float>(value);
 
             // Map Phase 2 param to PadConfig field via padOffset
-            voicePool_.setPadConfigField(0, kPhase2FloatSlots[i].padOffset, fVal);
+            voicePool_.setPadConfigField(0, slot.padOffset, fVal);
         }
     }
 
@@ -924,9 +925,9 @@ tresult Processor::loadKitPreset(IBStream* stream)
         cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
 
         double vals[34] = {};
-        for (int j = 0; j < 34; ++j)
+        for (auto& val : vals)
         {
-            if (stream->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
+            if (stream->read(&val, sizeof(val), nullptr) != kResultOk)
                 return kResultFalse;
         }
 
@@ -992,7 +993,7 @@ tresult PLUGIN_API Processor::activateBus(MediaType type, BusDirection dir,
     auto result = AudioEffect::activateBus(type, dir, index, state);
     if (result == kResultTrue && type == kAudio && dir == kOutput)
     {
-        if (index >= 0 && index < static_cast<int32>(busActive_.size()))
+        if (index >= 0 && std::cmp_less(index, busActive_.size()))
         {
             busActive_[static_cast<std::size_t>(index)] = (state != 0);
             // FR-045: main bus (index 0) is always active

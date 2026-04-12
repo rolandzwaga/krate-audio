@@ -171,38 +171,38 @@ inline void apply(std::array<PadConfig, kNumPads>& pads)
     };
 
     static constexpr PadSpec kSpecs[kNumPads] = {
-        { DrumTemplate::Kick,   -1.0f },  //  0: MIDI 36 Bass Drum 1
-        { DrumTemplate::Perc,   -1.0f },  //  1: MIDI 37 Side Stick
-        { DrumTemplate::Snare,  -1.0f },  //  2: MIDI 38 Acoustic Snare
-        { DrumTemplate::Perc,   -1.0f },  //  3: MIDI 39 Hand Clap
-        { DrumTemplate::Snare,  -1.0f },  //  4: MIDI 40 Electric Snare
-        { DrumTemplate::Tom,     0.8f },  //  5: MIDI 41 Low Floor Tom
-        { DrumTemplate::Hat,    -1.0f },  //  6: MIDI 42 Closed Hi-Hat
-        { DrumTemplate::Tom,     0.7f },  //  7: MIDI 43 High Floor Tom
-        { DrumTemplate::Hat,    -1.0f },  //  8: MIDI 44 Pedal Hi-Hat
-        { DrumTemplate::Tom,     0.6f },  //  9: MIDI 45 Low Tom
-        { DrumTemplate::Hat,    -1.0f },  // 10: MIDI 46 Open Hi-Hat
-        { DrumTemplate::Tom,     0.5f },  // 11: MIDI 47 Low-Mid Tom
-        { DrumTemplate::Tom,    0.45f },  // 12: MIDI 48 Hi-Mid Tom
-        { DrumTemplate::Cymbal, -1.0f },  // 13: MIDI 49 Crash Cymbal 1
-        { DrumTemplate::Tom,     0.4f },  // 14: MIDI 50 High Tom
-        { DrumTemplate::Cymbal, -1.0f },  // 15: MIDI 51 Ride Cymbal 1
-        { DrumTemplate::Cymbal, -1.0f },  // 16: MIDI 52 Chinese Cymbal
-        { DrumTemplate::Cymbal, -1.0f },  // 17: MIDI 53 Ride Bell
-        { DrumTemplate::Perc,   -1.0f },  // 18: MIDI 54 Tambourine
-        { DrumTemplate::Cymbal, -1.0f },  // 19: MIDI 55 Splash Cymbal
-        { DrumTemplate::Perc,   -1.0f },  // 20: MIDI 56 Cowbell
-        { DrumTemplate::Cymbal, -1.0f },  // 21: MIDI 57 Crash Cymbal 2
-        { DrumTemplate::Perc,   -1.0f },  // 22: MIDI 58 Vibraslap
-        { DrumTemplate::Cymbal, -1.0f },  // 23: MIDI 59 Ride Cymbal 2
-        { DrumTemplate::Perc,   -1.0f },  // 24: MIDI 60 Hi Bongo
-        { DrumTemplate::Perc,   -1.0f },  // 25: MIDI 61 Low Bongo
-        { DrumTemplate::Perc,   -1.0f },  // 26: MIDI 62 Mute Hi Conga
-        { DrumTemplate::Perc,   -1.0f },  // 27: MIDI 63 Open Hi Conga
-        { DrumTemplate::Perc,   -1.0f },  // 28: MIDI 64 Low Conga
-        { DrumTemplate::Perc,   -1.0f },  // 29: MIDI 65 High Timbale
-        { DrumTemplate::Perc,   -1.0f },  // 30: MIDI 66 Low Timbale
-        { DrumTemplate::Perc,   -1.0f },  // 31: MIDI 67 High Agogo
+        {.tmpl = DrumTemplate::Kick,   .sizeOverride = -1.0f },  //  0: MIDI 36 Bass Drum 1
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  //  1: MIDI 37 Side Stick
+        {.tmpl = DrumTemplate::Snare,  .sizeOverride = -1.0f },  //  2: MIDI 38 Acoustic Snare
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  //  3: MIDI 39 Hand Clap
+        {.tmpl = DrumTemplate::Snare,  .sizeOverride = -1.0f },  //  4: MIDI 40 Electric Snare
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.8f },  //  5: MIDI 41 Low Floor Tom
+        {.tmpl = DrumTemplate::Hat,    .sizeOverride = -1.0f },  //  6: MIDI 42 Closed Hi-Hat
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.7f },  //  7: MIDI 43 High Floor Tom
+        {.tmpl = DrumTemplate::Hat,    .sizeOverride = -1.0f },  //  8: MIDI 44 Pedal Hi-Hat
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.6f },  //  9: MIDI 45 Low Tom
+        {.tmpl = DrumTemplate::Hat,    .sizeOverride = -1.0f },  // 10: MIDI 46 Open Hi-Hat
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.5f },  // 11: MIDI 47 Low-Mid Tom
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride = 0.45f },  // 12: MIDI 48 Hi-Mid Tom
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 13: MIDI 49 Crash Cymbal 1
+        {.tmpl = DrumTemplate::Tom,    .sizeOverride =  0.4f },  // 14: MIDI 50 High Tom
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 15: MIDI 51 Ride Cymbal 1
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 16: MIDI 52 Chinese Cymbal
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 17: MIDI 53 Ride Bell
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 18: MIDI 54 Tambourine
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 19: MIDI 55 Splash Cymbal
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 20: MIDI 56 Cowbell
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 21: MIDI 57 Crash Cymbal 2
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 22: MIDI 58 Vibraslap
+        {.tmpl = DrumTemplate::Cymbal, .sizeOverride = -1.0f },  // 23: MIDI 59 Ride Cymbal 2
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 24: MIDI 60 Hi Bongo
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 25: MIDI 61 Low Bongo
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 26: MIDI 62 Mute Hi Conga
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 27: MIDI 63 Open Hi Conga
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 28: MIDI 64 Low Conga
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 29: MIDI 65 High Timbale
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 30: MIDI 66 Low Timbale
+        {.tmpl = DrumTemplate::Perc,   .sizeOverride = -1.0f },  // 31: MIDI 67 High Agogo
     };
 
     for (int i = 0; i < kNumPads; ++i) {
