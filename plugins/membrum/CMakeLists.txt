@@ -114,6 +114,9 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Shared
     src/plugin_ids.h
     src/version.h
+
+    # SDK helper: MemoryStream (needed by controller kit preset StateProvider)
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 # Link SDK, VSTGUI, and KrateDSP

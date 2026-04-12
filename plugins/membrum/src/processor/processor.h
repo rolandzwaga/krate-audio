@@ -36,8 +36,18 @@ public:
     Steinberg::tresult PLUGIN_API process(Steinberg::Vst::ProcessData& data) override;
     Steinberg::tresult PLUGIN_API setState(Steinberg::IBStream* state) override;
     Steinberg::tresult PLUGIN_API getState(Steinberg::IBStream* state) override;
+
+    /// Load a kit preset blob (v4 format without selectedPadIndex, 9036 bytes).
+    /// Does NOT modify selectedPadIndex.
+    Steinberg::tresult loadKitPreset(Steinberg::IBStream* stream);
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+
+    // Test-only accessors (Phase 4)
+    VoicePool& voicePoolForTest() noexcept { return voicePool_; }
+    const VoicePool& voicePoolForTest() const noexcept { return voicePool_; }
+    void setSelectedPadIndexForTest(int idx) noexcept { selectedPadIndex_ = idx; }
+    int selectedPadIndexForTest() const noexcept { return selectedPadIndex_; }
 
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);

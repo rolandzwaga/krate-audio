@@ -9,6 +9,7 @@
 #include "dsp/body_model_type.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
+#include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
 
 #include <algorithm>
@@ -620,6 +621,230 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     }
 
     return kResultOk;
+}
+
+// ==============================================================================
+// Kit Preset StateProvider / LoadProvider (FR-052, T033)
+// ==============================================================================
+
+IBStream* Controller::kitPresetStateProvider()
+{
+    // Request current component state from the host/processor
+    auto* component = getComponentHandler();
+    if (!component)
+        return nullptr;
+
+    // Create a memory stream and write the kit preset blob
+    // The processor's getState writes 9040 bytes; we need 9036 (no selectedPadIndex).
+    // We request the full state via IComponentHandler, then truncate.
+    // However, in the controller we don't have direct processor access.
+    // The typical VST3 pattern: controller requests state via IComponentHandler2
+    // or uses the paired component's getState.
+
+    // For now, produce the state from the controller's own parameter values.
+    auto* stream = new MemoryStream();
+
+    int32 version = 4;
+    stream->write(&version, sizeof(version), nullptr);
+
+    // Global settings from controller params
+    const double maxPolyNorm = getParamNormalized(kMaxPolyphonyId);
+    int32 maxPoly = 4 + static_cast<int32>(maxPolyNorm * 12.0 + 0.5);
+    maxPoly = std::clamp(maxPoly, static_cast<int32>(4), static_cast<int32>(16));
+    stream->write(&maxPoly, sizeof(maxPoly), nullptr);
+
+    const double stealNorm = getParamNormalized(kVoiceStealingId);
+    int32 stealPolicy = std::clamp(static_cast<int32>(stealNorm * 3.0), static_cast<int32>(0), static_cast<int32>(2));
+    stream->write(&stealPolicy, sizeof(stealPolicy), nullptr);
+
+    // Write 32 pad configs from controller parameter values
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        // Exciter type
+        const double excNorm = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadExciterType)));
+        int32 exciterTypeI32 = std::clamp(
+            static_cast<int32>(excNorm * static_cast<double>(ExciterType::kCount)),
+            static_cast<int32>(0), static_cast<int32>(ExciterType::kCount) - 1);
+        stream->write(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
+
+        // Body model
+        const double bodyNorm = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadBodyModel)));
+        int32 bodyModelI32 = std::clamp(
+            static_cast<int32>(bodyNorm * static_cast<double>(BodyModelType::kCount)),
+            static_cast<int32>(0), static_cast<int32>(BodyModelType::kCount) - 1);
+        stream->write(&bodyModelI32, sizeof(bodyModelI32), nullptr);
+
+        // Sound params: offsets 2-29 (28 continuous), then 30-31 (choke/bus as float64),
+        // then 32-35 (4 secondary exciter)
+        const int continuousOffsets[] = {
+            kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
+            kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
+            kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
+            kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
+            kPadTSPitchEnvCurve,
+            kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
+            kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
+            kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
+            kPadNonlinearCoupling,
+            kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
+            kPadMorphDuration, kPadMorphCurve,
+        };
+        for (int j = 0; j < 28; ++j)
+        {
+            double v = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, continuousOffsets[j])));
+            stream->write(&v, sizeof(v), nullptr);
+        }
+
+        // Choke group and output bus as float64
+        {
+            const double chokeNorm = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, kPadChokeGroup)));
+            double cg = chokeNorm * 8.0;
+            stream->write(&cg, sizeof(cg), nullptr);
+
+            const double busNorm = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, kPadOutputBus)));
+            double ob = busNorm * 15.0;
+            stream->write(&ob, sizeof(ob), nullptr);
+        }
+
+        // Secondary exciter params
+        const int secOffsets[] = {
+            kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
+        };
+        for (int j = 0; j < 4; ++j)
+        {
+            double v = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, secOffsets[j])));
+            stream->write(&v, sizeof(v), nullptr);
+        }
+
+        // uint8 chokeGroup and outputBus
+        {
+            const double chokeNorm = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, kPadChokeGroup)));
+            std::uint8_t cg = static_cast<std::uint8_t>(
+                std::clamp(static_cast<int>(chokeNorm * 8.0 + 0.5), 0, 8));
+            stream->write(&cg, sizeof(cg), nullptr);
+
+            const double busNorm = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, kPadOutputBus)));
+            std::uint8_t ob = static_cast<std::uint8_t>(
+                std::clamp(static_cast<int>(busNorm * 15.0 + 0.5), 0, 15));
+            stream->write(&ob, sizeof(ob), nullptr);
+        }
+    }
+
+    // Kit preset does NOT write selectedPadIndex (9036 bytes total)
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+
+bool Controller::kitPresetLoadProvider(IBStream* stream)
+{
+    if (!stream)
+        return false;
+
+    int32 version = 0;
+    if (stream->read(&version, sizeof(version), nullptr) != kResultOk)
+        return false;
+    if (version != 4)
+        return false;
+
+    int32 maxPoly = 8;
+    int32 stealPolicy = 0;
+    if (stream->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
+        return false;
+    if (stream->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
+        return false;
+
+    maxPoly = std::clamp(maxPoly, static_cast<int32>(4), static_cast<int32>(16));
+    stealPolicy = std::clamp(stealPolicy, static_cast<int32>(0), static_cast<int32>(2));
+
+    EditControllerEx1::setParamNormalized(kMaxPolyphonyId,
+        static_cast<double>(maxPoly - 4) / 12.0);
+    EditControllerEx1::setParamNormalized(kVoiceStealingId,
+        (static_cast<double>(stealPolicy) + 0.5) / 3.0);
+
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        int32 exciterTypeI32 = 0;
+        int32 bodyModelI32 = 0;
+        if (stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
+            return false;
+        if (stream->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
+            return false;
+
+        exciterTypeI32 = std::clamp(exciterTypeI32, static_cast<int32>(0),
+                                    static_cast<int32>(ExciterType::kCount) - 1);
+        bodyModelI32 = std::clamp(bodyModelI32, static_cast<int32>(0),
+                                  static_cast<int32>(BodyModelType::kCount) - 1);
+
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadExciterType)),
+            (static_cast<double>(exciterTypeI32) + 0.5) / static_cast<double>(ExciterType::kCount));
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
+            (static_cast<double>(bodyModelI32) + 0.5) / static_cast<double>(BodyModelType::kCount));
+
+        double vals[34] = {};
+        for (int j = 0; j < 34; ++j)
+        {
+            if (stream->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
+                return false;
+        }
+
+        const int continuousOffsets[] = {
+            kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
+            kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
+            kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
+            kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
+            kPadTSPitchEnvCurve,
+            kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
+            kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
+            kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
+            kPadNonlinearCoupling,
+            kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
+            kPadMorphDuration, kPadMorphCurve,
+        };
+        for (int j = 0; j < 28; ++j)
+        {
+            EditControllerEx1::setParamNormalized(
+                static_cast<ParamID>(padParamId(pad, continuousOffsets[j])),
+                vals[j]);
+        }
+
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadChokeGroup)),
+            vals[28] / 8.0);
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadOutputBus)),
+            vals[29] / 15.0);
+
+        const int secOffsets[] = {
+            kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
+        };
+        for (int j = 0; j < 4; ++j)
+        {
+            EditControllerEx1::setParamNormalized(
+                static_cast<ParamID>(padParamId(pad, secOffsets[j])),
+                vals[30 + j]);
+        }
+
+        // Skip uint8 chokeGroup and outputBus (redundant in stream)
+        std::uint8_t dummy = 0;
+        stream->read(&dummy, sizeof(dummy), nullptr);
+        stream->read(&dummy, sizeof(dummy), nullptr);
+    }
+
+    // Kit preset does NOT read selectedPadIndex -- leave it unchanged
+    // Sync global proxy params from selected pad
+    syncGlobalProxyFromPad(selectedPadIndex_);
+
+    return true;
 }
 
 IPlugView* PLUGIN_API Controller::createView(const char* /*name*/)

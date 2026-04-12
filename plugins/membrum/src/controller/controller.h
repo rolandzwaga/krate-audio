@@ -6,6 +6,8 @@
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 
+namespace Steinberg { class IBStream; }
+
 namespace Membrum {
 
 class Controller : public Steinberg::Vst::EditControllerEx1
@@ -25,6 +27,12 @@ public:
     // Phase 4: Override setParamNormalized to implement proxy logic
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
                                                       Steinberg::Vst::ParamValue value) override;
+
+    // Phase 4: kit preset providers (FR-052)
+    /// Produces a 9036-byte kit preset blob (v4 without selectedPadIndex)
+    Steinberg::IBStream* kitPresetStateProvider();
+    /// Loads a 9036-byte kit preset blob and syncs all controller params
+    bool kitPresetLoadProvider(Steinberg::IBStream* stream);
 
 private:
     // Phase 4: selected pad proxy logic helpers

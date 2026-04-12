@@ -808,6 +808,109 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     return kResultOk;
 }
 
+tresult Processor::loadKitPreset(IBStream* stream)
+{
+    if (!stream)
+        return kResultFalse;
+
+    int32 version = 0;
+    if (stream->read(&version, sizeof(version), nullptr) != kResultOk)
+        return kResultFalse;
+
+    if (version != 4)
+        return kResultFalse;
+
+    int32 maxPoly = 8;
+    int32 stealPolicy = 0;
+    if (stream->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
+        return kResultFalse;
+    if (stream->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
+        return kResultFalse;
+
+    maxPoly = std::clamp(maxPoly, 4, 16);
+    stealPolicy = std::clamp(stealPolicy, 0, 2);
+    maxPolyphony_.store(maxPoly);
+    voiceStealingPolicy_.store(stealPolicy);
+    voicePool_.setMaxPolyphony(maxPoly);
+    voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(stealPolicy));
+
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        auto& cfg = voicePool_.padConfigMut(pad);
+
+        int32 exciterTypeI32 = 0;
+        int32 bodyModelI32 = 0;
+        if (stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
+            return kResultFalse;
+        if (stream->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
+            return kResultFalse;
+
+        exciterTypeI32 = std::clamp(exciterTypeI32, 0,
+                                    static_cast<int>(ExciterType::kCount) - 1);
+        bodyModelI32 = std::clamp(bodyModelI32, 0,
+                                  static_cast<int>(BodyModelType::kCount) - 1);
+        cfg.exciterType = static_cast<ExciterType>(exciterTypeI32);
+        cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
+
+        double vals[34] = {};
+        for (int j = 0; j < 34; ++j)
+        {
+            if (stream->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
+                return kResultFalse;
+        }
+
+        cfg.material = static_cast<float>(vals[0]);
+        cfg.size = static_cast<float>(vals[1]);
+        cfg.decay = static_cast<float>(vals[2]);
+        cfg.strikePosition = static_cast<float>(vals[3]);
+        cfg.level = static_cast<float>(vals[4]);
+        cfg.tsFilterType = static_cast<float>(vals[5]);
+        cfg.tsFilterCutoff = static_cast<float>(vals[6]);
+        cfg.tsFilterResonance = static_cast<float>(vals[7]);
+        cfg.tsFilterEnvAmount = static_cast<float>(vals[8]);
+        cfg.tsDriveAmount = static_cast<float>(vals[9]);
+        cfg.tsFoldAmount = static_cast<float>(vals[10]);
+        cfg.tsPitchEnvStart = static_cast<float>(vals[11]);
+        cfg.tsPitchEnvEnd = static_cast<float>(vals[12]);
+        cfg.tsPitchEnvTime = static_cast<float>(vals[13]);
+        cfg.tsPitchEnvCurve = static_cast<float>(vals[14]);
+        cfg.tsFilterEnvAttack = static_cast<float>(vals[15]);
+        cfg.tsFilterEnvDecay = static_cast<float>(vals[16]);
+        cfg.tsFilterEnvSustain = static_cast<float>(vals[17]);
+        cfg.tsFilterEnvRelease = static_cast<float>(vals[18]);
+        cfg.modeStretch = static_cast<float>(vals[19]);
+        cfg.decaySkew = static_cast<float>(vals[20]);
+        cfg.modeInjectAmount = static_cast<float>(vals[21]);
+        cfg.nonlinearCoupling = static_cast<float>(vals[22]);
+        cfg.morphEnabled = static_cast<float>(vals[23]);
+        cfg.morphStart = static_cast<float>(vals[24]);
+        cfg.morphEnd = static_cast<float>(vals[25]);
+        cfg.morphDuration = static_cast<float>(vals[26]);
+        cfg.morphCurve = static_cast<float>(vals[27]);
+        // vals[28] = chokeGroup as float64, vals[29] = outputBus as float64
+        cfg.fmRatio = static_cast<float>(vals[30]);
+        cfg.feedbackAmount = static_cast<float>(vals[31]);
+        cfg.noiseBurstDuration = static_cast<float>(vals[32]);
+        cfg.frictionPressure = static_cast<float>(vals[33]);
+
+        std::uint8_t cg = 0;
+        std::uint8_t ob = 0;
+        if (stream->read(&cg, sizeof(cg), nullptr) != kResultOk)
+            return kResultFalse;
+        if (stream->read(&ob, sizeof(ob), nullptr) != kResultOk)
+            return kResultFalse;
+        cfg.chokeGroup = (cg > 8U) ? std::uint8_t{0} : cg;
+        cfg.outputBus = (ob > 15U) ? std::uint8_t{0} : ob;
+    }
+
+    // Sync choke group table from padConfigs
+    for (int pad = 0; pad < kNumPads; ++pad)
+        voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
+
+    // Kit preset does NOT modify selectedPadIndex
+    return kResultOk;
+}
+
 tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
 {
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
