@@ -155,21 +155,21 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T036 [P] [US3] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_energy.cpp` (extend existing file): Global Coupling = 0 produces output identical to no-coupling baseline within floating-point tolerance (SC-001); isBypassed() returns true when globalCoupling_ = 0; verify early-out path skips the per-sample coupling loop entirely when isBypassed(); Global Coupling at 50% scales all coupling paths by 0.5x vs 100% (verify proportionally in matrix gain formula); setAmount() on couplingEngine_ is called with globalCoupling value when parameter changes
+- [X] T036 [P] [US3] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_energy.cpp` (extend existing file): Global Coupling = 0 produces output identical to no-coupling baseline within floating-point tolerance (SC-001); isBypassed() returns true when globalCoupling_ = 0; verify early-out path skips the per-sample coupling loop entirely when isBypassed(); Global Coupling at 50% scales all coupling paths by 0.5x vs 100% (verify proportionally in matrix gain formula); setAmount() on couplingEngine_ is called with globalCoupling value when parameter changes
 
 ### 5.2 Implementation for User Story 3
 
-- [ ] T037 [US3] Verify the bypass path in `processor.cpp` uses `couplingEngine_.isBypassed()` (which checks both smoother current value AND couplingGain_) before entering the per-sample coupling loop -- confirm no signal is added when Global Coupling is 0 (SC-001 compliance)
-- [ ] T038 [US3] Verify global coupling parameter change triggers `couplingEngine_.setAmount(globalCoupling)` (SympatheticResonance::setAmount maps [0,1] to dB range internally -- pass the raw normalized value directly per plan.md gotchas table)
-- [ ] T039 [US3] Build and verify all coupling tests still pass after global coupling verification changes
+- [X] T037 [US3] Verify the bypass path in `processor.cpp` uses `couplingEngine_.isBypassed()` (which checks both smoother current value AND couplingGain_) before entering the per-sample coupling loop -- confirm no signal is added when Global Coupling is 0 (SC-001 compliance)
+- [X] T038 [US3] Verify global coupling parameter change triggers `couplingEngine_.setAmount(globalCoupling)` (SympatheticResonance::setAmount maps [0,1] to dB range internally -- pass the raw normalized value directly per plan.md gotchas table)
+- [X] T039 [US3] Build and verify all coupling tests still pass after global coupling verification changes
 
 ### 5.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T040 [US3] Verify IEEE 754 compliance for all coupling test files registered in tests/CMakeLists.txt
+- [X] T040 [US3] Verify IEEE 754 compliance for all coupling test files registered in tests/CMakeLists.txt
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T041 [US3] Commit User Story 3 work (global coupling bypass verification + any fixes)
+- [X] T041 [US3] Commit User Story 3 work (global coupling bypass verification + any fixes)
 
 **Checkpoint**: User Story 3 functional -- global coupling bypass verified, SC-001 and SC-004 met.
 

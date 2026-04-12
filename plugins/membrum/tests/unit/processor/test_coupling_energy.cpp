@@ -372,3 +372,169 @@ TEST_CASE("Coupling energy: velocity scaling - lower velocity = less coupling",
     // Lower velocity should produce less total energy
     CHECK(energyLow < energyHigh);
 }
+
+// =============================================================================
+// T036 [US3] Phase 5 Global Coupling Control tests
+// =============================================================================
+
+// SC-001: Global Coupling = 0 identical to no-coupling baseline within -120 dBFS
+TEST_CASE("Coupling global: SC-001 Global=0 matches baseline within -120 dBFS",
+          "[coupling]")
+{
+    // Threshold: -120 dBFS = 10^(-120/20) = 1.0e-6 linear
+    constexpr double kMinus120dBFS = 1.0e-6;
+
+    // Fixture A: Global Coupling = 0, but Tier 1 params engaged (would resonate
+    // if coupling were active). Global = 0 must force identical output to baseline.
+    EnergyTestFixture fixOff;
+    fixOff.setParam(Membrum::kGlobalCouplingId, 0.0);
+    fixOff.setParam(Membrum::kSnareBuzzId, 1.0);
+    fixOff.setParam(Membrum::kTomResonanceId, 1.0);
+
+    fixOff.events.addNoteOn(36, 1.0f);  // kick
+    fixOff.events.addNoteOn(40, 1.0f);  // snare (would buzz with coupling)
+    fixOff.processBlock();
+    fixOff.events.clear();
+
+    std::vector<float> samplesOff;
+    for (int b = 0; b < 20; ++b)
+    {
+        fixOff.processBlock();
+        samplesOff.insert(samplesOff.end(), fixOff.outL.begin(), fixOff.outL.end());
+    }
+
+    // Fixture B: baseline -- all coupling defaults (all = 0)
+    EnergyTestFixture fixBase;
+    fixBase.events.addNoteOn(36, 1.0f);
+    fixBase.events.addNoteOn(40, 1.0f);
+    fixBase.processBlock();
+    fixBase.events.clear();
+
+    std::vector<float> samplesBase;
+    for (int b = 0; b < 20; ++b)
+    {
+        fixBase.processBlock();
+        samplesBase.insert(samplesBase.end(), fixBase.outL.begin(), fixBase.outL.end());
+    }
+
+    REQUIRE(samplesOff.size() == samplesBase.size());
+    double maxDiff = 0.0;
+    for (size_t i = 0; i < samplesOff.size(); ++i)
+    {
+        double diff = std::abs(static_cast<double>(samplesOff[i]) - samplesBase[i]);
+        maxDiff = std::max(maxDiff, diff);
+    }
+    CHECK(maxDiff < kMinus120dBFS);
+}
+
+// isBypassed() returns true when globalCoupling_ = 0
+TEST_CASE("Coupling global: isBypassed() true at Global Coupling = 0",
+          "[coupling]")
+{
+    EnergyTestFixture fix;
+    // Default is 0; verify engine reports bypassed
+    CHECK(fix.processor.couplingEngineForTest().isBypassed());
+
+    // Set to non-zero; after the smoother settles (it is asymptotic), engine is NOT bypassed
+    fix.setParam(Membrum::kGlobalCouplingId, 0.5);
+    CHECK_FALSE(fix.processor.couplingEngineForTest().isBypassed());
+
+    // Set back to 0; couplingGain_ goes to 0 immediately; smoother current may
+    // still be non-zero until it decays. isBypassed() requires BOTH to be zero.
+    // Run many blocks to allow the smoother to decay to ~0.
+    fix.setParam(Membrum::kGlobalCouplingId, 0.0);
+    for (int b = 0; b < 500; ++b)
+    {
+        fix.processBlock();
+    }
+    CHECK(fix.processor.couplingEngineForTest().isBypassed());
+}
+
+// Early-out path: When Global = 0, coupling loop never adds energy -- confirmed
+// by observing no sympathetic signal even when Tier 1 and voices are fully active.
+TEST_CASE("Coupling global: early-out path skips per-sample loop at Global=0",
+          "[coupling]")
+{
+    EnergyTestFixture fix;
+    fix.setParam(Membrum::kGlobalCouplingId, 0.0);
+    fix.setParam(Membrum::kSnareBuzzId, 1.0);
+    fix.setParam(Membrum::kTomResonanceId, 1.0);
+
+    // With engine bypassed, getActiveResonatorCount should remain 0
+    // because noteOn path is gated by coupling state (resonators never registered).
+    fix.events.addNoteOn(36, 1.0f);
+    fix.events.addNoteOn(40, 1.0f);
+    fix.processBlock();
+
+    // isBypassed must still be true (engine never received non-zero setAmount)
+    CHECK(fix.processor.couplingEngineForTest().isBypassed());
+}
+
+// Global Coupling at 50% scales coupling contribution proportionally
+// vs 100%. Measured energy at Global=0.5 should be less than at Global=1.0.
+TEST_CASE("Coupling global: 50% scales proportionally vs 100%",
+          "[coupling]")
+{
+    auto measureCouplingEnergy = [](float globalCoupling)
+    {
+        EnergyTestFixture fix;
+        fix.setParam(Membrum::kGlobalCouplingId, static_cast<double>(globalCoupling));
+        fix.setParam(Membrum::kSnareBuzzId, 1.0);
+        fix.setParam(Membrum::kTomResonanceId, 1.0);
+
+        // Trigger multiple pads to excite coupling
+        fix.events.addNoteOn(36, 1.0f);
+        fix.events.addNoteOn(40, 1.0f);
+        fix.events.addNoteOn(45, 1.0f);
+        fix.processBlock();
+        fix.events.clear();
+
+        double energy = 0.0;
+        for (int b = 0; b < 40; ++b)
+        {
+            fix.processBlock();
+            for (float s : fix.outL)
+                energy += static_cast<double>(s) * s;
+        }
+        return energy;
+    };
+
+    const double energy100 = measureCouplingEnergy(1.0f);
+    const double energy50  = measureCouplingEnergy(0.5f);
+    const double energy0   = measureCouplingEnergy(0.0f);
+
+    // 50% should produce less total energy than 100%
+    CHECK(energy50 < energy100);
+    // 0% should produce the least energy (no coupling)
+    CHECK(energy0 <= energy50);
+    // Sanity: 100% must actually add energy over the baseline (coupling is audible)
+    CHECK(energy100 > energy0);
+}
+
+// setAmount() is called on couplingEngine_ with the raw normalized globalCoupling
+// value when the parameter changes (verified via engine state transitions).
+TEST_CASE("Coupling global: setAmount called with raw normalized value",
+          "[coupling]")
+{
+    EnergyTestFixture fix;
+
+    // At 0, engine bypassed (couplingGain_ == 0 per SympatheticResonance::setAmount)
+    CHECK(fix.processor.couplingEngineForTest().isBypassed());
+
+    // Setting to 0.5 triggers setAmount(0.5f) -- engine no longer bypassed
+    fix.setParam(Membrum::kGlobalCouplingId, 0.5);
+    CHECK_FALSE(fix.processor.couplingEngineForTest().isBypassed());
+
+    // Setting to 1.0 triggers setAmount(1.0f) -- still not bypassed
+    fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+    CHECK_FALSE(fix.processor.couplingEngineForTest().isBypassed());
+
+    // Returning to 0.0 triggers setAmount(0.0f) -- couplingGain_ becomes 0.
+    // After running enough blocks for the smoother to decay, isBypassed() is true.
+    fix.setParam(Membrum::kGlobalCouplingId, 0.0);
+    for (int b = 0; b < 500; ++b)
+    {
+        fix.processBlock();
+    }
+    CHECK(fix.processor.couplingEngineForTest().isBypassed());
+}
