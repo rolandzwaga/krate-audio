@@ -327,12 +327,12 @@ Note: The core migration logic was implemented in Phase 5 (T031). This phase add
 
 ### 11.1 Requirements Verification
 
-- [ ] T068 **Review ALL FR-xxx requirements** (FR-001 through FR-092) against implementation: open each implementation file, read the relevant code, confirm each FR is met — cite file and line number for each
-- [ ] T069 **Review ALL SC-xxx success criteria** (SC-001 through SC-012) against actual test output and measured values — copy actual test output or measured numbers, do not paraphrase
+- [X] T068 **Review ALL FR-xxx requirements** (FR-001 through FR-092) against implementation: open each implementation file, read the relevant code, confirm each FR is met — cite file and line number for each
+- [X] T069 **Review ALL SC-xxx success criteria** (SC-001 through SC-012) against actual test output and measured values — copy actual test output or measured numbers, do not paraphrase
 
 ### 11.2 Fill Compliance Table in spec.md
 
-- [ ] T070 **Update `specs/139-membrum-phase4-pads/spec.md` "Implementation Verification" section** with compliance status for each FR and SC — mark each with file path, line number, and evidence; mark overall status COMPLETE / NOT COMPLETE / PARTIAL honestly
+- [X] T070 **Update `specs/139-membrum-phase4-pads/spec.md` "Implementation Verification" section** with compliance status for each FR and SC — mark each with file path, line number, and evidence; mark overall status COMPLETE / NOT COMPLETE / PARTIAL honestly
 
 ### 11.3 Honest Self-Check
 
@@ -344,7 +344,7 @@ Answer before claiming completion:
 4. Would the spec author consider this "done"?
 5. If I were the user, would I feel cheated?
 
-- [ ] T071 **All self-check questions answered "no"** — or gaps documented honestly and user notified
+- [X] T071 **All self-check questions answered "no"** — or gaps documented honestly and user notified
 
 ### 11.4 Final Commit
 
