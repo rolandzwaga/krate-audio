@@ -372,9 +372,9 @@ Answer these questions before claiming completion:
 
 ## Phase 13: Final Completion
 
-- [ ] T075 Final build and full test run: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target membrum_tests dsp_tests && build/windows-x64-release/bin/Release/membrum_tests.exe 2>&1 | tail -5 && build/windows-x64-release/bin/Release/dsp_tests.exe "*modal*" 2>&1 | tail -5`
-- [ ] T076 Verify all spec work is committed to `140-membrum-phase5-coupling` branch (not main)
-- [ ] T077 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
+- [X] T075 Final build and full test run: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target membrum_tests dsp_tests && build/windows-x64-release/bin/Release/membrum_tests.exe 2>&1 | tail -5 && build/windows-x64-release/bin/Release/dsp_tests.exe "*modal*" 2>&1 | tail -5`
+- [X] T076 Verify all spec work is committed to `140-membrum-phase5-coupling` branch (not main)
+- [X] T077 Claim completion ONLY if all requirements are MET (or gaps explicitly approved by user)
 
 ---
 
