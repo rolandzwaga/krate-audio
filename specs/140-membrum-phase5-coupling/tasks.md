@@ -217,18 +217,18 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T049 [P] [US5] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_state.cpp`: state v5 round-trip -- save with globalCoupling=0.7, snareBuzz=0.4, tomResonance=0.3, couplingDelay=1.5ms, per-pad amounts all distinct values, 3 override pairs; reload and verify all values identical (SC-005); v4 migration -- load v4 blob, verify all Phase 5 params at defaults (globalCoupling=0.0, snareBuzz=0.0, tomResonance=0.0, couplingDelay=1.0ms, perPad=0.5, overrideCount=0) (SC-006, FR-051); kCurrentStateVersion == 5 (FR-050); override serialization format: uint16 count + (uint8 src, uint8 dst, float32 coeff) per entry (FR-053); per-pair coefficients clamped to [0.0, 0.05] on load (FR-031); state version mismatch on older blobs triggers migration without crash (FR-052)
+- [X] T049 [P] [US5] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_state.cpp`: state v5 round-trip -- save with globalCoupling=0.7, snareBuzz=0.4, tomResonance=0.3, couplingDelay=1.5ms, per-pad amounts all distinct values, 3 override pairs; reload and verify all values identical (SC-005); v4 migration -- load v4 blob, verify all Phase 5 params at defaults (globalCoupling=0.0, snareBuzz=0.0, tomResonance=0.0, couplingDelay=1.0ms, perPad=0.5, overrideCount=0) (SC-006, FR-051); kCurrentStateVersion == 5 (FR-050); override serialization format: uint16 count + (uint8 src, uint8 dst, float32 coeff) per entry (FR-053); per-pair coefficients clamped to [0.0, 0.05] on load (FR-031); state version mismatch on older blobs triggers migration without crash (FR-052)
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T050 [US5] Implement state version 5 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: after all v4 fields (including selectedPadIndex), append Phase 5 data per data-model.md section 5 binary layout: 4 x float64 (globalCoupling, snareBuzz, tomResonance, couplingDelay), 32 x float64 (perPadCouplingAmounts), uint16 overrideCount, then N x (uint8 src, uint8 dst, float32 coeff) override entries; write `kCurrentStateVersion = 5`
-- [ ] T051 [US5] Implement state version 5 deserialization in `setState()`: read version field; if version == 4, read v4 data then set all Phase 5 params to defaults (globalCoupling=0.0, snareBuzz=0.0, tomResonance=0.0, couplingDelayMs=1.0f, all perPad=0.5f, overrideCount=0); if version == 5, read all fields including Phase 5 appended data; pass through existing v1->v2->v3->v4 migration chain before Phase 5 handling
-- [ ] T052 [US5] After loading state, apply all Phase 5 params to engine: call `couplingEngine_.setAmount()`, `couplingDelay_.setDelayMs()` or equivalent, update padConfig couplingAmount fields, call `couplingMatrix_.recomputeFromTier1()` and load overrides via `couplingMatrix_.setOverride()` for each serialized pair
-- [ ] T053 [US5] Build and verify state tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_state]" 2>&1 | tail -5`
+- [X] T050 [US5] Implement state version 5 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: after all v4 fields (including selectedPadIndex), append Phase 5 data per data-model.md section 5 binary layout: 4 x float64 (globalCoupling, snareBuzz, tomResonance, couplingDelay), 32 x float64 (perPadCouplingAmounts), uint16 overrideCount, then N x (uint8 src, uint8 dst, float32 coeff) override entries; write `kCurrentStateVersion = 5`
+- [X] T051 [US5] Implement state version 5 deserialization in `setState()`: read version field; if version == 4, read v4 data then set all Phase 5 params to defaults (globalCoupling=0.0, snareBuzz=0.0, tomResonance=0.0, couplingDelayMs=1.0f, all perPad=0.5f, overrideCount=0); if version == 5, read all fields including Phase 5 appended data; pass through existing v1->v2->v3->v4 migration chain before Phase 5 handling
+- [X] T052 [US5] After loading state, apply all Phase 5 params to engine: call `couplingEngine_.setAmount()`, `couplingDelay_.setDelayMs()` or equivalent, update padConfig couplingAmount fields, call `couplingMatrix_.recomputeFromTier1()` and load overrides via `couplingMatrix_.setOverride()` for each serialized pair
+- [X] T053 [US5] Build and verify state tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_state]" 2>&1 | tail -5`
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T054 [US5] Verify state test files use `Approx().margin()` not exact equality for float64 round-trip comparisons (MSVC/Clang differ at 7th-8th decimal)
+- [X] T054 [US5] Verify state test files use `Approx().margin()` not exact equality for float64 round-trip comparisons (MSVC/Clang differ at 7th-8th decimal)
 
 ### 7.4 Commit (MANDATORY)
 
