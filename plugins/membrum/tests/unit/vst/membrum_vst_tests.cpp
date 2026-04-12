@@ -78,8 +78,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 2: 5 Phase-1 params + 2 selectors + 27 Phase-2 continuous = 34.
     // Phase 3: +3 (maxPolyphony, voiceStealing, chokeGroup) = 37.
     // Phase 4: +1 (selectedPad) + 1152 (32 pads x 36 params) = 1190.
+    // Phase 5: +4 (global coupling + snare buzz + tom resonance + coupling delay) = 1194.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1190);
+    CHECK(paramCount == 1194);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

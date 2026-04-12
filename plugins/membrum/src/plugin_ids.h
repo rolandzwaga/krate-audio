@@ -27,7 +27,7 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4.
 // Loader accepts version 1-3 blobs and fills later-phase parameters with
 // defaults (FR-082, FR-142, FR-143).
-constexpr Steinberg::int32 kCurrentStateVersion = 4;
+constexpr Steinberg::int32 kCurrentStateVersion = 5;
 
 // ==============================================================================
 // Parameter IDs
@@ -99,6 +99,14 @@ enum ParameterIds : Steinberg::Vst::ParamID
 
     // 260: Selected pad proxy selector
     kSelectedPadId                = 260,  // RangeParameter stepped [0,31], default 0
+
+    // ====== Phase 5 ======
+
+    // 270-279: Cross-Pad Coupling (Sympathetic Resonance)
+    kGlobalCouplingId             = 270,  // RangeParameter [0.0, 1.0], default 0.0
+    kSnareBuzzId                  = 271,  // RangeParameter [0.0, 1.0], default 0.0
+    kTomResonanceId               = 272,  // RangeParameter [0.0, 1.0], default 0.0
+    kCouplingDelayId              = 273,  // RangeParameter [0.5, 2.0] ms, default 1.0
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -126,11 +134,13 @@ static_assert(kMorphCurveId < kMaxPolyphonyId,
 // kMaxOutputBuses, PadConfig, PadParamOffset, helper functions) are
 // defined in dsp/pad_config.h, included at the top of this file.
 
-// Phase 4 collision guards. kSelectedPadId (260) is the last global param;
-// kPadBaseId (1000) opens the per-pad range. Gap 261..999 is reserved.
-static_assert(kSelectedPadId < kPadBaseId,
-              "Phase 4 global and per-pad parameter ID ranges must not overlap");
-static_assert(kCurrentStateVersion == 4,
-              "Phase 4 requires state version 4");
+// Phase 4 collision guards. kSelectedPadId (260) is the last Phase 4 global param;
+// kPadBaseId (1000) opens the per-pad range. Gap 274..999 is reserved.
+static_assert(kSelectedPadId < kGlobalCouplingId,
+              "Phase 4 and Phase 5 parameter ID ranges must not overlap (FR-062)");
+static_assert(kCouplingDelayId < kPadBaseId,
+              "Phase 5 global and per-pad parameter ID ranges must not overlap");
+static_assert(kCurrentStateVersion == 5,
+              "Phase 5 requires state version 5");
 
 } // namespace Membrum

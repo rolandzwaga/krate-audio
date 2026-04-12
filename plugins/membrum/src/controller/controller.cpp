@@ -271,6 +271,20 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                            0.0, 31.0, 0.0, /*stepCount=*/31,
                            ParameterInfo::kCanAutomate));
 
+    // ---- Phase 5: Cross-Pad Coupling parameters ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Global Coupling"), kGlobalCouplingId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Snare Buzz"), kSnareBuzzId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Tom Resonance"), kTomResonanceId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
+                           0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
+
     // ---- Phase 4: 1152 per-pad parameters (32 pads x 36 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {

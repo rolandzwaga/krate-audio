@@ -29,8 +29,11 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
     // Phase 4 adds 1 (kSelectedPadId) + 1152 (32 pads x 36 params) = 1153 more
+    // Phase 5 adds 4 global coupling params (kGlobalCoupling..kCouplingDelay)
+    constexpr int kPhase5NewParameters = 4;
     CHECK(controller.getParameterCount() ==
-          kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36);
+          kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
+          + kPhase5NewParameters);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

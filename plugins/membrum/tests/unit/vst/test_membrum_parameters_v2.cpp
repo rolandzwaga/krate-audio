@@ -40,7 +40,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int kExpectedParameterCount = 1190;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152)
+constexpr int kExpectedParameterCount = 1194;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4)
 constexpr int kExpectedExciterCount   = 6;
 constexpr int kExpectedBodyCount      = 6;
 

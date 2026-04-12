@@ -1,13 +1,12 @@
 #pragma once
 
 // ==============================================================================
-// Membrum Processor -- Phase 4
+// Membrum Processor -- Phase 5
 // ==============================================================================
-// Phase 4 transforms the processor from a single-template drum synth into a
-// 32-pad drum machine. Per-pad parameters are stored in PadConfig[32] inside
-// VoicePool. The processor dispatches per-pad parameter changes by computing
-// padIndex/offset from the parameter ID. Global proxy IDs (100-252) are
-// no-ops in the processor (they are controller-only proxies).
+// Phase 5 adds cross-pad sympathetic resonance (coupling). The coupling engine
+// (SympatheticResonance) processes after VoicePool output: mono sum -> delay ->
+// engine -> energy limiter -> add to L/R. Global coupling parameters (270-273)
+// control the coupling amount, snare buzz, tom resonance, and propagation delay.
 // ==============================================================================
 
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
@@ -15,10 +14,16 @@
 
 #include "dsp/drum_voice.h"
 #include "dsp/pad_config.h"
+#include "dsp/pad_category.h"
+#include "dsp/coupling_matrix.h"
 #include "voice_pool/voice_pool.h"
+
+#include <krate/dsp/systems/sympathetic_resonance.h>
+#include <krate/dsp/primitives/delay_line.h>
 
 #include <array>
 #include <atomic>
+#include <cmath>
 
 namespace Membrum {
 
@@ -53,6 +58,11 @@ public:
     void setSelectedPadIndexForTest(int idx) noexcept { selectedPadIndex_ = idx; }
     int selectedPadIndexForTest() const noexcept { return selectedPadIndex_; }
 
+    // Test-only accessors (Phase 5: coupling)
+    Krate::DSP::SympatheticResonance& couplingEngineForTest() noexcept { return couplingEngine_; }
+    const CouplingMatrix& couplingMatrixForTest() const noexcept { return couplingMatrix_; }
+    float energyEnvelopeForTest() const noexcept { return energyEnvelope_; }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
@@ -75,6 +85,40 @@ private:
 
     // ---- Phase 4: selected pad index (for state only, not used in audio) ----
     int selectedPadIndex_ = 0;
+
+    // ---- Phase 5: Cross-pad coupling (sympathetic resonance) ----
+    Krate::DSP::SympatheticResonance  couplingEngine_;
+    Krate::DSP::DelayLine             couplingDelay_;
+    CouplingMatrix                    couplingMatrix_;
+
+    // Global coupling parameters (atomics for thread-safe parameter updates)
+    std::atomic<float> globalCoupling_{0.0f};
+    std::atomic<float> snareBuzz_{0.0f};
+    std::atomic<float> tomResonance_{0.0f};
+    std::atomic<float> couplingDelayMs_{1.0f};
+
+    // Cached pad categories (recomputed on pad config changes)
+    std::array<PadCategory, kNumPads> padCategories_{};
+
+    // Energy limiter state
+    float energyEnvelope_ = 0.0f;
+
+    /// One-pole envelope follower energy limiter (FR-014, SC-007).
+    /// Caps coupling output below -20 dBFS.
+    float applyEnergyLimiter(float sample) noexcept
+    {
+        constexpr float kThreshold = 0.1f;     // -20 dBFS
+        constexpr float kAttackCoeff = 0.001f;  // fast attack
+        constexpr float kReleaseCoeff = 0.9999f; // slow release
+        float absVal = std::abs(sample);
+        float coeff = absVal > energyEnvelope_ ? kAttackCoeff : kReleaseCoeff;
+        energyEnvelope_ += (1.0f - coeff) * (absVal - energyEnvelope_);
+        if (energyEnvelope_ > kThreshold)
+        {
+            return sample * (kThreshold / energyEnvelope_);
+        }
+        return sample;
+    }
 };
 
 } // namespace Membrum

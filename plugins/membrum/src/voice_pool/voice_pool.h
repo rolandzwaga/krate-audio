@@ -54,6 +54,7 @@
 #include "../dsp/exciter_type.h"
 #include "../dsp/pad_config.h"
 
+#include <krate/dsp/systems/sympathetic_resonance.h>
 #include <krate/dsp/systems/voice_allocator.h>
 
 #include <array>
@@ -229,6 +230,17 @@ public:
     [[nodiscard]] bool isAnyVoiceActive() const noexcept;
 
     // ------------------------------------------------------------------
+    // Phase 5: Coupling engine integration
+    // ------------------------------------------------------------------
+
+    /// Set the coupling engine pointer (called from Processor::setupProcessing).
+    /// When non-null, noteOn/noteOff hooks forward partial info to the engine.
+    void setCouplingEngine(Krate::DSP::SympatheticResonance* engine) noexcept
+    {
+        couplingEngine_ = engine;
+    }
+
+    // ------------------------------------------------------------------
     // Direct read access for the forEachMainVoice helper (unique_ptr
     // storage requires a non-inline helper method; kept public so the
     // header-defined template below can reach it).
@@ -323,6 +335,11 @@ private:
     // structs, one per GM drum map pad. Replaces the Phase 3 SharedParams.
     // ------------------------------------------------------------------
     std::array<PadConfig, kNumPads> padConfigs_{};
+
+    // ------------------------------------------------------------------
+    // Phase 5: Coupling engine (owned by Processor, non-owning pointer).
+    // ------------------------------------------------------------------
+    Krate::DSP::SympatheticResonance* couplingEngine_ = nullptr;
 };
 
 // ------------------------------------------------------------------

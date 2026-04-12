@@ -167,6 +167,7 @@ endif()
 if(NOT MSVC)
     set_source_files_properties(
         unit/voice_pool/test_fast_release_denormals.cpp
+        unit/processor/test_coupling_energy.cpp
         PROPERTIES
             COMPILE_OPTIONS "-fno-fast-math"
     )

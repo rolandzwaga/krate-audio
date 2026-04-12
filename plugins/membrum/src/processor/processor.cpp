@@ -12,6 +12,7 @@
 #include "dsp/default_kit.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "dsp/pad_category.h"
 #include "dsp/tone_shaper.h"
 #include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
@@ -206,6 +207,11 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     // This is overwritten by setState() if a saved state is loaded.
     DefaultKit::apply(voicePool_.padConfigsArray());
 
+    // Phase 5: Initialize pad categories from default kit configuration.
+    for (int i = 0; i < kNumPads; ++i)
+        padCategories_[static_cast<size_t>(i)] =
+            classifyPad(voicePool_.padConfig(i));
+
     return kResultOk;
 }
 
@@ -252,6 +258,13 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     static_cast<int>(value * static_cast<double>(ExciterType::kCount)),
                     0, static_cast<int>(ExciterType::kCount) - 1);
                 voicePool_.setPadConfigSelector(padIdx, padOff, idx);
+                // Phase 5: exciter type change can affect pad category
+                padCategories_[static_cast<size_t>(padIdx)] =
+                    classifyPad(voicePool_.padConfig(padIdx));
+                couplingMatrix_.recomputeFromTier1(
+                    snareBuzz_.load(std::memory_order_relaxed),
+                    tomResonance_.load(std::memory_order_relaxed),
+                    padCategories_.data());
             }
             else if (padOff == kPadBodyModel)
             {
@@ -259,6 +272,24 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                     static_cast<int>(value * static_cast<double>(BodyModelType::kCount)),
                     0, static_cast<int>(BodyModelType::kCount) - 1);
                 voicePool_.setPadConfigSelector(padIdx, padOff, idx);
+                // Phase 5: body model change can affect pad category
+                padCategories_[static_cast<size_t>(padIdx)] =
+                    classifyPad(voicePool_.padConfig(padIdx));
+                couplingMatrix_.recomputeFromTier1(
+                    snareBuzz_.load(std::memory_order_relaxed),
+                    tomResonance_.load(std::memory_order_relaxed),
+                    padCategories_.data());
+            }
+            else if (padOff == kPadTSPitchEnvTime)
+            {
+                voicePool_.setPadConfigField(padIdx, padOff, fValue);
+                // Phase 5: pitch env time change can affect pad category (Kick vs Tom)
+                padCategories_[static_cast<size_t>(padIdx)] =
+                    classifyPad(voicePool_.padConfig(padIdx));
+                couplingMatrix_.recomputeFromTier1(
+                    snareBuzz_.load(std::memory_order_relaxed),
+                    tomResonance_.load(std::memory_order_relaxed),
+                    padCategories_.data());
             }
             else
             {
@@ -424,6 +455,42 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 static_cast<int>(std::lround(clamped * 31.0f)), 0, 31);
             break;
         }
+
+        // ---- Phase 5: Coupling parameters ----
+        case kGlobalCouplingId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            globalCoupling_.store(clamped, std::memory_order_relaxed);
+            couplingEngine_.setAmount(clamped);
+            break;
+        }
+        case kSnareBuzzId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            snareBuzz_.store(clamped, std::memory_order_relaxed);
+            couplingMatrix_.recomputeFromTier1(
+                clamped, tomResonance_.load(std::memory_order_relaxed),
+                padCategories_.data());
+            break;
+        }
+        case kTomResonanceId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            tomResonance_.store(clamped, std::memory_order_relaxed);
+            couplingMatrix_.recomputeFromTier1(
+                snareBuzz_.load(std::memory_order_relaxed), clamped,
+                padCategories_.data());
+            break;
+        }
+        case kCouplingDelayId:
+        {
+            // Denormalize from [0, 1] to [0.5, 2.0] ms
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            const float delayMs = 0.5f + clamped * 1.5f;
+            couplingDelayMs_.store(delayMs, std::memory_order_relaxed);
+            break;
+        }
+
         default:
             break;
         }
@@ -545,7 +612,31 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             }
         }
 
-        data.outputs[0].silenceFlags = voicePool_.isAnyVoiceActive() ? 0ULL : 3ULL;
+        // ============================================================
+        // Phase 5: Coupling signal chain (FR-072)
+        // mono sum -> delay read -> delay write -> engine -> energy limiter -> add to L/R
+        // Skip entire loop when engine is bypassed (global coupling = 0).
+        // ============================================================
+        if (!couplingEngine_.isBypassed())
+        {
+            const float delayMs = couplingDelayMs_.load(std::memory_order_relaxed);
+            const float delaySamples = delayMs * static_cast<float>(sampleRate_) * 0.001f;
+
+            for (int32 s = 0; s < data.numSamples; ++s)
+            {
+                const float mono = (outL[s] + outR[s]) * 0.5f;
+                const float delayed = couplingDelay_.readLinear(delaySamples);
+                couplingDelay_.write(mono);
+                float coupling = couplingEngine_.process(delayed);
+                coupling = applyEnergyLimiter(coupling);
+                outL[s] += coupling;
+                outR[s] += coupling;
+            }
+        }
+
+        data.outputs[0].silenceFlags =
+            (voicePool_.isAnyVoiceActive() || !couplingEngine_.isBypassed())
+                ? 0ULL : 3ULL;
     }
 
     return kResultOk;
@@ -668,6 +759,36 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     int32 selPad = static_cast<int32>(selectedPadIndex_);
     state->write(&selPad, sizeof(selPad), nullptr);
 
+    // ---- Phase 5: Coupling state (appended to v4 data) ----
+    // 4 x float64 global coupling params
+    double gc = static_cast<double>(globalCoupling_.load(std::memory_order_relaxed));
+    double sb = static_cast<double>(snareBuzz_.load(std::memory_order_relaxed));
+    double tr = static_cast<double>(tomResonance_.load(std::memory_order_relaxed));
+    double cd = static_cast<double>(couplingDelayMs_.load(std::memory_order_relaxed));
+    state->write(&gc, sizeof(gc), nullptr);
+    state->write(&sb, sizeof(sb), nullptr);
+    state->write(&tr, sizeof(tr), nullptr);
+    state->write(&cd, sizeof(cd), nullptr);
+
+    // 32 x float64 per-pad coupling amounts
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        double amt = static_cast<double>(voicePool_.padConfig(pad).couplingAmount);
+        state->write(&amt, sizeof(amt), nullptr);
+    }
+
+    // uint16 overrideCount + N x (uint8 src, uint8 dst, float32 coeff)
+    std::uint16_t overrideCount =
+        static_cast<std::uint16_t>(couplingMatrix_.getOverrideCount());
+    state->write(&overrideCount, sizeof(overrideCount), nullptr);
+    couplingMatrix_.forEachOverride([state](int src, int dst, float coeff) {
+        std::uint8_t s = static_cast<std::uint8_t>(src);
+        std::uint8_t d = static_cast<std::uint8_t>(dst);
+        state->write(&s, sizeof(s), nullptr);
+        state->write(&d, sizeof(d), nullptr);
+        state->write(&coeff, sizeof(coeff), nullptr);
+    });
+
     return kResultOk;
 }
 
@@ -685,9 +806,9 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         return kResultFalse;
 
     // ------------------------------------------------------------------
-    // v4 state format
+    // v4/v5 state format -- v5 is v4 + appended Phase 5 coupling data
     // ------------------------------------------------------------------
-    if (version == 4)
+    if (version == 4 || version == 5)
     {
         int32 maxPoly = 8;
         int32 stealPolicy = 0;
@@ -785,6 +906,79 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         if (state->read(&selPad, sizeof(selPad), nullptr) != kResultOk)
             selPad = 0;
         selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
+
+        // ---- Phase 5: Read coupling state if version == 5 ----
+        if (version == 5)
+        {
+            double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
+            if (state->read(&gc, sizeof(gc), nullptr) != kResultOk) gc = 0.0;
+            if (state->read(&sb, sizeof(sb), nullptr) != kResultOk) sb = 0.0;
+            if (state->read(&tr, sizeof(tr), nullptr) != kResultOk) tr = 0.0;
+            if (state->read(&cd, sizeof(cd), nullptr) != kResultOk) cd = 1.0;
+
+            const float gcF = std::clamp(static_cast<float>(gc), 0.0f, 1.0f);
+            const float sbF = std::clamp(static_cast<float>(sb), 0.0f, 1.0f);
+            const float trF = std::clamp(static_cast<float>(tr), 0.0f, 1.0f);
+            const float cdF = std::clamp(static_cast<float>(cd), 0.5f, 2.0f);
+
+            globalCoupling_.store(gcF, std::memory_order_relaxed);
+            snareBuzz_.store(sbF, std::memory_order_relaxed);
+            tomResonance_.store(trF, std::memory_order_relaxed);
+            couplingDelayMs_.store(cdF, std::memory_order_relaxed);
+            couplingEngine_.setAmount(gcF);
+
+            // 32 per-pad coupling amounts
+            for (int pad = 0; pad < kNumPads; ++pad)
+            {
+                double amt = 0.5;
+                if (state->read(&amt, sizeof(amt), nullptr) != kResultOk)
+                    amt = 0.5;
+                voicePool_.padConfigMut(pad).couplingAmount =
+                    std::clamp(static_cast<float>(amt), 0.0f, 1.0f);
+            }
+
+            // Refresh categories and recompute Tier 1 matrix
+            for (int i = 0; i < kNumPads; ++i)
+                padCategories_[static_cast<size_t>(i)] =
+                    classifyPad(voicePool_.padConfig(i));
+            couplingMatrix_.recomputeFromTier1(sbF, trF, padCategories_.data());
+
+            // uint16 overrideCount + N entries
+            std::uint16_t overrideCount = 0;
+            if (state->read(&overrideCount, sizeof(overrideCount), nullptr) != kResultOk)
+                overrideCount = 0;
+            for (std::uint16_t o = 0; o < overrideCount; ++o)
+            {
+                std::uint8_t s = 0;
+                std::uint8_t d = 0;
+                float coeff = 0.0f;
+                if (state->read(&s, sizeof(s), nullptr) != kResultOk) break;
+                if (state->read(&d, sizeof(d), nullptr) != kResultOk) break;
+                if (state->read(&coeff, sizeof(coeff), nullptr) != kResultOk) break;
+                if (s < kNumPads && d < kNumPads)
+                {
+                    const float clamped = std::clamp(
+                        coeff, 0.0f, CouplingMatrix::kMaxCoefficient);
+                    couplingMatrix_.setOverride(
+                        static_cast<int>(s), static_cast<int>(d), clamped);
+                }
+            }
+        }
+        else
+        {
+            // v4 -> v5 migration: Phase 5 params at defaults
+            globalCoupling_.store(0.0f, std::memory_order_relaxed);
+            snareBuzz_.store(0.0f, std::memory_order_relaxed);
+            tomResonance_.store(0.0f, std::memory_order_relaxed);
+            couplingDelayMs_.store(1.0f, std::memory_order_relaxed);
+            couplingEngine_.setAmount(0.0f);
+            for (int pad = 0; pad < kNumPads; ++pad)
+                voicePool_.padConfigMut(pad).couplingAmount = 0.5f;
+            for (int i = 0; i < kNumPads; ++i)
+                padCategories_[static_cast<size_t>(i)] =
+                    classifyPad(voicePool_.padConfig(i));
+            couplingMatrix_.recomputeFromTier1(0.0f, 0.0f, padCategories_.data());
+        }
 
         return kResultOk;
     }
@@ -1016,6 +1210,13 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     voicePool_.setMaxPolyphony(maxPolyphony_.load());
     voicePool_.setVoiceStealingPolicy(
         static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
+
+    // Phase 5: prepare coupling engine and delay
+    couplingEngine_.prepare(sampleRate_);
+    couplingDelay_.prepare(sampleRate_, 0.002f);  // 2 ms max delay
+    voicePool_.setCouplingEngine(&couplingEngine_);
+    energyEnvelope_ = 0.0f;
+
     return AudioEffect::setupProcessing(setup);
 }
 

@@ -270,7 +270,7 @@ TEST_CASE("Migration: unknown future version rejected gracefully",
     REQUIRE(processor.terminate() == kResultOk);
 }
 
-TEST_CASE("Migration: v4 blob with bumped version does not corrupt existing state",
+TEST_CASE("Migration: future-version blob does not corrupt existing state",
           "[membrum][vst][migration_v3_v4]")
 {
     // Setup: load a known v3 state so pad 0 has specific values
@@ -304,9 +304,10 @@ TEST_CASE("Migration: v4 blob with bumped version does not corrupt existing stat
     auto* savedStream = new MemoryStream();
     REQUIRE(processor.getState(savedStream) == kResultOk);
 
-    // Tamper the version field to simulate a future version (v5)
+    // Tamper the version field to simulate a future version (v99)
+    // Phase 5: v5 is now the current version, so use 99 as "future".
     savedStream->seek(0, IBStream::kIBSeekSet, nullptr);
-    int32 futureVersion = 5;
+    int32 futureVersion = 99;
     savedStream->write(&futureVersion, sizeof(futureVersion), nullptr);
     savedStream->seek(0, IBStream::kIBSeekSet, nullptr);
 

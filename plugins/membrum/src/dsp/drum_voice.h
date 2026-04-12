@@ -30,6 +30,7 @@
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
 #include <krate/dsp/processors/waveguide_string.h>
+#include <krate/dsp/systems/sympathetic_resonance.h>
 
 #include <algorithm>
 #include <array>
@@ -517,6 +518,20 @@ public:
     // Exposed for testing and state helpers
     [[nodiscard]] const ExciterBank& exciterBank() const noexcept { return exciterBank_; }
     [[nodiscard]] const BodyBank& bodyBank() const noexcept { return bodyBank_; }
+
+    /// Extract the first N partial frequencies from the body's modal bank.
+    /// Returns a SympatheticPartialInfo with up to kSympatheticPartialCount freqs.
+    /// Used by VoicePool coupling hooks to register resonators on noteOn.
+    [[nodiscard]] Krate::DSP::SympatheticPartialInfo getPartialInfo() noexcept
+    {
+        Krate::DSP::SympatheticPartialInfo info{};
+        auto& bank = bodyBank_.getSharedBank();
+        for (int k = 0; k < Krate::DSP::kSympatheticPartialCount; ++k)
+        {
+            info.frequencies[static_cast<size_t>(k)] = bank.getModeFrequency(k);
+        }
+        return info;
+    }
 
 private:
     /// Recompute body mapping without clearing filter state (Phase 1 behavior).
