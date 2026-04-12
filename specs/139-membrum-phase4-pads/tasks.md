@@ -312,8 +312,8 @@ Note: The core migration logic was implemented in Phase 5 (T031). This phase add
 
 > **Constitution Principle XIV**: Every spec implementation MUST update architecture documentation.
 
-- [ ] T066 Update `specs/_architecture_/membrum-plugin.md` with Phase 4 additions: `PadConfig` struct (location, fields, helper functions), `DefaultKit` (location, API), per-pad parameter ID scheme (kPadBaseId, kPadParamStride, padParamId()), multi-bus output routing pattern (activateBus override, busActive_ array, VoicePool multi-bus processBlock), kit preset / pad preset infrastructure (membrum_preset_config.h, two PresetManager instances), state v4 binary format with diagram, selected-pad proxy controller pattern
-- [ ] T067 **Commit architecture documentation updates**
+- [X] T066 Update `specs/_architecture_/membrum-plugin.md` with Phase 4 additions: `PadConfig` struct (location, fields, helper functions), `DefaultKit` (location, API), per-pad parameter ID scheme (kPadBaseId, kPadParamStride, padParamId()), multi-bus output routing pattern (activateBus override, busActive_ array, VoicePool multi-bus processBlock), kit preset / pad preset infrastructure (membrum_preset_config.h, two PresetManager instances), state v4 binary format with diagram, selected-pad proxy controller pattern
+- [X] T067 **Commit architecture documentation updates**
 
 **Checkpoint**: Architecture documentation reflects all Phase 4 additions.
 
