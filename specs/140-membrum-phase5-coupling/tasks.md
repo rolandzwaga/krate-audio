@@ -109,7 +109,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T029 [US1] Commit completed User Story 1 work (signal chain, energy limiter, global coupling parameter handling, parameter registration)
+- [X] T029 [US1] Commit completed User Story 1 work (signal chain, energy limiter, global coupling parameter handling, parameter registration)
 
 **Checkpoint**: User Story 1 fully functional -- kick triggers audible snare buzz. Build clean, tests pass, committed.
 
@@ -125,17 +125,17 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T030 [P] [US2] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend existing file or add SECTION): Tom Resonance knob at 50% causes Tom->Tom pairs to have computedGain = tomResonance * 0.05f in the matrix; classifyPad correctly identifies Tom-category pads; frequency-selective coupling: octave-tuned toms produce more coupling energy than tritone-tuned (verify SC-008 at least 12 dB difference via spectral measurement); Tom Resonance at 0 produces zero Tom->Tom gain in matrix
+- [X] T030 [P] [US2] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend existing file or add SECTION): Tom Resonance knob at 50% causes Tom->Tom pairs to have computedGain = tomResonance * 0.05f in the matrix; classifyPad correctly identifies Tom-category pads; frequency-selective coupling: octave-tuned toms produce more coupling energy than tritone-tuned (verify SC-008 at least 12 dB difference via spectral measurement); Tom Resonance at 0 produces zero Tom->Tom gain in matrix
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T031 [US2] Verify `recomputeFromTier1()` correctly handles Tom->Tom pairs (covered by CouplingMatrix implementation in T015 -- validate against Tom-specific PadConfig instances with bodyModel=Membrane, no pitch env, no noise exciter)
-- [ ] T032 [US2] Verify pad category derivation for Tom category works with actual PadConfig fixtures from default kit (membrane body, no pitch envelope, no noise burst exciter); ensure `padCategories_` array is updated when pad configuration changes (body model, exciter type, or pitch envelope settings change -- i.e., on per-pad config updates, NOT on kSnareBuzzId or kTomResonanceId knob changes, which only trigger recomputeFromTier1() and already read the cached padCategories_)
-- [ ] T033 [US2] Build and verify Tom-specific tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling]" 2>&1 | tail -5`
+- [X] T031 [US2] Verify `recomputeFromTier1()` correctly handles Tom->Tom pairs (covered by CouplingMatrix implementation in T015 -- validate against Tom-specific PadConfig instances with bodyModel=Membrane, no pitch env, no noise exciter)
+- [X] T032 [US2] Verify pad category derivation for Tom category works with actual PadConfig fixtures from default kit (membrane body, no pitch envelope, no noise burst exciter); ensure `padCategories_` array is updated when pad configuration changes (body model, exciter type, or pitch envelope settings change -- i.e., on per-pad config updates, NOT on kSnareBuzzId or kTomResonanceId knob changes, which only trigger recomputeFromTier1() and already read the cached padCategories_)
+- [X] T033 [US2] Build and verify Tom-specific tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling]" 2>&1 | tail -5`
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T034 [US2] Verify no new IEEE 754 function usage was introduced -- check spectral measurement helpers if used in Tom tests
+- [X] T034 [US2] Verify no new IEEE 754 function usage was introduced -- check spectral measurement helpers if used in Tom tests
 
 ### 4.4 Commit (MANDATORY)
 

@@ -251,3 +251,93 @@ TEST_CASE("CouplingMatrix: kMaxCoefficient is 0.05", "[coupling_matrix]")
 {
     REQUIRE(CouplingMatrix::kMaxCoefficient == Approx(0.05f));
 }
+
+// ==============================================================================
+// Phase 4 (User Story 2) -- Tom Resonance targeted tests (T030, T031)
+// ==============================================================================
+
+TEST_CASE("CouplingMatrix: Tom Resonance = 0.5 produces Tom->Tom gain = 0.025 (T030)",
+          "[coupling_matrix][coupling][phase4]")
+{
+    // T030: Explicit verification that Tom Resonance knob at 50% causes
+    // Tom->Tom pairs to have computedGain = tomResonance * 0.05f.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+
+    // Configure 3 Tom pads to verify all Tom->Tom pairs are affected.
+    cats[5]  = PadCategory::Tom;
+    cats[9]  = PadCategory::Tom;
+    cats[14] = PadCategory::Tom;
+
+    matrix.recomputeFromTier1(0.0f, 0.5f, cats);
+
+    const float expected = 0.5f * CouplingMatrix::kMaxCoefficient; // 0.025f
+    // All 6 directed Tom->Tom pairs must match (symmetry + no self-coupling).
+    REQUIRE(matrix.getEffectiveGain(5, 9)   == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(9, 5)   == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(5, 14)  == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(14, 5)  == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(9, 14)  == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(14, 9)  == Approx(expected));
+    // Self-coupling stays at zero.
+    REQUIRE(matrix.getEffectiveGain(5, 5)   == 0.0f);
+    REQUIRE(matrix.getEffectiveGain(9, 9)   == 0.0f);
+    REQUIRE(matrix.getEffectiveGain(14, 14) == 0.0f);
+}
+
+TEST_CASE("CouplingMatrix: Tom Resonance = 0 yields zero Tom->Tom gain (T030)",
+          "[coupling_matrix][coupling][phase4]")
+{
+    // T030: Tom Resonance at 0 must produce zero Tom->Tom gain in the matrix,
+    // even when many Tom pads are configured and snare buzz is maxed.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+
+    cats[5]  = PadCategory::Tom;
+    cats[7]  = PadCategory::Tom;
+    cats[9]  = PadCategory::Tom;
+    cats[11] = PadCategory::Tom;
+    cats[12] = PadCategory::Tom;
+    cats[14] = PadCategory::Tom;
+
+    // snareBuzz maxed, tomResonance zero: no Tom->Tom gain anywhere.
+    matrix.recomputeFromTier1(1.0f, 0.0f, cats);
+
+    constexpr int toms[] = {5, 7, 9, 11, 12, 14};
+    for (int src : toms)
+        for (int dst : toms)
+            REQUIRE(matrix.getEffectiveGain(src, dst) == 0.0f);
+}
+
+TEST_CASE("CouplingMatrix: recomputeFromTier1 handles Tom->Tom with default-kit PadConfig "
+          "(bodyModel=Membrane, no pitch env, no noise exciter) (T031)",
+          "[coupling_matrix][coupling][phase4]")
+{
+    // T031: Validate Tom->Tom resolution against Tom-specific PadConfig
+    // instances matching the default kit Tom template (Mallet + Membrane,
+    // pitchEnvTime = 0, exciter != NoiseBurst).
+    PadConfig tomCfg;
+    tomCfg.exciterType    = ExciterType::Mallet;
+    tomCfg.bodyModel      = BodyModelType::Membrane;
+    tomCfg.tsPitchEnvTime = 0.0f;
+
+    REQUIRE(classifyPad(tomCfg) == PadCategory::Tom);
+
+    // Build a categories array directly from PadConfig classification.
+    PadCategory cats[CouplingMatrix::kSize];
+    for (int i = 0; i < CouplingMatrix::kSize; ++i)
+        cats[i] = PadCategory::Perc;
+    cats[0] = classifyPad(tomCfg);
+    cats[1] = classifyPad(tomCfg);
+
+    CouplingMatrix matrix;
+    matrix.recomputeFromTier1(0.0f, 0.75f, cats);
+
+    const float expected = 0.75f * CouplingMatrix::kMaxCoefficient;
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(1, 0) == Approx(expected));
+    REQUIRE(matrix.getEffectiveGain(0, 0) == 0.0f);
+    REQUIRE(matrix.getEffectiveGain(1, 1) == 0.0f);
+}
