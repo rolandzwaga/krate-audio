@@ -219,6 +219,22 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
 // processParameterChanges -- Phase 4 per-pad dispatch
 // ==============================================================================
 
+// Phase 6 (US4 / FR-014, FR-023): rebuild effectiveGain using the current
+// Tier 1 knobs, pad categories, and per-pad coupling amounts.
+void Processor::recomputeCouplingMatrix() noexcept
+{
+    std::array<float, kNumPads> amounts{};
+    for (int pad = 0; pad < kNumPads; ++pad)
+        amounts[static_cast<size_t>(pad)] =
+            voicePool_.padConfig(pad).couplingAmount;
+
+    couplingMatrix_.recomputeFromTier1(
+        snareBuzz_.load(std::memory_order_relaxed),
+        tomResonance_.load(std::memory_order_relaxed),
+        padCategories_.data(),
+        amounts.data());
+}
+
 void Processor::processParameterChanges(IParameterChanges* paramChanges)
 {
     if (!paramChanges)
@@ -261,10 +277,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: exciter type change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                couplingMatrix_.recomputeFromTier1(
-                    snareBuzz_.load(std::memory_order_relaxed),
-                    tomResonance_.load(std::memory_order_relaxed),
-                    padCategories_.data());
+                recomputeCouplingMatrix();
             }
             else if (padOff == kPadBodyModel)
             {
@@ -275,10 +288,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: body model change can affect pad category
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                couplingMatrix_.recomputeFromTier1(
-                    snareBuzz_.load(std::memory_order_relaxed),
-                    tomResonance_.load(std::memory_order_relaxed),
-                    padCategories_.data());
+                recomputeCouplingMatrix();
             }
             else if (padOff == kPadTSPitchEnvTime)
             {
@@ -286,10 +296,16 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // Phase 5: pitch env time change can affect pad category (Kick vs Tom)
                 padCategories_[static_cast<size_t>(padIdx)] =
                     classifyPad(voicePool_.padConfig(padIdx));
-                couplingMatrix_.recomputeFromTier1(
-                    snareBuzz_.load(std::memory_order_relaxed),
-                    tomResonance_.load(std::memory_order_relaxed),
-                    padCategories_.data());
+                recomputeCouplingMatrix();
+            }
+            else if (padOff == kPadCouplingAmount)
+            {
+                // Phase 6 (US4 / FR-014, FR-023, FR-034): per-pad coupling
+                // amount feeds the effectiveGain formula. Bake amounts into
+                // the matrix so a pad with amount = 0 is fully excluded as
+                // both source and receiver.
+                voicePool_.setPadConfigField(padIdx, padOff, fValue);
+                recomputeCouplingMatrix();
             }
             else
             {
@@ -468,18 +484,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             snareBuzz_.store(clamped, std::memory_order_relaxed);
-            couplingMatrix_.recomputeFromTier1(
-                clamped, tomResonance_.load(std::memory_order_relaxed),
-                padCategories_.data());
+            recomputeCouplingMatrix();
             break;
         }
         case kTomResonanceId:
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             tomResonance_.store(clamped, std::memory_order_relaxed);
-            couplingMatrix_.recomputeFromTier1(
-                snareBuzz_.load(std::memory_order_relaxed), clamped,
-                padCategories_.data());
+            recomputeCouplingMatrix();
             break;
         }
         case kCouplingDelayId:
@@ -941,7 +953,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             for (int i = 0; i < kNumPads; ++i)
                 padCategories_[static_cast<size_t>(i)] =
                     classifyPad(voicePool_.padConfig(i));
-            couplingMatrix_.recomputeFromTier1(sbF, trF, padCategories_.data());
+            recomputeCouplingMatrix();
 
             // uint16 overrideCount + N entries
             std::uint16_t overrideCount = 0;
@@ -977,7 +989,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             for (int i = 0; i < kNumPads; ++i)
                 padCategories_[static_cast<size_t>(i)] =
                     classifyPad(voicePool_.padConfig(i));
-            couplingMatrix_.recomputeFromTier1(0.0f, 0.0f, padCategories_.data());
+            recomputeCouplingMatrix();
         }
 
         return kResultOk;

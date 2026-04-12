@@ -121,13 +121,15 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadFeedbackAmount,     .name = "Feedback Amount",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     {.offset = kPadNoiseBurstDuration, .name = "NoiseBurst Duration", .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadFrictionPressure,   .name = "Friction Pressure",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    // Phase 6 (US4 / T044): per-pad coupling amount (offset 36)
+    {.offset = kPadCouplingAmount,     .name = "Coupling Amount",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCount,
-              "Pad param specs must match active param count (36)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV5,
+              "Pad param specs must match active param count (37)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -285,7 +287,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
                            0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4: 1152 per-pad parameters (32 pads x 36 active offsets) ----
+    // ---- Phase 4/6: 1184 per-pad parameters (32 pads x 37 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (int specIdx = 0; specIdx < kPadParamSpecCount; ++specIdx)

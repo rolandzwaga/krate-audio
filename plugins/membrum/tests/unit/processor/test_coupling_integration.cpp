@@ -469,6 +469,17 @@ TEST_CASE("Phase 4: Tom Resonance knob at 50% yields Tom->Tom effectiveGain = 0.
     // Processor::processParameterChanges -> CouplingMatrix::recomputeFromTier1,
     // with pad categories derived from the (default kit) PadConfig instances.
     CouplingIntegrationFixture fix;
+
+    // Phase 6 (FR-014): per-pad couplingAmount is baked into effectiveGain.
+    // Force every pad's amount to 1.0 so the matrix reports the raw Tier 1
+    // coefficient (isolates the Tom Resonance behavior under test).
+    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+    {
+        const auto pid = static_cast<ParamID>(
+            Membrum::padParamId(pad, Membrum::kPadCouplingAmount));
+        fix.setParam(pid, 1.0);
+    }
+
     fix.setParam(Membrum::kTomResonanceId, 0.5);
     fix.setParam(Membrum::kSnareBuzzId,    0.0);
 
@@ -518,6 +529,16 @@ TEST_CASE("Phase 4: padCategories_ updates when pad body model / exciter / pitch
     // or pitch envelope time) trigger pad-category recomputation, and that
     // the coupling matrix reflects the new categorization afterwards.
     CouplingIntegrationFixture fix;
+
+    // Phase 6 (FR-014): isolate the effect of category changes by forcing
+    // every pad's couplingAmount to 1.0 so effectiveGain reflects the Tier 1
+    // coefficient alone.
+    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+    {
+        const auto pid = static_cast<ParamID>(
+            Membrum::padParamId(pad, Membrum::kPadCouplingAmount));
+        fix.setParam(pid, 1.0);
+    }
 
     // Enable Tom Resonance so Tom->Tom pairs have non-zero gain.
     fix.setParam(Membrum::kTomResonanceId, 1.0);
@@ -824,4 +845,122 @@ TEST_CASE("Coupling integration: velocity scaling produces proportionally less c
 
     // Lower velocity should produce less total energy
     CHECK(energyLow < energyHigh);
+}
+
+// =============================================================================
+// Phase 6 (US4) -- Per-Pad Coupling Amount tests (T042)
+// =============================================================================
+
+TEST_CASE("Phase 6 (T042): per-pad coupling amount param ID formula",
+          "[coupling][phase6]")
+{
+    // ID formula: kPadBaseId + N * kPadParamStride + kPadCouplingAmount(=36)
+    for (int n = 0; n < Membrum::kNumPads; ++n)
+    {
+        const int expected = Membrum::kPadBaseId
+                           + n * Membrum::kPadParamStride
+                           + Membrum::kPadCouplingAmount;
+        CHECK(Membrum::padParamId(n, Membrum::kPadCouplingAmount) == expected);
+
+        // Round-trip through pad/offset decoders.
+        CHECK(Membrum::padIndexFromParamId(expected) == n);
+        CHECK(Membrum::padOffsetFromParamId(expected) == Membrum::kPadCouplingAmount);
+    }
+
+    // Cross-check: offset 36 is the active V5 frontier.
+    CHECK(Membrum::kPadCouplingAmount == 36);
+    CHECK(Membrum::kPadActiveParamCountV5 == 37);
+}
+
+TEST_CASE("Phase 6 (T042): setPadConfigField with offset 36 updates couplingAmount",
+          "[coupling][phase6]")
+{
+    CouplingIntegrationFixture fix;
+
+    // Start at default 0.5f.
+    CHECK(fix.processor.voicePoolForTest().padConfig(3).couplingAmount
+          == Approx(0.5f).margin(1e-6f));
+
+    fix.processor.voicePoolForTest().setPadConfigField(
+        3, Membrum::kPadCouplingAmount, 0.75f);
+    CHECK(fix.processor.voicePoolForTest().padConfig(3).couplingAmount
+          == Approx(0.75f).margin(1e-6f));
+
+    fix.processor.voicePoolForTest().setPadConfigField(
+        3, Membrum::kPadCouplingAmount, 0.0f);
+    CHECK(fix.processor.voicePoolForTest().padConfig(3).couplingAmount
+          == Approx(0.0f).margin(1e-6f));
+}
+
+TEST_CASE("Phase 6 (T042): per-pad coupling amount change triggers matrix recompute (FR-034)",
+          "[coupling][phase6]")
+{
+    CouplingIntegrationFixture fix;
+
+    // Enable Tom Resonance so Tom->Tom pairs have non-zero gain.
+    fix.setParam(Membrum::kTomResonanceId, 1.0);
+
+    // Default Tom->Tom effective gain (both pads at amount=0.5, product=0.25).
+    const auto& m = fix.processor.couplingMatrixForTest();
+    const float gainBefore = m.getEffectiveGain(5, 7);
+    REQUIRE(gainBefore > 0.0f);
+
+    // Drop pad 5's coupling amount to 0 via VST param change.
+    const auto pad5CouplingId = static_cast<ParamID>(
+        Membrum::padParamId(5, Membrum::kPadCouplingAmount));
+    fix.setParam(pad5CouplingId, 0.0);
+
+    // After recompute, pad 5 participation == 0 zeros the row/column.
+    const float gainAfter = fix.processor.couplingMatrixForTest()
+                              .getEffectiveGain(5, 7);
+    CHECK(gainAfter == 0.0f);
+
+    // Conversely, Tom pads whose amounts are still 0.5 should still couple.
+    CHECK(fix.processor.couplingMatrixForTest().getEffectiveGain(7, 9) > 0.0f);
+}
+
+TEST_CASE("Phase 6 (T042): pad with couplingAmount=0 excluded from noteOn resonator registration (FR-023)",
+          "[coupling][phase6]")
+{
+    CouplingIntegrationFixture fix;
+    fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+    fix.setParam(Membrum::kSnareBuzzId, 1.0);
+
+    // Set kick pad (pad 0, MIDI 36) couplingAmount = 0.0.
+    const auto pad0CouplingId = static_cast<ParamID>(
+        Membrum::padParamId(0, Membrum::kPadCouplingAmount));
+    fix.setParam(pad0CouplingId, 0.0);
+
+    const int before = fix.processor.couplingEngineForTest()
+                          .getActiveResonatorCount();
+
+    fix.events.addNoteOn(36, 1.0f);
+    (void)fix.processNBlocks(2);
+
+    // With coupling amount zero on the source pad, noteOn MUST NOT register
+    // any resonators in the coupling engine (FR-023 CPU optimization).
+    const int after = fix.processor.couplingEngineForTest()
+                         .getActiveResonatorCount();
+    CHECK(after == before);
+}
+
+TEST_CASE("Phase 6 (T042): pad with couplingAmount=0 excluded as receiver (zero sympathetic energy)",
+          "[coupling][phase6]")
+{
+    CouplingIntegrationFixture fix;
+    fix.setParam(Membrum::kGlobalCouplingId, 1.0);
+    fix.setParam(Membrum::kTomResonanceId, 1.0);
+
+    // Silence a tom pad (pad 7) as receiver.
+    const auto pad7CouplingId = static_cast<ParamID>(
+        Membrum::padParamId(7, Membrum::kPadCouplingAmount));
+    fix.setParam(pad7CouplingId, 0.0);
+
+    // Effective gain into pad 7 from any other source must be zero.
+    const auto& m = fix.processor.couplingMatrixForTest();
+    for (int src = 0; src < Membrum::kNumPads; ++src)
+    {
+        INFO("src=" << src << " dst=7 must be 0 when pad 7 amount = 0");
+        CHECK(m.getEffectiveGain(src, 7) == 0.0f);
+    }
 }

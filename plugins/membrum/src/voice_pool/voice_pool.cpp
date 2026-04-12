@@ -208,7 +208,13 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             // Phase 5: Register this voice's partials with the coupling engine.
             // The engine will create sympathetic resonators at the voice's
             // modal frequencies (FR-041: velocity scales coupling excitation).
-            if (couplingEngine_ != nullptr)
+            //
+            // Phase 6 (US4 / FR-023 CPU optimization): if the struck pad has
+            // couplingAmount == 0.0, it is fully excluded from coupling --
+            // skip resonator registration entirely. No CPU cost for silenced
+            // pads.
+            if (couplingEngine_ != nullptr &&
+                padConfigs_[static_cast<std::size_t>(padIndex)].couplingAmount > 0.0f)
             {
                 auto partials = VP_VOICES[slot].getPartialInfo();
                 couplingEngine_->noteOn(slot, partials);

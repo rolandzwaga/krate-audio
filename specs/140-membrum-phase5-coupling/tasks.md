@@ -185,23 +185,23 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T042 [P] [US4] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend): pad with couplingAmount = 0.0f excluded from noteOn registration (no resonators added); pad with couplingAmount = 0.0f excluded as receiver (zero sympathetic energy at that pad's frequencies); per-pad coupling amount param ID formula: `kPadBaseId + N * kPadParamStride + 36` generates correct ID for each pad N; setPadConfigField with offset 36 updates couplingAmount in PadConfig; recompute matrix is triggered when per-pad coupling amount changes (FR-034)
+- [X] T042 [P] [US4] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend): pad with couplingAmount = 0.0f excluded from noteOn registration (no resonators added); pad with couplingAmount = 0.0f excluded as receiver (zero sympathetic energy at that pad's frequencies); per-pad coupling amount param ID formula: `kPadBaseId + N * kPadParamStride + 36` generates correct ID for each pad N; setPadConfigField with offset 36 updates couplingAmount in PadConfig; recompute matrix is triggered when per-pad coupling amount changes (FR-034)
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T043 [US4] Add per-pad coupling amount parameter handling in `processParameterChanges()` in `plugins/membrum/src/processor/processor.cpp`: detect offset 36 via padOffsetFromParamId(), call setPadConfigField for couplingAmount, then trigger couplingMatrix_.recomputeFromTier1() to incorporate updated per-pad amounts into effectiveGain formula (per data-model.md section 8)
-- [ ] T044 [US4] Register per-pad coupling amount parameters in `plugins/membrum/src/controller/controller.cpp`: for each pad N, register RangeParameter at `padParamId(N, kPadCouplingAmount)` (0.0-1.0, default 0.5) -- 32 parameters total
-- [ ] T044b [US4] Verify per-pad preset serialization excludes `couplingAmount` (FR-022): open `plugins/membrum/src/preset/` per-pad preset save/load code and confirm `couplingAmount` (offset 36) is NOT written to or read from per-pad sound presets; write a test in `test_coupling_state.cpp` that saves a per-pad preset, reloads it, and asserts that `couplingAmount` is NOT restored (value should remain at the pad's pre-reload state, not overwritten by preset data)
-- [ ] T045 [US4] Verify noteOn exclusion: in VoicePool noteOn hook, check `padConfig(padIndex).couplingAmount == 0.0f` before calling `couplingEngine_->noteOn()` -- if zero, skip registration entirely (FR-023 CPU optimization)
-- [ ] T046 [US4] Build and verify all coupling tests pass including per-pad amount tests: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling]" 2>&1 | tail -5`
+- [X] T043 [US4] Add per-pad coupling amount parameter handling in `processParameterChanges()` in `plugins/membrum/src/processor/processor.cpp`: detect offset 36 via padOffsetFromParamId(), call setPadConfigField for couplingAmount, then trigger couplingMatrix_.recomputeFromTier1() to incorporate updated per-pad amounts into effectiveGain formula (per data-model.md section 8)
+- [X] T044 [US4] Register per-pad coupling amount parameters in `plugins/membrum/src/controller/controller.cpp`: for each pad N, register RangeParameter at `padParamId(N, kPadCouplingAmount)` (0.0-1.0, default 0.5) -- 32 parameters total
+- [X] T044b [US4] Verify per-pad preset serialization excludes `couplingAmount` (FR-022): open `plugins/membrum/src/preset/` per-pad preset save/load code and confirm `couplingAmount` (offset 36) is NOT written to or read from per-pad sound presets; write a test in `test_coupling_state.cpp` that saves a per-pad preset, reloads it, and asserts that `couplingAmount` is NOT restored (value should remain at the pad's pre-reload state, not overwritten by preset data)
+- [X] T045 [US4] Verify noteOn exclusion: in VoicePool noteOn hook, check `padConfig(padIndex).couplingAmount == 0.0f` before calling `couplingEngine_->noteOn()` -- if zero, skip registration entirely (FR-023 CPU optimization)
+- [X] T046 [US4] Build and verify all coupling tests pass including per-pad amount tests: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling]" 2>&1 | tail -5`
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T047 [US4] Check for new IEEE 754 function usage in per-pad coupling tests
+- [X] T047 [US4] Check for new IEEE 754 function usage in per-pad coupling tests
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T048 [US4] Commit User Story 4 work (per-pad coupling amount parameters, controller registration, exclusion logic)
+- [X] T048 [US4] Commit User Story 4 work (per-pad coupling amount parameters, controller registration, exclusion logic)
 
 **Checkpoint**: User Story 4 functional -- per-pad coupling control verified, 32 parameters registered.
 

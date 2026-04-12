@@ -30,9 +30,27 @@ public:
 
     /// Recompute all computedGain values and resolve into effectiveGain.
     /// Called when Snare Buzz, Tom Resonance, or any pad config changes.
+    ///
+    /// Overload without per-pad amounts -- treats all pads as amount = 1.0.
+    /// Used for Phase 5 initial wiring and by tests that don't exercise
+    /// Phase 6 per-pad participation.
     void recomputeFromTier1(float snareBuzz,
                             float tomResonance,
                             const PadCategory* categories) noexcept
+    {
+        recomputeFromTier1(snareBuzz, tomResonance, categories, nullptr);
+    }
+
+    /// Phase 6 (US4 / FR-014): per-pad coupling amount baked into the
+    /// effectiveGain formula. `padCouplingAmounts` is a kSize-element array
+    /// in [0.0, 1.0]; may be nullptr to skip the multiplication (all pads
+    /// treated as 1.0). When provided, each pair's computed gain is scaled
+    /// by `amounts[src] * amounts[dst]` so that a pad with amount = 0 is
+    /// completely excluded as both source and receiver (FR-023).
+    void recomputeFromTier1(float snareBuzz,
+                            float tomResonance,
+                            const PadCategory* categories,
+                            const float* padCouplingAmounts) noexcept
     {
         for (int src = 0; src < kSize; ++src) {
             for (int dst = 0; dst < kSize; ++dst) {
@@ -51,6 +69,14 @@ public:
                 else if (categories[src] == PadCategory::Tom &&
                          categories[dst] == PadCategory::Tom) {
                     gain = tomResonance * kMaxCoefficient;
+                }
+
+                if (padCouplingAmounts != nullptr) {
+                    const float aSrc = std::clamp(padCouplingAmounts[src],
+                                                  0.0f, 1.0f);
+                    const float aDst = std::clamp(padCouplingAmounts[dst],
+                                                  0.0f, 1.0f);
+                    gain *= aSrc * aDst;
                 }
 
                 computedGain_[src][dst] = std::clamp(gain, 0.0f, kMaxCoefficient);

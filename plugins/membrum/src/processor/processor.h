@@ -67,6 +67,12 @@ private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
 
+    /// Phase 6 (US4): recompute the coupling matrix passing the current
+    /// per-pad couplingAmount values so they are baked into effectiveGain
+    /// (FR-014, FR-023). Called whenever a Tier 1 knob, pad category, or
+    /// per-pad coupling amount changes.
+    void recomputeCouplingMatrix() noexcept;
+
     // DSP
     VoicePool voicePool_;
     double sampleRate_ = 44100.0;
