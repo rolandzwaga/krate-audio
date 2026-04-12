@@ -230,15 +230,20 @@ TEST_CASE("Membrum: Note-on (note=36) produces audio > -12 dBFS",
 }
 
 // =============================================================================
-// T029(b): Note-on for non-36 note produces silence (FR-011)
+// T029(b): Note-on outside [36, 67] produces silence (FR-011 / FR-113)
+// =============================================================================
+// Phase 3 accepts MIDI notes 36..67 (GM drum range). Notes outside that
+// range are still silently dropped by the Processor before reaching the
+// voice pool.
 // =============================================================================
 
-TEST_CASE("Membrum: Note-on for non-36 note produces silence (FR-011)",
+TEST_CASE("Membrum: Note-on outside [36,67] produces silence (FR-113)",
           "[membrum][processor][midi]")
 {
     MembrumTestFixture fix;
 
-    fix.events.addNoteOn(60, 1.0f); // C4, not C1
+    // Note 72 (C5) is above the GM drum range; must be dropped.
+    fix.events.addNoteOn(72, 1.0f);
     fix.processBlock();
 
     float peak = fix.peakAmplitude();

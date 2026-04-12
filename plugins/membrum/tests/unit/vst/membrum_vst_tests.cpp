@@ -60,8 +60,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
     // Phase 2: 5 Phase-1 params + 2 selectors + 27 Phase-2 continuous = 34.
+    // Phase 3: +3 (maxPolyphony, voiceStealing, chokeGroup) = 37.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 34);
+    CHECK(paramCount == 37);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

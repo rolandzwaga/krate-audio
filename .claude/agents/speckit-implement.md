@@ -7,7 +7,6 @@ tools:
   - Read
   - Write
   - Edit
-  - Bash
   - Glob
   - Grep
   - mcp__serena__initial_instructions
@@ -31,7 +30,8 @@ tools:
   - mcp__serena__write_memory
   - mcp__serena__edit_memory
   - mcp__serena__delete_memory
-skills: testing-guide, vst-guide, dsp-architecture, claude-file
+  - Bash
+skills: claude-file
 ---
 
 # Implementation Agent
@@ -92,6 +92,27 @@ ONCE with no tag filters. Do NOT run filtered subsets and then the full suite.
 
 **Avoid redundancy**: If you already built and tested successfully, do NOT build/test again
 unless you made additional code changes afterward.
+
+## Serena Tools — MANDATORY for Code Operations (CRITICAL)
+
+You have access to **Serena**, a language-server-backed tool suite. You MUST use it for all code
+reading and editing. It is faster, more token-efficient, and eliminates quoting/escaping errors.
+
+**Reading code:**
+- `get_symbols_overview` — first step for any file you haven't seen. Returns classes, methods, fields.
+- `find_symbol` with `include_body=True` — read a specific function/method body. Far cheaper than reading the whole file.
+- `find_symbol` with `depth=1` — list a class's methods before deciding which to read.
+- `find_referencing_symbols` — find callers/users of a symbol.
+
+**Editing code:**
+- `replace_symbol_body` — replace an entire function/method body. Use after reading it with `find_symbol`.
+- `insert_after_symbol` / `insert_before_symbol` — add new functions, methods, fields next to existing ones.
+
+**NEVER use Bash for code edits.** No `sed`, no heredocs, no `cat >`, no `echo >>`. These break on
+quoting and waste tokens on retries. The Edit tool is acceptable for small non-code files (.md, .json),
+but for C++ source files, prefer Serena's symbol-based editing.
+
+**NEVER use Bash to read code.** No `cat`, `head`, `tail`, `grep`. Use `find_symbol` or `Read` instead.
 
 ## Code Quality Standards
 

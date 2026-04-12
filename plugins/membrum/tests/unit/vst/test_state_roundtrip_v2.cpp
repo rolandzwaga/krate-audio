@@ -99,7 +99,10 @@ TEST_CASE("State v2: round-trip bit-exactly preserves all 34 parameters",
 
     int32 readVersion = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 2);
+    // Phase 3.0 bumped kCurrentStateVersion to 3. These Phase 2 round-trip
+    // tests check that getState emits the current version; they do not pin
+    // the literal value, so they track the bump automatically.
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
 
     double readPhase1[5] = {};
     for (int i = 0; i < 5; ++i)
@@ -216,7 +219,10 @@ TEST_CASE("State v2 Phase9: all 34 parameters round-trip bit-exactly per-paramet
 
     int32 readVersion = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 2);
+    // Phase 3.0 bumped kCurrentStateVersion to 3. These Phase 2 round-trip
+    // tests check that getState emits the current version; they do not pin
+    // the literal value, so they track the bump automatically.
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
 
     // Phase 1 parameters.
     double rd = 0.0;
@@ -277,7 +283,10 @@ TEST_CASE("State v2: Phase 1 blob (version=1) loads with Phase 2 defaults",
 
     int32 readVersion = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 2);
+    // Phase 3.0 bumped kCurrentStateVersion to 3. These Phase 2 round-trip
+    // tests check that getState emits the current version; they do not pin
+    // the literal value, so they track the bump automatically.
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
 
     double readPhase1[5] = {};
     for (int i = 0; i < 5; ++i)

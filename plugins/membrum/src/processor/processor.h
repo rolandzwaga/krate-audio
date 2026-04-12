@@ -13,6 +13,7 @@
 #include "public.sdk/source/vst/vstaudioeffect.h"
 
 #include "dsp/drum_voice.h"
+#include "voice_pool/voice_pool.h"
 
 #include <atomic>
 
@@ -40,8 +41,14 @@ private:
     void processEvents(Steinberg::Vst::IEventList* events);
 
     // DSP
-    DrumVoice voice_;
+    VoicePool voicePool_;
     double sampleRate_ = 44100.0;
+    int    maxBlockSize_ = 2048;
+
+    // ---- Phase 3 polyphony / voice stealing / choke group ----
+    std::atomic<int> maxPolyphony_{8};           // FR-111 -- [4, 16]
+    std::atomic<int> voiceStealingPolicy_{0};    // FR-120 -- VoiceStealingPolicy int
+    std::atomic<int> chokeGroup_{0};             // FR-138 -- [0, 8]; 0 = none
 
     // ---- Phase 1 parameters (normalized 0..1) ----
     std::atomic<float> material_{0.5f};

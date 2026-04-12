@@ -99,6 +99,13 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/unnatural/mode_inject.h
     src/dsp/unnatural/nonlinear_coupling.h
 
+    # Phase 3: voice pool (multi-voice polyphony, stealing, choke groups)
+    src/voice_pool/voice_pool.h
+    src/voice_pool/voice_pool.cpp
+    src/voice_pool/voice_meta.h
+    src/voice_pool/voice_stealing_policy.h
+    src/voice_pool/choke_group_table.h
+
     # Shared
     src/plugin_ids.h
     src/version.h
