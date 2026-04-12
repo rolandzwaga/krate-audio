@@ -29,6 +29,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 
 namespace Membrum {
 
@@ -185,7 +187,19 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
         return result;
 
     addEventInput(STR16("Event In"));
-    addAudioOutput(STR16("Stereo Out"), SpeakerArr::kStereo);
+
+    // FR-040: 1 main + 15 auxiliary stereo output buses
+    addAudioOutput(STR16("Main Out"), SpeakerArr::kStereo);
+    for (int i = 1; i < kMaxOutputBuses; ++i)
+    {
+        char narrowName[32];
+        std::snprintf(narrowName, sizeof(narrowName), "Aux %d", i);
+        Steinberg::Vst::String128 wideName;
+        for (int c = 0; c < 31 && narrowName[c] != '\0'; ++c)
+            wideName[c] = static_cast<Steinberg::char16>(narrowName[c]);
+        wideName[std::strlen(narrowName)] = 0;
+        addAudioOutput(wideName, SpeakerArr::kStereo, BusTypes::kAux, 0);
+    }
 
     // FR-030: Initialize all 32 pads with GM-inspired default templates.
     // This is overwritten by setState() if a saved state is loaded.
@@ -471,9 +485,66 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         float* outL = data.outputs[0].channelBuffers32[0];
         float* outR = data.outputs[0].channelBuffers32[1];
 
-        voicePool_.processBlock(outL, outR, data.numSamples);
+        // FR-044 / FR-048: Extract auxiliary bus buffer pointers
+        const int numOutputBuses = std::min(static_cast<int>(data.numOutputs),
+                                            kMaxOutputBuses);
 
-        data.outputs[0].silenceFlags = voicePool_.isAnyVoiceActive() ? 0 : 3;
+        if (numOutputBuses <= 1)
+        {
+            // No aux buses available -- fall back to Phase 3 behavior
+            voicePool_.processBlock(outL, outR, data.numSamples);
+        }
+        else
+        {
+            // Build aux buffer pointer arrays from data.outputs[1..N]
+            std::array<float*, kMaxOutputBuses> auxLPtrs{};
+            std::array<float*, kMaxOutputBuses> auxRPtrs{};
+
+            for (int b = 1; b < numOutputBuses; ++b)
+            {
+                if (data.outputs[b].channelBuffers32 != nullptr)
+                {
+                    auxLPtrs[static_cast<std::size_t>(b)] =
+                        data.outputs[b].channelBuffers32[0];
+                    auxRPtrs[static_cast<std::size_t>(b)] =
+                        data.outputs[b].channelBuffers32[1];
+
+                    // Zero aux buffers (host may not guarantee zeroed)
+                    if (auxLPtrs[static_cast<std::size_t>(b)] != nullptr)
+                        std::memset(auxLPtrs[static_cast<std::size_t>(b)], 0,
+                                    static_cast<std::size_t>(data.numSamples) * sizeof(float));
+                    if (auxRPtrs[static_cast<std::size_t>(b)] != nullptr)
+                        std::memset(auxRPtrs[static_cast<std::size_t>(b)], 0,
+                                    static_cast<std::size_t>(data.numSamples) * sizeof(float));
+                }
+            }
+
+            voicePool_.processBlock(outL, outR,
+                                    auxLPtrs.data(), auxRPtrs.data(),
+                                    busActive_.data(), numOutputBuses,
+                                    data.numSamples);
+
+            // Set silence flags for aux buses
+            for (int b = 1; b < numOutputBuses; ++b)
+            {
+                bool auxSilent = true;
+                if (auxLPtrs[static_cast<std::size_t>(b)] != nullptr)
+                {
+                    for (int32 s = 0; s < data.numSamples; ++s)
+                    {
+                        if (auxLPtrs[static_cast<std::size_t>(b)][s] != 0.0f ||
+                            auxRPtrs[static_cast<std::size_t>(b)][s] != 0.0f)
+                        {
+                            auxSilent = false;
+                            break;
+                        }
+                    }
+                }
+                data.outputs[b].silenceFlags = auxSilent ? 3ULL : 0ULL;
+            }
+        }
+
+        data.outputs[0].silenceFlags = voicePool_.isAnyVoiceActive() ? 0ULL : 3ULL;
     }
 
     return kResultOk;
@@ -909,6 +980,26 @@ tresult Processor::loadKitPreset(IBStream* stream)
 
     // Kit preset does NOT modify selectedPadIndex
     return kResultOk;
+}
+
+// ==============================================================================
+// activateBus -- FR-045: track bus activation for multi-bus output
+// ==============================================================================
+
+tresult PLUGIN_API Processor::activateBus(MediaType type, BusDirection dir,
+                                           int32 index, TBool state)
+{
+    auto result = AudioEffect::activateBus(type, dir, index, state);
+    if (result == kResultTrue && type == kAudio && dir == kOutput)
+    {
+        if (index >= 0 && index < static_cast<int32>(busActive_.size()))
+        {
+            busActive_[static_cast<std::size_t>(index)] = (state != 0);
+            // FR-045: main bus (index 0) is always active
+            busActive_[0] = true;
+        }
+    }
+    return result;
 }
 
 tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)

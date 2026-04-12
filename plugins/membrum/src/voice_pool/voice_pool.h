@@ -117,7 +117,19 @@ public:
     // ------------------------------------------------------------------
 
     /// Render every active and fast-releasing voice into `outL` / `outR`.
+    /// Legacy overload (Phase 3 compat) -- routes all audio to main only.
     void processBlock(float* outL, float* outR, int numSamples) noexcept;
+
+    /// FR-044: Extended processBlock with multi-bus output support.
+    /// auxL/auxR: arrays of [numOutputBuses] buffer pointers.
+    /// busActive: boolean array indicating which buses are active.
+    /// After rendering each voice, audio is accumulated to main (always) and
+    /// to auxL[pad.outputBus]/auxR[pad.outputBus] if the bus is active and > 0.
+    void processBlock(float* outL, float* outR,
+                      float** auxL, float** auxR,
+                      const bool* busActive,
+                      int numOutputBuses,
+                      int numSamples) noexcept;
 
     // ------------------------------------------------------------------
     // Configuration -- audio thread via `processParameterChanges`

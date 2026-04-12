@@ -193,20 +193,20 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T039 [US4] Write failing tests for per-pad preset save/load in `plugins/membrum/tests/unit/preset/test_pad_preset.cpp` — test: pad preset StateProvider produces 284-byte blob (version int32 + exciterType int32 + bodyModel int32 + 34 float64 values at offsets 2-35); pad preset LoadProvider applies to selected pad only, other 31 pads unchanged; choke group and output bus are NOT in the pad preset blob; pad preset loaded onto pad 15 produces same normalized param values as original pad 1; truncated/corrupted pad preset blob fails gracefully; pad preset subcategory directory structure matches "Kick", "Snare", etc.
+- [X] T039 [US4] Write failing tests for per-pad preset save/load in `plugins/membrum/tests/unit/preset/test_pad_preset.cpp` — test: pad preset StateProvider produces 284-byte blob (version int32 + exciterType int32 + bodyModel int32 + 34 float64 values at offsets 2-35); pad preset LoadProvider applies to selected pad only, other 31 pads unchanged; choke group and output bus are NOT in the pad preset blob; pad preset loaded onto pad 15 produces same normalized param values as original pad 1; truncated/corrupted pad preset blob fails gracefully; pad preset subcategory directory structure matches "Kick", "Snare", etc.
 
 ### 6.2 Implementation for User Story 4
 
-- [ ] T040 [US4] Wire pad preset `StateProvider` and `LoadProvider` in `plugins/membrum/src/controller/controller.cpp`: StateProvider writes version=1 + exciterType + bodyModel + 34 float64 sound params at offsets 2-35 (284 bytes, NO choke group, NO outputBus); LoadProvider reads blob, applies to `padConfigs_[selectedPadIndex]` sound fields only (does not touch chokeGroup or outputBus), then syncs controller per-pad params and proxy params for the selected pad; instantiate pad `PresetManager` with pad preset config
-- [ ] T041 [US4] Build `membrum_tests` and verify T039 tests pass
+- [X] T040 [US4] Wire pad preset `StateProvider` and `LoadProvider` in `plugins/membrum/src/controller/controller.cpp`: StateProvider writes version=1 + exciterType + bodyModel + 34 float64 sound params at offsets 2-35 (284 bytes, NO choke group, NO outputBus); LoadProvider reads blob, applies to `padConfigs_[selectedPadIndex]` sound fields only (does not touch chokeGroup or outputBus), then syncs controller per-pad params and proxy params for the selected pad; instantiate pad `PresetManager` with pad preset config
+- [X] T041 [US4] Build `membrum_tests` and verify T039 tests pass
 
 ### 6.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T042 [US4] Check `test_pad_preset.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
+- [X] T042 [US4] Check `test_pad_preset.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
 
 ### 6.4 Commit
 
-- [ ] T043 [US4] **Commit completed User Story 4 work** (per-pad preset save/load infrastructure)
+- [X] T043 [US4] **Commit completed User Story 4 work** (per-pad preset save/load infrastructure)
 
 **Checkpoint**: Per-pad presets save 284-byte blobs. Load applies to selected pad only. Choke/bus not included.
 
@@ -224,28 +224,28 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T044 [US5] Write failing tests for multi-bus VoicePool output in `plugins/membrum/tests/unit/voice_pool/test_multi_bus_output.cpp` — test: pad assigned to bus 0 (main) writes audio to main buffers only and NOT to aux buffers; pad assigned to bus 2 writes audio to both main and bus 2 buffers; pad assigned to an inactive bus (busActive[N]=false) writes to main only, bus N receives silence; multiple pads on different buses each accumulate to their own bus and to main; when all aux buses inactive, behavior matches Phase 3 (main only); RMS of aux bus N is zero when no pad is assigned to bus N; **bus deactivation mid-session**: given pad assigned to bus 2 with `busActive[2]=true`, when `busActive[2]` is set to false, then the next `processBlock()` call routes that pad's audio to main only and bus 2 receives silence
+- [X] T044 [US5] Write failing tests for multi-bus VoicePool output in `plugins/membrum/tests/unit/voice_pool/test_multi_bus_output.cpp` — test: pad assigned to bus 0 (main) writes audio to main buffers only and NOT to aux buffers; pad assigned to bus 2 writes audio to both main and bus 2 buffers; pad assigned to an inactive bus (busActive[N]=false) writes to main only, bus N receives silence; multiple pads on different buses each accumulate to their own bus and to main; when all aux buses inactive, behavior matches Phase 3 (main only); RMS of aux bus N is zero when no pad is assigned to bus N; **bus deactivation mid-session**: given pad assigned to bus 2 with `busActive[2]=true`, when `busActive[2]` is set to false, then the next `processBlock()` call routes that pad's audio to main only and bus 2 receives silence
 
 ### 7.2 Implementation for User Story 5
 
-- [ ] T045 [US5] Update `plugins/membrum/src/processor/processor.cpp` `initialize()`: replace single `addAudioOutput(STR16("Stereo Out"), ...)` with one `kMain` main output followed by 15 `kAux` auxiliary outputs in a loop with names "Aux 1" through "Aux 15" and flags=0 (inactive by default)
-- [ ] T046 [US5] Add `activateBus()` override to `plugins/membrum/src/processor/processor.h` and implement in `plugins/membrum/src/processor/processor.cpp`: call base `AudioEffect::activateBus()`, then update `busActive_[index]` for audio output buses; always keep `busActive_[0] = true`
-- [ ] T046b [US5] Add `activateBus()` override to `plugins/membrum/src/controller/controller.h` and implement in `controller.cpp`: when a bus is activated or deactivated, update the valid range (string list choices) of all 32 per-pad Output Bus parameters (offset 31) to reflect only currently-active buses as valid choices; always include bus 0 (main) regardless of activation state
-- [ ] T046c [US5] Write failing tests for controller bus activation in `plugins/membrum/tests/unit/vst/test_bus_activation.cpp` — test: after `activateBus(kAudio, kOutput, 2, true)`, Output Bus param for pad 0 accepts value 2 as valid; after `activateBus(kAudio, kOutput, 2, false)`, Output Bus param for pad 0 no longer presents bus 2 as a valid choice; bus 0 (main) is always present regardless of activation calls
+- [X] T045 [US5] Update `plugins/membrum/src/processor/processor.cpp` `initialize()`: replace single `addAudioOutput(STR16("Stereo Out"), ...)` with one `kMain` main output followed by 15 `kAux` auxiliary outputs in a loop with names "Aux 1" through "Aux 15" and flags=0 (inactive by default)
+- [X] T046 [US5] Add `activateBus()` override to `plugins/membrum/src/processor/processor.h` and implement in `plugins/membrum/src/processor/processor.cpp`: call base `AudioEffect::activateBus()`, then update `busActive_[index]` for audio output buses; always keep `busActive_[0] = true`
+- [X] T046b [US5] Add `activateBus()` override to `plugins/membrum/src/controller/controller.h` and implement in `controller.cpp`: when a bus is activated or deactivated, update the valid range (string list choices) of all 32 per-pad Output Bus parameters (offset 31) to reflect only currently-active buses as valid choices; always include bus 0 (main) regardless of activation state
+- [X] T046c [US5] Write failing tests for controller bus activation in `plugins/membrum/tests/unit/vst/test_bus_activation.cpp` — test: after `activateBus(kAudio, kOutput, 2, true)`, Output Bus param for pad 0 accepts value 2 as valid; after `activateBus(kAudio, kOutput, 2, false)`, Output Bus param for pad 0 no longer presents bus 2 as a valid choice; bus 0 (main) is always present regardless of activation calls
 
-- [ ] T047 [US5] Extend `plugins/membrum/src/voice_pool/voice_pool.h` and `voice_pool.cpp` `processBlock()` signature per contract `specs/139-membrum-phase4-pads/contracts/voice-pool-v4.h`: accept `float** auxL`, `float** auxR`, `const bool* busActive`, `int numOutputBuses`, `int numSamples`; after rendering each voice to scratch, accumulate to main (always) and to `auxL[pad.outputBus]`/`auxR[pad.outputBus]` if `busActive[pad.outputBus] && pad.outputBus < numOutputBuses && pad.outputBus > 0`
-- [ ] T048 [US5] Update `plugins/membrum/src/processor/processor.cpp` `process()`: extract `auxL`/`auxR` buffer pointer arrays from `data.outputs[1..N]`; pass them to the extended `voicePool_.processBlock()` signature; handle case where `data.numOutputs == 1` (main only, no aux buffers)
-- [ ] T049 [US5] Update `plugins/membrum/resources/au-info.plist`: add multi-output channel configuration entry for the auxiliary buses per R5 findings (minimum: main `0 in / 2 out`; wrapper handles additional outputs from VST3 bus declarations)
-- [ ] T050 [US5] Update `plugins/membrum/resources/auv3/audiounitconfig.h`: update `kSupportedNumChannels` to include multi-output configuration per CLAUDE.md AU wrapper rules
-- [ ] T051 [US5] Build `membrum_tests` and verify T044 tests pass
+- [X] T047 [US5] Extend `plugins/membrum/src/voice_pool/voice_pool.h` and `voice_pool.cpp` `processBlock()` signature per contract `specs/139-membrum-phase4-pads/contracts/voice-pool-v4.h`: accept `float** auxL`, `float** auxR`, `const bool* busActive`, `int numOutputBuses`, `int numSamples`; after rendering each voice to scratch, accumulate to main (always) and to `auxL[pad.outputBus]`/`auxR[pad.outputBus]` if `busActive[pad.outputBus] && pad.outputBus < numOutputBuses && pad.outputBus > 0`
+- [X] T048 [US5] Update `plugins/membrum/src/processor/processor.cpp` `process()`: extract `auxL`/`auxR` buffer pointer arrays from `data.outputs[1..N]`; pass them to the extended `voicePool_.processBlock()` signature; handle case where `data.numOutputs == 1` (main only, no aux buffers)
+- [X] T049 [US5] Update `plugins/membrum/resources/au-info.plist`: add multi-output channel configuration entry for the auxiliary buses per R5 findings (minimum: main `0 in / 2 out`; wrapper handles additional outputs from VST3 bus declarations)
+- [X] T050 [US5] Update `plugins/membrum/resources/auv3/audiounitconfig.h`: update `kSupportedNumChannels` to include multi-output configuration per CLAUDE.md AU wrapper rules
+- [X] T051 [US5] Build `membrum_tests` and verify T044 tests pass
 
 ### 7.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T052 [US5] Check `test_multi_bus_output.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
+- [X] T052 [US5] Check `test_multi_bus_output.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
 
 ### 7.4 Commit
 
-- [ ] T053 [US5] **Commit completed User Story 5 work** (multi-bus processor initialize, activateBus override, VoicePool multi-bus processBlock, AU config update)
+- [X] T053 [US5] **Commit completed User Story 5 work** (multi-bus processor initialize, activateBus override, VoicePool multi-bus processBlock, AU config update)
 
 **Checkpoint**: 16 stereo buses declared. Aux buses route correctly. Inactive buses skip. AU files updated.
 

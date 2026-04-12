@@ -40,6 +40,10 @@ public:
     /// Load a kit preset blob (v4 format without selectedPadIndex, 9036 bytes).
     /// Does NOT modify selectedPadIndex.
     Steinberg::tresult loadKitPreset(Steinberg::IBStream* stream);
+    Steinberg::tresult PLUGIN_API activateBus(Steinberg::Vst::MediaType type,
+                                              Steinberg::Vst::BusDirection dir,
+                                              Steinberg::int32 index,
+                                              Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
 

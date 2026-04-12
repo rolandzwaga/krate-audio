@@ -13,6 +13,7 @@
 #include "pluginterfaces/base/ibstream.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 namespace Membrum {
@@ -367,6 +368,39 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     }
 
     return result;
+}
+
+// ==============================================================================
+// activateBus -- FR-043: track bus activation for Output Bus param validity
+// ==============================================================================
+
+void Controller::notifyBusActivation(int32 busIndex, bool active)
+{
+    if (busIndex < 0 || busIndex >= static_cast<int32>(busActive_.size()))
+        return;
+    busActive_[static_cast<std::size_t>(busIndex)] = active;
+    // FR-043: bus 0 is always active
+    busActive_[0] = true;
+
+    // FR-043: When a bus is deactivated, reset any pads currently assigned to
+    // that bus back to bus 0 (main). This ensures the Output Bus parameter
+    // only holds values corresponding to active buses.
+    if (!active && busIndex > 0)
+    {
+        const double deactivatedNorm =
+            static_cast<double>(busIndex) / static_cast<double>(kMaxOutputBuses - 1);
+        for (int pad = 0; pad < kNumPads; ++pad)
+        {
+            const auto outputBusParamId =
+                static_cast<ParamID>(padParamId(pad, kPadOutputBus));
+            const double currentValue = getParamNormalized(outputBusParamId);
+            // Compare with tolerance for floating-point normalization
+            if (std::abs(currentValue - deactivatedNorm) < 0.001)
+            {
+                EditControllerEx1::setParamNormalized(outputBusParamId, 0.0);
+            }
+        }
+    }
 }
 
 // ==============================================================================
@@ -842,6 +876,177 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
 
     // Kit preset does NOT read selectedPadIndex -- leave it unchanged
     // Sync global proxy params from selected pad
+    syncGlobalProxyFromPad(selectedPadIndex_);
+
+    return true;
+}
+
+// ==============================================================================
+// Pad Preset StateProvider / LoadProvider (FR-060 through FR-063, T040)
+// ==============================================================================
+
+IBStream* Controller::padPresetStateProvider()
+{
+    auto* stream = new MemoryStream();
+
+    const int pad = selectedPadIndex_;
+
+    // Version = 1
+    int32 version = 1;
+    stream->write(&version, sizeof(version), nullptr);
+
+    // Exciter type as int32
+    const double excNorm = getParamNormalized(
+        static_cast<ParamID>(padParamId(pad, kPadExciterType)));
+    int32 exciterTypeI32 = std::clamp(
+        static_cast<int32>(excNorm * static_cast<double>(ExciterType::kCount)),
+        static_cast<int32>(0), static_cast<int32>(ExciterType::kCount) - 1);
+    stream->write(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
+
+    // Body model as int32
+    const double bodyNorm = getParamNormalized(
+        static_cast<ParamID>(padParamId(pad, kPadBodyModel)));
+    int32 bodyModelI32 = std::clamp(
+        static_cast<int32>(bodyNorm * static_cast<double>(BodyModelType::kCount)),
+        static_cast<int32>(0), static_cast<int32>(BodyModelType::kCount) - 1);
+    stream->write(&bodyModelI32, sizeof(bodyModelI32), nullptr);
+
+    // 34 float64 sound params (offsets 2-35)
+    // Same order as kit preset: 28 continuous (offsets 2-29),
+    // then choke/bus as float64 (offsets 30-31), then 4 secondary exciter (offsets 32-35)
+    const int continuousOffsets[] = {
+        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
+        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
+        kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
+        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
+        kPadTSPitchEnvCurve,
+        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
+        kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
+        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
+        kPadNonlinearCoupling,
+        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
+        kPadMorphDuration, kPadMorphCurve,
+    };
+    for (int j = 0; j < 28; ++j)
+    {
+        double v = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, continuousOffsets[j])));
+        stream->write(&v, sizeof(v), nullptr);
+    }
+
+    // Choke group and output bus as float64 (positions 28-29 in the 34-value array)
+    {
+        const double chokeNorm = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadChokeGroup)));
+        double cg = chokeNorm * 8.0;
+        stream->write(&cg, sizeof(cg), nullptr);
+
+        const double busNorm = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, kPadOutputBus)));
+        double ob = busNorm * 15.0;
+        stream->write(&ob, sizeof(ob), nullptr);
+    }
+
+    // Secondary exciter params (offsets 32-35)
+    const int secOffsets[] = {
+        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
+    };
+    for (int j = 0; j < 4; ++j)
+    {
+        double v = getParamNormalized(
+            static_cast<ParamID>(padParamId(pad, secOffsets[j])));
+        stream->write(&v, sizeof(v), nullptr);
+    }
+
+    // Total: 4 + 4 + 4 + 34*8 = 284 bytes
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    return stream;
+}
+
+bool Controller::padPresetLoadProvider(IBStream* stream)
+{
+    if (!stream)
+        return false;
+
+    // Helper: read exactly N bytes, fail if fewer
+    auto readExact = [&](void* buf, int32 size) -> bool {
+        int32 bytesRead = 0;
+        if (stream->read(buf, size, &bytesRead) != kResultOk)
+            return false;
+        return bytesRead == size;
+    };
+
+    int32 version = 0;
+    if (!readExact(&version, sizeof(version)))
+        return false;
+    if (version != 1)
+        return false;
+
+    int32 exciterTypeI32 = 0;
+    int32 bodyModelI32 = 0;
+    if (!readExact(&exciterTypeI32, sizeof(exciterTypeI32)))
+        return false;
+    if (!readExact(&bodyModelI32, sizeof(bodyModelI32)))
+        return false;
+
+    double vals[34] = {};
+    for (int j = 0; j < 34; ++j)
+    {
+        if (!readExact(&vals[j], sizeof(vals[j])))
+            return false;
+    }
+
+    // Apply to selected pad only
+    const int pad = selectedPadIndex_;
+
+    exciterTypeI32 = std::clamp(exciterTypeI32, static_cast<int32>(0),
+                                static_cast<int32>(ExciterType::kCount) - 1);
+    bodyModelI32 = std::clamp(bodyModelI32, static_cast<int32>(0),
+                              static_cast<int32>(BodyModelType::kCount) - 1);
+
+    EditControllerEx1::setParamNormalized(
+        static_cast<ParamID>(padParamId(pad, kPadExciterType)),
+        (static_cast<double>(exciterTypeI32) + 0.5) / static_cast<double>(ExciterType::kCount));
+    EditControllerEx1::setParamNormalized(
+        static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
+        (static_cast<double>(bodyModelI32) + 0.5) / static_cast<double>(BodyModelType::kCount));
+
+    // Apply 28 continuous sound params (offsets 2-29)
+    const int continuousOffsets[] = {
+        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
+        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
+        kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
+        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
+        kPadTSPitchEnvCurve,
+        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
+        kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
+        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
+        kPadNonlinearCoupling,
+        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
+        kPadMorphDuration, kPadMorphCurve,
+    };
+    for (int j = 0; j < 28; ++j)
+    {
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, continuousOffsets[j])),
+            vals[j]);
+    }
+
+    // Skip vals[28] and vals[29] -- choke group and output bus are NOT applied
+    // (FR-061: Per-pad presets MUST NOT contain choke group or output routing)
+
+    // Apply 4 secondary exciter params (vals[30..33] = offsets 32-35)
+    const int secOffsets[] = {
+        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
+    };
+    for (int j = 0; j < 4; ++j)
+    {
+        EditControllerEx1::setParamNormalized(
+            static_cast<ParamID>(padParamId(pad, secOffsets[j])),
+            vals[30 + j]);
+    }
+
+    // Sync global proxy params for the selected pad
     syncGlobalProxyFromPad(selectedPadIndex_);
 
     return true;

@@ -325,6 +325,118 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
 }
 
 // ------------------------------------------------------------------
+// Multi-bus processBlock (FR-044)
+// ------------------------------------------------------------------
+
+void VoicePool::processBlock(float* outL, float* outR,
+                             float** auxL, float** auxR,
+                             const bool* busActive,
+                             int numOutputBuses,
+                             int numSamples) noexcept
+{
+    if (numSamples <= 0 || outL == nullptr || outR == nullptr)
+        return;
+
+    // Zero the main output buffers (FR-165 per-block accumulate model).
+    for (int i = 0; i < numSamples; ++i)
+    {
+        outL[i] = 0.0f;
+        outR[i] = 0.0f;
+    }
+
+    float* scratch = scratchL_.get();
+    constexpr float kSilenceThreshold = 1.0e-5f;
+
+    for (int slot = 0; slot < maxPolyphony_; ++slot)
+    {
+        if (VP_VOICES[slot].isActive())
+        {
+            VP_VOICES[slot].processBlock(scratch, numSamples);
+
+            float peak = 0.0f;
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const float a = std::fabs(scratch[i]);
+                peak = std::max(peak, a);
+                outL[i] += scratch[i];
+                outR[i] += scratch[i];
+            }
+            meta_[slot].currentLevel = peak;
+
+            // FR-044: accumulate to auxiliary bus if assigned and active
+            const int padIndex = static_cast<int>(meta_[slot].originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+            if (padIndex >= 0 && padIndex < kNumPads)
+            {
+                const int bus = static_cast<int>(
+                    padConfigs_[static_cast<std::size_t>(padIndex)].outputBus);
+                if (bus > 0 && bus < numOutputBuses &&
+                    busActive != nullptr && busActive[bus] &&
+                    auxL != nullptr && auxR != nullptr &&
+                    auxL[bus] != nullptr && auxR[bus] != nullptr)
+                {
+                    for (int i = 0; i < numSamples; ++i)
+                    {
+                        auxL[bus][i] += scratch[i];
+                        auxR[bus][i] += scratch[i];
+                    }
+                }
+            }
+
+            if (peak < kSilenceThreshold &&
+                meta_[slot].state == VoiceSlotState::Active)
+            {
+                VP_VOICES[slot].noteOff();
+            }
+        }
+        else if (meta_[slot].state == VoiceSlotState::Active)
+        {
+            meta_[slot].state        = VoiceSlotState::Free;
+            meta_[slot].currentLevel = 0.0f;
+            allocator_.voiceFinished(static_cast<std::size_t>(slot));
+        }
+    }
+
+    // Fast-releasing shadow voices
+    for (int slot = 0; slot < kMaxVoices; ++slot)
+    {
+        if (releasingMeta_[slot].state != VoiceSlotState::FastReleasing)
+            continue;
+
+        VP_RVOICES[slot].processBlock(scratch, numSamples);
+        const int liveCount = applyFastRelease(slot, scratch, numSamples);
+
+        for (int i = 0; i < liveCount; ++i)
+        {
+            outL[i] += scratch[i];
+            outR[i] += scratch[i];
+        }
+
+        // FR-044: also route fast-releasing voices to their aux bus
+        const int padIndex = static_cast<int>(releasingMeta_[slot].originatingNote)
+                             - static_cast<int>(kFirstDrumNote);
+        if (padIndex >= 0 && padIndex < kNumPads)
+        {
+            const int bus = static_cast<int>(
+                padConfigs_[static_cast<std::size_t>(padIndex)].outputBus);
+            if (bus > 0 && bus < numOutputBuses &&
+                busActive != nullptr && busActive[bus] &&
+                auxL != nullptr && auxR != nullptr &&
+                auxL[bus] != nullptr && auxR[bus] != nullptr)
+            {
+                for (int i = 0; i < liveCount; ++i)
+                {
+                    auxL[bus][i] += scratch[i];
+                    auxR[bus][i] += scratch[i];
+                }
+            }
+        }
+    }
+
+    sampleCounter_ += static_cast<std::uint64_t>(numSamples);
+}
+
+// ------------------------------------------------------------------
 // Configuration
 // ------------------------------------------------------------------
 
