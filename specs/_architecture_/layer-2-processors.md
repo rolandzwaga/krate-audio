@@ -3677,6 +3677,8 @@ class ModalResonatorBank : public IResonator {
 
     // Queries
     [[nodiscard]] int getNumActiveModes() const noexcept;
+    [[nodiscard]] int getNumModes() const noexcept;           // Spec 140: total configured modes
+    [[nodiscard]] float getModeFrequency(int k) const noexcept; // Spec 140: recovered from epsilon
     [[nodiscard]] bool isPrepared() const noexcept;
 };
 
@@ -3708,6 +3710,8 @@ class ModalResonatorBank : public IResonator {
 **Bowed-mode velocity taps (Spec 130):** 8 narrow bandpass filters (Q~50) extract velocity signals from the first 8 active modes for bow coupling. Activated via `setBowModeActive(bool)` and positioned via `setBowPosition(float)`. When active, `getFeedbackVelocity()` returns a harmonically-weighted sum of the 8 BPF outputs (weight = 1/n for mode n), enabling the `BowExciter` to receive frequency-aware feedback from modal resonance. BPF center frequencies track mode frequencies automatically on `setModes()`/`updateModes()`. Taps add ~224 bytes per instance (8 biquad states) and ~40 FLOPs/sample when active. Inactive by default (zero overhead when not bowing).
 
 **Performance:** 96 modes per voice, ~5 FLOPs per mode per sample. Target: < 5% single core for 96 modes x 8 voices at 44.1 kHz.
+
+**Mode frequency accessor (Spec 140):** `getModeFrequency(k)` recovers a mode's resonant frequency from the stored Gordon-Smith epsilon coefficient via `f = asin(eps * 0.5) * sampleRate / pi`. Used by Membrum's cross-pad coupling to probe the first N modes of a source pad's resonator and build a `SympatheticPartialInfo` for the coupling engine. Returns 0 for out-of-range indices or if the bank is not yet prepared. `getNumModes()` returns the currently configured mode count (distinct from `getNumActiveModes()` which counts non-silent modes).
 
 **Dependencies:** Layer 0 (dsp_utils.h softClip, math_constants.h), Layer 2 (harmonic_types.h for HarmonicFrame/Partial/kMaxPartials, iresonator.h for IResonator interface)
 

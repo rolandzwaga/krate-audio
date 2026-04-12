@@ -173,7 +173,8 @@ TEST_CASE("State v3 StateRoundTripV3: extreme / boundary values round-trip",
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
-    // getState emits v4 format. Check maxPoly and stealPolicy survived.
+    // getState emits current v5 format (v4 layout + Phase 5 appended data).
+    // Check maxPoly and stealPolicy survived.
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
 
@@ -182,7 +183,7 @@ TEST_CASE("State v3 StateRoundTripV3: extreme / boundary values round-trip",
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
     outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
     outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
-    CHECK(readVersion == 4);
+    CHECK(readVersion == 5);
     CHECK(readMaxPoly32 == 4);
     CHECK(readPolicy32 == 2);
 

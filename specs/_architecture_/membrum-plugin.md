@@ -206,6 +206,89 @@ namespace DefaultKit {
 - Kick template includes pitch envelope (160 Hz -> 50 Hz, 20 ms)
 - Called during processor `initialize()` and as fallback for legacy state loading
 
+### PadCategory + classifyPad()
+**Path:** [pad_category.h](../../plugins/membrum/src/dsp/pad_category.h) | **Since:** 0.5.0 (Phase 5)
+
+Enum classification of a pad into one of five drum categories, derived from runtime `PadConfig` via a priority-ordered rule chain (FR-033). Used by `CouplingMatrix` Tier 1 to map the two global coupling knobs (Snare Buzz, Tom Resonance) onto concrete source/destination pad pairs.
+
+```cpp
+namespace Membrum {
+
+enum class PadCategory : int {
+    Kick,       // Membrane body + pitch envelope active
+    Snare,      // Membrane body + NoiseBurst exciter
+    Tom,        // Membrane body (no pitch env, no noise exciter)
+    HatCymbal,  // NoiseBody
+    Perc,       // Any other configuration
+    kCount
+};
+
+[[nodiscard]] PadCategory classifyPad(const PadConfig& cfg) noexcept;
+
+} // namespace Membrum
+```
+
+**Classification rules (first match wins):**
+1. Membrane body + `tsPitchEnvTime > 0` -> Kick
+2. Membrane body + `NoiseBurst` exciter -> Snare
+3. Membrane body (fallthrough) -> Tom
+4. NoiseBody -> HatCymbal
+5. Everything else -> Perc
+
+Called by the processor whenever a pad's body model, exciter type, or pitch-envelope time changes, before invoking `CouplingMatrix::recomputeFromTier1()`.
+
+### CouplingMatrix
+**Path:** [coupling_matrix.h](../../plugins/membrum/src/dsp/coupling_matrix.h) | **Since:** 0.5.0 (Phase 5)
+
+Two-layer resolver for 32x32 cross-pad coupling coefficients, clamped to `[0.0, 0.05]` (FR-031). Each pair stores `{computedGain, overrideGain, hasOverride}` and resolves into a flat `effectiveGain[src][dst]` array consumed by the audio thread. No dynamic allocation.
+
+```cpp
+namespace Membrum {
+
+class CouplingMatrix {
+    static constexpr float kMaxCoefficient = 0.05f;
+    static constexpr int   kSize = kNumPads; // 32
+
+    // Tier 1: global knobs + categories (+ optional per-pad amounts for Phase 6)
+    void recomputeFromTier1(float snareBuzz, float tomResonance,
+                            const PadCategory* categories) noexcept;
+    void recomputeFromTier1(float snareBuzz, float tomResonance,
+                            const PadCategory* categories,
+                            const float* padCouplingAmounts) noexcept;
+
+    // Tier 2: per-pair overrides
+    void setOverride(int src, int dst, float coeff) noexcept;
+    void clearOverride(int src, int dst) noexcept;
+    [[nodiscard]] bool  hasOverrideAt(int src, int dst) const noexcept;
+    [[nodiscard]] float getOverrideGain(int src, int dst) const noexcept;
+
+    // Resolved access (audio thread)
+    [[nodiscard]] float getEffectiveGain(int src, int dst) const noexcept;
+    [[nodiscard]] const float (&effectiveGainArray() const noexcept)[kSize][kSize];
+
+    // Serialization
+    [[nodiscard]] int getOverrideCount() const noexcept;
+    template <typename Fn> void forEachOverride(Fn&& fn) const noexcept;
+    void clearAll() noexcept;
+};
+
+} // namespace Membrum
+```
+
+**Tier 1 rules:**
+- `Kick -> Snare`: `gain = snareBuzz * 0.05`
+- `Tom -> Tom`: `gain = tomResonance * 0.05`
+- All other pairs: `gain = 0`
+- When per-pad amounts are supplied (Phase 6 / FR-014, FR-023), each pair is additionally scaled by `amounts[src] * amounts[dst]`, so a pad with amount = 0 is excluded as both source and receiver.
+
+**Tier 2 (overrides):** User/programmatic per-pair coefficients. When `hasOverride[src][dst]` is true, `effectiveGain[src][dst] = overrideGain`; otherwise it falls back to `computedGain` (FR-030). Overrides are enumerated via `forEachOverride()` for state serialization.
+
+**When recomputation fires:**
+- `kGlobalSnareBuzzId` / `kGlobalTomResonanceId` parameter change
+- Any per-pad body-model, exciter-type, or pitch-envelope-time change (category may shift)
+- Per-pad coupling-amount change (Phase 6)
+- State load (after all PadConfigs are restored)
+
 ### DrumVoice
 **Path:** [drum_voice.h](../../plugins/membrum/src/dsp/drum_voice.h) | **Since:** 0.1.0
 
@@ -423,3 +506,42 @@ The processor's `setState()` accepts state versions 1-3. Legacy parameters are l
 - `outputBus` field (offset 31, uint8 [0, 15]) determines the routing
 - `outputBus = 0` means main-only (no aux copy)
 - Output bus is NOT proxied through a global parameter ID (kit-level concern, not a sound parameter)
+
+---
+
+## Cross-Pad Coupling Signal Chain (Phase 5)
+
+**Since:** 0.5.0 | **Spec:** [140-membrum-phase5-coupling](../140-membrum-phase5-coupling/spec.md)
+
+Sympathetic resonance between pads is rendered by a global post-voice stage in the processor. The audio path sums the stereo voice mix to mono, pushes it through a short delay line, excites a shared `SympatheticResonance` engine with the delayed sample, applies an energy limiter, and mixes the result back into the main bus only.
+
+**Per-sample flow (simplified):**
+```
+mono    = 0.5f * (mainL[s] + mainR[s])
+delayed = couplingDelay_.read()
+couplingDelay_.write(mono)
+if (!couplingEngine_.isBypassed()) {
+    float wet = couplingEngine_.process(delayed);
+    wet      = energyLimiter_.process(wet);
+    mainL[s] += wet;
+    mainR[s] += wet;
+}
+```
+
+**Components (in the processor):**
+- `Krate::DSP::SympatheticResonance couplingEngine_` -- Layer 3 resonator pool; `setAmount(globalCoupling)` drives true zero-cost bypass when `globalCoupling == 0`
+- `Krate::DSP::DelayLine couplingDelay_` -- short pre-coupling delay (decorrelates source from resonators, avoids direct feedback)
+- `CouplingMatrix couplingMatrix_` -- 32x32 effective-gain table; the voice pool reads `effectiveGainArray()` at note-on to scale each source pad's excitation when seeding coupling voices for the destination pads
+- Energy limiter -- soft clip on the coupling sum to keep total output within headroom (FR-019)
+
+**Bypass rule:** When `globalCoupling_ == 0.0f`, `couplingEngine_.setAmount(0)` puts the engine in bypass mode; the per-sample path skips `process()` entirely (`if (!couplingEngine_.isBypassed())`), yielding zero CPU cost. The processor also uses `couplingEngine_.isBypassed()` alongside `voicePool_.isAnyVoiceActive()` to decide whether `process()` can early-out.
+
+**Aux bus policy:** Coupling wet signal is mixed **into the main bus only**. Auxiliary buses 1-15 receive pristine per-pad audio with no coupling contribution -- this preserves stems for external routing/processing (FR-018). Only the host-visible main L/R pair carries the sympathetic resonance.
+
+**Parameter plumbing:**
+- `kGlobalCouplingId` -> `globalCoupling_` atomic + `couplingEngine_.setAmount()`
+- `kGlobalSnareBuzzId` / `kGlobalTomResonanceId` -> `recomputeCouplingMatrix()` (Tier 1)
+- Per-pair overrides (Phase 6) -> `couplingMatrix_.setOverride()` (Tier 2)
+- Any pad-config change that shifts `PadCategory` -> `recomputeCouplingMatrix()` so the Tier 1 rules re-map against the new category set
+
+**Voice-pool integration:** `voicePool_.setCouplingEngine(&couplingEngine_)` is wired in `setupProcessing()`. On note-on for pad `src`, the voice pool walks `couplingMatrix_.effectiveGainArray()[src][*]`, probes the source pad's `ModalResonatorBank` via `getModeFrequency(k)` to build a `SympatheticPartialInfo`, and calls `couplingEngine_.noteOn(voiceId, partials)` scaled by the resolved coefficient for each non-zero destination.

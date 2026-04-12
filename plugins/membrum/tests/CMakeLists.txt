@@ -92,6 +92,15 @@ add_executable(membrum_tests
     unit/preset/test_kit_preset.cpp
     unit/preset/test_pad_preset.cpp
 
+    # Phase 5: cross-pad coupling tests
+    unit/dsp/test_pad_category.cpp
+    unit/dsp/test_coupling_matrix.cpp
+    unit/processor/test_coupling_integration.cpp
+    unit/processor/test_coupling_state.cpp
+    unit/processor/test_coupling_energy.cpp
+    unit/processor/test_coupling_fuzz.cpp
+    unit/processor/test_coupling_phase9_verification.cpp
+
     # Phase 3: CPU benchmarks / 16-voice stress (tagged [.perf], scaffolded)
     perf/test_polyphony_benchmark.cpp
     perf/test_polyphony_stress_16.cpp
@@ -160,6 +169,7 @@ endif()
 if(NOT MSVC)
     set_source_files_properties(
         unit/voice_pool/test_fast_release_denormals.cpp
+        unit/processor/test_coupling_energy.cpp
         PROPERTIES
             COMPILE_OPTIONS "-fno-fast-math"
     )

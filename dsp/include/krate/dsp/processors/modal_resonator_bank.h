@@ -228,6 +228,20 @@ public:
         return prepared_;
     }
 
+    /// Get the frequency of mode k (Hz). Returns 0 if k is out of range.
+    /// Recovers Hz from stored epsilon: f = asin(eps * 0.5) * sr / pi
+    [[nodiscard]] float getModeFrequency(int k) const noexcept
+    {
+        if (k < 0 || k >= numModes_) return 0.0f;
+        float eps = epsilonTarget_[k];
+        if (eps <= 0.0f) return 0.0f;
+        return std::asin(eps * 0.5f) * sampleRate_
+               / std::numbers::pi_v<float>;
+    }
+
+    /// Get the number of configured modes.
+    [[nodiscard]] int getNumModes() const noexcept { return numModes_; }
+
     // =========================================================================
     // IResonator interface adapter methods (FR-020, FR-023, FR-024, FR-025)
     // =========================================================================

@@ -144,6 +144,10 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
         const int q = selectQuietestActiveSlot();
         if (q >= 0)
         {
+            // Phase 5: Release coupling resonators for the stolen voice.
+            if (couplingEngine_ != nullptr)
+                couplingEngine_->noteOff(q);
+
             const uint8_t victimNote = meta_[q].originatingNote;
             beginFastRelease(q);
             (void)allocator_.noteOff(victimNote);
@@ -179,6 +183,11 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
         {
         case Krate::DSP::VoiceEvent::Type::Steal:
         {
+            // Phase 5: Release coupling resonators for the stolen voice.
+            // noteOff allows resonators to ring out naturally.
+            if (couplingEngine_ != nullptr)
+                couplingEngine_->noteOff(static_cast<int>(ev.voiceIndex));
+
             // FR-126/FR-127: fade out the stolen voice through the shadow
             // slot. The hot path must not touch `voices_[ev.voiceIndex]` after
             // this — the new note will overwrite it below.
@@ -195,6 +204,21 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             // Configure the voice from the pad's config (Phase 4 per-pad dispatch).
             applyPadConfigToSlot(slot, padIndex);
             VP_VOICES[slot].noteOn(clampedVel);
+
+            // Phase 5: Register this voice's partials with the coupling engine.
+            // The engine will create sympathetic resonators at the voice's
+            // modal frequencies (FR-041: velocity scales coupling excitation).
+            //
+            // Phase 6 (US4 / FR-023 CPU optimization): if the struck pad has
+            // couplingAmount == 0.0, it is fully excluded from coupling --
+            // skip resonator registration entirely. No CPU cost for silenced
+            // pads.
+            if (couplingEngine_ != nullptr &&
+                padConfigs_[static_cast<std::size_t>(padIndex)].couplingAmount > 0.0f)
+            {
+                auto partials = VP_VOICES[slot].getPartialInfo();
+                couplingEngine_->noteOn(slot, partials);
+            }
 
             // Bookkeeping: populate the per-slot metadata for later stealing
             // decisions + choke lookups.
@@ -282,6 +306,10 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
         }
         else if (meta_[slot].state == VoiceSlotState::Active)
         {
+            // Phase 5: Release coupling resonators for naturally finished voice.
+            if (couplingEngine_ != nullptr)
+                couplingEngine_->noteOff(slot);
+
             // Voice naturally finished -- FR-115.
             meta_[slot].state        = VoiceSlotState::Free;
             meta_[slot].currentLevel = 0.0f;
@@ -529,6 +557,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadFeedbackAmount:      cfg.feedbackAmount = normalizedValue; break;
     case kPadNoiseBurstDuration:  cfg.noiseBurstDuration = normalizedValue; break;
     case kPadFrictionPressure:    cfg.frictionPressure = normalizedValue; break;
+    case kPadCouplingAmount:      cfg.couplingAmount = normalizedValue; break;
     default: break;
     }
 }
@@ -827,6 +856,10 @@ void VoicePool::processChokeGroups(std::uint8_t newNote) noexcept
         if (meta_[slot].state == VoiceSlotState::Active &&
             meta_[slot].originatingChoke == group)
         {
+            // Phase 5: Release coupling resonators for choked voice.
+            if (couplingEngine_ != nullptr)
+                couplingEngine_->noteOff(slot);
+
             // FR-134: reuse the Phase 3.2 fast-release path for click-free
             // group-wide mute. beginFastRelease swaps the main voice into
             // the shadow slot and starts the 5 ms ramp.
