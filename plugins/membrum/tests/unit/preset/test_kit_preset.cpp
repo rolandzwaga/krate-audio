@@ -43,24 +43,39 @@ ProcessSetup makeSetup(double sampleRate = 44100.0)
 }
 
 // Write a kit preset blob (v4 format without selectedPadIndex).
-// Uses the processor's getState() and truncates the last 4 bytes.
+// Uses the processor's getState() and truncates everything after pad configs:
+// v5 layout appends selectedPadIndex (4) + Phase 5 data (4*8 global + 32*8 per-pad + 2 count
+// + override payload). For a default-initialized processor, no overrides are present,
+// so the tail is exactly 4 + 290 = 294 bytes.
+// Kit preset must also use version=4 header, not the current v5, so the truncated
+// blob is still accepted by loadKitPreset.
 MemoryStream* createKitPresetFromProcessor(Membrum::Processor& proc)
 {
     auto* stateStream = new MemoryStream();
     proc.getState(stateStream);
 
-    // Copy all but the last 4 bytes (selectedPadIndex)
     int64 totalSize = 0;
     stateStream->tell(&totalSize);
 
     auto* kitStream = new MemoryStream();
     stateStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    // Read the state blob and write all but last 4 bytes
-    const int64 kitSize = totalSize - 4;
+    // v5 tail size = 4 (selectedPadIndex) + 32 (4 global coupling float64)
+    //              + 256 (32 per-pad coupling float64) + 2 (uint16 overrideCount)
+    //              + 0 (no overrides by default)
+    constexpr int64 kV5TailBytes = 4 + 32 + 256 + 2;  // 294
+    const int64 kitSize = totalSize - kV5TailBytes;
     std::vector<char> buf(static_cast<std::size_t>(kitSize));
     int32 bytesRead = 0;
     stateStream->read(buf.data(), static_cast<int32>(kitSize), &bytesRead);
+
+    // Rewrite the version header to 4 (kit preset is version 4 format).
+    if (bytesRead >= 4)
+    {
+        int32 v4 = 4;
+        std::memcpy(buf.data(), &v4, sizeof(v4));
+    }
+
     kitStream->write(buf.data(), bytesRead, nullptr);
 
     stateStream->release();

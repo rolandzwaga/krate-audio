@@ -1,6 +1,6 @@
 # Spec 135 — Membrum: Synthesized Drum Machine
 
-**Status:** Phase 3 Complete (see `specs/138-membrum-phase3-polyphony/`)  
+**Status:** Phase 5 Complete (see `specs/140-membrum-phase5-coupling/`)  
 **Plugin:** Membrum  
 **Type:** Instrument (`aumu`)  
 **Location:** `plugins/membrum/`
@@ -12,8 +12,8 @@
 | Phase 1 | `specs/136-membrum-phase1-scaffold/` | ✅ Complete (v0.1.0) | Plugin scaffold, single-voice MembraneBody, 5 Phase 1 parameters, state version 1 |
 | Phase 2 | `specs/137-membrum-phase2-exciters-bodies/` | ✅ Complete (v0.2.0) | 6 exciter types + 6 body models + Tone Shaper + Unnatural Zone + state version 2 + SIMD fallback + 144-cell CPU validation |
 | Phase 3 | `specs/138-membrum-phase3-polyphony/` | ✅ Complete (v0.3.0) | Multi-voice polyphony (default 8, range 4–16), voice management (Oldest/Quietest/Priority policies), choke groups (8 groups), state version 3 |
-| Phase 4 | (not yet specced) | ⏳ Planned | 32-pad layout, per-pad presets, kit presets, separate outputs |
-| Phase 5 | (not yet specced) | ⏳ Planned | Cross-pad coupling (sympathetic resonance) |
+| Phase 4 | `specs/139-membrum-phase4-pads/` | ✅ Complete (v0.4.0) | 32-pad layout (MIDI 36-67), PadConfig[32] per-pad architecture, 1152 per-pad parameters, selected-pad proxy, GM default kit (6 archetypes), kit presets + per-pad presets, 16 stereo output buses, state version 4 with v1/v2/v3 migration |
+| Phase 5 | `specs/140-membrum-phase5-coupling/` | ✅ Complete (v0.5.0) | Cross-pad coupling (sympathetic resonance): SympatheticResonance engine + 0.5–2ms DelayLine + CouplingMatrix (Tier 1 Snare Buzz / Tom Resonance knobs + Tier 2 per-pair overrides), PadCategory classification, 4 global params (270–273) + 32 per-pad coupling amounts (offset 36), state v5 with v4 migration, ModalResonatorBank frequency accessors, energy limiter (-20 dBFS), main-bus-only routing |
 | Phase 6 | (not yet specced) | ⏳ Planned | Macro controls, Acoustic/Extended UI modes, custom editor |
 | Deferred | — | 📌 | Snare wire modeling (FR-047), nonlinear pitch envelope on non-Membrane bodies, sample layer |
 
@@ -33,11 +33,13 @@ Then it goes further: the "Unnatural Zone" parameters let you push beyond physic
 
 ## Architecture
 
-### Pad Layout
+### Pad Layout ✅ Phase 4
+
+**Status:** 32-pad architecture implemented and shipping in v0.4.0 (spec 139). Each pad (MIDI 36-67) independently stores exciter type, body model, and 34 sound parameters in a pre-allocated `PadConfig` struct. Per-pad parameter IDs computed as `kPadBaseId(1000) + padIndex * kPadParamStride(64) + offset`. Selected-pad proxy maps global IDs (100-252) to the active pad. GM-inspired default kit with 6 archetypes (Kick, Snare, Tom, Hat, Cymbal, Perc). Kit presets (9036-byte v4 binary) and per-pad presets (284-byte blob). 16 stereo output buses (1 main + 15 aux). State version 4 with v1/v2/v3 migration chain.
 
 - **32 pads**, mapped to GM drum map (C1/MIDI 36 through G#3/MIDI 67)
 - No built-in sequencer — relies on external MIDI (pairs well with Gradus)
-- **Separate outputs** per pad (output routing scheme TBD)
+- **16 stereo output buses**: 1 main (always active) + 15 auxiliary (host-activated)
 - **Kit presets** (all 32 pads) and **per-pad presets**
 
 ### Voice Management ✅ Phase 3
@@ -215,9 +217,9 @@ A signature feature: pads can excite each other based on proximity and tuning re
 - Uses existing SympatheticResonanceSIMD engine from KrateDSP
 - Note: IK Multimedia's MODO Drum (the main commercial competitor in this space) exposes this as "Tom Buzz" and "Snare Buzz" knobs — we go further with a full matrix
 
-## Pad Templates
+## Pad Templates ✅ Phase 4
 
-Starting-point configurations for new pads, with physically informed defaults:
+Starting-point configurations for new pads, with physically informed defaults (implemented as `DefaultKit::apply()` in `plugins/membrum/src/dsp/default_kit.h`):
 
 | Template   | Exciter Default | Body Default | Key Settings | Character |
 |------------|----------------|--------------|-------------|-----------|
@@ -266,16 +268,19 @@ Standard Krate rules apply:
 - All pad/kit configuration changes via lock-free messaging
 - Voice pool pre-allocated at max polyphony
 
-## MIDI
+## MIDI ✅ Phase 4
 
 - Standard GM drum map: pad 1 = C1 (MIDI 36) through pad 32 = G#3 (MIDI 67)
 - Velocity-sensitive (drives exciter character + amplitude)
 - No built-in sequencer
+- MIDI notes outside 36-67 are silently dropped
 
-## Output Routing
+## Output Routing ✅ Phase 4
 
-- Separate outputs per pad (stereo or mono TBD)
-- Assignment scheme TBD — to be designed in a separate session
+- **16 stereo output buses**: 1 main (always active) + 15 auxiliary (host-activated via `activateBus()`)
+- Every pad's audio goes to main bus (always). Pads assigned to an active auxiliary bus also send audio there ("send" model, not exclusive routing).
+- Pads assigned to an inactive bus fall back to main only. Deactivating a bus resets affected pads to main.
+- Per-pad `outputBus` field (0-15) stored in PadConfig, saved in kit presets, excluded from pad presets.
 
 ## UI
 
@@ -811,3 +816,5 @@ Higher modes require more bow pressure to sustain. BowExciter already implements
 | 0.6     | 2026-04-11 | Phase 2 complete — 6 exciter types + 6 body models + swap-in architecture + Tone Shaper (Drive/Fold/DCBlocker/SVF + absolute-Hz pitch envelope) + Unnatural Zone (all 5 modules) + state version 2 with v1 backward compat; 143/144 single-voice CPU cells ≤ 1.25% (1 documented waiver for Feedback+NoiseBody+TS+UN); SC-009 808-kick passing; FR-055 defaults-off identity at −120 dBFS; Phase 1 regression at −200 dBFS (spec 137). Remaining deferred for future phases: snare wires (FR-047), macros/Acoustic/Extended UI modes, multi-voice polyphony, cross-pad coupling, pad layout, choke groups, separate outputs. |
 | 0.7     | 2026-04-11 | Phase 3 specced — multi-voice polyphony (default 8 voices, range 4–16), voice stealing policies (Oldest / Quietest / Priority), click-free 5 ms fast-release envelope, 8 choke groups, state version 3 with v2 backward compat; spec 138 with research.md citing SoundFont 2.04 Exclusive Class, Ableton Drum Rack, Battery 4, JUCE MPESynthesiser, RNBO, and Ross Bencina real-time guidance. Implementation not yet started. |
 | 0.8     | 2026-04-12 | Phase 3 complete (v0.3.0) — 16-voice pool with VoiceAllocator integration, 3 stealing policies (Oldest/Quietest/Priority), click-free 5 ms exponential fast-release (peak artifact ≤ −30 dBFS), 8 choke groups with group-wide mute, state version 3 with v1/v2 migration + corruption clamping, 3 new parameters. 8-voice worst-case CPU 5.952% (budget 12%), 16-voice stress 0 xruns, zero audio-thread allocations across 10-second fuzz. Phase 2 regression byte-identical at maxPolyphony=1. Pluginval clean, zero clang-tidy warnings. |
+| 0.9     | 2026-04-12 | Phase 4 complete (v0.4.0) — 32-pad layout (MIDI 36-67) with PadConfig[32] per-pad architecture, 1152 per-pad parameters (32 pads × 36 active offsets), selected-pad proxy mapping global IDs to active pad, GM-inspired default kit (6 archetypes: Kick/Snare/Tom/Hat/Cymbal/Perc), kit presets (9036-byte v4 binary, 3 factory presets), per-pad presets (284-byte blob), 16 stereo output buses (1 main + 15 aux with activateBus tracking), state version 4 with v1/v2/v3 migration chain. 321 test cases, 36118 assertions, pluginval L5 clean, zero clang-tidy warnings. |
+| 1.0     | 2026-04-12 | Phase 5 complete (v0.5.0) — Cross-pad coupling (sympathetic resonance) per spec 140. SympatheticResonance engine + 0.5–2ms DelayLine on mono sum + CouplingMatrix two-layer resolver (Tier 1 Snare Buzz / Tom Resonance knobs, Tier 2 per-pair overrides, per-pad source×receiver amount baked into effectiveGain). PadCategory classification (Kick/Snare/Tom/HatCymbal/Perc) with priority-ordered rule chain. 4 new global params (270–273) + 32 per-pad coupling amounts (offset 36). State v5 with v4→v5 migration (append 4×float64 + 32×float64 + uint16 count + N×(uint8,uint8,float32) overrides). ModalResonatorBank gained `getModeFrequency()`/`getNumModes()` accessors. Energy limiter clamps coupling below −20 dBFS; main-bus-only routing (aux buses untouched). SC-008 reframed from "octave vs tritone" to "mode-coincident vs mode-gap" per physics research (membrane modes are inharmonic — Bessel ratios 1.0, 1.594, 2.136, 2.296 — so interval consonance does not predict coupling strength; modal coincidence does). 391 membrum test cases, 39922 assertions, zero audio-thread allocations under 10-second fuzz, pluginval L5 clean, zero clang-tidy warnings. |
