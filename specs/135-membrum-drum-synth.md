@@ -40,7 +40,9 @@ Then it goes further: the "Unnatural Zone" parameters let you push beyond physic
 - **Separate outputs** per pad (output routing scheme TBD)
 - **Kit presets** (all 32 pads) and **per-pad presets**
 
-### Voice Management
+### Voice Management ✅ Phase 3
+
+**Status:** Multi-voice polyphony implemented and shipping in v0.3.0 (spec 138). 16-voice pre-allocated pool with configurable active count (4–16, default 8). Three voice-stealing policies (Oldest/Quietest/Priority) via `Krate::DSP::VoiceAllocator`. 8 choke groups with group-wide mute. Click-free 5 ms exponential fast-release on steal/choke (peak artifact ≤ −30 dBFS). State version 3 with v1/v2 backward-compatible migration. 8-voice worst-case CPU 5.952% (budget 12%), 16-voice stress 0 xruns, zero audio-thread allocations.
 
 - **Configurable max polyphony** (default: 8 voices, range: 4–16)
 - Voice stealing policy: configurable (oldest / quietest / priority-based)
