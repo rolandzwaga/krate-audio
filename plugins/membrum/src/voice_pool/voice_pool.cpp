@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
+#include <utility>
 
 namespace Membrum {
 
@@ -50,12 +51,10 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     // Clamp sample rate to the supported range. The allocator does not
     // depend on sample rate; the DrumVoice instances and the fast-release
     // coefficient do.
-    if (sampleRate < 22050.0) sampleRate = 22050.0;
-    if (sampleRate > 192000.0) sampleRate = 192000.0;
+    sampleRate  = std::clamp(sampleRate, 22050.0, 192000.0);
     sampleRate_ = sampleRate;
 
-    if (maxBlockSize < 1) maxBlockSize = 1;
-    if (maxBlockSize > kVoicePoolMaxBlock) maxBlockSize = kVoicePoolMaxBlock;
+    maxBlockSize = std::clamp(maxBlockSize, 1, kVoicePoolMaxBlock);
     maxBlockSize_ = maxBlockSize;
 
     // FR-116/FR-117/Q4: this is the ONLY allocation point in VoicePool. All
@@ -132,7 +131,7 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
     // via noteOff + voiceFinished so the next allocator.noteOn() call can
     // pick it up without issuing its own Steal event.
     const bool poolFull =
-        (static_cast<int>(allocator_.getActiveVoiceCount()) >= maxPolyphony_);
+        std::cmp_greater_equal(allocator_.getActiveVoiceCount(), maxPolyphony_);
 
     if (stealingPolicy_ == VoiceStealingPolicy::Quietest && poolFull)
     {
@@ -162,7 +161,7 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
 
     // Step 3: the allocator picks / steals a slot.
     const auto clampedVel = std::clamp(velocity, 0.0f, 1.0f);
-    const std::uint8_t velocityByte =
+    const auto velocityByte =
         static_cast<std::uint8_t>(clampedVel * 127.0f + 0.5f);
 
     const auto events = allocator_.noteOn(midiNote, velocityByte);
@@ -260,7 +259,7 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
             for (int i = 0; i < numSamples; ++i)
             {
                 const float a = std::fabs(scratch[i]);
-                if (a > peak) peak = a;
+                peak           = std::max(peak, a);
                 outL[i] += scratch[i];
                 outR[i] += scratch[i];
             }
@@ -325,8 +324,7 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
 
 void VoicePool::setMaxPolyphony(int n) noexcept
 {
-    if (n < 4) n = 4;
-    if (n > kMaxVoices) n = kMaxVoices;
+    n = std::clamp(n, 4, kMaxVoices);
 
     // allocator_.setVoiceCount returns a span of NoteOff events for any
     // voices that were released because the pool is shrinking. We fast-

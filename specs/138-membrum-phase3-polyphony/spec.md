@@ -376,29 +376,29 @@ The following features from spec 135 are **consciously out of scope for Phase 3*
 
 | Requirement | Status | Evidence |
 |-------------|--------|----------|
-| FR-110 | 🔄 | Not yet implemented |
-| FR-117 | 🔄 | Not yet implemented |
-| FR-120 | 🔄 | Not yet implemented |
-| FR-130 | 🔄 | Not yet implemented |
-| FR-140 | 🔄 | Not yet implemented |
-| FR-150 | 🔄 | Not yet implemented |
-| FR-160 | 🔄 | Not yet implemented |
-| FR-170 | 🔄 | Not yet implemented |
-| FR-180 | 🔄 | Not yet implemented |
-| FR-190 | 🔄 | Not yet implemented |
-| SC-020 | 🔄 | Not yet implemented |
-| SC-021 | 🔄 | Not yet implemented |
-| SC-022 | 🔄 | Not yet implemented |
-| SC-023 | 🔄 | Not yet implemented |
-| SC-024 | 🔄 | Not yet implemented |
-| SC-025 | 🔄 | Not yet implemented |
-| SC-026 | 🔄 | Not yet implemented |
-| SC-027 | 🔄 | Not yet implemented |
-| SC-027a | 🔄 | Not yet implemented |
-| SC-028 | 🔄 | Not yet implemented |
-| SC-029 | 🔄 | Not yet implemented |
-| SC-030 | 🔄 | Not yet implemented |
-| SC-031 | 🔄 | Not yet implemented |
+| FR-110 | ✅ MET | `voice_pool.h:68` `kMaxVoices=16`; `voice_pool.h:266-267` `voicesPtr_` + `meta_` arrays; `voice_pool.h:274-275` `releasingVoicesPtr_` + `releasingMeta_` shadow arrays. All 16 DrumVoice instances pre-allocated in `prepare()`. |
+| FR-117 | ✅ MET | `voice_pool.h:288-289` `scratchL_`/`scratchR_` as `unique_ptr<float[]>`; allocated in `prepare()` sized to host max block size. `voice_pool.h:328-337` static_assert on bounded footprint. |
+| FR-120 | ✅ MET | `voice_stealing_policy.h:17-21` enum class with `Oldest=0, Quietest=1, Priority=2`; `plugin_ids.h:93` `kVoiceStealingId=251` as StringListParameter. |
+| FR-130 | ✅ MET | `choke_group_table.h:26` `kSize=32` fixed array; `choke_group_table.h:60` `setGlobal()` clamps to [0,8]; `choke_group_table.h:69-70` `lookup()` returns 0 outside [36,67]. 8 groups + group 0 (no choke). |
+| FR-140 | ✅ MET | `plugin_ids.h:28` `kCurrentStateVersion=3`; `processor.cpp:522` writes v3; `processor.cpp:810` reads v3 tail (maxPoly, policy, 32 choke bytes). v1/v2 migration paths with Phase 3 defaults. |
+| FR-150 | ✅ MET | `plugin_ids.h:92-94` `kMaxPolyphonyId=250`, `kVoiceStealingId=251`, `kChokeGroupId=252`. Test `Phase 3 params: controller exposes Phase 2 count + 3` passes. |
+| FR-160 | ✅ MET | 8-voice worst-case CPU measured at **5.952%** (budget: 12%). `test_polyphony_benchmark.cpp` `[phase35-bench8]`. |
+| FR-170 | ✅ MET | `voice_pool.h:70-78` fast-release constants: `kFastReleaseSecs=0.005f`, `kFastReleaseFloor=1e-6f`, `kFastReleaseLnFloor=13.8155106f`. Formula: `exp(-ln(1e6)/(0.005*sr))`. Tests verify 5ms±1ms wall-clock across sample rates. |
+| FR-180 | ✅ MET | `processor.cpp` `getState()` writes 302-byte v3 blob; `setState()` dispatches on version with v1→v3, v2→v3 migration. Tests: `State v3 StateRoundTripV3`, `StateMigration v2->v3`, `StateMigration v1->v3`, corruption clamping — all pass. |
+| FR-190 | ✅ MET | `DrumVoice` unchanged from Phase 2 (FR-194). `VoicePool` applies fast-release externally on scratch buffer. Test `VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference` verifies byte-identical output (maxDiff=0.0). |
+| SC-020 | ✅ MET | Test `VoicePool: 8 concurrent noteOn → getActiveVoiceCount() == 8` passes; 500ms audio output verified non-zero, no NaN/Inf. `test_voice_pool_allocate.cpp`. |
+| SC-021 | ✅ MET | Test `VoicePool steal click-free across policies and sample rates` — peak click ≤ −30 dBFS across {Oldest,Quietest,Priority} × {22050,44100,48000,96000,192000}. `test_steal_click_free.cpp`. |
+| SC-022 | ✅ MET | Test `VoicePool choke: click <= -30 dBFS, terminates within 5 +/- 1 ms, bit-identical reuse` — click metric and timing verified. `test_choke_click_free.cpp`. |
+| SC-023 | ✅ MET | 8-voice worst-case CPU **5.952%** (budget ≤12%). `test_polyphony_benchmark.cpp` `[phase35-bench8]`. Waiver not needed (already under non-waived budget). |
+| SC-024 | ✅ MET | 16-voice stress: **0 xruns** over 3445 blocks, 10s @ 44.1kHz/128. CPU 11.718%. `test_polyphony_stress_16.cpp` `[phase35-stress16]`. |
+| SC-025 | ✅ MET | Test `State v2 StateMigration v2->v3: fixture loads into Phase 3 processor` — v2 blob produces bit-exact Phase 2 values + Phase 3 defaults (maxPoly=8, policy=Oldest, choke=0). `test_state_migration_v2_to_v3.cpp`. |
+| SC-026 | ✅ MET | Test `State v3 StateRoundTripV3: getState emits exactly 302 bytes with v3 tail` + `extreme/boundary values round-trip` — save→load→save bit-identical. `test_state_roundtrip_v3.cpp`. |
+| SC-027 | ✅ MET | Test `Phase35: VoicePool 10-second fuzz is allocation-free` — 0 heap allocations across 3445 blocks with voice steals, chokes, parameter changes. `test_polyphony_allocation_matrix.cpp`. |
+| SC-027a | ✅ MET | `voice_pool.h:328-337` static_assert on `sizeof(VoicePool)` bounded budget. Allocation detector confirms 0 allocations after `prepare()`. No `std::vector` or growable container in VoicePool hot path. |
+| SC-028 | ✅ MET | Test `VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference` — RMS difference ≤ −90 dBFS (actual: byte-identical, maxDiff=0.0). `test_phase2_regression_maxpoly1.cpp`. Also `Phase 2 default patch matches Phase 1 golden reference`. |
+| SC-029 | ✅ MET | Pluginval strictness 5: 19/19 tests passed, 0 errors, 0 warnings. Clang-tidy: 0 warnings, 0 errors after Phase 3.6 fixes. Build: 0 compiler warnings on Windows x64 Release. |
+| SC-030 | ✅ MET | Tests `Phase 3 params: kMaxPolyphonyId is a stepped [4,16] RangeParameter`, `kVoiceStealingId is a 3-entry StringListParameter`, `kChokeGroupId is a stepped [0,8] RangeParameter` — all pass. `test_phase3_params.cpp`. |
+| SC-031 | ✅ MET | Tests `VoicePool: shrink from 8 to 4 voices releases the excess click-tolerant` + `expand maxPolyphony back to 16 accepts more voices` — fast-release on shrink, immediate allocation on expand. `test_poly_change_live.cpp`. |
 
 **Status Key:**
 - ✅ MET: Requirement verified against actual code and test output with specific evidence

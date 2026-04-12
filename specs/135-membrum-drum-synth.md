@@ -1,6 +1,6 @@
 # Spec 135 — Membrum: Synthesized Drum Machine
 
-**Status:** Phase 2 Complete (see `specs/137-membrum-phase2-exciters-bodies/`)  
+**Status:** Phase 3 Complete (see `specs/138-membrum-phase3-polyphony/`)  
 **Plugin:** Membrum  
 **Type:** Instrument (`aumu`)  
 **Location:** `plugins/membrum/`
@@ -11,7 +11,7 @@
 |-------|------|--------|-------|
 | Phase 1 | `specs/136-membrum-phase1-scaffold/` | ✅ Complete (v0.1.0) | Plugin scaffold, single-voice MembraneBody, 5 Phase 1 parameters, state version 1 |
 | Phase 2 | `specs/137-membrum-phase2-exciters-bodies/` | ✅ Complete (v0.2.0) | 6 exciter types + 6 body models + Tone Shaper + Unnatural Zone + state version 2 + SIMD fallback + 144-cell CPU validation |
-| Phase 3 | (not yet specced) | ⏳ Planned | Multi-voice polyphony, voice management, choke groups |
+| Phase 3 | `specs/138-membrum-phase3-polyphony/` | ✅ Complete (v0.3.0) | Multi-voice polyphony (default 8, range 4–16), voice management (Oldest/Quietest/Priority policies), choke groups (8 groups), state version 3 |
 | Phase 4 | (not yet specced) | ⏳ Planned | 32-pad layout, per-pad presets, kit presets, separate outputs |
 | Phase 5 | (not yet specced) | ⏳ Planned | Cross-pad coupling (sympathetic resonance) |
 | Phase 6 | (not yet specced) | ⏳ Planned | Macro controls, Acoustic/Extended UI modes, custom editor |
@@ -807,3 +807,5 @@ Higher modes require more bow pressure to sustain. BowExciter already implements
 | 0.4     | 2026-04-08 | Phase 1 complete — plugin scaffold + single membrane voice (spec 136) |
 | 0.5     | 2026-04-08 | Added: macro controls, Acoustic/Extended modes, tiered coupling, pitch envelope promotion, stability guards for Mode Inject and Nonlinear Coupling (from external design review) |
 | 0.6     | 2026-04-11 | Phase 2 complete — 6 exciter types + 6 body models + swap-in architecture + Tone Shaper (Drive/Fold/DCBlocker/SVF + absolute-Hz pitch envelope) + Unnatural Zone (all 5 modules) + state version 2 with v1 backward compat; 143/144 single-voice CPU cells ≤ 1.25% (1 documented waiver for Feedback+NoiseBody+TS+UN); SC-009 808-kick passing; FR-055 defaults-off identity at −120 dBFS; Phase 1 regression at −200 dBFS (spec 137). Remaining deferred for future phases: snare wires (FR-047), macros/Acoustic/Extended UI modes, multi-voice polyphony, cross-pad coupling, pad layout, choke groups, separate outputs. |
+| 0.7     | 2026-04-11 | Phase 3 specced — multi-voice polyphony (default 8 voices, range 4–16), voice stealing policies (Oldest / Quietest / Priority), click-free 5 ms fast-release envelope, 8 choke groups, state version 3 with v2 backward compat; spec 138 with research.md citing SoundFont 2.04 Exclusive Class, Ableton Drum Rack, Battery 4, JUCE MPESynthesiser, RNBO, and Ross Bencina real-time guidance. Implementation not yet started. |
+| 0.8     | 2026-04-12 | Phase 3 complete (v0.3.0) — 16-voice pool with VoiceAllocator integration, 3 stealing policies (Oldest/Quietest/Priority), click-free 5 ms exponential fast-release (peak artifact ≤ −30 dBFS), 8 choke groups with group-wide mute, state version 3 with v1/v2 migration + corruption clamping, 3 new parameters. 8-voice worst-case CPU 5.952% (budget 12%), 16-voice stress 0 xruns, zero audio-thread allocations across 10-second fuzz. Phase 2 regression byte-identical at maxPolyphony=1. Pluginval clean, zero clang-tidy warnings. |

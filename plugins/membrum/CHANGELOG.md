@@ -5,6 +5,37 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-12
+
+### Added
+
+- **Multi-voice polyphony** -- 16 pre-allocated DrumVoice instances in a
+  fixed-size VoicePool, with a user-configurable `maxPolyphony` parameter
+  (range 4-16, stepped, default 8). Unused slots are idle (zero CPU).
+- **3 voice-stealing policies** -- Oldest (default, allocator-driven),
+  Quietest (processor-layer amplitude scan), and Priority (highest-pitch
+  stolen first, protects kick/snare). All deterministic with slot-index
+  tiebreaker.
+- **Click-free fast-release** -- 5 ms exponential decay envelope
+  (k = exp(-ln(1e6)/(0.005*sr)), floor 1e-6f) applied by VoicePool on
+  scratch buffer. Stolen/choked voices crossfade naturally with incoming
+  voice. Peak click artifact <= -30 dBFS across all policies and sample
+  rates (22050-192000 Hz).
+- **8 choke groups** -- ChokeGroupTable with 32-entry fixed lookup
+  (MIDI 36-67). Group-wide fast-release on note-on (SoundFont 2.04
+  Exclusive Class semantics). Cross-group isolation verified.
+- **State version 3** -- 302-byte binary state with v1->v3 and v2->v3
+  migration paths. Corruption clamping on load (maxPoly [4,16],
+  policy [0,2], choke [0,8]).
+- **3 new parameters** -- Max Polyphony (kMaxPolyphonyId=250),
+  Voice Stealing (kVoiceStealingId=251), Choke Group
+  (kChokeGroupId=252). Visible in host-generic editor.
+- **CPU budget verified** -- 8-voice worst-case 5.952% (budget 12%),
+  16-voice stress 0 xruns over 10s. Zero heap allocations on audio
+  thread across 10-second fuzz with steals, chokes, and param changes.
+- **Phase 2 regression** -- maxPolyphony=1 output is byte-identical
+  to Phase 2 single-voice reference (maxDiff=0.0).
+
 ## [0.2.0] - 2026-04-11
 
 ### Added

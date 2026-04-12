@@ -583,19 +583,18 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     //   offset 302: END
     // ------------------------------------------------------------------
     {
-        std::uint8_t maxPolyByte =
+        auto maxPolyByte =
             static_cast<std::uint8_t>(std::clamp(maxPolyphony_.load(), 4, 16));
         state->write(&maxPolyByte, sizeof(maxPolyByte), nullptr);
 
         const int policyInt = voiceStealingPolicy_.load();
-        std::uint8_t policyByte =
+        auto policyByte =
             static_cast<std::uint8_t>((policyInt < 0 || policyInt > 2) ? 0 : policyInt);
         state->write(&policyByte, sizeof(policyByte), nullptr);
 
         const auto chokes = voicePool_.getChokeGroupAssignments();
-        for (std::size_t i = 0; i < chokes.size(); ++i)
+        for (auto b : chokes)
         {
-            std::uint8_t b = chokes[i];
             state->write(&b, sizeof(b), nullptr);
         }
     }
@@ -828,12 +827,12 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
                            : static_cast<int>(rawPolicy);
 
         // FR-141 / FR-144: 32 choke assignment bytes; per-byte clamp.
-        for (std::size_t i = 0; i < loadedChokes.size(); ++i)
+        for (auto& slot : loadedChokes)
         {
             std::uint8_t b = 0;
             if (state->read(&b, sizeof(b), nullptr) != kResultOk)
                 b = 0;
-            loadedChokes[i] = (b > 8U) ? std::uint8_t{0} : b;
+            slot = (b > 8U) ? std::uint8_t{0} : b;
         }
     }
     // else: v1 or v2 -- apply Phase 3 documented defaults as initialized
