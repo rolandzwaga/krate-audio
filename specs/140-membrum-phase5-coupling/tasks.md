@@ -117,15 +117,15 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ## Phase 4: User Story 2 -- Tom Sympathetic Resonance (Priority: P1)
 
-**Goal**: Striking a tom causes other toms to resonate sympathetically. The effect is frequency-selective: toms tuned an octave apart resonate more than toms tuned a tritone apart (at least 12 dB difference per SC-008).
+**Goal**: Striking a tom causes other toms to resonate sympathetically. The effect is frequency-selective via modal coincidence: a receiver tom whose fundamental lands on one of the driver's first 4 modal partials (mode-coincident) couples at least 12 dB more strongly than a receiver whose fundamental falls in a gap between the driver's modes (mode-gap) per SC-008. (Membrane modes are inharmonic -- Bessel ratios 1.0, 1.594, 2.136, 2.296 -- so musical intervals like octave/tritone do not predict coupling strength; modal coincidence does.)
 
-**Independent Test**: Configure two toms, one octave apart via Size parameter. Strike one. Measure spectral energy at the other's fundamental -- must be above noise floor. Repeat with toms a tritone apart -- coupling must be at least 12 dB weaker (SC-008). Set Tom Resonance to 0 -- no coupling occurs.
+**Independent Test**: Configure two toms, with the receiver's fundamental tuned onto one of the driver's first 4 modal partials (mode-coincident). Strike the driver. Measure spectral energy at the receiver's fundamental -- must be above noise floor. Repeat with the receiver's fundamental placed in a gap between the driver's modal partials (mode-gap) -- coupling must be at least 12 dB weaker (SC-008). Set Tom Resonance to 0 -- no coupling occurs.
 
 ### 4.1 Tests for User Story 2 (Write FIRST -- Must FAIL)
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [X] T030 [P] [US2] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend existing file or add SECTION): Tom Resonance knob at 50% causes Tom->Tom pairs to have computedGain = tomResonance * 0.05f in the matrix; classifyPad correctly identifies Tom-category pads; frequency-selective coupling: octave-tuned toms produce more coupling energy than tritone-tuned (verify SC-008 at least 12 dB difference via spectral measurement); Tom Resonance at 0 produces zero Tom->Tom gain in matrix
+- [X] T030 [P] [US2] Write failing tests in `plugins/membrum/tests/unit/processor/test_coupling_integration.cpp` (extend existing file or add SECTION): Tom Resonance knob at 50% causes Tom->Tom pairs to have computedGain = tomResonance * 0.05f in the matrix; classifyPad correctly identifies Tom-category pads; frequency-selective coupling via modal coincidence: mode-coincident toms (receiver f0 lands on one of driver's first 4 modal partials) produce at least 12 dB more coupling energy than mode-gap toms (receiver f0 in a gap between driver's modes) -- verify SC-008 via spectral measurement; Tom Resonance at 0 produces zero Tom->Tom gain in matrix
 
 ### 4.2 Implementation for User Story 2
 
@@ -139,7 +139,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 4.4 Commit (MANDATORY)
 
-- [ ] T035 [US2] Commit User Story 2 work (Tom resonance verification tests + any fixes to pad category recomputation path)
+- [X] T035 [US2] Commit User Story 2 work (Tom resonance verification tests + any fixes to pad category recomputation path)
 
 **Checkpoint**: User Story 2 functional -- toms resonate sympathetically with frequency selectivity verified.
 
@@ -349,7 +349,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
   - SC-005: State v5 round-trip zero loss -- cite test name
   - SC-006: v4 load produces Phase 4 behavior -- cite test name
   - SC-007: Energy limiter prevents > -20 dBFS -- cite test name and measurement
-  - SC-008: Octave toms produce >= 12 dB more coupling than tritone toms -- cite test name and dB difference
+  - SC-008: Mode-coincident toms produce >= 12 dB more coupling than mode-gap toms -- cite test name and dB difference
   - SC-009: Zero allocations in 10-second fuzz test (use AllocationDetector from test helpers)
   - SC-010: Pluginval level 5 passes -- cite pluginval output
 

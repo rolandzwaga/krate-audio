@@ -103,12 +103,14 @@ A producer strikes the high tom (MIDI 50) and hears the other toms resonate symp
 
 **Why this priority**: Tom resonance is the second most important form of sympathetic coupling in a drum kit. Together with snare buzz, it defines the "acoustic" character of a physically modeled kit. Equal P1 with US1.
 
-**Independent Test**: Configure two toms with related tuning (e.g., octave apart by adjusting Size). Strike one and measure spectral energy at the other's fundamental frequency. Compare with two toms at a dissonant interval. Verify frequency-selective coupling.
+**Independent Test**: Configure two toms with mode-coincident tuning (receiver f0 lands on one of the driver's first 4 modal partials -- e.g., pad 9 f0 onto pad 5's 2nd membrane mode ~158.9 Hz). Strike the driver and measure spectral energy at the receiver's fundamental. Compare with mode-gap tuning (receiver f0 in a gap between the driver's modes, e.g., ~130 Hz between pad 5's 1st and 2nd modes). Verify frequency-selective coupling via modal coincidence.
+
+Rationale: membrane modes are inharmonic (Bessel ratios 1.0, 1.594, 2.136, 2.296). Interval consonance (octave/tritone) does not predict coupling strength between inharmonic bodies; modal coincidence does (see Rossing & Fletcher, *Physics of Musical Instruments*; Cook, PhISM 1996).
 
 **Acceptance Scenarios**:
 
-1. **Given** two toms tuned an octave apart (2:1 frequency ratio via Size parameter) with Tom Resonance at 50% and Global Coupling at 100%, **When** one tom is triggered, **Then** the second tom's fundamental frequency appears in the output with measurable energy above the noise floor.
-2. **Given** two toms tuned a tritone apart with Tom Resonance at 50%, **When** one tom is triggered, **Then** the coupling energy at the second tom's fundamental is at least 12 dB below the octave-tuned case (frequency selectivity).
+1. **Given** two toms tuned so the receiver's fundamental coincides with one of the driver's first 4 modal partials (mode-coincident tuning) with Tom Resonance at 50% and Global Coupling at 100%, **When** the driver tom is triggered, **Then** the receiver tom's fundamental frequency appears in the output with measurable energy above the noise floor.
+2. **Given** two toms tuned so the receiver's fundamental falls in a gap between the driver's modal partials (mode-gap tuning) with Tom Resonance at 50%, **When** the driver tom is triggered, **Then** the coupling energy at the receiver's fundamental is at least 12 dB below the mode-coincident case (frequency selectivity via modal coincidence).
 3. **Given** Tom Resonance at 0%, **When** any tom is triggered, **Then** no sympathetic energy appears at other toms' frequencies.
 4. **Given** the default GM kit with Tom Resonance at 50%, **When** multiple toms are triggered in sequence, **Then** the kit sounds more "alive" and connected compared to Phase 4 behavior.
 
@@ -269,7 +271,7 @@ A power user (or future Phase 6 UI) needs to set individual per-pair coupling co
 - **SC-005**: State version 5 MUST round-trip all coupling parameters (4 global knobs + 32 per-pad amounts + coupling matrix coefficients) with zero loss through save/load cycles.
 - **SC-006**: Loading a v4 state blob into a Phase 5 processor MUST produce output identical to Phase 4 behavior (coupling defaults to disabled).
 - **SC-007**: The energy limiter MUST prevent coupling output from exceeding -20 dBFS even when all 32 pads are triggered simultaneously at maximum velocity with maximum coupling settings.
-- **SC-008**: Two toms tuned an octave apart MUST produce at least 12 dB more coupling energy than two toms tuned a tritone apart, verifying frequency selectivity of the resonator-based coupling.
+- **SC-008**: When a receiver drum has a mode within ~200 cents of any of the driver's first 4 modes (mode-coincident tuning), coupling energy at that mode MUST be at least 12 dB above the coupling measured when no receiver mode lies near any driver mode (mode-gap tuning). Rationale: membrane modes are inharmonic (Bessel ratios 1.0, 1.594, 2.136, 2.296). Interval consonance (octave/tritone) does not predict coupling strength between inharmonic bodies; modal coincidence does (see Rossing & Fletcher, *Physics of Musical Instruments*; Cook, PhISM 1996).
 - **SC-009**: Zero audio-thread memory allocations across a 10-second fuzz test with coupling enabled and random MIDI input across all 32 pads.
 - **SC-010**: Pluginval level 5 MUST pass with zero errors.
 

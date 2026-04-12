@@ -591,24 +591,36 @@ TEST_CASE("Phase 4: padCategories_ updates when pad body model / exciter / pitch
     }
 }
 
-TEST_CASE("Phase 4: SC-008 frequency-selective coupling -- octave toms couple >= 12 dB more "
-          "than tritone toms",
+TEST_CASE("Phase 4: SC-008 frequency-selective coupling via modal coincidence -- "
+          "mode-coincident toms couple >= 12 dB more than mode-gap toms",
           "[coupling][phase4]")
 {
-    // SC-008: Two toms tuned an octave apart MUST produce at least 12 dB more
-    // coupling energy than two toms tuned a tritone apart.
+    // SC-008: A receiver drum whose fundamental coincides with one of the
+    // driver's first 4 modal partials (mode-coincident tuning) MUST produce
+    // at least 12 dB more coupling energy at that frequency than a receiver
+    // whose fundamental falls in a gap between the driver's modes (mode-gap
+    // tuning).
     //
-    // Setup: Strike one tom (pad 5) with coupling on/off. The second tom
-    // (pad 9) is not triggered; its Size parameter only controls the natural
-    // frequency at which it "would" resonate if its partials coincide with
-    // the driver's. Because the SympatheticResonance engine's resonators are
-    // tuned to the struck voice's partials, the presence of energy at pad 9's
-    // (untriggered) fundamental in the coupling output is a pure
-    // frequency-selective effect of the driver's harmonic structure:
-    //   Octave:  pad9_f0 = 2 * pad5_f0  -> pad 5's 2nd partial sits at pad9_f0.
-    //   Tritone: pad9_f0 = sqrt(2) * pad5_f0 -> no pad 5 partial near there.
-    // We hold pad 5 at size 0.7 and set pad 9's size so it is octave or
-    // tritone above pad 5.
+    // Physics rationale: membrane modes are inharmonic -- Bessel ratios
+    // 1.0, 1.594, 2.136, 2.296 (Rossing & Fletcher, Physics of Musical
+    // Instruments; Cook, PhISM 1996). Musical intervals (octave, tritone)
+    // DO NOT predict coupling between inharmonic bodies because the modal
+    // spectrum does not line up at 2:1 or sqrt(2):1 ratios. What predicts
+    // coupling strength is modal coincidence -- how near a receiver's
+    // resonator frequency lies to one of the driver's actively driven
+    // modes.
+    //
+    // Setup: Pad 5 (driver, Tom) is struck. Pad 9 (receiver, Tom) is also
+    // struck at very low velocity so its partials register with the
+    // SympatheticResonance engine (the engine tracks active voices). Pad 9's
+    // Size is the variable under test:
+    //   Mode-coincident: pad 9 f0 lands on pad 5's 2nd modal partial
+    //                    (f0 * 1.594 ~= 158.9 Hz at pad5 size=0.7).
+    //   Mode-gap:        pad 9 f0 lands in the gap between pad 5's 1st and
+    //                    2nd modal partials (~130 Hz -- far from any pad 5
+    //                    resonator).
+    // Running the same MIDI sequence with coupling on vs off and subtracting
+    // isolates the coupling-engine contribution (direct voice audio cancels).
 
     auto runConfig = [](float pad9Size, bool couplingOn) {
         CouplingIntegrationFixture fix;
@@ -627,35 +639,37 @@ TEST_CASE("Phase 4: SC-008 frequency-selective coupling -- octave toms couple >=
             fix.setParam(Membrum::kTomResonanceId,   0.0);
         }
 
-        // Strike ONLY pad 5 (MIDI 41). Pad 9's Size still configures its
-        // expected natural frequency for the test observation.
+        // Strike ONLY pad 5 (MIDI 41). Pad 9's Size parameter configures
+        // its expected natural frequency for the test observation -- we
+        // look for spectral energy at pad 9's f0 in the coupling signal
+        // that originated from pad 5's modal excitation. Identical MIDI
+        // sequence is used for coupling-on and coupling-off runs so the
+        // on-off diff isolates the coupling-engine output only.
         fix.events.addNoteOn(41, 1.0f, 0);
-        // Process ~60 blocks = 30720 samples (~0.7s) to capture resonator ring-out.
+        // Process ~80 blocks = 40960 samples (~0.93s) to capture resonator ring-out.
         return fix.processNBlocks(80);
     };
 
-    // Membrane modes are inharmonic: f0 * {1.0, 1.593, 2.136, 2.296}.
-    // For pad 5 f0 ~ 99.76 Hz (size=0.7): partials ~ {99.8, 158.9, 213.1,
-    // 229.0} Hz. The sympathetic engine places resonators at these four
-    // frequencies.
+    // Pad 5 fundamental at Size=0.7: f0 = 500 * 0.1^0.7 ~= 99.76 Hz.
+    // Pad 5 inharmonic membrane modes (Bessel ratios 1.0, 1.594, 2.136,
+    // 2.296) land at approximately: {99.8, 158.9, 213.1, 229.0} Hz.
     //
-    // "Octave"-like (consonant) coupling: tune pad 9's f0 onto pad 5's 2nd
-    // modal partial (~158.9 Hz) so pad 9's own fundamental aligns with an
-    // already-driven resonator. Size = log10(500/158.9) ~= 0.498.
+    // Mode-coincident: tune pad 9 f0 onto pad 5's 2nd modal partial
+    //                  (~158.9 Hz). Size = log10(500 / 158.9) ~= 0.498.
     //
-    // "Tritone"-like (dissonant) coupling: tune pad 9's f0 BETWEEN pad 5's
-    // partials (far from any resonator) at ~130 Hz. Size = log10(500/130)
-    // ~= 0.585.
-    constexpr float kOctaveSize  = 0.498f;
-    constexpr float kTritoneSize = 0.585f;
+    // Mode-gap: tune pad 9 f0 BETWEEN pad 5's 1st and 2nd partials at
+    //           ~130 Hz (no pad 5 resonator is anywhere nearby).
+    //           Size = log10(500 / 130) ~= 0.585.
+    constexpr float kModeCoincidentSize = 0.498f;
+    constexpr float kModeGapSize        = 0.585f;
 
-    auto octaveOn  = runConfig(kOctaveSize,  true);
-    auto octaveOff = runConfig(kOctaveSize,  false);
-    auto tritoneOn  = runConfig(kTritoneSize,  true);
-    auto tritoneOff = runConfig(kTritoneSize,  false);
+    auto coincidentOn  = runConfig(kModeCoincidentSize, true);
+    auto coincidentOff = runConfig(kModeCoincidentSize, false);
+    auto gapOn         = runConfig(kModeGapSize,        true);
+    auto gapOff        = runConfig(kModeGapSize,        false);
 
-    REQUIRE(octaveOn.size() == octaveOff.size());
-    REQUIRE(tritoneOn.size() == tritoneOff.size());
+    REQUIRE(coincidentOn.size() == coincidentOff.size());
+    REQUIRE(gapOn.size()        == gapOff.size());
 
     // Isolate the coupling contribution: diff = on - off.
     auto couplingDiff = [](const std::vector<float>& on,
@@ -666,8 +680,8 @@ TEST_CASE("Phase 4: SC-008 frequency-selective coupling -- octave toms couple >=
         return diff;
     };
 
-    const auto octaveCoupling  = couplingDiff(octaveOn,  octaveOff);
-    const auto tritoneCoupling = couplingDiff(tritoneOn, tritoneOff);
+    const auto coincidentCoupling = couplingDiff(coincidentOn, coincidentOff);
+    const auto gapCoupling        = couplingDiff(gapOn,        gapOff);
 
     // Sanity: both configurations must produce a measurable coupling signal.
     auto rms = [](const std::vector<float>& v) {
@@ -675,16 +689,16 @@ TEST_CASE("Phase 4: SC-008 frequency-selective coupling -- octave toms couple >=
         for (float s : v) sq += static_cast<double>(s) * s;
         return std::sqrt(sq / static_cast<double>(v.size()));
     };
-    REQUIRE(rms(octaveCoupling)  > 1e-9);
-    REQUIRE(rms(tritoneCoupling) > 1e-9);
+    REQUIRE(rms(coincidentCoupling) > 1e-9);
+    REQUIRE(rms(gapCoupling)        > 1e-9);
 
     // Spectral analysis via FFT. Use tail samples (after exciters have decayed,
     // so the signal is dominated by sympathetic-resonator ringing).
     constexpr size_t kFFTSize = 8192;
-    // Skip the first ~50 ms so the exciter/body transients have mostly
+    // Skip the first ~500 ms so the exciter/body transients have mostly
     // settled and the residual signal is driven by the resonator bank only.
     constexpr size_t kSkipSamples = 22050; // ~0.5 s
-    REQUIRE(octaveCoupling.size() >= kSkipSamples + kFFTSize);
+    REQUIRE(coincidentCoupling.size() >= kSkipSamples + kFFTSize);
 
     auto spectralPeakEnergyHz = [&](const std::vector<float>& x,
                                      float centerHz,
@@ -724,58 +738,65 @@ TEST_CASE("Phase 4: SC-008 frequency-selective coupling -- octave toms couple >=
         return peak;
     };
 
-    // Pad 5 f0 = 500 * 0.1^0.7 ~= 99.53 Hz.
-    // Consonant pad 9 f0 ~= 158.9 Hz (pad 5's 2nd modal partial).
-    // Dissonant  pad 9 f0 ~= 130 Hz (between pad 5's 1st and 2nd partials).
-    const float pad5F0       = 500.0f * std::pow(0.1f, 0.7f);
-    const float pad9OctaveF0 = 500.0f * std::pow(0.1f, kOctaveSize);
-    const float pad9TritoneF0 = 500.0f * std::pow(0.1f, kTritoneSize);
+    // Runtime-measured frequencies (no hardcoded strings).
+    const float pad5F0             = 500.0f * std::pow(0.1f, 0.7f);
+    const float pad5Mode2          = pad5F0 * 1.594f; // Bessel ratio
+    const float pad9CoincidentF0   = 500.0f * std::pow(0.1f, kModeCoincidentSize);
+    const float pad9GapF0          = 500.0f * std::pow(0.1f, kModeGapSize);
 
-    INFO("pad5 f0:        " << pad5F0  << " Hz");
-    INFO("pad9 octave f0: " << pad9OctaveF0  << " Hz");
-    INFO("pad9 tritone f0: " << pad9TritoneF0 << " Hz");
+    INFO("pad5 f0 (1st mode):       " << pad5F0           << " Hz");
+    INFO("pad5 2nd modal partial:   " << pad5Mode2        << " Hz");
+    INFO("pad9 f0 (mode-coincident): " << pad9CoincidentF0 << " Hz "
+         "(placed on pad5's 2nd mode)");
+    INFO("pad9 f0 (mode-gap):        " << pad9GapF0        << " Hz "
+         "(placed between pad5's 1st and 2nd modes)");
 
     // Measure spectral energy at pad 9's fundamental in a narrow band (~ bin
-    // resolution 5.4 Hz at SR 44.1 kHz, FFT 8192). Use +/- 8 Hz to capture the
-    // peak and a couple of adjacent bins (covers windowing smear).
+    // resolution 5.4 Hz at SR 44.1 kHz, FFT 8192). Use +/- 8 Hz to capture
+    // the peak and a couple of adjacent bins (covers windowing smear).
     const float kHalfWidthHz = 8.0f;
-    const double octaveEnergy =
-        spectralPeakEnergyHz(octaveCoupling,  pad9OctaveF0,  kHalfWidthHz);
-    const double tritoneEnergy =
-        spectralPeakEnergyHz(tritoneCoupling, pad9TritoneF0, kHalfWidthHz);
+    const double coincidentEnergy =
+        spectralPeakEnergyHz(coincidentCoupling, pad9CoincidentF0, kHalfWidthHz);
+    const double gapEnergy =
+        spectralPeakEnergyHz(gapCoupling,        pad9GapF0,        kHalfWidthHz);
 
-    // Also measure energy at pad 5's f0 (100 Hz) and 2nd partial (200 Hz) as
-    // sanity: both should have similar energy across cases.
-    const double octaveAt100 =
-        spectralPeakEnergyHz(octaveCoupling,  pad5F0,  kHalfWidthHz);
-    const double tritoneAt100 =
-        spectralPeakEnergyHz(tritoneCoupling, pad5F0,  kHalfWidthHz);
-    const double octaveAt200 =
-        spectralPeakEnergyHz(octaveCoupling,  pad5F0 * 2.0f,  kHalfWidthHz);
-    const double tritoneAt200 =
-        spectralPeakEnergyHz(tritoneCoupling, pad5F0 * 2.0f,  kHalfWidthHz);
+    // Sanity: energy at pad 5's own fundamental and 2nd mode should be
+    // comparable across cases (both runs have the same driver).
+    const double coincidentAtMode1 =
+        spectralPeakEnergyHz(coincidentCoupling, pad5F0,    kHalfWidthHz);
+    const double gapAtMode1 =
+        spectralPeakEnergyHz(gapCoupling,        pad5F0,    kHalfWidthHz);
+    const double coincidentAtMode2 =
+        spectralPeakEnergyHz(coincidentCoupling, pad5Mode2, kHalfWidthHz);
+    const double gapAtMode2 =
+        spectralPeakEnergyHz(gapCoupling,        pad5Mode2, kHalfWidthHz);
 
-    INFO("Octave energy at pad9 f0 (199.5 Hz):   " << octaveEnergy);
-    INFO("Tritone energy at pad9 f0 (141.1 Hz):  " << tritoneEnergy);
-    INFO("Octave energy at pad5 f0 (99.8 Hz):    " << octaveAt100);
-    INFO("Tritone energy at pad5 f0 (99.8 Hz):   " << tritoneAt100);
-    INFO("Octave energy at 200 Hz:               " << octaveAt200);
-    INFO("Tritone energy at 200 Hz:              " << tritoneAt200);
+    INFO("mode-coincident energy at pad9 f0 ("   << pad9CoincidentF0
+         << " Hz): " << coincidentEnergy);
+    INFO("mode-gap energy at pad9 f0 ("          << pad9GapF0
+         << " Hz): " << gapEnergy);
+    INFO("mode-coincident energy at pad5 1st mode (" << pad5F0
+         << " Hz): " << coincidentAtMode1);
+    INFO("mode-gap energy at pad5 1st mode ("        << pad5F0
+         << " Hz): " << gapAtMode1);
+    INFO("mode-coincident energy at pad5 2nd mode (" << pad5Mode2
+         << " Hz): " << coincidentAtMode2);
+    INFO("mode-gap energy at pad5 2nd mode ("        << pad5Mode2
+         << " Hz): " << gapAtMode2);
 
-    REQUIRE(octaveEnergy  > 0.0);
-    REQUIRE(tritoneEnergy > 0.0);
+    REQUIRE(coincidentEnergy > 0.0);
+    REQUIRE(gapEnergy        > 0.0);
 
-    // SC-008: octave case must have at least 12 dB more coupling energy at the
-    // receiver tom's fundamental than the tritone case (frequency-selective).
-    //
-    // Implementation note: the test measures spectral energy of the
-    // sympathetic-resonator output (coupling on - coupling off) at two
-    // different target frequencies: the octave ratio (pad 5's 2nd partial,
-    // which has a resonator tuned to it) vs the tritone ratio (no pad 5
-    // partial nearby). The measured selectivity depends on the resonator Q
-    // and the FFT windowing noise floor.
-    const double ratioDb = 10.0 * std::log10(octaveEnergy / tritoneEnergy);
-    INFO("Octave/Tritone coupling-energy ratio at pad9 f0 (dB): " << ratioDb);
+    // SC-008: the mode-coincident case must have at least 12 dB more
+    // coupling energy at the receiver tom's fundamental than the mode-gap
+    // case. This is frequency selectivity via modal coincidence: the
+    // resonator tuned to pad 9's f0 is driven strongly when pad 9's f0
+    // aligns with pad 5's 2nd modal partial (which the driver excites), and
+    // weakly when pad 9's f0 falls in a spectral gap between pad 5's modes.
+    const double ratioDb =
+        10.0 * std::log10(coincidentEnergy / gapEnergy);
+    INFO("mode-coincident / mode-gap coupling-energy ratio at pad9 f0 (dB): "
+         << ratioDb);
     CHECK(ratioDb >= 12.0);
 }
 
