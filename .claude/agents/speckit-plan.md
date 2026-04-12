@@ -35,7 +35,7 @@ tools:
   - mcp__serena__write_memory
   - mcp__serena__edit_memory
   - mcp__serena__delete_memory
-skills: vst-guide, dsp-architecture, claude-file
+skills: testing-guide, vst-guide, dsp-architecture, claude-file
 ---
 
 # Planning Agent

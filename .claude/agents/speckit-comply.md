@@ -22,7 +22,7 @@ tools:
   - mcp__serena__think_about_whether_you_are_done
   - mcp__serena__list_memories
   - mcp__serena__read_memory
-skills: testing-guide, vst-guide, dsp-architecture, claude-file, code-review
+skills: claude-file, code-review
 ---
 
 # Compliance Verification Agent
@@ -50,6 +50,22 @@ then read the code to confirm it was done correctly. Flag:
   build, test, and pluginval only.
 - **Structured output**: Always produce the compliance report format defined below
 - **Specific evidence**: Every claim must include file paths, line numbers, and test names
+
+## Serena Tools — MANDATORY for Code Reading (CRITICAL)
+
+You have access to **Serena**, a language-server-backed tool suite. You MUST use it for all code
+reading. It is faster and more token-efficient than reading entire files.
+
+**Reading code:**
+- `get_symbols_overview` — first step for any file. Returns classes, methods, fields compactly.
+- `find_symbol` with `include_body=True` — read a specific function/method body. Far cheaper than reading the whole file.
+- `find_symbol` with `depth=1` — list a class's methods before deciding which to read.
+- `find_referencing_symbols` — find callers/users of a symbol.
+
+**NEVER use Bash to read code.** No `cat`, `head`, `tail`, `grep` on source files. Use Serena or Read.
+
+Use `Read` only for non-code files (.md, .json, test output logs). For C++ source, always prefer
+Serena's symbol-based reading — it returns exactly what you need without loading entire files.
 
 ## Context Files
 

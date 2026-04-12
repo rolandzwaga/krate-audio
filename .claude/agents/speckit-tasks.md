@@ -9,6 +9,7 @@ tools:
   - Edit
   - Bash
   - Glob
+skills: testing-guide
 ---
 
 # Task Generation Agent
