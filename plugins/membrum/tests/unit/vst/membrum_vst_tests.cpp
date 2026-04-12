@@ -241,11 +241,12 @@ TEST_CASE("Membrum state round-trip with defaults",
     double readParams[5] = {};
     readV4Pad0SoundParams(saveStream, readParams, 5);
 
-    CHECK(readParams[0] == Approx(0.5).margin(0.001));  // Material default
-    CHECK(readParams[1] == Approx(0.5).margin(0.001));  // Size default
-    CHECK(readParams[2] == Approx(0.3).margin(0.001));  // Decay default
-    CHECK(readParams[3] == Approx(0.3).margin(0.001));  // StrikePosition default
-    CHECK(readParams[4] == Approx(0.8).margin(0.001));  // Level default
+    // After Phase 4 DefaultKit::apply(), pad 0 = Kick template (FR-030/FR-031)
+    CHECK(readParams[0] == Approx(0.3).margin(0.001));  // Material (kick default)
+    CHECK(readParams[1] == Approx(0.8).margin(0.001));  // Size (kick default)
+    CHECK(readParams[2] == Approx(0.3).margin(0.001));  // Decay (kick default)
+    CHECK(readParams[3] == Approx(0.3).margin(0.001));  // StrikePosition (kick default)
+    CHECK(readParams[4] == Approx(0.8).margin(0.001));  // Level (kick default)
 
     saveStream->release();
     REQUIRE(processor.terminate() == kResultOk);

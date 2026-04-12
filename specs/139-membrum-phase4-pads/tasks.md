@@ -122,21 +122,21 @@ tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/V
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T020 [US2] Write failing tests for GM default kit templates in `plugins/membrum/tests/unit/processor/test_default_kit.cpp` — test: `DefaultKit::apply(padConfigs)` sets all 32 pads with correct exciter/body types per GM drum map table, kick (pad 0) has ExciterType::Impulse + BodyModelType::Membrane + Size=0.8 + Decay=0.3, snare (pad 2) has ExciterType::NoiseBurst + BodyModelType::Membrane, hats (pads 6, 8, 10) are in choke group 1, open hi-hat (pad 10) choke group = 1, all other pads choke group = 0, tom pads have progressively increasing Size values per FR-033 (high tom pad 14 Size=0.4 through low floor tom pad 5 Size=0.8), all 32 pads produce non-NaN non-Inf output when triggered after default kit applied
+- [X] T020 [US2] Write failing tests for GM default kit templates in `plugins/membrum/tests/unit/processor/test_default_kit.cpp` — test: `DefaultKit::apply(padConfigs)` sets all 32 pads with correct exciter/body types per GM drum map table, kick (pad 0) has ExciterType::Impulse + BodyModelType::Membrane + Size=0.8 + Decay=0.3, snare (pad 2) has ExciterType::NoiseBurst + BodyModelType::Membrane, hats (pads 6, 8, 10) are in choke group 1, open hi-hat (pad 10) choke group = 1, all other pads choke group = 0, tom pads have progressively increasing Size values per FR-033 (high tom pad 14 Size=0.4 through low floor tom pad 5 Size=0.8), all 32 pads produce non-NaN non-Inf output when triggered after default kit applied
 
 ### 4.2 Implementation for User Story 2
 
-- [ ] T021 [US2] Create `plugins/membrum/src/dsp/default_kit.h` with a `DefaultKit::apply(std::array<PadConfig, 32>& pads)` function that initializes all 32 pads with GM-inspired templates per FR-030/FR-031/FR-032/FR-033 (6 template archetypes mapped to GM drum positions; hat pads in choke group 1; tom size progression; all output buses default to 0)
-- [ ] T022 [US2] Update `Processor::initialize()` (and any "reset to default" code path) in `plugins/membrum/src/processor/processor.cpp` to call `DefaultKit::apply(voicePool_.padConfigsArray())` when no state is loaded — ensure the voice pool exposes a mutating accessor for the full array
-- [ ] T023 [US2] Build `membrum_tests` and verify T020 tests now pass
+- [X] T021 [US2] Create `plugins/membrum/src/dsp/default_kit.h` with a `DefaultKit::apply(std::array<PadConfig, 32>& pads)` function that initializes all 32 pads with GM-inspired templates per FR-030/FR-031/FR-032/FR-033 (6 template archetypes mapped to GM drum positions; hat pads in choke group 1; tom size progression; all output buses default to 0)
+- [X] T022 [US2] Update `Processor::initialize()` (and any "reset to default" code path) in `plugins/membrum/src/processor/processor.cpp` to call `DefaultKit::apply(voicePool_.padConfigsArray())` when no state is loaded — ensure the voice pool exposes a mutating accessor for the full array
+- [X] T023 [US2] Build `membrum_tests` and verify T020 tests now pass
 
 ### 4.3 Cross-Platform Verification (MANDATORY)
 
-- [ ] T024 [US2] Check `test_default_kit.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
+- [X] T024 [US2] Check `test_default_kit.cpp` for IEEE 754 functions and add to `-fno-fast-math` list in `plugins/membrum/tests/CMakeLists.txt` if needed
 
 ### 4.4 Commit
 
-- [ ] T025 [US2] **Commit completed User Story 2 work** (DefaultKit templates, GM initialization on first load)
+- [X] T025 [US2] **Commit completed User Story 2 work** (DefaultKit templates, GM initialization on first load)
 
 **Checkpoint**: Fresh Membrum instance sounds like a recognizable GM kit. All 32 pads non-silent, no NaN/Inf.
 

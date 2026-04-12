@@ -9,6 +9,7 @@
 
 #include "processor.h"
 #include "plugin_ids.h"
+#include "dsp/default_kit.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "dsp/tone_shaper.h"
@@ -185,6 +186,10 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
 
     addEventInput(STR16("Event In"));
     addAudioOutput(STR16("Stereo Out"), SpeakerArr::kStereo);
+
+    // FR-030: Initialize all 32 pads with GM-inspired default templates.
+    // This is overwritten by setState() if a saved state is loaded.
+    DefaultKit::apply(voicePool_.padConfigsArray());
 
     return kResultOk;
 }
