@@ -273,7 +273,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 - [X] T060 [P] Verify coupling output routes to main bus only (FR-073): check that auxiliary output buses in `processor.cpp` do NOT receive coupling signal; coupling is added only to the stereo main output pair (verified: processor.cpp lines 644-645 only add to outL/outR of data.outputs[0]; aux buses at data.outputs[1..N] are populated by voicePool_.processBlock before the coupling chain runs and never receive coupling additions; behavioral test in test_coupling_phase9_verification.cpp)
 - [X] T061 [P] Verify sample rate change handling (FR-006/edge case): in `setupProcessing()`, both `couplingEngine_.prepare()` and `couplingDelay_.prepare()` are called on every sample rate change, not only on first call; verify resonator coefficients recalculate correctly (verified: processor.cpp lines 1226-1228 call both unconditionally every time; behavioral test in test_coupling_phase9_verification.cpp switches 44.1 -> 96 -> 44.1 kHz)
 - [X] T062 [P] Verify choke group edge case (edge case from spec): when a voice is choked (fast-release), `noteOff()` is called on the coupling engine allowing resonators to ring out naturally -- verify noteOff is called in the voice steal path as well as the normal note-off path (verified: voice_pool.cpp lines 147-149 Quietest pre-steal, 186-189 main steal path, 310-311 natural voice finish, 859-861 choke fast-release; behavioral tests in test_coupling_phase9_verification.cpp for choke and steal paths)
-- [ ] T063 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3"` and fix any errors (SC-010) -- DEFERRED TO PHASE 12 per orchestrator per-phase no-pluginval rule
+- [X] T063 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3"` and fix any errors (SC-010) -- PASSED at Phase 12 (exit code 0, 0 failures, strictness level 5)
 - [X] T064 Run full membrum_tests suite and verify all tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe 2>&1 | tail -5` (result: 391 test cases, 39922 assertions, all passed)
 
 ---
@@ -304,7 +304,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 12.1 Requirements Verification
 
-- [ ] T071 Open each FR-xxx implementation file and verify with line-level evidence (no "implemented" without file + line citation):
+- [X] T071 Open each FR-xxx implementation file and verify with line-level evidence (no "implemented" without file + line citation):
   - FR-001: SympatheticResonance integrated in processor.h/processor.cpp
   - FR-002: Mono sum (L+R)/2 feeds delay then engine; output additive to main out
   - FR-003: First 4 partials extracted from ModalResonatorBank per voice
@@ -341,7 +341,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
   - FR-072: process() called once per sample after voices rendered, before master output
   - FR-073: Coupling output added to main bus only
 
-- [ ] T072 Verify ALL SC-xxx success criteria with actual test output (copy test results, do not paraphrase):
+- [X] T072 Verify ALL SC-xxx success criteria with actual test output (copy test results, do not paraphrase):
   - SC-001: Global Coupling 0 output identical to Phase 4 (< -120 dBFS difference) -- cite test name and assertion
   - SC-002: Kick + Snare Buzz 50% + Global 100% produces measurable 1-8 kHz energy -- cite measurement
   - SC-003: CPU < 1.5% with 8 voices + 64 resonators -- cite benchmark or analysis
@@ -355,7 +355,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 12.2 Fill Compliance Table in spec.md
 
-- [ ] T073 Update `specs/140-membrum-phase5-coupling/spec.md` "Implementation Verification" section with status and evidence for every FR-xxx and SC-xxx row
+- [X] T073 Update `specs/140-membrum-phase5-coupling/spec.md` "Implementation Verification" section with status and evidence for every FR-xxx and SC-xxx row
 
 ### 12.3 Honest Self-Check
 
@@ -366,7 +366,7 @@ Answer these questions before claiming completion:
 4. Would the spec author consider this "done"?
 5. If you were the user, would you feel cheated?
 
-- [ ] T074 All self-check questions answered "no" (or gaps documented honestly)
+- [X] T074 All self-check questions answered "no" (or gaps documented honestly) -- SC-008 reframing from octave-vs-tritone to mode-coincident-vs-mode-gap was approved by user during implementation based on physics research (membrane modes are inharmonic; interval consonance does not predict coupling between inharmonic bodies)
 
 ---
 

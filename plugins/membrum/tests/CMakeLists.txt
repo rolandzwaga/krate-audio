@@ -98,6 +98,8 @@ add_executable(membrum_tests
     unit/processor/test_coupling_integration.cpp
     unit/processor/test_coupling_state.cpp
     unit/processor/test_coupling_energy.cpp
+    unit/processor/test_coupling_fuzz.cpp
+    unit/processor/test_coupling_phase9_verification.cpp
 
     # Phase 3: CPU benchmarks / 16-voice stress (tagged [.perf], scaffolded)
     perf/test_polyphony_benchmark.cpp

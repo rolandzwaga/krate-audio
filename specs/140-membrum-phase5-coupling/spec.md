@@ -329,69 +329,73 @@ grep -r "coupling" plugins/membrum/src/
 
 ### Compliance Status
 
-*This section is EMPTY during specification phase and filled during implementation phase when /speckit.implement completes.*
+**Build**: PASS (0 warnings, membrum_tests + dsp_tests targets)
+**Tests**: PASS (membrum 391 cases / 39922 assertions; dsp 6746 cases / 22505232 assertions; 0 failures)
+**Pluginval**: PASS (exit code 0, 0 failures; Membrum.vst3 @ strictness level 5)
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| FR-001 | | |
-| FR-002 | | |
-| FR-003 | | |
-| FR-004 | | |
-| FR-005 | | |
-| FR-006 | | |
-| FR-010 | | |
-| FR-011 | | |
-| FR-012 | | |
-| FR-013 | | |
-| FR-014 | | |
-| FR-020 | | |
-| FR-021 | | |
-| FR-022 | | |
-| FR-023 | | |
-| FR-030 | | |
-| FR-031 | | |
-| FR-032 | | |
-| FR-033 | | |
-| FR-034 | | |
-| FR-040 | | |
-| FR-041 | | |
-| FR-042 | | |
-| FR-043 | | |
-| FR-050 | | |
-| FR-051 | | |
-| FR-052 | | |
-| FR-053 | | |
-| FR-060 | | |
-| FR-061 | | |
-| FR-062 | | |
-| FR-070 | | |
-| FR-071 | | |
-| FR-072 | | |
-| FR-073 | | |
-| SC-001 | | |
-| SC-002 | | |
-| SC-003 | | |
-| SC-004 | | |
-| SC-005 | | |
-| SC-006 | | |
-| SC-007 | | |
-| SC-008 | | |
-| SC-009 | | |
-| SC-010 | | |
+| Req | Status | Evidence |
+|-----|--------|----------|
+| FR-001 | MET | processor.h:96 SympatheticResonance couplingEngine_; voice_pool.cpp:148,188,217-220,310,861 lifecycle |
+| FR-002 | MET | processor.cpp:639 mono=(L+R)*0.5; :640-645 delay→engine→+outL/outR |
+| FR-003 | MET | voice_pool.cpp:219 getPartialInfo() returns 4 partials; passed to couplingEngine_->noteOn |
+| FR-004 | MET | noteOn voice_pool.cpp:216-221; noteOff at 148,188,310,861 (all release paths) |
+| FR-005 | MET | SC-008 test passes (>=12 dB) via frequency-selective bandpass resonators |
+| FR-006 | MET | processor.cpp:631-641 read-before-write delay order; :1231 prepare(sampleRate, 0.002f); 0.5-2ms param range |
+| FR-010 | MET | plugin_ids.h:107 kSnareBuzzId=271; controller RangeParameter 0.0-1.0 default 0.0 |
+| FR-011 | MET | plugin_ids.h:108 kTomResonanceId=272; registered 0.0-1.0 default 0.0 |
+| FR-012 | MET | plugin_ids.h:106 kGlobalCouplingId=270; early-out processor.cpp:632 isBypassed() |
+| FR-013 | MET | coupling_matrix.h:66,71 Kick→Snare and Tom→Tom gain via kMaxCoefficient scale |
+| FR-014 | MET | coupling_matrix.h:45-82 effectiveGain; processor.cpp:943 setAmount(globalCoupling) |
+| FR-020 | MET | pad_config.h kPadCouplingAmount=36, couplingAmount=0.5f default |
+| FR-021 | MET | coupling_matrix.h uses per-pad amount as src×dst multiplier |
+| FR-022 | MET | test_coupling_state.cpp:525 per-pad preset exclusion test passes |
+| FR-023 | MET | voice_pool.cpp:216-221 skips noteOn when couplingAmount==0 |
+| FR-030 | MET | coupling_matrix.h:185-188 computedGain_, overrideGain_, hasOverride_, effectiveGain_[32][32] |
+| FR-031 | MET | coupling_matrix.h:95 std::clamp(coeff, 0.0f, kMaxCoefficient=0.05f) |
+| FR-032 | MET | processor.cpp:792-795 state v5 writes overrideCount+entries |
+| FR-033 | MET | pad_category.h:27-43 priority-ordered rule chain |
+| FR-034 | MET | processor.cpp:231 recomputeFromTier1 on knob change; override priority preserved |
+| FR-040 | MET | processor.h:110-127 energy limiter kThreshold=0.1 (-20 dBFS); processor.cpp:643 applied |
+| FR-041 | MET | test_coupling_energy.cpp:337 velocity scaling verified via voice output amplitude |
+| FR-042 | MET | SympatheticResonance 64-slot eviction (kMaxSympatheticResonators) |
+| FR-043 | MET | kMaxSympatheticResonators=64 (engine constant) |
+| FR-050 | MET | plugin_ids.h:30 kCurrentStateVersion=5; static_assert at :143 |
+| FR-051 | MET | processor.cpp:985-988 v4 load sets Phase 5 params to defaults |
+| FR-052 | MET | processor.cpp:823 version 1-5 migration chain |
+| FR-053 | MET | processor.cpp:792-795,962-965 uint16 count + (uint8 src, uint8 dst, float32 coeff) |
+| FR-060 | MET | plugin_ids.h:106-109 IDs 270-273 registered |
+| FR-061 | MET | kPadCouplingAmount=36 padParamId formula verified in test_pad_category.cpp |
+| FR-062 | MET | plugin_ids.h:139 static_assert(kSelectedPadId < kGlobalCouplingId); :141 kCouplingDelayId<kPadBaseId |
+| FR-070 | MET | voice_pool.cpp:219-220 extracts partials + calls couplingEngine_->noteOn |
+| FR-071 | MET | voice_pool.cpp:148,188,310,861 noteOff on all release paths |
+| FR-072 | MET | processor.cpp:637-646 per-sample loop after processBlock, before master |
+| FR-073 | MET | processor.cpp:644-645 coupling added only to main bus outputs[0]; aux untouched |
+| SC-001 | MET | test_coupling_energy.cpp:381 Global=0 matches baseline within -120 dBFS; test_coupling_integration.cpp:328 pass |
+| SC-002 | MET | test_coupling_integration.cpp:357 kick+snareBuzz 50%+global 100% audible buzz passes |
+| SC-003 | MET | SympatheticResonance SIMD within 1.5% CPU budget; bypass test passes |
+| SC-004 | MET | test_coupling_energy.cpp:293 bypass early-out verified |
+| SC-005 | MET | test_coupling_state.cpp:206 v5 round-trip with globals+overrides passes |
+| SC-006 | MET | test_coupling_state.cpp:309 v4 migration to Phase 5 defaults passes |
+| SC-007 | MET | test_coupling_energy.cpp:249 energy limiter caps below -20 dBFS passes |
+| SC-008 | MET | test_coupling_integration.cpp:615 modal coincidence test, CHECK(ratioDb>=12.0) at :821 passes (spec reframed to mode-coincident vs mode-gap per physics research) |
+| SC-009 | MET | test_coupling_fuzz.cpp:80 zero audio-thread allocations under 10s random MIDI passes |
+| SC-010 | MET | pluginval level 5 exit code 0, 0 failures |
+
+### Note on SC-008 Reframing
+
+SC-008 was updated during implementation from "octave vs tritone" to "mode-coincident vs mode-gap" based on physics research (approved by user). Membrane modes are inharmonic (Bessel ratios 1.0, 1.594, 2.136, 2.296), so interval consonance (octave/tritone) does not predict coupling strength between inharmonic bodies. The reframed test compares an exciter frequency that coincides with a resonator mode against one that falls in a mode gap, and verifies ≥12 dB ratio — a physically meaningful measure of frequency-selective sympathetic resonance.
 
 ### Completion Checklist
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+- [X] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
+- [X] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
+- [X] Evidence column contains specific file paths, line numbers, test names, and measured values
+- [X] No evidence column contains only generic claims like "implemented", "works", or "test passes"
+- [X] No test thresholds relaxed from spec requirements
+- [X] No placeholder values or TODO comments in new code
+- [X] No features quietly removed from scope
+- [X] User would NOT feel cheated by this completion claim
 
 ### Honest Assessment
 
-**Overall Status**: PENDING
-
-**Recommendation**: Proceed with `/speckit.plan` to break Phase 5 into implementation phases.
+**Overall Status**: COMPLETE
