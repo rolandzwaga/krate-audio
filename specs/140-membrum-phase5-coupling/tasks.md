@@ -293,8 +293,8 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Update living architecture documentation per Constitution Principle XIII.
 
-- [ ] T069 Update `specs/_architecture_/` -- add Phase 5 components to the appropriate layer files: `PadCategory` + `classifyPad()` (plugin-local DSP); `CouplingMatrix` (plugin-local DSP); `ModalResonatorBank` accessor additions (Layer 2); note the coupling signal chain in the Membrum processor section
-- [ ] T070 Commit architecture documentation updates
+- [X] T069 Update `specs/_architecture_/` -- add Phase 5 components to the appropriate layer files: `PadCategory` + `classifyPad()` (plugin-local DSP); `CouplingMatrix` (plugin-local DSP); `ModalResonatorBank` accessor additions (Layer 2); note the coupling signal chain in the Membrum processor section
+- [X] T070 Commit architecture documentation updates
 
 ---
 
