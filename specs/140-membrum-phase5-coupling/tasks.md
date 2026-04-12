@@ -232,7 +232,7 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T055 [US5] Commit User Story 5 work (state v5 serialization, v4 migration, override round-trip)
+- [X] T055 [US5] Commit User Story 5 work (state v5 serialization, v4 migration, override round-trip)
 
 **Checkpoint**: User Story 5 functional -- state round-trip verified, v4 migration tested and passing.
 
