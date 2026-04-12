@@ -73,6 +73,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/default_kit.h
     src/preset/membrum_preset_config.h
 
+    # Phase 5: cross-pad coupling (sympathetic resonance)
+    src/dsp/pad_category.h
+    src/dsp/coupling_matrix.h
+
     # Phase 2: exciter backends (header-only)
     src/dsp/exciters/impulse_exciter.h
     src/dsp/exciters/mallet_exciter.h

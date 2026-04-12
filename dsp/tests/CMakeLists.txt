@@ -207,6 +207,7 @@ add_executable(dsp_tests
     unit/processors/waveguide_string_dc_blocker_test.cpp
     unit/processors/bow_waveguide_coupling_test.cpp
     unit/processors/body_resonance_tests.cpp
+    unit/processors/test_modal_bank_frequency.cpp
 
     # Layer 3: Systems
     unit/systems/delay_engine_test.cpp
@@ -536,6 +537,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/waveguide_string_dc_blocker_test.cpp
         unit/processors/bow_waveguide_coupling_test.cpp
         unit/processors/body_resonance_tests.cpp
+        unit/processors/test_modal_bank_frequency.cpp
         PROPERTIES COMPILE_FLAGS "-fno-fast-math -fno-finite-math-only"
     )
 

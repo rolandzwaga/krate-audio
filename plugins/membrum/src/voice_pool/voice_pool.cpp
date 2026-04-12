@@ -529,6 +529,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadFeedbackAmount:      cfg.feedbackAmount = normalizedValue; break;
     case kPadNoiseBurstDuration:  cfg.noiseBurstDuration = normalizedValue; break;
     case kPadFrictionPressure:    cfg.frictionPressure = normalizedValue; break;
+    case kPadCouplingAmount:      cfg.couplingAmount = normalizedValue; break;
     default: break;
     }
 }

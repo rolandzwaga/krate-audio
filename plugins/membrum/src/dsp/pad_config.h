@@ -73,8 +73,12 @@ enum PadParamOffset : int
     kPadNoiseBurstDuration   = 34,
     kPadFrictionPressure     = 35,
 
-    kPadActiveParamCount     = 36,  // offsets 0-35 are active
-    // Offsets 36-63 are RESERVED for Phase 5+ (e.g., per-pad coupling)
+    kPadActiveParamCount     = 36,  // offsets 0-35 are active (Phase 4)
+
+    // Phase 5: per-pad coupling participation
+    kPadCouplingAmount       = 36,
+    kPadActiveParamCountV5   = 37,  // offsets 0-36 are active in Phase 5
+    // Offsets 37-63 are RESERVED for Phase 6+
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -131,6 +135,9 @@ struct PadConfig
     float feedbackAmount     = 0.0f;   // FM feedback amount
     float noiseBurstDuration = 0.5f;   // normalized burst duration
     float frictionPressure   = 0.0f;   // friction exciter pressure
+
+    // Phase 5: per-pad coupling participation [0.0, 1.0]
+    float couplingAmount     = 0.5f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -161,7 +168,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCount)
+    if (offset >= kPadActiveParamCountV5)
         return -1;  // reserved range
     return offset;
 }
