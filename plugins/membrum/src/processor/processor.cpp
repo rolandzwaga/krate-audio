@@ -790,12 +790,12 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     }
 
     // uint16 overrideCount + N x (uint8 src, uint8 dst, float32 coeff)
-    std::uint16_t overrideCount =
+    auto overrideCount =
         static_cast<std::uint16_t>(couplingMatrix_.getOverrideCount());
     state->write(&overrideCount, sizeof(overrideCount), nullptr);
     couplingMatrix_.forEachOverride([state](int src, int dst, float coeff) {
-        std::uint8_t s = static_cast<std::uint8_t>(src);
-        std::uint8_t d = static_cast<std::uint8_t>(dst);
+        auto s = static_cast<std::uint8_t>(src);
+        auto d = static_cast<std::uint8_t>(dst);
         state->write(&s, sizeof(s), nullptr);
         state->write(&d, sizeof(d), nullptr);
         state->write(&coeff, sizeof(coeff), nullptr);
@@ -922,7 +922,10 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         // ---- Phase 5: Read coupling state if version == 5 ----
         if (version == 5)
         {
-            double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
+            double gc = 0.0;
+            double sb = 0.0;
+            double tr = 0.0;
+            double cd = 1.0;
             if (state->read(&gc, sizeof(gc), nullptr) != kResultOk) gc = 0.0;
             if (state->read(&sb, sizeof(sb), nullptr) != kResultOk) sb = 0.0;
             if (state->read(&tr, sizeof(tr), nullptr) != kResultOk) tr = 0.0;

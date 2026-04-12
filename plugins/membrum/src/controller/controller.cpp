@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <utility>
 
 namespace Membrum {
 
@@ -70,9 +71,6 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kMorphCurveId,                 .padOffset = kPadMorphCurve },
     {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
 };
-
-constexpr int kProxyMappingCount =
-    static_cast<int>(sizeof(kProxyMappings) / sizeof(kProxyMappings[0]));
 
 // Per-pad parameter name table
 struct PadParamSpec
@@ -290,9 +288,8 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     // ---- Phase 4/6: 1184 per-pad parameters (32 pads x 37 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        for (int specIdx = 0; specIdx < kPadParamSpecCount; ++specIdx)
+        for (const auto& spec : kPadParamSpecs)
         {
-            const auto& spec = kPadParamSpecs[specIdx];
             const auto paramId = static_cast<ParamID>(padParamId(pad, spec.offset));
 
             // Build parameter name: "Pad NN ParamName"
@@ -369,12 +366,12 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     }
 
     // Handle global proxy param change: forward to selected pad's per-pad param
-    for (int i = 0; i < kProxyMappingCount; ++i)
+    for (const auto& mapping : kProxyMappings)
     {
-        if (kProxyMappings[i].globalId == tag)
+        if (mapping.globalId == tag)
         {
             const auto padId = static_cast<ParamID>(
-                padParamId(selectedPadIndex_, kProxyMappings[i].padOffset));
+                padParamId(selectedPadIndex_, mapping.padOffset));
             // Update the per-pad param to match the global proxy
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
@@ -392,7 +389,7 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
 
 void Controller::notifyBusActivation(int32 busIndex, bool active)
 {
-    if (busIndex < 0 || busIndex >= static_cast<int32>(busActive_.size()))
+    if (busIndex < 0 || std::cmp_greater_equal(busIndex, busActive_.size()))
         return;
     busActive_[static_cast<std::size_t>(busIndex)] = active;
     // FR-043: bus 0 is always active
@@ -426,24 +423,24 @@ void Controller::notifyBusActivation(int32 busIndex, bool active)
 void Controller::syncGlobalProxyFromPad(int padIndex)
 {
     suppressProxyForward_ = true;
-    for (int i = 0; i < kProxyMappingCount; ++i)
+    for (const auto& mapping : kProxyMappings)
     {
         const auto padId = static_cast<ParamID>(
-            padParamId(padIndex, kProxyMappings[i].padOffset));
+            padParamId(padIndex, mapping.padOffset));
         const double padValue = getParamNormalized(padId);
-        EditControllerEx1::setParamNormalized(kProxyMappings[i].globalId, padValue);
+        EditControllerEx1::setParamNormalized(mapping.globalId, padValue);
     }
     suppressProxyForward_ = false;
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
 {
-    for (int i = 0; i < kProxyMappingCount; ++i)
+    for (const auto& mapping : kProxyMappings)
     {
-        if (kProxyMappings[i].globalId == globalId)
+        if (mapping.globalId == globalId)
         {
             const auto padId = static_cast<ParamID>(
-                padParamId(selectedPadIndex_, kProxyMappings[i].padOffset));
+                padParamId(selectedPadIndex_, mapping.padOffset));
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
@@ -511,10 +508,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
             // Read 34 float64 values (offsets 2-35 including chokeGroup/outputBus as float64)
             double vals[34] = {};
-            for (int j = 0; j < 34; ++j)
+            for (auto& val : vals)
             {
-                if (state->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
-                    vals[j] = 0.0;
+                if (state->read(&val, sizeof(val), nullptr) != kResultOk)
+                    val = 0.0;
             }
 
             // Map the 34 float64 values to per-pad param offsets
@@ -625,33 +622,33 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
         // Phase 2 continuous params
         struct Phase2Slot { ParamID id; double defaultValue; };
         constexpr Phase2Slot kPhase2Slots[] = {
-            { kExciterFMRatioId, 0.133333 },
-            { kExciterFeedbackAmountId, 0.0 },
-            { kExciterNoiseBurstDurationId, 0.230769 },
-            { kExciterFrictionPressureId, 0.3 },
-            { kToneShaperFilterTypeId, 0.0 },
-            { kToneShaperFilterCutoffId, 1.0 },
-            { kToneShaperFilterResonanceId, 0.0 },
-            { kToneShaperFilterEnvAmountId, 0.5 },
-            { kToneShaperDriveAmountId, 0.0 },
-            { kToneShaperFoldAmountId, 0.0 },
-            { kToneShaperPitchEnvStartId, 0.070721 },
-            { kToneShaperPitchEnvEndId, 0.0 },
-            { kToneShaperPitchEnvTimeId, 0.0 },
-            { kToneShaperPitchEnvCurveId, 0.0 },
-            { kToneShaperFilterEnvAttackId, 0.0 },
-            { kToneShaperFilterEnvDecayId, 0.1 },
-            { kToneShaperFilterEnvSustainId, 0.0 },
-            { kToneShaperFilterEnvReleaseId, 0.1 },
-            { kUnnaturalModeStretchId, 0.333333 },
-            { kUnnaturalDecaySkewId, 0.5 },
-            { kUnnaturalModeInjectAmountId, 0.0 },
-            { kUnnaturalNonlinearCouplingId, 0.0 },
-            { kMorphEnabledId, 0.0 },
-            { kMorphStartId, 1.0 },
-            { kMorphEndId, 0.0 },
-            { kMorphDurationMsId, 0.095477 },
-            { kMorphCurveId, 0.0 },
+            { .id = kExciterFMRatioId, .defaultValue = 0.133333 },
+            { .id = kExciterFeedbackAmountId, .defaultValue = 0.0 },
+            { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769 },
+            { .id = kExciterFrictionPressureId, .defaultValue = 0.3 },
+            { .id = kToneShaperFilterTypeId, .defaultValue = 0.0 },
+            { .id = kToneShaperFilterCutoffId, .defaultValue = 1.0 },
+            { .id = kToneShaperFilterResonanceId, .defaultValue = 0.0 },
+            { .id = kToneShaperFilterEnvAmountId, .defaultValue = 0.5 },
+            { .id = kToneShaperDriveAmountId, .defaultValue = 0.0 },
+            { .id = kToneShaperFoldAmountId, .defaultValue = 0.0 },
+            { .id = kToneShaperPitchEnvStartId, .defaultValue = 0.070721 },
+            { .id = kToneShaperPitchEnvEndId, .defaultValue = 0.0 },
+            { .id = kToneShaperPitchEnvTimeId, .defaultValue = 0.0 },
+            { .id = kToneShaperPitchEnvCurveId, .defaultValue = 0.0 },
+            { .id = kToneShaperFilterEnvAttackId, .defaultValue = 0.0 },
+            { .id = kToneShaperFilterEnvDecayId, .defaultValue = 0.1 },
+            { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0 },
+            { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1 },
+            { .id = kUnnaturalModeStretchId, .defaultValue = 0.333333 },
+            { .id = kUnnaturalDecaySkewId, .defaultValue = 0.5 },
+            { .id = kUnnaturalModeInjectAmountId, .defaultValue = 0.0 },
+            { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0 },
+            { .id = kMorphEnabledId, .defaultValue = 0.0 },
+            { .id = kMorphStartId, .defaultValue = 1.0 },
+            { .id = kMorphEndId, .defaultValue = 0.0 },
+            { .id = kMorphDurationMsId, .defaultValue = 0.095477 },
+            { .id = kMorphCurveId, .defaultValue = 0.0 },
         };
 
         for (const auto& slot : kPhase2Slots)

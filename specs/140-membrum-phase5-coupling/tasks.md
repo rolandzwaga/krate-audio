@@ -269,12 +269,12 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Pluginval verification, edge case hardening, and routing verification.
 
-- [ ] T059b Write zero-allocation fuzz test for SC-009: in `plugins/membrum/tests/unit/processor/test_coupling_energy.cpp` (or a new `test_coupling_fuzz.cpp`), use `AllocationDetector` from the shared test helpers to monitor audio-thread allocations; send random MIDI noteOn/noteOff events across all 32 pads for a 10-second equivalent (sampleRate * 10 samples processed in blocks) with coupling enabled; assert zero allocations occur on the audio thread during the run (SC-009)
-- [ ] T060 [P] Verify coupling output routes to main bus only (FR-073): check that auxiliary output buses in `processor.cpp` do NOT receive coupling signal; coupling is added only to the stereo main output pair
-- [ ] T061 [P] Verify sample rate change handling (FR-006/edge case): in `setupProcessing()`, both `couplingEngine_.prepare()` and `couplingDelay_.prepare()` are called on every sample rate change, not only on first call; verify resonator coefficients recalculate correctly
-- [ ] T062 [P] Verify choke group edge case (edge case from spec): when a voice is choked (fast-release), `noteOff()` is called on the coupling engine allowing resonators to ring out naturally -- verify noteOff is called in the voice steal path as well as the normal note-off path
-- [ ] T063 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3"` and fix any errors (SC-010)
-- [ ] T064 Run full membrum_tests suite and verify all tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe 2>&1 | tail -5`
+- [X] T059b Write zero-allocation fuzz test for SC-009: in `plugins/membrum/tests/unit/processor/test_coupling_fuzz.cpp`, use `AllocationDetector` from the shared test helpers to monitor audio-thread allocations; send random MIDI noteOn/noteOff events across all 32 pads for a 10-second equivalent (sampleRate * 10 samples processed in blocks) with coupling enabled; assert zero allocations occur on the audio thread during the run (SC-009)
+- [X] T060 [P] Verify coupling output routes to main bus only (FR-073): check that auxiliary output buses in `processor.cpp` do NOT receive coupling signal; coupling is added only to the stereo main output pair (verified: processor.cpp lines 644-645 only add to outL/outR of data.outputs[0]; aux buses at data.outputs[1..N] are populated by voicePool_.processBlock before the coupling chain runs and never receive coupling additions; behavioral test in test_coupling_phase9_verification.cpp)
+- [X] T061 [P] Verify sample rate change handling (FR-006/edge case): in `setupProcessing()`, both `couplingEngine_.prepare()` and `couplingDelay_.prepare()` are called on every sample rate change, not only on first call; verify resonator coefficients recalculate correctly (verified: processor.cpp lines 1226-1228 call both unconditionally every time; behavioral test in test_coupling_phase9_verification.cpp switches 44.1 -> 96 -> 44.1 kHz)
+- [X] T062 [P] Verify choke group edge case (edge case from spec): when a voice is choked (fast-release), `noteOff()` is called on the coupling engine allowing resonators to ring out naturally -- verify noteOff is called in the voice steal path as well as the normal note-off path (verified: voice_pool.cpp lines 147-149 Quietest pre-steal, 186-189 main steal path, 310-311 natural voice finish, 859-861 choke fast-release; behavioral tests in test_coupling_phase9_verification.cpp for choke and steal paths)
+- [ ] T063 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Membrum.vst3"` and fix any errors (SC-010) -- DEFERRED TO PHASE 12 per orchestrator per-phase no-pluginval rule
+- [X] T064 Run full membrum_tests suite and verify all tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe 2>&1 | tail -5` (result: 391 test cases, 39922 assertions, all passed)
 
 ---
 
@@ -282,10 +282,10 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Clang-tidy quality gate before final verification.
 
-- [ ] T065 Generate compile_commands.json if not current: ensure `build/windows-ninja` is up to date with `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja`
-- [ ] T066 Run clang-tidy on all modified and new files: `./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja` -- redirect output to log file for inspection
-- [ ] T067 Fix all clang-tidy errors (blocking issues) and review warnings; add `// NOLINT(...)` with reason for any intentionally suppressed warnings in DSP-critical inner loops
-- [ ] T068 Commit clang-tidy fixes
+- [X] T065 Generate compile_commands.json if not current: ensure `build/windows-ninja` is up to date with `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja`
+- [X] T066 Run clang-tidy on all modified and new files: `./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja` -- redirect output to log file for inspection
+- [X] T067 Fix all clang-tidy errors (blocking issues) and review warnings; add `// NOLINT(...)` with reason for any intentionally suppressed warnings in DSP-critical inner loops
+- [X] T068 Commit clang-tidy fixes
 
 ---
 
