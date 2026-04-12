@@ -80,6 +80,17 @@ add_executable(membrum_tests
     unit/voice_pool/test_phase2_regression_maxpoly1.cpp
     unit/voice_pool/test_poly_change_live.cpp
 
+    # Phase 4: PadConfig, per-pad parameters, state v4, multi-bus, presets
+    unit/vst/test_pad_config.cpp
+    unit/vst/test_state_v4.cpp
+    unit/vst/test_state_migration_v3_to_v4.cpp
+    unit/vst/test_pad_parameters.cpp
+    unit/voice_pool/test_per_pad_dispatch.cpp
+    unit/voice_pool/test_multi_bus_output.cpp
+    unit/processor/test_default_kit.cpp
+    unit/preset/test_kit_preset.cpp
+    unit/preset/test_pad_preset.cpp
+
     # Phase 3: CPU benchmarks / 16-voice stress (tagged [.perf], scaffolded)
     perf/test_polyphony_benchmark.cpp
     perf/test_polyphony_stress_16.cpp

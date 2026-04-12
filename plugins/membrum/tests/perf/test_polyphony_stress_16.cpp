@@ -21,6 +21,7 @@
 #include "dsp/drum_voice.h"
 #include "dsp/exciter_type.h"
 #include "voice_pool/voice_pool.h"
+#include "../unit/voice_pool/voice_pool_test_helpers.h"
 
 #include <array>
 #include <chrono>
@@ -48,9 +49,9 @@ inline bool isNaNOrInfBits(float x) noexcept
 
 void configureStressPool(Membrum::VoicePool& pool)
 {
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.7f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Feedback);
-    pool.setSharedBodyModel(Membrum::BodyModelType::NoiseBody);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.7f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Feedback);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::NoiseBody);
 
     pool.forEachMainVoice([&](Membrum::DrumVoice& voice) {
         voice.setMaterial(0.5f);

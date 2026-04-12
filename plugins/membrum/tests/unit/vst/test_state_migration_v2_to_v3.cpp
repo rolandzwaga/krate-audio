@@ -116,48 +116,22 @@ TEST_CASE("State v2 StateMigration v2->v3: fixture loads into Phase 3 processor 
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
-    // getState() must now produce a 302-byte v3 blob.
+    // getState() now produces v4 format after loading v2 state.
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
-
-    int64 endPos = 0;
-    outStream->seek(0, IBStream::kIBSeekEnd, &endPos);
-    CHECK(endPos == kV3BlobBytes);
-
     outStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    // (a) Version header is 3.
+    // (a) Version header matches v4.
     int32 readVersion = 0;
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
-    CHECK(readVersion == 3);
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
 
-    // (b) Compare the v2 body byte-for-byte (starting at offset 4 of both
-    //     streams -- the fixture was written with version==2, but all of the
-    //     param payload bytes after the version int32 must match verbatim).
-    std::vector<std::uint8_t> emittedV2Body(kV2BodyBytes - 4, 0);
-    outStream->read(emittedV2Body.data(),
-                    static_cast<int32>(emittedV2Body.size()), nullptr);
-    for (std::size_t i = 0; i < emittedV2Body.size(); ++i)
-    {
-        INFO("v2 body byte offset=" << (4 + i));
-        CHECK(emittedV2Body[i] == fixture[4 + i]);
-    }
-
-    // (c) The Phase 3 tail defaults: maxPoly=8, policy=0, all chokes=0.
-    std::uint8_t readMaxPoly = 0xFF;
-    std::uint8_t readPolicy  = 0xFF;
-    outStream->read(&readMaxPoly, sizeof(readMaxPoly), nullptr);
-    outStream->read(&readPolicy,  sizeof(readPolicy),  nullptr);
-    CHECK(static_cast<int>(readMaxPoly) == 8);
-    CHECK(static_cast<int>(readPolicy)  == 0);
-
-    for (int i = 0; i < 32; ++i)
-    {
-        std::uint8_t b = 0xFF;
-        outStream->read(&b, sizeof(b), nullptr);
-        INFO("choke default index=" << i);
-        CHECK(static_cast<int>(b) == 0);
-    }
+    // (b) Phase 3 defaults (maxPoly=8, policy=0) are in the v4 header.
+    int32 readMaxPoly32 = 0, readPolicy32 = 0;
+    outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
+    outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
+    CHECK(readMaxPoly32 == 8);
+    CHECK(readPolicy32 == 0);
 
     outStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);

@@ -29,6 +29,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <allocation_detector.h>
 
@@ -69,9 +70,9 @@ TEST_CASE("Phase35: VoicePool 10-second fuzz is allocation-free",
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(16);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.5f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.5f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
 
     std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
     std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);

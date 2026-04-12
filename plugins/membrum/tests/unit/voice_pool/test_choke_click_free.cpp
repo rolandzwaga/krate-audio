@@ -24,6 +24,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <algorithm>
 #include <cmath>
@@ -67,9 +68,9 @@ ChokeRender renderChoke(double sampleRate,
     pool.prepare(sampleRate, kBlockSize);
     pool.setMaxPolyphony(4);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, pre46Level);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, pre46Level);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     pool.setChokeGroup(chokeGroup);
 
     std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
@@ -87,7 +88,7 @@ ChokeRender renderChoke(double sampleRate,
     pool.processBlock(outL.data(), outR.data(), kBlockSize);
 
     // Trigger closed hat.
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, new42Level);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, new42Level);
     pool.noteOn(42, 0.9f);
 
     ChokeRender r;
@@ -158,9 +159,9 @@ std::vector<float> renderNote42WithMatchingSlot(double sampleRate,
     pool.prepare(sampleRate, kBlockSize);
     pool.setMaxPolyphony(4);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, level);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, level);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     // NOTE: no choke group set -- the voice selection path reduces to
     // plain allocator.noteOn + NoteOn event. With no choke group,
     // processChokeGroups(42) early-outs so the timestamp on slot 0 is

@@ -1,7 +1,7 @@
 #pragma once
 
 // ==============================================================================
-// Membrum Controller -- Stub for Phase 1 scaffolding
+// Membrum Controller -- Phase 4 (per-pad parameters + proxy logic)
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -21,6 +21,19 @@ public:
     Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown* context) override;
     Steinberg::tresult PLUGIN_API setComponentState(Steinberg::IBStream* state) override;
     Steinberg::IPlugView* PLUGIN_API createView(const char* name) override;
+
+    // Phase 4: Override setParamNormalized to implement proxy logic
+    Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
+                                                      Steinberg::Vst::ParamValue value) override;
+
+private:
+    // Phase 4: selected pad proxy logic helpers
+    void syncGlobalProxyFromPad(int padIndex);
+    void forwardGlobalToPad(Steinberg::Vst::ParamID globalId,
+                            Steinberg::Vst::ParamValue value);
+
+    int selectedPadIndex_ = 0;
+    bool suppressProxyForward_ = false;  // prevent re-entrancy during pad switch
 };
 
 } // namespace Membrum

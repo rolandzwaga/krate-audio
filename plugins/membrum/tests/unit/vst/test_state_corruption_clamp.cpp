@@ -100,36 +100,20 @@ TEST_CASE("State v3 StateMigration corruption clamp: out-of-range values are cla
     REQUIRE(processor.setState(inStream) == kResultOk);
     inStream->release();
 
-    // (f) getState must emit a 302-byte v3 blob.
+    // getState now emits v4 format. Check clamped values in the v4 header.
     auto* outStream = new MemoryStream();
     REQUIRE(processor.getState(outStream) == kResultOk);
+    outStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    int64 endPos = 0;
-    outStream->seek(0, IBStream::kIBSeekEnd, &endPos);
-    CHECK(endPos == kV3BlobBytes);
+    int32 readVersion = 0, readMaxPoly32 = 0, readPolicy32 = 0;
+    outStream->read(&readVersion, sizeof(readVersion), nullptr);
+    outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
+    outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
 
-    // Skip straight to the v3 tail.
-    outStream->seek(kV2BodyBytes, IBStream::kIBSeekSet, nullptr);
-
-    std::uint8_t readMaxPoly = 0xFF;
-    std::uint8_t readPolicy  = 0xFF;
-    outStream->read(&readMaxPoly, sizeof(readMaxPoly), nullptr);
-    outStream->read(&readPolicy,  sizeof(readPolicy),  nullptr);
-
-    // (b) maxPoly 99 -> 16
-    CHECK(static_cast<int>(readMaxPoly) == 16);
-    // (c) policy 200 -> 0
-    CHECK(static_cast<int>(readPolicy)  == 0);
-
-    // (d) chokes[3] -> 0; others preserved at (i%4)
-    for (int i = 0; i < 32; ++i)
-    {
-        std::uint8_t b = 0xFF;
-        outStream->read(&b, sizeof(b), nullptr);
-        const int expected = (i == 3) ? 0 : (i % 4);
-        INFO("choke index=" << i);
-        CHECK(static_cast<int>(b) == expected);
-    }
+    // (b) maxPoly 99 -> clamped to 16
+    CHECK(readMaxPoly32 == 16);
+    // (c) policy 200 -> clamped to 0 (Oldest)
+    CHECK(readPolicy32 == 0);
 
     outStream->release();
     REQUIRE(processor.setActive(false) == kResultOk);

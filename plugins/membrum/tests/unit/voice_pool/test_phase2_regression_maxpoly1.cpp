@@ -14,6 +14,7 @@
 
 #include "dsp/drum_voice.h"
 #include "voice_pool/voice_pool.h"
+#include "voice_pool_test_helpers.h"
 
 #include <algorithm>
 #include <cmath>
@@ -55,9 +56,9 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
     pool.prepare(kSampleRate, kBlockSize);
     pool.setMaxPolyphony(1);
     pool.setVoiceStealingPolicy(Membrum::VoiceStealingPolicy::Oldest);
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
-    pool.setSharedExciterType(Membrum::ExciterType::Impulse);
-    pool.setSharedBodyModel(Membrum::BodyModelType::Membrane);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
     pool.noteOn(36, 100.0f / 127.0f);
 
     // Render 500 ms through both paths.

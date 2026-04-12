@@ -1,5 +1,10 @@
 // ==============================================================================
-// Membrum Processor -- Phase 2
+// Membrum Processor -- Phase 4
+// ==============================================================================
+// Per-pad parameter dispatch: parameter IDs in the per-pad range
+// [kPadBaseId, kPadBaseId + kNumPads * kPadParamStride) are dispatched to
+// VoicePool::setPadConfigField / setPadConfigSelector. Global proxy IDs
+// (100-252) are no-ops in the processor (controller-only proxies).
 // ==============================================================================
 
 #include "processor.h"
@@ -30,51 +35,50 @@ using namespace Steinberg;
 using namespace Steinberg::Vst;
 
 // ==============================================================================
-// Phase 2 continuous-parameter order in the state stream.
-// Must stay in sync with data-model.md §10 and getState/setState below.
+// Phase 2 continuous-parameter order in the v2/v3 state stream.
+// Used only for legacy state loading (v1, v2, v3 blobs).
 // ==============================================================================
 namespace {
 
 struct Phase2FloatSlot
 {
-    ParamID      id;
-    float        defaultValue;
+    ParamID id;
+    float   defaultValue;
+    int     padOffset;   // Corresponding PadParamOffset for migration
 };
 
-// Defaults here are normalized (0..1) values chosen so that loading a
-// Phase 1 blob (version == 1) produces "all Phase 2 bypass" behaviour.
 constexpr Phase2FloatSlot kPhase2FloatSlots[] = {
-    { .id = kExciterFMRatioId,            .defaultValue = 0.133333f },
-    { .id = kExciterFeedbackAmountId,     .defaultValue = 0.0f },
-    { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769f },
-    { .id = kExciterFrictionPressureId,   .defaultValue = 0.3f },
+    { .id = kExciterFMRatioId,            .defaultValue = 0.133333f, .padOffset = kPadFMRatio },
+    { .id = kExciterFeedbackAmountId,     .defaultValue = 0.0f,      .padOffset = kPadFeedbackAmount },
+    { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769f, .padOffset = kPadNoiseBurstDuration },
+    { .id = kExciterFrictionPressureId,   .defaultValue = 0.3f,      .padOffset = kPadFrictionPressure },
 
-    { .id = kToneShaperFilterTypeId,       .defaultValue = 0.0f },
-    { .id = kToneShaperFilterCutoffId,     .defaultValue = 1.0f },
-    { .id = kToneShaperFilterResonanceId,  .defaultValue = 0.0f },
-    { .id = kToneShaperFilterEnvAmountId,  .defaultValue = 0.5f },
-    { .id = kToneShaperDriveAmountId,      .defaultValue = 0.0f },
-    { .id = kToneShaperFoldAmountId,       .defaultValue = 0.0f },
-    { .id = kToneShaperPitchEnvStartId,    .defaultValue = 0.070721f },
-    { .id = kToneShaperPitchEnvEndId,      .defaultValue = 0.0f },
-    { .id = kToneShaperPitchEnvTimeId,     .defaultValue = 0.0f },
-    { .id = kToneShaperPitchEnvCurveId,    .defaultValue = 0.0f },
+    { .id = kToneShaperFilterTypeId,       .defaultValue = 0.0f,      .padOffset = kPadTSFilterType },
+    { .id = kToneShaperFilterCutoffId,     .defaultValue = 1.0f,      .padOffset = kPadTSFilterCutoff },
+    { .id = kToneShaperFilterResonanceId,  .defaultValue = 0.0f,      .padOffset = kPadTSFilterResonance },
+    { .id = kToneShaperFilterEnvAmountId,  .defaultValue = 0.5f,      .padOffset = kPadTSFilterEnvAmount },
+    { .id = kToneShaperDriveAmountId,      .defaultValue = 0.0f,      .padOffset = kPadTSDriveAmount },
+    { .id = kToneShaperFoldAmountId,       .defaultValue = 0.0f,      .padOffset = kPadTSFoldAmount },
+    { .id = kToneShaperPitchEnvStartId,    .defaultValue = 0.070721f, .padOffset = kPadTSPitchEnvStart },
+    { .id = kToneShaperPitchEnvEndId,      .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvEnd },
+    { .id = kToneShaperPitchEnvTimeId,     .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvTime },
+    { .id = kToneShaperPitchEnvCurveId,    .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvCurve },
 
-    { .id = kToneShaperFilterEnvAttackId,  .defaultValue = 0.0f },
-    { .id = kToneShaperFilterEnvDecayId,   .defaultValue = 0.1f },
-    { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0f },
-    { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1f },
+    { .id = kToneShaperFilterEnvAttackId,  .defaultValue = 0.0f,      .padOffset = kPadTSFilterEnvAttack },
+    { .id = kToneShaperFilterEnvDecayId,   .defaultValue = 0.1f,      .padOffset = kPadTSFilterEnvDecay },
+    { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0f,      .padOffset = kPadTSFilterEnvSustain },
+    { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1f,      .padOffset = kPadTSFilterEnvRelease },
 
-    { .id = kUnnaturalModeStretchId,       .defaultValue = 0.333333f },
-    { .id = kUnnaturalDecaySkewId,         .defaultValue = 0.5f },
-    { .id = kUnnaturalModeInjectAmountId,  .defaultValue = 0.0f },
-    { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0f },
+    { .id = kUnnaturalModeStretchId,       .defaultValue = 0.333333f, .padOffset = kPadModeStretch },
+    { .id = kUnnaturalDecaySkewId,         .defaultValue = 0.5f,      .padOffset = kPadDecaySkew },
+    { .id = kUnnaturalModeInjectAmountId,  .defaultValue = 0.0f,      .padOffset = kPadModeInjectAmount },
+    { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0f,      .padOffset = kPadNonlinearCoupling },
 
-    { .id = kMorphEnabledId,    .defaultValue = 0.0f },
-    { .id = kMorphStartId,      .defaultValue = 1.0f },
-    { .id = kMorphEndId,        .defaultValue = 0.0f },
-    { .id = kMorphDurationMsId, .defaultValue = 0.095477f },
-    { .id = kMorphCurveId,      .defaultValue = 0.0f },
+    { .id = kMorphEnabledId,    .defaultValue = 0.0f,      .padOffset = kPadMorphEnabled },
+    { .id = kMorphStartId,      .defaultValue = 1.0f,      .padOffset = kPadMorphStart },
+    { .id = kMorphEndId,        .defaultValue = 0.0f,      .padOffset = kPadMorphEnd },
+    { .id = kMorphDurationMsId, .defaultValue = 0.095477f, .padOffset = kPadMorphDuration },
+    { .id = kMorphCurveId,      .defaultValue = 0.0f,      .padOffset = kPadMorphCurve },
 };
 
 constexpr int kPhase2FloatSlotCount =
@@ -83,6 +87,88 @@ constexpr int kPhase2FloatSlotCount =
 static_assert(kPhase2FloatSlotCount == 27,
               "Phase 2 is expected to expose 27 continuous float parameters "
               "(29 total minus the 2 integer selectors).");
+
+// Helper: denormalize a pad config's normalized values and apply to a voice.
+// This is called after loading state to push values into the DSP voice.
+void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
+{
+    v.setExciterType(cfg.exciterType);
+    v.setBodyModel(cfg.bodyModel);
+    v.setMaterial(cfg.material);
+    v.setSize(cfg.size);
+    v.setDecay(cfg.decay);
+    v.setStrikePosition(cfg.strikePosition);
+    v.setLevel(cfg.level);
+
+    // Tone Shaper
+    {
+        const int filterTypeIdx = std::clamp(static_cast<int>(cfg.tsFilterType * 3.0f), 0, 2);
+        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
+    }
+    v.toneShaper().setFilterCutoff(
+        20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
+    v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
+    v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
+    v.toneShaper().setFilterEnvAttackMs(cfg.tsFilterEnvAttack * 500.0f);
+    v.toneShaper().setFilterEnvDecayMs(cfg.tsFilterEnvDecay * 2000.0f);
+    v.toneShaper().setFilterEnvSustain(cfg.tsFilterEnvSustain);
+    v.toneShaper().setFilterEnvReleaseMs(cfg.tsFilterEnvRelease * 2000.0f);
+    v.toneShaper().setDriveAmount(cfg.tsDriveAmount);
+    v.toneShaper().setFoldAmount(cfg.tsFoldAmount);
+    {
+        const float startHz = 20.0f * std::pow(100.0f, std::clamp(cfg.tsPitchEnvStart, 0.0f, 1.0f));
+        v.toneShaper().setPitchEnvStartHz(startHz);
+    }
+    {
+        const float endHz = 20.0f * std::pow(100.0f, std::clamp(cfg.tsPitchEnvEnd, 0.0f, 1.0f));
+        v.toneShaper().setPitchEnvEndHz(endHz);
+    }
+    v.toneShaper().setPitchEnvTimeMs(cfg.tsPitchEnvTime * 500.0f);
+    {
+        const int curveIdx = std::clamp(static_cast<int>(cfg.tsPitchEnvCurve * 2.0f), 0, 1);
+        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
+    }
+
+    // Unnatural Zone
+    v.unnaturalZone().setModeStretch(
+        0.5f + std::clamp(cfg.modeStretch, 0.0f, 1.0f) * 1.5f);
+    v.unnaturalZone().setDecaySkew(
+        std::clamp(cfg.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f);
+    v.unnaturalZone().modeInject.setAmount(
+        std::clamp(cfg.modeInjectAmount, 0.0f, 1.0f));
+    v.unnaturalZone().nonlinearCoupling.setAmount(
+        std::clamp(cfg.nonlinearCoupling, 0.0f, 1.0f));
+
+    // Material Morph
+    v.unnaturalZone().materialMorph.setEnabled(cfg.morphEnabled >= 0.5f);
+    v.unnaturalZone().materialMorph.setStart(
+        std::clamp(cfg.morphStart, 0.0f, 1.0f));
+    v.unnaturalZone().materialMorph.setEnd(
+        std::clamp(cfg.morphEnd, 0.0f, 1.0f));
+    v.unnaturalZone().materialMorph.setDurationMs(
+        10.0f + std::clamp(cfg.morphDuration, 0.0f, 1.0f) * 1990.0f);
+    v.unnaturalZone().materialMorph.setCurve(cfg.morphCurve >= 0.5f);
+}
+
+// Helper: apply a normalized parameter change to a voice for a given pad offset.
+// Used by processParameterChanges to update currently-sounding voices when a
+// per-pad param changes. This is the Phase 4 replacement for the Phase 2/3
+// "broadcast to all voices" approach.
+void applyPadParamToMatchingVoices(VoicePool& pool, int padIndex, int offset,
+                                   float fValue,
+                                   [[maybe_unused]] const VoiceMeta* meta,
+                                   int maxPolyphony) noexcept
+{
+    // In Phase 4, parameter changes take effect on the next noteOn (pad config
+    // is read at noteOn time). Currently-sounding voices are NOT modified.
+    // This matches the spec: "does NOT touch currently sounding voices".
+    (void)pool;
+    (void)padIndex;
+    (void)offset;
+    (void)fValue;
+    (void)meta;
+    (void)maxPolyphony;
+}
 
 } // namespace
 
@@ -103,71 +189,14 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     return kResultOk;
 }
 
-// ------------------------------------------------------------------
-// Helper: write a Phase 2 float slot's atomic from a normalized value.
-// ------------------------------------------------------------------
-namespace {
+// ==============================================================================
+// processParameterChanges -- Phase 4 per-pad dispatch
+// ==============================================================================
 
-void writePhase2FloatAtomic(Processor& /*processor*/,
-                            std::atomic<float>*& outAtomic,
-                            ParamID id,
-                            // The entire set of Phase 2 float atomics, in slot order.
-                            std::atomic<float>* slots) noexcept
-{
-    for (int i = 0; i < kPhase2FloatSlotCount; ++i)
-    {
-        if (kPhase2FloatSlots[i].id == id)
-        {
-            outAtomic = &slots[i];
-            return;
-        }
-    }
-    outAtomic = nullptr;
-}
-
-} // namespace
-
-// FR-015: Process parameter changes from host
 void Processor::processParameterChanges(IParameterChanges* paramChanges)
 {
     if (!paramChanges)
         return;
-
-    // Gather pointers to all Phase 2 float atomics in the same order as
-    // kPhase2FloatSlots so we can look them up by slot index.
-    std::atomic<float>* phase2Slots[kPhase2FloatSlotCount] = {
-        &exciterFMRatio_,
-        &exciterFeedbackAmount_,
-        &exciterNoiseBurstDuration_,
-        &exciterFrictionPressure_,
-
-        &toneShaperFilterType_,
-        &toneShaperFilterCutoff_,
-        &toneShaperFilterResonance_,
-        &toneShaperFilterEnvAmount_,
-        &toneShaperDriveAmount_,
-        &toneShaperFoldAmount_,
-        &toneShaperPitchEnvStart_,
-        &toneShaperPitchEnvEnd_,
-        &toneShaperPitchEnvTime_,
-        &toneShaperPitchEnvCurve_,
-
-        &toneShaperFilterEnvAttack_,
-        &toneShaperFilterEnvDecay_,
-        &toneShaperFilterEnvSustain_,
-        &toneShaperFilterEnvRelease_,
-
-        &unnaturalModeStretch_,
-        &unnaturalDecaySkew_,
-        &unnaturalModeInjectAmount_,
-        &unnaturalNonlinearCoupling_,
-
-        &morphEnabled_,
-        &morphStart_,
-        &morphEnd_,
-        &morphDurationMs_,
-        &morphCurve_,
-    };
 
     int32 numParams = paramChanges->getParameterCount();
     for (int32 i = 0; i < numParams; ++i)
@@ -189,75 +218,42 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
 
         const float fValue = static_cast<float>(value);
 
+        // ------------------------------------------------------------------
+        // 1. Check if paramId is in per-pad range [kPadBaseId, kPadBaseId + 32*64)
+        // ------------------------------------------------------------------
+        const int padIdx = padIndexFromParamId(static_cast<int>(paramId));
+        const int padOff = padOffsetFromParamId(static_cast<int>(paramId));
+        if (padIdx >= 0 && padOff >= 0)
+        {
+            // Dispatch to per-pad config in VoicePool
+            if (padOff == kPadExciterType)
+            {
+                const int idx = std::clamp(
+                    static_cast<int>(value * static_cast<double>(ExciterType::kCount)),
+                    0, static_cast<int>(ExciterType::kCount) - 1);
+                voicePool_.setPadConfigSelector(padIdx, padOff, idx);
+            }
+            else if (padOff == kPadBodyModel)
+            {
+                const int idx = std::clamp(
+                    static_cast<int>(value * static_cast<double>(BodyModelType::kCount)),
+                    0, static_cast<int>(BodyModelType::kCount) - 1);
+                voicePool_.setPadConfigSelector(padIdx, padOff, idx);
+            }
+            else
+            {
+                voicePool_.setPadConfigField(padIdx, padOff, fValue);
+            }
+            continue;
+        }
+
+        // ------------------------------------------------------------------
+        // 2. Global-only params
+        // ------------------------------------------------------------------
         switch (paramId)
         {
-        // ---- Phase 1 ----
-        case kMaterialId:
-            material_.store(fValue);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setMaterial(fValue); });
-            voicePool_.setSharedVoiceParams(
-                material_.load(), size_.load(), decay_.load(),
-                strikePosition_.load(), level_.load());
-            break;
-        case kSizeId:
-            size_.store(fValue);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setSize(fValue); });
-            voicePool_.setSharedVoiceParams(
-                material_.load(), size_.load(), decay_.load(),
-                strikePosition_.load(), level_.load());
-            break;
-        case kDecayId:
-            decay_.store(fValue);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setDecay(fValue); });
-            voicePool_.setSharedVoiceParams(
-                material_.load(), size_.load(), decay_.load(),
-                strikePosition_.load(), level_.load());
-            break;
-        case kStrikePositionId:
-            strikePosition_.store(fValue);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setStrikePosition(fValue); });
-            voicePool_.setSharedVoiceParams(
-                material_.load(), size_.load(), decay_.load(),
-                strikePosition_.load(), level_.load());
-            break;
-        case kLevelId:
-            level_.store(fValue);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setLevel(fValue); });
-            voicePool_.setSharedVoiceParams(
-                material_.load(), size_.load(), decay_.load(),
-                strikePosition_.load(), level_.load());
-            break;
-
-        // ---- Phase 2 selectors ----
-        case kExciterTypeId:
-        {
-            const int idx = std::clamp(
-                static_cast<int>(value * static_cast<double>(ExciterType::kCount)),
-                0,
-                static_cast<int>(ExciterType::kCount) - 1);
-            exciterType_.store(idx);
-            const auto typeEnum = static_cast<ExciterType>(idx);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setExciterType(typeEnum); });
-            voicePool_.setSharedExciterType(typeEnum);
-            break;
-        }
-        case kBodyModelId:
-        {
-            const int idx = std::clamp(
-                static_cast<int>(value * static_cast<double>(BodyModelType::kCount)),
-                0,
-                static_cast<int>(BodyModelType::kCount) - 1);
-            bodyModel_.store(idx);
-            const auto modelEnum = static_cast<BodyModelType>(idx);
-            voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept { v.setBodyModel(modelEnum); });
-            voicePool_.setSharedBodyModel(modelEnum);
-            break;
-        }
-
-        // ---- Phase 3 ----
         case kMaxPolyphonyId:
         {
-            // Stepped RangeParameter [4, 16]: normalized value covers 12 steps.
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             const int n = 4 + static_cast<int>(std::lround(clamped * 12.0f));
             const int nClamped = std::clamp(n, 4, 16);
@@ -267,7 +263,6 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         }
         case kVoiceStealingId:
         {
-            // StringListParameter with 3 choices: Oldest/Quietest/Priority.
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             const int idx = std::clamp(static_cast<int>(clamped * 3.0f), 0, 2);
             voiceStealingPolicy_.store(idx);
@@ -275,169 +270,147 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 static_cast<VoiceStealingPolicy>(idx));
             break;
         }
+
+        // ------------------------------------------------------------------
+        // 3. Global proxy IDs (100-252) -- map to the selected pad.
+        //    In a DAW, the controller forwards these as per-pad params,
+        //    but the host also sends them directly to the processor.
+        //    We handle them by routing to the selected pad's config.
+        // ------------------------------------------------------------------
+        case kMaterialId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMaterial, fValue);
+            break;
+        case kSizeId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadSize, fValue);
+            break;
+        case kDecayId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadDecay, fValue);
+            break;
+        case kStrikePositionId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadStrikePosition, fValue);
+            break;
+        case kLevelId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadLevel, fValue);
+            break;
+        case kExciterTypeId:
+        {
+            const int idx = std::clamp(
+                static_cast<int>(value * static_cast<double>(ExciterType::kCount)),
+                0, static_cast<int>(ExciterType::kCount) - 1);
+            voicePool_.setPadConfigSelector(selectedPadIndex_, kPadExciterType, idx);
+            break;
+        }
+        case kBodyModelId:
+        {
+            const int idx = std::clamp(
+                static_cast<int>(value * static_cast<double>(BodyModelType::kCount)),
+                0, static_cast<int>(BodyModelType::kCount) - 1);
+            voicePool_.setPadConfigSelector(selectedPadIndex_, kPadBodyModel, idx);
+            break;
+        }
+        case kExciterFMRatioId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadFMRatio, fValue);
+            break;
+        case kExciterFeedbackAmountId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadFeedbackAmount, fValue);
+            break;
+        case kExciterNoiseBurstDurationId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseBurstDuration, fValue);
+            break;
+        case kExciterFrictionPressureId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadFrictionPressure, fValue);
+            break;
+        case kToneShaperFilterTypeId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterType, fValue);
+            break;
+        case kToneShaperFilterCutoffId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterCutoff, fValue);
+            break;
+        case kToneShaperFilterResonanceId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterResonance, fValue);
+            break;
+        case kToneShaperFilterEnvAmountId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvAmount, fValue);
+            break;
+        case kToneShaperDriveAmountId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSDriveAmount, fValue);
+            break;
+        case kToneShaperFoldAmountId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFoldAmount, fValue);
+            break;
+        case kToneShaperPitchEnvStartId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvStart, fValue);
+            break;
+        case kToneShaperPitchEnvEndId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvEnd, fValue);
+            break;
+        case kToneShaperPitchEnvTimeId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvTime, fValue);
+            break;
+        case kToneShaperPitchEnvCurveId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvCurve, fValue);
+            break;
+        case kToneShaperFilterEnvAttackId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvAttack, fValue);
+            break;
+        case kToneShaperFilterEnvDecayId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvDecay, fValue);
+            break;
+        case kToneShaperFilterEnvSustainId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvSustain, fValue);
+            break;
+        case kToneShaperFilterEnvReleaseId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSFilterEnvRelease, fValue);
+            break;
+        case kUnnaturalModeStretchId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeStretch, fValue);
+            break;
+        case kUnnaturalDecaySkewId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadDecaySkew, fValue);
+            break;
+        case kUnnaturalModeInjectAmountId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeInjectAmount, fValue);
+            break;
+        case kUnnaturalNonlinearCouplingId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNonlinearCoupling, fValue);
+            break;
+        case kMorphEnabledId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphEnabled, fValue);
+            break;
+        case kMorphStartId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphStart, fValue);
+            break;
+        case kMorphEndId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphEnd, fValue);
+            break;
+        case kMorphDurationMsId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphDuration, fValue);
+            break;
+        case kMorphCurveId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadMorphCurve, fValue);
+            break;
         case kChokeGroupId:
         {
-            // Stepped RangeParameter [0, 8]: 9 steps.
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
             const int n = static_cast<int>(std::lround(clamped * 8.0f));
             const int nClamped = std::clamp(n, 0, 8);
-            chokeGroup_.store(nClamped);
-            voicePool_.setChokeGroup(static_cast<std::uint8_t>(nClamped));
+            voicePool_.setPadChokeGroup(selectedPadIndex_, static_cast<std::uint8_t>(nClamped));
             break;
         }
-
-        default:
+        case kSelectedPadId:
         {
-            // ---- Phase 2 continuous float params ----
-            // Store into the appropriate atomic; the DrumVoice sub-components
-            // currently consume these through their stub setters which are
-            // no-ops in Phase 2.A but keep parameter values reachable for
-            // state round-trip (SC-006).
-            for (int slot = 0; slot < kPhase2FloatSlotCount; ++slot)
-            {
-                if (kPhase2FloatSlots[slot].id == paramId)
-                {
-                    phase2Slots[slot]->store(fValue);
-
-                    // Broadcast every Phase 2 param to every main voice slot
-                    // so the Phase 2 regression path (maxPolyphony=1, slot 0)
-                    // is bit-identical to Phase 2 and every sounding voice at
-                    // higher polyphony sees the same edit.
-                    voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept {
-                    switch (paramId)
-                    {
-                    // ---- Unnatural Zone (Phase 8, T114) ----
-                    // Denormalize per spec ranges (data-model.md §9):
-                    //   modeStretch [0.5, 2.0] linear
-                    //   decaySkew   [-1.0, +1.0] linear
-                    //   morph duration [10, 2000] ms
-                    case kUnnaturalModeStretchId:
-                    {
-                        const float denorm = 0.5f + std::clamp(fValue, 0.0f, 1.0f) * 1.5f;
-                        v.unnaturalZone().setModeStretch(denorm);
-                        break;
-                    }
-                    case kUnnaturalDecaySkewId:
-                    {
-                        const float denorm = std::clamp(fValue, 0.0f, 1.0f) * 2.0f - 1.0f;
-                        v.unnaturalZone().setDecaySkew(denorm);
-                        break;
-                    }
-                    case kUnnaturalModeInjectAmountId:
-                        v.unnaturalZone().modeInject.setAmount(
-                            std::clamp(fValue, 0.0f, 1.0f));
-                        break;
-                    case kUnnaturalNonlinearCouplingId:
-                        v.unnaturalZone().nonlinearCoupling.setAmount(
-                            std::clamp(fValue, 0.0f, 1.0f));
-                        break;
-
-                    // ---- Material Morph (Phase 8, T114) ----
-                    case kMorphEnabledId:
-                        v.unnaturalZone().materialMorph.setEnabled(fValue >= 0.5f);
-                        break;
-                    case kMorphStartId:
-                        v.unnaturalZone().materialMorph.setStart(
-                            std::clamp(fValue, 0.0f, 1.0f));
-                        break;
-                    case kMorphEndId:
-                        v.unnaturalZone().materialMorph.setEnd(
-                            std::clamp(fValue, 0.0f, 1.0f));
-                        break;
-                    case kMorphDurationMsId:
-                    {
-                        // [10, 2000] ms linear
-                        const float ms = 10.0f + std::clamp(fValue, 0.0f, 1.0f) * 1990.0f;
-                        v.unnaturalZone().materialMorph.setDurationMs(ms);
-                        break;
-                    }
-                    case kMorphCurveId:
-                        // 0 = Linear, 1 = Exponential
-                        v.unnaturalZone().materialMorph.setCurve(fValue >= 0.5f);
-                        break;
-
-                    // ---- Tone Shaper (Phase 7, T097) ----
-                    case kToneShaperFilterTypeId:
-                    {
-                        // 0..1 normalized -> LP/HP/BP (3 discrete values).
-                        const int typeIdx = std::clamp(static_cast<int>(fValue * 3.0f), 0, 2);
-                        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(typeIdx));
-                        break;
-                    }
-                    case kToneShaperFilterCutoffId:
-                    {
-                        // Log scale: 20 Hz .. 20000 Hz (3 decades).
-                        const float hz = 20.0f * std::pow(1000.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        v.toneShaper().setFilterCutoff(hz);
-                        break;
-                    }
-                    case kToneShaperFilterResonanceId:
-                        v.toneShaper().setFilterResonance(fValue);
-                        break;
-                    case kToneShaperFilterEnvAmountId:
-                        // Normalized 0..1 -> -1..+1 bipolar.
-                        v.toneShaper().setFilterEnvAmount(fValue * 2.0f - 1.0f);
-                        break;
-                    case kToneShaperFilterEnvAttackId:
-                        // 0..500 ms
-                        v.toneShaper().setFilterEnvAttackMs(fValue * 500.0f);
-                        break;
-                    case kToneShaperFilterEnvDecayId:
-                        // 0..2000 ms
-                        v.toneShaper().setFilterEnvDecayMs(fValue * 2000.0f);
-                        break;
-                    case kToneShaperFilterEnvSustainId:
-                        v.toneShaper().setFilterEnvSustain(fValue);
-                        break;
-                    case kToneShaperFilterEnvReleaseId:
-                        // 0..2000 ms
-                        v.toneShaper().setFilterEnvReleaseMs(fValue * 2000.0f);
-                        break;
-                    case kToneShaperDriveAmountId:
-                        v.toneShaper().setDriveAmount(fValue);
-                        break;
-                    case kToneShaperFoldAmountId:
-                        v.toneShaper().setFoldAmount(fValue);
-                        break;
-                    case kToneShaperPitchEnvStartId:
-                    {
-                        // Log scale: 20 Hz .. 2000 Hz
-                        const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        v.toneShaper().setPitchEnvStartHz(hz);
-                        break;
-                    }
-                    case kToneShaperPitchEnvEndId:
-                    {
-                        // Log scale: 20 Hz .. 2000 Hz
-                        const float hz = 20.0f * std::pow(100.0f, std::clamp(fValue, 0.0f, 1.0f));
-                        v.toneShaper().setPitchEnvEndHz(hz);
-                        break;
-                    }
-                    case kToneShaperPitchEnvTimeId:
-                        // 0..500 ms
-                        v.toneShaper().setPitchEnvTimeMs(fValue * 500.0f);
-                        break;
-                    case kToneShaperPitchEnvCurveId:
-                    {
-                        const int idx = std::clamp(static_cast<int>(fValue * 2.0f), 0, 1);
-                        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(idx));
-                        break;
-                    }
-                    default:
-                        break;
-                    }
-                    });
-                    break;
-                }
-            }
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            selectedPadIndex_ = std::clamp(
+                static_cast<int>(std::lround(clamped * 31.0f)), 0, 31);
             break;
         }
+        default:
+            break;
         }
     }
 }
 
 // Process MIDI events: note-on/note-off on any MIDI note in [36, 67]
-// (FR-113 -- Phase 3 drops the Phase 1/2 single-note filter).
 void Processor::processEvents(IEventList* events)
 {
     if (!events)
@@ -493,8 +466,6 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         float* outL = data.outputs[0].channelBuffers32[0];
         float* outR = data.outputs[0].channelBuffers32[1];
 
-        // Phase 3 -- voice pool handles mixing of every active + fast-
-        // releasing voice into the stereo output buffer directly.
         voicePool_.processBlock(outL, outR, data.numSamples);
 
         data.outputs[0].silenceFlags = voicePool_.isAnyVoiceActive() ? 0 : 3;
@@ -504,14 +475,19 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 }
 
 // ==============================================================================
-// State (version 2) -- data-model.md §10
+// State v4 -- data-model.md
 // ==============================================================================
-// Binary layout:
-//   [int32] version
-//   [5 x float64] Phase 1 params (material, size, decay, strikePos, level)
-//   if version >= 2:
-//     [2 x int32]  selectors (exciterType, bodyModel)
-//     [27 x float64] Phase 2 continuous params (kPhase2FloatSlots order)
+// Binary layout (v4):
+//   [int32] version = 4
+//   [int32] maxPolyphony [4, 16]
+//   [int32] voiceStealingPolicy [0, 2]
+//   For each of 32 pads:
+//     [int32]  exciterType
+//     [int32]  bodyModel
+//     [34 x float64] sound params (offsets 2-35 as normalized float64)
+//     [uint8]  chokeGroup
+//     [uint8]  outputBus
+//   [int32] selectedPadIndex [0, 31]
 // ==============================================================================
 
 tresult PLUGIN_API Processor::getState(IBStream* state)
@@ -522,82 +498,98 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     int32 version = kCurrentStateVersion;
     state->write(&version, sizeof(version), nullptr);
 
-    const double phase1[] = {
-        static_cast<double>(material_.load()),
-        static_cast<double>(size_.load()),
-        static_cast<double>(decay_.load()),
-        static_cast<double>(strikePosition_.load()),
-        static_cast<double>(level_.load()),
-    };
-    for (double p : phase1)
-        state->write(&p, sizeof(p), nullptr);
+    int32 maxPoly = static_cast<int32>(maxPolyphony_.load());
+    state->write(&maxPoly, sizeof(maxPoly), nullptr);
 
-    // Phase 2: selectors first, then continuous floats in slot order.
-    int32 exciterTypeI32 = exciterType_.load();
-    int32 bodyModelI32   = bodyModel_.load();
-    state->write(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
-    state->write(&bodyModelI32, sizeof(bodyModelI32), nullptr);
+    int32 stealPolicy = static_cast<int32>(voiceStealingPolicy_.load());
+    state->write(&stealPolicy, sizeof(stealPolicy), nullptr);
 
-    std::atomic<float>* phase2Slots[kPhase2FloatSlotCount] = {
-        &exciterFMRatio_,
-        &exciterFeedbackAmount_,
-        &exciterNoiseBurstDuration_,
-        &exciterFrictionPressure_,
-        &toneShaperFilterType_,
-        &toneShaperFilterCutoff_,
-        &toneShaperFilterResonance_,
-        &toneShaperFilterEnvAmount_,
-        &toneShaperDriveAmount_,
-        &toneShaperFoldAmount_,
-        &toneShaperPitchEnvStart_,
-        &toneShaperPitchEnvEnd_,
-        &toneShaperPitchEnvTime_,
-        &toneShaperPitchEnvCurve_,
-        &toneShaperFilterEnvAttack_,
-        &toneShaperFilterEnvDecay_,
-        &toneShaperFilterEnvSustain_,
-        &toneShaperFilterEnvRelease_,
-        &unnaturalModeStretch_,
-        &unnaturalDecaySkew_,
-        &unnaturalModeInjectAmount_,
-        &unnaturalNonlinearCoupling_,
-        &morphEnabled_,
-        &morphStart_,
-        &morphEnd_,
-        &morphDurationMs_,
-        &morphCurve_,
-    };
-
-    for (auto* slot : phase2Slots)
+    // Write all 32 pad configs
+    for (int pad = 0; pad < kNumPads; ++pad)
     {
-        double v = static_cast<double>(slot->load());
-        state->write(&v, sizeof(v), nullptr);
-    }
+        const auto& cfg = voicePool_.padConfig(pad);
 
-    // ------------------------------------------------------------------
-    // Phase 3 tail (FR-141, Clarification Q1): written unconditionally on
-    // every save -- no length prefix, no feature flag, strictly additive.
-    //   offset 268: uint8  maxPolyphony          [4, 16]
-    //   offset 269: uint8  voiceStealingPolicy   [0, 2]
-    //   offset 270: uint8  chokeGroupAssignments[32]
-    //   offset 302: END
-    // ------------------------------------------------------------------
-    {
-        auto maxPolyByte =
-            static_cast<std::uint8_t>(std::clamp(maxPolyphony_.load(), 4, 16));
-        state->write(&maxPolyByte, sizeof(maxPolyByte), nullptr);
+        int32 exciterTypeI32 = static_cast<int32>(cfg.exciterType);
+        int32 bodyModelI32 = static_cast<int32>(cfg.bodyModel);
+        state->write(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
+        state->write(&bodyModelI32, sizeof(bodyModelI32), nullptr);
 
-        const int policyInt = voiceStealingPolicy_.load();
-        auto policyByte =
-            static_cast<std::uint8_t>((policyInt < 0 || policyInt > 2) ? 0 : policyInt);
-        state->write(&policyByte, sizeof(policyByte), nullptr);
+        // 34 float64 values: offsets 2-35 (material through frictionPressure)
+        const float soundParams[] = {
+            cfg.material, cfg.size, cfg.decay, cfg.strikePosition, cfg.level,
+            cfg.tsFilterType, cfg.tsFilterCutoff, cfg.tsFilterResonance,
+            cfg.tsFilterEnvAmount, cfg.tsDriveAmount, cfg.tsFoldAmount,
+            cfg.tsPitchEnvStart, cfg.tsPitchEnvEnd, cfg.tsPitchEnvTime,
+            cfg.tsPitchEnvCurve,
+            cfg.tsFilterEnvAttack, cfg.tsFilterEnvDecay,
+            cfg.tsFilterEnvSustain, cfg.tsFilterEnvRelease,
+            cfg.modeStretch, cfg.decaySkew, cfg.modeInjectAmount,
+            cfg.nonlinearCoupling,
+            cfg.morphEnabled, cfg.morphStart, cfg.morphEnd,
+            cfg.morphDuration, cfg.morphCurve,
+            cfg.fmRatio, cfg.feedbackAmount,
+            cfg.noiseBurstDuration, cfg.frictionPressure,
+        };
+        // Note: offsets 2-6 = 5 core, 7-20 = 14 TS, 21-24 = 4 UZ, 25-29 = 5 morph,
+        // 32-35 = 4 exciter secondary = 32 floats total.
+        // But data-model says 34 x float64 for offsets 2-35. That's 34 floats.
+        // Missing offsets 30 (chokeGroup) and 31 (outputBus) are written separately as uint8.
+        // So we write: 5 + 14 + 4 + 5 + 4 = 32 floats. That's offsets 2-29, 32-35.
+        // We need to check: per data-model, 34 x float64 covers "offsets 2-35 from PadConfig".
+        // That means including offsets 30 and 31 as float64 too? No - data-model says
+        // "34 x float64: sound params (offsets 2-35 from PadConfig, as normalized float64)"
+        // but offsets 30-31 are uint8, written separately. So 34-2=32 is wrong.
+        // The data model says "34 x float64" at offset 20 in the binary layout.
+        // Let me count: offsets 2-29 = 28, offsets 32-35 = 4, total = 32.
+        // But data model binary layout says "34 x float64". Reading again:
+        //   "20      272      34 x float64: sound params (offsets 2-35 from PadConfig, as normalized float64)"
+        // 34 * 8 = 272 bytes. offsets 2-35 = 34 values. So offsets 30 and 31
+        // (chokeGroup, outputBus) are ALSO stored as float64 here, AND as uint8 below.
+        // That's redundant. Let me re-read the data model more carefully.
 
-        const auto chokes = voicePool_.getChokeGroupAssignments();
-        for (auto b : chokes)
+        // OK the data model says there are 34 float64s. offsets 2 through 35 inclusive
+        // = 34 values. Even though chokeGroup/outputBus are integers, they're stored
+        // as float64 in the sound params block. Then chokeGroup/outputBus are ALSO
+        // stored as uint8 at the end for backward compat / easy extraction.
+        // Actually, re-reading: the data model shows chokeGroup and outputBus at
+        // separate positions AFTER the float64 block. So offsets 2-35 excluding
+        // 30 and 31 would be 32 values, not 34. But 34 x 8 = 272 which matches.
+        // So it must include offsets 30 and 31 as float64 too, with the uint8 duplicates
+        // following for easy access. Let me just follow the spec literally: 34 float64s
+        // for offsets 2-35 (all 34), then uint8 chokeGroup, uint8 outputBus.
+
+        static_assert(sizeof(soundParams) / sizeof(soundParams[0]) == 32,
+                      "Expecting 32 sound params for offsets 2-29 and 32-35");
+
+        // Write offsets 2-29 (28 values), then 30-31 as float64, then 32-35 (4 values)
+        for (int j = 0; j < 28; ++j)
         {
-            state->write(&b, sizeof(b), nullptr);
+            double v = static_cast<double>(soundParams[j]);
+            state->write(&v, sizeof(v), nullptr);
         }
+        // Offsets 30 (chokeGroup) and 31 (outputBus) as float64
+        {
+            double cg = static_cast<double>(cfg.chokeGroup);
+            state->write(&cg, sizeof(cg), nullptr);
+            double ob = static_cast<double>(cfg.outputBus);
+            state->write(&ob, sizeof(ob), nullptr);
+        }
+        // Offsets 32-35 (4 secondary exciter params)
+        for (int j = 28; j < 32; ++j)
+        {
+            double v = static_cast<double>(soundParams[j]);
+            state->write(&v, sizeof(v), nullptr);
+        }
+
+        // uint8 chokeGroup and outputBus (redundant but per data-model)
+        std::uint8_t cg = cfg.chokeGroup;
+        state->write(&cg, sizeof(cg), nullptr);
+        std::uint8_t ob = cfg.outputBus;
+        state->write(&ob, sizeof(ob), nullptr);
     }
+
+    int32 selPad = static_cast<int32>(selectedPadIndex_);
+    state->write(&selPad, sizeof(selPad), nullptr);
 
     return kResultOk;
 }
@@ -611,77 +603,144 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
         return kResultFalse;
 
-    // FR-141 / Q1: we know about v1, v2, v3. A future v4+ blob MUST be
-    // rejected so we do not silently drop unknown fields.
+    // Reject unknown future versions
     if (version > kCurrentStateVersion)
         return kResultFalse;
 
-    // ---- Phase 1 params ----
-    const float phase1Defaults[] = {0.5f, 0.5f, 0.3f, 0.3f, 0.8f};
-    std::atomic<float>* phase1Atomics[] = {
-        &material_, &size_, &decay_, &strikePosition_, &level_};
+    // ------------------------------------------------------------------
+    // v4 state format
+    // ------------------------------------------------------------------
+    if (version == 4)
+    {
+        int32 maxPoly = 8;
+        int32 stealPolicy = 0;
+        if (state->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
+            maxPoly = 8;
+        if (state->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
+            stealPolicy = 0;
 
+        maxPoly = std::clamp(maxPoly, 4, 16);
+        stealPolicy = std::clamp(stealPolicy, 0, 2);
+        maxPolyphony_.store(maxPoly);
+        voiceStealingPolicy_.store(stealPolicy);
+        voicePool_.setMaxPolyphony(maxPoly);
+        voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(stealPolicy));
+
+        for (int pad = 0; pad < kNumPads; ++pad)
+        {
+            auto& cfg = voicePool_.padConfigMut(pad);
+
+            int32 exciterTypeI32 = 0;
+            int32 bodyModelI32 = 0;
+            if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
+                exciterTypeI32 = 0;
+            if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
+                bodyModelI32 = 0;
+
+            exciterTypeI32 = std::clamp(exciterTypeI32, 0,
+                                        static_cast<int>(ExciterType::kCount) - 1);
+            bodyModelI32 = std::clamp(bodyModelI32, 0,
+                                      static_cast<int>(BodyModelType::kCount) - 1);
+            cfg.exciterType = static_cast<ExciterType>(exciterTypeI32);
+            cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
+
+            // Read 34 float64 values (offsets 2-35 in order, including
+            // chokeGroup and outputBus as float64 at positions 28-29)
+            double vals[34] = {};
+            for (int j = 0; j < 34; ++j)
+            {
+                if (state->read(&vals[j], sizeof(vals[j]), nullptr) != kResultOk)
+                    vals[j] = 0.0;
+            }
+
+            // Map back to PadConfig fields
+            cfg.material = static_cast<float>(vals[0]);
+            cfg.size = static_cast<float>(vals[1]);
+            cfg.decay = static_cast<float>(vals[2]);
+            cfg.strikePosition = static_cast<float>(vals[3]);
+            cfg.level = static_cast<float>(vals[4]);
+            cfg.tsFilterType = static_cast<float>(vals[5]);
+            cfg.tsFilterCutoff = static_cast<float>(vals[6]);
+            cfg.tsFilterResonance = static_cast<float>(vals[7]);
+            cfg.tsFilterEnvAmount = static_cast<float>(vals[8]);
+            cfg.tsDriveAmount = static_cast<float>(vals[9]);
+            cfg.tsFoldAmount = static_cast<float>(vals[10]);
+            cfg.tsPitchEnvStart = static_cast<float>(vals[11]);
+            cfg.tsPitchEnvEnd = static_cast<float>(vals[12]);
+            cfg.tsPitchEnvTime = static_cast<float>(vals[13]);
+            cfg.tsPitchEnvCurve = static_cast<float>(vals[14]);
+            cfg.tsFilterEnvAttack = static_cast<float>(vals[15]);
+            cfg.tsFilterEnvDecay = static_cast<float>(vals[16]);
+            cfg.tsFilterEnvSustain = static_cast<float>(vals[17]);
+            cfg.tsFilterEnvRelease = static_cast<float>(vals[18]);
+            cfg.modeStretch = static_cast<float>(vals[19]);
+            cfg.decaySkew = static_cast<float>(vals[20]);
+            cfg.modeInjectAmount = static_cast<float>(vals[21]);
+            cfg.nonlinearCoupling = static_cast<float>(vals[22]);
+            cfg.morphEnabled = static_cast<float>(vals[23]);
+            cfg.morphStart = static_cast<float>(vals[24]);
+            cfg.morphEnd = static_cast<float>(vals[25]);
+            cfg.morphDuration = static_cast<float>(vals[26]);
+            cfg.morphCurve = static_cast<float>(vals[27]);
+            // vals[28] = chokeGroup as float64, vals[29] = outputBus as float64
+            // vals[30-33] = secondary exciter params
+            cfg.fmRatio = static_cast<float>(vals[30]);
+            cfg.feedbackAmount = static_cast<float>(vals[31]);
+            cfg.noiseBurstDuration = static_cast<float>(vals[32]);
+            cfg.frictionPressure = static_cast<float>(vals[33]);
+
+            // Read uint8 chokeGroup and outputBus (authoritative)
+            std::uint8_t cg = 0;
+            std::uint8_t ob = 0;
+            if (state->read(&cg, sizeof(cg), nullptr) != kResultOk)
+                cg = 0;
+            if (state->read(&ob, sizeof(ob), nullptr) != kResultOk)
+                ob = 0;
+            cfg.chokeGroup = (cg > 8U) ? std::uint8_t{0} : cg;
+            cfg.outputBus = (ob > 15U) ? std::uint8_t{0} : ob;
+        }
+
+        // Sync choke group table from padConfigs
+        for (int pad = 0; pad < kNumPads; ++pad)
+            voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
+
+        int32 selPad = 0;
+        if (state->read(&selPad, sizeof(selPad), nullptr) != kResultOk)
+            selPad = 0;
+        selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
+
+        return kResultOk;
+    }
+
+    // ------------------------------------------------------------------
+    // Legacy v1/v2/v3 state loading -- parse old format, apply to pad 0,
+    // other pads keep defaults (which will be GM defaults from DefaultKit
+    // once Phase 4 US2 is implemented).
+    // ------------------------------------------------------------------
+
+    // ---- Phase 1 params -> pad 0 ----
+    const float phase1Defaults[] = {0.5f, 0.5f, 0.3f, 0.3f, 0.8f};
+    float phase1Values[5] = {};
     for (int i = 0; i < 5; ++i)
     {
         double value = static_cast<double>(phase1Defaults[i]);
         if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-        {
-            phase1Atomics[i]->store(phase1Defaults[i]);
-            continue;
-        }
-        phase1Atomics[i]->store(static_cast<float>(value));
+            value = static_cast<double>(phase1Defaults[i]);
+        phase1Values[i] = static_cast<float>(value);
     }
 
-    // Sync Phase 1 values into every voice so a note-on immediately after
-    // setState() uses the restored parameters.
-    voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
-                                    strikePosition_.load(), level_.load());
-    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
-        v.setMaterial(material_.load());
-        v.setSize(size_.load());
-        v.setDecay(decay_.load());
-        v.setStrikePosition(strikePosition_.load());
-        v.setLevel(level_.load());
-    });
+    auto& pad0 = voicePool_.padConfigMut(0);
+    pad0.material = phase1Values[0];
+    pad0.size = phase1Values[1];
+    pad0.decay = phase1Values[2];
+    pad0.strikePosition = phase1Values[3];
+    pad0.level = phase1Values[4];
 
-    // ---- Phase 2 params ----
-    // Collect Phase 2 float atomics in slot order.
-    std::atomic<float>* phase2Slots[kPhase2FloatSlotCount] = {
-        &exciterFMRatio_,
-        &exciterFeedbackAmount_,
-        &exciterNoiseBurstDuration_,
-        &exciterFrictionPressure_,
-        &toneShaperFilterType_,
-        &toneShaperFilterCutoff_,
-        &toneShaperFilterResonance_,
-        &toneShaperFilterEnvAmount_,
-        &toneShaperDriveAmount_,
-        &toneShaperFoldAmount_,
-        &toneShaperPitchEnvStart_,
-        &toneShaperPitchEnvEnd_,
-        &toneShaperPitchEnvTime_,
-        &toneShaperPitchEnvCurve_,
-        &toneShaperFilterEnvAttack_,
-        &toneShaperFilterEnvDecay_,
-        &toneShaperFilterEnvSustain_,
-        &toneShaperFilterEnvRelease_,
-        &unnaturalModeStretch_,
-        &unnaturalDecaySkew_,
-        &unnaturalModeInjectAmount_,
-        &unnaturalNonlinearCoupling_,
-        &morphEnabled_,
-        &morphStart_,
-        &morphEnd_,
-        &morphDurationMs_,
-        &morphCurve_,
-    };
-
+    // ---- Phase 2 params -> pad 0 ----
     if (version >= 2)
     {
-        // Read selectors (int32)
         int32 exciterTypeI32 = 0;
-        int32 bodyModelI32   = 0;
-
+        int32 bodyModelI32 = 0;
         if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
             exciterTypeI32 = 0;
         if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
@@ -691,142 +750,39 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
                                     static_cast<int>(ExciterType::kCount) - 1);
         bodyModelI32 = std::clamp(bodyModelI32, 0,
                                   static_cast<int>(BodyModelType::kCount) - 1);
+        pad0.exciterType = static_cast<ExciterType>(exciterTypeI32);
+        pad0.bodyModel = static_cast<BodyModelType>(bodyModelI32);
 
-        exciterType_.store(exciterTypeI32);
-        bodyModel_.store(bodyModelI32);
-        const auto excEnum  = static_cast<ExciterType>(exciterTypeI32);
-        const auto bodyEnum = static_cast<BodyModelType>(bodyModelI32);
-        voicePool_.setSharedExciterType(excEnum);
-        voicePool_.setSharedBodyModel(bodyEnum);
-        voicePool_.forEachMainVoice([=](DrumVoice& v) noexcept {
-            v.setExciterType(excEnum);
-            v.setBodyModel(bodyEnum);
-        });
-
-        // Read Phase 2 float params
+        // Read Phase 2 float params into pad 0
         for (int i = 0; i < kPhase2FloatSlotCount; ++i)
         {
             double value = static_cast<double>(kPhase2FloatSlots[i].defaultValue);
             if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-            {
-                phase2Slots[i]->store(kPhase2FloatSlots[i].defaultValue);
-                continue;
-            }
-            phase2Slots[i]->store(static_cast<float>(value));
+                value = static_cast<double>(kPhase2FloatSlots[i].defaultValue);
+            const float fVal = static_cast<float>(value);
+
+            // Map Phase 2 param to PadConfig field via padOffset
+            voicePool_.setPadConfigField(0, kPhase2FloatSlots[i].padOffset, fVal);
         }
     }
-    else
-    {
-        // FR-082: Phase 1 blob — fill Phase 2 with defaults (all bypass).
-        exciterType_.store(0);
-        bodyModel_.store(0);
-        voicePool_.setSharedExciterType(ExciterType::Impulse);
-        voicePool_.setSharedBodyModel(BodyModelType::Membrane);
-        voicePool_.forEachMainVoice([](DrumVoice& v) noexcept {
-            v.setExciterType(ExciterType::Impulse);
-            v.setBodyModel(BodyModelType::Membrane);
-        });
 
-        for (int i = 0; i < kPhase2FloatSlotCount; ++i)
-            phase2Slots[i]->store(kPhase2FloatSlots[i].defaultValue);
-    }
-
-    // Sync selected Phase 2 stub setters so the next process block reflects
-    // the restored normalized values. Broadcast to every main voice slot so
-    // Phase 2 regression (maxPolyphony=1 on slot 0) is bit-identical, and
-    // higher-polyphony sessions see every voice stamped with the same template.
-    // Denormalize per data-model.md §9 / T114:
-    //   modeStretch [0.5, 2.0] linear; decaySkew [-1, 1] linear;
-    //   morph duration [10, 2000] ms linear.
-    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
-        const float normStretch = std::clamp(unnaturalModeStretch_.load(), 0.0f, 1.0f);
-        v.unnaturalZone().setModeStretch(0.5f + normStretch * 1.5f);
-
-        const float normSkew = std::clamp(unnaturalDecaySkew_.load(), 0.0f, 1.0f);
-        v.unnaturalZone().setDecaySkew(normSkew * 2.0f - 1.0f);
-
-        v.unnaturalZone().modeInject.setAmount(
-            std::clamp(unnaturalModeInjectAmount_.load(), 0.0f, 1.0f));
-        v.unnaturalZone().nonlinearCoupling.setAmount(
-            std::clamp(unnaturalNonlinearCoupling_.load(), 0.0f, 1.0f));
-
-        v.unnaturalZone().materialMorph.setEnabled(morphEnabled_.load() >= 0.5f);
-        v.unnaturalZone().materialMorph.setStart(
-            std::clamp(morphStart_.load(), 0.0f, 1.0f));
-        v.unnaturalZone().materialMorph.setEnd(
-            std::clamp(morphEnd_.load(), 0.0f, 1.0f));
-        const float normDur = std::clamp(morphDurationMs_.load(), 0.0f, 1.0f);
-        v.unnaturalZone().materialMorph.setDurationMs(10.0f + normDur * 1990.0f);
-        v.unnaturalZone().materialMorph.setCurve(morphCurve_.load() >= 0.5f);
-    });
-
-    // Tone Shaper: denormalize stored normalized values and push into every voice.
-    voicePool_.forEachMainVoice([this](DrumVoice& v) noexcept {
-        const float normFilterType   = toneShaperFilterType_.load();
-        const int   filterTypeIdx    = std::clamp(static_cast<int>(normFilterType * 3.0f), 0, 2);
-        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
-
-        const float normCutoff = toneShaperFilterCutoff_.load();
-        const float cutoffHz   = 20.0f * std::pow(1000.0f, std::clamp(normCutoff, 0.0f, 1.0f));
-        v.toneShaper().setFilterCutoff(cutoffHz);
-
-        v.toneShaper().setFilterResonance(toneShaperFilterResonance_.load());
-        v.toneShaper().setFilterEnvAmount(toneShaperFilterEnvAmount_.load() * 2.0f - 1.0f);
-        v.toneShaper().setFilterEnvAttackMs(toneShaperFilterEnvAttack_.load() * 500.0f);
-        v.toneShaper().setFilterEnvDecayMs(toneShaperFilterEnvDecay_.load() * 2000.0f);
-        v.toneShaper().setFilterEnvSustain(toneShaperFilterEnvSustain_.load());
-        v.toneShaper().setFilterEnvReleaseMs(toneShaperFilterEnvRelease_.load() * 2000.0f);
-        v.toneShaper().setDriveAmount(toneShaperDriveAmount_.load());
-        v.toneShaper().setFoldAmount(toneShaperFoldAmount_.load());
-
-        const float normStart = toneShaperPitchEnvStart_.load();
-        const float startHz   = 20.0f * std::pow(100.0f, std::clamp(normStart, 0.0f, 1.0f));
-        v.toneShaper().setPitchEnvStartHz(startHz);
-
-        const float normEnd = toneShaperPitchEnvEnd_.load();
-        const float endHz   = 20.0f * std::pow(100.0f, std::clamp(normEnd, 0.0f, 1.0f));
-        v.toneShaper().setPitchEnvEndHz(endHz);
-
-        v.toneShaper().setPitchEnvTimeMs(toneShaperPitchEnvTime_.load() * 500.0f);
-
-        const float normCurve = toneShaperPitchEnvCurve_.load();
-        const int   curveIdx  = std::clamp(static_cast<int>(normCurve * 2.0f), 0, 1);
-        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
-    });
-
-    // ------------------------------------------------------------------
-    // Phase 3 tail (FR-140, FR-141, FR-142, FR-143, FR-144)
-    //
-    //   v1 or v2 input: apply Phase 3 defaults -- maxPoly=8, policy=Oldest,
-    //                   all choke assignments = 0.
-    //   v3 input      : read the 34-byte tail, clamping every field to its
-    //                   valid range (corrupt values are clamped, NEVER
-    //                   rejected -- preserves user projects).
-    // ------------------------------------------------------------------
-    int          loadedMaxPoly = 8;  // FR-142 / FR-143 default
-    int          loadedPolicy  = 0;  // Oldest
-    std::array<std::uint8_t, ChokeGroupTable::kSize> loadedChokes{};  // all 0
+    // ---- Phase 3 tail -> polyphony/stealing/choke ----
+    int loadedMaxPoly = 8;
+    int loadedPolicy = 0;
+    std::array<std::uint8_t, ChokeGroupTable::kSize> loadedChokes{};
 
     if (version >= 3)
     {
-        // FR-141: read exactly 34 bytes in the documented order.
         std::uint8_t rawMaxPoly = 8;
-        std::uint8_t rawPolicy  = 0;
+        std::uint8_t rawPolicy = 0;
         if (state->read(&rawMaxPoly, sizeof(rawMaxPoly), nullptr) != kResultOk)
             rawMaxPoly = 8;
         if (state->read(&rawPolicy, sizeof(rawPolicy), nullptr) != kResultOk)
             rawPolicy = 0;
 
-        // FR-144: clamp-on-load. maxPoly into [4, 16]; anything outside
-        // snaps to the nearest valid endpoint.
         loadedMaxPoly = std::clamp(static_cast<int>(rawMaxPoly), 4, 16);
+        loadedPolicy = (static_cast<int>(rawPolicy) > 2) ? 0 : static_cast<int>(rawPolicy);
 
-        // FR-144: policy > 2 -> 0 (Oldest).
-        loadedPolicy = (static_cast<int>(rawPolicy) > 2)
-                           ? 0
-                           : static_cast<int>(rawPolicy);
-
-        // FR-141 / FR-144: 32 choke assignment bytes; per-byte clamp.
         for (auto& slot : loadedChokes)
         {
             std::uint8_t b = 0;
@@ -835,19 +791,14 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             slot = (b > 8U) ? std::uint8_t{0} : b;
         }
     }
-    // else: v1 or v2 -- apply Phase 3 documented defaults as initialized
-    // above. No additional parsing (v1/v2 blobs have no Phase 3 tail).
 
     maxPolyphony_.store(loadedMaxPoly);
     voiceStealingPolicy_.store(loadedPolicy);
-    // Note: chokeGroup_ (the "current" kChokeGroupId parameter value) is NOT
-    // part of the persisted state. The per-pad table held by VoicePool is
-    // the single source of truth for choke assignments; the parameter itself
-    // is re-applied by the host when it re-sends parameter changes.
-
     voicePool_.setMaxPolyphony(loadedMaxPoly);
     voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(loadedPolicy));
     voicePool_.loadChokeGroupAssignments(loadedChokes);
+
+    selectedPadIndex_ = 0;
 
     return kResultOk;
 }
@@ -859,19 +810,12 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 #endif
 
-    sampleRate_   = setup.sampleRate;
+    sampleRate_ = setup.sampleRate;
     maxBlockSize_ = setup.maxSamplesPerBlock;
     voicePool_.prepare(sampleRate_, maxBlockSize_);
-    // Seed the pool's shared-param snapshot from current atomics so the
-    // first note-on after setupProcessing uses the restored parameters.
-    voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
-                                    strikePosition_.load(), level_.load());
-    voicePool_.setSharedExciterType(static_cast<ExciterType>(exciterType_.load()));
-    voicePool_.setSharedBodyModel(static_cast<BodyModelType>(bodyModel_.load()));
     voicePool_.setMaxPolyphony(maxPolyphony_.load());
     voicePool_.setVoiceStealingPolicy(
         static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
-    voicePool_.setChokeGroup(static_cast<std::uint8_t>(chokeGroup_.load()));
     return AudioEffect::setupProcessing(setup);
 }
 
@@ -880,14 +824,9 @@ tresult PLUGIN_API Processor::setActive(TBool state)
     if (state)
     {
         voicePool_.prepare(sampleRate_, maxBlockSize_);
-        voicePool_.setSharedVoiceParams(material_.load(), size_.load(), decay_.load(),
-                                        strikePosition_.load(), level_.load());
-        voicePool_.setSharedExciterType(static_cast<ExciterType>(exciterType_.load()));
-        voicePool_.setSharedBodyModel(static_cast<BodyModelType>(bodyModel_.load()));
         voicePool_.setMaxPolyphony(maxPolyphony_.load());
         voicePool_.setVoiceStealingPolicy(
             static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
-        voicePool_.setChokeGroup(static_cast<std::uint8_t>(chokeGroup_.load()));
     }
     return kResultOk;
 }

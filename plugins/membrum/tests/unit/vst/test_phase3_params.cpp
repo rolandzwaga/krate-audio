@@ -28,8 +28,9 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     Membrum::Controller controller;
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
+    // Phase 4 adds 1 (kSelectedPadId) + 1152 (32 pads x 36 params) = 1153 more
     CHECK(controller.getParameterCount() ==
-          kPhase2ParameterCount + kPhase3NewParameters);
+          kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

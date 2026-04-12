@@ -31,6 +31,7 @@
 #include "dsp/drum_voice.h"
 #include "dsp/exciter_type.h"
 #include "voice_pool/voice_pool.h"
+#include "../unit/voice_pool/voice_pool_test_helpers.h"
 
 #include <algorithm>
 #include <array>
@@ -100,9 +101,9 @@ void configurePoolWorstCase(Membrum::VoicePool& pool,
                             bool                   toneShaperOn,
                             bool                   unnaturalOn)
 {
-    pool.setSharedVoiceParams(0.5f, 0.5f, 0.7f, 0.3f, 0.8f);
-    pool.setSharedExciterType(ex);
-    pool.setSharedBodyModel(body);
+    Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.7f, 0.3f, 0.8f);
+    Membrum::TestHelpers::setAllPadsExciterType(pool, ex);
+    Membrum::TestHelpers::setAllPadsBodyModel(pool, body);
 
     pool.forEachMainVoice([&](Membrum::DrumVoice& voice) {
         voice.setMaterial(0.5f);

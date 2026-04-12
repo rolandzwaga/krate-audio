@@ -120,6 +120,12 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
         return;
     }
 
+    // Phase 4: validate MIDI note is in the GM drum map range [36, 67].
+    if (midiNote < kFirstDrumNote || midiNote > kLastDrumNote)
+        return;
+
+    const int padIndex = static_cast<int>(midiNote) - static_cast<int>(kFirstDrumNote);
+
     // FR-171: note-on sequence = (choke) -> (steal) -> allocator -> DrumVoice.
     // Step 1: choke group iteration. Phase 3.3 fills this in; Phase 3.1 is a
     // no-op stub so the code path compiles.
@@ -186,8 +192,8 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
         {
             const int slot = static_cast<int>(ev.voiceIndex);
 
-            // Configure the voice from the shared template (FR-170).
-            applySharedParamsToSlot(slot);
+            // Configure the voice from the pad's config (Phase 4 per-pad dispatch).
+            applyPadConfigToSlot(slot, padIndex);
             VP_VOICES[slot].noteOn(clampedVel);
 
             // Bookkeeping: populate the per-slot metadata for later stealing
@@ -354,45 +360,126 @@ void VoicePool::setChokeGroup(std::uint8_t group) noexcept
 }
 
 // ------------------------------------------------------------------
-// Shared parameter setters
+// Per-pad configuration (Phase 4)
 // ------------------------------------------------------------------
 
-void VoicePool::setSharedVoiceParams(float material,
-                                     float size,
-                                     float decay,
-                                     float strikePos,
-                                     float level) noexcept
+void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValue) noexcept
 {
-    sharedParams_.material  = material;
-    sharedParams_.size      = size;
-    sharedParams_.decay     = decay;
-    sharedParams_.strikePos = strikePos;
-    sharedParams_.level     = level;
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+
+    auto& cfg = padConfigs_[static_cast<std::size_t>(padIndex)];
+    switch (offset)
+    {
+    case kPadMaterial:            cfg.material = normalizedValue; break;
+    case kPadSize:                cfg.size = normalizedValue; break;
+    case kPadDecay:               cfg.decay = normalizedValue; break;
+    case kPadStrikePosition:      cfg.strikePosition = normalizedValue; break;
+    case kPadLevel:               cfg.level = normalizedValue; break;
+    case kPadTSFilterType:        cfg.tsFilterType = normalizedValue; break;
+    case kPadTSFilterCutoff:      cfg.tsFilterCutoff = normalizedValue; break;
+    case kPadTSFilterResonance:   cfg.tsFilterResonance = normalizedValue; break;
+    case kPadTSFilterEnvAmount:   cfg.tsFilterEnvAmount = normalizedValue; break;
+    case kPadTSDriveAmount:       cfg.tsDriveAmount = normalizedValue; break;
+    case kPadTSFoldAmount:        cfg.tsFoldAmount = normalizedValue; break;
+    case kPadTSPitchEnvStart:     cfg.tsPitchEnvStart = normalizedValue; break;
+    case kPadTSPitchEnvEnd:       cfg.tsPitchEnvEnd = normalizedValue; break;
+    case kPadTSPitchEnvTime:      cfg.tsPitchEnvTime = normalizedValue; break;
+    case kPadTSPitchEnvCurve:     cfg.tsPitchEnvCurve = normalizedValue; break;
+    case kPadTSFilterEnvAttack:   cfg.tsFilterEnvAttack = normalizedValue; break;
+    case kPadTSFilterEnvDecay:    cfg.tsFilterEnvDecay = normalizedValue; break;
+    case kPadTSFilterEnvSustain:  cfg.tsFilterEnvSustain = normalizedValue; break;
+    case kPadTSFilterEnvRelease:  cfg.tsFilterEnvRelease = normalizedValue; break;
+    case kPadModeStretch:         cfg.modeStretch = normalizedValue; break;
+    case kPadDecaySkew:           cfg.decaySkew = normalizedValue; break;
+    case kPadModeInjectAmount:    cfg.modeInjectAmount = normalizedValue; break;
+    case kPadNonlinearCoupling:   cfg.nonlinearCoupling = normalizedValue; break;
+    case kPadMorphEnabled:        cfg.morphEnabled = normalizedValue; break;
+    case kPadMorphStart:          cfg.morphStart = normalizedValue; break;
+    case kPadMorphEnd:            cfg.morphEnd = normalizedValue; break;
+    case kPadMorphDuration:       cfg.morphDuration = normalizedValue; break;
+    case kPadMorphCurve:          cfg.morphCurve = normalizedValue; break;
+    case kPadChokeGroup:
+    {
+        const auto g = static_cast<std::uint8_t>(
+            std::clamp(static_cast<int>(normalizedValue * 8.0f + 0.5f), 0, 8));
+        cfg.chokeGroup = g;
+        chokeGroups_.setEntry(static_cast<std::size_t>(padIndex), g);
+        break;
+    }
+    case kPadOutputBus:
+    {
+        cfg.outputBus = static_cast<std::uint8_t>(
+            std::clamp(static_cast<int>(normalizedValue * 15.0f + 0.5f), 0, 15));
+        break;
+    }
+    case kPadFMRatio:             cfg.fmRatio = normalizedValue; break;
+    case kPadFeedbackAmount:      cfg.feedbackAmount = normalizedValue; break;
+    case kPadNoiseBurstDuration:  cfg.noiseBurstDuration = normalizedValue; break;
+    case kPadFrictionPressure:    cfg.frictionPressure = normalizedValue; break;
+    default: break;
+    }
 }
 
-void VoicePool::setSharedExciterType(ExciterType type) noexcept
+void VoicePool::setPadConfigSelector(int padIndex, int offset, int discreteValue) noexcept
 {
-    sharedParams_.exciterType = type;
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+
+    auto& cfg = padConfigs_[static_cast<std::size_t>(padIndex)];
+    switch (offset)
+    {
+    case kPadExciterType:
+        cfg.exciterType = static_cast<ExciterType>(
+            std::clamp(discreteValue, 0, static_cast<int>(ExciterType::kCount) - 1));
+        break;
+    case kPadBodyModel:
+        cfg.bodyModel = static_cast<BodyModelType>(
+            std::clamp(discreteValue, 0, static_cast<int>(BodyModelType::kCount) - 1));
+        break;
+    default: break;
+    }
 }
 
-void VoicePool::setSharedBodyModel(BodyModelType model) noexcept
+const PadConfig& VoicePool::padConfig(int padIndex) const noexcept
 {
-    sharedParams_.bodyModel = model;
+    static const PadConfig kDefault{};
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return kDefault;
+    return padConfigs_[static_cast<std::size_t>(padIndex)];
 }
 
-void VoicePool::applySharedParamsToSlot(int slot) noexcept
+PadConfig& VoicePool::padConfigMut(int padIndex) noexcept
+{
+    // Caller is responsible for valid index (state loading path).
+    return padConfigs_[static_cast<std::size_t>(padIndex)];
+}
+
+void VoicePool::setPadChokeGroup(int padIndex, std::uint8_t group) noexcept
+{
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+    if (group > 8) group = 0;
+    padConfigs_[static_cast<std::size_t>(padIndex)].chokeGroup = group;
+    chokeGroups_.setEntry(static_cast<std::size_t>(padIndex), group);
+}
+
+void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
 {
     if (slot < 0 || slot >= kMaxVoices)
         return;
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
 
+    const auto& cfg = padConfigs_[static_cast<std::size_t>(padIndex)];
     auto& v = VP_VOICES[slot];
-    v.setExciterType(sharedParams_.exciterType);
-    v.setBodyModel(sharedParams_.bodyModel);
-    v.setMaterial(sharedParams_.material);
-    v.setSize(sharedParams_.size);
-    v.setDecay(sharedParams_.decay);
-    v.setStrikePosition(sharedParams_.strikePos);
-    v.setLevel(sharedParams_.level);
+    v.setExciterType(cfg.exciterType);
+    v.setBodyModel(cfg.bodyModel);
+    v.setMaterial(cfg.material);
+    v.setSize(cfg.size);
+    v.setDecay(cfg.decay);
+    v.setStrikePosition(cfg.strikePosition);
+    v.setLevel(cfg.level);
 }
 
 // ------------------------------------------------------------------
