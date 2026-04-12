@@ -522,10 +522,10 @@ public:
     /// Extract the first N partial frequencies from the body's modal bank.
     /// Returns a SympatheticPartialInfo with up to kSympatheticPartialCount freqs.
     /// Used by VoicePool coupling hooks to register resonators on noteOn.
-    [[nodiscard]] Krate::DSP::SympatheticPartialInfo getPartialInfo() noexcept
+    [[nodiscard]] Krate::DSP::SympatheticPartialInfo getPartialInfo() const noexcept
     {
         Krate::DSP::SympatheticPartialInfo info{};
-        auto& bank = bodyBank_.getSharedBank();
+        const auto& bank = bodyBank_.getSharedBank();
         for (int k = 0; k < Krate::DSP::kSympatheticPartialCount; ++k)
         {
             info.frequencies[static_cast<size_t>(k)] = bank.getModeFrequency(k);

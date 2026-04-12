@@ -125,6 +125,11 @@ public:
         return sharedBank_;
     }
 
+    [[nodiscard]] const Krate::DSP::ModalResonatorBank& getSharedBank() const noexcept
+    {
+        return sharedBank_;
+    }
+
 private:
     using Variant = std::variant<
         MembraneBody,
