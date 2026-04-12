@@ -311,6 +311,195 @@ TEST_CASE("CouplingMatrix: Tom Resonance = 0 yields zero Tom->Tom gain (T030)",
             REQUIRE(matrix.getEffectiveGain(src, dst) == 0.0f);
 }
 
+// ==============================================================================
+// Phase 8 (User Story 5) -- Matrix data model correctness tests (T056)
+// ==============================================================================
+
+TEST_CASE("CouplingMatrix: Tier 2 override at (kick, snare) = 0.03 takes priority over Tier 1 (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: An explicit override at the (kick, snare) pair must win over the
+    // Tier 1 computed gain derived from the Snare Buzz knob.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+
+    // Tier 1: snareBuzz=1.0 -> computedGain(0,1) = 0.05
+    matrix.recomputeFromTier1(1.0f, 0.0f, cats);
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(CouplingMatrix::kMaxCoefficient));
+
+    // Tier 2: override = 0.03 must now be the effective gain
+    matrix.setOverride(0, 1, 0.03f);
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(0.03f));
+    REQUIRE(matrix.hasOverrideAt(0, 1) == true);
+}
+
+TEST_CASE("CouplingMatrix: all-zeros matrix produces zero effective gain regardless of Tier 1 knobs (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: If clearAll() zeros the matrix, subsequent audio-time reads
+    // should see zero effective gain for every pair -- until Tier 1 is
+    // recomputed or an override is set.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Tom);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+
+    // Populate with Tier 1 knobs maxed.
+    matrix.recomputeFromTier1(1.0f, 1.0f, cats);
+    REQUIRE(matrix.getEffectiveGain(0, 1) > 0.0f);
+    REQUIRE(matrix.getEffectiveGain(2, 3) > 0.0f);
+
+    // Clear everything -- even though knob state (held by caller) was non-zero,
+    // the matrix itself is now fully zeroed.
+    matrix.clearAll();
+
+    for (int s = 0; s < CouplingMatrix::kSize; ++s)
+        for (int d = 0; d < CouplingMatrix::kSize; ++d)
+            REQUIRE(matrix.getEffectiveGain(s, d) == 0.0f);
+}
+
+TEST_CASE("CouplingMatrix: per-pair override persists after recomputeFromTier1() call (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: Tier 1 recompute must NOT wipe out existing Tier 2 overrides.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+    cats[2] = PadCategory::Tom;
+    cats[3] = PadCategory::Tom;
+
+    // Set an override at a pair not reachable by Tier 1 (Kick -> Tom)
+    matrix.setOverride(0, 2, 0.04f);
+    // And at a pair that IS reachable by Tier 1 (Kick -> Snare)
+    matrix.setOverride(0, 1, 0.03f);
+
+    REQUIRE(matrix.getOverrideCount() == 2);
+
+    // Recompute Tier 1 with new knob values
+    matrix.recomputeFromTier1(0.5f, 0.8f, cats);
+
+    // Overrides persist
+    REQUIRE(matrix.getOverrideCount() == 2);
+    REQUIRE(matrix.hasOverrideAt(0, 2) == true);
+    REQUIRE(matrix.hasOverrideAt(0, 1) == true);
+    REQUIRE(matrix.getEffectiveGain(0, 2) == Approx(0.04f));
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(0.03f));
+
+    // Non-overridden Tier 1 pair (Tom->Tom) still picks up the new knob value
+    REQUIRE(matrix.getEffectiveGain(2, 3) ==
+            Approx(0.8f * CouplingMatrix::kMaxCoefficient));
+}
+
+TEST_CASE("CouplingMatrix: clearOverride reverts to computedGain at that pair (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: Explicit named coverage -- clearing an override must restore the
+    // Tier 1 computed gain for that pair while leaving other pairs untouched.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+    cats[2] = PadCategory::Tom;
+    cats[3] = PadCategory::Tom;
+
+    matrix.recomputeFromTier1(0.4f, 0.6f, cats);
+    const float kickSnareComputed = 0.4f * CouplingMatrix::kMaxCoefficient;
+    const float tomTomComputed    = 0.6f * CouplingMatrix::kMaxCoefficient;
+
+    // Override Kick->Snare
+    matrix.setOverride(0, 1, 0.01f);
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(0.01f));
+    // Tom->Tom untouched
+    REQUIRE(matrix.getEffectiveGain(2, 3) == Approx(tomTomComputed));
+
+    // Clear override: effectiveGain should revert to computedGain
+    matrix.clearOverride(0, 1);
+    REQUIRE(matrix.hasOverrideAt(0, 1) == false);
+    REQUIRE(matrix.getEffectiveGain(0, 1) == Approx(kickSnareComputed));
+    // Tom->Tom still untouched
+    REQUIRE(matrix.getEffectiveGain(2, 3) == Approx(tomTomComputed));
+}
+
+TEST_CASE("CouplingMatrix: getOverrideCount counts only pairs with active overrides (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: getOverrideCount must not include pairs where only the
+    // Tier 1 computed value is non-zero; only pairs with active override flags.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Tom);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+
+    // Tier 1 populates many non-zero pairs, but no overrides are set.
+    matrix.recomputeFromTier1(1.0f, 1.0f, cats);
+    REQUIRE(matrix.getOverrideCount() == 0);
+
+    // Setting an override whose value equals the computed gain still counts.
+    matrix.setOverride(0, 1, CouplingMatrix::kMaxCoefficient);
+    REQUIRE(matrix.getOverrideCount() == 1);
+
+    matrix.setOverride(2, 3, 0.02f);
+    matrix.setOverride(3, 2, 0.02f);
+    REQUIRE(matrix.getOverrideCount() == 3);
+
+    // Clearing one drops the count by exactly one.
+    matrix.clearOverride(2, 3);
+    REQUIRE(matrix.getOverrideCount() == 2);
+}
+
+TEST_CASE("CouplingMatrix: effectiveGainArray() returns flat array usable in batch iteration (T056)",
+          "[coupling_matrix][phase8]")
+{
+    // T056: The flat 2D reference returned by effectiveGainArray() must alias
+    // the same storage that getEffectiveGain(src, dst) reads from, so that
+    // audio-thread code can iterate it as a contiguous kSize*kSize block.
+    CouplingMatrix matrix;
+    PadCategory cats[CouplingMatrix::kSize];
+    fillCategories(cats, CouplingMatrix::kSize, PadCategory::Perc);
+    cats[0] = PadCategory::Kick;
+    cats[1] = PadCategory::Snare;
+    cats[2] = PadCategory::Tom;
+    cats[3] = PadCategory::Tom;
+
+    matrix.recomputeFromTier1(0.5f, 0.25f, cats);
+    matrix.setOverride(4, 5, 0.03f);
+
+    const auto& flat = matrix.effectiveGainArray();
+
+    // Verify storage aliases -- values read via the array match the getter.
+    for (int s = 0; s < CouplingMatrix::kSize; ++s)
+        for (int d = 0; d < CouplingMatrix::kSize; ++d)
+            REQUIRE(flat[s][d] == matrix.getEffectiveGain(s, d));
+
+    // Spot-check expected non-zero entries.
+    REQUIRE(flat[0][1] == Approx(0.5f * CouplingMatrix::kMaxCoefficient));
+    REQUIRE(flat[2][3] == Approx(0.25f * CouplingMatrix::kMaxCoefficient));
+    REQUIRE(flat[3][2] == Approx(0.25f * CouplingMatrix::kMaxCoefficient));
+    REQUIRE(flat[4][5] == Approx(0.03f));
+
+    // Contiguous batch iteration: treat [kSize][kSize] as a flat buffer and
+    // accumulate total gain. This is the pattern audio-thread code would use.
+    const float* raw = &flat[0][0];
+    float total = 0.0f;
+    for (int i = 0; i < CouplingMatrix::kSize * CouplingMatrix::kSize; ++i)
+        total += raw[i];
+
+    // Recompute expected total via the getter-based path.
+    float expectedTotal = 0.0f;
+    for (int s = 0; s < CouplingMatrix::kSize; ++s)
+        for (int d = 0; d < CouplingMatrix::kSize; ++d)
+            expectedTotal += matrix.getEffectiveGain(s, d);
+    REQUIRE(total == Approx(expectedTotal));
+}
+
 TEST_CASE("CouplingMatrix: recomputeFromTier1 handles Tom->Tom with default-kit PadConfig "
           "(bodyModel=Membrane, no pitch env, no noise exciter) (T031)",
           "[coupling_matrix][coupling][phase4]")

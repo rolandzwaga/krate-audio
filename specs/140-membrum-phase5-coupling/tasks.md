@@ -250,16 +250,16 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T056 [P] [US5] Write failing tests in `plugins/membrum/tests/unit/dsp/test_coupling_matrix.cpp` (extend existing): Tier 2 override at (kick, snare) = 0.03 takes priority over Tier 1 computedGain; all-zeros matrix produces zero output regardless of Tier 1 knobs; per-pair override persists after recomputeFromTier1() call (override not wiped by Tier 1 recompute); clearOverride() reverts to computedGain at that pair; getOverrideCount() counts only pairs with active overrides; effectiveGainArray() returns pointer to flat array usable in batch iteration
+- [X] T056 [P] [US5] Write failing tests in `plugins/membrum/tests/unit/dsp/test_coupling_matrix.cpp` (extend existing): Tier 2 override at (kick, snare) = 0.03 takes priority over Tier 1 computedGain; all-zeros matrix produces zero output regardless of Tier 1 knobs; per-pair override persists after recomputeFromTier1() call (override not wiped by Tier 1 recompute); clearOverride() reverts to computedGain at that pair; getOverrideCount() counts only pairs with active overrides; effectiveGainArray() returns pointer to flat array usable in batch iteration
 
 ### 8.2 Implementation
 
-- [ ] T057 [US5] Verify CouplingMatrix from Phase 2 (T015) fully covers all matrix data model requirements (most requirements are already covered by the contract-based implementation -- this task is a gap analysis and any residual fixes)
-- [ ] T058 [US5] Build and verify all coupling matrix tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_matrix]" 2>&1 | tail -5`
+- [X] T057 [US5] Verify CouplingMatrix from Phase 2 (T015) fully covers all matrix data model requirements (most requirements are already covered by the contract-based implementation -- this task is a gap analysis and any residual fixes)
+- [X] T058 [US5] Build and verify all coupling matrix tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_matrix]" 2>&1 | tail -5`
 
 ### 8.3 Commit (MANDATORY)
 
-- [ ] T059 [US5] Commit any residual coupling matrix fixes
+- [X] T059 [US5] Commit any residual coupling matrix fixes
 
 **Checkpoint**: All user stories implemented and committed.
 
