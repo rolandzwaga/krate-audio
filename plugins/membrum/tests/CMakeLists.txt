@@ -115,6 +115,7 @@ add_executable(membrum_tests
     unit/controller/test_phase6_parameters.cpp
     unit/controller/test_ui_mode_session_scope.cpp
     unit/controller/test_editor_size_session_scope.cpp
+    unit/controller/test_editor_idependent_resubscribe.cpp
     unit/controller/test_param_reachability_in_editor.cpp
     unit/controller/test_voice_management_ui.cpp
     unit/controller/test_output_routing_ui.cpp
@@ -128,6 +129,7 @@ add_executable(membrum_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/membrum_editor_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/coupling_matrix_view.cpp

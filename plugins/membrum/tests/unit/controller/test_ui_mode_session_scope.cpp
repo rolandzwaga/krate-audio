@@ -172,9 +172,40 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
 //   * Read kUiModeId back from the main thread and verify it matches.
 //   * Confirm no crash and no other parameter drift.
 // ==============================================================================
+#include "base/source/fobject.h"
+
 #include <atomic>
 #include <thread>
 #include <vector>
+
+namespace {
+
+// SpyDependent: records update() calls with the thread id each was made on.
+// Installed on a Parameter via addDependent(); Parameter::setNormalized calls
+// Parameter::changed() which synchronously dispatches to update().
+class SpyDependent : public Steinberg::FObject
+{
+public:
+    void PLUGIN_API update(FUnknown* /*changed*/, Steinberg::int32 message) override
+    {
+        if (message != Steinberg::FObject::kChanged)
+            return;
+        updateCount_.fetch_add(1, std::memory_order_acq_rel);
+        lastThreadId_ = std::this_thread::get_id();
+    }
+
+    int updateCount() const noexcept
+    {
+        return updateCount_.load(std::memory_order_acquire);
+    }
+    std::thread::id lastThreadId() const noexcept { return lastThreadId_; }
+
+private:
+    std::atomic<int> updateCount_{0};
+    std::thread::id  lastThreadId_{};
+};
+
+} // namespace
 
 TEST_CASE("kUiModeId host automation from non-UI thread is thread-safe (T096)",
           "[ui_mode_session]")
@@ -216,5 +247,79 @@ TEST_CASE("kUiModeId host automation from non-UI thread is thread-safe (T096)",
         REQUIRE(ctl.getParamNormalized(s.id) == s.value);
     }
 
+    ctl.terminate();
+}
+
+// ==============================================================================
+// T096 (SpyDependent): explicit IDependent observation of kUiModeId changes
+// driven from a worker thread.
+//
+// Parameter::setNormalized() calls changed() which synchronously dispatches
+// to every registered IDependent. In production the MembrumEditorController
+// dependent forwards the change onto VSTGUI's UI thread via a
+// UIViewSwitchContainer::setCurrentViewIndex() call (plus a CVSTGUITimer
+// for exchangeView). The test harness cannot observe the VSTGUI deferral
+// because there is no UI thread, but it CAN pin the invariants that the
+// deferral path relies on:
+//
+//   1. Every setParamNormalized from a non-UI thread MUST fire update() on
+//      a registered IDependent exactly once (toggled values only -- no
+//      update() when value is unchanged).
+//   2. update() runs synchronously on the thread that called
+//      setParamNormalized (the switch-to-UI-thread is VSTGUI's
+//      responsibility, not the Parameter's).
+//   3. The sequence is well-defined: N toggles yield exactly N update()
+//      calls, none dropped, none extra.
+//
+// This covers the "simulated non-UI thread" automation path that the spec
+// T096 calls out as the UI-thread deferral precondition.
+// ==============================================================================
+TEST_CASE("kUiModeId change from non-UI thread dispatches IDependent::update "
+          "on the calling thread (T096)",
+          "[ui_mode_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    auto* param = ctl.getParameterObject(kUiModeId);
+    REQUIRE(param != nullptr);
+
+    SpyDependent spy;
+    param->addDependent(&spy);
+
+    const std::thread::id mainId = std::this_thread::get_id();
+
+    // Drive 50 toggles (1.0 <-> 0.0) from a worker thread. The parameter
+    // default is 0.0 so we start by writing 1.0; every subsequent toggle
+    // flips the stored value and therefore fires changed() -> update() once.
+    std::atomic<std::thread::id> workerId{};
+    std::thread worker([&] {
+        workerId.store(std::this_thread::get_id(), std::memory_order_release);
+        for (int i = 0; i < 50; ++i) {
+            const double v = (i & 1) ? 0.0 : 1.0;
+            ctl.setParamNormalized(kUiModeId, v);
+        }
+    });
+    worker.join();
+
+    // Exactly 50 update() calls recorded (each toggle is a real value change;
+    // first write is 1.0 against default 0.0, alternates thereafter).
+    REQUIRE(spy.updateCount() == 50);
+
+    // update() ran on the worker thread (the thread that invoked
+    // setParamNormalized) -- NOT on main. This pins the contract that
+    // VSTGUI's UI-thread deferral is the sub-controller's responsibility.
+    const auto wId = workerId.load(std::memory_order_acquire);
+    REQUIRE(wId != mainId);
+    REQUIRE(spy.lastThreadId() == wId);
+
+    // Setting the same value again does NOT fire update() (short-circuit
+    // in Parameter::setNormalized when the new value equals the old).
+    const int beforeNoop = spy.updateCount();
+    const double currentValue = param->getNormalized();
+    ctl.setParamNormalized(kUiModeId, currentValue);
+    REQUIRE(spy.updateCount() == beforeNoop);
+
+    param->removeDependent(&spy);
     ctl.terminate();
 }
