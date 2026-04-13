@@ -16,6 +16,7 @@
 #include "dsp/tone_shaper.h"
 #include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
+#include "processor/meters_block.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -697,6 +698,114 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 ? 0ULL : 3ULL;
     }
 
+    // ============================================================
+    // Phase 6 (T043): publish per-pad glow amplitudes.
+    // Walk both main and shadow voice slots, take the max currentLevel per
+    // pad, and publish. Pads with no active voice are published as 0.0 so
+    // the UI can decay its own smoothing.
+    // ============================================================
+    {
+        std::array<float, kNumPads> padAmp{};
+        padAmp.fill(0.0f);
+        for (int slot = 0; slot < kMaxVoices; ++slot)
+        {
+            const auto& m = voicePool_.voiceMeta(slot);
+            if (m.state != VoiceSlotState::Free)
+            {
+                const int padIdx = static_cast<int>(m.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                {
+                    const float lvl = m.currentLevel * m.fastReleaseGain;
+                    if (lvl > padAmp[static_cast<std::size_t>(padIdx)])
+                        padAmp[static_cast<std::size_t>(padIdx)] = lvl;
+                }
+            }
+            const auto& rm = voicePool_.releasingMeta(slot);
+            if (rm.state != VoiceSlotState::Free)
+            {
+                const int padIdx = static_cast<int>(rm.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                {
+                    const float lvl = rm.currentLevel * rm.fastReleaseGain;
+                    if (lvl > padAmp[static_cast<std::size_t>(padIdx)])
+                        padAmp[static_cast<std::size_t>(padIdx)] = lvl;
+                }
+            }
+        }
+        for (int pad = 0; pad < kNumPads; ++pad)
+            padGlowPublisher_.publish(pad, padAmp[static_cast<std::size_t>(pad)]);
+    }
+
+    // ============================================================
+    // Phase 6 (T044): publish per-source matrix activity mask.
+    // A (src, dst) pair is "active" this block when effectiveGain is
+    // non-zero AND src pad is currently sounding (its glow > 0).
+    // ============================================================
+    {
+        std::array<std::uint8_t, kNumPads> srcActive{};
+        for (int slot = 0; slot < kMaxVoices; ++slot)
+        {
+            const auto& m = voicePool_.voiceMeta(slot);
+            if (m.state == VoiceSlotState::Active)
+            {
+                const int padIdx = static_cast<int>(m.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                    srcActive[static_cast<std::size_t>(padIdx)] = 1;
+            }
+        }
+        for (int src = 0; src < kNumPads; ++src)
+        {
+            std::uint32_t dstMask = 0u;
+            if (srcActive[static_cast<std::size_t>(src)] != 0)
+            {
+                for (int dst = 0; dst < kNumPads; ++dst)
+                {
+                    if (src == dst)
+                        continue;
+                    if (couplingMatrix_.getEffectiveGain(src, dst) > 0.0f)
+                        dstMask |= (1u << dst);
+                }
+            }
+            matrixActivityPublisher_.publishSourceActivity(src, dstMask);
+        }
+    }
+
+    // ============================================================
+    // Phase 6 (T045): publish MetersBlock via DataExchangeHandler.
+    // Peak L/R over this block, active voice count, CPU permille placeholder.
+    // ============================================================
+    if (dataExchangeHandler_ && data.numOutputs > 0 && data.outputs != nullptr)
+    {
+        float peakL = 0.0f;
+        float peakR = 0.0f;
+        const float* outL = data.outputs[0].channelBuffers32[0];
+        const float* outR = data.outputs[0].channelBuffers32[1];
+        for (int32 s = 0; s < data.numSamples; ++s)
+        {
+            const float aL = std::abs(outL[s]);
+            const float aR = std::abs(outR[s]);
+            if (aL > peakL) peakL = aL;
+            if (aR > peakR) peakR = aR;
+        }
+        auto block = dataExchangeHandler_->getCurrentOrNewBlock();
+        if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
+            && block.data != nullptr
+            && block.size >= sizeof(MetersBlock))
+        {
+            MetersBlock mb;
+            mb.peakL        = peakL;
+            mb.peakR        = peakR;
+            mb.activeVoices = static_cast<std::uint16_t>(
+                                  voicePool_.getActiveVoiceCount());
+            mb.cpuPermille  = 0;  // placeholder; a host-side CPU probe wires later.
+            std::memcpy(block.data, &mb, sizeof(MetersBlock));
+            dataExchangeHandler_->sendCurrentBlock();
+        }
+    }
+
     return kResultOk;
 }
 
@@ -1347,8 +1456,62 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         voicePool_.setMaxPolyphony(maxPolyphony_.load());
         voicePool_.setVoiceStealingPolicy(
             static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
+
+        // Phase 6 (T045): open the DataExchange queue for MetersBlock.
+        if (dataExchangeHandler_)
+        {
+            Steinberg::Vst::ProcessSetup setup{};
+            setup.sampleRate          = sampleRate_;
+            setup.maxSamplesPerBlock  = maxBlockSize_;
+            setup.processMode         = Steinberg::Vst::kRealtime;
+            setup.symbolicSampleSize  = Steinberg::Vst::kSample32;
+            dataExchangeHandler_->onActivate(setup);
+        }
+    }
+    else
+    {
+        // Phase 6 (T045): close the DataExchange queue cleanly.
+        if (dataExchangeHandler_)
+            dataExchangeHandler_->onDeactivate();
+
+        // Reset publishers so stale values do not persist after bypass.
+        padGlowPublisher_.reset();
+        matrixActivityPublisher_.reset();
     }
     return kResultOk;
+}
+
+// ==============================================================================
+// Phase 6 (T045): connect/disconnect -- DataExchange lifecycle.
+// ==============================================================================
+tresult PLUGIN_API Processor::connect(IConnectionPoint* other)
+{
+    const auto result = AudioEffect::connect(other);
+    if (result == kResultTrue)
+    {
+        auto configCallback = [](Steinberg::Vst::DataExchangeHandler::Config& config,
+                                 const Steinberg::Vst::ProcessSetup& /*setup*/) {
+            config.blockSize     = static_cast<Steinberg::uint32>(sizeof(MetersBlock));
+            config.numBlocks     = 4;
+            config.alignment     = 32;
+            config.userContextID = kMetersDataExchangeUserContextId;
+            return true;
+        };
+        dataExchangeHandler_ =
+            std::make_unique<Steinberg::Vst::DataExchangeHandler>(this, configCallback);
+        dataExchangeHandler_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other)
+{
+    if (dataExchangeHandler_)
+    {
+        dataExchangeHandler_->onDisconnect(other);
+        dataExchangeHandler_.reset();
+    }
+    return AudioEffect::disconnect(other);
 }
 
 } // namespace Membrum

@@ -5,7 +5,9 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "pluginterfaces/vst/ivstdataexchange.h"
 #include "dsp/pad_config.h"
+#include "processor/meters_block.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
@@ -14,10 +16,13 @@
 
 namespace Steinberg { class IBStream; }
 
+namespace Membrum::UI { class PadGridView; }
+
 namespace Membrum {
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
-                    public VSTGUI::VST3EditorDelegate
+                    public VSTGUI::VST3EditorDelegate,
+                    public Steinberg::Vst::IDataExchangeReceiver
 {
 public:
     Controller() = default;
@@ -70,6 +75,29 @@ public:
     /// Loads a 9036-byte kit preset blob and syncs all controller params
     bool kitPresetLoadProvider(Steinberg::IBStream* stream);
 
+    // Phase 6 (T046): IDataExchangeReceiver for MetersBlock.
+    void PLUGIN_API queueOpened(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 blockSize,
+        Steinberg::TBool& dispatchOnBackgroundThread) override;
+    void PLUGIN_API queueClosed(
+        Steinberg::Vst::DataExchangeUserContextID userContextID) override;
+    void PLUGIN_API onDataExchangeBlocksReceived(
+        Steinberg::Vst::DataExchangeUserContextID userContextID,
+        Steinberg::uint32 numBlocks,
+        Steinberg::Vst::DataExchangeBlock* blocks,
+        Steinberg::TBool onBackgroundThread) override;
+
+    // --- Interface support (Phase 6) ---
+    OBJ_METHODS(Controller, EditControllerEx1)
+    DEFINE_INTERFACES
+        DEF_INTERFACE(Steinberg::Vst::IDataExchangeReceiver)
+    END_DEFINE_INTERFACES(EditControllerEx1)
+    DELEGATE_REFCOUNT(EditControllerEx1)
+
+    // Test-only accessors for cached meters.
+    [[nodiscard]] const MetersBlock& cachedMetersForTest() const noexcept { return cachedMeters_; }
+
     // Phase 4: pad preset providers (FR-060 through FR-063)
     /// Produces a 284-byte pad preset blob for the currently selected pad
     Steinberg::IBStream* padPresetStateProvider();
@@ -91,6 +119,15 @@ private:
     // Zeroed in willClose() so we never dereference a dead view (SC-014).
     VSTGUI::VST3Editor*              activeEditor_   = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
+
+    // Phase 6 (T042): raw pointer to the active PadGridView. Lifetime is
+    // owned by VSTGUI's view tree; zeroed in willClose().
+    Membrum::UI::PadGridView*        padGridView_    = nullptr;
+
+    // Phase 6 (T046): last MetersBlock received via DataExchange. Updated on
+    // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
+    // poll timer to push values into the Kit Column meter/CPU views.
+    MetersBlock                      cachedMeters_{};
 };
 
 } // namespace Membrum

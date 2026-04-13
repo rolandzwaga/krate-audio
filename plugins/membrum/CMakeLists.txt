@@ -82,6 +82,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/processor/meters_block.h
     src/dsp/pad_glow_publisher.h
     src/dsp/matrix_activity_publisher.h
+    src/ui/pad_grid_view.h
     src/ui/pad_grid_view.cpp
     src/ui/coupling_matrix_view.cpp
     src/ui/pitch_envelope_display.cpp

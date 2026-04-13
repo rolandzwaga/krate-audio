@@ -59,6 +59,8 @@ public:
                                               Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
     // Test-only accessors (Phase 4)
     VoicePool& voicePoolForTest() noexcept { return voicePool_; }

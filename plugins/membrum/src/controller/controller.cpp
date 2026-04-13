@@ -7,6 +7,7 @@
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "ui/pad_grid_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -1131,7 +1132,33 @@ VSTGUI::CView* Controller::createCustomView(
     if (!name)
         return nullptr;
     if (std::strcmp(name, "PadGridView") == 0)
-        return nullptr;
+    {
+        // Phase 6 (T042): construct the real PadGridView. The view's
+        // PadGlowPublisher pointer is nullptr here because separate-component
+        // mode prevents the Controller from reaching into the Processor --
+        // future phases can inject a DataExchange-backed glow mirror if
+        // per-cell intensity ends up required at 30 Hz in separate-component
+        // hosts. Tests construct the view directly with a real publisher.
+        auto* view = new UI::PadGridView(
+            VSTGUI::CRect{ 0, 0, 400, 800 },
+            /*glowPublisher*/ nullptr,
+            /*metaProvider*/ [](int) -> const PadConfig* { return nullptr; });
+
+        // FR-012: clicking a pad drives kSelectedPadId through the standard
+        // beginEdit/performEdit/endEdit sequence.
+        view->setSelectCallback([this](int padIndex) {
+            const auto normalised =
+                static_cast<Steinberg::Vst::ParamValue>(padIndex) /
+                static_cast<Steinberg::Vst::ParamValue>(kNumPads - 1);
+            beginEdit(kSelectedPadId);
+            performEdit(kSelectedPadId, normalised);
+            setParamNormalized(kSelectedPadId, normalised);
+            endEdit(kSelectedPadId);
+        });
+
+        padGridView_ = view;
+        return view;
+    }
     if (std::strcmp(name, "CouplingMatrixView") == 0)
         return nullptr;
     if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
@@ -1171,6 +1198,43 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         pollTimer_ = nullptr;
     }
     activeEditor_ = nullptr;
+    padGridView_  = nullptr;
+}
+
+// ==============================================================================
+// IDataExchangeReceiver -- T046 (following Innexus controller.cpp:1703-1740)
+// ==============================================================================
+void PLUGIN_API Controller::queueOpened(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 /*blockSize*/,
+    Steinberg::TBool& dispatchOnBackgroundThread)
+{
+    // Dispatch on the UI thread so we can update cachedMeters_ without a
+    // mutex (the poll timer also runs on the UI thread).
+    dispatchOnBackgroundThread = static_cast<Steinberg::TBool>(false);
+}
+
+void PLUGIN_API Controller::queueClosed(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/)
+{
+    // Nothing to clean up -- cachedMeters_ is a POD value.
+}
+
+void PLUGIN_API Controller::onDataExchangeBlocksReceived(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 numBlocks,
+    Steinberg::Vst::DataExchangeBlock* blocks,
+    Steinberg::TBool /*onBackgroundThread*/)
+{
+    // Use the most recent block (Innexus pattern); older blocks are stale.
+    for (Steinberg::uint32 i = 0; i < numBlocks; ++i)
+    {
+        if (blocks[i].data != nullptr
+            && blocks[i].size >= sizeof(MetersBlock))
+        {
+            std::memcpy(&cachedMeters_, blocks[i].data, sizeof(MetersBlock));
+        }
+    }
 }
 
 } // namespace Membrum
