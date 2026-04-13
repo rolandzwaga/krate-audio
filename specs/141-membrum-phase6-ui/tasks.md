@@ -129,22 +129,22 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T034 [P] [US2] Write failing tests for parameter reachability in `plugins/membrum/tests/unit/controller/test_param_reachability_in_editor.cpp`: enumerate all `getParameterCount()` IDs from the Controller; parse `editor.uidesc` as XML and extract all `control-tag` values; for each registered param assert either it appears as a control-tag OR it is in the macro mapping table (FR-023) OR it is explicitly a session-scoped non-UI param (`kUiModeId`, `kEditorSizeId`); any miss is a test failure (SC-002); also assert Extended template contains all Unnatural Zone, raw physics, full Tone Shaper, full Exciter param IDs
-- [ ] T035 [P] [US2] Write failing test: toggle `kUiModeId` 10 times and verify no audio parameter values change (SC-003): snapshot all param values before first toggle, after each toggle verify each param within float tolerance; hiding is visual only, no parameter resets
+- [X] T034 [P] [US2] Write failing tests for parameter reachability in `plugins/membrum/tests/unit/controller/test_param_reachability_in_editor.cpp`: enumerate all `getParameterCount()` IDs from the Controller; parse `editor.uidesc` as XML and extract all `control-tag` values; for each registered param assert either it appears as a control-tag OR it is in the macro mapping table (FR-023) OR it is explicitly a session-scoped non-UI param (`kUiModeId`, `kEditorSizeId`); any miss is a test failure (SC-002); also assert Extended template contains all Unnatural Zone, raw physics, full Tone Shaper, full Exciter param IDs
+- [X] T035 [P] [US2] Write failing test: toggle `kUiModeId` 10 times and verify no audio parameter values change (SC-003): snapshot all param values before first toggle, after each toggle verify each param within float tolerance; hiding is visual only, no parameter resets
 
 ### 3.2 Implementation for User Story 2
 
-- [ ] T036 [US2] Complete the Extended-mode `SelectedPadExtended` template inside `plugins/membrum/resources/editor.uidesc`: add Unnatural Zone section (`ArcKnob` controls for Mode Stretch, Mode Inject, Decay Skew, Nonlinear Coupling, plus Material Morph `XYMorphPad`); add raw physics section (Tension / Damping / Air Coupling / Nonlinear Pitch `ArcKnob` controls); add full Tone Shaper (Filter Type/Cutoff/Resonance/EnvAmount `ArcKnob`, Drive, Fold, Filter ADSR `ADSRDisplay`); add complete Exciter section (FM Ratio, Feedback Amount, Noise Burst Duration, Friction Pressure `ArcKnob`); add per-pad Coupling Amount `ArcKnob`; `UIViewSwitchContainer` binds both `SelectedPadAcoustic` and `SelectedPadExtended` child templates to `template-switch-control="UiMode"` per research.md section 2
-- [ ] T037 [US2] Add Tier 2 Coupling Matrix editor section to Kit Column in `editor.uidesc` (Extended-only panel): `CouplingMatrixView` custom view placeholder, visible only when `kUiModeId == Extended`; Solo `ToggleButton`, Reset `ActionButton`
-- [ ] T038 [US2] Build and verify reachability and mode-toggle tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[editor_reachability]" 2>&1 | tail -5`
+- [X] T036 [US2] Complete the Extended-mode `SelectedPadExtended` template inside `plugins/membrum/resources/editor.uidesc`: add Unnatural Zone section (`ArcKnob` controls for Mode Stretch, Mode Inject, Decay Skew, Nonlinear Coupling, plus Material Morph `XYMorphPad`); add raw physics section (Tension / Damping / Air Coupling / Nonlinear Pitch `ArcKnob` controls); add full Tone Shaper (Filter Type/Cutoff/Resonance/EnvAmount `ArcKnob`, Drive, Fold, Filter ADSR `ADSRDisplay`); add complete Exciter section (FM Ratio, Feedback Amount, Noise Burst Duration, Friction Pressure `ArcKnob`); add per-pad Coupling Amount `ArcKnob`; `UIViewSwitchContainer` binds both `SelectedPadAcoustic` and `SelectedPadExtended` child templates to `template-switch-control="UiMode"` per research.md section 2
+- [X] T037 [US2] Add Tier 2 Coupling Matrix editor section to Kit Column in `editor.uidesc` (Extended-only panel): `CouplingMatrixView` custom view placeholder, visible only when `kUiModeId == Extended`; Solo `ToggleButton`, Reset `ActionButton`
+- [X] T038 [US2] Build and verify reachability and mode-toggle tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[editor_reachability]" 2>&1 | tail -5`
 
 ### 3.3 Cross-Platform Verification
 
-- [ ] T039 [US2] Verify `test_param_reachability_in_editor.cpp` does not use IEEE 754 functions; if XML parsing uses `std::stof`, confirm no `-ffast-math` interaction
+- [X] T039 [US2] Verify `test_param_reachability_in_editor.cpp` does not use IEEE 754 functions; if XML parsing uses `std::stof`, confirm no `-ffast-math` interaction
 
 ### 3.4 Commit (MANDATORY)
 
-- [ ] T040 [US2] Commit completed User Story 2 work (Extended template in editor.uidesc, UIViewSwitchContainer wiring, reachability test passing)
+- [X] T040 [US2] Commit completed User Story 2 work (Extended template in editor.uidesc, UIViewSwitchContainer wiring, reachability test passing)
 
 **Checkpoint**: US2 functional -- every Phase 1-5 parameter reachable in Extended mode; mode toggle does not reset values.
 
