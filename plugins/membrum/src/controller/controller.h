@@ -13,6 +13,13 @@
 #include "vstgui/lib/cvstguitimer.h"
 
 #include <array>
+#include <memory>
+
+namespace Krate::Plugins {
+class PresetManager;
+class PresetBrowserView;
+class SavePresetDialogView;
+} // namespace Krate::Plugins
 
 namespace Steinberg { class IBStream; }
 
@@ -27,7 +34,8 @@ class Controller : public Steinberg::Vst::EditControllerEx1,
                     public Steinberg::Vst::IDataExchangeReceiver
 {
 public:
-    Controller() = default;
+    Controller();
+    ~Controller() override;
 
     static Steinberg::FUnknown* createInstance(void*)
     {
@@ -148,6 +156,33 @@ private:
     /// T046: push `cachedMeters_` values into the kit-column meter / CPU label
     /// views. Tolerant of missing views (safe when editor is not open).
     void updateMeterViews(const MetersBlock& meters) noexcept;
+
+    /// T054: after a per-pad preset load, force the selected pad's MacroMapper
+    /// to re-apply its current macro values on top of the freshly loaded
+    /// underlying parameters. Implemented as a no-op-valued performEdit on
+    /// each of the five macro params -- the processor's processParameterChanges
+    /// path detects the parameter event and calls `macroMapper_.apply()` so
+    /// underlying tension/cutoff/etc. reflect macro positions after the load.
+    void triggerSelectedPadMacroReapply();
+
+    // ==========================================================================
+    // Phase 6 (T052..T056): two PresetManager instances (kit + per-pad scope).
+    // Created in initialize(); destroyed in terminate(). Two corresponding
+    // PresetBrowserView + SavePresetDialogView instances are added to the
+    // frame in didOpen() and zeroed in willClose() (VSTGUI owns the views).
+    // ==========================================================================
+    std::unique_ptr<Krate::Plugins::PresetManager> kitPresetManager_;
+    std::unique_ptr<Krate::Plugins::PresetManager> padPresetManager_;
+    Krate::Plugins::PresetBrowserView*    kitPresetBrowserView_ = nullptr;
+    Krate::Plugins::PresetBrowserView*    padPresetBrowserView_ = nullptr;
+    Krate::Plugins::SavePresetDialogView* kitSaveDialogView_    = nullptr;
+    Krate::Plugins::SavePresetDialogView* padSaveDialogView_    = nullptr;
+
+    // T056: latched flag indicating the most recent PresetManager load failed
+    // (e.g. malformed/truncated blob). Tests can poll this; UI surfaces it via
+    // the browser view's error indicator.
+    bool padPresetLoadFailed_ = false;
+    bool kitPresetLoadFailed_ = false;
 };
 
 } // namespace Membrum

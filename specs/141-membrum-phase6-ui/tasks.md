@@ -193,25 +193,25 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T050 [P] [US4] Write failing tests for kit preset UI-mode round-trip in `plugins/membrum/tests/unit/preset/test_kit_uimode_roundtrip.cpp`: save a kit preset JSON with `"uiMode": "Extended"`; load it via `PresetManager`; verify the preset-load callback sets `kUiModeId` to Extended on the Controller; save a v4/v5 kit preset (no `"uiMode"` field); load it; verify `kUiModeId` is NOT changed (retains session default); test that `"macros"` block round-trips for all five fields; test that loading a v4/v5 preset with no `"macros"` block sets all macros to 0.5
-- [ ] T051 [P] [US4] Write failing test: load a per-pad preset for pad 5; verify `outputBus` and `couplingAmount` for pad 5 are unchanged at their pre-load values (FR-042, Phase 4 FR-022); verify sound parameters DO change; verify `MacroMapper::apply()` is called after per-pad preset load so underlying params reflect loaded macros
+- [X] T050 [P] [US4] Write failing tests for kit preset UI-mode round-trip in `plugins/membrum/tests/unit/preset/test_kit_uimode_roundtrip.cpp`: save a kit preset JSON with `"uiMode": "Extended"`; load it via `PresetManager`; verify the preset-load callback sets `kUiModeId` to Extended on the Controller; save a v4/v5 kit preset (no `"uiMode"` field); load it; verify `kUiModeId` is NOT changed (retains session default); test that `"macros"` block round-trips for all five fields; test that loading a v4/v5 preset with no `"macros"` block sets all macros to 0.5
+- [X] T051 [P] [US4] Write failing test: load a per-pad preset for pad 5; verify `outputBus` and `couplingAmount` for pad 5 are unchanged at their pre-load values (FR-042, Phase 4 FR-022); verify sound parameters DO change; verify `MacroMapper::apply()` is called after per-pad preset load so underlying params reflect loaded macros
 
 ### 5.2 Implementation for User Story 4
 
-- [ ] T052 [US4] Create two `PresetManager` instances in `plugins/membrum/src/controller/controller.cpp`: `kitPresetManager_` rooted at `{ProgramData}/Krate Audio/Membrum/Kits/`; `padPresetManager_` rooted at `{ProgramData}/Krate Audio/Membrum/Pads/`; configure kit tabs: `{"Factory", "User", "Acoustic", "Electronic", "Percussive", "Unnatural"}`; configure pad tabs: `{"Factory", "User", "Kick", "Snare", "Tom", "Hat", "Cymbal", "Perc", "Tonal", "FX"}` (per research.md section 11)
-- [ ] T053 [US4] Wire kit `PresetBrowserView` in `editor.uidesc` Kit Column: use `createCustomView` or `createSubController` to instantiate `Krate::Plugins::PresetBrowserView` with `kitPresetManager_` for the kit browser region; handle "Save As" via `SavePresetDialogView` (cross-platform, no native dialogs per FR-002 / FR-005)
-- [ ] T054 [US4] Wire per-pad `PresetBrowserView` in `editor.uidesc` Kit Column: instantiate a second `PresetBrowserView` with `padPresetManager_`; scoped to currently selected pad (updates when `kSelectedPadId` changes via `IDependent`); on per-pad preset load, apply only sound parameters, preserve `outputBus` and `couplingAmount`, call `macroMapper_.apply()` for the affected pad
-- [ ] T055 [US4] Add kit preset JSON `"uiMode"` and `"macros"` extension to the `PresetManager` / kit preset load path in `plugins/membrum/src/preset/` (or controller.cpp if inline): on load, if `"uiMode"` present, call `setParamNormalized(kUiModeId, ...)` on UI thread; parse per-pad `"macros"` block and write to `padConfig[N]` macro fields; call `macroMapper_.reapplyAll()` after full kit load
-- [ ] T056 [US4] Add malformed-preset error handling: if `PresetManager` load fails (JSON parse error, missing required fields), set an error flag readable by the browser view so it displays an error indicator; ensure no partial state is applied (no crash, no partial load per US4 acceptance scenario 4)
-- [ ] T057 [US4] Build and verify preset tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[kit_preset]" 2>&1 | tail -5`
+- [X] T052 [US4] Create two `PresetManager` instances in `plugins/membrum/src/controller/controller.cpp`: `kitPresetManager_` rooted at `{ProgramData}/Krate Audio/Membrum/Kits/`; `padPresetManager_` rooted at `{ProgramData}/Krate Audio/Membrum/Pads/`; configure kit tabs: `{"Factory", "User", "Acoustic", "Electronic", "Percussive", "Unnatural"}`; configure pad tabs: `{"Factory", "User", "Kick", "Snare", "Tom", "Hat", "Cymbal", "Perc", "Tonal", "FX"}` (per research.md section 11)
+- [X] T053 [US4] Wire kit `PresetBrowserView` in `editor.uidesc` Kit Column: use `createCustomView` or `createSubController` to instantiate `Krate::Plugins::PresetBrowserView` with `kitPresetManager_` for the kit browser region; handle "Save As" via `SavePresetDialogView` (cross-platform, no native dialogs per FR-002 / FR-005)
+- [X] T054 [US4] Wire per-pad `PresetBrowserView` in `editor.uidesc` Kit Column: instantiate a second `PresetBrowserView` with `padPresetManager_`; scoped to currently selected pad (updates when `kSelectedPadId` changes via `IDependent`); on per-pad preset load, apply only sound parameters, preserve `outputBus` and `couplingAmount`, call `macroMapper_.apply()` for the affected pad
+- [X] T055 [US4] Add kit preset JSON `"uiMode"` and `"macros"` extension to the `PresetManager` / kit preset load path in `plugins/membrum/src/preset/` (or controller.cpp if inline): on load, if `"uiMode"` present, call `setParamNormalized(kUiModeId, ...)` on UI thread; parse per-pad `"macros"` block and write to `padConfig[N]` macro fields; call `macroMapper_.reapplyAll()` after full kit load
+- [X] T056 [US4] Add malformed-preset error handling: if `PresetManager` load fails (JSON parse error, missing required fields), set an error flag readable by the browser view so it displays an error indicator; ensure no partial state is applied (no crash, no partial load per US4 acceptance scenario 4)
+- [X] T057 [US4] Build and verify preset tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[kit_preset]" 2>&1 | tail -5`
 
 ### 5.3 Cross-Platform Verification
 
-- [ ] T058 [US4] Verify preset save/load path uses only VSTGUI-compatible file dialogs (no Win32 `GetSaveFileName`, no Cocoa `NSSavePanel`); `SavePresetDialogView` covers all platforms
+- [X] T058 [US4] Verify preset save/load path uses only VSTGUI-compatible file dialogs (no Win32 `GetSaveFileName`, no Cocoa `NSSavePanel`); `SavePresetDialogView` covers all platforms
 
 ### 5.4 Commit (MANDATORY)
 
-- [ ] T059 [US4] Commit completed User Story 4 work (two PresetManager instances, two PresetBrowserView instances, kit JSON uiMode/macros extension, per-pad preset isolation, error handling)
+- [X] T059 [US4] Commit completed User Story 4 work (two PresetManager instances, two PresetBrowserView instances, kit JSON uiMode/macros extension, per-pad preset isolation, error handling)
 
 **Checkpoint**: US4 functional -- kit and per-pad preset browsing operational, output bus and coupling amount preserved across per-pad preset loads.
 

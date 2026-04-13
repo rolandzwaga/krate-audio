@@ -9,6 +9,12 @@
 #include "dsp/body_model_type.h"
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
+#include "preset/membrum_preset_config.h"
+
+#include "preset/preset_manager.h"
+#include "preset/preset_info.h"
+#include "ui/preset_browser_view.h"
+#include "ui/save_preset_dialog_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
@@ -16,17 +22,26 @@
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/cframe.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 namespace Membrum {
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
+
+// ==============================================================================
+// Constructor / Destructor (defined in .cpp so unique_ptr<PresetManager>
+// destruction sees the complete type).
+// ==============================================================================
+Controller::Controller() = default;
+Controller::~Controller() = default;
 
 // ==============================================================================
 // Global proxy parameter mapping table
@@ -372,6 +387,52 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         }
     }
 
+    // ==========================================================================
+    // Phase 6 (T052..T056): create kit + per-pad PresetManager instances.
+    // Two managers, two roots, two browsers. Both use the controller as their
+    // VST3 sync target; the processor pointer is left null because we operate
+    // entirely through controller params (kit/pad presets are flattened to
+    // parameter writes via state providers below).
+    // ==========================================================================
+    kitPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        kitPresetConfig(),
+        /*processor*/   nullptr,
+        /*controller*/  this);
+    kitPresetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return kitPresetStateProvider();
+    });
+    kitPresetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* stream,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            const bool ok = kitPresetLoadProvider(stream);
+            kitPresetLoadFailed_ = !ok;
+            return ok;
+        });
+
+    padPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        padPresetConfig(),
+        /*processor*/   nullptr,
+        /*controller*/  this);
+    padPresetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return padPresetStateProvider();
+    });
+    padPresetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* stream,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            // FR-042 / T054: per-pad load applies sound params only;
+            // outputBus and couplingAmount are preserved structurally because
+            // the per-pad preset blob does not carry them. After load, force
+            // a re-application of the affected pad's macros so the underlying
+            // params reflect both the just-loaded sound state and the user's
+            // current macro positions (calls macroMapper_.apply() in the
+            // processor via standard parameter-change events).
+            const bool ok = padPresetLoadProvider(stream);
+            padPresetLoadFailed_ = !ok;
+            if (ok)
+                triggerSelectedPadMacroReapply();
+            return ok;
+        });
+
     return kResultOk;
 }
 
@@ -716,23 +777,28 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
 IBStream* Controller::kitPresetStateProvider()
 {
-    // Request current component state from the host/processor
-    auto* component = getComponentHandler();
-    if (!component)
-        return nullptr;
-
-    // Create a memory stream and write the kit preset blob
-    // The processor's getState writes 9040 bytes; we need 9036 (no selectedPadIndex).
-    // We request the full state via IComponentHandler, then truncate.
-    // However, in the controller we don't have direct processor access.
-    // The typical VST3 pattern: controller requests state via IComponentHandler2
-    // or uses the paired component's getState.
-
-    // For now, produce the state from the controller's own parameter values.
+    // Build the kit preset blob from the controller's parameter values. The
+    // controller mirrors the processor's parameter state (host syncs them
+    // on every parameter change), so we do not need IComponentHandler access.
     auto* stream = new MemoryStream();
 
-    int32 version = 4;
+    // Phase 6 (T055, FR-040..FR-044, FR-070..FR-072): kit preset is now v5.
+    // v5 layout extends v4 by:
+    //   - one int32 `uiMode` immediately after the global header (so it is
+    //     restored before per-pad data is consumed),
+    //   - five float64 macros appended to each pad row (offsets 37-41).
+    // The v4 reader is preserved for backwards compatibility (no uiMode change
+    // and macros default to 0.5).
+    int32 version = 5;
     stream->write(&version, sizeof(version), nullptr);
+
+    // FR-030 / Clarification #4: kit preset MAY override the session-scoped
+    // kUiModeId. Persist as int32 (0 = Acoustic, 1 = Extended).
+    {
+        const double uiModeNorm = getParamNormalized(kUiModeId);
+        int32 uiMode = (uiModeNorm >= 0.5) ? 1 : 0;
+        stream->write(&uiMode, sizeof(uiMode), nullptr);
+    }
 
     // Global settings from controller params
     const double maxPolyNorm = getParamNormalized(kMaxPolyphonyId);
@@ -823,9 +889,23 @@ IBStream* Controller::kitPresetStateProvider()
                 std::clamp(static_cast<int>(busNorm * 15.0 + 0.5), 0, 15));
             stream->write(&ob, sizeof(ob), nullptr);
         }
+
+        // Phase 6 (T055): five per-pad macros (offsets 37-41), float64.
+        const int macroOffsets[] = {
+            kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+            kPadMacroPunch,     kPadMacroComplexity,
+        };
+        for (const auto& offset : macroOffsets)
+        {
+            double v = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, offset)));
+            stream->write(&v, sizeof(v), nullptr);
+        }
     }
 
-    // Kit preset does NOT write selectedPadIndex (9036 bytes total)
+    // Kit preset does NOT write selectedPadIndex.
+    // v5 size = 4 (version) + 4 (uiMode) + 4 (maxPoly) + 4 (steal) +
+    //          32 * (4 + 4 + 34*8 + 1 + 1 + 5*8) = 16 + 32*322 = 10320 bytes.
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     return stream;
 }
@@ -838,8 +918,22 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     int32 version = 0;
     if (stream->read(&version, sizeof(version), nullptr) != kResultOk)
         return false;
-    if (version != 4)
+    // Phase 6 (T055): accept both v4 (legacy) and v5 (with uiMode + macros).
+    if (version != 4 && version != 5)
         return false;
+    const bool isV5 = (version == 5);
+
+    // v5 only: read uiMode (int32, 0=Acoustic, 1=Extended) and apply to the
+    // session-scoped kUiModeId (FR-030, Clarification #4). v4 leaves uiMode
+    // untouched.
+    if (isV5)
+    {
+        int32 uiMode = 0;
+        if (stream->read(&uiMode, sizeof(uiMode), nullptr) != kResultOk)
+            return false;
+        const double uiNorm = (uiMode >= 1) ? 1.0 : 0.0;
+        EditControllerEx1::setParamNormalized(kUiModeId, uiNorm);
+    }
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -925,6 +1019,33 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
         std::uint8_t dummy = 0;
         stream->read(&dummy, sizeof(dummy), nullptr);
         stream->read(&dummy, sizeof(dummy), nullptr);
+
+        // Phase 6 (T055): v5 carries 5 macro float64 per pad (offsets 37-41).
+        // v4 has none: assign neutral 0.5 to each macro so MacroMapper produces
+        // zero delta against registered defaults.
+        const int macroOffsets[] = {
+            kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+            kPadMacroPunch,     kPadMacroComplexity,
+        };
+        if (isV5)
+        {
+            for (const auto& offset : macroOffsets)
+            {
+                double v = 0.5;
+                if (stream->read(&v, sizeof(v), nullptr) != kResultOk)
+                    v = 0.5;
+                EditControllerEx1::setParamNormalized(
+                    static_cast<ParamID>(padParamId(pad, offset)), v);
+            }
+        }
+        else
+        {
+            for (const auto& offset : macroOffsets)
+            {
+                EditControllerEx1::setParamNormalized(
+                    static_cast<ParamID>(padParamId(pad, offset)), 0.5);
+            }
+        }
     }
 
     // Kit preset does NOT read selectedPadIndex -- leave it unchanged
@@ -1105,6 +1226,29 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     return true;
 }
 
+void Controller::triggerSelectedPadMacroReapply()
+{
+    // T054: re-apply current macros to the selected pad after a per-pad
+    // preset load. Use beginEdit/performEdit/endEdit on each macro param so
+    // the processor sees a parameter-change event and invokes its MacroMapper
+    // for the selected pad. Setting to the same value still propagates the
+    // change through processParameterChanges() because VST3 host-mediated
+    // changes are not value-deduplicated.
+    const int pad = selectedPadIndex_;
+    const int macroOffsets[] = {
+        kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+        kPadMacroPunch,     kPadMacroComplexity,
+    };
+    for (const auto& offset : macroOffsets)
+    {
+        const auto pid = static_cast<ParamID>(padParamId(pad, offset));
+        const ParamValue current = getParamNormalized(pid);
+        beginEdit(pid);
+        performEdit(pid, current);
+        endEdit(pid);
+    }
+}
+
 IPlugView* PLUGIN_API Controller::createView(const char* name)
 {
     // Phase 6 (T028, FR-001): return a VST3Editor backed by editor.uidesc.
@@ -1215,6 +1359,50 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
         },
         33 /* ~30 Hz */,
         true /* start immediately */));
+
+    // Phase 6 (T053..T054): create the two PresetBrowserView instances (kit +
+    // per-pad scope) and the two SavePresetDialogView overlays, parented to
+    // the editor's frame. VSTGUI takes ownership; willClose() zeros the raw
+    // pointers before the frame tears the views down.
+    auto* frame = editor->getFrame();
+    if (frame == nullptr)
+        return;
+
+    const auto frameSize = frame->getViewSize();
+
+    if (kitPresetManager_ && kitPresetBrowserView_ == nullptr)
+    {
+        kitPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+            frameSize, kitPresetManager_.get(),
+            std::vector<std::string>{
+                "Factory", "User", "Acoustic", "Electronic",
+                "Percussive", "Unnatural"});
+        frame->addView(kitPresetBrowserView_);
+    }
+    if (kitPresetManager_ && kitSaveDialogView_ == nullptr)
+    {
+        kitSaveDialogView_ = new Krate::Plugins::SavePresetDialogView(
+            frameSize, kitPresetManager_.get(),
+            kitPresetConfig().subcategoryNames);
+        frame->addView(kitSaveDialogView_);
+    }
+
+    if (padPresetManager_ && padPresetBrowserView_ == nullptr)
+    {
+        padPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+            frameSize, padPresetManager_.get(),
+            std::vector<std::string>{
+                "Factory", "User", "Kick", "Snare", "Tom",
+                "Hat", "Cymbal", "Perc", "Tonal", "FX"});
+        frame->addView(padPresetBrowserView_);
+    }
+    if (padPresetManager_ && padSaveDialogView_ == nullptr)
+    {
+        padSaveDialogView_ = new Krate::Plugins::SavePresetDialogView(
+            frameSize, padPresetManager_.get(),
+            padPresetConfig().subcategoryNames);
+        frame->addView(padSaveDialogView_);
+    }
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
@@ -1231,6 +1419,14 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     padGridView_    = nullptr;
     kitMetersView_  = nullptr;
     cpuLabel_       = nullptr;
+
+    // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
+    // 30 Hz poll timer (already cancelled above) and any future code can not
+    // dereference dead memory.
+    kitPresetBrowserView_ = nullptr;
+    padPresetBrowserView_ = nullptr;
+    kitSaveDialogView_    = nullptr;
+    padSaveDialogView_    = nullptr;
 }
 
 // ------------------------------------------------------------------------------
