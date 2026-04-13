@@ -6,7 +6,9 @@
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "dsp/pad_config.h"
+#include "dsp/coupling_matrix.h"
 #include "processor/meters_block.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
@@ -45,6 +47,12 @@ public:
     Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown* context) override;
     Steinberg::tresult PLUGIN_API setComponentState(Steinberg::IBStream* state) override;
     Steinberg::IPlugView* PLUGIN_API createView(const char* name) override;
+
+    // T068 (Spec 141): IMessage receiver. The processor posts a
+    // "CouplingMatrixSnapshot" message carrying the list of per-pair overrides
+    // so the controller's uiCouplingMatrix_ mirror stays consistent with the
+    // audio-thread matrix.
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // ==========================================================================
     // Phase 6 (T028) -- IVST3EditorDelegate hooks.
@@ -155,6 +163,24 @@ private:
     // Phase 6 (T068 / US6): raw pointer to the active CouplingMatrixView.
     // Lifetime is owned by VSTGUI's view tree; zeroed in willClose().
     Membrum::UI::CouplingMatrixView* couplingMatrixView_ = nullptr;
+
+    // T068 (Spec 141, retry): controller-side CouplingMatrix mirror. The
+    // processor owns the authoritative matrix (audio thread); VST3 separate-
+    // component mode forbids sharing the instance directly. This mirror is
+    // kept in sync via "CouplingMatrixSnapshot" IMessages from the processor
+    // (on setComponentState load, on editor open, and after each edit). The
+    // CouplingMatrixView reads and writes this mirror locally for immediate
+    // visual feedback; writes are also propagated to the processor via a
+    // "CouplingMatrixEdit" IMessage so the audio path applies the same edit.
+    CouplingMatrix uiCouplingMatrix_;
+
+    // Send a "CouplingMatrixEdit" IMessage to the processor. Called from the
+    // view's edit-callback on setOverride / clearOverride / setSolo / clearSolo.
+    // op is one of: 0 = setOverride, 1 = clearOverride, 2 = setSolo, 3 = clearSolo.
+    void sendCouplingMatrixEdit(int op, int src, int dst, float value) noexcept;
+
+    // Ask the processor to send back a snapshot of its current override map.
+    void requestCouplingMatrixSnapshot() noexcept;
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 
     // T060/T062 (Phase 6 / US5): active-voices readout label. Discovered in

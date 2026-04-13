@@ -63,6 +63,11 @@ public:
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
+    // T068 (Spec 141, retry): handle "CouplingMatrixEdit" and
+    // "CouplingMatrixSnapshotRequest" messages from the controller. Replies
+    // to snapshot requests with "CouplingMatrixSnapshot".
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
+
     // Test-only accessors (Phase 4)
     VoicePool& voicePoolForTest() noexcept { return voicePool_; }
     const VoicePool& voicePoolForTest() const noexcept { return voicePool_; }

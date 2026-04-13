@@ -21,6 +21,7 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstmessage.h"
 #include "public.sdk/source/vst/utility/dataexchange.h"
 
 // FTZ/DAZ for denormal prevention on x86 (SC-007)
@@ -36,6 +37,7 @@
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 namespace Membrum {
 
@@ -1542,6 +1544,100 @@ tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other)
         dataExchangeHandler_.reset();
     }
     return AudioEffect::disconnect(other);
+}
+
+// ==============================================================================
+// T068 (Spec 141, retry): IMessage handler -- bridge the CouplingMatrix edits
+// and snapshot requests between the UI controller and this authoritative
+// processor-side instance. See controller.cpp for the wire format description.
+// notify() is called on the UI/component thread, NOT the audio thread, so it
+// is safe to mutate couplingMatrix_ directly -- the same pattern is used by
+// setState() when loading per-pair overrides from a preset blob.
+// ==============================================================================
+tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
+{
+    if (message == nullptr)
+        return AudioEffect::notify(message);
+
+    const auto* id = message->getMessageID();
+    if (id == nullptr)
+        return AudioEffect::notify(message);
+
+    if (std::strcmp(id, "CouplingMatrixEdit") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        Steinberg::int64 op = -1, src = 0, dst = 0, valBits = 0;
+        attrs->getInt("op",  op);
+        attrs->getInt("src", src);
+        attrs->getInt("dst", dst);
+        attrs->getInt("val", valBits);
+        float value = 0.0f;
+        std::memcpy(&value, &valBits, sizeof(float));
+
+        const int s = static_cast<int>(src);
+        const int d = static_cast<int>(dst);
+
+        switch (op)
+        {
+        case 0: // setOverride
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+            {
+                couplingMatrix_.setOverride(s, d,
+                    std::clamp(value, 0.0f, CouplingMatrix::kMaxCoefficient));
+            }
+            break;
+        case 1: // clearOverride
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+                couplingMatrix_.clearOverride(s, d);
+            break;
+        case 2: // setSolo
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+                couplingMatrix_.setSoloPath(s, d);
+            break;
+        case 3: // clearSolo
+            couplingMatrix_.clearSolo();
+            break;
+        default:
+            break;
+        }
+        return kResultOk;
+    }
+
+    if (std::strcmp(id, "CouplingMatrixSnapshotRequest") == 0)
+    {
+        // Serialise the current override map and send it back to the
+        // controller so its uiCouplingMatrix_ mirror can re-sync.
+        auto* reply = allocateMessage();
+        if (reply == nullptr) return kResultOk;
+        Steinberg::IPtr<Steinberg::Vst::IMessage> owned(reply, /*addRef*/ false);
+        owned->setMessageID("CouplingMatrixSnapshot");
+        auto* attrs = owned->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        // Record layout: uint8 src, uint8 dst, float32 coeff (6 bytes).
+        constexpr int kRecordSize = 1 + 1 + 4;
+        std::vector<unsigned char> blob;
+        blob.reserve(static_cast<std::size_t>(
+            couplingMatrix_.getOverrideCount()) * kRecordSize);
+        couplingMatrix_.forEachOverride(
+            [&blob](int src, int dst, float coeff) {
+                blob.push_back(static_cast<unsigned char>(src));
+                blob.push_back(static_cast<unsigned char>(dst));
+                unsigned char coeffBytes[4];
+                std::memcpy(coeffBytes, &coeff, sizeof(float));
+                blob.insert(blob.end(), coeffBytes, coeffBytes + 4);
+            });
+
+        attrs->setBinary("overrides",
+            blob.empty() ? static_cast<const void*>("") : blob.data(),
+            static_cast<Steinberg::uint32>(blob.size()));
+        sendMessage(owned);
+        return kResultOk;
+    }
+
+    return AudioEffect::notify(message);
 }
 
 } // namespace Membrum

@@ -20,6 +20,8 @@
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstmessage.h"
+#include "base/source/fstring.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/controls/ctextlabel.h"
@@ -1308,16 +1310,33 @@ VSTGUI::CView* Controller::createCustomView(
     }
     if (std::strcmp(name, "CouplingMatrixView") == 0)
     {
-        // Phase 6 (T068): construct the CouplingMatrixView. The view's
-        // CouplingMatrix* and MatrixActivityPublisher* pointers are nullptr
-        // here because separate-component mode prevents the Controller from
-        // reaching into the Processor -- tests construct the view directly
-        // with real instances to exercise click/Solo/activity logic.
+        // T068 (Spec 141): construct the CouplingMatrixView wired to the
+        // controller-side uiCouplingMatrix_ mirror. The authoritative matrix
+        // lives in the processor (audio thread) and cannot be shared across
+        // the VST3 component boundary; instead we keep a local mirror that is
+        // synced via "CouplingMatrixSnapshot" IMessages and push user edits
+        // back to the processor via "CouplingMatrixEdit" IMessages
+        // (see sendCouplingMatrixEdit()).
+        //
+        // The MatrixActivityPublisher pointer remains nullptr: the view
+        // tolerates it (pollActivity early-returns on null); 30 Hz activity
+        // highlighting is deferred to a later phase that can piggyback on
+        // DataExchange. Override/solo/heat-map editing, Tier 2 persistence,
+        // and Reset are fully functional with only the matrix mirror wired.
         auto* view = new UI::CouplingMatrixView(
             VSTGUI::CRect{ 0, 0, 320, 320 },
-            /*matrix*/ nullptr,
+            /*matrix*/ &uiCouplingMatrix_,
             /*activityPublisher*/ nullptr);
+        view->setEditCallback(
+            [this](int op, int src, int dst, float value) noexcept {
+                sendCouplingMatrixEdit(op, src, dst, value);
+            });
         couplingMatrixView_ = view;
+
+        // Request a fresh snapshot from the processor so the newly-opened
+        // view reflects the current authoritative override map even if
+        // setComponentState was called before the editor was open.
+        requestCouplingMatrixSnapshot();
         return view;
     }
     if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
@@ -1556,6 +1575,115 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
             std::memcpy(&cachedMeters_, blocks[i].data, sizeof(MetersBlock));
         }
     }
+}
+
+// ==============================================================================
+// T068 (Spec 141, retry): IMessage bridge for the 32x32 coupling matrix.
+// ==============================================================================
+//
+// The processor owns the authoritative CouplingMatrix (audio thread). The
+// controller maintains uiCouplingMatrix_ as a mirror used by the UI view.
+//
+// Wire format:
+//   "CouplingMatrixEdit"   controller -> processor
+//       attrs: "op"  (int64)  0=setOverride, 1=clearOverride,
+//                             2=setSolo,     3=clearSolo
+//              "src" (int64)  source pad index [0, 31]
+//              "dst" (int64)  destination pad index [0, 31]
+//              "val" (int64)  float32 bits re-interpreted (only for op=0)
+//   "CouplingMatrixSnapshotRequest"   controller -> processor
+//       attrs: (none)
+//   "CouplingMatrixSnapshot"          processor -> controller
+//       attrs: "overrides" (binary) -- N records of
+//              {uint8 src; uint8 dst; float32 coeff}. N = blobSize / 6.
+// ==============================================================================
+
+namespace {
+
+constexpr char kCouplingEditMsgId[]     = "CouplingMatrixEdit";
+constexpr char kCouplingReqMsgId[]      = "CouplingMatrixSnapshotRequest";
+constexpr char kCouplingSnapshotMsgId[] = "CouplingMatrixSnapshot";
+
+} // anonymous namespace
+
+void Controller::sendCouplingMatrixEdit(int op, int src, int dst,
+                                        float value) noexcept
+{
+    auto* msg = allocateMessage();
+    if (msg == nullptr) return;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
+
+    owned->setMessageID(kCouplingEditMsgId);
+    auto* attrs = owned->getAttributes();
+    if (attrs == nullptr) return;
+
+    attrs->setInt("op",  static_cast<Steinberg::int64>(op));
+    attrs->setInt("src", static_cast<Steinberg::int64>(src));
+    attrs->setInt("dst", static_cast<Steinberg::int64>(dst));
+
+    Steinberg::int64 bits = 0;
+    std::memcpy(&bits, &value, sizeof(float));
+    attrs->setInt("val", bits);
+
+    sendMessage(owned);
+}
+
+void Controller::requestCouplingMatrixSnapshot() noexcept
+{
+    auto* msg = allocateMessage();
+    if (msg == nullptr) return;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
+
+    owned->setMessageID(kCouplingReqMsgId);
+    sendMessage(owned);
+}
+
+tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message)
+{
+    if (message == nullptr)
+        return EditControllerEx1::notify(message);
+
+    const auto* id = message->getMessageID();
+    if (id != nullptr && std::strcmp(id, kCouplingSnapshotMsgId) == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        // Reset the mirror, then re-apply every override from the payload.
+        uiCouplingMatrix_.clearAll();
+
+        const void*      data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("overrides", data, size) == kResultOk
+            && data != nullptr)
+        {
+            constexpr Steinberg::uint32 kRecordSize =
+                sizeof(std::uint8_t) + sizeof(std::uint8_t) + sizeof(float);
+            const Steinberg::uint32 count = size / kRecordSize;
+            const auto* bytes = static_cast<const unsigned char*>(data);
+            for (Steinberg::uint32 i = 0; i < count; ++i)
+            {
+                const Steinberg::uint32 off = i * kRecordSize;
+                const std::uint8_t s = bytes[off];
+                const std::uint8_t d = bytes[off + 1];
+                float coeff = 0.0f;
+                std::memcpy(&coeff, bytes + off + 2, sizeof(float));
+                if (s < kNumPads && d < kNumPads)
+                {
+                    uiCouplingMatrix_.setOverride(
+                        static_cast<int>(s),
+                        static_cast<int>(d),
+                        std::clamp(coeff, 0.0f, CouplingMatrix::kMaxCoefficient));
+                }
+            }
+        }
+
+        if (couplingMatrixView_ != nullptr)
+            couplingMatrixView_->invalid();
+        return kResultOk;
+    }
+
+    return EditControllerEx1::notify(message);
 }
 
 } // namespace Membrum

@@ -152,10 +152,12 @@ CouplingMatrixView::handleMouseDown(VSTGUI::CPoint localPoint,
             matrix_->soloDst() == cell.dst)
         {
             clearSolo();
+            if (editCallback_) editCallback_(3, 0, 0, 0.0f);
         }
         else
         {
             setSoloPath(cell.src, cell.dst);
+            if (editCallback_) editCallback_(2, cell.src, cell.dst, 0.0f);
         }
         invalid();
         return cell;
@@ -165,6 +167,7 @@ CouplingMatrixView::handleMouseDown(VSTGUI::CPoint localPoint,
     {
         // Right click = immediate Reset on this pair.
         matrix_->clearOverride(cell.src, cell.dst);
+        if (editCallback_) editCallback_(1, cell.src, cell.dst, 0.0f);
         invalid();
         return cell;
     }
@@ -174,9 +177,15 @@ CouplingMatrixView::handleMouseDown(VSTGUI::CPoint localPoint,
     const float cur = matrix_->getOverrideGain(cell.src, cell.dst);
     const auto  next = nextOverrideStep(had, cur);
     if (next.hasOverride)
+    {
         matrix_->setOverride(cell.src, cell.dst, next.value);
+        if (editCallback_) editCallback_(0, cell.src, cell.dst, next.value);
+    }
     else
+    {
         matrix_->clearOverride(cell.src, cell.dst);
+        if (editCallback_) editCallback_(1, cell.src, cell.dst, 0.0f);
+    }
     invalid();
     return cell;
 }

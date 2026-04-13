@@ -39,6 +39,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 
 namespace Membrum {
 class MatrixActivityPublisher;
@@ -92,6 +93,20 @@ public:
     void setSoloPath(int src, int dst) noexcept;
     void clearSolo() noexcept;
 
+    // ----------------------------------------------------------------------
+    // Edit callback (T068 retry): invoked after every local mutation of the
+    // bound matrix_ so the controller can forward the edit to the processor
+    // via IMessage. Operations:
+    //   0 = setOverride(src, dst, value)
+    //   1 = clearOverride(src, dst)       -- value ignored
+    //   2 = setSolo(src, dst)             -- value ignored
+    //   3 = clearSolo()                   -- src/dst/value ignored
+    // The controller wires this in createCustomView(). If unset, the view is
+    // purely local (tests exercise this path).
+    // ----------------------------------------------------------------------
+    using EditCallback = std::function<void(int op, int src, int dst, float value)>;
+    void setEditCallback(EditCallback cb) noexcept { editCallback_ = std::move(cb); }
+
     [[nodiscard]] bool hasSolo() const noexcept
     {
         return matrix_ != nullptr && matrix_->hasSolo();
@@ -124,6 +139,8 @@ private:
     std::array<std::uint32_t, kMatrixCells> activityMask_{};
 
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
+
+    EditCallback editCallback_;
 };
 
 } // namespace Membrum::UI
