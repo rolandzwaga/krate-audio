@@ -153,6 +153,11 @@ private:
     Membrum::UI::KitMetersView*      kitMetersView_  = nullptr;
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 
+    // T060/T062 (Phase 6 / US5): active-voices readout label. Discovered in
+    // verifyView() by the title prefix "ActiveVoices". Updated on the 30 Hz
+    // timer from cachedMeters_.activeVoices. Tolerant of a missing label.
+    VSTGUI::CTextLabel*              activeVoicesLabel_ = nullptr;
+
     // T056: small status label surfacing preset load failures. Discovered in
     // verifyView() by its title prefix "PresetStatus". The 30 Hz poll timer
     // inspects kitPresetLoadFailed_ / padPresetLoadFailed_, sets the label

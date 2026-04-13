@@ -38,7 +38,11 @@
     <control-tag name="MacroBodySize" tag="1039"/>
     <control-tag name="MacroPunch" tag="1040"/>
     <control-tag name="MacroComplexity" tag="1041"/>
-    <control-tag name="ChokeGroupSel" tag="1030"/>
+    <!-- T061 (Phase 6 / US5): Choke Group selector binds to the Phase 4
+         selected-pad proxy parameter (kChokeGroupId == 252). The proxy in
+         Controller::setParamNormalized routes edits to the currently
+         selected pad's per-pad kPadChokeGroup offset. -->
+    <control-tag name="ChokeGroupSel" tag="252"/>
     <control-tag name="OutputBusSel" tag="1031"/>
     <!-- Phase 6 T036: Extended-mode control tags -->
     <!-- Unnatural Zone (globals 230-233) -->
@@ -217,8 +221,8 @@
         <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="224, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
         <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Active voices: -" origin="8, 424" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
+        <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="CTextLabel" title="Coupling" origin="8, 452" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="CKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
@@ -261,8 +265,8 @@
         <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="176, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
         <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="88, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Active voices: -" origin="8, 424" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="88, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
+        <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="CTextLabel" title="Coupling" origin="8, 452" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="CKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>

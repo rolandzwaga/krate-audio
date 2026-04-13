@@ -227,21 +227,21 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T060 [P] [US5] Write failing tests: Max Polyphony slider in editor.uidesc has range 4-16 and is tagged to `kMaxPolyphonyId`; Voice Stealing dropdown has three entries (Oldest/Quietest/Priority) tagged to `kVoiceStealingId`; Choke Group selector in Selected-Pad Panel tags to `kChokeGroupId` for the selected pad via the Phase 4 proxy; active-voice readout updates from `MetersBlock.activeVoices` on the 30 Hz UI timer; tooltip text for Voice Stealing dropdown entries is set in `editor.uidesc`
+- [X] T060 [P] [US5] Write failing tests: Max Polyphony slider in editor.uidesc has range 4-16 and is tagged to `kMaxPolyphonyId`; Voice Stealing dropdown has three entries (Oldest/Quietest/Priority) tagged to `kVoiceStealingId`; Choke Group selector in Selected-Pad Panel tags to `kChokeGroupId` for the selected pad via the Phase 4 proxy; active-voice readout updates from `MetersBlock.activeVoices` on the 30 Hz UI timer; tooltip text for Voice Stealing dropdown entries is set in `editor.uidesc`
 
 ### 6.2 Implementation for User Story 5
 
-- [ ] T061 [US5] Add Choke Group selector (`COptionMenu` or equivalent, values 0-8, label "None" for 0, "Group 1"-"Group 8" for 1-8) to the Acoustic-mode and Extended-mode Selected-Pad Panel sections in `editor.uidesc`, tagged to `kChokeGroupId` via the selected-pad proxy; add tooltip text per FR-061 to Voice Stealing dropdown entries
-- [ ] T062 [US5] Add Max Polyphony slider (range 4-16, tag `kMaxPolyphonyId`) and Voice Stealing dropdown (3 entries, tag `kVoiceStealingId`) to the Kit Column Voice Management panel in `editor.uidesc`; wire active-voice readout label to update from cached `MetersBlock.activeVoices` on 30 Hz timer tick
-- [ ] T063 [US5] Build and verify choke/voice tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[voice_management]" 2>&1 | tail -5`
+- [X] T061 [US5] Add Choke Group selector (`COptionMenu` or equivalent, values 0-8, label "None" for 0, "Group 1"-"Group 8" for 1-8) to the Acoustic-mode and Extended-mode Selected-Pad Panel sections in `editor.uidesc`, tagged to `kChokeGroupId` via the selected-pad proxy; add tooltip text per FR-061 to Voice Stealing dropdown entries
+- [X] T062 [US5] Add Max Polyphony slider (range 4-16, tag `kMaxPolyphonyId`) and Voice Stealing dropdown (3 entries, tag `kVoiceStealingId`) to the Kit Column Voice Management panel in `editor.uidesc`; wire active-voice readout label to update from cached `MetersBlock.activeVoices` on 30 Hz timer tick
+- [X] T063 [US5] Build and verify choke/voice tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[voice_management]" 2>&1 | tail -5`
 
 ### 6.3 Cross-Platform Verification
 
-- [ ] T064 [US5] Verify `COptionMenu` is used for all dropdowns (not Win32 combo box or Cocoa NSPopUpButton)
+- [X] T064 [US5] Verify `COptionMenu` is used for all dropdowns (not Win32 combo box or Cocoa NSPopUpButton)
 
 ### 6.4 Commit (MANDATORY)
 
-- [ ] T065 [US5] Commit completed User Story 5 work (choke group selector, voice management panel, active-voice readout)
+- [X] T065 [US5] Commit completed User Story 5 work (choke group selector, voice management panel, active-voice readout)
 
 **Checkpoint**: US5 functional -- choke group UI and voice management controls wired, tooltips present.
 

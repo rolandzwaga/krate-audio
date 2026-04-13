@@ -1336,6 +1336,14 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         {
             cpuLabel_ = label;
         }
+        // T060/T062 (Phase 6 / US5): active-voices readout label. Template
+        // authors mark the label with a title prefix of "ActiveVoices" so it
+        // is discovered here without relying on a control-tag.
+        else if (title != nullptr
+                 && std::strncmp(title, "ActiveVoices", 12) == 0)
+        {
+            activeVoicesLabel_ = label;
+        }
         // T056: status label for preset load failures. Template authors mark
         // the label with a title prefix of "PresetStatus" so it is discovered
         // here without relying on a control-tag. Initial text is cleared.
@@ -1428,6 +1436,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
     cpuLabel_          = nullptr;
+    activeVoicesLabel_ = nullptr;
     presetStatusLabel_ = nullptr;
 
     // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
@@ -1457,6 +1466,17 @@ void Controller::updateMeterViews(const MetersBlock& meters) noexcept
         char buf[32] = {};
         std::snprintf(buf, sizeof(buf), "CPU: %u%%", percent);
         cpuLabel_->setText(buf);
+    }
+
+    // T060/T062 (Phase 6 / US5): push MetersBlock.activeVoices into the
+    // Kit Column readout. The label title prefix marker ("ActiveVoices") is
+    // discovered in verifyView() so we never collide with the CPU label.
+    if (activeVoicesLabel_ != nullptr)
+    {
+        char buf[32] = {};
+        std::snprintf(buf, sizeof(buf), "ActiveVoices: %u",
+                      static_cast<unsigned int>(meters.activeVoices));
+        activeVoicesLabel_->setText(buf);
     }
 
     // T056: surface preset load failures on the status label. A fresh failure

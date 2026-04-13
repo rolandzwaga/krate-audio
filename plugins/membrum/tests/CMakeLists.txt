@@ -114,6 +114,7 @@ add_executable(membrum_tests
     unit/controller/test_ui_mode_session_scope.cpp
     unit/controller/test_editor_size_session_scope.cpp
     unit/controller/test_param_reachability_in_editor.cpp
+    unit/controller/test_voice_management_ui.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/ui/test_coupling_matrix_view.cpp
