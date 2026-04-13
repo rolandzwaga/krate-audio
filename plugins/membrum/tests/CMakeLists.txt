@@ -125,6 +125,7 @@ add_executable(membrum_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 

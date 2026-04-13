@@ -7,6 +7,8 @@
 #include "ui/pad_grid_view.h"
 #include "dsp/pad_glow_publisher.h"
 #include "dsp/pad_config.h"
+#include "dsp/body_model_type.h"
+#include "dsp/exciter_type.h"
 
 #include "vstgui/lib/crect.h"
 
@@ -235,6 +237,107 @@ TEST_CASE("PadGridView indicator text helpers (FR-011)",
     {
         REQUIRE(outputBusIndicatorText(3) == std::string{"BUS3"});
     }
+}
+
+TEST_CASE("PadGridView GM drum name helper (FR-011)",
+          "[pad_grid][phase6]")
+{
+    // GM Percussion Key Map: MIDI 36 = Kick, 38 = Snare, 42 = Closed Hi-Hat.
+    SECTION("MIDI 36 returns a non-empty kick name")
+    {
+        const auto name = gmDrumNameForNote(36);
+        REQUIRE_FALSE(name.empty());
+        // Must contain "Kick" (case-sensitive substring).
+        REQUIRE(name.find("Kick") != std::string::npos);
+    }
+    SECTION("MIDI 38 returns a snare name")
+    {
+        const auto name = gmDrumNameForNote(38);
+        REQUIRE_FALSE(name.empty());
+        REQUIRE(name.find("Snare") != std::string::npos);
+    }
+    SECTION("MIDI 42 returns a hi-hat name")
+    {
+        const auto name = gmDrumNameForNote(42);
+        REQUIRE_FALSE(name.empty());
+        REQUIRE((name.find("HH") != std::string::npos
+                 || name.find("Hat") != std::string::npos));
+    }
+    SECTION("all MIDI notes in [36, 67] yield non-empty names")
+    {
+        for (int n = 36; n <= 67; ++n)
+            REQUIRE_FALSE(gmDrumNameForNote(n).empty());
+    }
+    SECTION("out-of-range notes return empty string")
+    {
+        REQUIRE(gmDrumNameForNote(35).empty());
+        REQUIRE(gmDrumNameForNote(68).empty());
+        REQUIRE(gmDrumNameForNote(0).empty());
+        REQUIRE(gmDrumNameForNote(127).empty());
+    }
+}
+
+TEST_CASE("PadGridView category glyph helper (FR-011)",
+          "[pad_grid][phase6]")
+{
+    // Glyph must be derived from the PadCategory classifier used by the
+    // coupling matrix so UI and DSP agree. Exactly one character (or empty).
+    SECTION("Kick config (Membrane + pitch env) -> 'K'")
+    {
+        PadConfig cfg{};
+        cfg.bodyModel        = BodyModelType::Membrane;
+        cfg.tsPitchEnvTime   = 0.5f; // active pitch envelope
+        REQUIRE(categoryGlyphForConfig(cfg) == "K");
+    }
+    SECTION("Snare config (Membrane + NoiseBurst) -> 'S'")
+    {
+        PadConfig cfg{};
+        cfg.bodyModel        = BodyModelType::Membrane;
+        cfg.exciterType      = ExciterType::NoiseBurst;
+        cfg.tsPitchEnvTime   = 0.0f;
+        REQUIRE(categoryGlyphForConfig(cfg) == "S");
+    }
+    SECTION("Tom config (Membrane only) -> 'T'")
+    {
+        PadConfig cfg{};
+        cfg.bodyModel        = BodyModelType::Membrane;
+        cfg.exciterType      = ExciterType::Impulse;
+        cfg.tsPitchEnvTime   = 0.0f;
+        REQUIRE(categoryGlyphForConfig(cfg) == "T");
+    }
+    SECTION("HatCymbal config (NoiseBody) -> 'H'")
+    {
+        PadConfig cfg{};
+        cfg.bodyModel = BodyModelType::NoiseBody;
+        REQUIRE(categoryGlyphForConfig(cfg) == "H");
+    }
+    SECTION("Glyph is always a single character for any classified pad")
+    {
+        PadConfig cfg{};
+        const auto g = categoryGlyphForConfig(cfg);
+        REQUIRE(g.size() == std::size_t{1});
+    }
+}
+
+TEST_CASE("PadGridView draw() renders without asserting on a well-formed view",
+          "[pad_grid][phase6]")
+{
+    // Regression coverage: ensure the category-glyph / GM-name rendering path
+    // tolerates a null draw context (method must early-return) and does not
+    // crash when the meta provider returns a valid config.
+    std::array<PadConfig, kNumPads> pads{};
+    pads[0].bodyModel      = BodyModelType::Membrane;
+    pads[0].tsPitchEnvTime = 0.5f; // Kick
+    pads[1].bodyModel      = BodyModelType::NoiseBody; // HatCymbal
+
+    PadGridView view(
+        VSTGUI::CRect{ 0, 0, 400, 800 },
+        nullptr,
+        makeProvider(pads));
+
+    // Null context must not crash.
+    view.draw(nullptr);
+    SUCCEED();
 }
 
 TEST_CASE("PadGridView removed() cancels the poll timer (SC-014)",

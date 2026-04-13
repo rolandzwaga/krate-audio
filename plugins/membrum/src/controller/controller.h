@@ -16,7 +16,9 @@
 
 namespace Steinberg { class IBStream; }
 
-namespace Membrum::UI { class PadGridView; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; }
+
+namespace VSTGUI { class CTextLabel; }
 
 namespace Membrum {
 
@@ -49,6 +51,13 @@ public:
 
     void didOpen(VSTGUI::VST3Editor* editor) override;
     void willClose(VSTGUI::VST3Editor* editor) override;
+
+    // T046: capture references to named/tagged views as the editor builds the
+    // view tree so the 30 Hz timer can push MetersBlock values into them.
+    VSTGUI::CView* verifyView(VSTGUI::CView* view,
+                              const VSTGUI::UIAttributes& attributes,
+                              const VSTGUI::IUIDescription* description,
+                              VSTGUI::VST3Editor* editor) override;
 
     // Phase 4: Override setParamNormalized to implement proxy logic
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
@@ -124,10 +133,21 @@ private:
     // owned by VSTGUI's view tree; zeroed in willClose().
     Membrum::UI::PadGridView*        padGridView_    = nullptr;
 
+    // Phase 6 (T046): cached view pointers (lifetime owned by VSTGUI view
+    // tree; zeroed in willClose()). The KitMetersView is constructed from
+    // createCustomView; the CPU label is a CTextLabel discovered via
+    // verifyView() by matching its initial title prefix "CPU".
+    Membrum::UI::KitMetersView*      kitMetersView_  = nullptr;
+    VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
+
     // Phase 6 (T046): last MetersBlock received via DataExchange. Updated on
     // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
     // poll timer to push values into the Kit Column meter/CPU views.
     MetersBlock                      cachedMeters_{};
+
+    /// T046: push `cachedMeters_` values into the kit-column meter / CPU label
+    /// views. Tolerant of missing views (safe when editor is not open).
+    void updateMeterViews(const MetersBlock& meters) noexcept;
 };
 
 } // namespace Membrum

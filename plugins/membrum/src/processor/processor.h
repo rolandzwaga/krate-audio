@@ -26,6 +26,7 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <memory>
 
@@ -132,6 +133,12 @@ private:
     MatrixActivityPublisher  matrixActivityPublisher_;
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
     std::atomic<bool>        editorOpen_{false};
+
+    /// Phase 6 (T045): EWMA-smoothed CPU usage (per-mille) measured as the
+    /// ratio of process() work time to block budget. Updated every block from
+    /// the audio thread and read back into MetersBlock. `steady_clock::now()`
+    /// is allocation-free on all supported platforms.
+    float cpuPermilleEwma_ = 0.0f;
 
     /// Phase 6: build the RegisteredDefaultsTable consumed by MacroMapper.
     /// Mirrors the Controller's registered-default values for Phase 4/5 per-pad

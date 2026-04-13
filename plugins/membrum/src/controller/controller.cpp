@@ -8,12 +8,14 @@
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "ui/pad_grid_view.h"
+#include "ui/kit_meters_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/lib/controls/ctextlabel.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1163,7 +1165,35 @@ VSTGUI::CView* Controller::createCustomView(
         return nullptr;
     if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
         return nullptr;
+    if (std::strcmp(name, "MetersView") == 0)
+    {
+        // T046: kit-column peak meter. The size below is a placeholder; the
+        // uidesc view frame overrides it.
+        auto* view = new UI::KitMetersView(VSTGUI::CRect{ 0, 0, 224, 32 });
+        kitMetersView_ = view;
+        return view;
+    }
     return nullptr;
+}
+
+// ------------------------------------------------------------------------------
+// verifyView (T046): discover the CPU text label by its title prefix "CPU".
+// Called for every view the editor builds from uidesc.
+// ------------------------------------------------------------------------------
+VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
+                                      const VSTGUI::UIAttributes& /*attributes*/,
+                                      const VSTGUI::IUIDescription* /*description*/,
+                                      VSTGUI::VST3Editor* /*editor*/)
+{
+    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(view))
+    {
+        VSTGUI::UTF8StringPtr title = label->getText();
+        if (title != nullptr && std::strncmp(title, "CPU", 3) == 0)
+        {
+            cpuLabel_ = label;
+        }
+    }
+    return view;
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
@@ -1176,12 +1206,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     activeEditor_ = editor;
     pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) {
-            // Phase 6 (T028): publisher snapshots will be consumed here by
-            // PadGridView / CouplingMatrixView once wired in later phases.
-            // For now the tick is a no-op but the timer is real so the
-            // lifecycle (cancel in willClose) is correct.
+            // T046: read the last cached MetersBlock and push its values
+            // into the kit-column meter / CPU views. PadGridView drives its
+            // own 30 Hz poll against PadGlowPublisher.
             if (activeEditor_ == nullptr)
                 return;
+            updateMeterViews(cachedMeters_);
         },
         33 /* ~30 Hz */,
         true /* start immediately */));
@@ -1197,8 +1227,31 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         pollTimer_->stop();
         pollTimer_ = nullptr;
     }
-    activeEditor_ = nullptr;
-    padGridView_  = nullptr;
+    activeEditor_   = nullptr;
+    padGridView_    = nullptr;
+    kitMetersView_  = nullptr;
+    cpuLabel_       = nullptr;
+}
+
+// ------------------------------------------------------------------------------
+// updateMeterViews (T046): push MetersBlock values to cached views.
+// Tolerant of missing views -- safe when editor is not open.
+// ------------------------------------------------------------------------------
+void Controller::updateMeterViews(const MetersBlock& meters) noexcept
+{
+    if (kitMetersView_ != nullptr)
+    {
+        kitMetersView_->setPeaks(meters.peakL, meters.peakR);
+    }
+    if (cpuLabel_ != nullptr)
+    {
+        // cpuPermille is 0..1000 (per-mille). Display as whole percent.
+        const unsigned int percent =
+            static_cast<unsigned int>((meters.cpuPermille + 5) / 10);
+        char buf[32] = {};
+        std::snprintf(buf, sizeof(buf), "CPU: %u%%", percent);
+        cpuLabel_->setText(buf);
+    }
 }
 
 // ==============================================================================

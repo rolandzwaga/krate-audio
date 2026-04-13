@@ -86,6 +86,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/ui/pad_grid_view.cpp
     src/ui/coupling_matrix_view.cpp
     src/ui/pitch_envelope_display.cpp
+    src/ui/kit_meters_view.h
+    src/ui/kit_meters_view.cpp
     src/ui/membrum_editor_controller.cpp
 
     # Phase 2: exciter backends (header-only)

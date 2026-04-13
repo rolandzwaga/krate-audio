@@ -30,6 +30,7 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -604,6 +605,10 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     if (data.numSamples == 0)
         return kResultOk;
 
+    // T045: start CPU-usage timer (steady_clock::now is lock-free and
+    // allocation-free on all supported platforms).
+    const auto cpuT0 = std::chrono::steady_clock::now();
+
     processParameterChanges(data.inputParameterChanges);
     processEvents(data.inputEvents);
 
@@ -790,6 +795,31 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             if (aL > peakL) peakL = aL;
             if (aR > peakR) peakR = aR;
         }
+
+        // T045: compute CPU usage (per-mille of the block budget) using a
+        // simple EWMA smoother so brief spikes do not dominate the meter.
+        // blockBudget = numSamples / sampleRate (in seconds).
+        std::uint16_t cpuPermille = 0;
+        if (sampleRate_ > 0.0 && data.numSamples > 0)
+        {
+            const auto cpuT1 = std::chrono::steady_clock::now();
+            const double elapsedSec =
+                std::chrono::duration<double>(cpuT1 - cpuT0).count();
+            const double blockBudgetSec =
+                static_cast<double>(data.numSamples) / sampleRate_;
+            const double ratio =
+                blockBudgetSec > 0.0 ? (elapsedSec / blockBudgetSec) : 0.0;
+            const float instantaneousPermille =
+                static_cast<float>(std::clamp(ratio * 1000.0, 0.0, 65535.0));
+            // EWMA: alpha = 0.1 smooths ~10 blocks; cheap and audio-safe.
+            constexpr float kEwmaAlpha = 0.1f;
+            cpuPermilleEwma_ =
+                cpuPermilleEwma_ + kEwmaAlpha
+                * (instantaneousPermille - cpuPermilleEwma_);
+            cpuPermille = static_cast<std::uint16_t>(
+                std::clamp(cpuPermilleEwma_ + 0.5f, 0.0f, 65535.0f));
+        }
+
         auto block = dataExchangeHandler_->getCurrentOrNewBlock();
         if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
             && block.data != nullptr
@@ -800,7 +830,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             mb.peakR        = peakR;
             mb.activeVoices = static_cast<std::uint16_t>(
                                   voicePool_.getActiveVoiceCount());
-            mb.cpuPermille  = 0;  // placeholder; a host-side CPU probe wires later.
+            mb.cpuPermille  = cpuPermille;
             std::memcpy(block.data, &mb, sizeof(MetersBlock));
             dataExchangeHandler_->sendCurrentBlock();
         }
