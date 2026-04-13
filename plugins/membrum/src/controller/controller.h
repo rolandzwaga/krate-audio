@@ -7,13 +7,17 @@
 #include "public.sdk/source/vst/vsteditcontroller.h"
 #include "dsp/pad_config.h"
 
+#include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/lib/cvstguitimer.h"
+
 #include <array>
 
 namespace Steinberg { class IBStream; }
 
 namespace Membrum {
 
-class Controller : public Steinberg::Vst::EditControllerEx1
+class Controller : public Steinberg::Vst::EditControllerEx1,
+                    public VSTGUI::VST3EditorDelegate
 {
 public:
     Controller() = default;
@@ -26,6 +30,20 @@ public:
     Steinberg::tresult PLUGIN_API initialize(Steinberg::FUnknown* context) override;
     Steinberg::tresult PLUGIN_API setComponentState(Steinberg::IBStream* state) override;
     Steinberg::IPlugView* PLUGIN_API createView(const char* name) override;
+
+    // ==========================================================================
+    // Phase 6 (T028) -- IVST3EditorDelegate hooks.
+    // VST3Editor auto-discovers the delegate via dynamic_cast on the controller
+    // supplied to its constructor, so these methods are called by the editor.
+    // ==========================================================================
+    VSTGUI::CView* createCustomView(
+        VSTGUI::UTF8StringPtr name,
+        const VSTGUI::UIAttributes& attributes,
+        const VSTGUI::IUIDescription* description,
+        VSTGUI::VST3Editor* editor) override;
+
+    void didOpen(VSTGUI::VST3Editor* editor) override;
+    void willClose(VSTGUI::VST3Editor* editor) override;
 
     // Phase 4: Override setParamNormalized to implement proxy logic
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
@@ -67,6 +85,12 @@ private:
     int selectedPadIndex_ = 0;
     bool suppressProxyForward_ = false;  // prevent re-entrancy during pad switch
     std::array<bool, kMaxOutputBuses> busActive_ = {true}; // bus 0 always active
+
+    // Phase 6 (T028): editor lifecycle tracking. Raw pointers are owned by the
+    // host / VSTGUI; we only cache them for use inside the 30 Hz poll timer.
+    // Zeroed in willClose() so we never dereference a dead view (SC-014).
+    VSTGUI::VST3Editor*              activeEditor_   = nullptr;
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
 };
 
 } // namespace Membrum

@@ -7,9 +7,13 @@
 
 #include "processor/macro_mapper.h"
 #include "dsp/pad_config.h"
+#include <allocation_detector.h>
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
+
+// Global operator new/delete overrides required by AllocationDetector live in
+// plugins/membrum/tests/unit/test_allocation_matrix.cpp. See the comment there.
 
 using Catch::Matchers::WithinAbs;
 using namespace Membrum;
@@ -224,4 +228,42 @@ TEST_CASE("MacroMapper without prepare() is a no-op", "[macro_mapper]")
     cfg.material = 0.25f;
     m.apply(0, cfg);
     REQUIRE_THAT(cfg.material, WithinAbs(0.25f, 1e-7f));
+}
+
+// ==============================================================================
+// T020 / SC-008 -- MacroMapper::apply() makes zero heap allocations.
+// Uses TestHelpers::AllocationDetector with the global operator new overrides
+// at the top of this TU to count allocations across 1000 apply() calls.
+// ==============================================================================
+TEST_CASE("MacroMapper::apply() makes zero allocations in 1000 iterations (SC-008)",
+          "[macro_mapper][realtime]")
+{
+    MacroMapper m;
+    m.prepare(makeNeutralDefaults());
+
+    PadConfig cfg{};
+    // Warm-up: run a few iterations so any lazy state settles.
+    for (int i = 0; i < 8; ++i)
+    {
+        cfg.macroTightness  = 0.25f + 0.01f * static_cast<float>(i);
+        cfg.macroBrightness = 0.75f - 0.01f * static_cast<float>(i);
+        m.apply(0, cfg);
+    }
+
+    auto& detector = TestHelpers::AllocationDetector::instance();
+    detector.startTracking();
+
+    for (int i = 0; i < 1000; ++i)
+    {
+        // Perturb macros each iteration so apply() does not early-out.
+        cfg.macroTightness  = (i & 1) ? 0.4f : 0.6f;
+        cfg.macroBrightness = (i & 2) ? 0.3f : 0.7f;
+        cfg.macroBodySize   = (i & 4) ? 0.45f : 0.55f;
+        cfg.macroPunch      = (i & 8) ? 0.35f : 0.65f;
+        cfg.macroComplexity = (i & 16) ? 0.2f : 0.8f;
+        m.apply(0, cfg);
+    }
+
+    const std::size_t allocations = detector.stopTracking();
+    REQUIRE(allocations == 0);
 }

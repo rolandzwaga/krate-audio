@@ -1047,6 +1047,31 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             recomputeCouplingMatrix();
         }
 
+        // Phase 6 (T025): reapply macros after state restore so derived
+        // parameters reflect the loaded pad macro values. We only force a
+        // reapply when at least one pad has a non-neutral macro (the v5/v6
+        // on-wire layout does not yet carry macros; the v5->v6 migration
+        // that writes macros is scheduled for a later spec-141 task). At
+        // neutral-macros (all 0.5) MacroMapper produces zero delta, but
+        // reapply would still overwrite the loaded underlying targets with
+        // the registered defaults — the bit-exact round-trip of custom
+        // underlying values must be preserved (FR-130 / state v4 tests).
+        auto& pads = voicePool_.padConfigsArray();
+        const bool anyNonNeutral = [&pads]() noexcept {
+            for (const auto& p : pads)
+            {
+                if (p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                    p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                    p.macroComplexity != 0.5f)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }();
+        if (anyNonNeutral)
+            macroMapper_.reapplyAll(pads);
+
         return kResultOk;
     }
 
@@ -1239,6 +1264,33 @@ tresult Processor::loadKitPreset(IBStream* stream)
     // Sync choke group table from padConfigs
     for (int pad = 0; pad < kNumPads; ++pad)
         voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
+
+    // Phase 6 (T025): after a kit preset is loaded, the per-pad macro cache
+    // in MacroMapper is stale with respect to the newly loaded pads. Force a
+    // full refresh so derived underlying parameters reflect any non-neutral
+    // macros carried by the preset (FR-023). The current kit preset layout
+    // (v4) does not yet carry macros, so at load-time macros remain at their
+    // previous values. We still invalidate the cache so the first subsequent
+    // macro edit recomputes correctly; the actual overwrite only runs when
+    // at least one pad carries a non-neutral macro to preserve round-trip
+    // of user-set underlying params.
+    auto& kitPads = voicePool_.padConfigsArray();
+    const bool kitAnyNonNeutral = [&kitPads]() noexcept {
+        for (const auto& p : kitPads)
+        {
+            if (p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                p.macroComplexity != 0.5f)
+            {
+                return true;
+            }
+        }
+        return false;
+    }();
+    if (kitAnyNonNeutral)
+        macroMapper_.reapplyAll(kitPads);
+    else
+        macroMapper_.invalidateCache();
 
     // Kit preset does NOT modify selectedPadIndex
     return kResultOk;

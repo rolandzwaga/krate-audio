@@ -1112,4 +1112,65 @@ IPlugView* PLUGIN_API Controller::createView(const char* name)
     return nullptr;
 }
 
+// ==============================================================================
+// IVST3EditorDelegate implementations (T028)
+// ==============================================================================
+
+VSTGUI::CView* Controller::createCustomView(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::UIAttributes& /*attributes*/,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* /*editor*/)
+{
+    // Phase 6 (T028): custom view dispatcher. The real views (PadGridView,
+    // CouplingMatrixView, PitchEnvelopeDisplay) are constructed by later
+    // phases (T042 / Phase 7 / Phase 9). Returning nullptr here lets VSTGUI
+    // fall back to a placeholder; the important job of this method today is
+    // simply to exist so editor.uidesc references to these custom-view names
+    // resolve cleanly instead of triggering parse errors.
+    if (!name)
+        return nullptr;
+    if (std::strcmp(name, "PadGridView") == 0)
+        return nullptr;
+    if (std::strcmp(name, "CouplingMatrixView") == 0)
+        return nullptr;
+    if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
+        return nullptr;
+    return nullptr;
+}
+
+void Controller::didOpen(VSTGUI::VST3Editor* editor)
+{
+    // Phase 6 (T028): cache the editor pointer and start a 30 Hz poll timer
+    // for PadGlowPublisher / MatrixActivityPublisher snapshots. The actual
+    // view invalidation lives in later phases; the body here is intentionally
+    // minimal but the timer lifecycle is fully correct today so we do not
+    // leak a timer between editor instances.
+    activeEditor_ = editor;
+    pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
+            // Phase 6 (T028): publisher snapshots will be consumed here by
+            // PadGridView / CouplingMatrixView once wired in later phases.
+            // For now the tick is a no-op but the timer is real so the
+            // lifecycle (cancel in willClose) is correct.
+            if (activeEditor_ == nullptr)
+                return;
+        },
+        33 /* ~30 Hz */,
+        true /* start immediately */));
+}
+
+void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
+{
+    // Phase 6 (T028, SC-014): cancel the poll timer and zero the raw view
+    // pointer BEFORE the editor tears down the view tree, so no background
+    // tick can dereference a dead view.
+    if (pollTimer_)
+    {
+        pollTimer_->stop();
+        pollTimer_ = nullptr;
+    }
+    activeEditor_ = nullptr;
+}
+
 } // namespace Membrum

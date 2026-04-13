@@ -77,6 +77,64 @@ TEST_CASE("kUiModeId responds to setParamNormalized (automatable)",
     ctl.terminate();
 }
 
+// ----------------------------------------------------------------------------
+// T021: setState always resets kUiModeId to Acoustic regardless of blob content.
+// ----------------------------------------------------------------------------
+TEST_CASE("Controller::setComponentState resets kUiModeId to Acoustic (T021)",
+          "[ui_mode_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    // Prime the controller into Extended so we can prove the reset happens.
+    REQUIRE(ctl.setParamNormalized(kUiModeId, 1.0) == Steinberg::kResultOk);
+    REQUIRE(ctl.getParamNormalized(kUiModeId) == 1.0);
+
+    // Build a minimal v6 state blob by producing one from a fresh Processor.
+    Processor p;
+    REQUIRE(p.initialize(nullptr) == Steinberg::kResultOk);
+    Steinberg::MemoryStream blob;
+    REQUIRE(p.getState(&blob) == Steinberg::kResultOk);
+    blob.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+
+    // setComponentState must unconditionally reset kUiModeId.
+    REQUIRE(ctl.setComponentState(&blob) == Steinberg::kResultOk);
+    REQUIRE(ctl.getParamNormalized(kUiModeId) == 0.0);
+
+    p.terminate();
+    ctl.terminate();
+}
+
+// ----------------------------------------------------------------------------
+// T021: kit preset load with "uiMode":"Extended" drives kUiModeId to Extended.
+// Here we exercise the Controller-visible preset-load code path by simulating
+// the callback: the preset code calls setParamNormalized(kUiModeId, 1.0) when
+// the JSON contains "uiMode":"Extended". Full JSON wiring lives in Phase 5 /
+// T055; this test pins the contract the callback must satisfy.
+// ----------------------------------------------------------------------------
+TEST_CASE("Kit preset uiMode=Extended triggers kUiModeId change via callback (T021)",
+          "[ui_mode_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    // Simulated preset-load callback behaviour (Phase 5 T055 will call
+    // setParamNormalized on the UI thread when the JSON has "uiMode":"Extended").
+    auto presetLoadCallback = [&ctl](const std::string& uiModeValue) {
+        if (uiModeValue == "Extended")
+            ctl.setParamNormalized(kUiModeId, 1.0);
+        else if (uiModeValue == "Acoustic")
+            ctl.setParamNormalized(kUiModeId, 0.0);
+    };
+
+    presetLoadCallback("Extended");
+    REQUIRE(ctl.getParamNormalized(kUiModeId) == 1.0);
+    presetLoadCallback("Acoustic");
+    REQUIRE(ctl.getParamNormalized(kUiModeId) == 0.0);
+
+    ctl.terminate();
+}
+
 TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_session]")
 {
     Processor p;

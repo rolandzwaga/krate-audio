@@ -19,12 +19,13 @@
 #include "pluginterfaces/vst/ivsteditcontroller.h"
 #include "public.sdk/source/vst/vstparameters.h"
 
+#include "vstgui/lib/vstguifwd.h"
+#include "vstgui/lib/cvstguitimer.h"
+#include "ui/editor_size_policy.h"
+
 namespace VSTGUI {
-class CFrame;
 class VST3Editor;
 class UIViewSwitchContainer;
-class CControl;
-class IController;
 } // namespace VSTGUI
 
 namespace Steinberg::Vst { class EditController; }
@@ -61,6 +62,14 @@ private:
     // Cached Parameter pointers (not owned).
     Steinberg::Vst::Parameter* uiModeParam_     = nullptr;
     Steinberg::Vst::Parameter* editorSizeParam_ = nullptr;
+
+    // T030: exchangeView() rebuilds the entire view tree synchronously. When
+    // IDependent::update() fires on the UI thread mid-VSTGUI dispatch it is
+    // unsafe to destroy the view stack that is currently handling the
+    // notification. We defer the swap to a zero-delay one-shot CVSTGUITimer
+    // so the swap runs *after* the current notification chain unwinds.
+    VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pendingExchangeTimer_;
+    EditorSize                                   pendingEditorSize_ = EditorSize::Default;
 };
 
 } // namespace Membrum::UI

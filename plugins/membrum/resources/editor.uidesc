@@ -1,15 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <vstgui-ui-description version="1">
-  <!-- ================================================================== -->
-  <!-- Membrum Phase 6 - Custom Editor Skeleton                            -->
-  <!-- Two top-level templates for the user-toggled editor size (FR-001): -->
-  <!--   EditorDefault:  1280x800                                          -->
-  <!--   EditorCompact:  1024x640                                          -->
-  <!-- Each template hosts three regions (PadGrid | SelectedPad | Kit).    -->
-  <!-- Later phases will populate the region contents and the Acoustic /   -->
-  <!-- Extended UIViewSwitchContainer inside the SelectedPad region.       -->
-  <!-- ================================================================== -->
-
+  <!-- Membrum Phase 6 editor (spec 141) -->
   <colors>
     <color name="bg-primary"    rgba="#1A1A2Eff"/>
     <color name="bg-panel"      rgba="#202030ff"/>
@@ -17,108 +8,147 @@
     <color name="text-primary"  rgba="#E0E0F0ff"/>
     <color name="text-secondary" rgba="#8888AAff"/>
   </colors>
-
   <fonts>
     <font name="title-font"   font-name="Arial" size="16" bold="true"/>
     <font name="section-font" font-name="Arial" size="11" bold="true"/>
     <font name="label-font"   font-name="Arial" size="10"/>
   </fonts>
-
-  <!-- ==================================================================== -->
-  <!-- Control Tags                                                         -->
-  <!-- ==================================================================== -->
   <control-tags>
-    <!-- Phase 6 globals (session-scoped; FR-030, FR-040) -->
-    <control-tag name="UiMode"     tag="280"/>
+    <control-tag name="UiMode" tag="280"/>
     <control-tag name="EditorSize" tag="281"/>
-
-    <!-- Phase 5 globals wired in kit column -->
     <control-tag name="GlobalCoupling" tag="270"/>
-    <control-tag name="SnareBuzz"      tag="271"/>
-    <control-tag name="TomResonance"   tag="272"/>
-    <control-tag name="CouplingDelay"  tag="273"/>
-
-    <!-- Phase 4 pad selector -->
-    <control-tag name="SelectedPad"    tag="260"/>
-
-    <!-- Phase 3 voice management -->
-    <control-tag name="MaxPolyphony"   tag="250"/>
-    <control-tag name="VoiceStealing"  tag="251"/>
+    <control-tag name="SnareBuzz" tag="271"/>
+    <control-tag name="TomResonance" tag="272"/>
+    <control-tag name="CouplingDelay" tag="273"/>
+    <control-tag name="SelectedPad" tag="260"/>
+    <control-tag name="MaxPolyphony" tag="250"/>
+    <control-tag name="VoiceStealing" tag="251"/>
+    <control-tag name="Material" tag="100"/>
+    <control-tag name="Size" tag="101"/>
+    <control-tag name="Decay" tag="102"/>
+    <control-tag name="StrikePosition" tag="103"/>
+    <control-tag name="Level" tag="104"/>
+    <control-tag name="ExciterType" tag="200"/>
+    <control-tag name="BodyModel" tag="201"/>
+    <control-tag name="PitchEnvStart" tag="216"/>
+    <control-tag name="PitchEnvEnd" tag="217"/>
+    <control-tag name="PitchEnvTime" tag="218"/>
+    <control-tag name="MacroTightness" tag="1037"/>
+    <control-tag name="MacroBrightness" tag="1038"/>
+    <control-tag name="MacroBodySize" tag="1039"/>
+    <control-tag name="MacroPunch" tag="1040"/>
+    <control-tag name="MacroComplexity" tag="1041"/>
+    <control-tag name="ChokeGroupSel" tag="1030"/>
+    <control-tag name="OutputBusSel" tag="1031"/>
   </control-tags>
-
   <bitmaps/>
-
-  <!-- ==================================================================== -->
-  <!-- Default editor template: 1280x800 (FR-001)                           -->
-  <!-- ==================================================================== -->
-  <template name="EditorDefault"
-            class="CViewContainer"
-            background-color="bg-primary"
-            background-color-draw-style="filled"
-            origin="0, 0"
-            size="1280, 800"
-            minSize="1280, 800"
-            maxSize="1280, 800"
-            autosize="left top right bottom"
-            transparent="false"
-            wants-focus="false"
-            mouse-enabled="true">
-    <!-- PadGrid region placeholder (left column) -->
-    <view class="CViewContainer"
-          origin="0, 0"
-          size="640, 800"
-          background-color="bg-panel"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
-    <!-- SelectedPad region placeholder (centre column) -->
-    <view class="CViewContainer"
-          origin="640, 0"
-          size="400, 800"
-          background-color="bg-primary"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
-    <!-- Kit column placeholder (right column) -->
-    <view class="CViewContainer"
-          origin="1040, 0"
-          size="240, 800"
-          background-color="bg-panel"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
+  <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Macros" origin="8, 8" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Tightness" origin="8, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="MacroTightness" origin="8, 28" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Brightness" origin="80, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="MacroBrightness" origin="80, 28" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Body Size" origin="152, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="MacroBodySize" origin="152, 28" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Punch" origin="224, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="MacroPunch" origin="224, 28" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Complexity" origin="296, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="MacroComplexity" origin="296, 28" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Body" origin="8, 120" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Material" origin="8, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="Material" origin="8, 140" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Size" origin="80, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="Size" origin="80, 140" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Decay" origin="152, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="Decay" origin="152, 140" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Strike" origin="224, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="StrikePosition" origin="224, 140" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Level" origin="296, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="Level" origin="296, 140" size="56, 56" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Pitch Envelope" origin="8, 232" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PitchEnvelopeDisplay" origin="8, 252" size="360, 80" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Routing" origin="8, 344" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Output Bus" origin="8, 364" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 362" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Choke Group" origin="8, 390" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 388" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Source" origin="8, 420" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Exciter" origin="8, 440" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ExciterType" origin="96, 438" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Body" origin="8, 466" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="BodyModel" origin="96, 464" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
   </template>
-
-  <!-- ==================================================================== -->
-  <!-- Compact editor template: 1024x640 (FR-001)                           -->
-  <!-- ==================================================================== -->
-  <template name="EditorCompact"
-            class="CViewContainer"
-            background-color="bg-primary"
-            background-color-draw-style="filled"
-            origin="0, 0"
-            size="1024, 640"
-            minSize="1024, 640"
-            maxSize="1024, 640"
-            autosize="left top right bottom"
-            transparent="false"
-            wants-focus="false"
-            mouse-enabled="true">
-    <view class="CViewContainer"
-          origin="0, 0"
-          size="512, 640"
-          background-color="bg-panel"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
-    <view class="CViewContainer"
-          origin="512, 0"
-          size="320, 640"
-          background-color="bg-primary"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
-    <view class="CViewContainer"
-          origin="832, 0"
-          size="192, 640"
-          background-color="bg-panel"
-          background-color-draw-style="filled"
-          mouse-enabled="true"/>
+  <template name="SelectedPadExtended" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Extended mode -- filled in Phase 3 (T036)" origin="8, 8" size="384, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
   </template>
-
+  <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
+      <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="PadGridView" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled"/>
+      </view>
+      <view class="CViewContainer" origin="640, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="UIViewSwitchContainer" origin="0, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
+      </view>
+      <view class="CViewContainer" origin="1040, 0" size="240, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Display" origin="8, 8" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextButton" control-tag="UiMode" origin="8, 28" size="108, 22" title="Mode" font="label-font" text-color="text-primary" frame-color="accent" frame-width="1" roundness="2" text-alignment="center"/>
+        <view class="CTextButton" control-tag="EditorSize" origin="124, 28" size="108, 22" title="Size" font="label-font" text-color="text-primary" frame-color="accent" frame-width="1" roundness="2" text-alignment="center"/>
+        <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PadBrowserView" origin="8, 224" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Voices" origin="8, 332" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="224, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
+        <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Active voices: -" origin="8, 424" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Coupling" origin="8, 452" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Snare" origin="64, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="SnareBuzz" origin="64, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Tom" origin="120, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="TomResonance" origin="120, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Delay" origin="176, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Meter" origin="8, 560" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="MetersView" origin="8, 580" size="224, 32" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 620" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+      </view>
+  </template>
+  <template name="EditorCompact" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1024, 640" minSize="1024, 640" maxSize="1024, 640" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
+      <view class="CViewContainer" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="PadGridView" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled"/>
+      </view>
+      <view class="CViewContainer" origin="512, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="UIViewSwitchContainer" origin="0, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
+      </view>
+      <view class="CViewContainer" origin="832, 0" size="192, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Display" origin="8, 8" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextButton" control-tag="UiMode" origin="8, 28" size="84, 22" title="Mode" font="label-font" text-color="text-primary" frame-color="accent" frame-width="1" roundness="2" text-alignment="center"/>
+        <view class="CTextButton" control-tag="EditorSize" origin="100, 28" size="84, 22" title="Size" font="label-font" text-color="text-primary" frame-color="accent" frame-width="1" roundness="2" text-alignment="center"/>
+        <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="KitBrowserView" origin="8, 84" size="176, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PadBrowserView" origin="8, 224" size="176, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Voices" origin="8, 332" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="176, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
+        <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="88, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Active voices: -" origin="8, 424" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Coupling" origin="8, 452" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Snare" origin="64, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="SnareBuzz" origin="64, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Tom" origin="120, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="TomResonance" origin="120, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Delay" origin="176, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
+        <view class="CTextLabel" title="Meter" origin="8, 560" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="MetersView" origin="8, 580" size="176, 32" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 620" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+      </view>
+  </template>
 </vstgui-ui-description>

@@ -38,6 +38,14 @@ MembrumEditorController::~MembrumEditorController()
         uiModeParam_->removeDependent(this);
     if (editorSizeParam_)
         editorSizeParam_->removeDependent(this);
+
+    // T030: cancel any still-pending deferred exchangeView() so its callback
+    // does not fire into a destroyed sub-controller.
+    if (pendingExchangeTimer_)
+    {
+        pendingExchangeTimer_->stop();
+        pendingExchangeTimer_ = nullptr;
+    }
 }
 
 void MembrumEditorController::attachUiModeSwitch(
@@ -72,9 +80,27 @@ void PLUGIN_API MembrumEditorController::update(FUnknown* changedUnknown,
 
     if (param == editorSizeParam_ && editor_)
     {
+        // T030: calling exchangeView() synchronously from IDependent::update()
+        // destroys the view tree that is currently dispatching this very
+        // notification (VSTGUI crashes deep in CFrame::removeView). Defer the
+        // swap onto a zero-delay one-shot CVSTGUITimer so the current
+        // notification chain unwinds first. The destructor cancels the timer.
         const auto norm = static_cast<float>(param->getNormalized());
-        const auto size = (norm < 0.5f) ? EditorSize::Default : EditorSize::Compact;
-        editor_->exchangeView(templateNameFor(size));
+        pendingEditorSize_ = (norm < 0.5f) ? EditorSize::Default
+                                            : EditorSize::Compact;
+
+        // Replace any still-pending exchange -- latest value wins.
+        if (pendingExchangeTimer_)
+            pendingExchangeTimer_->stop();
+
+        pendingExchangeTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
+            [this](VSTGUI::CVSTGUITimer* timer) {
+                timer->stop();  // one-shot
+                if (editor_)
+                    editor_->exchangeView(templateNameFor(pendingEditorSize_));
+            },
+            1 /* fireTime ms; one-shot after current event unwinds */,
+            true /* start */));
         return;
     }
 }
