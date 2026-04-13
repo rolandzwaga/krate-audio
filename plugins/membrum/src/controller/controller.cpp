@@ -9,6 +9,7 @@
 #include "dsp/body_model_type.h"
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
+#include "ui/coupling_matrix_view.h"
 #include "preset/membrum_preset_config.h"
 
 #include "preset/preset_manager.h"
@@ -1306,7 +1307,19 @@ VSTGUI::CView* Controller::createCustomView(
         return view;
     }
     if (std::strcmp(name, "CouplingMatrixView") == 0)
-        return nullptr;
+    {
+        // Phase 6 (T068): construct the CouplingMatrixView. The view's
+        // CouplingMatrix* and MatrixActivityPublisher* pointers are nullptr
+        // here because separate-component mode prevents the Controller from
+        // reaching into the Processor -- tests construct the view directly
+        // with real instances to exercise click/Solo/activity logic.
+        auto* view = new UI::CouplingMatrixView(
+            VSTGUI::CRect{ 0, 0, 320, 320 },
+            /*matrix*/ nullptr,
+            /*activityPublisher*/ nullptr);
+        couplingMatrixView_ = view;
+        return view;
+    }
     if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
         return nullptr;
     if (std::strcmp(name, "MetersView") == 0)
@@ -1435,6 +1448,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     activeEditor_      = nullptr;
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
+    couplingMatrixView_ = nullptr;
     cpuLabel_          = nullptr;
     activeVoicesLabel_ = nullptr;
     presetStatusLabel_ = nullptr;

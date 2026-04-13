@@ -23,7 +23,7 @@ class SavePresetDialogView;
 
 namespace Steinberg { class IBStream; }
 
-namespace Membrum::UI { class PadGridView; class KitMetersView; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; }
 
 namespace VSTGUI { class CTextLabel; }
 
@@ -151,6 +151,10 @@ private:
     // createCustomView; the CPU label is a CTextLabel discovered via
     // verifyView() by matching its initial title prefix "CPU".
     Membrum::UI::KitMetersView*      kitMetersView_  = nullptr;
+
+    // Phase 6 (T068 / US6): raw pointer to the active CouplingMatrixView.
+    // Lifetime is owned by VSTGUI's view tree; zeroed in willClose().
+    Membrum::UI::CouplingMatrixView* couplingMatrixView_ = nullptr;
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 
     // T060/T062 (Phase 6 / US5): active-voices readout label. Discovered in

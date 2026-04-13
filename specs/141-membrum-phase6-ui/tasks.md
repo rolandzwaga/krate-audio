@@ -257,22 +257,22 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T066 [P] [US6] Write failing tests for `CouplingMatrixView` in `plugins/membrum/tests/unit/ui/test_coupling_matrix_view.cpp`: constructor accepts `CouplingMatrix*` and `MatrixActivityPublisher*`; `cellRect(src, dst)` maps correct screen rect; `onMouseDown()` on cell (1, 3) opens inline slider targeting `overrideGain[1][3]`; `onMouseDown()` on Reset clears `hasOverride` and calls `CouplingMatrix::clearOverride(1, 3)`; `draw()` colour intensity proportional to `effectiveGain` (brighter = higher gain); `removed()` de-registers IDependent and disengages Solo; `setSoloPath(src, dst)` masks all other pairs; `clearSolo()` restores all pairs; activity bitmask from `MatrixActivityPublisher` outlines active cells; redraw rate capped at 30 Hz (timer interval); view destructor disengages Solo (FR-053 / edge case)
+- [X] T066 [P] [US6] Write failing tests for `CouplingMatrixView` in `plugins/membrum/tests/unit/ui/test_coupling_matrix_view.cpp`: constructor accepts `CouplingMatrix*` and `MatrixActivityPublisher*`; `cellRect(src, dst)` maps correct screen rect; `onMouseDown()` on cell (1, 3) opens inline slider targeting `overrideGain[1][3]`; `onMouseDown()` on Reset clears `hasOverride` and calls `CouplingMatrix::clearOverride(1, 3)`; `draw()` colour intensity proportional to `effectiveGain` (brighter = higher gain); `removed()` de-registers IDependent and disengages Solo; `setSoloPath(src, dst)` masks all other pairs; `clearSolo()` restores all pairs; activity bitmask from `MatrixActivityPublisher` outlines active cells; redraw rate capped at 30 Hz (timer interval); view destructor disengages Solo (FR-053 / edge case)
 
 ### 7.2 Implementation for User Story 6
 
-- [ ] T067 [US6] Create `plugins/membrum/src/ui/coupling_matrix_view.h` and `coupling_matrix_view.cpp`: subclass `VSTGUI::CView`; `draw()` iterates 32x32 cells, maps `effectiveGain(src, dst)` to colour intensity (0.0 transparent, 0.05 opaque), outlines activity-flagged cells from `MatrixActivityPublisher.snapshot()`; cell size = view_width/32 x view_height/32; `onMouseDown()` identifies clicked cell and shows inline inline `CSlider` overlay to set `overrideGain`, or calls `clearOverride()` if on a Reset target; Solo `ToggleButton` calls `setSoloPath()` / `clearSolo()` which temporarily zeros non-solo pair outputs in the coupling resolver; destructor and `removed()` call `clearSolo()` (FR-053 edge case); cap redraws at 30 Hz via `CVSTGUITimer` with dirty-rect invalidation per R2 mitigation
-- [ ] T068 [US6] Register `CouplingMatrixView` in `controller.cpp` `createCustomView()` dispatcher; pass `couplingMatrix_` pointer and `matrixActivityPublisher_` reference; store raw pointer cleared in `willClose()`
-- [ ] T069 [US6] Verify coupling matrix override round-trip via state v6 serialization (already handled by Phase 5 override list in v5 format unchanged; just confirm v6 state getState/setState still writes/reads the override block correctly when combined with macro additions)
-- [ ] T070 [US6] Build and verify coupling matrix view tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_matrix_view]" 2>&1 | tail -5`
+- [X] T067 [US6] Create `plugins/membrum/src/ui/coupling_matrix_view.h` and `coupling_matrix_view.cpp`: subclass `VSTGUI::CView`; `draw()` iterates 32x32 cells, maps `effectiveGain(src, dst)` to colour intensity (0.0 transparent, 0.05 opaque), outlines activity-flagged cells from `MatrixActivityPublisher.snapshot()`; cell size = view_width/32 x view_height/32; `onMouseDown()` identifies clicked cell and shows inline inline `CSlider` overlay to set `overrideGain`, or calls `clearOverride()` if on a Reset target; Solo `ToggleButton` calls `setSoloPath()` / `clearSolo()` which temporarily zeros non-solo pair outputs in the coupling resolver; destructor and `removed()` call `clearSolo()` (FR-053 edge case); cap redraws at 30 Hz via `CVSTGUITimer` with dirty-rect invalidation per R2 mitigation
+- [X] T068 [US6] Register `CouplingMatrixView` in `controller.cpp` `createCustomView()` dispatcher; pass `couplingMatrix_` pointer and `matrixActivityPublisher_` reference; store raw pointer cleared in `willClose()`
+- [X] T069 [US6] Verify coupling matrix override round-trip via state v6 serialization (already handled by Phase 5 override list in v5 format unchanged; just confirm v6 state getState/setState still writes/reads the override block correctly when combined with macro additions)
+- [X] T070 [US6] Build and verify coupling matrix view tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[coupling_matrix_view]" 2>&1 | tail -5`
 
 ### 7.3 Cross-Platform Verification
 
-- [ ] T071 [US6] Verify `CouplingMatrixView::draw()` uses only VSTGUI drawing primitives (`CDrawContext`, `CColor`, `CRect`) -- no native CoreGraphics or GDI calls
+- [X] T071 [US6] Verify `CouplingMatrixView::draw()` uses only VSTGUI drawing primitives (`CDrawContext`, `CColor`, `CRect`) -- no native CoreGraphics or GDI calls
 
 ### 7.4 Commit (MANDATORY)
 
-- [ ] T072 [US6] Commit completed User Story 6 work (CouplingMatrixView, Solo/Reset/activity wiring, matrix editor in Extended kit column)
+- [X] T072 [US6] Commit completed User Story 6 work (CouplingMatrixView, Solo/Reset/activity wiring, matrix editor in Extended kit column)
 
 **Checkpoint**: US6 functional -- coupling matrix editor renders, overrides set/clear, Solo works, activity visualised.
 
