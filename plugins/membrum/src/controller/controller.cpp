@@ -10,6 +10,7 @@
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
 #include "ui/coupling_matrix_view.h"
+#include "ui/pitch_envelope_display.h"
 #include "preset/membrum_preset_config.h"
 
 #include "preset/preset_manager.h"
@@ -1402,7 +1403,37 @@ VSTGUI::CView* Controller::createCustomView(
         return view;
     }
     if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
-        return nullptr;
+    {
+        // Phase 9 (T080, Spec 141 US8): construct the real pitch-envelope
+        // display. The view forwards parameter edits via an EditCallback so the
+        // controller can run the standard beginEdit / performEdit / endEdit
+        // sequence on the tone-shaper pitch-envelope param IDs. This mirrors
+        // the CouplingMatrixView pattern above.
+        auto* view = new UI::PitchEnvelopeDisplay(
+            VSTGUI::CRect{ 0, 0, 360, 80 });
+        view->setEditCallback(
+            [this](std::uint32_t paramId,
+                   UI::PitchEnvelopeDisplay::EditOp op,
+                   float value) {
+                const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
+                const auto v   = static_cast<Steinberg::Vst::ParamValue>(value);
+                if (op == UI::PitchEnvelopeDisplay::EditOp::Begin)
+                {
+                    beginEdit(tag);
+                }
+                else if (op == UI::PitchEnvelopeDisplay::EditOp::Perform)
+                {
+                    performEdit(tag, v);
+                    setParamNormalized(tag, v);
+                }
+                else if (op == UI::PitchEnvelopeDisplay::EditOp::End)
+                {
+                    endEdit(tag);
+                }
+            });
+        pitchEnvelopeDisplay_ = view;
+        return view;
+    }
     if (std::strcmp(name, "MetersView") == 0)
     {
         // T046: kit-column peak meter. The size below is a placeholder; the
@@ -1580,6 +1611,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
     couplingMatrixView_ = nullptr;
+    pitchEnvelopeDisplay_ = nullptr;
     cpuLabel_          = nullptr;
     activeVoicesLabel_ = nullptr;
     presetStatusLabel_ = nullptr;

@@ -317,22 +317,22 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T078 [P] [US8] Write failing tests for `PitchEnvelopeDisplay` in `plugins/membrum/tests/unit/ui/test_pitch_envelope_display.cpp`: constructor accepts param tags for Start/End/Time/Curve; dragging Start hit-target vertically fires `beginEdit`/`performEdit`/`endEdit` on `kToneShaperPitchEnvStartId`; dragging End vertically fires on `kToneShaperPitchEnvEndId`; dragging Time horizontally fires on `kToneShaperPitchEnvTimeId`; Curve control wires to `kToneShaperPitchEnvCurveId` string-list; `removed()` deregisters IDependent; display is present in `SelectedPadAcoustic` template (not only in Extended)
-- [ ] T079 [P] [US8] Write failing test: Punch macro at 1.0 drives `tsPitchEnvStart` by `kPunchPitchEnvDepthSpan * 0.5f` above registered default AND drives `tsPitchEnvTime` by `-kPunchPitchEnvTimeSpan * 0.5f` relative to registered default (already covered by T020 MacroMapper tests -- this task verifies the Punch curve constants in `MacroCurves` namespace are correct by reading `macro_mapper.h`)
+- [X] T078 [P] [US8] Write failing tests for `PitchEnvelopeDisplay` in `plugins/membrum/tests/unit/ui/test_pitch_envelope_display.cpp`: constructor accepts param tags for Start/End/Time/Curve; dragging Start hit-target vertically fires `beginEdit`/`performEdit`/`endEdit` on `kToneShaperPitchEnvStartId`; dragging End vertically fires on `kToneShaperPitchEnvEndId`; dragging Time horizontally fires on `kToneShaperPitchEnvTimeId`; Curve control wires to `kToneShaperPitchEnvCurveId` string-list; `removed()` deregisters IDependent; display is present in `SelectedPadAcoustic` template (not only in Extended)
+- [X] T079 [P] [US8] Write failing test: Punch macro at 1.0 drives `tsPitchEnvStart` by `kPunchPitchEnvDepthSpan * 0.5f` above registered default AND drives `tsPitchEnvTime` by `-kPunchPitchEnvTimeSpan * 0.5f` relative to registered default (already covered by T020 MacroMapper tests -- this task verifies the Punch curve constants in `MacroCurves` namespace are correct by reading `macro_mapper.h`)
 
 ### 9.2 Implementation for User Story 8
 
-- [ ] T080 [US8] Create `plugins/membrum/src/ui/pitch_envelope_display.h` and `pitch_envelope_display.cpp`: subclass `VSTGUI::CView` patterned on `plugins/shared/src/ui/adsr_display.h`; render a simple 2D envelope shape with draggable Start (Hz, top-left), End (Hz, bottom-right), and Time (horizontal) control points; `onMouseDown()` hit-tests the three control points; dragging fires `beginEdit`/`performEdit`/`endEdit` on the appropriate param ID; Curve selector wires to `kToneShaperPitchEnvCurveId` via `COptionMenu` embedded in view or adjacent control; `setNormalized()` updates displayed point from param notification
-- [ ] T081 [US8] Verify `PitchEnvelopeDisplay` is placed in the `SelectedPadAcoustic` template in `editor.uidesc` as a primary control (not inside an Extended-only section); confirm it also appears in `SelectedPadExtended` within the full Tone Shaper section
-- [ ] T082 [US8] Build and verify pitch envelope tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[pitch_envelope]" 2>&1 | tail -5`
+- [X] T080 [US8] Create `plugins/membrum/src/ui/pitch_envelope_display.h` and `pitch_envelope_display.cpp`: subclass `VSTGUI::CView` patterned on `plugins/shared/src/ui/adsr_display.h`; render a simple 2D envelope shape with draggable Start (Hz, top-left), End (Hz, bottom-right), and Time (horizontal) control points; `onMouseDown()` hit-tests the three control points; dragging fires `beginEdit`/`performEdit`/`endEdit` on the appropriate param ID; Curve selector wires to `kToneShaperPitchEnvCurveId` via `COptionMenu` embedded in view or adjacent control; `setNormalized()` updates displayed point from param notification
+- [X] T081 [US8] Verify `PitchEnvelopeDisplay` is placed in the `SelectedPadAcoustic` template in `editor.uidesc` as a primary control (not inside an Extended-only section); confirm it also appears in `SelectedPadExtended` within the full Tone Shaper section
+- [X] T082 [US8] Build and verify pitch envelope tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[pitch_envelope]" 2>&1 | tail -5`
 
 ### 9.3 Cross-Platform Verification
 
-- [ ] T083 [US8] Verify `PitchEnvelopeDisplay` hit-testing uses VSTGUI coordinate system only (no native mouse API calls)
+- [X] T083 [US8] Verify `PitchEnvelopeDisplay` hit-testing uses VSTGUI coordinate system only (no native mouse API calls)
 
 ### 9.4 Commit (MANDATORY)
 
-- [ ] T084 [US8] Commit completed User Story 8 work (PitchEnvelopeDisplay, Acoustic-mode promotion, Punch macro wiring verified)
+- [X] T084 [US8] Commit completed User Story 8 work (PitchEnvelopeDisplay, Acoustic-mode promotion, Punch macro wiring verified)
 
 **Checkpoint**: US8 functional -- pitch envelope visible in Acoustic mode as a primary control; Punch macro drives it.
 
