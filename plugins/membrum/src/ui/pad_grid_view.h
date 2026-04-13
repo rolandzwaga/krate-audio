@@ -83,18 +83,18 @@ inline constexpr int kPadGridRows    = 8;
 // Text helpers (exposed for unit tests -- FR-011).
 // Returns empty string when the indicator should not be drawn.
 // ------------------------------------------------------------------------------
-[[nodiscard]] std::string chokeGroupIndicatorText(std::uint8_t chokeGroup) noexcept;
-[[nodiscard]] std::string outputBusIndicatorText(std::uint8_t outputBus) noexcept;
+[[nodiscard]] std::string chokeGroupIndicatorText(std::uint8_t chokeGroup);
+[[nodiscard]] std::string outputBusIndicatorText(std::uint8_t outputBus);
 
 /// GM Percussion Key Map (General MIDI) short name for a MIDI note in [36, 67].
 /// Returns empty string for MIDI notes outside that range.
-[[nodiscard]] std::string gmDrumNameForNote(int midiNote) noexcept;
+[[nodiscard]] std::string gmDrumNameForNote(int midiNote);
 
 /// Single-character category glyph suitable for small-cell rendering (FR-011).
 /// Returns a 1-char string:
 ///   Kick -> "K", Snare -> "S", HatCymbal -> "H", Tom -> "T", Perc -> "P".
 /// Unclassified / out-of-range categories return empty string.
-[[nodiscard]] std::string categoryGlyphForConfig(const PadConfig& cfg) noexcept;
+[[nodiscard]] std::string categoryGlyphForConfig(const PadConfig& cfg);
 
 // Map a PadGlowPublisher amplitude bucket (0..31) to a normalised [0..1]
 // brightness. Bucket 0 => 0.0 (silent); bucket 31 => 1.0 (maximum).

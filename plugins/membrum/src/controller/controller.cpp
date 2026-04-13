@@ -1639,7 +1639,7 @@ void Controller::updateMeterViews(const MetersBlock& meters) noexcept
     if (cpuLabel_ != nullptr)
     {
         // cpuPermille is 0..1000 (per-mille). Display as whole percent.
-        const unsigned int percent =
+        const auto percent =
             static_cast<unsigned int>((meters.cpuPermille + 5) / 10);
         char buf[32] = {};
         std::snprintf(buf, sizeof(buf), "CPU: %u%%", percent);

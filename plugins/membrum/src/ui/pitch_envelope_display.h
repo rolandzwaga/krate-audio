@@ -71,14 +71,20 @@ public:
     // but are overridable so tests can use synthetic IDs.
     struct ParamTags
     {
-        std::uint32_t start = 216;  // kToneShaperPitchEnvStartId
-        std::uint32_t end   = 217;  // kToneShaperPitchEnvEndId
-        std::uint32_t time  = 218;  // kToneShaperPitchEnvTimeId
-        std::uint32_t curve = 219;  // kToneShaperPitchEnvCurveId
+        std::uint32_t start; // kToneShaperPitchEnvStartId
+        std::uint32_t end;   // kToneShaperPitchEnvEndId
+        std::uint32_t time;  // kToneShaperPitchEnvTimeId
+        std::uint32_t curve; // kToneShaperPitchEnvCurveId
+
+        constexpr ParamTags() noexcept
+            : start(216), end(217), time(218), curve(219) {}
+        constexpr ParamTags(std::uint32_t s, std::uint32_t e,
+                            std::uint32_t t, std::uint32_t c) noexcept
+            : start(s), end(e), time(t), curve(c) {}
     };
 
     explicit PitchEnvelopeDisplay(const VSTGUI::CRect& size,
-                                  ParamTags             tags = {}) noexcept;
+                                  ParamTags             tags = ParamTags{}) noexcept;
 
     ~PitchEnvelopeDisplay() override;
 

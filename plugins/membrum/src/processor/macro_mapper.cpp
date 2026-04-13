@@ -13,7 +13,7 @@ namespace {
 
 [[nodiscard]] inline float clamp01(float v) noexcept
 {
-    return (v < 0.0f) ? 0.0f : (v > 1.0f ? 1.0f : v);
+    return std::clamp(v, 0.0f, 1.0f);
 }
 
 // Exponential, symmetric around macro=0.5. At macro=0.5 returns 0 exactly.
@@ -47,19 +47,19 @@ void MacroMapper::invalidateCache() noexcept
         c = PadCache{};
 }
 
-bool MacroMapper::isDirty(int padIndex, const PadConfig& cfg) const noexcept
+bool MacroMapper::isDirty(int padIndex, const PadConfig& padConfig) const noexcept
 {
     if (padIndex < 0 || padIndex >= kNumPads)
         return false;
     const auto& c = cache_[static_cast<std::size_t>(padIndex)];
-    return c.tightness  != cfg.macroTightness  ||
-           c.brightness != cfg.macroBrightness ||
-           c.bodySize   != cfg.macroBodySize   ||
-           c.punch      != cfg.macroPunch      ||
-           c.complexity != cfg.macroComplexity;
+    return c.tightness  != padConfig.macroTightness  ||
+           c.brightness != padConfig.macroBrightness ||
+           c.bodySize   != padConfig.macroBodySize   ||
+           c.punch      != padConfig.macroPunch      ||
+           c.complexity != padConfig.macroComplexity;
 }
 
-void MacroMapper::apply(int padIndex, PadConfig& cfg) noexcept
+void MacroMapper::apply(int padIndex, PadConfig& padConfig) noexcept
 {
     if (!prepared_)
         return;
@@ -68,25 +68,25 @@ void MacroMapper::apply(int padIndex, PadConfig& cfg) noexcept
 
     auto& c = cache_[static_cast<std::size_t>(padIndex)];
     const bool dirty =
-        c.tightness  != cfg.macroTightness  ||
-        c.brightness != cfg.macroBrightness ||
-        c.bodySize   != cfg.macroBodySize   ||
-        c.punch      != cfg.macroPunch      ||
-        c.complexity != cfg.macroComplexity;
+        c.tightness  != padConfig.macroTightness  ||
+        c.brightness != padConfig.macroBrightness ||
+        c.bodySize   != padConfig.macroBodySize   ||
+        c.punch      != padConfig.macroPunch      ||
+        c.complexity != padConfig.macroComplexity;
     if (!dirty)
         return;
 
-    applyTightness(cfg);
-    applyBrightness(cfg);
-    applyBodySize(cfg);
-    applyPunch(cfg);
-    applyComplexity(cfg);
+    applyTightness(padConfig);
+    applyBrightness(padConfig);
+    applyBodySize(padConfig);
+    applyPunch(padConfig);
+    applyComplexity(padConfig);
 
-    c.tightness  = cfg.macroTightness;
-    c.brightness = cfg.macroBrightness;
-    c.bodySize   = cfg.macroBodySize;
-    c.punch      = cfg.macroPunch;
-    c.complexity = cfg.macroComplexity;
+    c.tightness  = padConfig.macroTightness;
+    c.brightness = padConfig.macroBrightness;
+    c.bodySize   = padConfig.macroBodySize;
+    c.punch      = padConfig.macroPunch;
+    c.complexity = padConfig.macroComplexity;
 }
 
 void MacroMapper::reapplyAll(std::array<PadConfig, kNumPads>& pads) noexcept

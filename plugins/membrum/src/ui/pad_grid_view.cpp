@@ -41,7 +41,7 @@ constexpr VSTGUI::CColor kGlowColor     = {255, 200, 110, 255 };
 // ------------------------------------------------------------------------------
 // Text helpers (FR-011).
 // ------------------------------------------------------------------------------
-std::string chokeGroupIndicatorText(std::uint8_t chokeGroup) noexcept
+std::string chokeGroupIndicatorText(std::uint8_t chokeGroup)
 {
     if (chokeGroup == 0)
         return {};
@@ -50,7 +50,7 @@ std::string chokeGroupIndicatorText(std::uint8_t chokeGroup) noexcept
     return std::string{buf};
 }
 
-std::string outputBusIndicatorText(std::uint8_t outputBus) noexcept
+std::string outputBusIndicatorText(std::uint8_t outputBus)
 {
     if (outputBus == 0)
         return {};
@@ -63,7 +63,7 @@ std::string outputBusIndicatorText(std::uint8_t outputBus) noexcept
 // GM Percussion Key Map (MIDI 36..67). Short names kept <= 6 chars so they fit
 // in a pad cell at typical 1x / 1.5x DPI. Source: General MIDI Level 1 spec.
 // ------------------------------------------------------------------------------
-std::string gmDrumNameForNote(int midiNote) noexcept
+std::string gmDrumNameForNote(int midiNote)
 {
     static constexpr const char* kNames[] = {
         "Kick2",   // 36 Bass Drum 1 (kick)
@@ -109,7 +109,7 @@ std::string gmDrumNameForNote(int midiNote) noexcept
 // Uses the same classifier as the coupling matrix (FR-033) so the UI and DSP
 // agree on category assignment.
 // ------------------------------------------------------------------------------
-std::string categoryGlyphForConfig(const PadConfig& cfg) noexcept
+std::string categoryGlyphForConfig(const PadConfig& cfg)
 {
     switch (classifyPad(cfg))
     {

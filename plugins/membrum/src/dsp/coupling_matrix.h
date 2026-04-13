@@ -187,8 +187,10 @@ public:
     }
 
     /// Iterate all overrides. Fn signature: void(int src, int dst, float coeff).
+    /// Instantiations with potentially-throwing lambdas must ensure their
+    /// bodies do not actually throw (e.g. by pre-reserving any containers).
     template <typename Fn>
-    void forEachOverride(Fn&& fn) const noexcept
+    void forEachOverride(Fn&& fn) const noexcept  // NOLINT(bugprone-exception-escape)
     {
         for (int s = 0; s < kSize; ++s)
             for (int d = 0; d < kSize; ++d)

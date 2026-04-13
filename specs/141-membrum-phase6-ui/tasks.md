@@ -387,9 +387,9 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Clang-tidy quality gate for all Phase 6 code before completion verification.
 
-- [ ] T101 Generate compile_commands.json if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (from VS Developer PowerShell)
-- [ ] T102 Run clang-tidy on all new/modified Phase 6 files: `powershell -ExecutionPolicy Bypass -File ./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja 2>&1 | Tee-Object -FilePath clang-tidy-phase6.log` -- redirect to log on FIRST run; inspect log afterward (never re-run just to grep)
-- [ ] T103 Fix ALL clang-tidy errors and warnings (own all failures per project memory); add `// NOLINT(...)` with reason only for intentionally suppressed warnings in DSP-critical inner loops; confirm zero new warnings on Phase 6 code (SC-012)
+- [X] T101 Generate compile_commands.json if not current: `"C:/Program Files/CMake/bin/cmake.exe" --preset windows-ninja` (from VS Developer PowerShell)
+- [X] T102 Run clang-tidy on all new/modified Phase 6 files: `powershell -ExecutionPolicy Bypass -File ./tools/run-clang-tidy.ps1 -Target membrum -BuildDir build/windows-ninja 2>&1 | Tee-Object -FilePath clang-tidy-phase6.log` -- redirect to log on FIRST run; inspect log afterward (never re-run just to grep)
+- [X] T103 Fix ALL clang-tidy errors and warnings (own all failures per project memory); add `// NOLINT(...)` with reason only for intentionally suppressed warnings in DSP-critical inner loops; confirm zero new warnings on Phase 6 code (SC-012)
 - [ ] T104 Commit clang-tidy fixes
 
 ---

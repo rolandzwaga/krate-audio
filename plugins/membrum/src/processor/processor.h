@@ -148,7 +148,7 @@ private:
     /// Phase 6: build the RegisteredDefaultsTable consumed by MacroMapper.
     /// Mirrors the Controller's registered-default values for Phase 4/5 per-pad
     /// parameters referenced by the five macros.
-    [[nodiscard]] RegisteredDefaultsTable buildRegisteredDefaultsTable() const noexcept;
+    [[nodiscard]] static RegisteredDefaultsTable buildRegisteredDefaultsTable() noexcept;
 
     /// One-pole envelope follower energy limiter (FR-014, SC-007).
     /// Caps coupling output below -20 dBFS.

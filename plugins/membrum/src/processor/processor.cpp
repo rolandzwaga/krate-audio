@@ -191,7 +191,7 @@ Processor::~Processor() = default;
 
 // Phase 6 (T025): mirror the Controller's registered-default values for each
 // per-pad parameter the MacroMapper targets. Kept in sync with kPadParamSpecs.
-RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() const noexcept
+RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() noexcept
 {
     RegisteredDefaultsTable t{};
     t.byOffset[kPadMaterial]           = 0.5f;
@@ -732,8 +732,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 if (padIdx >= 0 && padIdx < kNumPads)
                 {
                     const float lvl = m.currentLevel * m.fastReleaseGain;
-                    if (lvl > padAmp[static_cast<std::size_t>(padIdx)])
-                        padAmp[static_cast<std::size_t>(padIdx)] = lvl;
+                    padAmp[static_cast<std::size_t>(padIdx)] =
+                        std::max(padAmp[static_cast<std::size_t>(padIdx)], lvl);
                 }
             }
             const auto& rm = voicePool_.releasingMeta(slot);
@@ -744,8 +744,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
                 if (padIdx >= 0 && padIdx < kNumPads)
                 {
                     const float lvl = rm.currentLevel * rm.fastReleaseGain;
-                    if (lvl > padAmp[static_cast<std::size_t>(padIdx)])
-                        padAmp[static_cast<std::size_t>(padIdx)] = lvl;
+                    padAmp[static_cast<std::size_t>(padIdx)] =
+                        std::max(padAmp[static_cast<std::size_t>(padIdx)], lvl);
                 }
             }
         }
@@ -802,8 +802,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         {
             const float aL = std::abs(outL[s]);
             const float aR = std::abs(outR[s]);
-            if (aL > peakL) peakL = aL;
-            if (aR > peakR) peakR = aR;
+            peakL = std::max(peakL, aL);
+            peakR = std::max(peakR, aR);
         }
 
         // T045: compute CPU usage (per-mille of the block budget) using a
@@ -1259,18 +1259,12 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         // underlying values (set directly via parameter automation or legacy
         // v4/v5 state) with the registered defaults. Bit-exact round-trip of
         // custom underlying values must be preserved (FR-084, Phase 7 SC-005).
-        const bool anyNonNeutral = [&pads]() noexcept {
-            for (const auto& p : pads)
-            {
-                if (p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
-                    p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
-                    p.macroComplexity != 0.5f)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }();
+        const bool anyNonNeutral = std::ranges::any_of(pads,
+            [](const auto& p) noexcept {
+                return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                       p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                       p.macroComplexity != 0.5f;
+            });
         if (anyNonNeutral)
             macroMapper_.reapplyAll(pads);
 
@@ -1477,18 +1471,12 @@ tresult Processor::loadKitPreset(IBStream* stream)
     // at least one pad carries a non-neutral macro to preserve round-trip
     // of user-set underlying params.
     auto& kitPads = voicePool_.padConfigsArray();
-    const bool kitAnyNonNeutral = [&kitPads]() noexcept {
-        for (const auto& p : kitPads)
-        {
-            if (p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
-                p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
-                p.macroComplexity != 0.5f)
-            {
-                return true;
-            }
-        }
-        return false;
-    }();
+    const bool kitAnyNonNeutral = std::ranges::any_of(kitPads,
+        [](const auto& p) noexcept {
+            return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                   p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                   p.macroComplexity != 0.5f;
+        });
     if (kitAnyNonNeutral)
         macroMapper_.reapplyAll(kitPads);
     else
@@ -1629,7 +1617,10 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         auto* attrs = message->getAttributes();
         if (attrs == nullptr) return kResultOk;
 
-        Steinberg::int64 op = -1, src = 0, dst = 0, valBits = 0;
+        Steinberg::int64 op = -1;
+        Steinberg::int64 src = 0;
+        Steinberg::int64 dst = 0;
+        Steinberg::int64 valBits = 0;
         attrs->getInt("op",  op);
         attrs->getInt("src", src);
         attrs->getInt("dst", dst);
@@ -1682,6 +1673,10 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         std::vector<unsigned char> blob;
         blob.reserve(static_cast<std::size_t>(
             couplingMatrix_.getOverrideCount()) * kRecordSize);
+        // NOLINTNEXTLINE(bugprone-exception-escape): blob.reserve() above
+        // sizes the vector to the exact final capacity; push_back/insert
+        // within reserved capacity cannot throw, so the lambda is effectively
+        // noexcept even though std::vector's member functions are not.
         couplingMatrix_.forEachOverride(
             [&blob](int src, int dst, float coeff) {
                 blob.push_back(static_cast<unsigned char>(src));

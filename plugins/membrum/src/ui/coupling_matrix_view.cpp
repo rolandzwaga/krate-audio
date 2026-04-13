@@ -42,21 +42,21 @@ CouplingMatrixView::OverrideStep
 CouplingMatrixView::nextOverrideStep(bool hasOverride, float currentValue) noexcept
 {
     if (!hasOverride)
-        return {true, kStep1};
+        return {.hasOverride = true, .value = kStep1};
 
     // Tolerant comparisons against the discrete step values.
     constexpr float kEps = 1.0e-4f;
     if (std::fabs(currentValue - kStep1) < kEps)
-        return {true, kStep2};
+        return {.hasOverride = true, .value = kStep2};
     if (std::fabs(currentValue - kStep2) < kEps)
-        return {true, kStep3};
+        return {.hasOverride = true, .value = kStep3};
     if (std::fabs(currentValue - kStep3) < kEps)
-        return {false, 0.0f};
+        return {.hasOverride = false, .value = 0.0f};
     // Unknown intermediate value -> advance to the nearest higher step.
-    if (currentValue < kStep1) return {true, kStep1};
-    if (currentValue < kStep2) return {true, kStep2};
-    if (currentValue < kStep3) return {true, kStep3};
-    return {false, 0.0f};
+    if (currentValue < kStep1) return {.hasOverride = true, .value = kStep1};
+    if (currentValue < kStep2) return {.hasOverride = true, .value = kStep2};
+    if (currentValue < kStep3) return {.hasOverride = true, .value = kStep3};
+    return {.hasOverride = false, .value = 0.0f};
 }
 
 // ------------------------------------------------------------------------------
@@ -142,7 +142,7 @@ CouplingMatrixView::handleMouseDown(VSTGUI::CPoint localPoint,
     // ignore interactions there to match the audio resolver (computedGain is
     // pinned to 0 on the diagonal).
     if (cell.src == cell.dst)
-        return {-1, -1};
+        return {.src = -1, .dst = -1};
 
     if (isShift)
     {
