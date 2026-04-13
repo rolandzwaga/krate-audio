@@ -151,13 +151,14 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     // authoritative assertion is just that state size matches v5 layout (no
     // extra 2 x float64 for kUiModeId/kEditorSizeId appended).
     //
-    // v5/v6 body (no overrides) = 4 version + 4 maxPoly + 4 stealPolicy
+    // v5 body (no overrides) = 4 version + 4 maxPoly + 4 stealPolicy
     //   + 32*(8 selector + 34*8 + 2 uint8) = 32*282 = 9024
     //   + 4 selectedPad + 4*8 globals + 32*8 pad-coupling + 2 overrideCount
     //   = 12 + 9024 + 4 + 32 + 256 + 2 = 9330.
+    // Phase 6 (spec 141) appends 160 x float32 per-pad macros = 640 bytes.
     // If kUiModeId/kEditorSizeId were appended as 2 x float64 it would be +16.
     // Phase 6 session-scoped params must NOT appear in the state blob.
-    REQUIRE(bytes.size() == 9330);
+    REQUIRE(bytes.size() == 9330 + 640);
 
     p.terminate();
 }

@@ -346,21 +346,21 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 10.1 Tests (Write FIRST -- Must FAIL)
 
-- [ ] T085 [P] Write failing tests in `plugins/membrum/tests/unit/processor/test_state_v6_migration.cpp`: `kCurrentStateVersion == 6`; v6 round-trip -- save with varied macro values, reload, assert all macro values within `Approx().margin(1e-7f)` (FR-084); v5 migration -- load v5 blob, assert all 160 macros == 0.5f (FR-081); v4 migration chain -- load v4 blob, assert macros == 0.5f and all Phase 5 params at defaults; v1 migration chain -- full v1->v2->v3->v4->v5->v6 chain; reject v7 -- blob with version==7 returns `kResultFalse`; session-scoped exclusion -- `getState()` blob does NOT contain `kUiModeId`; `setState()` with any blob leaves `kUiModeId == 0.0f` (Acoustic); `setState()` resets `kEditorSizeId == 0.0f` (Default); `MacroMapper::reapplyAll()` called after v6 state load (verified via param value change on pad 0)
+- [X] T085 [P] Write failing tests in `plugins/membrum/tests/unit/processor/test_state_v6_migration.cpp`: `kCurrentStateVersion == 6`; v6 round-trip -- save with varied macro values, reload, assert all macro values within `Approx().margin(1e-7f)` (FR-084); v5 migration -- load v5 blob, assert all 160 macros == 0.5f (FR-081); v4 migration chain -- load v4 blob, assert macros == 0.5f and all Phase 5 params at defaults; v1 migration chain -- full v1->v2->v3->v4->v5->v6 chain; reject v7 -- blob with version==7 returns `kResultFalse`; session-scoped exclusion -- `getState()` blob does NOT contain `kUiModeId`; `setState()` with any blob leaves `kUiModeId == 0.0f` (Acoustic); `setState()` resets `kEditorSizeId == 0.0f` (Default); `MacroMapper::reapplyAll()` called after v6 state load (verified via param value change on pad 0)
 
 ### 10.2 Implementation
 
-- [ ] T086 Implement state v6 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: write `kCurrentStateVersion = 6`; write v5 payload unchanged; append 160 x `float` (32-bit, 4 bytes each, 5 x 32 pads = 640 bytes total) pad-major macro values (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout; do NOT write `kUiModeId` or `kEditorSizeId`
-- [ ] T087 Implement state v6 deserialization in `setState()`: read version; if > 6 return `kResultFalse`; reset session-scoped params FIRST (`kUiModeId = 0.0f`, `kEditorSizeId = 0.0f`); delegate v1/v2/v3/v4/v5 paths to existing migration code; for v5 apply Phase 6 defaults (all 160 macros = 0.5f); for v6 read 160 x `float` (32-bit) macro values in pad-major order (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout into `PadConfig`; after all migration paths call `macroMapper_.reapplyAll(pads_)` to recompute underlying params from loaded macros
-- [ ] T088 Build and verify state migration tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[phase6_state]" 2>&1 | tail -5`
+- [X] T086 Implement state v6 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: write `kCurrentStateVersion = 6`; write v5 payload unchanged; append 160 x `float` (32-bit, 4 bytes each, 5 x 32 pads = 640 bytes total) pad-major macro values (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout; do NOT write `kUiModeId` or `kEditorSizeId`
+- [X] T087 Implement state v6 deserialization in `setState()`: read version; if > 6 return `kResultFalse`; reset session-scoped params FIRST (`kUiModeId = 0.0f`, `kEditorSizeId = 0.0f`); delegate v1/v2/v3/v4/v5 paths to existing migration code; for v5 apply Phase 6 defaults (all 160 macros = 0.5f); for v6 read 160 x `float` (32-bit) macro values in pad-major order (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout into `PadConfig`; after all migration paths call `macroMapper_.reapplyAll(pads_)` to recompute underlying params from loaded macros
+- [X] T088 Build and verify state migration tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[phase6_state]" 2>&1 | tail -5`
 
 ### 10.3 Cross-Platform Verification
 
-- [ ] T089 Verify state migration tests use `Approx().margin(1e-7f)` not exact equality for float (32-bit) round-trip comparisons (MSVC/Clang may differ in the last ULP per constitution cross-platform rules; 1e-7f is safe for normalised [0.0, 1.0] macro values)
+- [X] T089 Verify state migration tests use `Approx().margin(1e-7f)` not exact equality for float (32-bit) round-trip comparisons (MSVC/Clang may differ in the last ULP per constitution cross-platform rules; 1e-7f is safe for normalised [0.0, 1.0] macro values)
 
 ### 10.4 Commit (MANDATORY)
 
-- [ ] T090 Commit state v6 migration implementation and tests
+- [X] T090 Commit state v6 migration implementation and tests
 
 **Checkpoint**: State v6 operational -- round-trip verified, all migration paths tested, session-scoped params excluded.
 

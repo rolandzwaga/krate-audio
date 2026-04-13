@@ -30,7 +30,8 @@ using Catch::Approx;
 namespace {
 
 // Phase 5: state bumped to v5 = v4 (9040) + 4*8 (global coupling) + 32*8 (per-pad) + 2 (overrideCount)
-constexpr int64 kV4BlobBytes = 9040 + 32 + 256 + 2;  // 9330 bytes for v5
+// Phase 6 (spec 141): v6 appends 160 * 4 bytes (float32 macros) = 640 bytes.
+constexpr int64 kV4BlobBytes = 9040 + 32 + 256 + 2 + 640;  // 9970 bytes for v6
 
 ProcessSetup makeSetup(double sampleRate = 44100.0)
 {

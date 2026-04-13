@@ -996,6 +996,26 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         state->write(&coeff, sizeof(coeff), nullptr);
     });
 
+    // ---- Phase 6 (spec 141 T086): per-pad macro values appended to v5 payload.
+    // 160 x float32 (5 macros x 32 pads) in pad-major order:
+    //   pad0.tightness, pad0.brightness, pad0.bodySize, pad0.punch,
+    //   pad0.complexity, pad1.tightness, ..., pad31.complexity.
+    // Session-scoped params (kUiModeId, kEditorSizeId) are deliberately NOT
+    // written -- they reset to defaults on load in Controller::setComponentState.
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        const auto& cfg = voicePool_.padConfig(pad);
+        const float macros[5] = {
+            cfg.macroTightness,
+            cfg.macroBrightness,
+            cfg.macroBodySize,
+            cfg.macroPunch,
+            cfg.macroComplexity,
+        };
+        for (float m : macros)
+            state->write(&m, sizeof(m), nullptr);
+    }
+
     return kResultOk;
 }
 
@@ -1014,9 +1034,11 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     // ------------------------------------------------------------------
     // v4/v5/v6 state format -- v5 is v4 + appended Phase 5 coupling data;
-    // v6 (Phase 6 spec 141) is currently identical to v5 on the wire
-    // (per-pad macros default to 0.5 on load until Phase 2 of spec 141
-    // wires up the v5->v6 migration that explicitly serialises macros).
+    // v6 (Phase 6 spec 141) appends 160 x float32 per-pad macro values
+    // (5 macros x 32 pads) in pad-major order after the v5 override list.
+    // Session-scoped kUiModeId / kEditorSizeId are NOT on the wire; they
+    // reset to defaults in Controller::setComponentState before this blob
+    // is consumed.
     // ------------------------------------------------------------------
     if (version == 4 || version == 5 || version == 6)
     {
@@ -1196,16 +1218,47 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             recomputeCouplingMatrix();
         }
 
-        // Phase 6 (T025): reapply macros after state restore so derived
-        // parameters reflect the loaded pad macro values. We only force a
-        // reapply when at least one pad has a non-neutral macro (the v5/v6
-        // on-wire layout does not yet carry macros; the v5->v6 migration
-        // that writes macros is scheduled for a later spec-141 task). At
-        // neutral-macros (all 0.5) MacroMapper produces zero delta, but
-        // reapply would still overwrite the loaded underlying targets with
-        // the registered defaults — the bit-exact round-trip of custom
-        // underlying values must be preserved (FR-130 / state v4 tests).
+        // Phase 6 (spec 141 T087): per-pad macro values.
+        // v4/v5: default all 160 macros to 0.5 (neutral -- zero delta).
+        // v6:    read 160 x float32 in pad-major order.
         auto& pads = voicePool_.padConfigsArray();
+        if (version == 6)
+        {
+            for (int pad = 0; pad < kNumPads; ++pad)
+            {
+                float m[5] = {0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
+                for (float& v : m)
+                {
+                    if (state->read(&v, sizeof(v), nullptr) != kResultOk)
+                        v = 0.5f;
+                    v = std::clamp(v, 0.0f, 1.0f);
+                }
+                pads[static_cast<size_t>(pad)].macroTightness  = m[0];
+                pads[static_cast<size_t>(pad)].macroBrightness = m[1];
+                pads[static_cast<size_t>(pad)].macroBodySize   = m[2];
+                pads[static_cast<size_t>(pad)].macroPunch      = m[3];
+                pads[static_cast<size_t>(pad)].macroComplexity = m[4];
+            }
+        }
+        else
+        {
+            for (auto& p : pads)
+            {
+                p.macroTightness  = 0.5f;
+                p.macroBrightness = 0.5f;
+                p.macroBodySize   = 0.5f;
+                p.macroPunch      = 0.5f;
+                p.macroComplexity = 0.5f;
+            }
+        }
+
+        // Reapply macros so derived parameters reflect loaded macro values
+        // (FR-082). We gate on "any non-neutral macro" because reapplyAll
+        // rewrites underlying targets from base+delta -- for neutral (0.5)
+        // macros the delta is zero so the call would overwrite custom
+        // underlying values (set directly via parameter automation or legacy
+        // v4/v5 state) with the registered defaults. Bit-exact round-trip of
+        // custom underlying values must be preserved (FR-084, Phase 7 SC-005).
         const bool anyNonNeutral = [&pads]() noexcept {
             for (const auto& p : pads)
             {
