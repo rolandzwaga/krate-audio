@@ -398,8 +398,8 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Update living architecture documentation per Constitution Principle XIV.
 
-- [ ] T105 Update `specs/_architecture_/` -- add Phase 6 components to the appropriate section files: `MacroMapper` (Membrum processor, plugin-local, control-rate forward driver); `PadGlowPublisher` (Membrum DSP, plugin-local, lock-free amplitude publisher, 32 x atomic<uint32_t>); `MatrixActivityPublisher` (same pattern, per-src activity bitmask); `PadGridView` (Membrum UI, custom CView, 4x8 pad grid with glow/selection/audition); `CouplingMatrixView` (Membrum UI, custom CView, 32x32 heat map with click-to-edit/Solo); `PitchEnvelopeDisplay` (Membrum UI, custom CView, interactive draggable envelope)
-- [ ] T106 Commit architecture documentation updates
+- [X] T105 Update `specs/_architecture_/` -- add Phase 6 components to the appropriate section files: `MacroMapper` (Membrum processor, plugin-local, control-rate forward driver); `PadGlowPublisher` (Membrum DSP, plugin-local, lock-free amplitude publisher, 32 x atomic<uint32_t>); `MatrixActivityPublisher` (same pattern, per-src activity bitmask); `PadGridView` (Membrum UI, custom CView, 4x8 pad grid with glow/selection/audition); `CouplingMatrixView` (Membrum UI, custom CView, 32x32 heat map with click-to-edit/Solo); `PitchEnvelopeDisplay` (Membrum UI, custom CView, interactive draggable envelope)
+- [X] T106 Commit architecture documentation updates
 
 ---
 

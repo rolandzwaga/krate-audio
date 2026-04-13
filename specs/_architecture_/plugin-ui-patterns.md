@@ -986,3 +986,118 @@ void Controller::onTrailTimerTick() {
 - Skip overlay flags (`skipped[]`) are set by the controller when IMessages arrive from the processor and automatically cleared when the trail advances past them
 
 **Consumers:** Ruinae Controller trail timer, all 6 arp lane types (Spec 081).
+
+---
+
+## PadGridView (Spec 141)
+
+### Overview
+
+**Location:** [`plugins/membrum/src/ui/pad_grid_view.h`](../../plugins/membrum/src/ui/pad_grid_view.h)
+
+**Purpose:** Custom `CView` rendering Membrum's 32 pads as a 4-column x 8-row grid (MIDI 36 at bottom-left, MIDI 67 at top-right, matching the GM drum map ordering from Phase 4). Drives pad selection, shift/right-click audition, and real-time per-pad glow animation.
+
+**When to use:** Membrum Phase 6 editor only (Spec 141, US3). Plugin-local view, not shared.
+
+**Namespace:** `Membrum::UI`
+
+### Interaction
+
+| Gesture | Action |
+|---------|--------|
+| Left click (no modifiers) | Select pad -> drives `kSelectedPadId` via `selectCallback_` |
+| Shift + left click | Audition at velocity 100 without changing selection |
+| Right click | Audition at velocity 100 without changing selection |
+
+### Rendering
+
+- Reads pad category, choke group, and output bus from a `PadMetaProvider` callback (so unit tests can stub data without a live Processor)
+- Reads voice-envelope amplitude from a `PadGlowPublisher*` (see `membrum-plugin.md`)
+- Owns a 30 Hz `CVSTGUITimer` that snapshots the publisher and invalidates only cells whose bucket changed (dirty-rect optimisation per research.md R2/R3)
+- `removed()` cancels the timer -- no `IDependent` subscription held directly
+
+### Design Notes
+
+- No direct VST3 SDK dependency -- the controller wires `beginEdit`/`performEdit`/`endEdit` through the `selectCallback_` / audition callbacks
+- Cross-platform: VSTGUI primitives only; no Win32/Cocoa calls
+- Used by `MembrumEditorController` when the UI mode switches to include the pad grid
+
+**Consumers:** Membrum Phase 6 editor (`MembrumEditorController`, Acoustic + Extended modes).
+
+---
+
+## CouplingMatrixView (Spec 141)
+
+### Overview
+
+**Location:** [`plugins/membrum/src/ui/coupling_matrix_view.h`](../../plugins/membrum/src/ui/coupling_matrix_view.h)
+
+**Purpose:** Custom `CView` rendering the 32x32 cross-pad coupling matrix as a colour-intensity heat map. Each cell maps `(src, dst) -> effectiveGain` in `[0, CouplingMatrix::kMaxCoefficient = 0.05]`; brighter = higher gain. Cells whose pair is currently active in the live engine are outlined using the `MatrixActivityPublisher` bitmask.
+
+**When to use:** Membrum Phase 6 editor Extended mode (Spec 141, US6). Plugin-local view.
+
+**Namespace:** `Membrum::UI`
+
+### Interaction (FR-051 / FR-053)
+
+| Gesture | Action |
+|---------|--------|
+| Left click on cell | Cycles override: `none -> 0.01 -> 0.025 -> 0.05 -> cleared` (calls `CouplingMatrix::setOverride()` / `clearOverride()`) |
+| Right click on cell | Immediately clears the override via `clearOverride()` |
+| Shift + left click | Engages Solo on that pair (`setSoloPath(src, dst)`); a second shift-click anywhere, or closing the view, clears Solo |
+
+### Lifecycle (FR-053)
+
+- Destructor and `removed()` both call `clearSolo()` unconditionally so Solo never outlives the editor
+- 30 Hz `CVSTGUITimer` snapshots the activity publisher and invalidates the view only when activity bits changed (dirty-rect mitigation per research.md R2, section 4)
+
+### Design Notes
+
+- Holds a `CouplingMatrix*` and `MatrixActivityPublisher*` supplied by the controller at construction; does not own either
+- No VST3 SDK calls in the view -- edits are applied directly to `CouplingMatrix` (Tier 2) on the UI thread; the processor reads the matrix lock-free via the pre-resolved `effectiveGainArray()`
+- Cross-platform: VSTGUI primitives only
+
+**Consumers:** Membrum Phase 6 editor Extended mode, coupling section.
+
+---
+
+## PitchEnvelopeDisplay (Spec 141)
+
+### Overview
+
+**Location:** [`plugins/membrum/src/ui/pitch_envelope_display.h`](../../plugins/membrum/src/ui/pitch_envelope_display.h)
+
+**Purpose:** Interactive draggable envelope display for the Tone Shaper pitch sweep. Promoted in Phase 6 to the Acoustic-mode Selected-Pad panel (no longer behind a tab). Patterned on `plugins/shared/src/ui/adsr_display.h` but tailored to Membrum's simpler Start -> End + Time + Curve envelope.
+
+**When to use:** Membrum Phase 6 editor Acoustic mode (Spec 141, US8). Plugin-local view.
+
+**Namespace:** `Membrum::UI`
+
+### Parameters Driven (all normalised [0, 1] at VST boundary)
+
+| Parameter | ID | Range (denormalised) |
+|-----------|-----|----------------------|
+| `kToneShaperPitchEnvStartId` | 216 | 20..2000 Hz (start frequency) |
+| `kToneShaperPitchEnvEndId` | 217 | 20..2000 Hz (end frequency) |
+| `kToneShaperPitchEnvTimeId` | 218 | 0..500 ms (sweep time) |
+| `kToneShaperPitchEnvCurveId` | 219 | StringList: `0=Exp, 1=Lin` |
+
+### Interaction
+
+| Drag target | Axis | Parameter |
+|-------------|------|-----------|
+| Start handle | vertical | `kToneShaperPitchEnvStartId` |
+| End handle | vertical | `kToneShaperPitchEnvEndId` |
+| Time handle | horizontal | `kToneShaperPitchEnvTimeId` |
+| Curve selector | adjacent `COptionMenu` | `kToneShaperPitchEnvCurveId` |
+
+### Controller Wiring
+
+Parameter edits are forwarded to the owning controller via an `EditCallback` installed at view construction time. The view never touches VST3 SDK APIs directly; the controller callback performs `beginEdit` / `performEdit` / `endEdit`. This mirrors the approach used by `CouplingMatrixView`.
+
+### Design Notes
+
+- Hit-testing, dragging, and drawing use VSTGUI primitives only (`CPoint`, `CRect`, `CDrawContext`, `MouseDownEvent`/`MouseMoveEvent`/`MouseUpEvent`) -- no native Win32/Cocoa mouse APIs (T083, cross-platform rule)
+- `DragTarget` enum (`None / Start / End / Time`) and `EditOp` enum cleanly separate view interaction state from controller-side VST3 edit-gesture handling
+
+**Consumers:** Membrum Phase 6 editor Acoustic mode Selected-Pad panel.
