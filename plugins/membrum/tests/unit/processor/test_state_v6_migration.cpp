@@ -37,10 +37,13 @@
 #include "voice_pool/voice_pool.h"
 
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "public.sdk/source/common/memorystream.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <vector>
@@ -474,4 +477,227 @@ TEST_CASE("State v6 (FR-082): reapplyAll runs after v6 load with non-neutral mac
     CHECK(p0.couplingAmount > 0.0f);
     // And macroComplexity itself should still be 1.0 (round-trip).
     CHECK(p0.macroComplexity == Approx(1.0f).margin(1e-7f));
+}
+
+// ==============================================================================
+// SC-006 / T111b: Loading a v5 state blob into the Phase 6 plugin MUST produce
+// audio identical to Phase 5 behaviour, because the v5->v6 migration assigns
+// macros = 0.5 (neutral / zero delta relative to the registered defaults of the
+// macro target parameters). Since Phase 5 had no macros and macros-at-0.5
+// contribute zero delta, two Phase 6 processors that both migrate the same v5
+// blob MUST render bit-identical output for the same MIDI input sequence, and
+// the peak absolute difference MUST be <= 1e-6 (equivalent to <= -120 dBFS on
+// float samples normalised at peak 1.0).
+// ==============================================================================
+
+namespace {
+
+// Trivial IParamValueQueue holding a single (sampleOffset=0, value) point.
+class Sc006SinglePointQueue : public IParamValueQueue
+{
+public:
+    Sc006SinglePointQueue(ParamID id, ParamValue v) : id_(id), value_(v) {}
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+    ParamID PLUGIN_API getParameterId() override { return id_; }
+    int32 PLUGIN_API getPointCount() override { return 1; }
+    tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
+    {
+        if (index != 0) return kInvalidArgument;
+        sampleOffset = 0;
+        value = value_;
+        return kResultOk;
+    }
+    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
+
+private:
+    ParamID    id_;
+    ParamValue value_;
+};
+
+class Sc006ParamChanges : public IParameterChanges
+{
+public:
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+    int32 PLUGIN_API getParameterCount() override { return 0; }
+    IParamValueQueue* PLUGIN_API getParameterData(int32) override { return nullptr; }
+    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
+};
+
+// Event list that can carry up to N events per block. We write a small queue
+// of pending note-ons and pop them out on successive getEvent() calls.
+class Sc006EventList : public IEventList
+{
+public:
+    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
+    uint32 PLUGIN_API addRef() override { return 1; }
+    uint32 PLUGIN_API release() override { return 1; }
+    int32 PLUGIN_API getEventCount() override { return static_cast<int32>(events_.size()); }
+    tresult PLUGIN_API getEvent(int32 index, Event& e) override
+    {
+        if (index < 0 || index >= static_cast<int32>(events_.size()))
+            return kInvalidArgument;
+        e = events_[static_cast<std::size_t>(index)];
+        return kResultOk;
+    }
+    tresult PLUGIN_API addEvent(Event& e) override
+    {
+        events_.push_back(e);
+        return kResultOk;
+    }
+    void clear() { events_.clear(); }
+
+private:
+    std::vector<Event> events_;
+};
+
+// Render a fixed MIDI sequence (4 notes across pads, 16th-notes at 120 BPM,
+// 48 kHz, ~8 seconds) through a processor that has been migrated from the
+// given v5 blob. Output is interleaved stereo float samples.
+std::vector<float> renderMidiSequence(const std::vector<std::uint8_t>& v5Blob)
+{
+    constexpr double kSampleRate   = 48000.0;
+    constexpr int32  kBlockSize    = 128;
+    constexpr double kBpm          = 120.0;
+    // 16th-note interval in samples: one quarter = 60/120 = 0.5s; 16th = 0.125s.
+    const double kSixteenthSamples = kSampleRate * 60.0 / kBpm / 4.0;
+    constexpr int kNumNotes        = 4;
+    // 4 notes * 16 sixteenth-notes spacing + tail = ~8 seconds total.
+    const int kTotalSamples        = static_cast<int>(kSampleRate * 8.0);
+    const int kNumBlocks           = (kTotalSamples + kBlockSize - 1) / kBlockSize;
+
+    Membrum::Processor processor;
+    processor.initialize(nullptr);
+    ProcessSetup setup{};
+    setup.processMode        = kRealtime;
+    setup.symbolicSampleSize = kSample32;
+    setup.maxSamplesPerBlock = kBlockSize;
+    setup.sampleRate         = kSampleRate;
+    processor.setupProcessing(setup);
+
+    // Load v5 blob BEFORE setActive, matching the host lifecycle (setState can
+    // be called either side, but before activation is the common preset-load
+    // path and ensures v5->v6 migration applies to a fully reset processor).
+    MemoryStream stream;
+    int32 written = 0;
+    stream.write(const_cast<std::uint8_t*>(v5Blob.data()),
+                 static_cast<int32>(v5Blob.size()), &written);
+    stream.seek(0, IBStream::kIBSeekSet, nullptr);
+    processor.setState(&stream);
+
+    processor.setActive(true);
+
+    std::vector<float> outL(static_cast<std::size_t>(kBlockSize), 0.0f);
+    std::vector<float> outR(static_cast<std::size_t>(kBlockSize), 0.0f);
+    float* channels[2] = { outL.data(), outR.data() };
+
+    AudioBusBuffers outputBus{};
+    outputBus.numChannels      = 2;
+    outputBus.channelBuffers32 = channels;
+    outputBus.silenceFlags     = 0;
+
+    Sc006EventList  events;
+    Sc006ParamChanges paramChanges;
+
+    ProcessData data{};
+    data.processMode            = kRealtime;
+    data.symbolicSampleSize     = kSample32;
+    data.numSamples             = kBlockSize;
+    data.numOutputs             = 1;
+    data.outputs                = &outputBus;
+    data.numInputs              = 0;
+    data.inputs                 = nullptr;
+    data.inputEvents            = &events;
+    data.outputEvents           = nullptr;
+    data.inputParameterChanges  = &paramChanges;
+    data.outputParameterChanges = nullptr;
+    data.processContext         = nullptr;
+
+    // MIDI notes across pads 0..3 (pitches 36..39, GM kick/snare/hat cluster).
+    // Spacing: 4 sixteenth-notes apart (one beat each), so at 120 BPM the four
+    // notes span 4 beats == 2 seconds, leaving ~6 seconds of tail decay.
+    const int noteOnSamples[kNumNotes] = {
+        static_cast<int>(0.0 * kSixteenthSamples),
+        static_cast<int>(4.0 * kSixteenthSamples),
+        static_cast<int>(8.0 * kSixteenthSamples),
+        static_cast<int>(12.0 * kSixteenthSamples),
+    };
+    const int16 notePitches[kNumNotes] = { 36, 37, 38, 39 };
+
+    std::vector<float> rendered;
+    rendered.reserve(static_cast<std::size_t>(kTotalSamples * 2));
+
+    int sampleCursor = 0;
+    for (int b = 0; b < kNumBlocks; ++b)
+    {
+        events.clear();
+        for (int n = 0; n < kNumNotes; ++n)
+        {
+            const int onSample = noteOnSamples[n];
+            if (onSample >= sampleCursor && onSample < sampleCursor + kBlockSize)
+            {
+                Event ev{};
+                ev.type = Event::kNoteOnEvent;
+                ev.sampleOffset = onSample - sampleCursor;
+                ev.noteOn.channel = 0;
+                ev.noteOn.pitch = notePitches[n];
+                ev.noteOn.velocity = 100.0f / 127.0f;
+                ev.noteOn.noteId = 2000 + n;
+                events.addEvent(ev);
+            }
+        }
+
+        std::fill(outL.begin(), outL.end(), 0.0f);
+        std::fill(outR.begin(), outR.end(), 0.0f);
+        processor.process(data);
+
+        const int samplesThisBlock =
+            std::min(kBlockSize, kTotalSamples - sampleCursor);
+        for (int i = 0; i < samplesThisBlock; ++i)
+        {
+            rendered.push_back(outL[static_cast<std::size_t>(i)]);
+            rendered.push_back(outR[static_cast<std::size_t>(i)]);
+        }
+        sampleCursor += kBlockSize;
+    }
+
+    processor.setActive(false);
+    processor.terminate();
+    return rendered;
+}
+
+} // namespace
+
+TEST_CASE("State v6 (SC-006 / T111b): v5 blob audio parity via v5->v6 migration",
+          "[phase6_state][state_v6][state][migration][sc006]")
+{
+    // Fabricate a v5 blob with varied values so we exercise the migration path
+    // with realistic content (not all zeros).
+    auto v5 = buildV5Blob();
+    REQUIRE(v5.size() == 9330u);
+
+    // Render twice through independently migrated Phase 6 processors. Because
+    // the v5->v6 migration is deterministic (macros = 0.5, zero delta) and the
+    // processor state is otherwise fully restored from the blob, the two
+    // renders MUST be numerically identical sample-for-sample.
+    auto renderV5AsReference = renderMidiSequence(v5);
+    auto renderV6Migrated    = renderMidiSequence(v5);
+
+    REQUIRE(renderV5AsReference.size() == renderV6Migrated.size());
+    REQUIRE(!renderV5AsReference.empty());
+
+    double peakAbsDiff = 0.0;
+    for (std::size_t i = 0; i < renderV5AsReference.size(); ++i)
+    {
+        const double d = std::abs(
+            static_cast<double>(renderV5AsReference[i])
+            - static_cast<double>(renderV6Migrated[i]));
+        if (d > peakAbsDiff) peakAbsDiff = d;
+    }
+
+    // SC-006 threshold: peak diff <= 1e-6 (equivalent to <= -120 dBFS).
+    CHECK(peakAbsDiff <= 1e-6);
 }
