@@ -1336,6 +1336,15 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         {
             cpuLabel_ = label;
         }
+        // T056: status label for preset load failures. Template authors mark
+        // the label with a title prefix of "PresetStatus" so it is discovered
+        // here without relying on a control-tag. Initial text is cleared.
+        else if (title != nullptr
+                 && std::strncmp(title, "PresetStatus", 12) == 0)
+        {
+            presetStatusLabel_ = label;
+            presetStatusLabel_->setText("");
+        }
     }
     return view;
 }
@@ -1415,10 +1424,11 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         pollTimer_->stop();
         pollTimer_ = nullptr;
     }
-    activeEditor_   = nullptr;
-    padGridView_    = nullptr;
-    kitMetersView_  = nullptr;
-    cpuLabel_       = nullptr;
+    activeEditor_      = nullptr;
+    padGridView_       = nullptr;
+    kitMetersView_     = nullptr;
+    cpuLabel_          = nullptr;
+    presetStatusLabel_ = nullptr;
 
     // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
     // 30 Hz poll timer (already cancelled above) and any future code can not
@@ -1447,6 +1457,34 @@ void Controller::updateMeterViews(const MetersBlock& meters) noexcept
         char buf[32] = {};
         std::snprintf(buf, sizeof(buf), "CPU: %u%%", percent);
         cpuLabel_->setText(buf);
+    }
+
+    // T056: surface preset load failures on the status label. A fresh failure
+    // arms a ~3 second countdown (90 ticks at 30 Hz); when it elapses both
+    // the label and the latched flags are cleared. Tolerant of a missing
+    // label: the flags still clear on timeout so state does not accumulate.
+    constexpr int kPresetStatusDurationTicks = 90; // ~3 s at 30 Hz
+    if (kitPresetLoadFailed_ || padPresetLoadFailed_)
+    {
+        if (presetStatusClearTicks_ == 0)
+        {
+            const char* text = kitPresetLoadFailed_
+                                   ? "Kit preset load failed"
+                                   : "Pad preset load failed";
+            if (presetStatusLabel_ != nullptr)
+                presetStatusLabel_->setText(text);
+            presetStatusClearTicks_ = kPresetStatusDurationTicks;
+        }
+    }
+    if (presetStatusClearTicks_ > 0)
+    {
+        if (--presetStatusClearTicks_ == 0)
+        {
+            if (presetStatusLabel_ != nullptr)
+                presetStatusLabel_->setText("");
+            kitPresetLoadFailed_ = false;
+            padPresetLoadFailed_ = false;
+        }
     }
 }
 

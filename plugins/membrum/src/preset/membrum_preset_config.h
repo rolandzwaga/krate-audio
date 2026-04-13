@@ -38,7 +38,7 @@ inline Krate::Plugins::PresetManagerConfig padPresetConfig()
         .pluginName         = "Membrum/Pads",
         .pluginCategoryDesc = "Pad Presets",
         .subcategoryNames   = {"Kick", "Snare", "Tom", "Hat", "Cymbal", "Perc",
-                               "Tonal", "808", "FX"},
+                               "Tonal", "FX"},
     };
 }
 

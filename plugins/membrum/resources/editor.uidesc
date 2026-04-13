@@ -231,6 +231,8 @@
         <view class="CTextLabel" title="Meter" origin="8, 560" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="MetersView" origin="8, 580" size="224, 32" background-color="bg-panel" background-color-draw-style="filled"/>
         <view class="CTextLabel" title="CPU: -" origin="8, 620" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
+        <view class="CTextLabel" title="PresetStatus" origin="8, 634" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <!-- T037: Coupling Matrix editor (Extended-only; sub-controller gates visibility via kUiModeId) -->
         <view class="CViewContainer" class-id="MatrixEditorSection" origin="8, 640" size="224, 152" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
           <view class="CTextLabel" title="Matrix" origin="0, 0" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
@@ -272,7 +274,9 @@
         <view class="CKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" background-color="bg-panel" handle-color="accent" handle-shadow-color="bg-primary"/>
         <view class="CTextLabel" title="Meter" origin="8, 560" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="MetersView" origin="8, 580" size="176, 32" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="CPU: -" origin="8, 620" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 608" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
+        <view class="CTextLabel" title="PresetStatus" origin="8, 624" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <!-- T037: Coupling Matrix editor (Extended-only; sub-controller gates visibility via kUiModeId) -->
         <view class="CViewContainer" class-id="MatrixEditorSection" origin="0, 0" size="0, 0" transparent="true" mouse-enabled="false"/>
       </view>

@@ -86,6 +86,11 @@ public:
         return busActive_[static_cast<std::size_t>(busIndex)];
     }
 
+    // T056: latched preset-load failure status (read by tests / UI). Cleared
+    // after the status label countdown expires (see poll timer).
+    [[nodiscard]] bool kitPresetLoadFailed() const noexcept { return kitPresetLoadFailed_; }
+    [[nodiscard]] bool padPresetLoadFailed() const noexcept { return padPresetLoadFailed_; }
+
     // Phase 4: kit preset providers (FR-052)
     /// Produces a 9036-byte kit preset blob (v4 without selectedPadIndex)
     Steinberg::IBStream* kitPresetStateProvider();
@@ -147,6 +152,17 @@ private:
     // verifyView() by matching its initial title prefix "CPU".
     Membrum::UI::KitMetersView*      kitMetersView_  = nullptr;
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
+
+    // T056: small status label surfacing preset load failures. Discovered in
+    // verifyView() by its title prefix "PresetStatus". The 30 Hz poll timer
+    // inspects kitPresetLoadFailed_ / padPresetLoadFailed_, sets the label
+    // text on failure, and clears it after ~3 seconds. Tolerant of a missing
+    // label view (templates without a PresetStatus label simply see no-ops).
+    VSTGUI::CTextLabel*              presetStatusLabel_ = nullptr;
+    // Frames-until-clear counter for the status label. Decremented by the
+    // poll timer; when it reaches 0 the label text is cleared and the
+    // failure flags reset.
+    int                              presetStatusClearTicks_ = 0;
 
     // Phase 6 (T046): last MetersBlock received via DataExchange. Updated on
     // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
