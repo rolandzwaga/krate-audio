@@ -18,13 +18,13 @@
 //     [32 x float64 per-pad couplingAmount]
 //     [uint16 overrideCount][N x (uint8 src, uint8 dst, float32 coeff)]
 //   v6 appends:
-//     [160 x float32 pad-major macros: pad0.tightness..pad0.complexity, ...,
+//     [160 x float64 pad-major macros: pad0.tightness..pad0.complexity, ...,
 //       pad31.tightness..pad31.complexity]
 //
 // Sizes:
 //   v4 payload:   12 + 32*282 + 4             = 9040 bytes
 //   v5 payload:   v4 + 4*8 + 32*8 + 2         = 9330 bytes (zero overrides)
-//   v6 payload:   v5 + 160*4                  = 9970 bytes (zero overrides)
+//   v6 payload:   v5 + 160*8                  = 10610 bytes (zero overrides)
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -269,7 +269,7 @@ TEST_CASE("State v6 (FR-084): round-trip preserves non-default macros",
     CHECK(blob1 == blob2);
 }
 
-TEST_CASE("State v6 (FR-084): v6 blob contains 160 macro floats (640 bytes)",
+TEST_CASE("State v6 (FR-084): v6 blob contains 160 macro doubles (1280 bytes)",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -277,8 +277,8 @@ TEST_CASE("State v6 (FR-084): v6 blob contains 160 macro floats (640 bytes)",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // v5 payload with zero overrides = 9330 bytes; v6 adds 160*4 = 640 bytes.
-    CHECK(bytes.size() == 9970u);
+    // v5 payload with zero overrides = 9330 bytes; v6 adds 160*8 = 1280 bytes.
+    CHECK(bytes.size() == 10610u);
 
     // Version field is the first 4 bytes and must equal 6.
     int32 version = 0;
@@ -418,10 +418,10 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size is fixed (9970 bytes). If session-scoped params had
+    // Expected size is fixed (10610 bytes). If session-scoped params had
     // leaked into the blob they would add ~12 bytes (2 x float64 or similar)
     // and this size check would fail.
-    CHECK(bytes.size() == 9970u);
+    CHECK(bytes.size() == 10610u);
 
     // Additionally, a scan for the raw parameter IDs must not find them.
     // kUiModeId (280) and kEditorSizeId (281) would not typically appear

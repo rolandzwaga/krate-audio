@@ -997,7 +997,7 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     });
 
     // ---- Phase 6 (spec 141 T086): per-pad macro values appended to v5 payload.
-    // 160 x float32 (5 macros x 32 pads) in pad-major order:
+    // 160 x float64 (5 macros x 32 pads) in pad-major order:
     //   pad0.tightness, pad0.brightness, pad0.bodySize, pad0.punch,
     //   pad0.complexity, pad1.tightness, ..., pad31.complexity.
     // Session-scoped params (kUiModeId, kEditorSizeId) are deliberately NOT
@@ -1005,14 +1005,14 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         const auto& cfg = voicePool_.padConfig(pad);
-        const float macros[5] = {
-            cfg.macroTightness,
-            cfg.macroBrightness,
-            cfg.macroBodySize,
-            cfg.macroPunch,
-            cfg.macroComplexity,
+        const double macros[5] = {
+            static_cast<double>(cfg.macroTightness),
+            static_cast<double>(cfg.macroBrightness),
+            static_cast<double>(cfg.macroBodySize),
+            static_cast<double>(cfg.macroPunch),
+            static_cast<double>(cfg.macroComplexity),
         };
-        for (float m : macros)
+        for (double m : macros)
             state->write(&m, sizeof(m), nullptr);
     }
 
@@ -1034,7 +1034,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     // ------------------------------------------------------------------
     // v4/v5/v6 state format -- v5 is v4 + appended Phase 5 coupling data;
-    // v6 (Phase 6 spec 141) appends 160 x float32 per-pad macro values
+    // v6 (Phase 6 spec 141) appends 160 x float64 per-pad macro values
     // (5 macros x 32 pads) in pad-major order after the v5 override list.
     // Session-scoped kUiModeId / kEditorSizeId are NOT on the wire; they
     // reset to defaults in Controller::setComponentState before this blob
@@ -1220,24 +1220,24 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
         // Phase 6 (spec 141 T087): per-pad macro values.
         // v4/v5: default all 160 macros to 0.5 (neutral -- zero delta).
-        // v6:    read 160 x float32 in pad-major order.
+        // v6:    read 160 x float64 in pad-major order.
         auto& pads = voicePool_.padConfigsArray();
         if (version == 6)
         {
             for (int pad = 0; pad < kNumPads; ++pad)
             {
-                float m[5] = {0.5f, 0.5f, 0.5f, 0.5f, 0.5f};
-                for (float& v : m)
+                double m[5] = {0.5, 0.5, 0.5, 0.5, 0.5};
+                for (double& v : m)
                 {
                     if (state->read(&v, sizeof(v), nullptr) != kResultOk)
-                        v = 0.5f;
-                    v = std::clamp(v, 0.0f, 1.0f);
+                        v = 0.5;
+                    v = std::clamp(v, 0.0, 1.0);
                 }
-                pads[static_cast<size_t>(pad)].macroTightness  = m[0];
-                pads[static_cast<size_t>(pad)].macroBrightness = m[1];
-                pads[static_cast<size_t>(pad)].macroBodySize   = m[2];
-                pads[static_cast<size_t>(pad)].macroPunch      = m[3];
-                pads[static_cast<size_t>(pad)].macroComplexity = m[4];
+                pads[static_cast<size_t>(pad)].macroTightness  = static_cast<float>(m[0]);
+                pads[static_cast<size_t>(pad)].macroBrightness = static_cast<float>(m[1]);
+                pads[static_cast<size_t>(pad)].macroBodySize   = static_cast<float>(m[2]);
+                pads[static_cast<size_t>(pad)].macroPunch      = static_cast<float>(m[3]);
+                pads[static_cast<size_t>(pad)].macroComplexity = static_cast<float>(m[4]);
             }
         }
         else

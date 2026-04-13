@@ -351,10 +351,10 @@ TEST_CASE("Phase 7 (SC-006, FR-051): v4 state loads with Phase 5 defaults",
     // The re-saved blob size equals v4 (9040) + Phase 5 trailer:
     //   4 * 8 (globals) + 32 * 8 (per-pad) + 2 (overrideCount) + 0 overrides
     //   = 32 + 256 + 2 = 290.
-    // Phase 6 (spec 141) additionally appends 160 * 4 bytes of float32 macros.
+    // Phase 6 (spec 141) additionally appends 160 * 8 bytes of float64 macros.
     int64 resavedSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resavedSize);
-    CHECK(resavedSize == 9040 + 290 + 640);
+    CHECK(resavedSize == 9040 + 290 + 1280);
 }
 
 // ==============================================================================
@@ -446,8 +446,8 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
     // v4 base (9040) + globals (32) + per-pad (256) + overrideCount (2)
     // + 3 * 6 override bytes = 9040 + 290 + 18 = 9348.
-    // Phase 6 (spec 141) appends 160 * 4 bytes of float32 macros.
-    CHECK(resSize == 9348 + 640);
+    // Phase 6 (spec 141) appends 160 * 8 bytes of float64 macros.
+    CHECK(resSize == 9348 + 1280);
 
     // Read overrideCount at offset 9040 + 32 + 256 = 9328.
     resaved.seek(9328, IBStream::kIBSeekSet, nullptr);

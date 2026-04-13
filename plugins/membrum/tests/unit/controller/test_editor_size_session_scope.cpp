@@ -88,8 +88,8 @@ TEST_CASE("Processor::getState does NOT write kEditorSizeId bytes (T022)",
     ms.tell(&pos);
     // Phase 6 spec: session-scoped params add ZERO bytes to the state blob.
     // A change here indicates kEditorSizeId or kUiModeId leaked into persist.
-    // Phase 6 (spec 141) appends 160 x float32 per-pad macros = 640 bytes.
-    REQUIRE(pos == Steinberg::int64{9330 + 640});
+    // Phase 6 (spec 141) appends 160 x float64 per-pad macros = 1280 bytes.
+    REQUIRE(pos == Steinberg::int64{9330 + 1280});
 
     p.terminate();
 }

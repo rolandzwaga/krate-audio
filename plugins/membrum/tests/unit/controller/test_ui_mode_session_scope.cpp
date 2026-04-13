@@ -155,10 +155,10 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     //   + 32*(8 selector + 34*8 + 2 uint8) = 32*282 = 9024
     //   + 4 selectedPad + 4*8 globals + 32*8 pad-coupling + 2 overrideCount
     //   = 12 + 9024 + 4 + 32 + 256 + 2 = 9330.
-    // Phase 6 (spec 141) appends 160 x float32 per-pad macros = 640 bytes.
+    // Phase 6 (spec 141) appends 160 x float64 per-pad macros = 1280 bytes.
     // If kUiModeId/kEditorSizeId were appended as 2 x float64 it would be +16.
     // Phase 6 session-scoped params must NOT appear in the state blob.
-    REQUIRE(bytes.size() == 9330 + 640);
+    REQUIRE(bytes.size() == std::size_t{9330 + 1280});
 
     p.terminate();
 }

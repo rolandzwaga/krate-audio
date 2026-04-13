@@ -350,13 +350,13 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 ### 10.2 Implementation
 
-- [X] T086 Implement state v6 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: write `kCurrentStateVersion = 6`; write v5 payload unchanged; append 160 x `float` (32-bit, 4 bytes each, 5 x 32 pads = 640 bytes total) pad-major macro values (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout; do NOT write `kUiModeId` or `kEditorSizeId`
-- [X] T087 Implement state v6 deserialization in `setState()`: read version; if > 6 return `kResultFalse`; reset session-scoped params FIRST (`kUiModeId = 0.0f`, `kEditorSizeId = 0.0f`); delegate v1/v2/v3/v4/v5 paths to existing migration code; for v5 apply Phase 6 defaults (all 160 macros = 0.5f); for v6 read 160 x `float` (32-bit) macro values in pad-major order (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout into `PadConfig`; after all migration paths call `macroMapper_.reapplyAll(pads_)` to recompute underlying params from loaded macros
+- [X] T086 Implement state v6 serialization in `plugins/membrum/src/processor/processor.cpp` `getState()`: write `kCurrentStateVersion = 6`; write v5 payload unchanged; append 160 x `double` (64-bit, 8 bytes each, 5 x 32 pads = 1280 bytes total) pad-major macro values (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout; do NOT write `kUiModeId` or `kEditorSizeId`
+- [X] T087 Implement state v6 deserialization in `setState()`: read version; if > 6 return `kResultFalse`; reset session-scoped params FIRST (`kUiModeId = 0.0f`, `kEditorSizeId = 0.0f`); delegate v1/v2/v3/v4/v5 paths to existing migration code; for v5 apply Phase 6 defaults (all 160 macros = 0.5f); for v6 read 160 x `double` (64-bit) macro values in pad-major order (pad0.tightness, pad0.brightness, ..., pad31.complexity) per data-model.md section 9 and state_v6_migration.md binary layout into `PadConfig`; after all migration paths call `macroMapper_.reapplyAll(pads_)` to recompute underlying params from loaded macros
 - [X] T088 Build and verify state migration tests pass: `build/windows-x64-release/bin/Release/membrum_tests.exe "[phase6_state]" 2>&1 | tail -5`
 
 ### 10.3 Cross-Platform Verification
 
-- [X] T089 Verify state migration tests use `Approx().margin(1e-7f)` not exact equality for float (32-bit) round-trip comparisons (MSVC/Clang may differ in the last ULP per constitution cross-platform rules; 1e-7f is safe for normalised [0.0, 1.0] macro values)
+- [X] T089 Verify state migration tests use `Approx().margin(1e-7f)` not exact equality for float (32-bit) round-trip comparisons (MSVC/Clang may differ in the last ULP per constitution cross-platform rules; 1e-7f is safe for normalised [0.0, 1.0] macro values; macros are stored on-wire as `double` (64-bit) but the in-memory `PadConfig` fields are `float`, so the round-trip tolerance is bounded by float32 precision)
 
 ### 10.4 Commit (MANDATORY)
 
