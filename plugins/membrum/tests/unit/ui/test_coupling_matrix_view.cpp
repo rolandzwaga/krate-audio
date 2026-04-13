@@ -262,3 +262,59 @@ TEST_CASE("CouplingMatrix override round-trip via forEachOverride (T069)",
     REQUIRE_THAT(dst.getOverrideGain(1, 3),  WithinAbs(0.04f,  1e-6f));
     REQUIRE_THAT(dst.getOverrideGain(10, 20), WithinAbs(0.025f, 1e-6f));
 }
+
+// ==============================================================================
+// T095 -- Edge case: matrix editor open during kit preset load.
+//
+// A CouplingMatrixView is bound to a CouplingMatrix* (the controller's
+// mirror). When a kit preset is loaded the controller replays its overrides
+// into that mirror. The view must then reflect the loaded overrides, NOT
+// stale pre-load overrides, on its next poll / draw.
+//
+// This test simulates that sequence:
+//   1. Bind a matrix that has a pre-load override at (1, 3).
+//   2. Create a view and prime it (pollActivity, query caches).
+//   3. Mutate the matrix as kit preset load would:
+//        clearAllOverrides() then setOverride(...) for the preset entries.
+//   4. Assert the view's underlying matrix now reports the NEW overrides
+//      and not the old ones.
+// ==============================================================================
+TEST_CASE("CouplingMatrixView reflects loaded overrides when preset loads "
+          "with editor open (T095)",
+          "[coupling_matrix_view][phase6][preset_edge_case]")
+{
+    CouplingMatrix          matrix;
+    MatrixActivityPublisher pub;
+
+    // Pre-load state: one override that must NOT survive the preset load.
+    matrix.setOverride(1, 3, 0.04f);
+    REQUIRE(matrix.hasOverrideAt(1, 3));
+
+    CouplingMatrixView view(kDefaultRect, &matrix, &pub);
+    view.pollActivity(); // prime internal activity cache
+
+    // Simulate controller's kit-preset-load coupling restoration:
+    //   reset the mirror, then re-apply overrides from the payload.
+    matrix.clearAll();
+    matrix.setOverride(5, 7,  0.01f);
+    matrix.setOverride(9, 11, 0.05f);
+
+    // The view's bound matrix must now show the loaded overrides.
+    REQUIRE_FALSE(matrix.hasOverrideAt(1, 3));
+    REQUIRE(matrix.hasOverrideAt(5, 7));
+    REQUIRE(matrix.hasOverrideAt(9, 11));
+    REQUIRE_THAT(matrix.getOverrideGain(5, 7),  WithinAbs(0.01f,  1e-6f));
+    REQUIRE_THAT(matrix.getOverrideGain(9, 11), WithinAbs(0.05f,  1e-6f));
+
+    // View still functional after the mutation: a subsequent mouse edit must
+    // operate on the LIVE matrix, not a cached snapshot.
+    const auto hit = view.handleMouseDown(pointInCell(2, 4),
+                                          /*isShift=*/false,
+                                          /*isRight=*/false);
+    REQUIRE(hit.src == 2);
+    REQUIRE(hit.dst == 4);
+    REQUIRE(matrix.hasOverrideAt(2, 4));
+
+    // Pre-load override is still gone.
+    REQUIRE_FALSE(matrix.hasOverrideAt(1, 3));
+}

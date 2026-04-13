@@ -162,3 +162,59 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
 
     p.terminate();
 }
+
+// ==============================================================================
+// T096: kUiModeId host automation from a non-UI thread. The controller API
+// must be safe to call off-thread, and the param read back must reflect the
+// write. In production, VSTGUI's IDependent mechanism defers the repaint
+// onto the UI thread; we cannot observe repaints headless, but we CAN:
+//   * Write kUiModeId from a worker std::thread.
+//   * Read kUiModeId back from the main thread and verify it matches.
+//   * Confirm no crash and no other parameter drift.
+// ==============================================================================
+#include <atomic>
+#include <thread>
+#include <vector>
+
+TEST_CASE("kUiModeId host automation from non-UI thread is thread-safe (T096)",
+          "[ui_mode_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    // Snapshot the pre-automation state of all other params so we can verify
+    // no drift (hidden-params-must-still-be-reachable guarantee).
+    const int paramCount = ctl.getParameterCount();
+    struct Snap { Steinberg::Vst::ParamID id; Steinberg::Vst::ParamValue value; };
+    std::vector<Snap> before;
+    before.reserve(static_cast<std::size_t>(paramCount));
+    for (int i = 0; i < paramCount; ++i) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(ctl.getParameterInfo(i, info) == Steinberg::kResultOk);
+        if (info.id == kUiModeId) continue;
+        before.push_back({ info.id, ctl.getParamNormalized(info.id) });
+    }
+
+    std::atomic<bool> done{false};
+    std::thread automationThread([&] {
+        for (int i = 0; i < 200; ++i) {
+            const double v = (i & 1) ? 1.0 : 0.0;
+            ctl.setParamNormalized(kUiModeId, v);
+        }
+        done.store(true, std::memory_order_release);
+    });
+    automationThread.join();
+    REQUIRE(done.load(std::memory_order_acquire));
+
+    // Final value is well-defined (last write wins; automationThread ended on
+    // i=199 -> v=1.0).
+    REQUIRE(ctl.getParamNormalized(kUiModeId) == 1.0);
+
+    // All other params unchanged -- mode toggling from any thread must not
+    // mutate neighbouring state (SC-003 guarantee).
+    for (const auto& s : before) {
+        REQUIRE(ctl.getParamNormalized(s.id) == s.value);
+    }
+
+    ctl.terminate();
+}

@@ -12,6 +12,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <string>
+#include <vector>
+
 using namespace Membrum;
 
 TEST_CASE("kEditorSizeId registered as StringListParameter (Default/Compact)",
@@ -153,4 +156,83 @@ TEST_CASE("EditorSizePolicy: default size is 1280x800", "[editor_size_session]")
     REQUIRE(UI::kCompactHeight == 640);
     REQUIRE(UI::templateNameFor(UI::EditorSize::Default) == std::string("EditorDefault"));
     REQUIRE(UI::templateNameFor(UI::EditorSize::Compact) == std::string("EditorCompact"));
+}
+
+// ==============================================================================
+// T092: Editor-size switching smoke test.
+//
+// Toggle kEditorSizeId between Default (0.0) and Compact (1.0) repeatedly and
+// verify:
+//   * The template name derived from the EditorSizePolicy flips correctly
+//     (this is the string the controller passes to VST3Editor::exchangeView).
+//   * The controller accepts the change without mutating any other registered
+//     parameter -- the toggle is visual-only (FR-040).
+//   * Rapid toggling does not break subsequent kEditorSizeId reads, which is
+//     the failure mode if IDependent subscribers (PadGridView,
+//     CouplingMatrixView) were not cleanly re-registered after a template
+//     swap. Here we exercise the state machine; the actual VSTGUI re-register
+//     path is covered by the ASan lifecycle test (T091).
+// ==============================================================================
+TEST_CASE("kEditorSizeId toggling flips template name and preserves other params",
+          "[editor_size_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    const int paramCount = ctl.getParameterCount();
+    REQUIRE(paramCount > 0);
+
+    struct Snap { Steinberg::Vst::ParamID id; Steinberg::Vst::ParamValue value; };
+    std::vector<Snap> before;
+    before.reserve(static_cast<std::size_t>(paramCount));
+    for (int i = 0; i < paramCount; ++i) {
+        Steinberg::Vst::ParameterInfo info{};
+        REQUIRE(ctl.getParameterInfo(i, info) == Steinberg::kResultOk);
+        if (info.id == kEditorSizeId)
+            continue;
+        before.push_back({ info.id, ctl.getParamNormalized(info.id) });
+    }
+
+    for (int t = 0; t < 20; ++t) {
+        const bool wantCompact = (t % 2 == 1);
+        const double v = wantCompact ? 1.0 : 0.0;
+        REQUIRE(ctl.setParamNormalized(kEditorSizeId, v) == Steinberg::kResultOk);
+        REQUIRE(ctl.getParamNormalized(kEditorSizeId) == v);
+
+        const auto expectedTemplate = wantCompact
+            ? std::string("EditorCompact")
+            : std::string("EditorDefault");
+        const auto mode = wantCompact ? UI::EditorSize::Compact
+                                      : UI::EditorSize::Default;
+        REQUIRE(UI::templateNameFor(mode) == expectedTemplate);
+
+        // Other parameters must be untouched (session-scope guarantee).
+        for (const auto& s : before) {
+            REQUIRE(ctl.getParamNormalized(s.id) == s.value);
+        }
+    }
+
+    ctl.terminate();
+}
+
+// ==============================================================================
+// T092 (IDependent resubscribe): after a size-mode flip the controller must
+// continue to accept the inverse flip. Failure mode for dangling IDependent
+// subscribers is usually silent -- the state API still works but automation
+// no longer repaints. We can't observe repaints headless, so we pin the
+// weaker invariant: kEditorSizeId round-trips across N flips with no drift.
+// ==============================================================================
+TEST_CASE("kEditorSizeId survives rapid bidirectional flips",
+          "[editor_size_session]")
+{
+    Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+
+    for (int i = 0; i < 100; ++i) {
+        const double v = (i & 1) ? 1.0 : 0.0;
+        REQUIRE(ctl.setParamNormalized(kEditorSizeId, v) == Steinberg::kResultOk);
+        REQUIRE(ctl.getParamNormalized(kEditorSizeId) == v);
+    }
+
+    ctl.terminate();
 }
