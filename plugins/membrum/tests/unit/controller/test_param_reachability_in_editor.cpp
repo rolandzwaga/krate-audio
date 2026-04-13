@@ -190,6 +190,8 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kMorphDurationMsId, kPadMorphDuration },
         { kMorphCurveId, kPadMorphCurve },
         { kChokeGroupId, kPadChokeGroup },
+        // Phase 8 (T074 / US7 / FR-065): Output Bus selector global proxy.
+        { kOutputBusId, kPadOutputBus },
     };
 }
 
@@ -210,6 +212,8 @@ std::set<int> proxiedOffsets()
         kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount, kPadNonlinearCoupling,
         kPadMorphEnabled, kPadMorphStart, kPadMorphEnd, kPadMorphDuration, kPadMorphCurve,
         kPadChokeGroup,
+        // Phase 8 (T074 / US7 / FR-065): Output Bus offset is now proxied.
+        kPadOutputBus,
     };
 }
 

@@ -81,8 +81,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 5: +4 (global coupling + snare buzz + tom resonance + coupling delay) = 1194.
     // Phase 6 (US4): +32 (per-pad coupling amount, offset 36) = 1226.
     // Phase 6 (US1, spec 141): +2 (kUiModeId, kEditorSizeId) + 160 (32 pads x 5 macros) = 1388.
+    // Phase 8 (US7, spec 141): +1 (kOutputBusId Output Bus selector proxy) = 1389.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1388);
+    CHECK(paramCount == 1389);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

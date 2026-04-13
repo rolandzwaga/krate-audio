@@ -43,7 +43,13 @@
          Controller::setParamNormalized routes edits to the currently
          selected pad's per-pad kPadChokeGroup offset. -->
     <control-tag name="ChokeGroupSel" tag="252"/>
-    <control-tag name="OutputBusSel" tag="1031"/>
+    <!-- T074 (Phase 8 / US7, FR-065): Output Bus selector binds to the
+         Phase 4 selected-pad proxy (kOutputBusId == 282). The proxy in
+         Controller::setParamNormalized routes edits to the currently
+         selected pad's per-pad kPadOutputBus offset. Registered as a
+         16-entry StringListParameter (Main, Aux 1..Aux 15) so the
+         COptionMenu auto-populates its entries. -->
+    <control-tag name="OutputBusSel" tag="282"/>
     <!-- Phase 6 T036: Extended-mode control tags -->
     <!-- Unnatural Zone (globals 230-233) -->
     <control-tag name="ModeStretch" tag="230"/>

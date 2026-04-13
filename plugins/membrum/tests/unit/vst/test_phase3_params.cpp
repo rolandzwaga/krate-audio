@@ -37,10 +37,14 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     constexpr int kPhase6US4Parameters = 32;
     constexpr int kPhase6US1Globals    = 2;
     constexpr int kPhase6US1MacroParams = 32 * 5;
+    // Phase 8 (US7 / spec 141, T074) adds 1 global Output Bus selector
+    // proxy (kOutputBusId).
+    constexpr int kPhase6US7Globals    = 1;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
-          + kPhase6US1Globals + kPhase6US1MacroParams);
+          + kPhase6US1Globals + kPhase6US1MacroParams
+          + kPhase6US7Globals);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

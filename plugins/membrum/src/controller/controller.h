@@ -27,7 +27,7 @@ namespace Steinberg { class IBStream; }
 
 namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; }
 
-namespace VSTGUI { class CTextLabel; }
+namespace VSTGUI { class CTextLabel; class CControl; }
 
 namespace Membrum {
 
@@ -194,6 +194,18 @@ private:
     // text on failure, and clears it after ~3 seconds. Tolerant of a missing
     // label view (templates without a PresetStatus label simply see no-ops).
     VSTGUI::CTextLabel*              presetStatusLabel_ = nullptr;
+
+    // Phase 8 (T074 / US7 / FR-066): cached pointer to the Output Bus
+    // selector COptionMenu (discovered via verifyView by matching
+    // control-tag == kOutputBusId). Used to set a warning tooltip when the
+    // selected aux bus is not activated by the host. Lifetime owned by
+    // VSTGUI; zeroed in willClose().
+    VSTGUI::CControl*                outputBusSelView_ = nullptr;
+
+    /// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the cached
+    /// Output Bus selector view when the selected aux bus index >= 1 and the
+    /// corresponding bus is not host-activated. Clears the tooltip otherwise.
+    void updateOutputBusTooltip() noexcept;
     // Frames-until-clear counter for the status label. Decremented by the
     // poll timer; when it reaches 0 the label text is cleared and the
     // failure flags reset.

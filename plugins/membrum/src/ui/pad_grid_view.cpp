@@ -158,6 +158,17 @@ void PadGridView::setSelectedPadIndex(int padIndex) noexcept
     invalid();
 }
 
+void PadGridView::notifyMetaChanged(int padIndex) noexcept
+{
+    // FR-065 / FR-066 (Phase 8): the meta-provider is already the source of
+    // truth; we just invalidate so the next draw picks up the new indicator
+    // text. padIndex is accepted for future per-cell dirty-rect optimisation
+    // but not required for correctness today.
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+    invalid();
+}
+
 PadGridView::CellGeom PadGridView::cellGeom() const noexcept
 {
     const auto& r = getViewSize();

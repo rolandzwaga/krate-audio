@@ -117,6 +117,12 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // automatable per FR-033). See spec 141 FR-070, FR-071.
     kUiModeId                     = 280,  // StringListParameter {Acoustic, Extended}
     kEditorSizeId                 = 281,  // StringListParameter {Default, Compact}
+
+    // FR-065 (spec 141, Phase 8): Output Bus selector for the Selected-Pad Panel.
+    // Acts as a Phase 4 selected-pad proxy -- forwarding writes to
+    // kPadOutputBus of the currently selected pad. Registered as a 16-entry
+    // StringListParameter (Main, Aux 1..Aux 15).
+    kOutputBusId                  = 282,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2

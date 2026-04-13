@@ -25,6 +25,7 @@
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/cframe.h"
 
 #include <algorithm>
@@ -94,6 +95,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kMorphDurationMsId,            .padOffset = kPadMorphDuration },
     {.globalId = kMorphCurveId,                 .padOffset = kPadMorphCurve },
     {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
+    // Phase 8 (US7 / FR-065): Output Bus selector proxy.
+    {.globalId = kOutputBusId,                  .padOffset = kPadOutputBus },
 };
 
 // Per-pad parameter name table
@@ -336,6 +339,27 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         parameters.addParameter(editorSizeList);
     }
 
+    // ---- Phase 6 (US7 / T074): Output Bus selector proxy (FR-065) ----
+    // Global Phase 4 selected-pad proxy: forwards to kPadOutputBus of the
+    // currently selected pad. Registered as a 16-entry StringListParameter
+    // (Main, Aux 1..Aux 15) so the host and the COptionMenu populate entries
+    // automatically.
+    {
+        auto* outputBusList = new StringListParameter(
+            STR16("Output Bus"), kOutputBusId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        outputBusList->appendString(STR16("Main"));
+        for (int i = 1; i < kMaxOutputBuses; ++i)
+        {
+            char nameBuf[16];
+            std::snprintf(nameBuf, sizeof(nameBuf), "Aux %d", i);
+            TChar titleBuf[16];
+            narrowToTChar(nameBuf, titleBuf, 16);
+            outputBusList->appendString(titleBuf);
+        }
+        parameters.addParameter(outputBusList);
+    }
+
     // ---- Phase 4/6: 1344 per-pad parameters (32 pads x 42 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
@@ -473,8 +497,38 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
+
+            // FR-065 (spec 141, Phase 8 / US7): when the Output Bus proxy
+            // changes, refresh the pad grid so its "BUS{N}" indicator picks
+            // up the new value live via IDependent-style invalidation.
+            // Same treatment for Choke Group keeps the "CG{N}" indicator in
+            // sync without a per-pad tag scan.
+            if ((mapping.globalId == kOutputBusId
+                 || mapping.globalId == kChokeGroupId)
+                && padGridView_ != nullptr)
+            {
+                padGridView_->notifyMetaChanged(selectedPadIndex_);
+            }
+            // FR-066: when the Output Bus proxy changes, refresh the warning
+            // tooltip on the Output Bus selector in case the new selection
+            // targets an inactive aux bus.
+            if (mapping.globalId == kOutputBusId)
+                updateOutputBusTooltip();
             return result;
         }
+    }
+
+    // Direct per-pad Output Bus / Choke Group edit (e.g. from automation
+    // targeting a specific pad's per-pad parameter, not the global proxy):
+    // refresh the grid's BUS / CG indicator for that pad.
+    const int padOffset = padOffsetFromParamId(static_cast<int>(tag));
+    if (padOffset >= 0
+        && (padOffset == kPadOutputBus || padOffset == kPadChokeGroup)
+        && padGridView_ != nullptr)
+    {
+        const int padIdx = padIndexFromParamId(static_cast<int>(tag));
+        if (padIdx >= 0)
+            padGridView_->notifyMetaChanged(padIdx);
     }
 
     return result;
@@ -511,6 +565,11 @@ void Controller::notifyBusActivation(int32 busIndex, bool active)
             }
         }
     }
+
+    // FR-066: bus activation state changed -- refresh the Output Bus
+    // selector tooltip so any "Host must activate Aux N bus" warning
+    // disappears or appears as appropriate.
+    updateOutputBusTooltip();
 }
 
 // ==============================================================================
@@ -528,6 +587,9 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
         EditControllerEx1::setParamNormalized(mapping.globalId, padValue);
     }
     suppressProxyForward_ = false;
+    // FR-066: after syncing the proxies to a newly selected pad, refresh the
+    // Output Bus tooltip so it reflects that pad's assigned bus.
+    updateOutputBusTooltip();
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1386,7 +1448,57 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             presetStatusLabel_->setText("");
         }
     }
+    // Phase 8 (T074 / US7 / FR-066): cache the Output Bus selector control so
+    // setParamNormalized() can push a warning tooltip when the selected aux
+    // bus is not host-activated. The Acoustic and Extended templates both
+    // contain this control with control-tag == kOutputBusId; verifyView()
+    // fires for each one as the editor builds the view tree. The most
+    // recently-built template's control wins -- correct because
+    // UIViewSwitchContainer only shows one at a time.
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view))
+    {
+        if (ctrl->getTag() == static_cast<int32>(kOutputBusId))
+        {
+            outputBusSelView_ = ctrl;
+            updateOutputBusTooltip();
+        }
+    }
     return view;
+}
+
+// ------------------------------------------------------------------------------
+// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the Output Bus
+// selector when the currently-selected aux bus is inactive. FR-066 requires
+// the message to read "Host must activate Aux {N} bus". Clears the tooltip
+// when the bus is active or when Main (bus 0) is selected. Tolerant of a
+// missing view -- safe to call before or after the editor opens.
+// ------------------------------------------------------------------------------
+void Controller::updateOutputBusTooltip() noexcept
+{
+    if (outputBusSelView_ == nullptr)
+        return;
+
+    // Resolve the currently-selected bus index from the global proxy value.
+    // The parameter is a 16-entry StringListParameter so its normalised value
+    // maps to [0, kMaxOutputBuses - 1] via round-to-nearest.
+    const auto norm = getParamNormalized(static_cast<ParamID>(kOutputBusId));
+    const int busIndex = std::clamp(
+        static_cast<int>(std::lround(norm * (kMaxOutputBuses - 1))),
+        0, kMaxOutputBuses - 1);
+
+    if (busIndex >= 1 && !isBusActive(busIndex))
+    {
+        char buf[64] = {};
+        std::snprintf(buf, sizeof(buf),
+                      "Host must activate Aux %d bus", busIndex);
+        outputBusSelView_->setTooltipText(buf);
+    }
+    else
+    {
+        // Clear any stale warning: VSTGUI's CView::setTooltipText with an
+        // empty string removes the tooltip.
+        outputBusSelView_->setTooltipText("");
+    }
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
@@ -1471,6 +1583,7 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     cpuLabel_          = nullptr;
     activeVoicesLabel_ = nullptr;
     presetStatusLabel_ = nullptr;
+    outputBusSelView_  = nullptr;
 
     // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
     // 30 Hz poll timer (already cancelled above) and any future code can not

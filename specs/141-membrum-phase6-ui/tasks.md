@@ -288,20 +288,20 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 > **Constitution Principle XIII**: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T073 [P] [US7] Write failing tests: Output selector in editor.uidesc has 16 entries (Main / Aux 1..15), tagged to `kOutputBusId` for the selected pad via Phase 4 proxy; selecting Aux 2 writes `outputBus = 2` to `PadConfig`; selecting Aux 5 when bus 5 is inactive: tooltip text "Host must activate Aux 5 bus" is set on the control; pad grid cell "BUS{N}" indicator updates on `outputBus` change via `IDependent`
+- [X] T073 [P] [US7] Write failing tests: Output selector in editor.uidesc has 16 entries (Main / Aux 1..15), tagged to `kOutputBusId` for the selected pad via Phase 4 proxy; selecting Aux 2 writes `outputBus = 2` to `PadConfig`; selecting Aux 5 when bus 5 is inactive: tooltip text "Host must activate Aux 5 bus" is set on the control; pad grid cell "BUS{N}" indicator updates on `outputBus` change via `IDependent`
 
 ### 8.2 Implementation for User Story 7
 
-- [ ] T074 [US7] Add Output selector (`COptionMenu`, 16 entries labelled "Main", "Aux 1" through "Aux 15") to both `SelectedPadAcoustic` and `SelectedPadExtended` templates in `editor.uidesc`, tagged to `kOutputBusId` per the Phase 4 selected-pad proxy; add inactive-bus warning tooltip logic in `membrum_editor_controller.cpp`: when selected value >= 1 and the corresponding bus is not activated by the host (query via `Steinberg::Vst::IHostApplication` or flag from `BusActivation` callback), set a tooltip string "Host must activate Aux {N} bus" on the control per FR-066
-- [ ] T075 [US7] Build and verify output routing tests pass
+- [X] T074 [US7] Add Output selector (`COptionMenu`, 16 entries labelled "Main", "Aux 1" through "Aux 15") to both `SelectedPadAcoustic` and `SelectedPadExtended` templates in `editor.uidesc`, tagged to `kOutputBusId` per the Phase 4 selected-pad proxy; add inactive-bus warning tooltip logic in `membrum_editor_controller.cpp`: when selected value >= 1 and the corresponding bus is not activated by the host (query via `Steinberg::Vst::IHostApplication` or flag from `BusActivation` callback), set a tooltip string "Host must activate Aux {N} bus" on the control per FR-066
+- [X] T075 [US7] Build and verify output routing tests pass
 
 ### 8.3 Cross-Platform Verification
 
-- [ ] T076 [US7] Verify output bus tooltip uses VSTGUI `CView::setTooltipText` (not native Win32 tooltip window)
+- [X] T076 [US7] Verify output bus tooltip uses VSTGUI `CView::setTooltipText` (not native Win32 tooltip window)
 
 ### 8.4 Commit (MANDATORY)
 
-- [ ] T077 [US7] Commit completed User Story 7 work (Output selector wiring, inactive-bus tooltip, grid indicator update)
+- [X] T077 [US7] Commit completed User Story 7 work (Output selector wiring, inactive-bus tooltip, grid indicator update)
 
 **Checkpoint**: US7 functional -- output routing UI wired, pad grid BUS indicator updates live.
 

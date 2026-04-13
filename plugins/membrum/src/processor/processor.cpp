@@ -514,6 +514,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadChokeGroup(selectedPadIndex_, static_cast<std::uint8_t>(nClamped));
             break;
         }
+        // Phase 8 (US7 / FR-065): Output Bus selector proxy -- forward to the
+        // currently selected pad's kPadOutputBus field.
+        case kOutputBusId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadOutputBus, clamped);
+            break;
+        }
         case kSelectedPadId:
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);

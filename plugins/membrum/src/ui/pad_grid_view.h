@@ -141,6 +141,15 @@ public:
     void setSelectedPadIndex(int padIndex) noexcept;
     [[nodiscard]] int selectedPadIndex() const noexcept { return selectedPad_; }
 
+    /// FR-065 (spec 141, Phase 8 / US7): notify the view that a pad's meta
+    /// (outputBus / chokeGroup / category) has changed so it re-renders its
+    /// BUS / CG indicator. The controller calls this from
+    /// `setParamNormalized()` when a per-pad Output Bus or Choke Group
+    /// parameter (global proxy or direct per-pad tag) changes. The view
+    /// simply invalidates so the next draw pass picks up the new indicator
+    /// text via the meta-provider callback.
+    void notifyMetaChanged(int padIndex) noexcept;
+
     // --- testable helpers (public for unit tests) --------------------------
 
     /// Map a point (relative to view origin) into a pad index in [0, kNumPads),
