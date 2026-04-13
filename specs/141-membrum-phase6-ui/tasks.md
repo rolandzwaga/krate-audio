@@ -407,11 +407,11 @@ Skills auto-load when needed (testing-guide, vst-guide) -- no manual context ver
 
 **Purpose**: Bump version to v0.6.0 per project convention (edit version.json only -- never generated files).
 
-- [ ] T107 Edit `plugins/membrum/version.json` only: set `"version": "0.6.0"` -- do NOT edit `version.h`, `version.h.in`, or any generated file (per project memory rule: version bumps edit version.json only)
-- [ ] T108 Build to regenerate `version.h` from `version.h.in`: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Membrum`
-- [ ] T109 Update the Membrum plugin changelog at `plugins/membrum/CHANGELOG.md` (create if it does not exist) noting v0.6.0 additions: custom VSTGUI editor, 5 per-pad macros (Tightness/Brightness/Body Size/Punch/Complexity), Acoustic/Extended UI mode, 4x8 pad grid, kit and per-pad preset browsers, Tier 2 coupling matrix editor, pitch envelope promotion to primary control, state version 6
-- [ ] T110 Update roadmap in `specs/135-membrum-drum-synth.md` to mark Phase 6 complete
-- [ ] T111 Commit version bump, changelog, and roadmap update
+- [X] T107 Edit `plugins/membrum/version.json` only: set `"version": "0.6.0"` -- do NOT edit `version.h`, `version.h.in`, or any generated file (per project memory rule: version bumps edit version.json only)
+- [X] T108 Build to regenerate `version.h` from `version.h.in`: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Membrum`
+- [X] T109 Update the Membrum plugin changelog at `plugins/membrum/CHANGELOG.md` (create if it does not exist) noting v0.6.0 additions: custom VSTGUI editor, 5 per-pad macros (Tightness/Brightness/Body Size/Punch/Complexity), Acoustic/Extended UI mode, 4x8 pad grid, kit and per-pad preset browsers, Tier 2 coupling matrix editor, pitch envelope promotion to primary control, state version 6
+- [X] T110 Update roadmap in `specs/135-membrum-drum-synth.md` to mark Phase 6 complete
+- [X] T111 Commit version bump, changelog, and roadmap update
 
 ---
 
