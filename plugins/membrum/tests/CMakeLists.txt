@@ -122,6 +122,7 @@ add_executable(membrum_tests
 
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
@@ -141,6 +142,7 @@ target_link_libraries(membrum_tests
         Catch2::Catch2
         test_helpers
         sdk
+        vstgui_support
 )
 
 target_include_directories(membrum_tests

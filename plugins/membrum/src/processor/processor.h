@@ -16,6 +16,9 @@
 #include "dsp/pad_config.h"
 #include "dsp/pad_category.h"
 #include "dsp/coupling_matrix.h"
+#include "dsp/pad_glow_publisher.h"
+#include "dsp/matrix_activity_publisher.h"
+#include "processor/macro_mapper.h"
 #include "voice_pool/voice_pool.h"
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
@@ -24,6 +27,10 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <memory>
+
+// Forward-declare DataExchangeHandler so processor.h stays cheap to include.
+namespace Steinberg::Vst { class DataExchangeHandler; }
 
 namespace Membrum {
 
@@ -31,6 +38,7 @@ class Processor : public Steinberg::Vst::AudioEffect
 {
 public:
     Processor();
+    ~Processor() override;
 
     static Steinberg::FUnknown* createInstance(void*)
     {
@@ -62,6 +70,13 @@ public:
     Krate::DSP::SympatheticResonance& couplingEngineForTest() noexcept { return couplingEngine_; }
     const CouplingMatrix& couplingMatrixForTest() const noexcept { return couplingMatrix_; }
     float energyEnvelopeForTest() const noexcept { return energyEnvelope_; }
+
+    // Test-only accessors (Phase 6: macros, publishers)
+    MacroMapper& macroMapperForTest() noexcept { return macroMapper_; }
+    PadGlowPublisher& padGlowPublisherForTest() noexcept { return padGlowPublisher_; }
+    MatrixActivityPublisher& matrixActivityPublisherForTest() noexcept { return matrixActivityPublisher_; }
+    bool editorOpenForTest() const noexcept { return editorOpen_.load(); }
+    void setEditorOpenForTest(bool open) noexcept { editorOpen_.store(open); }
 
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
@@ -108,6 +123,18 @@ private:
 
     // Energy limiter state
     float energyEnvelope_ = 0.0f;
+
+    // ---- Phase 6: Macros, publishers, meters DataExchange, editor state ----
+    MacroMapper              macroMapper_;
+    PadGlowPublisher         padGlowPublisher_;
+    MatrixActivityPublisher  matrixActivityPublisher_;
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
+    std::atomic<bool>        editorOpen_{false};
+
+    /// Phase 6: build the RegisteredDefaultsTable consumed by MacroMapper.
+    /// Mirrors the Controller's registered-default values for Phase 4/5 per-pad
+    /// parameters referenced by the five macros.
+    [[nodiscard]] RegisteredDefaultsTable buildRegisteredDefaultsTable() const noexcept;
 
     /// One-pole envelope follower energy limiter (FR-014, SC-007).
     /// Caps coupling output below -20 dBFS.

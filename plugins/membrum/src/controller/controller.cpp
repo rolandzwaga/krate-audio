@@ -12,9 +12,12 @@
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
 
+#include "vstgui/plugin-bindings/vst3editor.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <utility>
 
 namespace Membrum {
@@ -121,13 +124,19 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadFrictionPressure,   .name = "Friction Pressure",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     // Phase 6 (US4 / T044): per-pad coupling amount (offset 36)
     {.offset = kPadCouplingAmount,     .name = "Coupling Amount",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Phase 6 (US1 / T026): per-pad macros (offsets 37-41), FR-072 naming
+    {.offset = kPadMacroTightness,     .name = "Tightness",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroBrightness,    .name = "Brightness",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroBodySize,      .name = "Body Size",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroPunch,         .name = "Punch",               .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroComplexity,    .name = "Complexity",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV5,
-              "Pad param specs must match active param count (37)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV6,
+              "Pad param specs must match active param count (42)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -285,7 +294,28 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
                            0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/6: 1184 per-pad parameters (32 pads x 37 active offsets) ----
+    // ---- Phase 6 (US1 / T026): session-scoped global UI parameters ----
+    // Both are registered as automatable StringListParameters (FR-033) but
+    // are NOT serialised in the state blob (enforced by Processor::getState
+    // and Controller::setComponentState; see T027).
+    {
+        auto* uiModeList = new StringListParameter(
+            STR16("UI Mode"), kUiModeId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        uiModeList->appendString(STR16("Acoustic"));
+        uiModeList->appendString(STR16("Extended"));
+        parameters.addParameter(uiModeList);
+    }
+    {
+        auto* editorSizeList = new StringListParameter(
+            STR16("Editor Size"), kEditorSizeId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        editorSizeList->appendString(STR16("Default"));
+        editorSizeList->appendString(STR16("Compact"));
+        parameters.addParameter(editorSizeList);
+    }
+
+    // ---- Phase 4/6: 1344 per-pad parameters (32 pads x 42 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)
@@ -457,6 +487,13 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 {
     if (!state)
         return kResultFalse;
+
+    // Phase 6 (T027): session-scoped parameters always reset to their defaults
+    // on state load, regardless of blob content. kUiModeId -> Acoustic (0.0);
+    // kEditorSizeId -> Default (0.0). Kit presets may re-override kUiModeId via
+    // a separate preset-load callback (not through IBStream).
+    EditControllerEx1::setParamNormalized(kUiModeId, 0.0);
+    EditControllerEx1::setParamNormalized(kEditorSizeId, 0.0);
 
     int32 version = 0;
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
@@ -1065,8 +1102,13 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     return true;
 }
 
-IPlugView* PLUGIN_API Controller::createView(const char* /*name*/)
+IPlugView* PLUGIN_API Controller::createView(const char* name)
 {
+    // Phase 6 (T028, FR-001): return a VST3Editor backed by editor.uidesc.
+    if (name && std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0)
+    {
+        return new VSTGUI::VST3Editor(this, "EditorDefault", "editor.uidesc");
+    }
     return nullptr;
 }
 

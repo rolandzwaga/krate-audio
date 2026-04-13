@@ -20,6 +20,7 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 
 // FTZ/DAZ for denormal prevention on x86 (SC-007)
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
@@ -182,6 +183,34 @@ Processor::Processor()
     setControllerClass(kControllerUID);
 }
 
+Processor::~Processor() = default;
+
+// Phase 6 (T025): mirror the Controller's registered-default values for each
+// per-pad parameter the MacroMapper targets. Kept in sync with kPadParamSpecs.
+RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() const noexcept
+{
+    RegisteredDefaultsTable t{};
+    t.byOffset[kPadMaterial]           = 0.5f;
+    t.byOffset[kPadSize]               = 0.5f;
+    t.byOffset[kPadDecay]              = 0.3f;
+    t.byOffset[kPadStrikePosition]     = 0.3f;
+    t.byOffset[kPadLevel]              = 0.8f;
+    t.byOffset[kPadTSFilterCutoff]     = 1.0f;
+    t.byOffset[kPadTSPitchEnvStart]    = 0.0f;
+    t.byOffset[kPadTSPitchEnvEnd]      = 0.0f;
+    t.byOffset[kPadTSPitchEnvTime]     = 0.0f;
+    t.byOffset[kPadModeStretch]        = 0.333333f;
+    t.byOffset[kPadDecaySkew]          = 0.5f;
+    t.byOffset[kPadModeInjectAmount]   = 0.0f;
+    t.byOffset[kPadNonlinearCoupling]  = 0.0f;
+    t.byOffset[kPadFMRatio]            = 0.5f;
+    t.byOffset[kPadFeedbackAmount]     = 0.0f;
+    t.byOffset[kPadNoiseBurstDuration] = 0.5f;
+    t.byOffset[kPadFrictionPressure]   = 0.0f;
+    t.byOffset[kPadCouplingAmount]     = 0.5f;
+    return t;
+}
+
 tresult PLUGIN_API Processor::initialize(FUnknown* context)
 {
     auto result = AudioEffect::initialize(context);
@@ -211,6 +240,10 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     for (int i = 0; i < kNumPads; ++i)
         padCategories_[static_cast<size_t>(i)] =
             classifyPad(voicePool_.padConfig(i));
+
+    // Phase 6 (T025): cache registered defaults for the MacroMapper. This
+    // must happen before any audio-thread apply() call.
+    macroMapper_.prepare(buildRegisteredDefaultsTable());
 
     return kResultOk;
 }
@@ -306,6 +339,19 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // both source and receiver.
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
                 recomputeCouplingMatrix();
+            }
+            else if (padOff >= kPadMacroTightness && padOff <= kPadMacroComplexity)
+            {
+                // Phase 6 (US1 / T025, FR-022, FR-023): a macro parameter
+                // changed. Store the new macro value, then let the MacroMapper
+                // recompute the derived underlying parameters for this pad.
+                voicePool_.setPadConfigField(padIdx, padOff, fValue);
+                macroMapper_.apply(padIdx, voicePool_.padConfigMut(padIdx));
+                if (padOff == kPadMacroComplexity)
+                {
+                    // Complexity drives couplingAmount; matrix must refresh.
+                    recomputeCouplingMatrix();
+                }
             }
             else
             {

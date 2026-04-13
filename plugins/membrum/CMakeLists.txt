@@ -137,8 +137,17 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
 target_link_libraries(${PLUGIN_NAME}
     PRIVATE
         sdk
+        vstgui_support
         KrateDSP
         KratePluginsShared
+)
+
+# ==============================================================================
+# VSTGUI Resources (Phase 6: custom editor)
+# ==============================================================================
+smtg_target_add_plugin_resources(${PLUGIN_NAME}
+    RESOURCES
+        resources/editor.uidesc
 )
 
 # Include directories

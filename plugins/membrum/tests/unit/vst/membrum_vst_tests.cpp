@@ -80,8 +80,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 4: +1 (selectedPad) + 1152 (32 pads x 36 params) = 1190.
     // Phase 5: +4 (global coupling + snare buzz + tom resonance + coupling delay) = 1194.
     // Phase 6 (US4): +32 (per-pad coupling amount, offset 36) = 1226.
+    // Phase 6 (US1, spec 141): +2 (kUiModeId, kEditorSizeId) + 160 (32 pads x 5 macros) = 1388.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1226);
+    CHECK(paramCount == 1388);
 
     REQUIRE(controller.terminate() == kResultOk);
 }
@@ -429,14 +430,19 @@ TEST_CASE("Membrum Processor and Controller FUIDs are distinct",
     CHECK(Membrum::kProcessorUID != Membrum::kControllerUID);
 }
 
-TEST_CASE("Membrum Controller createView returns nullptr",
+TEST_CASE("Membrum Controller createView accepts unknown names as nullptr",
           "[membrum][vst][ui]")
 {
+    // Phase 6 (spec 141 T028): createView("editor") constructs a VST3Editor
+    // bound to editor.uidesc; outside a loaded VST3 bundle this resource
+    // lookup can throw, so we do NOT exercise the positive branch in this
+    // unit test (it is covered by pluginval at plugin-shell level, SC-010).
+    // We still verify the negative branch: unknown view names return nullptr.
     Membrum::Controller controller;
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
-    auto* view = controller.createView("editor");
-    CHECK(view == nullptr);
+    auto* unknown = controller.createView("something-else");
+    CHECK(unknown == nullptr);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

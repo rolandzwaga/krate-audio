@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+  <!-- ================================================================== -->
+  <!-- Membrum Phase 6 - Custom Editor Skeleton                            -->
+  <!-- Two top-level templates for the user-toggled editor size (FR-001): -->
+  <!--   EditorDefault:  1280x800                                          -->
+  <!--   EditorCompact:  1024x640                                          -->
+  <!-- Each template hosts three regions (PadGrid | SelectedPad | Kit).    -->
+  <!-- Later phases will populate the region contents and the Acoustic /   -->
+  <!-- Extended UIViewSwitchContainer inside the SelectedPad region.       -->
+  <!-- ================================================================== -->
+
+  <colors>
+    <color name="bg-primary"    rgba="#1A1A2Eff"/>
+    <color name="bg-panel"      rgba="#202030ff"/>
+    <color name="accent"        rgba="#00BCD4ff"/>
+    <color name="text-primary"  rgba="#E0E0F0ff"/>
+    <color name="text-secondary" rgba="#8888AAff"/>
+  </colors>
+
+  <fonts>
+    <font name="title-font"   font-name="Arial" size="16" bold="true"/>
+    <font name="section-font" font-name="Arial" size="11" bold="true"/>
+    <font name="label-font"   font-name="Arial" size="10"/>
+  </fonts>
+
+  <!-- ==================================================================== -->
+  <!-- Control Tags                                                         -->
+  <!-- ==================================================================== -->
+  <control-tags>
+    <!-- Phase 6 globals (session-scoped; FR-030, FR-040) -->
+    <control-tag name="UiMode"     tag="280"/>
+    <control-tag name="EditorSize" tag="281"/>
+
+    <!-- Phase 5 globals wired in kit column -->
+    <control-tag name="GlobalCoupling" tag="270"/>
+    <control-tag name="SnareBuzz"      tag="271"/>
+    <control-tag name="TomResonance"   tag="272"/>
+    <control-tag name="CouplingDelay"  tag="273"/>
+
+    <!-- Phase 4 pad selector -->
+    <control-tag name="SelectedPad"    tag="260"/>
+
+    <!-- Phase 3 voice management -->
+    <control-tag name="MaxPolyphony"   tag="250"/>
+    <control-tag name="VoiceStealing"  tag="251"/>
+  </control-tags>
+
+  <bitmaps/>
+
+  <!-- ==================================================================== -->
+  <!-- Default editor template: 1280x800 (FR-001)                           -->
+  <!-- ==================================================================== -->
+  <template name="EditorDefault"
+            class="CViewContainer"
+            background-color="bg-primary"
+            background-color-draw-style="filled"
+            origin="0, 0"
+            size="1280, 800"
+            minSize="1280, 800"
+            maxSize="1280, 800"
+            autosize="left top right bottom"
+            transparent="false"
+            wants-focus="false"
+            mouse-enabled="true">
+    <!-- PadGrid region placeholder (left column) -->
+    <view class="CViewContainer"
+          origin="0, 0"
+          size="640, 800"
+          background-color="bg-panel"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+    <!-- SelectedPad region placeholder (centre column) -->
+    <view class="CViewContainer"
+          origin="640, 0"
+          size="400, 800"
+          background-color="bg-primary"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+    <!-- Kit column placeholder (right column) -->
+    <view class="CViewContainer"
+          origin="1040, 0"
+          size="240, 800"
+          background-color="bg-panel"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+  </template>
+
+  <!-- ==================================================================== -->
+  <!-- Compact editor template: 1024x640 (FR-001)                           -->
+  <!-- ==================================================================== -->
+  <template name="EditorCompact"
+            class="CViewContainer"
+            background-color="bg-primary"
+            background-color-draw-style="filled"
+            origin="0, 0"
+            size="1024, 640"
+            minSize="1024, 640"
+            maxSize="1024, 640"
+            autosize="left top right bottom"
+            transparent="false"
+            wants-focus="false"
+            mouse-enabled="true">
+    <view class="CViewContainer"
+          origin="0, 0"
+          size="512, 640"
+          background-color="bg-panel"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+    <view class="CViewContainer"
+          origin="512, 0"
+          size="320, 640"
+          background-color="bg-primary"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+    <view class="CViewContainer"
+          origin="832, 0"
+          size="192, 640"
+          background-color="bg-panel"
+          background-color-draw-style="filled"
+          mouse-enabled="true"/>
+  </template>
+
+</vstgui-ui-description>

@@ -31,11 +31,16 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     // Phase 4 adds 1 (kSelectedPadId) + 1152 (32 pads x 36 params) = 1153 more
     // Phase 5 adds 4 global coupling params (kGlobalCoupling..kCouplingDelay)
     // Phase 6 (US4) adds 32 per-pad coupling amount params (offset 36)
+    // Phase 6 (US1, spec 141) adds 2 session-scoped globals (kUiModeId,
+    //   kEditorSizeId) + 160 per-pad macros (32 pads x 5 macros)
     constexpr int kPhase5NewParameters = 4;
     constexpr int kPhase6US4Parameters = 32;
+    constexpr int kPhase6US1Globals    = 2;
+    constexpr int kPhase6US1MacroParams = 32 * 5;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
-          + kPhase5NewParameters + kPhase6US4Parameters);
+          + kPhase5NewParameters + kPhase6US4Parameters
+          + kPhase6US1Globals + kPhase6US1MacroParams);
 
     REQUIRE(controller.terminate() == kResultOk);
 }
