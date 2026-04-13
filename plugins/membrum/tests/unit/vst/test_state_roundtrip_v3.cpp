@@ -183,7 +183,7 @@ TEST_CASE("State v3 StateRoundTripV3: extreme / boundary values round-trip",
     outStream->read(&readVersion, sizeof(readVersion), nullptr);
     outStream->read(&readMaxPoly32, sizeof(readMaxPoly32), nullptr);
     outStream->read(&readPolicy32, sizeof(readPolicy32), nullptr);
-    CHECK(readVersion == 5);
+    CHECK(readVersion == Membrum::kCurrentStateVersion);
     CHECK(readMaxPoly32 == 4);
     CHECK(readPolicy32 == 2);
 

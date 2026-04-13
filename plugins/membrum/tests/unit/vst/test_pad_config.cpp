@@ -202,20 +202,26 @@ TEST_CASE("padOffsetFromParamId extracts correct offset", "[pad_config]")
 
 TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
 {
-    // Offset 36 is now valid (Phase 5 kPadCouplingAmount)
+    // Offset 36 is valid (Phase 5 kPadCouplingAmount)
     int couplingId = kPadBaseId + 36;  // pad 0, offset 36
     CHECK(padOffsetFromParamId(couplingId) == 36);
 
-    // Offset 37 is first reserved offset within pad 0's stride (Phase 5)
-    int reservedId = kPadBaseId + 37;
+    // Offsets 37-41 are now valid Phase 6 macro fields.
+    for (int off = 37; off <= 41; ++off) {
+        const int macroId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(macroId) == off);
+    }
+
+    // Offset 42 is first reserved offset within pad 0's stride (Phase 6).
+    int reservedId = kPadBaseId + 42;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 37+
-    int pad5Reserved = padParamId(5, 0) + 37;
+    // Same for pad 5 offset 42+
+    int pad5Reserved = padParamId(5, 0) + 42;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

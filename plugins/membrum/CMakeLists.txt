@@ -77,6 +77,16 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/pad_category.h
     src/dsp/coupling_matrix.h
 
+    # Phase 6: macros, custom editor, publishers, meters block
+    src/processor/macro_mapper.cpp
+    src/processor/meters_block.h
+    src/dsp/pad_glow_publisher.h
+    src/dsp/matrix_activity_publisher.h
+    src/ui/pad_grid_view.cpp
+    src/ui/coupling_matrix_view.cpp
+    src/ui/pitch_envelope_display.cpp
+    src/ui/membrum_editor_controller.cpp
+
     # Phase 2: exciter backends (header-only)
     src/dsp/exciters/impulse_exciter.h
     src/dsp/exciters/mallet_exciter.h

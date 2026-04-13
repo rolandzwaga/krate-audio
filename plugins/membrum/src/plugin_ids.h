@@ -24,10 +24,13 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 static constexpr auto kSubCategories = "Instrument|Drum";
 
 // State version for serialization.
-// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4.
-// Loader accepts version 1-3 blobs and fills later-phase parameters with
-// defaults (FR-082, FR-142, FR-143).
-constexpr Steinberg::int32 kCurrentStateVersion = 5;
+// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4, Phase 5 = 5, Phase 6 = 6.
+// Loader accepts version 1-5 blobs and fills later-phase parameters with
+// defaults (FR-082, FR-142, FR-143; Phase 6 v5->v6 migration in spec 141).
+constexpr Steinberg::int32 kCurrentStateVersion = 6;
+
+// Number of new globals introduced by Phase 6 (kUiModeId, kEditorSizeId).
+constexpr int kPhase6GlobalCount = 2;
 
 // ==============================================================================
 // Parameter IDs
@@ -107,6 +110,13 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kSnareBuzzId                  = 271,  // RangeParameter [0.0, 1.0], default 0.0
     kTomResonanceId               = 272,  // RangeParameter [0.0, 1.0], default 0.0
     kCouplingDelayId              = 273,  // RangeParameter [0.5, 2.0] ms, default 1.0
+
+    // ====== Phase 6 ======
+
+    // 280-281: Session-scoped UI parameters (NOT persisted in state blob;
+    // automatable per FR-033). See spec 141 FR-070, FR-071.
+    kUiModeId                     = 280,  // StringListParameter {Acoustic, Extended}
+    kEditorSizeId                 = 281,  // StringListParameter {Default, Compact}
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -140,7 +150,13 @@ static_assert(kSelectedPadId < kGlobalCouplingId,
               "Phase 4 and Phase 5 parameter ID ranges must not overlap (FR-062)");
 static_assert(kCouplingDelayId < kPadBaseId,
               "Phase 5 global and per-pad parameter ID ranges must not overlap");
-static_assert(kCurrentStateVersion == 5,
-              "Phase 5 requires state version 5");
+
+// Phase 6 collision guards (FR-071).
+static_assert(kCouplingDelayId < kUiModeId,
+              "Phase 5 and Phase 6 parameter ID ranges must not overlap");
+static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
+              "Phase 6 global parameters must not collide with per-pad range");
+static_assert(kCurrentStateVersion == 6,
+              "Phase 6 requires state version 6");
 
 } // namespace Membrum

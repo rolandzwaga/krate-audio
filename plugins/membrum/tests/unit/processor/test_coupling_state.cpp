@@ -190,13 +190,14 @@ std::vector<std::uint8_t> buildV4Blob()
 } // namespace
 
 // ==============================================================================
-// FR-050: kCurrentStateVersion is 5.
+// FR-050: kCurrentStateVersion is at least 5 (Phase 5 introduced version 5;
+// spec 141 / Phase 6 bumps it to 6 with backward-compatible v5->v6 migration).
 // ==============================================================================
 
-TEST_CASE("Phase 7 (FR-050): kCurrentStateVersion == 5",
+TEST_CASE("Phase 7 (FR-050): kCurrentStateVersion >= 5",
           "[coupling_state][phase7][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion >= 5);
 }
 
 // ==============================================================================
@@ -345,7 +346,7 @@ TEST_CASE("Phase 7 (SC-006, FR-051): v4 state loads with Phase 5 defaults",
     int32 gotVer = 0;
     resaved.read(&newVersion, sizeof(newVersion), &gotVer);
     CHECK(gotVer == static_cast<int32>(sizeof(newVersion)));
-    CHECK(newVersion == 5);
+    CHECK(newVersion == Membrum::kCurrentStateVersion);
 
     // The re-saved blob size equals v4 (9040) + Phase 5 trailer:
     //   4 * 8 (globals) + 32 * 8 (per-pad) + 2 (overrideCount) + 0 overrides

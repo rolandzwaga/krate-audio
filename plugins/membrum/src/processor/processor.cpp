@@ -818,9 +818,12 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         return kResultFalse;
 
     // ------------------------------------------------------------------
-    // v4/v5 state format -- v5 is v4 + appended Phase 5 coupling data
+    // v4/v5/v6 state format -- v5 is v4 + appended Phase 5 coupling data;
+    // v6 (Phase 6 spec 141) is currently identical to v5 on the wire
+    // (per-pad macros default to 0.5 on load until Phase 2 of spec 141
+    // wires up the v5->v6 migration that explicitly serialises macros).
     // ------------------------------------------------------------------
-    if (version == 4 || version == 5)
+    if (version == 4 || version == 5 || version == 6)
     {
         int32 maxPoly = 8;
         int32 stealPolicy = 0;
@@ -919,8 +922,11 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             selPad = 0;
         selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
 
-        // ---- Phase 5: Read coupling state if version == 5 ----
-        if (version == 5)
+        // ---- Phase 5: Read coupling state if version >= 5 ----
+        // v6 (spec 141) shares this on-wire layout with v5; the v5->v6
+        // migration that adds per-pad macros is wired up later in spec 141
+        // Phase 2.
+        if (version == 5 || version == 6)
         {
             double gc = 0.0;
             double sb = 0.0;

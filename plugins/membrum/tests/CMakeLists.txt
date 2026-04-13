@@ -105,6 +105,21 @@ add_executable(membrum_tests
     perf/test_polyphony_benchmark.cpp
     perf/test_polyphony_stress_16.cpp
 
+    # Phase 6: macros, session-scoped params, publishers, custom editor, lifecycle
+    unit/processor/test_macro_mapper.cpp
+    unit/processor/test_state_v6_migration.cpp
+    unit/processor/test_pad_glow_publisher.cpp
+    unit/processor/test_matrix_activity_publisher.cpp
+    unit/controller/test_phase6_parameters.cpp
+    unit/controller/test_ui_mode_session_scope.cpp
+    unit/controller/test_editor_size_session_scope.cpp
+    unit/controller/test_param_reachability_in_editor.cpp
+    unit/ui/test_pad_grid_view.cpp
+    unit/ui/test_pitch_envelope_display.cpp
+    unit/ui/test_coupling_matrix_view.cpp
+    unit/preset/test_kit_uimode_roundtrip.cpp
+    integration/test_editor_asan_lifecycle.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

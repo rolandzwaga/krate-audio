@@ -558,6 +558,12 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadNoiseBurstDuration:  cfg.noiseBurstDuration = normalizedValue; break;
     case kPadFrictionPressure:    cfg.frictionPressure = normalizedValue; break;
     case kPadCouplingAmount:      cfg.couplingAmount = normalizedValue; break;
+    // Phase 6: per-pad macros
+    case kPadMacroTightness:      cfg.macroTightness = normalizedValue; break;
+    case kPadMacroBrightness:     cfg.macroBrightness = normalizedValue; break;
+    case kPadMacroBodySize:       cfg.macroBodySize = normalizedValue; break;
+    case kPadMacroPunch:          cfg.macroPunch = normalizedValue; break;
+    case kPadMacroComplexity:     cfg.macroComplexity = normalizedValue; break;
     default: break;
     }
 }

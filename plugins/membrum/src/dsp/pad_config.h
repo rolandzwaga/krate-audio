@@ -78,7 +78,18 @@ enum PadParamOffset : int
     // Phase 5: per-pad coupling participation
     kPadCouplingAmount       = 36,
     kPadActiveParamCountV5   = 37,  // offsets 0-36 are active in Phase 5
-    // Offsets 37-63 are RESERVED for Phase 6+
+
+    // Phase 6: five per-pad macro controls (Tightness, Brightness, Body Size,
+    // Punch, Complexity). Each macro is a normalised [0, 1] proxy that the
+    // Processor-side MacroMapper translates into deltas on underlying voice
+    // parameters at control-rate. See spec 141 FR-070 / FR-072.
+    kPadMacroTightness       = 37,
+    kPadMacroBrightness      = 38,
+    kPadMacroBodySize        = 39,
+    kPadMacroPunch           = 40,
+    kPadMacroComplexity      = 41,
+    kPadActiveParamCountV6   = 42,  // offsets 0-41 are active in Phase 6
+    // Offsets 42-63 are RESERVED for future phases
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -138,6 +149,14 @@ struct PadConfig
 
     // Phase 5: per-pad coupling participation [0.0, 1.0]
     float couplingAmount     = 0.5f;
+
+    // Phase 6: per-pad macros (normalised [0.0, 1.0]). 0.5 is neutral
+    // (zero delta against registered defaults).
+    float macroTightness     = 0.5f;
+    float macroBrightness    = 0.5f;
+    float macroBodySize      = 0.5f;
+    float macroPunch         = 0.5f;
+    float macroComplexity    = 0.5f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -168,7 +187,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV5)
+    if (offset >= kPadActiveParamCountV6)
         return -1;  // reserved range
     return offset;
 }
