@@ -144,20 +144,16 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     REQUIRE(p.getState(&ms) == Steinberg::kResultOk);
     auto bytes = drainStream(ms);
 
-    // kUiModeId is session-scoped; the state blob is Phase 5 layout (pads,
-    // coupling, overrides). We can't easily check "not present" generically
-    // but we can check the blob does not contain the raw int32 280
-    // (==kUiModeId) as a standalone tag. This is a sanity check -- the
-    // authoritative assertion is just that state size matches v5 layout (no
-    // extra 2 x float64 for kUiModeId/kEditorSizeId appended).
+    // kUiModeId is session-scoped and must NOT appear in the processor state
+    // blob. Verify total size matches the expected v6 layout with zero
+    // session tail (processor getState always emits hasSession=false).
     //
-    // v5 body (no overrides) = 4 version + 4 maxPoly + 4 stealPolicy
+    // Base body (no overrides) = 4 version + 4 maxPoly + 4 stealPolicy
     //   + 32*(8 selector + 34*8 + 2 uint8) = 32*282 = 9024
     //   + 4 selectedPad + 4*8 globals + 32*8 pad-coupling + 2 overrideCount
     //   = 12 + 9024 + 4 + 32 + 256 + 2 = 9330.
     // Phase 6 (spec 141) appends 160 x float64 per-pad macros = 1280 bytes.
-    // If kUiModeId/kEditorSizeId were appended as 2 x float64 it would be +16.
-    // Phase 6 session-scoped params must NOT appear in the state blob.
+    // If kUiModeId had been appended as an int32 it would be +4.
     REQUIRE(bytes.size() == std::size_t{9330 + 1280});
 
     p.terminate();

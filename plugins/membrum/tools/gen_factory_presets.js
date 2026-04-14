@@ -16,8 +16,7 @@
 //   [32 x float64 per-pad couplingAmount]
 //   [uint16 overrideCount] (+ entries)
 //   [160 x float64 pad-major macros]
-//   Optional session field [int32 uiMode] when emitted (editorSize is
-//   session-scoped and never persisted to the blob).
+//   Optional session field [int32 uiMode] when emitted.
 //
 // Usage: node gen_factory_presets.js [output_dir]
 //   Default output_dir: ../resources/presets/Kit Presets/
@@ -132,7 +131,7 @@ function writeKitPreset(pads, opts = {}) {
 
     // Dynamic size: v6 prefix (9040) + globals (32) + per-pad (256) +
     // overrideCount (2) + overrides*6 + macros (1280) + optional session (4
-    // for uiMode only; editorSize is session-scoped and never persisted).
+    // bytes for uiMode).
     const prefixSize = 4 + 4 + 4 + kNumPads * (4 + 4 + 34 * 8 + 1 + 1) + 4;
     const phase5Size = 4 * 8 + kNumPads * 8 + 2 + overrides.length * 6;
     const macrosSize = kNumPads * 5 * 8;

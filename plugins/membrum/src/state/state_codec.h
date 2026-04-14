@@ -75,8 +75,7 @@ struct KitSnapshot
 
     // Session-scoped (kit-preset only; NOT written to processor IBStream
     // state). uiMode: 0=Acoustic, 1=Extended. Kit authors may design for a
-    // specific UI mode, so uiMode persists in the kit preset. Window-size
-    // (editorSize) is pure session state and is NEVER persisted.
+    // specific UI mode, so uiMode persists in the kit preset.
     int                              uiMode{0};
 
     // When true on write: uiMode is emitted.

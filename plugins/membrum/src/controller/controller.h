@@ -14,6 +14,7 @@
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "../ui/membrum_editor_controller.h"
 
 #include <array>
 #include <memory>
@@ -152,6 +153,11 @@ private:
     VSTGUI::VST3Editor*              activeEditor_   = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
 
+    // Phase 6 sub-controller: listens to kUiModeId and drives the
+    // Acoustic/Extended UIViewSwitchContainer. Created in didOpen();
+    // released in willClose() (FObject refcount).
+    Steinberg::IPtr<Membrum::UI::MembrumEditorController> editorSubController_;
+
     // Phase 6 (T042): raw pointer to the active PadGridView. Lifetime is
     // owned by VSTGUI's view tree; zeroed in willClose().
     Membrum::UI::PadGridView*        padGridView_    = nullptr;
@@ -173,9 +179,8 @@ private:
     // willClose().
     Krate::Plugins::PitchEnvelopeDisplay* pitchEnvelopeDisplay_ = nullptr;
 
-    // Outline-styled toggle buttons (Mode / Size). Lifetime owned by VSTGUI view tree.
+    // Mode toggle button (Acoustic / Extended). Lifetime owned by VSTGUI view tree.
     Membrum::UI::OutlineActionButton*  modeToggleButton_ = nullptr;
-    Membrum::UI::OutlineActionButton*  sizeToggleButton_ = nullptr;
 
     // T068 (Spec 141, retry): controller-side CouplingMatrix mirror. The
     // processor owns the authoritative matrix (audio thread); VST3 separate-

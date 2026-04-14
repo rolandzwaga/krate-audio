@@ -292,8 +292,4 @@ TEST_CASE("Kit Column has an active-voices readout label (FR-060)",
     const auto def = extractTemplate(xml, "EditorDefault");
     REQUIRE_FALSE(def.empty());
     REQUIRE(def.find("title=\"ActiveVoices") != std::string::npos);
-
-    const auto cmp = extractTemplate(xml, "EditorCompact");
-    REQUIRE_FALSE(cmp.empty());
-    REQUIRE(cmp.find("title=\"ActiveVoices") != std::string::npos);
 }

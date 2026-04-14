@@ -29,7 +29,7 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // defaults (FR-082, FR-142, FR-143; Phase 6 v5->v6 migration in spec 141).
 constexpr Steinberg::int32 kCurrentStateVersion = 6;
 
-// Number of new globals introduced by Phase 6 (kUiModeId, kEditorSizeId).
+// Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
 
 // ==============================================================================
@@ -113,10 +113,9 @@ enum ParameterIds : Steinberg::Vst::ParamID
 
     // ====== Phase 6 ======
 
-    // 280-281: Session-scoped UI parameters (NOT persisted in state blob;
-    // automatable per FR-033). See spec 141 FR-070, FR-071.
+    // 280: Session-scoped UI parameter (NOT persisted in processor state;
+    // persisted in kit preset via codec hasSession flag).
     kUiModeId                     = 280,  // StringListParameter {Acoustic, Extended}
-    kEditorSizeId                 = 281,  // StringListParameter {Default, Compact}
 
     // FR-065 (spec 141, Phase 8): Output Bus selector for the Selected-Pad Panel.
     // Acts as a Phase 4 selected-pad proxy -- forwarding writes to

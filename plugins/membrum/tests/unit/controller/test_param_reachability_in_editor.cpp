@@ -12,7 +12,7 @@
 //           * via a pad-0-anchored per-pad control-tag for any pad (the editor
 //             binds pad 0's per-pad parameter IDs directly for selected-pad
 //             macros), OR
-//           * session-scoped (kUiModeId / kEditorSizeId).
+//           * session-scoped (kUiModeId).
 //
 //         In addition, the Extended-mode template must contain control-tags
 //         for every Unnatural Zone, raw physics, full Tone Shaper, full
@@ -276,8 +276,8 @@ TEST_CASE("editor.uidesc reaches every registered parameter (SC-002)",
         REQUIRE(ctl.getParameterInfo(i, info) == Steinberg::kResultOk);
         const int id = static_cast<int>(info.id);
 
-        // Session-scoped (FR-026 exemption): ui mode + editor size
-        if (id == kUiModeId || id == kEditorSizeId)
+        // Session-scoped (FR-026 exemption): ui mode
+        if (id == kUiModeId)
             continue;
 
         // Directly control-tagged

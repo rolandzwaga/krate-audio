@@ -3,7 +3,7 @@
 //
 // Covers FR-080 (v6 kCurrentStateVersion), FR-082 (MacroMapper::reapplyAll
 // after load), FR-084 (bit-exact round-trip of v6 blobs including macros),
-// and session-scoped param exclusion (kUiModeId / kEditorSizeId never in
+// and session-scoped param exclusion (kUiModeId never in
 // IBStream).
 //
 // Pre-v6 migration tests were removed when the Membrum state format was
@@ -249,8 +249,8 @@ TEST_CASE("State v6: setState rejects pre-v6 blobs",
 }
 
 // ==============================================================================
-// Session-scoped parameter exclusion: kUiModeId and kEditorSizeId are never
-// written into IBStream by the Processor. (Controller resets them on load.)
+// Session-scoped parameter exclusion: kUiModeId is never written into IBStream
+// by the Processor. (Controller resets it on load.)
 // ==============================================================================
 
 TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
@@ -261,27 +261,9 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size is fixed (10610 bytes). If session-scoped params had
-    // leaked into the blob they would add ~12 bytes (2 x float64 or similar)
-    // and this size check would fail.
+    // Expected size is fixed (10610 bytes) -- no trailing session bytes.
+    // If kUiModeId had leaked into the processor blob it would add 4 bytes.
     CHECK(bytes.size() == 10610u);
-
-    // Additionally, a scan for the raw parameter IDs must not find them.
-    // kUiModeId (280) and kEditorSizeId (281) would not typically appear
-    // as literals, but the known v6 layout has no parameter-ID field at all,
-    // so any occurrence of little-endian 280 / 281 as an int32 at a
-    // four-byte aligned offset is suspicious. This is a soft check.
-    auto containsLittleEndianInt32 = [&](int32 needle) noexcept {
-        std::uint8_t want[4];
-        std::memcpy(want, &needle, 4);
-        for (std::size_t i = 0; i + 4 <= bytes.size(); i += 4)
-        {
-            if (std::memcmp(bytes.data() + i, want, 4) == 0)
-                return true;
-        }
-        return false;
-    };
-    (void)containsLittleEndianInt32; // reserved for future diagnostics
 }
 
 // ==============================================================================

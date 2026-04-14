@@ -24,9 +24,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(static_cast<int>(kUiModeId) == 280);
     }
 
-    SECTION("kEditorSizeId == 281")
+    SECTION("kOutputBusId == 282")
     {
-        STATIC_REQUIRE(static_cast<int>(kEditorSizeId) == 281);
+        STATIC_REQUIRE(static_cast<int>(kOutputBusId) == 282);
     }
 
     SECTION("kPhase6GlobalCount == 2")

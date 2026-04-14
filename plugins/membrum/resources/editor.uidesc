@@ -19,7 +19,6 @@
   </fonts>
   <control-tags>
     <control-tag name="UiMode" tag="280"/>
-    <control-tag name="EditorSize" tag="281"/>
     <control-tag name="GlobalCoupling" tag="270"/>
     <control-tag name="SnareBuzz" tag="271"/>
     <control-tag name="TomResonance" tag="272"/>
@@ -221,19 +220,16 @@
       </view>
       <view class="CViewContainer" origin="1040, 0" size="240, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
         <view class="CTextLabel" title="Display" origin="8, 8" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="108, 22"/>
-        <view class="CView" custom-view-name="SizeToggleButton" origin="124, 28" size="108, 22"/>
-        <!-- Hidden CControl proxies so UIViewSwitchContainer's template-switch-control
-             can follow kUiModeId / kEditorSizeId changes. -->
-        <view class="CParamDisplay" control-tag="UiMode"     origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
-        <view class="CParamDisplay" control-tag="EditorSize" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
+        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="224, 22"/>
+        <!-- Hidden CControl proxy so UIViewSwitchContainer's template-switch-control
+             can follow kUiModeId changes. -->
+        <view class="CParamDisplay" control-tag="UiMode" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
         <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
         <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="PadBrowserView" origin="8, 224" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
         <view class="CTextLabel" title="Voices" origin="8, 332" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="224, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
+        <view class="CView" custom-view-name="PolyphonySlider" control-tag="MaxPolyphony" origin="8, 352" size="224, 20"/>
         <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
         <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
@@ -258,47 +254,6 @@
           <view class="CView" custom-view-name="MatrixSoloButton" origin="0, 128" size="108, 22"/>
           <view class="CView" custom-view-name="MatrixResetButton" origin="116, 128" size="108, 22"/>
         </view>
-      </view>
-  </template>
-  <template name="EditorCompact" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1024, 640" minSize="1024, 640" maxSize="1024, 640" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
-      <view class="CViewContainer" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
-        <view class="CView" custom-view-name="PadGridView" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled"/>
-      </view>
-      <view class="CViewContainer" origin="512, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
-        <view class="UIViewSwitchContainer" origin="0, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
-      </view>
-      <view class="CViewContainer" origin="832, 0" size="192, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
-        <view class="CTextLabel" title="Display" origin="8, 8" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="84, 22"/>
-        <view class="CView" custom-view-name="SizeToggleButton" origin="100, 28" size="84, 22"/>
-        <view class="CParamDisplay" control-tag="UiMode"     origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
-        <view class="CParamDisplay" control-tag="EditorSize" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
-        <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="KitBrowserView" origin="8, 84" size="176, 110" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="PadBrowserView" origin="8, 224" size="176, 96" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="Voices" origin="8, 332" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="176, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
-        <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="88, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
-        <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="CTextLabel" title="Coupling" origin="8, 452" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Snare" origin="64, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SnareBuzz" origin="64, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Tom" origin="120, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="TomResonance" origin="120, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Delay" origin="176, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Meter" origin="8, 560" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CView" custom-view-name="MetersView" origin="8, 580" size="176, 32" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="CPU: -" origin="8, 608" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
-        <view class="CTextLabel" title="PresetStatus" origin="8, 624" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <!-- T037: Coupling Matrix editor (Extended-only; sub-controller gates visibility via kUiModeId) -->
-        <view class="CViewContainer" class-id="MatrixEditorSection" origin="0, 0" size="0, 0" transparent="true" mouse-enabled="false"/>
       </view>
   </template>
 </vstgui-ui-description>

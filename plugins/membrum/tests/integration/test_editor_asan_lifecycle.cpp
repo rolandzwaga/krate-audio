@@ -128,8 +128,7 @@ TEST_CASE("Editor lifecycle: 100 full controller+processor cycles survive ASan",
             ctl.setParamNormalized(macroB, 1.0 - macroValue);
             ctl.setParamNormalized(macroC, macroValue * 0.5);
         }
-        ctl.setParamNormalized(kUiModeId,     (cycle & 1) ? 1.0 : 0.0);
-        ctl.setParamNormalized(kEditorSizeId, (cycle & 2) ? 1.0 : 0.0);
+        ctl.setParamNormalized(kUiModeId, (cycle & 1) ? 1.0 : 0.0);
         ctl.setParamNormalized(kSelectedPadId,
             static_cast<double>(cycle % kNumPads) /
             static_cast<double>(kNumPads - 1));
@@ -159,9 +158,9 @@ TEST_CASE("Editor lifecycle: 100 full controller+processor cycles survive ASan",
         // construct MembrumEditorController directly (same ctor chain that
         // createView("editor") + VST3Editor would drive once the sub-view
         // scope is resolved). Its ctor registers as IDependent on
-        // kUiModeId and kEditorSizeId; its dtor must unregister. This is
-        // the exact add/removeDependent balance the plan.md gotcha calls
-        // out as use-after-free-prone during template swaps.
+        // kUiModeId; its dtor must unregister. This is the exact
+        // add/removeDependent balance the plan.md gotcha calls out as
+        // use-after-free-prone.
         //
         // We do NOT invoke VST3Editor::createView itself because it
         // requires the plugin bundle resource "editor.uidesc" to be
@@ -175,10 +174,8 @@ TEST_CASE("Editor lifecycle: 100 full controller+processor cycles survive ASan",
             // method is tolerant of null editor_ / uiModeSwitch_.
             ctl.setParamNormalized(kUiModeId,
                 (cycle & 1) ? 0.0 : 1.0);
-            ctl.setParamNormalized(kEditorSizeId,
-                (cycle & 2) ? 0.0 : 1.0);
-            // subCtl goes out of scope here -> removeDependent on both
-            // params. Any imbalance would manifest in subsequent cycles.
+            // subCtl goes out of scope here -> removeDependent. Any
+            // imbalance would manifest in subsequent cycles.
         }
 
         REQUIRE(ctl.terminate() == kResultOk);

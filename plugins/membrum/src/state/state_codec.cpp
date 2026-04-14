@@ -263,8 +263,7 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
         for (double m : pad.macros)
             writeT(stream, m);
 
-    // Session field, only if flagged. uiMode persists in kit presets;
-    // editorSize (window size) is pure session state and never written.
+    // Session field, only if flagged. uiMode persists in kit presets.
     if (kit.hasSession)
     {
         const int32 uiMode = static_cast<int32>(kit.uiMode);

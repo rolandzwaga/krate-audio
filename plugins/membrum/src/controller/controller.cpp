@@ -10,6 +10,7 @@
 #include "state/state_codec.h"
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
+#include "ui/polyphony_slider.h"
 #include "ui/coupling_matrix_view.h"
 #include "ui/pitch_envelope_display.h"  // shared PitchEnvelopeDisplay (Krate::Plugins)
 #include "preset/membrum_preset_config.h"
@@ -473,10 +474,10 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
                            0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 6 (US1 / T026): session-scoped global UI parameters ----
-    // Both are registered as automatable StringListParameters (FR-033) but
-    // are NOT serialised in the state blob (enforced by Processor::getState
-    // and Controller::setComponentState; see T027).
+    // ---- Phase 6 (US1 / T026): session-scoped UI Mode parameter ----
+    // Registered as an automatable StringListParameter. Carried in kit
+    // presets via the state codec's hasSession flag (so a kit author can
+    // specify whether the kit opens in Acoustic or Extended mode).
     {
         auto* uiModeList = new StringListParameter(
             STR16("UI Mode"), kUiModeId, nullptr,
@@ -484,14 +485,6 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         uiModeList->appendString(STR16("Acoustic"));
         uiModeList->appendString(STR16("Extended"));
         parameters.addParameter(uiModeList);
-    }
-    {
-        auto* editorSizeList = new StringListParameter(
-            STR16("Editor Size"), kEditorSizeId, nullptr,
-            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        editorSizeList->appendString(STR16("Default"));
-        editorSizeList->appendString(STR16("Compact"));
-        parameters.addParameter(editorSizeList);
     }
 
     // ---- Phase 6 (US7 / T074): Output Bus selector proxy (FR-065) ----
@@ -772,12 +765,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     if (!state)
         return kResultFalse;
 
-    // Phase 6 (T027): session-scoped parameters always reset to their defaults
-    // on state load, regardless of blob content. kUiModeId -> Acoustic (0.0);
-    // kEditorSizeId -> Default (0.0). Kit presets may re-override kUiModeId via
-    // a separate preset-load callback (not through IBStream).
+    // Phase 6 (T027): session-scoped kUiModeId always resets to Acoustic
+    // (0.0) on state load. Kit presets may re-override it via a separate
+    // preset-load callback (not through IBStream).
     EditControllerEx1::setParamNormalized(kUiModeId, 0.0);
-    EditControllerEx1::setParamNormalized(kEditorSizeId, 0.0);
 
     Membrum::State::KitSnapshot kit;
     if (Membrum::State::readKitBlob(state, kit) != kResultOk)
@@ -812,9 +803,8 @@ IBStream* Controller::kitPresetStateProvider()
 {
     // Build a KitSnapshot from controller params and delegate to the shared
     // codec. Kit preset carries uiMode via the hasSession flag (FR-030,
-    // FR-072); editorSize is window-size preference and never persisted.
-    // selectedPadIndex is intentionally zero on kit preset save -- the
-    // codec's selectedPadIndex field is a no-op for preset-load paths,
+    // FR-072). selectedPadIndex is intentionally zero on kit preset save --
+    // the codec's selectedPadIndex field is a no-op for preset-load paths,
     // which never apply the value.
     auto* stream = new MemoryStream();
 
@@ -848,8 +838,7 @@ IBStream* Controller::kitPresetStateProvider()
             buildPadSnapshotFromParams(*this, pad);
     }
 
-    // uiMode persists in kit presets (FR-030 / FR-072). editorSize is
-    // window-size preference -- pure session state, never persisted.
+    // uiMode persists in kit presets (FR-030 / FR-072).
     kit.hasSession = true;
     kit.uiMode     = (getParamNormalized(kUiModeId) >= 0.5) ? 1 : 0;
 
@@ -882,8 +871,7 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     for (int pad = 0; pad < kNumPads; ++pad)
         applyPadSnapshotToParams(*this, pad, kit.pads[static_cast<std::size_t>(pad)]);
 
-    // Session field (uiMode) restored if present. editorSize is never in
-    // the blob and is left at the host's current value.
+    // Session field (uiMode) restored if present.
     if (kit.hasSession)
     {
         EditControllerEx1::setParamNormalized(kUiModeId,
@@ -1130,6 +1118,15 @@ VSTGUI::CView* Controller::createCustomView(
         kitMetersView_ = view;
         return view;
     }
+    if (std::strcmp(name, "PolyphonySlider") == 0)
+    {
+        // Horizontal integer slider for kMaxPolyphonyId. Tagged so VST3Editor
+        // routes valueChanged() through the standard parameter pipeline.
+        auto* view = new UI::PolyphonySliderView(viewRect, kMaxPolyphonyId);
+        view->setValueNormalized(
+            static_cast<float>(getParamNormalized(kMaxPolyphonyId)));
+        return view;
+    }
     if (std::strcmp(name, "ModeToggleButton") == 0)
     {
         auto* view = new UI::OutlineActionButton(
@@ -1145,23 +1142,6 @@ VSTGUI::CView* Controller::createCustomView(
             view->setTitle(next >= 0.5 ? "Extended" : "Acoustic");
         });
         modeToggleButton_ = view;
-        return view;
-    }
-    if (std::strcmp(name, "SizeToggleButton") == 0)
-    {
-        auto* view = new UI::OutlineActionButton(
-            viewRect,
-            getParamNormalized(kEditorSizeId) >= 0.5 ? "Compact" : "Default");
-        view->setAction([this, view]() {
-            const auto cur = getParamNormalized(kEditorSizeId);
-            const auto next = cur >= 0.5 ? 0.0 : 1.0;
-            beginEdit(kEditorSizeId);
-            performEdit(kEditorSizeId, next);
-            setParamNormalized(kEditorSizeId, next);
-            endEdit(kEditorSizeId);
-            view->setTitle(next >= 0.5 ? "Compact" : "Default");
-        });
-        sizeToggleButton_ = view;
         return view;
     }
     if (std::strcmp(name, "MatrixSoloButton") == 0)
@@ -1303,6 +1283,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // minimal but the timer lifecycle is fully correct today so we do not
     // leak a timer between editor instances.
     activeEditor_ = editor;
+
+    // Phase 6: instantiate the editor sub-controller that listens to
+    // kUiModeId and drives the Acoustic/Extended UIViewSwitchContainer.
+    // Without this the mode toggle only flips its own label.
+    editorSubController_ = Steinberg::owned(
+        new Membrum::UI::MembrumEditorController(editor, this));
+
     pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) {
             // T046: read the last cached MetersBlock and push its values
@@ -1370,6 +1357,11 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         pollTimer_->stop();
         pollTimer_ = nullptr;
     }
+    // Release the sub-controller before zeroing activeEditor_: its destructor
+    // deregisters IDependent subscriptions and cancels its deferred
+    // exchangeView timer, which references editor_.
+    editorSubController_ = nullptr;
+
     activeEditor_      = nullptr;
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
