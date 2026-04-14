@@ -7,6 +7,9 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 
+#include "ui/arc_knob.h"
+#include "ui/pitch_envelope_display.h"
+
 #include "public.sdk/source/main/pluginfactory.h"
 
 // ==============================================================================

@@ -25,7 +25,8 @@ class SavePresetDialogView;
 
 namespace Steinberg { class IBStream; }
 
-namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class PitchEnvelopeDisplay; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; }
+namespace Krate::Plugins { class PitchEnvelopeDisplay; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }
 
@@ -165,8 +166,15 @@ private:
     Membrum::UI::CouplingMatrixView* couplingMatrixView_ = nullptr;
 
     // Phase 9 (T080 / US8): raw pointer to the active PitchEnvelopeDisplay.
-    // Lifetime is owned by VSTGUI's view tree; zeroed in willClose().
-    Membrum::UI::PitchEnvelopeDisplay* pitchEnvelopeDisplay_ = nullptr;
+    // The view is now a shared, registered VSTGUI class instantiated by the
+    // uidesc factory; we cache a pointer via verifyView() and wire the edit
+    // callbacks there. Lifetime is owned by VSTGUI's view tree; zeroed in
+    // willClose().
+    Krate::Plugins::PitchEnvelopeDisplay* pitchEnvelopeDisplay_ = nullptr;
+
+    // Outline-styled toggle buttons (Mode / Size). Lifetime owned by VSTGUI view tree.
+    Membrum::UI::OutlineActionButton*  modeToggleButton_ = nullptr;
+    Membrum::UI::OutlineActionButton*  sizeToggleButton_ = nullptr;
 
     // T068 (Spec 141, retry): controller-side CouplingMatrix mirror. The
     // processor owns the authoritative matrix (audio thread); VST3 separate-

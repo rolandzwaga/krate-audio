@@ -1,6 +1,10 @@
 // ==============================================================================
 // PitchEnvelopeDisplay -- Unit tests (Phase 6, Spec 141, T078, T079)
 // ==============================================================================
+// Exercises the shared Krate::Plugins::PitchEnvelopeDisplay control that now
+// lives in plugins/shared/src/ui/pitch_envelope_display.h. The view is
+// patterned on ADSRDisplay: configurable parameter IDs, ParameterCallback +
+// BeginEditCallback + EndEditCallback.
 
 #include "ui/pitch_envelope_display.h"
 #include "processor/macro_mapper.h"
@@ -8,6 +12,7 @@
 
 #include "vstgui/lib/crect.h"
 #include "vstgui/lib/cpoint.h"
+#include "vstgui/lib/controls/ccontrol.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
@@ -20,70 +25,92 @@
 
 using Catch::Matchers::WithinAbs;
 using namespace Membrum;
-using namespace Membrum::UI;
+using Krate::Plugins::PitchEnvelopeDisplay;
 
 namespace {
 
 constexpr VSTGUI::CRect kDefaultRect{ 0.0, 0.0, 360.0, 80.0 };
 
-struct EditEvent
+struct PerformEvent
 {
-    std::uint32_t               paramId;
-    PitchEnvelopeDisplay::EditOp op;
-    float                        value;
+    std::uint32_t paramId;
+    float         value;
 };
 
-using EventLog = std::vector<EditEvent>;
-
-[[nodiscard]] PitchEnvelopeDisplay::EditCallback makeRecorder(EventLog& log)
+struct EventLog
 {
-    return [&log](std::uint32_t paramId,
-                  PitchEnvelopeDisplay::EditOp op,
-                  float value) {
-        log.push_back({ paramId, op, value });
-    };
+    std::vector<std::uint32_t> beginCalls;
+    std::vector<PerformEvent>  performCalls;
+    std::vector<std::uint32_t> endCalls;
+};
+
+/// Wire all three callbacks on the view to record events into the given log.
+void wireRecorder(PitchEnvelopeDisplay& view, EventLog& log)
+{
+    view.setBeginEditCallback(
+        [&log](std::uint32_t paramId) {
+            log.beginCalls.push_back(paramId);
+        });
+    view.setParameterCallback(
+        [&log](std::uint32_t paramId, float value) {
+            log.performCalls.push_back({ paramId, value });
+        });
+    view.setEndEditCallback(
+        [&log](std::uint32_t paramId) {
+            log.endCalls.push_back(paramId);
+        });
 }
 
 [[nodiscard]] bool hasBeginPerformEnd(const EventLog& log, std::uint32_t paramId)
 {
     bool begin = false, perform = false, end = false;
-    for (const auto& e : log)
-    {
-        if (e.paramId != paramId) continue;
-        if (e.op == PitchEnvelopeDisplay::EditOp::Begin)   begin   = true;
-        if (e.op == PitchEnvelopeDisplay::EditOp::Perform) perform = true;
-        if (e.op == PitchEnvelopeDisplay::EditOp::End)     end     = true;
-    }
+    for (auto id : log.beginCalls) if (id == paramId) begin = true;
+    for (const auto& e : log.performCalls) if (e.paramId == paramId) perform = true;
+    for (auto id : log.endCalls) if (id == paramId) end = true;
     return begin && perform && end;
+}
+
+/// Build a view wired to the Membrum tone-shaper pitch-envelope parameter IDs
+/// (matching what the uidesc / verifyView wiring sets up at plugin runtime).
+[[nodiscard]] PitchEnvelopeDisplay makeViewWithMembrumTags()
+{
+    PitchEnvelopeDisplay view(kDefaultRect, nullptr, -1);
+    view.setStartParamId(static_cast<std::uint32_t>(kToneShaperPitchEnvStartId));
+    view.setEndParamId  (static_cast<std::uint32_t>(kToneShaperPitchEnvEndId));
+    view.setTimeParamId (static_cast<std::uint32_t>(kToneShaperPitchEnvTimeId));
+    view.setCurveParamId(static_cast<std::uint32_t>(kToneShaperPitchEnvCurveId));
+    return view;
 }
 
 } // anonymous namespace
 
 // ------------------------------------------------------------------------------
-// T078: Constructor accepts param tags for Start/End/Time/Curve.
+// T078: Param-id setters wire to expected Membrum tone-shaper tags.
 // ------------------------------------------------------------------------------
-TEST_CASE("PitchEnvelopeDisplay constructor wires default Membrum param tags",
+TEST_CASE("PitchEnvelopeDisplay parameter IDs are configurable",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
-    const auto tags = view.paramTags();
+    auto view = makeViewWithMembrumTags();
 
-    REQUIRE(tags.start == static_cast<std::uint32_t>(kToneShaperPitchEnvStartId));
-    REQUIRE(tags.end   == static_cast<std::uint32_t>(kToneShaperPitchEnvEndId));
-    REQUIRE(tags.time  == static_cast<std::uint32_t>(kToneShaperPitchEnvTimeId));
-    REQUIRE(tags.curve == static_cast<std::uint32_t>(kToneShaperPitchEnvCurveId));
+    REQUIRE(view.getStartParamId() == static_cast<std::uint32_t>(kToneShaperPitchEnvStartId));
+    REQUIRE(view.getEndParamId()   == static_cast<std::uint32_t>(kToneShaperPitchEnvEndId));
+    REQUIRE(view.getTimeParamId()  == static_cast<std::uint32_t>(kToneShaperPitchEnvTimeId));
+    REQUIRE(view.getCurveParamId() == static_cast<std::uint32_t>(kToneShaperPitchEnvCurveId));
 }
 
-TEST_CASE("PitchEnvelopeDisplay constructor accepts custom param tags",
+TEST_CASE("PitchEnvelopeDisplay param-id setters accept custom values",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay::ParamTags custom{ 7001, 7002, 7003, 7004 };
-    PitchEnvelopeDisplay view(kDefaultRect, custom);
+    PitchEnvelopeDisplay view(kDefaultRect, nullptr, -1);
+    view.setStartParamId(7001u);
+    view.setEndParamId  (7002u);
+    view.setTimeParamId (7003u);
+    view.setCurveParamId(7004u);
 
-    REQUIRE(view.paramTags().start == 7001u);
-    REQUIRE(view.paramTags().end   == 7002u);
-    REQUIRE(view.paramTags().time  == 7003u);
-    REQUIRE(view.paramTags().curve == 7004u);
+    REQUIRE(view.getStartParamId() == 7001u);
+    REQUIRE(view.getEndParamId()   == 7002u);
+    REQUIRE(view.getTimeParamId()  == 7003u);
+    REQUIRE(view.getCurveParamId() == 7004u);
 }
 
 // ------------------------------------------------------------------------------
@@ -92,34 +119,34 @@ TEST_CASE("PitchEnvelopeDisplay constructor accepts custom param tags",
 TEST_CASE("PitchEnvelopeDisplay dragging Start handle fires begin/perform/end on Start param",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
+    auto view = makeViewWithMembrumTags();
     view.setStartNormalized(0.5f);
     view.setEndNormalized(0.25f);
     view.setTimeNormalized(0.0f);
 
     EventLog log;
-    view.setEditCallback(makeRecorder(log));
+    wireRecorder(view, log);
 
-    // Mouse-down on the Start handle centre.
-    const auto startCenter = view.handleCenter(PitchEnvelopeDisplay::DragTarget::Start);
-    view.handleMouseDown(startCenter);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::Start));
+    // Simulate a left-button drag on the Start handle.
+    const auto startCenter = view.getHandleCenter(PitchEnvelopeDisplay::DragTarget::Start);
+    VSTGUI::CPoint where = startCenter;
+    VSTGUI::CButtonState buttons(VSTGUI::kLButton);
+
+    REQUIRE(view.onMouseDown(where, buttons) == VSTGUI::kMouseEventHandled);
 
     // Drag vertically up (y decreases -> higher normalised pitch).
-    VSTGUI::CPoint dragTo{ startCenter.x, startCenter.y - 20.0 };
-    view.handleMouseMove(dragTo);
+    where = VSTGUI::CPoint{ startCenter.x, startCenter.y - 20.0 };
+    REQUIRE(view.onMouseMoved(where, buttons) == VSTGUI::kMouseEventHandled);
 
-    view.handleMouseUp(dragTo);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::None));
+    REQUIRE(view.onMouseUp(where, buttons) == VSTGUI::kMouseEventHandled);
 
     const auto startId = static_cast<std::uint32_t>(kToneShaperPitchEnvStartId);
     REQUIRE(hasBeginPerformEnd(log, startId));
 
-    // No Perform events were fired against End or Time IDs during the Start drag.
-    for (const auto& e : log)
+    // No Perform events for End / Time / Curve during a Start drag.
+    for (const auto& e : log.performCalls)
     {
-        if (e.op == PitchEnvelopeDisplay::EditOp::Perform)
-            REQUIRE(e.paramId == startId);
+        REQUIRE(e.paramId == startId);
     }
 }
 
@@ -129,20 +156,22 @@ TEST_CASE("PitchEnvelopeDisplay dragging Start handle fires begin/perform/end on
 TEST_CASE("PitchEnvelopeDisplay dragging End handle fires begin/perform/end on End param",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
+    auto view = makeViewWithMembrumTags();
     view.setStartNormalized(0.75f);
     view.setEndNormalized(0.25f);
 
     EventLog log;
-    view.setEditCallback(makeRecorder(log));
+    wireRecorder(view, log);
 
-    const auto endCenter = view.handleCenter(PitchEnvelopeDisplay::DragTarget::End);
-    view.handleMouseDown(endCenter);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::End));
+    const auto endCenter = view.getHandleCenter(PitchEnvelopeDisplay::DragTarget::End);
+    VSTGUI::CPoint where = endCenter;
+    VSTGUI::CButtonState buttons(VSTGUI::kLButton);
 
-    VSTGUI::CPoint dragTo{ endCenter.x, endCenter.y - 15.0 };
-    view.handleMouseMove(dragTo);
-    view.handleMouseUp(dragTo);
+    REQUIRE(view.onMouseDown(where, buttons) == VSTGUI::kMouseEventHandled);
+
+    where = VSTGUI::CPoint{ endCenter.x, endCenter.y - 15.0 };
+    REQUIRE(view.onMouseMoved(where, buttons) == VSTGUI::kMouseEventHandled);
+    REQUIRE(view.onMouseUp(where, buttons) == VSTGUI::kMouseEventHandled);
 
     const auto endId = static_cast<std::uint32_t>(kToneShaperPitchEnvEndId);
     REQUIRE(hasBeginPerformEnd(log, endId));
@@ -154,72 +183,80 @@ TEST_CASE("PitchEnvelopeDisplay dragging End handle fires begin/perform/end on E
 TEST_CASE("PitchEnvelopeDisplay dragging Time handle fires begin/perform/end on Time param",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
+    auto view = makeViewWithMembrumTags();
     view.setStartNormalized(0.5f);
     view.setEndNormalized(0.25f);
     view.setTimeNormalized(0.5f);
 
     EventLog log;
-    view.setEditCallback(makeRecorder(log));
+    wireRecorder(view, log);
 
-    const auto timeCenter = view.handleCenter(PitchEnvelopeDisplay::DragTarget::Time);
-    view.handleMouseDown(timeCenter);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::Time));
+    const auto timeCenter = view.getHandleCenter(PitchEnvelopeDisplay::DragTarget::Time);
+    VSTGUI::CPoint where = timeCenter;
+    VSTGUI::CButtonState buttons(VSTGUI::kLButton);
 
-    VSTGUI::CPoint dragTo{ timeCenter.x + 40.0, timeCenter.y };
-    view.handleMouseMove(dragTo);
-    view.handleMouseUp(dragTo);
+    REQUIRE(view.onMouseDown(where, buttons) == VSTGUI::kMouseEventHandled);
+
+    where = VSTGUI::CPoint{ timeCenter.x + 40.0, timeCenter.y };
+    REQUIRE(view.onMouseMoved(where, buttons) == VSTGUI::kMouseEventHandled);
+    REQUIRE(view.onMouseUp(where, buttons) == VSTGUI::kMouseEventHandled);
 
     const auto timeId = static_cast<std::uint32_t>(kToneShaperPitchEnvTimeId);
     REQUIRE(hasBeginPerformEnd(log, timeId));
 
     // Time handle should respond to horizontal drag: normalised value increased.
-    REQUIRE(view.timeNormalized() > 0.5f);
+    REQUIRE(view.getTimeNormalized() > 0.5f);
 }
 
 // ------------------------------------------------------------------------------
-// T078: Curve selector wires to kToneShaperPitchEnvCurveId string-list.
-// The view owns the curve normalised value; setCurveNormalized() stores it, and
-// setNormalized(paramId, ...) routes curve edits by the curve tag.
+// T078: Curve param is bound to kToneShaperPitchEnvCurveId and setCurveNormalized
+// clamps and stores.
 // ------------------------------------------------------------------------------
-TEST_CASE("PitchEnvelopeDisplay curve selector is bound to curve param tag",
+TEST_CASE("PitchEnvelopeDisplay curve param is bound to curve tag and setter round-trips",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
+    auto view = makeViewWithMembrumTags();
 
-    const auto curveId = static_cast<std::uint32_t>(kToneShaperPitchEnvCurveId);
-    REQUIRE(view.paramTags().curve == curveId);
+    REQUIRE(view.getCurveParamId()
+            == static_cast<std::uint32_t>(kToneShaperPitchEnvCurveId));
 
-    // A two-entry string-list (Exp=0, Lin=1) is expressed as normalised 0.0 / 1.0.
-    view.setNormalized(curveId, 1.0f);
-    REQUIRE_THAT(view.curveNormalized(), WithinAbs(1.0f, 1e-6f));
-    view.setNormalized(curveId, 0.0f);
-    REQUIRE_THAT(view.curveNormalized(), WithinAbs(0.0f, 1e-6f));
+    // setCurveNormalized stores the value verbatim when no drag is active.
+    view.setCurveNormalized(1.0f);
+    REQUIRE_THAT(view.getCurveNormalized(), WithinAbs(1.0f, 1e-6f));
+    view.setCurveNormalized(0.0f);
+    REQUIRE_THAT(view.getCurveNormalized(), WithinAbs(0.0f, 1e-6f));
+
+    // Clamping: out-of-range values are clamped to [0, 1].
+    view.setCurveNormalized(2.0f);
+    REQUIRE_THAT(view.getCurveNormalized(), WithinAbs(1.0f, 1e-6f));
+    view.setCurveNormalized(-1.0f);
+    REQUIRE_THAT(view.getCurveNormalized(), WithinAbs(0.0f, 1e-6f));
 }
 
 // ------------------------------------------------------------------------------
-// T078: removed() deregisters in-flight drag so Begin/End are balanced.
+// T078: removed() must terminate any in-flight drag so Begin/End pairs stay
+// balanced when the editor closes mid-drag.
 // ------------------------------------------------------------------------------
 TEST_CASE("PitchEnvelopeDisplay::removed balances an in-flight drag",
           "[pitch_envelope][phase6]")
 {
-    PitchEnvelopeDisplay view(kDefaultRect);
+    auto view = makeViewWithMembrumTags();
 
     EventLog log;
-    view.setEditCallback(makeRecorder(log));
+    wireRecorder(view, log);
 
-    const auto startCenter = view.handleCenter(PitchEnvelopeDisplay::DragTarget::Start);
-    view.handleMouseDown(startCenter);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::Start));
+    const auto startCenter = view.getHandleCenter(PitchEnvelopeDisplay::DragTarget::Start);
+    VSTGUI::CPoint where = startCenter;
+    VSTGUI::CButtonState buttons(VSTGUI::kLButton);
+    REQUIRE(view.onMouseDown(where, buttons) == VSTGUI::kMouseEventHandled);
+    REQUIRE_FALSE(log.beginCalls.empty());
 
     view.removed(nullptr);
-    REQUIRE(static_cast<int>(view.activeDrag()) == static_cast<int>(PitchEnvelopeDisplay::DragTarget::None));
 
     // An End event must have been dispatched so host-side Begin/End pairs balance.
-    bool sawEnd = false;
-    for (const auto& e : log)
-        if (e.op == PitchEnvelopeDisplay::EditOp::End) sawEnd = true;
-    REQUIRE(sawEnd);
+    REQUIRE_FALSE(log.endCalls.empty());
+    REQUIRE(log.endCalls.back()
+            == static_cast<std::uint32_t>(kToneShaperPitchEnvStartId));
 }
 
 // ------------------------------------------------------------------------------

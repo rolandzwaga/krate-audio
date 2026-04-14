@@ -10,7 +10,7 @@
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
 #include "ui/coupling_matrix_view.h"
-#include "ui/pitch_envelope_display.h"
+#include "ui/pitch_envelope_display.h"  // shared PitchEnvelopeDisplay (Krate::Plugins)
 #include "preset/membrum_preset_config.h"
 
 #include "preset/preset_manager.h"
@@ -25,6 +25,9 @@
 #include "base/source/fstring.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/uidescription/uiattributes.h"
+
+#include "../ui/outline_button.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/cframe.h"
@@ -1331,18 +1334,21 @@ IPlugView* PLUGIN_API Controller::createView(const char* name)
 
 VSTGUI::CView* Controller::createCustomView(
     VSTGUI::UTF8StringPtr name,
-    const VSTGUI::UIAttributes& /*attributes*/,
+    const VSTGUI::UIAttributes& attributes,
     const VSTGUI::IUIDescription* /*description*/,
     VSTGUI::VST3Editor* /*editor*/)
 {
-    // Phase 6 (T028): custom view dispatcher. The real views (PadGridView,
-    // CouplingMatrixView, PitchEnvelopeDisplay) are constructed by later
-    // phases (T042 / Phase 7 / Phase 9). Returning nullptr here lets VSTGUI
-    // fall back to a placeholder; the important job of this method today is
-    // simply to exist so editor.uidesc references to these custom-view names
-    // resolve cleanly instead of triggering parse errors.
     if (!name)
         return nullptr;
+
+    VSTGUI::CPoint origin(0, 0);
+    VSTGUI::CPoint size(100, 100);
+    attributes.getPointAttribute("origin", origin);
+    attributes.getPointAttribute("size", size);
+    const VSTGUI::CRect viewRect(
+        origin.x, origin.y,
+        origin.x + size.x, origin.y + size.y);
+
     if (std::strcmp(name, "PadGridView") == 0)
     {
         // Phase 6 (T042): construct the real PadGridView. The view's
@@ -1352,7 +1358,7 @@ VSTGUI::CView* Controller::createCustomView(
         // per-cell intensity ends up required at 30 Hz in separate-component
         // hosts. Tests construct the view directly with a real publisher.
         auto* view = new UI::PadGridView(
-            VSTGUI::CRect{ 0, 0, 400, 800 },
+            viewRect,
             /*glowPublisher*/ nullptr,
             /*metaProvider*/ [](int) -> const PadConfig* { return nullptr; });
 
@@ -1366,6 +1372,25 @@ VSTGUI::CView* Controller::createCustomView(
             performEdit(kSelectedPadId, normalised);
             setParamNormalized(kSelectedPadId, normalised);
             endEdit(kSelectedPadId);
+        });
+
+        // Audition: click or shift/right-click sends "AuditionPad" IMessage
+        // to the processor so the drum sound plays on every pad interaction.
+        view->setAuditionCallback([this](int padIndex, int velocity) {
+            if (padIndex < 0 || padIndex >= kNumPads) return;
+            const int midi = 36 + padIndex;
+            auto* handler = getComponentHandler();
+            if (handler == nullptr) return;
+            Steinberg::FUnknownPtr<Steinberg::Vst::IComponentHandler2> h2(handler);
+            auto* msg = allocateMessage();
+            if (msg == nullptr) return;
+            Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, false);
+            owned->setMessageID("AuditionPad");
+            auto* attrs = owned->getAttributes();
+            if (attrs == nullptr) return;
+            attrs->setInt("midi",     static_cast<Steinberg::int64>(midi));
+            attrs->setInt("velocity", static_cast<Steinberg::int64>(velocity));
+            sendMessage(owned);
         });
 
         padGridView_ = view;
@@ -1387,7 +1412,7 @@ VSTGUI::CView* Controller::createCustomView(
         // DataExchange. Override/solo/heat-map editing, Tier 2 persistence,
         // and Reset are fully functional with only the matrix mirror wired.
         auto* view = new UI::CouplingMatrixView(
-            VSTGUI::CRect{ 0, 0, 320, 320 },
+            viewRect,
             /*matrix*/ &uiCouplingMatrix_,
             /*activityPublisher*/ nullptr);
         view->setEditCallback(
@@ -1402,45 +1427,66 @@ VSTGUI::CView* Controller::createCustomView(
         requestCouplingMatrixSnapshot();
         return view;
     }
-    if (std::strcmp(name, "PitchEnvelopeDisplay") == 0)
-    {
-        // Phase 9 (T080, Spec 141 US8): construct the real pitch-envelope
-        // display. The view forwards parameter edits via an EditCallback so the
-        // controller can run the standard beginEdit / performEdit / endEdit
-        // sequence on the tone-shaper pitch-envelope param IDs. This mirrors
-        // the CouplingMatrixView pattern above.
-        auto* view = new UI::PitchEnvelopeDisplay(
-            VSTGUI::CRect{ 0, 0, 360, 80 });
-        view->setEditCallback(
-            [this](std::uint32_t paramId,
-                   UI::PitchEnvelopeDisplay::EditOp op,
-                   float value) {
-                const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
-                const auto v   = static_cast<Steinberg::Vst::ParamValue>(value);
-                if (op == UI::PitchEnvelopeDisplay::EditOp::Begin)
-                {
-                    beginEdit(tag);
-                }
-                else if (op == UI::PitchEnvelopeDisplay::EditOp::Perform)
-                {
-                    performEdit(tag, v);
-                    setParamNormalized(tag, v);
-                }
-                else if (op == UI::PitchEnvelopeDisplay::EditOp::End)
-                {
-                    endEdit(tag);
-                }
-            });
-        pitchEnvelopeDisplay_ = view;
-        return view;
-    }
+    // Phase 9 (T080, Spec 141 US8): PitchEnvelopeDisplay is now a registered
+    // shared VSTGUI class (Krate::Plugins::PitchEnvelopeDisplay); the uidesc
+    // factory constructs it directly. Parameter-edit callbacks are wired in
+    // verifyView() below.
     if (std::strcmp(name, "MetersView") == 0)
     {
         // T046: kit-column peak meter. The size below is a placeholder; the
         // uidesc view frame overrides it.
-        auto* view = new UI::KitMetersView(VSTGUI::CRect{ 0, 0, 224, 32 });
+        auto* view = new UI::KitMetersView(viewRect);
         kitMetersView_ = view;
         return view;
+    }
+    if (std::strcmp(name, "ModeToggleButton") == 0)
+    {
+        auto* view = new UI::OutlineActionButton(
+            viewRect,
+            getParamNormalized(kUiModeId) >= 0.5 ? "Extended" : "Acoustic");
+        view->setAction([this, view]() {
+            const auto cur = getParamNormalized(kUiModeId);
+            const auto next = cur >= 0.5 ? 0.0 : 1.0;
+            beginEdit(kUiModeId);
+            performEdit(kUiModeId, next);
+            setParamNormalized(kUiModeId, next);
+            endEdit(kUiModeId);
+            view->setTitle(next >= 0.5 ? "Extended" : "Acoustic");
+        });
+        modeToggleButton_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "SizeToggleButton") == 0)
+    {
+        auto* view = new UI::OutlineActionButton(
+            viewRect,
+            getParamNormalized(kEditorSizeId) >= 0.5 ? "Compact" : "Default");
+        view->setAction([this, view]() {
+            const auto cur = getParamNormalized(kEditorSizeId);
+            const auto next = cur >= 0.5 ? 0.0 : 1.0;
+            beginEdit(kEditorSizeId);
+            performEdit(kEditorSizeId, next);
+            setParamNormalized(kEditorSizeId, next);
+            endEdit(kEditorSizeId);
+            view->setTitle(next >= 0.5 ? "Compact" : "Default");
+        });
+        sizeToggleButton_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "MatrixSoloButton") == 0)
+    {
+        return new UI::OutlineActionButton(
+            viewRect, "Solo",
+            [this]() {
+                if (couplingMatrixView_)
+                    couplingMatrixView_->clearSolo();
+            });
+    }
+    if (std::strcmp(name, "MatrixResetButton") == 0)
+    {
+        return new UI::OutlineActionButton(
+            viewRect, "Reset",
+            [this]() { sendCouplingMatrixEdit(4, 0, 0, 0.0f); });
     }
     return nullptr;
 }
@@ -1493,6 +1539,32 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             outputBusSelView_ = ctrl;
             updateOutputBusTooltip();
         }
+    }
+
+    // Phase 9 (T080 / US8): PitchEnvelopeDisplay is a registered shared view
+    // class. When the uidesc factory hands us back an instance, attach the
+    // parameter callbacks that bridge to beginEdit / performEdit / endEdit on
+    // the tone-shaper pitch-envelope param IDs. Both the Acoustic and Extended
+    // templates contain one; the most-recently-built template's view wins
+    // (correct because UIViewSwitchContainer only shows one at a time).
+    if (auto* pev = dynamic_cast<Krate::Plugins::PitchEnvelopeDisplay*>(view))
+    {
+        pev->setParameterCallback(
+            [this](uint32_t paramId, float value) {
+                const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
+                const auto v   = static_cast<Steinberg::Vst::ParamValue>(value);
+                performEdit(tag, v);
+                setParamNormalized(tag, v);
+            });
+        pev->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        pev->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        pitchEnvelopeDisplay_ = pev;
     }
     return view;
 }
