@@ -567,6 +567,26 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
     }
 }
 
+// Consume a pending audition request (posted via IMessage "AuditionPad") and
+// fire a voice note-on for it from the audio thread.
+void Processor::consumePendingAudition()
+{
+    const std::uint32_t word = pendingAudition_.exchange(0u, std::memory_order_acq_rel);
+    if ((word & 0x4000u) == 0u)
+        return;
+    const int midi  = static_cast<int>(word & 0x7Fu);
+    const int velByte = static_cast<int>((word >> 7) & 0x7Fu);
+    if (midi < 36 || midi > 67)
+        return;
+    if (velByte == 0)
+    {
+        voicePool_.noteOff(static_cast<std::uint8_t>(midi));
+        return;
+    }
+    const float velNorm = static_cast<float>(velByte) / 127.0f;
+    voicePool_.noteOn(static_cast<std::uint8_t>(midi), velNorm);
+}
+
 // Process MIDI events: note-on/note-off on any MIDI note in [36, 67]
 void Processor::processEvents(IEventList* events)
 {
@@ -621,6 +641,7 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
 
     processParameterChanges(data.inputParameterChanges);
     processEvents(data.inputEvents);
+    consumePendingAudition();
 
     if (data.numOutputs > 0 && data.outputs != nullptr)
     {
@@ -1611,6 +1632,21 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
     const auto* id = message->getMessageID();
     if (id == nullptr)
         return AudioEffect::notify(message);
+
+    if (std::strcmp(id, "AuditionPad") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+        Steinberg::int64 midi = 0, velocity = 100;
+        attrs->getInt("midi", midi);
+        attrs->getInt("velocity", velocity);
+        const std::uint32_t word =
+            0x4000u
+            | (static_cast<std::uint32_t>(midi & 0x7F))
+            | ((static_cast<std::uint32_t>(velocity & 0x7F)) << 7);
+        pendingAudition_.store(word, std::memory_order_release);
+        return kResultOk;
+    }
 
     if (std::strcmp(id, "CouplingMatrixEdit") == 0)
     {

@@ -89,6 +89,7 @@ public:
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
+    void consumePendingAudition();
 
     /// Phase 6 (US4): recompute the coupling matrix passing the current
     /// per-pad couplingAmount values so they are baked into effectiveGain
@@ -104,6 +105,13 @@ private:
     // ---- Global-only parameters (not per-pad) ----
     std::atomic<int> maxPolyphony_{8};           // FR-111 -- [4, 16]
     std::atomic<int> voiceStealingPolicy_{0};    // FR-120 -- VoiceStealingPolicy int
+
+    // Audition request from controller (IMessage "AuditionPad"). Encoding:
+    //   bits 0..6  = MIDI pitch (0-127)
+    //   bits 7..13 = velocity (0-127)
+    //   bit  14    = pending flag
+    // Cleared by process() after consumption.
+    std::atomic<std::uint32_t> pendingAudition_{0};
 
     // ---- Phase 4: per-pad parameters are stored in VoicePool::padConfigs_ ----
     // No individual atomic<float> fields for material/size/decay etc. anymore.

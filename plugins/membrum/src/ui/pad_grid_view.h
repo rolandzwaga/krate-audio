@@ -184,6 +184,8 @@ public:
     // --- VSTGUI hooks ------------------------------------------------------
     void draw(VSTGUI::CDrawContext* ctx) override;
     void onMouseDownEvent(VSTGUI::MouseDownEvent& event) override;
+    void onMouseEnterEvent(VSTGUI::MouseEnterEvent& event) override;
+    void onMouseExitEvent(VSTGUI::MouseExitEvent& event) override;
     bool attached(VSTGUI::CView* parent) override;
     bool removed(VSTGUI::CView* parent) override;
 

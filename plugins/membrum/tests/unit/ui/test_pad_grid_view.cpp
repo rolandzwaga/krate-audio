@@ -108,7 +108,7 @@ TEST_CASE("PadGridView DPI-scale independence (FR-015)",
     REQUIRE(view.padIndexFromPoint(VSTGUI::CPoint{ 590, 10 }) == 31);
 }
 
-TEST_CASE("PadGridView click sets selection without modifiers (FR-012)",
+TEST_CASE("PadGridView click selects AND auditions (FR-012 updated)",
           "[pad_grid][phase6]")
 {
     std::array<PadConfig, kNumPads> pads{};
@@ -123,12 +123,14 @@ TEST_CASE("PadGridView click sets selection without modifiers (FR-012)",
     int lastAudition = -1;
     view.setAuditionCallback([&](int p, float /*v*/) { lastAudition = p; });
 
-    // Click pad 5 at (col=1, row=5) -> midi 36 + 2*4 + 1 = 45
+    // Plain click must select the pad AND fire audition so the user hears
+    // the drum sound on every click (hidden-feature complaint: shift-click
+    // alone was too obscure).
     const int hit = view.handleMouseDown(
         VSTGUI::CPoint{ 150, 550 }, /*isShift*/ false, /*isRight*/ false);
     REQUIRE(hit >= 0);
     REQUIRE(lastSelected == hit);
-    REQUIRE(lastAudition == -1);      // must NOT audition
+    REQUIRE(lastAudition == hit);
     REQUIRE(view.selectedPadIndex() == hit);
 }
 

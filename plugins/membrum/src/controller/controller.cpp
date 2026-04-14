@@ -1376,12 +1376,14 @@ VSTGUI::CView* Controller::createCustomView(
 
         // Audition: click or shift/right-click sends "AuditionPad" IMessage
         // to the processor so the drum sound plays on every pad interaction.
-        view->setAuditionCallback([this](int padIndex, int velocity) {
+        // Velocity arrives normalized [0,1] from PadGridView; the processor
+        // side stores a 7-bit MIDI value, so scale back to 0-127.
+        view->setAuditionCallback([this](int padIndex, float velocityNormalized) {
             if (padIndex < 0 || padIndex >= kNumPads) return;
             const int midi = 36 + padIndex;
-            auto* handler = getComponentHandler();
-            if (handler == nullptr) return;
-            Steinberg::FUnknownPtr<Steinberg::Vst::IComponentHandler2> h2(handler);
+            int velocity7 = static_cast<int>(
+                std::clamp(velocityNormalized, 0.0f, 1.0f) * 127.0f + 0.5f);
+            if (velocity7 <= 0) velocity7 = 100; // guard against zero -> noteOff
             auto* msg = allocateMessage();
             if (msg == nullptr) return;
             Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, false);
@@ -1389,7 +1391,7 @@ VSTGUI::CView* Controller::createCustomView(
             auto* attrs = owned->getAttributes();
             if (attrs == nullptr) return;
             attrs->setInt("midi",     static_cast<Steinberg::int64>(midi));
-            attrs->setInt("velocity", static_cast<Steinberg::int64>(velocity));
+            attrs->setInt("velocity", static_cast<Steinberg::int64>(velocity7));
             sendMessage(owned);
         });
 

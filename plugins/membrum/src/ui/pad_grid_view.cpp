@@ -9,6 +9,8 @@
 #include "dsp/pad_category.h"
 
 #include "vstgui/lib/cdrawcontext.h"
+#include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/cstring.h"
@@ -216,11 +218,14 @@ int PadGridView::handleMouseDown(VSTGUI::CPoint localPoint,
     }
     else
     {
-        // FR-012: select the pad.
+        // Regular click: select AND audition -- hearing the sound is the
+        // primary affordance of the pad.
         if (selectCallback_)
             selectCallback_(padIdx);
         selectedPad_ = padIdx;
         invalid();
+        if (auditionCallback_)
+            auditionCallback_(padIdx, kAuditionVelocity);
     }
     return padIdx;
 }
@@ -275,6 +280,20 @@ bool PadGridView::removed(VSTGUI::CView* parent)
     return CView::removed(parent);
 }
 
+void PadGridView::onMouseEnterEvent(VSTGUI::MouseEnterEvent& event)
+{
+    if (auto* frame = getFrame())
+        frame->setCursor(VSTGUI::kCursorHand);
+    event.consumed = true;
+}
+
+void PadGridView::onMouseExitEvent(VSTGUI::MouseExitEvent& event)
+{
+    if (auto* frame = getFrame())
+        frame->setCursor(VSTGUI::kCursorDefault);
+    event.consumed = true;
+}
+
 void PadGridView::onMouseDownEvent(VSTGUI::MouseDownEvent& event)
 {
     const bool isShift = event.modifiers.has(VSTGUI::ModifierKey::Shift);
@@ -318,35 +337,41 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
             VSTGUI::CRect inset = cell;
             inset.inset(2.0, 2.0);
 
-            // Cell background
-            ctx->setFillColor(kCellColor);
-            ctx->drawRect(inset, VSTGUI::kDrawFilled);
+            constexpr double kCornerRadius = 4.0;
 
-            // Glow overlay -- opacity follows the publisher bucket.
-            const float intensity =
-                glowIntensityFromBucket(glowBuckets_[static_cast<std::size_t>(padIdx)]);
-            if (intensity > 0.0f)
+            // Cell background (rounded).
+            if (auto path = VSTGUI::owned(ctx->createGraphicsPath()))
             {
-                VSTGUI::CColor g = kGlowColor;
-                g.alpha = static_cast<std::uint8_t>(intensity * 220.0f + 0.5f);
-                ctx->setFillColor(g);
-                ctx->drawRect(inset, VSTGUI::kDrawFilled);
+                path->addRoundRect(inset, kCornerRadius);
+                ctx->setFillColor(kCellColor);
+                ctx->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+
+                // Glow overlay.
+                const float intensity =
+                    glowIntensityFromBucket(glowBuckets_[static_cast<std::size_t>(padIdx)]);
+                if (intensity > 0.0f)
+                {
+                    VSTGUI::CColor g = kGlowColor;
+                    g.alpha = static_cast<std::uint8_t>(intensity * 220.0f + 0.5f);
+                    ctx->setFillColor(g);
+                    ctx->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+                }
+
+                // Selection border.
+                if (padIdx == selectedPad_)
+                {
+                    ctx->setFrameColor(kSelectedColor);
+                    ctx->setLineWidth(2.0);
+                }
+                else
+                {
+                    ctx->setFrameColor(kCellBorder);
+                    ctx->setLineWidth(1.0);
+                }
+                ctx->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
             }
 
-            // Selection border
-            if (padIdx == selectedPad_)
-            {
-                ctx->setFrameColor(kSelectedColor);
-                ctx->setLineWidth(2.0);
-            }
-            else
-            {
-                ctx->setFrameColor(kCellBorder);
-                ctx->setLineWidth(1.0);
-            }
-            ctx->drawRect(inset, VSTGUI::kDrawStroked);
-
-            // MIDI-note label (top-left) + GM drum name (top-right).
+            // MIDI-note label (top-left, smaller) + GM drum name (top-right).
             const int midi = midiNoteForPad(padIdx);
             char midiLabel[16] = {};
             std::snprintf(midiLabel, sizeof(midiLabel), "%d", midi);
@@ -357,6 +382,8 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
 
             VSTGUI::CRect midiRect = topRow;
             midiRect.right = midiRect.left + geom.cellW * 0.4f;
+            midiRect.offset(1.0, 1.0);
+            ctx->setFont(VSTGUI::kNormalFontVerySmall);
             ctx->drawString(midiLabel, midiRect, VSTGUI::kLeftText, true);
 
             const auto gmName = gmDrumNameForNote(midi);
@@ -364,6 +391,8 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
             {
                 VSTGUI::CRect gmRect = topRow;
                 gmRect.left = gmRect.right - geom.cellW * 0.6f;
+                gmRect.offset(-1.0, 1.0);
+                ctx->setFont(font);
                 ctx->drawString(gmName.c_str(), gmRect, VSTGUI::kRightText, true);
             }
 
