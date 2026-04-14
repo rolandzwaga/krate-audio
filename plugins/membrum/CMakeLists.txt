@@ -73,6 +73,10 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/dsp/default_kit.h
     src/preset/membrum_preset_config.h
 
+    # Shared state / preset codec (one on-wire format for state + kit presets)
+    src/state/state_codec.h
+    src/state/state_codec.cpp
+
     # Phase 5: cross-pad coupling (sympathetic resonance)
     src/dsp/pad_category.h
     src/dsp/coupling_matrix.h

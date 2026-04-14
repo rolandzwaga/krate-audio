@@ -117,10 +117,14 @@ add_executable(membrum_tests
     unit/preset/test_kit_uimode_roundtrip.cpp
     integration/test_editor_asan_lifecycle.cpp
 
+    # Shared state/preset codec unit tests
+    unit/state/test_state_codec.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/state/state_codec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/membrum_editor_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
