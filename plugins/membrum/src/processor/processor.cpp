@@ -17,6 +17,7 @@
 #include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
 #include "processor/meters_block.h"
+#include "state/state_codec.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
@@ -839,153 +840,43 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
     if (!state)
         return kResultFalse;
 
-    int32 version = kCurrentStateVersion;
-    state->write(&version, sizeof(version), nullptr);
+    // Build a KitSnapshot from the current processor state and delegate to
+    // the shared codec. Session-scoped fields (uiMode/editorSize) are NOT
+    // emitted from the processor path -- the controller resets them to
+    // defaults before setComponentState is consumed. hasSession=false.
+    State::KitSnapshot kit;
+    kit.maxPolyphony        = maxPolyphony_.load();
+    kit.voiceStealingPolicy = voiceStealingPolicy_.load();
+    kit.selectedPadIndex    = selectedPadIndex_;
+    kit.globalCoupling      =
+        static_cast<double>(globalCoupling_.load(std::memory_order_relaxed));
+    kit.snareBuzz           =
+        static_cast<double>(snareBuzz_.load(std::memory_order_relaxed));
+    kit.tomResonance        =
+        static_cast<double>(tomResonance_.load(std::memory_order_relaxed));
+    kit.couplingDelayMs     =
+        static_cast<double>(couplingDelayMs_.load(std::memory_order_relaxed));
 
-    int32 maxPoly = static_cast<int32>(maxPolyphony_.load());
-    state->write(&maxPoly, sizeof(maxPoly), nullptr);
-
-    int32 stealPolicy = static_cast<int32>(voiceStealingPolicy_.load());
-    state->write(&stealPolicy, sizeof(stealPolicy), nullptr);
-
-    // Write all 32 pad configs
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        const auto& cfg = voicePool_.padConfig(pad);
-
-        int32 exciterTypeI32 = static_cast<int32>(cfg.exciterType);
-        int32 bodyModelI32 = static_cast<int32>(cfg.bodyModel);
-        state->write(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
-        state->write(&bodyModelI32, sizeof(bodyModelI32), nullptr);
-
-        // 34 float64 values: offsets 2-35 (material through frictionPressure)
-        const float soundParams[] = {
-            cfg.material, cfg.size, cfg.decay, cfg.strikePosition, cfg.level,
-            cfg.tsFilterType, cfg.tsFilterCutoff, cfg.tsFilterResonance,
-            cfg.tsFilterEnvAmount, cfg.tsDriveAmount, cfg.tsFoldAmount,
-            cfg.tsPitchEnvStart, cfg.tsPitchEnvEnd, cfg.tsPitchEnvTime,
-            cfg.tsPitchEnvCurve,
-            cfg.tsFilterEnvAttack, cfg.tsFilterEnvDecay,
-            cfg.tsFilterEnvSustain, cfg.tsFilterEnvRelease,
-            cfg.modeStretch, cfg.decaySkew, cfg.modeInjectAmount,
-            cfg.nonlinearCoupling,
-            cfg.morphEnabled, cfg.morphStart, cfg.morphEnd,
-            cfg.morphDuration, cfg.morphCurve,
-            cfg.fmRatio, cfg.feedbackAmount,
-            cfg.noiseBurstDuration, cfg.frictionPressure,
-        };
-        // Note: offsets 2-6 = 5 core, 7-20 = 14 TS, 21-24 = 4 UZ, 25-29 = 5 morph,
-        // 32-35 = 4 exciter secondary = 32 floats total.
-        // But data-model says 34 x float64 for offsets 2-35. That's 34 floats.
-        // Missing offsets 30 (chokeGroup) and 31 (outputBus) are written separately as uint8.
-        // So we write: 5 + 14 + 4 + 5 + 4 = 32 floats. That's offsets 2-29, 32-35.
-        // We need to check: per data-model, 34 x float64 covers "offsets 2-35 from PadConfig".
-        // That means including offsets 30 and 31 as float64 too? No - data-model says
-        // "34 x float64: sound params (offsets 2-35 from PadConfig, as normalized float64)"
-        // but offsets 30-31 are uint8, written separately. So 34-2=32 is wrong.
-        // The data model says "34 x float64" at offset 20 in the binary layout.
-        // Let me count: offsets 2-29 = 28, offsets 32-35 = 4, total = 32.
-        // But data model binary layout says "34 x float64". Reading again:
-        //   "20      272      34 x float64: sound params (offsets 2-35 from PadConfig, as normalized float64)"
-        // 34 * 8 = 272 bytes. offsets 2-35 = 34 values. So offsets 30 and 31
-        // (chokeGroup, outputBus) are ALSO stored as float64 here, AND as uint8 below.
-        // That's redundant. Let me re-read the data model more carefully.
-
-        // OK the data model says there are 34 float64s. offsets 2 through 35 inclusive
-        // = 34 values. Even though chokeGroup/outputBus are integers, they're stored
-        // as float64 in the sound params block. Then chokeGroup/outputBus are ALSO
-        // stored as uint8 at the end for backward compat / easy extraction.
-        // Actually, re-reading: the data model shows chokeGroup and outputBus at
-        // separate positions AFTER the float64 block. So offsets 2-35 excluding
-        // 30 and 31 would be 32 values, not 34. But 34 x 8 = 272 which matches.
-        // So it must include offsets 30 and 31 as float64 too, with the uint8 duplicates
-        // following for easy access. Let me just follow the spec literally: 34 float64s
-        // for offsets 2-35 (all 34), then uint8 chokeGroup, uint8 outputBus.
-
-        static_assert(sizeof(soundParams) / sizeof(soundParams[0]) == 32,
-                      "Expecting 32 sound params for offsets 2-29 and 32-35");
-
-        // Write offsets 2-29 (28 values), then 30-31 as float64, then 32-35 (4 values)
-        for (int j = 0; j < 28; ++j)
-        {
-            double v = static_cast<double>(soundParams[j]);
-            state->write(&v, sizeof(v), nullptr);
-        }
-        // Offsets 30 (chokeGroup) and 31 (outputBus) as float64
-        {
-            double cg = static_cast<double>(cfg.chokeGroup);
-            state->write(&cg, sizeof(cg), nullptr);
-            double ob = static_cast<double>(cfg.outputBus);
-            state->write(&ob, sizeof(ob), nullptr);
-        }
-        // Offsets 32-35 (4 secondary exciter params)
-        for (int j = 28; j < 32; ++j)
-        {
-            double v = static_cast<double>(soundParams[j]);
-            state->write(&v, sizeof(v), nullptr);
-        }
-
-        // uint8 chokeGroup and outputBus (redundant but per data-model)
-        std::uint8_t cg = cfg.chokeGroup;
-        state->write(&cg, sizeof(cg), nullptr);
-        std::uint8_t ob = cfg.outputBus;
-        state->write(&ob, sizeof(ob), nullptr);
+        kit.pads[static_cast<std::size_t>(pad)] =
+            State::toPadSnapshot(voicePool_.padConfig(pad));
     }
 
-    int32 selPad = static_cast<int32>(selectedPadIndex_);
-    state->write(&selPad, sizeof(selPad), nullptr);
+    // Overrides.
+    kit.overrides.clear();
+    kit.overrides.reserve(couplingMatrix_.getOverrideCount());
+    couplingMatrix_.forEachOverride(
+        [&kit](int src, int dst, float coeff) {
+            kit.overrides.push_back(State::TierTwoOverride{
+                .src   = static_cast<std::uint8_t>(src),
+                .dst   = static_cast<std::uint8_t>(dst),
+                .coeff = coeff,
+            });
+        });
 
-    // ---- Phase 5: Coupling state (appended to v4 data) ----
-    // 4 x float64 global coupling params
-    double gc = static_cast<double>(globalCoupling_.load(std::memory_order_relaxed));
-    double sb = static_cast<double>(snareBuzz_.load(std::memory_order_relaxed));
-    double tr = static_cast<double>(tomResonance_.load(std::memory_order_relaxed));
-    double cd = static_cast<double>(couplingDelayMs_.load(std::memory_order_relaxed));
-    state->write(&gc, sizeof(gc), nullptr);
-    state->write(&sb, sizeof(sb), nullptr);
-    state->write(&tr, sizeof(tr), nullptr);
-    state->write(&cd, sizeof(cd), nullptr);
-
-    // 32 x float64 per-pad coupling amounts
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        double amt = static_cast<double>(voicePool_.padConfig(pad).couplingAmount);
-        state->write(&amt, sizeof(amt), nullptr);
-    }
-
-    // uint16 overrideCount + N x (uint8 src, uint8 dst, float32 coeff)
-    auto overrideCount =
-        static_cast<std::uint16_t>(couplingMatrix_.getOverrideCount());
-    state->write(&overrideCount, sizeof(overrideCount), nullptr);
-    couplingMatrix_.forEachOverride([state](int src, int dst, float coeff) {
-        auto s = static_cast<std::uint8_t>(src);
-        auto d = static_cast<std::uint8_t>(dst);
-        state->write(&s, sizeof(s), nullptr);
-        state->write(&d, sizeof(d), nullptr);
-        state->write(&coeff, sizeof(coeff), nullptr);
-    });
-
-    // ---- Phase 6 (spec 141 T086): per-pad macro values appended to v5 payload.
-    // 160 x float64 (5 macros x 32 pads) in pad-major order:
-    //   pad0.tightness, pad0.brightness, pad0.bodySize, pad0.punch,
-    //   pad0.complexity, pad1.tightness, ..., pad31.complexity.
-    // Session-scoped params (kUiModeId, kEditorSizeId) are deliberately NOT
-    // written -- they reset to defaults on load in Controller::setComponentState.
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        const auto& cfg = voicePool_.padConfig(pad);
-        const double macros[5] = {
-            static_cast<double>(cfg.macroTightness),
-            static_cast<double>(cfg.macroBrightness),
-            static_cast<double>(cfg.macroBodySize),
-            static_cast<double>(cfg.macroPunch),
-            static_cast<double>(cfg.macroComplexity),
-        };
-        for (double m : macros)
-            state->write(&m, sizeof(m), nullptr);
-    }
-
-    return kResultOk;
+    kit.hasSession = false;
+    return State::writeKitBlob(state, kit);
 }
 
 tresult PLUGIN_API Processor::setState(IBStream* state)
@@ -993,193 +884,55 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     if (!state)
         return kResultFalse;
 
-    int32 version = 0;
-    if (state->read(&version, sizeof(version), nullptr) != kResultOk)
+    State::KitSnapshot kit;
+    if (State::readKitBlob(state, kit) != kResultOk)
         return kResultFalse;
 
-    // Only the current v6 format is accepted. The plugin has not shipped,
-    // so no backwards-compat migration is provided.
-    if (version != kCurrentStateVersion)
-        return kResultFalse;
+    // Polyphony / stealing.
+    maxPolyphony_.store(kit.maxPolyphony);
+    voiceStealingPolicy_.store(kit.voiceStealingPolicy);
+    voicePool_.setMaxPolyphony(kit.maxPolyphony);
+    voicePool_.setVoiceStealingPolicy(
+        static_cast<VoiceStealingPolicy>(kit.voiceStealingPolicy));
 
-    // ------------------------------------------------------------------
-    // v6 state format. Session-scoped kUiModeId / kEditorSizeId are NOT
-    // on the wire; they reset to defaults in Controller::setComponentState
-    // before this blob is consumed.
-    // ------------------------------------------------------------------
-    int32 maxPoly = 8;
-    int32 stealPolicy = 0;
-    if (state->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
-        maxPoly = 8;
-    if (state->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
-        stealPolicy = 0;
-
-    maxPoly = std::clamp(maxPoly, 4, 16);
-    stealPolicy = std::clamp(stealPolicy, 0, 2);
-    maxPolyphony_.store(maxPoly);
-    voiceStealingPolicy_.store(stealPolicy);
-    voicePool_.setMaxPolyphony(maxPoly);
-    voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(stealPolicy));
-
+    // Per-pad configs.
     for (int pad = 0; pad < kNumPads; ++pad)
     {
-        auto& cfg = voicePool_.padConfigMut(pad);
-
-        int32 exciterTypeI32 = 0;
-        int32 bodyModelI32 = 0;
-        if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
-            exciterTypeI32 = 0;
-        if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
-            bodyModelI32 = 0;
-
-        exciterTypeI32 = std::clamp(exciterTypeI32, 0,
-                                    static_cast<int>(ExciterType::kCount) - 1);
-        bodyModelI32 = std::clamp(bodyModelI32, 0,
-                                  static_cast<int>(BodyModelType::kCount) - 1);
-        cfg.exciterType = static_cast<ExciterType>(exciterTypeI32);
-        cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
-
-        // Read 34 float64 values (offsets 2-35 in order, including
-        // chokeGroup and outputBus as float64 at positions 28-29)
-        double vals[34] = {};
-        for (auto& val : vals)
-        {
-            if (state->read(&val, sizeof(val), nullptr) != kResultOk)
-                val = 0.0;
-        }
-
-        // Map back to PadConfig fields
-        cfg.material = static_cast<float>(vals[0]);
-        cfg.size = static_cast<float>(vals[1]);
-        cfg.decay = static_cast<float>(vals[2]);
-        cfg.strikePosition = static_cast<float>(vals[3]);
-        cfg.level = static_cast<float>(vals[4]);
-        cfg.tsFilterType = static_cast<float>(vals[5]);
-        cfg.tsFilterCutoff = static_cast<float>(vals[6]);
-        cfg.tsFilterResonance = static_cast<float>(vals[7]);
-        cfg.tsFilterEnvAmount = static_cast<float>(vals[8]);
-        cfg.tsDriveAmount = static_cast<float>(vals[9]);
-        cfg.tsFoldAmount = static_cast<float>(vals[10]);
-        cfg.tsPitchEnvStart = static_cast<float>(vals[11]);
-        cfg.tsPitchEnvEnd = static_cast<float>(vals[12]);
-        cfg.tsPitchEnvTime = static_cast<float>(vals[13]);
-        cfg.tsPitchEnvCurve = static_cast<float>(vals[14]);
-        cfg.tsFilterEnvAttack = static_cast<float>(vals[15]);
-        cfg.tsFilterEnvDecay = static_cast<float>(vals[16]);
-        cfg.tsFilterEnvSustain = static_cast<float>(vals[17]);
-        cfg.tsFilterEnvRelease = static_cast<float>(vals[18]);
-        cfg.modeStretch = static_cast<float>(vals[19]);
-        cfg.decaySkew = static_cast<float>(vals[20]);
-        cfg.modeInjectAmount = static_cast<float>(vals[21]);
-        cfg.nonlinearCoupling = static_cast<float>(vals[22]);
-        cfg.morphEnabled = static_cast<float>(vals[23]);
-        cfg.morphStart = static_cast<float>(vals[24]);
-        cfg.morphEnd = static_cast<float>(vals[25]);
-        cfg.morphDuration = static_cast<float>(vals[26]);
-        cfg.morphCurve = static_cast<float>(vals[27]);
-        // vals[28] = chokeGroup as float64, vals[29] = outputBus as float64
-        // vals[30-33] = secondary exciter params
-        cfg.fmRatio = static_cast<float>(vals[30]);
-        cfg.feedbackAmount = static_cast<float>(vals[31]);
-        cfg.noiseBurstDuration = static_cast<float>(vals[32]);
-        cfg.frictionPressure = static_cast<float>(vals[33]);
-
-        // Read uint8 chokeGroup and outputBus (authoritative)
-        std::uint8_t cg = 0;
-        std::uint8_t ob = 0;
-        if (state->read(&cg, sizeof(cg), nullptr) != kResultOk)
-            cg = 0;
-        if (state->read(&ob, sizeof(ob), nullptr) != kResultOk)
-            ob = 0;
-        cfg.chokeGroup = (cg > 8U) ? std::uint8_t{0} : cg;
-        cfg.outputBus = (ob > 15U) ? std::uint8_t{0} : ob;
+        State::applyPadSnapshot(
+            kit.pads[static_cast<std::size_t>(pad)],
+            voicePool_.padConfigMut(pad));
     }
 
-    // Sync choke group table from padConfigs
+    // Sync choke group table from padConfigs.
     for (int pad = 0; pad < kNumPads; ++pad)
         voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
 
-    int32 selPad = 0;
-    if (state->read(&selPad, sizeof(selPad), nullptr) != kResultOk)
-        selPad = 0;
-    selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
+    selectedPadIndex_ = kit.selectedPadIndex;
 
-    // ---- Phase 5: coupling state ----
+    // Phase 5 globals.
+    const float gcF = static_cast<float>(kit.globalCoupling);
+    const float sbF = static_cast<float>(kit.snareBuzz);
+    const float trF = static_cast<float>(kit.tomResonance);
+    const float cdF = static_cast<float>(kit.couplingDelayMs);
+    globalCoupling_.store(gcF, std::memory_order_relaxed);
+    snareBuzz_.store(sbF, std::memory_order_relaxed);
+    tomResonance_.store(trF, std::memory_order_relaxed);
+    couplingDelayMs_.store(cdF, std::memory_order_relaxed);
+    couplingEngine_.setAmount(gcF);
+
+    // Refresh categories and recompute Tier 1 matrix.
+    for (int i = 0; i < kNumPads; ++i)
+        padCategories_[static_cast<size_t>(i)] =
+            classifyPad(voicePool_.padConfig(i));
+    recomputeCouplingMatrix();
+
+    // Apply overrides.
+    for (const auto& ov : kit.overrides)
     {
-        double gc = 0.0;
-        double sb = 0.0;
-        double tr = 0.0;
-        double cd = 1.0;
-        if (state->read(&gc, sizeof(gc), nullptr) != kResultOk) gc = 0.0;
-        if (state->read(&sb, sizeof(sb), nullptr) != kResultOk) sb = 0.0;
-        if (state->read(&tr, sizeof(tr), nullptr) != kResultOk) tr = 0.0;
-        if (state->read(&cd, sizeof(cd), nullptr) != kResultOk) cd = 1.0;
-
-        const float gcF = std::clamp(static_cast<float>(gc), 0.0f, 1.0f);
-        const float sbF = std::clamp(static_cast<float>(sb), 0.0f, 1.0f);
-        const float trF = std::clamp(static_cast<float>(tr), 0.0f, 1.0f);
-        const float cdF = std::clamp(static_cast<float>(cd), 0.5f, 2.0f);
-
-        globalCoupling_.store(gcF, std::memory_order_relaxed);
-        snareBuzz_.store(sbF, std::memory_order_relaxed);
-        tomResonance_.store(trF, std::memory_order_relaxed);
-        couplingDelayMs_.store(cdF, std::memory_order_relaxed);
-        couplingEngine_.setAmount(gcF);
-
-        // 32 per-pad coupling amounts
-        for (int pad = 0; pad < kNumPads; ++pad)
-        {
-            double amt = 0.5;
-            if (state->read(&amt, sizeof(amt), nullptr) != kResultOk)
-                amt = 0.5;
-            voicePool_.padConfigMut(pad).couplingAmount =
-                std::clamp(static_cast<float>(amt), 0.0f, 1.0f);
-        }
-
-        // Refresh categories and recompute Tier 1 matrix
-        for (int i = 0; i < kNumPads; ++i)
-            padCategories_[static_cast<size_t>(i)] =
-                classifyPad(voicePool_.padConfig(i));
-        recomputeCouplingMatrix();
-
-        // uint16 overrideCount + N entries
-        std::uint16_t overrideCount = 0;
-        if (state->read(&overrideCount, sizeof(overrideCount), nullptr) != kResultOk)
-            overrideCount = 0;
-        for (std::uint16_t o = 0; o < overrideCount; ++o)
-        {
-            std::uint8_t s = 0;
-            std::uint8_t d = 0;
-            float coeff = 0.0f;
-            if (state->read(&s, sizeof(s), nullptr) != kResultOk) break;
-            if (state->read(&d, sizeof(d), nullptr) != kResultOk) break;
-            if (state->read(&coeff, sizeof(coeff), nullptr) != kResultOk) break;
-            if (s < kNumPads && d < kNumPads)
-            {
-                const float clamped = std::clamp(
-                    coeff, 0.0f, CouplingMatrix::kMaxCoefficient);
-                couplingMatrix_.setOverride(
-                    static_cast<int>(s), static_cast<int>(d), clamped);
-            }
-        }
-    }
-
-    // ---- Phase 6: per-pad macro values (160 x float64, pad-major) ----
-    auto& pads = voicePool_.padConfigsArray();
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        double m[5] = {0.5, 0.5, 0.5, 0.5, 0.5};
-        for (double& v : m)
-        {
-            if (state->read(&v, sizeof(v), nullptr) != kResultOk)
-                v = 0.5;
-            v = std::clamp(v, 0.0, 1.0);
-        }
-        pads[static_cast<size_t>(pad)].macroTightness  = static_cast<float>(m[0]);
-        pads[static_cast<size_t>(pad)].macroBrightness = static_cast<float>(m[1]);
-        pads[static_cast<size_t>(pad)].macroBodySize   = static_cast<float>(m[2]);
-        pads[static_cast<size_t>(pad)].macroPunch      = static_cast<float>(m[3]);
-        pads[static_cast<size_t>(pad)].macroComplexity = static_cast<float>(m[4]);
+        couplingMatrix_.setOverride(
+            static_cast<int>(ov.src),
+            static_cast<int>(ov.dst),
+            ov.coeff);
     }
 
     // Reapply macros so derived parameters reflect loaded macro values
@@ -1188,6 +941,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     // macros the delta is zero so the call would overwrite custom
     // underlying values with the registered defaults. Bit-exact round-trip
     // of custom underlying values must be preserved (FR-084, SC-005).
+    auto& pads = voicePool_.padConfigsArray();
     const bool anyNonNeutral = std::ranges::any_of(pads,
         [](const auto& p) noexcept {
             return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||

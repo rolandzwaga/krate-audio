@@ -98,54 +98,37 @@ TEST_CASE("Processor::getState does NOT write kEditorSizeId bytes (T022)",
 }
 
 // ----------------------------------------------------------------------------
-// T022: kit preset load does NOT restore editor size (FR-040).
-//
-// Strategy: build a minimal v4 kit preset blob by hand (kitPresetStateProvider
-// requires an IComponentHandler which the bare-controller test harness does
-// not provide), set kEditorSizeId to Compact, run kitPresetLoadProvider, and
-// assert kEditorSizeId is still Compact afterwards.
+// T022 (post-refactor): kit preset now carries session fields (uiMode +
+// editorSize) via the hasSession flag. After the state codec unification,
+// the kit preset load path DOES restore kEditorSizeId to whatever the
+// preset captured. This guards that behavior: save preset with Compact,
+// flip user state to Default, reload, expect Compact.
 // ----------------------------------------------------------------------------
-TEST_CASE("Kit preset load does NOT restore kEditorSizeId (T022)",
+TEST_CASE("Kit preset load restores kEditorSizeId (unified state codec, T022)",
           "[editor_size_session]")
 {
-    Controller ctl;
-    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+    Controller saver;
+    REQUIRE(saver.initialize(nullptr) == Steinberg::kResultOk);
 
-    // User has picked Compact before loading a preset.
-    REQUIRE(ctl.setParamNormalized(kEditorSizeId, 1.0) == Steinberg::kResultOk);
+    // Capture Compact into a kit preset.
+    REQUIRE(saver.setParamNormalized(kEditorSizeId, 1.0) == Steinberg::kResultOk);
+    Steinberg::IBStream* presetStream = saver.kitPresetStateProvider();
+    REQUIRE(presetStream != nullptr);
 
-    // Build a minimal v4 kit preset blob. Layout mirrors the one produced by
-    // Controller::kitPresetStateProvider(). We supply zeros for everything --
-    // the loader clamps out-of-range values back into its defaults.
-    Steinberg::MemoryStream ms;
-    auto writeI32 = [&](Steinberg::int32 v) {
-        ms.write(&v, sizeof(v), nullptr);
-    };
-    auto writeF64 = [&](double v) { ms.write(&v, sizeof(v), nullptr); };
-    auto writeU8 = [&](std::uint8_t v) { ms.write(&v, sizeof(v), nullptr); };
+    // Load into a fresh controller that starts at Default.
+    Controller loader;
+    REQUIRE(loader.initialize(nullptr) == Steinberg::kResultOk);
+    REQUIRE(loader.getParamNormalized(kEditorSizeId) == 0.0);
 
-    writeI32(4);   // version
-    writeI32(8);   // maxPolyphony
-    writeI32(0);   // stealPolicy
+    presetStream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+    REQUIRE(loader.kitPresetLoadProvider(presetStream));
 
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        writeI32(0); // exciterType
-        writeI32(0); // bodyModel
-        for (int j = 0; j < 34; ++j)
-            writeF64(0.5);
-        writeU8(0); // chokeGroup
-        writeU8(0); // outputBus
-    }
+    // Editor size was restored from the preset's session block.
+    REQUIRE(loader.getParamNormalized(kEditorSizeId) == 1.0);
 
-    ms.seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
-
-    REQUIRE(ctl.kitPresetLoadProvider(&ms));
-
-    // Editor size must be untouched -- preset only carries per-pad state.
-    REQUIRE(ctl.getParamNormalized(kEditorSizeId) == 1.0);
-
-    ctl.terminate();
+    presetStream->release();
+    saver.terminate();
+    loader.terminate();
 }
 
 TEST_CASE("EditorSizePolicy: default size is 1280x800", "[editor_size_session]")

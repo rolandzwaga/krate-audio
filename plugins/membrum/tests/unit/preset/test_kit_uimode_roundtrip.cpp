@@ -127,77 +127,9 @@ TEST_CASE("Kit preset v5: per-pad macros round-trip through save/load",
     REQUIRE(saver.terminate() == kResultOk);
 }
 
-// ==============================================================================
-// T050: Loading v4 kit blob leaves uiMode unchanged and sets macros = 0.5.
-// ==============================================================================
-
-TEST_CASE("Kit preset v4 (no uiMode): uiMode unchanged, macros default to 0.5",
-          "[membrum][preset][kit_preset][kit_uimode]")
-{
-    // Build a minimal v4 kit blob manually: version=4, two int32 globals, then
-    // 32 pad rows of (exciter int32 + body int32 + 34 float64 + 2 uint8) =
-    // 4 + 4 + 4 + 4 + 32*(4+4+34*8+1+1) = 12 + 32*282 = 12 + 9024 = 9036.
-    auto* stream = new MemoryStream();
-
-    int32 version = 4;
-    stream->write(&version, sizeof(version), nullptr);
-
-    int32 maxPoly = 8;
-    stream->write(&maxPoly, sizeof(maxPoly), nullptr);
-
-    int32 stealPolicy = 0;
-    stream->write(&stealPolicy, sizeof(stealPolicy), nullptr);
-
-    for (int pad = 0; pad < Membrum::kNumPads; ++pad) {
-        int32 et = 0;
-        stream->write(&et, sizeof(et), nullptr);
-        int32 bm = 0;
-        stream->write(&bm, sizeof(bm), nullptr);
-        for (int i = 0; i < 34; ++i) {
-            double v = 0.5;
-            stream->write(&v, sizeof(v), nullptr);
-        }
-        std::uint8_t cg = 0;
-        stream->write(&cg, sizeof(cg), nullptr);
-        std::uint8_t ob = 0;
-        stream->write(&ob, sizeof(ob), nullptr);
-    }
-
-    Membrum::Controller loader;
-    REQUIRE(loader.initialize(nullptr) == kResultOk);
-
-    // Move uiMode away from default to verify loader does NOT touch it.
-    loader.setParamNormalized(Membrum::kUiModeId, 1.0);
-    const double uiModeBefore = loader.getParamNormalized(Membrum::kUiModeId);
-
-    // Pre-set a macro to a non-default value to verify it is reset by v4 load.
-    loader.setParamNormalized(macroParamId(3, Membrum::kPadMacroTightness), 0.123);
-
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
-    bool ok = loader.kitPresetLoadProvider(stream);
-    CHECK(ok);
-
-    // uiMode must NOT have been changed by a v4 load.
-    CHECK(loader.getParamNormalized(Membrum::kUiModeId) == Approx(uiModeBefore));
-
-    // All macro params must be 0.5 (neutral default) after a v4 load.
-    for (int pad = 0; pad < Membrum::kNumPads; ++pad) {
-        INFO("pad " << pad);
-        CHECK(loader.getParamNormalized(macroParamId(pad, Membrum::kPadMacroTightness))
-              == Approx(0.5));
-        CHECK(loader.getParamNormalized(macroParamId(pad, Membrum::kPadMacroBrightness))
-              == Approx(0.5));
-        CHECK(loader.getParamNormalized(macroParamId(pad, Membrum::kPadMacroBodySize))
-              == Approx(0.5));
-        CHECK(loader.getParamNormalized(macroParamId(pad, Membrum::kPadMacroPunch))
-              == Approx(0.5));
-        CHECK(loader.getParamNormalized(macroParamId(pad, Membrum::kPadMacroComplexity))
-              == Approx(0.5));
-    }
-
-    stream->release();
-    REQUIRE(loader.terminate() == kResultOk);
-}
+// (Legacy v4-blob migration test removed -- the kit preset format is now
+// unified with the processor state format and only the current version is
+// accepted on load.)
 
 // ==============================================================================
 // T051: Per-pad preset load preserves outputBus and couplingAmount on the pad,

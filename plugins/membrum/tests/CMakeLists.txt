@@ -120,6 +120,9 @@ add_executable(membrum_tests
     # Shared state/preset codec unit tests
     unit/state/test_state_codec.cpp
 
+    # Factory kit preset round-trip
+    unit/preset/test_factory_kit_presets.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp

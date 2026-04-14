@@ -1,12 +1,22 @@
 #!/usr/bin/env node
 // ==============================================================================
-// Factory Kit Preset Generator for Membrum Phase 4
+// Factory Kit Preset Generator for Membrum
 // ==============================================================================
-// Generates binary kit preset files (9036 bytes each, v4 format without
-// selectedPadIndex) for the 3 factory kits:
-//   1. Electronic/808-Style
-//   2. Acoustic-Inspired
-//   3. Experimental/FX
+// Generates binary kit preset files in the unified v6 state codec format.
+// Layout matches Membrum::State::writeKitBlob (see state_codec.{h,cpp}):
+//   [int32 version = 6]
+//   [int32 maxPolyphony]
+//   [int32 stealPolicy]
+//   For each of 32 pads:
+//     [int32 exciterType][int32 bodyModel]
+//     [34 x float64 sound (offsets 2-35, with choke/bus mirrored at 28/29)]
+//     [uint8 chokeGroup][uint8 outputBus]
+//   [int32 selectedPadIndex]
+//   [4 x float64: gc, sb, tr, cd]
+//   [32 x float64 per-pad couplingAmount]
+//   [uint16 overrideCount] (+ entries)
+//   [160 x float64 pad-major macros]
+//   Optional session fields [int32 uiMode][int32 editorSize] when emitted.
 //
 // Usage: node gen_factory_presets.js [output_dir]
 //   Default output_dir: ../resources/presets/Kit Presets/
@@ -17,8 +27,7 @@ const path = require('path');
 
 // ---- Constants matching pad_config.h and data-model.md ----
 const kNumPads = 32;
-const kVersion = 4;
-const kPadBinarySize = 282; // 4+4+272+1+1
+const kVersion = 6;
 
 // Exciter types
 const ExciterType = {
@@ -58,6 +67,11 @@ function defaultPad() {
         // offsets 32-35: exciter secondary
         fmRatio: 0.5, feedbackAmount: 0.0,
         noiseBurstDuration: 0.5, frictionPressure: 0.0,
+        // Phase 5 offset 36: per-pad coupling participation
+        couplingAmount: 0.5,
+        // Phase 6 offsets 37-41: macros (neutral)
+        macroTightness: 0.5, macroBrightness: 0.5, macroBodySize: 0.5,
+        macroPunch: 0.5, macroComplexity: 0.5,
     };
 }
 
@@ -101,20 +115,71 @@ function writePadToBuffer(buf, offset, pad) {
     return pos;
 }
 
-function writeKitPreset(pads, maxPolyphony = 8, stealingPolicy = 0) {
-    // 12 header + 32 * 282 = 9036 bytes (no selectedPadIndex)
-    const totalSize = 12 + kNumPads * kPadBinarySize;
+function writeKitPreset(pads, opts = {}) {
+    const {
+        maxPolyphony = 8,
+        stealingPolicy = 0,
+        selectedPadIndex = 0,
+        globalCoupling = 0.0,
+        snareBuzz = 0.0,
+        tomResonance = 0.0,
+        couplingDelayMs = 1.0,
+        overrides = [],
+        uiMode = 0,
+        editorSize = 0,
+        includeSession = true,
+    } = opts;
+
+    // Dynamic size: v6 prefix (9040) + globals (32) + per-pad (256) +
+    // overrideCount (2) + overrides*6 + macros (1280) + optional session (8).
+    const prefixSize = 4 + 4 + 4 + kNumPads * (4 + 4 + 34 * 8 + 1 + 1) + 4;
+    const phase5Size = 4 * 8 + kNumPads * 8 + 2 + overrides.length * 6;
+    const macrosSize = kNumPads * 5 * 8;
+    const sessionSize = includeSession ? 8 : 0;
+    const totalSize = prefixSize + phase5Size + macrosSize + sessionSize;
+
     const buf = Buffer.alloc(totalSize);
     let pos = 0;
 
-    // Header
-    buf.writeInt32LE(kVersion, pos); pos += 4;
-    buf.writeInt32LE(maxPolyphony, pos); pos += 4;
-    buf.writeInt32LE(stealingPolicy, pos); pos += 4;
+    buf.writeInt32LE(kVersion, pos);        pos += 4;
+    buf.writeInt32LE(maxPolyphony, pos);    pos += 4;
+    buf.writeInt32LE(stealingPolicy, pos);  pos += 4;
 
-    // 32 pads
     for (let i = 0; i < kNumPads; i++) {
         pos = writePadToBuffer(buf, pos, pads[i]);
+    }
+
+    buf.writeInt32LE(selectedPadIndex, pos); pos += 4;
+
+    buf.writeDoubleLE(globalCoupling, pos);  pos += 8;
+    buf.writeDoubleLE(snareBuzz, pos);       pos += 8;
+    buf.writeDoubleLE(tomResonance, pos);    pos += 8;
+    buf.writeDoubleLE(couplingDelayMs, pos); pos += 8;
+
+    for (let i = 0; i < kNumPads; i++) {
+        buf.writeDoubleLE(pads[i].couplingAmount ?? 0.5, pos); pos += 8;
+    }
+
+    buf.writeUInt16LE(overrides.length, pos); pos += 2;
+    for (const ov of overrides) {
+        buf.writeUInt8(ov.src, pos);     pos += 1;
+        buf.writeUInt8(ov.dst, pos);     pos += 1;
+        buf.writeFloatLE(ov.coeff, pos); pos += 4;
+    }
+
+    // Macros, pad-major.
+    for (let i = 0; i < kNumPads; i++) {
+        const p = pads[i];
+        buf.writeDoubleLE(p.macroTightness  ?? 0.5, pos); pos += 8;
+        buf.writeDoubleLE(p.macroBrightness ?? 0.5, pos); pos += 8;
+        buf.writeDoubleLE(p.macroBodySize   ?? 0.5, pos); pos += 8;
+        buf.writeDoubleLE(p.macroPunch      ?? 0.5, pos); pos += 8;
+        buf.writeDoubleLE(p.macroComplexity ?? 0.5, pos); pos += 8;
+    }
+
+    if (includeSession) {
+        buf.writeInt32LE(uiMode, pos);     pos += 4;
+        buf.writeInt32LE(editorSize, pos); pos += 4;
     }
 
     if (pos !== totalSize) {
