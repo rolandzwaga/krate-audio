@@ -841,9 +841,9 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         return kResultFalse;
 
     // Build a KitSnapshot from the current processor state and delegate to
-    // the shared codec. Session-scoped fields (uiMode/editorSize) are NOT
-    // emitted from the processor path -- the controller resets them to
-    // defaults before setComponentState is consumed. hasSession=false.
+    // the shared codec. Session-scoped fields (uiMode) are NOT emitted from
+    // the processor path -- the controller resets them to defaults before
+    // setComponentState is consumed. hasSession=false.
     State::KitSnapshot kit;
     kit.maxPolyphony        = maxPolyphony_.load();
     kit.voiceStealingPolicy = voiceStealingPolicy_.load();

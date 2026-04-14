@@ -128,10 +128,9 @@ TEST_CASE("state_codec: kit blob round-trip preserves populated snapshot",
         CHECK(padsEquivalent(dst.pads[p], src.pads[p]));
     }
 
-    // No session fields were emitted by default.
+    // No session field was emitted by default.
     CHECK(!dst.hasSession);
     CHECK(dst.uiMode == 0);
-    CHECK(dst.editorSize == 0);
 }
 
 TEST_CASE("state_codec: readKitBlob rejects non-v6 version",
@@ -152,15 +151,14 @@ TEST_CASE("state_codec: readKitBlob rejects non-v6 version",
     }
 }
 
-TEST_CASE("state_codec: session fields are optional on read, round-trip when written",
+TEST_CASE("state_codec: uiMode is optional on read, round-trips when written",
           "[state_codec][session]")
 {
-    SECTION("written -> read: hasSession=true preserves uiMode/editorSize")
+    SECTION("written -> read: hasSession=true preserves uiMode")
     {
         KitSnapshot src = makePopulatedKit();
         src.hasSession = true;
         src.uiMode     = 1;
-        src.editorSize = 1;
 
         MemoryStream stream;
         REQUIRE(writeKitBlob(&stream, src) == kResultOk);
@@ -169,11 +167,10 @@ TEST_CASE("state_codec: session fields are optional on read, round-trip when wri
         KitSnapshot dst;
         REQUIRE(readKitBlob(&stream, dst) == kResultOk);
         CHECK(dst.hasSession);
-        CHECK(dst.uiMode     == 1);
-        CHECK(dst.editorSize == 1);
+        CHECK(dst.uiMode == 1);
     }
 
-    SECTION("absent on wire -> hasSession=false, defaults unchanged")
+    SECTION("absent on wire -> hasSession=false, uiMode unchanged")
     {
         KitSnapshot src = makePopulatedKit();
         src.hasSession = false;
@@ -183,12 +180,30 @@ TEST_CASE("state_codec: session fields are optional on read, round-trip when wri
         stream.seek(0, IBStream::kIBSeekSet, nullptr);
 
         KitSnapshot dst;
-        dst.uiMode     = 0;
-        dst.editorSize = 0;
+        dst.uiMode = 0;
         REQUIRE(readKitBlob(&stream, dst) == kResultOk);
         CHECK(!dst.hasSession);
-        CHECK(dst.uiMode     == 0);
-        CHECK(dst.editorSize == 0);
+        CHECK(dst.uiMode == 0);
+    }
+
+    SECTION("hasSession adds exactly 4 bytes (one int32) to the blob")
+    {
+        KitSnapshot src = makePopulatedKit();
+
+        MemoryStream streamNoSession;
+        src.hasSession = false;
+        REQUIRE(writeKitBlob(&streamNoSession, src) == kResultOk);
+        Steinberg::int64 sizeNoSession = 0;
+        streamNoSession.tell(&sizeNoSession);
+
+        MemoryStream streamWithSession;
+        src.hasSession = true;
+        src.uiMode     = 1;
+        REQUIRE(writeKitBlob(&streamWithSession, src) == kResultOk);
+        Steinberg::int64 sizeWithSession = 0;
+        streamWithSession.tell(&sizeWithSession);
+
+        CHECK(sizeWithSession == sizeNoSession + 4);
     }
 }
 

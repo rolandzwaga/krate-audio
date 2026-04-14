@@ -811,10 +811,11 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 IBStream* Controller::kitPresetStateProvider()
 {
     // Build a KitSnapshot from controller params and delegate to the shared
-    // codec. Kit preset carries session-scoped uiMode/editorSize via the
-    // hasSession flag (FR-030, FR-072). selectedPadIndex is intentionally
-    // zero on kit preset save -- the codec's selectedPadIndex field is a
-    // no-op for preset-load paths, which never apply the value.
+    // codec. Kit preset carries uiMode via the hasSession flag (FR-030,
+    // FR-072); editorSize is window-size preference and never persisted.
+    // selectedPadIndex is intentionally zero on kit preset save -- the
+    // codec's selectedPadIndex field is a no-op for preset-load paths,
+    // which never apply the value.
     auto* stream = new MemoryStream();
 
     Membrum::State::KitSnapshot kit;
@@ -847,10 +848,10 @@ IBStream* Controller::kitPresetStateProvider()
             buildPadSnapshotFromParams(*this, pad);
     }
 
-    // Session fields -- kit preset always emits them (FR-030 / FR-072).
+    // uiMode persists in kit presets (FR-030 / FR-072). editorSize is
+    // window-size preference -- pure session state, never persisted.
     kit.hasSession = true;
-    kit.uiMode     = (getParamNormalized(kUiModeId)     >= 0.5) ? 1 : 0;
-    kit.editorSize = (getParamNormalized(kEditorSizeId) >= 0.5) ? 1 : 0;
+    kit.uiMode     = (getParamNormalized(kUiModeId) >= 0.5) ? 1 : 0;
 
     Membrum::State::writeKitBlob(stream, kit);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
@@ -881,14 +882,12 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     for (int pad = 0; pad < kNumPads; ++pad)
         applyPadSnapshotToParams(*this, pad, kit.pads[static_cast<std::size_t>(pad)]);
 
-    // Session fields, if present (hasSession==true means the producer wrote
-    // uiMode / editorSize; absence leaves them unchanged).
+    // Session field (uiMode) restored if present. editorSize is never in
+    // the blob and is left at the host's current value.
     if (kit.hasSession)
     {
         EditControllerEx1::setParamNormalized(kUiModeId,
             kit.uiMode >= 1 ? 1.0 : 0.0);
-        EditControllerEx1::setParamNormalized(kEditorSizeId,
-            kit.editorSize >= 1 ? 1.0 : 0.0);
     }
 
     // Kit preset does NOT restore selectedPadIndex -- leave it unchanged.

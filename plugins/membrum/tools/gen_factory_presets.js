@@ -16,7 +16,8 @@
 //   [32 x float64 per-pad couplingAmount]
 //   [uint16 overrideCount] (+ entries)
 //   [160 x float64 pad-major macros]
-//   Optional session fields [int32 uiMode][int32 editorSize] when emitted.
+//   Optional session field [int32 uiMode] when emitted (editorSize is
+//   session-scoped and never persisted to the blob).
 //
 // Usage: node gen_factory_presets.js [output_dir]
 //   Default output_dir: ../resources/presets/Kit Presets/
@@ -126,16 +127,16 @@ function writeKitPreset(pads, opts = {}) {
         couplingDelayMs = 1.0,
         overrides = [],
         uiMode = 0,
-        editorSize = 0,
         includeSession = true,
     } = opts;
 
     // Dynamic size: v6 prefix (9040) + globals (32) + per-pad (256) +
-    // overrideCount (2) + overrides*6 + macros (1280) + optional session (8).
+    // overrideCount (2) + overrides*6 + macros (1280) + optional session (4
+    // for uiMode only; editorSize is session-scoped and never persisted).
     const prefixSize = 4 + 4 + 4 + kNumPads * (4 + 4 + 34 * 8 + 1 + 1) + 4;
     const phase5Size = 4 * 8 + kNumPads * 8 + 2 + overrides.length * 6;
     const macrosSize = kNumPads * 5 * 8;
-    const sessionSize = includeSession ? 8 : 0;
+    const sessionSize = includeSession ? 4 : 0;
     const totalSize = prefixSize + phase5Size + macrosSize + sessionSize;
 
     const buf = Buffer.alloc(totalSize);
@@ -178,8 +179,7 @@ function writeKitPreset(pads, opts = {}) {
     }
 
     if (includeSession) {
-        buf.writeInt32LE(uiMode, pos);     pos += 4;
-        buf.writeInt32LE(editorSize, pos); pos += 4;
+        buf.writeInt32LE(uiMode, pos); pos += 4;
     }
 
     if (pos !== totalSize) {

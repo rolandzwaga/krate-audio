@@ -73,13 +73,14 @@ struct KitSnapshot
     int                              selectedPadIndex{0};
     std::vector<TierTwoOverride>     overrides{};
 
-    // Session-scoped (used only for kit-preset; NOT for processor IBStream
-    // state). uiMode: 0=Acoustic, 1=Extended. editorSize: 0=Default, 1=Compact.
+    // Session-scoped (kit-preset only; NOT written to processor IBStream
+    // state). uiMode: 0=Acoustic, 1=Extended. Kit authors may design for a
+    // specific UI mode, so uiMode persists in the kit preset. Window-size
+    // (editorSize) is pure session state and is NEVER persisted.
     int                              uiMode{0};
-    int                              editorSize{0};
 
-    // When true on write: session fields (uiMode / editorSize) are emitted.
-    // When true on read: session fields were present in the blob.
+    // When true on write: uiMode is emitted.
+    // When true on read: uiMode was present in the blob.
     bool                             hasSession{false};
 };
 
@@ -120,13 +121,12 @@ constexpr Steinberg::int32 kPadBlobVersion = 1;
 //   [160 x float64 macros pad-major: pad0.m0..pad0.m4, pad1.m0..pad1.m4, ...]
 //   If hasSession (kit-preset only):
 //     [int32 uiMode]
-//     [int32 editorSize]
 //
 // writeKitBlob: always succeeds for a valid stream.
 // readKitBlob:  returns kResultFalse on version mismatch or short read.
-//               Session fields are OPTIONAL on read -- if the stream is
-//               exhausted after the macros block, kit.hasSession=false and
-//               uiMode / editorSize stay at defaults.
+//               uiMode is OPTIONAL on read -- if the stream is exhausted
+//               after the macros block, kit.hasSession=false and uiMode
+//               stays at its default.
 // ============================================================================
 
 Steinberg::tresult writeKitBlob(Steinberg::IBStream* stream,

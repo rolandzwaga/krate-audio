@@ -263,13 +263,12 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
         for (double m : pad.macros)
             writeT(stream, m);
 
-    // Session fields, only if flagged.
+    // Session field, only if flagged. uiMode persists in kit presets;
+    // editorSize (window size) is pure session state and never written.
     if (kit.hasSession)
     {
-        const int32 uiMode     = static_cast<int32>(kit.uiMode);
-        const int32 editorSize = static_cast<int32>(kit.editorSize);
+        const int32 uiMode = static_cast<int32>(kit.uiMode);
         writeT(stream, uiMode);
-        writeT(stream, editorSize);
     }
 
     return kResultOk;
@@ -372,15 +371,11 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         }
     }
 
-    // Optional session fields: present only when the producer set hasSession.
+    // Optional session field: present only when the producer set hasSession.
     int32 uiMode = 0;
     if (readT(stream, uiMode))
     {
-        int32 editorSize = 0;
-        if (!readT(stream, editorSize))
-            editorSize = 0;
-        kit.uiMode     = std::clamp(static_cast<int>(uiMode),     0, 1);
-        kit.editorSize = std::clamp(static_cast<int>(editorSize), 0, 1);
+        kit.uiMode     = std::clamp(static_cast<int>(uiMode), 0, 1);
         kit.hasSession = true;
     }
     else

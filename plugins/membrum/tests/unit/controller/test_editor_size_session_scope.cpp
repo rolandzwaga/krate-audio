@@ -98,24 +98,24 @@ TEST_CASE("Processor::getState does NOT write kEditorSizeId bytes (T022)",
 }
 
 // ----------------------------------------------------------------------------
-// T022 (post-refactor): kit preset now carries session fields (uiMode +
-// editorSize) via the hasSession flag. After the state codec unification,
-// the kit preset load path DOES restore kEditorSizeId to whatever the
-// preset captured. This guards that behavior: save preset with Compact,
-// flip user state to Default, reload, expect Compact.
+// T022: kEditorSizeId is pure session state. uiMode persists in kit presets
+// (kit authors may design for Acoustic vs Extended), but editorSize is the
+// user's window-size preference and must NEVER be touched by preset load.
+// Save a preset while the source controller is Compact, keep the target
+// controller at Default, reload, and confirm the target stays Default.
 // ----------------------------------------------------------------------------
-TEST_CASE("Kit preset load restores kEditorSizeId (unified state codec, T022)",
+TEST_CASE("Kit preset load does NOT restore kEditorSizeId (T022)",
           "[editor_size_session]")
 {
     Controller saver;
     REQUIRE(saver.initialize(nullptr) == Steinberg::kResultOk);
 
-    // Capture Compact into a kit preset.
+    // Source controller is Compact when the preset is saved.
     REQUIRE(saver.setParamNormalized(kEditorSizeId, 1.0) == Steinberg::kResultOk);
     Steinberg::IBStream* presetStream = saver.kitPresetStateProvider();
     REQUIRE(presetStream != nullptr);
 
-    // Load into a fresh controller that starts at Default.
+    // Target controller starts at Default and must stay Default after load.
     Controller loader;
     REQUIRE(loader.initialize(nullptr) == Steinberg::kResultOk);
     REQUIRE(loader.getParamNormalized(kEditorSizeId) == 0.0);
@@ -123,8 +123,7 @@ TEST_CASE("Kit preset load restores kEditorSizeId (unified state codec, T022)",
     presetStream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
     REQUIRE(loader.kitPresetLoadProvider(presetStream));
 
-    // Editor size was restored from the preset's session block.
-    REQUIRE(loader.getParamNormalized(kEditorSizeId) == 1.0);
+    REQUIRE(loader.getParamNormalized(kEditorSizeId) == 0.0);
 
     presetStream->release();
     saver.terminate();
