@@ -1551,6 +1551,13 @@ tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message)
     if (message == nullptr)
         return EditControllerEx1::notify(message);
 
+    // DataExchange IMessage fallback: hosts without the DataExchange API send
+    // blocks as IMessage payloads. The SDK helper decodes them and invokes
+    // onDataExchangeBlocksReceived(). Returns true iff the message was a
+    // DataExchange fallback payload.
+    if (dataExchangeReceiver_.onMessage(message))
+        return kResultOk;
+
     const auto* id = message->getMessageID();
     if (id != nullptr && std::strcmp(id, kCouplingSnapshotMsgId) == 0)
     {

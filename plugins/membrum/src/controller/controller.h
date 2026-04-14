@@ -5,6 +5,7 @@
 // ==============================================================================
 
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 #include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "dsp/pad_config.h"
@@ -227,6 +228,12 @@ private:
     // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
     // poll timer to push values into the Kit Column meter/CPU views.
     MetersBlock                      cachedMeters_{};
+
+    // SDK helper that routes host DataExchange deliveries (and the IMessage
+    // fallback for hosts without the DataExchange API) into this controller's
+    // IDataExchangeReceiver entry points. Without this member the receiver
+    // interface is advertised but never actually invoked.
+    Steinberg::Vst::DataExchangeReceiverHandler dataExchangeReceiver_{this};
 
     /// T046: push `cachedMeters_` values into the kit-column meter / CPU label
     /// views. Tolerant of missing views (safe when editor is not open).
