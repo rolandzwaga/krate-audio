@@ -190,13 +190,14 @@ std::vector<std::uint8_t> buildV4Blob()
 } // namespace
 
 // ==============================================================================
-// FR-050: kCurrentStateVersion is 5.
+// FR-050: kCurrentStateVersion is at least 5 (Phase 5 introduced version 5;
+// spec 141 / Phase 6 bumps it to 6 with backward-compatible v5->v6 migration).
 // ==============================================================================
 
-TEST_CASE("Phase 7 (FR-050): kCurrentStateVersion == 5",
+TEST_CASE("Phase 7 (FR-050): kCurrentStateVersion >= 5",
           "[coupling_state][phase7][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 5);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion >= 5);
 }
 
 // ==============================================================================
@@ -345,14 +346,15 @@ TEST_CASE("Phase 7 (SC-006, FR-051): v4 state loads with Phase 5 defaults",
     int32 gotVer = 0;
     resaved.read(&newVersion, sizeof(newVersion), &gotVer);
     CHECK(gotVer == static_cast<int32>(sizeof(newVersion)));
-    CHECK(newVersion == 5);
+    CHECK(newVersion == Membrum::kCurrentStateVersion);
 
     // The re-saved blob size equals v4 (9040) + Phase 5 trailer:
     //   4 * 8 (globals) + 32 * 8 (per-pad) + 2 (overrideCount) + 0 overrides
     //   = 32 + 256 + 2 = 290.
+    // Phase 6 (spec 141) additionally appends 160 * 8 bytes of float64 macros.
     int64 resavedSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resavedSize);
-    CHECK(resavedSize == 9040 + 290);
+    CHECK(resavedSize == 9040 + 290 + 1280);
 }
 
 // ==============================================================================
@@ -444,7 +446,8 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
     // v4 base (9040) + globals (32) + per-pad (256) + overrideCount (2)
     // + 3 * 6 override bytes = 9040 + 290 + 18 = 9348.
-    CHECK(resSize == 9348);
+    // Phase 6 (spec 141) appends 160 * 8 bytes of float64 macros.
+    CHECK(resSize == 9348 + 1280);
 
     // Read overrideCount at offset 9040 + 32 + 256 = 9328.
     resaved.seek(9328, IBStream::kIBSeekSet, nullptr);

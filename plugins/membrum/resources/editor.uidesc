@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vstgui-ui-description version="1">
+  <!-- Membrum Phase 6 editor (spec 141) -->
+  <colors>
+    <color name="bg-primary"    rgba="#1A1A2Eff"/>
+    <color name="bg-panel"      rgba="#202030ff"/>
+    <color name="accent"        rgba="#00BCD4ff"/>
+    <color name="text-primary"  rgba="#E0E0F0ff"/>
+    <color name="text-secondary" rgba="#8888AAff"/>
+    <color name="btn-frame"     rgba="#404048ff"/>
+    <color name="btn-text"      rgba="#C0C0C0ff"/>
+    <color name="btn-bg"        rgba="#00000000"/>
+    <color name="btn-bg-hover"  rgba="#FFFFFF14"/>
+  </colors>
+  <fonts>
+    <font name="title-font"   font-name="Arial" size="16" bold="true"/>
+    <font name="section-font" font-name="Arial" size="11" bold="true"/>
+    <font name="label-font"   font-name="Arial" size="10"/>
+  </fonts>
+  <control-tags>
+    <control-tag name="UiMode" tag="280"/>
+    <control-tag name="EditorSize" tag="281"/>
+    <control-tag name="GlobalCoupling" tag="270"/>
+    <control-tag name="SnareBuzz" tag="271"/>
+    <control-tag name="TomResonance" tag="272"/>
+    <control-tag name="CouplingDelay" tag="273"/>
+    <control-tag name="SelectedPad" tag="260"/>
+    <control-tag name="MaxPolyphony" tag="250"/>
+    <control-tag name="VoiceStealing" tag="251"/>
+    <control-tag name="Material" tag="100"/>
+    <control-tag name="Size" tag="101"/>
+    <control-tag name="Decay" tag="102"/>
+    <control-tag name="StrikePosition" tag="103"/>
+    <control-tag name="Level" tag="104"/>
+    <control-tag name="ExciterType" tag="200"/>
+    <control-tag name="BodyModel" tag="201"/>
+    <control-tag name="PitchEnvStart" tag="216"/>
+    <control-tag name="PitchEnvEnd" tag="217"/>
+    <control-tag name="PitchEnvTime" tag="218"/>
+    <control-tag name="MacroTightness" tag="1037"/>
+    <control-tag name="MacroBrightness" tag="1038"/>
+    <control-tag name="MacroBodySize" tag="1039"/>
+    <control-tag name="MacroPunch" tag="1040"/>
+    <control-tag name="MacroComplexity" tag="1041"/>
+    <!-- T061 (Phase 6 / US5): Choke Group selector binds to the Phase 4
+         selected-pad proxy parameter (kChokeGroupId == 252). The proxy in
+         Controller::setParamNormalized routes edits to the currently
+         selected pad's per-pad kPadChokeGroup offset. -->
+    <control-tag name="ChokeGroupSel" tag="252"/>
+    <!-- T074 (Phase 8 / US7, FR-065): Output Bus selector binds to the
+         Phase 4 selected-pad proxy (kOutputBusId == 282). The proxy in
+         Controller::setParamNormalized routes edits to the currently
+         selected pad's per-pad kPadOutputBus offset. Registered as a
+         16-entry StringListParameter (Main, Aux 1..Aux 15) so the
+         COptionMenu auto-populates its entries. -->
+    <control-tag name="OutputBusSel" tag="282"/>
+    <!-- Phase 6 T036: Extended-mode control tags -->
+    <!-- Unnatural Zone (globals 230-233) -->
+    <control-tag name="ModeStretch" tag="230"/>
+    <control-tag name="DecaySkew" tag="231"/>
+    <control-tag name="ModeInject" tag="232"/>
+    <control-tag name="NonlinearCoupling" tag="233"/>
+    <!-- Material Morph (globals 240-244) -->
+    <control-tag name="MorphEnabled" tag="240"/>
+    <control-tag name="MorphStart" tag="241"/>
+    <control-tag name="MorphEnd" tag="242"/>
+    <control-tag name="MorphDuration" tag="243"/>
+    <control-tag name="MorphCurve" tag="244"/>
+    <!-- Material Morph XY pad binds to (MorphStart, MorphEnd) -->
+    <control-tag name="MaterialMorph" tag="241"/>
+    <!-- Tone Shaper (globals 210-223) -->
+    <control-tag name="FilterType" tag="210"/>
+    <control-tag name="FilterCutoff" tag="211"/>
+    <control-tag name="FilterResonance" tag="212"/>
+    <control-tag name="FilterEnvAmount" tag="213"/>
+    <control-tag name="DriveAmount" tag="214"/>
+    <control-tag name="FoldAmount" tag="215"/>
+    <control-tag name="PitchEnvCurve" tag="219"/>
+    <control-tag name="FilterEnvAttack" tag="220"/>
+    <control-tag name="FilterEnvDecay" tag="221"/>
+    <control-tag name="FilterEnvSustain" tag="222"/>
+    <control-tag name="FilterEnvRelease" tag="223"/>
+    <!-- Exciter secondary params (globals 202-205) -->
+    <control-tag name="ExciterFMRatio" tag="202"/>
+    <control-tag name="ExciterFeedback" tag="203"/>
+    <control-tag name="ExciterNoiseBurstDuration" tag="204"/>
+    <control-tag name="ExciterFrictionPressure" tag="205"/>
+    <!-- Per-pad Coupling Amount (pad 0 offset 36 = selected-pad proxy) -->
+    <control-tag name="CouplingAmount" tag="1036"/>
+  </control-tags>
+  <bitmaps/>
+  <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Macros" origin="8, 8" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Tightness" origin="8, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MacroTightness" origin="8, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Brightness" origin="80, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MacroBrightness" origin="80, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Body Size" origin="152, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MacroBodySize" origin="152, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Punch" origin="224, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MacroPunch" origin="224, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Complexity" origin="296, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MacroComplexity" origin="296, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Body" origin="8, 120" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Material" origin="8, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Material" origin="8, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Size" origin="80, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Size" origin="80, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Decay" origin="152, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Decay" origin="152, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Strike" origin="224, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="StrikePosition" origin="224, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Level" origin="296, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Level" origin="296, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Pitch Envelope" origin="8, 232" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PitchEnvelopeDisplay" origin="8, 252" size="360, 80" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
+        <view class="CTextLabel" title="Routing" origin="8, 344" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Output Bus" origin="8, 364" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 362" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Choke Group" origin="8, 390" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 388" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Source" origin="8, 420" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Exciter" origin="8, 440" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ExciterType" origin="96, 438" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Body" origin="8, 466" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="BodyModel" origin="96, 464" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+  </template>
+  <template name="SelectedPadExtended" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <!-- Row 1: Unnatural Zone -->
+        <view class="CTextLabel" title="Unnatural Zone" origin="8, 8" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="ModeStretch" origin="8, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Stretch" origin="8, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ModeInject" origin="64, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Inject" origin="64, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="DecaySkew" origin="120, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dec Skew" origin="120, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NonlinearCoupling" origin="176, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Nonlin" origin="176, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- Material Morph XY pad binds its X axis to MorphStart and Y axis to MorphEnd via the sub-controller; control-tag references MorphStart as primary. -->
+        <view class="XYMorphPad" control-tag="MaterialMorph" origin="232, 28" size="160, 60" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Material Morph" origin="232, 88" size="160, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MorphDuration" origin="232, 104" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dur" origin="232, 136" size="32, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="COptionMenu" control-tag="MorphCurve" origin="272, 108" size="56, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CCheckBox" control-tag="MorphEnabled" origin="336, 108" size="56, 20" title="On" font="label-font" font-color="text-primary" boxframe-color="accent" boxfill-color="bg-panel" checkmark-color="accent" frame-width="1"/>
+
+        <!-- Row 2: Raw Physics -->
+        <view class="CTextLabel" title="Raw Physics" origin="8, 156" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="Material" origin="8, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Material" origin="8, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Size" origin="64, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Size" origin="64, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Decay" origin="120, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Decay" origin="120, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="StrikePosition" origin="176, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Strike" origin="176, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Level" origin="232, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Level" origin="232, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="CouplingAmount" origin="288, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Coupling" origin="288, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 3: Tone Shaper -->
+        <view class="CTextLabel" title="Tone Shaper" origin="8, 248" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="FilterType" origin="8, 268" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Type" origin="8, 290" size="72, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterCutoff" origin="88, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cutoff" origin="88, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterResonance" origin="136, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Reson" origin="136, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvAmount" origin="184, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Env Amt" origin="184, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="DriveAmount" origin="232, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Drive" origin="232, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FoldAmount" origin="280, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Fold" origin="280, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 4: Filter ADSR -->
+        <view class="ADSRDisplay" origin="8, 328" size="200, 60" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="ArcKnob" control-tag="FilterEnvAttack" origin="216, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="A" origin="216, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvDecay" origin="260, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="D" origin="260, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvSustain" origin="304, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="S" origin="304, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvRelease" origin="348, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="R" origin="348, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 5: Exciter -->
+        <view class="CTextLabel" title="Exciter" origin="8, 400" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ExciterType" origin="8, 420" size="96, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ArcKnob" control-tag="ExciterFMRatio" origin="112, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="FM Ratio" origin="112, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterFeedback" origin="160, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="FB" origin="160, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterNoiseBurstDuration" origin="208, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Burst" origin="208, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterFrictionPressure" origin="256, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Press" origin="256, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 6: Body Model + Pitch Envelope -->
+        <view class="CTextLabel" title="Body Model" origin="8, 488" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="BodyModel" origin="96, 486" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Pitch Env" origin="8, 516" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PitchEnvelopeDisplay" origin="8, 536" size="240, 60" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
+        <view class="COptionMenu" control-tag="PitchEnvCurve" origin="256, 540" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Curve" origin="256, 560" size="72, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 7: Routing -->
+        <view class="CTextLabel" title="Routing" origin="8, 608" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Output Bus" origin="8, 628" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 626" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Choke Group" origin="8, 654" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 652" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+  </template>
+  <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
+      <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CView" custom-view-name="PadGridView" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled"/>
+      </view>
+      <view class="CViewContainer" origin="640, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="UIViewSwitchContainer" origin="0, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
+      </view>
+      <view class="CViewContainer" origin="1040, 0" size="240, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Display" origin="8, 8" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="108, 22"/>
+        <view class="CView" custom-view-name="SizeToggleButton" origin="124, 28" size="108, 22"/>
+        <!-- Hidden CControl proxies so UIViewSwitchContainer's template-switch-control
+             can follow kUiModeId / kEditorSizeId changes. -->
+        <view class="CParamDisplay" control-tag="UiMode"     origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
+        <view class="CParamDisplay" control-tag="EditorSize" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
+        <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PadBrowserView" origin="8, 224" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Voices" origin="8, 332" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="224, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
+        <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
+        <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Coupling" origin="8, 452" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Snare" origin="64, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="SnareBuzz" origin="64, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Tom" origin="120, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="TomResonance" origin="120, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Delay" origin="176, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Meter" origin="8, 560" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CView" custom-view-name="MetersView" origin="8, 580" size="224, 32" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 620" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
+        <view class="CTextLabel" title="PresetStatus" origin="8, 634" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T037: Coupling Matrix editor (Extended-only; sub-controller gates visibility via kUiModeId) -->
+        <view class="CViewContainer" class-id="MatrixEditorSection" origin="8, 640" size="224, 152" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+          <view class="CTextLabel" title="Matrix" origin="0, 0" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+          <view class="CView" custom-view-name="CouplingMatrixView" origin="0, 20" size="224, 100" background-color="bg-panel" background-color-draw-style="filled"/>
+          <view class="CView" custom-view-name="MatrixSoloButton" origin="0, 128" size="108, 22"/>
+          <view class="CView" custom-view-name="MatrixResetButton" origin="116, 128" size="108, 22"/>
+        </view>
+      </view>
+  </template>
+  <template name="EditorCompact" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1024, 640" minSize="1024, 640" maxSize="1024, 640" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
+      <view class="CViewContainer" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CView" custom-view-name="PadGridView" origin="0, 0" size="512, 640" background-color="bg-panel" background-color-draw-style="filled"/>
+      </view>
+      <view class="CViewContainer" origin="512, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="UIViewSwitchContainer" origin="0, 0" size="320, 640" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
+      </view>
+      <view class="CViewContainer" origin="832, 0" size="192, 640" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
+        <view class="CTextLabel" title="Display" origin="8, 8" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="84, 22"/>
+        <view class="CView" custom-view-name="SizeToggleButton" origin="100, 28" size="84, 22"/>
+        <view class="CParamDisplay" control-tag="UiMode"     origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
+        <view class="CParamDisplay" control-tag="EditorSize" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
+        <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="KitBrowserView" origin="8, 84" size="176, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="PadBrowserView" origin="8, 224" size="176, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Voices" origin="8, 332" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Max Polyphony" origin="8, 352" size="120, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CSlider" control-tag="MaxPolyphony" origin="8, 370" size="176, 16" orientation="horizontal" handle-offset="0" handle-bitmap="" bitmap-offset="0" transparent-handle="false" frame-color="accent" draw-back="true" back-color="bg-panel"/>
+        <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 394" size="88, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
+        <view class="CTextLabel" title="ActiveVoices: -" origin="8, 424" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Coupling" origin="8, 452" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="Global" origin="8, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="GlobalCoupling" origin="8, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Snare" origin="64, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="SnareBuzz" origin="64, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Tom" origin="120, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="TomResonance" origin="120, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Delay" origin="176, 520" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="CouplingDelay" origin="176, 472" size="48, 48" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Meter" origin="8, 560" size="176, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="CView" custom-view-name="MetersView" origin="8, 580" size="176, 32" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 608" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
+        <view class="CTextLabel" title="PresetStatus" origin="8, 624" size="176, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <!-- T037: Coupling Matrix editor (Extended-only; sub-controller gates visibility via kUiModeId) -->
+        <view class="CViewContainer" class-id="MatrixEditorSection" origin="0, 0" size="0, 0" transparent="true" mouse-enabled="false"/>
+      </view>
+  </template>
+</vstgui-ui-description>

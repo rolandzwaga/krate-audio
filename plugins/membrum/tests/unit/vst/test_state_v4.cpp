@@ -30,7 +30,8 @@ using Catch::Approx;
 namespace {
 
 // Phase 5: state bumped to v5 = v4 (9040) + 4*8 (global coupling) + 32*8 (per-pad) + 2 (overrideCount)
-constexpr int64 kV4BlobBytes = 9040 + 32 + 256 + 2;  // 9330 bytes for v5
+// Phase 6 (spec 141): v6 appends 160 * 8 bytes (float64 macros) = 1280 bytes.
+constexpr int64 kV4BlobBytes = 9040 + 32 + 256 + 2 + 1280;  // 10610 bytes for v6
 
 ProcessSetup makeSetup(double sampleRate = 44100.0)
 {
@@ -83,8 +84,10 @@ TEST_CASE("State v4: getState writes version=4 header and global settings",
     Membrum::TestHelpers::V4StateHeader hdr;
     REQUIRE(Membrum::TestHelpers::readV4Header(stream, hdr));
 
-    // Phase 5: state version bumped to 5 (v5 = v4 layout + Phase 5 appended data)
-    CHECK(hdr.version == 5);
+    // Phase 5 introduced version 5 (v4 layout + appended Phase 5 data); spec 141
+    // Phase 6 bumps the current write version to 6 with backward-compatible
+    // wire layout for v5/v6.
+    CHECK(hdr.version == Membrum::kCurrentStateVersion);
     CHECK(hdr.maxPolyphony == 8);   // default
     CHECK(hdr.stealPolicy == 0);    // default (Oldest)
 

@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdint>
 
 namespace Membrum {
@@ -22,7 +23,11 @@ public:
     static constexpr float kMaxCoefficient = 0.05f;
     static constexpr int kSize = kNumPads; // 32
 
-    CouplingMatrix() noexcept = default;
+    CouplingMatrix() noexcept
+    {
+        static_assert(std::atomic<int>::is_always_lock_free,
+                      "CouplingMatrix Solo state requires lock-free int atomics");
+    }
 
     // =========================================================================
     // Tier 1: Recompute computed gains from global knobs + categories
@@ -123,8 +128,44 @@ public:
     [[nodiscard]] float getEffectiveGain(int src, int dst) const noexcept
     {
         if (src < 0 || src >= kSize || dst < 0 || dst >= kSize) return 0.0f;
+        // FR-053: when Solo is engaged on pair (soloSrc, soloDst), all other
+        // pairs report zero gain so the audio resolver mutes non-solo paths.
+        const int ss = soloSrc_.load(std::memory_order_acquire);
+        const int sd = soloDst_.load(std::memory_order_acquire);
+        if (ss >= 0 && sd >= 0 && (ss != src || sd != dst))
+            return 0.0f;
         return effectiveGain_[src][dst];
     }
+
+    // =========================================================================
+    // Solo (Phase 6, FR-053) -- temporarily mutes all coupling pairs except
+    // (src, dst). UI-thread writes; audio-thread reads via getEffectiveGain().
+    // =========================================================================
+
+    void setSoloPath(int src, int dst) noexcept
+    {
+        if (src < 0 || src >= kSize || dst < 0 || dst >= kSize) {
+            clearSolo();
+            return;
+        }
+        soloSrc_.store(src, std::memory_order_release);
+        soloDst_.store(dst, std::memory_order_release);
+    }
+
+    void clearSolo() noexcept
+    {
+        soloSrc_.store(-1, std::memory_order_release);
+        soloDst_.store(-1, std::memory_order_release);
+    }
+
+    [[nodiscard]] bool hasSolo() const noexcept
+    {
+        return soloSrc_.load(std::memory_order_acquire) >= 0 &&
+               soloDst_.load(std::memory_order_acquire) >= 0;
+    }
+
+    [[nodiscard]] int soloSrc() const noexcept { return soloSrc_.load(std::memory_order_acquire); }
+    [[nodiscard]] int soloDst() const noexcept { return soloDst_.load(std::memory_order_acquire); }
 
     [[nodiscard]] const float (&effectiveGainArray() const noexcept)[kSize][kSize]
     {
@@ -146,8 +187,10 @@ public:
     }
 
     /// Iterate all overrides. Fn signature: void(int src, int dst, float coeff).
+    /// Instantiations with potentially-throwing lambdas must ensure their
+    /// bodies do not actually throw (e.g. by pre-reserving any containers).
     template <typename Fn>
-    void forEachOverride(Fn&& fn) const noexcept
+    void forEachOverride(Fn&& fn) const noexcept  // NOLINT(bugprone-exception-escape)
     {
         for (int s = 0; s < kSize; ++s)
             for (int d = 0; d < kSize; ++d)
@@ -186,6 +229,11 @@ private:
     float overrideGain_[kSize][kSize]{};
     bool  hasOverride_[kSize][kSize]{};
     float effectiveGain_[kSize][kSize]{};
+
+    // FR-053: -1 sentinel means "no solo active". UI-thread writer (setSoloPath
+    // / clearSolo); audio-thread reader (getEffectiveGain()).
+    std::atomic<int> soloSrc_{-1};
+    std::atomic<int> soloDst_{-1};
 };
 
 } // namespace Membrum

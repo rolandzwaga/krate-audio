@@ -105,9 +105,34 @@ add_executable(membrum_tests
     perf/test_polyphony_benchmark.cpp
     perf/test_polyphony_stress_16.cpp
 
+    # Phase 6: macros, session-scoped params, publishers, custom editor, lifecycle
+    unit/processor/test_macro_mapper.cpp
+    unit/processor/test_state_v6_migration.cpp
+    unit/processor/test_pad_glow_publisher.cpp
+    unit/processor/test_matrix_activity_publisher.cpp
+    unit/processor/test_macro_automation_extreme.cpp
+    unit/processor/test_publisher_lock_freedom.cpp
+    unit/controller/test_phase6_parameters.cpp
+    unit/controller/test_ui_mode_session_scope.cpp
+    unit/controller/test_editor_size_session_scope.cpp
+    unit/controller/test_editor_idependent_resubscribe.cpp
+    unit/controller/test_param_reachability_in_editor.cpp
+    unit/controller/test_voice_management_ui.cpp
+    unit/controller/test_output_routing_ui.cpp
+    unit/ui/test_pad_grid_view.cpp
+    unit/ui/test_pitch_envelope_display.cpp
+    unit/ui/test_coupling_matrix_view.cpp
+    unit/preset/test_kit_uimode_roundtrip.cpp
+    integration/test_editor_asan_lifecycle.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/membrum_editor_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/coupling_matrix_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 
@@ -125,6 +150,11 @@ target_link_libraries(membrum_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
+        # NOTE: vstgui_support MUST come before sdk so GNU ld can resolve
+        # ModuleInitializer/ModuleTerminator/getPlatformModuleHandle symbols
+        # referenced by vstguieditor.cpp against libsdk.a. Other plugin test
+        # targets follow the same convention.
+        vstgui_support
         sdk
 )
 

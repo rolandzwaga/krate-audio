@@ -16,10 +16,13 @@
 #include "dsp/tone_shaper.h"
 #include "voice_pool/choke_group_table.h"
 #include "voice_pool/voice_stealing_policy.h"
+#include "processor/meters_block.h"
 
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstevents.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
+#include "pluginterfaces/vst/ivstmessage.h"
+#include "public.sdk/source/vst/utility/dataexchange.h"
 
 // FTZ/DAZ for denormal prevention on x86 (SC-007)
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
@@ -28,11 +31,13 @@
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 namespace Membrum {
 
@@ -182,6 +187,34 @@ Processor::Processor()
     setControllerClass(kControllerUID);
 }
 
+Processor::~Processor() = default;
+
+// Phase 6 (T025): mirror the Controller's registered-default values for each
+// per-pad parameter the MacroMapper targets. Kept in sync with kPadParamSpecs.
+RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() noexcept
+{
+    RegisteredDefaultsTable t{};
+    t.byOffset[kPadMaterial]           = 0.5f;
+    t.byOffset[kPadSize]               = 0.5f;
+    t.byOffset[kPadDecay]              = 0.3f;
+    t.byOffset[kPadStrikePosition]     = 0.3f;
+    t.byOffset[kPadLevel]              = 0.8f;
+    t.byOffset[kPadTSFilterCutoff]     = 1.0f;
+    t.byOffset[kPadTSPitchEnvStart]    = 0.0f;
+    t.byOffset[kPadTSPitchEnvEnd]      = 0.0f;
+    t.byOffset[kPadTSPitchEnvTime]     = 0.0f;
+    t.byOffset[kPadModeStretch]        = 0.333333f;
+    t.byOffset[kPadDecaySkew]          = 0.5f;
+    t.byOffset[kPadModeInjectAmount]   = 0.0f;
+    t.byOffset[kPadNonlinearCoupling]  = 0.0f;
+    t.byOffset[kPadFMRatio]            = 0.5f;
+    t.byOffset[kPadFeedbackAmount]     = 0.0f;
+    t.byOffset[kPadNoiseBurstDuration] = 0.5f;
+    t.byOffset[kPadFrictionPressure]   = 0.0f;
+    t.byOffset[kPadCouplingAmount]     = 0.5f;
+    return t;
+}
+
 tresult PLUGIN_API Processor::initialize(FUnknown* context)
 {
     auto result = AudioEffect::initialize(context);
@@ -211,6 +244,10 @@ tresult PLUGIN_API Processor::initialize(FUnknown* context)
     for (int i = 0; i < kNumPads; ++i)
         padCategories_[static_cast<size_t>(i)] =
             classifyPad(voicePool_.padConfig(i));
+
+    // Phase 6 (T025): cache registered defaults for the MacroMapper. This
+    // must happen before any audio-thread apply() call.
+    macroMapper_.prepare(buildRegisteredDefaultsTable());
 
     return kResultOk;
 }
@@ -306,6 +343,19 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
                 // both source and receiver.
                 voicePool_.setPadConfigField(padIdx, padOff, fValue);
                 recomputeCouplingMatrix();
+            }
+            else if (padOff >= kPadMacroTightness && padOff <= kPadMacroComplexity)
+            {
+                // Phase 6 (US1 / T025, FR-022, FR-023): a macro parameter
+                // changed. Store the new macro value, then let the MacroMapper
+                // recompute the derived underlying parameters for this pad.
+                voicePool_.setPadConfigField(padIdx, padOff, fValue);
+                macroMapper_.apply(padIdx, voicePool_.padConfigMut(padIdx));
+                if (padOff == kPadMacroComplexity)
+                {
+                    // Complexity drives couplingAmount; matrix must refresh.
+                    recomputeCouplingMatrix();
+                }
             }
             else
             {
@@ -464,6 +514,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadChokeGroup(selectedPadIndex_, static_cast<std::uint8_t>(nClamped));
             break;
         }
+        // Phase 8 (US7 / FR-065): Output Bus selector proxy -- forward to the
+        // currently selected pad's kPadOutputBus field.
+        case kOutputBusId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadOutputBus, clamped);
+            break;
+        }
         case kSelectedPadId:
         {
             const float clamped = std::clamp(fValue, 0.0f, 1.0f);
@@ -507,6 +565,26 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             break;
         }
     }
+}
+
+// Consume a pending audition request (posted via IMessage "AuditionPad") and
+// fire a voice note-on for it from the audio thread.
+void Processor::consumePendingAudition()
+{
+    const std::uint32_t word = pendingAudition_.exchange(0u, std::memory_order_acq_rel);
+    if ((word & 0x4000u) == 0u)
+        return;
+    const int midi  = static_cast<int>(word & 0x7Fu);
+    const int velByte = static_cast<int>((word >> 7) & 0x7Fu);
+    if (midi < 36 || midi > 67)
+        return;
+    if (velByte == 0)
+    {
+        voicePool_.noteOff(static_cast<std::uint8_t>(midi));
+        return;
+    }
+    const float velNorm = static_cast<float>(velByte) / 127.0f;
+    voicePool_.noteOn(static_cast<std::uint8_t>(midi), velNorm);
 }
 
 // Process MIDI events: note-on/note-off on any MIDI note in [36, 67]
@@ -557,8 +635,13 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     if (data.numSamples == 0)
         return kResultOk;
 
+    // T045: start CPU-usage timer (steady_clock::now is lock-free and
+    // allocation-free on all supported platforms).
+    const auto cpuT0 = std::chrono::steady_clock::now();
+
     processParameterChanges(data.inputParameterChanges);
     processEvents(data.inputEvents);
+    consumePendingAudition();
 
     if (data.numOutputs > 0 && data.outputs != nullptr)
     {
@@ -649,6 +732,139 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         data.outputs[0].silenceFlags =
             (voicePool_.isAnyVoiceActive() || !couplingEngine_.isBypassed())
                 ? 0ULL : 3ULL;
+    }
+
+    // ============================================================
+    // Phase 6 (T043): publish per-pad glow amplitudes.
+    // Walk both main and shadow voice slots, take the max currentLevel per
+    // pad, and publish. Pads with no active voice are published as 0.0 so
+    // the UI can decay its own smoothing.
+    // ============================================================
+    {
+        std::array<float, kNumPads> padAmp{};
+        padAmp.fill(0.0f);
+        for (int slot = 0; slot < kMaxVoices; ++slot)
+        {
+            const auto& m = voicePool_.voiceMeta(slot);
+            if (m.state != VoiceSlotState::Free)
+            {
+                const int padIdx = static_cast<int>(m.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                {
+                    const float lvl = m.currentLevel * m.fastReleaseGain;
+                    padAmp[static_cast<std::size_t>(padIdx)] =
+                        std::max(padAmp[static_cast<std::size_t>(padIdx)], lvl);
+                }
+            }
+            const auto& rm = voicePool_.releasingMeta(slot);
+            if (rm.state != VoiceSlotState::Free)
+            {
+                const int padIdx = static_cast<int>(rm.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                {
+                    const float lvl = rm.currentLevel * rm.fastReleaseGain;
+                    padAmp[static_cast<std::size_t>(padIdx)] =
+                        std::max(padAmp[static_cast<std::size_t>(padIdx)], lvl);
+                }
+            }
+        }
+        for (int pad = 0; pad < kNumPads; ++pad)
+            padGlowPublisher_.publish(pad, padAmp[static_cast<std::size_t>(pad)]);
+    }
+
+    // ============================================================
+    // Phase 6 (T044): publish per-source matrix activity mask.
+    // A (src, dst) pair is "active" this block when effectiveGain is
+    // non-zero AND src pad is currently sounding (its glow > 0).
+    // ============================================================
+    {
+        std::array<std::uint8_t, kNumPads> srcActive{};
+        for (int slot = 0; slot < kMaxVoices; ++slot)
+        {
+            const auto& m = voicePool_.voiceMeta(slot);
+            if (m.state == VoiceSlotState::Active)
+            {
+                const int padIdx = static_cast<int>(m.originatingNote)
+                                 - static_cast<int>(kFirstDrumNote);
+                if (padIdx >= 0 && padIdx < kNumPads)
+                    srcActive[static_cast<std::size_t>(padIdx)] = 1;
+            }
+        }
+        for (int src = 0; src < kNumPads; ++src)
+        {
+            std::uint32_t dstMask = 0u;
+            if (srcActive[static_cast<std::size_t>(src)] != 0)
+            {
+                for (int dst = 0; dst < kNumPads; ++dst)
+                {
+                    if (src == dst)
+                        continue;
+                    if (couplingMatrix_.getEffectiveGain(src, dst) > 0.0f)
+                        dstMask |= (1u << dst);
+                }
+            }
+            matrixActivityPublisher_.publishSourceActivity(src, dstMask);
+        }
+    }
+
+    // ============================================================
+    // Phase 6 (T045): publish MetersBlock via DataExchangeHandler.
+    // Peak L/R over this block, active voice count, CPU permille placeholder.
+    // ============================================================
+    if (dataExchangeHandler_ && data.numOutputs > 0 && data.outputs != nullptr)
+    {
+        float peakL = 0.0f;
+        float peakR = 0.0f;
+        const float* outL = data.outputs[0].channelBuffers32[0];
+        const float* outR = data.outputs[0].channelBuffers32[1];
+        for (int32 s = 0; s < data.numSamples; ++s)
+        {
+            const float aL = std::abs(outL[s]);
+            const float aR = std::abs(outR[s]);
+            peakL = std::max(peakL, aL);
+            peakR = std::max(peakR, aR);
+        }
+
+        // T045: compute CPU usage (per-mille of the block budget) using a
+        // simple EWMA smoother so brief spikes do not dominate the meter.
+        // blockBudget = numSamples / sampleRate (in seconds).
+        std::uint16_t cpuPermille = 0;
+        if (sampleRate_ > 0.0 && data.numSamples > 0)
+        {
+            const auto cpuT1 = std::chrono::steady_clock::now();
+            const double elapsedSec =
+                std::chrono::duration<double>(cpuT1 - cpuT0).count();
+            const double blockBudgetSec =
+                static_cast<double>(data.numSamples) / sampleRate_;
+            const double ratio =
+                blockBudgetSec > 0.0 ? (elapsedSec / blockBudgetSec) : 0.0;
+            const float instantaneousPermille =
+                static_cast<float>(std::clamp(ratio * 1000.0, 0.0, 65535.0));
+            // EWMA: alpha = 0.1 smooths ~10 blocks; cheap and audio-safe.
+            constexpr float kEwmaAlpha = 0.1f;
+            cpuPermilleEwma_ =
+                cpuPermilleEwma_ + kEwmaAlpha
+                * (instantaneousPermille - cpuPermilleEwma_);
+            cpuPermille = static_cast<std::uint16_t>(
+                std::clamp(cpuPermilleEwma_ + 0.5f, 0.0f, 65535.0f));
+        }
+
+        auto block = dataExchangeHandler_->getCurrentOrNewBlock();
+        if (block.blockID != Steinberg::Vst::InvalidDataExchangeBlockID
+            && block.data != nullptr
+            && block.size >= sizeof(MetersBlock))
+        {
+            MetersBlock mb;
+            mb.peakL        = peakL;
+            mb.peakR        = peakR;
+            mb.activeVoices = static_cast<std::uint16_t>(
+                                  voicePool_.getActiveVoiceCount());
+            mb.cpuPermille  = cpuPermille;
+            std::memcpy(block.data, &mb, sizeof(MetersBlock));
+            dataExchangeHandler_->sendCurrentBlock();
+        }
     }
 
     return kResultOk;
@@ -801,6 +1017,26 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         state->write(&coeff, sizeof(coeff), nullptr);
     });
 
+    // ---- Phase 6 (spec 141 T086): per-pad macro values appended to v5 payload.
+    // 160 x float64 (5 macros x 32 pads) in pad-major order:
+    //   pad0.tightness, pad0.brightness, pad0.bodySize, pad0.punch,
+    //   pad0.complexity, pad1.tightness, ..., pad31.complexity.
+    // Session-scoped params (kUiModeId, kEditorSizeId) are deliberately NOT
+    // written -- they reset to defaults on load in Controller::setComponentState.
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        const auto& cfg = voicePool_.padConfig(pad);
+        const double macros[5] = {
+            static_cast<double>(cfg.macroTightness),
+            static_cast<double>(cfg.macroBrightness),
+            static_cast<double>(cfg.macroBodySize),
+            static_cast<double>(cfg.macroPunch),
+            static_cast<double>(cfg.macroComplexity),
+        };
+        for (double m : macros)
+            state->write(&m, sizeof(m), nullptr);
+    }
+
     return kResultOk;
 }
 
@@ -818,9 +1054,14 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
         return kResultFalse;
 
     // ------------------------------------------------------------------
-    // v4/v5 state format -- v5 is v4 + appended Phase 5 coupling data
+    // v4/v5/v6 state format -- v5 is v4 + appended Phase 5 coupling data;
+    // v6 (Phase 6 spec 141) appends 160 x float64 per-pad macro values
+    // (5 macros x 32 pads) in pad-major order after the v5 override list.
+    // Session-scoped kUiModeId / kEditorSizeId are NOT on the wire; they
+    // reset to defaults in Controller::setComponentState before this blob
+    // is consumed.
     // ------------------------------------------------------------------
-    if (version == 4 || version == 5)
+    if (version == 4 || version == 5 || version == 6)
     {
         int32 maxPoly = 8;
         int32 stealPolicy = 0;
@@ -919,8 +1160,11 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             selPad = 0;
         selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
 
-        // ---- Phase 5: Read coupling state if version == 5 ----
-        if (version == 5)
+        // ---- Phase 5: Read coupling state if version >= 5 ----
+        // v6 (spec 141) shares this on-wire layout with v5; the v5->v6
+        // migration that adds per-pad macros is wired up later in spec 141
+        // Phase 2.
+        if (version == 5 || version == 6)
         {
             double gc = 0.0;
             double sb = 0.0;
@@ -994,6 +1238,56 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
                     classifyPad(voicePool_.padConfig(i));
             recomputeCouplingMatrix();
         }
+
+        // Phase 6 (spec 141 T087): per-pad macro values.
+        // v4/v5: default all 160 macros to 0.5 (neutral -- zero delta).
+        // v6:    read 160 x float64 in pad-major order.
+        auto& pads = voicePool_.padConfigsArray();
+        if (version == 6)
+        {
+            for (int pad = 0; pad < kNumPads; ++pad)
+            {
+                double m[5] = {0.5, 0.5, 0.5, 0.5, 0.5};
+                for (double& v : m)
+                {
+                    if (state->read(&v, sizeof(v), nullptr) != kResultOk)
+                        v = 0.5;
+                    v = std::clamp(v, 0.0, 1.0);
+                }
+                pads[static_cast<size_t>(pad)].macroTightness  = static_cast<float>(m[0]);
+                pads[static_cast<size_t>(pad)].macroBrightness = static_cast<float>(m[1]);
+                pads[static_cast<size_t>(pad)].macroBodySize   = static_cast<float>(m[2]);
+                pads[static_cast<size_t>(pad)].macroPunch      = static_cast<float>(m[3]);
+                pads[static_cast<size_t>(pad)].macroComplexity = static_cast<float>(m[4]);
+            }
+        }
+        else
+        {
+            for (auto& p : pads)
+            {
+                p.macroTightness  = 0.5f;
+                p.macroBrightness = 0.5f;
+                p.macroBodySize   = 0.5f;
+                p.macroPunch      = 0.5f;
+                p.macroComplexity = 0.5f;
+            }
+        }
+
+        // Reapply macros so derived parameters reflect loaded macro values
+        // (FR-082). We gate on "any non-neutral macro" because reapplyAll
+        // rewrites underlying targets from base+delta -- for neutral (0.5)
+        // macros the delta is zero so the call would overwrite custom
+        // underlying values (set directly via parameter automation or legacy
+        // v4/v5 state) with the registered defaults. Bit-exact round-trip of
+        // custom underlying values must be preserved (FR-084, Phase 7 SC-005).
+        const bool anyNonNeutral = std::ranges::any_of(pads,
+            [](const auto& p) noexcept {
+                return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                       p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                       p.macroComplexity != 0.5f;
+            });
+        if (anyNonNeutral)
+            macroMapper_.reapplyAll(pads);
 
         return kResultOk;
     }
@@ -1188,6 +1482,27 @@ tresult Processor::loadKitPreset(IBStream* stream)
     for (int pad = 0; pad < kNumPads; ++pad)
         voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
 
+    // Phase 6 (T025): after a kit preset is loaded, the per-pad macro cache
+    // in MacroMapper is stale with respect to the newly loaded pads. Force a
+    // full refresh so derived underlying parameters reflect any non-neutral
+    // macros carried by the preset (FR-023). The current kit preset layout
+    // (v4) does not yet carry macros, so at load-time macros remain at their
+    // previous values. We still invalidate the cache so the first subsequent
+    // macro edit recomputes correctly; the actual overwrite only runs when
+    // at least one pad carries a non-neutral macro to preserve round-trip
+    // of user-set underlying params.
+    auto& kitPads = voicePool_.padConfigsArray();
+    const bool kitAnyNonNeutral = std::ranges::any_of(kitPads,
+        [](const auto& p) noexcept {
+            return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
+                   p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
+                   p.macroComplexity != 0.5f;
+        });
+    if (kitAnyNonNeutral)
+        macroMapper_.reapplyAll(kitPads);
+    else
+        macroMapper_.invalidateCache();
+
     // Kit preset does NOT modify selectedPadIndex
     return kResultOk;
 }
@@ -1243,8 +1558,178 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         voicePool_.setMaxPolyphony(maxPolyphony_.load());
         voicePool_.setVoiceStealingPolicy(
             static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
+
+        // Phase 6 (T045): open the DataExchange queue for MetersBlock.
+        if (dataExchangeHandler_)
+        {
+            Steinberg::Vst::ProcessSetup setup{};
+            setup.sampleRate          = sampleRate_;
+            setup.maxSamplesPerBlock  = maxBlockSize_;
+            setup.processMode         = Steinberg::Vst::kRealtime;
+            setup.symbolicSampleSize  = Steinberg::Vst::kSample32;
+            dataExchangeHandler_->onActivate(setup);
+        }
+    }
+    else
+    {
+        // Phase 6 (T045): close the DataExchange queue cleanly.
+        if (dataExchangeHandler_)
+            dataExchangeHandler_->onDeactivate();
+
+        // Reset publishers so stale values do not persist after bypass.
+        padGlowPublisher_.reset();
+        matrixActivityPublisher_.reset();
     }
     return kResultOk;
+}
+
+// ==============================================================================
+// Phase 6 (T045): connect/disconnect -- DataExchange lifecycle.
+// ==============================================================================
+tresult PLUGIN_API Processor::connect(IConnectionPoint* other)
+{
+    const auto result = AudioEffect::connect(other);
+    if (result == kResultTrue)
+    {
+        auto configCallback = [](Steinberg::Vst::DataExchangeHandler::Config& config,
+                                 const Steinberg::Vst::ProcessSetup& /*setup*/) {
+            config.blockSize     = static_cast<Steinberg::uint32>(sizeof(MetersBlock));
+            config.numBlocks     = 4;
+            config.alignment     = 32;
+            config.userContextID = kMetersDataExchangeUserContextId;
+            return true;
+        };
+        dataExchangeHandler_ =
+            std::make_unique<Steinberg::Vst::DataExchangeHandler>(this, configCallback);
+        dataExchangeHandler_->onConnect(other, getHostContext());
+    }
+    return result;
+}
+
+tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other)
+{
+    if (dataExchangeHandler_)
+    {
+        dataExchangeHandler_->onDisconnect(other);
+        dataExchangeHandler_.reset();
+    }
+    return AudioEffect::disconnect(other);
+}
+
+// ==============================================================================
+// T068 (Spec 141, retry): IMessage handler -- bridge the CouplingMatrix edits
+// and snapshot requests between the UI controller and this authoritative
+// processor-side instance. See controller.cpp for the wire format description.
+// notify() is called on the UI/component thread, NOT the audio thread, so it
+// is safe to mutate couplingMatrix_ directly -- the same pattern is used by
+// setState() when loading per-pair overrides from a preset blob.
+// ==============================================================================
+tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
+{
+    if (message == nullptr)
+        return AudioEffect::notify(message);
+
+    const auto* id = message->getMessageID();
+    if (id == nullptr)
+        return AudioEffect::notify(message);
+
+    if (std::strcmp(id, "AuditionPad") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+        Steinberg::int64 midi = 0, velocity = 100;
+        attrs->getInt("midi", midi);
+        attrs->getInt("velocity", velocity);
+        const std::uint32_t word =
+            0x4000u
+            | (static_cast<std::uint32_t>(midi & 0x7F))
+            | ((static_cast<std::uint32_t>(velocity & 0x7F)) << 7);
+        pendingAudition_.store(word, std::memory_order_release);
+        return kResultOk;
+    }
+
+    if (std::strcmp(id, "CouplingMatrixEdit") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        Steinberg::int64 op = -1;
+        Steinberg::int64 src = 0;
+        Steinberg::int64 dst = 0;
+        Steinberg::int64 valBits = 0;
+        attrs->getInt("op",  op);
+        attrs->getInt("src", src);
+        attrs->getInt("dst", dst);
+        attrs->getInt("val", valBits);
+        float value = 0.0f;
+        std::memcpy(&value, &valBits, sizeof(float));
+
+        const int s = static_cast<int>(src);
+        const int d = static_cast<int>(dst);
+
+        switch (op)
+        {
+        case 0: // setOverride
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+            {
+                couplingMatrix_.setOverride(s, d,
+                    std::clamp(value, 0.0f, CouplingMatrix::kMaxCoefficient));
+            }
+            break;
+        case 1: // clearOverride
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+                couplingMatrix_.clearOverride(s, d);
+            break;
+        case 2: // setSolo
+            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
+                couplingMatrix_.setSoloPath(s, d);
+            break;
+        case 3: // clearSolo
+            couplingMatrix_.clearSolo();
+            break;
+        default:
+            break;
+        }
+        return kResultOk;
+    }
+
+    if (std::strcmp(id, "CouplingMatrixSnapshotRequest") == 0)
+    {
+        // Serialise the current override map and send it back to the
+        // controller so its uiCouplingMatrix_ mirror can re-sync.
+        auto* reply = allocateMessage();
+        if (reply == nullptr) return kResultOk;
+        Steinberg::IPtr<Steinberg::Vst::IMessage> owned(reply, /*addRef*/ false);
+        owned->setMessageID("CouplingMatrixSnapshot");
+        auto* attrs = owned->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        // Record layout: uint8 src, uint8 dst, float32 coeff (6 bytes).
+        constexpr int kRecordSize = 1 + 1 + 4;
+        std::vector<unsigned char> blob;
+        blob.reserve(static_cast<std::size_t>(
+            couplingMatrix_.getOverrideCount()) * kRecordSize);
+        // NOLINTNEXTLINE(bugprone-exception-escape): blob.reserve() above
+        // sizes the vector to the exact final capacity; push_back/insert
+        // within reserved capacity cannot throw, so the lambda is effectively
+        // noexcept even though std::vector's member functions are not.
+        couplingMatrix_.forEachOverride(
+            [&blob](int src, int dst, float coeff) {
+                blob.push_back(static_cast<unsigned char>(src));
+                blob.push_back(static_cast<unsigned char>(dst));
+                unsigned char coeffBytes[4];
+                std::memcpy(coeffBytes, &coeff, sizeof(float));
+                blob.insert(blob.end(), coeffBytes, coeffBytes + 4);
+            });
+
+        attrs->setBinary("overrides",
+            blob.empty() ? static_cast<const void*>("") : blob.data(),
+            static_cast<Steinberg::uint32>(blob.size()));
+        sendMessage(owned);
+        return kResultOk;
+    }
+
+    return AudioEffect::notify(message);
 }
 
 } // namespace Membrum

@@ -7,20 +7,49 @@
 #include "dsp/pad_config.h"
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
+#include "ui/pad_grid_view.h"
+#include "ui/kit_meters_view.h"
+#include "ui/coupling_matrix_view.h"
+#include "ui/pitch_envelope_display.h"  // shared PitchEnvelopeDisplay (Krate::Plugins)
+#include "preset/membrum_preset_config.h"
+
+#include "preset/preset_manager.h"
+#include "preset/preset_info.h"
+#include "ui/preset_browser_view.h"
+#include "ui/save_preset_dialog_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/common/memorystream.h"
 #include "pluginterfaces/base/ibstream.h"
+#include "pluginterfaces/vst/ivstmessage.h"
+#include "base/source/fstring.h"
+
+#include "vstgui/plugin-bindings/vst3editor.h"
+#include "vstgui/uidescription/uiattributes.h"
+
+#include "../ui/outline_button.h"
+#include "vstgui/lib/controls/ctextlabel.h"
+#include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/lib/cframe.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <utility>
+#include <vector>
 
 namespace Membrum {
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
+
+// ==============================================================================
+// Constructor / Destructor (defined in .cpp so unique_ptr<PresetManager>
+// destruction sees the complete type).
+// ==============================================================================
+Controller::Controller() = default;
+Controller::~Controller() = default;
 
 // ==============================================================================
 // Global proxy parameter mapping table
@@ -70,6 +99,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kMorphDurationMsId,            .padOffset = kPadMorphDuration },
     {.globalId = kMorphCurveId,                 .padOffset = kPadMorphCurve },
     {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
+    // Phase 8 (US7 / FR-065): Output Bus selector proxy.
+    {.globalId = kOutputBusId,                  .padOffset = kPadOutputBus },
 };
 
 // Per-pad parameter name table
@@ -121,13 +152,19 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadFrictionPressure,   .name = "Friction Pressure",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     // Phase 6 (US4 / T044): per-pad coupling amount (offset 36)
     {.offset = kPadCouplingAmount,     .name = "Coupling Amount",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Phase 6 (US1 / T026): per-pad macros (offsets 37-41), FR-072 naming
+    {.offset = kPadMacroTightness,     .name = "Tightness",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroBrightness,    .name = "Brightness",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroBodySize,      .name = "Body Size",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroPunch,         .name = "Punch",               .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadMacroComplexity,    .name = "Complexity",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV5,
-              "Pad param specs must match active param count (37)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV6,
+              "Pad param specs must match active param count (42)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -285,7 +322,49 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
                            0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/6: 1184 per-pad parameters (32 pads x 37 active offsets) ----
+    // ---- Phase 6 (US1 / T026): session-scoped global UI parameters ----
+    // Both are registered as automatable StringListParameters (FR-033) but
+    // are NOT serialised in the state blob (enforced by Processor::getState
+    // and Controller::setComponentState; see T027).
+    {
+        auto* uiModeList = new StringListParameter(
+            STR16("UI Mode"), kUiModeId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        uiModeList->appendString(STR16("Acoustic"));
+        uiModeList->appendString(STR16("Extended"));
+        parameters.addParameter(uiModeList);
+    }
+    {
+        auto* editorSizeList = new StringListParameter(
+            STR16("Editor Size"), kEditorSizeId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        editorSizeList->appendString(STR16("Default"));
+        editorSizeList->appendString(STR16("Compact"));
+        parameters.addParameter(editorSizeList);
+    }
+
+    // ---- Phase 6 (US7 / T074): Output Bus selector proxy (FR-065) ----
+    // Global Phase 4 selected-pad proxy: forwards to kPadOutputBus of the
+    // currently selected pad. Registered as a 16-entry StringListParameter
+    // (Main, Aux 1..Aux 15) so the host and the COptionMenu populate entries
+    // automatically.
+    {
+        auto* outputBusList = new StringListParameter(
+            STR16("Output Bus"), kOutputBusId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        outputBusList->appendString(STR16("Main"));
+        for (int i = 1; i < kMaxOutputBuses; ++i)
+        {
+            char nameBuf[16];
+            std::snprintf(nameBuf, sizeof(nameBuf), "Aux %d", i);
+            TChar titleBuf[16];
+            narrowToTChar(nameBuf, titleBuf, 16);
+            outputBusList->appendString(titleBuf);
+        }
+        parameters.addParameter(outputBusList);
+    }
+
+    // ---- Phase 4/6: 1344 per-pad parameters (32 pads x 42 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)
@@ -339,6 +418,52 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         }
     }
 
+    // ==========================================================================
+    // Phase 6 (T052..T056): create kit + per-pad PresetManager instances.
+    // Two managers, two roots, two browsers. Both use the controller as their
+    // VST3 sync target; the processor pointer is left null because we operate
+    // entirely through controller params (kit/pad presets are flattened to
+    // parameter writes via state providers below).
+    // ==========================================================================
+    kitPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        kitPresetConfig(),
+        /*processor*/   nullptr,
+        /*controller*/  this);
+    kitPresetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return kitPresetStateProvider();
+    });
+    kitPresetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* stream,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            const bool ok = kitPresetLoadProvider(stream);
+            kitPresetLoadFailed_ = !ok;
+            return ok;
+        });
+
+    padPresetManager_ = std::make_unique<Krate::Plugins::PresetManager>(
+        padPresetConfig(),
+        /*processor*/   nullptr,
+        /*controller*/  this);
+    padPresetManager_->setStateProvider([this]() -> Steinberg::IBStream* {
+        return padPresetStateProvider();
+    });
+    padPresetManager_->setLoadProvider(
+        [this](Steinberg::IBStream* stream,
+               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+            // FR-042 / T054: per-pad load applies sound params only;
+            // outputBus and couplingAmount are preserved structurally because
+            // the per-pad preset blob does not carry them. After load, force
+            // a re-application of the affected pad's macros so the underlying
+            // params reflect both the just-loaded sound state and the user's
+            // current macro positions (calls macroMapper_.apply() in the
+            // processor via standard parameter-change events).
+            const bool ok = padPresetLoadProvider(stream);
+            padPresetLoadFailed_ = !ok;
+            if (ok)
+                triggerSelectedPadMacroReapply();
+            return ok;
+        });
+
     return kResultOk;
 }
 
@@ -376,8 +501,38 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             suppressProxyForward_ = true;
             EditControllerEx1::setParamNormalized(padId, value);
             suppressProxyForward_ = false;
+
+            // FR-065 (spec 141, Phase 8 / US7): when the Output Bus proxy
+            // changes, refresh the pad grid so its "BUS{N}" indicator picks
+            // up the new value live via IDependent-style invalidation.
+            // Same treatment for Choke Group keeps the "CG{N}" indicator in
+            // sync without a per-pad tag scan.
+            if ((mapping.globalId == kOutputBusId
+                 || mapping.globalId == kChokeGroupId)
+                && padGridView_ != nullptr)
+            {
+                padGridView_->notifyMetaChanged(selectedPadIndex_);
+            }
+            // FR-066: when the Output Bus proxy changes, refresh the warning
+            // tooltip on the Output Bus selector in case the new selection
+            // targets an inactive aux bus.
+            if (mapping.globalId == kOutputBusId)
+                updateOutputBusTooltip();
             return result;
         }
+    }
+
+    // Direct per-pad Output Bus / Choke Group edit (e.g. from automation
+    // targeting a specific pad's per-pad parameter, not the global proxy):
+    // refresh the grid's BUS / CG indicator for that pad.
+    const int padOffset = padOffsetFromParamId(static_cast<int>(tag));
+    if (padOffset >= 0
+        && (padOffset == kPadOutputBus || padOffset == kPadChokeGroup)
+        && padGridView_ != nullptr)
+    {
+        const int padIdx = padIndexFromParamId(static_cast<int>(tag));
+        if (padIdx >= 0)
+            padGridView_->notifyMetaChanged(padIdx);
     }
 
     return result;
@@ -414,6 +569,11 @@ void Controller::notifyBusActivation(int32 busIndex, bool active)
             }
         }
     }
+
+    // FR-066: bus activation state changed -- refresh the Output Bus
+    // selector tooltip so any "Host must activate Aux N bus" warning
+    // disappears or appears as appropriate.
+    updateOutputBusTooltip();
 }
 
 // ==============================================================================
@@ -431,6 +591,9 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
         EditControllerEx1::setParamNormalized(mapping.globalId, padValue);
     }
     suppressProxyForward_ = false;
+    // FR-066: after syncing the proxies to a newly selected pad, refresh the
+    // Output Bus tooltip so it reflects that pad's assigned bus.
+    updateOutputBusTooltip();
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -457,6 +620,13 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 {
     if (!state)
         return kResultFalse;
+
+    // Phase 6 (T027): session-scoped parameters always reset to their defaults
+    // on state load, regardless of blob content. kUiModeId -> Acoustic (0.0);
+    // kEditorSizeId -> Default (0.0). Kit presets may re-override kUiModeId via
+    // a separate preset-load callback (not through IBStream).
+    EditControllerEx1::setParamNormalized(kUiModeId, 0.0);
+    EditControllerEx1::setParamNormalized(kEditorSizeId, 0.0);
 
     int32 version = 0;
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
@@ -676,23 +846,28 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
 IBStream* Controller::kitPresetStateProvider()
 {
-    // Request current component state from the host/processor
-    auto* component = getComponentHandler();
-    if (!component)
-        return nullptr;
-
-    // Create a memory stream and write the kit preset blob
-    // The processor's getState writes 9040 bytes; we need 9036 (no selectedPadIndex).
-    // We request the full state via IComponentHandler, then truncate.
-    // However, in the controller we don't have direct processor access.
-    // The typical VST3 pattern: controller requests state via IComponentHandler2
-    // or uses the paired component's getState.
-
-    // For now, produce the state from the controller's own parameter values.
+    // Build the kit preset blob from the controller's parameter values. The
+    // controller mirrors the processor's parameter state (host syncs them
+    // on every parameter change), so we do not need IComponentHandler access.
     auto* stream = new MemoryStream();
 
-    int32 version = 4;
+    // Phase 6 (T055, FR-040..FR-044, FR-070..FR-072): kit preset is now v5.
+    // v5 layout extends v4 by:
+    //   - one int32 `uiMode` immediately after the global header (so it is
+    //     restored before per-pad data is consumed),
+    //   - five float64 macros appended to each pad row (offsets 37-41).
+    // The v4 reader is preserved for backwards compatibility (no uiMode change
+    // and macros default to 0.5).
+    int32 version = 5;
     stream->write(&version, sizeof(version), nullptr);
+
+    // FR-030 / Clarification #4: kit preset MAY override the session-scoped
+    // kUiModeId. Persist as int32 (0 = Acoustic, 1 = Extended).
+    {
+        const double uiModeNorm = getParamNormalized(kUiModeId);
+        int32 uiMode = (uiModeNorm >= 0.5) ? 1 : 0;
+        stream->write(&uiMode, sizeof(uiMode), nullptr);
+    }
 
     // Global settings from controller params
     const double maxPolyNorm = getParamNormalized(kMaxPolyphonyId);
@@ -783,9 +958,23 @@ IBStream* Controller::kitPresetStateProvider()
                 std::clamp(static_cast<int>(busNorm * 15.0 + 0.5), 0, 15));
             stream->write(&ob, sizeof(ob), nullptr);
         }
+
+        // Phase 6 (T055): five per-pad macros (offsets 37-41), float64.
+        const int macroOffsets[] = {
+            kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+            kPadMacroPunch,     kPadMacroComplexity,
+        };
+        for (const auto& offset : macroOffsets)
+        {
+            double v = getParamNormalized(
+                static_cast<ParamID>(padParamId(pad, offset)));
+            stream->write(&v, sizeof(v), nullptr);
+        }
     }
 
-    // Kit preset does NOT write selectedPadIndex (9036 bytes total)
+    // Kit preset does NOT write selectedPadIndex.
+    // v5 size = 4 (version) + 4 (uiMode) + 4 (maxPoly) + 4 (steal) +
+    //          32 * (4 + 4 + 34*8 + 1 + 1 + 5*8) = 16 + 32*322 = 10320 bytes.
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     return stream;
 }
@@ -798,8 +987,22 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     int32 version = 0;
     if (stream->read(&version, sizeof(version), nullptr) != kResultOk)
         return false;
-    if (version != 4)
+    // Phase 6 (T055): accept both v4 (legacy) and v5 (with uiMode + macros).
+    if (version != 4 && version != 5)
         return false;
+    const bool isV5 = (version == 5);
+
+    // v5 only: read uiMode (int32, 0=Acoustic, 1=Extended) and apply to the
+    // session-scoped kUiModeId (FR-030, Clarification #4). v4 leaves uiMode
+    // untouched.
+    if (isV5)
+    {
+        int32 uiMode = 0;
+        if (stream->read(&uiMode, sizeof(uiMode), nullptr) != kResultOk)
+            return false;
+        const double uiNorm = (uiMode >= 1) ? 1.0 : 0.0;
+        EditControllerEx1::setParamNormalized(kUiModeId, uiNorm);
+    }
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -885,6 +1088,33 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
         std::uint8_t dummy = 0;
         stream->read(&dummy, sizeof(dummy), nullptr);
         stream->read(&dummy, sizeof(dummy), nullptr);
+
+        // Phase 6 (T055): v5 carries 5 macro float64 per pad (offsets 37-41).
+        // v4 has none: assign neutral 0.5 to each macro so MacroMapper produces
+        // zero delta against registered defaults.
+        const int macroOffsets[] = {
+            kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+            kPadMacroPunch,     kPadMacroComplexity,
+        };
+        if (isV5)
+        {
+            for (const auto& offset : macroOffsets)
+            {
+                double v = 0.5;
+                if (stream->read(&v, sizeof(v), nullptr) != kResultOk)
+                    v = 0.5;
+                EditControllerEx1::setParamNormalized(
+                    static_cast<ParamID>(padParamId(pad, offset)), v);
+            }
+        }
+        else
+        {
+            for (const auto& offset : macroOffsets)
+            {
+                EditControllerEx1::setParamNormalized(
+                    static_cast<ParamID>(padParamId(pad, offset)), 0.5);
+            }
+        }
     }
 
     // Kit preset does NOT read selectedPadIndex -- leave it unchanged
@@ -1065,9 +1295,614 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     return true;
 }
 
-IPlugView* PLUGIN_API Controller::createView(const char* /*name*/)
+void Controller::triggerSelectedPadMacroReapply()
 {
+    // T054: re-apply current macros to the selected pad after a per-pad
+    // preset load. Use beginEdit/performEdit/endEdit on each macro param so
+    // the processor sees a parameter-change event and invokes its MacroMapper
+    // for the selected pad. Setting to the same value still propagates the
+    // change through processParameterChanges() because VST3 host-mediated
+    // changes are not value-deduplicated.
+    const int pad = selectedPadIndex_;
+    const int macroOffsets[] = {
+        kPadMacroTightness, kPadMacroBrightness, kPadMacroBodySize,
+        kPadMacroPunch,     kPadMacroComplexity,
+    };
+    for (const auto& offset : macroOffsets)
+    {
+        const auto pid = static_cast<ParamID>(padParamId(pad, offset));
+        const ParamValue current = getParamNormalized(pid);
+        beginEdit(pid);
+        performEdit(pid, current);
+        endEdit(pid);
+    }
+}
+
+IPlugView* PLUGIN_API Controller::createView(const char* name)
+{
+    // Phase 6 (T028, FR-001): return a VST3Editor backed by editor.uidesc.
+    if (name && std::strcmp(name, Steinberg::Vst::ViewType::kEditor) == 0)
+    {
+        return new VSTGUI::VST3Editor(this, "EditorDefault", "editor.uidesc");
+    }
     return nullptr;
+}
+
+// ==============================================================================
+// IVST3EditorDelegate implementations (T028)
+// ==============================================================================
+
+VSTGUI::CView* Controller::createCustomView(
+    VSTGUI::UTF8StringPtr name,
+    const VSTGUI::UIAttributes& attributes,
+    const VSTGUI::IUIDescription* /*description*/,
+    VSTGUI::VST3Editor* /*editor*/)
+{
+    if (!name)
+        return nullptr;
+
+    VSTGUI::CPoint origin(0, 0);
+    VSTGUI::CPoint size(100, 100);
+    attributes.getPointAttribute("origin", origin);
+    attributes.getPointAttribute("size", size);
+    const VSTGUI::CRect viewRect(
+        origin.x, origin.y,
+        origin.x + size.x, origin.y + size.y);
+
+    if (std::strcmp(name, "PadGridView") == 0)
+    {
+        // Phase 6 (T042): construct the real PadGridView. The view's
+        // PadGlowPublisher pointer is nullptr here because separate-component
+        // mode prevents the Controller from reaching into the Processor --
+        // future phases can inject a DataExchange-backed glow mirror if
+        // per-cell intensity ends up required at 30 Hz in separate-component
+        // hosts. Tests construct the view directly with a real publisher.
+        auto* view = new UI::PadGridView(
+            viewRect,
+            /*glowPublisher*/ nullptr,
+            /*metaProvider*/ [](int) -> const PadConfig* { return nullptr; });
+
+        // FR-012: clicking a pad drives kSelectedPadId through the standard
+        // beginEdit/performEdit/endEdit sequence.
+        view->setSelectCallback([this](int padIndex) {
+            const auto normalised =
+                static_cast<Steinberg::Vst::ParamValue>(padIndex) /
+                static_cast<Steinberg::Vst::ParamValue>(kNumPads - 1);
+            beginEdit(kSelectedPadId);
+            performEdit(kSelectedPadId, normalised);
+            setParamNormalized(kSelectedPadId, normalised);
+            endEdit(kSelectedPadId);
+        });
+
+        // Audition: click or shift/right-click sends "AuditionPad" IMessage
+        // to the processor so the drum sound plays on every pad interaction.
+        // Velocity arrives normalized [0,1] from PadGridView; the processor
+        // side stores a 7-bit MIDI value, so scale back to 0-127.
+        view->setAuditionCallback([this](int padIndex, float velocityNormalized) {
+            if (padIndex < 0 || padIndex >= kNumPads) return;
+            const int midi = 36 + padIndex;
+            int velocity7 = static_cast<int>(
+                std::clamp(velocityNormalized, 0.0f, 1.0f) * 127.0f + 0.5f);
+            if (velocity7 <= 0) velocity7 = 100; // guard against zero -> noteOff
+            auto* msg = allocateMessage();
+            if (msg == nullptr) return;
+            Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, false);
+            owned->setMessageID("AuditionPad");
+            auto* attrs = owned->getAttributes();
+            if (attrs == nullptr) return;
+            attrs->setInt("midi",     static_cast<Steinberg::int64>(midi));
+            attrs->setInt("velocity", static_cast<Steinberg::int64>(velocity7));
+            sendMessage(owned);
+        });
+
+        padGridView_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "CouplingMatrixView") == 0)
+    {
+        // T068 (Spec 141): construct the CouplingMatrixView wired to the
+        // controller-side uiCouplingMatrix_ mirror. The authoritative matrix
+        // lives in the processor (audio thread) and cannot be shared across
+        // the VST3 component boundary; instead we keep a local mirror that is
+        // synced via "CouplingMatrixSnapshot" IMessages and push user edits
+        // back to the processor via "CouplingMatrixEdit" IMessages
+        // (see sendCouplingMatrixEdit()).
+        //
+        // The MatrixActivityPublisher pointer remains nullptr: the view
+        // tolerates it (pollActivity early-returns on null); 30 Hz activity
+        // highlighting is deferred to a later phase that can piggyback on
+        // DataExchange. Override/solo/heat-map editing, Tier 2 persistence,
+        // and Reset are fully functional with only the matrix mirror wired.
+        auto* view = new UI::CouplingMatrixView(
+            viewRect,
+            /*matrix*/ &uiCouplingMatrix_,
+            /*activityPublisher*/ nullptr);
+        view->setEditCallback(
+            [this](int op, int src, int dst, float value) noexcept {
+                sendCouplingMatrixEdit(op, src, dst, value);
+            });
+        couplingMatrixView_ = view;
+
+        // Request a fresh snapshot from the processor so the newly-opened
+        // view reflects the current authoritative override map even if
+        // setComponentState was called before the editor was open.
+        requestCouplingMatrixSnapshot();
+        return view;
+    }
+    // Phase 9 (T080, Spec 141 US8): PitchEnvelopeDisplay is now a registered
+    // shared VSTGUI class (Krate::Plugins::PitchEnvelopeDisplay); the uidesc
+    // factory constructs it directly. Parameter-edit callbacks are wired in
+    // verifyView() below.
+    if (std::strcmp(name, "MetersView") == 0)
+    {
+        // T046: kit-column peak meter. The size below is a placeholder; the
+        // uidesc view frame overrides it.
+        auto* view = new UI::KitMetersView(viewRect);
+        kitMetersView_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "ModeToggleButton") == 0)
+    {
+        auto* view = new UI::OutlineActionButton(
+            viewRect,
+            getParamNormalized(kUiModeId) >= 0.5 ? "Extended" : "Acoustic");
+        view->setAction([this, view]() {
+            const auto cur = getParamNormalized(kUiModeId);
+            const auto next = cur >= 0.5 ? 0.0 : 1.0;
+            beginEdit(kUiModeId);
+            performEdit(kUiModeId, next);
+            setParamNormalized(kUiModeId, next);
+            endEdit(kUiModeId);
+            view->setTitle(next >= 0.5 ? "Extended" : "Acoustic");
+        });
+        modeToggleButton_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "SizeToggleButton") == 0)
+    {
+        auto* view = new UI::OutlineActionButton(
+            viewRect,
+            getParamNormalized(kEditorSizeId) >= 0.5 ? "Compact" : "Default");
+        view->setAction([this, view]() {
+            const auto cur = getParamNormalized(kEditorSizeId);
+            const auto next = cur >= 0.5 ? 0.0 : 1.0;
+            beginEdit(kEditorSizeId);
+            performEdit(kEditorSizeId, next);
+            setParamNormalized(kEditorSizeId, next);
+            endEdit(kEditorSizeId);
+            view->setTitle(next >= 0.5 ? "Compact" : "Default");
+        });
+        sizeToggleButton_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "MatrixSoloButton") == 0)
+    {
+        return new UI::OutlineActionButton(
+            viewRect, "Solo",
+            [this]() {
+                if (couplingMatrixView_)
+                    couplingMatrixView_->clearSolo();
+            });
+    }
+    if (std::strcmp(name, "MatrixResetButton") == 0)
+    {
+        return new UI::OutlineActionButton(
+            viewRect, "Reset",
+            [this]() { sendCouplingMatrixEdit(4, 0, 0, 0.0f); });
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------------------------
+// verifyView (T046): discover the CPU text label by its title prefix "CPU".
+// Called for every view the editor builds from uidesc.
+// ------------------------------------------------------------------------------
+VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
+                                      const VSTGUI::UIAttributes& /*attributes*/,
+                                      const VSTGUI::IUIDescription* /*description*/,
+                                      VSTGUI::VST3Editor* /*editor*/)
+{
+    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(view))
+    {
+        VSTGUI::UTF8StringPtr title = label->getText();
+        if (title != nullptr && std::strncmp(title, "CPU", 3) == 0)
+        {
+            cpuLabel_ = label;
+        }
+        // T060/T062 (Phase 6 / US5): active-voices readout label. Template
+        // authors mark the label with a title prefix of "ActiveVoices" so it
+        // is discovered here without relying on a control-tag.
+        else if (title != nullptr
+                 && std::strncmp(title, "ActiveVoices", 12) == 0)
+        {
+            activeVoicesLabel_ = label;
+        }
+        // T056: status label for preset load failures. Template authors mark
+        // the label with a title prefix of "PresetStatus" so it is discovered
+        // here without relying on a control-tag. Initial text is cleared.
+        else if (title != nullptr
+                 && std::strncmp(title, "PresetStatus", 12) == 0)
+        {
+            presetStatusLabel_ = label;
+            presetStatusLabel_->setText("");
+        }
+    }
+    // Phase 8 (T074 / US7 / FR-066): cache the Output Bus selector control so
+    // setParamNormalized() can push a warning tooltip when the selected aux
+    // bus is not host-activated. The Acoustic and Extended templates both
+    // contain this control with control-tag == kOutputBusId; verifyView()
+    // fires for each one as the editor builds the view tree. The most
+    // recently-built template's control wins -- correct because
+    // UIViewSwitchContainer only shows one at a time.
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view))
+    {
+        if (ctrl->getTag() == static_cast<int32>(kOutputBusId))
+        {
+            outputBusSelView_ = ctrl;
+            updateOutputBusTooltip();
+        }
+    }
+
+    // Phase 9 (T080 / US8): PitchEnvelopeDisplay is a registered shared view
+    // class. When the uidesc factory hands us back an instance, attach the
+    // parameter callbacks that bridge to beginEdit / performEdit / endEdit on
+    // the tone-shaper pitch-envelope param IDs. Both the Acoustic and Extended
+    // templates contain one; the most-recently-built template's view wins
+    // (correct because UIViewSwitchContainer only shows one at a time).
+    if (auto* pev = dynamic_cast<Krate::Plugins::PitchEnvelopeDisplay*>(view))
+    {
+        pev->setParameterCallback(
+            [this](uint32_t paramId, float value) {
+                const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
+                const auto v   = static_cast<Steinberg::Vst::ParamValue>(value);
+                performEdit(tag, v);
+                setParamNormalized(tag, v);
+            });
+        pev->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        pev->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        pitchEnvelopeDisplay_ = pev;
+    }
+    return view;
+}
+
+// ------------------------------------------------------------------------------
+// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the Output Bus
+// selector when the currently-selected aux bus is inactive. FR-066 requires
+// the message to read "Host must activate Aux {N} bus". Clears the tooltip
+// when the bus is active or when Main (bus 0) is selected. Tolerant of a
+// missing view -- safe to call before or after the editor opens.
+// ------------------------------------------------------------------------------
+void Controller::updateOutputBusTooltip() noexcept
+{
+    if (outputBusSelView_ == nullptr)
+        return;
+
+    // Resolve the currently-selected bus index from the global proxy value.
+    // The parameter is a 16-entry StringListParameter so its normalised value
+    // maps to [0, kMaxOutputBuses - 1] via round-to-nearest.
+    const auto norm = getParamNormalized(static_cast<ParamID>(kOutputBusId));
+    const int busIndex = std::clamp(
+        static_cast<int>(std::lround(norm * (kMaxOutputBuses - 1))),
+        0, kMaxOutputBuses - 1);
+
+    if (busIndex >= 1 && !isBusActive(busIndex))
+    {
+        char buf[64] = {};
+        std::snprintf(buf, sizeof(buf),
+                      "Host must activate Aux %d bus", busIndex);
+        outputBusSelView_->setTooltipText(buf);
+    }
+    else
+    {
+        // Clear any stale warning: VSTGUI's CView::setTooltipText with an
+        // empty string removes the tooltip.
+        outputBusSelView_->setTooltipText("");
+    }
+}
+
+void Controller::didOpen(VSTGUI::VST3Editor* editor)
+{
+    // Phase 6 (T028): cache the editor pointer and start a 30 Hz poll timer
+    // for PadGlowPublisher / MatrixActivityPublisher snapshots. The actual
+    // view invalidation lives in later phases; the body here is intentionally
+    // minimal but the timer lifecycle is fully correct today so we do not
+    // leak a timer between editor instances.
+    activeEditor_ = editor;
+    pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
+        [this](VSTGUI::CVSTGUITimer* /*timer*/) {
+            // T046: read the last cached MetersBlock and push its values
+            // into the kit-column meter / CPU views. PadGridView drives its
+            // own 30 Hz poll against PadGlowPublisher.
+            if (activeEditor_ == nullptr)
+                return;
+            updateMeterViews(cachedMeters_);
+        },
+        33 /* ~30 Hz */,
+        true /* start immediately */));
+
+    // Phase 6 (T053..T054): create the two PresetBrowserView instances (kit +
+    // per-pad scope) and the two SavePresetDialogView overlays, parented to
+    // the editor's frame. VSTGUI takes ownership; willClose() zeros the raw
+    // pointers before the frame tears the views down.
+    auto* frame = editor->getFrame();
+    if (frame == nullptr)
+        return;
+
+    const auto frameSize = frame->getViewSize();
+
+    if (kitPresetManager_ && kitPresetBrowserView_ == nullptr)
+    {
+        kitPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+            frameSize, kitPresetManager_.get(),
+            std::vector<std::string>{
+                "Factory", "User", "Acoustic", "Electronic",
+                "Percussive", "Unnatural"});
+        frame->addView(kitPresetBrowserView_);
+    }
+    if (kitPresetManager_ && kitSaveDialogView_ == nullptr)
+    {
+        kitSaveDialogView_ = new Krate::Plugins::SavePresetDialogView(
+            frameSize, kitPresetManager_.get(),
+            kitPresetConfig().subcategoryNames);
+        frame->addView(kitSaveDialogView_);
+    }
+
+    if (padPresetManager_ && padPresetBrowserView_ == nullptr)
+    {
+        padPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
+            frameSize, padPresetManager_.get(),
+            std::vector<std::string>{
+                "Factory", "User", "Kick", "Snare", "Tom",
+                "Hat", "Cymbal", "Perc", "Tonal", "FX"});
+        frame->addView(padPresetBrowserView_);
+    }
+    if (padPresetManager_ && padSaveDialogView_ == nullptr)
+    {
+        padSaveDialogView_ = new Krate::Plugins::SavePresetDialogView(
+            frameSize, padPresetManager_.get(),
+            padPresetConfig().subcategoryNames);
+        frame->addView(padSaveDialogView_);
+    }
+}
+
+void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
+{
+    // Phase 6 (T028, SC-014): cancel the poll timer and zero the raw view
+    // pointer BEFORE the editor tears down the view tree, so no background
+    // tick can dereference a dead view.
+    if (pollTimer_)
+    {
+        pollTimer_->stop();
+        pollTimer_ = nullptr;
+    }
+    activeEditor_      = nullptr;
+    padGridView_       = nullptr;
+    kitMetersView_     = nullptr;
+    couplingMatrixView_ = nullptr;
+    pitchEnvelopeDisplay_ = nullptr;
+    cpuLabel_          = nullptr;
+    activeVoicesLabel_ = nullptr;
+    presetStatusLabel_ = nullptr;
+    outputBusSelView_  = nullptr;
+
+    // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
+    // 30 Hz poll timer (already cancelled above) and any future code can not
+    // dereference dead memory.
+    kitPresetBrowserView_ = nullptr;
+    padPresetBrowserView_ = nullptr;
+    kitSaveDialogView_    = nullptr;
+    padSaveDialogView_    = nullptr;
+}
+
+// ------------------------------------------------------------------------------
+// updateMeterViews (T046): push MetersBlock values to cached views.
+// Tolerant of missing views -- safe when editor is not open.
+// ------------------------------------------------------------------------------
+void Controller::updateMeterViews(const MetersBlock& meters) noexcept
+{
+    if (kitMetersView_ != nullptr)
+    {
+        kitMetersView_->setPeaks(meters.peakL, meters.peakR);
+    }
+    if (cpuLabel_ != nullptr)
+    {
+        // cpuPermille is 0..1000 (per-mille). Display as whole percent.
+        const auto percent =
+            static_cast<unsigned int>((meters.cpuPermille + 5) / 10);
+        char buf[32] = {};
+        std::snprintf(buf, sizeof(buf), "CPU: %u%%", percent);
+        cpuLabel_->setText(buf);
+    }
+
+    // T060/T062 (Phase 6 / US5): push MetersBlock.activeVoices into the
+    // Kit Column readout. The label title prefix marker ("ActiveVoices") is
+    // discovered in verifyView() so we never collide with the CPU label.
+    if (activeVoicesLabel_ != nullptr)
+    {
+        char buf[32] = {};
+        std::snprintf(buf, sizeof(buf), "ActiveVoices: %u",
+                      static_cast<unsigned int>(meters.activeVoices));
+        activeVoicesLabel_->setText(buf);
+    }
+
+    // T056: surface preset load failures on the status label. A fresh failure
+    // arms a ~3 second countdown (90 ticks at 30 Hz); when it elapses both
+    // the label and the latched flags are cleared. Tolerant of a missing
+    // label: the flags still clear on timeout so state does not accumulate.
+    constexpr int kPresetStatusDurationTicks = 90; // ~3 s at 30 Hz
+    if (kitPresetLoadFailed_ || padPresetLoadFailed_)
+    {
+        if (presetStatusClearTicks_ == 0)
+        {
+            const char* text = kitPresetLoadFailed_
+                                   ? "Kit preset load failed"
+                                   : "Pad preset load failed";
+            if (presetStatusLabel_ != nullptr)
+                presetStatusLabel_->setText(text);
+            presetStatusClearTicks_ = kPresetStatusDurationTicks;
+        }
+    }
+    if (presetStatusClearTicks_ > 0)
+    {
+        if (--presetStatusClearTicks_ == 0)
+        {
+            if (presetStatusLabel_ != nullptr)
+                presetStatusLabel_->setText("");
+            kitPresetLoadFailed_ = false;
+            padPresetLoadFailed_ = false;
+        }
+    }
+}
+
+// ==============================================================================
+// IDataExchangeReceiver -- T046 (following Innexus controller.cpp:1703-1740)
+// ==============================================================================
+void PLUGIN_API Controller::queueOpened(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 /*blockSize*/,
+    Steinberg::TBool& dispatchOnBackgroundThread)
+{
+    // Dispatch on the UI thread so we can update cachedMeters_ without a
+    // mutex (the poll timer also runs on the UI thread).
+    dispatchOnBackgroundThread = static_cast<Steinberg::TBool>(false);
+}
+
+void PLUGIN_API Controller::queueClosed(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/)
+{
+    // Nothing to clean up -- cachedMeters_ is a POD value.
+}
+
+void PLUGIN_API Controller::onDataExchangeBlocksReceived(
+    Steinberg::Vst::DataExchangeUserContextID /*userContextID*/,
+    Steinberg::uint32 numBlocks,
+    Steinberg::Vst::DataExchangeBlock* blocks,
+    Steinberg::TBool /*onBackgroundThread*/)
+{
+    // Use the most recent block (Innexus pattern); older blocks are stale.
+    for (Steinberg::uint32 i = 0; i < numBlocks; ++i)
+    {
+        if (blocks[i].data != nullptr
+            && blocks[i].size >= sizeof(MetersBlock))
+        {
+            std::memcpy(&cachedMeters_, blocks[i].data, sizeof(MetersBlock));
+        }
+    }
+}
+
+// ==============================================================================
+// T068 (Spec 141, retry): IMessage bridge for the 32x32 coupling matrix.
+// ==============================================================================
+//
+// The processor owns the authoritative CouplingMatrix (audio thread). The
+// controller maintains uiCouplingMatrix_ as a mirror used by the UI view.
+//
+// Wire format:
+//   "CouplingMatrixEdit"   controller -> processor
+//       attrs: "op"  (int64)  0=setOverride, 1=clearOverride,
+//                             2=setSolo,     3=clearSolo
+//              "src" (int64)  source pad index [0, 31]
+//              "dst" (int64)  destination pad index [0, 31]
+//              "val" (int64)  float32 bits re-interpreted (only for op=0)
+//   "CouplingMatrixSnapshotRequest"   controller -> processor
+//       attrs: (none)
+//   "CouplingMatrixSnapshot"          processor -> controller
+//       attrs: "overrides" (binary) -- N records of
+//              {uint8 src; uint8 dst; float32 coeff}. N = blobSize / 6.
+// ==============================================================================
+
+namespace {
+
+constexpr char kCouplingEditMsgId[]     = "CouplingMatrixEdit";
+constexpr char kCouplingReqMsgId[]      = "CouplingMatrixSnapshotRequest";
+constexpr char kCouplingSnapshotMsgId[] = "CouplingMatrixSnapshot";
+
+} // anonymous namespace
+
+void Controller::sendCouplingMatrixEdit(int op, int src, int dst,
+                                        float value) noexcept
+{
+    auto* msg = allocateMessage();
+    if (msg == nullptr) return;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
+
+    owned->setMessageID(kCouplingEditMsgId);
+    auto* attrs = owned->getAttributes();
+    if (attrs == nullptr) return;
+
+    attrs->setInt("op",  static_cast<Steinberg::int64>(op));
+    attrs->setInt("src", static_cast<Steinberg::int64>(src));
+    attrs->setInt("dst", static_cast<Steinberg::int64>(dst));
+
+    Steinberg::int64 bits = 0;
+    std::memcpy(&bits, &value, sizeof(float));
+    attrs->setInt("val", bits);
+
+    sendMessage(owned);
+}
+
+void Controller::requestCouplingMatrixSnapshot() noexcept
+{
+    auto* msg = allocateMessage();
+    if (msg == nullptr) return;
+    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
+
+    owned->setMessageID(kCouplingReqMsgId);
+    sendMessage(owned);
+}
+
+tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message)
+{
+    if (message == nullptr)
+        return EditControllerEx1::notify(message);
+
+    const auto* id = message->getMessageID();
+    if (id != nullptr && std::strcmp(id, kCouplingSnapshotMsgId) == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+
+        // Reset the mirror, then re-apply every override from the payload.
+        uiCouplingMatrix_.clearAll();
+
+        const void*      data = nullptr;
+        Steinberg::uint32 size = 0;
+        if (attrs->getBinary("overrides", data, size) == kResultOk
+            && data != nullptr)
+        {
+            constexpr Steinberg::uint32 kRecordSize =
+                sizeof(std::uint8_t) + sizeof(std::uint8_t) + sizeof(float);
+            const Steinberg::uint32 count = size / kRecordSize;
+            const auto* bytes = static_cast<const unsigned char*>(data);
+            for (Steinberg::uint32 i = 0; i < count; ++i)
+            {
+                const Steinberg::uint32 off = i * kRecordSize;
+                const std::uint8_t s = bytes[off];
+                const std::uint8_t d = bytes[off + 1];
+                float coeff = 0.0f;
+                std::memcpy(&coeff, bytes + off + 2, sizeof(float));
+                if (s < kNumPads && d < kNumPads)
+                {
+                    uiCouplingMatrix_.setOverride(
+                        static_cast<int>(s),
+                        static_cast<int>(d),
+                        std::clamp(coeff, 0.0f, CouplingMatrix::kMaxCoefficient));
+                }
+            }
+        }
+
+        if (couplingMatrixView_ != nullptr)
+            couplingMatrixView_->invalid();
+        return kResultOk;
+    }
+
+    return EditControllerEx1::notify(message);
 }
 
 } // namespace Membrum

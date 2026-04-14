@@ -16,6 +16,9 @@
 #include "dsp/pad_config.h"
 #include "dsp/pad_category.h"
 #include "dsp/coupling_matrix.h"
+#include "dsp/pad_glow_publisher.h"
+#include "dsp/matrix_activity_publisher.h"
+#include "processor/macro_mapper.h"
 #include "voice_pool/voice_pool.h"
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
@@ -23,7 +26,12 @@
 
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
+#include <memory>
+
+// Forward-declare DataExchangeHandler so processor.h stays cheap to include.
+namespace Steinberg::Vst { class DataExchangeHandler; }
 
 namespace Membrum {
 
@@ -31,6 +39,7 @@ class Processor : public Steinberg::Vst::AudioEffect
 {
 public:
     Processor();
+    ~Processor() override;
 
     static Steinberg::FUnknown* createInstance(void*)
     {
@@ -51,6 +60,13 @@ public:
                                               Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+    Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
+    Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
+
+    // T068 (Spec 141, retry): handle "CouplingMatrixEdit" and
+    // "CouplingMatrixSnapshotRequest" messages from the controller. Replies
+    // to snapshot requests with "CouplingMatrixSnapshot".
+    Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // Test-only accessors (Phase 4)
     VoicePool& voicePoolForTest() noexcept { return voicePool_; }
@@ -63,9 +79,17 @@ public:
     const CouplingMatrix& couplingMatrixForTest() const noexcept { return couplingMatrix_; }
     float energyEnvelopeForTest() const noexcept { return energyEnvelope_; }
 
+    // Test-only accessors (Phase 6: macros, publishers)
+    MacroMapper& macroMapperForTest() noexcept { return macroMapper_; }
+    PadGlowPublisher& padGlowPublisherForTest() noexcept { return padGlowPublisher_; }
+    MatrixActivityPublisher& matrixActivityPublisherForTest() noexcept { return matrixActivityPublisher_; }
+    bool editorOpenForTest() const noexcept { return editorOpen_.load(); }
+    void setEditorOpenForTest(bool open) noexcept { editorOpen_.store(open); }
+
 private:
     void processParameterChanges(Steinberg::Vst::IParameterChanges* paramChanges);
     void processEvents(Steinberg::Vst::IEventList* events);
+    void consumePendingAudition();
 
     /// Phase 6 (US4): recompute the coupling matrix passing the current
     /// per-pad couplingAmount values so they are baked into effectiveGain
@@ -81,6 +105,13 @@ private:
     // ---- Global-only parameters (not per-pad) ----
     std::atomic<int> maxPolyphony_{8};           // FR-111 -- [4, 16]
     std::atomic<int> voiceStealingPolicy_{0};    // FR-120 -- VoiceStealingPolicy int
+
+    // Audition request from controller (IMessage "AuditionPad"). Encoding:
+    //   bits 0..6  = MIDI pitch (0-127)
+    //   bits 7..13 = velocity (0-127)
+    //   bit  14    = pending flag
+    // Cleared by process() after consumption.
+    std::atomic<std::uint32_t> pendingAudition_{0};
 
     // ---- Phase 4: per-pad parameters are stored in VoicePool::padConfigs_ ----
     // No individual atomic<float> fields for material/size/decay etc. anymore.
@@ -108,6 +139,24 @@ private:
 
     // Energy limiter state
     float energyEnvelope_ = 0.0f;
+
+    // ---- Phase 6: Macros, publishers, meters DataExchange, editor state ----
+    MacroMapper              macroMapper_;
+    PadGlowPublisher         padGlowPublisher_;
+    MatrixActivityPublisher  matrixActivityPublisher_;
+    std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
+    std::atomic<bool>        editorOpen_{false};
+
+    /// Phase 6 (T045): EWMA-smoothed CPU usage (per-mille) measured as the
+    /// ratio of process() work time to block budget. Updated every block from
+    /// the audio thread and read back into MetersBlock. `steady_clock::now()`
+    /// is allocation-free on all supported platforms.
+    float cpuPermilleEwma_ = 0.0f;
+
+    /// Phase 6: build the RegisteredDefaultsTable consumed by MacroMapper.
+    /// Mirrors the Controller's registered-default values for Phase 4/5 per-pad
+    /// parameters referenced by the five macros.
+    [[nodiscard]] static RegisteredDefaultsTable buildRegisteredDefaultsTable() noexcept;
 
     /// One-pole envelope follower energy limiter (FR-014, SC-007).
     /// Caps coupling output below -20 dBFS.

@@ -63,7 +63,8 @@ MemoryStream* createKitPresetFromProcessor(Membrum::Processor& proc)
     // v5 tail size = 4 (selectedPadIndex) + 32 (4 global coupling float64)
     //              + 256 (32 per-pad coupling float64) + 2 (uint16 overrideCount)
     //              + 0 (no overrides by default)
-    constexpr int64 kV5TailBytes = 4 + 32 + 256 + 2;  // 294
+    // Phase 6 (spec 141) appends 160 * 8 bytes of float64 macros.
+    constexpr int64 kV5TailBytes = 4 + 32 + 256 + 2 + 1280;  // 1574
     const int64 kitSize = totalSize - kV5TailBytes;
     std::vector<char> buf(static_cast<std::size_t>(kitSize));
     int32 bytesRead = 0;

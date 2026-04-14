@@ -40,7 +40,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int kExpectedParameterCount = 1226;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4) + Phase 6 US4 (32 per-pad coupling amounts)
+constexpr int kExpectedParameterCount = 1389;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4) + Phase 6 US4 (32 per-pad coupling amounts) + Phase 6 US1 (2 session-scoped globals + 32*5 macros = 162) + Phase 8 US7 (1 output-bus proxy)
 constexpr int kExpectedExciterCount   = 6;
 constexpr int kExpectedBodyCount      = 6;
 

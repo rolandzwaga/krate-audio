@@ -545,3 +545,95 @@ if (!couplingEngine_.isBypassed()) {
 - Any pad-config change that shifts `PadCategory` -> `recomputeCouplingMatrix()` so the Tier 1 rules re-map against the new category set
 
 **Voice-pool integration:** `voicePool_.setCouplingEngine(&couplingEngine_)` is wired in `setupProcessing()`. On note-on for pad `src`, the voice pool walks `couplingMatrix_.effectiveGainArray()[src][*]`, probes the source pad's `ModalResonatorBank` via `getModeFrequency(k)` to build a `SympatheticPartialInfo`, and calls `couplingEngine_.noteOn(voiceId, partials)` scaled by the resolved coefficient for each non-zero destination.
+
+---
+
+## Phase 6 Components (Custom UI + Macros + Visualization)
+
+**Since:** 0.6.0 | **Spec:** [141-membrum-phase6-ui](../141-membrum-phase6-ui/spec.md)
+
+Phase 6 introduces a full custom VSTGUI editor with five per-pad macros, a 4x8 pad grid, a 32x32 coupling matrix editor, and promoted pitch-envelope control. Three new processor/DSP components provide the glue between the audio thread and the UI.
+
+### MacroMapper
+**Path:** [processor/macro_mapper.h](../../plugins/membrum/src/processor/macro_mapper.h) | **Contract:** [macro_mapper.h](../141-membrum-phase6-ui/contracts/macro_mapper.h) | **Since:** 0.6.0 (Phase 6)
+
+Control-rate forward driver that maps the five per-pad macros (Tightness, Brightness, Body Size, Punch, Complexity) onto documented target parameters using delta-from-registered-default arithmetic. Plugin-local to Membrum.
+
+```cpp
+namespace Membrum {
+
+struct RegisteredDefaultsTable {
+    std::array<float, 64> byOffset{};   // indexed by PadParamOffset
+};
+
+class MacroMapper {
+    void prepare(const RegisteredDefaultsTable& defaults) noexcept;   // UI thread, once
+    void apply(int padIndex, PadConfig& padConfig) noexcept;          // audio thread
+    void reapplyAll(std::array<PadConfig, 32>& pads) noexcept;        // kit-preset load
+    [[nodiscard]] bool isDirty(int padIndex) const noexcept;
+    void invalidateCache() noexcept;
+};
+
+} // namespace Membrum
+```
+
+**Delta semantics:** For each target `T` of macro `M`, `effective(T) = clamp(registeredDefault(T) + delta_M(macro), 0, 1)`. Macro value `0.5` yields delta 0 (target sits at its registered default); `0.0` and `1.0` define negative/positive excursions. Per-macro span constants live in `namespace MacroCurves` (e.g., `kTightnessMaterialSpan = 0.30f`, `kBrightnessCutoffSpan = 0.40f` in log-Hz, `kPunchPitchEnvDepthSpan = 0.50f`, etc.).
+
+**Threading:** `prepare()` runs once on the component thread during `Processor::initialize()`. `apply()` / `reapplyAll()` are audio-thread only, called from `processParameterChanges()`. No allocations, locks, or exceptions. A 32-entry `PadCache` early-outs when cached macros equal live values.
+
+**When to use:**
+- Processor calls `apply(padIndex, padConfig)` whenever a macro parameter for that pad changes
+- Kit preset load triggers `reapplyAll()` to recompute all underlying parameters from restored macro state
+
+### PadGlowPublisher
+**Path:** [dsp/pad_glow_publisher.h](../../plugins/membrum/src/dsp/pad_glow_publisher.h) | **Contract:** [pad_glow_publisher.h](../141-membrum-phase6-ui/contracts/pad_glow_publisher.h) | **Since:** 0.6.0 (Phase 6)
+
+Lock-free pre-allocated 1024-bit (32 x `std::atomic<uint32_t>`) amplitude publisher. Drives pad-glow intensity in `PadGridView` from the audio thread without locks. Header-only.
+
+```cpp
+namespace Membrum {
+
+class PadGlowPublisher {
+    static constexpr int kNumPads = 32;
+    static constexpr int kAmplitudeBuckets = 32;     // 5 bits per pad
+
+    void publish(int padIndex, float amplitude) noexcept;              // audio thread
+    void snapshot(std::array<std::uint8_t, 32>& out) const noexcept;   // UI thread
+    [[nodiscard]] std::uint8_t readPadBucket(int padIndex) const noexcept;
+    void reset() noexcept;
+};
+
+} // namespace Membrum
+```
+
+**Encoding:** Each pad occupies one `std::atomic<uint32_t>` word. Amplitude is quantised to 5 bits (32 buckets) and encoded one-hot — the UI recovers the bucket via `31 - std::countl_zero(word)`. `static_assert(std::atomic<std::uint32_t>::is_always_lock_free)` at construction.
+
+**Threading:** Audio-thread `publish()` uses `memory_order_relaxed`; UI-thread `snapshot()` / `readPadBucket()` use `memory_order_acquire`. Worst-case visual error is one UI frame (~33 ms) of lag, well inside the SC-005 50 ms budget. Cache-line aligned (`alignas(64)`) to avoid false sharing.
+
+**When to use:**
+- Voice pool calls `publish(padIndex, voiceAmplitude)` at most once per pad per audio block
+- `PadGridView` timer callback at <=30 Hz calls `snapshot()` to drive glow rendering
+
+### MatrixActivityPublisher
+**Path:** [dsp/matrix_activity_publisher.h](../../plugins/membrum/src/dsp/matrix_activity_publisher.h) | **Contract:** [matrix_activity_publisher.h](../141-membrum-phase6-ui/contracts/matrix_activity_publisher.h) | **Since:** 0.6.0 (Phase 6)
+
+Same lock-free pattern as `PadGlowPublisher`, but each of the 32 source words stores a 32-bit destination bitmask. Bit `D` of word `S` means "source `S` is currently driving coupling energy above threshold into destination `D`". Consumed by `CouplingMatrixView` to outline active cells during playback.
+
+```cpp
+namespace Membrum {
+
+class MatrixActivityPublisher {
+    void publishSourceActivity(int src, std::uint32_t dstMask) noexcept;       // audio
+    [[nodiscard]] std::uint32_t readSourceActivity(int src) const noexcept;    // UI
+    void snapshot(std::array<std::uint32_t, 32>& out) const noexcept;          // UI
+    void reset() noexcept;
+};
+
+} // namespace Membrum
+```
+
+**Threading:** Identical to `PadGlowPublisher` — audio thread uses `relaxed`, UI thread uses `acquire`; cache-line aligned storage; always lock-free.
+
+**When to use:**
+- Coupling post-voice stage calls `publishSourceActivity(src, mask)` per active source per block
+- `CouplingMatrixView` timer callback calls `snapshot()` or `readSourceActivity()` per frame

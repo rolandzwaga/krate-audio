@@ -5,6 +5,44 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-13
+
+### Added
+
+- **Custom VSTGUI editor** -- Full replacement for the host-generic editor,
+  featuring a 4x8 pad grid, selected-pad parameter panel, kit column with
+  preset browsers, voice-management UI, output-routing UI, and a Tier 2
+  coupling matrix editor. Editor size is session-scoped (not persisted to
+  state). Cross-platform (Windows, macOS, Linux) via VSTGUI only.
+- **5 per-pad macros** -- Tightness, Brightness, Body Size, Punch, and
+  Complexity. Each macro maps to a curated set of underlying DSP parameters
+  via the MacroMapper, allowing single-knob sound shaping per pad while
+  leaving all underlying parameters independently automatable.
+- **Acoustic / Extended UI mode** -- Session-scoped UI mode toggle that
+  filters the selected-pad panel to show either the Acoustic (natural
+  drum) parameter subset or the full Extended parameter set. Does not
+  affect DSP or automation; all parameters remain reachable via host
+  automation regardless of mode. Mode is not persisted to plugin state.
+- **4x8 pad grid** -- Visual pad layout mapping MIDI notes 36-67 to a
+  4-row, 8-column grid. Per-pad glow reflects voice activity via a
+  lock-free PadGlowPublisher (audio -> UI), with level and category
+  color coding.
+- **Kit and per-pad preset browsers** -- Integrated browsers in the
+  custom editor for loading kit presets (all 32 pads) and individual
+  pad presets (single pad, preserves other pads). Kit preset files
+  now round-trip the UI mode alongside DSP state.
+- **Tier 2 coupling matrix editor** -- Per-pair coupling override UI
+  (32x32 matrix) layered on top of the Tier 1 Snare Buzz / Tom
+  Resonance knobs from Phase 5. Activity indicators driven by a
+  lock-free MatrixActivityPublisher.
+- **Pitch envelope promotion** -- Pitch envelope (start/end/time/curve)
+  is now a primary selected-pad control in the Acoustic UI mode,
+  surfaced alongside Material / Size / Decay rather than being buried
+  in the Tone Shaper subsection.
+- **State version 6** -- Membrum binary state bumped to v6 with
+  migration paths from v1-v5. UI mode and editor size are explicitly
+  NOT persisted to state (session-scoped only).
+
 ## [0.3.0] - 2026-04-12
 
 ### Added

@@ -369,8 +369,11 @@ TEST_CASE("Pad preset: wrong version fails gracefully",
 TEST_CASE("Pad preset: subcategories match drum types",
           "[membrum][preset][pad_preset]")
 {
+    // Spec 141 Phase 6 (T052): pad subcategories match the controller's
+    // preset browser tab list (`Factory`/`User` tabs come from the browser
+    // view itself): Kick, Snare, Tom, Hat, Cymbal, Perc, Tonal, FX.
     auto cfg = Membrum::padPresetConfig();
-    REQUIRE(cfg.subcategoryNames.size() == 9);
+    REQUIRE(cfg.subcategoryNames.size() == 8);
     CHECK(cfg.subcategoryNames[0] == "Kick");
     CHECK(cfg.subcategoryNames[1] == "Snare");
     CHECK(cfg.subcategoryNames[2] == "Tom");
@@ -378,6 +381,5 @@ TEST_CASE("Pad preset: subcategories match drum types",
     CHECK(cfg.subcategoryNames[4] == "Cymbal");
     CHECK(cfg.subcategoryNames[5] == "Perc");
     CHECK(cfg.subcategoryNames[6] == "Tonal");
-    CHECK(cfg.subcategoryNames[7] == "808");
-    CHECK(cfg.subcategoryNames[8] == "FX");
+    CHECK(cfg.subcategoryNames[7] == "FX");
 }
