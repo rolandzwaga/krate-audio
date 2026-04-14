@@ -178,55 +178,37 @@ TEST_CASE("Membrum state round-trip preserves all parameter values",
     REQUIRE(processor.setupProcessing(setup) == kResultOk);
     REQUIRE(processor.setActive(true) == kResultOk);
 
-    // Write custom parameter values via setState with known values
-    // State format: int32 version + 5x float64
+    // Mutate pad 0 directly to non-default values.
     {
-        auto* writeStream = new MemoryStream();
-        int32 version = 1;
-        writeStream->write(&version, sizeof(version), nullptr);
-
-        double params[] = {0.2, 0.7, 0.1, 0.9, 0.6}; // Material, Size, Decay, StrikePos, Level
-        for (double p : params)
-            writeStream->write(&p, sizeof(p), nullptr);
-
-        writeStream->seek(0, IBStream::kIBSeekSet, nullptr);
-        REQUIRE(processor.setState(writeStream) == kResultOk);
-        writeStream->release();
+        auto& pad0 = processor.voicePoolForTest().padConfigMut(0);
+        pad0.material       = 0.2f;
+        pad0.size           = 0.7f;
+        pad0.decay          = 0.1f;
+        pad0.strikePosition = 0.9f;
+        pad0.level          = 0.6f;
     }
 
-    // Save state
+    // Save state -> load into a fresh processor -> round-trip values.
     auto* saveStream = new MemoryStream();
     REQUIRE(processor.getState(saveStream) == kResultOk);
-
-    // Read back and verify -- v4 format: version(4) + maxPoly(4) + stealPolicy(4)
-    // then pad 0: exciterType(4) + bodyModel(4) + 34 x float64 + uint8 + uint8
-    // The first 5 sound params (offsets 2-6) start at position 20 in the stream.
     saveStream->seek(0, IBStream::kIBSeekSet, nullptr);
 
-    int32 version = 0;
-    saveStream->read(&version, sizeof(version), nullptr);
-    CHECK(version == Membrum::kCurrentStateVersion);
+    Membrum::Processor loader;
+    REQUIRE(loader.initialize(nullptr) == kResultOk);
+    REQUIRE(loader.setupProcessing(setup) == kResultOk);
+    REQUIRE(loader.setActive(true) == kResultOk);
+    REQUIRE(loader.setState(saveStream) == kResultOk);
 
-    int32 maxPoly = 0, stealPolicy = 0;
-    saveStream->read(&maxPoly, sizeof(maxPoly), nullptr);
-    saveStream->read(&stealPolicy, sizeof(stealPolicy), nullptr);
-
-    int32 excType = 0, bodyModel = 0;
-    saveStream->read(&excType, sizeof(excType), nullptr);
-    saveStream->read(&bodyModel, sizeof(bodyModel), nullptr);
-
-    // Read pad 0's 34 float64 sound params: first 5 are material, size, decay, strikePos, level
-    double readParams[5] = {};
-    for (int i = 0; i < 5; ++i)
-        saveStream->read(&readParams[i], sizeof(double), nullptr);
-
-    CHECK(readParams[0] == Approx(0.2).margin(0.001));  // Material
-    CHECK(readParams[1] == Approx(0.7).margin(0.001));  // Size
-    CHECK(readParams[2] == Approx(0.1).margin(0.001));  // Decay
-    CHECK(readParams[3] == Approx(0.9).margin(0.001));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.6).margin(0.001));  // Level
+    const auto& loaded = loader.voicePoolForTest().padConfig(0);
+    CHECK(loaded.material       == Approx(0.2f).margin(1e-6f));
+    CHECK(loaded.size           == Approx(0.7f).margin(1e-6f));
+    CHECK(loaded.decay          == Approx(0.1f).margin(1e-6f));
+    CHECK(loaded.strikePosition == Approx(0.9f).margin(1e-6f));
+    CHECK(loaded.level          == Approx(0.6f).margin(1e-6f));
 
     saveStream->release();
+    REQUIRE(loader.setActive(false) == kResultOk);
+    REQUIRE(loader.terminate() == kResultOk);
     REQUIRE(processor.setActive(false) == kResultOk);
     REQUIRE(processor.terminate() == kResultOk);
 }
@@ -257,143 +239,49 @@ TEST_CASE("Membrum state round-trip with defaults",
 }
 
 // =============================================================================
-// T071(d): Forward-compatible state load -- 4 params only, 5th retains default
-// =============================================================================
-
-TEST_CASE("Membrum: setState with only 4 params -- 5th retains default",
-          "[membrum][vst][state][edge]")
-{
-    Membrum::Processor processor;
-    REQUIRE(processor.initialize(nullptr) == kResultOk);
-
-    auto setup = makeSetup();
-    REQUIRE(processor.setupProcessing(setup) == kResultOk);
-    REQUIRE(processor.setActive(true) == kResultOk);
-
-    // Build a state blob with version=1 and only 4 float64 values (omitting Level)
-    auto* stream = new MemoryStream();
-    int32 version = 1;
-    stream->write(&version, sizeof(version), nullptr);
-
-    double params[] = {0.2, 0.7, 0.1, 0.9}; // Material, Size, Decay, StrikePos -- no Level
-    for (double p : params)
-        stream->write(&p, sizeof(p), nullptr);
-
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
-
-    // Must not crash
-    REQUIRE(processor.setState(stream) == kResultOk);
-    stream->release();
-
-    // Save state back and verify the 5th param (Level) retains its default (0.8)
-    auto* saveStream = new MemoryStream();
-    REQUIRE(processor.getState(saveStream) == kResultOk);
-
-    double readParams[5] = {};
-    readV4Pad0SoundParams(saveStream, readParams, 5);
-
-    CHECK(readParams[0] == Approx(0.2).margin(0.001));  // Material
-    CHECK(readParams[1] == Approx(0.7).margin(0.001));  // Size
-    CHECK(readParams[2] == Approx(0.1).margin(0.001));  // Decay
-    CHECK(readParams[3] == Approx(0.9).margin(0.001));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.8).margin(0.001));  // Level = default
-
-    saveStream->release();
-    REQUIRE(processor.setActive(false) == kResultOk);
-    REQUIRE(processor.terminate() == kResultOk);
-}
-
-// =============================================================================
-// T071(e): Future-version state load -- version=2, 7 params, loads first 5 OK
-// =============================================================================
-
-TEST_CASE("Membrum: setState with version=2 and 7 params -- loads first 5 correctly",
-          "[membrum][vst][state][edge]")
-{
-    Membrum::Processor processor;
-    REQUIRE(processor.initialize(nullptr) == kResultOk);
-
-    auto setup = makeSetup();
-    REQUIRE(processor.setupProcessing(setup) == kResultOk);
-    REQUIRE(processor.setActive(true) == kResultOk);
-
-    // Build a state blob with version=2 and 7 float64 values
-    // v2 format: version + 5 Phase1 float64 + exciterType(int32) + bodyModel(int32) + 27 Phase2 float64
-    // This test writes version=2 with only 7 float64 (5 Phase1 + extra), no selectors
-    // Actually v2 expects selectors after Phase1 params. Let's write a proper v2 stub:
-    auto* stream = new MemoryStream();
-    int32 version = 2;
-    stream->write(&version, sizeof(version), nullptr);
-
-    double params[] = {0.15, 0.85, 0.45, 0.65, 0.35};
-    for (double p : params)
-        stream->write(&p, sizeof(p), nullptr);
-
-    // v2 selectors
-    int32 excType = 0, bodyModel = 0;
-    stream->write(&excType, sizeof(excType), nullptr);
-    stream->write(&bodyModel, sizeof(bodyModel), nullptr);
-
-    // 27 Phase 2 float64 defaults (just write some)
-    for (int i = 0; i < 27; ++i)
-    {
-        double v = 0.0;
-        stream->write(&v, sizeof(v), nullptr);
-    }
-
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
-    REQUIRE(processor.setState(stream) == kResultOk);
-    stream->release();
-
-    // Save state back and verify first 5 params loaded correctly
-    auto* saveStream = new MemoryStream();
-    REQUIRE(processor.getState(saveStream) == kResultOk);
-
-    double readParams[5] = {};
-    readV4Pad0SoundParams(saveStream, readParams, 5);
-
-    CHECK(readParams[0] == Approx(0.15).margin(0.001));  // Material
-    CHECK(readParams[1] == Approx(0.85).margin(0.001));  // Size
-    CHECK(readParams[2] == Approx(0.45).margin(0.001));  // Decay
-    CHECK(readParams[3] == Approx(0.65).margin(0.001));  // StrikePosition
-    CHECK(readParams[4] == Approx(0.35).margin(0.001));  // Level
-
-    saveStream->release();
-    REQUIRE(processor.setActive(false) == kResultOk);
-    REQUIRE(processor.terminate() == kResultOk);
-}
-
-// =============================================================================
-// Controller setComponentState (FR-016)
+// Controller setComponentState (FR-016) -- round-trip through processor state.
 // =============================================================================
 
 TEST_CASE("Membrum Controller setComponentState syncs parameters",
           "[membrum][vst][state]")
 {
+    // Generate a v6 state blob from a processor whose pad 0 has custom values,
+    // then push it through Controller::setComponentState and verify the
+    // corresponding global-proxy params reflect those values.
+    Membrum::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+    auto setup = makeSetup();
+    REQUIRE(processor.setupProcessing(setup) == kResultOk);
+    REQUIRE(processor.setActive(true) == kResultOk);
+
+    {
+        auto& pad0 = processor.voicePoolForTest().padConfigMut(0);
+        pad0.material       = 0.2f;
+        pad0.size           = 0.7f;
+        pad0.decay          = 0.1f;
+        pad0.strikePosition = 0.9f;
+        pad0.level          = 0.6f;
+    }
+
+    auto* stream = new MemoryStream();
+    REQUIRE(processor.getState(stream) == kResultOk);
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+
     Membrum::Controller controller;
     REQUIRE(controller.initialize(nullptr) == kResultOk);
-
-    // Build a state stream with known values
-    auto* stream = new MemoryStream();
-    int32 version = 1;
-    stream->write(&version, sizeof(version), nullptr);
-
-    double params[] = {0.2, 0.7, 0.1, 0.9, 0.6};
-    for (double p : params)
-        stream->write(&p, sizeof(p), nullptr);
-
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
     REQUIRE(controller.setComponentState(stream) == kResultOk);
     stream->release();
 
-    // Check that controller has the correct normalized values
-    CHECK(controller.getParamNormalized(Membrum::kMaterialId) == Approx(0.2));
-    CHECK(controller.getParamNormalized(Membrum::kSizeId) == Approx(0.7));
-    CHECK(controller.getParamNormalized(Membrum::kDecayId) == Approx(0.1));
-    CHECK(controller.getParamNormalized(Membrum::kStrikePositionId) == Approx(0.9));
-    CHECK(controller.getParamNormalized(Membrum::kLevelId) == Approx(0.6));
+    // Global proxy params mirror the selected pad (pad 0 by default).
+    CHECK(controller.getParamNormalized(Membrum::kMaterialId)       == Approx(0.2).margin(1e-6));
+    CHECK(controller.getParamNormalized(Membrum::kSizeId)           == Approx(0.7).margin(1e-6));
+    CHECK(controller.getParamNormalized(Membrum::kDecayId)          == Approx(0.1).margin(1e-6));
+    CHECK(controller.getParamNormalized(Membrum::kStrikePositionId) == Approx(0.9).margin(1e-6));
+    CHECK(controller.getParamNormalized(Membrum::kLevelId)          == Approx(0.6).margin(1e-6));
 
     REQUIRE(controller.terminate() == kResultOk);
+    REQUIRE(processor.setActive(false) == kResultOk);
+    REQUIRE(processor.terminate() == kResultOk);
 }
 
 // =============================================================================

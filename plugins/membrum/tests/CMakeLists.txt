@@ -8,14 +8,9 @@ add_executable(membrum_tests
     # VST3 validation and parameter tests
     unit/vst/membrum_vst_tests.cpp
     unit/vst/test_membrum_parameters_v2.cpp
-    unit/vst/test_state_roundtrip_v2.cpp
 
     # Phase 3: VST3 parameter + state tests (scaffolded Phase 3.0)
     unit/vst/test_phase3_params.cpp
-    unit/vst/test_state_roundtrip_v3.cpp
-    unit/vst/test_state_migration_v2_to_v3.cpp
-    unit/vst/test_state_migration_v1_to_v3.cpp
-    unit/vst/test_state_corruption_clamp.cpp
 
     # Processor tests
     unit/processor/membrum_processor_tests.cpp
@@ -80,16 +75,13 @@ add_executable(membrum_tests
     unit/voice_pool/test_phase2_regression_maxpoly1.cpp
     unit/voice_pool/test_poly_change_live.cpp
 
-    # Phase 4: PadConfig, per-pad parameters, state v4, multi-bus, presets
+    # Phase 4: PadConfig, per-pad parameters, multi-bus, presets
     unit/vst/test_pad_config.cpp
-    unit/vst/test_state_v4.cpp
-    unit/vst/test_state_migration_v3_to_v4.cpp
     unit/vst/test_pad_parameters.cpp
     unit/voice_pool/test_per_pad_dispatch.cpp
     unit/voice_pool/test_multi_bus_output.cpp
     unit/vst/test_bus_activation.cpp
     unit/processor/test_default_kit.cpp
-    unit/preset/test_kit_preset.cpp
     unit/preset/test_pad_preset.cpp
 
     # Phase 5: cross-pad coupling tests

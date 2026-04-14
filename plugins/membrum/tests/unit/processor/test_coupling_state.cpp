@@ -152,14 +152,18 @@ struct StateFixture
 //   32 * ([int32 exciter][int32 body][34 * float64][uint8 cg][uint8 ob])
 //   [int32 selectedPadIndex]
 // Total: 12 + 32 * 282 + 4 = 9040 bytes.
-std::vector<std::uint8_t> buildV4Blob()
+// Build a v6 state blob (current on-wire format). The caller may append
+// override entries (and must then rewrite the overrideCount field) or append
+// custom macro values before use. This helper writes zero overrides and
+// neutral (0.5) macros by default; append extras or mutate in place.
+std::vector<std::uint8_t> buildV6BlobBase(std::uint16_t overrideCount = 0)
 {
     std::vector<std::uint8_t> buf;
     auto appendBytes = [&](const void* p, std::size_t n) {
         const auto* b = static_cast<const std::uint8_t*>(p);
         buf.insert(buf.end(), b, b + n);
     };
-    const int32 version = 4;
+    const int32 version = Membrum::kCurrentStateVersion;
     const int32 maxPoly = 8;
     const int32 stealPolicy = 0;
     appendBytes(&version, sizeof(version));
@@ -171,7 +175,6 @@ std::vector<std::uint8_t> buildV4Blob()
         const int32 bm = 0;  // BodyModelType::Membrane (default)
         appendBytes(&ex, sizeof(ex));
         appendBytes(&bm, sizeof(bm));
-        // 34 float64 zeros -- valid but not interesting; setState will clamp.
         for (int i = 0; i < 34; ++i)
         {
             const double z = 0.0;
@@ -184,7 +187,33 @@ std::vector<std::uint8_t> buildV4Blob()
     }
     const int32 selPad = 0;
     appendBytes(&selPad, sizeof(selPad));
+    // Phase 5 globals (cd clamped to [0.5, 2.0] so use 1.0).
+    const double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
+    appendBytes(&gc, sizeof(gc));
+    appendBytes(&sb, sizeof(sb));
+    appendBytes(&tr, sizeof(tr));
+    appendBytes(&cd, sizeof(cd));
+    // 32 per-pad coupling amounts.
+    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+    {
+        const double amt = 0.5;
+        appendBytes(&amt, sizeof(amt));
+    }
+    // Override count -- entries appended by the caller.
+    appendBytes(&overrideCount, sizeof(overrideCount));
     return buf;
+}
+
+// Append 160 float64 neutral macros to a v6 blob (call AFTER appending any
+// override entries). Convenience for the round-trip test below.
+void appendNeutralMacros(std::vector<std::uint8_t>& buf)
+{
+    for (int i = 0; i < Membrum::kNumPads * 5; ++i)
+    {
+        const double neutral = 0.5;
+        const auto* b = reinterpret_cast<const std::uint8_t*>(&neutral);
+        buf.insert(buf.end(), b, b + sizeof(neutral));
+    }
 }
 
 } // namespace
@@ -304,60 +333,6 @@ TEST_CASE("Phase 7 (SC-005): state v5 round-trip with non-default globals + "
 }
 
 // ==============================================================================
-// SC-006 / FR-051: Loading a v4 blob yields Phase 5 defaults (Phase 4 behavior).
-// ==============================================================================
-
-TEST_CASE("Phase 7 (SC-006, FR-051): v4 state loads with Phase 5 defaults",
-          "[coupling_state][phase7][state][migration]")
-{
-    StateFixture fx;
-    auto v4bytes = buildV4Blob();
-    // Sanity: v4 blob is exactly 12 + 32*282 + 4 = 9040 bytes.
-    CHECK(v4bytes.size() == 9040u);
-
-    MemoryStream v4stream;
-    int32 written = 0;
-    v4stream.write(v4bytes.data(), static_cast<int32>(v4bytes.size()), &written);
-    REQUIRE(written == static_cast<int32>(v4bytes.size()));
-    v4stream.seek(0, IBStream::kIBSeekSet, nullptr);
-
-    // Loading must succeed (FR-052: older blobs migrate without crash).
-    REQUIRE(fx.processor.setState(&v4stream) == kResultOk);
-
-    // Per-pad couplingAmount must be the default 0.5 for every pad.
-    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
-    {
-        const float actual = fx.processor.voicePoolForTest()
-                                         .padConfig(pad)
-                                         .couplingAmount;
-        CHECK(static_cast<double>(actual) == Approx(0.5).margin(1e-6));
-    }
-
-    // Coupling matrix must be at default computed state with no overrides.
-    const auto& matrix = fx.processor.couplingMatrixForTest();
-    CHECK(matrix.getOverrideCount() == 0);
-
-    // Save the migrated state: the new blob should be version 5. We inspect
-    // the first int32 of the re-saved stream.
-    MemoryStream resaved;
-    REQUIRE(fx.processor.getState(&resaved) == kResultOk);
-    resaved.seek(0, IBStream::kIBSeekSet, nullptr);
-    int32 newVersion = 0;
-    int32 gotVer = 0;
-    resaved.read(&newVersion, sizeof(newVersion), &gotVer);
-    CHECK(gotVer == static_cast<int32>(sizeof(newVersion)));
-    CHECK(newVersion == Membrum::kCurrentStateVersion);
-
-    // The re-saved blob size equals v4 (9040) + Phase 5 trailer:
-    //   4 * 8 (globals) + 32 * 8 (per-pad) + 2 (overrideCount) + 0 overrides
-    //   = 32 + 256 + 2 = 290.
-    // Phase 6 (spec 141) additionally appends 160 * 8 bytes of float64 macros.
-    int64 resavedSize = 0;
-    resaved.seek(0, IBStream::kIBSeekEnd, &resavedSize);
-    CHECK(resavedSize == 9040 + 290 + 1280);
-}
-
-// ==============================================================================
 // FR-053: Override serialization format -- uint16 count + (uint8 src,
 // uint8 dst, float32 coeff) per entry.
 // FR-031: Per-pair coefficient clamped to [0.0, 0.05] on load.
@@ -367,41 +342,15 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
           "out-of-range coefficients clamped on load",
           "[coupling_state][phase7][state][overrides]")
 {
-    // Produce a minimal v5 blob: a zeroed v4 base + empty globals/per-pad +
-    // overrideCount=3 + three overrides with specific coefficients.
-    auto blob = buildV4Blob();
-    // Overwrite version field to 5.
-    const int32 v5 = 5;
-    std::memcpy(blob.data(), &v5, sizeof(v5));
+    // Produce a v6 blob with overrideCount=3 and three specific overrides,
+    // plus a neutral macro tail.
+    auto blob = buildV6BlobBase(/*overrideCount=*/3);
 
     auto append = [&](const void* p, std::size_t n) {
         const auto* b = static_cast<const std::uint8_t*>(p);
         blob.insert(blob.end(), b, b + n);
     };
 
-    // Phase 5 globals: all zeros (but couplingDelay clamped to [0.5, 2.0]
-    // so we explicitly write 1.0 to stay in range).
-    const double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
-    append(&gc, sizeof(gc));
-    append(&sb, sizeof(sb));
-    append(&tr, sizeof(tr));
-    append(&cd, sizeof(cd));
-
-    // 32 per-pad = 0.5 each.
-    for (int i = 0; i < Membrum::kNumPads; ++i)
-    {
-        const double half = 0.5;
-        append(&half, sizeof(half));
-    }
-
-    // overrideCount = 3.
-    const std::uint16_t count = 3;
-    append(&count, sizeof(count));
-
-    // Override 1: in-range coefficient 0.03.
-    struct OvEntry { std::uint8_t src; std::uint8_t dst; float coeff; };
-    static_assert(sizeof(OvEntry) == 6 || true,
-                  "OvEntry is written field-by-field; layout not relied upon.");
     auto writeEntry = [&](std::uint8_t s, std::uint8_t d, float c) {
         append(&s, sizeof(s));
         append(&d, sizeof(d));
@@ -410,6 +359,8 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     writeEntry(0, 1, 0.03f);      // in-range
     writeEntry(2, 3, 0.10f);      // ABOVE kMaxCoefficient (0.05) -- must clamp
     writeEntry(5, 7, -0.01f);     // BELOW zero -- must clamp to 0.0
+
+    appendNeutralMacros(blob);
 
     // Load the blob.
     StateFixture fx;
@@ -444,9 +395,9 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     REQUIRE(fx.processor.getState(&resaved) == kResultOk);
     int64 resSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
-    // v4 base (9040) + globals (32) + per-pad (256) + overrideCount (2)
-    // + 3 * 6 override bytes = 9040 + 290 + 18 = 9348.
-    // Phase 6 (spec 141) appends 160 * 8 bytes of float64 macros.
+    // v6 prefix (v4-compatible pad layout, 9040 bytes) + Phase 5 globals (32)
+    // + per-pad coupling amounts (256) + overrideCount (2) + 3 * 6 override
+    // bytes + Phase 6 macros (160 * 8).
     CHECK(resSize == 9348 + 1280);
 
     // Read overrideCount at offset 9040 + 32 + 256 = 9328.
@@ -475,47 +426,8 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     }
 }
 
-// ==============================================================================
-// FR-052: v1 / v2 / v3 migration paths must not crash.
-// The legacy state parsing lives in the `else` branch of setState(); we feed
-// a minimal header of each version and accept either kResultOk or a graceful
-// rejection (any result code, no crash).
-// ==============================================================================
-
-TEST_CASE("Phase 7 (FR-052): v1/v2/v3 blobs migrate without crash",
-          "[coupling_state][phase7][state][migration]")
-{
-    for (int32 version : { 1, 2, 3 })
-    {
-        StateFixture fx;
-        // Build a minimal legacy blob: version int32 followed by a healthy
-        // padding of zero bytes (enough to cover all legacy reads).
-        std::vector<std::uint8_t> blob(4096, 0);
-        std::memcpy(blob.data(), &version, sizeof(version));
-
-        MemoryStream stream;
-        int32 written = 0;
-        stream.write(blob.data(), static_cast<int32>(blob.size()), &written);
-        stream.seek(0, IBStream::kIBSeekSet, nullptr);
-
-        // The call must return a result code without throwing or aborting.
-        // We don't assert success -- legacy migration may tolerate or reject
-        // the synthetic blob, but it must not crash the process.
-        const tresult r = fx.processor.setState(&stream);
-        CHECK((r == kResultOk || r == kResultFalse));
-
-        // After migration, Phase 5 params must be at their defaults
-        // (FR-051: no version < 5 ever carries coupling data).
-        for (int pad = 0; pad < Membrum::kNumPads; ++pad)
-        {
-            const float actual = fx.processor.voicePoolForTest()
-                                             .padConfig(pad)
-                                             .couplingAmount;
-            CHECK(static_cast<double>(actual) == Approx(0.5).margin(1e-6));
-        }
-        CHECK(fx.processor.couplingMatrixForTest().getOverrideCount() == 0);
-    }
-}
+// (FR-052 v1/v2/v3 migration-without-crash test removed along with pre-v6
+// migration code paths.)
 
 // ==============================================================================
 // T044b (FR-022): per-pad sound presets MUST NOT carry couplingAmount.

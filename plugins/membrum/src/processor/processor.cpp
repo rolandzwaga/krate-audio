@@ -44,59 +44,7 @@ namespace Membrum {
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 
-// ==============================================================================
-// Phase 2 continuous-parameter order in the v2/v3 state stream.
-// Used only for legacy state loading (v1, v2, v3 blobs).
-// ==============================================================================
 namespace {
-
-struct Phase2FloatSlot
-{
-    ParamID id;
-    float   defaultValue;
-    int     padOffset;   // Corresponding PadParamOffset for migration
-};
-
-constexpr Phase2FloatSlot kPhase2FloatSlots[] = {
-    { .id = kExciterFMRatioId,            .defaultValue = 0.133333f, .padOffset = kPadFMRatio },
-    { .id = kExciterFeedbackAmountId,     .defaultValue = 0.0f,      .padOffset = kPadFeedbackAmount },
-    { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769f, .padOffset = kPadNoiseBurstDuration },
-    { .id = kExciterFrictionPressureId,   .defaultValue = 0.3f,      .padOffset = kPadFrictionPressure },
-
-    { .id = kToneShaperFilterTypeId,       .defaultValue = 0.0f,      .padOffset = kPadTSFilterType },
-    { .id = kToneShaperFilterCutoffId,     .defaultValue = 1.0f,      .padOffset = kPadTSFilterCutoff },
-    { .id = kToneShaperFilterResonanceId,  .defaultValue = 0.0f,      .padOffset = kPadTSFilterResonance },
-    { .id = kToneShaperFilterEnvAmountId,  .defaultValue = 0.5f,      .padOffset = kPadTSFilterEnvAmount },
-    { .id = kToneShaperDriveAmountId,      .defaultValue = 0.0f,      .padOffset = kPadTSDriveAmount },
-    { .id = kToneShaperFoldAmountId,       .defaultValue = 0.0f,      .padOffset = kPadTSFoldAmount },
-    { .id = kToneShaperPitchEnvStartId,    .defaultValue = 0.070721f, .padOffset = kPadTSPitchEnvStart },
-    { .id = kToneShaperPitchEnvEndId,      .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvEnd },
-    { .id = kToneShaperPitchEnvTimeId,     .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvTime },
-    { .id = kToneShaperPitchEnvCurveId,    .defaultValue = 0.0f,      .padOffset = kPadTSPitchEnvCurve },
-
-    { .id = kToneShaperFilterEnvAttackId,  .defaultValue = 0.0f,      .padOffset = kPadTSFilterEnvAttack },
-    { .id = kToneShaperFilterEnvDecayId,   .defaultValue = 0.1f,      .padOffset = kPadTSFilterEnvDecay },
-    { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0f,      .padOffset = kPadTSFilterEnvSustain },
-    { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1f,      .padOffset = kPadTSFilterEnvRelease },
-
-    { .id = kUnnaturalModeStretchId,       .defaultValue = 0.333333f, .padOffset = kPadModeStretch },
-    { .id = kUnnaturalDecaySkewId,         .defaultValue = 0.5f,      .padOffset = kPadDecaySkew },
-    { .id = kUnnaturalModeInjectAmountId,  .defaultValue = 0.0f,      .padOffset = kPadModeInjectAmount },
-    { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0f,      .padOffset = kPadNonlinearCoupling },
-
-    { .id = kMorphEnabledId,    .defaultValue = 0.0f,      .padOffset = kPadMorphEnabled },
-    { .id = kMorphStartId,      .defaultValue = 1.0f,      .padOffset = kPadMorphStart },
-    { .id = kMorphEndId,        .defaultValue = 0.0f,      .padOffset = kPadMorphEnd },
-    { .id = kMorphDurationMsId, .defaultValue = 0.095477f, .padOffset = kPadMorphDuration },
-    { .id = kMorphCurveId,      .defaultValue = 0.0f,      .padOffset = kPadMorphCurve },
-};
-
-constexpr int kPhase2FloatSlotCount =
-    static_cast<int>(sizeof(kPhase2FloatSlots) / sizeof(kPhase2FloatSlots[0]));
-
-static_assert(kPhase2FloatSlotCount == 27,
-              "Phase 2 is expected to expose 27 continuous float parameters "
-              "(29 total minus the 2 integer selectors).");
 
 // Helper: denormalize a pad config's normalized values and apply to a voice.
 // This is called after loading state to push values into the DSP voice.
@@ -1049,358 +997,22 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
         return kResultFalse;
 
-    // Reject unknown future versions
-    if (version > kCurrentStateVersion)
+    // Only the current v6 format is accepted. The plugin has not shipped,
+    // so no backwards-compat migration is provided.
+    if (version != kCurrentStateVersion)
         return kResultFalse;
 
     // ------------------------------------------------------------------
-    // v4/v5/v6 state format -- v5 is v4 + appended Phase 5 coupling data;
-    // v6 (Phase 6 spec 141) appends 160 x float64 per-pad macro values
-    // (5 macros x 32 pads) in pad-major order after the v5 override list.
-    // Session-scoped kUiModeId / kEditorSizeId are NOT on the wire; they
-    // reset to defaults in Controller::setComponentState before this blob
-    // is consumed.
+    // v6 state format. Session-scoped kUiModeId / kEditorSizeId are NOT
+    // on the wire; they reset to defaults in Controller::setComponentState
+    // before this blob is consumed.
     // ------------------------------------------------------------------
-    if (version == 4 || version == 5 || version == 6)
-    {
-        int32 maxPoly = 8;
-        int32 stealPolicy = 0;
-        if (state->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
-            maxPoly = 8;
-        if (state->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
-            stealPolicy = 0;
-
-        maxPoly = std::clamp(maxPoly, 4, 16);
-        stealPolicy = std::clamp(stealPolicy, 0, 2);
-        maxPolyphony_.store(maxPoly);
-        voiceStealingPolicy_.store(stealPolicy);
-        voicePool_.setMaxPolyphony(maxPoly);
-        voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(stealPolicy));
-
-        for (int pad = 0; pad < kNumPads; ++pad)
-        {
-            auto& cfg = voicePool_.padConfigMut(pad);
-
-            int32 exciterTypeI32 = 0;
-            int32 bodyModelI32 = 0;
-            if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
-                exciterTypeI32 = 0;
-            if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
-                bodyModelI32 = 0;
-
-            exciterTypeI32 = std::clamp(exciterTypeI32, 0,
-                                        static_cast<int>(ExciterType::kCount) - 1);
-            bodyModelI32 = std::clamp(bodyModelI32, 0,
-                                      static_cast<int>(BodyModelType::kCount) - 1);
-            cfg.exciterType = static_cast<ExciterType>(exciterTypeI32);
-            cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
-
-            // Read 34 float64 values (offsets 2-35 in order, including
-            // chokeGroup and outputBus as float64 at positions 28-29)
-            double vals[34] = {};
-            for (auto& val : vals)
-            {
-                if (state->read(&val, sizeof(val), nullptr) != kResultOk)
-                    val = 0.0;
-            }
-
-            // Map back to PadConfig fields
-            cfg.material = static_cast<float>(vals[0]);
-            cfg.size = static_cast<float>(vals[1]);
-            cfg.decay = static_cast<float>(vals[2]);
-            cfg.strikePosition = static_cast<float>(vals[3]);
-            cfg.level = static_cast<float>(vals[4]);
-            cfg.tsFilterType = static_cast<float>(vals[5]);
-            cfg.tsFilterCutoff = static_cast<float>(vals[6]);
-            cfg.tsFilterResonance = static_cast<float>(vals[7]);
-            cfg.tsFilterEnvAmount = static_cast<float>(vals[8]);
-            cfg.tsDriveAmount = static_cast<float>(vals[9]);
-            cfg.tsFoldAmount = static_cast<float>(vals[10]);
-            cfg.tsPitchEnvStart = static_cast<float>(vals[11]);
-            cfg.tsPitchEnvEnd = static_cast<float>(vals[12]);
-            cfg.tsPitchEnvTime = static_cast<float>(vals[13]);
-            cfg.tsPitchEnvCurve = static_cast<float>(vals[14]);
-            cfg.tsFilterEnvAttack = static_cast<float>(vals[15]);
-            cfg.tsFilterEnvDecay = static_cast<float>(vals[16]);
-            cfg.tsFilterEnvSustain = static_cast<float>(vals[17]);
-            cfg.tsFilterEnvRelease = static_cast<float>(vals[18]);
-            cfg.modeStretch = static_cast<float>(vals[19]);
-            cfg.decaySkew = static_cast<float>(vals[20]);
-            cfg.modeInjectAmount = static_cast<float>(vals[21]);
-            cfg.nonlinearCoupling = static_cast<float>(vals[22]);
-            cfg.morphEnabled = static_cast<float>(vals[23]);
-            cfg.morphStart = static_cast<float>(vals[24]);
-            cfg.morphEnd = static_cast<float>(vals[25]);
-            cfg.morphDuration = static_cast<float>(vals[26]);
-            cfg.morphCurve = static_cast<float>(vals[27]);
-            // vals[28] = chokeGroup as float64, vals[29] = outputBus as float64
-            // vals[30-33] = secondary exciter params
-            cfg.fmRatio = static_cast<float>(vals[30]);
-            cfg.feedbackAmount = static_cast<float>(vals[31]);
-            cfg.noiseBurstDuration = static_cast<float>(vals[32]);
-            cfg.frictionPressure = static_cast<float>(vals[33]);
-
-            // Read uint8 chokeGroup and outputBus (authoritative)
-            std::uint8_t cg = 0;
-            std::uint8_t ob = 0;
-            if (state->read(&cg, sizeof(cg), nullptr) != kResultOk)
-                cg = 0;
-            if (state->read(&ob, sizeof(ob), nullptr) != kResultOk)
-                ob = 0;
-            cfg.chokeGroup = (cg > 8U) ? std::uint8_t{0} : cg;
-            cfg.outputBus = (ob > 15U) ? std::uint8_t{0} : ob;
-        }
-
-        // Sync choke group table from padConfigs
-        for (int pad = 0; pad < kNumPads; ++pad)
-            voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
-
-        int32 selPad = 0;
-        if (state->read(&selPad, sizeof(selPad), nullptr) != kResultOk)
-            selPad = 0;
-        selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
-
-        // ---- Phase 5: Read coupling state if version >= 5 ----
-        // v6 (spec 141) shares this on-wire layout with v5; the v5->v6
-        // migration that adds per-pad macros is wired up later in spec 141
-        // Phase 2.
-        if (version == 5 || version == 6)
-        {
-            double gc = 0.0;
-            double sb = 0.0;
-            double tr = 0.0;
-            double cd = 1.0;
-            if (state->read(&gc, sizeof(gc), nullptr) != kResultOk) gc = 0.0;
-            if (state->read(&sb, sizeof(sb), nullptr) != kResultOk) sb = 0.0;
-            if (state->read(&tr, sizeof(tr), nullptr) != kResultOk) tr = 0.0;
-            if (state->read(&cd, sizeof(cd), nullptr) != kResultOk) cd = 1.0;
-
-            const float gcF = std::clamp(static_cast<float>(gc), 0.0f, 1.0f);
-            const float sbF = std::clamp(static_cast<float>(sb), 0.0f, 1.0f);
-            const float trF = std::clamp(static_cast<float>(tr), 0.0f, 1.0f);
-            const float cdF = std::clamp(static_cast<float>(cd), 0.5f, 2.0f);
-
-            globalCoupling_.store(gcF, std::memory_order_relaxed);
-            snareBuzz_.store(sbF, std::memory_order_relaxed);
-            tomResonance_.store(trF, std::memory_order_relaxed);
-            couplingDelayMs_.store(cdF, std::memory_order_relaxed);
-            couplingEngine_.setAmount(gcF);
-
-            // 32 per-pad coupling amounts
-            for (int pad = 0; pad < kNumPads; ++pad)
-            {
-                double amt = 0.5;
-                if (state->read(&amt, sizeof(amt), nullptr) != kResultOk)
-                    amt = 0.5;
-                voicePool_.padConfigMut(pad).couplingAmount =
-                    std::clamp(static_cast<float>(amt), 0.0f, 1.0f);
-            }
-
-            // Refresh categories and recompute Tier 1 matrix
-            for (int i = 0; i < kNumPads; ++i)
-                padCategories_[static_cast<size_t>(i)] =
-                    classifyPad(voicePool_.padConfig(i));
-            recomputeCouplingMatrix();
-
-            // uint16 overrideCount + N entries
-            std::uint16_t overrideCount = 0;
-            if (state->read(&overrideCount, sizeof(overrideCount), nullptr) != kResultOk)
-                overrideCount = 0;
-            for (std::uint16_t o = 0; o < overrideCount; ++o)
-            {
-                std::uint8_t s = 0;
-                std::uint8_t d = 0;
-                float coeff = 0.0f;
-                if (state->read(&s, sizeof(s), nullptr) != kResultOk) break;
-                if (state->read(&d, sizeof(d), nullptr) != kResultOk) break;
-                if (state->read(&coeff, sizeof(coeff), nullptr) != kResultOk) break;
-                if (s < kNumPads && d < kNumPads)
-                {
-                    const float clamped = std::clamp(
-                        coeff, 0.0f, CouplingMatrix::kMaxCoefficient);
-                    couplingMatrix_.setOverride(
-                        static_cast<int>(s), static_cast<int>(d), clamped);
-                }
-            }
-        }
-        else
-        {
-            // v4 -> v5 migration: Phase 5 params at defaults
-            globalCoupling_.store(0.0f, std::memory_order_relaxed);
-            snareBuzz_.store(0.0f, std::memory_order_relaxed);
-            tomResonance_.store(0.0f, std::memory_order_relaxed);
-            couplingDelayMs_.store(1.0f, std::memory_order_relaxed);
-            couplingEngine_.setAmount(0.0f);
-            for (int pad = 0; pad < kNumPads; ++pad)
-                voicePool_.padConfigMut(pad).couplingAmount = 0.5f;
-            for (int i = 0; i < kNumPads; ++i)
-                padCategories_[static_cast<size_t>(i)] =
-                    classifyPad(voicePool_.padConfig(i));
-            recomputeCouplingMatrix();
-        }
-
-        // Phase 6 (spec 141 T087): per-pad macro values.
-        // v4/v5: default all 160 macros to 0.5 (neutral -- zero delta).
-        // v6:    read 160 x float64 in pad-major order.
-        auto& pads = voicePool_.padConfigsArray();
-        if (version == 6)
-        {
-            for (int pad = 0; pad < kNumPads; ++pad)
-            {
-                double m[5] = {0.5, 0.5, 0.5, 0.5, 0.5};
-                for (double& v : m)
-                {
-                    if (state->read(&v, sizeof(v), nullptr) != kResultOk)
-                        v = 0.5;
-                    v = std::clamp(v, 0.0, 1.0);
-                }
-                pads[static_cast<size_t>(pad)].macroTightness  = static_cast<float>(m[0]);
-                pads[static_cast<size_t>(pad)].macroBrightness = static_cast<float>(m[1]);
-                pads[static_cast<size_t>(pad)].macroBodySize   = static_cast<float>(m[2]);
-                pads[static_cast<size_t>(pad)].macroPunch      = static_cast<float>(m[3]);
-                pads[static_cast<size_t>(pad)].macroComplexity = static_cast<float>(m[4]);
-            }
-        }
-        else
-        {
-            for (auto& p : pads)
-            {
-                p.macroTightness  = 0.5f;
-                p.macroBrightness = 0.5f;
-                p.macroBodySize   = 0.5f;
-                p.macroPunch      = 0.5f;
-                p.macroComplexity = 0.5f;
-            }
-        }
-
-        // Reapply macros so derived parameters reflect loaded macro values
-        // (FR-082). We gate on "any non-neutral macro" because reapplyAll
-        // rewrites underlying targets from base+delta -- for neutral (0.5)
-        // macros the delta is zero so the call would overwrite custom
-        // underlying values (set directly via parameter automation or legacy
-        // v4/v5 state) with the registered defaults. Bit-exact round-trip of
-        // custom underlying values must be preserved (FR-084, Phase 7 SC-005).
-        const bool anyNonNeutral = std::ranges::any_of(pads,
-            [](const auto& p) noexcept {
-                return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
-                       p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
-                       p.macroComplexity != 0.5f;
-            });
-        if (anyNonNeutral)
-            macroMapper_.reapplyAll(pads);
-
-        return kResultOk;
-    }
-
-    // ------------------------------------------------------------------
-    // Legacy v1/v2/v3 state loading -- parse old format, apply to pad 0,
-    // other pads keep defaults (which will be GM defaults from DefaultKit
-    // once Phase 4 US2 is implemented).
-    // ------------------------------------------------------------------
-
-    // ---- Phase 1 params -> pad 0 ----
-    const float phase1Defaults[] = {0.5f, 0.5f, 0.3f, 0.3f, 0.8f};
-    float phase1Values[5] = {};
-    for (int i = 0; i < 5; ++i)
-    {
-        double value = static_cast<double>(phase1Defaults[i]);
-        if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-            value = static_cast<double>(phase1Defaults[i]);
-        phase1Values[i] = static_cast<float>(value);
-    }
-
-    auto& pad0 = voicePool_.padConfigMut(0);
-    pad0.material = phase1Values[0];
-    pad0.size = phase1Values[1];
-    pad0.decay = phase1Values[2];
-    pad0.strikePosition = phase1Values[3];
-    pad0.level = phase1Values[4];
-
-    // ---- Phase 2 params -> pad 0 ----
-    if (version >= 2)
-    {
-        int32 exciterTypeI32 = 0;
-        int32 bodyModelI32 = 0;
-        if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
-            exciterTypeI32 = 0;
-        if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
-            bodyModelI32 = 0;
-
-        exciterTypeI32 = std::clamp(exciterTypeI32, 0,
-                                    static_cast<int>(ExciterType::kCount) - 1);
-        bodyModelI32 = std::clamp(bodyModelI32, 0,
-                                  static_cast<int>(BodyModelType::kCount) - 1);
-        pad0.exciterType = static_cast<ExciterType>(exciterTypeI32);
-        pad0.bodyModel = static_cast<BodyModelType>(bodyModelI32);
-
-        // Read Phase 2 float params into pad 0
-        for (const auto& slot : kPhase2FloatSlots)
-        {
-            double value = static_cast<double>(slot.defaultValue);
-            if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-                value = static_cast<double>(slot.defaultValue);
-            const float fVal = static_cast<float>(value);
-
-            // Map Phase 2 param to PadConfig field via padOffset
-            voicePool_.setPadConfigField(0, slot.padOffset, fVal);
-        }
-    }
-
-    // ---- Phase 3 tail -> polyphony/stealing/choke ----
-    int loadedMaxPoly = 8;
-    int loadedPolicy = 0;
-    std::array<std::uint8_t, ChokeGroupTable::kSize> loadedChokes{};
-
-    if (version >= 3)
-    {
-        std::uint8_t rawMaxPoly = 8;
-        std::uint8_t rawPolicy = 0;
-        if (state->read(&rawMaxPoly, sizeof(rawMaxPoly), nullptr) != kResultOk)
-            rawMaxPoly = 8;
-        if (state->read(&rawPolicy, sizeof(rawPolicy), nullptr) != kResultOk)
-            rawPolicy = 0;
-
-        loadedMaxPoly = std::clamp(static_cast<int>(rawMaxPoly), 4, 16);
-        loadedPolicy = (static_cast<int>(rawPolicy) > 2) ? 0 : static_cast<int>(rawPolicy);
-
-        for (auto& slot : loadedChokes)
-        {
-            std::uint8_t b = 0;
-            if (state->read(&b, sizeof(b), nullptr) != kResultOk)
-                b = 0;
-            slot = (b > 8U) ? std::uint8_t{0} : b;
-        }
-    }
-
-    maxPolyphony_.store(loadedMaxPoly);
-    voiceStealingPolicy_.store(loadedPolicy);
-    voicePool_.setMaxPolyphony(loadedMaxPoly);
-    voicePool_.setVoiceStealingPolicy(static_cast<VoiceStealingPolicy>(loadedPolicy));
-    voicePool_.loadChokeGroupAssignments(loadedChokes);
-
-    selectedPadIndex_ = 0;
-
-    return kResultOk;
-}
-
-tresult Processor::loadKitPreset(IBStream* stream)
-{
-    if (!stream)
-        return kResultFalse;
-
-    int32 version = 0;
-    if (stream->read(&version, sizeof(version), nullptr) != kResultOk)
-        return kResultFalse;
-
-    if (version != 4)
-        return kResultFalse;
-
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
-    if (stream->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
-        return kResultFalse;
-    if (stream->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
-        return kResultFalse;
+    if (state->read(&maxPoly, sizeof(maxPoly), nullptr) != kResultOk)
+        maxPoly = 8;
+    if (state->read(&stealPolicy, sizeof(stealPolicy), nullptr) != kResultOk)
+        stealPolicy = 0;
 
     maxPoly = std::clamp(maxPoly, 4, 16);
     stealPolicy = std::clamp(stealPolicy, 0, 2);
@@ -1415,10 +1027,10 @@ tresult Processor::loadKitPreset(IBStream* stream)
 
         int32 exciterTypeI32 = 0;
         int32 bodyModelI32 = 0;
-        if (stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
-            return kResultFalse;
-        if (stream->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
-            return kResultFalse;
+        if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) != kResultOk)
+            exciterTypeI32 = 0;
+        if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) != kResultOk)
+            bodyModelI32 = 0;
 
         exciterTypeI32 = std::clamp(exciterTypeI32, 0,
                                     static_cast<int>(ExciterType::kCount) - 1);
@@ -1427,13 +1039,16 @@ tresult Processor::loadKitPreset(IBStream* stream)
         cfg.exciterType = static_cast<ExciterType>(exciterTypeI32);
         cfg.bodyModel = static_cast<BodyModelType>(bodyModelI32);
 
+        // Read 34 float64 values (offsets 2-35 in order, including
+        // chokeGroup and outputBus as float64 at positions 28-29)
         double vals[34] = {};
         for (auto& val : vals)
         {
-            if (stream->read(&val, sizeof(val), nullptr) != kResultOk)
-                return kResultFalse;
+            if (state->read(&val, sizeof(val), nullptr) != kResultOk)
+                val = 0.0;
         }
 
+        // Map back to PadConfig fields
         cfg.material = static_cast<float>(vals[0]);
         cfg.size = static_cast<float>(vals[1]);
         cfg.decay = static_cast<float>(vals[2]);
@@ -1463,17 +1078,19 @@ tresult Processor::loadKitPreset(IBStream* stream)
         cfg.morphDuration = static_cast<float>(vals[26]);
         cfg.morphCurve = static_cast<float>(vals[27]);
         // vals[28] = chokeGroup as float64, vals[29] = outputBus as float64
+        // vals[30-33] = secondary exciter params
         cfg.fmRatio = static_cast<float>(vals[30]);
         cfg.feedbackAmount = static_cast<float>(vals[31]);
         cfg.noiseBurstDuration = static_cast<float>(vals[32]);
         cfg.frictionPressure = static_cast<float>(vals[33]);
 
+        // Read uint8 chokeGroup and outputBus (authoritative)
         std::uint8_t cg = 0;
         std::uint8_t ob = 0;
-        if (stream->read(&cg, sizeof(cg), nullptr) != kResultOk)
-            return kResultFalse;
-        if (stream->read(&ob, sizeof(ob), nullptr) != kResultOk)
-            return kResultFalse;
+        if (state->read(&cg, sizeof(cg), nullptr) != kResultOk)
+            cg = 0;
+        if (state->read(&ob, sizeof(ob), nullptr) != kResultOk)
+            ob = 0;
         cfg.chokeGroup = (cg > 8U) ? std::uint8_t{0} : cg;
         cfg.outputBus = (ob > 15U) ? std::uint8_t{0} : ob;
     }
@@ -1482,28 +1099,104 @@ tresult Processor::loadKitPreset(IBStream* stream)
     for (int pad = 0; pad < kNumPads; ++pad)
         voicePool_.setPadChokeGroup(pad, voicePool_.padConfig(pad).chokeGroup);
 
-    // Phase 6 (T025): after a kit preset is loaded, the per-pad macro cache
-    // in MacroMapper is stale with respect to the newly loaded pads. Force a
-    // full refresh so derived underlying parameters reflect any non-neutral
-    // macros carried by the preset (FR-023). The current kit preset layout
-    // (v4) does not yet carry macros, so at load-time macros remain at their
-    // previous values. We still invalidate the cache so the first subsequent
-    // macro edit recomputes correctly; the actual overwrite only runs when
-    // at least one pad carries a non-neutral macro to preserve round-trip
-    // of user-set underlying params.
-    auto& kitPads = voicePool_.padConfigsArray();
-    const bool kitAnyNonNeutral = std::ranges::any_of(kitPads,
+    int32 selPad = 0;
+    if (state->read(&selPad, sizeof(selPad), nullptr) != kResultOk)
+        selPad = 0;
+    selectedPadIndex_ = std::clamp(static_cast<int>(selPad), 0, kNumPads - 1);
+
+    // ---- Phase 5: coupling state ----
+    {
+        double gc = 0.0;
+        double sb = 0.0;
+        double tr = 0.0;
+        double cd = 1.0;
+        if (state->read(&gc, sizeof(gc), nullptr) != kResultOk) gc = 0.0;
+        if (state->read(&sb, sizeof(sb), nullptr) != kResultOk) sb = 0.0;
+        if (state->read(&tr, sizeof(tr), nullptr) != kResultOk) tr = 0.0;
+        if (state->read(&cd, sizeof(cd), nullptr) != kResultOk) cd = 1.0;
+
+        const float gcF = std::clamp(static_cast<float>(gc), 0.0f, 1.0f);
+        const float sbF = std::clamp(static_cast<float>(sb), 0.0f, 1.0f);
+        const float trF = std::clamp(static_cast<float>(tr), 0.0f, 1.0f);
+        const float cdF = std::clamp(static_cast<float>(cd), 0.5f, 2.0f);
+
+        globalCoupling_.store(gcF, std::memory_order_relaxed);
+        snareBuzz_.store(sbF, std::memory_order_relaxed);
+        tomResonance_.store(trF, std::memory_order_relaxed);
+        couplingDelayMs_.store(cdF, std::memory_order_relaxed);
+        couplingEngine_.setAmount(gcF);
+
+        // 32 per-pad coupling amounts
+        for (int pad = 0; pad < kNumPads; ++pad)
+        {
+            double amt = 0.5;
+            if (state->read(&amt, sizeof(amt), nullptr) != kResultOk)
+                amt = 0.5;
+            voicePool_.padConfigMut(pad).couplingAmount =
+                std::clamp(static_cast<float>(amt), 0.0f, 1.0f);
+        }
+
+        // Refresh categories and recompute Tier 1 matrix
+        for (int i = 0; i < kNumPads; ++i)
+            padCategories_[static_cast<size_t>(i)] =
+                classifyPad(voicePool_.padConfig(i));
+        recomputeCouplingMatrix();
+
+        // uint16 overrideCount + N entries
+        std::uint16_t overrideCount = 0;
+        if (state->read(&overrideCount, sizeof(overrideCount), nullptr) != kResultOk)
+            overrideCount = 0;
+        for (std::uint16_t o = 0; o < overrideCount; ++o)
+        {
+            std::uint8_t s = 0;
+            std::uint8_t d = 0;
+            float coeff = 0.0f;
+            if (state->read(&s, sizeof(s), nullptr) != kResultOk) break;
+            if (state->read(&d, sizeof(d), nullptr) != kResultOk) break;
+            if (state->read(&coeff, sizeof(coeff), nullptr) != kResultOk) break;
+            if (s < kNumPads && d < kNumPads)
+            {
+                const float clamped = std::clamp(
+                    coeff, 0.0f, CouplingMatrix::kMaxCoefficient);
+                couplingMatrix_.setOverride(
+                    static_cast<int>(s), static_cast<int>(d), clamped);
+            }
+        }
+    }
+
+    // ---- Phase 6: per-pad macro values (160 x float64, pad-major) ----
+    auto& pads = voicePool_.padConfigsArray();
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        double m[5] = {0.5, 0.5, 0.5, 0.5, 0.5};
+        for (double& v : m)
+        {
+            if (state->read(&v, sizeof(v), nullptr) != kResultOk)
+                v = 0.5;
+            v = std::clamp(v, 0.0, 1.0);
+        }
+        pads[static_cast<size_t>(pad)].macroTightness  = static_cast<float>(m[0]);
+        pads[static_cast<size_t>(pad)].macroBrightness = static_cast<float>(m[1]);
+        pads[static_cast<size_t>(pad)].macroBodySize   = static_cast<float>(m[2]);
+        pads[static_cast<size_t>(pad)].macroPunch      = static_cast<float>(m[3]);
+        pads[static_cast<size_t>(pad)].macroComplexity = static_cast<float>(m[4]);
+    }
+
+    // Reapply macros so derived parameters reflect loaded macro values
+    // (FR-082). We gate on "any non-neutral macro" because reapplyAll
+    // rewrites underlying targets from base+delta -- for neutral (0.5)
+    // macros the delta is zero so the call would overwrite custom
+    // underlying values with the registered defaults. Bit-exact round-trip
+    // of custom underlying values must be preserved (FR-084, SC-005).
+    const bool anyNonNeutral = std::ranges::any_of(pads,
         [](const auto& p) noexcept {
             return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
                    p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
                    p.macroComplexity != 0.5f;
         });
-    if (kitAnyNonNeutral)
-        macroMapper_.reapplyAll(kitPads);
-    else
-        macroMapper_.invalidateCache();
+    if (anyNonNeutral)
+        macroMapper_.reapplyAll(pads);
 
-    // Kit preset does NOT modify selectedPadIndex
     return kResultOk;
 }
 

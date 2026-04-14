@@ -632,8 +632,11 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     if (state->read(&version, sizeof(version), nullptr) != kResultOk)
         return kResultFalse;
 
-    // For v4 state, read the new format
-    if (version == 4)
+    // Only the current v6 format is accepted. The plugin has not shipped,
+    // so no backwards-compat migration is provided.
+    if (version != kCurrentStateVersion)
+        return kResultFalse;
+
     {
         int32 maxPoly = 8;
         int32 stealPolicy = 0;
@@ -747,94 +750,6 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
         // Sync global proxy params from selected pad
         syncGlobalProxyFromPad(selectedPadIndex_);
-
-        return kResultOk;
-    }
-
-    // ------------------------------------------------------------------
-    // Legacy v1/v2/v3 state loading
-    // ------------------------------------------------------------------
-
-    // Phase 1 params
-    const ParamID phase1Ids[] = {
-        kMaterialId, kSizeId, kDecayId, kStrikePositionId, kLevelId};
-    const double phase1Defaults[] = {0.5, 0.5, 0.3, 0.3, 0.8};
-
-    for (int i = 0; i < 5; ++i)
-    {
-        double value = phase1Defaults[i];
-        if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-            value = phase1Defaults[i];
-        EditControllerEx1::setParamNormalized(phase1Ids[i], value);
-    }
-
-    if (version >= 2)
-    {
-        int32 exciterTypeI32 = 0;
-        int32 bodyModelI32 = 0;
-        if (state->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr) == kResultOk)
-        {
-            const double norm =
-                (std::clamp(exciterTypeI32, 0,
-                            static_cast<int>(ExciterType::kCount) - 1) + 0.5) /
-                static_cast<double>(ExciterType::kCount);
-            EditControllerEx1::setParamNormalized(kExciterTypeId, norm);
-        }
-        if (state->read(&bodyModelI32, sizeof(bodyModelI32), nullptr) == kResultOk)
-        {
-            const double norm =
-                (std::clamp(bodyModelI32, 0,
-                            static_cast<int>(BodyModelType::kCount) - 1) + 0.5) /
-                static_cast<double>(BodyModelType::kCount);
-            EditControllerEx1::setParamNormalized(kBodyModelId, norm);
-        }
-
-        // Phase 2 continuous params
-        struct Phase2Slot { ParamID id; double defaultValue; };
-        constexpr Phase2Slot kPhase2Slots[] = {
-            { .id = kExciterFMRatioId, .defaultValue = 0.133333 },
-            { .id = kExciterFeedbackAmountId, .defaultValue = 0.0 },
-            { .id = kExciterNoiseBurstDurationId, .defaultValue = 0.230769 },
-            { .id = kExciterFrictionPressureId, .defaultValue = 0.3 },
-            { .id = kToneShaperFilterTypeId, .defaultValue = 0.0 },
-            { .id = kToneShaperFilterCutoffId, .defaultValue = 1.0 },
-            { .id = kToneShaperFilterResonanceId, .defaultValue = 0.0 },
-            { .id = kToneShaperFilterEnvAmountId, .defaultValue = 0.5 },
-            { .id = kToneShaperDriveAmountId, .defaultValue = 0.0 },
-            { .id = kToneShaperFoldAmountId, .defaultValue = 0.0 },
-            { .id = kToneShaperPitchEnvStartId, .defaultValue = 0.070721 },
-            { .id = kToneShaperPitchEnvEndId, .defaultValue = 0.0 },
-            { .id = kToneShaperPitchEnvTimeId, .defaultValue = 0.0 },
-            { .id = kToneShaperPitchEnvCurveId, .defaultValue = 0.0 },
-            { .id = kToneShaperFilterEnvAttackId, .defaultValue = 0.0 },
-            { .id = kToneShaperFilterEnvDecayId, .defaultValue = 0.1 },
-            { .id = kToneShaperFilterEnvSustainId, .defaultValue = 0.0 },
-            { .id = kToneShaperFilterEnvReleaseId, .defaultValue = 0.1 },
-            { .id = kUnnaturalModeStretchId, .defaultValue = 0.333333 },
-            { .id = kUnnaturalDecaySkewId, .defaultValue = 0.5 },
-            { .id = kUnnaturalModeInjectAmountId, .defaultValue = 0.0 },
-            { .id = kUnnaturalNonlinearCouplingId, .defaultValue = 0.0 },
-            { .id = kMorphEnabledId, .defaultValue = 0.0 },
-            { .id = kMorphStartId, .defaultValue = 1.0 },
-            { .id = kMorphEndId, .defaultValue = 0.0 },
-            { .id = kMorphDurationMsId, .defaultValue = 0.095477 },
-            { .id = kMorphCurveId, .defaultValue = 0.0 },
-        };
-
-        for (const auto& slot : kPhase2Slots)
-        {
-            double value = slot.defaultValue;
-            if (state->read(&value, sizeof(value), nullptr) != kResultOk)
-                value = slot.defaultValue;
-            EditControllerEx1::setParamNormalized(slot.id, value);
-        }
-    }
-    else
-    {
-        EditControllerEx1::setParamNormalized(kExciterTypeId,
-            0.5 / static_cast<double>(ExciterType::kCount));
-        EditControllerEx1::setParamNormalized(kBodyModelId,
-            0.5 / static_cast<double>(BodyModelType::kCount));
     }
 
     return kResultOk;

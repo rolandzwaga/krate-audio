@@ -36,7 +36,6 @@
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
-using Catch::Approx;
 
 namespace {
 
@@ -279,103 +278,5 @@ TEST_CASE("Phase 2 contract: setParamNormalized makes zero heap allocations",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-// ==============================================================================
-// (6) Phase 1 backward compatibility:
-//     A version-1 state blob loaded via setComponentState() must produce the
-//     Phase 2 defaults for all new parameters.
-// ==============================================================================
-TEST_CASE("Phase 2 contract: version-1 state loads Phase-2 defaults via setComponentState",
-          "[membrum][vst][params][contract][backcompat]")
-{
-    Membrum::Controller controller;
-    REQUIRE(controller.initialize(nullptr) == kResultOk);
-
-    // Build a Phase-1 state blob: int32 version=1 + 5 x float64 in
-    // Material/Size/Decay/StrikePos/Level order.
-    auto* stream = new MemoryStream();
-    int32 version = 1;
-    stream->write(&version, sizeof(version), nullptr);
-    const double phase1[] = { 0.21, 0.72, 0.13, 0.84, 0.55 };
-    for (double p : phase1)
-        stream->write(&p, sizeof(p), nullptr);
-    stream->seek(0, IBStream::kIBSeekSet, nullptr);
-
-    REQUIRE(controller.setComponentState(stream) == kResultOk);
-    stream->release();
-
-    // Phase-1 parameters should reflect the loaded values.
-    CHECK(controller.getParamNormalized(Membrum::kMaterialId)       == Approx(0.21));
-    CHECK(controller.getParamNormalized(Membrum::kSizeId)           == Approx(0.72));
-    CHECK(controller.getParamNormalized(Membrum::kDecayId)          == Approx(0.13));
-    CHECK(controller.getParamNormalized(Membrum::kStrikePositionId) == Approx(0.84));
-    CHECK(controller.getParamNormalized(Membrum::kLevelId)          == Approx(0.55));
-
-    // Selectors must default to Impulse / Membrane (index 0). For a
-    // StringListParameter, the controller stores normalized = (idx+0.5)/count
-    // before quantisation, which the host then quantises back to the nearest
-    // step. The plain integer value is what we ultimately care about — the UI
-    // will display "Impulse" / "Membrane".
-    {
-        auto* excParam = controller.getParameterObject(Membrum::kExciterTypeId);
-        REQUIRE(excParam != nullptr);
-        const auto excPlain =
-            static_cast<int>(excParam->toPlain(controller.getParamNormalized(Membrum::kExciterTypeId)));
-        CHECK(excPlain == 0);  // Impulse
-
-        auto* bodyParam = controller.getParameterObject(Membrum::kBodyModelId);
-        REQUIRE(bodyParam != nullptr);
-        const auto bodyPlain =
-            static_cast<int>(bodyParam->toPlain(controller.getParamNormalized(Membrum::kBodyModelId)));
-        CHECK(bodyPlain == 0);  // Membrane
-    }
-
-    // The 27 continuous Phase-2 parameters should reflect their compiled-in
-    // defaults from controller.cpp's kPhase2Specs table.
-    struct DefaultEntry { ParamID id; double value; };
-    const DefaultEntry kDefaults[] = {
-        { Membrum::kExciterFMRatioId,            0.133333 },
-        { Membrum::kExciterFeedbackAmountId,     0.0      },
-        { Membrum::kExciterNoiseBurstDurationId, 0.230769 },
-        { Membrum::kExciterFrictionPressureId,   0.3      },
-
-        { Membrum::kToneShaperFilterTypeId,      0.0      },
-        { Membrum::kToneShaperFilterCutoffId,    1.0      },
-        { Membrum::kToneShaperFilterResonanceId, 0.0      },
-        { Membrum::kToneShaperFilterEnvAmountId, 0.5      },
-        { Membrum::kToneShaperDriveAmountId,     0.0      },
-        { Membrum::kToneShaperFoldAmountId,      0.0      },
-        { Membrum::kToneShaperPitchEnvStartId,   0.070721 },
-        { Membrum::kToneShaperPitchEnvEndId,     0.0      },
-        { Membrum::kToneShaperPitchEnvTimeId,    0.0      },
-        { Membrum::kToneShaperPitchEnvCurveId,   0.0      },
-
-        { Membrum::kToneShaperFilterEnvAttackId,  0.0 },
-        { Membrum::kToneShaperFilterEnvDecayId,   0.1 },
-        { Membrum::kToneShaperFilterEnvSustainId, 0.0 },
-        { Membrum::kToneShaperFilterEnvReleaseId, 0.1 },
-
-        { Membrum::kUnnaturalModeStretchId,       0.333333 },
-        { Membrum::kUnnaturalDecaySkewId,         0.5      },
-        { Membrum::kUnnaturalModeInjectAmountId,  0.0      },
-        { Membrum::kUnnaturalNonlinearCouplingId, 0.0      },
-
-        { Membrum::kMorphEnabledId,    0.0      },
-        { Membrum::kMorphStartId,      1.0      },
-        { Membrum::kMorphEndId,        0.0      },
-        { Membrum::kMorphDurationMsId, 0.095477 },
-        { Membrum::kMorphCurveId,      0.0      },
-    };
-    static_assert(sizeof(kDefaults) / sizeof(kDefaults[0]) == 27,
-                  "Phase 2 defaults table must list all 27 continuous params");
-
-    for (const auto& def : kDefaults)
-    {
-        const ParamValue actual = controller.getParamNormalized(def.id);
-        INFO("Default for ParamID " << def.id
-             << " expected=" << def.value
-             << " actual=" << actual);
-        CHECK(actual == Approx(def.value).margin(1e-6));
-    }
-
-    REQUIRE(controller.terminate() == kResultOk);
-}
+// (Note: Pre-v6 state migration was removed; the legacy v1 backward-compat
+// test was deleted along with the migration code paths.)
