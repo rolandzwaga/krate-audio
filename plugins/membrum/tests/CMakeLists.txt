@@ -150,8 +150,12 @@ target_link_libraries(membrum_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
-        sdk
+        # NOTE: vstgui_support MUST come before sdk so GNU ld can resolve
+        # ModuleInitializer/ModuleTerminator/getPlatformModuleHandle symbols
+        # referenced by vstguieditor.cpp against libsdk.a. Other plugin test
+        # targets follow the same convention.
         vstgui_support
+        sdk
 )
 
 target_include_directories(membrum_tests
