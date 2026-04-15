@@ -19,6 +19,7 @@
 #include "preset_io/kit_preset_writer.h"
 #include "preset_io/pad_preset_writer.h"
 #include "refinement/bobyqa_refine.h"
+#include "refinement/cmaes_refine.h"
 #include "refinement/render_voice.h"
 #include "segmentation.h"
 #include "tone_shaper_fit.h"
@@ -104,13 +105,28 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
                          9 /*tsFilterResonance*/, 15 /*tsPitchEnvTime*/ };
     rctx.weights = LossWeights{ options.wSTFT, options.wMFCC, options.wEnv };
     rctx.maxEvals = options.maxBobyqaEvals;
-    const auto rr = refineBOBYQA(rctx, voice);
+    auto rr = refineBOBYQA(rctx, voice);
+
+    // --global flag (or significant residual loss) -> CRS global escape.
+    if (options.enableGlobalCMAES && rr.finalLoss > 1.5f) {
+        RefineContext gctx = rctx;
+        gctx.initial = rr.final;
+        gctx.maxEvals = options.maxBobyqaEvals;
+        const auto gr = refineGlobalCRS(gctx, voice);
+        if (gr.finalLoss < rr.finalLoss) {
+            rr.final = gr.final;
+            rr.finalLoss = gr.finalLoss;
+            rr.evalCount += gr.evalCount;
+            rr.escapedCMAES = gr.escapedCMAES;
+        }
+    }
 
     res.padConfig = rr.final;
     res.quality.initialLoss = rr.initialLoss;
     res.quality.finalLoss   = rr.finalLoss;
     res.quality.bobyqaEvals = rr.evalCount;
     res.quality.bobyqaConverged = rr.convergedBOBYQA;
+    res.quality.cmaesUsed = rr.escapedCMAES;
     return res;
 }
 

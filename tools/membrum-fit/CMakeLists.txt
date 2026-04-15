@@ -29,6 +29,7 @@ set(MEMBRUM_FIT_SOURCES
     src/refinement/render_voice.cpp
     src/refinement/loss.cpp
     src/refinement/bobyqa_refine.cpp
+    src/refinement/cmaes_refine.cpp
 
     src/ingestion/wav_dir.cpp
     src/ingestion/sfz_ingest.cpp
