@@ -124,6 +124,8 @@ add_library(membrum_preset_io STATIC
     src/state/state_codec.cpp
     src/preset/membrum_preset_container.h
     src/preset/membrum_preset_container.cpp
+    # SDK helper: MemoryStream used by both the plugin and tools/membrum-fit.
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 target_include_directories(membrum_preset_io PUBLIC
@@ -180,9 +182,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Shared
     src/plugin_ids.h
     src/version.h
-
-    # SDK helper: MemoryStream (needed by controller kit preset StateProvider)
-    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 )
 
 # Link SDK, VSTGUI, KrateDSP, and the new membrum_dsp / membrum_preset_io targets

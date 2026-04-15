@@ -345,6 +345,69 @@ set(JSON_Install OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(nlohmann_json)
 
 # ==============================================================================
+# Eigen 3.4 (linear algebra, MPL-2 license) -- used by tools/membrum-fit
+# ==============================================================================
+# Header-only. Imported as an INTERFACE target to skip Eigen's own CMake
+# machinery (tests, docs, install rules). Provides Eigen3::Eigen.
+option(VSTWORK_BUILD_MEMBRUM_FIT "Build the tools/membrum-fit offline drum-sample fitter" ON)
+
+if(VSTWORK_BUILD_MEMBRUM_FIT)
+    FetchContent_Declare(
+        Eigen3
+        GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
+        GIT_TAG 3.4.0
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_GetProperties(Eigen3)
+    if(NOT eigen3_POPULATED)
+        FetchContent_Populate(Eigen3)
+    endif()
+    if(NOT TARGET Eigen3::Eigen)
+        add_library(Eigen3_headeronly INTERFACE)
+        target_include_directories(Eigen3_headeronly INTERFACE ${eigen3_SOURCE_DIR})
+        add_library(Eigen3::Eigen ALIAS Eigen3_headeronly)
+    endif()
+
+    # =====================
+    # CLI11 (command-line parser, BSD-3) -- used by tools/membrum-fit
+    # =====================
+    FetchContent_Declare(
+        cli11
+        GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+        GIT_TAG v2.4.2
+        GIT_SHALLOW TRUE
+    )
+    set(CLI11_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(CLI11_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(CLI11_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(CLI11_SINGLE_FILE OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(cli11)
+
+    # =====================
+    # NLopt BOBYQA (derivative-free refinement) -- tools/membrum-fit
+    # =====================
+    # Gated by a cache option so CI / minimal configurations can skip NLopt.
+    option(MEMBRUM_FIT_ENABLE_NLOPT "Fetch and link NLopt for BOBYQA refinement" ON)
+    if(MEMBRUM_FIT_ENABLE_NLOPT)
+        FetchContent_Declare(
+            nlopt
+            GIT_REPOSITORY https://github.com/stevengj/nlopt.git
+            GIT_TAG v2.7.1
+            GIT_SHALLOW TRUE
+        )
+        set(NLOPT_PYTHON OFF CACHE BOOL "" FORCE)
+        set(NLOPT_OCTAVE OFF CACHE BOOL "" FORCE)
+        set(NLOPT_MATLAB OFF CACHE BOOL "" FORCE)
+        set(NLOPT_GUILE OFF CACHE BOOL "" FORCE)
+        set(NLOPT_SWIG OFF CACHE BOOL "" FORCE)
+        set(NLOPT_TESTS OFF CACHE BOOL "" FORCE)
+        set(NLOPT_FORTRAN OFF CACHE BOOL "" FORCE)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(nlopt)
+    endif()
+endif()
+
+# ==============================================================================
 # KrateDSP Library (Shared by all plugins)
 # ==============================================================================
 add_subdirectory(dsp)
@@ -455,6 +518,16 @@ option(BUILD_CONTROL_TESTBENCH "Build the control testbench tool" ON)
 
 if(BUILD_CONTROL_TESTBENCH)
     add_subdirectory(tools/control_testbench)
+endif()
+
+# ==============================================================================
+# tools/membrum-fit -- offline drum-sample to Membrum-preset fitter
+# ==============================================================================
+# Analysis-by-synthesis CLI that ingests WAV drum samples, renders through the
+# production Membrum voice (via membrum_dsp), and emits .vstpreset files.
+# See specs/membrum-fit-tool.md for the execution plan.
+if(VSTWORK_BUILD_MEMBRUM_FIT)
+    add_subdirectory(tools/membrum-fit)
 endif()
 
 # ==============================================================================

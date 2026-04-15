@@ -1,0 +1,25 @@
+add_executable(membrum_fit_tests
+    unit/test_smoke.cpp
+    unit/test_loader.cpp
+    unit/modal/test_matrix_pencil.cpp
+    unit/mapper_inversion/test_membrane_inverse.cpp
+    unit/preset_io/test_pad_writer.cpp
+)
+
+target_link_libraries(membrum_fit_tests PRIVATE
+    membrum_fit_core
+    Catch2::Catch2
+)
+
+target_include_directories(membrum_fit_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_compile_features(membrum_fit_tests PRIVATE cxx_std_20)
+
+set_target_properties(membrum_fit_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+include(Catch)
+catch_discover_tests(membrum_fit_tests REPORTER console)
