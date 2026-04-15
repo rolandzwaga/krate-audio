@@ -8,6 +8,8 @@ add_executable(membrum_fit_tests
     unit/modal/test_mp_snr.cpp
     unit/mapper_inversion/test_membrane_inverse.cpp
     unit/preset_io/test_pad_writer.cpp
+    unit/preset_io/test_kit_writer_bytes.cpp
+    unit/test_golden_kick.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
