@@ -10,6 +10,7 @@ add_executable(membrum_fit_tests
     unit/preset_io/test_pad_writer.cpp
     unit/preset_io/test_kit_writer_bytes.cpp
     unit/test_golden_kick.cpp
+    unit/test_golden_corpus.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE

@@ -57,12 +57,22 @@ std::vector<std::complex<double>> hilbertAnalytic(std::span<const float> x) {
 
 }  // namespace
 
-ModalDecomposition extractModesMatrixPencil(std::span<const float> decay,
+ModalDecomposition extractModesMatrixPencil(std::span<const float> decayIn,
                                             double sampleRate,
                                             int    maxModes) {
     ModalDecomposition out;
+    if (decayIn.empty() || sampleRate <= 0.0 || maxModes <= 0) return out;
+
+    // Cap input length: JacobiSVD on the (N-L) x L Hankel matrix is O(N^3)
+    // for L = N/3, so anything past ~4096 samples means minutes per call on
+    // MSVC. 4096 samples @ 44.1 kHz = 93 ms of decay -- enough for stable
+    // mode estimation on percussion since we only care about the tail.
+    constexpr std::size_t kMaxDecayLen = 4096;
+    const std::span<const float> decay = (decayIn.size() > kMaxDecayLen)
+        ? decayIn.subspan(decayIn.size() - kMaxDecayLen)
+        : decayIn;
     const std::size_t N = decay.size();
-    if (N < 64 || sampleRate <= 0.0 || maxModes <= 0) return out;
+    if (N < 64) return out;
 
     // Analytic signal -> complex samples; avoids conjugate-pair doubling.
     const auto analytic = hilbertAnalytic(decay);

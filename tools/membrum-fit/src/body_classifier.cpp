@@ -106,10 +106,14 @@ BodyScoreList classifyBody(const ModalDecomposition& md,
     scores[static_cast<int>(Membrum::BodyModelType::String)].score    = scoreRatios(ratios, weights, stringRatios());
     scores[static_cast<int>(Membrum::BodyModelType::Bell)].score      = scoreRatios(ratios, weights, bellRatios());
 
-    // NoiseBody: plate-like modal spacing but with high noisiness.
+    // NoiseBody: plate-like modal spacing AND high noisiness. Penalise clean
+    // signals (low residual/total ratio) so that an ordinary Plate never beats
+    // NoiseBody by accident; the classifier only picks NoiseBody when the
+    // residual truly dominates (spec §4.6 "high modal density + broadband noise residual").
     const float noisiness = (md.totalRms > 1e-6f) ? md.residualRms / md.totalRms : 0.0f;
+    const float noiseBodyPenalty = (noisiness > 0.3f) ? 1.0f : (2.0f + (0.3f - noisiness));
     scores[static_cast<int>(Membrum::BodyModelType::NoiseBody)].score =
-        scoreRatios(ratios, weights, plateRatios()) * (1.0f - std::clamp(noisiness, 0.0f, 1.0f));
+        scoreRatios(ratios, weights, plateRatios()) * noiseBodyPenalty;
 
     // Confidence = 1 - (best / 2nd-best).
     std::vector<float> allScores(6);
