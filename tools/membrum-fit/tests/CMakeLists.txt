@@ -12,6 +12,7 @@ add_executable(membrum_fit_tests
     unit/test_golden_kick.cpp
     unit/test_golden_corpus.cpp
     unit/refinement/test_global_crs.cpp
+    unit/test_cli_e2e.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
