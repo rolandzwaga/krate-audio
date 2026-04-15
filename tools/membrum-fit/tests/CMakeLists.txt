@@ -1,7 +1,11 @@
 add_executable(membrum_fit_tests
     unit/test_smoke.cpp
     unit/test_loader.cpp
+    unit/test_body_classifier.cpp
+    unit/test_sfz_ingest.cpp
+    unit/test_unnatural_fit.cpp
     unit/modal/test_matrix_pencil.cpp
+    unit/modal/test_mp_snr.cpp
     unit/mapper_inversion/test_membrane_inverse.cpp
     unit/preset_io/test_pad_writer.cpp
 )

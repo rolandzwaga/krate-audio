@@ -6,8 +6,15 @@
 #include "ingestion/sfz_ingest.h"
 #include "ingestion/wav_dir.h"
 #include "loader.h"
+#include "mapper_inversion/bell_inverse.h"
 #include "mapper_inversion/membrane_inverse.h"
+#include "mapper_inversion/noise_body_inverse.h"
+#include "mapper_inversion/plate_inverse.h"
+#include "mapper_inversion/shell_inverse.h"
+#include "mapper_inversion/string_inverse.h"
+#include "modal/esprit.h"
 #include "modal/matrix_pencil.h"
+#include "modal/mode_selection.h"
 #include "preset_io/json_writer.h"
 #include "preset_io/kit_preset_writer.h"
 #include "preset_io/pad_preset_writer.h"
@@ -48,17 +55,38 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
     }
 
     const auto features = extractAttackFeatures(loaded->samples, seg, loaded->sampleRate);
-    const auto exciter  = classifyExciter(features, ExciterDecisionSet::Phase1Subset);
+    const auto exciter  = classifyExciter(features, ExciterDecisionSet::FullSixWay);
 
     const std::span<const float> decay(
         loaded->samples.data() + seg.decayStartSample,
         seg.decayEndSample - seg.decayStartSample);
 
+    // Model-order selection + modal extraction (MP or ESPRIT per CLI flag).
+    const int modelOrder = Modal::selectModelOrder(decay, loaded->sampleRate, 8, 32);
     const auto modes = (options.modalMethod == ModalMethod::MatrixPencil)
-        ? Modal::extractModesMatrixPencil(decay, loaded->sampleRate, /*maxModes*/ 16)
-        : ModalDecomposition{};  // ESPRIT path Phase 3
+        ? Modal::extractModesMatrixPencil(decay, loaded->sampleRate, modelOrder)
+        : Modal::extractModesESPRIT(decay, loaded->sampleRate, modelOrder);
 
-    auto cfg = MapperInversion::invertMembrane(modes, features, loaded->sampleRate);
+    // Body classifier + per-body inversion dispatch.
+    const auto bodyScores = classifyBody(modes, features);
+    const auto bestBody   = pickBestBody(bodyScores);
+
+    Membrum::PadConfig cfg{};
+    switch (bestBody) {
+        case Membrum::BodyModelType::Plate:
+            cfg = MapperInversion::invertPlate(modes, features, loaded->sampleRate);  break;
+        case Membrum::BodyModelType::Shell:
+            cfg = MapperInversion::invertShell(modes, features, loaded->sampleRate);  break;
+        case Membrum::BodyModelType::Bell:
+            cfg = MapperInversion::invertBell(modes, features, loaded->sampleRate);   break;
+        case Membrum::BodyModelType::String:
+            cfg = MapperInversion::invertString(modes, features, loaded->sampleRate); break;
+        case Membrum::BodyModelType::NoiseBody:
+            cfg = MapperInversion::invertNoiseBody(modes, features, loaded->sampleRate); break;
+        case Membrum::BodyModelType::Membrane:
+        default:
+            cfg = MapperInversion::invertMembrane(modes, features, loaded->sampleRate); break;
+    }
     cfg.exciterType = exciter;
 
     fitToneShaper(loaded->samples, seg, loaded->sampleRate, modes, cfg);

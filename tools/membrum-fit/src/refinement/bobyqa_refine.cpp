@@ -87,8 +87,10 @@ struct EvalState {
     const RefineContext* ctx;
     RenderableMembrumVoice* voice;
     Membrum::PadConfig working;
+    std::span<const float> targetClipped;
     std::vector<float> targetMfcc;
     std::vector<float> targetEnv;
+    float renderSec;
     int evals;
     float bestLoss;
     Membrum::PadConfig bestCfg;
@@ -99,9 +101,9 @@ double bobyqaObjective(unsigned n, const double* x, double* /*grad*/, void* user
     std::vector<float> xf(n);
     for (unsigned i = 0; i < n; ++i) xf[i] = static_cast<float>(x[i]);
     vectorToPadConfig(xf, st->ctx->optimisable, st->working);
-    auto rendered = st->voice->renderToVector(st->working, /*vel*/ 1.0f, 1.0f);
-    if (rendered.size() > st->ctx->target.size()) rendered.resize(st->ctx->target.size());
-    const float l = totalLoss(st->ctx->target, st->targetMfcc, st->targetEnv,
+    auto rendered = st->voice->renderToVector(st->working, /*vel*/ 1.0f, st->renderSec);
+    if (rendered.size() > st->targetClipped.size()) rendered.resize(st->targetClipped.size());
+    const float l = totalLoss(st->targetClipped, st->targetMfcc, st->targetEnv,
                               rendered, st->ctx->sampleRate, st->ctx->weights);
     if (l < st->bestLoss) { st->bestLoss = l; st->bestCfg = st->working; }
     ++st->evals;
@@ -113,11 +115,17 @@ double bobyqaObjective(unsigned n, const double* x, double* /*grad*/, void* user
 RefineResult refineBOBYQA(const RefineContext& ctx, RenderableMembrumVoice& voice) {
     RefineResult r;
     r.final = ctx.initial;
-    auto initial = voice.renderToVector(ctx.initial, /*vel*/ 1.0f, 1.0f);
+    // Cap render length: max 0.5 s or the target's length, whichever is smaller.
+    // BOBYQA evaluates hundreds of times; long renders dominate wall time.
+    const float renderSec = std::min(0.5f,
+        static_cast<float>(ctx.target.size() / std::max(ctx.sampleRate, 1.0)));
+    auto initial = voice.renderToVector(ctx.initial, /*vel*/ 1.0f, renderSec);
     if (initial.size() > ctx.target.size()) initial.resize(ctx.target.size());
-    const auto tMfcc = computeMFCC(ctx.target, ctx.sampleRate);
-    const auto tEnv  = computeLogEnvelope(ctx.target, ctx.sampleRate);
-    r.initialLoss = totalLoss(ctx.target, tMfcc, tEnv, initial, ctx.sampleRate, ctx.weights);
+    const std::span<const float> tClipped(ctx.target.data(),
+        std::min(ctx.target.size(), initial.size()));
+    const auto tMfcc = computeMFCC(tClipped, ctx.sampleRate);
+    const auto tEnv  = computeLogEnvelope(tClipped, ctx.sampleRate);
+    r.initialLoss = totalLoss(tClipped, tMfcc, tEnv, initial, ctx.sampleRate, ctx.weights);
     r.finalLoss   = r.initialLoss;
 
 #if MEMBRUM_FIT_HAVE_NLOPT
@@ -127,8 +135,10 @@ RefineResult refineBOBYQA(const RefineContext& ctx, RenderableMembrumVoice& voic
     st.ctx = &ctx;
     st.voice = &voice;
     st.working = ctx.initial;
+    st.targetClipped = tClipped;
     st.targetMfcc = tMfcc;
     st.targetEnv  = tEnv;
+    st.renderSec = renderSec;
     st.evals = 0;
     st.bestLoss = r.initialLoss;
     st.bestCfg  = ctx.initial;
