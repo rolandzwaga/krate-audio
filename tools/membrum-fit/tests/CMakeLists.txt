@@ -20,6 +20,10 @@ add_executable(membrum_fit_tests
     unit/test_features.cpp
     unit/test_segmentation.cpp
     unit/preset_io/test_json_writer.cpp
+    unit/preset_io/test_pad_blob_roundtrip.cpp
+    unit/preset_io/test_pad_json.cpp
+    unit/refinement/test_loss.cpp
+    unit/test_pitch_env_detector.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
