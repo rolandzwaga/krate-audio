@@ -50,26 +50,47 @@ std::vector<float> stringRatios() {
     return r;
 }
 
-// Amplitude-weighted log-ratio distance between measured and reference mode
-// sequences. `measured` is sorted by frequency and normalised to its minimum
-// (i.e. ratio to fundamental). `ref` is similarly ratios to fundamental.
+// Score one shift: amplitude-weighted log-ratio L1 between measured slots
+// 0..K-1 and ref slots offset..offset+K-1.
+float scoreShift(std::span<const float> measuredRatios,
+                 std::span<const float> measuredWeights,
+                 std::span<const float> ref,
+                 std::size_t offset) {
+    const std::size_t K = std::min(measuredRatios.size(), ref.size() - offset);
+    if (K == 0) return std::numeric_limits<float>::infinity();
+    double totalW = 0.0;
+    double sumW   = 0.0;
+    // Re-normalise measured to ref[offset] so the lowest measured slot maps
+    // onto whichever ref slot the shift starts at -- the "min over circular
+    // shift" formulation in spec §4.6.
+    const float anchorM = std::max(measuredRatios[0], 1e-6f);
+    const float anchorR = std::max(ref[offset],       1e-6f);
+    for (std::size_t k = 0; k < K; ++k) {
+        const float relM = measuredRatios[k] / anchorM;
+        const float relR = ref[offset + k]    / anchorR;
+        const float w    = (k < measuredWeights.size()) ? measuredWeights[k] : 1.0f;
+        totalW += std::abs(std::log(std::max(relM, 1e-6f)) - std::log(std::max(relR, 1e-6f))) * w;
+        sumW   += w;
+    }
+    return (sumW > 0.0) ? static_cast<float>(totalW / sumW)
+                        : std::numeric_limits<float>::infinity();
+}
+
+// Best-shift score per spec §4.6: min over shift s of weighted log-ratio L1.
 float scoreRatios(std::span<const float> measuredRatios,
                   std::span<const float> measuredWeights,
                   std::span<const float> ref) {
     if (measuredRatios.empty() || ref.empty()) {
         return std::numeric_limits<float>::infinity();
     }
-    const std::size_t K = std::min(measuredRatios.size(), ref.size());
-    double totalW = 0.0;
-    double sumW   = 0.0;
-    for (std::size_t k = 0; k < K; ++k) {
-        const float logM = std::log(std::max(measuredRatios[k], 1e-6f));
-        const float logR = std::log(std::max(ref[k],            1e-6f));
-        const float w = (k < measuredWeights.size()) ? measuredWeights[k] : 1.0f;
-        totalW += std::abs(logM - logR) * w;
-        sumW   += w;
+    float best = std::numeric_limits<float>::infinity();
+    const std::size_t maxOffset = (ref.size() > measuredRatios.size())
+        ? (ref.size() - measuredRatios.size() + 1) : 1;
+    for (std::size_t s = 0; s < maxOffset; ++s) {
+        const float v = scoreShift(measuredRatios, measuredWeights, ref, s);
+        if (v < best) best = v;
     }
-    return (sumW > 0.0) ? static_cast<float>(totalW / sumW) : std::numeric_limits<float>::infinity();
+    return best;
 }
 
 }  // namespace
@@ -111,9 +132,10 @@ BodyScoreList classifyBody(const ModalDecomposition& md,
     // NoiseBody by accident; the classifier only picks NoiseBody when the
     // residual truly dominates (spec §4.6 "high modal density + broadband noise residual").
     const float noisiness = (md.totalRms > 1e-6f) ? md.residualRms / md.totalRms : 0.0f;
-    const float noiseBodyPenalty = (noisiness > 0.3f) ? 1.0f : (2.0f + (0.3f - noisiness));
+    // BONUS when noisy (score < plate's, NoiseBody wins); PENALTY when clean.
+    const float noiseBodyMul = (noisiness > 0.3f) ? 0.5f : (2.0f + (0.3f - noisiness));
     scores[static_cast<int>(Membrum::BodyModelType::NoiseBody)].score =
-        scoreRatios(ratios, weights, plateRatios()) * noiseBodyPenalty;
+        scoreRatios(ratios, weights, plateRatios()) * noiseBodyMul;
 
     // Confidence = 1 - (best / 2nd-best).
     std::vector<float> allScores(6);
