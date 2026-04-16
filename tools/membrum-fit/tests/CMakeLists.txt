@@ -16,6 +16,10 @@ add_executable(membrum_fit_tests
     unit/test_body_classifier_full.cpp
     unit/mapper_inversion/test_all_inversions_defaults.cpp
     unit/mapper_inversion/test_membrane_roundtrip.cpp
+    unit/refinement/test_bobyqa.cpp
+    unit/test_features.cpp
+    unit/test_segmentation.cpp
+    unit/preset_io/test_json_writer.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
