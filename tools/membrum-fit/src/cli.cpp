@@ -9,6 +9,10 @@ namespace MembrumFit {
 int parseCli(int argc, char** argv, CliArgs& outArgs) {
     CLI::App app{"membrum-fit -- offline drum-sample to Membrum-preset fitter"};
     app.require_subcommand(1);
+    // Allow subcommands to defer unknown flags back to the parent app so
+    // global options (--target-sample-rate, --modal-method, ...) can appear
+    // in either order on the CLI.
+    app.fallthrough();
 
     auto* perPad = app.add_subcommand("per-pad", "Fit one WAV to a single Membrum per-pad preset");
     perPad->add_option("input", outArgs.input, "input WAV file")->required();

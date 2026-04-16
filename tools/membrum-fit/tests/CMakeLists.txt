@@ -28,6 +28,8 @@ add_executable(membrum_fit_tests
     unit/test_wav_dir.cpp
     unit/test_sfz_notename.cpp
     unit/modal/test_mode_selection.cpp
+    unit/test_loader_advanced.cpp
+    unit/test_cli_parse.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
