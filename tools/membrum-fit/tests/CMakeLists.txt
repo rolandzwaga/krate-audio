@@ -24,6 +24,9 @@ add_executable(membrum_fit_tests
     unit/preset_io/test_pad_json.cpp
     unit/refinement/test_loss.cpp
     unit/test_pitch_env_detector.cpp
+    unit/test_wav_dir.cpp
+    unit/test_sfz_notename.cpp
+    unit/modal/test_mode_selection.cpp
 )
 
 target_link_libraries(membrum_fit_tests PRIVATE
