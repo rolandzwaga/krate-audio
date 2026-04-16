@@ -60,7 +60,7 @@ RefineResult refineGlobalCRS(const RefineContext& ctx, RenderableMembrumVoice& v
     r.finalLoss   = r.initialLoss;
 
 #if MEMBRUM_FIT_HAVE_NLOPT
-    if (ctx.optimisable.empty()) return r;
+    if (ctx.optimisable.empty() || ctx.maxEvals <= 0) return r;
 
     CrsState st{};
     st.ctx = &ctx;

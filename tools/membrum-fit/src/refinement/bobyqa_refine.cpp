@@ -129,7 +129,7 @@ RefineResult refineBOBYQA(const RefineContext& ctx, RenderableMembrumVoice& voic
     r.finalLoss   = r.initialLoss;
 
 #if MEMBRUM_FIT_HAVE_NLOPT
-    if (ctx.optimisable.empty()) return r;
+    if (ctx.optimisable.empty() || ctx.maxEvals <= 0) return r;
 
     EvalState st{};
     st.ctx = &ctx;
