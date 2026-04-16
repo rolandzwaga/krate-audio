@@ -18,6 +18,7 @@
 
 #include <array>
 #include <memory>
+#include <string>
 
 namespace Krate::Plugins {
 class PresetManager;
@@ -27,7 +28,7 @@ class SavePresetDialogView;
 
 namespace Steinberg { class IBStream; }
 
-namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; class InlinePresetBrowserView; }
 namespace Krate::Plugins { class PitchEnvelopeDisplay; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }
@@ -264,6 +265,18 @@ private:
     Krate::Plugins::PresetBrowserView*    padPresetBrowserView_ = nullptr;
     Krate::Plugins::SavePresetDialogView* kitSaveDialogView_    = nullptr;
     Krate::Plugins::SavePresetDialogView* padSaveDialogView_    = nullptr;
+
+    // Inline kit-column browser widgets (name + prev/next/Browse). Constructed
+    // by createCustomView() for the "KitBrowserView" and "PadBrowserView"
+    // uidesc slots. Lifetime owned by VSTGUI's view tree; zeroed in
+    // willClose(). The Browse button opens the corresponding modal overlay;
+    // the load providers push the loaded preset name back into these widgets
+    // so prev/next cycling and the modal load both keep the name display in
+    // sync.
+    Membrum::UI::InlinePresetBrowserView* kitInlineBrowser_ = nullptr;
+    Membrum::UI::InlinePresetBrowserView* padInlineBrowser_ = nullptr;
+    std::string lastKitPresetName_;
+    std::string lastPadPresetName_;
 
     // T056: latched flag indicating the most recent PresetManager load failed
     // (e.g. malformed/truncated blob). Tests can poll this; UI surfaces it via

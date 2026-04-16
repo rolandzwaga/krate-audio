@@ -30,6 +30,7 @@
 #include "vstgui/uidescription/uiattributes.h"
 
 #include "../ui/outline_button.h"
+#include "../ui/preset_inline_browser_view.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/lib/cframe.h"
@@ -264,17 +265,19 @@ buildPadSnapshotFromParams(const Steinberg::Vst::EditControllerEx1& ctrl,
 }
 
 // Apply a PadSnapshot to a Controller's per-pad parameter values. Used both
-// from setComponentState and kitPresetLoadProvider. All writes go through
-// EditControllerEx1::setParamNormalized directly (not the derived override)
-// to avoid re-entering proxy-forwarding logic during bulk loads.
-void applyPadSnapshotToParams(Steinberg::Vst::EditControllerEx1& ctrl,
-                              int pad,
-                              const Membrum::State::PadSnapshot& snap) noexcept
+// from setComponentState and kitPresetLoadProvider. The caller supplies the
+// parameter-writer: setComponentState uses EditControllerEx1::setParamNormalized
+// directly (host has already updated the processor), while the preset-load
+// providers supply a notifying setter that also runs beginEdit/performEdit/
+// endEdit so the host pushes the new values through to the processor.
+//
+// The setter MUST NOT re-enter the derived Controller::setParamNormalized
+// override to avoid triggering proxy-forward logic during bulk loads.
+template <class Setter>
+void applyPadSnapshotToParams(int pad,
+                              const Membrum::State::PadSnapshot& snap,
+                              Setter& setNorm) noexcept
 {
-    auto setNorm = [&](ParamID id, double v) {
-        ctrl.Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
-    };
-
     setNorm(static_cast<ParamID>(padParamId(pad, kPadExciterType)),
             (static_cast<double>(snap.exciterType) + 0.5) /
                 static_cast<double>(ExciterType::kCount));
@@ -578,9 +581,14 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     });
     kitPresetManager_->setLoadProvider(
         [this](Steinberg::IBStream* stream,
-               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+               const Krate::Plugins::PresetInfo& info) -> bool {
             const bool ok = kitPresetLoadProvider(stream);
             kitPresetLoadFailed_ = !ok;
+            if (ok) {
+                lastKitPresetName_ = info.name;
+                if (kitInlineBrowser_)
+                    kitInlineBrowser_->setCurrentPresetName(info.name);
+            }
             return ok;
         });
 
@@ -593,7 +601,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     });
     padPresetManager_->setLoadProvider(
         [this](Steinberg::IBStream* stream,
-               const Krate::Plugins::PresetInfo& /*info*/) -> bool {
+               const Krate::Plugins::PresetInfo& info) -> bool {
             // FR-042 / T054: per-pad load applies sound params only;
             // outputBus and couplingAmount are preserved structurally because
             // the per-pad preset blob does not carry them. After load, force
@@ -603,8 +611,12 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             // processor via standard parameter-change events).
             const bool ok = padPresetLoadProvider(stream);
             padPresetLoadFailed_ = !ok;
-            if (ok)
+            if (ok) {
                 triggerSelectedPadMacroReapply();
+                lastPadPresetName_ = info.name;
+                if (padInlineBrowser_)
+                    padInlineBrowser_->setCurrentPresetName(info.name);
+            }
             return ok;
         });
 
@@ -780,9 +792,15 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     EditControllerEx1::setParamNormalized(kVoiceStealingId,
         (static_cast<double>(kit.voiceStealingPolicy) + 0.5) / 3.0);
 
-    // Per-pad parameters.
+    // Per-pad parameters. setComponentState is the host-driven path: the
+    // processor has already consumed its own state via IComponent::setState
+    // before this method runs, so we just mirror the values into the
+    // controller's parameter objects (UI only -- no performEdit needed).
+    auto setDirect = [this](ParamID id, double v) {
+        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
+    };
     for (int pad = 0; pad < kNumPads; ++pad)
-        applyPadSnapshotToParams(*this, pad, kit.pads[static_cast<std::size_t>(pad)]);
+        applyPadSnapshotToParams(pad, kit.pads[static_cast<std::size_t>(pad)], setDirect);
 
     // Selected pad.
     selectedPadIndex_ = kit.selectedPadIndex;
@@ -856,22 +874,37 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     if (Membrum::State::readKitBlob(stream, kit) != kResultOk)
         return false;
 
+    // Kit preset load bypasses the host's preset-load mechanism, so the
+    // processor never sees the new values unless we notify the host through
+    // beginEdit / performEdit / endEdit. Plain setParamNormalized only
+    // updates the controller-side Parameter objects (UI).
+    auto setAndNotify = [this](ParamID id, double v) {
+        const double clamped = std::clamp(v, 0.0, 1.0);
+        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
+        beginEdit(id);
+        performEdit(id, clamped);
+        endEdit(id);
+    };
+
     // Global settings.
-    EditControllerEx1::setParamNormalized(kMaxPolyphonyId,
+    setAndNotify(kMaxPolyphonyId,
         static_cast<double>(kit.maxPolyphony - 4) / 12.0);
-    EditControllerEx1::setParamNormalized(kVoiceStealingId,
+    setAndNotify(kVoiceStealingId,
         (static_cast<double>(kit.voiceStealingPolicy) + 0.5) / 3.0);
-    EditControllerEx1::setParamNormalized(kGlobalCouplingId, kit.globalCoupling);
-    EditControllerEx1::setParamNormalized(kSnareBuzzId,      kit.snareBuzz);
-    EditControllerEx1::setParamNormalized(kTomResonanceId,   kit.tomResonance);
-    EditControllerEx1::setParamNormalized(kCouplingDelayId,
+    setAndNotify(kGlobalCouplingId, kit.globalCoupling);
+    setAndNotify(kSnareBuzzId,      kit.snareBuzz);
+    setAndNotify(kTomResonanceId,   kit.tomResonance);
+    setAndNotify(kCouplingDelayId,
         std::clamp((kit.couplingDelayMs - 0.5) / 1.5, 0.0, 1.0));
 
     // Per-pad parameters.
     for (int pad = 0; pad < kNumPads; ++pad)
-        applyPadSnapshotToParams(*this, pad, kit.pads[static_cast<std::size_t>(pad)]);
+        applyPadSnapshotToParams(pad, kit.pads[static_cast<std::size_t>(pad)],
+                                 setAndNotify);
 
-    // Session field (uiMode) restored if present.
+    // Session field (uiMode) restored if present. uiMode is a session-scoped
+    // UI-only param; controller-side update is enough (no performEdit needed
+    // because the processor does not consume it).
     if (kit.hasSession)
     {
         EditControllerEx1::setParamNormalized(kUiModeId,
@@ -915,21 +948,29 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     if (Membrum::State::readPadPresetBlob(stream, preset) != kResultOk)
         return false;
 
-    // Apply to the selected pad. Build a PadSnapshot by filling the sound
-    // fields from the preset and leaving chokeGroup/outputBus/couplingAmount/
-    // macros at defaults -- then skip the setParamNormalized calls for those
-    // fields by taking the narrower applyPadSnapshotToParams path directly.
-    // Per FR-061, we intentionally DO NOT modify chokeGroup, outputBus,
-    // couplingAmount, or macros. This is achieved by writing only the fields
-    // carried by the preset slice below.
+    // Apply to the selected pad. Per FR-061 we intentionally write only the
+    // fields carried by the per-pad preset slice (exciterType, bodyModel, the
+    // 28 continuous sound fields, and the 4 secondary fields) -- chokeGroup,
+    // outputBus, couplingAmount, and macros are left untouched so the user's
+    // kit-level routing and macro positions survive per-pad preset browsing.
+    //
+    // Like the kit-preset path, this bypasses the host's preset-load
+    // mechanism; without begin/perform/endEdit the processor never sees the
+    // new values and the pad sounds identical to before the load.
     const int pad = selectedPadIndex_;
 
-    EditControllerEx1::setParamNormalized(
-        static_cast<ParamID>(padParamId(pad, kPadExciterType)),
+    auto setAndNotify = [this](ParamID id, double v) {
+        const double clamped = std::clamp(v, 0.0, 1.0);
+        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
+        beginEdit(id);
+        performEdit(id, clamped);
+        endEdit(id);
+    };
+
+    setAndNotify(static_cast<ParamID>(padParamId(pad, kPadExciterType)),
         (static_cast<double>(preset.exciterType) + 0.5) /
             static_cast<double>(ExciterType::kCount));
-    EditControllerEx1::setParamNormalized(
-        static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
+    setAndNotify(static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
         (static_cast<double>(preset.bodyModel) + 0.5) /
             static_cast<double>(BodyModelType::kCount));
 
@@ -948,7 +989,7 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     };
     for (int j = 0; j < 28; ++j)
     {
-        EditControllerEx1::setParamNormalized(
+        setAndNotify(
             static_cast<ParamID>(padParamId(pad, kContinuousOffsets[j])),
             preset.sound[static_cast<std::size_t>(j)]);
     }
@@ -961,7 +1002,7 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     };
     for (int j = 0; j < 4; ++j)
     {
-        EditControllerEx1::setParamNormalized(
+        setAndNotify(
             static_cast<ParamID>(padParamId(pad, kSecOffsets[j])),
             preset.sound[static_cast<std::size_t>(30 + j)]);
     }
@@ -1159,6 +1200,38 @@ VSTGUI::CView* Controller::createCustomView(
             viewRect, "Reset",
             [this]() { sendCouplingMatrixEdit(4, 0, 0, 0.0f); });
     }
+    // Inline kit-column browser widgets (Spec 141 US4): composite of a
+    // current-preset-name label + Prev / Next / Browse buttons. Browse opens
+    // the modal PresetBrowserView overlay that is added to the frame in
+    // didOpen(); prev/next cycle through scanPresets() directly through the
+    // PresetManager. The load providers push the loaded name back into the
+    // label so modal loads and prev/next both stay in sync.
+    if (std::strcmp(name, "KitBrowserView") == 0)
+    {
+        auto* view = new UI::InlinePresetBrowserView(
+            viewRect,
+            kitPresetManager_.get(),
+            [this]() {
+                if (kitPresetBrowserView_ && !kitPresetBrowserView_->isOpen())
+                    kitPresetBrowserView_->open();
+            });
+        view->setCurrentPresetName(lastKitPresetName_);
+        kitInlineBrowser_ = view;
+        return view;
+    }
+    if (std::strcmp(name, "PadBrowserView") == 0)
+    {
+        auto* view = new UI::InlinePresetBrowserView(
+            viewRect,
+            padPresetManager_.get(),
+            [this]() {
+                if (padPresetBrowserView_ && !padPresetBrowserView_->isOpen())
+                    padPresetBrowserView_->open();
+            });
+        view->setCurrentPresetName(lastPadPresetName_);
+        padInlineBrowser_ = view;
+        return view;
+    }
     return nullptr;
 }
 
@@ -1314,10 +1387,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
 
     if (kitPresetManager_ && kitPresetBrowserView_ == nullptr)
     {
+        // Shared PresetBrowserView convention: tabLabels_[0] = "All",
+        // remaining entries must match PresetManager::subcategoryNames (see
+        // plugins/shared/src/ui/preset_browser_view.cpp parsing + filtering).
         kitPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
             frameSize, kitPresetManager_.get(),
             std::vector<std::string>{
-                "Factory", "User", "Acoustic", "Electronic",
+                "All", "Acoustic", "Electronic",
                 "Percussive", "Unnatural"});
         frame->addView(kitPresetBrowserView_);
     }
@@ -1334,7 +1410,7 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
         padPresetBrowserView_ = new Krate::Plugins::PresetBrowserView(
             frameSize, padPresetManager_.get(),
             std::vector<std::string>{
-                "Factory", "User", "Kick", "Snare", "Tom",
+                "All", "Kick", "Snare", "Tom",
                 "Hat", "Cymbal", "Perc", "Tonal", "FX"});
         frame->addView(padPresetBrowserView_);
     }
@@ -1379,6 +1455,8 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     padPresetBrowserView_ = nullptr;
     kitSaveDialogView_    = nullptr;
     padSaveDialogView_    = nullptr;
+    kitInlineBrowser_     = nullptr;
+    padInlineBrowser_     = nullptr;
 }
 
 // ------------------------------------------------------------------------------

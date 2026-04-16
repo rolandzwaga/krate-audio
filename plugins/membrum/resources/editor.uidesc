@@ -225,9 +225,9 @@
              can follow kUiModeId changes. -->
         <view class="CParamDisplay" control-tag="UiMode" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
         <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CView" custom-view-name="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
         <view class="CTextLabel" title="Pad Browser" origin="8, 204" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="PadBrowserView" origin="8, 224" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CView" custom-view-name="PadBrowserView" origin="8, 224" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
         <view class="CTextLabel" title="Voices" origin="8, 332" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="CView" custom-view-name="PolyphonySlider" control-tag="MaxPolyphony" origin="8, 352" size="224, 20"/>
         <view class="CTextLabel" title="Stealing" origin="8, 396" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
