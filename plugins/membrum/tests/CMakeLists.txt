@@ -119,6 +119,10 @@ add_executable(membrum_tests
     # Shared state/preset codec unit tests
     unit/state/test_state_codec.cpp
 
+    # Phase 7: parallel noise layer + always-on click transient
+    unit/dsp/test_noise_layer.cpp
+    unit/dsp/test_click_layer.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 
@@ -148,6 +152,7 @@ target_link_libraries(membrum_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
+        membrum_preset_io
         # NOTE: vstgui_support MUST come before sdk so GNU ld can resolve
         # ModuleInitializer/ModuleTerminator/getPlatformModuleHandle symbols
         # referenced by vstguieditor.cpp against libsdk.a. Other plugin test

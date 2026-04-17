@@ -94,6 +94,17 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[32] = static_cast<double>(cfg.noiseBurstDuration);
     snap.sound[33] = static_cast<double>(cfg.frictionPressure);
 
+    // Phase 7: parallel noise layer (offsets 42-46).
+    snap.sound[34] = static_cast<double>(cfg.noiseLayerMix);
+    snap.sound[35] = static_cast<double>(cfg.noiseLayerCutoff);
+    snap.sound[36] = static_cast<double>(cfg.noiseLayerResonance);
+    snap.sound[37] = static_cast<double>(cfg.noiseLayerDecay);
+    snap.sound[38] = static_cast<double>(cfg.noiseLayerColor);
+    // Phase 7: always-on click transient (offsets 47-49).
+    snap.sound[39] = static_cast<double>(cfg.clickLayerMix);
+    snap.sound[40] = static_cast<double>(cfg.clickLayerContactMs);
+    snap.sound[41] = static_cast<double>(cfg.clickLayerBrightness);
+
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
     snap.couplingAmount = static_cast<double>(cfg.couplingAmount);
@@ -144,6 +155,15 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.feedbackAmount     = static_cast<float>(snap.sound[31]);
     cfg.noiseBurstDuration = static_cast<float>(snap.sound[32]);
     cfg.frictionPressure   = static_cast<float>(snap.sound[33]);
+    // Phase 7: parallel noise layer + click transient.
+    cfg.noiseLayerMix        = std::clamp(static_cast<float>(snap.sound[34]), 0.0f, 1.0f);
+    cfg.noiseLayerCutoff     = std::clamp(static_cast<float>(snap.sound[35]), 0.0f, 1.0f);
+    cfg.noiseLayerResonance  = std::clamp(static_cast<float>(snap.sound[36]), 0.0f, 1.0f);
+    cfg.noiseLayerDecay      = std::clamp(static_cast<float>(snap.sound[37]), 0.0f, 1.0f);
+    cfg.noiseLayerColor      = std::clamp(static_cast<float>(snap.sound[38]), 0.0f, 1.0f);
+    cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
+    cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
+    cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -206,6 +226,15 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.feedbackAmount     = static_cast<float>(snap.sound[31]);
     cfg.noiseBurstDuration = static_cast<float>(snap.sound[32]);
     cfg.frictionPressure   = static_cast<float>(snap.sound[33]);
+    // Phase 7: parallel noise layer + click transient (offsets 42-49).
+    cfg.noiseLayerMix        = std::clamp(static_cast<float>(snap.sound[34]), 0.0f, 1.0f);
+    cfg.noiseLayerCutoff     = std::clamp(static_cast<float>(snap.sound[35]), 0.0f, 1.0f);
+    cfg.noiseLayerResonance  = std::clamp(static_cast<float>(snap.sound[36]), 0.0f, 1.0f);
+    cfg.noiseLayerDecay      = std::clamp(static_cast<float>(snap.sound[37]), 0.0f, 1.0f);
+    cfg.noiseLayerColor      = std::clamp(static_cast<float>(snap.sound[38]), 0.0f, 1.0f);
+    cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
+    cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
+    cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
 }
 
 // ============================================================================
@@ -281,8 +310,25 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kBlobVersion)
+    if (version != kBlobVersion && version != kBlobVersionV6)
         return kResultFalse;
+    const bool isV6 = (version == kBlobVersionV6);
+    constexpr std::size_t kV7Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
+    const std::size_t soundSlotsToRead = isV6 ? kV6SoundSlotCount : kV7Slots;
+
+    // Defaults for Phase 7 slots when reading a v6 blob. These mirror the
+    // PadConfig defaults so legacy kits load as-authored + new-layer defaults.
+    const PadConfig defaults{};
+    const double defaultPhase7Sound[8] = {
+        static_cast<double>(defaults.noiseLayerMix),
+        static_cast<double>(defaults.noiseLayerCutoff),
+        static_cast<double>(defaults.noiseLayerResonance),
+        static_cast<double>(defaults.noiseLayerDecay),
+        static_cast<double>(defaults.noiseLayerColor),
+        static_cast<double>(defaults.clickLayerMix),
+        static_cast<double>(defaults.clickLayerContactMs),
+        static_cast<double>(defaults.clickLayerBrightness),
+    };
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -306,10 +352,17 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         pad.exciterType = static_cast<ExciterType>(excI);
         pad.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-        for (double& v : pad.sound)
+        for (std::size_t i = 0; i < soundSlotsToRead; ++i)
         {
-            if (!readT(stream, v))
-                v = 0.0;
+            if (!readT(stream, pad.sound[i]))
+                pad.sound[i] = 0.0;
+        }
+        // v6 -> v7: Phase 7 slots (indices 34-41) are absent on disk. Fill
+        // with PadConfig defaults so legacy kits still get the new layers.
+        if (isV6)
+        {
+            for (std::size_t i = 0; i < 8; ++i)
+                pad.sound[kV6SoundSlotCount + i] = defaultPhase7Sound[i];
         }
         if (!readT(stream, pad.chokeGroup)) pad.chokeGroup = 0;
         if (!readT(stream, pad.outputBus))  pad.outputBus  = 0;
@@ -416,8 +469,11 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kPadBlobVersion)
+    if (version != kPadBlobVersion && version != kPadBlobVersionV1)
         return kResultFalse;
+    const bool isV1 = (version == kPadBlobVersionV1);
+    constexpr std::size_t kV2Slots = std::tuple_size_v<decltype(PadPresetSnapshot::sound)>;
+    const std::size_t slotsToRead = isV1 ? kV6SoundSlotCount : kV2Slots;
 
     int32 excI = 0;
     int32 bodyI = 0;
@@ -430,10 +486,25 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     pad.exciterType = static_cast<ExciterType>(excI);
     pad.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-    for (double& v : pad.sound)
+    for (std::size_t i = 0; i < slotsToRead; ++i)
     {
-        if (!readT(stream, v))
+        if (!readT(stream, pad.sound[i]))
             return kResultFalse;
+    }
+    // v1 blobs lack Phase 7 sound slots (34-41). Fill with PadConfig defaults
+    // so legacy per-pad presets load with sensible parallel-noise + click
+    // parameters rather than silence.
+    if (isV1)
+    {
+        const PadConfig defaults{};
+        pad.sound[34] = static_cast<double>(defaults.noiseLayerMix);
+        pad.sound[35] = static_cast<double>(defaults.noiseLayerCutoff);
+        pad.sound[36] = static_cast<double>(defaults.noiseLayerResonance);
+        pad.sound[37] = static_cast<double>(defaults.noiseLayerDecay);
+        pad.sound[38] = static_cast<double>(defaults.noiseLayerColor);
+        pad.sound[39] = static_cast<double>(defaults.clickLayerMix);
+        pad.sound[40] = static_cast<double>(defaults.clickLayerContactMs);
+        pad.sound[41] = static_cast<double>(defaults.clickLayerBrightness);
     }
     return kResultOk;
 }

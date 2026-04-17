@@ -13,6 +13,7 @@
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
 #include "voice_pool/voice_pool.h"
 #include "voice_pool_test_helpers.h"
 
@@ -59,6 +60,17 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
     Membrum::TestHelpers::setAllPadsVoiceParams(pool, 0.5f, 0.5f, 0.3f, 0.3f, 0.8f);
     Membrum::TestHelpers::setAllPadsExciterType(pool, Membrum::ExciterType::Impulse);
     Membrum::TestHelpers::setAllPadsBodyModel(pool, Membrum::BodyModelType::Membrane);
+
+    // Phase 7: zero the always-on noise + click layers on all pads so the
+    // pool path matches the bare `Membrum::DrumVoice` reference (whose member
+    // NoiseLayerParams / ClickLayerParams default to mix=0 via aggregate
+    // init, while PadConfig defaults are non-zero for realism).
+    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
+    {
+        pool.setPadConfigField(pad, Membrum::kPadNoiseLayerMix, 0.0f);
+        pool.setPadConfigField(pad, Membrum::kPadClickLayerMix, 0.0f);
+    }
+
     pool.noteOn(36, 100.0f / 127.0f);
 
     // Render 500 ms through both paths.

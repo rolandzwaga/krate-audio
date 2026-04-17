@@ -1,39 +1,30 @@
 #pragma once
 
 // ==============================================================================
-// NoiseBody -- Phase 2 (data-model.md §3.7)
+// NoiseBody -- Phase 2 (data-model.md §3.7), refactored in Phase 7 to delegate
+// the noise path to the shared `NoiseLayer` component.
 // ==============================================================================
 // Two-layer hybrid: modal layer (shared ModalResonatorBank configured with
-// plate_modes.h extended to kModeCount entries) + noise layer (NoiseOscillator
-// -> SVF bandpass + ADSR envelope). The two layers are mixed at the default
-// 0.6 modal / 0.4 noise ratio (FR-025 / FR-062).
+// plate_modes.h extended to kModeCount entries) + noise layer (delegated to
+// Membrum::NoiseLayer using the raw Hz/ms values produced by NoiseBodyMapper).
+// The two layers are mixed at the mapper-produced modal/noise ratio
+// (FR-025 / FR-062).
+//
+// The Phase 7 refactor removes the previous duplicated NoiseOscillator + SVF +
+// ADSR plumbing that also lived inline in DrumVoice. Behaviour is byte-
+// identical to the pre-refactor inline implementation because NoiseLayer
+// calls the same underlying Krate primitives with the same raw values.
 //
 // Mode count history (FR-062 / Phase 9 T128):
 //   - Research proposal (research.md §4.6):            40 modes
-//   - Phase 9 initial measurement @ 40 modes (Impulse + NB + TS + UZ on the
-//     per-sample scalar path): ~8.70% CPU — ~7× over the 1.25% per-voice
-//     budget. Reducing the mode count alone was insufficient; see below.
-//   - Phase 9 SIMD emergency fallback (plan.md §SIMD Emergency Fallback /
-//     FR-071): DrumVoice's hot path was refactored to use
-//     BodyBank::processBlock, which now routes the modal layer through
-//     ModalResonatorBank::processBlock (already SIMD-accelerated via the
-//     Highway kernel processModalBankSampleSIMD). With the block-rate body
-//     path active, the scalar-per-sample hot spot is eliminated.
 //   - Phase 9 final setting:                           40 modes (restored)
-//
-// The block-rate body path is the direct execution of plan.md's emergency
-// fallback clause. The earlier mode-count reduction (40 -> 20) was a patch
-// on the wrong symptom; the real hotspot was per-sample variant dispatch +
-// per-sample scalar modal MACs, both now removed.
 // ==============================================================================
 
+#include "../noise_layer.h"
 #include "../voice_common_params.h"
 #include "noise_body_mapper.h"
 
 #include <krate/dsp/core/pattern_freeze_types.h>
-#include <krate/dsp/primitives/adsr_envelope.h>
-#include <krate/dsp/primitives/noise_oscillator.h>
-#include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
 #include <cstdint>
@@ -46,37 +37,21 @@ struct NoiseBody
     // the 1.25% single-voice CPU budget.
     static constexpr int kModeCount = Bodies::NoiseBodyMapper::kNoiseBodyModeCount;
 
-    Krate::DSP::NoiseOscillator noise_;
-    Krate::DSP::SVF             noiseFilter_;
-    Krate::DSP::ADSREnvelope    noiseEnvelope_;
-
-    float modalMix_ = 0.6f;
-    float noiseMix_ = 0.4f;
+    NoiseLayer noiseLayer_;
+    float      modalMix_ = 0.6f;
 
     void prepare(double sampleRate, std::uint32_t voiceId) noexcept
     {
-        noise_.prepare(sampleRate);
-        noise_.setSeed(voiceId + 1u);  // per-voice determinism
-        noise_.setColor(Krate::DSP::NoiseColor::White);
-
-        noiseFilter_.prepare(sampleRate);
-        noiseFilter_.setMode(Krate::DSP::SVFMode::Bandpass);
-        noiseFilter_.setCutoff(2000.0f);
-        noiseFilter_.setResonance(0.7f);
-
-        noiseEnvelope_.prepare(static_cast<float>(sampleRate));
-        noiseEnvelope_.setAttack(1.0f);
-        noiseEnvelope_.setDecay(120.0f);
-        noiseEnvelope_.setSustain(0.0f);
-        noiseEnvelope_.setRelease(60.0f);
+        noiseLayer_.prepare(sampleRate, voiceId);
+        // NoiseBody is historically white noise through its bandpass; keep
+        // that explicit since configureRaw() does not touch the color.
+        noiseLayer_.oscillator().setColor(Krate::DSP::NoiseColor::White);
     }
 
     void reset(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
     {
         sharedBank.reset();
-        noise_.reset();
-        noiseFilter_.reset();
-        noiseEnvelope_.reset();
+        noiseLayer_.reset();
     }
 
     void configureForNoteOn(Krate::DSP::ModalResonatorBank& sharedBank,
@@ -94,32 +69,24 @@ struct NoiseBody
                             r.modal.stretch,
                             r.modal.scatter);
 
-        // Noise layer: SVF bandpass with per-note cutoff bias.
-        noiseFilter_.setCutoff(r.noiseFilterCutoffHz);
-        noiseFilter_.setResonance(r.noiseFilterResonance);
-
-        // Noise envelope
-        noiseEnvelope_.setAttack(r.noiseAttackMs);
-        noiseEnvelope_.setDecay(r.noiseDecayMs);
-        noiseEnvelope_.setSustain(0.0f);
-        noiseEnvelope_.reset();
-        noiseEnvelope_.gate(true);   // trigger immediately
+        // Noise layer: route the mapper's raw Hz/ms/mix values into the shared
+        // NoiseLayer primitive. The layer's internal gain is the noise mix.
+        noiseLayer_.configureRaw(r.noiseFilterCutoffHz,
+                                 r.noiseFilterResonance,
+                                 r.noiseAttackMs,
+                                 r.noiseDecayMs,
+                                 r.noiseMix);
+        noiseLayer_.trigger(/*velocity*/ 1.0f);
 
         modalMix_ = r.modalMix;
-        noiseMix_ = r.noiseMix;
     }
 
     [[nodiscard]] float processSample(Krate::DSP::ModalResonatorBank& sharedBank,
                                       float excitation) noexcept
     {
         const float modalOut = sharedBank.processSample(excitation);
-
-        const float nSample  = noise_.process();
-        const float filtered = noiseFilter_.process(nSample);
-        const float env      = noiseEnvelope_.process();
-        const float noiseOut = env * filtered;
-
-        return modalMix_ * modalOut + noiseMix_ * noiseOut;
+        const float noiseOut = noiseLayer_.processSample();
+        return modalMix_ * modalOut + noiseOut;
     }
 
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
@@ -143,11 +110,8 @@ struct NoiseBody
             sharedBank.processBlock(excitation + offset, modalScratch, chunk);
             for (int i = 0; i < chunk; ++i)
             {
-                const float nSample  = noise_.process();
-                const float filtered = noiseFilter_.process(nSample);
-                const float env      = noiseEnvelope_.process();
-                const float noiseOut = env * filtered;
-                out[offset + i] = modalMix_ * modalScratch[i] + noiseMix_ * noiseOut;
+                out[offset + i] = modalMix_ * modalScratch[i]
+                                + noiseLayer_.processSample();
             }
             offset    += chunk;
             remaining -= chunk;

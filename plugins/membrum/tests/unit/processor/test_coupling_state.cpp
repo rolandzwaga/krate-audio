@@ -152,10 +152,15 @@ struct StateFixture
 //   32 * ([int32 exciter][int32 body][34 * float64][uint8 cg][uint8 ob])
 //   [int32 selectedPadIndex]
 // Total: 12 + 32 * 282 + 4 = 9040 bytes.
-// Build a v6 state blob (current on-wire format). The caller may append
-// override entries (and must then rewrite the overrideCount field) or append
-// custom macro values before use. This helper writes zero overrides and
-// neutral (0.5) macros by default; append extras or mutate in place.
+// Build a v6 state blob (legacy layout still accepted by the v7 reader). The
+// caller may append override entries (and must then rewrite the overrideCount
+// field) or append custom macro values before use. This helper writes zero
+// overrides and neutral (0.5) macros by default; append extras or mutate in
+// place.
+// Note: v6 is intentionally used here (not kCurrentStateVersion) because the
+// surrounding blob layout in this helper tops out at 34 sound slots per pad,
+// which is the v6 wire format; the v7 reader auto-fills Phase 7 slots with
+// PadConfig defaults.
 std::vector<std::uint8_t> buildV6BlobBase(std::uint16_t overrideCount = 0)
 {
     std::vector<std::uint8_t> buf;
@@ -163,7 +168,7 @@ std::vector<std::uint8_t> buildV6BlobBase(std::uint16_t overrideCount = 0)
         const auto* b = static_cast<const std::uint8_t*>(p);
         buf.insert(buf.end(), b, b + n);
     };
-    const int32 version = Membrum::kCurrentStateVersion;
+    const int32 version = 6;
     const int32 maxPoly = 8;
     const int32 stealPolicy = 0;
     appendBytes(&version, sizeof(version));
@@ -395,13 +400,15 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     REQUIRE(fx.processor.getState(&resaved) == kResultOk);
     int64 resSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
-    // v6 prefix (v4-compatible pad layout, 9040 bytes) + Phase 5 globals (32)
-    // + per-pad coupling amounts (256) + overrideCount (2) + 3 * 6 override
-    // bytes + Phase 6 macros (160 * 8).
-    CHECK(resSize == 9348 + 1280);
+    // v7 prefix = 12 header + 32 * (4 exc + 4 body + 42*8 sound + 2 routing)
+    //   = 12 + 32*346 = 11084, + 4 selectedPad = 11088.
+    // + Phase 5 globals (32) + per-pad coupling amounts (256)
+    // + overrideCount (2) + 3 * 6 override bytes + Phase 6 macros (160 * 8).
+    // Total = 11088 + 32 + 256 + 2 + 18 + 1280 = 12676.
+    CHECK(resSize == 12676);
 
-    // Read overrideCount at offset 9040 + 32 + 256 = 9328.
-    resaved.seek(9328, IBStream::kIBSeekSet, nullptr);
+    // Read overrideCount at offset 11088 + 32 + 256 = 11376.
+    resaved.seek(11376, IBStream::kIBSeekSet, nullptr);
     std::uint16_t countOut = 0;
     int32 gotCount = 0;
     resaved.read(&countOut, sizeof(countOut), &gotCount);
@@ -457,11 +464,11 @@ TEST_CASE("Phase 6 (T044b): per-pad preset excludes couplingAmount (FR-022)",
     IBStream* stream = controller.padPresetStateProvider();
     REQUIRE(stream != nullptr);
 
-    // Verify blob size is exactly 284 bytes (version 4 + 2 * int32 + 34 *
+    // Verify blob size is exactly 348 bytes (v2: version 4 + 2 * int32 + 42 *
     // float64). Offset 36 (couplingAmount) is NOT part of this format.
     int64 end = 0;
     stream->seek(0, IBStream::kIBSeekEnd, &end);
-    CHECK(end == 284);
+    CHECK(end == 348);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
 
     // Now change the pad's couplingAmount to a different value before reload.

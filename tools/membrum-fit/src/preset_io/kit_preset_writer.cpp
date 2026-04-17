@@ -18,11 +18,14 @@ bool writeKitPreset(const std::filesystem::path& outputPath,
     for (std::size_t i = 0; i < pads.size(); ++i) {
         kit.pads[i] = Membrum::State::toPadSnapshot(pads[i]);
     }
-    // Defaults per spec §9 risk #7 & #8: globals = 0, per-pad coupling = 0.5,
-    // macros = 0.5 (already set by toPadSnapshot from PadConfig defaults).
-    kit.globalCoupling = 0.0;
-    kit.snareBuzz      = 0.0;
-    kit.tomResonance   = 0.0;
+    // Sympathetic coupling defaults: spec §9 risk #7 recommended zero because
+    // coupling can't be inferred from isolated samples. But zero makes fitted
+    // kits sound sterile (no snare buzz under kicks, no tom ring). Real drum
+    // kits always have these interactions. Use moderate defaults — user can
+    // still dial them to taste in the plugin.
+    kit.globalCoupling = 0.35;
+    kit.snareBuzz      = 0.4;
+    kit.tomResonance   = 0.3;
     kit.couplingDelayMs = 1.0;
     kit.selectedPadIndex = 0;
     kit.hasSession = false;

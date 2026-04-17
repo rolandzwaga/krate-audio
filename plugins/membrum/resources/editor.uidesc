@@ -86,6 +86,15 @@
     <control-tag name="ExciterFrictionPressure" tag="205"/>
     <!-- Per-pad Coupling Amount (pad 0 offset 36 = selected-pad proxy) -->
     <control-tag name="CouplingAmount" tag="1036"/>
+    <!-- Phase 7: parallel noise layer + always-on click transient (globals 290-297) -->
+    <control-tag name="NoiseLayerMix" tag="290"/>
+    <control-tag name="NoiseLayerCutoff" tag="291"/>
+    <control-tag name="NoiseLayerResonance" tag="292"/>
+    <control-tag name="NoiseLayerDecay" tag="293"/>
+    <control-tag name="NoiseLayerColor" tag="294"/>
+    <control-tag name="ClickLayerMix" tag="295"/>
+    <control-tag name="ClickLayerContactMs" tag="296"/>
+    <control-tag name="ClickLayerBrightness" tag="297"/>
   </control-tags>
   <bitmaps/>
   <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
@@ -210,6 +219,25 @@
         <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 626" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
         <view class="CTextLabel" title="Choke Group" origin="8, 654" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 652" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+
+        <!-- Row 8/9: Noise + Click layers (Phase 7) -->
+        <view class="CTextLabel" title="Noise + Click" origin="232, 608" size="160, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="NoiseLayerMix" origin="232, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Mix" origin="232, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerCutoff" origin="272, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cutf" origin="272, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerResonance" origin="312, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Res" origin="312, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerDecay" origin="352, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dec" origin="352, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerColor" origin="232, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Color" origin="232, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerMix" origin="272, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Clk" origin="272, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerContactMs" origin="312, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cont" origin="312, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="352, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Brt" origin="352, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
   </template>
   <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
       <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">

@@ -34,7 +34,7 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int64 kPadPresetBytes = 284;  // version(4) + exciter(4) + body(4) + 34*float64(272)
+constexpr int64 kPadPresetBytes = 348;  // v2: version(4) + exciter(4) + body(4) + 42*float64(336)
 
 /// Number of sound params serialized as float64 (offsets 2-35).
 constexpr int kPadPresetSoundParamCount = 34;
@@ -58,10 +58,10 @@ MemoryStream* buildPadPresetBlob(int32 exciterType, int32 bodyModel,
 } // namespace
 
 // ==============================================================================
-// T039: Pad preset StateProvider produces exactly 284 bytes
+// T039: Pad preset StateProvider produces exactly 348 bytes (v2 with Phase 7 slots)
 // ==============================================================================
 
-TEST_CASE("Pad preset: StateProvider produces exactly 284 bytes",
+TEST_CASE("Pad preset: StateProvider produces exactly 348 bytes",
           "[membrum][preset][pad_preset]")
 {
     Membrum::Controller controller;
@@ -84,7 +84,7 @@ TEST_CASE("Pad preset: StateProvider produces exactly 284 bytes",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 34 float64",
+TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 42 float64",
           "[membrum][preset][pad_preset]")
 {
     Membrum::Controller controller;
@@ -116,7 +116,7 @@ TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 34 flo
 
     int32 version = 0;
     stream->read(&version, sizeof(version), nullptr);
-    CHECK(version == 1);
+    CHECK(version == 2);
 
     int32 exciterTypeI32 = -1;
     stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);

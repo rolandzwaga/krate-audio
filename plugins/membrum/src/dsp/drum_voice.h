@@ -21,8 +21,10 @@
 #include "body_bank.h"
 #include "bodies/membrane_mapper.h"
 #include "body_model_type.h"
+#include "click_layer.h"
 #include "exciter_bank.h"
 #include "exciter_type.h"
+#include "noise_layer.h"
 #include "tone_shaper.h"
 #include "unnatural/unnatural_zone.h"
 #include "voice_common_params.h"
@@ -63,6 +65,8 @@ public:
         bodyBank_.prepare(sampleRate, voiceId);
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
+        noiseLayer_.prepare(sampleRate, voiceId);
+        clickLayer_.prepare(sampleRate, voiceId);
 
         ampEnvelope_.prepare(static_cast<float>(sampleRate));
         // FR-038: ADSR defaults for membrane drum (Phase 1 carry-over)
@@ -142,6 +146,16 @@ public:
         // Trigger exciter (applies deferred exciter-type swap).
         exciterBank_.trigger(velocity);
 
+        // Parallel noise layer (Phase 7, always-on when mix > 0).
+        noiseLayer_.configure(noiseLayerParams_);
+        noiseLayer_.trigger(velocity);
+
+        // Always-on click transient (Phase 7). Fires alongside the selected
+        // exciter; its output sums into the excitation path so it drives the
+        // body's modal bank.
+        clickLayer_.configure(clickLayerParams_);
+        clickLayer_.trigger(velocity);
+
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
         active_ = true;
@@ -186,16 +200,36 @@ public:
         }
 
         // Exciter takes the body's last output as feedback (only FeedbackExciter
-        // uses it; all other backends ignore it).
-        const float exc  = exciterBank_.process(bodyBank_.getLastOutput());
-        const float body = bodyBank_.processSample(exc);
+        // uses it; all other backends ignore it). The always-on click transient
+        // is sampled ONCE (with the standalone amplitude calibration applied)
+        // and routed two ways:
+        //   (a) half-amplitude into the excitation path so it drives the body's
+        //       modes (adds a ringing tail in the modal bank), and
+        //   (b) full-amplitude directly into the output bus so the beater
+        //       thwack itself is audible, not masked by the body's Q.
+        // This matches the commuted-synthesis convention of putting
+        // complexity in the excitation AND hearing the excitation itself.
+        const float clickSample =
+            clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
+        const float excMain = exciterBank_.process(bodyBank_.getLastOutput());
+        const float exc     = excMain + clickSample * 0.5f;
+        const float body    = bodyBank_.processSample(exc);
+
+        // Parallel noise layer sums into the body output *before* the
+        // UnnaturalZone chain so ModeInject / NonlinearCoupling / ToneShaper
+        // treat the combined signal (research-backed SNT pattern). The click
+        // layer is also mixed directly here so it's heard as a broadband
+        // transient independent of the body's modal response.
+        const float noiseSample =
+            noiseLayer_.processSample() * NoiseLayer::kStandaloneOutputGain;
+        const float combinedBody = body + noiseSample + clickSample;
 
         // UnnaturalZone chain per contract: body + modeInject → nonlinear
         // coupling → tone shaper → amp env × level. When all Unnatural Zone
         // defaults hold (modeInject.amount_==0 and nonlinearCoupling.amount_==0),
         // the early-out paths make this chain bit-identical to "body → shaped
         // → env×level" (FR-055).
-        const float injected = body + unnaturalZone_.modeInject.process();
+        const float injected = combinedBody + unnaturalZone_.modeInject.process();
         const float coupled  = unnaturalZone_.nonlinearCoupling.processSample(injected);
         const float shaped   = toneShaper_.processSample(coupled);
         const float env      = ampEnvelope_.process();
@@ -287,8 +321,10 @@ private:
     {
         // Scratch buffers live as DrumVoice members so we don't pay a large
         // stack allocation per processBlock call (audio-thread friendly).
-        float* excScratch  = excScratch_.data();
-        float* bodyScratch = bodyScratch_.data();
+        float* excScratch   = excScratch_.data();
+        float* bodyScratch  = bodyScratch_.data();
+        float* noiseScratch = noiseScratch_.data();
+        float* clickScratch = clickScratch_.data();
 
         int offset = 0;
         int remaining = numSamples;
@@ -347,11 +383,38 @@ private:
                 }
             });
 
+            // --- Always-on click transient: write to scratch, apply the
+            // Phase 7 standalone gain, then route half-amplitude into
+            // excitation (drives body modes) and full-amplitude directly
+            // into the output (audible thwack) in the post chain below.
+            clickLayer_.processBlock(clickScratch, chunk);
+            {
+                const float gain = ClickLayer::kStandaloneOutputGain;
+                for (int i = 0; i < chunk; ++i)
+                    clickScratch[i] *= gain;
+            }
+            for (int i = 0; i < chunk; ++i)
+                excScratch[i] += clickScratch[i] * 0.5f;
+
             // --- Body phase: block-rate SIMD path. ------------------------
             // Single std::visit on the body; the body implementations route
             // to ModalResonatorBank::processBlock (SIMD) internally.
             bodyBank_.processBlock(bodyScratch, excScratch, chunk);
             lastBody = bodyScratch[chunk - 1];
+
+            // --- Parallel noise layer (Phase 7). -------------------------
+            // Writes to noiseScratch independently of the body, then applies
+            // the Phase 7 standalone calibration gain so the layer is
+            // audible at moderate mix values. Per-sample post chain sums it
+            // into the body output before the UnnaturalZone chain so
+            // ModeInject / NonlinearCoupling / ToneShaper treat the combined
+            // signal.
+            noiseLayer_.processBlock(noiseScratch, chunk);
+            {
+                const float gain = NoiseLayer::kStandaloneOutputGain;
+                for (int i = 0; i < chunk; ++i)
+                    noiseScratch[i] *= gain;
+            }
 
             // --- Post chain: unnatural -> tone shaper -> env * level. -----
             // Hoist the modeInject / nonlinearCoupling amount==0 checks out
@@ -366,20 +429,21 @@ private:
             if (!modeInjectActive && !couplingActive)
             {
                 // Default-off fast lane — no UN per-sample work at all.
+                // combined = body + noise_layer + click_layer (direct).
                 for (int i = 0; i < chunk; ++i)
                 {
-                    const float bodyOut = bodyScratch[i];
-                    const float shaped  = toneShaper_.processSample(bodyOut);
-                    const float env     = ampEnvelope_.process();
-                    out[offset + i]     = shaped * env * level;
+                    const float combined = bodyScratch[i] + noiseScratch[i] + clickScratch[i];
+                    const float shaped   = toneShaper_.processSample(combined);
+                    const float env      = ampEnvelope_.process();
+                    out[offset + i]      = shaped * env * level;
                 }
             }
             else
             {
                 for (int i = 0; i < chunk; ++i)
                 {
-                    const float bodyOut  = bodyScratch[i];
-                    const float injected = bodyOut + unnaturalZone_.modeInject.process();
+                    const float combined = bodyScratch[i] + noiseScratch[i] + clickScratch[i];
+                    const float injected = combined + unnaturalZone_.modeInject.process();
                     const float coupled  =
                         unnaturalZone_.nonlinearCoupling.processSample(injected);
                     const float shaped   = toneShaper_.processSample(coupled);
@@ -439,13 +503,23 @@ private:
                         if (morphActive && i > 0)
                             (void)unnaturalZone_.materialMorph.process();
 
-                        const float exc     = exciter.process(lastBody);
+                        const float clickSample =
+                            clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
+                        const float excMain = exciter.process(lastBody);
+                        const float exc     = excMain + clickSample * 0.5f;
                         const float bodyOut = body.processSample(sharedBank, exc);
                         lastBody            = bodyOut;
 
+                        // Parallel noise layer (Phase 7) sums into body
+                        // output before the UnnaturalZone chain; click layer
+                        // is mixed directly so it's heard as a transient.
+                        const float noiseSample =
+                            noiseLayer_.processSample() * NoiseLayer::kStandaloneOutputGain;
+                        const float combinedBody = bodyOut + noiseSample + clickSample;
+
                         // UnnaturalZone chain per contract: body + modeInject
                         // → nonlinear coupling → tone shaper → env × level.
-                        const float injected = bodyOut + unnaturalZone_.modeInject.process();
+                        const float injected = combinedBody + unnaturalZone_.modeInject.process();
                         const float coupled  =
                             unnaturalZone_.nonlinearCoupling.processSample(injected);
                         const float shaped   = toneShaper_.processSample(coupled);
@@ -510,6 +584,26 @@ public:
     void setBodyModel(BodyModelType type) noexcept
     {
         bodyBank_.setBodyModel(type);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 7 setters (parallel noise layer + always-on click transient)
+    // ------------------------------------------------------------------
+    void setNoiseLayerMix(float v) noexcept       { noiseLayerParams_.mix       = v; }
+    void setNoiseLayerCutoff(float v) noexcept    { noiseLayerParams_.cutoff    = v; }
+    void setNoiseLayerResonance(float v) noexcept { noiseLayerParams_.resonance = v; }
+    void setNoiseLayerDecay(float v) noexcept     { noiseLayerParams_.decay     = v; }
+    void setNoiseLayerColor(float v) noexcept     { noiseLayerParams_.color     = v; }
+
+    void setClickLayerMix(float v) noexcept        { clickLayerParams_.mix        = v; }
+    void setClickLayerContactMs(float v) noexcept  { clickLayerParams_.contactMs  = v; }
+    void setClickLayerBrightness(float v) noexcept { clickLayerParams_.brightness = v; }
+
+    /// Phase 7 bug-fix: plumb PadConfig::noiseBurstDuration (normalized) into
+    /// the NoiseBurstExciter so the host-side parameter finally takes effect.
+    void setNoiseBurstContactMs(float v) noexcept
+    {
+        exciterBank_.setNoiseBurstContactMs(v);
     }
 
     [[nodiscard]] ToneShaper& toneShaper() noexcept { return toneShaper_; }
@@ -651,13 +745,21 @@ private:
     BodyBank                   bodyBank_;
     ToneShaper                 toneShaper_;
     UnnaturalZone              unnaturalZone_;
+    NoiseLayer                 noiseLayer_;
+    ClickLayer                 clickLayer_;
     Krate::DSP::ADSREnvelope   ampEnvelope_;
 
     // Scratch buffers for the fast block-rate path. Kept as members so each
-    // processBlock call avoids the 16 KB stack footprint of two 2048-sample
+    // processBlock call avoids the 16 KB stack footprint of 2048-sample
     // float arrays. Audio-thread safe (no allocation, pre-sized).
     std::array<float, kMaxBlockSize> excScratch_{};
     std::array<float, kMaxBlockSize> bodyScratch_{};
+    std::array<float, kMaxBlockSize> noiseScratch_{};
+    std::array<float, kMaxBlockSize> clickScratch_{};
+
+    // Phase 7 per-voice layer params (applied at noteOn).
+    NoiseLayerParams noiseLayerParams_{};
+    ClickLayerParams clickLayerParams_{};
 
     // Reusable parameter bundle (populated on every noteOn to avoid alloc).
     VoiceCommonParams params_{};

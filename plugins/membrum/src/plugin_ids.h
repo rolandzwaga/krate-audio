@@ -25,9 +25,10 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 
 // State version for serialization.
 // Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4, Phase 5 = 5, Phase 6 = 6.
-// Loader accepts version 1-5 blobs and fills later-phase parameters with
-// defaults (FR-082, FR-142, FR-143; Phase 6 v5->v6 migration in spec 141).
-constexpr Steinberg::int32 kCurrentStateVersion = 6;
+// Phase 7 = 7 adds per-pad parallel noise layer + always-on click transient
+// parameters. Loader accepts earlier versions and fills later-phase parameters
+// with defaults.
+constexpr Steinberg::int32 kCurrentStateVersion = 7;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -122,6 +123,18 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // kPadOutputBus of the currently selected pad. Registered as a 16-entry
     // StringListParameter (Main, Aux 1..Aux 15).
     kOutputBusId                  = 282,
+
+    // ====== Phase 7: parallel noise layer + always-on click transient ======
+    // Selected-pad proxies forwarding to kPadNoiseLayer* / kPadClickLayer*
+    // for the currently selected pad.
+    kNoiseLayerMixId              = 290,
+    kNoiseLayerCutoffId           = 291,
+    kNoiseLayerResonanceId        = 292,
+    kNoiseLayerDecayId            = 293,
+    kNoiseLayerColorId            = 294,
+    kClickLayerMixId              = 295,
+    kClickLayerContactMsId        = 296,
+    kClickLayerBrightnessId       = 297,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -161,7 +174,11 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 6,
-              "Phase 6 requires state version 6");
+static_assert(kCurrentStateVersion == 7,
+              "Phase 7 requires state version 7");
+
+// Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
+static_assert(kClickLayerBrightnessId < kPadBaseId,
+              "Phase 7 global proxy IDs must not collide with per-pad range");
 
 } // namespace Membrum

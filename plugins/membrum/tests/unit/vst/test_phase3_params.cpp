@@ -40,11 +40,16 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     // Phase 8 (US7 / spec 141, T074) adds 1 global Output Bus selector
     // proxy (kOutputBusId).
     constexpr int kPhase6US7Globals    = 1;
+    // Phase 7 adds 8 global noise/click proxies (kNoiseLayer*, kClickLayer*)
+    // + 8 new per-pad offsets (42..49) across 32 pads.
+    constexpr int kPhase7Globals       = 8;
+    constexpr int kPhase7PerPadParams  = 32 * 8;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
           + kPhase6US1Globals + kPhase6US1MacroParams
-          + kPhase6US7Globals);
+          + kPhase6US7Globals
+          + kPhase7Globals + kPhase7PerPadParams);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

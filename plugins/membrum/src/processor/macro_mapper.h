@@ -22,7 +22,7 @@ namespace Membrum {
 
 struct RegisteredDefaultsTable
 {
-    // Indexed by PadParamOffset (0..kPadActiveParamCountV6-1).
+    // Indexed by PadParamOffset (0..kPadActiveParamCountV7-1).
     std::array<float, 64> byOffset{};
 };
 

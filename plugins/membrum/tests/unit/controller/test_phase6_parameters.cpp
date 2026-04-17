@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion bumped to 6")
+    SECTION("kCurrentStateVersion bumped to 7 (Phase 7 noise/click layers)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 6);
+        STATIC_REQUIRE(kCurrentStateVersion == 7);
     }
 }
 
@@ -122,9 +122,17 @@ TEST_CASE("padOffsetFromParamId accepts macro offsets 37-41", "[phase6_params]")
         }
     }
 
-    SECTION("Offset 42 is reserved -- still rejected")
+    SECTION("Offsets 42-49 are active Phase 7 layer fields")
     {
-        REQUIRE(padOffsetFromParamId(padParamId(0, 42)) == -1);
+        for (int off = 42; off <= 49; ++off)
+        {
+            REQUIRE(padOffsetFromParamId(padParamId(0, off)) == off);
+        }
+    }
+
+    SECTION("Offset 50 is the first reserved offset (Phase 7)")
+    {
+        REQUIRE(padOffsetFromParamId(padParamId(0, 50)) == -1);
     }
 }
 

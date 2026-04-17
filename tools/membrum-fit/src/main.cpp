@@ -90,6 +90,89 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
     }
     cfg.exciterType = exciter;
 
+    // Phase 7: seed parallel noise-layer + always-on click-layer defaults based
+    // on the chosen body type. Research-backed: every commercial physical-model
+    // drum voice has an always-on stochastic layer; fitted kits must also carry
+    // these defaults to avoid the "glass tap" failure mode.
+    // Phase 7.1 defaults: mix values raised to match the amplitude-calibrated
+    // NoiseLayer/ClickLayer gains. A mix of 1.0 now produces a layer peak
+    // comparable to the modal body, so defaults sit in [0.55, 0.9] for
+    // audible effect.
+    auto applyPhase7Defaults = [](Membrum::PadConfig& c, Membrum::BodyModelType b) noexcept {
+        switch (b) {
+            case Membrum::BodyModelType::Membrane:
+                // Snare / membrane: heavy noise (wires / head rustle) +
+                // prominent click. This fits both snares and kicks that land
+                // in Membrane -- the fitter has no "is this a kick" signal.
+                c.noiseLayerMix        = 0.85f;
+                c.noiseLayerCutoff     = 0.35f;
+                c.noiseLayerResonance  = 0.2f;
+                c.noiseLayerDecay      = 0.4f;
+                c.noiseLayerColor      = 0.25f;  // pink-leaning, broadband
+                c.clickLayerMix        = 0.7f;
+                c.clickLayerContactMs  = 0.25f;
+                c.clickLayerBrightness = 0.55f;
+                break;
+            case Membrum::BodyModelType::Shell:
+                // Tom/shell: moderate head noise + felt-mallet click.
+                c.noiseLayerMix        = 0.6f;
+                c.noiseLayerCutoff     = 0.3f;
+                c.noiseLayerResonance  = 0.2f;
+                c.noiseLayerDecay      = 0.4f;
+                c.noiseLayerColor      = 0.3f;
+                c.clickLayerMix        = 0.75f;
+                c.clickLayerContactMs  = 0.35f;
+                c.clickLayerBrightness = 0.5f;
+                break;
+            case Membrum::BodyModelType::Plate:
+                // Perc/plate: prominent click + moderate noise body.
+                c.noiseLayerMix        = 0.55f;
+                c.noiseLayerCutoff     = 0.55f;
+                c.noiseLayerResonance  = 0.25f;
+                c.noiseLayerDecay      = 0.2f;
+                c.noiseLayerColor      = 0.6f;
+                c.clickLayerMix        = 0.75f;
+                c.clickLayerContactMs  = 0.2f;
+                c.clickLayerBrightness = 0.65f;
+                break;
+            case Membrum::BodyModelType::Bell:
+                // Bell: shimmer noise dominates, short tick.
+                c.noiseLayerMix        = 0.9f;
+                c.noiseLayerCutoff     = 0.8f;
+                c.noiseLayerResonance  = 0.3f;
+                c.noiseLayerDecay      = 0.7f;
+                c.noiseLayerColor      = 0.85f;
+                c.clickLayerMix        = 0.45f;
+                c.clickLayerContactMs  = 0.15f;
+                c.clickLayerBrightness = 0.8f;
+                break;
+            case Membrum::BodyModelType::String:
+                // String: minimal noise; click provides plectrum attack.
+                c.noiseLayerMix        = 0.3f;
+                c.noiseLayerCutoff     = 0.7f;
+                c.noiseLayerResonance  = 0.2f;
+                c.noiseLayerDecay      = 0.2f;
+                c.noiseLayerColor      = 0.7f;
+                c.clickLayerMix        = 0.7f;
+                c.clickLayerContactMs  = 0.2f;
+                c.clickLayerBrightness = 0.7f;
+                break;
+            case Membrum::BodyModelType::NoiseBody:
+            default:
+                // Hi-hat / cymbal style: heavy noise, bright short click.
+                c.noiseLayerMix        = 0.95f;
+                c.noiseLayerCutoff     = 0.85f;
+                c.noiseLayerResonance  = 0.25f;
+                c.noiseLayerDecay      = 0.3f;
+                c.noiseLayerColor      = 0.9f;
+                c.clickLayerMix        = 0.55f;
+                c.clickLayerContactMs  = 0.1f;
+                c.clickLayerBrightness = 0.85f;
+                break;
+        }
+    };
+    applyPhase7Defaults(cfg, bestBody);
+
     fitToneShaper(loaded->samples, seg, loaded->sampleRate, modes, cfg);
     fitUnnaturalZone(loaded->samples, seg, loaded->sampleRate, modes, cfg, cfg);
 

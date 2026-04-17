@@ -510,6 +510,32 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             break;
         }
 
+        // ---- Phase 7: parallel noise layer + click transient proxies ----
+        case kNoiseLayerMixId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerMix, fValue);
+            break;
+        case kNoiseLayerCutoffId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerCutoff, fValue);
+            break;
+        case kNoiseLayerResonanceId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerResonance, fValue);
+            break;
+        case kNoiseLayerDecayId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerDecay, fValue);
+            break;
+        case kNoiseLayerColorId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadNoiseLayerColor, fValue);
+            break;
+        case kClickLayerMixId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerMix, fValue);
+            break;
+        case kClickLayerContactMsId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerContactMs, fValue);
+            break;
+        case kClickLayerBrightnessId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerBrightness, fValue);
+            break;
+
         default:
             break;
         }

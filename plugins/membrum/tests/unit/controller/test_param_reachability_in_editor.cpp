@@ -192,6 +192,15 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kChokeGroupId, kPadChokeGroup },
         // Phase 8 (T074 / US7 / FR-065): Output Bus selector global proxy.
         { kOutputBusId, kPadOutputBus },
+        // Phase 7: parallel noise layer + always-on click transient proxies.
+        { kNoiseLayerMixId, kPadNoiseLayerMix },
+        { kNoiseLayerCutoffId, kPadNoiseLayerCutoff },
+        { kNoiseLayerResonanceId, kPadNoiseLayerResonance },
+        { kNoiseLayerDecayId, kPadNoiseLayerDecay },
+        { kNoiseLayerColorId, kPadNoiseLayerColor },
+        { kClickLayerMixId, kPadClickLayerMix },
+        { kClickLayerContactMsId, kPadClickLayerContactMs },
+        { kClickLayerBrightnessId, kPadClickLayerBrightness },
     };
 }
 
@@ -214,6 +223,10 @@ std::set<int> proxiedOffsets()
         kPadChokeGroup,
         // Phase 8 (T074 / US7 / FR-065): Output Bus offset is now proxied.
         kPadOutputBus,
+        // Phase 7: parallel noise layer + always-on click transient offsets.
+        kPadNoiseLayerMix, kPadNoiseLayerCutoff, kPadNoiseLayerResonance,
+        kPadNoiseLayerDecay, kPadNoiseLayerColor,
+        kPadClickLayerMix, kPadClickLayerContactMs, kPadClickLayerBrightness,
     };
 }
 

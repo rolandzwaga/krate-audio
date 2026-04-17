@@ -212,16 +212,22 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(macroId) == off);
     }
 
-    // Offset 42 is first reserved offset within pad 0's stride (Phase 6).
-    int reservedId = kPadBaseId + 42;
+    // Offsets 42-49 are valid Phase 7 noise/click-layer fields.
+    for (int off = 42; off <= 49; ++off) {
+        const int layerId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(layerId) == off);
+    }
+
+    // Offset 50 is the first reserved offset within pad 0's stride (Phase 7).
+    int reservedId = kPadBaseId + 50;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 42+
-    int pad5Reserved = padParamId(5, 0) + 42;
+    // Same for pad 5 offset 50+
+    int pad5Reserved = padParamId(5, 0) + 50;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

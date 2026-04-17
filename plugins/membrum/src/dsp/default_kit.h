@@ -57,6 +57,16 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.tsPitchEnvStart = static_cast<float>(std::log(160.0 / 20.0) / std::log(100.0));
             cfg.tsPitchEnvEnd   = static_cast<float>(std::log(50.0 / 20.0) / std::log(100.0));
             cfg.tsPitchEnvTime  = 0.04f;  // 20ms / 500ms
+            // Phase 7.1: loud air-thump + prominent beater thwack to escape
+            // the "plastic mini-tom" failure mode.
+            cfg.noiseLayerMix        = 0.85f;
+            cfg.noiseLayerCutoff     = 0.08f;  // ~55 Hz low rumble
+            cfg.noiseLayerResonance  = 0.15f;
+            cfg.noiseLayerDecay      = 0.55f;  // ~280 ms tail
+            cfg.noiseLayerColor      = 0.0f;   // brown (darkest, -6 dB/oct)
+            cfg.clickLayerMix        = 0.75f;
+            cfg.clickLayerContactMs  = 0.15f;  // ~2.4 ms short beater strike
+            cfg.clickLayerBrightness = 0.4f;   // darker thwack (mallet felt)
             break;
 
         case DrumTemplate::Snare:
@@ -69,6 +79,16 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.level          = 0.8f;
             // NoiseBurstDuration = 8ms -> (8-2)/13 = 0.461538...
             cfg.noiseBurstDuration = static_cast<float>((8.0 - 2.0) / 13.0);
+            // Phase 7.1: wires-dominant -- the snare wire rustle IS the
+            // instrument's identity. Load noise layer heavily.
+            cfg.noiseLayerMix        = 0.9f;
+            cfg.noiseLayerCutoff     = 0.72f;  // ~3 kHz wire rustle band
+            cfg.noiseLayerResonance  = 0.25f;
+            cfg.noiseLayerDecay      = 0.35f;
+            cfg.noiseLayerColor      = 0.75f;  // bright white → violet
+            cfg.clickLayerMix        = 0.6f;
+            cfg.clickLayerContactMs  = 0.2f;
+            cfg.clickLayerBrightness = 0.7f;
             break;
 
         case DrumTemplate::Tom:
@@ -79,6 +99,15 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.decay          = 0.5f;
             cfg.strikePosition = 0.3f;
             cfg.level          = 0.8f;
+            // Phase 7.1: head resonance + felt-mallet click.
+            cfg.noiseLayerMix        = 0.55f;
+            cfg.noiseLayerCutoff     = 0.3f;
+            cfg.noiseLayerResonance  = 0.25f;
+            cfg.noiseLayerDecay      = 0.4f;
+            cfg.noiseLayerColor      = 0.3f;  // pink-leaning
+            cfg.clickLayerMix        = 0.7f;
+            cfg.clickLayerContactMs  = 0.3f;
+            cfg.clickLayerBrightness = 0.45f;
             break;
 
         case DrumTemplate::Hat:
@@ -91,6 +120,15 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.level          = 0.8f;
             // NoiseBurstDuration = 3ms -> (3-2)/13 = 0.076923...
             cfg.noiseBurstDuration = static_cast<float>((3.0 - 2.0) / 13.0);
+            // Phase 7.1: noise-dominated; click provides stick attack.
+            cfg.noiseLayerMix        = 0.95f;
+            cfg.noiseLayerCutoff     = 0.88f;
+            cfg.noiseLayerResonance  = 0.2f;
+            cfg.noiseLayerDecay      = 0.15f;
+            cfg.noiseLayerColor      = 0.95f;  // very bright violet
+            cfg.clickLayerMix        = 0.55f;
+            cfg.clickLayerContactMs  = 0.05f;  // very short tick
+            cfg.clickLayerBrightness = 0.9f;
             break;
 
         case DrumTemplate::Cymbal:
@@ -103,6 +141,15 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.level          = 0.8f;
             // NoiseBurstDuration = 10ms -> (10-2)/13 = 0.615385...
             cfg.noiseBurstDuration = static_cast<float>((10.0 - 2.0) / 13.0);
+            // Phase 7.1: sustained shimmer noise, short stick click.
+            cfg.noiseLayerMix        = 0.95f;
+            cfg.noiseLayerCutoff     = 0.82f;
+            cfg.noiseLayerResonance  = 0.3f;
+            cfg.noiseLayerDecay      = 0.85f;
+            cfg.noiseLayerColor      = 0.9f;
+            cfg.clickLayerMix        = 0.45f;
+            cfg.clickLayerContactMs  = 0.15f;
+            cfg.clickLayerBrightness = 0.82f;
             break;
 
         case DrumTemplate::Perc:
@@ -113,6 +160,15 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.decay          = 0.3f;
             cfg.strikePosition = 0.3f;
             cfg.level          = 0.8f;
+            // Phase 7.1: prominent click + moderate noise body.
+            cfg.noiseLayerMix        = 0.55f;
+            cfg.noiseLayerCutoff     = 0.55f;
+            cfg.noiseLayerResonance  = 0.25f;
+            cfg.noiseLayerDecay      = 0.2f;
+            cfg.noiseLayerColor      = 0.6f;
+            cfg.clickLayerMix        = 0.75f;
+            cfg.clickLayerContactMs  = 0.2f;
+            cfg.clickLayerBrightness = 0.65f;
             break;
     }
 

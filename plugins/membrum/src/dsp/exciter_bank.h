@@ -118,6 +118,17 @@ public:
     [[nodiscard]] ExciterType getCurrentType() const noexcept { return currentType_; }
     [[nodiscard]] ExciterType getPendingType() const noexcept { return pendingType_; }
 
+    /// Phase 7: forward the normalized noise-burst contact-time parameter to
+    /// the NoiseBurst exciter if it is (or is about to be) the active variant.
+    /// Safe to call regardless of which exciter is currently active -- other
+    /// variants have no equivalent setter and the call is ignored.
+    void setNoiseBurstContactMs(float normalized) noexcept
+    {
+        pendingNoiseBurstContactNorm_ = normalized;
+        if (std::holds_alternative<NoiseBurstExciter>(active_))
+            std::get<NoiseBurstExciter>(active_).setContactMs(normalized);
+    }
+
 private:
     using Variant = std::variant<
         ImpulseExciter,
@@ -162,12 +173,19 @@ private:
         const double sr        = sampleRate_;
         const std::uint32_t vid = voiceId_;
         std::visit([sr, vid](auto& e) noexcept { e.prepare(sr, vid); }, active_);
+
+        // Phase 7: replay the last cached contact-ms into the freshly-swapped
+        // exciter so the NoiseBurst variant does not forget the host's
+        // automation value across a type swap.
+        if (std::holds_alternative<NoiseBurstExciter>(active_))
+            std::get<NoiseBurstExciter>(active_).setContactMs(pendingNoiseBurstContactNorm_);
     }
 
     Variant      active_;
     ExciterType  currentType_ = ExciterType::Impulse;
     ExciterType  pendingType_ = ExciterType::Impulse;
     double       sampleRate_  = 44100.0;
+    float        pendingNoiseBurstContactNorm_ = 0.5f;  // Phase 7: cached across swaps.
     std::uint32_t voiceId_    = 0;
 };
 

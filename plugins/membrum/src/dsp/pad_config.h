@@ -89,7 +89,22 @@ enum PadParamOffset : int
     kPadMacroPunch           = 40,
     kPadMacroComplexity      = 41,
     kPadActiveParamCountV6   = 42,  // offsets 0-41 are active in Phase 6
-    // Offsets 42-63 are RESERVED for future phases
+
+    // Phase 7: parallel always-on noise layer (every voice renders a filtered
+    // noise path alongside the modal body -- see noise_layer.h) plus always-on
+    // attack "click" transient (2-5 ms raised-cosine filtered-noise burst --
+    // see click_layer.h). Both are research-backed realism ingredients (Cook
+    // SNT, Serra/Smith SMS, Chromaphone/Microtonic).
+    kPadNoiseLayerMix        = 42,
+    kPadNoiseLayerCutoff     = 43,
+    kPadNoiseLayerResonance  = 44,
+    kPadNoiseLayerDecay      = 45,
+    kPadNoiseLayerColor      = 46,
+    kPadClickLayerMix        = 47,
+    kPadClickLayerContactMs  = 48,
+    kPadClickLayerBrightness = 49,
+    kPadActiveParamCountV7   = 50,  // offsets 0-49 are active in Phase 7
+    // Offsets 50-63 are RESERVED for future phases
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -157,6 +172,19 @@ struct PadConfig
     float macroBodySize      = 0.5f;
     float macroPunch         = 0.5f;
     float macroComplexity    = 0.5f;
+
+    // Phase 7: parallel noise layer (always-on, independent of body choice).
+    float noiseLayerMix        = 0.35f;
+    float noiseLayerCutoff     = 0.5f;
+    float noiseLayerResonance  = 0.2f;
+    float noiseLayerDecay      = 0.3f;
+    float noiseLayerColor      = 0.5f;
+
+    // Phase 7: always-on attack "click" transient (2-5 ms raised-cosine
+    // filtered-noise burst, fires at noteOn alongside the selected exciter).
+    float clickLayerMix        = 0.5f;
+    float clickLayerContactMs  = 0.3f;  // normalised: 0 = 2 ms, 1 = 5 ms
+    float clickLayerBrightness = 0.6f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -187,7 +215,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV6)
+    if (offset >= kPadActiveParamCountV7)
         return -1;  // reserved range
     return offset;
 }

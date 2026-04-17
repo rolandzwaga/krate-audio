@@ -31,14 +31,15 @@ int selectModelOrder(std::span<const float> decay,
     }
     // Energy in the first K coefficients of the spectrum is approximately
     // sum of |ac[k]| for k=0..K. Find smallest N where sum_{k<=N} |ac[k]|
-    // reaches 0.95 of the total.
+    // reaches 0.99 of the total — the last 4% of energy is where the quiet
+    // air/shimmer modes live; dropping them makes fitted drums sound thin.
     float totalAbs = 0.0f;
     for (int k = 1; k <= L; ++k) totalAbs += std::abs(ac[k]);
     if (totalAbs < 1e-9f) return (minN + maxN) / 2;
     float cum = 0.0f;
     for (int k = 1; k <= L; ++k) {
         cum += std::abs(ac[k]);
-        if (cum / totalAbs >= 0.95f) return std::clamp(k + 4, minN, maxN);
+        if (cum / totalAbs >= 0.99f) return std::clamp(k + 4, minN, maxN);
     }
     return maxN;
 }

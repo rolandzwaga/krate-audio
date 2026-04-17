@@ -6,11 +6,12 @@
 // This header is the single source of truth for the Membrum plugin's
 // persisted state layout. Both Processor::getState/setState and the
 // Controller kit/pad preset providers route through the same write/read
-// helpers to eliminate the previous 4-6x duplication of the 34-float64
-// pad-sound-parameter serialisation block.
+// helpers to eliminate the previous 4-6x duplication of the pad-sound-
+// parameter serialisation block.
 //
-// The plugin has not shipped; no backwards-compat migration is provided.
-// The single current version constant is validated on load.
+// Current version: v7 (Phase 7 adds 8 sound slots for parallel noise layer
+// + always-on click transient; sound array grows 34 -> 42). Loader accepts
+// v6 blobs and fills the new slots with PadConfig defaults.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -31,20 +32,23 @@ namespace Membrum::State {
 // runtime Processor / Controller classes.
 // ============================================================================
 
-/// Per-pad snapshot matching the on-wire layout. 34 float64 sound params
-/// cover offsets 2-35 from PadConfig (including chokeGroup and outputBus
-/// indices 28-29 redundantly expressed as float64 -- the authoritative
+/// Per-pad snapshot matching the on-wire layout. 42 float64 sound params
+/// cover offsets 2-35 and 42-49 from PadConfig (chokeGroup and outputBus at
+/// indices 28-29 are redundantly expressed as float64 -- the authoritative
 /// uint8 values below are the ones applied on load).
 struct PadSnapshot
 {
     ExciterType   exciterType{};
     BodyModelType bodyModel{};
 
-    // indices 0-27   -> offsets 2-29 (material..morphCurve)
+    // indices 0-27   -> offsets 2-29  (material..morphCurve)
     // indices 28-29  -> offsets 30-31 (chokeGroup, outputBus as float64)
     // indices 30-33  -> offsets 32-35 (fmRatio, feedbackAmount,
     //                                  noiseBurstDuration, frictionPressure)
-    std::array<double, 34> sound{};
+    // indices 34-38  -> offsets 42-46 (noiseLayer{Mix,Cutoff,Resonance,
+    //                                              Decay,Color})
+    // indices 39-41  -> offsets 47-49 (clickLayer{Mix,ContactMs,Brightness})
+    std::array<double, 42> sound{};
 
     std::uint8_t chokeGroup{0};       ///< Authoritative (uint8) on load.
     std::uint8_t outputBus{0};        ///< Authoritative (uint8) on load.
@@ -89,7 +93,7 @@ struct PadPresetSnapshot
 {
     ExciterType   exciterType{};
     BodyModelType bodyModel{};
-    std::array<double, 34> sound{}; ///< Same layout; entries 28-29 written but ignored on load.
+    std::array<double, 42> sound{}; ///< Same layout as PadSnapshot::sound (indices 28-29 written but ignored on load).
 };
 
 // ============================================================================
@@ -97,19 +101,25 @@ struct PadPresetSnapshot
 // single, current format. Changing them is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 6;
-constexpr Steinberg::int32 kPadBlobVersion = 1;
+constexpr Steinberg::int32 kBlobVersion    = 7;
+constexpr Steinberg::int32 kPadBlobVersion = 2;
+
+// Previous versions accepted on read for backward compatibility. v6 stored
+// only the first 34 sound slots; v1 pad-preset blob likewise.
+constexpr Steinberg::int32 kBlobVersionV6    = 6;
+constexpr Steinberg::int32 kPadBlobVersionV1 = 1;
+constexpr std::size_t      kV6SoundSlotCount = 34;
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.
 // Layout (little-endian as produced by IBStream::write):
-//   [int32 version == kBlobVersion]
+//   [int32 version == kBlobVersion (= 7)]
 //   [int32 maxPolyphony]
 //   [int32 voiceStealingPolicy]
 //   Per pad (32 times):
 //     [int32 exciterType]
 //     [int32 bodyModel]
-//     [34 x float64 sound (offsets 2-35, see PadSnapshot)]
+//     [42 x float64 sound (offsets 2-35 and 42-49, see PadSnapshot)]
 //     [uint8 chokeGroup]
 //     [uint8 outputBus]
 //   [int32 selectedPadIndex]
@@ -122,7 +132,9 @@ constexpr Steinberg::int32 kPadBlobVersion = 1;
 //     [int32 uiMode]
 //
 // writeKitBlob: always succeeds for a valid stream.
-// readKitBlob:  returns kResultFalse on version mismatch or short read.
+// readKitBlob:  accepts versions 6 and 7. For v6 it reads only 34 sound
+//               slots per pad and leaves indices 34-41 at defaults. Returns
+//               kResultFalse on unsupported version or short read.
 //               uiMode is OPTIONAL on read -- if the stream is exhausted
 //               after the macros block, kit.hasSession=false and uiMode
 //               stays at its default.

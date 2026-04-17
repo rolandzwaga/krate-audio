@@ -104,6 +104,15 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kChokeGroupId,                 .padOffset = kPadChokeGroup },
     // Phase 8 (US7 / FR-065): Output Bus selector proxy.
     {.globalId = kOutputBusId,                  .padOffset = kPadOutputBus },
+    // Phase 7: parallel noise layer + always-on click transient
+    {.globalId = kNoiseLayerMixId,              .padOffset = kPadNoiseLayerMix },
+    {.globalId = kNoiseLayerCutoffId,           .padOffset = kPadNoiseLayerCutoff },
+    {.globalId = kNoiseLayerResonanceId,        .padOffset = kPadNoiseLayerResonance },
+    {.globalId = kNoiseLayerDecayId,            .padOffset = kPadNoiseLayerDecay },
+    {.globalId = kNoiseLayerColorId,            .padOffset = kPadNoiseLayerColor },
+    {.globalId = kClickLayerMixId,              .padOffset = kPadClickLayerMix },
+    {.globalId = kClickLayerContactMsId,        .padOffset = kPadClickLayerContactMs },
+    {.globalId = kClickLayerBrightnessId,       .padOffset = kPadClickLayerBrightness },
 };
 
 // Per-pad parameter name table
@@ -161,13 +170,22 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadMacroBodySize,      .name = "Body Size",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadMacroPunch,         .name = "Punch",               .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadMacroComplexity,    .name = "Complexity",          .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Phase 7 (parallel noise layer + always-on click transient)
+    {.offset = kPadNoiseLayerMix,        .name = "Noise Mix",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.35 },
+    {.offset = kPadNoiseLayerCutoff,     .name = "Noise Cutoff",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadNoiseLayerResonance,  .name = "Noise Resonance",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.2 },
+    {.offset = kPadNoiseLayerDecay,      .name = "Noise Decay",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
+    {.offset = kPadNoiseLayerColor,      .name = "Noise Color",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadClickLayerMix,        .name = "Click Mix",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadClickLayerContactMs,  .name = "Click Contact",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
+    {.offset = kPadClickLayerBrightness, .name = "Click Brightness",    .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV6,
-              "Pad param specs must match active param count (42)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV7,
+              "Pad param specs must match active param count (50)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -511,7 +529,33 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         parameters.addParameter(outputBusList);
     }
 
-    // ---- Phase 4/6: 1344 per-pad parameters (32 pads x 42 active offsets) ----
+    // ---- Phase 7 global proxies: parallel noise layer + click transient ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Noise Mix"), kNoiseLayerMixId, nullptr,
+                           0.0, 1.0, 0.35, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Noise Cutoff"), kNoiseLayerCutoffId, STR16("Hz"),
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Noise Resonance"), kNoiseLayerResonanceId, nullptr,
+                           0.0, 1.0, 0.2, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Noise Decay"), kNoiseLayerDecayId, STR16("ms"),
+                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Noise Color"), kNoiseLayerColorId, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Click Mix"), kClickLayerMixId, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Click Contact"), kClickLayerContactMsId, STR16("ms"),
+                           0.0, 1.0, 0.3, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Click Brightness"), kClickLayerBrightnessId, nullptr,
+                           0.0, 1.0, 0.6, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7: 1600 per-pad parameters (32 pads x 50 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

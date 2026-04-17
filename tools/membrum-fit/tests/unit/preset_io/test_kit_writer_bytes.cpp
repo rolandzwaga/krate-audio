@@ -53,9 +53,9 @@ TEST_CASE("Kit writer: component-state bytes match direct codec output") {
     kit.maxPolyphony = 8;
     kit.voiceStealingPolicy = 0;
     for (std::size_t i = 0; i < pads.size(); ++i) kit.pads[i] = Membrum::State::toPadSnapshot(pads[i]);
-    kit.globalCoupling = 0.0;
-    kit.snareBuzz      = 0.0;
-    kit.tomResonance   = 0.0;
+    kit.globalCoupling = 0.35;
+    kit.snareBuzz      = 0.4;
+    kit.tomResonance   = 0.3;
     kit.couplingDelayMs = 1.0;
     kit.selectedPadIndex = 0;
     kit.hasSession = false;

@@ -564,6 +564,15 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadMacroBodySize:       cfg.macroBodySize = normalizedValue; break;
     case kPadMacroPunch:          cfg.macroPunch = normalizedValue; break;
     case kPadMacroComplexity:     cfg.macroComplexity = normalizedValue; break;
+    // Phase 7: parallel noise layer + always-on click transient
+    case kPadNoiseLayerMix:        cfg.noiseLayerMix = normalizedValue; break;
+    case kPadNoiseLayerCutoff:     cfg.noiseLayerCutoff = normalizedValue; break;
+    case kPadNoiseLayerResonance:  cfg.noiseLayerResonance = normalizedValue; break;
+    case kPadNoiseLayerDecay:      cfg.noiseLayerDecay = normalizedValue; break;
+    case kPadNoiseLayerColor:      cfg.noiseLayerColor = normalizedValue; break;
+    case kPadClickLayerMix:        cfg.clickLayerMix = normalizedValue; break;
+    case kPadClickLayerContactMs:  cfg.clickLayerContactMs = normalizedValue; break;
+    case kPadClickLayerBrightness: cfg.clickLayerBrightness = normalizedValue; break;
     default: break;
     }
 }
@@ -627,6 +636,20 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setDecay(cfg.decay);
     v.setStrikePosition(cfg.strikePosition);
     v.setLevel(cfg.level);
+
+    // Phase 7: parallel noise layer
+    v.setNoiseLayerMix(cfg.noiseLayerMix);
+    v.setNoiseLayerCutoff(cfg.noiseLayerCutoff);
+    v.setNoiseLayerResonance(cfg.noiseLayerResonance);
+    v.setNoiseLayerDecay(cfg.noiseLayerDecay);
+    v.setNoiseLayerColor(cfg.noiseLayerColor);
+    // Phase 7: always-on click transient
+    v.setClickLayerMix(cfg.clickLayerMix);
+    v.setClickLayerContactMs(cfg.clickLayerContactMs);
+    v.setClickLayerBrightness(cfg.clickLayerBrightness);
+    // Phase 7 bug-fix: finally plumb PadConfig::noiseBurstDuration (normalized)
+    // through to the NoiseBurstExciter. Previously stored and ignored.
+    v.setNoiseBurstContactMs(cfg.noiseBurstDuration);
 }
 
 // ------------------------------------------------------------------
