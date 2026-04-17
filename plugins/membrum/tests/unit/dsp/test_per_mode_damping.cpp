@@ -370,6 +370,66 @@ TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) pitch
     CHECK(hzFull < hzNo * 0.9);
 }
 
+TEST_CASE("Phase 8C: Kick-preset attack window shows airLoading shift",
+          "[phase8c][drum_voice][diagnose]")
+{
+    using Membrum::DrumVoice;
+    auto render = [](float airNorm) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.3f); v.setSize(0.8f); v.setDecay(0.3f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Impulse);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setAirLoading(airNorm);
+        v.setModeScatter(0.0f);
+        // Kick pitch-env config (from default_kit) to reproduce the user's
+        // workflow where air-loading has to cut through a 160 -> 50 Hz sweep.
+        v.toneShaper().setPitchEnvStartHz(160.0f);
+        v.toneShaper().setPitchEnvEndHz(50.0f);
+        v.toneShaper().setPitchEnvTimeMs(20.0f);
+        // Zero noise + click to isolate the body's pitch response.
+        v.setNoiseLayerMix(0.0f); v.setClickLayerMix(0.0f);
+        v.noteOn(1.0f);
+        std::vector<float> buf(22050, 0.0f);
+        constexpr int kBlock = 256;
+        for (int off = 0; off < 22050; off += kBlock)
+            v.processBlock(buf.data() + off, std::min(kBlock, 22050 - off));
+        return buf;
+    };
+    auto zcPerSec = [](const std::vector<float>& buf, int start, int end) {
+        int crossings = 0;
+        for (int i = start + 1; i < end; ++i)
+            if ((buf[i-1] >= 0.0f) != (buf[i] >= 0.0f)) ++crossings;
+        return static_cast<double>(crossings) / (2.0 * (end - start) / 44100.0);
+    };
+    // Inspect the bank's mode-0 target frequency AFTER the pitch envelope
+    // has completed (200 ms).
+    auto mode0AfterPitchEnv = [](float airNorm) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.3f); v.setSize(0.8f); v.setDecay(0.3f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Impulse);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setAirLoading(airNorm); v.setModeScatter(0.0f);
+        v.toneShaper().setPitchEnvStartHz(160.0f);
+        v.toneShaper().setPitchEnvEndHz(50.0f);
+        v.toneShaper().setPitchEnvTimeMs(20.0f);
+        v.setNoiseLayerMix(0.0f); v.setClickLayerMix(0.0f);
+        v.noteOn(1.0f);
+        std::vector<float> buf(8820, 0.0f);
+        constexpr int kBlock = 256;
+        for (int off = 0; off < 8820; off += kBlock)
+            v.processBlock(buf.data() + off, std::min(kBlock, 8820 - off));
+        return v.getBodyBankForTest().getSharedBank().getModeFrequency(0);
+    };
+    const float f0No   = mode0AfterPitchEnv(0.0f);
+    const float f0Full = mode0AfterPitchEnv(1.0f);
+    INFO("after 200ms: noAir mode0=" << f0No << " Hz, fullAir mode0=" << f0Full);
+    CHECK(f0Full < f0No * 0.9f);
+}
+
 TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered audio",
           "[phase8c][drum_voice][acoustic]")
 {

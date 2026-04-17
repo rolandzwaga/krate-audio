@@ -150,9 +150,16 @@ public:
         // Tone shaper lifecycle (sets up filter env, pitch env gate).
         toneShaper_.noteOn(velocity);
 
+        // Phase 8C: cache the global pitch-envelope scale from air-loading.
+        // Applied at every pitch-env read below.
+        airPitchScale_ =
+            1.0f - std::clamp(airLoading_, 0.0f, 1.0f)
+                 * kAirLoadingCurve[0];
+
         // Control-plane query: pitch envelope returns its initial Hz value.
         // When disabled this is naturalFundamentalHz_; when enabled it's pitchEnvStartHz_.
-        const float initialPitchHz = toneShaper_.processPitchEnvelope();
+        const float initialPitchHz =
+            toneShaper_.processPitchEnvelope() * airPitchScale_;
 
         // Configure the body for this note (applies deferred body-model swap).
         // For Membrane: we pass the baseline pitchHz — the mapper currently
@@ -223,7 +230,8 @@ public:
         // to be skipped when disabled.
         if (toneShaper_.isPitchEnvActive())
         {
-            const float pitchHz = toneShaper_.processPitchEnvelope();
+            const float pitchHz =
+                toneShaper_.processPitchEnvelope() * airPitchScale_;
             updateBodyFundamental(pitchHz);
         }
 
@@ -393,7 +401,8 @@ private:
             // a 64-sample audio block — well below any audible stair-stepping.
             if (pitchEnvForMembrane)
             {
-                const float pitchHz = toneShaper_.processPitchEnvelope();
+                const float pitchHz =
+                    toneShaper_.processPitchEnvelope() * airPitchScale_;
                 // Consume the remaining (chunk-1) envelope samples without
                 // reissuing updateModes, so the envelope stays in sync with
                 // the audio sample count.
@@ -527,7 +536,8 @@ private:
         // loop) without reissuing updateModes.
         if (pitchEnvForMembrane)
         {
-            const float pitchHz = toneShaper_.processPitchEnvelope();
+            const float pitchHz =
+                toneShaper_.processPitchEnvelope() * airPitchScale_;
             updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
         }
         if (morphActive && bodyBank_.getCurrentType() == BodyModelType::Membrane)
@@ -887,6 +897,11 @@ private:
     // Phase 8C: air-loading + per-mode scatter.
     float airLoading_  = 0.0f;
     float modeScatter_ = 0.0f;
+    // Cached = 1 - airLoading * kAirLoadingCurve[0] (applied to every
+    // pitch-envelope read so air-loading shifts the whole voice pitch,
+    // not just the mode ratios -- fixes the Acoustic Kick case where
+    // the pitch env override masks the per-mode shift).
+    float airPitchScale_ = 1.0f;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;
