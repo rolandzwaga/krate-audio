@@ -9,9 +9,9 @@
 // helpers to eliminate the previous 4-6x duplication of the pad-sound-
 // parameter serialisation block.
 //
-// Current version: v7 (Phase 7 adds 8 sound slots for parallel noise layer
-// + always-on click transient; sound array grows 34 -> 42). Loader accepts
-// v6 blobs and fills the new slots with PadConfig defaults.
+// Current version: v8 (Phase 8A adds 2 sound slots for per-mode damping law
+// overrides bodyDampingB1/B3; sound array grows 42 -> 44). Loader accepts
+// v6 and v7 blobs and fills the newer slots with PadConfig defaults.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -32,10 +32,10 @@ namespace Membrum::State {
 // runtime Processor / Controller classes.
 // ============================================================================
 
-/// Per-pad snapshot matching the on-wire layout. 42 float64 sound params
-/// cover offsets 2-35 and 42-49 from PadConfig (chokeGroup and outputBus at
-/// indices 28-29 are redundantly expressed as float64 -- the authoritative
-/// uint8 values below are the ones applied on load).
+/// Per-pad snapshot matching the on-wire layout. 44 float64 sound params
+/// cover offsets 2-35, 42-49 and 50-51 from PadConfig (chokeGroup and
+/// outputBus at indices 28-29 are redundantly expressed as float64 -- the
+/// authoritative uint8 values below are the ones applied on load).
 struct PadSnapshot
 {
     ExciterType   exciterType{};
@@ -48,7 +48,8 @@ struct PadSnapshot
     // indices 34-38  -> offsets 42-46 (noiseLayer{Mix,Cutoff,Resonance,
     //                                              Decay,Color})
     // indices 39-41  -> offsets 47-49 (clickLayer{Mix,ContactMs,Brightness})
-    std::array<double, 42> sound{};
+    // indices 42-43  -> offsets 50-51 (bodyDamping{B1,B3})  [Phase 8A]
+    std::array<double, 44> sound{};
 
     std::uint8_t chokeGroup{0};       ///< Authoritative (uint8) on load.
     std::uint8_t outputBus{0};        ///< Authoritative (uint8) on load.
@@ -93,7 +94,7 @@ struct PadPresetSnapshot
 {
     ExciterType   exciterType{};
     BodyModelType bodyModel{};
-    std::array<double, 42> sound{}; ///< Same layout as PadSnapshot::sound (indices 28-29 written but ignored on load).
+    std::array<double, 44> sound{}; ///< Same layout as PadSnapshot::sound (indices 28-29 written but ignored on load).
 };
 
 // ============================================================================
@@ -101,19 +102,26 @@ struct PadPresetSnapshot
 // single, current format. Changing them is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 7;
-constexpr Steinberg::int32 kPadBlobVersion = 2;
+constexpr Steinberg::int32 kBlobVersion    = 8;
+constexpr Steinberg::int32 kPadBlobVersion = 3;
 
-// Previous versions accepted on read for backward compatibility. v6 stored
-// only the first 34 sound slots; v1 pad-preset blob likewise.
+// Previous versions accepted on read for backward compatibility.
+//   v6 stored 34 sound slots per pad.
+//   v7 stored 42 sound slots per pad (+ Phase 7 noise & click layers).
+//   v8 stores 44 sound slots per pad (+ Phase 8A per-mode damping).
+// Pad-preset blob versions follow the same slot count conventions:
+//   v1 -> 34 slots, v2 -> 42 slots, v3 -> 44 slots.
 constexpr Steinberg::int32 kBlobVersionV6    = 6;
+constexpr Steinberg::int32 kBlobVersionV7    = 7;
 constexpr Steinberg::int32 kPadBlobVersionV1 = 1;
+constexpr Steinberg::int32 kPadBlobVersionV2 = 2;
 constexpr std::size_t      kV6SoundSlotCount = 34;
+constexpr std::size_t      kV7SoundSlotCount = 42;
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.
 // Layout (little-endian as produced by IBStream::write):
-//   [int32 version == kBlobVersion (= 7)]
+//   [int32 version == kBlobVersion (= 8)]
 //   [int32 maxPolyphony]
 //   [int32 voiceStealingPolicy]
 //   Per pad (32 times):

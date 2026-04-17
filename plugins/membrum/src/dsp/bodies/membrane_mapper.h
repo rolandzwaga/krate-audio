@@ -31,7 +31,38 @@ struct MapperResult
     float brightness  = 0.0f;
     float stretch     = 0.0f;
     float scatter     = 0.0f;
+
+    // Phase 8A: explicit per-mode damping law. Always populated by the mapper:
+    // when VoiceCommonParams.bodyDampingB1/B3 are sentinels (-1.0f), this is
+    // derived from decayTime/brightness (legacy bit-identical path); when
+    // non-sentinel, this takes precedence over decayTime/brightness and
+    // directly drives ModalResonatorBank::setModes.
+    Krate::DSP::ModalResonatorBank::DampingLaw damping{};
 };
+
+/// Build a DampingLaw from the mapper's legacy decayTime/brightness pair,
+/// letting explicit VoiceCommonParams.bodyDamping{B1,B3} overrides take
+/// precedence when they are not the sentinel value (-1.0f).
+/// Denormalisation for the override path:
+///   b1 = 0.2 + norm * 49.8     -> [0.2, 50.0] s^-1
+///   b3 = norm * 8.0e-5         -> [0, 8e-5] s * rad^-2 (2 x legacy kMaxB3)
+[[nodiscard]] inline Krate::DSP::ModalResonatorBank::DampingLaw
+dampingLawFromParams(const VoiceCommonParams& params,
+                     float legacyDecayTime,
+                     float legacyBrightness) noexcept
+{
+    auto law = Krate::DSP::ModalResonatorBank::dampingLawFromLegacy(
+        legacyDecayTime, legacyBrightness);
+    if (params.bodyDampingB1 >= 0.0f) {
+        const float n = std::clamp(params.bodyDampingB1, 0.0f, 1.0f);
+        law.b1 = 0.2f + n * 49.8f;
+    }
+    if (params.bodyDampingB3 >= 0.0f) {
+        const float n = std::clamp(params.bodyDampingB3, 0.0f, 1.0f);
+        law.b3 = n * 8.0e-5f;
+    }
+    return law;
+}
 
 struct MembraneMapper
 {
@@ -112,6 +143,7 @@ struct MembraneMapper
 
         r.numPartials = kMembraneModeCount;
         r.scatter     = 0.0f;
+        r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);
         return r;
     }
 

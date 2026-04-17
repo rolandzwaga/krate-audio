@@ -73,6 +73,31 @@ public:
     static constexpr int kMaxModes = 96;
     static constexpr int kNumBowedModes = 8;
 
+    /// Direct per-mode damping-law coefficients.
+    /// R_k = exp(-(b1 + b3 * f_k^2) / sampleRate).
+    /// Phase 8: exposed as first-class params so presets can dial in
+    /// material character (wood vs metal vs glass vs plastic) independent
+    /// of the decayTime/brightness convenience pair.
+    struct DampingLaw {
+        float b1{0.0f};  ///< Flat damping, s^-1 (legacy: 1 / decayTime)
+        float b3{0.0f};  ///< Frequency-squared damping, s / rad^2
+    };
+
+    /// Legacy b3 ceiling. Matches the (1 - brightness) * kMaxB3 formulation
+    /// retained for backward-compat callers.
+    static constexpr float kLegacyMaxB3 = 4.0e-5f;
+
+    /// Build a DampingLaw from the legacy (decayTime, brightness) pair.
+    /// decayTime is the t60 for low-frequency modes; brightness rebalances
+    /// the b3 term so brightness=1.0 removes frequency-squared damping.
+    [[nodiscard]] static DampingLaw dampingLawFromLegacy(float decayTime,
+                                                         float brightness) noexcept
+    {
+        decayTime = std::clamp(decayTime, 0.01f, 5.0f);
+        brightness = std::clamp(brightness, 0.0f, 1.0f);
+        return DampingLaw{1.0f / decayTime, (1.0f - brightness) * kLegacyMaxB3};
+    }
+
     ModalResonatorBank() noexcept = default;
     ~ModalResonatorBank() override = default;
 
@@ -123,13 +148,30 @@ public:
         float scatter
     ) noexcept
     {
+        setModes(frequencies, amplitudes, numPartials,
+                 dampingLawFromLegacy(decayTime, brightness),
+                 stretch, scatter);
+    }
+
+    /// Configure all modes with an explicit per-mode damping law.
+    /// Phase 8 (#3): lets presets dial in b1/b3 directly instead of
+    /// routing through decayTime/brightness.
+    void setModes(
+        const float* frequencies,
+        const float* amplitudes,
+        int numPartials,
+        DampingLaw damping,
+        float stretch,
+        float scatter
+    ) noexcept
+    {
         // Clear filter states on note-on (FR-018)
         std::memset(sinState_, 0, sizeof(sinState_));
         std::memset(cosState_, 0, sizeof(cosState_));
         envelopeState_ = 0.0f;
         previousEnvelope_ = 0.0f;
         computeModeCoefficients(frequencies, amplitudes, numPartials,
-                                decayTime, brightness, stretch, scatter, true);
+                                damping.b1, damping.b3, stretch, scatter, true);
     }
 
     /// Update mode coefficients without clearing filter states.
@@ -144,8 +186,42 @@ public:
         float scatter
     ) noexcept
     {
+        updateModes(frequencies, amplitudes, numPartials,
+                    dampingLawFromLegacy(decayTime, brightness),
+                    stretch, scatter);
+    }
+
+    /// Update mode coefficients with explicit damping law (state-preserving).
+    void updateModes(
+        const float* frequencies,
+        const float* amplitudes,
+        int numPartials,
+        DampingLaw damping,
+        float stretch,
+        float scatter
+    ) noexcept
+    {
         computeModeCoefficients(frequencies, amplitudes, numPartials,
-                                decayTime, brightness, stretch, scatter, false);
+                                damping.b1, damping.b3, stretch, scatter, false);
+    }
+
+    /// Re-compute per-mode radii with a new damping law, preserving
+    /// currently-configured frequencies, amplitudes, and stretch/scatter.
+    /// Phase 8 (#3 + preparation for #7): cheap enough to call block-rate.
+    void updateDampingLaw(DampingLaw damping) noexcept
+    {
+        storedDampingLaw_ = damping;
+        const float b1 = damping.b1;
+        const float b3 = damping.b3;
+        for (int k = 0; k < numModes_; ++k) {
+            if (!active_[k]) continue;
+            float eps = epsilonTarget_[k];
+            if (eps <= 0.0f) continue;
+            float f_w = std::asin(eps * 0.5f) * sampleRate_
+                        / std::numbers::pi_v<float>;
+            float decayRate_k = b1 + b3 * f_w * f_w;
+            radiusTarget_[k] = std::exp(-decayRate_k / sampleRate_);
+        }
     }
 
     /// Process a single sample through the resonator bank.
@@ -241,6 +317,12 @@ public:
 
     /// Get the number of configured modes.
     [[nodiscard]] int getNumModes() const noexcept { return numModes_; }
+
+    /// Get the last applied damping law (for diagnostics / tests).
+    [[nodiscard]] DampingLaw getDampingLaw() const noexcept
+    {
+        return storedDampingLaw_;
+    }
 
     // =========================================================================
     // IResonator interface adapter methods (FR-020, FR-023, FR-024, FR-025)
@@ -386,6 +468,7 @@ private:
     float storedFrequency_ = 440.0f;
     float storedDecayTime_ = 0.5f;
     float storedBrightness_ = 0.5f;
+    DampingLaw storedDampingLaw_{2.0f, 2.0e-5f};
 
     // Bowed-mode coupling state (FR-020)
     std::array<BowedModeBPF, kNumBowedModes> bowedModeFilters_{};
@@ -433,8 +516,8 @@ private:
         const float* frequencies,
         const float* amplitudes,
         int numPartials,
-        float decayTime,
-        float brightness,
+        float b1In,
+        float b3In,
         float stretch,
         float scatter,
         bool snapSmoothing
@@ -442,17 +525,18 @@ private:
     {
         // Clamp parameters to valid ranges
         numPartials = std::clamp(numPartials, 0, kMaxModes);
-        decayTime = std::clamp(decayTime, 0.01f, 5.0f);
-        brightness = std::clamp(brightness, 0.0f, 1.0f);
         stretch = std::clamp(stretch, 0.0f, 1.0f);
         scatter = std::clamp(scatter, 0.0f, 1.0f);
 
         numModes_ = numPartials;
         numActiveModes_ = 0;
 
-        // Chaigne-Lambourg damping coefficients (FR-006)
-        const float b1 = 1.0f / decayTime;
-        const float b3 = (1.0f - brightness) * kMaxB3;
+        // Chaigne-Lambourg damping coefficients (FR-006).
+        // b1 floor mirrors the legacy decayTime clamp of 5.0 s -> 0.2 s^-1;
+        // allow slightly below that since b3 now contributes separately.
+        const float b1 = std::max(b1In, 1.0f / 5.0f);
+        const float b3 = std::max(b3In, 0.0f);
+        storedDampingLaw_ = DampingLaw{b1, b3};
 
         // Inharmonicity parameters
         const float B = stretch * stretch * 0.001f;

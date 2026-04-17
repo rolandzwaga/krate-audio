@@ -114,6 +114,8 @@ struct NoiseBodyMapper
 
         out.modal.numPartials = numModes;
         out.modal.scatter     = 0.0f;
+        out.modal.damping     = dampingLawFromParams(
+            params, out.modal.decayTime, out.modal.brightness);
 
         // ----- Noise layer -----
         // Centered around the bright metallic region so a cymbal has

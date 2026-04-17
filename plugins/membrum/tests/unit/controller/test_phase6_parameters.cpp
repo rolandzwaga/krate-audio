@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion bumped to 7 (Phase 7 noise/click layers)")
+    SECTION("kCurrentStateVersion bumped to 8 (Phase 8A per-mode damping law)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 7);
+        STATIC_REQUIRE(kCurrentStateVersion == 8);
     }
 }
 
@@ -130,9 +130,17 @@ TEST_CASE("padOffsetFromParamId accepts macro offsets 37-41", "[phase6_params]")
         }
     }
 
-    SECTION("Offset 50 is the first reserved offset (Phase 7)")
+    SECTION("Offsets 50-51 are active Phase 8A damping fields")
     {
-        REQUIRE(padOffsetFromParamId(padParamId(0, 50)) == -1);
+        for (int off = 50; off <= 51; ++off)
+        {
+            REQUIRE(padOffsetFromParamId(padParamId(0, off)) == off);
+        }
+    }
+
+    SECTION("Offset 52 is the first reserved offset (Phase 8A)")
+    {
+        REQUIRE(padOffsetFromParamId(padParamId(0, 52)) == -1);
     }
 }
 

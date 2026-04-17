@@ -34,6 +34,13 @@ struct VoiceCommonParams
     float clickLayerMix        = 0.0f;
     float clickLayerContactMs  = 0.3f;
     float clickLayerBrightness = 0.6f;
+
+    // Phase 8A: per-mode damping law overrides (normalized [0, 1]).
+    // Sentinel -1.0f means "derive from decay/material" -- the mapper will
+    // fall back to the legacy decayTime/brightness derivation for Phase 1
+    // bit-identity.
+    float bodyDampingB1        = -1.0f;
+    float bodyDampingB3        = -1.0f;
 };
 
 } // namespace Membrum

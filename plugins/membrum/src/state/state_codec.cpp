@@ -104,6 +104,11 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[39] = static_cast<double>(cfg.clickLayerMix);
     snap.sound[40] = static_cast<double>(cfg.clickLayerContactMs);
     snap.sound[41] = static_cast<double>(cfg.clickLayerBrightness);
+    // Phase 8A: per-mode damping law overrides (offsets 50-51). Sentinel
+    // -1.0f persists verbatim so round-trip with untouched pads stays
+    // bit-identical to the Phase 7 behaviour.
+    snap.sound[42] = static_cast<double>(cfg.bodyDampingB1);
+    snap.sound[43] = static_cast<double>(cfg.bodyDampingB3);
 
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
@@ -164,6 +169,19 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
     cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
     cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
+    // Phase 8A: per-mode damping law overrides. Sentinel -1.0f is preserved
+    // verbatim (mapper falls back to legacy derivation); other values are
+    // clamped to [0, 1] before denormalisation in the mapper.
+    {
+        const double b1Raw = snap.sound[42];
+        const double b3Raw = snap.sound[43];
+        cfg.bodyDampingB1 = (b1Raw < 0.0)
+            ? -1.0f
+            : std::clamp(static_cast<float>(b1Raw), 0.0f, 1.0f);
+        cfg.bodyDampingB3 = (b3Raw < 0.0)
+            ? -1.0f
+            : std::clamp(static_cast<float>(b3Raw), 0.0f, 1.0f);
+    }
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -235,6 +253,17 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
     cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
     cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
+    // Phase 8A: per-mode damping law overrides (sentinel -1.0f kept verbatim).
+    {
+        const double b1Raw = snap.sound[42];
+        const double b3Raw = snap.sound[43];
+        cfg.bodyDampingB1 = (b1Raw < 0.0)
+            ? -1.0f
+            : std::clamp(static_cast<float>(b1Raw), 0.0f, 1.0f);
+        cfg.bodyDampingB3 = (b3Raw < 0.0)
+            ? -1.0f
+            : std::clamp(static_cast<float>(b3Raw), 0.0f, 1.0f);
+    }
 }
 
 // ============================================================================
@@ -310,11 +339,15 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kBlobVersion && version != kBlobVersionV6)
+    if (version != kBlobVersion && version != kBlobVersionV7
+        && version != kBlobVersionV6)
         return kResultFalse;
     const bool isV6 = (version == kBlobVersionV6);
-    constexpr std::size_t kV7Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
-    const std::size_t soundSlotsToRead = isV6 ? kV6SoundSlotCount : kV7Slots;
+    const bool isV7 = (version == kBlobVersionV7);
+    constexpr std::size_t kV8Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
+    const std::size_t soundSlotsToRead =
+        isV6 ? kV6SoundSlotCount
+             : (isV7 ? kV7SoundSlotCount : kV8Slots);
 
     // Defaults for Phase 7 slots when reading a v6 blob. These mirror the
     // PadConfig defaults so legacy kits load as-authored + new-layer defaults.
@@ -328,6 +361,12 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         static_cast<double>(defaults.clickLayerMix),
         static_cast<double>(defaults.clickLayerContactMs),
         static_cast<double>(defaults.clickLayerBrightness),
+    };
+    // Phase 8A defaults for legacy v6/v7 blobs: sentinel -1.0f preserves
+    // Phase 1 bit-identity (mapper falls back to decay-derived damping).
+    const double defaultPhase8ASound[2] = {
+        static_cast<double>(defaults.bodyDampingB1),
+        static_cast<double>(defaults.bodyDampingB3),
     };
 
     int32 maxPoly = 8;
@@ -357,12 +396,19 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
             if (!readT(stream, pad.sound[i]))
                 pad.sound[i] = 0.0;
         }
-        // v6 -> v7: Phase 7 slots (indices 34-41) are absent on disk. Fill
+        // v6 -> newer: Phase 7 slots (indices 34-41) are absent on disk. Fill
         // with PadConfig defaults so legacy kits still get the new layers.
         if (isV6)
         {
             for (std::size_t i = 0; i < 8; ++i)
                 pad.sound[kV6SoundSlotCount + i] = defaultPhase7Sound[i];
+        }
+        // v6 or v7 -> v8: Phase 8A slots (indices 42-43) are absent. Fill
+        // with sentinel defaults so legacy kits keep Phase 1 bit-identity.
+        if (isV6 || isV7)
+        {
+            for (std::size_t i = 0; i < 2; ++i)
+                pad.sound[kV7SoundSlotCount + i] = defaultPhase8ASound[i];
         }
         if (!readT(stream, pad.chokeGroup)) pad.chokeGroup = 0;
         if (!readT(stream, pad.outputBus))  pad.outputBus  = 0;
@@ -469,11 +515,16 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kPadBlobVersion && version != kPadBlobVersionV1)
+    if (version != kPadBlobVersion
+        && version != kPadBlobVersionV2
+        && version != kPadBlobVersionV1)
         return kResultFalse;
     const bool isV1 = (version == kPadBlobVersionV1);
-    constexpr std::size_t kV2Slots = std::tuple_size_v<decltype(PadPresetSnapshot::sound)>;
-    const std::size_t slotsToRead = isV1 ? kV6SoundSlotCount : kV2Slots;
+    const bool isV2 = (version == kPadBlobVersionV2);
+    constexpr std::size_t kV3Slots = std::tuple_size_v<decltype(PadPresetSnapshot::sound)>;
+    const std::size_t slotsToRead =
+        isV1 ? kV6SoundSlotCount
+             : (isV2 ? kV7SoundSlotCount : kV3Slots);
 
     int32 excI = 0;
     int32 bodyI = 0;
@@ -494,9 +545,9 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     // v1 blobs lack Phase 7 sound slots (34-41). Fill with PadConfig defaults
     // so legacy per-pad presets load with sensible parallel-noise + click
     // parameters rather than silence.
+    const PadConfig defaults{};
     if (isV1)
     {
-        const PadConfig defaults{};
         pad.sound[34] = static_cast<double>(defaults.noiseLayerMix);
         pad.sound[35] = static_cast<double>(defaults.noiseLayerCutoff);
         pad.sound[36] = static_cast<double>(defaults.noiseLayerResonance);
@@ -505,6 +556,13 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
         pad.sound[39] = static_cast<double>(defaults.clickLayerMix);
         pad.sound[40] = static_cast<double>(defaults.clickLayerContactMs);
         pad.sound[41] = static_cast<double>(defaults.clickLayerBrightness);
+    }
+    // v1 or v2 -> v3: Phase 8A damping slots (42-43) are absent. Fill with
+    // sentinel defaults so legacy pad presets keep Phase 1 bit-identity.
+    if (isV1 || isV2)
+    {
+        pad.sound[42] = static_cast<double>(defaults.bodyDampingB1);
+        pad.sound[43] = static_cast<double>(defaults.bodyDampingB3);
     }
     return kResultOk;
 }

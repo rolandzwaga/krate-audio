@@ -123,6 +123,9 @@ add_executable(membrum_tests
     unit/dsp/test_noise_layer.cpp
     unit/dsp/test_click_layer.cpp
 
+    # Phase 8A: per-mode damping law
+    unit/dsp/test_per_mode_damping.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 

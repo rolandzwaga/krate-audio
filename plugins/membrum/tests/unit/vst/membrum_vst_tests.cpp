@@ -83,8 +83,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 6 (US1, spec 141): +1 (kUiModeId) + 160 (32 pads x 5 macros) = 1387.
     // Phase 8 (US7, spec 141): +1 (kOutputBusId Output Bus selector proxy) = 1388.
     // Phase 7: +8 (noise/click global proxies) + 256 (32 pads x 8 offsets) = 1652.
+    // Phase 8A: +2 (b1/b3 global proxies) + 64 (32 pads x 2 offsets) = 1718.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1652);
+    CHECK(paramCount == 1718);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

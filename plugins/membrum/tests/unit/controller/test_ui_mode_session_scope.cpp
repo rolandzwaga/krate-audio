@@ -145,14 +145,16 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     auto bytes = drainStream(ms);
 
     // kUiModeId is session-scoped and must NOT appear in the processor state
-    // blob. Verify total size matches the expected v7 layout with zero
+    // blob. Verify total size matches the expected v8 layout with zero
     // session tail (processor getState always emits hasSession=false).
     //
     // Phase 6 v6 layout = 10610 bytes (9330 base + 1280 macros).
     // Phase 7 v7 extends the per-pad sound array from 34 to 42 float64 slots,
     // adding 32 * 8 * 8 = 2048 bytes.
+    // Phase 8A v8 adds 2 more sound slots per pad,
+    // adding 32 * 2 * 8 = 512 bytes.
     // If kUiModeId had been appended as an int32 it would be +4.
-    REQUIRE(bytes.size() == std::size_t{10610 + 2048});
+    REQUIRE(bytes.size() == std::size_t{10610 + 2048 + 512});
 
     p.terminate();
 }

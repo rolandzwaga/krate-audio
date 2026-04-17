@@ -113,6 +113,9 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kClickLayerMixId,              .padOffset = kPadClickLayerMix },
     {.globalId = kClickLayerContactMsId,        .padOffset = kPadClickLayerContactMs },
     {.globalId = kClickLayerBrightnessId,       .padOffset = kPadClickLayerBrightness },
+    // Phase 8A: per-mode damping law overrides (offsets 50, 51).
+    {.globalId = kBodyDampingB1Id,              .padOffset = kPadBodyDampingB1 },
+    {.globalId = kBodyDampingB3Id,              .padOffset = kPadBodyDampingB3 },
 };
 
 // Per-pad parameter name table
@@ -179,13 +182,21 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadClickLayerMix,        .name = "Click Mix",           .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadClickLayerContactMs,  .name = "Click Contact",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.3 },
     {.offset = kPadClickLayerBrightness, .name = "Click Brightness",    .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
+    // Phase 8A: per-mode damping law. Default 0.5 = neutral override:
+    //   b1 norm 0.5 -> 25 s^-1 (mid-tight)
+    //   b3 norm 0.5 -> 4e-5 s*rad^-2 (equivalent to legacy brightness=0.5)
+    // The effective override only kicks in once the host/user actively
+    // writes a value; DrumVoice stores -1.0f sentinel by default, preserving
+    // Phase 1 bit-identity for untouched pads (see DrumVoice::bodyDampingB1_).
+    {.offset = kPadBodyDampingB1,        .name = "Body Damping b1",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadBodyDampingB3,        .name = "Body Damping b3",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV7,
-              "Pad param specs must match active param count (50)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV8A,
+              "Pad param specs must match active param count (52 after Phase 8A)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -555,7 +566,15 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Click Brightness"), kClickLayerBrightnessId, nullptr,
                            0.0, 1.0, 0.6, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7: 1600 per-pad parameters (32 pads x 50 active offsets) ----
+    // ---- Phase 8A global proxies: per-mode damping law ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Body Damping b1"), kBodyDampingB1Id, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Body Damping b3"), kBodyDampingB3Id, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A: 1664 per-pad parameters (32 pads x 52 active offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

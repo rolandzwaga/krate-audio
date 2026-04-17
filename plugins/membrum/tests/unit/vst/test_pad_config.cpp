@@ -218,16 +218,22 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(layerId) == off);
     }
 
-    // Offset 50 is the first reserved offset within pad 0's stride (Phase 7).
-    int reservedId = kPadBaseId + 50;
+    // Offsets 50-51 are valid Phase 8A per-mode damping fields.
+    for (int off = 50; off <= 51; ++off) {
+        const int dampId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(dampId) == off);
+    }
+
+    // Offset 52 is the first reserved offset within pad 0's stride (Phase 8A).
+    int reservedId = kPadBaseId + 52;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 50+
-    int pad5Reserved = padParamId(5, 0) + 50;
+    // Same for pad 5 offset 52+
+    int pad5Reserved = padParamId(5, 0) + 52;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

@@ -201,6 +201,9 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kClickLayerMixId, kPadClickLayerMix },
         { kClickLayerContactMsId, kPadClickLayerContactMs },
         { kClickLayerBrightnessId, kPadClickLayerBrightness },
+        // Phase 8A: per-mode damping law global proxies.
+        { kBodyDampingB1Id, kPadBodyDampingB1 },
+        { kBodyDampingB3Id, kPadBodyDampingB3 },
     };
 }
 
@@ -227,6 +230,8 @@ std::set<int> proxiedOffsets()
         kPadNoiseLayerMix, kPadNoiseLayerCutoff, kPadNoiseLayerResonance,
         kPadNoiseLayerDecay, kPadNoiseLayerColor,
         kPadClickLayerMix, kPadClickLayerContactMs, kPadClickLayerBrightness,
+        // Phase 8A: per-mode damping law offsets.
+        kPadBodyDampingB1, kPadBodyDampingB3,
     };
 }
 

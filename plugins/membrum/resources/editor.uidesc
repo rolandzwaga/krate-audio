@@ -95,6 +95,9 @@
     <control-tag name="ClickLayerMix" tag="295"/>
     <control-tag name="ClickLayerContactMs" tag="296"/>
     <control-tag name="ClickLayerBrightness" tag="297"/>
+    <!-- Phase 8A: per-mode damping law (globals 300-301) -->
+    <control-tag name="BodyDampingB1" tag="300"/>
+    <control-tag name="BodyDampingB3" tag="301"/>
   </control-tags>
   <bitmaps/>
   <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
@@ -238,6 +241,13 @@
         <view class="CTextLabel" title="Cont" origin="312, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="352, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Brt" origin="352, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Row 10: Phase 8A per-mode damping law -->
+        <view class="CTextLabel" title="Damping" origin="8, 740" size="120, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="BodyDampingB1" origin="8, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="b1" origin="8, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="BodyDampingB3" origin="44, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="b3" origin="44, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
   </template>
   <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
       <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">

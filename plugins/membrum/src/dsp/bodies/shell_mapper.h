@@ -63,6 +63,7 @@ struct ShellMapper
 
         r.numPartials = kModeCount;
         r.scatter     = 0.0f;
+        r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);
         return r;
     }
 

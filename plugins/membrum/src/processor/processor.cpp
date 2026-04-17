@@ -536,6 +536,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadClickLayerBrightness, fValue);
             break;
 
+        // ---- Phase 8A: per-mode damping law proxies ----
+        case kBodyDampingB1Id:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadBodyDampingB1, fValue);
+            break;
+        case kBodyDampingB3Id:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadBodyDampingB3, fValue);
+            break;
+
         default:
             break;
         }

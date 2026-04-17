@@ -64,8 +64,7 @@ struct NoiseBody
         sharedBank.setModes(r.modal.frequencies,
                             r.modal.amplitudes,
                             r.modal.numPartials,
-                            r.modal.decayTime,
-                            r.modal.brightness,
+                            r.modal.damping,
                             r.modal.stretch,
                             r.modal.scatter);
 

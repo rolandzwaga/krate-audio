@@ -104,7 +104,18 @@ enum PadParamOffset : int
     kPadClickLayerContactMs  = 48,
     kPadClickLayerBrightness = 49,
     kPadActiveParamCountV7   = 50,  // offsets 0-49 are active in Phase 7
-    // Offsets 50-63 are RESERVED for future phases
+
+    // Phase 8A: per-mode damping law exposed as first-class params.
+    // b1 controls flat damping (s^-1 floor for low-f modes), b3 controls
+    // frequency-squared damping (perceived "material": metal vs wood vs
+    // plastic -- see Aramaki/KM 2011, Chaigne & Askenfelt 1993).
+    // Defaults preserve current behaviour: b1 is derived from the existing
+    // decay knob via 1/decayTime, b3 from brightness via (1-brightness)*kMaxB3.
+    kPadBodyDampingB1        = 50,
+    kPadBodyDampingB3        = 51,
+    kPadActiveParamCountV8A  = 52,  // offsets 0-51 are active after Phase 8A
+    // Offsets 52-63 are RESERVED for later Phase 8 sub-phases (air-loading,
+    // scatter, coupling, tension modulation).
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -185,6 +196,17 @@ struct PadConfig
     float clickLayerMix        = 0.5f;
     float clickLayerContactMs  = 0.3f;  // normalised: 0 = 2 ms, 1 = 5 ms
     float clickLayerBrightness = 0.6f;
+
+    // Phase 8A: per-mode damping law overrides. Normalised [0, 1];
+    // denormalisation happens at the mapper.
+    //   bodyDampingB1: 0 -> 0.2 s^-1 (matches legacy 5.0 s decayTime floor),
+    //                  1 -> 50 s^-1 (very short t60).
+    //   bodyDampingB3: 0 -> 0 (pure flat damping, "metallic"),
+    //                  1 -> 8e-5 s * rad^-2 (strong high-mode damping, "wood").
+    // Default -1.0f sentinel means "derive from decay/material via mapper"
+    // -- preserves Phase 1 bit-identity.
+    float bodyDampingB1        = -1.0f;
+    float bodyDampingB3        = -1.0f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -215,7 +237,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV7)
+    if (offset >= kPadActiveParamCountV8A)
         return -1;  // reserved range
     return offset;
 }

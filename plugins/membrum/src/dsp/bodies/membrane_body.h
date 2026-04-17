@@ -37,8 +37,7 @@ struct MembraneBody
         sharedBank.setModes(result.frequencies,
                             result.amplitudes,
                             result.numPartials,
-                            result.decayTime,
-                            result.brightness,
+                            result.damping,
                             result.stretch,
                             result.scatter);
     }

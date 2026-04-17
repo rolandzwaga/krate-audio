@@ -33,8 +33,7 @@ struct BellBody
         sharedBank.setModes(r.frequencies,
                             r.amplitudes,
                             r.numPartials,
-                            r.decayTime,
-                            r.brightness,
+                            r.damping,
                             r.stretch,
                             r.scatter);
     }

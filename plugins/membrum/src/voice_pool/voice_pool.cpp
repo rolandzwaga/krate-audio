@@ -573,6 +573,9 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadClickLayerMix:        cfg.clickLayerMix = normalizedValue; break;
     case kPadClickLayerContactMs:  cfg.clickLayerContactMs = normalizedValue; break;
     case kPadClickLayerBrightness: cfg.clickLayerBrightness = normalizedValue; break;
+    // Phase 8A: per-mode damping law overrides.
+    case kPadBodyDampingB1:        cfg.bodyDampingB1 = normalizedValue; break;
+    case kPadBodyDampingB3:        cfg.bodyDampingB3 = normalizedValue; break;
     default: break;
     }
 }
@@ -650,6 +653,10 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // Phase 7 bug-fix: finally plumb PadConfig::noiseBurstDuration (normalized)
     // through to the NoiseBurstExciter. Previously stored and ignored.
     v.setNoiseBurstContactMs(cfg.noiseBurstDuration);
+    // Phase 8A: per-mode damping law overrides (sentinel -1.0f preserves
+    // legacy brightness-derived behaviour).
+    v.setBodyDampingB1(cfg.bodyDampingB1);
+    v.setBodyDampingB3(cfg.bodyDampingB3);
 }
 
 // ------------------------------------------------------------------

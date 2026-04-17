@@ -101,6 +101,8 @@ public:
         params_.level      = level_;
         params_.modeStretch = unnaturalZone_.getModeStretch();
         params_.decaySkew   = unnaturalZone_.getDecaySkew();
+        params_.bodyDampingB1 = bodyDampingB1_;
+        params_.bodyDampingB3 = bodyDampingB3_;
 
         // Compute and store the body's natural (Size-derived) fundamental.
         // This matches the MembraneMapper formula exactly so that the Phase 1
@@ -599,6 +601,25 @@ public:
     void setClickLayerContactMs(float v) noexcept  { clickLayerParams_.contactMs  = v; }
     void setClickLayerBrightness(float v) noexcept { clickLayerParams_.brightness = v; }
 
+    // ------------------------------------------------------------------
+    // Phase 8A setters (per-mode damping law)
+    // ------------------------------------------------------------------
+    /// Set normalised [0,1] b1 override, or -1.0f to keep the legacy
+    /// decay-derived value (bit-identical to Phase 1).
+    void setBodyDampingB1(float v) noexcept
+    {
+        bodyDampingB1_ = v;
+        if (active_)
+            updateModalParameters();
+    }
+
+    void setBodyDampingB3(float v) noexcept
+    {
+        bodyDampingB3_ = v;
+        if (active_)
+            updateModalParameters();
+    }
+
     /// Phase 7 bug-fix: plumb PadConfig::noiseBurstDuration (normalized) into
     /// the NoiseBurstExciter so the host-side parameter finally takes effect.
     void setNoiseBurstContactMs(float v) noexcept
@@ -646,12 +667,14 @@ private:
         p.level      = level_;
         p.modeStretch = unnaturalZone_.getModeStretch();
         p.decaySkew   = unnaturalZone_.getDecaySkew();
+        p.bodyDampingB1 = bodyDampingB1_;
+        p.bodyDampingB3 = bodyDampingB3_;
 
         const auto r = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
         cachedMapperResult_ = r;
         bodyBank_.getSharedBank().updateModes(
             r.frequencies, r.amplitudes, r.numPartials,
-            r.decayTime, r.brightness, r.stretch, r.scatter);
+            r.damping, r.stretch, r.scatter);
     }
 
     /// Per-sample pitch envelope update dispatcher.
@@ -699,8 +722,7 @@ private:
             scaled,
             cachedMapperResult_.amplitudes,
             n,
-            cachedMapperResult_.decayTime,
-            cachedMapperResult_.brightness,
+            cachedMapperResult_.damping,
             cachedMapperResult_.stretch,
             cachedMapperResult_.scatter);
     }
@@ -727,6 +749,8 @@ private:
         p.strikePos   = strikePos_;
         p.level       = level_;
         p.modeStretch = unnaturalZone_.getModeStretch();
+        p.bodyDampingB1 = bodyDampingB1_;
+        p.bodyDampingB3 = bodyDampingB3_;
         p.decaySkew   = unnaturalZone_.getDecaySkew();
 
         cachedMapperResult_ = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
@@ -734,8 +758,7 @@ private:
             cachedMapperResult_.frequencies,
             cachedMapperResult_.amplitudes,
             cachedMapperResult_.numPartials,
-            cachedMapperResult_.decayTime,
-            cachedMapperResult_.brightness,
+            cachedMapperResult_.damping,
             cachedMapperResult_.stretch,
             cachedMapperResult_.scatter);
     }
@@ -776,6 +799,10 @@ private:
     float decay_     = 0.3f;
     float strikePos_ = 0.3f;
     float level_     = 0.8f;
+
+    // Phase 8A: per-mode damping law overrides (-1.0f = use legacy derivation).
+    float bodyDampingB1_ = -1.0f;
+    float bodyDampingB3_ = -1.0f;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;
