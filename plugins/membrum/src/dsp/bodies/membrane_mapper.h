@@ -45,7 +45,12 @@ struct MapperResult
 /// precedence when they are not the sentinel value (-1.0f).
 /// Denormalisation for the override path:
 ///   b1 = 0.2 + norm * 49.8     -> [0.2, 50.0] s^-1
-///   b3 = norm * 8.0e-5         -> [0, 8e-5] s * rad^-2 (2 x legacy kMaxB3)
+///   b3 = norm * 4.0e-4         -> [0, 4e-4] s * rad^-2 (~10 x legacy kMaxB3).
+///   b3 range widened vs. plan value of 8e-5 after empirical testing: at
+///   the plan's ceiling the above-1-kHz band only lost ~2 dB, which is at
+///   the edge of audibility. 4e-4 yields ~10 dB drop in the high band
+///   while still leaving below-1-kHz modes largely intact -- the plan's
+///   "metallic ring -> wood thump" perceptual contract.
 [[nodiscard]] inline Krate::DSP::ModalResonatorBank::DampingLaw
 dampingLawFromParams(const VoiceCommonParams& params,
                      float legacyDecayTime,
@@ -59,7 +64,7 @@ dampingLawFromParams(const VoiceCommonParams& params,
     }
     if (params.bodyDampingB3 >= 0.0f) {
         const float n = std::clamp(params.bodyDampingB3, 0.0f, 1.0f);
-        law.b3 = n * 8.0e-5f;
+        law.b3 = n * 1.0e-3f;
     }
     return law;
 }

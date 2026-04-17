@@ -150,12 +150,12 @@ TEST_CASE("Phase 8A: dampingLawFromParams denormalises non-sentinel overrides",
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
         CHECK(law.b3 == Approx(0.0f).margin(1e-12f));
     }
-    SECTION("bodyDampingB3=1.0 -> 8e-5 s*rad^-2")
+    SECTION("bodyDampingB3=1.0 -> 1e-3 s*rad^-2")
     {
         p.bodyDampingB1 = -1.0f;
         p.bodyDampingB3 = 1.0f;
         const auto law = dampingLawFromParams(p, 0.5f, 0.5f);
-        CHECK(law.b3 == Approx(8.0e-5f).margin(1e-10f));
+        CHECK(law.b3 == Approx(1.0e-3f).margin(1e-9f));
     }
 }
 
@@ -278,4 +278,72 @@ TEST_CASE("Phase 8A.5: held-note b1 sweep yields a clearly-audible RMS delta",
     // the ratio was ~1.0 (inaudible); post-Phase-8A.5 we see ~2.5x, which
     // is > 7 dB and well above the JND for loudness (~1 dB).
     CHECK(rmsLo > rmsHi * 2.0);
+}
+
+// Measure how much a b3 sweep changes the ABOVE-1-kHz energy (b3 selectively
+// damps high modes, so below-1-kHz energy should stay approximately equal
+// while above-1-kHz energy crashes).
+namespace {
+struct BandEnergy { double below1k; double above1k; };
+
+BandEnergy renderVoiceBandEnergy(float b1Norm, float b3Norm)
+{
+    using Membrum::DrumVoice;
+    DrumVoice v;
+    v.prepare(44100.0, 0u);
+    v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
+    v.setStrikePosition(0.3f); v.setLevel(0.8f);
+    v.setExciterType(Membrum::ExciterType::Impulse);
+    v.setBodyModel(Membrum::BodyModelType::Membrane);
+    v.setBodyDampingB1(b1Norm); v.setBodyDampingB3(b3Norm);
+    v.noteOn(1.0f);
+    const int N = 22050;
+    std::vector<float> buf(static_cast<std::size_t>(N), 0.0f);
+    constexpr int kBlock = 256;
+    for (int off = 0; off < N; off += kBlock) {
+        const int c = std::min(kBlock, N - off);
+        v.processBlock(buf.data() + off, c);
+    }
+    // Coarse band-split via an 8-tap moving-average LP filter ~ 1 kHz cutoff
+    // at 44.1 kHz (fc = sr / (pi * taps) ~ 1755 Hz -- close enough for an
+    // order-of-magnitude test).
+    constexpr int kTaps = 16;
+    std::vector<float> lp(buf.size(), 0.0f);
+    double acc = 0.0;
+    for (int i = 0; i < static_cast<int>(buf.size()); ++i) {
+        acc += buf[i];
+        if (i >= kTaps) acc -= buf[i - kTaps];
+        lp[i] = static_cast<float>(acc / kTaps);
+    }
+    BandEnergy out{};
+    for (int i = 0; i < static_cast<int>(buf.size()); ++i) {
+        const double low = lp[i];
+        const double high = buf[i] - low;
+        out.below1k += low * low;
+        out.above1k += high * high;
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE("Phase 8A.5: b3 sweep produces audible energy change",
+          "[phase8a][drum_voice][audio]")
+{
+    // Sweep b3 from 0 to 1, b1 held at moderate value. Expect a clearly
+    // audible change in rendered energy -- the plan's exit-gate contract
+    // ("bright metallic ring -> dull wood thump"). Empirically at the
+    // plan's original 8e-5 ceiling the effect was < 3 dB (inaudible);
+    // widening to 1e-3 gives ~9 dB which is clearly audible.
+    const auto lo = renderVoiceBandEnergy(0.3f, 0.0f);  // b3 = 0
+    const auto hi = renderVoiceBandEnergy(0.3f, 1.0f);  // b3 = 1e-3
+
+    const double loTotal = lo.below1k + lo.above1k;
+    const double hiTotal = hi.below1k + hi.above1k;
+    const double totalRatio = hiTotal / std::max(loTotal, 1e-30);
+    INFO("lo total=" << loTotal << " hi total=" << hiTotal
+         << " totalRatio=" << totalRatio);
+    REQUIRE(loTotal > 0.0);
+    REQUIRE(hiTotal > 0.0);
+    // > 3 dB total-energy drop when b3 goes from 0 -> max.
+    CHECK(totalRatio < 0.5);
 }
