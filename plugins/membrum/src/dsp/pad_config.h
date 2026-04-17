@@ -114,8 +114,17 @@ enum PadParamOffset : int
     kPadBodyDampingB1        = 50,
     kPadBodyDampingB3        = 51,
     kPadActiveParamCountV8A  = 52,  // offsets 0-51 are active after Phase 8A
-    // Offsets 52-63 are RESERVED for later Phase 8 sub-phases (air-loading,
-    // scatter, coupling, tension modulation).
+
+    // Phase 8C: air-loading + per-mode scatter. airLoading depresses the
+    // lowest Bessel modes per the tabulated kAirLoadingCurve (real-drum
+    // physics, Rossing 1982). modeScatter drives the bank's existing
+    // sinusoidal dither for a small amount of "natural imperfection" on
+    // top of the physics-correct airLoading curve.
+    kPadAirLoading           = 52,
+    kPadModeScatter          = 53,
+    kPadActiveParamCountV8C  = 54,  // offsets 0-53 are active after Phase 8C
+    // Offsets 54-63 are RESERVED for later Phase 8 sub-phases (coupling,
+    // tension modulation).
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -207,6 +216,15 @@ struct PadConfig
     // -- preserves Phase 1 bit-identity.
     float bodyDampingB1        = -1.0f;
     float bodyDampingB3        = -1.0f;
+
+    // Phase 8C: air-loading correction + per-mode scatter.
+    //   airLoading:  0 -> pure Bessel, 1 -> full Rossing-curve depression.
+    //   modeScatter: 0 -> pure ratios, 1 -> 15 % sinusoidal dither on f_k.
+    // Default airLoading = 0.6 gives a realistic Membrane "deeper / less
+    // whistly" character without sounding detuned. Scatter default 0
+    // keeps Phase 1 bit-identity until the user dials it in.
+    float airLoading           = 0.6f;
+    float modeScatter          = 0.0f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -237,7 +255,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV8A)
+    if (offset >= kPadActiveParamCountV8C)
         return -1;  // reserved range
     return offset;
 }

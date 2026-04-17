@@ -67,6 +67,10 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.75f;
             cfg.clickLayerContactMs  = 0.15f;  // ~2.4 ms short beater strike
             cfg.clickLayerBrightness = 0.4f;   // darker thwack (mallet felt)
+            // Phase 8C: strong air-loading for a deep kick. Small scatter
+            // breaks the tuned-bar symmetry of the pure Bessel lattice.
+            cfg.airLoading  = 0.7f;
+            cfg.modeScatter = 0.15f;
             break;
 
         case DrumTemplate::Snare:
@@ -89,6 +93,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.6f;
             cfg.clickLayerContactMs  = 0.2f;
             cfg.clickLayerBrightness = 0.7f;
+            // Phase 8C: moderate air-loading + a bit more scatter than kick.
+            cfg.airLoading  = 0.5f;
+            cfg.modeScatter = 0.20f;
             break;
 
         case DrumTemplate::Tom:
@@ -108,6 +115,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.7f;
             cfg.clickLayerContactMs  = 0.3f;
             cfg.clickLayerBrightness = 0.45f;
+            // Phase 8C: tom-leaning air-loading + light scatter.
+            cfg.airLoading  = 0.6f;
+            cfg.modeScatter = 0.15f;
             break;
 
         case DrumTemplate::Hat:
@@ -129,6 +139,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.55f;
             cfg.clickLayerContactMs  = 0.05f;  // very short tick
             cfg.clickLayerBrightness = 0.9f;
+            // Phase 8C: hi-hat is open-air -- no air-loading, modest scatter.
+            cfg.airLoading  = 0.0f;
+            cfg.modeScatter = 0.10f;
             break;
 
         case DrumTemplate::Cymbal:
@@ -150,6 +163,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.45f;
             cfg.clickLayerContactMs  = 0.15f;
             cfg.clickLayerBrightness = 0.82f;
+            // Phase 8C: open-air cymbal, noticeable scatter for shimmer.
+            cfg.airLoading  = 0.0f;
+            cfg.modeScatter = 0.15f;
             break;
 
         case DrumTemplate::Perc:
@@ -169,6 +185,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.clickLayerMix        = 0.75f;
             cfg.clickLayerContactMs  = 0.2f;
             cfg.clickLayerBrightness = 0.65f;
+            // Phase 8C: wood-block style perc, light loading.
+            cfg.airLoading  = 0.4f;
+            cfg.modeScatter = 0.15f;
             break;
     }
 

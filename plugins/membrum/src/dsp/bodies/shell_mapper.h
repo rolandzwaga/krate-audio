@@ -62,7 +62,7 @@ struct ShellMapper
             skewBias;
 
         r.numPartials = kModeCount;
-        r.scatter     = 0.0f;
+        r.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);
         return r;
     }

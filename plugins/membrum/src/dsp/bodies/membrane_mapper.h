@@ -82,9 +82,17 @@ struct MembraneMapper
 
         // (1) Mode frequencies from size_ (FR-033)
         //     Verbatim Phase 1: f0 = 500 * pow(0.1, size)
+        //     Phase 8C: apply Rossing air-loading depression per tabulated
+        //     curve. airLoading = 0 recovers Phase-1 ratios exactly.
         const float f0 = 500.0f * std::pow(0.1f, params.size);
+        const float airLoading = std::clamp(params.airLoading, 0.0f, 1.0f);
         for (int k = 0; k < kMembraneModeCount; ++k)
-            r.frequencies[k] = f0 * kMembraneRatios[static_cast<std::size_t>(k)];
+        {
+            const float ratio = kMembraneRatios[static_cast<std::size_t>(k)];
+            const float depression =
+                airLoading * kAirLoadingCurve[static_cast<std::size_t>(k)];
+            r.frequencies[k] = f0 * ratio * (1.0f - depression);
+        }
 
         // (2) Per-mode amplitudes from strike position (FR-035)
         const float r_over_a = params.strikePos * 0.9f;
@@ -149,7 +157,7 @@ struct MembraneMapper
         }
 
         r.numPartials = kMembraneModeCount;
-        r.scatter     = 0.0f;
+        r.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);
         return r;
     }

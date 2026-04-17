@@ -46,6 +46,27 @@ constexpr std::array<int, 48> kMembraneBesselOrder = {
     7, 10, 14, 5, 3, 8, 1, 11
 };
 
+// Air-loading correction (Phase 8C): real drumheads sit atop a mass of
+// enclosed air which depresses the lowest-mode frequencies below the pure
+// Bessel ratios. Rossing's timpani measurements give ~5% depression for
+// mode 0, ~3.5% for mode 1, tapering below 1% by mode 10. The correction
+// is structured (not random) and reproduces the characteristic "deeper"
+// feel of real kicks / toms versus an unloaded Bessel calculation.
+//
+// f_k_effective = f_k_bessel * (1 - airLoading * kAirLoadingCurve[k])
+//
+// Source: Rossing 1982, "The physics of kettledrums" (Scientific American)
+// and subsequent published timpani spectra. Values beyond mode 12 are
+// below the per-partial pitch JND so they can safely round to zero.
+constexpr std::array<float, 48> kAirLoadingCurve = {
+    0.050f, 0.035f, 0.025f, 0.020f, 0.015f, 0.012f, 0.010f, 0.008f,
+    0.006f, 0.005f, 0.004f, 0.003f, 0.002f, 0.002f, 0.001f, 0.001f,
+    0.001f, 0.001f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
+    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
+    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
+    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f
+};
+
 // j_mn values (actual Bessel zeros, for amplitude calculation).
 constexpr std::array<float, 48> kMembraneBesselZeros = {
     2.4048f,  3.8317f,  5.1356f,  5.5201f,  6.3802f,  7.0156f,  7.5883f,  8.4172f,

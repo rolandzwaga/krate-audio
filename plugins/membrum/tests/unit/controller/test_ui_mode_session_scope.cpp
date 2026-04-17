@@ -153,8 +153,10 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     // adding 32 * 8 * 8 = 2048 bytes.
     // Phase 8A v8 adds 2 more sound slots per pad,
     // adding 32 * 2 * 8 = 512 bytes.
+    // Phase 8C v9 adds 2 more sound slots per pad,
+    // adding 32 * 2 * 8 = 512 bytes.
     // If kUiModeId had been appended as an int32 it would be +4.
-    REQUIRE(bytes.size() == std::size_t{10610 + 2048 + 512});
+    REQUIRE(bytes.size() == std::size_t{10610 + 2048 + 512 + 512});
 
     p.terminate();
 }

@@ -69,6 +69,11 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
     {
         pool.setPadConfigField(pad, Membrum::kPadNoiseLayerMix, 0.0f);
         pool.setPadConfigField(pad, Membrum::kPadClickLayerMix, 0.0f);
+        // Phase 8C: zero the per-pad air-loading / mode-scatter overrides so
+        // the pool path matches the bare DrumVoice reference (whose member
+        // defaults are 0, while PadConfig uses 0.6 air-loading for realism).
+        pool.setPadConfigField(pad, Membrum::kPadAirLoading, 0.0f);
+        pool.setPadConfigField(pad, Membrum::kPadModeScatter, 0.0f);
     }
 
     pool.noteOn(36, 100.0f / 127.0f);

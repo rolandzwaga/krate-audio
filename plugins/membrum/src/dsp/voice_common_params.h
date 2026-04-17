@@ -41,6 +41,13 @@ struct VoiceCommonParams
     // bit-identity.
     float bodyDampingB1        = -1.0f;
     float bodyDampingB3        = -1.0f;
+
+    // Phase 8C: air-loading correction + per-mode scatter.
+    //   airLoading: [0, 1] applied as f_k *= (1 - airLoading * curve[k]).
+    //   modeScatter: [0, 1] -> [0, 0.15] passed to the bank's existing
+    //                sinusoidal dither via MapperResult::scatter.
+    float airLoading           = 0.0f;
+    float modeScatter          = 0.0f;
 };
 
 } // namespace Membrum

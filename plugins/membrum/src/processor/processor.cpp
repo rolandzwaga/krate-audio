@@ -544,6 +544,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadBodyDampingB3, fValue);
             break;
 
+        // ---- Phase 8C: air-loading + per-mode scatter proxies ----
+        case kAirLoadingId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadAirLoading, fValue);
+            break;
+        case kModeScatterId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadModeScatter, fValue);
+            break;
+
         default:
             break;
         }

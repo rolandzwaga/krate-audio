@@ -116,10 +116,10 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 // FR-080: kCurrentStateVersion (updated to 8 in Phase 8A for per-mode damping).
 // ==============================================================================
 
-TEST_CASE("State v6/v7/v8 (FR-080): kCurrentStateVersion is 8",
+TEST_CASE("State v6..v9 (FR-080): kCurrentStateVersion is 9",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 8);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 9);
 }
 
 // ==============================================================================
@@ -196,7 +196,7 @@ TEST_CASE("State v6 (FR-084): round-trip preserves non-default macros",
     CHECK(blob1 == blob2);
 }
 
-TEST_CASE("State v8 (FR-084): v8 blob wraps macros + Phase 7/8A sound slots",
+TEST_CASE("State v9 (FR-084): v9 blob wraps macros + Phase 7/8A/8C sound slots",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -207,13 +207,14 @@ TEST_CASE("State v8 (FR-084): v8 blob wraps macros + Phase 7/8A sound slots",
     // v5 payload with zero overrides = 9330 bytes; v6 adds 160*8 = 1280 bytes
     // of macros -> 10610. v7 extends each pad's sound array from 34 to 42
     // doubles -> +32*8*8 = +2048 bytes -> 12658. v8 adds 2 more sound slots
-    // per pad -> +32*2*8 = +512 bytes -> 13170.
-    CHECK(bytes.size() == 13170u);
+    // per pad -> +32*2*8 = +512 bytes -> 13170. v9 adds 2 more sound slots
+    // per pad -> +32*2*8 = +512 bytes -> 13682.
+    CHECK(bytes.size() == 13682u);
 
-    // Version field is the first 4 bytes and must equal 8.
+    // Version field is the first 4 bytes and must equal 9.
     int32 version = 0;
     std::memcpy(&version, bytes.data(), sizeof(version));
-    CHECK(version == 8);
+    CHECK(version == 9);
 }
 
 // ==============================================================================
@@ -221,11 +222,11 @@ TEST_CASE("State v8 (FR-084): v8 blob wraps macros + Phase 7/8A sound slots",
 // kResultFalse.
 // ==============================================================================
 
-TEST_CASE("State v8: setState rejects future / out-of-range versions",
+TEST_CASE("State v9: setState rejects future / out-of-range versions",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {9, 10, 99, -1})
+    for (int32 v : {10, 11, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
@@ -239,7 +240,7 @@ TEST_CASE("State v8: setState rejects future / out-of-range versions",
     }
 }
 
-TEST_CASE("State v8: setState rejects pre-v6 blobs",
+TEST_CASE("State v9: setState rejects pre-v6 blobs",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -268,9 +269,9 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size for v8: 13170 bytes (see FR-084 test). If kUiModeId had
+    // Expected size for v9: 13682 bytes (see FR-084 test). If kUiModeId had
     // leaked into the processor blob it would add 4 bytes.
-    CHECK(bytes.size() == 13170u);
+    CHECK(bytes.size() == 13682u);
 }
 
 // ==============================================================================

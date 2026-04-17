@@ -586,6 +586,9 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     // Phase 8A: per-mode damping law overrides.
     case kPadBodyDampingB1:        cfg.bodyDampingB1 = normalizedValue; break;
     case kPadBodyDampingB3:        cfg.bodyDampingB3 = normalizedValue; break;
+    // Phase 8C: air-loading + per-mode scatter.
+    case kPadAirLoading:           cfg.airLoading  = normalizedValue; break;
+    case kPadModeScatter:          cfg.modeScatter = normalizedValue; break;
     default: break;
     }
 }
@@ -667,6 +670,9 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // legacy brightness-derived behaviour).
     v.setBodyDampingB1(cfg.bodyDampingB1);
     v.setBodyDampingB3(cfg.bodyDampingB3);
+    // Phase 8C: air-loading + per-mode scatter.
+    v.setAirLoading(cfg.airLoading);
+    v.setModeScatter(cfg.modeScatter);
 }
 
 // ------------------------------------------------------------------

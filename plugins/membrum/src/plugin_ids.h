@@ -28,7 +28,7 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // Phase 7 = 7 adds per-pad parallel noise layer + always-on click transient
 // parameters. Loader accepts earlier versions and fills later-phase parameters
 // with defaults.
-constexpr Steinberg::int32 kCurrentStateVersion = 8;
+constexpr Steinberg::int32 kCurrentStateVersion = 9;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -140,6 +140,10 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Selected-pad proxies for the b1/b3 overrides on kPadBodyDampingB1/B3.
     kBodyDampingB1Id              = 300,
     kBodyDampingB3Id              = 301,
+
+    // ====== Phase 8C: air-loading + per-mode scatter ======
+    kAirLoadingId                 = 302,
+    kModeScatterId                = 303,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -179,8 +183,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 8,
-              "Phase 8A requires state version 8");
+static_assert(kCurrentStateVersion == 9,
+              "Phase 8C requires state version 9");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -189,5 +193,9 @@ static_assert(kClickLayerBrightnessId < kPadBaseId,
 // Phase 8A collision guards: proxy IDs 300..301 must sit below the per-pad base.
 static_assert(kBodyDampingB3Id < kPadBaseId,
               "Phase 8A global proxy IDs must not collide with per-pad range");
+
+// Phase 8C collision guards: proxy IDs 302..303 must sit below the per-pad base.
+static_assert(kModeScatterId < kPadBaseId,
+              "Phase 8C global proxy IDs must not collide with per-pad range");
 
 } // namespace Membrum

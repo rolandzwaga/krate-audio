@@ -113,7 +113,7 @@ struct NoiseBodyMapper
             skewBias;
 
         out.modal.numPartials = numModes;
-        out.modal.scatter     = 0.0f;
+        out.modal.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         out.modal.damping     = dampingLawFromParams(
             params, out.modal.decayTime, out.modal.brightness);
 

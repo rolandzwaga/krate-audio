@@ -224,16 +224,22 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(dampId) == off);
     }
 
-    // Offset 52 is the first reserved offset within pad 0's stride (Phase 8A).
-    int reservedId = kPadBaseId + 52;
+    // Offsets 52-53 are valid Phase 8C fields (airLoading, modeScatter).
+    for (int off = 52; off <= 53; ++off) {
+        const int acId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(acId) == off);
+    }
+
+    // Offset 54 is the first reserved offset within pad 0's stride (Phase 8C).
+    int reservedId = kPadBaseId + 54;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 52+
-    int pad5Reserved = padParamId(5, 0) + 52;
+    // Same for pad 5 offset 54+
+    int pad5Reserved = padParamId(5, 0) + 54;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

@@ -133,6 +133,8 @@ public:
         params_.decaySkew   = unnaturalZone_.getDecaySkew();
         params_.bodyDampingB1 = bodyDampingB1_;
         params_.bodyDampingB3 = bodyDampingB3_;
+        params_.airLoading    = airLoading_;
+        params_.modeScatter   = modeScatter_;
 
         // Compute and store the body's natural (Size-derived) fundamental.
         // This matches the MembraneMapper formula exactly so that the Phase 1
@@ -669,6 +671,23 @@ public:
             updateModalParameters();
     }
 
+    // ------------------------------------------------------------------
+    // Phase 8C setters (air-loading + per-mode scatter)
+    // ------------------------------------------------------------------
+    void setAirLoading(float v) noexcept
+    {
+        airLoading_ = v;
+        if (active_)
+            updateModalParameters();
+    }
+
+    void setModeScatter(float v) noexcept
+    {
+        modeScatter_ = v;
+        if (active_)
+            updateModalParameters();
+    }
+
     /// Phase 7 bug-fix: plumb PadConfig::noiseBurstDuration (normalized) into
     /// the NoiseBurstExciter so the host-side parameter finally takes effect.
     void setNoiseBurstContactMs(float v) noexcept
@@ -718,6 +737,8 @@ private:
         p.decaySkew   = unnaturalZone_.getDecaySkew();
         p.bodyDampingB1 = bodyDampingB1_;
         p.bodyDampingB3 = bodyDampingB3_;
+        p.airLoading    = airLoading_;
+        p.modeScatter   = modeScatter_;
 
         const auto r = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
         cachedMapperResult_ = r;
@@ -800,6 +821,8 @@ private:
         p.modeStretch = unnaturalZone_.getModeStretch();
         p.bodyDampingB1 = bodyDampingB1_;
         p.bodyDampingB3 = bodyDampingB3_;
+        p.airLoading    = airLoading_;
+        p.modeScatter   = modeScatter_;
         p.decaySkew   = unnaturalZone_.getDecaySkew();
 
         cachedMapperResult_ = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
@@ -856,6 +879,10 @@ private:
     // Phase 8A: per-mode damping law overrides (-1.0f = use legacy derivation).
     float bodyDampingB1_ = -1.0f;
     float bodyDampingB3_ = -1.0f;
+
+    // Phase 8C: air-loading + per-mode scatter.
+    float airLoading_  = 0.0f;
+    float modeScatter_ = 0.0f;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;

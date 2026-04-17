@@ -98,6 +98,9 @@
     <!-- Phase 8A: per-mode damping law (globals 300-301) -->
     <control-tag name="BodyDampingB1" tag="300"/>
     <control-tag name="BodyDampingB3" tag="301"/>
+    <!-- Phase 8C: air-loading + per-mode scatter (globals 302-303) -->
+    <control-tag name="AirLoading" tag="302"/>
+    <control-tag name="ModeScatter" tag="303"/>
   </control-tags>
   <bitmaps/>
   <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
@@ -248,6 +251,13 @@
         <view class="CTextLabel" title="b1" origin="8, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="BodyDampingB3" origin="44, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="b3" origin="44, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Phase 8C: air-loading + scatter -->
+        <view class="CTextLabel" title="Air/Scatter" origin="88, 740" size="120, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="AirLoading" origin="88, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Air" origin="88, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ModeScatter" origin="124, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Scat" origin="124, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
   </template>
   <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
       <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">

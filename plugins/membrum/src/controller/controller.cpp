@@ -116,6 +116,9 @@ constexpr ProxyMapping kProxyMappings[] = {
     // Phase 8A: per-mode damping law overrides (offsets 50, 51).
     {.globalId = kBodyDampingB1Id,              .padOffset = kPadBodyDampingB1 },
     {.globalId = kBodyDampingB3Id,              .padOffset = kPadBodyDampingB3 },
+    // Phase 8C: air-loading + per-mode scatter (offsets 52, 53).
+    {.globalId = kAirLoadingId,                 .padOffset = kPadAirLoading },
+    {.globalId = kModeScatterId,                .padOffset = kPadModeScatter },
 };
 
 // Per-pad parameter name table
@@ -190,13 +193,16 @@ const PadParamSpec kPadParamSpecs[] = {
     // Phase 1 bit-identity for untouched pads (see DrumVoice::bodyDampingB1_).
     {.offset = kPadBodyDampingB1,        .name = "Body Damping b1",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadBodyDampingB3,        .name = "Body Damping b3",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // Phase 8C (air-loading + per-mode scatter).
+    {.offset = kPadAirLoading,           .name = "Air Loading",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
+    {.offset = kPadModeScatter,          .name = "Mode Scatter",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV8A,
-              "Pad param specs must match active param count (52 after Phase 8A)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV8C,
+              "Pad param specs must match active param count (54 after Phase 8C)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -574,7 +580,15 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Body Damping b3"), kBodyDampingB3Id, nullptr,
                            0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A: 1664 per-pad parameters (32 pads x 52 active offsets) ----
+    // ---- Phase 8C global proxies: air-loading + per-mode scatter ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Air Loading"), kAirLoadingId, nullptr,
+                           0.0, 1.0, 0.6, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Mode Scatter"), kModeScatterId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A/8C: 1728 per-pad parameters (32 pads x 54 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

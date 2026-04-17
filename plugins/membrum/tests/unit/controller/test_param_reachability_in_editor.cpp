@@ -204,6 +204,9 @@ std::vector<GlobalProxyPair> globalProxyMap()
         // Phase 8A: per-mode damping law global proxies.
         { kBodyDampingB1Id, kPadBodyDampingB1 },
         { kBodyDampingB3Id, kPadBodyDampingB3 },
+        // Phase 8C: air-loading + per-mode scatter global proxies.
+        { kAirLoadingId,    kPadAirLoading },
+        { kModeScatterId,   kPadModeScatter },
     };
 }
 
@@ -232,6 +235,8 @@ std::set<int> proxiedOffsets()
         kPadClickLayerMix, kPadClickLayerContactMs, kPadClickLayerBrightness,
         // Phase 8A: per-mode damping law offsets.
         kPadBodyDampingB1, kPadBodyDampingB3,
+        // Phase 8C: air-loading + per-mode scatter offsets.
+        kPadAirLoading, kPadModeScatter,
     };
 }
 
