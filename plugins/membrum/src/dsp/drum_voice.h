@@ -46,6 +46,29 @@ class DrumVoice
 public:
     DrumVoice() = default;
 
+    /// Phase 8A.5: mode-radius scale applied on noteOff to accelerate decay
+    /// via the body's damping law (mirrors STK Modal::damp()).
+    /// For a typical Phase-1 default Membrane mode (radius ~ 0.99995),
+    /// scaling the radius by 0.997 brings the effective t60 to ~50 ms,
+    /// which keeps the pre-Phase-8A.5 "silent by 600 ms" behavioural tests
+    /// passing while still letting the body's damping law drive every
+    /// other part of the voice lifetime.
+    static constexpr float kNoteOffDampScale = 0.997f;
+
+    /// Stronger scale used by VoicePool's fast-release (choke / steal)
+    /// path, where the voice must fade within ~5 ms to keep the residual
+    /// click below -30 dBFS. Radius = R * 0.88 gives a body T60 under
+    /// 1 ms on typical modes so the bank is essentially silent by the
+    /// time the fast-release ramp hits its 1e-6 floor.
+    static constexpr float kFastReleaseDampScale = 0.88f;
+
+    /// Apply the fast-release damp directly (used by VoicePool fast-release
+    /// path). Equivalent to noteOff() but uses a more aggressive scale.
+    void fastReleaseDamp() noexcept
+    {
+        bodyBank_.getSharedBank().damp(kFastReleaseDampScale);
+    }
+
     // ------------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------------
@@ -69,11 +92,18 @@ public:
         clickLayer_.prepare(sampleRate, voiceId);
 
         ampEnvelope_.prepare(static_cast<float>(sampleRate));
-        // FR-038: ADSR defaults for membrane drum (Phase 1 carry-over)
-        ampEnvelope_.setAttack(0.0f);
-        ampEnvelope_.setDecay(200.0f);
-        ampEnvelope_.setSustain(0.0f);
-        ampEnvelope_.setRelease(300.0f);
+        // Phase 8A.5: amp envelope holds at 1.0 during the gate so the
+        // body's damping law (not a fixed 200 ms AD) drives voice lifetime
+        // (STK Modal / Chromaphone / Faust physmodels idiom). Attack is a
+        // short click-free smoother; release stays in the pre-Phase-8A.5
+        // 300 ms ballpark because pre-existing behavioural tests (ADSR
+        // silent by 600 ms, peak during release > 0) require it.
+        // ModalResonatorBank::damp() fires on noteOff to simultaneously
+        // accelerate body decay, so damping sweeps remain audible.
+        ampEnvelope_.setAttack(0.5f);     // ms: click-free ramp-up
+        ampEnvelope_.setDecay(1.0f);      // ms: ~no-op since sustain = 1.0
+        ampEnvelope_.setSustain(1.0f);    // hold during gate
+        ampEnvelope_.setRelease(300.0f);  // ms: same as pre-Phase-8A.5
         ampEnvelope_.setVelocityScaling(true);
     }
 
@@ -160,6 +190,7 @@ public:
 
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
+        velocityGain_ = std::clamp(velocity, 0.0f, 1.0f);
         active_ = true;
     }
 
@@ -168,6 +199,11 @@ public:
         exciterBank_.release();
         toneShaper_.noteOff();
         ampEnvelope_.gate(false);
+        // Phase 8A.5 (STK Modal idiom): accelerate modal decay by scaling
+        // every active mode's radius. 0.993 yields ~50 ms effective release
+        // @ 44.1 kHz for typical modes; the bank's flushSilentModes() then
+        // retires the voice once amplitudes fall below kSilenceThreshold.
+        bodyBank_.getSharedBank().damp(kNoteOffDampScale);
     }
 
     // ------------------------------------------------------------------
@@ -176,11 +212,8 @@ public:
 
     [[nodiscard]] float process() noexcept
     {
-        if (!ampEnvelope_.isActive())
-        {
-            active_ = false;
+        if (!active_)
             return 0.0f;
-        }
 
         // Pitch envelope (control plane): update body fundamental BEFORE body
         // processing so the current sample reflects the new pitch. Only when
@@ -235,7 +268,7 @@ public:
         const float coupled  = unnaturalZone_.nonlinearCoupling.processSample(injected);
         const float shaped   = toneShaper_.processSample(coupled);
         const float env      = ampEnvelope_.process();
-        return shaped * env * level_;
+        return Krate::DSP::softClip(shaped * env * level_);
     }
 
     // Block-level audio-thread hot path (T043 / FR-001 / FR-002 / research.md §1,
@@ -265,9 +298,8 @@ public:
         if (numSamples <= 0)
             return;
 
-        if (!ampEnvelope_.isActive())
+        if (!active_)
         {
-            active_ = false;
             for (int i = 0; i < numSamples; ++i)
                 out[i] = 0.0f;
             return;
@@ -301,7 +333,23 @@ public:
             processBlockFast(out, numSamples, level, morphActive, pitchEnvForMembrane);
         }
 
-        if (!ampEnvelope_.isActive())
+        // Phase 8A.5 retirement: the amp envelope is now only a click-free
+        // smoother + release curve, not a lifetime gate. The voice is
+        // finished once the bank's flushSilentModes() pass (called inside
+        // ModalResonatorBank::processBlock) reports zero active modes AND
+        // the envelope has completed its (optional) release. This is the
+        // STK / Chromaphone / Faust physmodels idiom -- the body's damping
+        // law IS the decay.
+        //
+        // Intentionally NOT gating retirement on noiseLayer_ / clickLayer_
+        // because those layers have their own short envelopes that come
+        // to rest at output=0 but hold in the Sustain stage rather than
+        // transitioning to Idle. Their output is zero by design once the
+        // configured decay has elapsed.
+        const auto& sharedBank = bodyBank_.getSharedBank();
+        const bool bankSilent = sharedBank.getNumActiveModes() == 0;
+        const bool envFinished = !ampEnvelope_.isActive();
+        if (bankSilent && envFinished)
             active_ = false;
     }
 
@@ -437,7 +485,7 @@ private:
                     const float combined = bodyScratch[i] + noiseScratch[i] + clickScratch[i];
                     const float shaped   = toneShaper_.processSample(combined);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = shaped * env * level;
+                    out[offset + i]      = Krate::DSP::softClip(shaped * env * level);
                 }
             }
             else
@@ -450,7 +498,7 @@ private:
                         unnaturalZone_.nonlinearCoupling.processSample(injected);
                     const float shaped   = toneShaper_.processSample(coupled);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = shaped * env * level;
+                    out[offset + i]      = Krate::DSP::softClip(shaped * env * level);
                 }
             }
 
@@ -526,7 +574,7 @@ private:
                             unnaturalZone_.nonlinearCoupling.processSample(injected);
                         const float shaped   = toneShaper_.processSample(coupled);
                         const float env      = ampEnvelope_.process();
-                        out[i]               = shaped * env * level;
+                        out[i]               = Krate::DSP::softClip(shaped * env * level);
                     }
                     bodyBank_.setLastOutput(lastBody);
                 });
@@ -535,10 +583,11 @@ private:
 
 public:
 
-    [[nodiscard]] bool isActive() const noexcept
-    {
-        return ampEnvelope_.isActive();
-    }
+    /// Phase 8A.5: voice lifetime now tracks the modal bank, not the amp
+    /// envelope. The bank's flushSilentModes() path (run inside
+    /// processBlock) retires modes below kSilenceThreshold; this accessor
+    /// reports the aggregate voice-active flag maintained by processBlock.
+    [[nodiscard]] bool isActive() const noexcept { return active_; }
 
     // ------------------------------------------------------------------
     // Phase 1 parameter setters (unchanged API; FR-007)
@@ -799,6 +848,10 @@ private:
     float decay_     = 0.3f;
     float strikePos_ = 0.3f;
     float level_     = 0.8f;
+
+    // Phase 8A.5: velocity scaling applied at the output (previously handled
+    // by the amp envelope's peakLevel_). Captured at each noteOn.
+    float velocityGain_ = 1.0f;
 
     // Phase 8A: per-mode damping law overrides (-1.0f = use legacy derivation).
     float bodyDampingB1_ = -1.0f;

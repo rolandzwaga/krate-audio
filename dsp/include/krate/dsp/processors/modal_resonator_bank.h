@@ -298,6 +298,23 @@ public:
         return numActiveModes_;
     }
 
+    /// Scale all mode radii toward a faster decay. Mirrors STK's Modal::damp()
+    /// note-off idiom: multiply every active mode's radius (both smoothed and
+    /// target) by `scale`, so the voice finishes through its own damping law
+    /// instead of through an externally-applied amp-envelope release.
+    /// @param scale in (0, 1]. 1.0 is a no-op; 0.97 shortens the effective
+    /// T60 by a factor of ~30x for a nominal 500-sample release.
+    void damp(float scale) noexcept
+    {
+        scale = std::clamp(scale, 0.0f, 1.0f);
+        for (int k = 0; k < numModes_; ++k) {
+            if (!active_[k])
+                continue;
+            radiusTarget_[k] *= scale;
+            radius_[k] *= scale;
+        }
+    }
+
     /// @return true if prepare() has been called
     [[nodiscard]] bool isPrepared() const noexcept
     {

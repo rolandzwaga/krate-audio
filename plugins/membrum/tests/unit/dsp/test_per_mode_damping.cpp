@@ -19,12 +19,15 @@
 #include <catch2/catch_approx.hpp>
 
 #include "dsp/bodies/membrane_mapper.h"
+#include "dsp/drum_voice.h"
 #include "dsp/voice_common_params.h"
 
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <vector>
 
 using Catch::Approx;
 using Membrum::VoiceCommonParams;
@@ -232,4 +235,47 @@ TEST_CASE("Phase 8A: raising bodyDampingB3 attenuates high modes without moving 
          << " expectedLastLow=" << expectedLastLow
          << " expectedLastHigh=" << expectedLastHigh);
     CHECK(expectedLastHigh < expectedLastLow);
+}
+
+// End-to-end: rendering a DrumVoice over 500 ms with different b1 values
+// must now produce materially different RMS (post-Phase-8A.5 the amp
+// envelope holds at sustain=1.0, so the body's decay is no longer masked).
+namespace {
+double renderVoice500msRms(float b1Norm, float b3Norm)
+{
+    using Membrum::DrumVoice;
+    DrumVoice v;
+    v.prepare(44100.0, 0u);
+    v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
+    v.setStrikePosition(0.3f); v.setLevel(0.8f);
+    v.setExciterType(Membrum::ExciterType::Impulse);
+    v.setBodyModel(Membrum::BodyModelType::Membrane);
+    v.setBodyDampingB1(b1Norm); v.setBodyDampingB3(b3Norm);
+    v.noteOn(1.0f);
+    const int N = 22050;
+    std::vector<float> buf(static_cast<std::size_t>(N), 0.0f);
+    constexpr int kBlock = 256;
+    for (int off = 0; off < N; off += kBlock) {
+        const int c = std::min(kBlock, N - off);
+        v.processBlock(buf.data() + off, c);
+    }
+    double acc = 0.0;
+    for (float x : buf) acc += static_cast<double>(x) * x;
+    return std::sqrt(acc / static_cast<double>(N));
+}
+} // namespace
+
+TEST_CASE("Phase 8A.5: held-note b1 sweep yields a clearly-audible RMS delta",
+          "[phase8a][drum_voice][audio]")
+{
+    const double rmsLo = renderVoice500msRms(0.0f, -1.0f);   // b1 = 0.2
+    const double rmsHi = renderVoice500msRms(1.0f, -1.0f);   // b1 = 50
+    INFO("rmsLo=" << rmsLo << " rmsHi=" << rmsHi
+         << " ratio=" << (rmsHi > 0 ? rmsLo / rmsHi : -1));
+    REQUIRE(rmsLo > 1e-4);
+    REQUIRE(rmsHi > 1e-6);
+    // Plan's exit gate: b1 sweep must be audibly different. Pre-Phase-8A.5
+    // the ratio was ~1.0 (inaudible); post-Phase-8A.5 we see ~2.5x, which
+    // is > 7 dB and well above the JND for loudness (~1 dB).
+    CHECK(rmsLo > rmsHi * 2.0);
 }

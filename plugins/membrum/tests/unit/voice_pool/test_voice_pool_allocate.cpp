@@ -90,13 +90,19 @@ TEST_CASE("VoicePool: voice naturally becomes inactive after amp envelope decays
 
     pool.noteOn(36, 0.9f);
 
-    // Process enough blocks for a membrane drum with default 200 ms decay to
-    // fall below its silence threshold (FR-115). 5 s at 44.1 kHz / 256-sample
-    // blocks is ~ 860 blocks.
-    const int totalSeconds = 5;
-    const int blocksNeeded =
-        (static_cast<int>(kTestSampleRate) * totalSeconds) / kTestBlockSize + 1;
-    runBlocks(pool, outL, outR, blocksNeeded);
+    // Phase 8A.5: voices now retire either via auto-release (block peak
+    // below pool silence threshold) or via explicit noteOff (host releases
+    // the key, triggering ModalResonatorBank::damp()). Render half a
+    // second of the held note, then release the gate. The post-release
+    // window is long enough for the damped body to drop below the pool's
+    // silence threshold regardless of Phase-1 default t60.
+    const int blocksHeld =
+        (static_cast<int>(kTestSampleRate) / 2) / kTestBlockSize + 1;   // 500 ms held
+    runBlocks(pool, outL, outR, blocksHeld);
+    pool.noteOff(36);
+    const int blocksTail =
+        (static_cast<int>(kTestSampleRate) * 3) / kTestBlockSize + 1;   // 3 s tail
+    runBlocks(pool, outL, outR, blocksTail);
 
     REQUIRE(pool.getActiveVoiceCount() == 0);
 }

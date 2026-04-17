@@ -240,11 +240,20 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
 
 void VoicePool::noteOff(std::uint8_t midiNote) noexcept
 {
-    // FR-114: percussion is a no-op at the voice level. We still call
-    // `allocator_.noteOff` so the allocator's Active/Releasing bookkeeping
-    // stays consistent. We do NOT gate the amp envelope off; the voice
-    // continues decaying naturally until processBlock observes
-    // `!isActive()` and calls voiceFinished.
+    // FR-114 pre-Phase-8A.5: percussion was a no-op at the voice level
+    // because the amp envelope's fixed 200 ms decay force-silenced the
+    // voice. Phase 8A.5 removed that forced decay, so noteOff now must
+    // propagate to the voice -- DrumVoice::noteOff gates off the amp
+    // envelope (release fires) and fires ModalResonatorBank::damp() so
+    // the body completes its release through its own damping law.
+    for (int slot = 0; slot < maxPolyphony_; ++slot)
+    {
+        if (meta_[slot].state == VoiceSlotState::Active
+            && meta_[slot].originatingNote == midiNote)
+        {
+            VP_VOICES[slot].noteOff();
+        }
+    }
     (void)allocator_.noteOff(midiNote);
 }
 
@@ -270,12 +279,13 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
     // accumulate into both output channels. DrumVoice is mono — the pool
     // mirrors mono-to-stereo here.
     // Silence threshold below which a sustaining voice is considered
-    // "naturally finished" (FR-115). For percussion with sustain=0 the amp
-    // envelope never transitions to Idle on its own; the pool promotes the
-    // slot to Release once the block peak stays below this level, then the
-    // envelope's Release-stage idle check (`output_ < kEnvelopeIdleThreshold`)
-    // frees the slot on a subsequent block.
-    constexpr float kSilenceThreshold = 1.0e-5f;   // ~ -100 dBFS
+    // "naturally finished" (FR-115). Phase 8A.5: the envelope no longer
+    // force-decays the voice (sustain = 1.0), so voices rely on this
+    // threshold to retire once the body's damping law has naturally
+    // brought the block peak below audibility. -80 dBFS keeps the pool
+    // from hanging on sub-audible tails while staying safely below any
+    // perceivable level (-60 dBFS is the usual "quiet room" floor).
+    constexpr float kSilenceThreshold = 1.0e-4f;   // ~ -80 dBFS
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
@@ -790,6 +800,15 @@ void VoicePool::beginFastRelease(int slot) noexcept
     // noteOff() on it here: that would add unnecessary DSP state
     // churn (small but non-zero) and could introduce bit-level
     // differences versus a freshly-prepared DrumVoice.
+
+    // Phase 8A.5: the shadow voice (VP_RVOICES[slot]) is now the live
+    // voice that must fade out. Under Option-D envelope (sustain = 1.0)
+    // its body is still ringing at full amplitude, so the multiplicative
+    // 5 ms fastRelease ramp alone is not enough to keep the residual
+    // below the -30 dBFS click bound. Fire the aggressive fast-release
+    // damp on the shadow's modal bank so the body decays within ~1 ms
+    // (well inside the fast-release window) through its own damping law.
+    VP_RVOICES[slot].fastReleaseDamp();
 
     // Starting gain is UNITY. The shadow slot's DrumVoice already produces
     // the voice's absolute amplitude via its own envelopes and filters;
