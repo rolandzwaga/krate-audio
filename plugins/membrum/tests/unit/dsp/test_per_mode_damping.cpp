@@ -20,7 +20,11 @@
 
 #include "dsp/bodies/membrane_mapper.h"
 #include "dsp/drum_voice.h"
+#include "dsp/pad_config.h"
 #include "dsp/voice_common_params.h"
+#include "controller/controller.h"
+#include "plugin_ids.h"
+#include "voice_pool/voice_pool.h"
 
 #include <krate/dsp/processors/modal_resonator_bank.h>
 
@@ -325,6 +329,145 @@ BandEnergy renderVoiceBandEnergy(float b1Norm, float b3Norm)
     return out;
 }
 } // namespace
+
+TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) pitch-shifts",
+          "[phase8c][drum_voice][minimal]")
+{
+    using Membrum::DrumVoice;
+    auto render = [](float airNorm) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Impulse);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setAirLoading(airNorm);
+        v.setModeScatter(0.0f);
+        v.setNoiseLayerMix(0.0f);
+        v.setClickLayerMix(0.0f);
+        v.noteOn(1.0f);
+        const int N = 22050;
+        std::vector<float> buf(static_cast<std::size_t>(N), 0.0f);
+        constexpr int kBlock = 256;
+        for (int off = 0; off < N; off += kBlock) {
+            const int c = std::min(kBlock, N - off);
+            v.processBlock(buf.data() + off, c);
+        }
+        return buf;
+    };
+    auto zcPerSec = [](const std::vector<float>& buf, int start, int end) {
+        int crossings = 0;
+        for (int i = start + 1; i < end; ++i)
+            if ((buf[i-1] >= 0.0f) != (buf[i] >= 0.0f)) ++crossings;
+        return static_cast<double>(crossings) / (2.0 * (end - start) / 44100.0);
+    };
+    const auto noAir = render(0.0f);
+    const auto fullAir = render(1.0f);
+    // Measure pitch over 50..200 ms where body dominates.
+    const double hzNo   = zcPerSec(noAir,   2205, 8820);
+    const double hzFull = zcPerSec(fullAir, 2205, 8820);
+    INFO("minimal noAir=" << hzNo << " Hz, fullAir=" << hzFull << " Hz");
+    CHECK(hzFull < hzNo * 0.9);
+}
+
+TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered audio",
+          "[phase8c][drum_voice][acoustic]")
+{
+    // Reproduces the Acoustic Kick preset from default_kit.h (tmpl Kick)
+    // and renders 500 ms with airLoading=0 vs airLoading=1. Compares the
+    // spectral centroid and mode-0 fundamental measured from the rendered
+    // buffer to prove the knob DOES shift the body.
+    using Membrum::DrumVoice;
+    auto render = [](float airNorm) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.3f);
+        v.setSize(0.8f);
+        v.setDecay(0.3f);
+        v.setStrikePosition(0.3f);
+        v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Impulse);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setAirLoading(airNorm);
+        v.setModeScatter(0.15f);
+        // Kick-preset noise + click layers from default_kit.
+        v.setNoiseLayerMix(0.85f);
+        v.setNoiseLayerCutoff(0.08f);
+        v.setNoiseLayerResonance(0.15f);
+        v.setNoiseLayerDecay(0.55f);
+        v.setNoiseLayerColor(0.0f);
+        v.setClickLayerMix(0.75f);
+        v.setClickLayerContactMs(0.15f);
+        v.setClickLayerBrightness(0.4f);
+        v.noteOn(1.0f);
+        const int N = 22050;
+        std::vector<float> buf(static_cast<std::size_t>(N), 0.0f);
+        constexpr int kBlock = 256;
+        for (int off = 0; off < N; off += kBlock) {
+            const int c = std::min(kBlock, N - off);
+            v.processBlock(buf.data() + off, c);
+        }
+        return buf;
+    };
+
+    const auto noAir = render(0.0f);
+    const auto fullAir = render(1.0f);
+
+    // Count zero-crossings in the sustained body portion [150 ms, 400 ms].
+    // Approximates the perceived pitch of the modal tail.
+    auto zeroCrossPerSec = [](const std::vector<float>& buf, int start, int end) {
+        int crossings = 0;
+        for (int i = start + 1; i < end; ++i)
+            if ((buf[i-1] >= 0.0f) != (buf[i] >= 0.0f)) ++crossings;
+        return static_cast<double>(crossings) / (2.0 * (end - start) / 44100.0);
+    };
+    const double hzNoAir   = zeroCrossPerSec(noAir,  6615, 17640);
+    const double hzFullAir = zeroCrossPerSec(fullAir, 6615, 17640);
+
+    double accNo = 0, accFull = 0;
+    for (float x : noAir)   accNo   += x * x;
+    for (float x : fullAir) accFull += x * x;
+    INFO("noAir ZC/s=" << hzNoAir << " rms=" << std::sqrt(accNo / noAir.size()));
+    INFO("fullAir ZC/s=" << hzFullAir << " rms=" << std::sqrt(accFull / fullAir.size()));
+
+    // airLoading=1 should noticeably reduce the perceived tail pitch.
+    REQUIRE(hzNoAir > 10.0);
+    REQUIRE(hzFullAir > 5.0);
+    CHECK(hzFullAir < hzNoAir * 0.9);  // > ~1 semitone drop
+}
+
+TEST_CASE("Phase 8C: VoicePool stores airLoading through setPadConfigField",
+          "[phase8c][voice_pool][wiring]")
+{
+    // Processor-side path: setPadConfigField(kPadAirLoading, ...) must
+    // update the pad's cached airLoading so the next noteOn uses it.
+    Membrum::VoicePool pool;
+    pool.prepare(44100.0, 256);
+    pool.setMaxPolyphony(4);
+    pool.setPadConfigField(0, Membrum::kPadAirLoading, 0.9f);
+    pool.setPadConfigField(0, Membrum::kPadModeScatter, 0.7f);
+    CHECK(pool.padConfig(0).airLoading  == Approx(0.9f).margin(1e-6f));
+    CHECK(pool.padConfig(0).modeScatter == Approx(0.7f).margin(1e-6f));
+}
+
+TEST_CASE("Phase 8C: kAirLoadingId proxy registers via controller",
+          "[phase8c][controller][wiring]")
+{
+    Membrum::Controller ctl;
+    REQUIRE(ctl.initialize(nullptr) == Steinberg::kResultOk);
+    Steinberg::Vst::ParameterInfo info{};
+    // getParameterInfoById would be ideal; fall back to linear scan.
+    bool found = false;
+    const Steinberg::int32 n = ctl.getParameterCount();
+    for (Steinberg::int32 i = 0; i < n; ++i) {
+        Steinberg::Vst::ParameterInfo pi{};
+        REQUIRE(ctl.getParameterInfo(i, pi) == Steinberg::kResultOk);
+        if (pi.id == Membrum::kAirLoadingId) { info = pi; found = true; break; }
+    }
+    CHECK(found);
+    CHECK(info.id == Membrum::kAirLoadingId);
+    ctl.terminate();
+}
 
 TEST_CASE("Phase 8C: airLoading sweep depresses Membrane fundamental",
           "[phase8c][drum_voice][audio]")

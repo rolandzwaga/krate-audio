@@ -57,14 +57,16 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             cfg.tsPitchEnvStart = static_cast<float>(std::log(160.0 / 20.0) / std::log(100.0));
             cfg.tsPitchEnvEnd   = static_cast<float>(std::log(50.0 / 20.0) / std::log(100.0));
             cfg.tsPitchEnvTime  = 0.04f;  // 20ms / 500ms
-            // Phase 7.1: loud air-thump + prominent beater thwack to escape
-            // the "plastic mini-tom" failure mode.
-            cfg.noiseLayerMix        = 0.85f;
+            // Phase 7.1: air-thump + beater thwack. Phase 8C rebalance:
+            // the noise + click layers were drowning the modal body's
+            // air-loading / damping character. Scaled 85% -> 50% and
+            // 75% -> 40% so the Phase 8 body knobs stay audible.
+            cfg.noiseLayerMix        = 0.50f;
             cfg.noiseLayerCutoff     = 0.08f;  // ~55 Hz low rumble
             cfg.noiseLayerResonance  = 0.15f;
             cfg.noiseLayerDecay      = 0.55f;  // ~280 ms tail
             cfg.noiseLayerColor      = 0.0f;   // brown (darkest, -6 dB/oct)
-            cfg.clickLayerMix        = 0.75f;
+            cfg.clickLayerMix        = 0.40f;
             cfg.clickLayerContactMs  = 0.15f;  // ~2.4 ms short beater strike
             cfg.clickLayerBrightness = 0.4f;   // darker thwack (mallet felt)
             // Phase 8C: strong air-loading for a deep kick. Small scatter

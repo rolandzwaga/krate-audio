@@ -1262,3 +1262,25 @@ TEST_CASE("Membrum: SC-003 CPU budget -- single voice < 0.5% CPU at 44.1 kHz",
 
     REQUIRE(durationMs < 50.0);
 }
+
+TEST_CASE("Phase 8C: kAirLoadingId processor dispatch routes to selected pad",
+          "[membrum][processor][phase8c][wiring]")
+{
+    MembrumTestFixture fix;
+
+    // Start: pad 0 selected. Default airLoading from PadConfig = 0.6.
+    const float before = fix.processor.voicePoolForTest().padConfig(0).airLoading;
+
+    // Send a parameter change for kAirLoadingId = 1.0.
+    TestParameterChanges paramChanges;
+    paramChanges.addChange(Membrum::kAirLoadingId, 1.0);
+    fix.data.inputParameterChanges = &paramChanges;
+    fix.processBlock();
+    fix.data.inputParameterChanges = nullptr;
+
+    // Verify the processor routed the change to the selected pad.
+    const float after = fix.processor.voicePoolForTest().padConfig(0).airLoading;
+    INFO("airLoading before=" << before << " after=" << after);
+    CHECK(after == Approx(1.0f).margin(1e-4f));
+    CHECK(before != after);
+}

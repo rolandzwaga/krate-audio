@@ -14,6 +14,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "dsp/default_kit.h"
+#include "dsp/pad_config.h"
 #include "plugin_ids.h"
 #include "preset/membrum_preset_container.h"
 #include "state/state_codec.h"
@@ -243,4 +245,41 @@ TEST_CASE("Factory kit presets: upgrade to current blob version (hidden)",
     WARN("factory preset upgrade: " << upgraded << " upgraded, "
          << skipped << " already current");
     CHECK(upgraded + skipped >= 3);
+}
+
+// ------------------------------------------------------------------------------
+// Phase 8C: one-shot regenerator. Rebuilds the Acoustic / Electronic /
+// Experimental kit presets straight from `DefaultKit::apply` so pad-level
+// edits (e.g. Phase 8C noise/click rebalance, airLoading defaults) take
+// effect without hand-editing the binary blobs. Hidden behind tag.
+// ------------------------------------------------------------------------------
+TEST_CASE("Factory kit presets: regenerate from DefaultKit::apply (hidden)",
+          "[.regen_factory_presets]")
+{
+    const auto root = factoryPresetRoot();
+    REQUIRE(!root.empty());
+
+    std::array<Membrum::PadConfig, Membrum::kNumPads> pads;
+    Membrum::DefaultKit::apply(pads);
+
+    Membrum::State::KitSnapshot kit;
+    for (int i = 0; i < Membrum::kNumPads; ++i)
+        kit.pads[static_cast<std::size_t>(i)] =
+            Membrum::State::toPadSnapshot(pads[static_cast<std::size_t>(i)]);
+
+    // Write the freshly-generated kit to every known factory .vstpreset.
+    int regenerated = 0;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".vstpreset")
+            continue;
+        MemoryStream dst;
+        REQUIRE(Membrum::State::writeKitBlob(&dst, kit) == kResultOk);
+        const std::string name   = entry.path().stem().string();
+        const std::string subcat = entry.path().parent_path().filename().string();
+        REQUIRE(Membrum::Preset::writePresetFile(entry.path(), &dst, name, subcat));
+        ++regenerated;
+    }
+    WARN("regenerated " << regenerated << " factory preset file(s) from DefaultKit");
+    CHECK(regenerated >= 3);
 }
