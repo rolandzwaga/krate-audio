@@ -555,9 +555,13 @@ private:
         const float b3 = std::max(b3In, 0.0f);
         storedDampingLaw_ = DampingLaw{b1, b3};
 
-        // Inharmonicity parameters
+        // Inharmonicity parameters. `scatter` is bank-wide across every
+        // consumer; Phase 8C widens the per-mode dither ceiling from 2 %
+        // to 10 % so Membrum's mode-scatter knob produces a musically
+        // useful sweep. Callers that never populate scatter (Innexus)
+        // are unaffected because scatter stays at 0.
         const float B = stretch * stretch * 0.001f;
-        const float C = scatter * 0.02f;
+        const float C = scatter * 0.10f;
 
         for (int k = 0; k < numPartials; ++k) {
             float f_k = frequencies[k];

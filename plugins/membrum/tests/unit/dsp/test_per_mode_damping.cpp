@@ -326,6 +326,32 @@ BandEnergy renderVoiceBandEnergy(float b1Norm, float b3Norm)
 }
 } // namespace
 
+TEST_CASE("Phase 8C: airLoading sweep depresses Membrane fundamental",
+          "[phase8c][drum_voice][audio]")
+{
+    using Membrum::DrumVoice;
+    auto fundamental = [](float airLoading) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Impulse);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setAirLoading(airLoading);
+        v.setModeScatter(0.0f);
+        v.noteOn(1.0f);
+        return v.getBodyBankForTest().getSharedBank().getModeFrequency(0);
+    };
+    const float f0_none  = fundamental(0.0f);
+    const float f0_full  = fundamental(1.0f);
+    INFO("f0 airLoading=0 -> " << f0_none << " Hz, airLoading=1 -> " << f0_full);
+    REQUIRE(f0_none > 100.0f);
+    // ~20 % depression (x4 gain over published Rossing data for audibility);
+    // see kAirLoadingCurve comment in membrane_modes.h.
+    CHECK(f0_full < f0_none * 0.85f);
+    CHECK(f0_full > f0_none * 0.75f);
+}
+
 TEST_CASE("Phase 8A.5: b3 sweep produces audible energy change",
           "[phase8a][drum_voice][audio]")
 {

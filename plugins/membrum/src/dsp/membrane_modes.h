@@ -49,19 +49,23 @@ constexpr std::array<int, 48> kMembraneBesselOrder = {
 // Air-loading correction (Phase 8C): real drumheads sit atop a mass of
 // enclosed air which depresses the lowest-mode frequencies below the pure
 // Bessel ratios. Rossing's timpani measurements give ~5% depression for
-// mode 0, ~3.5% for mode 1, tapering below 1% by mode 10. The correction
-// is structured (not random) and reproduces the characteristic "deeper"
-// feel of real kicks / toms versus an unloaded Bessel calculation.
+// mode 0, ~3.5% for mode 1, tapering below 1% by mode 10.
+//
+// The PHYSICALLY-accurate max depression is ~5 % -- which at a 158 Hz kick
+// fundamental is only ~90 cents, below the perceptual threshold for a
+// 200 ms transient. We scale the published curve by 4x so the knob
+// traverses a musically useful ~350-cent range (sub-physical at low
+// settings, exaggerated at high settings). Users needing true physical
+// values can leave the knob at ~0.25.
 //
 // f_k_effective = f_k_bessel * (1 - airLoading * kAirLoadingCurve[k])
 //
 // Source: Rossing 1982, "The physics of kettledrums" (Scientific American)
-// and subsequent published timpani spectra. Values beyond mode 12 are
-// below the per-partial pitch JND so they can safely round to zero.
+// and subsequent published timpani spectra, x4 gain applied.
 constexpr std::array<float, 48> kAirLoadingCurve = {
-    0.050f, 0.035f, 0.025f, 0.020f, 0.015f, 0.012f, 0.010f, 0.008f,
-    0.006f, 0.005f, 0.004f, 0.003f, 0.002f, 0.002f, 0.001f, 0.001f,
-    0.001f, 0.001f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
+    0.200f, 0.140f, 0.100f, 0.080f, 0.060f, 0.048f, 0.040f, 0.032f,
+    0.024f, 0.020f, 0.016f, 0.012f, 0.008f, 0.008f, 0.004f, 0.004f,
+    0.004f, 0.004f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f

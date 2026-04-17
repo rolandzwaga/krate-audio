@@ -639,6 +639,10 @@ public:
         bodyBank_.setBodyModel(type);
     }
 
+    /// Test-only accessor to the body bank (for verifying internal state
+    /// from unit tests). Not part of the public API.
+    BodyBank& getBodyBankForTest() noexcept { return bodyBank_; }
+
     // ------------------------------------------------------------------
     // Phase 7 setters (parallel noise layer + always-on click transient)
     // ------------------------------------------------------------------
