@@ -106,6 +106,8 @@
     <control-tag name="SecondaryEnabled" tag="305"/>
     <control-tag name="SecondarySize" tag="306"/>
     <control-tag name="SecondaryMaterial" tag="307"/>
+    <!-- Phase 8E: nonlinear tension modulation (global 308) -->
+    <control-tag name="TensionModAmt" tag="308"/>
   </control-tags>
   <bitmaps/>
   <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
@@ -274,6 +276,11 @@
         <view class="CTextLabel" title="Sz" origin="240, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="SecondaryMaterial" origin="276, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Mat" origin="276, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+
+        <!-- Phase 8E: nonlinear tension modulation (pitch glide) -->
+        <view class="CTextLabel" title="Tension" origin="320, 740" size="64, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="TensionModAmt" origin="320, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Ten" origin="320, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
   </template>
   <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
       <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">

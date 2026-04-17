@@ -91,6 +91,10 @@ public:
         // Prepared once here; configured per-note in noteOn() from the
         // secondarySize / secondaryMaterial parameters.
         secondaryBank_.prepare(sampleRate);
+        // Phase 8E: 20 ms one-pole energy-follower coefficient.
+        //   tau ~ 20 ms -> alpha = exp(-1 / (0.02 * sr)).
+        energyAlpha_ = std::exp(-1.0f /
+            (0.02f * static_cast<float>(sampleRate)));
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
         noiseLayer_.prepare(sampleRate, voiceId);
@@ -205,6 +209,15 @@ public:
             configureSecondaryBank();
             effectiveCoupling_ = stabilityClampedCoupling();
         }
+
+        // Phase 8E: tension modulation depth scales with velocity^2 (the
+        // mechanical tension variation is proportional to vibration
+        // energy, which is proportional to velocity^2). Max knob 1.0 *
+        // vel^2 -> 0.15 effective, capping pitch shift at ~2 semitones.
+        const float vClamp = std::clamp(velocity, 0.0f, 1.0f);
+        tensionAmtEffective_ =
+            std::clamp(tensionModAmt_, 0.0f, 1.0f) * 0.15f * vClamp * vClamp;
+        energyEnv_ = 0.0f;
 
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
@@ -407,14 +420,36 @@ private:
             // chunk and push the resulting pitch into the modal bank once.
             // A 20 ms sweep at 44.1 kHz produces ~14 refresh points across
             // a 64-sample audio block — well below any audible stair-stepping.
+            // Phase 8E: block-rate pitch modulation from energy tracker.
+            // pitchMod >= 1.0 (head TENSIONS upward when struck hard) --
+            // wait, JASA 2021's observed behaviour is a downward glide as
+            // the tension relaxes from the initial tension state. Model:
+            // start with mod = 1 + tensionAmtEff, relax toward 1 as
+            // energy drops. For a simple one-pole follower fed by |out|^2
+            // (which peaks at attack and decays), `1 + amt * energyEnv`
+            // reproduces the upward-then-relaxing curve.
+            const bool tensionActive = tensionAmtEffective_ > 1e-6f;
+            const float tensionPitchMod =
+                tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
+                              : 1.0f;
+
             if (pitchEnvForMembrane)
             {
-                const float pitchHz = toneShaper_.processPitchEnvelope();
+                const float pitchHz =
+                    toneShaper_.processPitchEnvelope() * tensionPitchMod;
                 // Consume the remaining (chunk-1) envelope samples without
                 // reissuing updateModes, so the envelope stays in sync with
                 // the audio sample count.
                 for (int i = 1; i < chunk; ++i)
                     (void)toneShaper_.processPitchEnvelope();
+                updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+            }
+            else if (tensionActive
+                     && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+            {
+                // No pitch env: apply tension mod as a direct frequency
+                // scale around the body's natural fundamental.
+                const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
                 updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
             }
 
@@ -549,6 +584,22 @@ private:
                     const float env      = ampEnvelope_.process();
                     out[offset + i]      = Krate::DSP::softClip(shaped * env * level);
                 }
+            }
+
+            // Phase 8E: per-sample one-pole energy follower. Runs only
+            // when the tension modulator is active so the default path
+            // stays zero-overhead. `energyAlpha_` is the per-sample
+            // coefficient from prepare() (20 ms tau).
+            if (tensionActive)
+            {
+                const float alpha = energyAlpha_;
+                const float oneMinusAlpha = 1.0f - alpha;
+                float env = energyEnv_;
+                for (int i = 0; i < chunk; ++i) {
+                    const float s = out[offset + i];
+                    env = alpha * env + oneMinusAlpha * s * s;
+                }
+                energyEnv_ = env;
             }
 
             offset    += chunk;
@@ -746,6 +797,11 @@ public:
     void setSecondaryEnabled(float v)  noexcept { secondaryEnabled_  = v; }
     void setSecondarySize(float v)     noexcept { secondarySize_     = v; }
     void setSecondaryMaterial(float v) noexcept { secondaryMaterial_ = v; }
+
+    // ------------------------------------------------------------------
+    // Phase 8E setter (nonlinear tension modulation / pitch glide)
+    // ------------------------------------------------------------------
+    void setTensionModAmt(float v) noexcept { tensionModAmt_ = v; }
 
     /// Phase 7 bug-fix: plumb PadConfig::noiseBurstDuration (normalized) into
     /// the NoiseBurstExciter so the host-side parameter finally takes effect.
@@ -1006,6 +1062,13 @@ private:
     float secondaryMaterial_  = 0.4f;
     // Cached at noteOn: effective coupling after stability clamp.
     float effectiveCoupling_  = 0.0f;
+
+    // Phase 8E: nonlinear tension modulation (energy-dependent pitch
+    // glide, Avanzini & Rocchesso 2012 / Kirby & Sandler JASA 2021).
+    float tensionModAmt_        = 0.0f;  // per-pad depth (norm)
+    float tensionAmtEffective_  = 0.0f;  // depth * velocity^2
+    float energyEnv_            = 0.0f;  // one-pole energy follower
+    float energyAlpha_          = 0.0f;  // block-rate smoothing coeff
 
     // Voice identity
     std::uint32_t voiceId_    = 0;

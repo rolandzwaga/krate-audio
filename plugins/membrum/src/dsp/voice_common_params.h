@@ -52,6 +52,9 @@ struct VoiceCommonParams
     // Phase 8D: secondary-body mapping parameters.
     float secondarySize        = 0.5f;
     float secondaryMaterial    = 0.4f;
+
+    // Phase 8E: nonlinear tension modulation depth (norm).
+    float tensionModAmt        = 0.0f;
 };
 
 } // namespace Membrum

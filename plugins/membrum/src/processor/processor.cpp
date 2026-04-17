@@ -566,6 +566,11 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondaryMaterial, fValue);
             break;
 
+        // ---- Phase 8E: nonlinear tension modulation proxy ----
+        case kTensionModAmtId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTensionModAmt, fValue);
+            break;
+
         default:
             break;
         }

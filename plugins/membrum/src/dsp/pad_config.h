@@ -134,8 +134,13 @@ enum PadParamOffset : int
     kPadSecondarySize        = 56,
     kPadSecondaryMaterial    = 57,
     kPadActiveParamCountV8D  = 58,  // offsets 0-57 are active after Phase 8D
-    // Offsets 58-63 are RESERVED for later Phase 8 sub-phases (tension
-    // modulation).
+
+    // Phase 8E: nonlinear tension modulation. Energy-dependent pitch glide
+    // reproduces the tom-tom "kerthump" -- Avanzini & Rocchesso 2012 /
+    // Kirby & Sandler 2021 JASA. Depth is scaled by velocity^2 at noteOn.
+    kPadTensionModAmt        = 58,
+    kPadActiveParamCountV8E  = 59,  // offsets 0-58 are active after Phase 8E
+    // Offsets 59-63 are RESERVED.
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -250,6 +255,11 @@ struct PadConfig
     float secondaryEnabled     = 0.0f;
     float secondarySize        = 0.5f;
     float secondaryMaterial    = 0.4f;
+
+    // Phase 8E: nonlinear tension modulation depth (norm). 0 -> 0.15
+    // effective max at max velocity, which caps pitch shift at ~2
+    // semitones (matches JASA 2021 tom-tom measurements).
+    float tensionModAmt        = 0.0f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -280,7 +290,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV8D)
+    if (offset >= kPadActiveParamCountV8E)
         return -1;  // reserved range
     return offset;
 }

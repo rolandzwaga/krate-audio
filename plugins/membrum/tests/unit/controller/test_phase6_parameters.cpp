@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion bumped to 10 (Phase 8D head<->shell coupling)")
+    SECTION("kCurrentStateVersion bumped to 11 (Phase 8E tension modulation)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 10);
+        STATIC_REQUIRE(kCurrentStateVersion == 11);
     }
 }
 
@@ -154,9 +154,14 @@ TEST_CASE("padOffsetFromParamId accepts macro offsets 37-41", "[phase6_params]")
         }
     }
 
-    SECTION("Offset 58 is the first reserved offset (Phase 8D)")
+    SECTION("Offset 58 is active Phase 8E tension modulation field")
     {
-        REQUIRE(padOffsetFromParamId(padParamId(0, 58)) == -1);
+        REQUIRE(padOffsetFromParamId(padParamId(0, 58)) == 58);
+    }
+
+    SECTION("Offset 59 is the first reserved offset (Phase 8E)")
+    {
+        REQUIRE(padOffsetFromParamId(padParamId(0, 59)) == -1);
     }
 }
 

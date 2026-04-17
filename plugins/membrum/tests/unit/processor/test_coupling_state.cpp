@@ -400,15 +400,15 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     REQUIRE(fx.processor.getState(&resaved) == kResultOk);
     int64 resSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
-    // v10 prefix = 12 header + 32 * (4 exc + 4 body + 50*8 sound + 2 routing)
-    //   = 12 + 32*410 = 13132, + 4 selectedPad = 13136.
+    // v11 prefix = 12 header + 32 * (4 exc + 4 body + 51*8 sound + 2 routing)
+    //   = 12 + 32*418 = 13388, + 4 selectedPad = 13392.
     // + Phase 5 globals (32) + per-pad coupling amounts (256)
     // + overrideCount (2) + 3 * 6 override bytes + Phase 6 macros (160 * 8).
-    // Total = 13136 + 32 + 256 + 2 + 18 + 1280 = 14724.
-    CHECK(resSize == 14724);
+    // Total = 13392 + 32 + 256 + 2 + 18 + 1280 = 14980.
+    CHECK(resSize == 14980);
 
-    // Read overrideCount at offset 13136 + 32 + 256 = 13424.
-    resaved.seek(13424, IBStream::kIBSeekSet, nullptr);
+    // Read overrideCount at offset 13392 + 32 + 256 = 13680.
+    resaved.seek(13680, IBStream::kIBSeekSet, nullptr);
     std::uint16_t countOut = 0;
     int32 gotCount = 0;
     resaved.read(&countOut, sizeof(countOut), &gotCount);
@@ -464,11 +464,11 @@ TEST_CASE("Phase 6 (T044b): per-pad preset excludes couplingAmount (FR-022)",
     IBStream* stream = controller.padPresetStateProvider();
     REQUIRE(stream != nullptr);
 
-    // Verify blob size is exactly 412 bytes (v5: version 4 + 2 * int32 + 50 *
+    // Verify blob size is exactly 420 bytes (v6: version 4 + 2 * int32 + 51 *
     // float64). Offset 36 (couplingAmount) is NOT part of this format.
     int64 end = 0;
     stream->seek(0, IBStream::kIBSeekEnd, &end);
-    CHECK(end == 412);
+    CHECK(end == 420);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
 
     // Now change the pad's couplingAmount to a different value before reload.

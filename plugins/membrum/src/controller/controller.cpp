@@ -124,6 +124,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kSecondaryEnabledId,           .padOffset = kPadSecondaryEnabled },
     {.globalId = kSecondarySizeId,              .padOffset = kPadSecondarySize },
     {.globalId = kSecondaryMaterialId,          .padOffset = kPadSecondaryMaterial },
+    // Phase 8E: nonlinear tension modulation (offset 58).
+    {.globalId = kTensionModAmtId,              .padOffset = kPadTensionModAmt },
 };
 
 // Per-pad parameter name table
@@ -206,13 +208,15 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadSecondaryEnabled,     .name = "Secondary Enabled",   .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
     {.offset = kPadSecondarySize,        .name = "Secondary Size",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadSecondaryMaterial,    .name = "Secondary Material",  .isDiscrete = false, .stepCount = 0, .defaultValue = 0.4 },
+    // Phase 8E (nonlinear tension modulation / pitch glide).
+    {.offset = kPadTensionModAmt,        .name = "Tension Mod",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV8D,
-              "Pad param specs must match active param count (58 after Phase 8D)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV8E,
+              "Pad param specs must match active param count (59 after Phase 8E)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -612,7 +616,12 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Secondary Material"), kSecondaryMaterialId, nullptr,
                            0.0, 1.0, 0.4, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A/8C/8D: 1856 per-pad parameters (32 pads x 58 offsets) ----
+    // ---- Phase 8E global proxy: nonlinear tension modulation ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Tension Mod"), kTensionModAmtId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A..8E: 1888 per-pad parameters (32 pads x 59 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

@@ -594,6 +594,8 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadSecondaryEnabled:     cfg.secondaryEnabled  = normalizedValue; break;
     case kPadSecondarySize:        cfg.secondarySize     = normalizedValue; break;
     case kPadSecondaryMaterial:    cfg.secondaryMaterial = normalizedValue; break;
+    // Phase 8E: nonlinear tension modulation.
+    case kPadTensionModAmt:        cfg.tensionModAmt     = normalizedValue; break;
     default: break;
     }
 }
@@ -683,6 +685,8 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setSecondaryEnabled(cfg.secondaryEnabled);
     v.setSecondarySize(cfg.secondarySize);
     v.setSecondaryMaterial(cfg.secondaryMaterial);
+    // Phase 8E: nonlinear tension modulation.
+    v.setTensionModAmt(cfg.tensionModAmt);
 }
 
 // ------------------------------------------------------------------

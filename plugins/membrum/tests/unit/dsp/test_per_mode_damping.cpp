@@ -500,6 +500,47 @@ TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered aud
     CHECK(hzFullAir <= hzNoAir);
 }
 
+// Phase 8E: velocity-dependent tension modulation should produce a pitch
+// drift over the first 100 ms of a Tom that's absent at low velocity.
+TEST_CASE("Phase 8E: Tom tension modulation drifts pitch vs velocity",
+          "[phase8e][drum_voice][audio]")
+{
+    using Membrum::DrumVoice;
+    // Render in 256-sample blocks and track the PEAK mode-0 frequency
+    // across the first 200 ms so we catch the glide around the energy
+    // peak (the energy follower's tau is ~20 ms, so pitchMod tends to
+    // peak between t=20 ms and t=80 ms).
+    auto peakTomF0 = [](float velocity) {
+        DrumVoice v;
+        v.prepare(44100.0, 0u);
+        v.setMaterial(0.4f); v.setSize(0.5f); v.setDecay(0.5f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Mallet);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setTensionModAmt(1.0f);
+        v.setNoiseLayerMix(0.0f); v.setClickLayerMix(0.0f);
+        v.noteOn(velocity);
+        auto& bank = v.getBodyBankForTest().getSharedBank();
+        std::vector<float> buf(256, 0.0f);
+        constexpr int kBlock = 256;
+        const int blocks = 35;  // ~200 ms
+        float peakF0 = 0.0f;
+        for (int b = 0; b < blocks; ++b) {
+            v.processBlock(buf.data(), kBlock);
+            peakF0 = std::max(peakF0, bank.getModeFrequency(0));
+        }
+        return peakF0;
+    };
+    const float lowVelF0  = peakTomF0(0.3f);
+    const float highVelF0 = peakTomF0(1.0f);
+    INFO("v=0.3 peakF0=" << lowVelF0 << " Hz, v=1.0 peakF0=" << highVelF0);
+    REQUIRE(lowVelF0 > 40.0f);
+    REQUIRE(highVelF0 > 40.0f);
+    // Tension modulation: pitch peaks higher at higher velocity due to
+    // stronger tension variation. Plan target: ~1-2 semitones at vel=1.
+    CHECK(highVelF0 > lowVelF0 * 1.02f);
+}
+
 TEST_CASE("Phase 8C: VoicePool stores airLoading through setPadConfigField",
           "[phase8c][voice_pool][wiring]")
 {

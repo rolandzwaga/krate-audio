@@ -78,6 +78,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // when the user flips the toggle on.
             cfg.secondarySize     = 0.55f;   // ~0.6 x head f0
             cfg.secondaryMaterial = 0.3f;    // wood-ish shell
+            // Phase 8E: kicks respond strongly to velocity-driven tension.
+            cfg.tensionModAmt     = 0.8f;
             break;
 
         case DrumTemplate::Snare:
@@ -106,6 +108,8 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // Phase 8D coupling: off by default, seed values for snare shell.
             cfg.secondarySize     = 0.6f;
             cfg.secondaryMaterial = 0.5f;
+            // Phase 8E: modest tension mod on snare (wires limit pitch glide).
+            cfg.tensionModAmt     = 0.3f;
             break;
 
         case DrumTemplate::Tom:
@@ -131,6 +135,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // Phase 8D coupling: off by default, seed values for tom shell.
             cfg.secondarySize     = 0.5f;
             cfg.secondaryMaterial = 0.4f;
+            // Phase 8E: toms are the canonical "kerthump" case -- strong
+            // velocity-dependent pitch glide (JASA 2021 Kirby & Sandler).
+            cfg.tensionModAmt     = 1.0f;
             break;
 
         case DrumTemplate::Hat:
