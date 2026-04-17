@@ -52,6 +52,9 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     // + 2 new per-pad offsets (52..53) across 32 pads.
     constexpr int kPhase8CGlobals       = 2;
     constexpr int kPhase8CPerPadParams  = 32 * 2;
+    // Phase 8D adds 4 global proxies (coupling + 3 secondary) + 32*4 per-pad.
+    constexpr int kPhase8DGlobals       = 4;
+    constexpr int kPhase8DPerPadParams  = 32 * 4;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
@@ -59,7 +62,8 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
           + kPhase6US7Globals
           + kPhase7Globals + kPhase7PerPadParams
           + kPhase8AGlobals + kPhase8APerPadParams
-          + kPhase8CGlobals + kPhase8CPerPadParams);
+          + kPhase8CGlobals + kPhase8CPerPadParams
+          + kPhase8DGlobals + kPhase8DPerPadParams);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

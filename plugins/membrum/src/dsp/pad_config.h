@@ -123,8 +123,19 @@ enum PadParamOffset : int
     kPadAirLoading           = 52,
     kPadModeScatter          = 53,
     kPadActiveParamCountV8C  = 54,  // offsets 0-53 are active after Phase 8C
-    // Offsets 54-63 are RESERVED for later Phase 8 sub-phases (coupling,
-    // tension modulation).
+
+    // Phase 8D: primary <-> secondary body coupling. A second, smaller
+    // ModalResonatorBank runs in parallel and exchanges energy with the
+    // head via a scalar coupling coefficient. Matches Chromaphone 3's
+    // bidirectional-coupling idiom; closes the "no body weight" gap that
+    // kicks / shells have without it.
+    kPadCouplingStrength     = 54,
+    kPadSecondaryEnabled     = 55,
+    kPadSecondarySize        = 56,
+    kPadSecondaryMaterial    = 57,
+    kPadActiveParamCountV8D  = 58,  // offsets 0-57 are active after Phase 8D
+    // Offsets 58-63 are RESERVED for later Phase 8 sub-phases (tension
+    // modulation).
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -225,6 +236,20 @@ struct PadConfig
     // keeps Phase 1 bit-identity until the user dials it in.
     float airLoading           = 0.6f;
     float modeScatter          = 0.0f;
+
+    // Phase 8D: head <-> shell coupling. Secondary bank is disabled by
+    // default so sentinel-rendered audio stays unchanged until a preset
+    // or user turns it on.
+    //   couplingStrength: 0 -> 0.25 stable range; clamped below an
+    //                     eigenvalue-safety ceiling in DrumVoice.
+    //   secondaryEnabled: 0 = off, >=0.5 = on (float-as-bool).
+    //   secondarySize:    shell size offset from head (0 = head f0,
+    //                     0.5 = 0.6 x head f0, 1.0 = 0.25 x head f0).
+    //   secondaryMaterial: shell material (same semantic as primary).
+    float couplingStrength     = 0.0f;
+    float secondaryEnabled     = 0.0f;
+    float secondarySize        = 0.5f;
+    float secondaryMaterial    = 0.4f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -255,7 +280,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV8C)
+    if (offset >= kPadActiveParamCountV8D)
         return -1;  // reserved range
     return offset;
 }

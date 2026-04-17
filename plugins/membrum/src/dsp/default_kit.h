@@ -73,6 +73,11 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // breaks the tuned-bar symmetry of the pure Bessel lattice.
             cfg.airLoading  = 0.7f;
             cfg.modeScatter = 0.15f;
+            // Phase 8D: coupling is opt-in (secondaryEnabled = 0 by
+            // default). Sensible per-template seed values populated for
+            // when the user flips the toggle on.
+            cfg.secondarySize     = 0.55f;   // ~0.6 x head f0
+            cfg.secondaryMaterial = 0.3f;    // wood-ish shell
             break;
 
         case DrumTemplate::Snare:
@@ -98,6 +103,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // Phase 8C: moderate air-loading + a bit more scatter than kick.
             cfg.airLoading  = 0.5f;
             cfg.modeScatter = 0.20f;
+            // Phase 8D coupling: off by default, seed values for snare shell.
+            cfg.secondarySize     = 0.6f;
+            cfg.secondaryMaterial = 0.5f;
             break;
 
         case DrumTemplate::Tom:
@@ -120,6 +128,9 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             // Phase 8C: tom-leaning air-loading + light scatter.
             cfg.airLoading  = 0.6f;
             cfg.modeScatter = 0.15f;
+            // Phase 8D coupling: off by default, seed values for tom shell.
+            cfg.secondarySize     = 0.5f;
+            cfg.secondaryMaterial = 0.4f;
             break;
 
         case DrumTemplate::Hat:

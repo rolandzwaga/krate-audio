@@ -137,8 +137,8 @@ TEST_CASE("state_codec: readKitBlob accepts v6/v7 and rejects others",
           "[state_codec][version]")
 {
     // v6 and v7 are accepted (v6 auto-fills Phase 7 slots from defaults).
-    // Every other version is rejected. v6/v7/v8/v9 are accepted.
-    for (int32 badVersion : { 1, 2, 3, 4, 5, 10, 99 })
+    // Every other version is rejected. v6..v10 are accepted.
+    for (int32 badVersion : { 1, 2, 3, 4, 5, 11, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);
@@ -221,10 +221,10 @@ TEST_CASE("state_codec: per-pad preset round-trip",
     MemoryStream stream;
     REQUIRE(writePadPresetBlob(&stream, src) == kResultOk);
 
-    // Confirm the exact size: 4 (version) + 4 (exciter) + 4 (body) + 46*8 = 380.
+    // Confirm the exact size: 4 (version) + 4 (exciter) + 4 (body) + 50*8 = 412.
     int64 bytes = 0;
     stream.seek(0, IBStream::kIBSeekEnd, &bytes);
-    CHECK(bytes == 380);
+    CHECK(bytes == 412);
 
     stream.seek(0, IBStream::kIBSeekSet, nullptr);
     PadPresetSnapshot dst;
@@ -238,11 +238,11 @@ TEST_CASE("state_codec: per-pad preset round-trip",
     }
 }
 
-TEST_CASE("state_codec: readPadPresetBlob accepts v1..v4 and rejects others",
+TEST_CASE("state_codec: readPadPresetBlob accepts v1..v5 and rejects others",
           "[state_codec][pad_preset][version]")
 {
-    // v1..v4 are accepted; others rejected.
-    for (int32 badVersion : { 0, 5, 6, 99 })
+    // v1..v5 are accepted; others rejected.
+    for (int32 badVersion : { 0, 6, 7, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

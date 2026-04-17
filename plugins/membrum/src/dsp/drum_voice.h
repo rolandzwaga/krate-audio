@@ -20,6 +20,7 @@
 
 #include "body_bank.h"
 #include "bodies/membrane_mapper.h"
+#include "bodies/shell_modes.h"
 #include "body_model_type.h"
 #include "click_layer.h"
 #include "exciter_bank.h"
@@ -86,6 +87,10 @@ public:
 
         exciterBank_.prepare(sampleRate, voiceId);
         bodyBank_.prepare(sampleRate, voiceId);
+        // Phase 8D: secondary bank lives parallel to the primary body bank.
+        // Prepared once here; configured per-note in noteOn() from the
+        // secondarySize / secondaryMaterial parameters.
+        secondaryBank_.prepare(sampleRate);
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
         noiseLayer_.prepare(sampleRate, voiceId);
@@ -189,6 +194,17 @@ public:
         // body's modal bank.
         clickLayer_.configure(clickLayerParams_);
         clickLayer_.trigger(velocity);
+
+        // Phase 8D: configure the secondary bank for this note. Only spin it
+        // up when secondaryEnabled_ >= 0.5 AND couplingStrength_ > 0 so the
+        // default (disabled) path does zero extra work.
+        secondaryLastOutput_ = 0.0f;
+        effectiveCoupling_   = 0.0f;
+        if (secondaryEnabled_ >= 0.5f && couplingStrength_ > 0.0f)
+        {
+            configureSecondaryBank();
+            effectiveCoupling_ = stabilityClampedCoupling();
+        }
 
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
@@ -454,6 +470,37 @@ private:
             bodyBank_.processBlock(bodyScratch, excScratch, chunk);
             lastBody = bodyScratch[chunk - 1];
 
+            // --- Phase 8D: secondary (shell) bank with scalar coupling. --
+            // Only when the secondary bank was configured at noteOn (a
+            // shortcut that keeps the default path zero-overhead). The
+            // coupling feedback is injected one sample late -- it reads
+            // the previous-block's primary output -- which is fine for a
+            // ~5-50 ms body decay at 64+ sample blocks (block-rate
+            // coupling update, per plan.md D.1).
+            if (effectiveCoupling_ > 0.0f)
+            {
+                float* secExc = secondaryExcScratch_.data();
+                float* secOut = secondaryOutScratch_.data();
+                // Secondary excitation = primary body samples * coupling.
+                for (int i = 0; i < chunk; ++i)
+                    secExc[i] = bodyScratch[i] * effectiveCoupling_;
+                secondaryBank_.processBlock(secExc, secOut, chunk);
+                // Feedback the secondary output back into the primary bus
+                // at half strength so the primary body picks up the shell
+                // resonance, and ALSO sum the secondary output directly
+                // into the body scratch so it's audible in the mix.
+                const float half = effectiveCoupling_ * 0.5f;
+                for (int i = 0; i < chunk; ++i)
+                {
+                    bodyScratch[i] += secOut[i];     // mix into output
+                    // Next-sample primary excitation pickup (intra-block).
+                    // Using simple additive injection -- Chromaphone idiom.
+                    excScratch[i] += secOut[i] * half;
+                }
+                secondaryLastOutput_ = secOut[chunk - 1];
+                lastBody = bodyScratch[chunk - 1];
+            }
+
             // --- Parallel noise layer (Phase 7). -------------------------
             // Writes to noiseScratch independently of the body, then applies
             // the Phase 7 standalone calibration gain so the layer is
@@ -692,6 +739,14 @@ public:
             updateModalParameters();
     }
 
+    // ------------------------------------------------------------------
+    // Phase 8D setters (head <-> shell coupling)
+    // ------------------------------------------------------------------
+    void setCouplingStrength(float v)  noexcept { couplingStrength_  = v; }
+    void setSecondaryEnabled(float v)  noexcept { secondaryEnabled_  = v; }
+    void setSecondarySize(float v)     noexcept { secondarySize_     = v; }
+    void setSecondaryMaterial(float v) noexcept { secondaryMaterial_ = v; }
+
     /// Phase 7 bug-fix: plumb PadConfig::noiseBurstDuration (normalized) into
     /// the NoiseBurstExciter so the host-side parameter finally takes effect.
     void setNoiseBurstContactMs(float v) noexcept
@@ -726,6 +781,55 @@ private:
     /// Only Membrane supports mid-note parameter updates in Phase 2; other bodies
     /// recompute via setModes on noteOn only — live-update path is deferred to a
     /// future phase.
+    // Phase 8D: configure the secondary bank's modes from the per-pad
+    // secondarySize + secondaryMaterial. Uses a small shell-style mode
+    // set (24 partials, free-free beam ratios, shell damping) at a
+    // fraction of the primary body's natural fundamental.
+    void configureSecondaryBank() noexcept
+    {
+        constexpr int kSecondaryModes = 24;
+        // Secondary fundamental: slide between the head f0 (secondarySize=0)
+        // and a quarter of it (secondarySize=1). Default 0.5 maps to ~0.6x
+        // head f0 -- Chromaphone's "shell f0 ~0.6 f_head" rule of thumb.
+        const float sizeRatio =
+            1.0f - std::clamp(secondarySize_, 0.0f, 1.0f) * 0.75f;
+        const float f0 = std::max(naturalFundamentalHz_, 20.0f) * sizeRatio;
+
+        // Shell ratios (free-free Euler-Bernoulli beam) -- reuse the first
+        // 24 values from shell_modes.h.
+        float freqs[kSecondaryModes];
+        float amps[kSecondaryModes];
+        const int shellCount =
+            std::min(kSecondaryModes, Bodies::kShellModeCount);
+        for (int k = 0; k < shellCount; ++k)
+        {
+            freqs[k] = f0 * Bodies::kShellRatios[k];
+            amps[k]  = std::abs(Bodies::computeShellAmplitude(k, 0.3f));
+            if (amps[k] < 0.03f) amps[k] = 0.03f;
+        }
+        for (int k = shellCount; k < kSecondaryModes; ++k) {
+            freqs[k] = 0.0f;
+            amps[k]  = 0.0f;
+        }
+
+        // Shell-like damping: modest b1, low b3 (metal-shell body).
+        const float mat = std::clamp(secondaryMaterial_, 0.0f, 1.0f);
+        const float b1 = 1.5f + (1.0f - mat) * 4.0f;  // 1.5..5.5 s^-1
+        const float b3 = mat * 1.0e-5f;
+        const Krate::DSP::ModalResonatorBank::DampingLaw law{b1, b3};
+        secondaryBank_.setModes(freqs, amps, shellCount,
+                                law, /*stretch*/ 0.0f, /*scatter*/ 0.0f);
+    }
+
+    // Plan D.5 stability: keep (coupling^2 * primaryDecay * secondaryDecay)
+    // below 1 so the feedback loop eigenvalue stays inside the unit circle.
+    // Primary/secondary decays are bounded by ~0.99995 per-sample, so a
+    // hard 0.25 ceiling is comfortably below the instability threshold.
+    float stabilityClampedCoupling() const noexcept
+    {
+        return std::clamp(couplingStrength_, 0.0f, 1.0f) * 0.25f;
+    }
+
     void updateModalParameters() noexcept
     {
         if (bodyBank_.getCurrentType() != BodyModelType::Membrane)
@@ -855,6 +959,13 @@ private:
     std::array<float, kMaxBlockSize> bodyScratch_{};
     std::array<float, kMaxBlockSize> noiseScratch_{};
     std::array<float, kMaxBlockSize> clickScratch_{};
+    // Phase 8D: secondary bank (head <-> shell coupling). Separate scratch
+    // holds the secondary excitation and output for the fast-path's
+    // block-rate coupling loop.
+    std::array<float, kMaxBlockSize> secondaryExcScratch_{};
+    std::array<float, kMaxBlockSize> secondaryOutScratch_{};
+    Krate::DSP::ModalResonatorBank   secondaryBank_{};
+    float secondaryLastOutput_ = 0.0f;
 
     // Phase 7 per-voice layer params (applied at noteOn).
     NoiseLayerParams noiseLayerParams_{};
@@ -887,6 +998,14 @@ private:
     // Phase 8C: air-loading + per-mode scatter.
     float airLoading_  = 0.0f;
     float modeScatter_ = 0.0f;
+
+    // Phase 8D: head <-> shell coupling.
+    float couplingStrength_   = 0.0f;
+    float secondaryEnabled_   = 0.0f;  // 0 = off, >= 0.5 = on
+    float secondarySize_      = 0.5f;
+    float secondaryMaterial_  = 0.4f;
+    // Cached at noteOn: effective coupling after stability clamp.
+    float effectiveCoupling_  = 0.0f;
 
     // Voice identity
     std::uint32_t voiceId_    = 0;

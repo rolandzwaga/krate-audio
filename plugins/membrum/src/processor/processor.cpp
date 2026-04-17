@@ -552,6 +552,20 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadModeScatter, fValue);
             break;
 
+        // ---- Phase 8D: head <-> shell coupling proxies ----
+        case kCouplingStrengthId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadCouplingStrength, fValue);
+            break;
+        case kSecondaryEnabledId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondaryEnabled, fValue);
+            break;
+        case kSecondarySizeId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondarySize, fValue);
+            break;
+        case kSecondaryMaterialId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadSecondaryMaterial, fValue);
+            break;
+
         default:
             break;
         }

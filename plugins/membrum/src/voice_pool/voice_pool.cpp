@@ -589,6 +589,11 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     // Phase 8C: air-loading + per-mode scatter.
     case kPadAirLoading:           cfg.airLoading  = normalizedValue; break;
     case kPadModeScatter:          cfg.modeScatter = normalizedValue; break;
+    // Phase 8D: head <-> shell coupling.
+    case kPadCouplingStrength:     cfg.couplingStrength  = normalizedValue; break;
+    case kPadSecondaryEnabled:     cfg.secondaryEnabled  = normalizedValue; break;
+    case kPadSecondarySize:        cfg.secondarySize     = normalizedValue; break;
+    case kPadSecondaryMaterial:    cfg.secondaryMaterial = normalizedValue; break;
     default: break;
     }
 }
@@ -673,6 +678,11 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // Phase 8C: air-loading + per-mode scatter.
     v.setAirLoading(cfg.airLoading);
     v.setModeScatter(cfg.modeScatter);
+    // Phase 8D: head <-> shell coupling.
+    v.setCouplingStrength(cfg.couplingStrength);
+    v.setSecondaryEnabled(cfg.secondaryEnabled);
+    v.setSecondarySize(cfg.secondarySize);
+    v.setSecondaryMaterial(cfg.secondaryMaterial);
 }
 
 // ------------------------------------------------------------------

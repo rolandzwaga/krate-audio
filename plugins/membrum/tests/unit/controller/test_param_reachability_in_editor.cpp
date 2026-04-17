@@ -207,6 +207,11 @@ std::vector<GlobalProxyPair> globalProxyMap()
         // Phase 8C: air-loading + per-mode scatter global proxies.
         { kAirLoadingId,    kPadAirLoading },
         { kModeScatterId,   kPadModeScatter },
+        // Phase 8D: head <-> shell coupling global proxies.
+        { kCouplingStrengthId,   kPadCouplingStrength },
+        { kSecondaryEnabledId,   kPadSecondaryEnabled },
+        { kSecondarySizeId,      kPadSecondarySize },
+        { kSecondaryMaterialId,  kPadSecondaryMaterial },
     };
 }
 
@@ -237,6 +242,9 @@ std::set<int> proxiedOffsets()
         kPadBodyDampingB1, kPadBodyDampingB3,
         // Phase 8C: air-loading + per-mode scatter offsets.
         kPadAirLoading, kPadModeScatter,
+        // Phase 8D: head <-> shell coupling offsets.
+        kPadCouplingStrength, kPadSecondaryEnabled,
+        kPadSecondarySize, kPadSecondaryMaterial,
     };
 }
 

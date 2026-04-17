@@ -85,8 +85,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 7: +8 (noise/click global proxies) + 256 (32 pads x 8 offsets) = 1652.
     // Phase 8A: +2 (b1/b3 global proxies) + 64 (32 pads x 2 offsets) = 1718.
     // Phase 8C: +2 (airLoading/scatter global proxies) + 64 (32 pads x 2) = 1784.
+    // Phase 8D: +4 (coupling + 3 secondary proxies) + 128 (32 pads x 4) = 1916.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1784);
+    CHECK(paramCount == 1916);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

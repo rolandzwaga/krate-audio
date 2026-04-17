@@ -230,16 +230,22 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(acId) == off);
     }
 
-    // Offset 54 is the first reserved offset within pad 0's stride (Phase 8C).
-    int reservedId = kPadBaseId + 54;
+    // Offsets 54-57 are valid Phase 8D fields (coupling + secondary body).
+    for (int off = 54; off <= 57; ++off) {
+        const int couplingId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(couplingId) == off);
+    }
+
+    // Offset 58 is the first reserved offset within pad 0's stride (Phase 8D).
+    int reservedId = kPadBaseId + 58;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 54+
-    int pad5Reserved = padParamId(5, 0) + 54;
+    // Same for pad 5 offset 58+
+    int pad5Reserved = padParamId(5, 0) + 58;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

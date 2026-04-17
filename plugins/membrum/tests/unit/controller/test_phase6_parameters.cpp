@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion bumped to 9 (Phase 8C air-loading + scatter)")
+    SECTION("kCurrentStateVersion bumped to 10 (Phase 8D head<->shell coupling)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 9);
+        STATIC_REQUIRE(kCurrentStateVersion == 10);
     }
 }
 
@@ -146,9 +146,17 @@ TEST_CASE("padOffsetFromParamId accepts macro offsets 37-41", "[phase6_params]")
         }
     }
 
-    SECTION("Offset 54 is the first reserved offset (Phase 8C)")
+    SECTION("Offsets 54-57 are active Phase 8D coupling + secondary fields")
     {
-        REQUIRE(padOffsetFromParamId(padParamId(0, 54)) == -1);
+        for (int off = 54; off <= 57; ++off)
+        {
+            REQUIRE(padOffsetFromParamId(padParamId(0, off)) == off);
+        }
+    }
+
+    SECTION("Offset 58 is the first reserved offset (Phase 8D)")
+    {
+        REQUIRE(padOffsetFromParamId(padParamId(0, 58)) == -1);
     }
 }
 

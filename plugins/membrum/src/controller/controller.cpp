@@ -119,6 +119,11 @@ constexpr ProxyMapping kProxyMappings[] = {
     // Phase 8C: air-loading + per-mode scatter (offsets 52, 53).
     {.globalId = kAirLoadingId,                 .padOffset = kPadAirLoading },
     {.globalId = kModeScatterId,                .padOffset = kPadModeScatter },
+    // Phase 8D: head <-> shell coupling (offsets 54-57).
+    {.globalId = kCouplingStrengthId,           .padOffset = kPadCouplingStrength },
+    {.globalId = kSecondaryEnabledId,           .padOffset = kPadSecondaryEnabled },
+    {.globalId = kSecondarySizeId,              .padOffset = kPadSecondarySize },
+    {.globalId = kSecondaryMaterialId,          .padOffset = kPadSecondaryMaterial },
 };
 
 // Per-pad parameter name table
@@ -196,13 +201,18 @@ const PadParamSpec kPadParamSpecs[] = {
     // Phase 8C (air-loading + per-mode scatter).
     {.offset = kPadAirLoading,           .name = "Air Loading",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
     {.offset = kPadModeScatter,          .name = "Mode Scatter",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    // Phase 8D (head <-> shell coupling).
+    {.offset = kPadCouplingStrength,     .name = "Coupling Strength",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    {.offset = kPadSecondaryEnabled,     .name = "Secondary Enabled",   .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadSecondarySize,        .name = "Secondary Size",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadSecondaryMaterial,    .name = "Secondary Material",  .isDiscrete = false, .stepCount = 0, .defaultValue = 0.4 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV8C,
-              "Pad param specs must match active param count (54 after Phase 8C)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV8D,
+              "Pad param specs must match active param count (58 after Phase 8D)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -588,7 +598,21 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Mode Scatter"), kModeScatterId, nullptr,
                            0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A/8C: 1728 per-pad parameters (32 pads x 54 offsets) ----
+    // ---- Phase 8D global proxies: head <-> shell coupling ----
+    parameters.addParameter(
+        new RangeParameter(STR16("Coupling Strength"), kCouplingStrengthId, nullptr,
+                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Secondary Enabled"), kSecondaryEnabledId, nullptr,
+                           0.0, 1.0, 0.0, 1, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Secondary Size"), kSecondarySizeId, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+    parameters.addParameter(
+        new RangeParameter(STR16("Secondary Material"), kSecondaryMaterialId, nullptr,
+                           0.0, 1.0, 0.4, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A/8C/8D: 1856 per-pad parameters (32 pads x 58 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)

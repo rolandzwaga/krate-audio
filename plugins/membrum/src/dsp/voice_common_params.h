@@ -48,6 +48,10 @@ struct VoiceCommonParams
     //                sinusoidal dither via MapperResult::scatter.
     float airLoading           = 0.0f;
     float modeScatter          = 0.0f;
+
+    // Phase 8D: secondary-body mapping parameters.
+    float secondarySize        = 0.5f;
+    float secondaryMaterial    = 0.4f;
 };
 
 } // namespace Membrum
