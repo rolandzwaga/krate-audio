@@ -71,7 +71,9 @@ dampingLawFromParams(const VoiceCommonParams& params,
 
 struct MembraneMapper
 {
-    static constexpr int kMembraneModeCount = 16;
+    // Phase 8B: mode count 16 -> 48. Aligned to AVX2 8-lane kernel
+    // (48 / 8 = 6 clean iters). Matches Chromaphone 3's "High" preset.
+    static constexpr int kMembraneModeCount = 48;
 
     [[nodiscard]] static MapperResult map(const VoiceCommonParams& params,
                                           float /*pitchHz*/) noexcept

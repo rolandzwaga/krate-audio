@@ -21,6 +21,11 @@
 //   f_{m,n} = C * (m + b*n)^p
 // using Hibberts' "big bell" parameters. Phase 2 uses 16 modes (FR-024).
 //
+// Phase 8B: bell mode count stays at 16. Extending requires empirical
+// tuning against real bell recordings (Hibberts' data covers only the
+// first ~16 partials accurately), which is beyond the scope of this
+// phase. Documented limit.
+//
 // Note the ratio table is expressed with "nominal" (index 4) = 1.000. The
 // Size->fundamental formula in bell_mapper.h assigns f0 to the nominal
 // partial, so the hum note sits at 0.25*f0 (two octaves below nominal) and

@@ -18,22 +18,28 @@
 // Modes 7..12 follow the asymptotic approximation:
 //   beta_k * L ~= (2k + 1) * pi / 2
 //
-// Phase 2 uses 12 modes (FR-022). Fewer modes than the other bodies because
-// the free-free beam ratios grow rapidly, so higher modes are already above
-// Nyquist for sensible fundamentals.
+// Phase 8B: 12 -> 32 modes (AVX2 8-lane aligned, 4 clean kernel iters).
+// Modes beyond Nyquist at typical fundamentals are culled by the modal
+// bank, so the extended table is harmless for small-shell presets and
+// useful for large-shell / low-fundamental presets.
 // ==============================================================================
 
 #include <cmath>
 
 namespace Membrum::Bodies {
 
-inline constexpr int kShellModeCount = 12;
+inline constexpr int kShellModeCount = 32;
 
 // First 6 values are the exact roots of cos(bL)*cosh(bL)=1 (spec-135
-// verified); the remaining 6 follow the asymptotic (2k+1)*pi/2 formula.
+// verified); the remaining 26 follow the asymptotic (2k+1)*pi/2 formula
+// for the free-free Euler-Bernoulli beam: ratio_k ~ ((2k+1)pi/2 / 4.73)^2.
 inline constexpr float kShellRatios[kShellModeCount] = {
-    1.000f,  2.757f,  5.404f,  8.933f, 13.344f, 18.637f,
-    24.812f, 31.870f, 39.810f, 48.632f, 58.336f, 68.922f
+    1.000f,   2.757f,   5.404f,   8.933f,  13.344f,  18.637f,
+    24.812f,  31.870f,  39.810f,  48.632f,  58.336f,  68.922f,
+    80.430f,  92.720f, 105.970f, 120.130f, 135.120f, 150.990f,
+    167.750f, 185.420f, 203.950f, 223.390f, 243.680f, 264.880f,
+    286.950f, 309.880f, 333.720f, 358.420f, 384.020f, 410.500f,
+    437.900f, 466.130f
 };
 
 /// Strike-position amplitude for mode k along a free-free beam.

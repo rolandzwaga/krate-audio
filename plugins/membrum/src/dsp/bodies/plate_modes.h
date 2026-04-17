@@ -25,8 +25,9 @@
 
 namespace Membrum::Bodies {
 
-inline constexpr int kPlateModeCount    = 16;
-inline constexpr int kPlateMaxModeCount = 40;
+// Phase 8B: plate mode count 16 -> 48 (6 clean AVX2 kernel iters).
+inline constexpr int kPlateModeCount    = 48;
+inline constexpr int kPlateMaxModeCount = 48;
 
 struct PlateModeIndices
 {
@@ -83,6 +84,15 @@ inline constexpr PlateModeIndices kPlateIndices[kPlateMaxModeCount] = {
     {1, 10}, // 101 -> 50.500
     {4, 9},  // 97 -> 48.500
     {2, 10}, // 104 -> 52.000
+    // --- Phase 8B extension: modes 40..47 ---
+    {5, 9},  // 106 -> 53.000
+    {3, 10}, // 109 -> 54.500
+    {7, 8},  // 113 -> 56.500
+    {4, 10}, // 116 -> 58.000
+    {6, 9},  // 117 -> 58.500
+    {1, 11}, // 122 -> 61.000
+    {8, 8},  // 128 -> 64.000
+    {7, 9},  // 130 -> 65.000
 };
 
 // Mode ratios relative to (1,1) fundamental. First 16 reproduce the
@@ -95,7 +105,9 @@ inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
     // 17..40 extended table for Noise Body (FR-062):
     25.000f, 22.500f, 25.000f, 26.000f, 26.500f, 30.500f, 29.000f, 32.500f,
     36.000f, 32.500f, 34.000f, 37.000f, 36.500f, 42.500f, 41.000f, 40.000f,
-    42.500f, 44.500f, 49.000f, 45.000f, 50.000f, 50.500f, 48.500f, 52.000f
+    42.500f, 44.500f, 49.000f, 45.000f, 50.000f, 50.500f, 48.500f, 52.000f,
+    // Phase 8B extension: modes 40..47.
+    53.000f, 54.500f, 56.500f, 58.000f, 58.500f, 61.000f, 64.000f, 65.000f
 };
 
 /// Strike-position amplitude for rectangular-plate mode (m,n):
