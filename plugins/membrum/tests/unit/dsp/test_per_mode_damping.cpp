@@ -367,7 +367,8 @@ TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) pitch
     const double hzNo   = zcPerSec(noAir,   2205, 8820);
     const double hzFull = zcPerSec(fullAir, 2205, 8820);
     INFO("minimal noAir=" << hzNo << " Hz, fullAir=" << hzFull << " Hz");
-    CHECK(hzFull < hzNo * 0.9);
+    // Rossing 5% physical curve -> tail pitch drops ~3-5%.
+    CHECK(hzFull < hzNo * 0.98);
 }
 
 TEST_CASE("Phase 8C: Kick-preset attack window shows airLoading shift",
@@ -427,7 +428,8 @@ TEST_CASE("Phase 8C: Kick-preset attack window shows airLoading shift",
     const float f0No   = mode0AfterPitchEnv(0.0f);
     const float f0Full = mode0AfterPitchEnv(1.0f);
     INFO("after 200ms: noAir mode0=" << f0No << " Hz, fullAir mode0=" << f0Full);
-    CHECK(f0Full < f0No * 0.9f);
+    // Physical Rossing curve: 5% depression on mode 0.
+    CHECK(f0Full < f0No * 0.98f);
 }
 
 TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered audio",
@@ -490,10 +492,12 @@ TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered aud
     INFO("noAir ZC/s=" << hzNoAir << " rms=" << std::sqrt(accNo / noAir.size()));
     INFO("fullAir ZC/s=" << hzFullAir << " rms=" << std::sqrt(accFull / fullAir.size()));
 
-    // airLoading=1 should noticeably reduce the perceived tail pitch.
+    // airLoading affects mode ratios (character), not the absolute pitch-env
+    // endpoints. On the Kick preset the pitch env overrides the body
+    // fundamental so the zero-crossing shift is small (~physical 5 %).
     REQUIRE(hzNoAir > 10.0);
     REQUIRE(hzFullAir > 5.0);
-    CHECK(hzFullAir < hzNoAir * 0.9);  // > ~1 semitone drop
+    CHECK(hzFullAir <= hzNoAir);
 }
 
 TEST_CASE("Phase 8C: VoicePool stores airLoading through setPadConfigField",
@@ -549,10 +553,10 @@ TEST_CASE("Phase 8C: airLoading sweep depresses Membrane fundamental",
     const float f0_full  = fundamental(1.0f);
     INFO("f0 airLoading=0 -> " << f0_none << " Hz, airLoading=1 -> " << f0_full);
     REQUIRE(f0_none > 100.0f);
-    // ~20 % depression (x4 gain over published Rossing data for audibility);
-    // see kAirLoadingCurve comment in membrane_modes.h.
-    CHECK(f0_full < f0_none * 0.85f);
-    CHECK(f0_full > f0_none * 0.75f);
+    // Published Rossing curve -> max 5% depression at mode 0 (character,
+    // not transposition).
+    CHECK(f0_full < f0_none * 0.97f);
+    CHECK(f0_full > f0_none * 0.93f);
 }
 
 TEST_CASE("Phase 8A.5: b3 sweep produces audible energy change",

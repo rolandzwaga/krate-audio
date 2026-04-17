@@ -48,24 +48,27 @@ constexpr std::array<int, 48> kMembraneBesselOrder = {
 
 // Air-loading correction (Phase 8C): real drumheads sit atop a mass of
 // enclosed air which depresses the lowest-mode frequencies below the pure
-// Bessel ratios. Rossing's timpani measurements give ~5% depression for
-// mode 0, ~3.5% for mode 1, tapering below 1% by mode 10.
+// Bessel ratios. Rossing's timpani measurements give ~5 % depression for
+// mode 0, ~3.5 % for mode 1, tapering below 1 % by mode 10.
 //
-// The PHYSICALLY-accurate max depression is ~5 % -- which at a 158 Hz kick
-// fundamental is only ~90 cents, below the perceptual threshold for a
-// 200 ms transient. We scale the published curve by 4x so the knob
-// traverses a musically useful ~350-cent range (sub-physical at low
-// settings, exaggerated at high settings). Users needing true physical
-// values can leave the knob at ~0.25.
+// This is a CHARACTER control, not a pitch control. Its audible effect
+// is the *mode-ratio drift* (low modes shift, high modes don't) that
+// gives real timpani / kick drums their kettledrum-y feel. The absolute
+// pitch of the fundamental moves only ~5 % -- a character nudge, not a
+// transposition. On presets with aggressive pitch envelopes (e.g. a
+// kick swept 160 -> 50 Hz), air-loading's absolute-Hz effect is
+// audibility-limited by the pitch env's own range. Try it on Toms /
+// Snares / held Membrane pads without a pitch env for the clearest
+// perceived response.
 //
 // f_k_effective = f_k_bessel * (1 - airLoading * kAirLoadingCurve[k])
 //
 // Source: Rossing 1982, "The physics of kettledrums" (Scientific American)
-// and subsequent published timpani spectra, x4 gain applied.
+// and subsequent published timpani spectra.
 constexpr std::array<float, 48> kAirLoadingCurve = {
-    0.200f, 0.140f, 0.100f, 0.080f, 0.060f, 0.048f, 0.040f, 0.032f,
-    0.024f, 0.020f, 0.016f, 0.012f, 0.008f, 0.008f, 0.004f, 0.004f,
-    0.004f, 0.004f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
+    0.050f, 0.035f, 0.025f, 0.020f, 0.015f, 0.012f, 0.010f, 0.008f,
+    0.006f, 0.005f, 0.004f, 0.003f, 0.002f, 0.002f, 0.001f, 0.001f,
+    0.001f, 0.001f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
     0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f
