@@ -403,7 +403,15 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
         set(NLOPT_TESTS OFF CACHE BOOL "" FORCE)
         set(NLOPT_FORTRAN OFF CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        # NLopt v2.7.1 uses cmake_minimum_required(VERSION 2.8.12), which CMake 4.x
+        # (shipped on current macOS CI runners) rejects. Scope the compatibility
+        # shim to this FetchContent call and restore afterwards so other deps
+        # are not affected.
+        set(_KA_PREV_POLICY_MIN "${CMAKE_POLICY_VERSION_MINIMUM}")
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
         FetchContent_MakeAvailable(nlopt)
+        set(CMAKE_POLICY_VERSION_MINIMUM "${_KA_PREV_POLICY_MIN}")
+        unset(_KA_PREV_POLICY_MIN)
     endif()
 endif()
 
