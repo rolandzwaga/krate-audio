@@ -2,7 +2,45 @@
 
 #include <CLI/CLI.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <sstream>
+#include <string>
+
+namespace {
+// Parse "36=membrane,38=shell,51=bell" into {36->Membrane, 38->Shell, 51->Bell}.
+// Accepts case-insensitive body names. Returns empty map on malformed input so
+// the CLI surfaces an error rather than silently applying a partial map.
+bool parseBodyOverrides(const std::string& raw,
+                        std::map<int, Membrum::BodyModelType>& out) {
+    out.clear();
+    if (raw.empty()) return true;
+    std::stringstream ss(raw);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        const auto eq = token.find('=');
+        if (eq == std::string::npos) return false;
+        const std::string midiStr = token.substr(0, eq);
+        std::string bodyStr = token.substr(eq + 1);
+        std::transform(bodyStr.begin(), bodyStr.end(), bodyStr.begin(),
+                       [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+        int midi = 0;
+        try { midi = std::stoi(midiStr); }
+        catch (...) { return false; }
+        Membrum::BodyModelType body;
+        if      (bodyStr == "membrane")  body = Membrum::BodyModelType::Membrane;
+        else if (bodyStr == "shell")     body = Membrum::BodyModelType::Shell;
+        else if (bodyStr == "plate")     body = Membrum::BodyModelType::Plate;
+        else if (bodyStr == "bell")      body = Membrum::BodyModelType::Bell;
+        else if (bodyStr == "string")    body = Membrum::BodyModelType::String;
+        else if (bodyStr == "noisebody" || bodyStr == "noise") body = Membrum::BodyModelType::NoiseBody;
+        else return false;
+        out[midi] = body;
+    }
+    return true;
+}
+}  // namespace
 
 namespace MembrumFit {
 
@@ -39,11 +77,25 @@ int parseCli(int argc, char** argv, CliArgs& outArgs) {
         ->default_val("Fitted");
     app.add_option("--subcategory", outArgs.subcategory, "Preset subcategory")
         ->default_val("Acoustic");
+    std::string bodyOverridesRaw;
+    app.add_option("--body-override", bodyOverridesRaw,
+                   "Skip the body classifier for one or more pads. "
+                   "Format: MIDI=body[,MIDI=body]... "
+                   "body: membrane|shell|plate|bell|string|noisebody");
 
     try {
         app.parse(argc, argv);
     } catch (const CLI::ParseError& e) {
         return app.exit(e);
+    }
+
+    if (!parseBodyOverrides(bodyOverridesRaw, outArgs.options.bodyOverrides)) {
+        std::fprintf(stderr,
+                     "Invalid --body-override value: %s\n"
+                     "Expected MIDI=body[,MIDI=body]... "
+                     "where body is membrane|shell|plate|bell|string|noisebody\n",
+                     bodyOverridesRaw.c_str());
+        return 1;
     }
 
     outArgs.mode = perPad->parsed() ? CliMode::PerPad : CliMode::Kit;

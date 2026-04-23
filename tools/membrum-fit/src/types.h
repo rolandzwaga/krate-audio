@@ -15,6 +15,8 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <map>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -105,6 +107,14 @@ struct FitOptions {
     float               wMFCC = 0.2f;
     float               wEnv  = 0.2f;
     bool                writeJson = false;
+    // Per-run classifier override. When set, fitSample() skips the body
+    // classifier and dispatches straight to the named body's inversion.
+    // Kit mode sets this transiently per pad from the parsed `--body-override`
+    // MIDI->body map.
+    std::optional<Membrum::BodyModelType> forcedBody;
+    // Parsed `--body-override` map (MIDI note -> body). Consumed by the kit
+    // loop in runMembrumFit(); unused in per-pad mode.
+    std::map<int, Membrum::BodyModelType> bodyOverrides;
 };
 
 }  // namespace MembrumFit

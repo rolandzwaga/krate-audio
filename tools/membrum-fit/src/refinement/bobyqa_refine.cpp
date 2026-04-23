@@ -11,9 +11,10 @@ namespace MembrumFit {
 
 namespace {
 // Layout: PadConfig fields treated as a flat float array. Indices 0/1 are
-// discrete enums and not optimised here; indices 2..41 map to material(2),
-// size(3), decay(4), strikePosition(5), level(6), tsFilterType(7), ...,
-// macroComplexity(41). Matches pad_config.h offsets.
+// discrete enums and not optimised here; indices 2..58 map the continuous
+// float fields of PadConfig in offset order -- material(2), size(3),
+// decay(4), ..., macroComplexity(41), noiseLayerMix(42), ..., tensionModAmt(58).
+// Matches pad_config.h PadParamOffset enum.
 float* fieldPtr(Membrum::PadConfig& c, ParamIndex idx) {
     switch (idx) {
         case  2: return &c.material;
@@ -54,6 +55,25 @@ float* fieldPtr(Membrum::PadConfig& c, ParamIndex idx) {
         case 39: return &c.macroBodySize;
         case 40: return &c.macroPunch;
         case 41: return &c.macroComplexity;
+        // Phase 7 (noise + click layer) -- offsets 42..49.
+        case 42: return &c.noiseLayerMix;
+        case 43: return &c.noiseLayerCutoff;
+        case 44: return &c.noiseLayerResonance;
+        case 45: return &c.noiseLayerDecay;
+        case 46: return &c.noiseLayerColor;
+        case 47: return &c.clickLayerMix;
+        case 48: return &c.clickLayerContactMs;
+        case 49: return &c.clickLayerBrightness;
+        // Phase 8 (per-mode damping, air-loading, coupling, tension) -- 50..58.
+        case 50: return &c.bodyDampingB1;
+        case 51: return &c.bodyDampingB3;
+        case 52: return &c.airLoading;
+        case 53: return &c.modeScatter;
+        case 54: return &c.couplingStrength;
+        case 55: return &c.secondaryEnabled;
+        case 56: return &c.secondarySize;
+        case 57: return &c.secondaryMaterial;
+        case 58: return &c.tensionModAmt;
         default: return nullptr;
     }
 }

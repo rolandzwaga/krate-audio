@@ -54,6 +54,25 @@ nlohmann::json padToJson(int padIndex, const Membrum::PadConfig& p) {
             {"punch", p.macroPunch},
             {"complexity", p.macroComplexity},
         }},
+        // Phase 7: parallel noise layer + always-on click transient.
+        {"noiseLayerMix", p.noiseLayerMix},
+        {"noiseLayerCutoff", p.noiseLayerCutoff},
+        {"noiseLayerResonance", p.noiseLayerResonance},
+        {"noiseLayerDecay", p.noiseLayerDecay},
+        {"noiseLayerColor", p.noiseLayerColor},
+        {"clickLayerMix", p.clickLayerMix},
+        {"clickLayerContactMs", p.clickLayerContactMs},
+        {"clickLayerBrightness", p.clickLayerBrightness},
+        // Phase 8: per-mode damping, air-loading, coupling, tension mod.
+        {"bodyDampingB1", p.bodyDampingB1},
+        {"bodyDampingB3", p.bodyDampingB3},
+        {"airLoading", p.airLoading},
+        {"modeScatter", p.modeScatter},
+        {"couplingStrength", p.couplingStrength},
+        {"secondaryEnabled", p.secondaryEnabled},
+        {"secondarySize", p.secondarySize},
+        {"secondaryMaterial", p.secondaryMaterial},
+        {"tensionModAmt", p.tensionModAmt},
     };
 }
 }  // namespace

@@ -68,9 +68,15 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
         ? Modal::extractModesMatrixPencil(decay, loaded->sampleRate, modelOrder)
         : Modal::extractModesESPRIT(decay, loaded->sampleRate, modelOrder);
 
-    // Body classifier + per-body inversion dispatch.
+    // Body classifier + per-body inversion dispatch. `options.forcedBody`
+    // (from `--body-override MIDI=body`) bypasses the classifier entirely
+    // for samples where the spectral features mislead it -- e.g. ambient
+    // kicks that get classified as NoiseBody and therefore miss the Phase 8
+    // Membrane seeds (secondary bank + tension mod).
     const auto bodyScores = classifyBody(modes, features);
-    const auto bestBody   = pickBestBody(bodyScores);
+    const auto bestBody   = options.forcedBody.has_value()
+                                ? *options.forcedBody
+                                : pickBestBody(bodyScores);
 
     Membrum::PadConfig cfg{};
     switch (bestBody) {
@@ -173,6 +179,94 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
     };
     applyPhase7Defaults(cfg, bestBody);
 
+    // Phase 8 per-body defaults. Plan async-wandering-rainbow.md §C/D/E
+    // prescribes per-body seeds so BOBYQA has a viable starting point --
+    // especially for secondaryEnabled (the secondary bank stays silent
+    // unless enabled, so BOBYQA can't see a gradient on coupling strength
+    // from an all-zero start). Without these seeds the fitter stays at
+    // sentinel -1.0 damping and 0.0 coupling, i.e. Phase 7 behaviour.
+    auto applyPhase8Defaults = [](Membrum::PadConfig& c, Membrum::BodyModelType b) noexcept {
+        switch (b) {
+            case Membrum::BodyModelType::Membrane:
+                // Kick / snare: prominent air-loading, enable shell coupling,
+                // moderate tension-mod for the energy-dependent pitch glide.
+                c.bodyDampingB1     = 0.40f;
+                c.bodyDampingB3     = 0.55f;
+                c.airLoading        = 0.65f;
+                c.modeScatter       = 0.04f;
+                c.couplingStrength  = 0.15f;
+                c.secondaryEnabled  = 1.0f;
+                c.secondarySize     = 0.55f;
+                c.secondaryMaterial = 0.30f;
+                c.tensionModAmt     = 0.12f;
+                break;
+            case Membrum::BodyModelType::Shell:
+                // Tom: canonical case for tension-mod (JASA 2021 Kirby &
+                // Sandler "tom-tom kerthump").
+                c.bodyDampingB1     = 0.35f;
+                c.bodyDampingB3     = 0.50f;
+                c.airLoading        = 0.55f;
+                c.modeScatter       = 0.03f;
+                c.couplingStrength  = 0.12f;
+                c.secondaryEnabled  = 1.0f;
+                c.secondarySize     = 0.50f;
+                c.secondaryMaterial = 0.35f;
+                c.tensionModAmt     = 0.15f;
+                break;
+            case Membrum::BodyModelType::Plate:
+                // Perc plate: moderate damping, no shell body.
+                c.bodyDampingB1     = 0.50f;
+                c.bodyDampingB3     = 0.45f;
+                c.airLoading        = 0.30f;
+                c.modeScatter       = 0.05f;
+                c.couplingStrength  = 0.0f;
+                c.secondaryEnabled  = 0.0f;
+                c.secondarySize     = 0.50f;
+                c.secondaryMaterial = 0.40f;
+                c.tensionModAmt     = 0.0f;
+                break;
+            case Membrum::BodyModelType::Bell:
+                // Metallic long ring: low damping, no air loading, no tension.
+                c.bodyDampingB1     = 0.25f;
+                c.bodyDampingB3     = 0.10f;
+                c.airLoading        = 0.0f;
+                c.modeScatter       = 0.06f;
+                c.couplingStrength  = 0.0f;
+                c.secondaryEnabled  = 0.0f;
+                c.secondarySize     = 0.50f;
+                c.secondaryMaterial = 0.40f;
+                c.tensionModAmt     = 0.0f;
+                break;
+            case Membrum::BodyModelType::String:
+                // Waveguide-driven; modal bank is secondary. Keep neutral.
+                c.bodyDampingB1     = 0.50f;
+                c.bodyDampingB3     = 0.50f;
+                c.airLoading        = 0.0f;
+                c.modeScatter       = 0.0f;
+                c.couplingStrength  = 0.0f;
+                c.secondaryEnabled  = 0.0f;
+                c.secondarySize     = 0.50f;
+                c.secondaryMaterial = 0.40f;
+                c.tensionModAmt     = 0.0f;
+                break;
+            case Membrum::BodyModelType::NoiseBody:
+            default:
+                // Hi-hat / cymbal: scatter for metallic inharmonicity,
+                // no air-loading (open air), no shell body, no tension mod.
+                c.bodyDampingB1     = 0.35f;
+                c.bodyDampingB3     = 0.20f;
+                c.airLoading        = 0.0f;
+                c.modeScatter       = 0.08f;
+                c.couplingStrength  = 0.0f;
+                c.secondaryEnabled  = 0.0f;
+                c.secondarySize     = 0.50f;
+                c.secondaryMaterial = 0.40f;
+                c.tensionModAmt     = 0.0f;
+                break;
+        }
+    };
+    applyPhase8Defaults(cfg, bestBody);
+
     fitToneShaper(loaded->samples, seg, loaded->sampleRate, modes, cfg);
     fitUnnaturalZone(loaded->samples, seg, loaded->sampleRate, modes, cfg, cfg);
 
@@ -186,6 +280,23 @@ FitResult fitSample(const std::filesystem::path& wavPath, const FitOptions& opti
     rctx.initial    = cfg;
     rctx.optimisable = { 2 /*material*/, 3 /*size*/, 4 /*decay*/, 8 /*tsFilterCutoff*/,
                          9 /*tsFilterResonance*/, 15 /*tsPitchEnvTime*/ };
+    // Plan async-wandering-rainbow.md phase-8 fit-tool extension: enable the
+    // Phase 8 fields (per-mode damping, air-loading, scatter, coupling,
+    // tension) only when the user asks for a longer budget. BOBYQA quality
+    // degrades rapidly if dimensionality jumps to 14 at the default 300 evals.
+    if (options.maxBobyqaEvals > 300) {
+        // Replace sentinel b1/b3 (-1.0f = "derive from legacy") with a
+        // neutral normalised midpoint so BOBYQA starts from a well-defined
+        // point in [0, 1] rather than the clamped-to-zero sentinel.
+        if (rctx.initial.bodyDampingB1 < 0.0f) rctx.initial.bodyDampingB1 = 0.5f;
+        if (rctx.initial.bodyDampingB3 < 0.0f) rctx.initial.bodyDampingB3 = 0.5f;
+        // Add Phase 8 continuous fields. secondaryEnabled (55) stays out:
+        // it is a float-as-bool switch, not meaningful as a continuous
+        // BOBYQA dimension -- the DefaultKit / preset decides activation.
+        for (int idx : {50, 51, 52, 53, 54, 56, 57, 58}) {
+            rctx.optimisable.push_back(idx);
+        }
+    }
     rctx.weights = LossWeights{ options.wSTFT, options.wMFCC, options.wEnv };
     rctx.maxEvals = options.maxBobyqaEvals;
     auto rr = refineBOBYQA(rctx, voice);
@@ -248,8 +359,22 @@ int runMembrumFit(const CliArgs& args) {
     for (const auto& [midiNote, wav] : spec.midiNoteToFile) {
         const int padIdx = midiNote - 36;
         if (padIdx < 0 || padIdx >= 32) continue;
-        const auto fit = fitSample(wav, args.options);
+        FitOptions perPadOptions = args.options;
+        perPadOptions.bodyOverrides.clear();  // only the per-pad field is consumed downstream
+        if (auto it = args.options.bodyOverrides.find(midiNote);
+            it != args.options.bodyOverrides.end()) {
+            perPadOptions.forcedBody = it->second;
+        }
+        const auto fit = fitSample(wav, perPadOptions);
         pads[padIdx] = fit.padConfig;
+        std::fprintf(stdout,
+            "  pad %2d (MIDI %d, %s): loss %.4f -> %.4f (%d evals%s%s%s)\n",
+            padIdx, midiNote, wav.filename().string().c_str(),
+            fit.quality.initialLoss, fit.quality.finalLoss, fit.quality.bobyqaEvals,
+            fit.quality.bobyqaConverged ? ", converged" : "",
+            fit.quality.cmaesUsed ? ", CMA-ES" : "",
+            perPadOptions.forcedBody.has_value() ? ", forced body" : "");
+        std::fflush(stdout);
     }
 
     const std::filesystem::path outFile = (args.output.extension() == ".vstpreset")

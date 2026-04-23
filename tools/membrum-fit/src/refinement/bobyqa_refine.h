@@ -10,15 +10,17 @@
 namespace MembrumFit {
 
 // Indexes into PadConfig treated as a flat float32 array of optimisable
-// parameters. The indices map to (exciterType(0), bodyModel(1), then 40
-// continuous params at offsets 2..41 in pad_config.h).
+// parameters. The indices map to (exciterType(0), bodyModel(1), then
+// continuous float params at offsets 2..58 in pad_config.h -- Phase 4
+// core (2..41), Phase 7 noise/click (42..49), Phase 8 damping/coupling
+// (50..58)).
 using ParamIndex = int;
 
 struct RefineContext {
     std::span<const float>    target;
     double                    sampleRate = 44100.0;
     Membrum::PadConfig        initial{};
-    std::vector<ParamIndex>   optimisable;        // subset of [2..41]
+    std::vector<ParamIndex>   optimisable;        // subset of [2..58]
     LossWeights               weights{};
     int                       maxEvals = 300;
     float                     earlyStopRelLoss = 0.01f;  // 1 %
