@@ -75,8 +75,19 @@ public:
     }
 
     /// Fire the click. Re-triggerable (resets the burst counter).
+    ///
+    /// Re-seeds the internal PRNG and resets the bandpass filter state so
+    /// every trigger produces a bit-identical noise burst for a given voice.
+    /// FR-124 bit-identity: a stolen/choked voice reused for a new note must
+    /// render sample-identical output to a pristine voice at the same slot;
+    /// without the reset the PRNG state from the previous note carries over
+    /// and the click's noise sequence diverges, which surfaces in the
+    /// steal/choke click-free tests as a ~0.47 cleaned-click residual.
     void trigger(float velocity) noexcept
     {
+        noise_.reset();
+        filter_.reset();
+
         velocity_ = std::clamp(velocity, 0.0f, 1.0f);
         // Velocity shortens the burst slightly (harder strikes have faster
         // initial contact).

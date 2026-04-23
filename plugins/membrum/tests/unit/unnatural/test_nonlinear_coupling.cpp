@@ -83,10 +83,22 @@ TEST_CASE("UnnaturalZone NonlinearCoupling -- spectral centroid varies when enga
     voice.setBodyModel(Membrum::BodyModelType::Plate);
     voice.unnaturalZone().nonlinearCoupling.setAmount(0.5f);
 
-    constexpr int numSamples = 22050; // 500 ms
+    // Phase 8A.5 (commit 89cf0c64) decoupled the amp envelope from voice
+    // lifetime: sustain=1.0 means the body now rings indefinitely until
+    // noteOff. Without a noteOff the RMS envelope follower plateaus and
+    // NonlinearCoupling's dEnv term collapses to ~0 in the late window,
+    // defeating the time-variance this test exercises. Issue noteOff at
+    // 200 ms so the release-phase damp(0.997) (~50 ms body T60) creates
+    // fresh dEnv transience inside the 300-400 ms late window.
+    constexpr int numSamples    = 22050; // 500 ms
+    constexpr int noteOffSample = 8820;  // 200 ms
     voice.noteOn(1.0f);
     std::vector<float> buf(static_cast<std::size_t>(numSamples), 0.0f);
-    for (int i = 0; i < numSamples; ++i) buf[static_cast<std::size_t>(i)] = voice.process();
+    for (int i = 0; i < numSamples; ++i)
+    {
+        if (i == noteOffSample) voice.noteOff();
+        buf[static_cast<std::size_t>(i)] = voice.process();
+    }
 
     // Early window: 0-100 ms.
     const int earlyStart = 0;

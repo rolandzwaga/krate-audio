@@ -105,8 +105,14 @@ public:
     [[nodiscard]] Krate::DSP::NoiseOscillator& oscillator() noexcept { return noise_; }
 
     /// Gate the envelope. Called once at noteOn after configure().
+    ///
+    /// Also re-seeds the internal PRNG and resets the bandpass filter so a
+    /// reused voice (after steal/choke) produces a bit-identical output to a
+    /// pristine voice at the same slot (FR-124 bit-identity).
     void trigger(float /*velocity*/) noexcept
     {
+        noise_.reset();
+        filter_.reset();
         envelope_.reset();
         envelope_.gate(true);
     }

@@ -902,15 +902,15 @@ TEST_CASE("ModalResonatorBank Stretch=1 warps mode k=5 frequency correctly",
 TEST_CASE("ModalResonatorBank Scatter=1 warps mode k=1 frequency correctly",
           "[modal_resonator_bank][warping][scatter]")
 {
-    // Scatter=1 (maximum): C = 0.02
+    // Scatter=1 (maximum): C = 0.10  (Phase 8C widened 2% -> 10%, commit b794450c)
     // D = pi * (phi - 1) ≈ 1.9416 (golden ratio * pi)
-    // Mode index 1 at 200 Hz: f_warped = 200 * (1 + 0.02 * sin(1 * D))
-    //   sin(D) ≈ 0.9356
-    //   f_warped ≈ 200 * 1.01871 ≈ 203.74 Hz
+    // Mode index 1 at 200 Hz: f_warped = 200 * (1 + 0.10 * sin(1 * D))
+    //   sin(D) ≈ 0.9320
+    //   f_warped ≈ 200 * 1.0932 ≈ 218.64 Hz
     Krate::DSP::ModalResonatorBank bank;
     bank.prepare(kSampleRate);
 
-    constexpr float C = 0.02f;
+    constexpr float C = 0.10f;
     const float D =
         std::numbers::pi_v<float> * (std::numbers::phi_v<float> - 1.0f);
     constexpr int modeIndex = 1;
@@ -954,7 +954,7 @@ TEST_CASE("ModalResonatorBank Stretch+Scatter combine multiplicatively in warped
     bank.prepare(kSampleRate);
 
     constexpr float B = 0.001f; // stretch=1
-    constexpr float C = 0.02f;  // scatter=1
+    constexpr float C = 0.10f;  // scatter=1 (Phase 8C widened 2% -> 10%, commit b794450c)
     const float D = std::numbers::pi_v<float> * (std::numbers::phi_v<float> - 1.0f);
 
     constexpr int modeIdx = 2;

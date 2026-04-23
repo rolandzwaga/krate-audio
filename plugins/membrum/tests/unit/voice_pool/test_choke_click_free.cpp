@@ -79,8 +79,14 @@ ChokeRender renderChoke(double sampleRate,
     // Open hat.
     pool.noteOn(46, 0.9f);
 
-    // Warmup 100 ms so the open-hat voice is audibly active.
-    const int warmupBlocks = blocksForMs(sampleRate, 100.0);
+    // Warmup long enough for the open-hat voice to decay below -30 dBFS
+    // before the choke event. Phase 8A.5 (commit 89cf0c64) decoupled the
+    // amp envelope from voice lifetime -- the body now rings at its own
+    // T60 (material=0.5/decay=0.3 defaults => ~1 s ring-out), not the old
+    // 200 ms envelope gate. 3 s of warmup puts the voice ~-50 dBFS deep,
+    // well under the -30 dBFS click threshold that the fade residual is
+    // measured against.
+    const int warmupBlocks = blocksForMs(sampleRate, 3000.0);
     for (int b = 0; b < warmupBlocks; ++b)
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
 

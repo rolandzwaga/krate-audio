@@ -550,9 +550,19 @@ TEST_CASE("Membrum: Velocity 127 is > 6 dB louder than velocity 30 (SC-005)",
 // T043(b): velocity=30 vs velocity=127: spectral centroid ratio > 2x (SC-005)
 // =============================================================================
 
-TEST_CASE("Membrum: Velocity 127 has > 2x spectral centroid vs velocity 30 (SC-005)",
+TEST_CASE("Membrum: Velocity 127 has higher spectral centroid than velocity 30 (SC-005)",
           "[membrum][processor][velocity]")
 {
+    // SC-005 originally required centroidHigh/centroidLow > 2.0x. Phase 8A.5
+    // (commit 89cf0c64) intentionally changed the amp envelope to sustain=1.0
+    // so the modal bank's own T60 drives voice lifetime (STK Modal idiom).
+    // The body's damping law is velocity-independent, so over any integrated
+    // window the body's modal response dominates the centroid and the 2.67x
+    // velocity->exciter-brightness range gets diluted to ~1.3x. The Phase
+    // 8A.5 commit explicitly flags this test as "Known regressions ... not
+    // yet re-baselined" -- this is that re-baseline. Threshold 1.15 preserves
+    // the SC-005 intent ("hard strikes are brighter than soft strikes") while
+    // matching the design the commit ships.
     constexpr int N = 2048;
     auto samplesLow = collectSamples(30.0f / 127.0f, N);
     auto samplesHigh = collectSamples(127.0f / 127.0f, N);
@@ -565,7 +575,7 @@ TEST_CASE("Membrum: Velocity 127 has > 2x spectral centroid vs velocity 30 (SC-0
     INFO("Ratio: " << (centroidHigh / centroidLow));
 
     REQUIRE(centroidLow > 0.0f);  // Sanity: non-zero
-    REQUIRE(centroidHigh / centroidLow > 2.0f);
+    REQUIRE(centroidHigh / centroidLow > 1.15f);
 }
 
 // =============================================================================

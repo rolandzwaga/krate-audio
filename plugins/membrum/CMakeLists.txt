@@ -141,6 +141,12 @@ target_link_libraries(membrum_preset_io
 
 target_compile_features(membrum_preset_io PUBLIC cxx_std_20)
 
+# macOS: match universal-binary arches of the plugin bundle (arm64 + x86_64).
+# Without this, Xcode builds this static lib only for the runner's native arch
+# (arm64 on Apple Silicon CI runners), causing the x86_64 slice of the plugin
+# to fail linking with "Undefined symbols for architecture x86_64".
+smtg_target_setup_universal_binary(membrum_preset_io)
+
 # ==============================================================================
 # Plugin Target
 # ==============================================================================
