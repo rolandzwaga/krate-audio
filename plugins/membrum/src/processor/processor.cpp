@@ -32,6 +32,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -872,6 +873,16 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             mb.activeVoices = static_cast<std::uint16_t>(
                                   voicePool_.getActiveVoiceCount());
             mb.cpuPermille  = cpuPermille;
+
+            // Snapshot the glow publisher directly into the block so the
+            // controller-side UI can mirror per-pad amplitude across the
+            // separate-component boundary.
+            std::array<std::uint8_t, kNumPads> buckets{};
+            padGlowPublisher_.snapshot(buckets);
+            static_assert(sizeof(mb.padGlowBuckets) == sizeof(buckets),
+                          "MetersBlock glow bucket size must match kNumPads");
+            std::memcpy(mb.padGlowBuckets, buckets.data(), sizeof(buckets));
+
             std::memcpy(block.data, &mb, sizeof(MetersBlock));
             dataExchangeHandler_->sendCurrentBlock();
         }

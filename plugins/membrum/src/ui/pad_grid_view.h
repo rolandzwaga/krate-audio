@@ -42,6 +42,7 @@
 
 #include "vstgui/lib/cview.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "vstgui/lib/cgradient.h"
 #include "vstgui/lib/crect.h"
 #include "vstgui/lib/cpoint.h"
 #include "vstgui/lib/events.h"
@@ -208,6 +209,7 @@ private:
     std::array<std::uint8_t, kNumPads> glowBuckets_{};
 
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
+    VSTGUI::SharedPointer<VSTGUI::CGradient>    glowGradient_;
 };
 
 } // namespace Membrum::UI

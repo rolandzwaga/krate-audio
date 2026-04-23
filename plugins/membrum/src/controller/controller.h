@@ -10,6 +10,7 @@
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "dsp/pad_config.h"
 #include "dsp/coupling_matrix.h"
+#include "dsp/pad_glow_publisher.h"
 #include "processor/meters_block.h"
 
 #include "vstgui/plugin-bindings/vst3editor.h"
@@ -234,6 +235,13 @@ private:
     // the UI thread by onDataExchangeBlocksReceived(); read by the 30 Hz
     // poll timer to push values into the Kit Column meter/CPU views.
     MetersBlock                      cachedMeters_{};
+
+    // Controller-side mirror of the processor's PadGlowPublisher. The real
+    // publisher lives on the audio thread inside the Processor; the UI cannot
+    // reach it across the separate-component boundary. Each MetersBlock we
+    // receive carries a snapshot of the publisher's buckets, which we re-apply
+    // here so PadGridView's existing publisher-based glow path keeps working.
+    PadGlowPublisher                 padGlowMirror_{};
 
     // SDK helper that routes host DataExchange deliveries (and the IMessage
     // fallback for hosts without the DataExchange API) into this controller's

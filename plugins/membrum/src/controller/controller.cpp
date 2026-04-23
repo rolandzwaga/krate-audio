@@ -1179,15 +1179,16 @@ VSTGUI::CView* Controller::createCustomView(
 
     if (std::strcmp(name, "PadGridView") == 0)
     {
-        // Phase 6 (T042): construct the real PadGridView. The view's
-        // PadGlowPublisher pointer is nullptr here because separate-component
-        // mode prevents the Controller from reaching into the Processor --
-        // future phases can inject a DataExchange-backed glow mirror if
-        // per-cell intensity ends up required at 30 Hz in separate-component
-        // hosts. Tests construct the view directly with a real publisher.
+        // The view's PadGlowPublisher pointer is the controller-side
+        // `padGlowMirror_`, not the real processor-side publisher (which lives
+        // on the audio thread across the separate-component boundary). The
+        // MetersBlock DataExchange stream carries a snapshot of the real
+        // publisher each audio block; onDataExchangeBlocksReceived() re-applies
+        // those buckets to `padGlowMirror_` so the view's existing 30 Hz
+        // snapshot()-based polling path lights up pads in sync with audio.
         auto* view = new UI::PadGridView(
             viewRect,
-            /*glowPublisher*/ nullptr,
+            /*glowPublisher*/ &padGlowMirror_,
             /*metaProvider*/ [](int) -> const PadConfig* { return nullptr; });
 
         // FR-012: clicking a pad drives kSelectedPadId through the standard
@@ -1662,6 +1663,19 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
         {
             std::memcpy(&cachedMeters_, blocks[i].data, sizeof(MetersBlock));
         }
+    }
+
+    // Mirror the processor's pad-glow buckets into our controller-side
+    // publisher so PadGridView's polling path picks them up. The publish API
+    // wants a float amplitude; bucket/31 round-trips back to the same bucket
+    // on the next snapshot().
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        const std::uint8_t bucket = cachedMeters_.padGlowBuckets[pad];
+        const float amp = (bucket == 0)
+                        ? 0.0f
+                        : static_cast<float>(bucket) / 31.0f;
+        padGlowMirror_.publish(pad, amp);
     }
 }
 

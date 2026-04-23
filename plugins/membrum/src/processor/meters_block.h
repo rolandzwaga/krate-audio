@@ -23,9 +23,14 @@ struct MetersBlock
     float         peakR         = 0.0f;   // linear [0..1], main output R
     std::uint16_t activeVoices  = 0;      // 0..16
     std::uint16_t cpuPermille   = 0;      // 0..1000 (tenths of a percent)
+
+    // Per-pad glow buckets [0..31] -- snapshot of PadGlowPublisher taken on the
+    // audio thread each block. Transported across the separate-component
+    // boundary so the UI can light up pads in response to audio amplitude.
+    std::uint8_t  padGlowBuckets[32] = {};
 };
 
-static_assert(sizeof(MetersBlock) == 12,
+static_assert(sizeof(MetersBlock) == 44,
               "MetersBlock layout must match DataExchange contract");
 
 // User context ID for the MetersBlock queue (chosen so it does not collide

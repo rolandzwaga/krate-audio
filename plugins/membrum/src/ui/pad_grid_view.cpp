@@ -10,6 +10,7 @@
 
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cgradient.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/cfont.h"
 #include "vstgui/lib/ccolor.h"
@@ -36,7 +37,6 @@ constexpr VSTGUI::CColor kCellColor     = { 34,  34,  42, 255 };
 constexpr VSTGUI::CColor kCellBorder    = { 70,  70,  80, 255 };
 constexpr VSTGUI::CColor kSelectedColor = {230, 200,  90, 255 };
 constexpr VSTGUI::CColor kLabelColor    = {210, 210, 215, 255 };
-constexpr VSTGUI::CColor kGlowColor     = {255, 200, 110, 255 };
 
 } // anonymous namespace
 
@@ -346,15 +346,36 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
                 ctx->setFillColor(kCellColor);
                 ctx->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
 
-                // Glow overlay.
+                // Glow overlay -- radial "thwack" gradient: bright warm core at
+                // the cell centre fading rapidly to transparent. Overall alpha
+                // is modulated by the pad's current amplitude bucket so the
+                // hotspot pulses in lockstep with the audio envelope.
                 const float intensity =
                     glowIntensityFromBucket(glowBuckets_[static_cast<std::size_t>(padIdx)]);
                 if (intensity > 0.0f)
                 {
-                    VSTGUI::CColor g = kGlowColor;
-                    g.alpha = static_cast<std::uint8_t>(intensity * 220.0f + 0.5f);
-                    ctx->setFillColor(g);
-                    ctx->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilled);
+                    if (!glowGradient_)
+                    {
+                        VSTGUI::GradientColorStopMap stops;
+                        stops.emplace(0.00, VSTGUI::CColor{255, 250, 220, 255});
+                        stops.emplace(0.22, VSTGUI::CColor{255, 210, 130, 220});
+                        stops.emplace(0.55, VSTGUI::CColor{255, 170,  70,  80});
+                        stops.emplace(1.00, VSTGUI::CColor{255, 140,  40,   0});
+                        glowGradient_ = VSTGUI::owned(VSTGUI::CGradient::create(stops));
+                    }
+                    if (glowGradient_)
+                    {
+                        const CCoord radius = std::min(inset.getWidth(),
+                                                       inset.getHeight()) * 0.70;
+                        const VSTGUI::CPoint center{
+                            inset.left + inset.getWidth()  * 0.5,
+                            inset.top  + inset.getHeight() * 0.5};
+                        const float prevAlpha = ctx->getGlobalAlpha();
+                        ctx->setGlobalAlpha(prevAlpha * intensity);
+                        ctx->fillRadialGradient(path, *glowGradient_,
+                                                center, radius);
+                        ctx->setGlobalAlpha(prevAlpha);
+                    }
                 }
 
                 // Selection border.
