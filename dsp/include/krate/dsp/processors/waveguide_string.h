@@ -677,8 +677,7 @@ private:
             float maxGd0 = (1.0f - a2) / (1.0f + a2 + 2.0f * lo * std::cos(w0));
             float maxGdN = (1.0f - a2) / (1.0f + a2 + 2.0f * lo * std::cos(nW0));
             if (targetDiff > (maxGd0 - maxGdN)) {
-                // Can't achieve target; use maximum
-                lo = lo; // keep lo as-is
+                // Can't achieve target; lo already holds the maximum.
             }
         }
 

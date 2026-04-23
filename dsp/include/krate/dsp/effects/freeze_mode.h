@@ -235,11 +235,12 @@ public:
     FreezeMode() noexcept = default;
     ~FreezeMode() = default;
 
-    // Non-copyable, movable
+    // Non-copyable. Move ops are implicitly deleted by std::atomic members in
+    // nested state; declare them deleted to silence -Wdefaulted-function-deleted.
     FreezeMode(const FreezeMode&) = delete;
     FreezeMode& operator=(const FreezeMode&) = delete;
-    FreezeMode(FreezeMode&&) noexcept = default;
-    FreezeMode& operator=(FreezeMode&&) noexcept = default;
+    FreezeMode(FreezeMode&&) = delete;
+    FreezeMode& operator=(FreezeMode&&) = delete;
 
     // =========================================================================
     // Lifecycle Methods

@@ -264,6 +264,10 @@ public:
         }
     }
 
+    // Intentionally hides CView::hitTest -- this view uses a DragTarget-
+    // returning overload for its custom handle/segment logic. The base
+    // hitTest(CPoint&, const Event&) is not meaningful here, so the
+    // -Woverloaded-virtual hide is deliberate.
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
         // Start and End handles take priority over Time (which can coincide
         // with Start when timeN==0 or with End when timeN==1).

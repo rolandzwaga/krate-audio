@@ -140,13 +140,13 @@ public:
     /// @brief Destructor
     ~NoteSelectiveFilter() = default;
 
-    // Non-copyable (contains filter state and atomics)
+    // Non-copyable (contains filter state and atomics). Move ops are implicitly
+    // deleted by std::atomic members; declare them deleted to silence
+    // -Wdefaulted-function-deleted warnings at every including TU.
     NoteSelectiveFilter(const NoteSelectiveFilter&) = delete;
     NoteSelectiveFilter& operator=(const NoteSelectiveFilter&) = delete;
-
-    // Movable
-    NoteSelectiveFilter(NoteSelectiveFilter&&) noexcept = default;
-    NoteSelectiveFilter& operator=(NoteSelectiveFilter&&) noexcept = default;
+    NoteSelectiveFilter(NoteSelectiveFilter&&) = delete;
+    NoteSelectiveFilter& operator=(NoteSelectiveFilter&&) = delete;
 
     /// @brief Prepare processor for given sample rate (FR-001, FR-003)
     /// @param sampleRate Audio sample rate in Hz (clamped to >= 1000)

@@ -239,6 +239,10 @@ public:
     // IArpLane Interface
     // =========================================================================
 
+    // Un-hide CViewContainer::getView(uint32_t) hidden by IArpLane::getView()
+    // (silences -Woverloaded-virtual on clang).
+    using VSTGUI::CViewContainer::getView;
+
     VSTGUI::CView* getView() override { return this; }
 
     [[nodiscard]] float getExpandedHeight() const override { return expandedHeight_; }

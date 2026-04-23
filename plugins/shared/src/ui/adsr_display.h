@@ -469,7 +469,11 @@ public:
         }
     }
 
-    /// Hit test: determine which element is at the given point
+    /// Hit test: determine which element is at the given point.
+    /// Intentionally hides CView::hitTest -- this class uses a DragTarget-
+    /// returning overload for its custom control-point logic. The base
+    /// hitTest(CPoint&, const Event&) behaviour is not meaningful for this
+    /// view, so the -Woverloaded-virtual hide is deliberate.
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
         // Mode toggle button in top-right corner (highest priority)
         if (hitTestModeToggle(point)) {

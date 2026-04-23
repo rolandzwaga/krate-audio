@@ -651,8 +651,11 @@ public:
 
     Crossover4Way(const Crossover4Way&) = delete;
     Crossover4Way& operator=(const Crossover4Way&) = delete;
-    Crossover4Way(Crossover4Way&&) noexcept = default;
-    Crossover4Way& operator=(Crossover4Way&&) noexcept = default;
+    // Move ops are implicitly deleted by std::atomic<float> members; state this
+    // explicitly so clang doesn't emit -Wdefaulted-function-deleted warnings
+    // at every translation unit that includes this header.
+    Crossover4Way(Crossover4Way&&) = delete;
+    Crossover4Way& operator=(Crossover4Way&&) = delete;
 
     // =========================================================================
     // Initialization

@@ -519,6 +519,11 @@ public:
         }
     }
 
+    // Un-hide CView's onMouseEntered/Exited overloads hidden by the
+    // IMouseObserver ones below (silences -Woverloaded-virtual on clang).
+    using VSTGUI::CView::onMouseEntered;
+    using VSTGUI::CView::onMouseExited;
+
     void onMouseEntered(VSTGUI::CView* /*view*/, VSTGUI::CFrame* /*frame*/) override {}
     void onMouseExited(VSTGUI::CView* /*view*/, VSTGUI::CFrame* /*frame*/) override {}
 

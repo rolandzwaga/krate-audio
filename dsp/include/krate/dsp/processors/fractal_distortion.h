@@ -163,11 +163,13 @@ public:
     /// @brief Destructor.
     ~FractalDistortion() = default;
 
-    // Non-copyable due to internal state
+    // Non-copyable due to internal state. Crossover4Way holds std::atomic<float>
+    // members that make move ops implicitly deleted -- state this explicitly so
+    // clang doesn't warn at every including TU.
     FractalDistortion(const FractalDistortion&) = delete;
     FractalDistortion& operator=(const FractalDistortion&) = delete;
-    FractalDistortion(FractalDistortion&&) noexcept = default;
-    FractalDistortion& operator=(FractalDistortion&&) noexcept = default;
+    FractalDistortion(FractalDistortion&&) = delete;
+    FractalDistortion& operator=(FractalDistortion&&) = delete;
 
     /// @brief Initialize for given sample rate (FR-001, FR-003).
     ///

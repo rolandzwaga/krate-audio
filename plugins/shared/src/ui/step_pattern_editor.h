@@ -87,6 +87,8 @@ public:
         , playbackStep_(other.playbackStep_)
         , isPlaying_(other.isPlaying_)
         , phaseOffset_(other.phaseOffset_)
+        , barAreaTopOffset_(other.barAreaTopOffset_)
+        , barAreaLeftOffset_(other.barAreaLeftOffset_)
         , euclideanEnabled_(other.euclideanEnabled_)
         , euclideanHits_(other.euclideanHits_)
         , euclideanRotation_(other.euclideanRotation_)
@@ -104,9 +106,7 @@ public:
         , playbackColor_(other.playbackColor_)
         , textColor_(other.textColor_)
         , stepLevelBaseParamId_(other.stepLevelBaseParamId_)
-        , rightClickResetLevel_(other.rightClickResetLevel_)
-        , barAreaTopOffset_(other.barAreaTopOffset_)
-        , barAreaLeftOffset_(other.barAreaLeftOffset_) {
+        , rightClickResetLevel_(other.rightClickResetLevel_) {
         rng_.seed(static_cast<unsigned>(
             std::chrono::steady_clock::now().time_since_epoch().count()));
     }
