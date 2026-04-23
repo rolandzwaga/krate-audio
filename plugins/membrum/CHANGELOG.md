@@ -5,6 +5,98 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-23
+
+### Added
+
+- **Parallel noise + click layers (Phase 7)** -- Every voice now renders an
+  always-on filtered noise path and an attack "click" transient (2-5 ms
+  raised-cosine filtered-noise burst) alongside the modal body. Research-
+  backed realism ingredients (Cook SNT, Serra/Smith SMS, Chromaphone /
+  Microtonic): the modal body alone sounds "glass tap"; the noise + click
+  layers restore the stochastic residual that real drum recordings always
+  carry.
+- **Per-mode damping law (Phase 8A)** -- `bodyDampingB1` + `bodyDampingB3`
+  are now first-class per-pad params driving `R_k = b1 + b3·f²` on every
+  mode independently (Chaigne & Askenfelt 1993; Aramaki / KM 2011). The
+  primary material-perception axis: the same body can be dialled from
+  metallic ring (low b3) to woody thump (high b3) without touching its
+  fundamental. Legacy `decay` / `material` still work as convenience
+  derivations when the B1/B3 sentinels are untouched.
+- **Mode count bump (Phase 8B)** -- Membrane 16 -> 48 modes, Plate 16 ->
+  48, Shell 12 -> 32 (Chromaphone's "High" density band). Bell stays at
+  16 (source data limit). Extended Bessel table covers m = 0..14; series
+  evaluation bumped from 12 to 20 terms for high-order stability.
+- **Air-loading correction (Phase 8C)** -- Structured low-mode frequency
+  depression tabulated from Rossing's timpani data (5 % at k = 0, tapering
+  to near-zero by k ~ 12). Closes the "whistly / detuned-bar" failure
+  mode on Membrane bodies and lets the lowest modes drop into realistic
+  kick / tom sub-bass territory. Per-pad `airLoading` knob blends between
+  pure Bessel and full Rossing curve. Separate `modeScatter` knob wires
+  the bank's existing sinusoidal dither for a small "natural imperfection"
+  layer on top.
+- **Head <-> shell coupling with secondary modal bank (Phase 8D)** --
+  `DrumVoice` now carries a second `ModalResonatorBank` (24 modes, shell
+  ratios) that runs in parallel and exchanges energy with the head via a
+  scalar coupling coefficient at block rate. Matches Chromaphone 3's
+  bidirectional-coupling idiom; closes the "no body weight" gap on kicks
+  and toms. Stability-clamped to a 0.25 effective maximum so the two-bank
+  feedback loop's eigenvalue stays below 1 across all decay combinations.
+  Four new per-pad params: `couplingStrength`, `secondaryEnabled`,
+  `secondarySize`, `secondaryMaterial`. Default off so Phase 1 bit-identity
+  holds at neutral settings.
+- **Nonlinear tension modulation (Phase 8E)** -- Energy-dependent pitch
+  glide reproducing the tom-tom "kerthump" character (JASA 2021 Kirby &
+  Sandler; Avanzini & Rocchesso 2012). One-pole energy follower (20 ms
+  time constant) drives a block-rate frequency scale on the modal bank's
+  state-preserving `updateModes()`. Depth is scaled by velocity² at
+  noteOn -- soft hits sound the same, hard hits bend up to ~2 semitones
+  down during the note. Per-pad `tensionModAmt` knob; orthogonal to the
+  existing scripted pitch-envelope (`tsPitchEnvStart/End/Time`) so 808-
+  style transient sweeps remain independent.
+- **9 new per-pad parameters** -- Global proxy IDs 300..308 (Body
+  Damping B1, Body Damping B3, Air Loading, Mode Scatter, Coupling
+  Strength, Secondary Enabled, Secondary Size, Secondary Material,
+  Tension Mod Amount). Each is surfaced as an ArcKnob in the selected-pad
+  extended panel. Total VST3 parameter count 1652 -> 1949.
+- **State version 7 -> 11** -- PadSnapshot sound array extended 42 -> 51
+  slots. Back-compat loader migrates v6/v7/v8/v9/v10 blobs by filling the
+  new slots with PadConfig defaults. Pad-preset version bumped alongside
+  the kit blob.
+- **`tools/membrum-fit` offline sample-to-preset fitter** -- A
+  stand-alone CLI (`membrum_fit.exe per-pad | kit`) that takes drum WAVs
+  (or an SFZ / kit JSON) and produces Membrum `.vstpreset` files via
+  modal-decomposition (Matrix Pencil / ESPRIT), per-body mapper inversion
+  (Membrane / Plate / Shell / Bell / String / NoiseBody), Tone Shaper
+  and Unnatural Zone fitting, and BOBYQA / CRS loss refinement (MSS +
+  MFCC + log-envelope). A `--body-override MIDI=body` flag bypasses the
+  body classifier for mis-classified samples. With `--max-evals > 300`
+  the refinement extends from the original 6D core-param subset to the
+  full 14D Phase 8 set so fitted kits carry the new DSP character rather
+  than only the legacy decay / material axis.
+
+### Changed
+
+- **Global `selfCoupling` proxy (v6 artefact) replaced** with the
+  per-pad `secondaryEnabled` + `couplingStrength` pair. The old
+  single-knob design could not express the per-pad-per-body physics the
+  Phase 8D two-bank architecture requires.
+- **Air-loading applied globally to voice pitch envelope output** so
+  scripted pitch sweeps (`tsPitchEnvStart/End/Time`) land on
+  air-loaded fundamentals rather than pure-Bessel ones -- otherwise the
+  scripted sweep starts at a different frequency than the steady-state
+  body.
+
+### Fixed
+
+- **Amp envelope decoupled from voice lifetime (Phase 8A.5)** -- Voices
+  now track amplitude envelope independently of their "alive" flag, so
+  a freshly retriggered voice doesn't cut off a still-ringing tail from
+  the previous note.
+- **Phase 8B Bessel table series stability** -- Series term count raised
+  12 -> 20 so the amplitude evaluation remains accurate across the
+  higher-order Bessel zeros the 48-mode membrane now uses.
+
 ## [0.6.0] - 2026-04-13
 
 ### Added
