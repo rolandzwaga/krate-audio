@@ -412,6 +412,15 @@ if(VSTWORK_BUILD_MEMBRUM_FIT)
         FetchContent_MakeAvailable(nlopt)
         set(CMAKE_POLICY_VERSION_MINIMUM "${_KA_PREV_POLICY_MIN}")
         unset(_KA_PREV_POLICY_MIN)
+
+        # NLopt v2.7.1 generates nlopt.f via a custom command attached as a
+        # source to BOTH the `nlopt` library and the `generate-fortran` utility
+        # target. Xcode's new build system rejects that unless one is a
+        # dependency of the other ("attached to multiple targets" error).
+        # Make `nlopt` depend on `generate-fortran` so Xcode sees a valid DAG.
+        if(CMAKE_GENERATOR STREQUAL "Xcode" AND TARGET nlopt AND TARGET generate-fortran)
+            add_dependencies(nlopt generate-fortran)
+        endif()
     endif()
 endif()
 
