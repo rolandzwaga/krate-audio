@@ -46,7 +46,7 @@ namespace Krate::Plugins {
 // Enums
 // ==============================================================================
 
-enum class IconStyle { kPower, kChevron, kGear };
+enum class IconStyle { kPower, kChevron, kGear, kExpand };
 enum class Orientation { kRight, kDown, kLeft, kUp };
 enum class TitlePosition { kNone, kLeft, kRight, kTop, kBottom };
 
@@ -147,6 +147,8 @@ public:
             drawChevronIcon(context, activeColor, isOn);
         } else if (iconStyle_ == IconStyle::kGear) {
             drawGearIcon(context, activeColor);
+        } else if (iconStyle_ == IconStyle::kExpand) {
+            drawExpandIcon(context, activeColor);
         } else {
             drawPowerIcon(context, activeColor);
         }
@@ -371,6 +373,63 @@ private:
         context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathFilledEvenOdd);
     }
 
+    void drawExpandIcon(VSTGUI::CDrawContext* context,
+                        const VSTGUI::CColor& color) const {
+        drawExpandIconInRect(context, getViewSize(), color);
+    }
+
+    void drawExpandIconInRect(VSTGUI::CDrawContext* context,
+                              const VSTGUI::CRect& rect,
+                              const VSTGUI::CColor& color) const {
+        // Two diagonal arrows radiating outward to opposite corners: the
+        // standard "maximize / expand to larger view" glyph. Each arrow is a
+        // short shaft plus two perpendicular wings forming an arrowhead at
+        // the outer end.
+        double viewW = rect.getWidth();
+        double viewH = rect.getHeight();
+        double dim = std::min(viewW, viewH) * static_cast<double>(iconSize_);
+        double half = dim * 0.5;
+        double cx = rect.left + viewW * 0.5;
+        double cy = rect.top + viewH * 0.5;
+
+        // Gap around the center (inner end of each arrow shaft), and the
+        // wing length on each arrowhead.
+        double innerGap = dim * 0.18;
+        double wingLen  = dim * 0.30;
+
+        auto path = VSTGUI::owned(context->createGraphicsPath());
+        if (!path)
+            return;
+
+        // Top-left arrow: shaft + two wings at the outer tip.
+        {
+            VSTGUI::CPoint inner(cx - innerGap, cy - innerGap);
+            VSTGUI::CPoint outer(cx - half,     cy - half);
+            path->beginSubpath(inner);
+            path->addLine(outer);
+            path->beginSubpath(outer);
+            path->addLine(VSTGUI::CPoint(outer.x + wingLen, outer.y));
+            path->beginSubpath(outer);
+            path->addLine(VSTGUI::CPoint(outer.x, outer.y + wingLen));
+        }
+
+        // Bottom-right arrow: mirror of the above.
+        {
+            VSTGUI::CPoint inner(cx + innerGap, cy + innerGap);
+            VSTGUI::CPoint outer(cx + half,     cy + half);
+            path->beginSubpath(inner);
+            path->addLine(outer);
+            path->beginSubpath(outer);
+            path->addLine(VSTGUI::CPoint(outer.x - wingLen, outer.y));
+            path->beginSubpath(outer);
+            path->addLine(VSTGUI::CPoint(outer.x, outer.y - wingLen));
+        }
+
+        context->setFrameColor(color);
+        context->setLineWidth(strokeWidth_);
+        context->drawGraphicsPath(path, VSTGUI::CDrawContext::kPathStroked);
+    }
+
     void drawTitle(VSTGUI::CDrawContext* context,
                    const VSTGUI::CColor& color) const {
         drawTitleInRect(context, getViewSize(), color, VSTGUI::kCenterText);
@@ -434,6 +493,8 @@ private:
             drawChevronIconInRect(context, iconRect, color, isOn);
         } else if (iconStyle_ == IconStyle::kGear) {
             drawGearIconInRect(context, iconRect, color);
+        } else if (iconStyle_ == IconStyle::kExpand) {
+            drawExpandIconInRect(context, iconRect, color);
         } else {
             drawPowerIconInRect(context, iconRect, color);
         }
@@ -476,6 +537,7 @@ private:
 inline IconStyle iconStyleFromString(const std::string& s) {
     if (s == "chevron") return IconStyle::kChevron;
     if (s == "gear") return IconStyle::kGear;
+    if (s == "expand") return IconStyle::kExpand;
     return IconStyle::kPower;
 }
 
@@ -483,6 +545,7 @@ inline std::string iconStyleToString(IconStyle style) {
     switch (style) {
         case IconStyle::kChevron: return "chevron";
         case IconStyle::kGear: return "gear";
+        case IconStyle::kExpand: return "expand";
         default: return "power";
     }
 }

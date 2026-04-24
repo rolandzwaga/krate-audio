@@ -66,7 +66,11 @@ public:
     static constexpr float kFineAdjustmentScale = 0.1f;
     static constexpr float kPadding = 4.0f;
     static constexpr float kMinTimeMs = 0.1f;
-    static constexpr float kMaxTimeMs = 10000.0f;
+    // Default per-segment time ceiling. Individual segments can be overridden
+    // at runtime via setAttackMaxMs / setDecayMaxMs / setReleaseMaxMs so the
+    // display can represent plugins whose envelope times use asymmetric ranges
+    // (e.g. Membrum's 500 ms attack + 2000 ms decay/release).
+    static constexpr float kDefaultMaxTimeMs = 10000.0f;
     static constexpr float kCurveDragSensitivity = 0.005f;
 
     // Mode toggle button
@@ -159,6 +163,9 @@ public:
         , sustainLevel_(other.sustainLevel_)
         , releaseMs_(other.releaseMs_)
         , peakLevel_(other.peakLevel_)
+        , attackMaxMs_(other.attackMaxMs_)
+        , decayMaxMs_(other.decayMaxMs_)
+        , releaseMaxMs_(other.releaseMaxMs_)
         , attackCurve_(other.attackCurve_)
         , decayCurve_(other.decayCurve_)
         , releaseCurve_(other.releaseCurve_)
@@ -192,14 +199,14 @@ public:
 
     void setAttackMs(float ms) {
         if (isDragging_) return; // Avoid feedback loop during drag
-        attackMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
+        attackMs_ = std::clamp(ms, kMinTimeMs, attackMaxMs_);
         recalculateLayout();
         setDirty();
     }
 
     void setDecayMs(float ms) {
         if (isDragging_) return;
-        decayMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
+        decayMs_ = std::clamp(ms, kMinTimeMs, decayMaxMs_);
         recalculateLayout();
         setDirty();
     }
@@ -213,10 +220,41 @@ public:
 
     void setReleaseMs(float ms) {
         if (isDragging_) return;
-        releaseMs_ = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
+        releaseMs_ = std::clamp(ms, kMinTimeMs, releaseMaxMs_);
         recalculateLayout();
         setDirty();
     }
+
+    // ---- Per-segment time-range configuration ------------------------------
+    // Plugins whose envelopes use asymmetric linear ranges (e.g. Membrum's
+    // 500 ms attack + 2000 ms decay/release) should call these to keep the
+    // drag/label cubic normalisation aligned with the DSP's actual range.
+    // Defaults to kDefaultMaxTimeMs (10000 ms) if never set, preserving the
+    // prior behaviour for existing plugins (Ruinae / Innexus).
+
+    void setAttackMaxMs(float ms) {
+        attackMaxMs_ = std::max(kMinTimeMs, ms);
+        attackMs_ = std::clamp(attackMs_, kMinTimeMs, attackMaxMs_);
+        recalculateLayout();
+        setDirty();
+    }
+    [[nodiscard]] float getAttackMaxMs() const { return attackMaxMs_; }
+
+    void setDecayMaxMs(float ms) {
+        decayMaxMs_ = std::max(kMinTimeMs, ms);
+        decayMs_ = std::clamp(decayMs_, kMinTimeMs, decayMaxMs_);
+        recalculateLayout();
+        setDirty();
+    }
+    [[nodiscard]] float getDecayMaxMs() const { return decayMaxMs_; }
+
+    void setReleaseMaxMs(float ms) {
+        releaseMaxMs_ = std::max(kMinTimeMs, ms);
+        releaseMs_ = std::clamp(releaseMs_, kMinTimeMs, releaseMaxMs_);
+        recalculateLayout();
+        setDirty();
+    }
+    [[nodiscard]] float getReleaseMaxMs() const { return releaseMaxMs_; }
 
     void setPeakLevel(float level) {
         if (isDragging_) return;
@@ -928,15 +966,15 @@ private:
                                layout_.attackEndX - layout_.attackStartX;
         if (totalTimeWidth > 0.0f) {
             float timeFraction = deltaX / totalTimeWidth;
-            float logRange = std::log1p(kMaxTimeMs) - std::log1p(kMinTimeMs);
+            float logRange = std::log1p(attackMaxMs_) - std::log1p(kMinTimeMs);
             float currentLogTime = std::log1p(attackMs_);
             float newLogTime = currentLogTime + timeFraction * logRange * 0.3f;
-            float newAttackMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, kMaxTimeMs);
+            float newAttackMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, attackMaxMs_);
 
             attackMs_ = newAttackMs;
 
             if (paramCallback_ && attackParamId_ > 0) {
-                float normalized = timeMsToNormalized(attackMs_);
+                float normalized = timeMsToNormalized(attackMs_, attackMaxMs_);
                 paramCallback_(attackParamId_, normalized);
             }
         }
@@ -963,15 +1001,15 @@ private:
                                layout_.attackEndX - layout_.attackStartX;
         if (totalTimeWidth > 0.0f) {
             float timeFraction = deltaX / totalTimeWidth;
-            float logRange = std::log1p(kMaxTimeMs) - std::log1p(kMinTimeMs);
+            float logRange = std::log1p(decayMaxMs_) - std::log1p(kMinTimeMs);
             float currentLogTime = std::log1p(decayMs_);
             float newLogTime = currentLogTime + timeFraction * logRange * 0.3f;
-            float newDecayMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, kMaxTimeMs);
+            float newDecayMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, decayMaxMs_);
 
             decayMs_ = newDecayMs;
 
             if (paramCallback_ && decayParamId_ > 0) {
-                float normalized = timeMsToNormalized(decayMs_);
+                float normalized = timeMsToNormalized(decayMs_, decayMaxMs_);
                 paramCallback_(decayParamId_, normalized);
             }
         }
@@ -999,17 +1037,17 @@ private:
         if (totalTimeWidth <= 0.0f) return;
 
         float timeFraction = deltaX / totalTimeWidth;
-        float logRange = std::log1p(kMaxTimeMs) - std::log1p(kMinTimeMs);
+        float logRange = std::log1p(releaseMaxMs_) - std::log1p(kMinTimeMs);
         float currentLogTime = std::log1p(releaseMs_);
         float newLogTime = currentLogTime + timeFraction * logRange * 0.3f;
-        float newReleaseMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, kMaxTimeMs);
+        float newReleaseMs = std::clamp(std::expm1(newLogTime), kMinTimeMs, releaseMaxMs_);
 
         releaseMs_ = newReleaseMs;
         recalculateLayout();
         setDirty();
 
         if (paramCallback_ && releaseParamId_ > 0) {
-            float normalized = timeMsToNormalized(releaseMs_);
+            float normalized = timeMsToNormalized(releaseMs_, releaseMaxMs_);
             paramCallback_(releaseParamId_, normalized);
         }
     }
@@ -1171,7 +1209,8 @@ private:
                 recalculateLayout();
                 setDirty();
                 if (paramCallback_ && attackParamId_ > 0) {
-                    paramCallback_(attackParamId_, timeMsToNormalized(attackMs_));
+                    paramCallback_(attackParamId_,
+                                   timeMsToNormalized(attackMs_, attackMaxMs_));
                 }
                 if (paramCallback_ && peakLevelParamId_ > 0) {
                     paramCallback_(peakLevelParamId_, peakLevel_);
@@ -1185,7 +1224,8 @@ private:
                 recalculateLayout();
                 setDirty();
                 if (paramCallback_ && decayParamId_ > 0) {
-                    paramCallback_(decayParamId_, timeMsToNormalized(decayMs_));
+                    paramCallback_(decayParamId_,
+                                   timeMsToNormalized(decayMs_, decayMaxMs_));
                 }
                 if (paramCallback_ && sustainParamId_ > 0) {
                     paramCallback_(sustainParamId_, sustainLevel_);
@@ -1198,7 +1238,8 @@ private:
                 recalculateLayout();
                 setDirty();
                 if (paramCallback_ && releaseParamId_ > 0) {
-                    paramCallback_(releaseParamId_, timeMsToNormalized(releaseMs_));
+                    paramCallback_(releaseParamId_,
+                                   timeMsToNormalized(releaseMs_, releaseMaxMs_));
                 }
                 notifyEndEdit(target);
                 break;
@@ -1265,13 +1306,16 @@ private:
     void notifyRestoredValues() {
         if (paramCallback_) {
             if (attackParamId_ > 0)
-                paramCallback_(attackParamId_, timeMsToNormalized(attackMs_));
+                paramCallback_(attackParamId_,
+                               timeMsToNormalized(attackMs_, attackMaxMs_));
             if (decayParamId_ > 0)
-                paramCallback_(decayParamId_, timeMsToNormalized(decayMs_));
+                paramCallback_(decayParamId_,
+                               timeMsToNormalized(decayMs_, decayMaxMs_));
             if (sustainParamId_ > 0)
                 paramCallback_(sustainParamId_, sustainLevel_);
             if (releaseParamId_ > 0)
-                paramCallback_(releaseParamId_, timeMsToNormalized(releaseMs_));
+                paramCallback_(releaseParamId_,
+                               timeMsToNormalized(releaseMs_, releaseMaxMs_));
             if (peakLevelParamId_ > 0)
                 paramCallback_(peakLevelParamId_, peakLevel_);
             if (attackCurveParamId_ > 0)
@@ -1363,18 +1407,21 @@ private:
     // Time <-> Normalized Conversion
     // =========================================================================
 
-    /// Convert time in ms to normalized [0,1] using cubic mapping
-    /// normalized^3 * 10000 = ms
-    [[nodiscard]] static float timeMsToNormalized(float ms) {
-        float clamped = std::clamp(ms, kMinTimeMs, kMaxTimeMs);
-        return std::cbrt(clamped / kMaxTimeMs);
+    /// Convert time in ms to normalized [0,1] using cubic mapping:
+    /// normalized^3 * maxMs = ms. `maxMs` defaults to kDefaultMaxTimeMs so
+    /// existing callers keep the historical 10 s ceiling behaviour.
+    [[nodiscard]] static float timeMsToNormalized(
+        float ms, float maxMs = kDefaultMaxTimeMs) {
+        float clamped = std::clamp(ms, kMinTimeMs, maxMs);
+        return std::cbrt(clamped / maxMs);
     }
 
-    /// Convert normalized [0,1] to time in ms using cubic mapping
-    [[nodiscard]] static float normalizedToTimeMs(float normalized) {
+    /// Convert normalized [0,1] to time in ms using cubic mapping.
+    [[nodiscard]] static float normalizedToTimeMs(
+        float normalized, float maxMs = kDefaultMaxTimeMs) {
         float clamped = std::clamp(normalized, 0.0f, 1.0f);
-        return std::clamp(clamped * clamped * clamped * kMaxTimeMs,
-                          kMinTimeMs, kMaxTimeMs);
+        return std::clamp(clamped * clamped * clamped * maxMs,
+                          kMinTimeMs, maxMs);
     }
 
     // =========================================================================
@@ -1825,6 +1872,13 @@ private:
     float sustainLevel_ = kDefaultSustainLevel;
     float releaseMs_ = kDefaultReleaseMs;
     float peakLevel_ = kDefaultPeakLevel;
+
+    // Per-segment time ceilings. Default to the historical 10 s ceiling so
+    // existing plugins (Ruinae / Innexus) behave identically; plugins with
+    // asymmetric ranges override individual segments via the setters above.
+    float attackMaxMs_  = kDefaultMaxTimeMs;
+    float decayMaxMs_   = kDefaultMaxTimeMs;
+    float releaseMaxMs_ = kDefaultMaxTimeMs;
 
     // Curve amounts
     float attackCurve_ = 0.0f;

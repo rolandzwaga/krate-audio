@@ -684,9 +684,9 @@ TEST_CASE("Control point clamping at time boundaries",
     display.setAttackMs(0.01f);  // Below kMinTimeMs
     REQUIRE(display.getAttackMs() == Approx(ADSRDisplay::kMinTimeMs).margin(0.01f));
 
-    // Maximum time
-    display.setDecayMs(20000.0f);  // Above kMaxTimeMs
-    REQUIRE(display.getDecayMs() == Approx(ADSRDisplay::kMaxTimeMs).margin(1.0f));
+    // Maximum time: defaults to kDefaultMaxTimeMs, overridable per segment
+    display.setDecayMs(20000.0f);  // Above default decay ceiling
+    REQUIRE(display.getDecayMs() == Approx(ADSRDisplay::kDefaultMaxTimeMs).margin(1.0f));
 
     // Sustain boundaries
     display.setSustainLevel(-0.5f);

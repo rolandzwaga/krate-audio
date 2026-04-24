@@ -13,6 +13,10 @@
 #include "ui/polyphony_slider.h"
 #include "ui/coupling_matrix_view.h"
 #include "ui/pitch_envelope_display.h"  // shared PitchEnvelopeDisplay (Krate::Plugins)
+#include "ui/xy_morph_pad.h"             // shared XYMorphPad (Krate::Plugins)
+#include "ui/adsr_display.h"             // shared ADSRDisplay   (Krate::Plugins)
+#include "ui/adsr_expanded_overlay.h"    // Membrum::UI::ADSRExpandedOverlayView
+#include "ui/outline_button.h"           // Membrum::UI::IconExpandActionButton
 #include "preset/membrum_preset_config.h"
 
 #include "preset/preset_manager.h"
@@ -445,7 +449,6 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         {.id = kExciterFeedbackAmountId,     .name = "Exciter Feedback Amount",     .defaultValue = 0.0,      .unit = nullptr },
         {.id = kExciterNoiseBurstDurationId, .name = "Exciter NoiseBurst Duration", .defaultValue = 0.230769, .unit = "ms" },
         {.id = kExciterFrictionPressureId,   .name = "Exciter Friction Pressure",   .defaultValue = 0.3,      .unit = nullptr },
-        {.id = kToneShaperFilterTypeId,      .name = "Tone Shaper Filter Type",     .defaultValue = 0.0,      .unit = nullptr },
         {.id = kToneShaperFilterCutoffId,    .name = "Tone Shaper Filter Cutoff",   .defaultValue = 1.0,      .unit = "Hz" },
         {.id = kToneShaperFilterResonanceId, .name = "Tone Shaper Filter Resonance",.defaultValue = 0.0,      .unit = nullptr },
         {.id = kToneShaperFilterEnvAmountId, .name = "Tone Shaper Filter Env Amt",  .defaultValue = 0.5,      .unit = nullptr },
@@ -454,7 +457,6 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         {.id = kToneShaperPitchEnvStartId,   .name = "Tone Shaper PitchEnv Start",  .defaultValue = 0.070721, .unit = "Hz" },
         {.id = kToneShaperPitchEnvEndId,     .name = "Tone Shaper PitchEnv End",    .defaultValue = 0.0,      .unit = "Hz" },
         {.id = kToneShaperPitchEnvTimeId,    .name = "Tone Shaper PitchEnv Time",   .defaultValue = 0.0,      .unit = "ms" },
-        {.id = kToneShaperPitchEnvCurveId,   .name = "Tone Shaper PitchEnv Curve",  .defaultValue = 0.0,      .unit = nullptr },
         {.id = kToneShaperFilterEnvAttackId,  .name = "Tone Shaper Filter Atk",     .defaultValue = 0.0,      .unit = "ms" },
         {.id = kToneShaperFilterEnvDecayId,   .name = "Tone Shaper Filter Dec",     .defaultValue = 0.1,      .unit = "ms" },
         {.id = kToneShaperFilterEnvSustainId, .name = "Tone Shaper Filter Sus",     .defaultValue = 0.0,      .unit = nullptr },
@@ -467,7 +469,6 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         {.id = kMorphStartId,      .name = "Morph Start",     .defaultValue = 1.0,      .unit = nullptr },
         {.id = kMorphEndId,        .name = "Morph End",       .defaultValue = 0.0,      .unit = nullptr },
         {.id = kMorphDurationMsId, .name = "Morph Duration",  .defaultValue = 0.095477, .unit = "ms" },
-        {.id = kMorphCurveId,      .name = "Morph Curve",     .defaultValue = 0.0,      .unit = nullptr },
     };
 
     for (const auto& spec : kPhase2Specs)
@@ -486,6 +487,48 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
             new RangeParameter(titleBuf, spec.id, unitPtr,
                                0.0, 1.0, spec.defaultValue, 0,
                                ParameterInfo::kCanAutomate));
+    }
+
+    // Morph Curve selector (binary: Linear / Exponential). Registered as a
+    // StringListParameter so the Advanced template's COptionMenu can populate
+    // its dropdown entries. The DSP side treats the normalised value as a
+    // threshold at 0.5 (see processor.cpp / material_morph.h setCurve()).
+    {
+        auto* curveList = new StringListParameter(
+            STR16("Morph Curve"), kMorphCurveId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        curveList->appendString(STR16("Linear"));
+        curveList->appendString(STR16("Exponential"));
+        parameters.addParameter(curveList);
+    }
+
+    // Tone Shaper Filter Type selector (LP / HP / BP). Same story as Morph
+    // Curve: the UI binds a COptionMenu to this tag, so it must be a
+    // StringListParameter. The processor decodes the normalised value via
+    // std::clamp(static_cast<int>(v * 3.0f), 0, 2), which matches the
+    // StringListParameter's index -> normalised mapping (0->0.0, 1->0.5, 2->1.0).
+    {
+        auto* filterTypeList = new StringListParameter(
+            STR16("Tone Shaper Filter Type"), kToneShaperFilterTypeId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        filterTypeList->appendString(STR16("Lowpass"));
+        filterTypeList->appendString(STR16("Highpass"));
+        filterTypeList->appendString(STR16("Bandpass"));
+        parameters.addParameter(filterTypeList);
+    }
+
+    // Tone Shaper Pitch Envelope Curve selector (Exponential / Linear).
+    // Entry order must match the ToneShaperCurve enum (Exponential=0,
+    // Linear=1) so the StringListParameter's index -> normalised mapping
+    // (0->0.0, 1->1.0) lines up with the processor's
+    // std::clamp(static_cast<int>(v * 2.0f), 0, 1) decode.
+    {
+        auto* pitchCurveList = new StringListParameter(
+            STR16("Tone Shaper PitchEnv Curve"), kToneShaperPitchEnvCurveId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        pitchCurveList->appendString(STR16("Exponential"));
+        pitchCurveList->appendString(STR16("Linear"));
+        parameters.addParameter(pitchCurveList);
     }
 
     // ---- Phase 3 parameters (polyphony / stealing / choke) ----
@@ -743,6 +786,24 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     // First, let the base class update the parameter value.
     auto result = EditControllerEx1::setParamNormalized(tag, value);
 
+    // Power toggle for the Material Morph section: whenever kMorphEnabledId
+    // changes (user toggle, automation, preset load, or pad-switch sync via
+    // syncGlobalProxyFromPad -> EditControllerEx1::setParamNormalized), cascade
+    // the new state across the cached section views.
+    if (tag == static_cast<ParamID>(kMorphEnabledId))
+        updateMorphControlsEnabled();
+
+    // Tone Shaper filter-envelope display: repaint the curve whenever any of
+    // the four A/D/S/R parameters moves, regardless of source (knob edit,
+    // automation, preset load, or the direct-setter pad-switch sync path).
+    if (tag == static_cast<ParamID>(kToneShaperFilterEnvAttackId)
+        || tag == static_cast<ParamID>(kToneShaperFilterEnvDecayId)
+        || tag == static_cast<ParamID>(kToneShaperFilterEnvSustainId)
+        || tag == static_cast<ParamID>(kToneShaperFilterEnvReleaseId))
+    {
+        updateFilterEnvDisplay();
+    }
+
     // If we're in the middle of a pad switch, don't recurse.
     if (suppressProxyForward_)
         return result;
@@ -861,6 +922,15 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // FR-066: after syncing the proxies to a newly selected pad, refresh the
     // Output Bus tooltip so it reflects that pad's assigned bus.
     updateOutputBusTooltip();
+    // The sync loop above calls the base class setter directly, which bypasses
+    // the derived setParamNormalized() override and its kMorphEnabledId hook.
+    // Reflect the freshly-synced state onto the Material Morph views so the
+    // dim/enable visuals track pad selection.
+    updateMorphControlsEnabled();
+    // Same reasoning for the filter-envelope display: direct base-class writes
+    // skip the setParamNormalized hook, so refresh the display once the sync
+    // loop has settled all four A/D/S/R globals to the new pad's values.
+    updateFilterEnvDisplay();
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1312,6 +1382,19 @@ VSTGUI::CView* Controller::createCustomView(
             viewRect, "Reset",
             [this]() { sendCouplingMatrixEdit(4, 0, 0, 0.0f); });
     }
+    // Expand button for the Tone Shaper filter envelope. Clicking opens the
+    // modal ADSRExpandedOverlayView created in didOpen(); the overlay can be
+    // re-opened any number of times. The action is a no-op until didOpen()
+    // has added the overlay to the frame.
+    if (std::strcmp(name, "FilterEnvExpandButton") == 0)
+    {
+        auto* btn = new UI::IconExpandActionButton(viewRect);
+        btn->setAction([this]() {
+            if (filterEnvOverlay_ != nullptr && !filterEnvOverlay_->isOpen())
+                filterEnvOverlay_->open();
+        });
+        return btn;
+    }
     // Inline kit-column browser widgets (Spec 141 US4): composite of a
     // current-preset-name label + Prev / Next / Browse buttons. Browse opens
     // the modal PresetBrowserView overlay that is added to the frame in
@@ -1422,6 +1505,96 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             });
         pitchEnvelopeDisplay_ = pev;
     }
+
+    // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
+    // its X-axis via the CControl tag (MaterialMorph -> kMorphStartId) and its
+    // Y-axis through a direct performEdit() on this edit controller. The
+    // secondary-tag="MorphEnd" attribute wires Y to kMorphEndId via the
+    // ViewCreator; the controller pointer must be wired here.
+    // Track whether any Material Morph view was just cached so we can apply
+    // the current MorphEnabled state immediately -- verifyView() fires as the
+    // template is (re)built (including lazy rebuilds by UIViewSwitchContainer
+    // after didOpen has already run), so didOpen's one-shot state sync is not
+    // enough on its own.
+    bool morphViewCached = false;
+
+    if (auto* xyPad = dynamic_cast<Krate::Plugins::XYMorphPad*>(view))
+    {
+        xyPad->setController(this);
+        xyPad->setSecondaryParamId(kMorphEndId);
+
+        const auto startNorm = getParamNormalized(kMorphStartId);
+        const auto endNorm   = getParamNormalized(kMorphEndId);
+        xyPad->setMorphPosition(static_cast<float>(startNorm),
+                                static_cast<float>(endNorm));
+        xyMorphPad_ = xyPad;
+        morphViewCached = true;
+    }
+
+    // Material Morph knob + menu: discover by control-tag so updateMorphControlsEnabled()
+    // can cascade the MorphEnabled (power) toggle state across the whole section.
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view))
+    {
+        const auto tag = ctrl->getTag();
+        if (tag == static_cast<int32>(kMorphDurationMsId))
+        {
+            morphDurationView_ = ctrl;
+            morphViewCached = true;
+        }
+        else if (tag == static_cast<int32>(kMorphCurveId))
+        {
+            morphCurveView_ = ctrl;
+            morphViewCached = true;
+        }
+    }
+
+    // "Dur" label sits next to the MorphDuration knob; dim it alongside the
+    // controls when the power toggle is off. It is the only CTextLabel in the
+    // uidesc with this title, so a title match is unambiguous.
+    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(view))
+    {
+        VSTGUI::UTF8StringPtr t = label->getText();
+        if (t != nullptr && std::strcmp(t, "Dur") == 0)
+        {
+            morphDurLabel_ = label;
+            morphViewCached = true;
+        }
+    }
+
+    if (morphViewCached)
+        updateMorphControlsEnabled();
+
+    // Tone Shaper Filter ADSR display (Advanced template). Membrum's filter
+    // envelope uses asymmetric linear ranges: attack x500 ms, decay/release
+    // x2000 ms (see processor.cpp:72-75). The shared ADSRDisplay exposes
+    // per-segment max-time setters so its cubic drag->callback encoding lines
+    // up with these ranges; we configure them here, wire the param IDs, and
+    // forward edits back to the host via performEdit().
+    if (auto* adsr = dynamic_cast<Krate::Plugins::ADSRDisplay*>(view))
+    {
+        adsr->setAttackMaxMs(500.0f);
+        adsr->setDecayMaxMs(2000.0f);
+        adsr->setReleaseMaxMs(2000.0f);
+        adsr->setAdsrBaseParamId(kToneShaperFilterEnvAttackId);
+        adsr->setParameterCallback(
+            [this](uint32_t paramId, float normalizedValue) {
+                const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
+                const auto v   = static_cast<Steinberg::Vst::ParamValue>(normalizedValue);
+                performEdit(tag, v);
+                setParamNormalized(tag, v);
+            });
+        adsr->setBeginEditCallback(
+            [this](uint32_t paramId) {
+                beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        adsr->setEndEditCallback(
+            [this](uint32_t paramId) {
+                endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+            });
+        filterEnvDisplay_ = adsr;
+        updateFilterEnvDisplay();
+    }
+
     return view;
 }
 
@@ -1458,6 +1631,77 @@ void Controller::updateOutputBusTooltip() noexcept
         // empty string removes the tooltip.
         outputBusSelView_->setTooltipText("");
     }
+}
+
+// ------------------------------------------------------------------------------
+// Reflect the MorphEnabled (power toggle) state onto the Material Morph
+// section's controls: dim to 0.35 alpha and block mouse input when off,
+// restore to 1.0 and re-enable when on. Tolerant of any null view pointer,
+// so it is safe to call before verifyView caches them or after willClose
+// zeros them.
+// ------------------------------------------------------------------------------
+void Controller::updateMorphControlsEnabled() noexcept
+{
+    const bool enabled =
+        getParamNormalized(static_cast<ParamID>(kMorphEnabledId)) >= 0.5;
+    const float alpha = enabled ? 1.0f : 0.35f;
+
+    // Guard against redundant setAlphaValue()/invalid() churn: verifyView()
+    // invokes this helper for every Material Morph view as they are built, so
+    // most calls end up asking for the alpha a previously-cached view already
+    // has. Comparing to getAlphaValue() short-circuits those no-ops.
+    auto apply = [enabled, alpha](VSTGUI::CView* v) {
+        if (v == nullptr) return;
+        if (v->getAlphaValue() == alpha
+            && v->getMouseEnabled() == enabled)
+            return;
+        v->setAlphaValue(alpha);
+        v->setMouseEnabled(enabled);
+        v->invalid();
+    };
+
+    apply(xyMorphPad_);
+    apply(morphDurationView_);
+    apply(morphCurveView_);
+    apply(morphDurLabel_);
+}
+
+// ------------------------------------------------------------------------------
+// Push the four Tone Shaper filter-envelope normalized values into the cached
+// ADSRDisplay, converting attack/decay/release to their true DSP millisecond
+// ranges (x500 for attack, x2000 for decay and release -- see
+// processor.cpp:72-75). Sustain is a pure [0,1] level. Tolerant of a null
+// display pointer, so this is safe to call before verifyView populates the
+// pointer or after willClose zeros it.
+// ------------------------------------------------------------------------------
+void Controller::updateFilterEnvDisplay() noexcept
+{
+    if (filterEnvDisplay_ == nullptr && filterEnvOverlayDisplay_ == nullptr)
+        return;
+
+    const auto attackNorm  = getParamNormalized(
+        static_cast<ParamID>(kToneShaperFilterEnvAttackId));
+    const auto decayNorm   = getParamNormalized(
+        static_cast<ParamID>(kToneShaperFilterEnvDecayId));
+    const auto sustainNorm = getParamNormalized(
+        static_cast<ParamID>(kToneShaperFilterEnvSustainId));
+    const auto releaseNorm = getParamNormalized(
+        static_cast<ParamID>(kToneShaperFilterEnvReleaseId));
+
+    const float attackMs  = static_cast<float>(attackNorm) * 500.0f;
+    const float decayMs   = static_cast<float>(decayNorm)  * 2000.0f;
+    const float sustain   = static_cast<float>(sustainNorm);
+    const float releaseMs = static_cast<float>(releaseNorm) * 2000.0f;
+
+    auto pushTo = [&](Krate::Plugins::ADSRDisplay* display) {
+        if (display == nullptr) return;
+        display->setAttackMs(attackMs);
+        display->setDecayMs(decayMs);
+        display->setSustainLevel(sustain);
+        display->setReleaseMs(releaseMs);
+    };
+    pushTo(filterEnvDisplay_);
+    pushTo(filterEnvOverlayDisplay_);
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
@@ -1533,6 +1777,48 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             padPresetConfig().subcategoryNames);
         frame->addView(padSaveDialogView_);
     }
+
+    // Expanded filter-envelope overlay. Opened by the FilterEnvExpandButton
+    // (see createCustomView). Wire its internal ADSRDisplay with the same
+    // per-segment max times, base param ID, and edit callbacks as the inline
+    // display so edits in either view reach the same parameters and the
+    // shape stays synchronised.
+    if (filterEnvOverlay_ == nullptr)
+    {
+        filterEnvOverlay_ = new Membrum::UI::ADSRExpandedOverlayView(frameSize);
+        filterEnvOverlayDisplay_ = filterEnvOverlay_->getDisplay();
+        if (filterEnvOverlayDisplay_ != nullptr)
+        {
+            filterEnvOverlayDisplay_->setAttackMaxMs(500.0f);
+            filterEnvOverlayDisplay_->setDecayMaxMs(2000.0f);
+            filterEnvOverlayDisplay_->setReleaseMaxMs(2000.0f);
+            filterEnvOverlayDisplay_->setAdsrBaseParamId(kToneShaperFilterEnvAttackId);
+            filterEnvOverlayDisplay_->setParameterCallback(
+                [this](uint32_t paramId, float normalizedValue) {
+                    const auto tag = static_cast<Steinberg::Vst::ParamID>(paramId);
+                    const auto v   = static_cast<Steinberg::Vst::ParamValue>(normalizedValue);
+                    performEdit(tag, v);
+                    setParamNormalized(tag, v);
+                });
+            filterEnvOverlayDisplay_->setBeginEditCallback(
+                [this](uint32_t paramId) {
+                    beginEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+                });
+            filterEnvOverlayDisplay_->setEndEditCallback(
+                [this](uint32_t paramId) {
+                    endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
+                });
+        }
+        frame->addView(filterEnvOverlay_);
+    }
+
+    // Reflect the current power-toggle state onto the Material Morph controls
+    // now that verifyView() has populated the cached view pointers for the
+    // freshly-built template.
+    updateMorphControlsEnabled();
+    // Push current filter-envelope values into both displays -- the overlay
+    // was just built and needs its initial shape / labels.
+    updateFilterEnvDisplay();
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
@@ -1559,6 +1845,13 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     activeVoicesLabel_ = nullptr;
     presetStatusLabel_ = nullptr;
     outputBusSelView_  = nullptr;
+    xyMorphPad_              = nullptr;
+    morphDurationView_       = nullptr;
+    morphCurveView_          = nullptr;
+    morphDurLabel_           = nullptr;
+    filterEnvDisplay_        = nullptr;
+    filterEnvOverlay_        = nullptr;
+    filterEnvOverlayDisplay_ = nullptr;
 
     // T053..T054: VSTGUI owns the views; just drop our raw pointers so the
     // 30 Hz poll timer (already cancelled above) and any future code can not

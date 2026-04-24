@@ -29,8 +29,8 @@ class SavePresetDialogView;
 
 namespace Steinberg { class IBStream; }
 
-namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; class InlinePresetBrowserView; }
-namespace Krate::Plugins { class PitchEnvelopeDisplay; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
+namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }
 
@@ -229,6 +229,45 @@ private:
     // selected aux bus is not activated by the host. Lifetime owned by
     // VSTGUI; zeroed in willClose().
     VSTGUI::CControl*                outputBusSelView_ = nullptr;
+
+    // Material Morph section views (Advanced template). Cached in verifyView()
+    // so that toggling the MorphEnabled (power) button can cascade a
+    // disabled/dimmed visual state across every control inside the fieldset.
+    // All four pointers are owned by VSTGUI's view tree; willClose() zeros them.
+    Krate::Plugins::XYMorphPad*      xyMorphPad_           = nullptr;
+    VSTGUI::CControl*                morphDurationView_    = nullptr;
+    VSTGUI::CControl*                morphCurveView_       = nullptr;
+    VSTGUI::CTextLabel*              morphDurLabel_        = nullptr;
+
+    // Tone Shaper Filter ADSR display (Advanced template). Cached in
+    // verifyView() so setParamNormalized() / syncGlobalProxyFromPad can push
+    // the current attack/decay/sustain/release values into the display.
+    // Membrum's filter envelope uses asymmetric linear ranges (attack x500 ms,
+    // decay/release x2000 ms, see processor.cpp:72-75). The shared
+    // ADSRDisplay accepts per-segment max-time overrides via setAttackMaxMs /
+    // setDecayMaxMs / setReleaseMaxMs, which align its cubic drag->normalised
+    // encoding with those DSP ranges so drag edits round-trip correctly.
+    Krate::Plugins::ADSRDisplay*     filterEnvDisplay_     = nullptr;
+
+    // Expanded overlay for the Tone Shaper filter envelope. Opened via the
+    // FilterEnvExpandButton in the inline section; the overlay hosts its own
+    // large ADSRDisplay wired to the same param IDs and max-time ranges as
+    // the inline display. Owned by the frame; nulled in willClose.
+    Membrum::UI::ADSRExpandedOverlayView* filterEnvOverlay_         = nullptr;
+    Krate::Plugins::ADSRDisplay*          filterEnvOverlayDisplay_  = nullptr;
+
+    /// Reflect the current kMorphEnabledId value onto the cached Material
+    /// Morph views: ON -> alpha 1.0, mouse enabled; OFF -> alpha 0.35, mouse
+    /// disabled. Tolerant of missing views (safe before didOpen / after
+    /// willClose). Called from didOpen, syncGlobalProxyFromPad, and
+    /// setParamNormalized on kMorphEnabledId writes.
+    void updateMorphControlsEnabled() noexcept;
+
+    /// Push the current tone-shaper filter-envelope norm values into the
+    /// cached ADSRDisplay, converting to true DSP milliseconds (attack x500,
+    /// decay/release x2000) so the displayed shape and time labels match
+    /// what the processor actually applies. Tolerant of a null display.
+    void updateFilterEnvDisplay() noexcept;
 
     /// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the cached
     /// Output Bus selector view when the selected aux bus index >= 1 and the

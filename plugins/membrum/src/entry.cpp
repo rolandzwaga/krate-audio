@@ -7,9 +7,12 @@
 #include "processor/processor.h"
 #include "controller/controller.h"
 
+#include "ui/adsr_display.h"
 #include "ui/arc_knob.h"
 #include "ui/fieldset_container.h"
 #include "ui/pitch_envelope_display.h"
+#include "ui/toggle_button.h"
+#include "ui/xy_morph_pad.h"
 
 #include "public.sdk/source/main/pluginfactory.h"
 

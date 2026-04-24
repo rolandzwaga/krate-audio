@@ -158,9 +158,9 @@
         <view class="CView" custom-view-name="ModeToggleButton" origin="312, 4" size="80, 20"/>
 
         <!-- ============================================================= -->
-        <!-- Character: Unnatural Zone + Material Morph                   -->
+        <!-- Character: Unnatural Zone knobs                               -->
         <!-- ============================================================= -->
-        <view class="FieldsetContainer" origin="4, 28" size="388, 134" transparent="true"
+        <view class="FieldsetContainer" origin="4, 28" size="200, 134" transparent="true"
               fieldset-title="Character" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="ArcKnob" control-tag="ModeStretch"       origin="12, 48"  size="40, 40" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Stretch"               origin="12, 90"  size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
@@ -170,13 +170,18 @@
         <view class="CTextLabel" title="Skew"                  origin="108, 90" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="NonlinearCoupling" origin="156, 48" size="40, 40" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Nonlin"                origin="156, 90" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <!-- Material Morph: XY pad + duration / curve / enable on right half -->
-        <view class="XYMorphPad" control-tag="MaterialMorph"  origin="204, 48" size="180, 54" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="Material Morph"        origin="204, 104" size="180, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="MorphDuration"     origin="204, 118" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Dur"                   origin="204, 148" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="COptionMenu" control-tag="MorphCurve"    origin="238, 124" size="60, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CCheckBox" control-tag="MorphEnabled"    origin="304, 124" size="80, 20" title="Enabled" font="label-font" font-color="text-primary" boxframe-color="accent" boxfill-color="bg-panel" checkmark-color="accent" frame-width="1"/>
+
+        <!-- ============================================================= -->
+        <!-- Material Morph: XY pad (X=MorphStart, Y=MorphEnd) + Dur/Curve -->
+        <!-- + power toggle (master enable for the whole section)          -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="208, 28" size="184, 134" transparent="true"
+              fieldset-title="Material Morph" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="XYMorphPad" control-tag="MaterialMorph" secondary-tag="MorphEnd" origin="216, 48" size="168, 84"/>
+        <view class="ArcKnob" control-tag="MorphDuration"     origin="216, 136" size="22, 22" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dur"                   origin="240, 142" size="18, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="MorphCurve"    origin="260, 138" size="80, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ToggleButton" control-tag="MorphEnabled" origin="354, 136" size="22, 22" icon-style="power" on-color="accent" off-color="text-secondary" stroke-width="2"/>
 
         <!-- ============================================================= -->
         <!-- Source: Exciter type + params, Body Model                    -->
@@ -239,29 +244,36 @@
         <!-- ============================================================= -->
         <view class="FieldsetContainer" origin="4, 408" size="388, 126" transparent="true"
               fieldset-title="Tone Shaper" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <!-- Row 1: filter type + cutoff/reson/envamt/drive/fold -->
-        <view class="COptionMenu" control-tag="FilterType"    origin="12, 426"  size="64, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Type"                  origin="12, 450"  size="64, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterCutoff"      origin="86, 424"  size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cutoff"                origin="86, 456"  size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterResonance"   origin="128, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Reson"                 origin="128, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvAmount"   origin="170, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Env Amt"               origin="170, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="DriveAmount"       origin="222, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Drive"                 origin="222, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FoldAmount"        origin="264, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Fold"                  origin="264, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <!-- Row 2: ADSR display + A/D/S/R knobs -->
+        <!-- Row 1: filter type + cutoff/reson/envamt/drive/fold. Filter Type
+             dropdown widened from 64 to 80 px so "Lowpass"/"Highpass"/
+             "Bandpass" labels fit; the knob row is shifted +16 px to preserve
+             the existing gap. -->
+        <view class="COptionMenu" control-tag="FilterType"    origin="12, 426"  size="80, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Type"                  origin="12, 450"  size="80, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterCutoff"      origin="102, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cutoff"                origin="102, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterResonance"   origin="144, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Reson"                 origin="144, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvAmount"   origin="186, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Env Amt"               origin="186, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="DriveAmount"       origin="238, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Drive"                 origin="238, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FoldAmount"        origin="280, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Fold"                  origin="280, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- Row 2: ADSR display + expand button (at bottom, between display
+             and knobs; opens the Filter Envelope in a larger popup editor) +
+             A/D/S/R knobs. A/D/S/R are shifted +12 px to make room for the
+             16 px expand button and keep a 4 px gap on either side. -->
         <view class="ADSRDisplay"                             origin="12, 474"  size="200, 50" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="ArcKnob" control-tag="FilterEnvAttack"   origin="222, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="A"                     origin="222, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvDecay"    origin="262, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="D"                     origin="262, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvSustain"  origin="302, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="S"                     origin="302, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvRelease"  origin="342, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="R"                     origin="342, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CView" custom-view-name="FilterEnvExpandButton" origin="214, 508" size="16, 16"/>
+        <view class="ArcKnob" control-tag="FilterEnvAttack"   origin="234, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="A"                     origin="234, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvDecay"    origin="274, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="D"                     origin="274, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvSustain"  origin="314, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="S"                     origin="314, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvRelease"  origin="354, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="R"                     origin="354, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
         <!-- ============================================================= -->
         <!-- Parallel Layers: Noise (5) + Click (3)                        -->
