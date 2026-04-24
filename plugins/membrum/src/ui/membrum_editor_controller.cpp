@@ -41,7 +41,7 @@ void MembrumEditorController::attachUiModeSwitch(
     {
         const auto norm = static_cast<float>(uiModeParam_->getNormalized());
         uiModeSwitch_->setCurrentViewIndex(
-            (uiModeFromNormalized(norm) == UiMode::Extended) ? 1 : 0);
+            (uiModeFromNormalized(norm) == UiMode::Advanced) ? 1 : 0);
     }
 }
 
@@ -58,7 +58,7 @@ void PLUGIN_API MembrumEditorController::update(FUnknown* changedUnknown,
     if (param == uiModeParam_ && uiModeSwitch_)
     {
         const auto norm = static_cast<float>(param->getNormalized());
-        const int idx = (uiModeFromNormalized(norm) == UiMode::Extended) ? 1 : 0;
+        const int idx = (uiModeFromNormalized(norm) == UiMode::Advanced) ? 1 : 0;
         uiModeSwitch_->setCurrentViewIndex(idx);
     }
 }

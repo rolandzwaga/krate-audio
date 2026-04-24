@@ -260,12 +260,12 @@ TEST_CASE("PitchEnvelopeDisplay::removed balances an in-flight drag",
 }
 
 // ------------------------------------------------------------------------------
-// T078: PitchEnvelopeDisplay is present in the SelectedPadAcoustic template of
+// T078: PitchEnvelopeDisplay is present in the SelectedPadSimple template of
 // editor.uidesc (not only in the Extended template). This is a file-scan check
 // that guards against a future UI refactor silently demoting the envelope into
 // an Extended-only tab (FR / US8 promotes it to a primary control).
 // ------------------------------------------------------------------------------
-TEST_CASE("PitchEnvelopeDisplay appears in SelectedPadAcoustic template",
+TEST_CASE("PitchEnvelopeDisplay appears in SelectedPadSimple template",
           "[pitch_envelope][phase6][editor_uidesc]")
 {
     const std::string uidescPath =
@@ -288,9 +288,9 @@ TEST_CASE("PitchEnvelopeDisplay appears in SelectedPadAcoustic template",
     buffer << file.rdbuf();
     const std::string contents = buffer.str();
 
-    // Locate the SelectedPadAcoustic template and ensure it contains a
+    // Locate the SelectedPadSimple template and ensure it contains a
     // PitchEnvelopeDisplay view *before* the next template block starts.
-    const auto acousticPos = contents.find("template name=\"SelectedPadAcoustic\"");
+    const auto acousticPos = contents.find("template name=\"SelectedPadSimple\"");
     REQUIRE(acousticPos != std::string::npos);
 
     const auto nextTemplatePos = contents.find("<template ", acousticPos + 1);

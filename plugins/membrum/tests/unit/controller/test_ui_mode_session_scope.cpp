@@ -69,7 +69,7 @@ TEST_CASE("kUiModeId responds to setParamNormalized (automatable)",
 
     REQUIRE(ctl.setParamNormalized(kUiModeId, 1.0) == Steinberg::kResultOk);
     REQUIRE(ctl.getParamNormalized(kUiModeId) == 1.0);
-    REQUIRE(UI::uiModeFromNormalized(1.0f) == UI::UiMode::Extended);
+    REQUIRE(UI::uiModeFromNormalized(1.0f) == UI::UiMode::Advanced);
 
     REQUIRE(ctl.setParamNormalized(kUiModeId, 0.0) == Steinberg::kResultOk);
     REQUIRE(ctl.getParamNormalized(kUiModeId) == 0.0);

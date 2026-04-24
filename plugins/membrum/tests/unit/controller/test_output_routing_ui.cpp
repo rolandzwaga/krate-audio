@@ -151,8 +151,8 @@ TEST_CASE("Selected-Pad Panel Output Bus selector binds to kOutputBusId proxy (F
         REQUIRE(found);
     };
 
-    requireBindsToOutputBus("SelectedPadAcoustic");
-    requireBindsToOutputBus("SelectedPadExtended");
+    requireBindsToOutputBus("SelectedPadSimple");
+    requireBindsToOutputBus("SelectedPadAdvanced");
 }
 
 // ------------------------------------------------------------------------------

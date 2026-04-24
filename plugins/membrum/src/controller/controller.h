@@ -84,6 +84,14 @@ public:
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
                                                       Steinberg::Vst::ParamValue value) override;
 
+    // Override to produce human-readable value-popup strings for the ArcKnobs
+    // in the Acoustic view (Hz / dB / bipolar % / Wood-Metal labels, etc.).
+    // Falls back to EditControllerEx1's default formatting for all other tags.
+    Steinberg::tresult PLUGIN_API getParamStringByValue(
+        Steinberg::Vst::ParamID tag,
+        Steinberg::Vst::ParamValue valueNormalized,
+        Steinberg::Vst::String128 string) override;
+
     // Phase 4: Track bus activation state (FR-043).
     // Note: In VST3 separate-component mode, activateBus is only called on the
     // processor (IComponent). The controller can be notified via IMessage or

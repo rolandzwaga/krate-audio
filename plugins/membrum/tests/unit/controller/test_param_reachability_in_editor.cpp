@@ -373,12 +373,12 @@ TEST_CASE("editor.uidesc Extended template contains required control-tags",
     const auto xml = slurp(uidescPath);
     REQUIRE_FALSE(xml.empty());
 
-    const auto extended = extractTemplate(xml, "SelectedPadExtended");
+    const auto extended = extractTemplate(xml, "SelectedPadAdvanced");
     REQUIRE_FALSE(extended.empty());
 
     const auto refs = extractTagRefs(extended);
 
-    // Required control-tag names that MUST appear in the Extended template.
+    // Required control-tag names that MUST appear in the Advanced template.
     const std::vector<std::string> required = {
         // Unnatural Zone
         "ModeStretch", "DecaySkew", "ModeInject", "NonlinearCoupling",

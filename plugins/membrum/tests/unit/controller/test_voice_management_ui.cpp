@@ -149,8 +149,8 @@ TEST_CASE("Selected-Pad Panel Choke Group selector binds to kChokeGroupId proxy 
         REQUIRE(found);
     };
 
-    requireBindsToChokeGroup("SelectedPadAcoustic");
-    requireBindsToChokeGroup("SelectedPadExtended");
+    requireBindsToChokeGroup("SelectedPadSimple");
+    requireBindsToChokeGroup("SelectedPadAdvanced");
 }
 
 // ------------------------------------------------------------------------------

@@ -110,8 +110,11 @@
     <control-tag name="TensionModAmt" tag="308"/>
   </control-tags>
   <bitmaps/>
-  <template name="SelectedPadAcoustic" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
-        <view class="CTextLabel" title="Macros" origin="8, 8" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+  <template name="SelectedPadSimple" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <view class="FieldsetContainer" origin="4, 4" size="388, 104" transparent="true"
+              fieldset-title="Macros" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <!-- Mode toggle (Acoustic/Extended) pinned to top-right of middle column -->
+        <view class="CView" custom-view-name="ModeToggleButton" origin="312, 4" size="80, 20"/>
         <view class="CTextLabel" title="Tightness" origin="8, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="MacroTightness" origin="8, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Brightness" origin="80, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
@@ -122,7 +125,8 @@
         <view class="ArcKnob" control-tag="MacroPunch" origin="224, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Complexity" origin="296, 84" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="MacroComplexity" origin="296, 28" size="56, 56" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Body" origin="8, 120" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="FieldsetContainer" origin="4, 116" size="388, 104" transparent="true"
+              fieldset-title="Body" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="CTextLabel" title="Material" origin="8, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="Material" origin="8, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Size" origin="80, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
@@ -133,167 +137,187 @@
         <view class="ArcKnob" control-tag="StrikePosition" origin="224, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
         <view class="CTextLabel" title="Level" origin="296, 196" size="56, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
         <view class="ArcKnob" control-tag="Level" origin="296, 140" size="56, 56" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Pitch Envelope" origin="8, 232" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="FieldsetContainer" origin="4, 228" size="388, 112" transparent="true"
+              fieldset-title="Pitch Envelope" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="PitchEnvelopeDisplay" origin="8, 252" size="360, 80" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
-        <view class="CTextLabel" title="Routing" origin="8, 344" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="FieldsetContainer" origin="4, 348" size="388, 72" transparent="true"
+              fieldset-title="Routing" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="CTextLabel" title="Output Bus" origin="8, 364" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 362" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
         <view class="CTextLabel" title="Choke Group" origin="8, 390" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 388" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Source" origin="8, 420" size="240, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
+        <view class="FieldsetContainer" origin="4, 424" size="388, 72" transparent="true"
+              fieldset-title="Source" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="CTextLabel" title="Exciter" origin="8, 440" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="ExciterType" origin="96, 438" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
         <view class="CTextLabel" title="Body" origin="8, 466" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <view class="COptionMenu" control-tag="BodyModel" origin="96, 464" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
   </template>
-  <template name="SelectedPadExtended" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
-        <!-- Row 1: Unnatural Zone -->
-        <view class="CTextLabel" title="Unnatural Zone" origin="8, 8" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="ModeStretch" origin="8, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Stretch" origin="8, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ModeInject" origin="64, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Inject" origin="64, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="DecaySkew" origin="120, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Dec Skew" origin="120, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="NonlinearCoupling" origin="176, 28" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Nonlin" origin="176, 76" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <!-- Material Morph XY pad binds its X axis to MorphStart and Y axis to MorphEnd via the sub-controller; control-tag references MorphStart as primary. -->
-        <view class="XYMorphPad" control-tag="MaterialMorph" origin="232, 28" size="160, 60" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="Material Morph" origin="232, 88" size="160, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="MorphDuration" origin="232, 104" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Dur" origin="232, 136" size="32, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="COptionMenu" control-tag="MorphCurve" origin="272, 108" size="56, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CCheckBox" control-tag="MorphEnabled" origin="336, 108" size="56, 20" title="On" font="label-font" font-color="text-primary" boxframe-color="accent" boxfill-color="bg-panel" checkmark-color="accent" frame-width="1"/>
+  <template name="SelectedPadAdvanced" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
+        <!-- Mode toggle (Simple/Advanced) pinned to top-right of middle column -->
+        <view class="CView" custom-view-name="ModeToggleButton" origin="312, 4" size="80, 20"/>
 
-        <!-- Row 2: Raw Physics -->
-        <view class="CTextLabel" title="Raw Physics" origin="8, 156" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="Material" origin="8, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Material" origin="8, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="Size" origin="64, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Size" origin="64, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="Decay" origin="120, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Decay" origin="120, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="StrikePosition" origin="176, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Strike" origin="176, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="Level" origin="232, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Level" origin="232, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="CouplingAmount" origin="288, 176" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Coupling" origin="288, 224" size="48, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Character: Unnatural Zone + Material Morph                   -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 28" size="388, 134" transparent="true"
+              fieldset-title="Character" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="ArcKnob" control-tag="ModeStretch"       origin="12, 48"  size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Stretch"               origin="12, 90"  size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ModeInject"        origin="60, 48"  size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Inject"                origin="60, 90"  size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="DecaySkew"         origin="108, 48" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Skew"                  origin="108, 90" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NonlinearCoupling" origin="156, 48" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Nonlin"                origin="156, 90" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- Material Morph: XY pad + duration / curve / enable on right half -->
+        <view class="XYMorphPad" control-tag="MaterialMorph"  origin="204, 48" size="180, 54" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="Material Morph"        origin="204, 104" size="180, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="MorphDuration"     origin="204, 118" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dur"                   origin="204, 148" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="COptionMenu" control-tag="MorphCurve"    origin="238, 124" size="60, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CCheckBox" control-tag="MorphEnabled"    origin="304, 124" size="80, 20" title="Enabled" font="label-font" font-color="text-primary" boxframe-color="accent" boxfill-color="bg-panel" checkmark-color="accent" frame-width="1"/>
 
-        <!-- Row 3: Tone Shaper -->
-        <view class="CTextLabel" title="Tone Shaper" origin="8, 248" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="FilterType" origin="8, 268" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Type" origin="8, 290" size="72, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterCutoff" origin="88, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cutoff" origin="88, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterResonance" origin="136, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Reson" origin="136, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvAmount" origin="184, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Env Amt" origin="184, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="DriveAmount" origin="232, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Drive" origin="232, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FoldAmount" origin="280, 268" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Fold" origin="280, 308" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Source: Exciter type + params, Body Model                    -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 166" size="388, 96" transparent="true"
+              fieldset-title="Source" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="CTextLabel" title="Exciter"              origin="12, 184" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ExciterType"  origin="60, 182" size="96, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Body"                 origin="172, 184" size="40, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="BodyModel"    origin="216, 182" size="100, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ArcKnob" control-tag="ExciterFMRatio"           origin="12, 212"  size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="FM"                           origin="12, 246"  size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterFeedback"          origin="54, 212"  size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="FB"                           origin="54, 246"  size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterNoiseBurstDuration" origin="96, 212"  size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Burst"                        origin="96, 246"  size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ExciterFrictionPressure"  origin="138, 212" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Press"                        origin="138, 246" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
-        <!-- Row 4: Filter ADSR -->
-        <view class="ADSRDisplay" origin="8, 328" size="200, 60" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="ArcKnob" control-tag="FilterEnvAttack" origin="216, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="A" origin="216, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvDecay" origin="260, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="D" origin="260, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvSustain" origin="304, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="S" origin="304, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="FilterEnvRelease" origin="348, 332" size="36, 36" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="R" origin="348, 368" size="36, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Physics: primary 6 knobs + detail 9 knobs (Phase 8A/8C/8D/8E) -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 266" size="388, 138" transparent="true"
+              fieldset-title="Physics" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <!-- Primary row -->
+        <view class="ArcKnob" control-tag="Material"           origin="16, 286"  size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Material"               origin="16, 328"  size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Size"                origin="76, 286"  size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Size"                   origin="76, 328"  size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Decay"               origin="136, 286" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Decay"                  origin="136, 328" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="StrikePosition"      origin="196, 286" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Strike"                 origin="196, 328" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="Level"               origin="256, 286" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Level"                  origin="256, 328" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="CouplingAmount"      origin="316, 286" size="40, 40" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cpl Amt"                origin="316, 328" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- Detail row: damping, air, scatter, shell coupling, secondary body, tension -->
+        <view class="ArcKnob" control-tag="BodyDampingB1"       origin="12, 348"  size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Damp b1"                origin="12, 378"  size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="BodyDampingB3"       origin="54, 348"  size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Damp b3"                origin="54, 378"  size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="AirLoading"          origin="96, 348"  size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Air"                    origin="96, 378"  size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ModeScatter"         origin="138, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Scat"                   origin="138, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="CouplingStrength"    origin="180, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Shell"                  origin="180, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="SecondaryEnabled"    origin="222, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="2nd"                    origin="222, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="SecondarySize"       origin="264, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="2Sz"                    origin="264, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="SecondaryMaterial"   origin="306, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="2Mat"                   origin="306, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="TensionModAmt"       origin="348, 348" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Tens"                   origin="348, 378" size="28, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="center"/>
 
-        <!-- Row 5: Exciter -->
-        <view class="CTextLabel" title="Exciter" origin="8, 400" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="ExciterType" origin="8, 420" size="96, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="ArcKnob" control-tag="ExciterFMRatio" origin="112, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="FM Ratio" origin="112, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ExciterFeedback" origin="160, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="FB" origin="160, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ExciterNoiseBurstDuration" origin="208, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Burst" origin="208, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ExciterFrictionPressure" origin="256, 420" size="40, 40" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Press" origin="256, 460" size="40, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Tone Shaper: Filter + Drive/Fold + Filter ADSR                -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 408" size="388, 126" transparent="true"
+              fieldset-title="Tone Shaper" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <!-- Row 1: filter type + cutoff/reson/envamt/drive/fold -->
+        <view class="COptionMenu" control-tag="FilterType"    origin="12, 426"  size="64, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Type"                  origin="12, 450"  size="64, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterCutoff"      origin="86, 424"  size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cutoff"                origin="86, 456"  size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterResonance"   origin="128, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Reson"                 origin="128, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvAmount"   origin="170, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Env Amt"               origin="170, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="DriveAmount"       origin="222, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Drive"                 origin="222, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FoldAmount"        origin="264, 424" size="32, 32" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Fold"                  origin="264, 456" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- Row 2: ADSR display + A/D/S/R knobs -->
+        <view class="ADSRDisplay"                             origin="12, 474"  size="200, 50" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="ArcKnob" control-tag="FilterEnvAttack"   origin="222, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="A"                     origin="222, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvDecay"    origin="262, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="D"                     origin="262, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvSustain"  origin="302, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="S"                     origin="302, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="FilterEnvRelease"  origin="342, 478" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="R"                     origin="342, 508" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
-        <!-- Row 6: Body Model + Pitch Envelope -->
-        <view class="CTextLabel" title="Body Model" origin="8, 488" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="BodyModel" origin="96, 486" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Pitch Env" origin="8, 516" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="PitchEnvelopeDisplay" origin="8, 536" size="240, 60" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
-        <view class="COptionMenu" control-tag="PitchEnvCurve" origin="256, 540" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Curve" origin="256, 560" size="72, 12" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Parallel Layers: Noise (5) + Click (3)                        -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 538" size="388, 84" transparent="true"
+              fieldset-title="Parallel Layers" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="CTextLabel" title="Noise"                 origin="12, 554"  size="140, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="NoiseLayerMix"      origin="12, 566"  size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Mix"                   origin="12, 596"  size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerCutoff"   origin="46, 566"  size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cutf"                  origin="46, 596"  size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerResonance" origin="80, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Res"                   origin="80, 596"  size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerDecay"    origin="114, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Dec"                   origin="114, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="NoiseLayerColor"    origin="148, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Color"                 origin="148, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="CTextLabel" title="Click"                 origin="200, 554" size="140, 10" font="label-font" font-color="text-secondary" transparent="true" horizontal-alignment="left"/>
+        <view class="ArcKnob" control-tag="ClickLayerMix"      origin="200, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Mix"                   origin="200, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerContactMs" origin="234, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Cont"                   origin="234, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="268, 566" size="28, 28" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel" title="Brt"                    origin="268, 596" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
-        <!-- Row 7: Routing -->
-        <view class="CTextLabel" title="Routing" origin="8, 608" size="384, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CTextLabel" title="Output Bus" origin="8, 628" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="OutputBusSel" origin="96, 626" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Choke Group" origin="8, 654" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
-        <view class="COptionMenu" control-tag="ChokeGroupSel" origin="96, 652" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <!-- ============================================================= -->
+        <!-- Pitch Envelope                                                -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 626" size="388, 86" transparent="true"
+              fieldset-title="Pitch Envelope" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="PitchEnvelopeDisplay"                    origin="12, 642" size="240, 60" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
+        <view class="COptionMenu" control-tag="PitchEnvCurve" origin="260, 646" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Curve"                origin="260, 670" size="72, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
-        <!-- Row 8/9: Noise + Click layers (Phase 7) -->
-        <view class="CTextLabel" title="Noise + Click" origin="232, 608" size="160, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="NoiseLayerMix" origin="232, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Mix" origin="232, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="NoiseLayerCutoff" origin="272, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cutf" origin="272, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="NoiseLayerResonance" origin="312, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Res" origin="312, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="NoiseLayerDecay" origin="352, 628" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Dec" origin="352, 660" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="NoiseLayerColor" origin="232, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Color" origin="232, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ClickLayerMix" origin="272, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Clk" origin="272, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ClickLayerContactMs" origin="312, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cont" origin="312, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ClickLayerBrightness" origin="352, 686" size="32, 32" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Brt" origin="352, 718" size="32, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-
-        <!-- Row 10: Phase 8A per-mode damping law -->
-        <view class="CTextLabel" title="Damping" origin="8, 740" size="120, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="BodyDampingB1" origin="8, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="b1" origin="8, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="BodyDampingB3" origin="44, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="b3" origin="44, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-
-        <!-- Phase 8C: air-loading + scatter -->
-        <view class="CTextLabel" title="Air/Scatter" origin="88, 740" size="120, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="AirLoading" origin="88, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Air" origin="88, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="ModeScatter" origin="124, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Scat" origin="124, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-
-        <!-- Phase 8D: head <-> shell coupling -->
-        <view class="CTextLabel" title="Shell Coupling" origin="168, 740" size="120, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="CouplingStrength" origin="168, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Cpl" origin="168, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SecondaryEnabled" origin="204, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="On" origin="204, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SecondarySize" origin="240, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Sz" origin="240, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SecondaryMaterial" origin="276, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Mat" origin="276, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-
-        <!-- Phase 8E: nonlinear tension modulation (pitch glide) -->
-        <view class="CTextLabel" title="Tension" origin="320, 740" size="64, 12" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="ArcKnob" control-tag="TensionModAmt" origin="320, 754" size="28, 28" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Ten" origin="320, 782" size="28, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <!-- ============================================================= -->
+        <!-- Routing                                                        -->
+        <!-- ============================================================= -->
+        <view class="FieldsetContainer" origin="4, 716" size="388, 70" transparent="true"
+              fieldset-title="Routing" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="CTextLabel" title="Output Bus"           origin="12, 734" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="OutputBusSel"  origin="100, 732" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Choke Group"          origin="12, 760" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="COptionMenu" control-tag="ChokeGroupSel" origin="100, 758" size="120, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
   </template>
   <template name="EditorDefault" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="1280, 800" minSize="1280, 800" maxSize="1280, 800" autosize="left top right bottom" transparent="false" wants-focus="false" mouse-enabled="true">
       <view class="CViewContainer" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
         <view class="CView" custom-view-name="PadGridView" origin="0, 0" size="640, 800" background-color="bg-panel" background-color-draw-style="filled"/>
       </view>
       <view class="CViewContainer" origin="640, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
-        <view class="UIViewSwitchContainer" origin="0, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadAcoustic,SelectedPadExtended" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
+        <view class="UIViewSwitchContainer" origin="0, 0" size="400, 800" background-color="bg-primary" background-color-draw-style="filled" template-names="SelectedPadSimple,SelectedPadAdvanced" template-switch-control="UiMode" animation-style="fade" animation-time="120" transparent="false" mouse-enabled="true"/>
       </view>
       <view class="CViewContainer" origin="1040, 0" size="240, 800" background-color="bg-panel" background-color-draw-style="filled" transparent="false" mouse-enabled="true">
-        <view class="CTextLabel" title="Display" origin="8, 8" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
-        <view class="CView" custom-view-name="ModeToggleButton" origin="8, 28" size="224, 22"/>
         <!-- Hidden CControl proxy so UIViewSwitchContainer's template-switch-control
-             can follow kUiModeId changes. -->
+             can follow kUiModeId changes. The visible toggle lives inside each
+             SelectedPad* template at top-right (see below); this stays for the
+             switch-control binding only. -->
         <view class="CParamDisplay" control-tag="UiMode" origin="0, 0" size="1, 1" transparent="true" mouse-enabled="false" font-color="bg-primary" back-color="bg-primary" frame-color="bg-primary"/>
         <view class="CTextLabel" title="Kit Browser" origin="8, 64" size="224, 16" font="section-font" font-color="accent" transparent="true" horizontal-alignment="left"/>
         <view class="CView" custom-view-name="KitBrowserView" origin="8, 84" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
