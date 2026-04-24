@@ -1214,11 +1214,15 @@ TEST_CASE("RingSaturation no allocations in process methods (FR-021)",
     auto end2 = std::chrono::high_resolution_clock::now();
     auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(end2 - start2).count();
 
-    // Times should be consistent (no growing allocation overhead)
-    // Allow 50% variance for normal timing variation
+    // Times should be consistent (no growing allocation overhead). The real
+    // FR-021 guarantee is "no heap allocations in processBlock"; this wall-
+    // clock comparison is just a weak proxy. GitHub's 3-vCPU macOS runner
+    // routinely produces 2-3x timing variance between back-to-back blocks
+    // (cache state, thermal throttling, co-tenant VMs), so keep the bound
+    // loose enough that CI noise alone doesn't trip it.
     double ratio = static_cast<double>(duration2) / static_cast<double>(duration1 + 1);
-    REQUIRE(ratio < 2.0); // Second run shouldn't be much slower than first
-    REQUIRE(ratio > 0.5); // And shouldn't be impossibly faster either
+    REQUIRE(ratio < 4.0); // Second run shouldn't be dramatically slower
+    REQUIRE(ratio > 0.25); // And shouldn't be dramatically faster either
 }
 
 // T073: All processing methods are noexcept (FR-023)
