@@ -330,11 +330,11 @@ BandEnergy renderVoiceBandEnergy(float b1Norm, float b3Norm)
 }
 } // namespace
 
-TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) pitch-shifts",
+TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) shifts (m,1) ratios",
           "[phase8c][drum_voice][minimal]")
 {
     using Membrum::DrumVoice;
-    auto render = [](float airNorm) {
+    auto modeFreqs = [](float airNorm, std::array<float, 3>& out) {
         DrumVoice v;
         v.prepare(44100.0, 0u);
         v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
@@ -346,29 +346,27 @@ TEST_CASE("Phase 8C: simple Membrane (no click/noise layers, no pitch env) pitch
         v.setNoiseLayerMix(0.0f);
         v.setClickLayerMix(0.0f);
         v.noteOn(1.0f);
-        const int N = 22050;
-        std::vector<float> buf(static_cast<std::size_t>(N), 0.0f);
-        constexpr int kBlock = 256;
-        for (int off = 0; off < N; off += kBlock) {
-            const int c = std::min(kBlock, N - off);
-            v.processBlock(buf.data() + off, c);
-        }
-        return buf;
+        const auto& bank = v.getBodyBankForTest().getSharedBank();
+        out[0] = bank.getModeFrequency(1); // (1,1)
+        out[1] = bank.getModeFrequency(2); // (2,1)
+        out[2] = bank.getModeFrequency(4); // (3,1)
     };
-    auto zcPerSec = [](const std::vector<float>& buf, int start, int end) {
-        int crossings = 0;
-        for (int i = start + 1; i < end; ++i)
-            if ((buf[i-1] >= 0.0f) != (buf[i] >= 0.0f)) ++crossings;
-        return static_cast<double>(crossings) / (2.0 * (end - start) / 44100.0);
-    };
-    const auto noAir = render(0.0f);
-    const auto fullAir = render(1.0f);
-    // Measure pitch over 50..200 ms where body dominates.
-    const double hzNo   = zcPerSec(noAir,   2205, 8820);
-    const double hzFull = zcPerSec(fullAir, 2205, 8820);
-    INFO("minimal noAir=" << hzNo << " Hz, fullAir=" << hzFull << " Hz");
-    // Rossing 5% physical curve -> tail pitch drops ~3-5%.
-    CHECK(hzFull < hzNo * 0.98);
+    std::array<float, 3> noAir{}, fullAir{};
+    modeFreqs(0.0f, noAir);
+    modeFreqs(1.0f, fullAir);
+
+    // airLoading = 0 -> pure Bessel ratios (2,1)/(1,1) ~ 1.34, (3,1)/(1,1) ~ 1.67.
+    // airLoading = 1 -> Rossing series (2,1)/(1,1) = 1.50, (3,1)/(1,1) = 2.00.
+    const float pure21over11 = noAir[1] / noAir[0];
+    const float pure31over11 = noAir[2] / noAir[0];
+    const float air21over11  = fullAir[1] / fullAir[0];
+    const float air31over11  = fullAir[2] / fullAir[0];
+    INFO("pure (2,1)/(1,1)=" << pure21over11 << " (3,1)/(1,1)=" << pure31over11);
+    INFO("air  (2,1)/(1,1)=" << air21over11  << " (3,1)/(1,1)=" << air31over11);
+    CHECK(pure21over11 == Approx(1.340f).epsilon(0.01f));
+    CHECK(pure31over11 == Approx(1.665f).epsilon(0.01f));
+    CHECK(air21over11  == Approx(1.500f).epsilon(0.01f));
+    CHECK(air31over11  == Approx(2.000f).epsilon(0.01f));
 }
 
 TEST_CASE("Phase 8C: Kick-preset attack window shows airLoading shift",
@@ -428,8 +426,10 @@ TEST_CASE("Phase 8C: Kick-preset attack window shows airLoading shift",
     const float f0No   = mode0AfterPitchEnv(0.0f);
     const float f0Full = mode0AfterPitchEnv(1.0f);
     INFO("after 200ms: noAir mode0=" << f0No << " Hz, fullAir mode0=" << f0Full);
-    // Physical Rossing curve: 5% depression on mode 0.
-    CHECK(f0Full < f0No * 0.98f);
+    // Rossing-anchored model: (0,1) is the anchor and does not shift with
+    // airLoading. The pitch env dominates mode 0 absolute frequency in
+    // either case, so the two should match to within float precision.
+    CHECK(f0Full == Approx(f0No).epsilon(1e-4f));
 }
 
 TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered audio",
@@ -492,12 +492,15 @@ TEST_CASE("Phase 8C: Acoustic-Kick-style preset shows airLoading in rendered aud
     INFO("noAir ZC/s=" << hzNoAir << " rms=" << std::sqrt(accNo / noAir.size()));
     INFO("fullAir ZC/s=" << hzFullAir << " rms=" << std::sqrt(accFull / fullAir.size()));
 
-    // airLoading affects mode ratios (character), not the absolute pitch-env
-    // endpoints. On the Kick preset the pitch env overrides the body
-    // fundamental so the zero-crossing shift is small (~physical 5 %).
+    // Rossing-anchored model: airLoading raises upper (m,1) partials toward
+    // the harmonic series 1.5:2:2.44:2.9. On this Kick preset the pitch
+    // envelope locks mode 0 to its 50 Hz endpoint and the noise+click
+    // layers dominate the tail, so the ZC-count proxy is largely insensitive
+    // to airLoading here. Just smoke-check that both renders produce
+    // audible content. The Rossing-ratio test (see tag [rossing]) is the
+    // real assertion for the air-loading knob's physics.
     REQUIRE(hzNoAir > 10.0);
     REQUIRE(hzFullAir > 5.0);
-    CHECK(hzFullAir <= hzNoAir);
 }
 
 // Phase 8E: velocity-dependent tension modulation should produce a pitch
@@ -574,11 +577,24 @@ TEST_CASE("Phase 8C: kAirLoadingId proxy registers via controller",
     ctl.terminate();
 }
 
-TEST_CASE("Phase 8C: airLoading sweep depresses Membrane fundamental",
-          "[phase8c][drum_voice][audio]")
+// ==============================================================================
+// Rossing-accurate air loading: at airLoading = 1, the first five (m,1) modes
+// of the timpani-tuned model should hit the published near-harmonic series
+// 1.00 : 1.50 : 2.00 : 2.44 : 2.90 (relative to the (1,1) mode). The (0,1)
+// mode is the anchor and does NOT shift -- Size -> f0 semantics are preserved.
+// Reference: Rossing, "The Physics of Kettledrums", SciAm 1982, and
+// https://wtt.pauken.org/chapter-3/air-loading-2.
+//
+// Indices into the 48-entry mode table (kMembraneBesselZeros order):
+//   0 -> (0,1)   1 -> (1,1)   2 -> (2,1)   4 -> (3,1)
+//   6 -> (4,1)   9 -> (5,1)
+// ==============================================================================
+TEST_CASE("Phase 8C: airLoading=1 produces the Rossing timpani series",
+          "[phase8c][drum_voice][audio][rossing]")
 {
     using Membrum::DrumVoice;
-    auto fundamental = [](float airLoading) {
+    auto renderAndReadModes = [](float airLoading,
+                                  std::array<float, 6>& out) {
         DrumVoice v;
         v.prepare(44100.0, 0u);
         v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
@@ -588,17 +604,43 @@ TEST_CASE("Phase 8C: airLoading sweep depresses Membrane fundamental",
         v.setAirLoading(airLoading);
         v.setModeScatter(0.0f);
         v.noteOn(1.0f);
-        return v.getBodyBankForTest().getSharedBank().getModeFrequency(0);
+        const auto& bank = v.getBodyBankForTest().getSharedBank();
+        out[0] = bank.getModeFrequency(0); // (0,1)
+        out[1] = bank.getModeFrequency(1); // (1,1)
+        out[2] = bank.getModeFrequency(2); // (2,1)
+        out[3] = bank.getModeFrequency(4); // (3,1)
+        out[4] = bank.getModeFrequency(6); // (4,1)
+        out[5] = bank.getModeFrequency(9); // (5,1)
     };
-    const float f0_none  = fundamental(0.0f);
-    const float f0_full  = fundamental(1.0f);
-    INFO("f0 airLoading=0 -> " << f0_none << " Hz, airLoading=1 -> " << f0_full);
-    REQUIRE(f0_none > 100.0f);
-    // Published Rossing curve -> max 5% depression at mode 0 (character,
-    // not transposition).
-    CHECK(f0_full < f0_none * 0.97f);
-    CHECK(f0_full > f0_none * 0.93f);
+
+    std::array<float, 6> fPure{}, fAir{};
+    renderAndReadModes(0.0f, fPure);
+    renderAndReadModes(1.0f, fAir);
+
+    INFO("pure (0,1)=" << fPure[0] << " (1,1)=" << fPure[1]
+         << " (2,1)=" << fPure[2] << " (3,1)=" << fPure[3]
+         << " (4,1)=" << fPure[4] << " (5,1)=" << fPure[5]);
+    INFO("air  (0,1)=" << fAir[0] << " (1,1)=" << fAir[1]
+         << " (2,1)=" << fAir[2] << " (3,1)=" << fAir[3]
+         << " (4,1)=" << fAir[4] << " (5,1)=" << fAir[5]);
+
+    // Anchor invariants: (0,1) and (1,1) do not move under air loading in
+    // the current model (Size -> f0 is unchanged; (1,1) is the anchor of
+    // the Rossing series).
+    CHECK(fAir[0] == Approx(fPure[0]).epsilon(1e-4));
+    CHECK(fAir[1] == Approx(fPure[1]).epsilon(1e-4));
+
+    // Rossing target series, relative to (1,1).
+    const float r21 = fAir[2] / fAir[1];
+    const float r31 = fAir[3] / fAir[1];
+    const float r41 = fAir[4] / fAir[1];
+    const float r51 = fAir[5] / fAir[1];
+    CHECK(r21 == Approx(1.50f).epsilon(0.01f));
+    CHECK(r31 == Approx(2.00f).epsilon(0.01f));
+    CHECK(r41 == Approx(2.44f).epsilon(0.01f));
+    CHECK(r51 == Approx(2.90f).epsilon(0.01f));
 }
+
 
 TEST_CASE("Phase 8A.5: b3 sweep produces audible energy change",
           "[phase8a][drum_voice][audio]")

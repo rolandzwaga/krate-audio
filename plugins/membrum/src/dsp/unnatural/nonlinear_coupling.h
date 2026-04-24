@@ -3,8 +3,12 @@
 // ==============================================================================
 // NonlinearCoupling -- Phase 2.E.4 (data-model.md §7, unnatural_zone_contract.md)
 // ==============================================================================
-// Velocity-dependent cross-modal amplitude modulation driven by an envelope
-// follower (research.md §7, simplified stand-in for von Karman cubic coupling).
+// Velocity-dependent envelope-driven amplitude modulation that mimics one
+// audible symptom of nonlinear plate/shell coupling -- amplitude-dependent
+// spectral brightening -- via bilinear AM. This is NOT a von Karman cubic
+// coupling: the true nonlinearity is proportional to w^3 (displacement cubed)
+// whereas this module multiplies the body output by (1 + vel*amt*dEnv). It's
+// a character knob, not a physical model. See research.md Section 7.
 // Topology:
 //   if (amount_ == 0.0f) return bodyOutput;   // early-out bypass (FR-055)
 //   env       = envFollower_.processSample(bodyOutput)

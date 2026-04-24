@@ -45,12 +45,12 @@ struct MapperResult
 /// precedence when they are not the sentinel value (-1.0f).
 /// Denormalisation for the override path:
 ///   b1 = 0.2 + norm * 49.8     -> [0.2, 50.0] s^-1
-///   b3 = norm * 4.0e-4         -> [0, 4e-4] s * rad^-2 (~10 x legacy kMaxB3).
-///   b3 range widened vs. plan value of 8e-5 after empirical testing: at
-///   the plan's ceiling the above-1-kHz band only lost ~2 dB, which is at
-///   the edge of audibility. 4e-4 yields ~10 dB drop in the high band
-///   while still leaving below-1-kHz modes largely intact -- the plan's
-///   "metallic ring -> wood thump" perceptual contract.
+///   b3 = norm * 1.0e-3         -> [0, 1e-3] s * rad^-2 (~25 x legacy kMaxB3)
+///   b3 ceiling was widened empirically: the plan's original 8e-5 gave only
+///   a ~2 dB drop in the above-1-kHz band (inaudible), 4e-4 gave ~6 dB, and
+///   1e-3 gives the ~9 dB total-energy drop that the perceptual contract
+///   ("metallic ring -> wood thump") requires. The widened range is exercised
+///   by test_per_mode_damping's "b3 sweep" test (CHECK totalRatio < 0.5).
 [[nodiscard]] inline Krate::DSP::ModalResonatorBank::DampingLaw
 dampingLawFromParams(const VoiceCommonParams& params,
                      float legacyDecayTime,
@@ -82,16 +82,20 @@ struct MembraneMapper
 
         // (1) Mode frequencies from size_ (FR-033)
         //     Verbatim Phase 1: f0 = 500 * pow(0.1, size)
-        //     Phase 8C: apply Rossing air-loading depression per tabulated
-        //     curve. airLoading = 0 recovers Phase-1 ratios exactly.
+        //     Phase 8C: interpolate each mode's frequency from its pure
+        //     Bessel ratio (airLoading = 0) toward the Rossing target
+        //     (airLoading = 1). See kAirLoadingTargetScale in
+        //     membrane_modes.h for the full derivation. airLoading = 0
+        //     recovers Phase-1 ratios exactly (scale = 1.0 for every k).
         const float f0 = 500.0f * std::pow(0.1f, params.size);
         const float airLoading = std::clamp(params.airLoading, 0.0f, 1.0f);
         for (int k = 0; k < kMembraneModeCount; ++k)
         {
             const float ratio = kMembraneRatios[static_cast<std::size_t>(k)];
-            const float depression =
-                airLoading * kAirLoadingCurve[static_cast<std::size_t>(k)];
-            r.frequencies[k] = f0 * ratio * (1.0f - depression);
+            const float targetScale =
+                kAirLoadingTargetScale[static_cast<std::size_t>(k)];
+            const float scale = 1.0f + airLoading * (targetScale - 1.0f);
+            r.frequencies[k] = f0 * ratio * scale;
         }
 
         // (2) Per-mode amplitudes from strike position (FR-035)

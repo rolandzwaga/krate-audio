@@ -46,32 +46,62 @@ constexpr std::array<int, 48> kMembraneBesselOrder = {
     7, 10, 14, 5, 3, 8, 1, 11
 };
 
-// Air-loading correction (Phase 8C): real drumheads sit atop a mass of
-// enclosed air which depresses the lowest-mode frequencies below the pure
-// Bessel ratios. Rossing's timpani measurements give ~5 % depression for
-// mode 0, ~3.5 % for mode 1, tapering below 1 % by mode 10.
+// Radial index (n) for each mode -- the nth positive zero of J_m.
+// Derived from kMembraneBesselOrder above (count how many times m has
+// appeared at or before index k). Needed to identify which modes are the
+// (m,1) radial fundamentals that Rossing's air-loading data applies to.
+constexpr std::array<int, 48> kMembraneBesselRadial = {
+    1, 1, 1, 2, 1, 2, 1, 2,   // indices 0-7
+    3, 1, 2, 1, 3, 2, 1, 3,   // 8-15
+    4, 1, 2, 3, 4, 1, 2, 3,   // 16-23
+    1, 4, 2, 5, 1, 3, 2, 4,   // 24-31
+    5, 1, 3, 2, 4, 1, 5, 6,   // 32-39
+    3, 2, 1, 4, 5, 3, 6, 2    // 40-47
+};
+
+// Air-loading ratio-shift curve (Phase 8C -- Rossing-accurate model).
 //
-// This is a CHARACTER control, not a pitch control. Its audible effect
-// is the *mode-ratio drift* (low modes shift, high modes don't) that
-// gives real timpani / kick drums their kettledrum-y feel. The absolute
-// pitch of the fundamental moves only ~5 % -- a character nudge, not a
-// transposition. On presets with aggressive pitch envelopes (e.g. a
-// kick swept 160 -> 50 Hz), air-loading's absolute-Hz effect is
-// audibility-limited by the pitch env's own range. Try it on Toms /
-// Snares / held Membrane pads without a pitch env for the clearest
-// perceived response.
+// Real timpani heads sit above a closed bowl of air. Air-mass loading
+// depresses the frequencies of the (m >= 1, 1) radial modes and raises the
+// axisymmetric (0, n) modes; the net effect is that the first five
+// (m, 1) modes land in a near-harmonic series:
 //
-// f_k_effective = f_k_bessel * (1 - airLoading * kAirLoadingCurve[k])
+//   f(1,1) : f(2,1) : f(3,1) : f(4,1) : f(5,1)  =  1 : 1.50 : 2.00 : 2.44 : 2.90
 //
-// Source: Rossing 1982, "The physics of kettledrums" (Scientific American)
-// and subsequent published timpani spectra.
-constexpr std::array<float, 48> kAirLoadingCurve = {
-    0.050f, 0.035f, 0.025f, 0.020f, 0.015f, 0.012f, 0.010f, 0.008f,
-    0.006f, 0.005f, 0.004f, 0.003f, 0.002f, 0.002f, 0.001f, 0.001f,
-    0.001f, 0.001f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
-    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
-    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f,
-    0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f, 0.000f
+// (Rossing, "The Physics of Kettledrums", Scientific American 1982; see
+// also https://wtt.pauken.org/chapter-3/air-loading-2 for a cross-reference.)
+//
+// This table expresses each mode's target frequency multiplier at
+// airLoading = 1.0, relative to its pure Bessel ratio. The apply formula
+// (in membrane_mapper.h) linearly interpolates from 1.0 (pure Bessel,
+// airLoading = 0) to this table's value (Rossing target, airLoading = 1):
+//
+//   f_k_effective = f0 * kMembraneRatios[k] *
+//                   (1.0 + airLoading * (kAirLoadingTargetScale[k] - 1.0))
+//
+// Anchor: (0,1) at index 0 is held at pure Bessel. This preserves the
+// Size -> f0 mapping so user-facing knob semantics don't change. The
+// perceptual timpani fundamental is (1,1) at index 1, which is also
+// anchored; the remaining (m,1) modes scale relative to (1,1) toward the
+// Rossing series.
+//
+// Modes with n >= 2 are held at unity (no shift) -- Rossing's published
+// data doesn't quantify them, and perceptually they're dominated by the
+// (m,1) series. (m,1) modes for m >= 6 are likewise held at 1.0 (no data
+// beyond Rossing's five published ratios).
+//
+// Shift factors (derived from pure Bessel ratios and Rossing targets):
+//   (2,1) index 2:  1.5000 * 1.5933 / 2.1357 = 1.1192
+//   (3,1) index 4:  2.0000 * 1.5933 / 2.6528 = 1.2012
+//   (4,1) index 6:  2.4400 * 1.5933 / 3.1554 = 1.2321
+//   (5,1) index 9:  2.9000 * 1.5933 / 3.6475 = 1.2668
+constexpr std::array<float, 48> kAirLoadingTargetScale = {
+    1.0000f, 1.0000f, 1.1192f, 1.0000f, 1.2012f, 1.0000f, 1.2321f, 1.0000f,
+    1.0000f, 1.2668f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+    1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+    1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+    1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f,
+    1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f, 1.0000f
 };
 
 // j_mn values (actual Bessel zeros, for amplitude calculation).

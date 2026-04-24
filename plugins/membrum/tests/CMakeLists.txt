@@ -126,6 +126,9 @@ add_executable(membrum_tests
     # Phase 8A: per-mode damping law
     unit/dsp/test_per_mode_damping.cpp
 
+    # Physical-modelling audit: body-aware natural fundamental frequency
+    unit/dsp/test_natural_fundamental_hz.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 

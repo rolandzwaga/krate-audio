@@ -7,6 +7,17 @@
 //   Strike pos    -> per-mode amplitude via computeShellAmplitude (FR-034)
 //   Material      -> metallic damping defaults (FR-033, long sustain)
 //   Decay         -> decayTime multiplier
+//
+// NAMING CAVEAT: the user-facing label for this body is "Shell", but the
+// underlying physics is a free-free Euler-Bernoulli bar (glockenspiel-style
+// partial series 1.000, 2.757, 5.404, 8.933, 13.344, 18.637 -- roots of
+// cos(beta*L)*cosh(beta*L) = 1; see Fletcher & Rossing, free-free bar).
+// It is NOT a cylindrical shell model (which would need axial + circum-
+// ferential modes). Additionally, the strike-position amplitude uses
+// sin(k*pi*x) which is the simply-supported beam's mode shape, not the
+// free-free beam's cosh/sinh combination. This is a deliberate character
+// approximation, documented here so future readers do not treat the
+// module as a drum-shell physical model.
 // ==============================================================================
 
 #include "../voice_common_params.h"

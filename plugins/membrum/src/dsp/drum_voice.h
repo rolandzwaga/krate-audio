@@ -20,6 +20,7 @@
 
 #include "body_bank.h"
 #include "bodies/membrane_mapper.h"
+#include "bodies/natural_fundamental.h"
 #include "bodies/shell_modes.h"
 #include "body_model_type.h"
 #include "click_layer.h"
@@ -146,9 +147,15 @@ public:
         params_.modeScatter   = modeScatter_;
 
         // Compute and store the body's natural (Size-derived) fundamental.
-        // This matches the MembraneMapper formula exactly so that the Phase 1
-        // regression path is bit-identical when the pitch envelope is disabled.
-        naturalFundamentalHz_ = 500.0f * std::pow(0.1f, size_);
+        // Each body model has its own base frequency (Membrane 500 Hz, Plate
+        // 800, Shell/NoiseBody 1500, String/Bell 800); the shared helper
+        // keeps the formula in one place so ToneShaper's pitch-envelope
+        // baseline and ModeInject's harmonic series line up with the body
+        // that's actually playing. getPendingType() is correct here because
+        // bodyBank_.configureForNoteOn() (called below) applies the deferred
+        // swap -- so the "pending" type is the body about to be active.
+        naturalFundamentalHz_ = Bodies::naturalFundamentalHz(
+            bodyBank_.getPendingType(), size_);
         toneShaper_.setNaturalFundamentalHz(naturalFundamentalHz_);
 
         // Cache the baseline mapper result for per-sample pitch envelope updates.
@@ -421,13 +428,15 @@ private:
             // A 20 ms sweep at 44.1 kHz produces ~14 refresh points across
             // a 64-sample audio block — well below any audible stair-stepping.
             // Phase 8E: block-rate pitch modulation from energy tracker.
-            // pitchMod >= 1.0 (head TENSIONS upward when struck hard) --
-            // wait, JASA 2021's observed behaviour is a downward glide as
-            // the tension relaxes from the initial tension state. Model:
-            // start with mod = 1 + tensionAmtEff, relax toward 1 as
-            // energy drops. For a simple one-pole follower fed by |out|^2
-            // (which peaks at attack and decays), `1 + amt * energyEnv`
-            // reproduces the upward-then-relaxing curve.
+            // Observed real-drum behaviour (Avanzini et al., "Efficient
+            // synthesis of tension modulation ... based on energy
+            // estimation", JASA 2012) is an upward pitch jump at the strike
+            // that relaxes back as vibration energy decays. For a one-pole
+            // follower fed by |out|^2 (peaks at attack, decays with the
+            // body), `1 + amt * energyEnv` reproduces exactly that
+            // up-then-relax curve. Kirby & Sandler JASA 2021 describes the
+            // related phenomenon via DCT analysis but is not the source of
+            // this implementation.
             const bool tensionActive = tensionAmtEffective_ > 1e-6f;
             const float tensionPitchMod =
                 tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
@@ -813,6 +822,15 @@ public:
     [[nodiscard]] ToneShaper& toneShaper() noexcept { return toneShaper_; }
     [[nodiscard]] UnnaturalZone& unnaturalZone() noexcept { return unnaturalZone_; }
 
+    /// Body-type-aware natural fundamental frequency (Hz), computed at the
+    /// last noteOn(). Exposed so tests can verify that ToneShaper / ModeInject
+    /// see the correct f0 for the active body model (not just the membrane
+    /// value). Returns 0 before the first noteOn().
+    [[nodiscard]] float getNaturalFundamentalHz() const noexcept
+    {
+        return naturalFundamentalHz_;
+    }
+
     // Exposed for testing and state helpers
     [[nodiscard]] const ExciterBank& exciterBank() const noexcept { return exciterBank_; }
     [[nodiscard]] const BodyBank& bodyBank() const noexcept { return bodyBank_; }
@@ -1064,7 +1082,8 @@ private:
     float effectiveCoupling_  = 0.0f;
 
     // Phase 8E: nonlinear tension modulation (energy-dependent pitch
-    // glide, Avanzini & Rocchesso 2012 / Kirby & Sandler JASA 2021).
+    // glide, Avanzini et al. JASA 2012 "Efficient synthesis of tension
+    // modulation in strings and membranes based on energy estimation").
     float tensionModAmt_        = 0.0f;  // per-pad depth (norm)
     float tensionAmtEffective_  = 0.0f;  // depth * velocity^2
     float energyEnv_            = 0.0f;  // one-pole energy follower
