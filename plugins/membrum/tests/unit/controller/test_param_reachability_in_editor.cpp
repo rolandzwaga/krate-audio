@@ -214,6 +214,8 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kSecondaryMaterialId,  kPadSecondaryMaterial },
         // Phase 8E: nonlinear tension modulation.
         { kTensionModAmtId,      kPadTensionModAmt },
+        // Phase 8F: per-pad enable toggle.
+        { kPadEnabledId,         kPadEnabled },
     };
 }
 
@@ -249,6 +251,8 @@ std::set<int> proxiedOffsets()
         kPadSecondarySize, kPadSecondaryMaterial,
         // Phase 8E: nonlinear tension modulation offset.
         kPadTensionModAmt,
+        // Phase 8F: per-pad enable toggle offset.
+        kPadEnabled,
     };
 }
 

@@ -238,17 +238,19 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
 
     // Offset 58 is the valid Phase 8E tensionModAmt field.
     CHECK(padOffsetFromParamId(kPadBaseId + 58) == 58);
+    // Phase 8F: offset 59 is now active (per-pad enable toggle).
+    CHECK(padOffsetFromParamId(kPadBaseId + 59) == 59);
 
-    // Offset 59 is the first reserved offset within pad 0's stride (Phase 8E).
-    int reservedId = kPadBaseId + 59;
+    // Offset 60 is the first reserved offset within pad 0's stride (Phase 8F).
+    int reservedId = kPadBaseId + 60;
     CHECK(padOffsetFromParamId(reservedId) == -1);
 
     // Offset 63 (last in stride)
     int lastReservedId = kPadBaseId + 63;
     CHECK(padOffsetFromParamId(lastReservedId) == -1);
 
-    // Same for pad 5 offset 59+
-    int pad5Reserved = padParamId(5, 0) + 59;
+    // Same for pad 5 offset 60+
+    int pad5Reserved = padParamId(5, 0) + 60;
     CHECK(padOffsetFromParamId(pad5Reserved) == -1);
 }
 

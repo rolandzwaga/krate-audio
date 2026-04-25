@@ -119,6 +119,8 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[49] = static_cast<double>(cfg.secondaryMaterial);
     // Phase 8E: nonlinear tension modulation (offset 58).
     snap.sound[50] = static_cast<double>(cfg.tensionModAmt);
+    // Phase 8F: per-pad enable toggle (offset 59).
+    snap.sound[51] = static_cast<double>(cfg.enabled);
 
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
@@ -202,6 +204,8 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.secondaryMaterial = std::clamp(static_cast<float>(snap.sound[49]), 0.0f, 1.0f);
     // Phase 8E: nonlinear tension modulation.
     cfg.tensionModAmt     = std::clamp(static_cast<float>(snap.sound[50]), 0.0f, 1.0f);
+    // Phase 8F: per-pad enable toggle. Clamp [0, 1] then float-as-bool.
+    cfg.enabled           = std::clamp(static_cast<float>(snap.sound[51]), 0.0f, 1.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -218,9 +222,16 @@ PadPresetSnapshot toPadPresetSnapshot(const PadConfig& cfg) noexcept
     PadPresetSnapshot snap;
     snap.exciterType = cfg.exciterType;
     snap.bodyModel   = cfg.bodyModel;
-    // Reuse the sound-block layout from PadSnapshot.
+    // Reuse the first 51 sound slots from PadSnapshot. The Phase 8F
+    // enable-toggle slot at index 51 is intentionally excluded -- per-pad
+    // presets carry sound character only, never the kit-level enabled
+    // flag, so loading a preset onto a pad never silently flips its
+    // enable state.
     const PadSnapshot full = toPadSnapshot(cfg);
-    snap.sound = full.sound;
+    static_assert(std::tuple_size_v<decltype(snap.sound)> <=
+                  std::tuple_size_v<decltype(full.sound)>,
+                  "PadPresetSnapshot must not be wider than PadSnapshot");
+    std::copy_n(full.sound.begin(), snap.sound.size(), snap.sound.begin());
     return snap;
 }
 
@@ -369,7 +380,8 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kBlobVersion && version != kBlobVersionV10
+    if (version != kBlobVersion && version != kBlobVersionV11
+        && version != kBlobVersionV10
         && version != kBlobVersionV9 && version != kBlobVersionV8
         && version != kBlobVersionV7 && version != kBlobVersionV6)
         return kResultFalse;
@@ -378,13 +390,15 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     const bool isV8  = (version == kBlobVersionV8);
     const bool isV9  = (version == kBlobVersionV9);
     const bool isV10 = (version == kBlobVersionV10);
-    constexpr std::size_t kV11Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
+    const bool isV11 = (version == kBlobVersionV11);
+    constexpr std::size_t kV12Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
     const std::size_t soundSlotsToRead =
         isV6  ? kV6SoundSlotCount
              : (isV7  ? kV7SoundSlotCount
                      : (isV8  ? kV8SoundSlotCount
                              : (isV9  ? kV9SoundSlotCount
-                                     : (isV10 ? kV10SoundSlotCount : kV11Slots))));
+                                     : (isV10 ? kV10SoundSlotCount
+                                              : (isV11 ? kV11SoundSlotCount : kV12Slots)))));
 
     // Defaults for Phase 7 slots when reading a v6 blob. These mirror the
     // PadConfig defaults so legacy kits load as-authored + new-layer defaults.
@@ -420,6 +434,10 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     // Phase 8E default for legacy v6..v10 blobs.
     const double defaultPhase8ESound =
         static_cast<double>(defaults.tensionModAmt);
+    // Phase 8F default for legacy v6..v11 blobs: enabled = 1.0 (ON) so
+    // every pad in a pre-Phase-8F kit keeps sounding after migration.
+    const double defaultPhase8FSound =
+        static_cast<double>(defaults.enabled);
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -477,6 +495,9 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         // v6..v10 -> v11: Phase 8E slot (index 50) is absent.
         if (isV6 || isV7 || isV8 || isV9 || isV10)
             pad.sound[kV10SoundSlotCount] = defaultPhase8ESound;
+        // v6..v11 -> v12: Phase 8F slot (index 51) is absent.
+        if (isV6 || isV7 || isV8 || isV9 || isV10 || isV11)
+            pad.sound[kV11SoundSlotCount] = defaultPhase8FSound;
         if (!readT(stream, pad.chokeGroup)) pad.chokeGroup = 0;
         if (!readT(stream, pad.outputBus))  pad.outputBus  = 0;
         if (pad.chokeGroup > 8U)  pad.chokeGroup = 0;

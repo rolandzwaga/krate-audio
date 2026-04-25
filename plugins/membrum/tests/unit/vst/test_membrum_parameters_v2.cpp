@@ -39,7 +39,7 @@ using namespace Steinberg::Vst;
 
 namespace {
 
-constexpr int kExpectedParameterCount = 1949;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4) + Phase 6 US4 (32 per-pad coupling amounts) + Phase 6 US1 (1 session-scoped global + 32*5 macros = 161) + Phase 8 US7 (1 output-bus proxy) + Phase 7 (8 global noise/click proxies + 32*8 per-pad = 264) + Phase 8A (2 global damping proxies + 32*2 per-pad = 66) + Phase 8C (2 global airLoading/scatter proxies + 32*2 per-pad = 66)
+constexpr int kExpectedParameterCount = 1982;  // Phase 2 (34) + Phase 3 (3) + Phase 4 (1 + 1152) + Phase 5 (4) + Phase 6 US4 (32 per-pad coupling amounts) + Phase 6 US1 (1 session-scoped global + 32*5 macros = 161) + Phase 8 US7 (1 output-bus proxy) + Phase 7 (8 global noise/click proxies + 32*8 per-pad = 264) + Phase 8A (2 global damping proxies + 32*2 per-pad = 66) + Phase 8C (2 global airLoading/scatter proxies + 32*2 per-pad = 66) + Phase 8D (4 + 128) + Phase 8E (1 + 32) + Phase 8F per-pad enable (1 + 32)
 constexpr int kExpectedExciterCount   = 6;
 constexpr int kExpectedBodyCount      = 6;
 

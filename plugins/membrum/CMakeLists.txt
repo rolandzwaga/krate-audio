@@ -163,6 +163,8 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     # Controller (UI Thread)
     src/controller/controller.h
     src/controller/controller.cpp
+    src/controller/controller_state_codec.h
+    src/controller/controller_state_codec.cpp
 
     # Preset config (plugin-local, header-only)
     src/preset/membrum_preset_config.h

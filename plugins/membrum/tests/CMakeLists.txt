@@ -61,6 +61,7 @@ add_executable(membrum_tests
     perf/test_noise_body_cpu.cpp
 
     # Phase 3: voice pool unit tests (scaffolded Phase 3.0)
+    unit/voice_pool/test_per_pad_pitch_env.cpp
     unit/voice_pool/test_voice_pool_scaffold.cpp
     unit/voice_pool/test_voice_pool_allocate.cpp
     unit/voice_pool/test_voice_pool_stealing_policies.cpp
@@ -91,7 +92,9 @@ add_executable(membrum_tests
     unit/processor/test_coupling_state.cpp
     unit/processor/test_coupling_energy.cpp
     unit/processor/test_coupling_fuzz.cpp
+    unit/processor/test_kit_preset_load_render.cpp
     unit/processor/test_coupling_phase9_verification.cpp
+    unit/processor/test_dc_offset_trace.cpp
 
     # Phase 3: CPU benchmarks / 16-voice stress (tagged [.perf], scaffolded)
     perf/test_polyphony_benchmark.cpp
@@ -136,6 +139,7 @@ add_executable(membrum_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/macro_mapper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller_state_codec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/state/state_codec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/membrum_editor_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp

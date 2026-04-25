@@ -5,6 +5,89 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-26
+
+### Fixed
+
+- **MacroMapper preset-load destruction (the "808 toms all sound the
+  same pitch" bug)** -- Every `applyTightness/Brightness/BodySize/
+  Punch/Complexity` was overwriting the per-pad `cfg.field` with
+  `defaults_.byOffset[X] + delta` on each invocation, and the per-pad
+  cache was initialised to a -1.0 sentinel that forced the FIRST apply
+  to fire. When a kit preset arrived via the host's parameter-dispatch
+  path, every pad's macros (typically at neutral 0.5) triggered the
+  first-apply, which clobbered `cfg.size`, `cfg.material`, `cfg.decay`,
+  etc. with `defaults + 0`, collapsing the per-pad preset values to
+  their registered defaults. For the 808 kit's six toms (sizes
+  0.85..0.40), this turned every tom into mode 0 = 158 Hz exactly
+  (= 500·0.1^0.5). MacroMapper now applies *incremental* deltas
+  `(linDelta(newM) - linDelta(oldM))` onto `cfg.field` directly, so
+  neutral macros produce zero adjustment and a freshly loaded preset
+  is left untouched. `Processor::setState` no longer calls
+  `reapplyAll` (which would drift bytes on every save-load cycle with
+  the new contract); it instead syncs the cache to the loaded macro
+  values via the new `MacroMapper::syncCacheFromCfg` so subsequent
+  knob movements see the correct previous state.
+- **Tone Shaper / Pitch Envelope / Unnatural Zone / Material Morph
+  not propagating into voices on note-on** -- `applyPadConfigToSlot`
+  in `VoicePool` was missing the per-pad propagation block for these
+  fields entirely. The processor's `applyPadConfigToVoice` helper
+  carried the correct logic but was never invoked. Voices played
+  with whatever Tone Shaper state happened to be set when the plugin
+  booted, so per-pad pitch envelopes (the iconic 808 boom-thud
+  glide), per-pad filter envelopes, mode stretch, decay skew, mode
+  inject, nonlinear coupling, and material morph all silently
+  dropped on every kit-preset load. Fix: the missing block is now
+  in `applyPadConfigToSlot` and runs on every voice allocation.
+- **Dangling pointer crash on rapid Simple/Advanced view toggles** --
+  Cached views inside the editor controller could be deleted by the
+  framework while still referenced; the controller now subscribes
+  via `IViewListener` and nulls the cached pointers on
+  `viewWillDelete`.
+- **Factory preset categories aligned to the four hardcoded slots** --
+  Subdirectories and XML metadata now match the only categories the
+  preset browser exposes (Acoustic, Electronic, Percussive,
+  Unnatural). The earlier "Experimental" subdir wouldn't load.
+
+### Added
+
+- **Per-pad Enabled toggle (Phase 8F)** -- New `kPadEnabled` global
+  proxy + per-pad parameter (offset 59). Disabled pads silently
+  short-circuit `VoicePool::noteOn`: no allocator events, no choke
+  iteration, no audition. The pad-grid view shows a bottom-right
+  power glyph; clicking it toggles enable. State blob version bumped
+  to v12 to carry the new slot. Legacy v6..v11 kits load with all
+  pads enabled by default.
+- **Three factory kits regenerated end-to-end** -- Acoustic Studio,
+  808 Electronic, Experimental FX. Each uses the full Phase 7+
+  feature set (parallel noise + click layers, per-mode damping law,
+  air-loading, head/shell coupling, tension modulation) for
+  per-pad character. Uncrafted slots are explicitly disabled via
+  the new Phase 8F toggle so each kit reads as "12-13 sounds wired"
+  rather than "32 pads with 19 default beeps".
+- **Membrum-fit "disable un-generated pads" mode** -- The offline
+  fitter now writes `enabled = 0` for any pad it didn't fit, so a
+  partial-coverage source (e.g. 6 sample WAVs) produces a kit
+  where the un-fitted slots are silenced rather than left as the
+  generic default voice.
+
+### Changed
+
+- **Editor right-column reorganised into fieldsets** -- Kit Browser,
+  Pad Browser, Voices, Coupling, Meter, Matrix each in its own
+  fieldset starting at y = 28 to match the left-column layout.
+- **Character fieldset split** -- Material / Size / Decay /
+  StrikePos / Level (Character) and Material Morph (Material Morph)
+  are now separate fieldsets in Advanced view. Material Morph has
+  its own power toggle; disabled controls dim out.
+- **Controller-side KitSnapshot bridge unified** -- The three
+  formerly-divergent kit-blob translation paths
+  (`setComponentState`, `kitPresetLoadProvider`,
+  `kitPresetStateProvider`) collapse to a single
+  `controller_state_codec` module. Eliminates ~250 lines of
+  duplicated code and four missing-global writes that previously
+  silently dropped Phase 7+ params on the controller side.
+
 ## [0.7.0] - 2026-04-23
 
 ### Added

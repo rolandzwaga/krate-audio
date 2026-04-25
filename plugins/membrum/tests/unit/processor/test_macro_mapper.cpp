@@ -155,13 +155,22 @@ TEST_CASE("MacroMapper::isDirty() reflects cache state", "[macro_mapper]")
     MacroMapper m;
     m.prepare(makeNeutralDefaults());
 
+    // Phase 8G: cache initialises to 0.5 (neutral) so a fresh PadConfig --
+    // whose macroX fields also default to 0.5 -- is NOT dirty. This is the
+    // fix for the 808-toms preset-load bug: arriving macro values that
+    // match neutral leave per-pad cfg fields untouched, instead of the
+    // pre-fix sentinel-driven first-apply that overwrote cfg from
+    // `defaults_ + delta` (collapsing per-pad preset sizes to 0.5).
     PadConfig cfg{};
-    REQUIRE(m.isDirty(0, cfg));  // first-time apply required
+    REQUIRE_FALSE(m.isDirty(0, cfg));
+
+    cfg.macroTightness = 0.75f;
+    REQUIRE(m.isDirty(0, cfg));
 
     m.apply(0, cfg);
     REQUIRE_FALSE(m.isDirty(0, cfg));
 
-    cfg.macroTightness = 0.75f;
+    cfg.macroTightness = 0.30f;
     REQUIRE(m.isDirty(0, cfg));
 }
 
@@ -215,10 +224,18 @@ TEST_CASE("MacroMapper::apply() early-outs when macros unchanged (no re-write)",
     m.apply(0, cfg);
     REQUIRE_THAT(cfg.material, WithinAbs(0.12345f, 1e-7f));
 
-    // Now invalidate and re-apply; the field must be recomputed.
+    // Phase 8G: invalidate forces "next apply re-layers macro deltas onto
+    // the *current* cfg" (the new incremental contract). The first apply
+    // started from cfg.material = 0.5 and ended at firstMaterial; after
+    // stomping cfg.material to 0.12345 and invalidating, the next apply
+    // re-layers the same delta (macroTightness=1.0 vs cached 0.5 yields
+    // +linDelta(1.0, span)) on top of 0.12345 -- not back to firstMaterial.
+    // The invariant we now check is "delta layered correctly", i.e. the
+    // new value equals 0.12345 + (firstMaterial - 0.5) within rounding.
     m.invalidateCache();
     m.apply(0, cfg);
-    REQUIRE_THAT(cfg.material, WithinAbs(firstMaterial, 1e-6f));
+    const float expectedAfterInvalidate = 0.12345f + (firstMaterial - 0.5f);
+    REQUIRE_THAT(cfg.material, WithinAbs(expectedAfterInvalidate, 1e-6f));
 }
 
 TEST_CASE("MacroMapper without prepare() is a no-op", "[macro_mapper]")

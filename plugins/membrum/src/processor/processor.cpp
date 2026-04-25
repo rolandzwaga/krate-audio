@@ -572,6 +572,11 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadTensionModAmt, fValue);
             break;
 
+        // ---- Phase 8F: per-pad enable toggle proxy ----
+        case kPadEnabledId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadEnabled, fValue);
+            break;
+
         default:
             break;
         }
@@ -1007,21 +1012,19 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
             ov.coeff);
     }
 
-    // Reapply macros so derived parameters reflect loaded macro values
-    // (FR-082). We gate on "any non-neutral macro" because reapplyAll
-    // rewrites underlying targets from base+delta -- for neutral (0.5)
-    // macros the delta is zero so the call would overwrite custom
-    // underlying values with the registered defaults. Bit-exact round-trip
-    // of custom underlying values must be preserved (FR-084, SC-005).
+    // Phase 8G: with the incremental MacroMapper (apply layers
+    // newDelta-oldDelta onto cfg, never overwrites with defaults+delta), a
+    // freshly-loaded preset is already self-consistent: cfg fields ARE the
+    // saved post-macro values, and the macro fields ARE the macro values.
+    // Calling reapplyAll here would re-add the macro deltas a second time
+    // (cache resets to 0.5 on invalidate, then applies non-neutral macros
+    // on top of the already-baked cfg values), drifting bytes on every
+    // save-load cycle. Sync the cache to the freshly-loaded macro values
+    // so subsequent macro changes see the correct previous state.
     auto& pads = voicePool_.padConfigsArray();
-    const bool anyNonNeutral = std::ranges::any_of(pads,
-        [](const auto& p) noexcept {
-            return p.macroTightness  != 0.5f || p.macroBrightness != 0.5f ||
-                   p.macroBodySize   != 0.5f || p.macroPunch      != 0.5f ||
-                   p.macroComplexity != 0.5f;
-        });
-    if (anyNonNeutral)
-        macroMapper_.reapplyAll(pads);
+    macroMapper_.invalidateCache();
+    for (int p = 0; p < kNumPads; ++p)
+        macroMapper_.syncCacheFromCfg(p, pads[static_cast<std::size_t>(p)]);
 
     return kResultOk;
 }

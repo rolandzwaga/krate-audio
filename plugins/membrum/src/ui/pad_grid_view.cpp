@@ -136,6 +136,11 @@ PadGridView::PadGridView(const VSTGUI::CRect& size,
     , metaProvider_(std::move(metaProvider))
 {
     glowBuckets_.fill(0);
+    // Phase 8F: every pad starts enabled. The controller pushes the actual
+    // values via setPadEnabled() once it has read the parameters, but until
+    // then the grid renders as if everything is on (matches legacy /
+    // pre-Phase-8F behaviour).
+    padEnabled_.fill(true);
     // Note: the 30 Hz poll timer is lazily created when the view is attached
     // to a live frame. Constructing one here would require a platform
     // message loop, which unit tests do not provide.
@@ -169,6 +174,24 @@ void PadGridView::notifyMetaChanged(int padIndex) noexcept
     if (padIndex < 0 || padIndex >= kNumPads)
         return;
     invalid();
+}
+
+void PadGridView::setPadEnabled(int padIndex, bool enabled) noexcept
+{
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+    auto& slot = padEnabled_[static_cast<std::size_t>(padIndex)];
+    if (slot == enabled)
+        return;
+    slot = enabled;
+    invalid();
+}
+
+bool PadGridView::padEnabled(int padIndex) const noexcept
+{
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return true;
+    return padEnabled_[static_cast<std::size_t>(padIndex)];
 }
 
 PadGridView::CellGeom PadGridView::cellGeom() const noexcept
@@ -209,6 +232,54 @@ int PadGridView::handleMouseDown(VSTGUI::CPoint localPoint,
     const int padIdx = padIndexFromPoint(localPoint);
     if (padIdx < 0)
         return -1;
+
+    // Phase 8F: hit-test the bottom-right power glyph first. A click on the
+    // glyph toggles enable regardless of pad state -- it is the affordance
+    // for re-enabling a previously-disabled pad. A regular click on the
+    // body of a disabled pad is ignored (no select, no audition).
+    const auto geom = cellGeom();
+    if (geom.cellW > 0.0f && geom.cellH > 0.0f)
+    {
+        const int col = static_cast<int>(
+            (localPoint.x - getViewSize().left) / geom.cellW);
+        const int row = static_cast<int>(
+            (localPoint.y - getViewSize().top)  / geom.cellH);
+        if (col >= 0 && col < kPadGridColumns
+            && row >= 0 && row < kPadGridRows)
+        {
+            VSTGUI::CRect cell;
+            cell.left   = getViewSize().left + col * geom.cellW;
+            cell.top    = getViewSize().top  + row * geom.cellH;
+            cell.right  = cell.left + geom.cellW;
+            cell.bottom = cell.top  + geom.cellH;
+            VSTGUI::CRect inset = cell;
+            inset.inset(2.0, 2.0);
+
+            constexpr double kPowerIconSize    = 14.0;
+            constexpr double kPowerIconMargin  = 4.0;
+            VSTGUI::CRect iconRect;
+            iconRect.right  = inset.right  - kPowerIconMargin;
+            iconRect.bottom = inset.bottom - kPowerIconMargin;
+            iconRect.left   = iconRect.right  - kPowerIconSize;
+            iconRect.top    = iconRect.bottom - kPowerIconSize;
+            // Slight enlargement of the click target to ~20 px hit slop.
+            VSTGUI::CRect hitRect = iconRect;
+            hitRect.inset(-3.0, -3.0);
+
+            if (hitRect.pointInside(localPoint))
+            {
+                const bool current = padEnabled_[static_cast<std::size_t>(padIdx)];
+                if (enableToggleCallback_)
+                    enableToggleCallback_(padIdx, !current);
+                return padIdx;
+            }
+        }
+    }
+
+    // Body of a disabled pad: swallow the click silently so the pad stays
+    // out of the way until the user re-enables it via the glyph.
+    if (!padEnabled_[static_cast<std::size_t>(padIdx)])
+        return padIdx;
 
     if (isShift || isRight)
     {
@@ -339,6 +410,14 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
 
             constexpr double kCornerRadius = 4.0;
 
+            // Phase 8F: dim the entire cell when disabled. The power glyph
+            // is drawn at full alpha after the cell content so it stays
+            // legible / clickable even on a faded pad.
+            const bool padOn = padEnabled_[static_cast<std::size_t>(padIdx)];
+            const float bodyAlphaScale = padOn ? 1.0f : 0.4f;
+            const float prevCellAlpha  = ctx->getGlobalAlpha();
+            ctx->setGlobalAlpha(prevCellAlpha * bodyAlphaScale);
+
             // Cell background (rounded).
             if (auto path = VSTGUI::owned(ctx->createGraphicsPath()))
             {
@@ -432,7 +511,10 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
                 }
             }
 
-            // Indicators (choke / bus)
+            // Indicators (choke / bus). Phase 8F reserves the bottom-right
+            // corner for the power glyph, so the BUS indicator's right edge
+            // is pulled in to leave room.
+            constexpr double kPowerSlotReserve = 18.0;
             if (const PadConfig* pc = padConfigFor(padIdx))
             {
                 const auto chokeText = chokeGroupIndicatorText(pc->chokeGroup);
@@ -451,9 +533,57 @@ void PadGridView::draw(VSTGUI::CDrawContext* ctx)
                 if (!busText.empty())
                 {
                     VSTGUI::CRect right = indRect;
-                    right.left = right.right - geom.cellW * 0.5f;
+                    right.right = right.right - kPowerSlotReserve;
+                    right.left  = right.right - geom.cellW * 0.5f;
                     ctx->drawString(busText.c_str(), right,
                                     VSTGUI::kRightText, true);
+                }
+            }
+
+            // Restore body alpha before drawing the power glyph so it stays
+            // fully visible / clickable on dimmed (disabled) pads.
+            ctx->setGlobalAlpha(prevCellAlpha);
+
+            // Phase 8F: power glyph in the bottom-right corner. ON = filled
+            // accent; OFF = outline only in the muted text colour. Drawn as
+            // an IEC-5009-style "circle with vertical line".
+            {
+                constexpr double kPowerIconSize   = 14.0;
+                constexpr double kPowerIconMargin = 4.0;
+                VSTGUI::CRect iconRect;
+                iconRect.right  = inset.right  - kPowerIconMargin;
+                iconRect.bottom = inset.bottom - kPowerIconMargin;
+                iconRect.left   = iconRect.right  - kPowerIconSize;
+                iconRect.top    = iconRect.bottom - kPowerIconSize;
+
+                const VSTGUI::CColor onColor{0,   188, 212, 255}; // accent
+                const VSTGUI::CColor offColor{120, 120, 140, 255}; // muted
+                const VSTGUI::CColor color = padOn ? onColor : offColor;
+
+                if (auto path = VSTGUI::owned(ctx->createGraphicsPath()))
+                {
+                    const double cx = iconRect.left + iconRect.getWidth()  * 0.5;
+                    const double cy = iconRect.top  + iconRect.getHeight() * 0.5;
+                    const double radius = iconRect.getWidth() * 0.42;
+
+                    // Open ring: arc from ~110 deg around the bottom back to
+                    // ~70 deg, leaving a gap at the top for the vertical
+                    // line stem.
+                    VSTGUI::CRect arcRect(cx - radius, cy - radius,
+                                          cx + radius, cy + radius);
+                    path->addArc(arcRect, 110.0, 70.0, true);
+
+                    // Vertical stem: from above the ring centre down to
+                    // ~20 % into the ring.
+                    const double stemTopY    = cy - radius - 1.5;
+                    const double stemBottomY = cy - radius * 0.20;
+                    path->beginSubpath(VSTGUI::CPoint(cx, stemTopY));
+                    path->addLine(VSTGUI::CPoint(cx, stemBottomY));
+
+                    ctx->setFrameColor(color);
+                    ctx->setLineWidth(1.5);
+                    ctx->drawGraphicsPath(path,
+                                          VSTGUI::CDrawContext::kPathStroked);
                 }
             }
         }

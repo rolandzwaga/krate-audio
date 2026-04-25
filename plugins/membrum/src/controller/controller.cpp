@@ -8,6 +8,7 @@
 #include "dsp/exciter_type.h"
 #include "dsp/body_model_type.h"
 #include "state/state_codec.h"
+#include "controller_state_codec.h"
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
 #include "ui/polyphony_slider.h"
@@ -131,6 +132,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kSecondaryMaterialId,          .padOffset = kPadSecondaryMaterial },
     // Phase 8E: nonlinear tension modulation (offset 58).
     {.globalId = kTensionModAmtId,              .padOffset = kPadTensionModAmt },
+    // Phase 8F: per-pad enable toggle (offset 59).
+    {.globalId = kPadEnabledId,                 .padOffset = kPadEnabled },
 };
 
 // Per-pad parameter name table
@@ -215,13 +218,15 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadSecondaryMaterial,    .name = "Secondary Material",  .isDiscrete = false, .stepCount = 0, .defaultValue = 0.4 },
     // Phase 8E (nonlinear tension modulation / pitch glide).
     {.offset = kPadTensionModAmt,        .name = "Tension Mod",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
+    // Phase 8F (per-pad enable toggle).
+    {.offset = kPadEnabled,              .name = "Pad Enabled",         .isDiscrete = true,  .stepCount = 1, .defaultValue = 1.0 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV8E,
-              "Pad param specs must match active param count (59 after Phase 8E)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV8F,
+              "Pad param specs must match active param count (60 after Phase 8F)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -232,157 +237,10 @@ void narrowToTChar(const char* src, TChar* dst, int maxLen)
     dst[i] = 0;
 }
 
-// ==============================================================================
-// PadSnapshot <-> Controller param bridging. Used by setComponentState,
-// kitPresetStateProvider, and kitPresetLoadProvider.
-// ==============================================================================
-
-// Read pad params from a Controller and produce a PadSnapshot. `includeMacros`
-// controls whether the macro (offsets 37-41) fields are captured -- kit preset
-// always writes them, and so does kit state.
-[[nodiscard]] Membrum::State::PadSnapshot
-buildPadSnapshotFromParams(const Steinberg::Vst::EditControllerEx1& ctrl,
-                           int pad) noexcept
-{
-    // Local helper: getParamNormalized wrapper (const_cast because the VST3
-    // API is not const-correct for read access).
-    auto getNorm = [&](ParamID id) -> double {
-        return const_cast<Steinberg::Vst::EditControllerEx1&>(ctrl)
-                   .getParamNormalized(id);
-    };
-
-    Membrum::State::PadSnapshot snap;
-
-    const double excNorm = getNorm(static_cast<ParamID>(padParamId(pad, kPadExciterType)));
-    const int excI = std::clamp(
-        static_cast<int>(excNorm * static_cast<double>(ExciterType::kCount)),
-        0, static_cast<int>(ExciterType::kCount) - 1);
-    snap.exciterType = static_cast<ExciterType>(excI);
-
-    const double bodyNorm = getNorm(static_cast<ParamID>(padParamId(pad, kPadBodyModel)));
-    const int bodyI = std::clamp(
-        static_cast<int>(bodyNorm * static_cast<double>(BodyModelType::kCount)),
-        0, static_cast<int>(BodyModelType::kCount) - 1);
-    snap.bodyModel = static_cast<BodyModelType>(bodyI);
-
-    // Sound indices 0-27 -> PadParamOffsets 2-29.
-    constexpr int kContinuousOffsets[28] = {
-        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
-        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
-        kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
-        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
-        kPadTSPitchEnvCurve,
-        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
-        kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
-        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
-        kPadNonlinearCoupling,
-        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
-        kPadMorphDuration, kPadMorphCurve,
-    };
-    for (int j = 0; j < 28; ++j)
-    {
-        snap.sound[static_cast<std::size_t>(j)] =
-            getNorm(static_cast<ParamID>(padParamId(pad, kContinuousOffsets[j])));
-    }
-
-    // Sound indices 28-29: chokeGroup / outputBus float64 mirrors.
-    const double chokeNorm = getNorm(static_cast<ParamID>(padParamId(pad, kPadChokeGroup)));
-    const double busNorm   = getNorm(static_cast<ParamID>(padParamId(pad, kPadOutputBus)));
-    snap.sound[28] = chokeNorm * 8.0;
-    snap.sound[29] = busNorm   * 15.0;
-
-    // Sound indices 30-33 -> offsets 32-35.
-    constexpr int kSecOffsets[4] = {
-        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
-    };
-    for (int j = 0; j < 4; ++j)
-    {
-        snap.sound[static_cast<std::size_t>(30 + j)] =
-            getNorm(static_cast<ParamID>(padParamId(pad, kSecOffsets[j])));
-    }
-
-    // Authoritative uint8 choke/bus (quantised from normalised).
-    snap.chokeGroup = static_cast<std::uint8_t>(
-        std::clamp(static_cast<int>(chokeNorm * 8.0 + 0.5), 0, 8));
-    snap.outputBus = static_cast<std::uint8_t>(
-        std::clamp(static_cast<int>(busNorm * 15.0 + 0.5), 0, 15));
-
-    snap.couplingAmount =
-        getNorm(static_cast<ParamID>(padParamId(pad, kPadCouplingAmount)));
-
-    snap.macros[0] = getNorm(static_cast<ParamID>(padParamId(pad, kPadMacroTightness)));
-    snap.macros[1] = getNorm(static_cast<ParamID>(padParamId(pad, kPadMacroBrightness)));
-    snap.macros[2] = getNorm(static_cast<ParamID>(padParamId(pad, kPadMacroBodySize)));
-    snap.macros[3] = getNorm(static_cast<ParamID>(padParamId(pad, kPadMacroPunch)));
-    snap.macros[4] = getNorm(static_cast<ParamID>(padParamId(pad, kPadMacroComplexity)));
-    return snap;
-}
-
-// Apply a PadSnapshot to a Controller's per-pad parameter values. Used both
-// from setComponentState and kitPresetLoadProvider. The caller supplies the
-// parameter-writer: setComponentState uses EditControllerEx1::setParamNormalized
-// directly (host has already updated the processor), while the preset-load
-// providers supply a notifying setter that also runs beginEdit/performEdit/
-// endEdit so the host pushes the new values through to the processor.
-//
-// The setter MUST NOT re-enter the derived Controller::setParamNormalized
-// override to avoid triggering proxy-forward logic during bulk loads.
-template <class Setter>
-void applyPadSnapshotToParams(int pad,
-                              const Membrum::State::PadSnapshot& snap,
-                              Setter& setNorm) noexcept
-{
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadExciterType)),
-            (static_cast<double>(snap.exciterType) + 0.5) /
-                static_cast<double>(ExciterType::kCount));
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
-            (static_cast<double>(snap.bodyModel) + 0.5) /
-                static_cast<double>(BodyModelType::kCount));
-
-    constexpr int kContinuousOffsets[28] = {
-        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
-        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
-        kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
-        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
-        kPadTSPitchEnvCurve,
-        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
-        kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
-        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
-        kPadNonlinearCoupling,
-        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
-        kPadMorphDuration, kPadMorphCurve,
-    };
-    for (int j = 0; j < 28; ++j)
-    {
-        setNorm(static_cast<ParamID>(padParamId(pad, kContinuousOffsets[j])),
-                snap.sound[static_cast<std::size_t>(j)]);
-    }
-
-    // Choke group / output bus: prefer the authoritative uint8 values when
-    // provided (the float64 mirror at snap.sound[28-29] is for on-wire
-    // redundancy only).
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadChokeGroup)),
-            static_cast<double>(snap.chokeGroup) / 8.0);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadOutputBus)),
-            static_cast<double>(snap.outputBus) / 15.0);
-
-    constexpr int kSecOffsets[4] = {
-        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
-    };
-    for (int j = 0; j < 4; ++j)
-    {
-        setNorm(static_cast<ParamID>(padParamId(pad, kSecOffsets[j])),
-                snap.sound[static_cast<std::size_t>(30 + j)]);
-    }
-
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadCouplingAmount)),
-            snap.couplingAmount);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadMacroTightness)),  snap.macros[0]);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadMacroBrightness)), snap.macros[1]);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadMacroBodySize)),   snap.macros[2]);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadMacroPunch)),      snap.macros[3]);
-    setNorm(static_cast<ParamID>(padParamId(pad, kPadMacroComplexity)), snap.macros[4]);
-}
+// PadSnapshot <-> Controller-param bridging and KitSnapshot encode/decode
+// live in `controller_state_codec.{h,cpp}` (Membrum::ControllerState namespace)
+// so all three kit-level codec entry points share a single source of truth
+// and adding a new per-pad / kit-level field is a one-place edit.
 
 } // namespace
 
@@ -665,7 +523,13 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Tension Mod"), kTensionModAmtId, nullptr,
                            0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A..8E: 1888 per-pad parameters (32 pads x 59 offsets) ----
+    // ---- Phase 8F global proxy: per-pad enable toggle ----
+    // Discrete float-as-bool. Default 1.0 = enabled.
+    parameters.addParameter(
+        new RangeParameter(STR16("Pad Enabled"), kPadEnabledId, nullptr,
+                           0.0, 1.0, 1.0, /*stepCount=*/1, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A..8F: 1920 per-pad parameters (32 pads x 60 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)
@@ -863,6 +727,16 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
             padGridView_->notifyMetaChanged(padIdx);
     }
 
+    // Phase 8F: per-pad enable toggle. Push the new value into the grid
+    // view so the cell dim / power glyph state tracks every source of
+    // change (user click on the glyph, host automation, preset load).
+    if (padOffset == kPadEnabled && padGridView_ != nullptr)
+    {
+        const int padIdx = padIndexFromParamId(static_cast<int>(tag));
+        if (padIdx >= 0)
+            padGridView_->setPadEnabled(padIdx, value >= 0.5);
+    }
+
     return result;
 }
 
@@ -958,37 +832,29 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     if (!state)
         return kResultFalse;
 
-    // Phase 6 (T027): session-scoped kUiModeId always resets to Acoustic
-    // (0.0) on state load. Kit presets may re-override it via a separate
-    // preset-load callback (not through IBStream).
-    EditControllerEx1::setParamNormalized(kUiModeId, 0.0);
-
     Membrum::State::KitSnapshot kit;
     if (Membrum::State::readKitBlob(state, kit) != kResultOk)
         return kResultFalse;
 
-    // Polyphony + stealing policy.
-    EditControllerEx1::setParamNormalized(kMaxPolyphonyId,
-        static_cast<double>(kit.maxPolyphony - 4) / 12.0);
-    EditControllerEx1::setParamNormalized(kVoiceStealingId,
-        (static_cast<double>(kit.voiceStealingPolicy) + 0.5) / 3.0);
+    // Phase 6 (T027): session-scoped kUiModeId always resets to Acoustic
+    // (0.0) on state load. Kit presets may re-override it via a separate
+    // preset-load callback (not through IBStream). uiMode lives outside
+    // the snapshot helper because each load path has its own semantics
+    // (host load forces 0; preset load reads from `kit.hasSession`).
+    EditControllerEx1::setParamNormalized(kUiModeId, 0.0);
 
-    // Per-pad parameters. setComponentState is the host-driven path: the
-    // processor has already consumed its own state via IComponent::setState
-    // before this method runs, so we just mirror the values into the
-    // controller's parameter objects (UI only -- no performEdit needed).
-    auto setDirect = [this](ParamID id, double v) {
-        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
-    };
-    for (int pad = 0; pad < kNumPads; ++pad)
-        applyPadSnapshotToParams(pad, kit.pads[static_cast<std::size_t>(pad)], setDirect);
+    // Host-driven path: the processor has already consumed its own state via
+    // IComponent::setState, so we just mirror the values into the
+    // controller's parameter objects -- no performEdit chain.
+    Membrum::ControllerState::ParamSetter setDirect =
+        [this](Steinberg::Vst::ParamID id, double v) {
+            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, v);
+        };
+    Membrum::ControllerState::applySnapshot(
+        kit, setDirect, {.applySelectedPad = true});
 
-    // Selected pad.
     selectedPadIndex_ = kit.selectedPadIndex;
-    EditControllerEx1::setParamNormalized(kSelectedPadId,
-        static_cast<double>(selectedPadIndex_) / 31.0);
-
-    // Sync global proxy params from selected pad.
+    pushKitEnabledToGrid(kit);
     syncGlobalProxyFromPad(selectedPadIndex_);
 
     return kResultOk;
@@ -1000,44 +866,11 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
 
 IBStream* Controller::kitPresetStateProvider()
 {
-    // Build a KitSnapshot from controller params and delegate to the shared
-    // codec. Kit preset carries uiMode via the hasSession flag (FR-030,
-    // FR-072). selectedPadIndex is intentionally zero on kit preset save --
-    // the codec's selectedPadIndex field is a no-op for preset-load paths,
-    // which never apply the value.
+    // Build the kit snapshot via the shared encoder, then layer on the
+    // session-scoped uiMode that only kit-presets persist (FR-030 / FR-072).
     auto* stream = new MemoryStream();
 
-    Membrum::State::KitSnapshot kit;
-
-    // Polyphony / stealing from controller params.
-    const double maxPolyNorm = getParamNormalized(kMaxPolyphonyId);
-    kit.maxPolyphony = std::clamp(
-        4 + static_cast<int>(maxPolyNorm * 12.0 + 0.5), 4, 16);
-    const double stealNorm = getParamNormalized(kVoiceStealingId);
-    kit.voiceStealingPolicy =
-        std::clamp(static_cast<int>(stealNorm * 3.0), 0, 2);
-
-    // Phase 5 globals.
-    kit.globalCoupling  = getParamNormalized(kGlobalCouplingId);
-    kit.snareBuzz       = getParamNormalized(kSnareBuzzId);
-    kit.tomResonance    = getParamNormalized(kTomResonanceId);
-    // Coupling delay: param is [0.5, 2.0] ms -- controller stores the
-    // normalized [0,1] value, so denormalize for the wire (the codec clamps
-    // to the original range on read).
-    {
-        const double cdNorm = getParamNormalized(kCouplingDelayId);
-        kit.couplingDelayMs = std::clamp(0.5 + cdNorm * 1.5, 0.5, 2.0);
-    }
-
-    kit.selectedPadIndex = selectedPadIndex_;
-
-    for (int pad = 0; pad < kNumPads; ++pad)
-    {
-        kit.pads[static_cast<std::size_t>(pad)] =
-            buildPadSnapshotFromParams(*this, pad);
-    }
-
-    // uiMode persists in kit presets (FR-030 / FR-072).
+    auto kit = Membrum::ControllerState::buildSnapshot(*this, selectedPadIndex_);
     kit.hasSession = true;
     kit.uiMode     = (getParamNormalized(kUiModeId) >= 0.5) ? 1 : 0;
 
@@ -1059,40 +892,30 @@ bool Controller::kitPresetLoadProvider(IBStream* stream)
     // processor never sees the new values unless we notify the host through
     // beginEdit / performEdit / endEdit. Plain setParamNormalized only
     // updates the controller-side Parameter objects (UI).
-    auto setAndNotify = [this](ParamID id, double v) {
-        const double clamped = std::clamp(v, 0.0, 1.0);
-        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
-        beginEdit(id);
-        performEdit(id, clamped);
-        endEdit(id);
-    };
+    Membrum::ControllerState::ParamSetter setAndNotify =
+        [this](Steinberg::Vst::ParamID id, double v) {
+            const double clamped = std::clamp(v, 0.0, 1.0);
+            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
+            beginEdit(id);
+            performEdit(id, clamped);
+            endEdit(id);
+        };
+    Membrum::ControllerState::applySnapshot(
+        kit, setAndNotify, {.applySelectedPad = false});
 
-    // Global settings.
-    setAndNotify(kMaxPolyphonyId,
-        static_cast<double>(kit.maxPolyphony - 4) / 12.0);
-    setAndNotify(kVoiceStealingId,
-        (static_cast<double>(kit.voiceStealingPolicy) + 0.5) / 3.0);
-    setAndNotify(kGlobalCouplingId, kit.globalCoupling);
-    setAndNotify(kSnareBuzzId,      kit.snareBuzz);
-    setAndNotify(kTomResonanceId,   kit.tomResonance);
-    setAndNotify(kCouplingDelayId,
-        std::clamp((kit.couplingDelayMs - 0.5) / 1.5, 0.0, 1.0));
-
-    // Per-pad parameters.
-    for (int pad = 0; pad < kNumPads; ++pad)
-        applyPadSnapshotToParams(pad, kit.pads[static_cast<std::size_t>(pad)],
-                                 setAndNotify);
-
-    // Session field (uiMode) restored if present. uiMode is a session-scoped
-    // UI-only param; controller-side update is enough (no performEdit needed
-    // because the processor does not consume it).
+    // Session-scoped uiMode: kit presets restore it when present, but the
+    // controller-side write is direct (no performEdit) because the processor
+    // never consumes uiMode.
     if (kit.hasSession)
     {
         EditControllerEx1::setParamNormalized(kUiModeId,
             kit.uiMode >= 1 ? 1.0 : 0.0);
     }
 
-    // Kit preset does NOT restore selectedPadIndex -- leave it unchanged.
+    pushKitEnabledToGrid(kit);
+
+    // Kit preset deliberately preserves the user's current selectedPadIndex_
+    // (FR-052), so the global proxy sync uses the EXISTING value.
     syncGlobalProxyFromPad(selectedPadIndex_);
 
     return true;
@@ -1107,13 +930,17 @@ IBStream* Controller::padPresetStateProvider()
     auto* stream = new MemoryStream();
 
     const int pad = selectedPadIndex_;
-    const auto full = buildPadSnapshotFromParams(*this, pad);
+    const auto full =
+        Membrum::ControllerState::buildPadSnapshotFromParams(*this, pad);
 
     // Project the per-pad snapshot down to the narrower per-pad preset slice.
+    // PadPresetSnapshot::sound is intentionally one slot shorter than
+    // PadSnapshot::sound (the Phase 8F enable-toggle slot at index 51 is
+    // kit-level only and never persisted in per-pad presets).
     Membrum::State::PadPresetSnapshot preset;
     preset.exciterType = full.exciterType;
     preset.bodyModel   = full.bodyModel;
-    preset.sound       = full.sound;
+    std::copy_n(full.sound.begin(), preset.sound.size(), preset.sound.begin());
 
     Membrum::State::writePadPresetBlob(stream, preset);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
@@ -1129,68 +956,21 @@ bool Controller::padPresetLoadProvider(IBStream* stream)
     if (Membrum::State::readPadPresetBlob(stream, preset) != kResultOk)
         return false;
 
-    // Apply to the selected pad. Per FR-061 we intentionally write only the
-    // fields carried by the per-pad preset slice (exciterType, bodyModel, the
-    // 28 continuous sound fields, and the 4 secondary fields) -- chokeGroup,
-    // outputBus, couplingAmount, and macros are left untouched so the user's
-    // kit-level routing and macro positions survive per-pad preset browsing.
-    //
-    // Like the kit-preset path, this bypasses the host's preset-load
-    // mechanism; without begin/perform/endEdit the processor never sees the
-    // new values and the pad sounds identical to before the load.
-    const int pad = selectedPadIndex_;
+    // Per-pad preset load bypasses the host, so we need begin/perform/end
+    // around every write so the processor sees the new values.
+    Membrum::ControllerState::ParamSetter setAndNotify =
+        [this](Steinberg::Vst::ParamID id, double v) {
+            const double clamped = std::clamp(v, 0.0, 1.0);
+            Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
+            beginEdit(id);
+            performEdit(id, clamped);
+            endEdit(id);
+        };
 
-    auto setAndNotify = [this](ParamID id, double v) {
-        const double clamped = std::clamp(v, 0.0, 1.0);
-        Steinberg::Vst::EditControllerEx1::setParamNormalized(id, clamped);
-        beginEdit(id);
-        performEdit(id, clamped);
-        endEdit(id);
-    };
+    Membrum::ControllerState::applyPadPresetSnapshotToParams(
+        selectedPadIndex_, preset, setAndNotify);
 
-    setAndNotify(static_cast<ParamID>(padParamId(pad, kPadExciterType)),
-        (static_cast<double>(preset.exciterType) + 0.5) /
-            static_cast<double>(ExciterType::kCount));
-    setAndNotify(static_cast<ParamID>(padParamId(pad, kPadBodyModel)),
-        (static_cast<double>(preset.bodyModel) + 0.5) /
-            static_cast<double>(BodyModelType::kCount));
-
-    constexpr int kContinuousOffsets[28] = {
-        kPadMaterial, kPadSize, kPadDecay, kPadStrikePosition, kPadLevel,
-        kPadTSFilterType, kPadTSFilterCutoff, kPadTSFilterResonance,
-        kPadTSFilterEnvAmount, kPadTSDriveAmount, kPadTSFoldAmount,
-        kPadTSPitchEnvStart, kPadTSPitchEnvEnd, kPadTSPitchEnvTime,
-        kPadTSPitchEnvCurve,
-        kPadTSFilterEnvAttack, kPadTSFilterEnvDecay,
-        kPadTSFilterEnvSustain, kPadTSFilterEnvRelease,
-        kPadModeStretch, kPadDecaySkew, kPadModeInjectAmount,
-        kPadNonlinearCoupling,
-        kPadMorphEnabled, kPadMorphStart, kPadMorphEnd,
-        kPadMorphDuration, kPadMorphCurve,
-    };
-    for (int j = 0; j < 28; ++j)
-    {
-        setAndNotify(
-            static_cast<ParamID>(padParamId(pad, kContinuousOffsets[j])),
-            preset.sound[static_cast<std::size_t>(j)]);
-    }
-
-    // sound[28]/[29] (chokeGroup/outputBus float64 mirrors) intentionally
-    // skipped per FR-061.
-
-    constexpr int kSecOffsets[4] = {
-        kPadFMRatio, kPadFeedbackAmount, kPadNoiseBurstDuration, kPadFrictionPressure
-    };
-    for (int j = 0; j < 4; ++j)
-    {
-        setAndNotify(
-            static_cast<ParamID>(padParamId(pad, kSecOffsets[j])),
-            preset.sound[static_cast<std::size_t>(30 + j)]);
-    }
-
-    // Sync global proxy params for the selected pad.
     syncGlobalProxyFromPad(selectedPadIndex_);
-
     return true;
 }
 
@@ -1295,6 +1075,39 @@ VSTGUI::CView* Controller::createCustomView(
             sendMessage(owned);
         });
 
+        // Phase 8F: power-glyph click toggles the per-pad enable parameter
+        // directly (no proxy detour). The toggle goes through the standard
+        // beginEdit/performEdit/endEdit gesture so DAW automation lanes
+        // record correctly, and the per-pad ID writes the per-pad config
+        // even when the affected pad is not the currently selected one.
+        view->setEnableToggleCallback([this](int padIndex, bool newState) {
+            if (padIndex < 0 || padIndex >= kNumPads) return;
+            const auto pid = static_cast<ParamID>(
+                padParamId(padIndex, kPadEnabled));
+            const ParamValue norm = newState ? 1.0 : 0.0;
+            beginEdit(pid);
+            performEdit(pid, norm);
+            setParamNormalized(pid, norm);
+            endEdit(pid);
+            // If the toggled pad is the currently selected one, also keep
+            // the global proxy in sync so any future UI bound to it sees
+            // the same value.
+            if (padIndex == selectedPadIndex_)
+            {
+                EditControllerEx1::setParamNormalized(
+                    static_cast<ParamID>(kPadEnabledId), norm);
+            }
+        });
+
+        // Push the initial enabled state into the view so disabled pads
+        // render correctly the moment the editor opens.
+        for (int i = 0; i < kNumPads; ++i)
+        {
+            const auto norm = getParamNormalized(static_cast<ParamID>(
+                padParamId(i, kPadEnabled)));
+            view->setPadEnabled(i, norm >= 0.5);
+        }
+
         padGridView_ = view;
         return view;
     }
@@ -1352,9 +1165,12 @@ VSTGUI::CView* Controller::createCustomView(
     }
     if (std::strcmp(name, "ModeToggleButton") == 0)
     {
+        // Label shows the target state, not the current one: when the Simple
+        // view is active the button reads "Advanced" (where the click will
+        // take you), and vice versa.
         auto* view = new UI::OutlineActionButton(
             viewRect,
-            getParamNormalized(kUiModeId) >= 0.5 ? "Advanced" : "Simple");
+            getParamNormalized(kUiModeId) >= 0.5 ? "Simple" : "Advanced");
         view->setAction([this, view]() {
             const auto cur = getParamNormalized(kUiModeId);
             const auto next = cur >= 0.5 ? 0.0 : 1.0;
@@ -1362,7 +1178,7 @@ VSTGUI::CView* Controller::createCustomView(
             performEdit(kUiModeId, next);
             setParamNormalized(kUiModeId, next);
             endEdit(kUiModeId);
-            view->setTitle(next >= 0.5 ? "Advanced" : "Simple");
+            view->setTitle(next >= 0.5 ? "Simple" : "Advanced");
         });
         modeToggleButton_ = view;
         return view;
@@ -1476,6 +1292,7 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         if (ctrl->getTag() == static_cast<int32>(kOutputBusId))
         {
             outputBusSelView_ = ctrl;
+            ctrl->registerViewListener(this);
             updateOutputBusTooltip();
         }
     }
@@ -1504,6 +1321,7 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
                 endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
             });
         pitchEnvelopeDisplay_ = pev;
+        pev->registerViewListener(this);
     }
 
     // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
@@ -1528,6 +1346,7 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         xyPad->setMorphPosition(static_cast<float>(startNorm),
                                 static_cast<float>(endNorm));
         xyMorphPad_ = xyPad;
+        xyPad->registerViewListener(this);
         morphViewCached = true;
     }
 
@@ -1539,11 +1358,13 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         if (tag == static_cast<int32>(kMorphDurationMsId))
         {
             morphDurationView_ = ctrl;
+            ctrl->registerViewListener(this);
             morphViewCached = true;
         }
         else if (tag == static_cast<int32>(kMorphCurveId))
         {
             morphCurveView_ = ctrl;
+            ctrl->registerViewListener(this);
             morphViewCached = true;
         }
     }
@@ -1557,6 +1378,7 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         if (t != nullptr && std::strcmp(t, "Dur") == 0)
         {
             morphDurLabel_ = label;
+            label->registerViewListener(this);
             morphViewCached = true;
         }
     }
@@ -1592,10 +1414,37 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
                 endEdit(static_cast<Steinberg::Vst::ParamID>(paramId));
             });
         filterEnvDisplay_ = adsr;
+        adsr->registerViewListener(this);
         updateFilterEnvDisplay();
     }
 
     return view;
+}
+
+// ------------------------------------------------------------------------------
+// IViewListener::viewWillDelete
+//
+// Fired by VSTGUI just before destroying a view we registered as a listener
+// on. UIViewSwitchContainer destroys the outgoing template's view tree on
+// every Simple<->Advanced toggle, so without this hook the cached raw
+// pointers in the controller go dangling between destruction and the
+// rebuild's verifyView() reassignment -- and quick toggling crashes when a
+// parameter write hits one of those stale pointers.
+// ------------------------------------------------------------------------------
+void Controller::viewWillDelete(VSTGUI::CView* view)
+{
+    if (view == nullptr)
+        return;
+
+    if (view == outputBusSelView_)         outputBusSelView_         = nullptr;
+    if (view == pitchEnvelopeDisplay_)     pitchEnvelopeDisplay_     = nullptr;
+    if (view == xyMorphPad_)               xyMorphPad_               = nullptr;
+    if (view == morphDurationView_)        morphDurationView_        = nullptr;
+    if (view == morphCurveView_)           morphCurveView_           = nullptr;
+    if (view == morphDurLabel_)            morphDurLabel_            = nullptr;
+    if (view == filterEnvDisplay_)         filterEnvDisplay_         = nullptr;
+
+    view->unregisterViewListener(this);
 }
 
 // ------------------------------------------------------------------------------
@@ -1702,6 +1551,19 @@ void Controller::updateFilterEnvDisplay() noexcept
     };
     pushTo(filterEnvDisplay_);
     pushTo(filterEnvOverlayDisplay_);
+}
+
+void Controller::pushKitEnabledToGrid(
+    const Membrum::State::KitSnapshot& kit) noexcept
+{
+    if (padGridView_ == nullptr)
+        return;
+    for (int pad = 0; pad < kNumPads; ++pad)
+    {
+        // Slot 51 of PadSnapshot::sound is the per-pad enable flag (Phase 8F).
+        padGridView_->setPadEnabled(
+            pad, kit.pads[static_cast<std::size_t>(pad)].sound[51] >= 0.5);
+    }
 }
 
 void Controller::didOpen(VSTGUI::VST3Editor* editor)
@@ -2360,6 +2222,9 @@ bool formatByPadOffset(int offset,
     // --- Phase 8E tension -----------------------------------------------
     case kPadTensionModAmt:        formatPercent(norm, out);                 return true;
 
+    // --- Phase 8F per-pad enable toggle ---------------------------------
+    case kPadEnabled:              formatOnOff(norm, out);                   return true;
+
     default:
         return false;
     }
@@ -2426,6 +2291,7 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     case kSecondarySizeId:    formatPercent(valueNormalized, string);       return kResultOk;
     case kSecondaryMaterialId: formatMaterial(valueNormalized, string);     return kResultOk;
     case kTensionModAmtId:    formatPercent(valueNormalized, string);       return kResultOk;
+    case kPadEnabledId:       formatOnOff(valueNormalized, string);         return kResultOk;
 
     default:
         break;

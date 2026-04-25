@@ -43,6 +43,7 @@ void MacroMapper::prepare(const RegisteredDefaultsTable& defaults) noexcept
 
 void MacroMapper::invalidateCache() noexcept
 {
+    // PadCache default-initialises to 0.5 (neutral) for each macro.
     for (auto& c : cache_)
         c = PadCache{};
 }
@@ -76,11 +77,16 @@ void MacroMapper::apply(int padIndex, PadConfig& padConfig) noexcept
     if (!dirty)
         return;
 
-    applyTightness(padConfig);
-    applyBrightness(padConfig);
-    applyBodySize(padConfig);
-    applyPunch(padConfig);
-    applyComplexity(padConfig);
+    // Incremental: each applier computes (newDelta - oldDelta) using the
+    // cached previous macro value, so only the *change* is layered onto
+    // the per-pad config. Cache is initialised at 0.5 so a first apply
+    // with a preset's neutral macro values produces zero adjustment,
+    // preserving every loaded per-pad parameter.
+    applyTightness(padConfig, c);
+    applyBrightness(padConfig, c);
+    applyBodySize(padConfig, c);
+    applyPunch(padConfig, c);
+    applyComplexity(padConfig, c);
 
     c.tightness  = padConfig.macroTightness;
     c.brightness = padConfig.macroBrightness;
@@ -96,102 +102,120 @@ void MacroMapper::reapplyAll(std::array<PadConfig, kNumPads>& pads) noexcept
         apply(p, pads[static_cast<std::size_t>(p)]);
 }
 
-// ------------------------------------------------------------------------------
-// Per-macro appliers: each recomputes the target fields from the registered
-// default + the macro delta. Other macros' effects are accumulated via
-// superposition (all five macros are independent and commutative; the target
-// field set for each macro is disjoint at the field level for Phase 6).
-// ------------------------------------------------------------------------------
-
-void MacroMapper::applyTightness(PadConfig& cfg) noexcept
+void MacroMapper::syncCacheFromCfg(int padIndex,
+                                   const PadConfig& padConfig) noexcept
 {
-    const float m = clamp01(cfg.macroTightness);
+    if (padIndex < 0 || padIndex >= kNumPads)
+        return;
+    auto& c = cache_[static_cast<std::size_t>(padIndex)];
+    c.tightness  = padConfig.macroTightness;
+    c.brightness = padConfig.macroBrightness;
+    c.bodySize   = padConfig.macroBodySize;
+    c.punch      = padConfig.macroPunch;
+    c.complexity = padConfig.macroComplexity;
+}
 
-    // material: linear delta
-    const float materialBase = defaults_.byOffset[kPadMaterial];
-    cfg.material = clamp01(materialBase +
-                           linDelta(m, MacroCurves::kTightnessMaterialSpan));
+// ------------------------------------------------------------------------------
+// Per-macro appliers: each one layers (newDelta - oldDelta) onto the relevant
+// per-pad fields, where oldDelta is computed from the cached previous macro
+// value. This preserves preset values when a macro arrives at neutral (0.5):
+// newDelta(0.5) - oldDelta(0.5) = 0, so the loaded per-pad config is left
+// alone. The macros remain independent and commutative because each one only
+// touches a disjoint set of fields.
+// ------------------------------------------------------------------------------
+
+void MacroMapper::applyTightness(PadConfig& cfg, const PadCache& cache) noexcept
+{
+    const float m    = clamp01(cfg.macroTightness);
+    const float mOld = cache.tightness;
+
+    cfg.material = clamp01(cfg.material
+        + (linDelta(m, MacroCurves::kTightnessMaterialSpan)
+         - linDelta(mOld, MacroCurves::kTightnessMaterialSpan)));
 
     // decay: exponential, INVERTED (higher macro -> shorter decay)
-    const float decayBase = defaults_.byOffset[kPadDecay];
-    cfg.decay = clamp01(decayBase -
-                        expDelta(m, MacroCurves::kTightnessDecaySpan));
+    cfg.decay = clamp01(cfg.decay
+        - (expDelta(m, MacroCurves::kTightnessDecaySpan)
+         - expDelta(mOld, MacroCurves::kTightnessDecaySpan)));
 
-    // decaySkew: linear full-span
-    const float skewBase = defaults_.byOffset[kPadDecaySkew];
-    cfg.decaySkew = clamp01(skewBase +
-                            linDelta(m, MacroCurves::kTightnessDecaySkewSpan));
+    cfg.decaySkew = clamp01(cfg.decaySkew
+        + (linDelta(m, MacroCurves::kTightnessDecaySkewSpan)
+         - linDelta(mOld, MacroCurves::kTightnessDecaySkewSpan)));
 }
 
-void MacroMapper::applyBrightness(PadConfig& cfg) noexcept
+void MacroMapper::applyBrightness(PadConfig& cfg, const PadCache& cache) noexcept
 {
-    const float m = clamp01(cfg.macroBrightness);
+    const float m    = clamp01(cfg.macroBrightness);
+    const float mOld = cache.brightness;
 
-    // tsFilterCutoff: exponential (in log-Hz), here linear in normalised units
-    const float cutoffBase = defaults_.byOffset[kPadTSFilterCutoff];
-    cfg.tsFilterCutoff = clamp01(cutoffBase +
-                                 linDelta(m, MacroCurves::kBrightnessCutoffSpan));
+    cfg.tsFilterCutoff = clamp01(cfg.tsFilterCutoff
+        + (linDelta(m, MacroCurves::kBrightnessCutoffSpan)
+         - linDelta(mOld, MacroCurves::kBrightnessCutoffSpan)));
 
-    // modeInjectAmount: linear
-    const float mijBase = defaults_.byOffset[kPadModeInjectAmount];
-    cfg.modeInjectAmount = clamp01(mijBase +
-                                   linDelta(m, MacroCurves::kBrightnessModeInjectSpan));
+    cfg.modeInjectAmount = clamp01(cfg.modeInjectAmount
+        + (linDelta(m, MacroCurves::kBrightnessModeInjectSpan)
+         - linDelta(mOld, MacroCurves::kBrightnessModeInjectSpan)));
 }
 
-void MacroMapper::applyBodySize(PadConfig& cfg) noexcept
+void MacroMapper::applyBodySize(PadConfig& cfg, const PadCache& cache) noexcept
 {
-    const float m = clamp01(cfg.macroBodySize);
+    const float m    = clamp01(cfg.macroBodySize);
+    const float mOld = cache.bodySize;
 
-    const float sizeBase = defaults_.byOffset[kPadSize];
-    cfg.size = clamp01(sizeBase +
-                       linDelta(m, MacroCurves::kBodySizeSizeSpan));
+    cfg.size = clamp01(cfg.size
+        + (linDelta(m, MacroCurves::kBodySizeSizeSpan)
+         - linDelta(mOld, MacroCurves::kBodySizeSizeSpan)));
 
-    const float stretchBase = defaults_.byOffset[kPadModeStretch];
-    cfg.modeStretch = clamp01(stretchBase +
-                              linDelta(m, MacroCurves::kBodySizeStretchSpan));
+    cfg.modeStretch = clamp01(cfg.modeStretch
+        + (linDelta(m, MacroCurves::kBodySizeStretchSpan)
+         - linDelta(mOld, MacroCurves::kBodySizeStretchSpan)));
 
-    // decay: Body Size also affects envelope scale (small additive)
-    cfg.decay = clamp01(cfg.decay +
-                        linDelta(m, MacroCurves::kBodySizeDecayScaleSpan));
+    // decay: Body Size also nudges envelope scale (small additive layer
+    // on top of Tightness's decay contribution).
+    cfg.decay = clamp01(cfg.decay
+        + (linDelta(m, MacroCurves::kBodySizeDecayScaleSpan)
+         - linDelta(mOld, MacroCurves::kBodySizeDecayScaleSpan)));
 }
 
-void MacroMapper::applyPunch(PadConfig& cfg) noexcept
+void MacroMapper::applyPunch(PadConfig& cfg, const PadCache& cache) noexcept
 {
-    const float m = clamp01(cfg.macroPunch);
+    const float m    = clamp01(cfg.macroPunch);
+    const float mOld = cache.punch;
 
-    // tsPitchEnvStart: exponential depth
-    const float startBase = defaults_.byOffset[kPadTSPitchEnvStart];
-    cfg.tsPitchEnvStart = clamp01(startBase +
-                                  expDelta(m, MacroCurves::kPunchPitchEnvDepthSpan));
+    cfg.tsPitchEnvStart = clamp01(cfg.tsPitchEnvStart
+        + (expDelta(m, MacroCurves::kPunchPitchEnvDepthSpan)
+         - expDelta(mOld, MacroCurves::kPunchPitchEnvDepthSpan)));
 
-    // tsPitchEnvTime: inverse-exponential (higher macro -> faster env)
-    const float timeBase = defaults_.byOffset[kPadTSPitchEnvTime];
-    cfg.tsPitchEnvTime = clamp01(timeBase -
-                                 linDelta(m, MacroCurves::kPunchPitchEnvTimeSpan));
+    // tsPitchEnvTime: inverse-linear (higher macro -> faster env)
+    cfg.tsPitchEnvTime = clamp01(cfg.tsPitchEnvTime
+        - (linDelta(m, MacroCurves::kPunchPitchEnvTimeSpan)
+         - linDelta(mOld, MacroCurves::kPunchPitchEnvTimeSpan)));
 
     // Per-exciter attack target (Phase 6 uses noiseBurstDuration as the
     // generic attack proxy when the active exciter is not friction/feedback).
-    // Inverse linear: higher macro -> shorter attack.
-    const float nbdBase = defaults_.byOffset[kPadNoiseBurstDuration];
-    cfg.noiseBurstDuration = clamp01(nbdBase -
-                                     linDelta(m, MacroCurves::kPunchExciterAttackSpan));
+    cfg.noiseBurstDuration = clamp01(cfg.noiseBurstDuration
+        - (linDelta(m, MacroCurves::kPunchExciterAttackSpan)
+         - linDelta(mOld, MacroCurves::kPunchExciterAttackSpan)));
 }
 
-void MacroMapper::applyComplexity(PadConfig& cfg) noexcept
+void MacroMapper::applyComplexity(PadConfig& cfg, const PadCache& cache) noexcept
 {
-    const float m = clamp01(cfg.macroComplexity);
+    const float m    = clamp01(cfg.macroComplexity);
+    const float mOld = cache.complexity;
 
-    const float couplingBase = defaults_.byOffset[kPadCouplingAmount];
-    cfg.couplingAmount = clamp01(couplingBase +
-                                 linDelta(m, MacroCurves::kComplexityCouplingSpan));
+    cfg.couplingAmount = clamp01(cfg.couplingAmount
+        + (linDelta(m, MacroCurves::kComplexityCouplingSpan)
+         - linDelta(mOld, MacroCurves::kComplexityCouplingSpan)));
 
-    const float nonlinBase = defaults_.byOffset[kPadNonlinearCoupling];
-    cfg.nonlinearCoupling = clamp01(nonlinBase +
-                                    linDelta(m, MacroCurves::kComplexityNonlinearSpan));
+    cfg.nonlinearCoupling = clamp01(cfg.nonlinearCoupling
+        + (linDelta(m, MacroCurves::kComplexityNonlinearSpan)
+         - linDelta(mOld, MacroCurves::kComplexityNonlinearSpan)));
 
-    // Complexity also adds to modeInjectAmount (proxy for partial count)
-    cfg.modeInjectAmount = clamp01(cfg.modeInjectAmount +
-                                   linDelta(m, MacroCurves::kComplexityModeInjectSpan));
+    // Complexity also nudges modeInjectAmount (proxy for partial count) on
+    // top of Brightness's contribution.
+    cfg.modeInjectAmount = clamp01(cfg.modeInjectAmount
+        + (linDelta(m, MacroCurves::kComplexityModeInjectSpan)
+         - linDelta(mOld, MacroCurves::kComplexityModeInjectSpan)));
 }
 
 } // namespace Membrum

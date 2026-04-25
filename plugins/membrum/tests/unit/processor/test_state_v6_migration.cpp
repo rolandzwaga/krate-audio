@@ -35,6 +35,7 @@
 #include "controller/controller.h"
 #include "dsp/pad_config.h"
 #include "plugin_ids.h"
+#include "processor/macro_mapper.h"
 #include "processor/processor.h"
 #include "voice_pool/voice_pool.h"
 
@@ -116,10 +117,10 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 // FR-080: kCurrentStateVersion (updated to 8 in Phase 8A for per-mode damping).
 // ==============================================================================
 
-TEST_CASE("State v6..v11 (FR-080): kCurrentStateVersion is 11",
+TEST_CASE("State v6..v12 (FR-080): kCurrentStateVersion is 12",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 11);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 12);
 }
 
 // ==============================================================================
@@ -206,12 +207,13 @@ TEST_CASE("State v11 (FR-084): v11 blob wraps macros + Phase 7..8E sound slots",
 
     // v5 -> v6 +1280 macros = 10610. v7 +2048 = 12658. v8 +512 = 13170.
     // v9 +512 = 13682. v10 +1024 = 14706. v11 +256 = 14962.
-    CHECK(bytes.size() == 14962u);
+    // v12 +256 (per-pad enable slot) = 15218.
+    CHECK(bytes.size() == 15218u);
 
-    // Version field is the first 4 bytes and must equal 11.
+    // Version field is the first 4 bytes and must equal 12.
     int32 version = 0;
     std::memcpy(&version, bytes.data(), sizeof(version));
-    CHECK(version == 11);
+    CHECK(version == 12);
 }
 
 // ==============================================================================
@@ -219,11 +221,11 @@ TEST_CASE("State v11 (FR-084): v11 blob wraps macros + Phase 7..8E sound slots",
 // kResultFalse.
 // ==============================================================================
 
-TEST_CASE("State v11: setState rejects future / out-of-range versions",
+TEST_CASE("State v12: setState rejects future / out-of-range versions",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {12, 13, 99, -1})
+    for (int32 v : {13, 14, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
@@ -237,7 +239,7 @@ TEST_CASE("State v11: setState rejects future / out-of-range versions",
     }
 }
 
-TEST_CASE("State v11: setState rejects pre-v6 blobs",
+TEST_CASE("State v12: setState rejects pre-v6 blobs",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -266,9 +268,9 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size for v11: 14962 bytes (see FR-084 test). If kUiModeId had
+    // Expected size for v12: 15218 bytes (see FR-084 test). If kUiModeId had
     // leaked into the processor blob it would add 4 bytes.
-    CHECK(bytes.size() == 14962u);
+    CHECK(bytes.size() == 15218u);
 }
 
 // ==============================================================================
@@ -278,18 +280,30 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
 // loaded value toward the macro-derived value.
 // ==============================================================================
 
-TEST_CASE("State v6 (FR-082): reapplyAll runs after v6 load with non-neutral macros",
+TEST_CASE("State v6: macro-driven couplingAmount survives save-load",
           "[phase6_state][state_v6][state]")
 {
+    // Phase 8G: setState no longer "fixes" inconsistent saved state by calling
+    // reapplyAll. With incremental MacroMapper, reapplyAll on load would drift
+    // bytes on every save-load cycle (each load layers another delta on top
+    // of the saved post-macro values). The contract now is: saved state is
+    // loaded verbatim. To exercise macro-derived couplingAmount, we let the
+    // MacroMapper apply Complexity properly first, then verify save+load
+    // round-trips what was rendered to cfg.
     V6Fixture fx;
 
     auto& pads = fx.processor.voicePoolForTest().padConfigsArray();
-    // Drive Complexity to 1.0 on pad 0. Per MacroMapper::applyComplexity, this
-    // adds kComplexityCouplingSpan * 0.5 to the couplingAmount base. We do NOT
-    // need to know the exact span -- it suffices that reapplyAll changes
-    // pad0.couplingAmount from its loaded value.
     pads[0].macroComplexity = 1.0f;
-    pads[0].couplingAmount = 0.0f; // deliberately inconsistent with macro
+    Membrum::MacroMapper mapper;
+    Membrum::RegisteredDefaultsTable defaults{};
+    defaults.byOffset[Membrum::kPadCouplingAmount]    = 0.5f;
+    defaults.byOffset[Membrum::kPadNonlinearCoupling] = 0.0f;
+    defaults.byOffset[Membrum::kPadModeInjectAmount]  = 0.0f;
+    mapper.prepare(defaults);
+    mapper.apply(0, pads[0]);
+
+    const float renderedCoupling = pads[0].couplingAmount;
+    REQUIRE(renderedCoupling > 0.5f); // Complexity=1.0 should boost above base.
 
     MemoryStream stream;
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
@@ -299,10 +313,7 @@ TEST_CASE("State v6 (FR-082): reapplyAll runs after v6 load with non-neutral mac
     REQUIRE(fx2.processor.setState(&stream) == kResultOk);
 
     const auto& p0 = fx2.processor.voicePoolForTest().padConfig(0);
-    // After reapplyAll, couplingAmount should have been recomputed from
-    // the Complexity macro, so it should differ from the 0.0 we stored.
-    CHECK(p0.couplingAmount > 0.0f);
-    // And macroComplexity itself should still be 1.0 (round-trip).
+    CHECK(p0.couplingAmount  == Approx(renderedCoupling).margin(1e-6f));
     CHECK(p0.macroComplexity == Approx(1.0f).margin(1e-7f));
 }
 

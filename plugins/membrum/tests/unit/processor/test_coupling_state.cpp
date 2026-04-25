@@ -400,15 +400,15 @@ TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
     REQUIRE(fx.processor.getState(&resaved) == kResultOk);
     int64 resSize = 0;
     resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
-    // v11 prefix = 12 header + 32 * (4 exc + 4 body + 51*8 sound + 2 routing)
-    //   = 12 + 32*418 = 13388, + 4 selectedPad = 13392.
+    // v12 prefix = 12 header + 32 * (4 exc + 4 body + 52*8 sound + 2 routing)
+    //   = 12 + 32*426 = 13644, + 4 selectedPad = 13648.
     // + Phase 5 globals (32) + per-pad coupling amounts (256)
     // + overrideCount (2) + 3 * 6 override bytes + Phase 6 macros (160 * 8).
-    // Total = 13392 + 32 + 256 + 2 + 18 + 1280 = 14980.
-    CHECK(resSize == 14980);
+    // Total = 13648 + 32 + 256 + 2 + 18 + 1280 = 15236.
+    CHECK(resSize == 15236);
 
-    // Read overrideCount at offset 13392 + 32 + 256 = 13680.
-    resaved.seek(13680, IBStream::kIBSeekSet, nullptr);
+    // Read overrideCount at offset 13648 + 32 + 256 = 13936.
+    resaved.seek(13936, IBStream::kIBSeekSet, nullptr);
     std::uint16_t countOut = 0;
     int32 gotCount = 0;
     resaved.read(&countOut, sizeof(countOut), &gotCount);

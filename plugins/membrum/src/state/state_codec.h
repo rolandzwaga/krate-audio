@@ -9,9 +9,12 @@
 // helpers to eliminate the previous 4-6x duplication of the pad-sound-
 // parameter serialisation block.
 //
-// Current version: v11 (Phase 8E adds 1 sound slot for nonlinear tension
-// modulation; sound array grows 50 -> 51). Loader accepts v6..v10 blobs
-// and fills the newer slots with PadConfig defaults.
+// Current version: v12 (Phase 8F adds 1 kit-snapshot sound slot for the
+// per-pad enable toggle; PadSnapshot::sound grows 51 -> 52). Loader
+// accepts v6..v11 kit blobs and fills the new slot with the PadConfig
+// default (enabled = 1.0, i.e. ON) so legacy kits keep all 32 pads
+// sounding. PadPresetSnapshot stays at 51 slots: per-pad presets carry
+// sound/character only, never the kit-level enable state.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -52,7 +55,8 @@ struct PadSnapshot
     // indices 44-45  -> offsets 52-53 (airLoading, modeScatter)  [Phase 8C]
     // indices 46-49  -> offsets 54-57 (coupling + secondary)  [Phase 8D]
     // index 50       -> offset 58     (tensionModAmt)         [Phase 8E]
-    std::array<double, 51> sound{};
+    // index 51       -> offset 59     (enabled)               [Phase 8F]
+    std::array<double, 52> sound{};
 
     std::uint8_t chokeGroup{0};       ///< Authoritative (uint8) on load.
     std::uint8_t outputBus{0};        ///< Authoritative (uint8) on load.
@@ -105,7 +109,7 @@ struct PadPresetSnapshot
 // single, current format. Changing them is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 11;
+constexpr Steinberg::int32 kBlobVersion    = 12;
 constexpr Steinberg::int32 kPadBlobVersion = 6;
 
 // Previous versions accepted on read for backward compatibility.
@@ -114,13 +118,15 @@ constexpr Steinberg::int32 kPadBlobVersion = 6;
 //   v8 stored 44 sound slots per pad (+ Phase 8A per-mode damping).
 //   v9 stored 46 sound slots per pad (+ Phase 8C air-loading / scatter).
 //   v10 stored 50 sound slots per pad (+ Phase 8D coupling + secondary).
-//   v11 stores 51 sound slots per pad (+ Phase 8E tension modulation).
+//   v11 stored 51 sound slots per pad (+ Phase 8E tension modulation).
+//   v12 stores  52 sound slots per pad (+ Phase 8F per-pad enable toggle).
 // Pad-preset blob versions follow the same slot count conventions.
 constexpr Steinberg::int32 kBlobVersionV6    = 6;
 constexpr Steinberg::int32 kBlobVersionV7    = 7;
 constexpr Steinberg::int32 kBlobVersionV8    = 8;
 constexpr Steinberg::int32 kBlobVersionV9    = 9;
 constexpr Steinberg::int32 kBlobVersionV10   = 10;
+constexpr Steinberg::int32 kBlobVersionV11   = 11;
 constexpr Steinberg::int32 kPadBlobVersionV1 = 1;
 constexpr Steinberg::int32 kPadBlobVersionV2 = 2;
 constexpr Steinberg::int32 kPadBlobVersionV3 = 3;
@@ -131,6 +137,7 @@ constexpr std::size_t      kV7SoundSlotCount  = 42;
 constexpr std::size_t      kV8SoundSlotCount  = 44;
 constexpr std::size_t      kV9SoundSlotCount  = 46;
 constexpr std::size_t      kV10SoundSlotCount = 50;
+constexpr std::size_t      kV11SoundSlotCount = 51;
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.

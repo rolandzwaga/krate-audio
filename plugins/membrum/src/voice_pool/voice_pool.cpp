@@ -126,6 +126,12 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
 
     const int padIndex = static_cast<int>(midiNote) - static_cast<int>(kFirstDrumNote);
 
+    // Phase 8F: disabled pads short-circuit the entire trigger pipeline.
+    // No allocator events, no choke iteration, no audition: a disabled pad
+    // is silently absent from the kit until the user re-enables it.
+    if (padConfigs_[static_cast<std::size_t>(padIndex)].enabled < 0.5f)
+        return;
+
     // FR-171: note-on sequence = (choke) -> (steal) -> allocator -> DrumVoice.
     // Step 1: choke group iteration. Phase 3.3 fills this in; Phase 3.1 is a
     // no-op stub so the code path compiles.
@@ -596,6 +602,8 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadSecondaryMaterial:    cfg.secondaryMaterial = normalizedValue; break;
     // Phase 8E: nonlinear tension modulation.
     case kPadTensionModAmt:        cfg.tensionModAmt     = normalizedValue; break;
+    // Phase 8F: per-pad enable toggle (float-as-bool).
+    case kPadEnabled:              cfg.enabled           = normalizedValue; break;
     default: break;
     }
 }
@@ -687,6 +695,69 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setSecondaryMaterial(cfg.secondaryMaterial);
     // Phase 8E: nonlinear tension modulation.
     v.setTensionModAmt(cfg.tensionModAmt);
+
+    // ---- Tone Shaper -------------------------------------------------------
+    // BUG FIX: this whole block was missing for years -- a dedicated
+    // applyPadConfigToVoice() helper exists in processor.cpp but was never
+    // called from anywhere, so loading a kit preset never propagated the
+    // tone-shaper / pitch-envelope / filter-envelope / unnatural-zone /
+    // material-morph fields into voices. Every voice played with whatever
+    // tone-shaper state was set when the plugin booted. Most visible
+    // symptom: the 808 tom row sounded identical across pads because the
+    // per-pad pitch envelope (the iconic 808 boom-thud glide) never
+    // reached the audio thread.
+    {
+        const int filterTypeIdx =
+            std::clamp(static_cast<int>(cfg.tsFilterType * 3.0f), 0, 2);
+        v.toneShaper().setFilterType(
+            static_cast<ToneShaperFilterType>(filterTypeIdx));
+    }
+    v.toneShaper().setFilterCutoff(
+        20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
+    v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
+    v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
+    v.toneShaper().setFilterEnvAttackMs(cfg.tsFilterEnvAttack * 500.0f);
+    v.toneShaper().setFilterEnvDecayMs(cfg.tsFilterEnvDecay * 2000.0f);
+    v.toneShaper().setFilterEnvSustain(cfg.tsFilterEnvSustain);
+    v.toneShaper().setFilterEnvReleaseMs(cfg.tsFilterEnvRelease * 2000.0f);
+    v.toneShaper().setDriveAmount(cfg.tsDriveAmount);
+    v.toneShaper().setFoldAmount(cfg.tsFoldAmount);
+    v.toneShaper().setPitchEnvStartHz(
+        20.0f * std::pow(100.0f,
+                         std::clamp(cfg.tsPitchEnvStart, 0.0f, 1.0f)));
+    v.toneShaper().setPitchEnvEndHz(
+        20.0f * std::pow(100.0f,
+                         std::clamp(cfg.tsPitchEnvEnd,   0.0f, 1.0f)));
+    v.toneShaper().setPitchEnvTimeMs(cfg.tsPitchEnvTime * 500.0f);
+    {
+        const int curveIdx =
+            std::clamp(static_cast<int>(cfg.tsPitchEnvCurve * 2.0f), 0, 1);
+        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
+    }
+
+    // ---- Unnatural Zone ----------------------------------------------------
+    // modeStretch is normalised over [0.5, 2.0] (1.0 = physical / Phase 1
+    // bit-identity); decaySkew is bipolar [-1, +1] from the [0, 1] norm.
+    v.unnaturalZone().setModeStretch(
+        0.5f + std::clamp(cfg.modeStretch, 0.0f, 1.0f) * 1.5f);
+    v.unnaturalZone().setDecaySkew(
+        std::clamp(cfg.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f);
+    v.unnaturalZone().modeInject.setAmount(
+        std::clamp(cfg.modeInjectAmount, 0.0f, 1.0f));
+    v.unnaturalZone().nonlinearCoupling.setAmount(
+        std::clamp(cfg.nonlinearCoupling, 0.0f, 1.0f));
+
+    // ---- Material Morph ----------------------------------------------------
+    v.unnaturalZone().materialMorph.setEnabled(cfg.morphEnabled >= 0.5f);
+    v.unnaturalZone().materialMorph.setStart(
+        std::clamp(cfg.morphStart, 0.0f, 1.0f));
+    v.unnaturalZone().materialMorph.setEnd(
+        std::clamp(cfg.morphEnd,   0.0f, 1.0f));
+    // Morph duration: linear norm over [10, 2000] ms (matches the legacy
+    // applyPadConfigToVoice mapping; default 0.095477 -> 200 ms).
+    v.unnaturalZone().materialMorph.setDurationMs(
+        10.0f + std::clamp(cfg.morphDuration, 0.0f, 1.0f) * 1990.0f);
+    v.unnaturalZone().materialMorph.setCurve(cfg.morphCurve >= 0.5f);
 }
 
 // ------------------------------------------------------------------

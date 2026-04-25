@@ -28,7 +28,7 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // Phase 7 = 7 adds per-pad parallel noise layer + always-on click transient
 // parameters. Loader accepts earlier versions and fills later-phase parameters
 // with defaults.
-constexpr Steinberg::int32 kCurrentStateVersion = 11;
+constexpr Steinberg::int32 kCurrentStateVersion = 12;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -153,6 +153,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
 
     // ====== Phase 8E: nonlinear tension modulation ======
     kTensionModAmtId              = 308,
+
+    // ====== Phase 8F: per-pad enable toggle ======
+    // Selected-pad proxy for kPadEnabled (per-pad offset 59). Discrete
+    // float-as-bool; default 1.0 (enabled).
+    kPadEnabledId                 = 309,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -192,8 +197,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 11,
-              "Phase 8E requires state version 11");
+static_assert(kCurrentStateVersion == 12,
+              "Phase 8F requires state version 12");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -214,5 +219,9 @@ static_assert(kSecondaryMaterialId < kPadBaseId,
 // Phase 8E collision guard.
 static_assert(kTensionModAmtId < kPadBaseId,
               "Phase 8E global proxy IDs must not collide with per-pad range");
+
+// Phase 8F collision guard.
+static_assert(kPadEnabledId < kPadBaseId,
+              "Phase 8F global proxy ID must not collide with per-pad range");
 
 } // namespace Membrum

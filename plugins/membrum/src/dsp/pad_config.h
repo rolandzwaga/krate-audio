@@ -140,7 +140,14 @@ enum PadParamOffset : int
     // Kirby & Sandler 2021 JASA. Depth is scaled by velocity^2 at noteOn.
     kPadTensionModAmt        = 58,
     kPadActiveParamCountV8E  = 59,  // offsets 0-58 are active after Phase 8E
-    // Offsets 59-63 are RESERVED.
+
+    // Phase 8F: per-pad enable toggle. Defaults to ON for backward
+    // compatibility (existing kits / presets keep all 32 pads sounding).
+    // When OFF the voice trigger early-returns in VoicePool::noteOn, so
+    // disabled pads neither audition, allocate voices, nor consume CPU.
+    kPadEnabled              = 59,
+    kPadActiveParamCountV8F  = 60,  // offsets 0-59 are active after Phase 8F
+    // Offsets 60-63 are RESERVED.
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -260,6 +267,11 @@ struct PadConfig
     // effective max at max velocity, which caps pitch shift at ~2
     // semitones (matches JASA 2021 tom-tom measurements).
     float tensionModAmt        = 0.0f;
+
+    // Phase 8F: per-pad enable toggle (float-as-bool: >= 0.5 = on,
+    // < 0.5 = off). Default 1.0 = ON so legacy kits that don't carry
+    // the slot keep all 32 pads sounding after migration.
+    float enabled              = 1.0f;
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -290,7 +302,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV8E)
+    if (offset >= kPadActiveParamCountV8F)
         return -1;  // reserved range
     return offset;
 }

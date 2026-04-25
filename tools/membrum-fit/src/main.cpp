@@ -354,7 +354,16 @@ int runMembrumFit(const CliArgs& args) {
     }
 
     std::array<Membrum::PadConfig, 32> pads{};
-    for (auto& p : pads) Membrum::DefaultKit::applyTemplate(p, Membrum::DrumTemplate::Perc);
+    // Seed every pad with the Perc template so that any user who later
+    // re-enables a pad inside the plugin gets a sane starting voice instead
+    // of a raw default. Mark every seeded pad as disabled though: only pads
+    // the fit loop below actually generates from a sample should sound on
+    // load. fitSample()'s PadConfig defaults `enabled` back to 1.0, so the
+    // assignment `pads[padIdx] = fit.padConfig` flips the slot back on.
+    for (auto& p : pads) {
+        Membrum::DefaultKit::applyTemplate(p, Membrum::DrumTemplate::Perc);
+        p.enabled = 0.0f;
+    }
 
     for (const auto& [midiNote, wav] : spec.midiNoteToFile) {
         const int padIdx = midiNote - 36;

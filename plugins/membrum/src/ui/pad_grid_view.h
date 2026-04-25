@@ -124,6 +124,12 @@ public:
     /// `velocity` is normalised in [0, 1].
     using AuditionCallback = std::function<void(int padIndex, float velocity)>;
 
+    /// Phase 8F: fires when the user clicks the small power glyph in the
+    /// bottom-right of a pad cell. Implementations SHOULD toggle the
+    /// per-pad enabled parameter via beginEdit/performEdit/endEdit.
+    /// Receives the pad index and the desired new boolean state.
+    using EnableToggleCallback = std::function<void(int padIndex, bool newState)>;
+
     PadGridView(const VSTGUI::CRect& size,
                 PadGlowPublisher*    glowPublisher,
                 PadMetaProvider      metaProvider) noexcept;
@@ -136,6 +142,17 @@ public:
     // --- callbacks ---------------------------------------------------------
     void setSelectCallback(SelectCallback cb)     noexcept { selectCallback_   = std::move(cb); }
     void setAuditionCallback(AuditionCallback cb) noexcept { auditionCallback_ = std::move(cb); }
+    void setEnableToggleCallback(EnableToggleCallback cb) noexcept
+    {
+        enableToggleCallback_ = std::move(cb);
+    }
+
+    /// Phase 8F: push a pad's enabled state into the view. Defaults to true
+    /// for any pad never set explicitly. Triggers an invalidate so the
+    /// power glyph and the dimmed body re-render. Tolerant of out-of-range
+    /// indices.
+    void setPadEnabled(int padIndex, bool enabled) noexcept;
+    [[nodiscard]] bool padEnabled(int padIndex) const noexcept;
 
     /// Drive the highlighted pad. Called by the controller when
     /// `kSelectedPadId` changes.
@@ -203,10 +220,17 @@ private:
     PadMetaProvider   metaProvider_;
     SelectCallback    selectCallback_;
     AuditionCallback  auditionCallback_;
+    EnableToggleCallback enableToggleCallback_;
 
     int selectedPad_ = 0;
 
     std::array<std::uint8_t, kNumPads> glowBuckets_{};
+
+    // Phase 8F: per-pad enable mirror, pushed by the controller via
+    // setPadEnabled(). All pads default to enabled so the grid renders
+    // correctly even before the controller's first sync.
+    std::array<bool, kNumPads> padEnabled_{};
+    bool padEnabledInitialized_ = false;
 
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
     VSTGUI::SharedPointer<VSTGUI::CGradient>    glowGradient_;

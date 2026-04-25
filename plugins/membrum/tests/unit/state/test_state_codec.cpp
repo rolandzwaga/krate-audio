@@ -137,8 +137,8 @@ TEST_CASE("state_codec: readKitBlob accepts v6/v7 and rejects others",
           "[state_codec][version]")
 {
     // v6 and v7 are accepted (v6 auto-fills Phase 7 slots from defaults).
-    // Every other version is rejected. v6..v11 are accepted.
-    for (int32 badVersion : { 1, 2, 3, 4, 5, 12, 99 })
+    // Every other version is rejected. v6..v12 are accepted.
+    for (int32 badVersion : { 1, 2, 3, 4, 5, 13, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

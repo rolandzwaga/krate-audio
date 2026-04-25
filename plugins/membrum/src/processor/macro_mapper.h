@@ -51,28 +51,45 @@ public:
     /// UI-thread (tests only): reset the cache to "never applied".
     void invalidateCache() noexcept;
 
+    /// After Processor::setState writes a saved blob into PadConfig (which
+    /// already carries the post-macro values), sync the cache to the loaded
+    /// macro values so a subsequent macro-knob movement only applies the
+    /// *change* on top of the saved state -- not the entire delta from
+    /// neutral. Pure cache update, no PadConfig mutation.
+    void syncCacheFromCfg(int padIndex, const PadConfig& padConfig) noexcept;
+
     /// Test-only: true if prepare() has been called.
     [[nodiscard]] bool isPrepared() const noexcept { return prepared_; }
 
 private:
+    // Cache stores the LAST applied macro value per pad. Initialised to 0.5
+    // (neutral) so the very first apply() -- which fires when a preset's
+    // macro value arrives via processParameterChanges -- writes only the
+    // *delta* between the preset's macro and 0.5 onto the per-pad config.
+    // A preset whose macros sit at neutral (0.5) leaves loaded per-pad
+    // params untouched. Phase 6 originally used a -1.0 sentinel that forced
+    // the first apply to overwrite cfg with `defaults_ + delta`, which
+    // destroyed every per-pad preset value (the 808 toms' size 0.85..0.40
+    // collapsed to 0.5 because applyBodySize re-wrote cfg.size from
+    // `defaults_.byOffset[kPadSize] (=0.5) + linDelta(0.5)`).
     struct PadCache
     {
-        float tightness  = -1.0f;  // sentinel: force first-apply
-        float brightness = -1.0f;
-        float bodySize   = -1.0f;
-        float punch      = -1.0f;
-        float complexity = -1.0f;
+        float tightness  = 0.5f;
+        float brightness = 0.5f;
+        float bodySize   = 0.5f;
+        float punch      = 0.5f;
+        float complexity = 0.5f;
     };
 
     RegisteredDefaultsTable      defaults_{};
     std::array<PadCache, kNumPads> cache_{};
     bool                         prepared_ = false;
 
-    void applyTightness(PadConfig& cfg) noexcept;
-    void applyBrightness(PadConfig& cfg) noexcept;
-    void applyBodySize(PadConfig& cfg) noexcept;
-    void applyPunch(PadConfig& cfg) noexcept;
-    void applyComplexity(PadConfig& cfg) noexcept;
+    void applyTightness(PadConfig& cfg, const PadCache& cache) noexcept;
+    void applyBrightness(PadConfig& cfg, const PadCache& cache) noexcept;
+    void applyBodySize(PadConfig& cfg, const PadCache& cache) noexcept;
+    void applyPunch(PadConfig& cfg, const PadCache& cache) noexcept;
+    void applyComplexity(PadConfig& cfg, const PadCache& cache) noexcept;
 };
 
 // ==============================================================================

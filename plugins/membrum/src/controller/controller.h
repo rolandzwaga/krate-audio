@@ -15,6 +15,7 @@
 
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
+#include "vstgui/lib/iviewlistener.h"
 #include "../ui/membrum_editor_controller.h"
 
 #include <array>
@@ -29,6 +30,7 @@ class SavePresetDialogView;
 
 namespace Steinberg { class IBStream; }
 
+namespace Membrum::State { struct KitSnapshot; }
 namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
 namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; }
 
@@ -38,7 +40,8 @@ namespace Membrum {
 
 class Controller : public Steinberg::Vst::EditControllerEx1,
                     public VSTGUI::VST3EditorDelegate,
-                    public Steinberg::Vst::IDataExchangeReceiver
+                    public Steinberg::Vst::IDataExchangeReceiver,
+                    public VSTGUI::ViewListenerAdapter
 {
 public:
     Controller();
@@ -79,6 +82,14 @@ public:
                               const VSTGUI::UIAttributes& attributes,
                               const VSTGUI::IUIDescription* description,
                               VSTGUI::VST3Editor* editor) override;
+
+    // ViewListenerAdapter override: VSTGUI calls this just before destroying a
+    // view we registered as a listener on. We use it to clear any cached raw
+    // pointer matching the dying view -- otherwise quickly switching the
+    // SelectedPad{Simple,Advanced} templates leaves dangling pointers in
+    // {xyMorphPad_, morph*View_, filterEnv*Display_, pitchEnvelopeDisplay_,
+    // outputBusSelView_, ...}, and the next setParamNormalized() crashes.
+    void viewWillDelete(VSTGUI::CView* view) override;
 
     // Phase 4: Override setParamNormalized to implement proxy logic
     Steinberg::tresult PLUGIN_API setParamNormalized(Steinberg::Vst::ParamID tag,
@@ -268,6 +279,14 @@ private:
     /// decay/release x2000) so the displayed shape and time labels match
     /// what the processor actually applies. Tolerant of a null display.
     void updateFilterEnvDisplay() noexcept;
+
+    /// Phase 8F: push the per-pad enable flags from a freshly-loaded
+    /// KitSnapshot into the PadGridView mirror. Both load paths
+    /// (setComponentState, kitPresetLoadProvider) write through setters
+    /// that bypass the derived setParamNormalized override, so the per-pad
+    /// enable hook in the override never fires during preset load --
+    /// hence this explicit push. Tolerant of a null grid view.
+    void pushKitEnabledToGrid(const Membrum::State::KitSnapshot& kit) noexcept;
 
     /// Phase 8 (T074 / US7 / FR-066): push a warning tooltip onto the cached
     /// Output Bus selector view when the selected aux bus index >= 1 and the
