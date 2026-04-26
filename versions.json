@@ -21,6 +21,11 @@
       "download_url": "https://rolandzwaga.github.io/krate-audio/iterum/",
       "release_notes": ""
     },
+    "Membrum": {
+      "version": "0.9.0",
+      "download_url": "https://rolandzwaga.github.io/krate-audio/membrum/",
+      "release_notes": ""
+    },
     "Ruinae": {
       "version": "0.11.1",
       "download_url": "https://rolandzwaga.github.io/krate-audio/ruinae/",

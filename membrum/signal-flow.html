@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membrum - Signal Flow Diagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #a855f7;
+            --color-accent-hover: #c084fc;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .breadcrumb {
+            font-size: 0.875rem;
+        }
+
+        .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .breadcrumb .separator {
+            color: var(--color-border);
+            margin: 0 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .toolbar {
+            padding: 0.75rem 2rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            background: var(--color-surface);
+            flex-shrink: 0;
+        }
+
+        .toolbar button {
+            padding: 0.375rem 0.75rem;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            color: var(--color-text);
+            font-family: inherit;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            border-color: var(--color-accent);
+            color: var(--color-accent);
+        }
+
+        .toolbar .zoom-info {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            margin-left: auto;
+        }
+
+        #diagram-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        #diagram-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #diagram {
+            position: absolute;
+            transform-origin: 0 0;
+        }
+
+        #diagram svg {
+            display: block;
+        }
+
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        #error {
+            display: none;
+            padding: 2rem;
+            color: #f87171;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .header { padding: 1rem; gap: 1rem; }
+            .toolbar { padding: 0.5rem 1rem; }
+            h1 { font-size: 1.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <nav class="breadcrumb">
+            <a href="./">Membrum</a>
+            <span class="separator">/</span>
+        </nav>
+        <h1>Signal Flow Diagram</h1>
+    </div>
+
+    <div class="toolbar">
+        <button id="zoom-in" title="Zoom in">+</button>
+        <button id="zoom-out" title="Zoom out">&minus;</button>
+        <button id="zoom-fit" title="Fit to screen">Fit</button>
+        <button id="zoom-reset" title="Reset to 100%">1:1</button>
+        <span class="zoom-info" id="zoom-level">100%</span>
+    </div>
+
+    <div id="diagram-container">
+        <div id="loading">Loading diagram&hellip;</div>
+        <div id="error"></div>
+        <div id="diagram"></div>
+    </div>
+
+    <script type="module">
+        import { instance } from "https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/+esm";
+
+        const dotSource = `digraph MembrumSignalFlow {
+    rankdir=TB;
+    fontname="Helvetica";
+    fontsize=11;
+    node [fontname="Helvetica", fontsize=10, style=filled];
+    edge [fontname="Helvetica", fontsize=8];
+    compound=true;
+    newrank=true;
+
+    // =========================================================================
+    // COLOR LEGEND
+    // =========================================================================
+    subgraph cluster_legend {
+        label="Legend";
+        style=rounded;
+        color="#888888";
+        fontsize=12;
+        fontcolor="#444444";
+        bgcolor="#FAFAFA";
+
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+        leg [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD BGCOLOR="#4A90D9" WIDTH="20"> </TD><TD ALIGN="LEFT">Audio signal path</TD></TR>
+            <TR><TD BGCOLOR="#B8860B" WIDTH="20"> </TD><TD ALIGN="LEFT">Modal / physical resonators</TD></TR>
+            <TR><TD BGCOLOR="#9B6BBF" WIDTH="20"> </TD><TD ALIGN="LEFT">Parallel layers (noise / click)</TD></TR>
+            <TR><TD BGCOLOR="#6BBF6B" WIDTH="20"> </TD><TD ALIGN="LEFT">Per-pad config &amp; macros</TD></TR>
+            <TR><TD BGCOLOR="#D94A7A" WIDTH="20"> </TD><TD ALIGN="LEFT">Sympathetic resonance / coupling</TD></TR>
+            <TR><TD BGCOLOR="#E8A838" WIDTH="20"> </TD><TD ALIGN="LEFT">Voice management / dispatch</TD></TR>
+            <TR><TD>&#x2501;&#x25B6;</TD><TD ALIGN="LEFT">Audio flow</TD></TR>
+            <TR><TD>- - &#x25B6;</TD><TD ALIGN="LEFT">Control / parameter data</TD></TR>
+            </TABLE>
+        >];
+    }
+
+    // =========================================================================
+    // INPUT SOURCES
+    // =========================================================================
+    subgraph cluster_input {
+        label="Input";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        midi_in [label="MIDI Input\\n(Notes 36-67, Velocity)\\nMaps to 4x8 pad grid", shape=house, fillcolor="#CCDDEE"];
+        host_params [label="Host Parameters\\nGlobals + 32 x per-pad sets\\n+ 5 x per-pad macros\\nLock-free atomic store", shape=house, fillcolor="#CCDDEE"];
+    }
+
+    // =========================================================================
+    // PARAMETER &amp; MACRO PIPELINE
+    // =========================================================================
+    subgraph cluster_params {
+        label="Parameter &amp; Macro Pipeline";
+        style=rounded;
+        color="#6BBF6B";
+        bgcolor="#E5F5E5";
+        fontsize=13;
+        fontcolor="#2A6030";
+        penwidth=2;
+
+        param_changes [label="processParameterChanges\\nDenormalise &amp; dispatch\\nGlobal proxies fan out\\nto all 32 pads", shape=box, fillcolor="#A8DCA8"];
+
+        macro_mapper [label="MacroMapper\\n5 macros per pad:\\nTightness, Brightness,\\nBody Size, Punch, Complexity\\n\\nIncremental delta application:\\n(linDelta(new) - linDelta(old))\\nonto cfg.field directly\\n(neutral macros = no-op)", shape=box, fillcolor="#A8DCA8"];
+
+        pad_configs [label="32 PadConfig snapshots\\n+ enabled flag (Phase 8F)\\n+ chokeGroup (0-8)\\n+ outputBus (0-15)\\n+ couplingAmount (0-1)", shape=box, fillcolor="#A8DCA8"];
+
+        param_changes -> macro_mapper [style=dashed, color="#2A6030", label="macro\\nchanges"];
+        param_changes -> pad_configs [style=dashed, color="#2A6030", label="direct\\nparam writes"];
+        macro_mapper -> pad_configs [style=dashed, color="#2A6030", label="incremental\\ndelta"];
+    }
+
+    host_params -> param_changes [style=dashed, label="atomic\\nreads"];
+
+    // =========================================================================
+    // VOICE ALLOCATION
+    // =========================================================================
+    subgraph cluster_voices {
+        label="VoicePool  &mdash;  16 Pre-Allocated DrumVoices";
+        style=rounded;
+        color="#E8A838";
+        bgcolor="#FDF3E8";
+        fontsize=13;
+        fontcolor="#804010";
+        penwidth=2;
+
+        note_dispatch [label="Note Dispatch\\nMIDI 36-67 -&gt; pad index\\nEarly-exit if pad disabled\\n(Phase 8F short-circuit)", shape=box, fillcolor="#F5D090"];
+
+        choke [label="Choke Group Table\\n8 groups (+ group 0 = none)\\nSoundFont 2.04 Excl Class\\nFast-release on note-on\\nfor same-group voices", shape=box, fillcolor="#F5D090"];
+
+        steal [label="Voice Stealing\\n3 policies:\\n  Oldest (allocator-driven)\\n  Quietest (amplitude scan)\\n  Priority (highest pitch)\\n5 ms exp fast-release\\non stolen victim\\n(click peak &le; -30 dBFS)", shape=diamond, fillcolor="#E8B050"];
+
+        slot_alloc [label="Slot Allocator\\nUp to maxPolyphony (4-16)\\nIdle slots = zero CPU\\nApplies PadConfig snapshot\\nto voice on note-on", shape=box, fillcolor="#F5D090"];
+
+        note_dispatch -> choke [penwidth=2, color="#804010"];
+        choke -> steal [penwidth=2, color="#804010"];
+        steal -> slot_alloc [penwidth=2, color="#804010"];
+    }
+
+    midi_in -> note_dispatch [penwidth=2, label="note on/off\\nvelocity"];
+    pad_configs -> slot_alloc [style=dashed, color="#2A6030", label="snapshot\\non note-on"];
+
+    // =========================================================================
+    // PER-VOICE DSP (DrumVoice) -- the meat
+    // =========================================================================
+    subgraph cluster_voice_dsp {
+        label="Per-Voice DSP (DrumVoice)  &mdash;  Per-Sample Audio Generation";
+        style=rounded;
+        color="#4A90D9";
+        bgcolor="#EDF4FC";
+        fontsize=13;
+        fontcolor="#2A5080";
+        penwidth=2;
+
+        // -------- Exciter --------
+        subgraph cluster_exciter {
+            label="ExciterBank (Spec 127)";
+            style=dashed;
+            color="#B8860B";
+            bgcolor="#FFF8E0";
+
+            exciter_switch [label="Exciter Type\\nTagged-union dispatch\\n(no virtual calls,\\nno per-sample branching)", shape=diamond, fillcolor="#E8D080"];
+
+            ex_impulse [label="Impulse\\nVelocity-scaled\\nsingle-sample impulse", shape=box, fillcolor="#E8D080"];
+            ex_mallet [label="Mallet\\nRaised-cosine contact\\nVelocity = contact time", shape=box, fillcolor="#E8D080"];
+            ex_noise [label="Noise Burst\\nFiltered-noise burst\\nDuration parameter", shape=box, fillcolor="#E8D080"];
+            ex_friction [label="Friction\\nBowed/scraped exciter\\nPressure parameter", shape=box, fillcolor="#E8D080"];
+            ex_fm [label="FM Impulse\\n2-op FM impulse\\nCarrier:mod ratio", shape=box, fillcolor="#E8D080"];
+            ex_feedback [label="Feedback\\nSelf-exciting loop\\nEnergy limiter", shape=box, fillcolor="#E8D080"];
+
+            exciter_switch -> ex_impulse [style=dashed];
+            exciter_switch -> ex_mallet [style=dashed];
+            exciter_switch -> ex_noise [style=dashed];
+            exciter_switch -> ex_friction [style=dashed];
+            exciter_switch -> ex_fm [style=dashed];
+            exciter_switch -> ex_feedback [style=dashed];
+        }
+
+        // -------- Body (modal resonator) --------
+        subgraph cluster_body {
+            label="BodyBank  &mdash;  Modal Resonator (Primary)";
+            style=dashed;
+            color="#B8860B";
+            bgcolor="#FFF8E0";
+
+            body_switch [label="Body Model\\nTagged-union dispatch", shape=diamond, fillcolor="#DBC878"];
+
+            membrane [label="Membrane\\n48 Bessel modes\\n(circular drum head)", shape=box, fillcolor="#DBC878"];
+            plate [label="Plate\\n48 plate-mode ratios", shape=box, fillcolor="#DBC878"];
+            shell [label="Shell\\n32 cylindrical modes", shape=box, fillcolor="#DBC878"];
+            string [label="String\\nWaveguide model\\n(stiffness + pick pos)", shape=box, fillcolor="#DBC878"];
+            bell [label="Bell\\n16 Chladni modes\\nMetallic damping (b3=0)", shape=box, fillcolor="#DBC878"];
+            noise_body [label="Noise Body\\n40 modes + broadband\\n(cymbal hash)", shape=box, fillcolor="#DBC878"];
+
+            body_switch -> membrane [style=dashed];
+            body_switch -> plate [style=dashed];
+            body_switch -> shell [style=dashed];
+            body_switch -> string [style=dashed];
+            body_switch -> bell [style=dashed];
+            body_switch -> noise_body [style=dashed];
+        }
+
+        // -------- Phase 8 modal augmentations --------
+        subgraph cluster_phase8 {
+            label="Phase 8 Modal Augmentations";
+            style=dashed;
+            color="#B8860B";
+            bgcolor="#FFF8E0";
+
+            damping [label="Per-mode Damping (8A)\\nR_k = b1 + b3 &middot; f^2\\nChaigne-Askenfelt 1993\\nMetallic ring &harr; woody thump", shape=box, fillcolor="#E8C868"];
+
+            air_load [label="Air Loading + Scatter (8C)\\nRossing-tabulated low-mode\\nfrequency depression\\n+ sinusoidal mode dither", shape=box, fillcolor="#E8C868"];
+
+            secondary [label="Secondary Modal Bank (8D)\\n24 shell modes\\nBidirectional energy exchange\\nwith primary at block rate\\nStability-clamped &lt; 0.25", shape=box, fillcolor="#E8C868"];
+
+            tension [label="Tension Modulation (8E)\\n20 ms energy follower\\ndrives block-rate\\nfrequency scale\\nDepth scaled by velocity^2", shape=box, fillcolor="#E8C868"];
+        }
+
+        // -------- Parallel layers (Phase 7) --------
+        subgraph cluster_layers {
+            label="Parallel Layers (Phase 7)";
+            style=dashed;
+            color="#9B6BBF";
+            bgcolor="#F3ECF9";
+
+            noise_layer [label="Noise Layer\\nAlways-on filtered noise\\nSVF lowpass + envelope\\nMix, cutoff, resonance,\\ncolor, decay", shape=box, fillcolor="#C49EE0"];
+
+            click_layer [label="Click Layer\\n2-5 ms raised-cosine\\nfiltered-noise burst\\nMix, contact ms, brightness", shape=box, fillcolor="#C49EE0"];
+        }
+
+        // -------- Unnatural Zone --------
+        subgraph cluster_unnatural {
+            label="Unnatural Zone";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DCE8F4";
+
+            mode_stretch [label="Mode Stretch\\n0.5 - 2.0\\nInharmonic detuning", shape=box, fillcolor="#9CCBEA"];
+            decay_skew [label="Decay Skew\\n&plusmn;1.0\\nHi/lo mode envelope skew", shape=box, fillcolor="#9CCBEA"];
+            mode_inject [label="Mode Inject\\nPhase-randomised\\ninjection bank", shape=box, fillcolor="#9CCBEA"];
+            nl_coupling [label="Nonlinear Coupling\\nWith energy limiter", shape=box, fillcolor="#9CCBEA"];
+            morph [label="Material Morph\\n2-point envelope\\n10 - 2000 ms", shape=box, fillcolor="#9CCBEA"];
+        }
+
+        // -------- Tone Shaper --------
+        subgraph cluster_tone {
+            label="Tone Shaper";
+            style=dashed;
+            color="#4A90D9";
+            bgcolor="#DCE8F4";
+
+            pitch_env [label="Pitch Envelope\\nAbsolute Hz start/end/time\\nExp/lin curve\\n808-style transient sweep", shape=box, fillcolor="#7BAFD4"];
+
+            drive [label="Drive\\nAlias-safe waveshaper", shape=box, fillcolor="#7BAFD4"];
+            wavefolder [label="Wavefolder", shape=box, fillcolor="#7BAFD4"];
+            dc_block [label="DC Blocker", shape=box, fillcolor="#7BAFD4"];
+            svf [label="SVF Filter\\nLP / HP / BP\\n+ 4-stage envelope", shape=box, fillcolor="#7BAFD4"];
+
+            drive -> wavefolder [penwidth=2, color="#2A5080"];
+            wavefolder -> dc_block [penwidth=2, color="#2A5080"];
+            dc_block -> svf [penwidth=2, color="#2A5080"];
+        }
+
+        // -------- Amp envelope --------
+        amp_env [label="Amp Envelope\\nADSR with hold-during-gate\\nDecoupled from voice lifetime\\nso retrigger doesn't cut tail", shape=box, fillcolor="#6AABEA"];
+
+        // -------- Internal voice wiring --------
+        exciter_switch -> body_switch [penwidth=2, color="#8B6914", label="excitation\\n+ body feedback"];
+        body_switch -> damping [penwidth=2, color="#8B6914", style=dashed, label="per-mode\\nR_k modifier"];
+        body_switch -> air_load [penwidth=2, color="#8B6914", style=dashed, label="freq\\nmodifier"];
+        body_switch -> secondary [penwidth=2, color="#8B6914", label="primary\\noutput"];
+        secondary -> body_switch [style=dashed, color="#8B6914", label="shell\\nfeedback"];
+        body_switch -> tension [style=dashed, color="#8B6914", label="energy\\nfollower"];
+        tension -> body_switch [style=dashed, color="#8B6914", label="freq\\nscale"];
+
+        body_switch -> mode_inject [penwidth=2, color="#2A5080", label="modal\\noutput"];
+        mode_inject -> nl_coupling [penwidth=2, color="#2A5080"];
+        nl_coupling -> drive [penwidth=2, color="#2A5080"];
+
+        pitch_env -> body_switch [style=dashed, color="#888888", label="per-sample\\nfundamental"];
+        morph -> body_switch [style=dashed, color="#888888", label="material\\nmix"];
+        mode_stretch -> body_switch [style=dashed, color="#888888"];
+        decay_skew -> body_switch [style=dashed, color="#888888"];
+
+        noise_layer -> svf [penwidth=2, color="#6B3B9F", style=dashed, label="parallel\\nadd"];
+        click_layer -> svf [penwidth=2, color="#6B3B9F", style=dashed, label="parallel\\nadd"];
+
+        svf -> amp_env [penwidth=2, color="#2A5080"];
+    }
+
+    slot_alloc -> exciter_switch [penwidth=2, color="#804010", label="trigger\\n+ velocity"];
+    slot_alloc -> noise_layer [penwidth=2, color="#804010", label="trigger"];
+    slot_alloc -> click_layer [penwidth=2, color="#804010", label="trigger"];
+    slot_alloc -> amp_env [penwidth=2, color="#804010", label="gate"];
+
+    // =========================================================================
+    // PER-VOICE OUTPUT &amp; BUS ROUTING
+    // =========================================================================
+    subgraph cluster_routing {
+        label="Output Bus Routing  &mdash;  Per-Pad Bus Assignment";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+
+        bus_select [label="outputBus selector\\n(per pad, 0-15)\\nbus 0 = main stereo\\nbus 1-15 = aux", shape=diamond, fillcolor="#AAAAAA"];
+
+        main_accum [label="Main Bus Accumulator\\nsum into outL / outR", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        aux_accum [label="Aux Bus Accumulators\\nauxL[1..15] / auxR[1..15]\\n(active &amp; non-empty buses\\nonly)", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        bus_select -> main_accum [penwidth=2, label="bus = 0"];
+        bus_select -> aux_accum [penwidth=2, label="bus &gt; 0"];
+    }
+
+    amp_env -> bus_select [penwidth=2, color="#2A5080", label="voice\\nsample"];
+
+    // =========================================================================
+    // SYMPATHETIC RESONANCE / COUPLING
+    // =========================================================================
+    subgraph cluster_coupling {
+        label="Sympathetic Resonance (Coupling)  &mdash;  Cross-Pad Energy Exchange";
+        style=rounded;
+        color="#D94A7A";
+        bgcolor="#FCEDF2";
+        fontsize=13;
+        fontcolor="#A02050";
+        penwidth=2;
+
+        coupling_matrix [label="CouplingMatrix\\nGlobal coupling amount\\n+ Snare Buzz (kicks-&gt;snare)\\n+ Tom Resonance (toms-&gt;toms)\\n+ per-pad couplingAmount\\n-&gt; effectiveGain[src][dst]", shape=box, fillcolor="#E88AAA"];
+
+        coupling_delay [label="Coupling Delay\\n0.5 - 2.0 ms\\n(propagation delay)", shape=box, fillcolor="#E88AAA"];
+
+        symp_engine [label="SympatheticResonance\\nMono sum -&gt; matrix\\n-&gt; per-pad excitation\\n-&gt; energy limiter\\n(caps below -20 dBFS)", shape=box, fillcolor="#E88AAA"];
+
+        coupling_matrix -> symp_engine [style=dashed, color="#A02050", label="effectiveGain"];
+        coupling_delay -> symp_engine [penwidth=2, color="#A02050"];
+    }
+
+    pad_configs -> coupling_matrix [style=dashed, color="#2A6030", label="couplingAmount\\nper pad"];
+    main_accum -> coupling_delay [penwidth=2, color="#A02050", label="mono sum\\nof voices"];
+    symp_engine -> main_accum [penwidth=2, color="#A02050", label="add back\\nto L/R", constraint=false];
+
+    // =========================================================================
+    // OUTPUT CHAIN
+    // =========================================================================
+    subgraph cluster_output {
+        label="Output Chain";
+        style=rounded;
+        color="#666666";
+        bgcolor="#F0F0F0";
+        fontsize=13;
+        fontcolor="#444444";
+        penwidth=2;
+
+        master_gain [label="Master Output Gain\\n[-24 .. +12] dB\\nMain bus only\\n(aux buses pre-master)", shape=box, fillcolor="#888888", fontcolor="white"];
+
+        meters [label="Meters Block\\nPeak / RMS publisher\\n(lock-free DataExchange\\nfor UI)", shape=box, fillcolor="#AAAAAA", fontcolor="white"];
+
+        output_main [label="Audio Output\\nMain Stereo L / R", shape=invhouse, fillcolor="#CCDDEE"];
+        output_aux [label="Audio Output\\nAux Buses 1-15\\n(stereo pairs)", shape=invhouse, fillcolor="#CCDDEE"];
+    }
+
+    main_accum -> master_gain [penwidth=2, color="#2A5080"];
+    master_gain -> meters [penwidth=2, color="#2A5080"];
+    meters -> output_main [penwidth=2, color="#2A5080"];
+    aux_accum -> output_aux [penwidth=2, color="#2A5080", label="pre-master\\n(no master\\ngain applied)"];
+
+    // =========================================================================
+    // UI DATA PIPELINE
+    // =========================================================================
+    subgraph cluster_ui {
+        label="UI Data (lock-free, audio -&gt; UI)";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+
+        glow_publisher [label="PadGlowPublisher\\nPer-pad voice activity\\n+ level + category color\\n(drives 4x8 grid glow)", shape=box, fillcolor="#DDDDDD"];
+
+        meter_publisher [label="MetersBlock DataExchange\\nPeak / RMS,\\nUI-side per-block data\\npiggybacked here", shape=box, fillcolor="#DDDDDD"];
+    }
+
+    amp_env -> glow_publisher [style=dashed, color="#888888", label="per-voice\\nlevel"];
+    meters -> meter_publisher [style=dashed, color="#888888"];
+
+    // =========================================================================
+    // PROCESSING RATE ANNOTATIONS
+    // =========================================================================
+    subgraph cluster_rates {
+        label="Processing Rates";
+        style=rounded;
+        color="#888888";
+        bgcolor="#FAFAFA";
+        node [shape=plaintext, fillcolor="#FAFAFA"];
+
+        rates [label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4">
+            <TR><TD ALIGN="LEFT"><B>Parameters:</B></TD><TD ALIGN="LEFT">Per-block (atomic reads, dispatched via processParameterChanges)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>MacroMapper:</B></TD><TD ALIGN="LEFT">Per-block on macro change (incremental delta into PadConfig)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice allocation:</B></TD><TD ALIGN="LEFT">Per-event (note-on / note-off) on the audio thread</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Per-mode damping:</B></TD><TD ALIGN="LEFT">Per-mode (R_k applied at body update; recomputed on b1/b3 change)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Air loading:</B></TD><TD ALIGN="LEFT">Per-block (frequency table lookup applied on body update)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Head/shell coupling:</B></TD><TD ALIGN="LEFT">Per-block energy exchange between primary and secondary banks</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Tension modulation:</B></TD><TD ALIGN="LEFT">Per-sample energy follower; per-block frequency scale</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Modal synthesis:</B></TD><TD ALIGN="LEFT">Per-sample (Gordon-Smith resonator bank, all modes in parallel)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Tone Shaper:</B></TD><TD ALIGN="LEFT">Per-sample (drive -&gt; wavefolder -&gt; DC -&gt; SVF + envelope)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Coupling:</B></TD><TD ALIGN="LEFT">Per-block global (mono sum -&gt; delay -&gt; matrix -&gt; limiter -&gt; mix back)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Master gain:</B></TD><TD ALIGN="LEFT">Per-block (atomic) on main bus only</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>UI publishers:</B></TD><TD ALIGN="LEFT">Lock-free SPSC (audio thread writer, UI thread reader)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Voice modes:</B></TD><TD ALIGN="LEFT">4-16 polyphony; 3 stealing policies (Oldest / Quietest / Priority)</TD></TR>
+            <TR><TD ALIGN="LEFT"><B>Choke groups:</B></TD><TD ALIGN="LEFT">8 groups (+ group 0 = none); 5 ms exp fast-release on group conflict</TD></TR>
+            </TABLE>
+        >];
+    }
+}
+`;
+
+        const container = document.getElementById("diagram-container");
+        const diagramEl = document.getElementById("diagram");
+        const loadingEl = document.getElementById("loading");
+        const errorEl = document.getElementById("error");
+        const zoomLevelEl = document.getElementById("zoom-level");
+
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function updateTransform() {
+            diagramEl.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            zoomLevelEl.textContent = Math.round(scale * 100) + "%";
+        }
+
+        function fitToScreen() {
+            const svg = diagramEl.querySelector("svg");
+            if (!svg) return;
+            const svgW = svg.viewBox.baseVal.width || svg.width.baseVal.value;
+            const svgH = svg.viewBox.baseVal.height || svg.height.baseVal.value;
+            const cW = container.clientWidth;
+            const cH = container.clientHeight;
+            scale = Math.min(cW / svgW, cH / svgH, 1) * 0.95;
+            panX = (cW - svgW * scale) / 2;
+            panY = (cH - svgH * scale) / 2;
+            updateTransform();
+        }
+
+        // Zoom controls
+        document.getElementById("zoom-in").addEventListener("click", () => {
+            scale = Math.min(scale * 1.25, 5);
+            updateTransform();
+        });
+        document.getElementById("zoom-out").addEventListener("click", () => {
+            scale = Math.max(scale / 1.25, 0.1);
+            updateTransform();
+        });
+        document.getElementById("zoom-fit").addEventListener("click", fitToScreen);
+        document.getElementById("zoom-reset").addEventListener("click", () => {
+            scale = 1; panX = 0; panY = 0;
+            updateTransform();
+        });
+
+        // Mouse wheel zoom
+        container.addEventListener("wheel", (e) => {
+            e.preventDefault();
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const newScale = Math.min(Math.max(scale * factor, 0.1), 5);
+            panX = mouseX - (mouseX - panX) * (newScale / scale);
+            panY = mouseY - (mouseY - panY) * (newScale / scale);
+            scale = newScale;
+            updateTransform();
+        }, { passive: false });
+
+        // Pan with mouse drag
+        container.addEventListener("mousedown", (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+            container.classList.add("grabbing");
+        });
+        window.addEventListener("mousemove", (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            updateTransform();
+        });
+        window.addEventListener("mouseup", () => {
+            isDragging = false;
+            container.classList.remove("grabbing");
+        });
+
+        // Touch support for pan
+        let lastTouch = null;
+        container.addEventListener("touchstart", (e) => {
+            if (e.touches.length === 1) {
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        container.addEventListener("touchmove", (e) => {
+            if (e.touches.length === 1 && lastTouch) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - lastTouch.x;
+                const dy = e.touches[0].clientY - lastTouch.y;
+                panX += dx;
+                panY += dy;
+                lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateTransform();
+            }
+        }, { passive: false });
+        container.addEventListener("touchend", () => { lastTouch = null; });
+
+        // Render
+        try {
+            const viz = await instance();
+            const svg = viz.renderSVGElement(dotSource);
+            svg.style.width = "auto";
+            svg.style.height = "auto";
+            loadingEl.style.display = "none";
+            diagramEl.appendChild(svg);
+            fitToScreen();
+        } catch (err) {
+            loadingEl.style.display = "none";
+            errorEl.style.display = "block";
+            errorEl.textContent = "Failed to render diagram: " + err.message;
+        }
+    </script>
+</body>
+</html>
