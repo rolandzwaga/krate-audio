@@ -128,123 +128,26 @@ TEST_CASE("Factory kit presets: every .vstpreset under resources/ parses as a "
         KitSnapshot kit;
         REQUIRE(readKitBlob(&componentStream, kit) == kResultOk);
 
-        // Inspect the on-disk version (first int32 of the blob).
-        int32 onDiskVersion = 0;
-        std::memcpy(&onDiskVersion, componentBytes.data(), sizeof(onDiskVersion));
-
-        // Write back and compare against the original component-state chunk.
-        // This guards against codec drift, but only for blobs that were
-        // already at the current version. Factory presets authored against an
-        // earlier version (e.g. v6 before Phase 7) are allowed to re-encode
-        // to a larger v7 blob -- we still require the decode succeeded above.
+        // Re-encode and require the bytes match the original component-state
+        // chunk exactly. With a single supported on-wire version, every
+        // factory preset must be byte-exact to its writer-emitted form.
         MemoryStream rewrite;
         REQUIRE(writeKitBlob(&rewrite, kit) == kResultOk);
         int64 rewriteSize = 0;
         rewrite.seek(0, IBStream::kIBSeekEnd, &rewriteSize);
 
-        if (onDiskVersion == Membrum::State::kBlobVersion)
-        {
-            CHECK(static_cast<std::size_t>(rewriteSize) == componentBytes.size());
-            rewrite.seek(0, IBStream::kIBSeekSet, nullptr);
-            std::vector<std::uint8_t> rewriteBytes(
-                static_cast<std::size_t>(rewriteSize));
-            rewrite.read(rewriteBytes.data(),
-                         static_cast<int32>(rewriteSize), &got);
-            CHECK(rewriteBytes == componentBytes);
-        }
-        else
-        {
-            INFO("legacy factory preset (v" << onDiskVersion
-                 << ") -- byte-exact drift check skipped, decode verified");
-            // Decode already REQUIRE'd above; additional sanity: re-read the
-            // v7 round-trip and verify it comes back the same logical state.
-            rewrite.seek(0, IBStream::kIBSeekSet, nullptr);
-            KitSnapshot kit2;
-            REQUIRE(readKitBlob(&rewrite, kit2) == kResultOk);
-            CHECK(kit2.maxPolyphony == kit.maxPolyphony);
-        }
+        CHECK(static_cast<std::size_t>(rewriteSize) == componentBytes.size());
+        rewrite.seek(0, IBStream::kIBSeekSet, nullptr);
+        std::vector<std::uint8_t> rewriteBytes(
+            static_cast<std::size_t>(rewriteSize));
+        rewrite.read(rewriteBytes.data(),
+                     static_cast<int32>(rewriteSize), &got);
+        CHECK(rewriteBytes == componentBytes);
         ++count;
     }
 
     // All three factory kits must be present and verified.
     CHECK(count >= 3);
-}
-
-// ------------------------------------------------------------------------------
-// Hidden one-shot utility: upgrade every factory .vstpreset to the current
-// blob version. Run explicitly with Catch2 tag filter
-// `"[.upgrade_factory_presets]"` after bumping the blob version. The rewriter
-// decodes the existing blob (legacy versions are still accepted) and re-emits
-// via the current writer, then overwrites the .vstpreset container.
-// ------------------------------------------------------------------------------
-TEST_CASE("Factory kit presets: upgrade to current blob version (hidden)",
-          "[.upgrade_factory_presets]")
-{
-    const auto root = factoryPresetRoot();
-    REQUIRE(!root.empty());
-
-    int upgraded = 0;
-    int skipped  = 0;
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(root))
-    {
-        if (!entry.is_regular_file() || entry.path().extension() != ".vstpreset")
-            continue;
-
-        const auto bytes = readFile(entry.path());
-        REQUIRE(!bytes.empty());
-
-        auto presetStream = owned(new MemoryStream(
-            const_cast<std::uint8_t*>(bytes.data()),
-            static_cast<TSize>(bytes.size())));
-        presetStream->seek(0, IBStream::kIBSeekSet, nullptr);
-
-        PresetFile pf(presetStream);
-        REQUIRE(pf.readChunkList());
-        REQUIRE(pf.getClassID() == Membrum::kProcessorUID);
-
-        const auto* compEntry = pf.getEntry(kComponentState);
-        REQUIRE(compEntry != nullptr);
-
-        std::vector<std::uint8_t> compBytes(
-            static_cast<std::size_t>(compEntry->size));
-        presetStream->seek(compEntry->offset, IBStream::kIBSeekSet, nullptr);
-        int32 got = 0;
-        presetStream->read(compBytes.data(),
-                           static_cast<int32>(compBytes.size()), &got);
-
-        int32 onDiskVersion = 0;
-        std::memcpy(&onDiskVersion, compBytes.data(), sizeof(onDiskVersion));
-        if (onDiskVersion == Membrum::State::kBlobVersion)
-        {
-            ++skipped;
-            continue;  // already current
-        }
-
-        MemoryStream src;
-        int32 written = 0;
-        src.write(compBytes.data(), static_cast<int32>(compBytes.size()), &written);
-        src.seek(0, IBStream::kIBSeekSet, nullptr);
-
-        KitSnapshot kit;
-        REQUIRE(readKitBlob(&src, kit) == kResultOk);
-
-        MemoryStream dst;
-        REQUIRE(writeKitBlob(&dst, kit) == kResultOk);
-
-        // Re-derive a reasonable preset-name + subcategory. Use the filename
-        // stem for the name and the parent directory as the subcategory.
-        const std::string name =
-            entry.path().stem().string();
-        const std::string subcat =
-            entry.path().parent_path().filename().string();
-
-        REQUIRE(Membrum::Preset::writePresetFile(entry.path(), &dst, name, subcat));
-        ++upgraded;
-    }
-
-    WARN("factory preset upgrade: " << upgraded << " upgraded, "
-         << skipped << " already current");
-    CHECK(upgraded + skipped >= 3);
 }
 
 // ------------------------------------------------------------------------------

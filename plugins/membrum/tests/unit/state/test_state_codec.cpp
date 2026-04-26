@@ -120,12 +120,12 @@ TEST_CASE("state_codec: kit blob round-trip preserves populated snapshot",
     CHECK(dst.uiMode == 0);
 }
 
-TEST_CASE("state_codec: readKitBlob accepts v6/v7 and rejects others",
+TEST_CASE("state_codec: readKitBlob rejects every version other than kBlobVersion",
           "[state_codec][version]")
 {
-    // v6..v13 are accepted (older auto-fill defaults for newer slots).
-    // Every other version is rejected.
-    for (int32 badVersion : { 1, 2, 3, 4, 5, 15, 99 })
+    // Pre-release reset: only the single current kBlobVersion is accepted on
+    // read. Every other version (legacy or future) is rejected.
+    for (int32 badVersion : { 0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);
@@ -225,11 +225,11 @@ TEST_CASE("state_codec: per-pad preset round-trip",
     }
 }
 
-TEST_CASE("state_codec: readPadPresetBlob accepts v1..v6 and rejects others",
+TEST_CASE("state_codec: readPadPresetBlob rejects every version other than kPadBlobVersion",
           "[state_codec][pad_preset][version]")
 {
-    // v1..v6 are accepted; others rejected.
-    for (int32 badVersion : { 0, 7, 8, 99 })
+    // Pre-release reset: only the single current kPadBlobVersion is accepted.
+    for (int32 badVersion : { 0, 2, 3, 4, 5, 6, 7, 8, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

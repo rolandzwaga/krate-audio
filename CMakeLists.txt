@@ -523,6 +523,23 @@ add_custom_target(generate_gradus_presets
     VERBATIM
 )
 
+add_executable(membrum_preset_generator
+    tools/membrum_preset_generator.cpp
+)
+target_compile_features(membrum_preset_generator PRIVATE cxx_std_20)
+set_target_properties(membrum_preset_generator PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Custom target to regenerate Membrum factory kit presets on demand
+# Usage: cmake --build build --target generate_membrum_presets
+add_custom_target(generate_membrum_presets
+    COMMAND membrum_preset_generator "${CMAKE_SOURCE_DIR}/plugins/membrum/resources/presets/Kit Presets"
+    DEPENDS membrum_preset_generator
+    COMMENT "Generating Membrum factory kit presets (20 kits across 4 subcategories)"
+    VERBATIM
+)
+
 # ==============================================================================
 # Control Testbench (UI Development Tool)
 # ==============================================================================

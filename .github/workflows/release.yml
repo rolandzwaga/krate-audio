@@ -37,6 +37,7 @@ on:
           - ruinae
           - innexus
           - gradus
+          - membrum
         default: iterum
       prerelease:
         description: 'Mark as pre-release?'

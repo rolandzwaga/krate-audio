@@ -919,7 +919,7 @@ TEST_CASE("808 toms: per-pad mode 0 readback through real load path",
         return static_cast<Steinberg::Vst::ParamID>(Membrum::padParamId(padIdx, off));
     };
 
-    // Match the 808 preset's tom rows EXACTLY (gen_factory_presets.js).
+    // Match the 808 preset's tom rows EXACTLY (tools/membrum_preset_generator.cpp).
     const int   tomPads[6]       = {5, 7, 9, 11, 12, 14};
     const float tomSizes[6]      = {0.85f, 0.75f, 0.65f, 0.55f, 0.48f, 0.40f};
     const float tomPitchStartHz[6] = {220.0f, 260.0f, 310.0f, 370.0f, 430.0f, 500.0f};

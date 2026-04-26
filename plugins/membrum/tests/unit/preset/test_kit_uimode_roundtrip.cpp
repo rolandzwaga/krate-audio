@@ -169,7 +169,7 @@ TEST_CASE("Per-pad preset load preserves outputBus and couplingAmount",
     stream->write(&et, sizeof(et), nullptr);
     int32 bm = 2;
     stream->write(&bm, sizeof(bm), nullptr);
-    for (int i = 0; i < 34; ++i) {
+    for (int i = 0; i < 51; ++i) {
         double v = 0.7;  // distinctive sound value
         stream->write(&v, sizeof(v), nullptr);
     }

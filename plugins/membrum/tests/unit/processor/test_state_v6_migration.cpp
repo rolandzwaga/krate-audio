@@ -1,32 +1,14 @@
 // ==============================================================================
-// State v6 Round-Trip Tests -- Membrum Phase 6 UI (spec 141)
+// State Round-Trip Tests -- Membrum Phase 6 UI (spec 141)
 //
-// Covers FR-080 (v6 kCurrentStateVersion), FR-082 (MacroMapper::reapplyAll
-// after load), FR-084 (bit-exact round-trip of v6 blobs including macros),
-// and session-scoped param exclusion (kUiModeId never in
-// IBStream).
+// Covers FR-082 (MacroMapper::reapplyAll after load), FR-084 (bit-exact
+// round-trip of state blobs including macros), and session-scoped param
+// exclusion (kUiModeId never in IBStream).
 //
-// Pre-v6 migration tests were removed when the Membrum state format was
-// unified and backwards compatibility dropped (plugin has not shipped).
-// ==============================================================================
-//
-// Binary layout reference (per specs/141-membrum-phase6-ui/contracts/
-// state_v6_migration.md):
-//   v5 payload:
-//     [int32 version][int32 maxPoly][int32 stealPolicy]
-//     32 x ([int32 exciter][int32 body][34 x float64 sound][uint8 cg][uint8 ob])
-//     [int32 selectedPadIndex]
-//     [4 x float64 global coupling (gc, sb, tr, cd)]
-//     [32 x float64 per-pad couplingAmount]
-//     [uint16 overrideCount][N x (uint8 src, uint8 dst, float32 coeff)]
-//   v6 appends:
-//     [160 x float64 pad-major macros: pad0.tightness..pad0.complexity, ...,
-//       pad31.tightness..pad31.complexity]
-//
-// Sizes:
-//   v4 payload:   12 + 32*282 + 4             = 9040 bytes
-//   v5 payload:   v4 + 4*8 + 32*8 + 2         = 9330 bytes (zero overrides)
-//   v6 payload:   v5 + 160*8                  = 10610 bytes (zero overrides)
+// All legacy version migration logic was dropped in the pre-release codec
+// reset -- only kCurrentStateVersion (= 1) is accepted on read. Test cases
+// retain the historical "v6" naming in the file name for git history; the
+// assertions all target the current format.
 // ==============================================================================
 
 #include <catch2/catch_approx.hpp>
@@ -114,20 +96,20 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 } // namespace
 
 // ==============================================================================
-// FR-080: kCurrentStateVersion (updated to 8 in Phase 8A for per-mode damping).
+// kCurrentStateVersion sanity check (pinned at 1 by the pre-release reset).
 // ==============================================================================
 
-TEST_CASE("State v6..v14 (FR-080): kCurrentStateVersion is 14",
+TEST_CASE("State (FR-080): kCurrentStateVersion is 1",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 14);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 1);
 }
 
 // ==============================================================================
-// FR-084: v6 round-trip preserves macro values bit-exact.
+// FR-084: round-trip preserves macro values bit-exact.
 // ==============================================================================
 
-TEST_CASE("State v6 (FR-084): round-trip preserves non-default macros",
+TEST_CASE("State (FR-084): round-trip preserves non-default macros",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -197,7 +179,7 @@ TEST_CASE("State v6 (FR-084): round-trip preserves non-default macros",
     CHECK(blob1 == blob2);
 }
 
-TEST_CASE("State v14 (FR-084): v14 blob wraps macros + Phase 7..9 sound slots, no overrides",
+TEST_CASE("State (FR-084): blob wraps macros + sound slots + master gain, no overrides",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
@@ -205,29 +187,28 @@ TEST_CASE("State v14 (FR-084): v14 blob wraps macros + Phase 7..9 sound slots, n
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // v5 -> v6 +1280 macros = 10610. v7 +2048 = 12658. v8 +512 = 13170.
-    // v9 +512 = 13682. v10 +1024 = 14706. v11 +256 = 14962.
-    // v12 +256 (per-pad enable slot) = 15218.
-    // v13 +8 (master gain float64) = 15226.
-    // v14 -2 (override count uint16 dropped, no entries were ever emitted) = 15224.
+    // Layout (see state_codec.h):
+    //   12 (header) + 32 * 426 (per-pad block) + 4 (selPad) + 32 (4 globals)
+    //   + 256 (32 coupling amounts) + 1280 (160 macros) + 8 (master gain)
+    //   = 15224 bytes.
     CHECK(bytes.size() == 15224u);
 
-    // Version field is the first 4 bytes and must equal 14.
+    // Version field is the first 4 bytes and must equal kCurrentStateVersion.
     int32 version = 0;
     std::memcpy(&version, bytes.data(), sizeof(version));
-    CHECK(version == 14);
+    CHECK(version == Membrum::kCurrentStateVersion);
 }
 
 // ==============================================================================
-// Version rejection: v6/v7/v8 are accepted; any other version returns
-// kResultFalse.
+// Version rejection: only kCurrentStateVersion is accepted; everything else
+// (legacy or future) returns kResultFalse.
 // ==============================================================================
 
-TEST_CASE("State v14: setState rejects future / out-of-range versions",
+TEST_CASE("State: setState rejects every version other than kCurrentStateVersion",
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {15, 16, 99, -1})
+    for (int32 v : {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
@@ -241,28 +222,12 @@ TEST_CASE("State v14: setState rejects future / out-of-range versions",
     }
 }
 
-TEST_CASE("State v14: setState rejects pre-v6 blobs",
-          "[phase6_state][state_v6][state]")
-{
-    V6Fixture fx;
-    for (int32 v : {1, 2, 3, 4, 5})
-    {
-        std::vector<std::uint8_t> buf;
-        appendBytes(buf, &v, sizeof(v));
-        buf.resize(128, std::uint8_t{0});
-        MemoryStream stream;
-        loadIntoStream(stream, buf);
-        INFO("rejecting version " << v);
-        CHECK(fx.processor.setState(&stream) == kResultFalse);
-    }
-}
-
 // ==============================================================================
 // Session-scoped parameter exclusion: kUiModeId is never written into IBStream
 // by the Processor. (Controller resets it on load.)
 // ==============================================================================
 
-TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
+TEST_CASE("State (FR-082): session-scoped params are not on the wire",
           "[phase6_state][state_v6][state][session_scope]")
 {
     V6Fixture fx;
@@ -270,8 +235,8 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size for v14: 15224 bytes (see FR-084 test). If kUiModeId had
-    // leaked into the processor blob it would add 4 bytes.
+    // Expected size: 15224 bytes (see FR-084 test). If kUiModeId had leaked
+    // into the processor blob it would add 4 bytes.
     CHECK(bytes.size() == 15224u);
 }
 
@@ -282,7 +247,7 @@ TEST_CASE("State v6 (FR-082): session-scoped params are not on the wire",
 // loaded value toward the macro-derived value.
 // ==============================================================================
 
-TEST_CASE("State v6: macro-driven couplingAmount survives save-load",
+TEST_CASE("State: macro-driven couplingAmount survives save-load",
           "[phase6_state][state_v6][state]")
 {
     // Phase 8G: setState no longer "fixes" inconsistent saved state by calling

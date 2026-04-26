@@ -155,14 +155,15 @@ struct StateFixture
 } // namespace
 
 // ==============================================================================
-// FR-050: kCurrentStateVersion is at least 5 (Phase 5 introduced version 5;
-// spec 141 / Phase 6 bumps it to 6 with backward-compatible v5->v6 migration).
+// kCurrentStateVersion sanity check. Pre-release reset pins this at 1; the
+// previous "FR-050 / >= 5" assertion no longer applies because legacy state
+// support has been dropped.
 // ==============================================================================
 
-TEST_CASE("Phase 7 (FR-050): kCurrentStateVersion >= 5",
+TEST_CASE("kCurrentStateVersion is the pinned pre-release value",
           "[coupling_state][phase7][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion >= 5);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 1);
 }
 
 // ==============================================================================

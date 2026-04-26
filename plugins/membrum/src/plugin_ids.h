@@ -23,12 +23,9 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 // VST3 subcategories: Instrument|Drum
 static constexpr auto kSubCategories = "Instrument|Drum";
 
-// State version for serialization.
-// Phase 1 = 1, Phase 2 = 2, Phase 3 = 3, Phase 4 = 4, Phase 5 = 5, Phase 6 = 6.
-// Phase 7 = 7 adds per-pad parallel noise layer + always-on click transient
-// parameters. Loader accepts earlier versions and fills later-phase parameters
-// with defaults.
-constexpr Steinberg::int32 kCurrentStateVersion = 14;
+// State version for serialization. Single, current format -- the plugin has
+// not shipped, so no legacy versions are accepted on read.
+constexpr Steinberg::int32 kCurrentStateVersion = 1;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -169,8 +166,8 @@ enum ParameterIds : Steinberg::Vst::ParamID
 // IDs (200-244). This static_assert keeps future editors honest.
 static_assert(kLevelId < kExciterTypeId,
               "Phase 1 and Phase 2 parameter ID ranges must not overlap");
-static_assert(kCurrentStateVersion >= 2,
-              "Phase 2 requires state version >= 2");
+static_assert(kCurrentStateVersion >= 1,
+              "State version must be >= 1");
 
 // Phase 3 collision guards (FR-151). kMorphCurveId (244) is the last Phase 2
 // ID; kMaxPolyphonyId (250) opens the Phase 3 range. The gap 245..249 is
@@ -202,8 +199,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 14,
-              "Matrix removal requires state version 14");
+static_assert(kCurrentStateVersion == 1,
+              "Pre-release codec is pinned at state version 1");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,

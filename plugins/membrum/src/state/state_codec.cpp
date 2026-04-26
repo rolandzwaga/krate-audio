@@ -347,17 +347,12 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
     for (const auto& pad : kit.pads)
         writeT(stream, pad.couplingAmount);
 
-    // v14 removed the Tier 2 coupling-matrix override block (the Matrix UI
-    // was stripped). Nothing is emitted between per-pad coupling amounts and
-    // the macros block. Legacy v6..v13 readers below parse-and-discard the
-    // override count + entries when present on the wire.
-
     // Macros, pad-major (pad0.m0..pad0.m4, pad1.m0..pad1.m4, ...).
     for (const auto& pad : kit.pads)
         for (double m : pad.macros)
             writeT(stream, m);
 
-    // Phase 9 (v13): master gain norm, after macros, before optional uiMode.
+    // Master gain norm, after macros, before optional uiMode.
     writeT(stream, kit.masterGainNorm);
 
     // Session field, only if flagged. uiMode persists in kit presets.
@@ -378,70 +373,8 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kBlobVersion && version != kBlobVersionV13
-        && version != kBlobVersionV12
-        && version != kBlobVersionV11
-        && version != kBlobVersionV10
-        && version != kBlobVersionV9 && version != kBlobVersionV8
-        && version != kBlobVersionV7 && version != kBlobVersionV6)
+    if (version != kBlobVersion)
         return kResultFalse;
-    const bool isV6  = (version == kBlobVersionV6);
-    const bool isV7  = (version == kBlobVersionV7);
-    const bool isV8  = (version == kBlobVersionV8);
-    const bool isV9  = (version == kBlobVersionV9);
-    const bool isV10 = (version == kBlobVersionV10);
-    const bool isV11 = (version == kBlobVersionV11);
-    const bool isV12OrEarlier = isV6 || isV7 || isV8 || isV9 || isV10 || isV11
-                                || (version == kBlobVersionV12);
-    // v6..v13 emitted the Tier 2 coupling-matrix override block; v14+ does not.
-    const bool hasOverrideBlock = (version != kBlobVersion);
-    constexpr std::size_t kPadSoundSlots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
-    const std::size_t soundSlotsToRead =
-        isV6  ? kV6SoundSlotCount
-             : (isV7  ? kV7SoundSlotCount
-                     : (isV8  ? kV8SoundSlotCount
-                             : (isV9  ? kV9SoundSlotCount
-                                     : (isV10 ? kV10SoundSlotCount
-                                              : (isV11 ? kV11SoundSlotCount : kPadSoundSlots)))));
-
-    // Defaults for Phase 7 slots when reading a v6 blob. These mirror the
-    // PadConfig defaults so legacy kits load as-authored + new-layer defaults.
-    const PadConfig defaults{};
-    const double defaultPhase7Sound[8] = {
-        static_cast<double>(defaults.noiseLayerMix),
-        static_cast<double>(defaults.noiseLayerCutoff),
-        static_cast<double>(defaults.noiseLayerResonance),
-        static_cast<double>(defaults.noiseLayerDecay),
-        static_cast<double>(defaults.noiseLayerColor),
-        static_cast<double>(defaults.clickLayerMix),
-        static_cast<double>(defaults.clickLayerContactMs),
-        static_cast<double>(defaults.clickLayerBrightness),
-    };
-    // Phase 8A defaults for legacy v6/v7 blobs: sentinel -1.0f preserves
-    // Phase 1 bit-identity (mapper falls back to decay-derived damping).
-    const double defaultPhase8ASound[2] = {
-        static_cast<double>(defaults.bodyDampingB1),
-        static_cast<double>(defaults.bodyDampingB3),
-    };
-    // Phase 8C defaults for legacy v6/v7/v8 blobs.
-    const double defaultPhase8CSound[2] = {
-        static_cast<double>(defaults.airLoading),
-        static_cast<double>(defaults.modeScatter),
-    };
-    // Phase 8D defaults for legacy v6..v9 blobs.
-    const double defaultPhase8DSound[4] = {
-        static_cast<double>(defaults.couplingStrength),
-        static_cast<double>(defaults.secondaryEnabled),
-        static_cast<double>(defaults.secondarySize),
-        static_cast<double>(defaults.secondaryMaterial),
-    };
-    // Phase 8E default for legacy v6..v10 blobs.
-    const double defaultPhase8ESound =
-        static_cast<double>(defaults.tensionModAmt);
-    // Phase 8F default for legacy v6..v11 blobs: enabled = 1.0 (ON) so
-    // every pad in a pre-Phase-8F kit keeps sounding after migration.
-    const double defaultPhase8FSound =
-        static_cast<double>(defaults.enabled);
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
@@ -465,60 +398,28 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         pad.exciterType = static_cast<ExciterType>(excI);
         pad.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-        for (std::size_t i = 0; i < soundSlotsToRead; ++i)
+        for (double& slot : pad.sound)
         {
-            if (!readT(stream, pad.sound[i]))
-                pad.sound[i] = 0.0;
+            if (!readT(stream, slot))
+                return kResultFalse;
         }
-        // v6 -> newer: Phase 7 slots (indices 34-41) are absent on disk. Fill
-        // with PadConfig defaults so legacy kits still get the new layers.
-        if (isV6)
-        {
-            for (std::size_t i = 0; i < 8; ++i)
-                pad.sound[kV6SoundSlotCount + i] = defaultPhase7Sound[i];
-        }
-        // v6 or v7 -> v8+: Phase 8A slots (indices 42-43) are absent. Fill
-        // with sentinel defaults so legacy kits keep Phase 1 bit-identity.
-        if (isV6 || isV7)
-        {
-            for (std::size_t i = 0; i < 2; ++i)
-                pad.sound[kV7SoundSlotCount + i] = defaultPhase8ASound[i];
-        }
-        // v6, v7 or v8 -> v9+: Phase 8C slots (indices 44-45) are absent.
-        if (isV6 || isV7 || isV8)
-        {
-            for (std::size_t i = 0; i < 2; ++i)
-                pad.sound[kV8SoundSlotCount + i] = defaultPhase8CSound[i];
-        }
-        // v6..v9 -> v10+: Phase 8D slots (indices 46-49) are absent.
-        if (isV6 || isV7 || isV8 || isV9)
-        {
-            for (std::size_t i = 0; i < 4; ++i)
-                pad.sound[kV9SoundSlotCount + i] = defaultPhase8DSound[i];
-        }
-        // v6..v10 -> v11: Phase 8E slot (index 50) is absent.
-        if (isV6 || isV7 || isV8 || isV9 || isV10)
-            pad.sound[kV10SoundSlotCount] = defaultPhase8ESound;
-        // v6..v11 -> v12: Phase 8F slot (index 51) is absent.
-        if (isV6 || isV7 || isV8 || isV9 || isV10 || isV11)
-            pad.sound[kV11SoundSlotCount] = defaultPhase8FSound;
-        if (!readT(stream, pad.chokeGroup)) pad.chokeGroup = 0;
-        if (!readT(stream, pad.outputBus))  pad.outputBus  = 0;
+        if (!readT(stream, pad.chokeGroup)) return kResultFalse;
+        if (!readT(stream, pad.outputBus))  return kResultFalse;
         if (pad.chokeGroup > 8U)  pad.chokeGroup = 0;
         if (pad.outputBus  > 15U) pad.outputBus  = 0;
     }
 
     int32 selPad = 0;
     if (!readT(stream, selPad))
-        selPad = 0;
+        return kResultFalse;
     kit.selectedPadIndex =
         std::clamp(static_cast<int>(selPad), 0, static_cast<int>(kit.pads.size()) - 1);
 
     double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
-    if (!readT(stream, gc)) gc = 0.0;
-    if (!readT(stream, sb)) sb = 0.0;
-    if (!readT(stream, tr)) tr = 0.0;
-    if (!readT(stream, cd)) cd = 1.0;
+    if (!readT(stream, gc)) return kResultFalse;
+    if (!readT(stream, sb)) return kResultFalse;
+    if (!readT(stream, tr)) return kResultFalse;
+    if (!readT(stream, cd)) return kResultFalse;
     kit.globalCoupling  = std::clamp(gc, 0.0, 1.0);
     kit.snareBuzz       = std::clamp(sb, 0.0, 1.0);
     kit.tomResonance    = std::clamp(tr, 0.0, 1.0);
@@ -528,27 +429,8 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     {
         double amt = 0.5;
         if (!readT(stream, amt))
-            amt = 0.5;
+            return kResultFalse;
         pad.couplingAmount = std::clamp(amt, 0.0, 1.0);
-    }
-
-    // v6..v13 carried a Tier-2 override block here. v14 dropped the matrix
-    // entirely, so we read-and-discard the bytes when present on the wire to
-    // keep the rest of the stream aligned. No KitSnapshot field receives them.
-    if (hasOverrideBlock)
-    {
-        std::uint16_t overrideCount = 0;
-        if (!readT(stream, overrideCount))
-            overrideCount = 0;
-        for (std::uint16_t i = 0; i < overrideCount; ++i)
-        {
-            std::uint8_t src = 0;
-            std::uint8_t dst = 0;
-            float        coeff = 0.0f;
-            if (!readT(stream, src))   break;
-            if (!readT(stream, dst))   break;
-            if (!readT(stream, coeff)) break;
-        }
     }
 
     for (auto& pad : kit.pads)
@@ -556,20 +438,15 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         for (double& m : pad.macros)
         {
             if (!readT(stream, m))
-                m = 0.5;
+                return kResultFalse;
             m = std::clamp(m, 0.0, 1.0);
         }
     }
 
-    // Master gain norm follows the macros block on v13+. Older blobs
-    // (v6..v12) leave the KitSnapshot default in place (-6 dB).
-    if (!isV12OrEarlier)
-    {
-        double mg = 0.5;
-        if (!readT(stream, mg))
-            mg = 0.5;
-        kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
-    }
+    double mg = 0.5;
+    if (!readT(stream, mg))
+        return kResultFalse;
+    kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
 
     // Optional session field: present only when the producer set hasSession.
     int32 uiMode = 0;
@@ -617,25 +494,8 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kPadBlobVersion
-        && version != kPadBlobVersionV5
-        && version != kPadBlobVersionV4
-        && version != kPadBlobVersionV3
-        && version != kPadBlobVersionV2
-        && version != kPadBlobVersionV1)
+    if (version != kPadBlobVersion)
         return kResultFalse;
-    const bool isV1 = (version == kPadBlobVersionV1);
-    const bool isV2 = (version == kPadBlobVersionV2);
-    const bool isV3 = (version == kPadBlobVersionV3);
-    const bool isV4 = (version == kPadBlobVersionV4);
-    const bool isV5 = (version == kPadBlobVersionV5);
-    constexpr std::size_t kV6Slots = std::tuple_size_v<decltype(PadPresetSnapshot::sound)>;
-    const std::size_t slotsToRead =
-        isV1 ? kV6SoundSlotCount
-             : (isV2 ? kV7SoundSlotCount
-                     : (isV3 ? kV8SoundSlotCount
-                             : (isV4 ? kV9SoundSlotCount
-                                     : (isV5 ? kV10SoundSlotCount : kV6Slots))));
 
     int32 excI = 0;
     int32 bodyI = 0;
@@ -648,50 +508,11 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     pad.exciterType = static_cast<ExciterType>(excI);
     pad.bodyModel   = static_cast<BodyModelType>(bodyI);
 
-    for (std::size_t i = 0; i < slotsToRead; ++i)
+    for (double& slot : pad.sound)
     {
-        if (!readT(stream, pad.sound[i]))
+        if (!readT(stream, slot))
             return kResultFalse;
     }
-    // v1 blobs lack Phase 7 sound slots (34-41). Fill with PadConfig defaults
-    // so legacy per-pad presets load with sensible parallel-noise + click
-    // parameters rather than silence.
-    const PadConfig defaults{};
-    if (isV1)
-    {
-        pad.sound[34] = static_cast<double>(defaults.noiseLayerMix);
-        pad.sound[35] = static_cast<double>(defaults.noiseLayerCutoff);
-        pad.sound[36] = static_cast<double>(defaults.noiseLayerResonance);
-        pad.sound[37] = static_cast<double>(defaults.noiseLayerDecay);
-        pad.sound[38] = static_cast<double>(defaults.noiseLayerColor);
-        pad.sound[39] = static_cast<double>(defaults.clickLayerMix);
-        pad.sound[40] = static_cast<double>(defaults.clickLayerContactMs);
-        pad.sound[41] = static_cast<double>(defaults.clickLayerBrightness);
-    }
-    // v1 or v2 -> v3+: Phase 8A damping slots (42-43) are absent. Fill with
-    // sentinel defaults so legacy pad presets keep Phase 1 bit-identity.
-    if (isV1 || isV2)
-    {
-        pad.sound[42] = static_cast<double>(defaults.bodyDampingB1);
-        pad.sound[43] = static_cast<double>(defaults.bodyDampingB3);
-    }
-    // v1, v2 or v3 -> v4+: Phase 8C slots (44-45) are absent.
-    if (isV1 || isV2 || isV3)
-    {
-        pad.sound[44] = static_cast<double>(defaults.airLoading);
-        pad.sound[45] = static_cast<double>(defaults.modeScatter);
-    }
-    // v1..v4 -> v5+: Phase 8D slots (46-49) are absent.
-    if (isV1 || isV2 || isV3 || isV4)
-    {
-        pad.sound[46] = static_cast<double>(defaults.couplingStrength);
-        pad.sound[47] = static_cast<double>(defaults.secondaryEnabled);
-        pad.sound[48] = static_cast<double>(defaults.secondarySize);
-        pad.sound[49] = static_cast<double>(defaults.secondaryMaterial);
-    }
-    // v1..v5 -> v6: Phase 8E slot (50) is absent.
-    if (isV1 || isV2 || isV3 || isV4 || isV5)
-        pad.sound[50] = static_cast<double>(defaults.tensionModAmt);
     return kResultOk;
 }
 
