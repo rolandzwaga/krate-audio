@@ -69,7 +69,6 @@ target_sources(membrum_dsp INTERFACE
 
     # Phase 6: publishers (header-only, SDK-free)
     src/dsp/pad_glow_publisher.h
-    src/dsp/matrix_activity_publisher.h
 
     # Body backends + mode tables
     src/dsp/bodies/membrane_body.h
@@ -174,8 +173,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/processor/meters_block.h
     src/ui/pad_grid_view.h
     src/ui/pad_grid_view.cpp
-    src/ui/coupling_matrix_view.h
-    src/ui/coupling_matrix_view.cpp
     src/ui/kit_meters_view.h
     src/ui/kit_meters_view.cpp
     src/ui/membrum_editor_controller.cpp

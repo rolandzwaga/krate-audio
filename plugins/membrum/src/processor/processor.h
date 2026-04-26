@@ -17,7 +17,6 @@
 #include "dsp/pad_category.h"
 #include "dsp/coupling_matrix.h"
 #include "dsp/pad_glow_publisher.h"
-#include "dsp/matrix_activity_publisher.h"
 #include "processor/macro_mapper.h"
 #include "voice_pool/voice_pool.h"
 
@@ -79,7 +78,6 @@ public:
     // Test-only accessors (Phase 6: macros, publishers)
     MacroMapper& macroMapperForTest() noexcept { return macroMapper_; }
     PadGlowPublisher& padGlowPublisherForTest() noexcept { return padGlowPublisher_; }
-    MatrixActivityPublisher& matrixActivityPublisherForTest() noexcept { return matrixActivityPublisher_; }
     bool editorOpenForTest() const noexcept { return editorOpen_.load(); }
     void setEditorOpenForTest(bool open) noexcept { editorOpen_.store(open); }
 
@@ -131,6 +129,11 @@ private:
     std::atomic<float> tomResonance_{0.0f};
     std::atomic<float> couplingDelayMs_{1.0f};
 
+    // Phase 9: global master output gain. Stored as normalized [0..1] mapping
+    // linearly to [-24..+12] dB. Default 0.5 -> -6 dB to give the kit a -6 dB
+    // headroom margin out-of-the-box (templates run hot at +0 dB master).
+    std::atomic<float> masterGainNorm_{0.5f};
+
     // Cached pad categories (recomputed on pad config changes)
     std::array<PadCategory, kNumPads> padCategories_{};
 
@@ -140,7 +143,6 @@ private:
     // ---- Phase 6: Macros, publishers, meters DataExchange, editor state ----
     MacroMapper              macroMapper_;
     PadGlowPublisher         padGlowPublisher_;
-    MatrixActivityPublisher  matrixActivityPublisher_;
     std::unique_ptr<Steinberg::Vst::DataExchangeHandler> dataExchangeHandler_;
     std::atomic<bool>        editorOpen_{false};
 

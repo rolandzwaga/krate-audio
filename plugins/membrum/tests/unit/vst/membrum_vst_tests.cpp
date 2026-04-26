@@ -88,8 +88,9 @@ TEST_CASE("Membrum Controller registers all Phase 2 parameters",
     // Phase 8D: +4 (coupling + 3 secondary proxies) + 128 (32 pads x 4) = 1916.
     // Phase 8E: +1 (tensionModAmt proxy) + 32 (32 pads x 1) = 1949.
     // Phase 8F: +1 (kPadEnabledId proxy) + 32 (32 pads x 1 enabled) = 1982.
+    // Phase 9:  +1 (kMasterGainId, true global -- no per-pad tail) = 1983.
     int32 paramCount = controller.getParameterCount();
-    CHECK(paramCount == 1982);
+    CHECK(paramCount == 1983);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

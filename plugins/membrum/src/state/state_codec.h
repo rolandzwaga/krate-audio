@@ -9,12 +9,13 @@
 // helpers to eliminate the previous 4-6x duplication of the pad-sound-
 // parameter serialisation block.
 //
-// Current version: v12 (Phase 8F adds 1 kit-snapshot sound slot for the
-// per-pad enable toggle; PadSnapshot::sound grows 51 -> 52). Loader
-// accepts v6..v11 kit blobs and fills the new slot with the PadConfig
-// default (enabled = 1.0, i.e. ON) so legacy kits keep all 32 pads
-// sounding. PadPresetSnapshot stays at 51 slots: per-pad presets carry
-// sound/character only, never the kit-level enable state.
+// Current version: v14. Removes the Tier 2 coupling-matrix override block
+// (count + entries) that v6..v13 emitted between the per-pad coupling-amount
+// list and the macros block. Legacy v6..v13 readers parse and discard those
+// bytes so older blobs still load. v13 also appended a float64 master-gain
+// slot AFTER the macros block; v14 keeps that field. Loader accepts v6..v14;
+// PadSnapshot::sound is 52 slots since v12 (Phase 8F enable toggle).
+// PadPresetSnapshot stays at 51 slots.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -64,14 +65,6 @@ struct PadSnapshot
     std::array<double, 5> macros{0.5, 0.5, 0.5, 0.5, 0.5}; ///< Phase 6 offsets 37-41.
 };
 
-/// Tier-2 coupling matrix override entry.
-struct TierTwoOverride
-{
-    std::uint8_t src{0};
-    std::uint8_t dst{0};
-    float        coeff{0.0f};
-};
-
 /// Full kit / state snapshot.
 struct KitSnapshot
 {
@@ -83,7 +76,11 @@ struct KitSnapshot
     double                           tomResonance{0.0};
     double                           couplingDelayMs{1.0};
     int                              selectedPadIndex{0};
-    std::vector<TierTwoOverride>     overrides{};
+
+    // Phase 9 (kBlobVersion >= 13): global master output gain, normalized
+    // [0..1] mapping linearly to [-24..+12] dB. Default 0.5 (= -6 dB).
+    // Optional on read for legacy v6..v12 blobs.
+    double                           masterGainNorm{0.5};
 
     // Session-scoped (kit-preset only; NOT written to processor IBStream
     // state). uiMode: 0=Acoustic, 1=Extended. Kit authors may design for a
@@ -109,7 +106,7 @@ struct PadPresetSnapshot
 // single, current format. Changing them is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 12;
+constexpr Steinberg::int32 kBlobVersion    = 14;
 constexpr Steinberg::int32 kPadBlobVersion = 6;
 
 // Previous versions accepted on read for backward compatibility.
@@ -127,6 +124,8 @@ constexpr Steinberg::int32 kBlobVersionV8    = 8;
 constexpr Steinberg::int32 kBlobVersionV9    = 9;
 constexpr Steinberg::int32 kBlobVersionV10   = 10;
 constexpr Steinberg::int32 kBlobVersionV11   = 11;
+constexpr Steinberg::int32 kBlobVersionV12   = 12;
+constexpr Steinberg::int32 kBlobVersionV13   = 13;
 constexpr Steinberg::int32 kPadBlobVersionV1 = 1;
 constexpr Steinberg::int32 kPadBlobVersionV2 = 2;
 constexpr Steinberg::int32 kPadBlobVersionV3 = 3;

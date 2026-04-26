@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion bumped to 12 (Phase 8F per-pad enable)")
+    SECTION("kCurrentStateVersion bumped to 14 (Matrix removal)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 12);
+        STATIC_REQUIRE(kCurrentStateVersion == 14);
     }
 }
 

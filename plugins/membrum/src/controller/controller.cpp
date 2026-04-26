@@ -12,7 +12,6 @@
 #include "ui/pad_grid_view.h"
 #include "ui/kit_meters_view.h"
 #include "ui/polyphony_slider.h"
-#include "ui/coupling_matrix_view.h"
 #include "ui/pitch_envelope_display.h"  // shared PitchEnvelopeDisplay (Krate::Plugins)
 #include "ui/xy_morph_pad.h"             // shared XYMorphPad (Krate::Plugins)
 #include "ui/adsr_display.h"             // shared ADSRDisplay   (Krate::Plugins)
@@ -415,18 +414,47 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                            ParameterInfo::kCanAutomate));
 
     // ---- Phase 5: Cross-Pad Coupling parameters ----
-    parameters.addParameter(
-        new RangeParameter(STR16("Global Coupling"), kGlobalCouplingId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
-    parameters.addParameter(
-        new RangeParameter(STR16("Snare Buzz"), kSnareBuzzId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
-    parameters.addParameter(
-        new RangeParameter(STR16("Tom Resonance"), kTomResonanceId, nullptr,
-                           0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
-    parameters.addParameter(
-        new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
-                           0.0, 1.0, 0.333333, 0, ParameterInfo::kCanAutomate));
+    // Coupling sends: register with [0, 100] + "%" so the ArcKnob popup and
+    // any CParamDisplay show "37 %" instead of raw "0.37". The wire format
+    // is still normalized [0..1] (VST3 contract), so processor code that
+    // reads fValue stays correct.
+    {
+        auto* p = new RangeParameter(STR16("Global Coupling"), kGlobalCouplingId, STR16("%"),
+                                     0.0, 100.0, 0.0, 0, ParameterInfo::kCanAutomate);
+        p->setPrecision(0);
+        parameters.addParameter(p);
+    }
+    {
+        auto* p = new RangeParameter(STR16("Snare Buzz"), kSnareBuzzId, STR16("%"),
+                                     0.0, 100.0, 0.0, 0, ParameterInfo::kCanAutomate);
+        p->setPrecision(0);
+        parameters.addParameter(p);
+    }
+    {
+        auto* p = new RangeParameter(STR16("Tom Resonance"), kTomResonanceId, STR16("%"),
+                                     0.0, 100.0, 0.0, 0, ParameterInfo::kCanAutomate);
+        p->setPrecision(0);
+        parameters.addParameter(p);
+    }
+    // Coupling delay: register with the real ms range [0.5, 2.0] so the
+    // popup shows "1.00 ms". Processor still receives normalized [0..1] and
+    // denormalizes via 0.5 + norm * 1.5.
+    {
+        auto* p = new RangeParameter(STR16("Coupling Delay"), kCouplingDelayId, STR16("ms"),
+                                     0.5, 2.0, 1.0, 0, ParameterInfo::kCanAutomate);
+        p->setPrecision(2);
+        parameters.addParameter(p);
+    }
+
+    // ---- Phase 9: global master output gain ----
+    // Range [-24, +12] dB, default -6 dB. Templates run hot at 0 dB master, so
+    // -6 dB gives kits a sensible headroom margin out-of-the-box.
+    {
+        auto* p = new RangeParameter(STR16("Master Gain"), kMasterGainId, STR16("dB"),
+                                     -24.0, 12.0, -6.0, 0, ParameterInfo::kCanAutomate);
+        p->setPrecision(1);
+        parameters.addParameter(p);
+    }
 
     // ---- Phase 6 (US1 / T026): session-scoped UI Mode parameter ----
     // Registered as an automatable StringListParameter. Carried in kit
@@ -1111,37 +1139,6 @@ VSTGUI::CView* Controller::createCustomView(
         padGridView_ = view;
         return view;
     }
-    if (std::strcmp(name, "CouplingMatrixView") == 0)
-    {
-        // T068 (Spec 141): construct the CouplingMatrixView wired to the
-        // controller-side uiCouplingMatrix_ mirror. The authoritative matrix
-        // lives in the processor (audio thread) and cannot be shared across
-        // the VST3 component boundary; instead we keep a local mirror that is
-        // synced via "CouplingMatrixSnapshot" IMessages and push user edits
-        // back to the processor via "CouplingMatrixEdit" IMessages
-        // (see sendCouplingMatrixEdit()).
-        //
-        // The MatrixActivityPublisher pointer remains nullptr: the view
-        // tolerates it (pollActivity early-returns on null); 30 Hz activity
-        // highlighting is deferred to a later phase that can piggyback on
-        // DataExchange. Override/solo/heat-map editing, Tier 2 persistence,
-        // and Reset are fully functional with only the matrix mirror wired.
-        auto* view = new UI::CouplingMatrixView(
-            viewRect,
-            /*matrix*/ &uiCouplingMatrix_,
-            /*activityPublisher*/ nullptr);
-        view->setEditCallback(
-            [this](int op, int src, int dst, float value) noexcept {
-                sendCouplingMatrixEdit(op, src, dst, value);
-            });
-        couplingMatrixView_ = view;
-
-        // Request a fresh snapshot from the processor so the newly-opened
-        // view reflects the current authoritative override map even if
-        // setComponentState was called before the editor was open.
-        requestCouplingMatrixSnapshot();
-        return view;
-    }
     // Phase 9 (T080, Spec 141 US8): PitchEnvelopeDisplay is now a registered
     // shared VSTGUI class (Krate::Plugins::PitchEnvelopeDisplay); the uidesc
     // factory constructs it directly. Parameter-edit callbacks are wired in
@@ -1182,21 +1179,6 @@ VSTGUI::CView* Controller::createCustomView(
         });
         modeToggleButton_ = view;
         return view;
-    }
-    if (std::strcmp(name, "MatrixSoloButton") == 0)
-    {
-        return new UI::OutlineActionButton(
-            viewRect, "Solo",
-            [this]() {
-                if (couplingMatrixView_)
-                    couplingMatrixView_->clearSolo();
-            });
-    }
-    if (std::strcmp(name, "MatrixResetButton") == 0)
-    {
-        return new UI::OutlineActionButton(
-            viewRect, "Reset",
-            [this]() { sendCouplingMatrixEdit(4, 0, 0, 0.0f); });
     }
     // Expand button for the Tone Shaper filter envelope. Clicking opens the
     // modal ADSRExpandedOverlayView created in didOpen(); the overlay can be
@@ -1701,7 +1683,6 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     activeEditor_      = nullptr;
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
-    couplingMatrixView_ = nullptr;
     pitchEnvelopeDisplay_ = nullptr;
     cpuLabel_          = nullptr;
     activeVoicesLabel_ = nullptr;
@@ -1836,65 +1817,9 @@ void PLUGIN_API Controller::onDataExchangeBlocksReceived(
 }
 
 // ==============================================================================
-// T068 (Spec 141, retry): IMessage bridge for the 32x32 coupling matrix.
+// IMessage notify pass-through (DataExchange IMessage fallback for hosts that
+// don't implement the native DataExchange API).
 // ==============================================================================
-//
-// The processor owns the authoritative CouplingMatrix (audio thread). The
-// controller maintains uiCouplingMatrix_ as a mirror used by the UI view.
-//
-// Wire format:
-//   "CouplingMatrixEdit"   controller -> processor
-//       attrs: "op"  (int64)  0=setOverride, 1=clearOverride,
-//                             2=setSolo,     3=clearSolo
-//              "src" (int64)  source pad index [0, 31]
-//              "dst" (int64)  destination pad index [0, 31]
-//              "val" (int64)  float32 bits re-interpreted (only for op=0)
-//   "CouplingMatrixSnapshotRequest"   controller -> processor
-//       attrs: (none)
-//   "CouplingMatrixSnapshot"          processor -> controller
-//       attrs: "overrides" (binary) -- N records of
-//              {uint8 src; uint8 dst; float32 coeff}. N = blobSize / 6.
-// ==============================================================================
-
-namespace {
-
-constexpr char kCouplingEditMsgId[]     = "CouplingMatrixEdit";
-constexpr char kCouplingReqMsgId[]      = "CouplingMatrixSnapshotRequest";
-constexpr char kCouplingSnapshotMsgId[] = "CouplingMatrixSnapshot";
-
-} // anonymous namespace
-
-void Controller::sendCouplingMatrixEdit(int op, int src, int dst,
-                                        float value) noexcept
-{
-    auto* msg = allocateMessage();
-    if (msg == nullptr) return;
-    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
-
-    owned->setMessageID(kCouplingEditMsgId);
-    auto* attrs = owned->getAttributes();
-    if (attrs == nullptr) return;
-
-    attrs->setInt("op",  static_cast<Steinberg::int64>(op));
-    attrs->setInt("src", static_cast<Steinberg::int64>(src));
-    attrs->setInt("dst", static_cast<Steinberg::int64>(dst));
-
-    Steinberg::int64 bits = 0;
-    std::memcpy(&bits, &value, sizeof(float));
-    attrs->setInt("val", bits);
-
-    sendMessage(owned);
-}
-
-void Controller::requestCouplingMatrixSnapshot() noexcept
-{
-    auto* msg = allocateMessage();
-    if (msg == nullptr) return;
-    Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, /*addRef*/ false);
-
-    owned->setMessageID(kCouplingReqMsgId);
-    sendMessage(owned);
-}
 
 tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message)
 {
@@ -1907,46 +1832,6 @@ tresult PLUGIN_API Controller::notify(Steinberg::Vst::IMessage* message)
     // DataExchange fallback payload.
     if (dataExchangeReceiver_.onMessage(message))
         return kResultOk;
-
-    const auto* id = message->getMessageID();
-    if (id != nullptr && std::strcmp(id, kCouplingSnapshotMsgId) == 0)
-    {
-        auto* attrs = message->getAttributes();
-        if (attrs == nullptr) return kResultOk;
-
-        // Reset the mirror, then re-apply every override from the payload.
-        uiCouplingMatrix_.clearAll();
-
-        const void*      data = nullptr;
-        Steinberg::uint32 size = 0;
-        if (attrs->getBinary("overrides", data, size) == kResultOk
-            && data != nullptr)
-        {
-            constexpr Steinberg::uint32 kRecordSize =
-                sizeof(std::uint8_t) + sizeof(std::uint8_t) + sizeof(float);
-            const Steinberg::uint32 count = size / kRecordSize;
-            const auto* bytes = static_cast<const unsigned char*>(data);
-            for (Steinberg::uint32 i = 0; i < count; ++i)
-            {
-                const Steinberg::uint32 off = i * kRecordSize;
-                const std::uint8_t s = bytes[off];
-                const std::uint8_t d = bytes[off + 1];
-                float coeff = 0.0f;
-                std::memcpy(&coeff, bytes + off + 2, sizeof(float));
-                if (s < kNumPads && d < kNumPads)
-                {
-                    uiCouplingMatrix_.setOverride(
-                        static_cast<int>(s),
-                        static_cast<int>(d),
-                        std::clamp(coeff, 0.0f, CouplingMatrix::kMaxCoefficient));
-                }
-            }
-        }
-
-        if (couplingMatrixView_ != nullptr)
-            couplingMatrixView_->invalid();
-        return kResultOk;
-    }
 
     return EditControllerEx1::notify(message);
 }
@@ -2145,6 +2030,18 @@ void formatLevelDb(Steinberg::Vst::ParamValue norm, Steinberg::Vst::String128 ou
     writeString128(out, text);
 }
 
+// Linear dB mapping: dB = minDb + norm * (maxDb - minDb). Used by the master
+// gain knob ([-24..+12] dB at norm [0..1]).
+void formatLinearDb(Steinberg::Vst::ParamValue norm,
+                    float minDb, float maxDb,
+                    Steinberg::Vst::String128 out)
+{
+    const float dB = minDb + static_cast<float>(norm) * (maxDb - minDb);
+    char text[32];
+    std::snprintf(text, sizeof(text), "%+.1f dB", dB);
+    writeString128(out, text);
+}
+
 // Returns true (and fills `out`) if the pad-relative offset corresponds to a
 // Simple- or Advanced-view ArcKnob parameter; false otherwise so the caller
 // can fall through to the SDK default.
@@ -2292,6 +2189,15 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
     case kSecondaryMaterialId: formatMaterial(valueNormalized, string);     return kResultOk;
     case kTensionModAmtId:    formatPercent(valueNormalized, string);       return kResultOk;
     case kPadEnabledId:       formatOnOff(valueNormalized, string);         return kResultOk;
+
+    // Phase 5 coupling globals (right-column Coupling section).
+    case kGlobalCouplingId:   formatPercent(valueNormalized, string);                    return kResultOk;
+    case kSnareBuzzId:        formatPercent(valueNormalized, string);                    return kResultOk;
+    case kTomResonanceId:     formatPercent(valueNormalized, string);                    return kResultOk;
+    case kCouplingDelayId:    formatLinearMs(valueNormalized, 0.5f, 2.0f, string);       return kResultOk;
+
+    // Phase 9 master output gain (right-column Master section).
+    case kMasterGainId:       formatLinearDb(valueNormalized, -24.0f, 12.0f, string);    return kResultOk;
 
     default:
         break;

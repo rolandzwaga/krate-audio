@@ -23,7 +23,6 @@ using Catch::Approx;
 using Membrum::State::KitSnapshot;
 using Membrum::State::PadSnapshot;
 using Membrum::State::PadPresetSnapshot;
-using Membrum::State::TierTwoOverride;
 using Membrum::State::writeKitBlob;
 using Membrum::State::readKitBlob;
 using Membrum::State::writePadPresetBlob;
@@ -71,10 +70,6 @@ KitSnapshot makePopulatedKit()
         pad.macros[4]       = std::clamp(0.5 + (base - 0.5) * 0.25, 0.0, 1.0);
     }
 
-    // Seed a few overrides with in-range coefficients.
-    kit.overrides.push_back(TierTwoOverride{.src = 0, .dst = 1, .coeff = 0.02f});
-    kit.overrides.push_back(TierTwoOverride{.src = 3, .dst = 7, .coeff = 0.045f});
-    kit.overrides.push_back(TierTwoOverride{.src = 15, .dst = 16, .coeff = 0.0f});
     return kit;
 }
 
@@ -114,14 +109,6 @@ TEST_CASE("state_codec: kit blob round-trip preserves populated snapshot",
     CHECK(dst.tomResonance        == Approx(src.tomResonance).margin(1e-12));
     CHECK(dst.couplingDelayMs     == Approx(src.couplingDelayMs).margin(1e-12));
 
-    REQUIRE(dst.overrides.size() == src.overrides.size());
-    for (std::size_t i = 0; i < src.overrides.size(); ++i)
-    {
-        CHECK(dst.overrides[i].src   == src.overrides[i].src);
-        CHECK(dst.overrides[i].dst   == src.overrides[i].dst);
-        CHECK(dst.overrides[i].coeff == Approx(src.overrides[i].coeff).margin(1e-7f));
-    }
-
     for (std::size_t p = 0; p < src.pads.size(); ++p)
     {
         INFO("pad " << p);
@@ -136,9 +123,9 @@ TEST_CASE("state_codec: kit blob round-trip preserves populated snapshot",
 TEST_CASE("state_codec: readKitBlob accepts v6/v7 and rejects others",
           "[state_codec][version]")
 {
-    // v6 and v7 are accepted (v6 auto-fills Phase 7 slots from defaults).
-    // Every other version is rejected. v6..v12 are accepted.
-    for (int32 badVersion : { 1, 2, 3, 4, 5, 13, 99 })
+    // v6..v13 are accepted (older auto-fill defaults for newer slots).
+    // Every other version is rejected.
+    for (int32 badVersion : { 1, 2, 3, 4, 5, 15, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

@@ -229,6 +229,13 @@ public:
     [[nodiscard]] int  maxPolyphony() const noexcept { return maxPolyphony_; }
     [[nodiscard]] bool isAnyVoiceActive() const noexcept;
 
+    /// Hard wipe of every main + shadow voice slot's DSP state plus the
+    /// allocator and metadata. Called by `Processor::setState` on kit
+    /// load so per-voice integrators / envelopes / banks from the prior
+    /// kit can't bleed into the new kit's first hits. Per-pad params are
+    /// re-applied by the next noteOn; this just wipes the audio state.
+    void resetAllVoicesForKitSwitch() noexcept;
+
     // ------------------------------------------------------------------
     // Phase 5: Coupling engine integration
     // ------------------------------------------------------------------

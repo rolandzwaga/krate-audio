@@ -152,75 +152,6 @@ struct StateFixture
 //   32 * ([int32 exciter][int32 body][34 * float64][uint8 cg][uint8 ob])
 //   [int32 selectedPadIndex]
 // Total: 12 + 32 * 282 + 4 = 9040 bytes.
-// Build a v6 state blob (legacy layout still accepted by the v7 reader). The
-// caller may append override entries (and must then rewrite the overrideCount
-// field) or append custom macro values before use. This helper writes zero
-// overrides and neutral (0.5) macros by default; append extras or mutate in
-// place.
-// Note: v6 is intentionally used here (not kCurrentStateVersion) because the
-// surrounding blob layout in this helper tops out at 34 sound slots per pad,
-// which is the v6 wire format; the v7 reader auto-fills Phase 7 slots with
-// PadConfig defaults.
-std::vector<std::uint8_t> buildV6BlobBase(std::uint16_t overrideCount = 0)
-{
-    std::vector<std::uint8_t> buf;
-    auto appendBytes = [&](const void* p, std::size_t n) {
-        const auto* b = static_cast<const std::uint8_t*>(p);
-        buf.insert(buf.end(), b, b + n);
-    };
-    const int32 version = 6;
-    const int32 maxPoly = 8;
-    const int32 stealPolicy = 0;
-    appendBytes(&version, sizeof(version));
-    appendBytes(&maxPoly, sizeof(maxPoly));
-    appendBytes(&stealPolicy, sizeof(stealPolicy));
-    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
-    {
-        const int32 ex = 0;  // ExciterType::Strike (default)
-        const int32 bm = 0;  // BodyModelType::Membrane (default)
-        appendBytes(&ex, sizeof(ex));
-        appendBytes(&bm, sizeof(bm));
-        for (int i = 0; i < 34; ++i)
-        {
-            const double z = 0.0;
-            appendBytes(&z, sizeof(z));
-        }
-        const std::uint8_t cg = 0;
-        const std::uint8_t ob = 0;
-        appendBytes(&cg, sizeof(cg));
-        appendBytes(&ob, sizeof(ob));
-    }
-    const int32 selPad = 0;
-    appendBytes(&selPad, sizeof(selPad));
-    // Phase 5 globals (cd clamped to [0.5, 2.0] so use 1.0).
-    const double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
-    appendBytes(&gc, sizeof(gc));
-    appendBytes(&sb, sizeof(sb));
-    appendBytes(&tr, sizeof(tr));
-    appendBytes(&cd, sizeof(cd));
-    // 32 per-pad coupling amounts.
-    for (int pad = 0; pad < Membrum::kNumPads; ++pad)
-    {
-        const double amt = 0.5;
-        appendBytes(&amt, sizeof(amt));
-    }
-    // Override count -- entries appended by the caller.
-    appendBytes(&overrideCount, sizeof(overrideCount));
-    return buf;
-}
-
-// Append 160 float64 neutral macros to a v6 blob (call AFTER appending any
-// override entries). Convenience for the round-trip test below.
-void appendNeutralMacros(std::vector<std::uint8_t>& buf)
-{
-    for (int i = 0; i < Membrum::kNumPads * 5; ++i)
-    {
-        const double neutral = 0.5;
-        const auto* b = reinterpret_cast<const std::uint8_t*>(&neutral);
-        buf.insert(buf.end(), b, b + sizeof(neutral));
-    }
-}
-
 } // namespace
 
 // ==============================================================================
@@ -267,27 +198,8 @@ TEST_CASE("Phase 7 (SC-005): state v5 round-trip with non-default globals + "
     // refreshes the matrix with current per-pad amounts.
     fx.applyParam(Membrum::kSnareBuzzId, 0.4);
 
-    // ---- Set 3 per-pair Tier 2 overrides (using public test accessor path) ----
-    // The matrix is const-accessible for tests; to install overrides we
-    // reach through the voice pool / processor via a dedicated helper.
-    // Since the processor doesn't expose a mutable matrix accessor, we
-    // rely on recomputeCouplingMatrix + direct mutation of the matrix
-    // through a small reinterpret workaround is NOT available. Instead,
-    // we store overrides prior to save through processor-internal state
-    // by... there is no public mutator. We must add overrides through
-    // couplingMatrix_ directly, which is private.
-    //
-    // Strategy: use a separate fixture where we inject overrides, save
-    // through that processor's getState (which reads couplingMatrix_
-    // directly via forEachOverride). But to inject we need a setter.
-    //
-    // Workaround: encode overrides into the saved blob post-hoc.
-    // We save state, then reload a modified stream containing overrides
-    // appended with a patched overrideCount.
-    //
-    // Simpler workaround: we skip override-injection here and verify
-    // round-trip only for the globals + per-pad amounts + zero overrides.
-    // A dedicated test below exercises overrides via a raw-blob load.
+    // (Tier 2 per-pair overrides were removed in v14; this test now verifies
+    // only the globals + per-pad amounts round-trip.)
 
     // ---- Save state to stream ----
     MemoryStream stream;
@@ -337,101 +249,10 @@ TEST_CASE("Phase 7 (SC-005): state v5 round-trip with non-default globals + "
     }
 }
 
-// ==============================================================================
-// FR-053: Override serialization format -- uint16 count + (uint8 src,
-// uint8 dst, float32 coeff) per entry.
-// FR-031: Per-pair coefficient clamped to [0.0, 0.05] on load.
-// ==============================================================================
-
-TEST_CASE("Phase 7 (FR-053, FR-031): override wire format round-trip with "
-          "out-of-range coefficients clamped on load",
-          "[coupling_state][phase7][state][overrides]")
-{
-    // Produce a v6 blob with overrideCount=3 and three specific overrides,
-    // plus a neutral macro tail.
-    auto blob = buildV6BlobBase(/*overrideCount=*/3);
-
-    auto append = [&](const void* p, std::size_t n) {
-        const auto* b = static_cast<const std::uint8_t*>(p);
-        blob.insert(blob.end(), b, b + n);
-    };
-
-    auto writeEntry = [&](std::uint8_t s, std::uint8_t d, float c) {
-        append(&s, sizeof(s));
-        append(&d, sizeof(d));
-        append(&c, sizeof(c));
-    };
-    writeEntry(0, 1, 0.03f);      // in-range
-    writeEntry(2, 3, 0.10f);      // ABOVE kMaxCoefficient (0.05) -- must clamp
-    writeEntry(5, 7, -0.01f);     // BELOW zero -- must clamp to 0.0
-
-    appendNeutralMacros(blob);
-
-    // Load the blob.
-    StateFixture fx;
-    MemoryStream stream;
-    int32 written = 0;
-    stream.write(blob.data(), static_cast<int32>(blob.size()), &written);
-    REQUIRE(written == static_cast<int32>(blob.size()));
-    stream.seek(0, IBStream::kIBSeekSet, nullptr);
-    REQUIRE(fx.processor.setState(&stream) == kResultOk);
-
-    const auto& matrix = fx.processor.couplingMatrixForTest();
-    CHECK(matrix.getOverrideCount() == 3);
-
-    REQUIRE(matrix.hasOverrideAt(0, 1));
-    CHECK(static_cast<double>(matrix.getOverrideGain(0, 1))
-          == Approx(0.03).margin(1e-6));
-
-    REQUIRE(matrix.hasOverrideAt(2, 3));
-    // 0.10 is clamped to kMaxCoefficient = 0.05.
-    CHECK(static_cast<double>(matrix.getOverrideGain(2, 3))
-          == Approx(static_cast<double>(
-                Membrum::CouplingMatrix::kMaxCoefficient)).margin(1e-6));
-
-    REQUIRE(matrix.hasOverrideAt(5, 7));
-    // -0.01 is clamped to 0.0.
-    CHECK(static_cast<double>(matrix.getOverrideGain(5, 7))
-          == Approx(0.0).margin(1e-6));
-
-    // Re-save the state and verify the wire format: we locate the
-    // trailer, read overrideCount, then 3 * 6 bytes of (uint8, uint8, float32).
-    MemoryStream resaved;
-    REQUIRE(fx.processor.getState(&resaved) == kResultOk);
-    int64 resSize = 0;
-    resaved.seek(0, IBStream::kIBSeekEnd, &resSize);
-    // v12 prefix = 12 header + 32 * (4 exc + 4 body + 52*8 sound + 2 routing)
-    //   = 12 + 32*426 = 13644, + 4 selectedPad = 13648.
-    // + Phase 5 globals (32) + per-pad coupling amounts (256)
-    // + overrideCount (2) + 3 * 6 override bytes + Phase 6 macros (160 * 8).
-    // Total = 13648 + 32 + 256 + 2 + 18 + 1280 = 15236.
-    CHECK(resSize == 15236);
-
-    // Read overrideCount at offset 13648 + 32 + 256 = 13936.
-    resaved.seek(13936, IBStream::kIBSeekSet, nullptr);
-    std::uint16_t countOut = 0;
-    int32 gotCount = 0;
-    resaved.read(&countOut, sizeof(countOut), &gotCount);
-    CHECK(gotCount == 2);
-    CHECK(countOut == 3);
-
-    // Read three entries.
-    for (int i = 0; i < 3; ++i)
-    {
-        std::uint8_t s = 0xFF, d = 0xFF;
-        float c = -1.0f;
-        int32 g = 0;
-        resaved.read(&s, sizeof(s), &g); CHECK(g == 1);
-        resaved.read(&d, sizeof(d), &g); CHECK(g == 1);
-        resaved.read(&c, sizeof(c), &g); CHECK(g == 4);
-        // Coefficients must be within the allowed range (FR-031).
-        CHECK(c >= 0.0f);
-        CHECK(c <= Membrum::CouplingMatrix::kMaxCoefficient);
-        // Src/dst must be valid pad indices.
-        CHECK(s < Membrum::kNumPads);
-        CHECK(d < Membrum::kNumPads);
-    }
-}
+// (Override wire-format round-trip test removed along with the Tier 2
+// coupling-matrix override layer in v14. Legacy v6..v13 blobs that carry an
+// override block still load (the codec parses-and-discards those bytes), but
+// no path produces overrides anymore.)
 
 // (FR-052 v1/v2/v3 migration-without-crash test removed along with pre-v6
 // migration code paths.)

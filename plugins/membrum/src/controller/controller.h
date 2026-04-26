@@ -9,7 +9,6 @@
 #include "pluginterfaces/vst/ivstdataexchange.h"
 #include "pluginterfaces/vst/ivstmessage.h"
 #include "dsp/pad_config.h"
-#include "dsp/coupling_matrix.h"
 #include "dsp/pad_glow_publisher.h"
 #include "processor/meters_block.h"
 
@@ -31,7 +30,7 @@ class SavePresetDialogView;
 namespace Steinberg { class IBStream; }
 
 namespace Membrum::State { struct KitSnapshot; }
-namespace Membrum::UI { class PadGridView; class KitMetersView; class CouplingMatrixView; class OutlineActionButton; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class OutlineActionButton; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
 namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }
@@ -56,10 +55,7 @@ public:
     Steinberg::tresult PLUGIN_API setComponentState(Steinberg::IBStream* state) override;
     Steinberg::IPlugView* PLUGIN_API createView(const char* name) override;
 
-    // T068 (Spec 141): IMessage receiver. The processor posts a
-    // "CouplingMatrixSnapshot" message carrying the list of per-pair overrides
-    // so the controller's uiCouplingMatrix_ mirror stays consistent with the
-    // audio-thread matrix.
+    // IMessage receiver pass-through (DataExchange IMessage fallback).
     Steinberg::tresult PLUGIN_API notify(Steinberg::Vst::IMessage* message) override;
 
     // ==========================================================================
@@ -189,10 +185,6 @@ private:
     // verifyView() by matching its initial title prefix "CPU".
     Membrum::UI::KitMetersView*      kitMetersView_  = nullptr;
 
-    // Phase 6 (T068 / US6): raw pointer to the active CouplingMatrixView.
-    // Lifetime is owned by VSTGUI's view tree; zeroed in willClose().
-    Membrum::UI::CouplingMatrixView* couplingMatrixView_ = nullptr;
-
     // Phase 9 (T080 / US8): raw pointer to the active PitchEnvelopeDisplay.
     // The view is now a shared, registered VSTGUI class instantiated by the
     // uidesc factory; we cache a pointer via verifyView() and wire the edit
@@ -203,23 +195,6 @@ private:
     // Mode toggle button (Acoustic / Extended). Lifetime owned by VSTGUI view tree.
     Membrum::UI::OutlineActionButton*  modeToggleButton_ = nullptr;
 
-    // T068 (Spec 141, retry): controller-side CouplingMatrix mirror. The
-    // processor owns the authoritative matrix (audio thread); VST3 separate-
-    // component mode forbids sharing the instance directly. This mirror is
-    // kept in sync via "CouplingMatrixSnapshot" IMessages from the processor
-    // (on setComponentState load, on editor open, and after each edit). The
-    // CouplingMatrixView reads and writes this mirror locally for immediate
-    // visual feedback; writes are also propagated to the processor via a
-    // "CouplingMatrixEdit" IMessage so the audio path applies the same edit.
-    CouplingMatrix uiCouplingMatrix_;
-
-    // Send a "CouplingMatrixEdit" IMessage to the processor. Called from the
-    // view's edit-callback on setOverride / clearOverride / setSolo / clearSolo.
-    // op is one of: 0 = setOverride, 1 = clearOverride, 2 = setSolo, 3 = clearSolo.
-    void sendCouplingMatrixEdit(int op, int src, int dst, float value) noexcept;
-
-    // Ask the processor to send back a snapshot of its current override map.
-    void requestCouplingMatrixSnapshot() noexcept;
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 
     // T060/T062 (Phase 6 / US5): active-voices readout label. Discovered in

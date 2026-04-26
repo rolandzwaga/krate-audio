@@ -577,6 +577,14 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             voicePool_.setPadConfigField(selectedPadIndex_, kPadEnabled, fValue);
             break;
 
+        // ---- Phase 9: global master output gain ----
+        case kMasterGainId:
+        {
+            const float clamped = std::clamp(fValue, 0.0f, 1.0f);
+            masterGainNorm_.store(clamped, std::memory_order_relaxed);
+            break;
+        }
+
         default:
             break;
         }
@@ -745,6 +753,26 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             }
         }
 
+        // ============================================================
+        // Phase 9: master output gain on the main bus only.
+        // norm 0..1 -> dB -24..+12 -> linear gain. The peak meter below
+        // observes the post-master signal so the UI level reflects what
+        // the host actually receives.
+        // ============================================================
+        {
+            const float norm = masterGainNorm_.load(std::memory_order_relaxed);
+            const float dB   = -24.0f + 36.0f * norm;
+            const float gain = std::pow(10.0f, dB * 0.05f);
+            if (gain != 1.0f)
+            {
+                for (int32 s = 0; s < data.numSamples; ++s)
+                {
+                    outL[s] *= gain;
+                    outR[s] *= gain;
+                }
+            }
+        }
+
         data.outputs[0].silenceFlags =
             (voicePool_.isAnyVoiceActive() || !couplingEngine_.isBypassed())
                 ? 0ULL : 3ULL;
@@ -788,41 +816,6 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
         for (int pad = 0; pad < kNumPads; ++pad)
             padGlowPublisher_.publish(pad, padAmp[static_cast<std::size_t>(pad)]);
-    }
-
-    // ============================================================
-    // Phase 6 (T044): publish per-source matrix activity mask.
-    // A (src, dst) pair is "active" this block when effectiveGain is
-    // non-zero AND src pad is currently sounding (its glow > 0).
-    // ============================================================
-    {
-        std::array<std::uint8_t, kNumPads> srcActive{};
-        for (int slot = 0; slot < kMaxVoices; ++slot)
-        {
-            const auto& m = voicePool_.voiceMeta(slot);
-            if (m.state == VoiceSlotState::Active)
-            {
-                const int padIdx = static_cast<int>(m.originatingNote)
-                                 - static_cast<int>(kFirstDrumNote);
-                if (padIdx >= 0 && padIdx < kNumPads)
-                    srcActive[static_cast<std::size_t>(padIdx)] = 1;
-            }
-        }
-        for (int src = 0; src < kNumPads; ++src)
-        {
-            std::uint32_t dstMask = 0u;
-            if (srcActive[static_cast<std::size_t>(src)] != 0)
-            {
-                for (int dst = 0; dst < kNumPads; ++dst)
-                {
-                    if (src == dst)
-                        continue;
-                    if (couplingMatrix_.getEffectiveGain(src, dst) > 0.0f)
-                        dstMask |= (1u << dst);
-                }
-            }
-            matrixActivityPublisher_.publishSourceActivity(src, dstMask);
-        }
     }
 
     // ============================================================
@@ -933,24 +926,14 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
         static_cast<double>(tomResonance_.load(std::memory_order_relaxed));
     kit.couplingDelayMs     =
         static_cast<double>(couplingDelayMs_.load(std::memory_order_relaxed));
+    kit.masterGainNorm      =
+        static_cast<double>(masterGainNorm_.load(std::memory_order_relaxed));
 
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         kit.pads[static_cast<std::size_t>(pad)] =
             State::toPadSnapshot(voicePool_.padConfig(pad));
     }
-
-    // Overrides.
-    kit.overrides.clear();
-    kit.overrides.reserve(couplingMatrix_.getOverrideCount());
-    couplingMatrix_.forEachOverride(
-        [&kit](int src, int dst, float coeff) {
-            kit.overrides.push_back(State::TierTwoOverride{
-                .src   = static_cast<std::uint8_t>(src),
-                .dst   = static_cast<std::uint8_t>(dst),
-                .coeff = coeff,
-            });
-        });
 
     kit.hasSession = false;
     return State::writeKitBlob(state, kit);
@@ -964,6 +947,15 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     State::KitSnapshot kit;
     if (State::readKitBlob(state, kit) != kResultOk)
         return kResultFalse;
+
+    // Hard reset every voice slot's DSP state (envelopes, modal banks,
+    // filters, coupling integrators) so the prior kit's residual audio
+    // state can't bleed into the new kit's first hits. Per-pad params
+    // are re-applied by the next noteOn; this only wipes the *audio
+    // path* state -- the DSP equivalent of pressing "panic" on the
+    // pool. Resolves the user-reported intermittent tonal beep that
+    // appears after kit switch + rapid hits.
+    voicePool_.resetAllVoicesForKitSwitch();
 
     // Polyphony / stealing.
     maxPolyphony_.store(kit.maxPolyphony);
@@ -986,6 +978,25 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     selectedPadIndex_ = kit.selectedPadIndex;
 
+    // Flush the global SympatheticResonance engine BEFORE installing the
+    // new kit's coupling amount. The engine's resonator pool holds
+    // orphaned resonators (filter state in y1s_/y2s_) from voices the
+    // prior kit triggered. SympatheticResonance::noteOff(voiceId) detaches
+    // the owner but leaves actives_[idx] = true, so those resonators keep
+    // ringing at their Q-determined decay rate. If the prior kit had a
+    // large globalCoupling and the new kit has a smaller one (or zero),
+    // the orphans never get re-driven and keep producing a sustained
+    // tonal residue above the silence threshold -- voices register fresh
+    // partials but the engine's existing state dominates the output. The
+    // user's "infinite ring" reproduces exactly this scenario
+    // (test_kit_switch_infinite_ring.cpp test 3).
+    //
+    // Reset must come BEFORE setAmount(gcF) below; otherwise the smoother
+    // target we just set would be wiped by the reset.
+    couplingEngine_.reset();
+    couplingDelay_.reset();
+    energyEnvelope_ = 0.0f;
+
     // Phase 5 globals.
     const float gcF = static_cast<float>(kit.globalCoupling);
     const float sbF = static_cast<float>(kit.snareBuzz);
@@ -997,20 +1008,15 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
     couplingDelayMs_.store(cdF, std::memory_order_relaxed);
     couplingEngine_.setAmount(gcF);
 
-    // Refresh categories and recompute Tier 1 matrix.
+    // Phase 9: master gain.
+    masterGainNorm_.store(static_cast<float>(kit.masterGainNorm),
+                          std::memory_order_relaxed);
+
+    // Refresh categories and recompute the coupling matrix.
     for (int i = 0; i < kNumPads; ++i)
         padCategories_[static_cast<size_t>(i)] =
             classifyPad(voicePool_.padConfig(i));
     recomputeCouplingMatrix();
-
-    // Apply overrides.
-    for (const auto& ov : kit.overrides)
-    {
-        couplingMatrix_.setOverride(
-            static_cast<int>(ov.src),
-            static_cast<int>(ov.dst),
-            ov.coeff);
-    }
 
     // Phase 8G: with the incremental MacroMapper (apply layers
     // newDelta-oldDelta onto cfg, never overwrites with defaults+delta), a
@@ -1100,7 +1106,6 @@ tresult PLUGIN_API Processor::setActive(TBool state)
 
         // Reset publishers so stale values do not persist after bypass.
         padGlowPublisher_.reset();
-        matrixActivityPublisher_.reset();
     }
     return kResultOk;
 }
@@ -1139,12 +1144,8 @@ tresult PLUGIN_API Processor::disconnect(IConnectionPoint* other)
 }
 
 // ==============================================================================
-// T068 (Spec 141, retry): IMessage handler -- bridge the CouplingMatrix edits
-// and snapshot requests between the UI controller and this authoritative
-// processor-side instance. See controller.cpp for the wire format description.
-// notify() is called on the UI/component thread, NOT the audio thread, so it
-// is safe to mutate couplingMatrix_ directly -- the same pattern is used by
-// setState() when loading per-pair overrides from a preset blob.
+// notify() -- IMessage handler. Audition-pad message is the only one we
+// understand; everything else delegates to the SDK base.
 // ==============================================================================
 tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
 {
@@ -1167,87 +1168,6 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
             | (static_cast<std::uint32_t>(midi & 0x7F))
             | ((static_cast<std::uint32_t>(velocity & 0x7F)) << 7);
         pendingAudition_.store(word, std::memory_order_release);
-        return kResultOk;
-    }
-
-    if (std::strcmp(id, "CouplingMatrixEdit") == 0)
-    {
-        auto* attrs = message->getAttributes();
-        if (attrs == nullptr) return kResultOk;
-
-        Steinberg::int64 op = -1;
-        Steinberg::int64 src = 0;
-        Steinberg::int64 dst = 0;
-        Steinberg::int64 valBits = 0;
-        attrs->getInt("op",  op);
-        attrs->getInt("src", src);
-        attrs->getInt("dst", dst);
-        attrs->getInt("val", valBits);
-        float value = 0.0f;
-        std::memcpy(&value, &valBits, sizeof(float));
-
-        const int s = static_cast<int>(src);
-        const int d = static_cast<int>(dst);
-
-        switch (op)
-        {
-        case 0: // setOverride
-            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
-            {
-                couplingMatrix_.setOverride(s, d,
-                    std::clamp(value, 0.0f, CouplingMatrix::kMaxCoefficient));
-            }
-            break;
-        case 1: // clearOverride
-            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
-                couplingMatrix_.clearOverride(s, d);
-            break;
-        case 2: // setSolo
-            if (s >= 0 && s < kNumPads && d >= 0 && d < kNumPads)
-                couplingMatrix_.setSoloPath(s, d);
-            break;
-        case 3: // clearSolo
-            couplingMatrix_.clearSolo();
-            break;
-        default:
-            break;
-        }
-        return kResultOk;
-    }
-
-    if (std::strcmp(id, "CouplingMatrixSnapshotRequest") == 0)
-    {
-        // Serialise the current override map and send it back to the
-        // controller so its uiCouplingMatrix_ mirror can re-sync.
-        auto* reply = allocateMessage();
-        if (reply == nullptr) return kResultOk;
-        Steinberg::IPtr<Steinberg::Vst::IMessage> owned(reply, /*addRef*/ false);
-        owned->setMessageID("CouplingMatrixSnapshot");
-        auto* attrs = owned->getAttributes();
-        if (attrs == nullptr) return kResultOk;
-
-        // Record layout: uint8 src, uint8 dst, float32 coeff (6 bytes).
-        constexpr int kRecordSize = 1 + 1 + 4;
-        std::vector<unsigned char> blob;
-        blob.reserve(static_cast<std::size_t>(
-            couplingMatrix_.getOverrideCount()) * kRecordSize);
-        // NOLINTNEXTLINE(bugprone-exception-escape): blob.reserve() above
-        // sizes the vector to the exact final capacity; push_back/insert
-        // within reserved capacity cannot throw, so the lambda is effectively
-        // noexcept even though std::vector's member functions are not.
-        couplingMatrix_.forEachOverride(
-            [&blob](int src, int dst, float coeff) {
-                blob.push_back(static_cast<unsigned char>(src));
-                blob.push_back(static_cast<unsigned char>(dst));
-                unsigned char coeffBytes[4];
-                std::memcpy(coeffBytes, &coeff, sizeof(float));
-                blob.insert(blob.end(), coeffBytes, coeffBytes + 4);
-            });
-
-        attrs->setBinary("overrides",
-            blob.empty() ? static_cast<const void*>("") : blob.data(),
-            static_cast<Steinberg::uint32>(blob.size()));
-        sendMessage(owned);
         return kResultOk;
     }
 

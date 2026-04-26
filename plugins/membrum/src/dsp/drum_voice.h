@@ -99,6 +99,17 @@ public:
         toneShaper_.prepare(sampleRate);
         unnaturalZone_.prepare(sampleRate, voiceId);
         noiseLayer_.prepare(sampleRate, voiceId);
+        // Switch the parallel noise layer's filter from its default
+        // Bandpass to Lowpass. White noise through a Bandpass at any Q
+        // produces a spectrally-peaked output centered on cutoff that
+        // reads as a pitched tone (the user-reported "monotonous beep"
+        // on hat / cymbal / snare hits, reproduced by
+        // test_kit_switch_infinite_ring.cpp's recipe test). A Lowpass
+        // with the same cutoff gives broadband-rolloff hash with no
+        // spectral peak -- what real percussion noise sounds like.
+        // NoiseBody's *internal* noise layer stays Bandpass (its
+        // hardcoded Q ≈ 0.94 is Butterworth-flat, no peak there).
+        noiseLayer_.setFilterMode(Krate::DSP::SVFMode::Lowpass);
         clickLayer_.prepare(sampleRate, voiceId);
 
         ampEnvelope_.prepare(static_cast<float>(sampleRate));
@@ -208,7 +219,16 @@ public:
 
         // Phase 8D: configure the secondary bank for this note. Only spin it
         // up when secondaryEnabled_ >= 0.5 AND couplingStrength_ > 0 so the
-        // default (disabled) path does zero extra work.
+        // default (disabled) path does zero extra work. We ALWAYS reset
+        // the secondary bank here regardless of whether 8D is enabled,
+        // because if the previous voice on this slot had 8D enabled and
+        // the current voice doesn't, the disabled path won't process the
+        // bank but its integrator state (residual sin/cos at the previous
+        // shell's modal frequencies) is still alive in memory. Without
+        // a reset that residual energy can be exposed if 8D ever toggles
+        // back on, and on some configurations it can colour subsequent
+        // hits via the body bank that the new voice happens to share.
+        secondaryBank_.reset();
         secondaryLastOutput_ = 0.0f;
         effectiveCoupling_   = 0.0f;
         if (secondaryEnabled_ >= 0.5f && couplingStrength_ > 0.0f)
@@ -226,9 +246,18 @@ public:
             std::clamp(tensionModAmt_, 0.0f, 1.0f) * 0.15f * vClamp * vClamp;
         energyEnv_ = 0.0f;
 
+        // Reset the amp envelope so its attack ramps from 0 instead of
+        // from whatever sustain level the previous voice left behind.
+        // ADSREnvelope's Hard retrigger calls enterAttack() which uses
+        // output_ as the start point; without a reset, a slot that's
+        // been re-used (voice steal / kit switch) inherits the prior
+        // note's sustain output and the new note skips most of its
+        // attack ramp.
+        ampEnvelope_.reset();
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
         velocityGain_ = std::clamp(velocity, 0.0f, 1.0f);
+        silentBlockCount_ = 0;
         active_ = true;
     }
 
@@ -242,6 +271,44 @@ public:
         // @ 44.1 kHz for typical modes; the bank's flushSilentModes() then
         // retires the voice once amplitudes fall below kSilenceThreshold.
         bodyBank_.getSharedBank().damp(kNoteOffDampScale);
+    }
+
+    /// Hard wipe of every per-voice DSP state container. Used by
+    /// VoicePool::resetAllVoicesForKitSwitch when the host loads a new
+    /// preset, so the next noteOn against the new kit starts from a
+    /// clean slate.
+    ///
+    /// noteOn already resets most of these per-trigger, but kit-switch
+    /// is a stronger guarantee: a voice slot that's been Active without
+    /// ever receiving a noteOff (typical pad-click case) still has a
+    /// hot envelope and integrator state that the user can hear if the
+    /// next hit lands on this slot before the body has fully decayed.
+    /// This call is also safer than relying on every sub-component's
+    /// reset to be exactly right: every state-bearing primitive gets
+    /// touched explicitly here.
+    void resetForKitSwitch() noexcept
+    {
+        ampEnvelope_.reset();
+        bodyBank_.reset();
+        secondaryBank_.reset();
+        secondaryLastOutput_ = 0.0f;
+        effectiveCoupling_   = 0.0f;
+        exciterBank_.reset();
+        noiseLayer_.reset();
+        clickLayer_.reset();
+        toneShaper_.reset();
+        unnaturalZone_.modeInject.reset();
+        unnaturalZone_.nonlinearCoupling.reset();
+        // No public reset on materialMorph: it's only triggered via
+        // trigger() at noteOn and (when disabled) is a no-op. Setting
+        // active_ = false below ensures process() short-circuits even
+        // if the morph state is non-default until the next noteOn
+        // overwrites it.
+        energyEnv_           = 0.0f;
+        velocityGain_        = 0.0f;
+        tensionAmtEffective_ = 0.0f;
+        silentBlockCount_    = 0;
+        active_              = false;
     }
 
     // ------------------------------------------------------------------
@@ -388,7 +455,28 @@ public:
         const bool bankSilent = sharedBank.getNumActiveModes() == 0;
         const bool envFinished = !ampEnvelope_.isActive();
         if (bankSilent && envFinished)
+        {
             active_ = false;
+            silentBlockCount_ = 0;
+        }
+        // Safety net: if the body has been silent for a while AND the
+        // voice pool's auto-noteOff hasn't fired (because peak settled
+        // above the silence threshold from sustained noise / click /
+        // filter ringing), force-retire so we don't sit Active forever.
+        // Without this the original "infinite tone" bug regresses on
+        // any preset whose layered output settles above 1e-3 once the
+        // body modes have died -- pad-click hosts never send noteOff,
+        // so envFinished never becomes true on its own.
+        if (bankSilent)
+        {
+            ++silentBlockCount_;
+            if (silentBlockCount_ > 256)  // ≈1.4 s at 48 kHz / 256 blocks
+                active_ = false;
+        }
+        else
+        {
+            silentBlockCount_ = 0;
+        }
     }
 
 private:
@@ -526,21 +614,35 @@ private:
                 float* secExc = secondaryExcScratch_.data();
                 float* secOut = secondaryOutScratch_.data();
                 // Secondary excitation = primary body samples * coupling.
+                // This is feedforward (body → shell), not feedback.
                 for (int i = 0; i < chunk; ++i)
                     secExc[i] = bodyScratch[i] * effectiveCoupling_;
                 secondaryBank_.processBlock(secExc, secOut, chunk);
-                // Feedback the secondary output back into the primary bus
-                // at half strength so the primary body picks up the shell
-                // resonance, and ALSO sum the secondary output directly
-                // into the body scratch so it's audible in the mix.
-                const float half = effectiveCoupling_ * 0.5f;
+                // Mix shell output into the audible body output. This is
+                // passive (additive only, no return path into the body's
+                // modal excitation). The shell still rings audibly --
+                // user keeps the snare/tom shell character -- but it
+                // can't pump energy back into the body.
+                //
+                // The previous closed-loop topology (`excScratch += secOut
+                // * coupling/2`) created a feedback loop body↔shell whose
+                // peak loop gain at frequency-aligned modes was
+                //     coupling² · 0.5 · Q_body · Q_shell
+                // which with typical body Q ≈ 30 and shell Q ≈ 6 and the
+                // hard-clamped max coupling of 0.25 reached ≈ 5 (≫ 1).
+                // That violated the Nyquist criterion for the loop, and
+                // any frequency where body and shell modes happened to
+                // align became a self-sustained oscillator -- exactly
+                // the user-reported "continuous beep with no envelope"
+                // on bayan / dayan / ride / crash. Standard physical-
+                // modelling literature (Bilbao, Karjalainen, et al.)
+                // requires passive coupling for stability; we drop the
+                // feedback path entirely. Shell still drives the body
+                // forward (body → shell input), but shell energy can
+                // only leave through the audible mix and the shell's own
+                // damping law -- never back through the body bank.
                 for (int i = 0; i < chunk; ++i)
-                {
-                    bodyScratch[i] += secOut[i];     // mix into output
-                    // Next-sample primary excitation pickup (intra-block).
-                    // Using simple additive injection -- Chromaphone idiom.
-                    excScratch[i] += secOut[i] * half;
-                }
+                    bodyScratch[i] += secOut[i];     // mix into output (passive)
                 secondaryLastOutput_ = secOut[chunk - 1];
                 lastBody = bodyScratch[chunk - 1];
             }
@@ -886,9 +988,54 @@ private:
             amps[k]  = 0.0f;
         }
 
-        // Shell-like damping: modest b1, low b3 (metal-shell body).
+        // Shell-like damping. The earlier values (b1 = 1.5..5.5 s^-1,
+        // t60 of 1.25..4.6 s) made the shell ring much longer than the
+        // body it's coupled to (typical body t60 ≈ 0.3 s under the
+        // default damping law). Because processBlock feeds the shell's
+        // output back into the body's excitation bus, a long shell tail
+        // keeps re-energising body modes that have already decayed below
+        // the silence threshold -- the voice never retires and the user
+        // hears a sustained sine at the shell's fundamental.
+        //
+        // Range b1 in [25, 40] s^-1 (t60 ≈ 0.17..0.28 s) so the shell
+        // always decays faster than the bodies it's coupled to. The
+        // shell still contributes audible ring during the attack but
+        // won't outlast its primary. Reproduced and verified by the
+        // stress test in test_kit_switch_infinite_ring.cpp.
+        // Shell damping tuned to keep the body↔shell feedback loop stable.
+        //
+        // Damping law follows Chaigne (1993) / standard modal-synthesis
+        // form: R_k = b1 + b3·f_k², where b1 sets global decay and b3
+        // gives high-frequency rolloff.
+        //
+        // Stability requirement: at any pair of frequency-aligned body and
+        // shell modes the closed-loop gain
+        //     coupling² · 0.5 · Q_body · Q_shell
+        // must stay below unity (Q = ω / (2·b1)). Because effectiveCoupling
+        // is hard-clamped to 0.25 (max) the worst-case factor coupling²·0.5
+        // is 0.03125, so we need Q_body · Q_shell < 32. Real instrument
+        // research shows snare-drum shell modes at t60 ≈ 0.5..1.5 s
+        // (b1 ≈ 4.6..14 s⁻¹), but those values combined with the body Q
+        // produce loop gains in the hundreds -- the source of the
+        // user-reported "infinite ring" stress reproduction.
+        //
+        // We scale the shell's b1 to be a multiple of the primary body's
+        // b1 floor so shell t60 is always ≤ ~half the body's t60. With
+        // typical body b1 ≈ 20 s⁻¹ and the multiplier below, shell b1
+        // sits in [40, 80] s⁻¹ -- the shell still contributes audible
+        // ring on the attack but cannot outlast the body it's coupled
+        // to, so the feedback loop dies with the body.
         const float mat = std::clamp(secondaryMaterial_, 0.0f, 1.0f);
-        const float b1 = 1.5f + (1.0f - mat) * 4.0f;  // 1.5..5.5 s^-1
+        // Body's effective b1 from current per-pad damping override.
+        const float bodyN = std::clamp((bodyDampingB1_ >= 0.0f)
+                                       ? bodyDampingB1_ : 0.4f, 0.0f, 1.0f);
+        const float bodyB1 = 0.2f + bodyN * 49.8f;
+        // Shell b1 must sit at least 2.5× above the body so its t60 is at
+        // most ~40 % of the body's; soft floor of 25 s⁻¹ keeps the loop
+        // stable even when the body is set to a low-damping (long-tail)
+        // configuration.
+        const float b1 = std::max(25.0f, 2.5f * bodyB1) +
+                         (1.0f - mat) * 15.0f;
         const float b3 = mat * 1.0e-5f;
         const Krate::DSP::ModalResonatorBank::DampingLaw law{b1, b3};
         secondaryBank_.setModes(freqs, amps, shellCount,
@@ -1095,6 +1242,12 @@ private:
 
     // State
     bool active_ = false;
+    /// Per-block counter incremented while bankSilent is true; cleared
+    /// otherwise. Used by the retirement safety-net so a voice whose
+    /// output peak settles above the voice-pool silence threshold (and
+    /// therefore never gets auto-noteOff'd) still retires after a few
+    /// blocks of body-modal silence.
+    int silentBlockCount_ = 0;
 };
 
 } // namespace Membrum

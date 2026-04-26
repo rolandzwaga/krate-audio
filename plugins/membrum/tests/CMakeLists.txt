@@ -93,6 +93,8 @@ add_executable(membrum_tests
     unit/processor/test_coupling_energy.cpp
     unit/processor/test_coupling_fuzz.cpp
     unit/processor/test_kit_preset_load_render.cpp
+    unit/processor/test_output_level_measure.cpp
+    unit/processor/test_kit_switch_infinite_ring.cpp
     unit/processor/test_macro_preset_load_regression.cpp
     unit/processor/test_coupling_phase9_verification.cpp
     unit/processor/test_dc_offset_trace.cpp
@@ -105,7 +107,6 @@ add_executable(membrum_tests
     unit/processor/test_macro_mapper.cpp
     unit/processor/test_state_v6_migration.cpp
     unit/processor/test_pad_glow_publisher.cpp
-    unit/processor/test_matrix_activity_publisher.cpp
     unit/processor/test_macro_automation_extreme.cpp
     unit/processor/test_publisher_lock_freedom.cpp
     unit/controller/test_phase6_parameters.cpp
@@ -116,7 +117,6 @@ add_executable(membrum_tests
     unit/controller/test_output_routing_ui.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
-    unit/ui/test_coupling_matrix_view.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp
     integration/test_editor_asan_lifecycle.cpp
 
@@ -145,7 +145,6 @@ add_executable(membrum_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/membrum_editor_controller.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/pad_grid_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/kit_meters_view.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/coupling_matrix_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/voice_pool/voice_pool.cpp
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
 

@@ -4,7 +4,6 @@
 
 #include "state/state_codec.h"
 
-#include "dsp/coupling_matrix.h"
 
 #include <algorithm>
 #include <cstring>
@@ -348,19 +347,18 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
     for (const auto& pad : kit.pads)
         writeT(stream, pad.couplingAmount);
 
-    const auto overrideCount = static_cast<std::uint16_t>(kit.overrides.size());
-    writeT(stream, overrideCount);
-    for (const auto& ov : kit.overrides)
-    {
-        writeT(stream, ov.src);
-        writeT(stream, ov.dst);
-        writeT(stream, ov.coeff);
-    }
+    // v14 removed the Tier 2 coupling-matrix override block (the Matrix UI
+    // was stripped). Nothing is emitted between per-pad coupling amounts and
+    // the macros block. Legacy v6..v13 readers below parse-and-discard the
+    // override count + entries when present on the wire.
 
     // Macros, pad-major (pad0.m0..pad0.m4, pad1.m0..pad1.m4, ...).
     for (const auto& pad : kit.pads)
         for (double m : pad.macros)
             writeT(stream, m);
+
+    // Phase 9 (v13): master gain norm, after macros, before optional uiMode.
+    writeT(stream, kit.masterGainNorm);
 
     // Session field, only if flagged. uiMode persists in kit presets.
     if (kit.hasSession)
@@ -380,7 +378,9 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     int32 version = 0;
     if (!readT(stream, version))
         return kResultFalse;
-    if (version != kBlobVersion && version != kBlobVersionV11
+    if (version != kBlobVersion && version != kBlobVersionV13
+        && version != kBlobVersionV12
+        && version != kBlobVersionV11
         && version != kBlobVersionV10
         && version != kBlobVersionV9 && version != kBlobVersionV8
         && version != kBlobVersionV7 && version != kBlobVersionV6)
@@ -391,14 +391,18 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     const bool isV9  = (version == kBlobVersionV9);
     const bool isV10 = (version == kBlobVersionV10);
     const bool isV11 = (version == kBlobVersionV11);
-    constexpr std::size_t kV12Slots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
+    const bool isV12OrEarlier = isV6 || isV7 || isV8 || isV9 || isV10 || isV11
+                                || (version == kBlobVersionV12);
+    // v6..v13 emitted the Tier 2 coupling-matrix override block; v14+ does not.
+    const bool hasOverrideBlock = (version != kBlobVersion);
+    constexpr std::size_t kPadSoundSlots = std::tuple_size_v<decltype(PadSnapshot::sound)>;
     const std::size_t soundSlotsToRead =
         isV6  ? kV6SoundSlotCount
              : (isV7  ? kV7SoundSlotCount
                      : (isV8  ? kV8SoundSlotCount
                              : (isV9  ? kV9SoundSlotCount
                                      : (isV10 ? kV10SoundSlotCount
-                                              : (isV11 ? kV11SoundSlotCount : kV12Slots)))));
+                                              : (isV11 ? kV11SoundSlotCount : kPadSoundSlots)))));
 
     // Defaults for Phase 7 slots when reading a v6 blob. These mirror the
     // PadConfig defaults so legacy kits load as-authored + new-layer defaults.
@@ -528,22 +532,22 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
         pad.couplingAmount = std::clamp(amt, 0.0, 1.0);
     }
 
-    std::uint16_t overrideCount = 0;
-    if (!readT(stream, overrideCount))
-        overrideCount = 0;
-    kit.overrides.clear();
-    kit.overrides.reserve(overrideCount);
-    for (std::uint16_t i = 0; i < overrideCount; ++i)
+    // v6..v13 carried a Tier-2 override block here. v14 dropped the matrix
+    // entirely, so we read-and-discard the bytes when present on the wire to
+    // keep the rest of the stream aligned. No KitSnapshot field receives them.
+    if (hasOverrideBlock)
     {
-        TierTwoOverride ov;
-        if (!readT(stream, ov.src))   break;
-        if (!readT(stream, ov.dst))   break;
-        if (!readT(stream, ov.coeff)) break;
-        if (ov.src < kit.pads.size() && ov.dst < kit.pads.size())
+        std::uint16_t overrideCount = 0;
+        if (!readT(stream, overrideCount))
+            overrideCount = 0;
+        for (std::uint16_t i = 0; i < overrideCount; ++i)
         {
-            ov.coeff = std::clamp(ov.coeff, 0.0f,
-                                  CouplingMatrix::kMaxCoefficient);
-            kit.overrides.push_back(ov);
+            std::uint8_t src = 0;
+            std::uint8_t dst = 0;
+            float        coeff = 0.0f;
+            if (!readT(stream, src))   break;
+            if (!readT(stream, dst))   break;
+            if (!readT(stream, coeff)) break;
         }
     }
 
@@ -555,6 +559,16 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
                 m = 0.5;
             m = std::clamp(m, 0.0, 1.0);
         }
+    }
+
+    // Master gain norm follows the macros block on v13+. Older blobs
+    // (v6..v12) leave the KitSnapshot default in place (-6 dB).
+    if (!isV12OrEarlier)
+    {
+        double mg = 0.5;
+        if (!readT(stream, mg))
+            mg = 0.5;
+        kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
     }
 
     // Optional session field: present only when the producer set hasSession.

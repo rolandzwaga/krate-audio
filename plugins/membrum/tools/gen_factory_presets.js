@@ -560,7 +560,7 @@ function acousticKit() {
     pads[10] = Object.assign({}, pads[6]);
     pads[10].decay           = 0.6;
     pads[10].noiseLayerDecay = 0.55;
-    pads[10].bodyDampingB1   = 0.20; // open: long ringing decay
+    pads[10].bodyDampingB1 = 0.30; // open: long ringing decay
     pads[10].chokeGroup      = 1;
 
     // ---- Toms: pads 5,7,9,11,12,14 -- size graded high-to-low ----
@@ -581,8 +581,8 @@ function acousticKit() {
         // toms decay slower; b1 grades with size index. b1 = 0.18 .. 0.28
         // gives t60 = ~0.78 s .. ~0.51 s across the six toms. Wood-leaning
         // b3 = 0.5 keeps the tonal modes bright and the high modes damped.
-        pads[p].bodyDampingB1 = 0.18 + 0.02 * i;
-        pads[p].bodyDampingB3 = 0.50;
+        pads[p].bodyDampingB1 = 0.30 + 0.02 * i;
+        pads[p].bodyDampingB3 = 0.10;
         // Phase 8D: shell ring scaled with tom size; smaller toms have
         // proportionally smaller shells.
         pads[p].couplingStrength  = 0.40;
@@ -612,7 +612,7 @@ function acousticKit() {
         pads[p].modeScatter   = 0.55;
         pads[p].airLoading    = 0.0;
         pads[p].bodyDampingB3 = 0.0;   // metallic damping law
-        pads[p].bodyDampingB1 = 0.08;  // long sustain
+        pads[p].bodyDampingB1 = 0.30;  // long sustain
         // Phase 7: bright shimmer noise tail.
         pads[p].noiseLayerMix       = 0.50;
         pads[p].noiseLayerCutoff    = 0.90;
@@ -768,8 +768,8 @@ function experimentalKit() {
         pads[p].tensionModAmt = 0.40;
         pads[p].clickLayerMix = 0.40;
         // Long-ringing chaotic plates (~0.95 s -> ~0.55 s).
-        pads[p].bodyDampingB1 = 0.15 + 0.04 * i;
-        pads[p].bodyDampingB3 = 0.40;
+        pads[p].bodyDampingB1 = 0.30 + 0.04 * i;
+        pads[p].bodyDampingB3 = 0.10;
     }
 
     // ---- FX pads: every Phase 7+ knob spread across them for variety ----
@@ -840,7 +840,7 @@ function jazzBrushesKit() {
     pads[0].clickLayerContactMs = 0.40;
     pads[0].clickLayerBrightness = 0.22;
     pads[0].noiseLayerMix       = 0.06;
-    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.40; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroTightness = 0.45; pads[0].macroBrightness = 0.30;
     pads[0].macroBodySize = 0.55;  pads[0].macroPunch     = 0.32;
     pads[0].macroComplexity = 0.40;
@@ -848,9 +848,17 @@ function jazzBrushesKit() {
     // Brush snare (sweep): long noiseBurst, warm noise color, slight HP
     // filter for the "rasp", morph layer to slowly damp the body during
     // the sweep, no click attack. The defining brush sound.
+    //
+    // The body's modal tail must die quickly here — the noise sweep IS
+    // the sound. High decaySkew + low bodyDampingB1 leaves the fundamental
+    // ringing forever (perceived as a sine wave hanging behind the brush)
+    // because the host's amp envelope sustains at 1.0 until note-off and
+    // some hosts don't send note-off when the user clicks a pad. Keep
+    // body damping at the safe default and let the noise tail carry the
+    // brush character.
     pads[2].exciterType = ExciterType.NoiseBurst;
     pads[2].bodyModel   = BodyModelType.Membrane;
-    pads[2].material = 0.55; pads[2].size = 0.45; pads[2].decay = 0.55;
+    pads[2].material = 0.55; pads[2].size = 0.45; pads[2].decay = 0.30;
     pads[2].level = 0.75;
     pads[2].noiseBurstDuration = 0.85;       // long sweep
     pads[2].frictionPressure   = 0.60;
@@ -870,10 +878,24 @@ function jazzBrushesKit() {
     pads[2].noiseLayerResonance = 0.05;
     pads[2].clickLayerMix    = 0.0;          // brushes don't tick
     pads[2].airLoading  = 0.45; pads[2].modeScatter = 0.35;
-    pads[2].decaySkew   = 0.65;              // sustained tail
-    pads[2].couplingStrength = 0.18; pads[2].secondaryEnabled = 1.0;
-    pads[2].secondarySize = 0.50; pads[2].secondaryMaterial = 0.50;
-    pads[2].bodyDampingB1 = 0.32; pads[2].bodyDampingB3 = 0.45;
+    // decaySkew left at default (0.5 norm = 0.0 in [-1,+1]) so high modes
+    // fade naturally with the fundamental.
+    //
+    // Phase 8D head/shell coupling MUST be off here. The shell bank uses
+    // its own damping (b1 = 1.5..5.5 s^-1, t60 of 1-3 s) and its output
+    // is summed back into the primary's excitation bus
+    // (drum_voice.h:542). With long shell decay, body and shell keep
+    // re-exciting each other forever -> primary modes never fall below
+    // kSilenceThreshold -> voice never retires -> indefinite sine-like
+    // ring at the shell's fundamental. Brushes don't carry shell ring
+    // anyway; the noise sweep IS the sound.
+    pads[2].couplingStrength = 0.0;  pads[2].secondaryEnabled = 0.0;
+    // bodyDampingB3 stays low: with b3 = n·1e-3 s, a value like 0.45
+    // gives 4.5e-4 s, which damps any mode above ~500 Hz almost
+    // instantly while the fundamental keeps ringing -- the result is a
+    // pitched beep instead of brush rasp. Keep b3 small so the body's
+    // modal spectrum decays uniformly with the noise sweep.
+    pads[2].bodyDampingB1 = 0.45; pads[2].bodyDampingB3 = 0.05;
     pads[2].macroTightness = 0.30; pads[2].macroBrightness = 0.50;
     pads[2].macroBodySize = 0.55;  pads[2].macroPunch = 0.20;
     pads[2].macroComplexity = 0.65;
@@ -893,7 +915,7 @@ function jazzBrushesKit() {
     pads[4].airLoading  = 0.45; pads[4].modeScatter = 0.18;
     pads[4].couplingStrength = 0.22; pads[4].secondaryEnabled = 1.0;
     pads[4].secondarySize = 0.50; pads[4].secondaryMaterial = 0.50;
-    pads[4].bodyDampingB1 = 0.40; pads[4].bodyDampingB3 = 0.50;
+    pads[4].bodyDampingB1 = 0.40; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroTightness = 0.55; pads[4].macroBrightness = 0.55;
     pads[4].macroComplexity = 0.40;
 
@@ -902,10 +924,19 @@ function jazzBrushesKit() {
     pads[6].bodyModel   = BodyModelType.NoiseBody;
     pads[6].material = 0.85; pads[6].size = 0.13; pads[6].decay = 0.07;
     pads[6].level = 0.68; pads[6].chokeGroup = 1;
-    pads[6].noiseLayerMix = 0.60; pads[6].noiseLayerCutoff = 0.78;
+    // Bump noiseLayer mix to drown out the body's modal tail. The hat's
+    // sizzle character is in the noise layer; the body just needs to
+    // contribute attack transient.
+    pads[6].noiseLayerMix = 0.85; pads[6].noiseLayerCutoff = 0.78;
     pads[6].noiseLayerColor = 0.65; pads[6].noiseLayerDecay = 0.08;
     pads[6].clickLayerMix = 0.18; pads[6].clickLayerContactMs = 0.10;
-    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.30;
+    // High modeScatter (0.70) breaks the plate-mode harmonic structure
+    // so no single mode dominates. Without scatter, plate-mode 6-7 at
+    // f0×9 sits at the strike-position amplitude peak and rings as a
+    // pitched tone for the duration of the body decay -- exactly the
+    // user-reported "monotonous beep" on hat / open hat. Cymbals are
+    // physically inharmonic; this just matches reality.
+    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.70;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.60;
     pads[6].macroBrightness = 0.55; pads[6].macroTightness = 0.70;
 
@@ -914,15 +945,30 @@ function jazzBrushesKit() {
     pads[8].bodyDampingB1 = 0.70;
 
     pads[10] = Object.assign({}, pads[6]);
-    pads[10].decay = 0.55; pads[10].noiseLayerDecay = 0.52;
-    pads[10].bodyDampingB1 = 0.18;
+    pads[10].decay = 0.55; pads[10].noiseLayerDecay = 0.78;
+    // The parallel noise layer is hardcoded to a bandpass filter in
+    // noise_layer.h, and white noise through any BP at audible cutoff
+    // produces a spectrally peaked output that reads as a pitched tone.
+    // Push the cutoff to the top of the range (18 kHz, near Nyquist at
+    // 48 kHz) so the audible spectrum is just the broadband rolloff
+    // slope below the peak -- equivalent to a LP-shaped hiss, which is
+    // what cymbal sizzle actually sounds like.
+    pads[10].noiseLayerCutoff = 0.92;
+    pads[10].noiseLayerResonance = 0.0;
+    pads[10].noiseLayerMix = 0.55;
+    // Body damping bumped to kill the plate-mode tail in ~30 ms.
+    pads[10].bodyDampingB1 = 0.55;
+    pads[10].bodyDampingB3 = 0.20;
+    pads[10].modeScatter = 0.85;
 
     // Toms (6 at indices 5,7,9,11,12,14): mid-sized mallet, jazz tuned.
     const tomPads      = [5, 7, 9, 11, 12, 14];
     const tomSizes     = [0.72, 0.62, 0.55, 0.48, 0.42, 0.36];
     const tomMaterials = [0.40, 0.43, 0.46, 0.50, 0.55, 0.60];
-    const tomDecays    = [0.55, 0.50, 0.45, 0.40, 0.35, 0.30];
-    const tomB1        = [0.18, 0.20, 0.22, 0.24, 0.27, 0.30];
+    const tomDecays    = [0.45, 0.40, 0.36, 0.32, 0.28, 0.24];
+    // Bump B1 floor so toms don't ring forever when the host doesn't
+    // send note-off. ~0.30 → t60 ≈ 0.46 s for the lowest tom.
+    const tomB1        = [0.30, 0.32, 0.34, 0.36, 0.38, 0.42];
     const tomPitchStart = [200, 240, 290, 340, 400, 470];
     const tomPitchEnd   = [110, 135, 165, 200, 240, 290];
     for (let i = 0; i < tomPads.length; i++) {
@@ -947,7 +993,7 @@ function jazzBrushesKit() {
         pads[p].noiseLayerMix = 0.15; pads[p].noiseLayerCutoff = 0.40;
         pads[p].clickLayerMix = 0.40; pads[p].clickLayerContactMs = 0.38;
         pads[p].clickLayerBrightness = 0.45;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.50;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroBodySize = 0.45 + 0.03 * i;
         pads[p].macroPunch     = 0.35;
         pads[p].macroBrightness = 0.40;
@@ -962,8 +1008,19 @@ function jazzBrushesKit() {
     pads[13].level = 0.74;
     pads[13].fmRatio = 0.35; pads[13].feedbackAmount = 0.05;
     pads[13].modeScatter = 0.28; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    // Cymbals use NoiseBody whose modalMix is hardcoded at 0.6 in the
+    // mapper -- the modal layer dominates over its internal noise mix.
+    // With low b1 the dominant plate mode produces a pitched ring rather
+    // than cymbal hash. Bump b1 to 0.40 (b1 ≈ 20, t60 ≈ 0.34 s) plus
+    // strong b3 (HF rolloff) to mute the high modes that dominate the
+    // strike-position amplitude distribution.
+    pads[13].bodyDampingB3 = 0.30; pads[13].bodyDampingB1 = 0.40;
+    pads[13].modeScatter = 0.85;
     pads[13].noiseLayerMix = 0.30; pads[13].noiseLayerCutoff = 0.85;
+    // Force broadband (Q ≈ 0.3) so the LP filter doesn't peak near
+    // cutoff -- otherwise zero-crossing analysis still picks up a stable
+    // dominant freq at the resonance.
+    pads[13].noiseLayerResonance = 0.0;
     pads[13].noiseLayerColor = 0.75; pads[13].noiseLayerDecay = 0.75;
     pads[13].clickLayerMix = 0.45; pads[13].clickLayerContactMs = 0.10;
     pads[13].clickLayerBrightness = 0.85;
@@ -977,7 +1034,8 @@ function jazzBrushesKit() {
     pads[15].material = 0.92; pads[15].size = 0.32; pads[15].decay = 0.65;
     pads[15].level = 0.70;
     pads[15].modeScatter = 0.55; pads[15].airLoading = 0.0;
-    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.12;
+    pads[15].bodyDampingB3 = 0.30; pads[15].bodyDampingB1 = 0.40;
+    pads[15].modeScatter = 0.85;
     pads[15].noiseLayerMix = 0.55; pads[15].noiseLayerCutoff = 0.78;
     pads[15].noiseLayerColor = 0.62; pads[15].noiseLayerDecay = 0.60;
     pads[15].clickLayerMix = 0.20; pads[15].clickLayerBrightness = 0.70;
@@ -993,7 +1051,7 @@ function jazzBrushesKit() {
     pads[1].clickLayerBrightness = 0.75;
     pads[1].noiseLayerMix = 0.05;
     pads[1].airLoading = 0.10; pads[1].modeScatter = 0.20;
-    pads[1].bodyDampingB1 = 0.50; pads[1].bodyDampingB3 = 0.45;
+    pads[1].bodyDampingB1 = 0.50; pads[1].bodyDampingB3 = 0.10;
 
     disableUncraftedPads(pads, [
         0,                              // kick
@@ -1032,7 +1090,7 @@ function rockBigRoomKit() {
     pads[0].clickLayerMix       = 0.85; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.50;
     pads[0].noiseLayerMix = 0.08;
-    pads[0].bodyDampingB1 = 0.20; pads[0].bodyDampingB3 = 0.45;
+    pads[0].bodyDampingB1 = 0.32; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroTightness = 0.55; pads[0].macroBrightness = 0.40;
     pads[0].macroBodySize = 0.85;  pads[0].macroPunch = 0.85;
     pads[0].macroComplexity = 0.40;
@@ -1059,7 +1117,7 @@ function rockBigRoomKit() {
     pads[2].airLoading = 0.55; pads[2].modeScatter = 0.20;
     pads[2].couplingStrength = 0.45; pads[2].secondaryEnabled = 1.0;
     pads[2].secondarySize = 0.55; pads[2].secondaryMaterial = 0.50;
-    pads[2].bodyDampingB1 = 0.32; pads[2].bodyDampingB3 = 0.45;
+    pads[2].bodyDampingB1 = 0.42; pads[2].bodyDampingB3 = 0.10;
     pads[2].macroPunch = 0.85; pads[2].macroBrightness = 0.70;
     pads[2].macroComplexity = 0.50; pads[2].macroTightness = 0.65;
     pads[2].couplingAmount = 0.70;
@@ -1083,10 +1141,12 @@ function rockBigRoomKit() {
     pads[6].bodyModel = BodyModelType.NoiseBody;
     pads[6].material = 0.92; pads[6].size = 0.18; pads[6].decay = 0.12;
     pads[6].level = 0.78; pads[6].chokeGroup = 1;
-    pads[6].noiseLayerMix = 0.78; pads[6].noiseLayerCutoff = 0.90;
+    pads[6].noiseLayerMix = 0.85; pads[6].noiseLayerCutoff = 0.90;
     pads[6].noiseLayerColor = 0.85; pads[6].noiseLayerDecay = 0.10;
     pads[6].clickLayerMix = 0.22;
-    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.40;
+    // Scatter ≥ 0.65 breaks plate-mode harmonic clumping so the body
+    // doesn't expose a single dominant pitch under decay (cymbal-tone bug).
+    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.70;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.50;
 
     pads[8] = Object.assign({}, pads[6]);
@@ -1095,7 +1155,7 @@ function rockBigRoomKit() {
 
     pads[10] = Object.assign({}, pads[6]);
     pads[10].decay = 0.65; pads[10].noiseLayerDecay = 0.60;
-    pads[10].bodyDampingB1 = 0.16;
+    pads[10].bodyDampingB1 = 0.30;
 
     // Toms: deep, large, slow tension glide. Macro punch high.
     const tomPads      = [5, 7, 9, 11, 12, 14];
@@ -1104,7 +1164,9 @@ function rockBigRoomKit() {
     const tomDecay     = [0.65, 0.58, 0.50, 0.43, 0.36, 0.30];
     const tomPitchHi   = [180, 220, 270, 330, 400, 480];
     const tomPitchLo   = [70,  85, 105, 130, 165, 215];
-    const tomB1        = [0.14, 0.17, 0.20, 0.24, 0.28, 0.33];
+    // B1 floor 0.26 → ~0.5 s tail for the deepest tom; rock toms aren't
+    // supposed to sustain into the next bar.
+    const tomB1        = [0.26, 0.28, 0.30, 0.33, 0.36, 0.40];
     for (let i = 0; i < tomPads.length; i++) {
         const p = tomPads[i];
         pads[p].exciterType = ExciterType.Mallet;
@@ -1128,7 +1190,7 @@ function rockBigRoomKit() {
         pads[p].noiseLayerMix    = 0.18; pads[p].noiseLayerCutoff = 0.45;
         pads[p].clickLayerMix    = 0.55; pads[p].clickLayerContactMs = 0.30;
         pads[p].clickLayerBrightness = 0.55;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.50;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroPunch = 0.85; pads[p].macroBodySize = 0.55 + 0.05 * i;
         pads[p].couplingAmount = 0.70;
     }
@@ -1139,7 +1201,7 @@ function rockBigRoomKit() {
     pads[13].material = 0.95; pads[13].size = 0.45; pads[13].decay = 0.85;
     pads[13].level = 0.78;
     pads[13].modeScatter = 0.55; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.08;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.65; pads[13].noiseLayerCutoff = 0.92;
     pads[13].noiseLayerColor = 0.85; pads[13].noiseLayerDecay = 0.75;
     pads[13].clickLayerMix = 0.30; pads[13].clickLayerBrightness = 0.85;
@@ -1209,7 +1271,7 @@ function vintageWoodKit() {
     pads[0].clickLayerMix       = 0.62; pads[0].clickLayerContactMs = 0.25;
     pads[0].clickLayerBrightness = 0.40;
     pads[0].noiseLayerMix = 0.10;
-    pads[0].bodyDampingB1 = 0.25; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.34; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.70; pads[0].macroPunch = 0.65;
     pads[0].macroBrightness = 0.30; pads[0].macroComplexity = 0.45;
 
@@ -1233,7 +1295,7 @@ function vintageWoodKit() {
     pads[2].airLoading = 0.40; pads[2].modeScatter = 0.30;
     pads[2].couplingStrength = 0.55; pads[2].secondaryEnabled = 1.0;
     pads[2].secondarySize = 0.50; pads[2].secondaryMaterial = 0.32;  // wood
-    pads[2].bodyDampingB1 = 0.32; pads[2].bodyDampingB3 = 0.55;
+    pads[2].bodyDampingB1 = 0.44; pads[2].bodyDampingB3 = 0.10;
     pads[2].macroTightness = 0.70; pads[2].macroBrightness = 0.55;
     pads[2].macroComplexity = 0.55;
 
@@ -1246,7 +1308,7 @@ function vintageWoodKit() {
     pads[4].clickLayerBrightness = 0.78;
     pads[4].noiseLayerMix = 0.05;
     pads[4].airLoading = 0.0; pads[4].modeScatter = 0.55;
-    pads[4].bodyDampingB1 = 0.42; pads[4].bodyDampingB3 = 0.65;
+    pads[4].bodyDampingB1 = 0.42; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroComplexity = 0.30;
 
     // Hi-hats: short, dry, low color (vintage-darker hat).
@@ -1254,10 +1316,12 @@ function vintageWoodKit() {
     pads[6].bodyModel = BodyModelType.NoiseBody;
     pads[6].material = 0.85; pads[6].size = 0.13; pads[6].decay = 0.08;
     pads[6].level = 0.72; pads[6].chokeGroup = 1;
-    pads[6].noiseLayerMix = 0.72; pads[6].noiseLayerCutoff = 0.72;
+    pads[6].noiseLayerMix = 0.85; pads[6].noiseLayerCutoff = 0.72;
     pads[6].noiseLayerColor = 0.55; pads[6].noiseLayerDecay = 0.08;
     pads[6].clickLayerMix = 0.20;
-    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.32;
+    // Scatter ≥ 0.65 breaks plate-mode harmonic clumping so the body
+    // doesn't expose a single dominant pitch (cymbal-tone bug).
+    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.70;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.55;
     pads[6].macroBrightness = 0.40;
 
@@ -1266,14 +1330,15 @@ function vintageWoodKit() {
 
     pads[10] = Object.assign({}, pads[6]);
     pads[10].decay = 0.45; pads[10].noiseLayerDecay = 0.42;
-    pads[10].bodyDampingB1 = 0.25;
+    pads[10].bodyDampingB1 = 0.30;
 
     // Toms: smaller, woodier than the Big Room kit. Shells use wood material.
     const tomPads      = [5, 7, 9, 11, 12, 14];
     const tomSizes     = [0.72, 0.62, 0.55, 0.48, 0.42, 0.35];
     const tomMaterial  = [0.30, 0.32, 0.36, 0.42, 0.48, 0.55];
-    const tomDecay     = [0.50, 0.45, 0.40, 0.35, 0.30, 0.25];
-    const tomB1        = [0.20, 0.22, 0.25, 0.28, 0.32, 0.36];
+    const tomDecay     = [0.42, 0.38, 0.34, 0.30, 0.26, 0.22];
+    // B1 floor 0.30 keeps wood toms tight; t60 ~0.46 s for the lowest.
+    const tomB1        = [0.30, 0.32, 0.35, 0.38, 0.42, 0.46];
     const tomPitchHi   = [200, 240, 290, 340, 400, 480];
     const tomPitchLo   = [95, 115, 140, 170, 210, 260];
     for (let i = 0; i < tomPads.length; i++) {
@@ -1299,7 +1364,7 @@ function vintageWoodKit() {
         pads[p].noiseLayerMix    = 0.15; pads[p].noiseLayerCutoff = 0.42;
         pads[p].clickLayerMix    = 0.50; pads[p].clickLayerContactMs = 0.32;
         pads[p].clickLayerBrightness = 0.45;
-        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.60;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroBodySize = 0.45 + 0.04 * i;
         pads[p].macroBrightness = 0.35;
     }
@@ -1310,7 +1375,7 @@ function vintageWoodKit() {
     pads[13].material = 0.92; pads[13].size = 0.30; pads[13].decay = 0.65;
     pads[13].level = 0.72;
     pads[13].modeScatter = 0.55; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.65; pads[13].noiseLayerDecay = 0.60;
     pads[13].clickLayerMix = 0.18; pads[13].clickLayerBrightness = 0.65;
@@ -1325,7 +1390,7 @@ function vintageWoodKit() {
     pads[1].clickLayerBrightness = 0.80;
     pads[1].noiseLayerMix = 0.0;
     pads[1].airLoading = 0.0; pads[1].modeScatter = 0.18;
-    pads[1].bodyDampingB1 = 0.45; pads[1].bodyDampingB3 = 0.50;
+    pads[1].bodyDampingB1 = 0.45; pads[1].bodyDampingB3 = 0.10;
 
     pads[3] = Object.assign({}, pads[1]);
     pads[3].size = 0.30; pads[3].decay = 0.22;       // lower-pitched
@@ -1383,7 +1448,7 @@ function orchestralKit() {
     pads[0].clickLayerMix       = 0.32; pads[0].clickLayerContactMs = 0.28;
     pads[0].clickLayerBrightness = 0.30;
     pads[0].noiseLayerMix = 0.12;
-    pads[0].bodyDampingB1 = 0.10; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.95; pads[0].macroComplexity = 0.55;
     pads[0].couplingAmount = 0.85;
 
@@ -1403,7 +1468,7 @@ function orchestralKit() {
     pads[2].clickLayerMix       = 0.30; pads[2].clickLayerContactMs = 0.42;
     pads[2].clickLayerBrightness = 0.20;
     pads[2].noiseLayerMix = 0.08;
-    pads[2].bodyDampingB1 = 0.18; pads[2].bodyDampingB3 = 0.50;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.08;
     pads[2].couplingAmount = 0.85;
 
     // Snare drum (orchestral wires, taut)
@@ -1420,7 +1485,7 @@ function orchestralKit() {
     pads[4].airLoading = 0.50; pads[4].modeScatter = 0.25;
     pads[4].couplingStrength = 0.32; pads[4].secondaryEnabled = 1.0;
     pads[4].secondarySize = 0.55; pads[4].secondaryMaterial = 0.50;
-    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.45;
+    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroBrightness = 0.65; pads[4].macroComplexity = 0.55;
 
     // Timpani toms (5 timpani at 5,7,9,11,14): graded sizes + tension mod.
@@ -1452,7 +1517,7 @@ function orchestralKit() {
         pads[p].noiseLayerMix    = 0.12; pads[p].noiseLayerCutoff = 0.40;
         pads[p].clickLayerMix    = 0.32; pads[p].clickLayerContactMs = 0.28;
         pads[p].clickLayerBrightness = 0.32;
-        pads[p].bodyDampingB1 = timpaniB1[i]; pads[p].bodyDampingB3 = 0.50;
+        pads[p].bodyDampingB1 = timpaniB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroBodySize = 0.85 - 0.05 * i;
         pads[p].macroComplexity = 0.55;
         pads[p].couplingAmount = 0.80;
@@ -1469,7 +1534,7 @@ function orchestralKit() {
     pads[12].clickLayerBrightness = 0.95;
     pads[12].noiseLayerMix = 0.0;
     pads[12].airLoading = 0.0;
-    pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.06;
+    pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.30;
     pads[12].macroBrightness = 0.95; pads[12].macroComplexity = 0.30;
 
     // Hi-hats / suspended cymbal: pads 6 (closed), 8 (pedal), 10 (sus open
@@ -1498,7 +1563,7 @@ function orchestralKit() {
     pads[10].morphStart = 0.55; pads[10].morphEnd = 0.95;
     pads[10].morphDuration = 0.85; pads[10].morphCurve = 0.4;
     pads[10].modeScatter = 0.65; pads[10].airLoading = 0.0;
-    pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.06;
+    pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.30;
     pads[10].noiseLayerMix = 0.65; pads[10].noiseLayerCutoff = 0.82;
     pads[10].noiseLayerColor = 0.78; pads[10].noiseLayerDecay = 0.95;
     pads[10].clickLayerMix = 0.0;
@@ -1516,7 +1581,7 @@ function orchestralKit() {
     pads[13].morphStart = 0.85; pads[13].morphEnd = 0.55;
     pads[13].morphDuration = 0.85; pads[13].morphCurve = 0.5;
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.04;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].clickLayerMix = 0.30; pads[13].clickLayerContactMs = 0.22;
     pads[13].clickLayerBrightness = 0.30;
     pads[13].noiseLayerMix = 0.20; pads[13].noiseLayerCutoff = 0.55;
@@ -1536,7 +1601,7 @@ function orchestralKit() {
     pads[15].clickLayerMix = 0.40; pads[15].clickLayerBrightness = 0.85;
     pads[15].noiseLayerMix = 0.0;
     pads[15].airLoading = 0.0;
-    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.08;
+    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.30;
     pads[15].outputBus = 1;
     pads[15].macroBrightness = 0.85;
 
@@ -1554,7 +1619,7 @@ function orchestralKit() {
     pads[3].clickLayerBrightness = 0.65;
     pads[3].noiseLayerMix = 0.10;
     pads[3].airLoading = 0.0;
-    pads[3].bodyDampingB1 = 0.08; pads[3].bodyDampingB3 = 0.20;
+    pads[3].bodyDampingB1 = 0.30; pads[3].bodyDampingB3 = 0.20;
     pads[3].decaySkew = 0.55;
 
     return Object.assign(pads, {
@@ -1645,7 +1710,7 @@ function nineOhNineKit() {
 
     pads[10] = Object.assign({}, pads[6]);
     pads[10].decay = 0.42; pads[10].noiseLayerDecay = 0.40;
-    pads[10].bodyDampingB1 = 0.20;
+    pads[10].bodyDampingB1 = 0.30;
 
     // Toms: 909 toms have a fast pitch sweep + short body.
     const tomPads      = [5, 7, 9, 11, 12, 14];
@@ -1683,7 +1748,7 @@ function nineOhNineKit() {
     pads[13].material = 0.95; pads[13].size = 0.32; pads[13].decay = 0.55;
     pads[13].level = 0.72;
     pads[13].modeScatter = 0.50; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.65; pads[13].noiseLayerCutoff = 0.95;
     pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.55;
 
@@ -1778,7 +1843,7 @@ function linnDrumKit() {
 
     pads[10] = Object.assign({}, pads[6]);
     pads[10].decay = 0.40; pads[10].noiseLayerDecay = 0.38;
-    pads[10].bodyDampingB1 = 0.25;
+    pads[10].bodyDampingB1 = 0.30;
 
     // Toms: PCM-style, short, snappy.
     const tomPads = [5, 7, 9, 11, 12, 14];
@@ -1832,7 +1897,7 @@ function linnDrumKit() {
     pads[13].material = 0.92; pads[13].size = 0.30; pads[13].decay = 0.55;
     pads[13].level = 0.70;
     pads[13].modeScatter = 0.45; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.62; pads[13].noiseLayerDecay = 0.55;
 
@@ -1872,7 +1937,7 @@ function modularWestCoastKit() {
     pads[0].clickLayerBrightness = 0.55;
     pads[0].noiseLayerMix = 0.20;
     pads[0].nonlinearCoupling = 0.40;
-    pads[0].bodyDampingB1 = 0.20; pads[0].bodyDampingB3 = 0.30;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroComplexity = 0.85; pads[0].macroPunch = 0.65;
 
     // Snare: FM + Plate, lots of mode inject + nonlinear coupling.
@@ -1882,7 +1947,15 @@ function modularWestCoastKit() {
     pads[2].level = 0.78;
     pads[2].fmRatio = 0.55;
     pads[2].modeStretch = 0.55;
-    pads[2].modeInjectAmount = 0.55;
+    // ModeInject is an undamped HarmonicOscillatorBank with no envelope of
+    // its own. When the host doesn't send NoteOff (the typical pad-click
+    // case), the amp envelope sustains at 1.0 forever and ModeInject's
+    // sine tones ride on top of that as a constant DC of harmonic content
+    // -- audible as an infinite ring at the body's f0. Zero it across the
+    // board on all kits this generator emits; the feature is unsafe to
+    // expose in a percussion preset until the DSP grows a built-in
+    // release envelope.
+    pads[2].modeInjectAmount = 0.0;
     pads[2].nonlinearCoupling = 0.45;
     pads[2].morphEnabled = 1.0;
     pads[2].morphStart = 0.55; pads[2].morphEnd = 0.80;
@@ -1891,7 +1964,7 @@ function modularWestCoastKit() {
     pads[2].noiseLayerColor = 0.62; pads[2].noiseLayerDecay = 0.30;
     pads[2].clickLayerMix = 0.45; pads[2].clickLayerBrightness = 0.78;
     pads[2].airLoading = 0.0; pads[2].modeScatter = 0.45;
-    pads[2].bodyDampingB1 = 0.25; pads[2].bodyDampingB3 = 0.30;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.30;
 
     // Sub-bell perc (4): FM Bell with feedback.
     pads[4].exciterType = ExciterType.FMImpulse;
@@ -1904,7 +1977,7 @@ function modularWestCoastKit() {
     pads[4].clickLayerMix = 0.45; pads[4].clickLayerBrightness = 0.85;
     pads[4].noiseLayerMix = 0.10;
     pads[4].airLoading = 0.0;
-    pads[4].bodyDampingB3 = 0.0; pads[4].bodyDampingB1 = 0.15;
+    pads[4].bodyDampingB3 = 0.0; pads[4].bodyDampingB1 = 0.30;
     pads[4].decaySkew = 0.45;
 
     // Friction string drone (1): low pad-like sustained tone.
@@ -1921,7 +1994,7 @@ function modularWestCoastKit() {
     pads[1].decaySkew = 0.65;
     pads[1].noiseLayerMix = 0.20; pads[1].noiseLayerCutoff = 0.45;
     pads[1].clickLayerMix = 0.0;
-    pads[1].bodyDampingB1 = 0.10; pads[1].bodyDampingB3 = 0.20;
+    pads[1].bodyDampingB1 = 0.30; pads[1].bodyDampingB3 = 0.20;
     pads[1].outputBus = 1;
     pads[1].macroComplexity = 0.85;
 
@@ -1958,7 +2031,8 @@ function modularWestCoastKit() {
         pads[p].fmRatio = 0.30 + i * 0.08;
         pads[p].feedbackAmount = 0.20 + (i % 3) * 0.10;
         pads[p].modeStretch = 0.30 + i * 0.05;
-        pads[p].modeInjectAmount = 0.35;
+        // ModeInject is undamped without note-off; zero it.
+        pads[p].modeInjectAmount = 0.0;
         pads[p].nonlinearCoupling = 0.40;
         pads[p].decaySkew = 0.50;
         pads[p].tsPitchEnvStart = toLogNorm(280 + i * 60);
@@ -1971,7 +2045,7 @@ function modularWestCoastKit() {
         pads[p].tensionModAmt = 0.45;
         pads[p].noiseLayerMix = 0.18; pads[p].noiseLayerColor = 0.70;
         pads[p].clickLayerMix = 0.30; pads[p].clickLayerBrightness = 0.65;
-        pads[p].bodyDampingB1 = 0.18 + 0.03 * i; pads[p].bodyDampingB3 = 0.30;
+        pads[p].bodyDampingB1 = 0.30 + 0.03 * i; pads[p].bodyDampingB3 = 0.30;
         pads[p].macroComplexity = 0.75;
         pads[p].couplingAmount = 0.65;
     }
@@ -1986,7 +2060,7 @@ function modularWestCoastKit() {
     pads[13].modeScatter = 0.65;
     pads[13].nonlinearCoupling = 0.45;
     pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.40; pads[13].noiseLayerCutoff = 0.92;
     pads[13].noiseLayerColor = 0.85; pads[13].noiseLayerDecay = 0.72;
     pads[13].clickLayerMix = 0.35; pads[13].clickLayerBrightness = 0.85;
@@ -2034,7 +2108,7 @@ function trapModernKit() {
     pads[0].clickLayerBrightness = 0.32;
     pads[0].noiseLayerMix = 0.0;
     pads[0].decaySkew = 0.45;
-    pads[0].bodyDampingB1 = 0.10; pads[0].bodyDampingB3 = 0.30;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.95; pads[0].macroBodySize = 0.95;
 
     // Modern crispy snare: bright, layered, prominent click.
@@ -2098,7 +2172,7 @@ function trapModernKit() {
     pads[10].noiseLayerMix = 0.78; pads[10].noiseLayerCutoff = 0.92;
     pads[10].noiseLayerColor = 0.92; pads[10].noiseLayerDecay = 0.50;
     pads[10].modeScatter = 0.30;
-    pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.18;
+    pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.30;
 
     // Toms: snappy with quick tension mod, bright.
     const tomPads = [5, 9, 11, 12, 14];
@@ -2143,7 +2217,7 @@ function trapModernKit() {
     pads[13].material = 0.95; pads[13].size = 0.32; pads[13].decay = 0.72;
     pads[13].level = 0.72;
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.10;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.78; pads[13].noiseLayerCutoff = 0.95;
     pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.70;
 
@@ -2180,7 +2254,7 @@ function handDrumsKit() {
     pads[0].clickLayerMix = 0.50; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.55;
     pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerColor = 0.40;
-    pads[0].bodyDampingB1 = 0.22; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.55;
 
     // Conga hi (2): smaller, brighter, strike near edge.
@@ -2198,7 +2272,7 @@ function handDrumsKit() {
     pads[2].clickLayerMix = 0.55; pads[2].clickLayerContactMs = 0.16;
     pads[2].clickLayerBrightness = 0.65;
     pads[2].noiseLayerMix = 0.12; pads[2].noiseLayerColor = 0.45;
-    pads[2].bodyDampingB1 = 0.25; pads[2].bodyDampingB3 = 0.55;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
 
     // Conga slap (4): edge strike with bright click, short decay.
     pads[4].exciterType = ExciterType.Impulse;
@@ -2211,7 +2285,7 @@ function handDrumsKit() {
     pads[4].clickLayerMix = 0.85; pads[4].clickLayerContactMs = 0.10;
     pads[4].clickLayerBrightness = 0.85;
     pads[4].noiseLayerMix = 0.15;
-    pads[4].bodyDampingB1 = 0.45; pads[4].bodyDampingB3 = 0.50;
+    pads[4].bodyDampingB1 = 0.45; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroPunch = 0.85;
 
     // Bongo hi (6) / lo (8) -- smaller membranes.
@@ -2229,7 +2303,7 @@ function handDrumsKit() {
     pads[6].clickLayerMix = 0.55; pads[6].clickLayerContactMs = 0.15;
     pads[6].clickLayerBrightness = 0.72;
     pads[6].noiseLayerMix = 0.10;
-    pads[6].bodyDampingB1 = 0.28; pads[6].bodyDampingB3 = 0.55;
+    pads[6].bodyDampingB1 = 0.30; pads[6].bodyDampingB3 = 0.10;
 
     pads[8] = Object.assign({}, pads[6]);
     pads[8].size = 0.40; pads[8].decay = 0.32;
@@ -2251,7 +2325,7 @@ function handDrumsKit() {
     pads[10].clickLayerMix = 0.40; pads[10].clickLayerContactMs = 0.22;
     pads[10].clickLayerBrightness = 0.40;
     pads[10].noiseLayerMix = 0.18; pads[10].noiseLayerColor = 0.45;
-    pads[10].bodyDampingB1 = 0.18; pads[10].bodyDampingB3 = 0.55;
+    pads[10].bodyDampingB1 = 0.30; pads[10].bodyDampingB3 = 0.10;
     pads[10].macroBodySize = 0.85;
 
     // Djembe slap (12)
@@ -2274,7 +2348,7 @@ function handDrumsKit() {
     pads[5].clickLayerMix = 0.55; pads[5].clickLayerContactMs = 0.20;
     pads[5].clickLayerBrightness = 0.40;
     pads[5].noiseLayerMix = 0.12; pads[5].noiseLayerColor = 0.40;
-    pads[5].bodyDampingB1 = 0.25; pads[5].bodyDampingB3 = 0.55;
+    pads[5].bodyDampingB1 = 0.30; pads[5].bodyDampingB3 = 0.10;
     pads[5].tsPitchEnvStart = toLogNorm(180);
     pads[5].tsPitchEnvEnd   = toLogNorm(95);
     pads[5].tsPitchEnvTime  = 0.05;
@@ -2295,7 +2369,7 @@ function handDrumsKit() {
     pads[11].clickLayerMix = 0.32; pads[11].clickLayerContactMs = 0.30;
     pads[11].clickLayerBrightness = 0.30;
     pads[11].noiseLayerMix = 0.20; pads[11].noiseLayerColor = 0.40;
-    pads[11].bodyDampingB1 = 0.20; pads[11].bodyDampingB3 = 0.50;
+    pads[11].bodyDampingB1 = 0.30; pads[11].bodyDampingB3 = 0.10;
     pads[11].decaySkew = 0.45;
 
     // Hand shaker (3): NoiseBody short.
@@ -2320,7 +2394,7 @@ function handDrumsKit() {
     pads[9].clickLayerContactMs = 0.10;
     pads[9].noiseLayerMix = 0.0;
     pads[9].airLoading = 0.0;
-    pads[9].bodyDampingB1 = 0.45; pads[9].bodyDampingB3 = 0.55;
+    pads[9].bodyDampingB1 = 0.45; pads[9].bodyDampingB3 = 0.10;
 
     return Object.assign(pads, {
         __opts: {
@@ -2411,7 +2485,7 @@ function latinPercKit() {
     pads[12].clickLayerMix = 0.65; pads[12].clickLayerContactMs = 0.12;
     pads[12].clickLayerBrightness = 0.78;
     pads[12].noiseLayerMix = 0.30; pads[12].noiseLayerColor = 0.65;
-    pads[12].bodyDampingB1 = 0.32; pads[12].bodyDampingB3 = 0.40;
+    pads[12].bodyDampingB1 = 0.32; pads[12].bodyDampingB3 = 0.10;
 
     // Timbale lo (14)
     pads[14] = Object.assign({}, pads[12]);
@@ -2470,7 +2544,7 @@ function latinPercKit() {
     pads[7].clickLayerContactMs = 0.06;
     pads[7].noiseLayerMix = 0.0;
     pads[7].airLoading = 0.0;
-    pads[7].bodyDampingB3 = 0.0; pads[7].bodyDampingB1 = 0.06;
+    pads[7].bodyDampingB3 = 0.0; pads[7].bodyDampingB1 = 0.30;
 
     // Guiro (9): Friction NoiseBody.
     pads[9].exciterType = ExciterType.Friction;
@@ -2507,7 +2581,7 @@ function latinPercKit() {
     pads[13].airLoading = 0.30;
     pads[13].clickLayerMix = 0.65; pads[13].clickLayerBrightness = 0.65;
     pads[13].noiseLayerMix = 0.10;
-    pads[13].bodyDampingB1 = 0.32; pads[13].bodyDampingB3 = 0.50;
+    pads[13].bodyDampingB1 = 0.32; pads[13].bodyDampingB3 = 0.10;
 
     return Object.assign(pads, {
         __opts: {
@@ -2545,7 +2619,7 @@ function tablaKit() {
     pads[0].clickLayerMix = 0.45; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.45;
     pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerColor = 0.42;
-    pads[0].bodyDampingB1 = 0.18; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.05;
     pads[0].decaySkew = 0.55;
     pads[0].macroComplexity = 0.70;
 
@@ -2571,7 +2645,7 @@ function tablaKit() {
     pads[2].clickLayerBrightness = 0.75;
     pads[2].noiseLayerMix = 0.08;
     pads[2].decaySkew = 0.60;
-    pads[2].bodyDampingB1 = 0.18; pads[2].bodyDampingB3 = 0.50;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.05;
     pads[2].nonlinearCoupling = 0.20;
 
     // Tin (right edge tap) -- pad 3
@@ -2592,18 +2666,19 @@ function tablaKit() {
     pads[4].clickLayerMix = 0.40; pads[4].clickLayerContactMs = 0.30;
     pads[4].clickLayerBrightness = 0.45;
     pads[4].noiseLayerMix = 0.15;
-    pads[4].bodyDampingB1 = 0.20; pads[4].bodyDampingB3 = 0.50;
+    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.05;
     pads[4].decaySkew = 0.50;
 
     // Na (rim ring) -- pad 5: morph layer for damped→ringing transition.
     pads[5].exciterType = ExciterType.Impulse;
     pads[5].bodyModel = BodyModelType.Membrane;
-    pads[5].material = 0.55; pads[5].size = 0.42; pads[5].decay = 0.65;
+    pads[5].material = 0.55; pads[5].size = 0.42; pads[5].decay = 0.45;
     pads[5].level = 0.78; pads[5].strikePosition = 0.18;
     pads[5].morphEnabled = 1.0;
     pads[5].morphStart = 0.45; pads[5].morphEnd = 0.65;
     pads[5].morphDuration = 0.40; pads[5].morphCurve = 0.4;
-    pads[5].airLoading = 0.38; pads[5].modeScatter = 0.08;
+    pads[5].airLoading = 0.38; pads[5].modeScatter = 0.45;
+    pads[5].decaySkew = 0.50;  // override the 0.65 below — high decaySkew + low b3 produces pitched survival
     pads[5].couplingStrength = 0.38; pads[5].secondaryEnabled = 1.0;
     pads[5].secondarySize = 0.32; pads[5].secondaryMaterial = 0.50;
     pads[5].tensionModAmt = 0.18;
@@ -2612,7 +2687,7 @@ function tablaKit() {
     pads[5].noiseLayerMix = 0.05;
     pads[5].decaySkew = 0.65;
     pads[5].nonlinearCoupling = 0.32;
-    pads[5].bodyDampingB1 = 0.16; pads[5].bodyDampingB3 = 0.48;
+    pads[5].bodyDampingB1 = 0.30; pads[5].bodyDampingB3 = 0.05;
 
     // Ge (bayan ring with high tension) -- pad 6
     pads[6] = Object.assign({}, pads[0]);
@@ -2642,7 +2717,7 @@ function tablaKit() {
     pads[9].decaySkew = 0.85;
     pads[9].noiseLayerMix = 0.18; pads[9].noiseLayerCutoff = 0.45;
     pads[9].clickLayerMix = 0.0;
-    pads[9].bodyDampingB1 = 0.06; pads[9].bodyDampingB3 = 0.18;
+    pads[9].bodyDampingB1 = 0.30; pads[9].bodyDampingB3 = 0.18;
     pads[9].outputBus = 1;
     pads[9].macroComplexity = 0.85;
 
@@ -2687,7 +2762,7 @@ function worldMetalKit() {
         pads[p].clickLayerBrightness = 0.65;
         pads[p].noiseLayerMix = 0.08;
         pads[p].airLoading = 0.0;
-        pads[p].bodyDampingB3 = 0.0; pads[p].bodyDampingB1 = 0.18;
+        pads[p].bodyDampingB3 = 0.0; pads[p].bodyDampingB1 = 0.30;
         pads[p].decaySkew = 0.55;
         pads[p].macroBrightness = 0.60 + i * 0.03;
     }
@@ -2708,7 +2783,7 @@ function worldMetalKit() {
         pads[p].clickLayerBrightness = 0.70;
         pads[p].noiseLayerMix = 0.12;
         pads[p].airLoading = 0.0;
-        pads[p].bodyDampingB1 = 0.10; pads[p].bodyDampingB3 = 0.22;
+        pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.22;
         pads[p].decaySkew = 0.60;
     }
 
@@ -2727,7 +2802,7 @@ function worldMetalKit() {
     pads[12].noiseLayerMix = 0.42; pads[12].noiseLayerCutoff = 0.92;
     pads[12].noiseLayerColor = 0.85; pads[12].noiseLayerDecay = 0.85;
     pads[12].airLoading = 0.0;
-    pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.06;
+    pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.30;
     pads[12].decaySkew = 0.78;
 
     // Crotales hi (13) / lo (14): pitched bells.
@@ -2739,7 +2814,7 @@ function worldMetalKit() {
     pads[13].clickLayerMix = 0.45; pads[13].clickLayerBrightness = 0.92;
     pads[13].noiseLayerMix = 0.0;
     pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.06;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].decaySkew = 0.55;
 
     pads[14] = Object.assign({}, pads[13]);
@@ -2761,7 +2836,7 @@ function worldMetalKit() {
     pads[15].noiseLayerMix = 0.10; pads[15].noiseLayerColor = 0.45;
     pads[15].clickLayerMix = 0.0;
     pads[15].airLoading = 0.0;
-    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.06;
+    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.30;
     pads[15].outputBus = 1;
     pads[15].macroComplexity = 0.85;
 
@@ -2775,7 +2850,7 @@ function worldMetalKit() {
     pads[16].clickLayerContactMs = 0.10;
     pads[16].noiseLayerMix = 0.0;
     pads[16].airLoading = 0.0;
-    pads[16].bodyDampingB1 = 0.42; pads[16].bodyDampingB3 = 0.55;
+    pads[16].bodyDampingB1 = 0.42; pads[16].bodyDampingB3 = 0.10;
 
     pads[17] = Object.assign({}, pads[16]);
     pads[17].size = 0.28; pads[17].material = 0.28; pads[17].decay = 0.22;
@@ -2789,7 +2864,7 @@ function worldMetalKit() {
     pads[18].clickLayerMix = 0.50; pads[18].clickLayerBrightness = 0.95;
     pads[18].noiseLayerMix = 0.0;
     pads[18].airLoading = 0.0;
-    pads[18].bodyDampingB3 = 0.0; pads[18].bodyDampingB1 = 0.04;
+    pads[18].bodyDampingB3 = 0.0; pads[18].bodyDampingB1 = 0.30;
     pads[18].decaySkew = 0.65;
 
     pads[19].exciterType = ExciterType.Mallet;
@@ -2801,7 +2876,7 @@ function worldMetalKit() {
     pads[19].clickLayerMix = 0.30; pads[19].clickLayerBrightness = 0.65;
     pads[19].noiseLayerMix = 0.05;
     pads[19].airLoading = 0.0;
-    pads[19].bodyDampingB3 = 0.0; pads[19].bodyDampingB1 = 0.06;
+    pads[19].bodyDampingB3 = 0.0; pads[19].bodyDampingB1 = 0.30;
     pads[19].decaySkew = 0.78;
     pads[19].tensionModAmt = 0.18;
 
@@ -2846,7 +2921,7 @@ function cajonFramesKit() {
     pads[0].clickLayerMix = 0.55; pads[0].clickLayerContactMs = 0.20;
     pads[0].clickLayerBrightness = 0.45;
     pads[0].noiseLayerMix = 0.12; pads[0].noiseLayerColor = 0.45;
-    pads[0].bodyDampingB1 = 0.22; pads[0].bodyDampingB3 = 0.55;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.78;
 
     // Cajón slap (2): edge, brighter, snappier.
@@ -2872,7 +2947,7 @@ function cajonFramesKit() {
     pads[4].airLoading = 0.30; pads[4].modeScatter = 0.30;
     pads[4].couplingStrength = 0.40; pads[4].secondaryEnabled = 1.0;
     pads[4].secondarySize = 0.40; pads[4].secondaryMaterial = 0.30;
-    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.50;
+    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.10;
 
     // Frame drum tap (6): large, hand-soft.
     pads[6].exciterType = ExciterType.Mallet;
@@ -2886,7 +2961,7 @@ function cajonFramesKit() {
     pads[6].clickLayerMix = 0.40; pads[6].clickLayerContactMs = 0.30;
     pads[6].clickLayerBrightness = 0.40;
     pads[6].noiseLayerMix = 0.18; pads[6].noiseLayerColor = 0.40;
-    pads[6].bodyDampingB1 = 0.18; pads[6].bodyDampingB3 = 0.50;
+    pads[6].bodyDampingB1 = 0.30; pads[6].bodyDampingB3 = 0.10;
 
     // Frame drum slap (8) -- edge.
     pads[8] = Object.assign({}, pads[6]);
@@ -2905,7 +2980,7 @@ function cajonFramesKit() {
     pads[10].clickLayerMix = 0.65; pads[10].clickLayerContactMs = 0.18;
     pads[10].clickLayerBrightness = 0.62;
     pads[10].noiseLayerMix = 0.18;
-    pads[10].bodyDampingB1 = 0.22; pads[10].bodyDampingB3 = 0.50;
+    pads[10].bodyDampingB1 = 0.30; pads[10].bodyDampingB3 = 0.10;
 
     // Dholak hi (12) / lo (14)
     pads[12].exciterType = ExciterType.Impulse;
@@ -2921,7 +2996,7 @@ function cajonFramesKit() {
     pads[12].tensionModAmt = 0.30;
     pads[12].clickLayerMix = 0.55; pads[12].clickLayerBrightness = 0.65;
     pads[12].noiseLayerMix = 0.15; pads[12].noiseLayerColor = 0.50;
-    pads[12].bodyDampingB1 = 0.20; pads[12].bodyDampingB3 = 0.55;
+    pads[12].bodyDampingB1 = 0.30; pads[12].bodyDampingB3 = 0.10;
     pads[12].decaySkew = 0.50;
 
     pads[14] = Object.assign({}, pads[12]);
@@ -2942,7 +3017,7 @@ function cajonFramesKit() {
     pads[5].clickLayerContactMs = 0.12;
     pads[5].noiseLayerMix = 0.45; pads[5].noiseLayerCutoff = 0.85;
     pads[5].noiseLayerColor = 0.85; pads[5].noiseLayerDecay = 0.20;
-    pads[5].bodyDampingB1 = 0.32; pads[5].bodyDampingB3 = 0.50;
+    pads[5].bodyDampingB1 = 0.32; pads[5].bodyDampingB3 = 0.10;
     pads[5].macroComplexity = 0.78;
 
     // Pandeiro shake (7) -- jingle-led.
@@ -2965,7 +3040,7 @@ function cajonFramesKit() {
     pads[9].airLoading = 0.40;
     pads[9].clickLayerMix = 0.55; pads[9].clickLayerBrightness = 0.62;
     pads[9].noiseLayerMix = 0.10;
-    pads[9].bodyDampingB1 = 0.32; pads[9].bodyDampingB3 = 0.50;
+    pads[9].bodyDampingB1 = 0.32; pads[9].bodyDampingB3 = 0.10;
 
     pads[11] = Object.assign({}, pads[9]);
     pads[11].size = 0.42; pads[11].decay = 0.38; pads[11].material = 0.45;
@@ -3009,7 +3084,7 @@ function glassBellGardenKit() {
         pads[p].feedbackAmount = useFriction ? 0.0 : (i % 5) * 0.08;
         pads[p].frictionPressure = useFriction ? 0.30 + (i % 4) * 0.10 : 0.0;
         pads[p].modeStretch = 0.30 + (i % 7) * 0.06;
-        pads[p].modeInjectAmount = (i % 3) * 0.12;
+        pads[p].modeInjectAmount = 0.0;     // undamped, no note-off → infinite ring
         pads[p].nonlinearCoupling = (i % 4) * 0.10;
         pads[p].decaySkew = 0.55 + (i % 4) * 0.08;
         pads[p].morphEnabled = (i % 5 === 0) ? 1.0 : 0.0;
@@ -3034,7 +3109,7 @@ function glassBellGardenKit() {
         pads[p].clickLayerContactMs = 0.10 + (i % 3) * 0.06;
         pads[p].clickLayerBrightness = 0.65 + (i % 4) * 0.08;
         pads[p].bodyDampingB3 = 0.0;
-        pads[p].bodyDampingB1 = 0.06 + (i % 7) * 0.04;
+        pads[p].bodyDampingB1 = 0.30 + (i % 7) * 0.04;
         pads[p].outputBus = (i % 8 === 7) ? 1 : 0;
         pads[p].macroBrightness = 0.55 + (i / 15) * 0.40;
         pads[p].macroComplexity = 0.55 + (i % 5) * 0.06;
@@ -3080,7 +3155,7 @@ function droneSustainKit() {
         pads[p].level    = 0.62;
         pads[p].frictionPressure = 0.35 + (i % 3) * 0.12;
         pads[p].modeStretch = 0.30 + (i % 6) * 0.06;
-        pads[p].modeInjectAmount = 0.20 + (i % 4) * 0.10;
+        pads[p].modeInjectAmount = 0.0;     // undamped, no note-off → infinite ring
         pads[p].nonlinearCoupling = 0.40 + (i % 4) * 0.10;
         pads[p].decaySkew = 0.85;
         pads[p].morphEnabled = (i % 3 === 0) ? 1.0 : 0.0;
@@ -3106,7 +3181,7 @@ function droneSustainKit() {
         pads[p].noiseLayerColor  = 0.40;
         pads[p].noiseLayerDecay  = 0.85;
         pads[p].clickLayerMix    = 0.0;
-        pads[p].bodyDampingB1 = 0.05 + (i % 6) * 0.02;
+        pads[p].bodyDampingB1 = 0.30 + (i % 6) * 0.02;
         pads[p].bodyDampingB3 = 0.18 + (i % 4) * 0.05;
         pads[p].outputBus = i % 2;
         pads[p].macroComplexity = 0.78;
@@ -3124,7 +3199,7 @@ function droneSustainKit() {
         pads[p].level    = 0.62;
         pads[p].feedbackAmount = 0.40 + (i % 4) * 0.10;
         pads[p].modeStretch = 0.25 + (i % 5) * 0.08;
-        pads[p].modeInjectAmount = 0.30;
+        pads[p].modeInjectAmount = 0.0;     // undamped, no note-off → infinite ring
         pads[p].nonlinearCoupling = 0.55;
         pads[p].decaySkew = 0.78;
         pads[p].tsFilterType = FilterType.BP;
@@ -3138,7 +3213,7 @@ function droneSustainKit() {
         pads[p].noiseLayerMix = 0.30; pads[p].noiseLayerCutoff = 0.55;
         pads[p].noiseLayerColor = 0.55; pads[p].noiseLayerDecay = 0.85;
         pads[p].clickLayerMix = 0.0;
-        pads[p].bodyDampingB1 = 0.05; pads[p].bodyDampingB3 = 0.20;
+        pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.20;
         pads[p].outputBus = 1;
         pads[p].couplingAmount = 0.85;
     }
@@ -3186,7 +3261,7 @@ function chaosEngineKit() {
         pads[p].feedbackAmount   = 0.40 + (i % 4) * 0.12;
         pads[p].frictionPressure = 0.30 + (i % 3) * 0.15;
         pads[p].modeStretch      = 0.40 + (i % 5) * 0.12;
-        pads[p].modeInjectAmount = 0.55 + (i % 4) * 0.10;     // MAXED
+        pads[p].modeInjectAmount = 0.0;     // undamped, no note-off → infinite ring
         pads[p].nonlinearCoupling = 0.65 + (i % 3) * 0.10;    // MAXED
         pads[p].decaySkew        = 0.40 + (i % 5) * 0.12;
         pads[p].morphEnabled = (i % 2 === 0) ? 1.0 : 0.0;
@@ -3220,7 +3295,7 @@ function chaosEngineKit() {
         pads[p].clickLayerMix     = 0.20 + (i % 5) * 0.10;
         pads[p].clickLayerContactMs = 0.10 + (i % 4) * 0.10;
         pads[p].clickLayerBrightness = 0.40 + (i % 5) * 0.12;
-        pads[p].bodyDampingB1 = 0.10 + (i % 6) * 0.05;
+        pads[p].bodyDampingB1 = 0.30 + (i % 6) * 0.05;
         pads[p].bodyDampingB3 = (pads[p].bodyModel === BodyModelType.Bell) ? 0.0
                               : 0.20 + (i % 4) * 0.10;
         pads[p].chokeGroup    = (i < 4) ? 0 : ((i % 2) + 1);   // pairs into chokes
@@ -3281,7 +3356,7 @@ function ghostBonesKit() {
         pads[p].fmRatio  = 0.30 + (i * 0.05) % 0.50;
         pads[p].frictionPressure = useFriction ? 0.30 : 0.0;
         pads[p].modeStretch      = 0.65 + (i % 4) * 0.08;     // VERY inharmonic
-        pads[p].modeInjectAmount = 0.30 + (i % 4) * 0.10;
+        pads[p].modeInjectAmount = 0.0;     // undamped, no note-off → infinite ring
         pads[p].nonlinearCoupling = 0.20 + (i % 4) * 0.08;
         pads[p].decaySkew        = 0.78 + (i % 3) * 0.06;     // sustain-dominant
         pads[p].morphEnabled = (i % 3 !== 0) ? 1.0 : 0.0;
@@ -3309,7 +3384,7 @@ function ghostBonesKit() {
         pads[p].noiseLayerDecay  = 0.85;
         pads[p].clickLayerMix    = 0.10 + (i % 4) * 0.08;
         pads[p].clickLayerBrightness = 0.55 + (i % 4) * 0.08;
-        pads[p].bodyDampingB1 = 0.05 + (i % 5) * 0.02;
+        pads[p].bodyDampingB1 = 0.30 + (i % 5) * 0.02;
         pads[p].bodyDampingB3 = (pads[p].bodyModel === BodyModelType.Bell) ? 0.0
                               : 0.18;
         pads[p].outputBus = (i % 4 === 3) ? 1 : 0;

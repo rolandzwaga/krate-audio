@@ -5,6 +5,86 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-26
+
+### Added
+
+- **Master output gain** (right column, top of the Selected-Pad column).
+  RangeParameter `[-24..+12] dB`, default **-6 dB**, applied to the main
+  stereo bus only (aux buses are pre-master). Out-of-the-box hits now
+  peak at -10 dBFS for kicks / -9 dBFS for toms instead of the old
+  -4..-3 dBFS, leaving 6 dB of headroom for layering and bus
+  processing. State persists in the kit blob (`v13`+).
+- **Per-knob value displays in the Master and Coupling sections** --
+  `CParamDisplay` cells under each knob render formatted strings
+  (`-6.0 dB`, `37 %`, `1.00 ms`) using a new
+  `formatLinearDb(min, max)` formatter and explicit `formatPercent` /
+  `formatLinearMs` cases for the four coupling globals + master gain.
+  Coupling section grew 92 -> 106 px to fit the readouts; Meter and
+  Matrix sections shifted down by 14 px.
+- **Coupling-knob registration with proper ranges + units** --
+  Global / Snare / Tom Resonance now register as `[0, 100] %` with
+  precision 0; Coupling Delay registers as `[0.5, 2.0] ms` with
+  precision 2; Master Gain registers with precision 1. ArcKnob popups
+  and the new `CParamDisplay` readouts both pick up the formatted
+  strings via `getParamStringByValue`.
+- **Output-level measurement test (`[.measure]` tag)** --
+  `test_output_level_measure.cpp` renders 2 s of every default-kit
+  pad-type at vel=1.0 and vel=0.5 and prints peak / RMS dBFS per pad.
+  Excluded from the default test run; useful as a baseline for
+  level-balancing work.
+
+### Changed
+
+- **State blob bumped to v14**. v13 added a `float64` master-gain slot
+  at the end (after macros). v14 drops the Tier 2 coupling-matrix
+  override block (`uint16` count + `[uint8 src, uint8 dst, float32
+  coeff]` entries) since the Matrix UI was removed -- nothing
+  produces overrides anymore. Legacy v6..v13 readers parse-and-discard
+  the override bytes so older blobs still load. Net blob delta vs
+  v0.8.0: `+8` (master gain) `-2` (override count) = `+6` bytes.
+
+### Removed
+
+- **32x32 Coupling Matrix UI and the Tier 2 override layer** -- the
+  per-cell painting tool was effectively unused (no factory preset
+  populated it, the cells were too small to paint by hand, and the
+  audible payoff per cell was tiny because each coefficient capped at
+  0.05). Stripped:
+  - `editor.uidesc`: the Matrix fieldset, the 32x32
+    `CouplingMatrixView`, and the Solo / Reset buttons.
+  - Source files: `src/ui/coupling_matrix_view.{h,cpp}` and
+    `src/dsp/matrix_activity_publisher.h` deleted entirely.
+  - Controller: the `uiCouplingMatrix_` mirror, the
+    `sendCouplingMatrixEdit` / `requestCouplingMatrixSnapshot` IMessage
+    bridge, the `CouplingMatrixSnapshot` reception path, and the three
+    custom-view registrations (`CouplingMatrixView`, `MatrixSoloButton`,
+    `MatrixResetButton`).
+  - Processor: the `MatrixActivityPublisher` member + per-block
+    publish loop, and the `CouplingMatrixEdit` /
+    `CouplingMatrixSnapshotRequest` `notify()` handlers.
+  - `CouplingMatrix` class: the `setOverride` / `clearOverride` /
+    `clearAllOverrides` API, the `hasOverride_` / `overrideGain_`
+    storage, the `getOverrideCount` / `forEachOverride` /
+    `hasOverrideAt` / `getOverrideGain` accessors, and the `Solo`
+    state (`setSoloPath` / `clearSolo` / `hasSolo` / `soloSrc` /
+    `soloDst` + the lock-free `std::atomic<int>` pair). The class is
+    now a pure single-tier resolver: globals + categories + per-pad
+    amounts -> `effectiveGain[][]`.
+  - State codec: `KitSnapshot::overrides` field and the
+    `TierTwoOverride` struct.
+  - Tests: `test_matrix_activity_publisher.cpp` and
+    `test_coupling_matrix_view.cpp` deleted; the override-related
+    `TEST_CASE`s in `test_coupling_matrix.cpp`,
+    `test_coupling_state.cpp`, `test_state_codec.cpp`, and
+    `test_kit_switch_infinite_ring.cpp` removed; size assertions in
+    `test_state_v6_migration.cpp` / `test_ui_mode_session_scope.cpp`
+    updated for the 2-byte savings.
+
+  The Tier 1 coupling section (Global / Snare Buzz / Tom Resonance /
+  Coupling Delay) is unchanged -- those were always doing the useful
+  work via pad-category dispatch (kick->snare, tom->tom).
+
 ## [0.8.0] - 2026-04-26
 
 ### Fixed

@@ -113,6 +113,9 @@
          the control-tag definition is here so the parameter-reachability
          test sees the global proxy and the per-pad IDs as reachable. -->
     <control-tag name="PadEnabled" tag="309"/>
+    <!-- Phase 9: global master output gain (global 320). RangeParameter
+         [-24..+12] dB, default -6 dB. -->
+    <control-tag name="MasterGain" tag="320"/>
   </control-tags>
   <bitmaps/>
   <template name="SelectedPadSimple" class="CViewContainer" background-color="bg-primary" background-color-draw-style="filled" origin="0, 0" size="400, 800" transparent="false" mouse-enabled="true">
@@ -342,17 +345,26 @@
         <!-- Right column reflowed with one fieldset per section. The first
              fieldset starts at y=28 to align with the middle column's first
              container (Macros in the Simple view), removing the previous
-             64 px of empty space at the top of the column. -->
+             64 px of empty space at the top of the column. Phase 9 adds a
+             Master section at the top (76 px) and reclaims the empty space
+             from the kit/pad browser headers (-32 + -36 = -68 px) so the
+             sections below (Voices..Matrix) keep their original Y positions. -->
 
-        <!-- Kit Browser -->
-        <view class="FieldsetContainer" origin="4, 28" size="232, 138" transparent="true"
+        <!-- Master (Phase 9) -->
+        <view class="FieldsetContainer" origin="4, 28" size="232, 76" transparent="true"
+              fieldset-title="Master" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
+        <view class="ArcKnob" control-tag="MasterGain" origin="92, 42" size="56, 56" arc-color="accent" arc-width="2.5"/>
+        <view class="CParamDisplay" control-tag="MasterGain" origin="156, 60" size="68, 20" font="label-font" font-color="text-primary" back-color="bg-panel" frame-color="bg-panel" transparent="false" style-3D-in="false" style-3D-out="false"/>
+
+        <!-- Kit Browser (shrunk: was h=138 with view h=110; now h=104, view h=78) -->
+        <view class="FieldsetContainer" origin="4, 108" size="232, 104" transparent="true"
               fieldset-title="Kit Browser" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="CView" custom-view-name="KitBrowserView" origin="8, 50" size="224, 110" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CView" custom-view-name="KitBrowserView" origin="8, 130" size="224, 78" background-color="bg-panel" background-color-draw-style="filled"/>
 
-        <!-- Pad Browser -->
-        <view class="FieldsetContainer" origin="4, 170" size="232, 124" transparent="true"
+        <!-- Pad Browser (shrunk: was h=124 with view h=96; now h=88, view h=62) -->
+        <view class="FieldsetContainer" origin="4, 216" size="232, 78" transparent="true"
               fieldset-title="Pad Browser" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="CView" custom-view-name="PadBrowserView" origin="8, 192" size="224, 96" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CView" custom-view-name="PadBrowserView" origin="8, 238" size="224, 52" background-color="bg-panel" background-color-draw-style="filled"/>
 
         <!-- Voices -->
         <view class="FieldsetContainer" origin="4, 298" size="232, 120" transparent="true"
@@ -362,34 +374,30 @@
         <view class="COptionMenu" control-tag="VoiceStealing" origin="96, 362" size="136, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false" tooltip="Voice stealing policy. Oldest: drop the longest-running voice. Quietest: drop the lowest-amplitude voice. Priority: drop the lowest-priority pad first."/>
         <view class="CTextLabel" title="ActiveVoices: -" origin="8, 392" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
 
-        <!-- Coupling -->
-        <view class="FieldsetContainer" origin="4, 422" size="232, 92" transparent="true"
+        <!-- Coupling (h grew 92 -> 106 to fit the per-knob value displays) -->
+        <view class="FieldsetContainer" origin="4, 422" size="232, 106" transparent="true"
               fieldset-title="Coupling" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="ArcKnob" control-tag="GlobalCoupling" origin="8, 444" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Global" origin="8, 492" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="SnareBuzz" origin="64, 444" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Snare" origin="64, 492" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="TomResonance" origin="120, 444" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Tom" origin="120, 492" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
-        <view class="ArcKnob" control-tag="CouplingDelay" origin="176, 444" size="48, 48" arc-color="accent" arc-width="2.5"/>
-        <view class="CTextLabel" title="Delay" origin="176, 492" size="48, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="ArcKnob"       control-tag="GlobalCoupling" origin="8, 444"   size="48, 44" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel"    title="Global"               origin="8, 488"   size="48, 12" font="label-font" font-color="text-primary"   transparent="true" horizontal-alignment="center"/>
+        <view class="CParamDisplay" control-tag="GlobalCoupling" origin="8, 502"   size="48, 16" font="label-font" font-color="text-primary"   back-color="bg-panel" frame-color="bg-panel" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ArcKnob"       control-tag="SnareBuzz"      origin="64, 444"  size="48, 44" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel"    title="Snare"                origin="64, 488"  size="48, 12" font="label-font" font-color="text-primary"   transparent="true" horizontal-alignment="center"/>
+        <view class="CParamDisplay" control-tag="SnareBuzz"      origin="64, 502"  size="48, 16" font="label-font" font-color="text-primary"   back-color="bg-panel" frame-color="bg-panel" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ArcKnob"       control-tag="TomResonance"   origin="120, 444" size="48, 44" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel"    title="Tom"                  origin="120, 488" size="48, 12" font="label-font" font-color="text-primary"   transparent="true" horizontal-alignment="center"/>
+        <view class="CParamDisplay" control-tag="TomResonance"   origin="120, 502" size="48, 16" font="label-font" font-color="text-primary"   back-color="bg-panel" frame-color="bg-panel" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="ArcKnob"       control-tag="CouplingDelay"  origin="176, 444" size="48, 44" arc-color="accent" arc-width="2.5"/>
+        <view class="CTextLabel"    title="Delay"                origin="176, 488" size="48, 12" font="label-font" font-color="text-primary"   transparent="true" horizontal-alignment="center"/>
+        <view class="CParamDisplay" control-tag="CouplingDelay"  origin="176, 502" size="48, 16" font="label-font" font-color="text-primary"   back-color="bg-panel" frame-color="bg-panel" transparent="false" style-3D-in="false" style-3D-out="false"/>
 
         <!-- Meter (CPU + preset-status readouts grouped here as meter-side UI) -->
-        <view class="FieldsetContainer" origin="4, 518" size="232, 98" transparent="true"
+        <view class="FieldsetContainer" origin="4, 532" size="232, 98" transparent="true"
               fieldset-title="Meter" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="CView" custom-view-name="MetersView" origin="8, 540" size="224, 32" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CTextLabel" title="CPU: -" origin="8, 580" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CView" custom-view-name="MetersView" origin="8, 554" size="224, 32" background-color="bg-panel" background-color-draw-style="filled"/>
+        <view class="CTextLabel" title="CPU: -" origin="8, 594" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
         <!-- T056: preset load failure status (title prefix "PresetStatus" -> discovered in Controller::verifyView). -->
-        <view class="CTextLabel" title="PresetStatus" origin="8, 596" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
+        <view class="CTextLabel" title="PresetStatus" origin="8, 610" size="224, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
 
-        <!-- Matrix (Extended-only Coupling Matrix editor; the former
-             MatrixEditorSection sub-container's class-id was unused in code,
-             so the section is now a flat fieldset like its peers) -->
-        <view class="FieldsetContainer" origin="4, 620" size="232, 158" transparent="true"
-              fieldset-title="Matrix" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="CView" custom-view-name="CouplingMatrixView" origin="8, 642" size="224, 100" background-color="bg-panel" background-color-draw-style="filled"/>
-        <view class="CView" custom-view-name="MatrixSoloButton" origin="8, 750" size="108, 22"/>
-        <view class="CView" custom-view-name="MatrixResetButton" origin="124, 750" size="108, 22"/>
       </view>
   </template>
 </vstgui-ui-description>

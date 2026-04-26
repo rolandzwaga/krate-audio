@@ -244,6 +244,21 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
     }
 }
 
+void VoicePool::resetAllVoicesForKitSwitch() noexcept
+{
+    for (int slot = 0; slot < kMaxVoices; ++slot)
+    {
+        if (couplingEngine_ != nullptr && meta_[slot].state != VoiceSlotState::Free)
+            couplingEngine_->noteOff(slot);
+        VP_VOICES[slot].resetForKitSwitch();
+        VP_RVOICES[slot].resetForKitSwitch();
+        meta_[slot]          = VoiceMeta{};
+        releasingMeta_[slot] = VoiceMeta{};
+    }
+    allocator_.reset();
+    (void)allocator_.setVoiceCount(static_cast<std::size_t>(maxPolyphony_));
+}
+
 void VoicePool::noteOff(std::uint8_t midiNote) noexcept
 {
     // FR-114 pre-Phase-8A.5: percussion was a no-op at the voice level
@@ -288,10 +303,22 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
     // "naturally finished" (FR-115). Phase 8A.5: the envelope no longer
     // force-decays the voice (sustain = 1.0), so voices rely on this
     // threshold to retire once the body's damping law has naturally
-    // brought the block peak below audibility. -80 dBFS keeps the pool
-    // from hanging on sub-audible tails while staying safely below any
-    // perceivable level (-60 dBFS is the usual "quiet room" floor).
-    constexpr float kSilenceThreshold = 1.0e-4f;   // ~ -80 dBFS
+    // brought the block peak below audibility.
+    //
+    // Bumped from 1e-4 (-80 dBFS) to 1e-3 (-60 dBFS) -- the previous
+    // value was below the per-voice equilibrium that some pads settle
+    // at after rapid hits (toms with Phase 8D shell coupling can plateau
+    // at 0.003..0.007 per voice indefinitely under sustained envelope).
+    // Without crossing the threshold the auto-noteOff never fires, the
+    // damping accelerator never triggers, and the voice stays Active
+    // forever -- the user-reported "infinite ring" reproduced by the
+    // stress test in test_kit_switch_infinite_ring.cpp.
+    //
+    // -60 dBFS is the usual quiet-room floor and below the audible
+    // threshold for percussion content; cymbals/long-tail kits still
+    // ring through their natural decay, but they can't sit on a
+    // sub-audible plateau forever any more.
+    constexpr float kSilenceThreshold = 1.0e-3f;   // ~ -60 dBFS
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {
@@ -389,7 +416,8 @@ void VoicePool::processBlock(float* outL, float* outR,
     }
 
     float* scratch = scratchL_.get();
-    constexpr float kSilenceThreshold = 1.0e-5f;
+    // See mono path above for the rationale on this threshold.
+    constexpr float kSilenceThreshold = 1.0e-3f;
 
     for (int slot = 0; slot < maxPolyphony_; ++slot)
     {

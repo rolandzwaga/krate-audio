@@ -286,6 +286,17 @@ public:
         updateDerivedCoefficients();
     }
 
+    /// @brief Clear ONLY the integrator states. Does not touch coefficients
+    /// or the smoother target. Use on note retrigger when the voice is
+    /// re-used for a new note: the previous note's resonant tail gets
+    /// wiped (so it can't bleed into the new note as a residual tone) but
+    /// the smoother is left alone so envelope-driven cutoff modulation
+    /// still ramps from its current g_/k_ toward the next target.
+    void resetIntegrators() noexcept {
+        ic1eq_ = 0.0f;
+        ic2eq_ = 0.0f;
+    }
+
     /// @brief Snap coefficients to target without clearing state.
     ///
     /// Instantly moves all smoothed coefficients (g, k, mix) to their

@@ -225,8 +225,9 @@ TEST_CASE("Membrum: Note-on (note=36) produces audio > -12 dBFS",
 
     float peak = fix.peakAmplitude();
 
-    // -12 dBFS = 10^(-12/20) ~= 0.251
-    REQUIRE(peak > 0.251f);
+    // Phase 9: master gain default is -6 dB, so original -12 dBFS threshold
+    // becomes -18 dBFS post-master = 10^(-18/20) ~= 0.126.
+    REQUIRE(peak > 0.125f);
 }
 
 // =============================================================================

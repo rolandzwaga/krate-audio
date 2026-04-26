@@ -333,6 +333,9 @@ buildSnapshot(const EditControllerEx1& ctrl, int selectedPadIndex) noexcept
         kit.couplingDelayMs = std::clamp(0.5 + cdNorm * 1.5, 0.5, 2.0);
     }
 
+    // Phase 9: master gain stored as raw normalized [0, 1] over [-24, +12] dB.
+    kit.masterGainNorm = readParam(ctrl, kMasterGainId);
+
     kit.selectedPadIndex = selectedPadIndex;
 
     for (int pad = 0; pad < kNumPads; ++pad)
@@ -360,6 +363,9 @@ void applySnapshot(const Membrum::State::KitSnapshot& kit,
     setter(kTomResonanceId,   kit.tomResonance);
     setter(kCouplingDelayId,
            std::clamp((kit.couplingDelayMs - 0.5) / 1.5, 0.0, 1.0));
+
+    // Phase 9: master gain.
+    setter(kMasterGainId, std::clamp(kit.masterGainNorm, 0.0, 1.0));
 
     // Per-pad parameter blocks.
     for (int pad = 0; pad < kNumPads; ++pad)

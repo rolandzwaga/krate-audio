@@ -28,7 +28,7 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // Phase 7 = 7 adds per-pad parallel noise layer + always-on click transient
 // parameters. Loader accepts earlier versions and fills later-phase parameters
 // with defaults.
-constexpr Steinberg::int32 kCurrentStateVersion = 12;
+constexpr Steinberg::int32 kCurrentStateVersion = 14;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -158,6 +158,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // Selected-pad proxy for kPadEnabled (per-pad offset 59). Discrete
     // float-as-bool; default 1.0 (enabled).
     kPadEnabledId                 = 309,
+
+    // ====== Phase 9: global master output gain ======
+    // RangeParameter [-24, +12] dB, default -6 dB. Applied to the main output
+    // bus (L/R) only -- aux buses are pre-master sends.
+    kMasterGainId                 = 320,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -197,8 +202,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 12,
-              "Phase 8F requires state version 12");
+static_assert(kCurrentStateVersion == 14,
+              "Matrix removal requires state version 14");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -223,5 +228,9 @@ static_assert(kTensionModAmtId < kPadBaseId,
 // Phase 8F collision guard.
 static_assert(kPadEnabledId < kPadBaseId,
               "Phase 8F global proxy ID must not collide with per-pad range");
+
+// Phase 9 collision guard.
+static_assert(kMasterGainId < kPadBaseId,
+              "Phase 9 master gain ID must not collide with per-pad range");
 
 } // namespace Membrum

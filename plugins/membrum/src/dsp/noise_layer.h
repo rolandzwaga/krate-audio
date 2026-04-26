@@ -63,6 +63,16 @@ public:
         mix_ = 0.0f;
     }
 
+    /// Override the filter mode. Default after prepare() is Bandpass; the
+    /// parallel layer in DrumVoice switches to Lowpass for cymbal/hat
+    /// presets where a BP+white-noise output reads as a pitched tone at
+    /// the cutoff -- Lowpass has no spectral peak, so the output is
+    /// broadband cymbal hash without coloration.
+    void setFilterMode(Krate::DSP::SVFMode mode) noexcept
+    {
+        filter_.setMode(mode);
+    }
+
     /// Apply normalized params to the component. Safe to call between notes.
     void configure(const NoiseLayerParams& p) noexcept
     {
