@@ -93,6 +93,7 @@ add_executable(membrum_tests
     unit/processor/test_coupling_energy.cpp
     unit/processor/test_coupling_fuzz.cpp
     unit/processor/test_kit_preset_load_render.cpp
+    unit/processor/test_macro_preset_load_regression.cpp
     unit/processor/test_coupling_phase9_verification.cpp
     unit/processor/test_dc_offset_trace.cpp
 

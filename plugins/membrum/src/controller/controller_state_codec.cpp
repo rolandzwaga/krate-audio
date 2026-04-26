@@ -176,6 +176,25 @@ void applyPadSnapshotToParams(
            (static_cast<double>(snap.bodyModel) + 0.5) /
                static_cast<double>(BodyModelType::kCount));
 
+    // Phase 8G ORDERING: macros FIRST. Each macro arriving at the processor
+    // through processParameterChanges fires MacroMapper::apply, which under
+    // the incremental contract layers (newDelta - oldDelta) onto the
+    // per-pad cfg.material/size/decay/etc. By writing all five macros
+    // before the per-pad fields, the macros run on default cfg values
+    // (cache initialised at 0.5 -> apply layers preset_macro - 0.5 worth
+    // of delta onto defaults), and the subsequent per-pad-field writes
+    // OVERWRITE whatever the macros affected with the preset's saved
+    // post-macro values. End state: cfg = preset values, cache = preset
+    // macros. Subsequent macro-knob movements then layer the correct
+    // delta on top of the loaded preset. Pre-fix order (per-pad fields
+    // first, macros last) drifted cfg fields by an extra macro_delta
+    // every save-load cycle for any preset with non-neutral macros.
+    for (std::size_t j = 0; j < kMacroOffsets.size(); ++j)
+    {
+        setter(static_cast<ParamID>(padParamId(pad, kMacroOffsets[j])),
+               snap.macros[j]);
+    }
+
     // Phase 1..6 contiguous block.
     for (std::size_t j = 0; j < kContiguousOffsets.size(); ++j)
     {
@@ -191,22 +210,20 @@ void applyPadSnapshotToParams(
     setter(static_cast<ParamID>(padParamId(pad, kPadOutputBus)),
            static_cast<double>(snap.outputBus) / 15.0);
 
-    // Exciter secondary block (sound[30..33]).
+    // Exciter secondary block (sound[30..33]). Includes
+    // kPadNoiseBurstDuration which is a Punch-macro target, so it must
+    // come AFTER the macros block above to overwrite the macro-computed
+    // value with the preset's saved one.
     for (std::size_t j = 0; j < kExciterSecOffsets.size(); ++j)
     {
         setter(static_cast<ParamID>(padParamId(pad, kExciterSecOffsets[j])),
                snap.sound[30 + j]);
     }
 
+    // kPadCouplingAmount is a Complexity-macro target -- this write must
+    // come AFTER the macros block above for the same reason.
     setter(static_cast<ParamID>(padParamId(pad, kPadCouplingAmount)),
            snap.couplingAmount);
-
-    // Phase 6 macros.
-    for (std::size_t j = 0; j < kMacroOffsets.size(); ++j)
-    {
-        setter(static_cast<ParamID>(padParamId(pad, kMacroOffsets[j])),
-               snap.macros[j]);
-    }
 
     // Phase 7+ late slots. Without this the controller-side mirror would
     // silently drop noiseLayer / clickLayer / bodyDamping / airLoading /
