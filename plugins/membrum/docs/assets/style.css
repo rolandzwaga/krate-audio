@@ -94,7 +94,68 @@ section h2 {
     color: var(--color-text);
 }
 
+/* Downloads */
+.downloads {
+    text-align: center;
+}
+
+.downloads .instructions {
+    color: var(--color-text-muted);
+    margin-bottom: 2rem;
+}
+
+.download-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.download-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.5rem 2rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--color-text);
+    transition: all 0.2s ease;
+    min-width: 180px;
+}
+
+.download-btn:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(200, 120, 80, 0.15);
+}
+
+.download-btn .icon {
+    width: 32px;
+    height: 32px;
+}
+
+.download-btn.windows .icon { color: var(--color-windows); }
+.download-btn.macos .icon { color: var(--color-macos); }
+.download-btn.linux .icon { color: var(--color-linux); }
+
+.download-btn .platform {
+    font-weight: 600;
+    font-size: 1.125rem;
+}
+
+.download-btn .format {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+}
+
 /* Features */
+.features + .features {
+    margin-top: -2.5rem;
+}
+
 .features ul {
     list-style: none;
     display: grid;
@@ -120,6 +181,25 @@ section h2 {
     height: 8px;
     background: var(--color-accent);
     border-radius: 50%;
+}
+
+/* Signal Flow */
+.signal-flow-link {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.signal-flow-link:hover {
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(200, 120, 80, 0.15);
 }
 
 /* Installation */
@@ -203,5 +283,14 @@ footer .copyright {
 
     header h1 {
         font-size: 2.5rem;
+    }
+
+    .download-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .download-btn {
+        min-width: auto;
     }
 }
