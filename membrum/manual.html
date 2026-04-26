@@ -1,0 +1,1609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membrum User Manual - Synthesized Drum Machine | Krate Audio</title>
+    <meta name="description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin with modal synthesis.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://rolandzwaga.github.io/krate-audio/membrum/manual.html">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Membrum User Manual - Synthesized Drum Machine">
+    <meta property="og:description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin.">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://rolandzwaga.github.io/krate-audio/membrum/manual.html">
+    <meta property="og:site_name" content="Krate Audio">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Membrum User Manual">
+    <meta name="twitter:description" content="Complete user manual for Membrum, a free open-source synthesized drum machine VST3 plugin.">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base -- matches Membrum landing page */
+        :root {
+            --color-bg: #0a0a0f;
+            --color-surface: #12121a;
+            --color-border: #2a2a3a;
+            --color-text: #e8e8f0;
+            --color-text-muted: #8888a0;
+            --color-accent: #c87850;
+            --color-accent-hover: #e0946c;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .manual-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 3rem 2rem 4rem;
+        }
+
+        .manual-header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .manual-header .breadcrumb {
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .manual-header .breadcrumb a {
+            color: var(--color-text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-header .breadcrumb a:hover {
+            color: var(--color-accent);
+        }
+
+        .manual-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--color-text) 0%, var(--color-accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .manual-header .subtitle {
+            color: var(--color-text-muted);
+            font-size: 1.1rem;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 3rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 2rem 0 0.75rem;
+            color: var(--color-accent-hover);
+        }
+
+        p { margin-bottom: 1rem; }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        a:hover { color: var(--color-accent-hover); }
+
+        ul, ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+
+        li { margin-bottom: 0.35rem; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--color-accent-hover);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        td {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        tr:last-child td { border-bottom: none; }
+
+        code {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85em;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+        }
+
+        .manual-footer {
+            text-align: center;
+            padding-top: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+        }
+
+        .manual-footer a {
+            color: var(--color-text);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .manual-footer a:hover { color: var(--color-accent); }
+
+        @media (max-width: 640px) {
+            .manual-container { padding: 2rem 1rem; }
+            .manual-header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="manual-container">
+        <div class="manual-header">
+            <p class="breadcrumb">
+                <a href="../">Krate Audio</a> / <a href="./">Membrum</a>
+            </p>
+            <h1>Membrum -- User Manual</h1>
+            <p class="subtitle">Synthesized Drum Machine</p>
+        </div>
+
+        <ul>
+        <li><a href="#introduction"
+        id="toc-introduction">Introduction</a>
+        <ul>
+        <li><a href="#quick-start" id="toc-quick-start">Quick
+        Start</a></li>
+        </ul></li>
+        <li><a href="#signal-flow" id="toc-signal-flow">Signal
+        Flow</a></li>
+        <li><a href="#interface-overview"
+        id="toc-interface-overview">Interface Overview</a></li>
+        <li><a href="#pad-grid" id="toc-pad-grid">Pad Grid</a>
+        <ul>
+        <li><a href="#pad-glow" id="toc-pad-glow">Pad Glow</a></li>
+        </ul></li>
+        <li><a href="#selected-pad-panel"
+        id="toc-selected-pad-panel">Selected Pad Panel</a>
+        <ul>
+        <li><a href="#acoustic-mode" id="toc-acoustic-mode">Acoustic
+        Mode</a></li>
+        <li><a href="#extended-mode" id="toc-extended-mode">Extended
+        Mode</a></li>
+        </ul></li>
+        <li><a href="#macros" id="toc-macros">Macros</a></li>
+        <li><a href="#body-models" id="toc-body-models">Body Models</a>
+        <ul>
+        <li><a href="#body-parameters" id="toc-body-parameters">Body
+        Parameters</a></li>
+        </ul></li>
+        <li><a href="#exciters" id="toc-exciters">Exciters</a></li>
+        <li><a href="#phase-8-modal-augmentations"
+        id="toc-phase-8-modal-augmentations">Phase 8 Modal
+        Augmentations</a>
+        <ul>
+        <li><a href="#per-mode-damping-phase-8a"
+        id="toc-per-mode-damping-phase-8a">Per-mode Damping (Phase
+        8A)</a></li>
+        <li><a href="#air-loading-mode-scatter-phase-8c"
+        id="toc-air-loading-mode-scatter-phase-8c">Air Loading + Mode
+        Scatter (Phase 8C)</a></li>
+        <li><a href="#head-shell-coupling-phase-8d"
+        id="toc-head-shell-coupling-phase-8d">Head ↔︎ Shell Coupling
+        (Phase 8D)</a></li>
+        <li><a href="#tension-modulation-phase-8e"
+        id="toc-tension-modulation-phase-8e">Tension Modulation (Phase
+        8E)</a></li>
+        </ul></li>
+        <li><a href="#parallel-layers-phase-7"
+        id="toc-parallel-layers-phase-7">Parallel Layers (Phase 7)</a>
+        <ul>
+        <li><a href="#noise-layer" id="toc-noise-layer">Noise
+        Layer</a></li>
+        <li><a href="#click-layer" id="toc-click-layer">Click
+        Layer</a></li>
+        </ul></li>
+        <li><a href="#tone-shaper" id="toc-tone-shaper">Tone Shaper</a>
+        <ul>
+        <li><a href="#pitch-envelope" id="toc-pitch-envelope">Pitch
+        Envelope</a></li>
+        </ul></li>
+        <li><a href="#unnatural-zone" id="toc-unnatural-zone">Unnatural
+        Zone</a>
+        <ul>
+        <li><a href="#material-morph" id="toc-material-morph">Material
+        Morph</a></li>
+        </ul></li>
+        <li><a href="#routing" id="toc-routing">Routing</a></li>
+        <li><a href="#kit-browser-pad-browser"
+        id="toc-kit-browser-pad-browser">Kit Browser &amp; Pad
+        Browser</a></li>
+        <li><a href="#voices" id="toc-voices">Voices</a>
+        <ul>
+        <li><a href="#voice-stealing-policies"
+        id="toc-voice-stealing-policies">Voice-Stealing
+        Policies</a></li>
+        </ul></li>
+        <li><a href="#coupling" id="toc-coupling">Coupling</a></li>
+        <li><a href="#master-meter" id="toc-master-meter">Master &amp;
+        Meter</a></li>
+        <li><a href="#factory-kits" id="toc-factory-kits">Factory
+        Kits</a>
+        <ul>
+        <li><a href="#acoustic-5" id="toc-acoustic-5">Acoustic
+        (5)</a></li>
+        <li><a href="#electronic-5" id="toc-electronic-5">Electronic
+        (5)</a></li>
+        <li><a href="#percussive-5" id="toc-percussive-5">Percussive
+        (5)</a></li>
+        <li><a href="#unnatural-5" id="toc-unnatural-5">Unnatural
+        (5)</a></li>
+        </ul></li>
+        <li><a href="#performance-notes"
+        id="toc-performance-notes">Performance Notes</a></li>
+        <li><a href="#cross-platform"
+        id="toc-cross-platform">Cross-Platform</a></li>
+        <li><a href="#tips-tricks" id="toc-tips-tricks">Tips &amp;
+        Tricks</a></li>
+        </ul>
+        <h2 id="introduction">Introduction</h2>
+        <p>Membrum is a 32-pad drum machine that synthesises every hit
+        from first principles — there are no samples. Each pad pairs one
+        of six excitation models (impulse, mallet, noise burst,
+        friction, FM impulse, feedback) with one of six body models
+        (membrane, plate, shell, string, bell, noise body), giving 36
+        base voice fabrics that you then sculpt with parallel noise +
+        click layers, per-mode damping, air loading, head/shell
+        coupling, nonlinear tension modulation, and an Unnatural Zone of
+        inharmonic distortions. Five per-pad macros (Tightness,
+        Brightness, Body Size, Punch, Complexity) collapse all that into
+        single-knob sound shaping when you don’t want to dive into the
+        underlying parameters.</p>
+        <p>The 32 pads are laid out as a 4×8 grid mapped to MIDI notes
+        36–67 with up to 16-voice polyphony, three voice-stealing
+        policies, eight choke groups, sixteen output buses, and global
+        cross-pad sympathetic resonance. 20 factory kits across
+        Acoustic, Electronic, Percussive, and Unnatural subcategories
+        ship out of the box.</p>
+        <h3 id="quick-start">Quick Start</h3>
+        <ol type="1">
+        <li>Load Membrum as an instrument on a MIDI track in your
+        DAW.</li>
+        <li>Open the <strong>Kit Browser</strong> (right column) and
+        pick one of the 20 factory kits — start with <em>Acoustic Studio
+        Kit</em> or <em>808 Electronic Kit</em>.</li>
+        <li>Trigger pads with a MIDI keyboard (notes 36–67) or by
+        clicking pads in the grid. The pad grid is laid out C1 =
+        bottom-left, MIDI 36; row by row left-to-right; up to MIDI 67 at
+        top-right.</li>
+        <li>Click any pad to <strong>select</strong> it — the
+        selected-pad column shows its parameters.</li>
+        <li>Toggle <strong>Acoustic / Extended</strong> in the top-right
+        of the selected-pad panel to switch between the focused
+        natural-drum subset and the full extended parameter set.</li>
+        <li>Drag any of the five <strong>macro</strong> knobs to morph
+        the sound holistically; underlying parameters update in real
+        time.</li>
+        </ol>
+        <hr />
+        <h2 id="signal-flow">Signal Flow</h2>
+        <p>Understanding the signal path makes parameter interactions
+        predictable.</p>
+        <pre><code>MIDI Input (notes 36-67, velocity)
+        |
+        v
+  Pad Dispatch (early-exit if pad disabled)
+        |
+        v
+  Choke Group Table (8 groups, fast-release on conflict)
+        |
+        v
+  Voice Allocator (3 stealing policies, 5 ms exp fast-release)
+        |
+        v
+  +------------ Per-Voice DSP (DrumVoice) -----------------+
+  |                                                        |
+  |  Exciter (Impulse / Mallet / Noise / Friction / FM /   |
+  |           Feedback)  -- velocity-controlled spectrum   |
+  |                  |                                     |
+  |                  v                                     |
+  |  Body (Membrane / Plate / Shell / String /             |
+  |        Bell / Noise Body)  -- modal resonator bank     |
+  |   + Per-mode damping (Phase 8A)                        |
+  |   + Air loading (Phase 8C)                             |
+  |   + Head/shell coupling (Phase 8D, secondary bank)     |
+  |   + Tension modulation (Phase 8E, energy follower)     |
+  |                  |                                     |
+  |                  v                                     |
+  |  Mode Inject -&gt; Nonlinear Coupling                     |
+  |                  |                                     |
+  |                  v                                     |
+  |  Tone Shaper: Drive -&gt; Wavefolder -&gt; DC Block          |
+  |               -&gt; SVF (LP/HP/BP) + Filter Envelope      |
+  |   (Pitch envelope updates body fundamental per-sample) |
+  |                  |                                     |
+  |                  v                                     |
+  |  Noise Layer + Click Layer (added in parallel)         |
+  |                  |                                     |
+  |                  v                                     |
+  |  Amp Envelope (decoupled from voice lifetime)          |
+  |                                                        |
+  +-----------------------+--------------------------------+
+                          |
+                          v
+       Output Bus Selector (per-pad, 0 = main, 1-15 = aux)
+                          |
+              +-----------+-----------+
+              |                       |
+              v                       v
+        Main Bus L/R          Aux Bus 1-15 L/R
+              |                       |
+              v                       |
+  Sympathetic Resonance               |
+  (mono sum -&gt; coupling delay         |
+   -&gt; matrix [global + snare buzz     |
+    + tom resonance + per-pad amt]    |
+   -&gt; energy limiter -&gt; mix back)     |
+              |                       |
+              v                       |
+        Master Gain                   |
+        (-24 .. +12 dB)               |
+              |                       |
+              v                       v
+        Audio Output           Audio Output
+        (Main Stereo)          (Aux 1-15, pre-master)</code></pre>
+        <p>A more detailed graphical version is available as the <a
+        href="signal-flow.html">Signal Flow Diagram</a>.</p>
+        <hr />
+        <h2 id="interface-overview">Interface Overview</h2>
+        <p>The window is divided into three columns, each scrollable on
+        small displays:</p>
+        <ul>
+        <li><strong>Left — Pad Grid</strong> — 4×8 pad grid (32 pads).
+        Click to select; the grid glows per pad to reflect voice
+        activity, level, and category color.</li>
+        <li><strong>Centre — Selected Pad</strong> — All parameters for
+        the currently selected pad. The Acoustic/Extended toggle in the
+        top-right switches between two layouts (see <a
+        href="#selected-pad-panel">Selected Pad Panel</a>).</li>
+        <li><strong>Right — Kit, Voices, Coupling, Meter,
+        Master</strong> — Kit and per-pad preset browsers, voice
+        management, cross-pad coupling, output meter, and master
+        gain.</li>
+        </ul>
+        <p>The top-right of the selected-pad column carries an
+        <strong>Acoustic / Extended</strong> toggle that filters the
+        displayed parameter set. The toggle is <em>session-scoped</em> —
+        it does not persist with plugin state and does not affect DSP or
+        automation. All parameters remain reachable via host automation
+        regardless of which mode is active.</p>
+        <hr />
+        <h2 id="pad-grid">Pad Grid</h2>
+        <p>The pad grid maps the bottom-left pad to MIDI note 36 (C1),
+        row by row, left to right, up to MIDI 67 (top-right). On a
+        hardware controller this matches the standard 4×8 drum-pad
+        layout used by most pad controllers.</p>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Action</th>
+        <th>Result</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Click pad</strong></td>
+        <td>Select the pad — its parameters appear in the centre
+        column</td>
+        </tr>
+        <tr class="even">
+        <td><strong>MIDI note 36–67</strong></td>
+        <td>Trigger the corresponding pad with the incoming
+        velocity</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Click bottom-right power glyph</strong></td>
+        <td>Toggle the pad’s <em>enabled</em> state (Phase 8F) —
+        disabled pads silently ignore note-on without touching
+        parameters</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="pad-glow">Pad Glow</h3>
+        <p>Each pad glows in real time to reflect: -
+        <strong>Brightness</strong> — the current voice envelope level
+        (decays as the voice releases) - <strong>Color</strong> — the
+        pad’s <em>category</em> (kick, snare, hi-hat, tom, cymbal, perc,
+        fx) — used by the kit-browser preview and the coupling system to
+        dispatch sympathetic resonance edges (kick → snare for <em>Snare
+        Buzz</em>, tom → tom for <em>Tom Resonance</em>).</p>
+        <hr />
+        <h2 id="selected-pad-panel">Selected Pad Panel</h2>
+        <p>The selected-pad column has two layouts driven by the
+        <strong>Acoustic / Extended</strong> toggle. Both layouts
+        manipulate the same underlying parameters; the Acoustic layout
+        simply hides the deeper synthesis controls so a natural-drum
+        workflow stays uncluttered.</p>
+        <h3 id="acoustic-mode">Acoustic Mode</h3>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Fieldset</th>
+        <th>Controls</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Macros</strong></td>
+        <td>Tightness, Brightness, Body Size, Punch, Complexity</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Body</strong></td>
+        <td>Material, Size, Decay, Strike Position, Level</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pitch Envelope</strong></td>
+        <td>XY editor for the Hz-domain envelope (start, end, time,
+        curve)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Routing</strong></td>
+        <td>Output Bus selector, Choke Group selector</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Source</strong></td>
+        <td>Exciter type, Body model</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>This is the recommended starting point for most kit work —
+        the five macros plus the five Body knobs cover ~80% of typical
+        sound design moves.</p>
+        <h3 id="extended-mode">Extended Mode</h3>
+        <p>The Extended layout exposes everything in Acoustic mode
+        plus:</p>
+        <table>
+        <colgroup>
+        <col style="width: 50%" />
+        <col style="width: 50%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Fieldset</th>
+        <th>Controls</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Character</strong></td>
+        <td>Mode Stretch, Mode Inject, Decay Skew, Nonlinear
+        Coupling</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Material Morph</strong></td>
+        <td>XY morph pad (start ↔︎ end), Duration, Curve</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Source</strong></td>
+        <td>Exciter type + secondary params (FM ratio, Feedback amount,
+        Burst duration, Friction pressure), Body model</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Physics</strong></td>
+        <td>Material, Size, Decay, Strike, Level, Coupling Amount</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tone Shaper</strong></td>
+        <td>Drive, Wavefolder, Filter (LP/HP/BP) cutoff/resonance/env
+        amount, Filter ADSR</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Parallel Layers</strong></td>
+        <td>Noise Layer mix/cutoff/resonance/color/decay; Click Layer
+        mix/contact/brightness</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Pitch Envelope</strong></td>
+        <td>(same as Acoustic)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Routing</strong></td>
+        <td>(same as Acoustic)</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Phase 8 extended physics (per-mode damping, air loading,
+        head/shell coupling, tension modulation) are surfaced as
+        additional knobs in the Physics fieldset; see <a
+        href="#phase-8-modal-augmentations">Phase 8 Modal
+        Augmentations</a>.</p>
+        <hr />
+        <h2 id="macros">Macros</h2>
+        <p>Five macro knobs per pad collapse multiple underlying DSP
+        parameters into single sweeps. Each macro applies an
+        <em>incremental delta</em> relative to the previous macro
+        position, so neutral macros (0.5) produce zero adjustment. This
+        means a freshly loaded preset is left untouched by neutral
+        macros, and macros stay independent of host automation on the
+        underlying parameters.</p>
+        <table>
+        <colgroup>
+        <col style="width: 18%" />
+        <col style="width: 81%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Macro</th>
+        <th>Underlying Parameters Touched</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Tightness</strong></td>
+        <td>Material (toward woodier), Decay (shorter), Decay Skew
+        (faster high-mode falloff)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Brightness</strong></td>
+        <td>Filter Cutoff (higher), Mode Inject (more upper-mode
+        energy)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Body Size</strong></td>
+        <td>Size, Air Loading, Secondary Size</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Punch</strong></td>
+        <td>Click Layer Mix, Click Brightness, Pitch-envelope
+        amount</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Complexity</strong></td>
+        <td>Mode Scatter, Nonlinear Coupling, Coupling Amount, Tension
+        Modulation</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The macro mapping is hand-curated per macro to walk through
+        musically useful combinations rather than just lerping each
+        underlying knob in isolation.</p>
+        <hr />
+        <h2 id="body-models">Body Models</h2>
+        <p>Each body model is a parallel modal resonator bank tuned to
+        research-backed mode ratios. The exciter feeds energy into the
+        bank; the bank’s modes ring at frequencies determined by Size,
+        Material, and Phase 8 corrections.</p>
+        <table>
+        <colgroup>
+        <col style="width: 15%" />
+        <col style="width: 17%" />
+        <col style="width: 33%" />
+        <col style="width: 33%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Body</th>
+        <th>Modes</th>
+        <th>Mode Ratios</th>
+        <th>Typical Use</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Membrane</strong></td>
+        <td>48</td>
+        <td>Bessel (circular drum head)</td>
+        <td>Kicks, snares, toms, hand drums</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Plate</strong></td>
+        <td>48</td>
+        <td>Vibrating-plate ratios</td>
+        <td>Side sticks, claves, cajón fronts</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Shell</strong></td>
+        <td>32</td>
+        <td>Cylindrical-shell modes</td>
+        <td>Side sticks, cajóns, secondary bank</td>
+        </tr>
+        <tr class="even">
+        <td><strong>String</strong></td>
+        <td>—</td>
+        <td>Digital waveguide</td>
+        <td>Tubular bells, mbiras, drones</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Bell</strong></td>
+        <td>16</td>
+        <td>Chladni patterns</td>
+        <td>Cowbells, agogos, crotales, singing bowls</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Noise Body</strong></td>
+        <td>40 + broadband</td>
+        <td>Inharmonic, dense</td>
+        <td>Hi-hats, crashes, rides</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="body-parameters">Body Parameters</h3>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Material</strong></td>
+        <td>Sweeps the per-mode damping law from woody (high HF damping,
+        fast decay of upper modes) to metallic (uniform damping,
+        sustained ring)</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Size</strong></td>
+        <td>Exponential frequency scaling of the entire mode set (large
+        = lower fundamental, small = higher)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Decay</strong></td>
+        <td>Global decay-time scaling that preserves Material
+        character</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Strike Position</strong></td>
+        <td>Center strike (0) excites fundamental modes; edge strike (1)
+        excites higher-order modes for complex timbres</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Level</strong></td>
+        <td>Per-pad output gain</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="exciters">Exciters</h2>
+        <p>The exciter shapes the energy input to the body. All exciters
+        carry a velocity-controlled spectral response: soft hits are
+        darker, hard hits are brighter with wider-band excitation.</p>
+        <table>
+        <colgroup>
+        <col style="width: 22%" />
+        <col style="width: 50%" />
+        <col style="width: 27%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Exciter</th>
+        <th>Secondary Parameter</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Impulse</strong></td>
+        <td>—</td>
+        <td>Single-sample impulse — sharp, clean attack. Reference
+        exciter for kicks and rim shots</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mallet</strong></td>
+        <td>Burst Duration</td>
+        <td>Raised-cosine contact pulse — longer, softer attack with
+        more body tone. Toms, timpani</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Noise Burst</strong></td>
+        <td>Burst Duration</td>
+        <td>Filtered noise burst — the basis for snares, hi-hats,
+        brushes</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Friction</strong></td>
+        <td>Pressure</td>
+        <td>Bowed/scraped excitation with controllable pressure —
+        drones, brushes, singing bowls</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>FM Impulse</strong></td>
+        <td>FM Ratio</td>
+        <td>Two-operator FM impulse — metallic, bell, digital
+        cowbell</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Feedback</strong></td>
+        <td>Feedback Amount</td>
+        <td>Self-exciting loop with energy limiter — chaotic
+        runaway-resonance percussion</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>The exciter type is a <strong>silent switch</strong> when the
+        pad is idle. If a voice is currently sounding, the type change
+        is deferred to the next note-on so no audible
+        click/discontinuity occurs.</p>
+        <hr />
+        <h2 id="phase-8-modal-augmentations">Phase 8 Modal
+        Augmentations</h2>
+        <p>Phase 8 introduced four orthogonal physics layers on top of
+        the base modal resonator. They’re exposed as per-pad knobs and
+        stack independently of the Tone Shaper, Unnatural Zone, and
+        Parallel Layers.</p>
+        <h3 id="per-mode-damping-phase-8a">Per-mode Damping (Phase
+        8A)</h3>
+        <p>Two knobs (<code>b1</code>, <code>b3</code>) drive the
+        Chaigne-Askenfelt (1993) damping law
+        <code>R_k = b1 + b3·f²</code> per mode. The same body can be
+        dialled from metallic ring (low <code>b3</code>) to woody thump
+        (high <code>b3</code>) without touching its fundamental. Legacy
+        <code>Decay</code> and <code>Material</code> still work as
+        convenience derivations when the Phase 8A knobs are at their
+        default position.</p>
+        <h3 id="air-loading-mode-scatter-phase-8c">Air Loading + Mode
+        Scatter (Phase 8C)</h3>
+        <p>Air loading applies a Rossing-tabulated low-mode frequency
+        depression (5% at the fundamental, tapering toward zero by mode
+        12). It closes the <em>whistly / detuned-bar</em> failure mode
+        on Membrane bodies and lets the lowest modes drop into realistic
+        kick/tom sub-bass territory.</p>
+        <p>Mode scatter adds a small sinusoidal frequency dither to each
+        mode for <em>natural imperfection</em> — useful on cymbals where
+        pure harmonic ratios sound synthetic.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Air Loading</strong></td>
+        <td>0.0 = pure Bessel ratios; 1.0 = full Rossing curve</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Mode Scatter</strong></td>
+        <td>0.0 = pure ratios; 1.0 = maximum dither</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="head-shell-coupling-phase-8d">Head ↔︎ Shell Coupling
+        (Phase 8D)</h3>
+        <p>DrumVoice carries a second 24-mode Modal Resonator Bank (the
+        <em>shell</em>) that runs in parallel with the primary bank and
+        exchanges energy bidirectionally at block rate. The two-bank
+        feedback loop is stability-clamped to a 0.25 effective maximum
+        so its eigenvalue stays below 1 across all decay
+        combinations.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Coupling Strength</strong></td>
+        <td>0 = primary only; up to 0.25 effective</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Secondary Enabled</strong></td>
+        <td>Toggle to bypass the secondary bank entirely</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Secondary Size</strong></td>
+        <td>Size of the secondary (shell) bank — typically smaller than
+        the primary</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Secondary Material</strong></td>
+        <td>Material of the secondary bank — typically wood (~0.3) for
+        acoustic kicks/toms or metallic (~0.85) for FM-bell hybrids</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="tension-modulation-phase-8e">Tension Modulation (Phase
+        8E)</h3>
+        <p>A 20 ms one-pole energy follower drives a block-rate
+        frequency scale on the modal bank, reproducing the
+        energy-dependent pitch glide observed in real toms and 808 kicks
+        (Kirby &amp; Sandler 2021, Avanzini &amp; Rocchesso 2012). Depth
+        scales by velocity² at note-on, so soft hits sound the same and
+        hard hits bend up to ~2 semitones during the note.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Tension Mod Amount</strong></td>
+        <td>0 = no glide; 1 = full ~2-semitone glide on hard hits</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Tension modulation is <strong>orthogonal to the scripted
+        Pitch Envelope</strong> — Pitch Envelope drives the fundamental
+        on a fixed time curve regardless of energy, while Tension
+        Modulation tracks the actual modal energy.</p>
+        <hr />
+        <h2 id="parallel-layers-phase-7">Parallel Layers (Phase 7)</h2>
+        <p>Two always-on layers run alongside the modal body and add
+        together at the per-voice mix bus. Both are essential for
+        realism — the modal body alone sounds <em>glass tap</em>; the
+        noise + click layers restore the stochastic residual that real
+        drum recordings carry.</p>
+        <h3 id="noise-layer">Noise Layer</h3>
+        <p>A filtered-noise generator running parallel to the modal
+        body. Useful for snare wires, hi-hat sizzle, cymbal hash, brush
+        rasp.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>0 = silent; 1 = full level</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Cutoff</strong></td>
+        <td>SVF lowpass cutoff</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Resonance</strong></td>
+        <td>SVF Q</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Color</strong></td>
+        <td>Spectral tilt of the noise source (dark → bright)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Decay</strong></td>
+        <td>Envelope decay time</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="click-layer">Click Layer</h3>
+        <p>A 2–5 ms raised-cosine filtered-noise burst that fires at
+        note-on. The attack click that turns <em>body tone</em> into
+        <em>drum hit</em>.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mix</strong></td>
+        <td>0 = no click; 1 = prominent click</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Contact (ms)</strong></td>
+        <td>Click duration (longer = softer, mallet-like attack)</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Brightness</strong></td>
+        <td>Spectral content of the click (dark thud → bright
+        stick)</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="tone-shaper">Tone Shaper</h2>
+        <p>A per-pad signal-shaping chain that processes the modal body
+        output before the amp envelope. All controls are bypass-identity
+        at their defaults.</p>
+        <pre><code>body output -&gt; Drive -&gt; Wavefolder -&gt; DC Blocker -&gt; SVF Filter (with envelope) -&gt; output</code></pre>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Drive</strong></td>
+        <td>Alias-safe waveshaper — soft saturation through hard
+        clip</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Wavefolder</strong></td>
+        <td>Waveshaping fold for harmonic richness; particularly
+        effective on FM bodies</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Filter Type</strong></td>
+        <td>LP / HP / BP</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Filter Cutoff</strong></td>
+        <td>SVF cutoff frequency</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Filter Resonance</strong></td>
+        <td>SVF Q</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Filter Env Amount</strong></td>
+        <td>Envelope modulation depth applied to cutoff</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Filter Env A/D/S/R</strong></td>
+        <td>Dedicated 4-stage envelope for the filter</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="pitch-envelope">Pitch Envelope</h3>
+        <p>A separate absolute-Hz envelope (start, end, time, exp/lin
+        curve) drives the body fundamental for 808-style transient pitch
+        sweeps. The XY display lets you drag the start and end points
+        directly.</p>
+        <table>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Start (Hz)</strong></td>
+        <td>Initial fundamental at note-on</td>
+        </tr>
+        <tr class="even">
+        <td><strong>End (Hz)</strong></td>
+        <td>Steady-state fundamental</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Time (ms)</strong></td>
+        <td>Sweep duration</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Curve</strong></td>
+        <td>Exponential (snap) ↔︎ Linear (audible glide)</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="unnatural-zone">Unnatural Zone</h2>
+        <p>Per-pad inharmonic distortions of the modal body. All
+        controls are bypass-identity at their defaults.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Mode Stretch</strong></td>
+        <td>0.5–2.0; stretches inter-mode frequency ratios — 1.0 is
+        natural, &gt; 1.0 is harmonically tighter, &lt; 1.0 is
+        sparser</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Decay Skew</strong></td>
+        <td>±1.0; skews decay between low and high modes — positive =
+        bright sustain, negative = dark sustain</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Mode Inject</strong></td>
+        <td>Phase-randomised injection bank — adds extra modal density
+        on top of the main bank</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Nonlinear Coupling</strong></td>
+        <td>Energy-limited cross-mode coupling — produces FM-like
+        sidebands that grow and decay with envelope energy</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="material-morph">Material Morph</h3>
+        <p>A 2-point envelope (10–2000 ms) that morphs the body’s
+        material parameter from a <em>start</em> state to an
+        <em>end</em> state at note-on. Useful for evolving cymbals (dark
+        stick attack → bright shimmer tail) and snare brush sweeps.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Enabled</strong></td>
+        <td>Power toggle for the morph layer</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Start / End</strong></td>
+        <td>XY pad — the start point is at note-on, end is reached after
+        <code>Duration</code></td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Duration</strong></td>
+        <td>10–2000 ms</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Curve</strong></td>
+        <td>Linear, exponential, logarithmic, S-curve</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="routing">Routing</h2>
+        <p>Per-pad routing controls.</p>
+        <table>
+        <colgroup>
+        <col style="width: 40%" />
+        <col style="width: 59%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Output Bus</strong></td>
+        <td>0 = main stereo; 1–15 = aux stereo buses for separate DAW
+        processing</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Choke Group</strong></td>
+        <td>0 = no choke; 1–8 = group membership. Pads sharing a
+        non-zero choke group cut each other on note-on (SoundFont 2.04
+        Exclusive Class semantics). 5 ms exponential fast-release
+        prevents click</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Coupling Amount</strong></td>
+        <td>0–1; per-pad participation in the global sympathetic
+        resonance system. Higher = pad receives more sympathetic
+        excitation from other pads</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="kit-browser-pad-browser">Kit Browser &amp; Pad
+        Browser</h2>
+        <p>The right column carries two preset browsers:</p>
+        <table>
+        <colgroup>
+        <col style="width: 36%" />
+        <col style="width: 28%" />
+        <col style="width: 36%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Browser</th>
+        <th>Loads</th>
+        <th>Affects</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Kit Browser</strong></td>
+        <td>A full 32-pad kit</td>
+        <td>All pads, all globals, choke groups, output buses, coupling,
+        master gain, optional UI mode</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Pad Browser</strong></td>
+        <td>A single pad’s sound</td>
+        <td>Only the <em>selected</em> pad’s sound parameters. Routing
+        (choke, output bus, coupling amount) and macros are preserved on
+        the destination pad</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Both browsers organise presets into subcategory
+        subdirectories. The Kit Browser shows the four hardcoded
+        subcategories (Acoustic, Electronic, Percussive, Unnatural). The
+        Pad Browser shows drum-type subcategories (Kick, Snare, HiHat,
+        Tom, Cymbal, Perc, FX).</p>
+        <p>User presets save into the same directory tree alongside the
+        factory presets.</p>
+        <hr />
+        <h2 id="voices">Voices</h2>
+        <p>Voice management section in the right column.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Max Polyphony</strong></td>
+        <td>4–16</td>
+        <td>Number of active voice slots. Idle slots consume zero
+        CPU</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Voice Stealing</strong></td>
+        <td>Oldest / Quietest / Priority</td>
+        <td>Which slot to steal when all are busy</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="voice-stealing-policies">Voice-Stealing Policies</h3>
+        <table>
+        <colgroup>
+        <col style="width: 33%" />
+        <col style="width: 66%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Policy</th>
+        <th>Selection Rule</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Oldest</strong></td>
+        <td>The longest-running voice gets stolen. Cheapest (no
+        per-block scan) and most musical for typical drum patterns</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Quietest</strong></td>
+        <td>The voice with the lowest current envelope level gets
+        stolen. Best for sustained kits where you want long tails to
+        decay rather than getting cut</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Priority</strong></td>
+        <td>The highest-pitched voice gets stolen first; protects
+        kick/snare. Best for mixed-pitch kits where the low-end is
+        musically critical</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>When a voice is stolen, a 5 ms exponential fast-release
+        envelope cross-fades the victim out so the click peak stays
+        below -30 dBFS.</p>
+        <hr />
+        <h2 id="coupling">Coupling</h2>
+        <p>Cross-pad sympathetic resonance — when one pad is hit, its
+        mono output is mixed into other pads’ excitation paths according
+        to a coupling matrix. Models physical phenomena like snare wires
+        buzzing when the kick is hit, or toms ringing in sympathy with
+        each other.</p>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Global Coupling</strong></td>
+        <td>0–100%</td>
+        <td>Master amount for the entire coupling system</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Snare Buzz</strong></td>
+        <td>0–100%</td>
+        <td>Amount of kick/tom energy routed to snare-category pads</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tom Resonance</strong></td>
+        <td>0–100%</td>
+        <td>Amount of tom energy routed to other tom-category pads</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Coupling Delay</strong></td>
+        <td>0.5–2.0 ms</td>
+        <td>Propagation delay between hit and sympathetic
+        excitation</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Per-pad <strong>Coupling Amount</strong> (in the Routing
+        fieldset) controls each pad’s individual participation. Disabled
+        pads (Phase 8F) receive no coupling regardless of the
+        matrix.</p>
+        <p>The coupling output passes through an energy limiter that
+        caps it below -20 dBFS to prevent runaway feedback.</p>
+        <hr />
+        <h2 id="master-meter">Master &amp; Meter</h2>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 24%" />
+        <col style="width: 44%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Control</th>
+        <th>Range</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Master Gain</strong></td>
+        <td>-24 to +12 dB</td>
+        <td>Final stereo bus gain. <strong>Main bus only</strong> — aux
+        buses 1–15 are pre-master</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Meter</strong></td>
+        <td>Peak + RMS</td>
+        <td>Output level meter for the main stereo bus</td>
+        </tr>
+        </tbody>
+        </table>
+        <p>Default master gain is -6 dB so the kit hits peak ~-10 dBFS,
+        leaving 6 dB of headroom for layering and bus processing.</p>
+        <hr />
+        <h2 id="factory-kits">Factory Kits</h2>
+        <p>20 factory kits ship with the plugin, organised into the four
+        hardcoded browser subcategories.</p>
+        <h3 id="acoustic-5">Acoustic (5)</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Kit</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Acoustic Studio Kit</strong></td>
+        <td>Mallet kick, wired snare, side stick, hi-hats, six toms,
+        ride/crash. The reference acoustic kit</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Jazz Brushes</strong></td>
+        <td>Brush sweep + tap snare, soft mallet kick, ride-led cymbals,
+        mid-pitched toms</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Rock Big Room</strong></td>
+        <td>Maxed punchy kick, snappy snare, big toms, bright cymbals,
+        pronounced shell coupling</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Vintage Wood</strong></td>
+        <td>Wood-shell kick + rim-shot snare, smaller toms, woodblocks,
+        cowbell. Tape-y drive throughout</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Orchestral</strong></td>
+        <td>Timpani toms with strong tension mod, bass drum, gongs,
+        triangle, tubular bell, suspended cymbal roll</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="electronic-5">Electronic (5)</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Kit</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>808 Electronic Kit</strong></td>
+        <td>Iconic 808 kick (boom-glide), 808 snares, hats, FM-bell
+        perc, mallet toms with pitch sweep</td>
+        </tr>
+        <tr class="even">
+        <td><strong>909 Drum Machine</strong></td>
+        <td>Tight 909 kick, snappy snare, sizzly hats, bright crash,
+        clap</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>LinnDrum CR-78</strong></td>
+        <td>Early-digital PCM-style hits + FM bell perc, cabasa, clave,
+        dirty hats</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Modular West Coast</strong></td>
+        <td>Feedback kick, FM Plate snare, FM Bell perc, friction string
+        drone, generative coupling</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Trap Modern</strong></td>
+        <td>Massive sub-808 kick (max tension mod), crispy layered
+        snare, trap hat variants for fast rolls</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="percussive-5">Percussive (5)</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Kit</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Hand Drums</strong></td>
+        <td>Conga lo/hi/slap, bongo hi/lo, djembe bass/slap, cajón
+        bass/slap, frame drum, shaker, wood block</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Latin Perc</strong></td>
+        <td>Claves, cowbells, agogos, timbales, cabasa, maracas,
+        tambourine, triangle, guiro, vibraslap</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Tabla</strong></td>
+        <td>Bayan + dayan with strong tension-mod pitch bends, full bols
+        (Tha, Na, Ge, Ka, Tete), tanpura drone</td>
+        </tr>
+        <tr class="even">
+        <td><strong>World Metal</strong></td>
+        <td>Kalimba (8 pitches), mbira (4), bell tree, crotales, singing
+        bowl, wood blocks, tingsha, temple bell</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Cajon and Frames</strong></td>
+        <td>Cajón bass/slap, snare side, frame drum, bodhran, dholak
+        hi/lo, riq, pandeiro</td>
+        </tr>
+        </tbody>
+        </table>
+        <h3 id="unnatural-5">Unnatural (5)</h3>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 68%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Kit</th>
+        <th>Character</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td><strong>Experimental FX Kit</strong></td>
+        <td>FM kick with shell coupling, feedback snare, friction FX,
+        metal hats with morph, inharmonic plate toms</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Glass Bell Garden</strong></td>
+        <td>16 bell-bodied tones with metallic damping, graded fmRatio,
+        friction-bowed sustains</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Drone and Sustain</strong></td>
+        <td>Friction strings + feedback drones with long decays for
+        pad-like sustained tones</td>
+        </tr>
+        <tr class="even">
+        <td><strong>Chaos Engine</strong></td>
+        <td>Maxed nonlinear coupling + tension mod + mode inject across
+        14 pads — intentionally chaotic</td>
+        </tr>
+        <tr class="odd">
+        <td><strong>Ghost Bones</strong></td>
+        <td>Sub-bell tones with very inharmonic mode stretch,
+        sustain-dominant decay skew</td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="performance-notes">Performance Notes</h2>
+        <ul>
+        <li><strong>CPU budget</strong>: ~1.25% per voice at 44.1 kHz
+        (single-voice baseline). 8-voice worst-case is ~6%.</li>
+        <li><strong>Real-time safety</strong>: Zero allocations on the
+        audio thread. ExciterBank and BodyBank pre-allocate every
+        variant up front; voice switches via tagged-union dispatch with
+        no virtual calls or per-sample branching.</li>
+        <li><strong>Pluginval</strong>: Strictness 5 verified on
+        Windows.</li>
+        <li><strong>macOS Audio Unit</strong>:
+        <code>auval -v aumu Mbrm KrAt</code> verified in CI.</li>
+        </ul>
+        <hr />
+        <h2 id="cross-platform">Cross-Platform</h2>
+        <table>
+        <colgroup>
+        <col style="width: 31%" />
+        <col style="width: 25%" />
+        <col style="width: 43%" />
+        </colgroup>
+        <thead>
+        <tr class="header">
+        <th>Platform</th>
+        <th>Format</th>
+        <th>Install Path</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr class="odd">
+        <td>Windows</td>
+        <td>VST3</td>
+        <td><code>C:\Program Files\Common Files\VST3\Krate Audio\Membrum\Membrum.vst3</code></td>
+        </tr>
+        <tr class="even">
+        <td>macOS</td>
+        <td>VST3</td>
+        <td><code>/Library/Audio/Plug-Ins/VST3/Membrum.vst3</code></td>
+        </tr>
+        <tr class="odd">
+        <td>macOS</td>
+        <td>Audio Unit</td>
+        <td><code>/Library/Audio/Plug-Ins/Components/Membrum.component</code></td>
+        </tr>
+        <tr class="even">
+        <td>Linux</td>
+        <td>VST3</td>
+        <td><code>~/.vst3/Membrum.vst3</code></td>
+        </tr>
+        </tbody>
+        </table>
+        <hr />
+        <h2 id="tips-tricks">Tips &amp; Tricks</h2>
+        <ul>
+        <li><strong>Disable rather than delete</strong>. The Phase 8F
+        per-pad enable toggle silences a pad without losing its
+        parameters, choke group, or output bus assignment. Useful for
+        A/B-ing kit subsets without losing your work.</li>
+        <li><strong>Macros first, knobs second</strong>. The five macros
+        are designed to walk through musically useful combinations.
+        Sweep them first to find a sound you like, <em>then</em> dive
+        into individual parameters to refine.</li>
+        <li><strong>Acoustic mode for kit work, Extended for sound
+        design</strong>. The Acoustic mode hides ~70% of the parameters
+        but keeps everything you need to shape natural drum sounds.
+        Switch to Extended when you want to dial in air loading,
+        head/shell coupling, mode stretch, etc.</li>
+        <li><strong>Output Bus 1+ for parallel processing</strong>.
+        Route the ride or crash to bus 1 if you want to apply a separate
+        reverb/EQ chain in your DAW without affecting the rest of the
+        kit. Aux buses are pre-master, so your DAW’s bus chain sees the
+        unattenuated voice output.</li>
+        <li><strong>Tension Modulation for natural toms</strong>. Even
+        at 0.2, the Phase 8E energy follower adds the classic “kerthump”
+        pitch dip that distinguishes a real tom from a synthetic one.
+        Combine with a short Pitch Envelope (~50 ms, ~+20 cents) for the
+        iconic 808 boom-glide.</li>
+        <li><strong>Coupling Delay &gt; 1.5 ms for “big room”
+        feel</strong>. Longer coupling delays simulate larger physical
+        rooms where sympathetic resonance has to travel further between
+        drums.</li>
+        <li><strong>Master Gain at -6 dB is intentional</strong>. Don’t
+        push it back to 0 dB unless you’re checking levels in isolation
+        — the headroom matters once the kit is sitting in a busy mix
+        with bus processing on top.</li>
+        </ul>
+
+        <div class="manual-footer">
+            <p>
+                <a href="./">Back to Membrum</a> |
+                <a href="../">Krate Audio</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
