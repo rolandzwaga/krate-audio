@@ -44,6 +44,12 @@ struct BellBody
         return sharedBank.processSample(excitation);
     }
 
+    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+                                              float excitation) noexcept
+    {
+        return sharedBank.processSampleNoSmooth(excitation);
+    }
+
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     void processBlock(Krate::DSP::ModalResonatorBank& sharedBank,
                       const float* excitation,

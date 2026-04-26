@@ -88,6 +88,14 @@ struct NoiseBody
         return modalMix_ * modalOut + noiseOut;
     }
 
+    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+                                              float excitation) noexcept
+    {
+        const float modalOut = sharedBank.processSampleNoSmooth(excitation);
+        const float noiseOut = noiseLayer_.processSample();
+        return modalMix_ * modalOut + noiseOut;
+    }
+
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     // Modal layer runs through the SIMD-accelerated ModalResonatorBank::processBlock
     // into a stack scratch buffer, then the noise layer is mixed per-sample.

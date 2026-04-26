@@ -231,6 +231,41 @@ public:
         return processSample(excitation, 1.0f);
     }
 
+    /// Block-rate coefficient smoothing -- call once at block start when the
+    /// caller is about to drive `processSampleNoSmooth` per sample. Pairs
+    /// with the slow-path FeedbackExciter route in DrumVoice that needs
+    /// strict per-sample body feedback but cannot use the SIMD `processBlock`
+    /// path. Hoists the smoothCoefficients() work out of the per-sample inner
+    /// loop (Phase 9 perf fix; without this the FeedbackExciter combos
+    /// blew the per-voice CPU budget after the Phase 8B mode-count bump).
+    void prepareBlockSmoothing() noexcept
+    {
+        smoothCoefficients();
+    }
+
+    /// Per-sample SIMD-accelerated process with coefficient smoothing already
+    /// done block-rate by `prepareBlockSmoothing()`. Falls back to the scalar
+    /// path when bowed-mode taps are active (the per-mode bow-weight injection
+    /// can't be folded into the SIMD kernel's broadcast `excitation`) or when
+    /// `decayScale != 1.0` (the per-mode std::pow on the radius isn't in the
+    /// kernel either). Both fallbacks are cold paths -- bow mode is rarely
+    /// engaged for the kit voice and decayScale only diverges during mallet
+    /// choke.
+    [[nodiscard]] float processSampleNoSmooth(float excitation,
+                                              float decayScale = 1.0f) noexcept
+    {
+        if (bowModeActive_ || decayScale != 1.0f) {
+            return processSampleCore(excitation, decayScale);
+        }
+
+        const float ex = applyTransientEmphasis(excitation);
+        const float modeSum = processModalBankSampleSIMD(
+            sinState_, cosState_, epsilon_, radius_, inputGain_,
+            ex, numModes_);
+
+        return softClip(modeSum / kSoftClipThreshold) * kSoftClipThreshold;
+    }
+
     /// Process a single sample with optional decay scaling (mallet choke).
     /// @param excitation Input excitation signal
     /// @param decayScale Decay acceleration factor:

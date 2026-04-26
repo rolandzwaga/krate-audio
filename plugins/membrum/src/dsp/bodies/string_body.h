@@ -66,6 +66,15 @@ struct StringBody
         return string_.process(excitation);
     }
 
+    /// String body doesn't use the modal bank, so the no-smooth variant is
+    /// just the same per-sample call. Symmetric API for the slow-path caller.
+    [[nodiscard]] float processSampleNoSmooth(
+        Krate::DSP::ModalResonatorBank& /*sharedBank*/,
+        float excitation) noexcept
+    {
+        return string_.process(excitation);
+    }
+
     // Block-rate entry point (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     // WaveguideString has no SIMD block entry, so we loop per-sample. The
     // real win here is that the outer per-sample chain (unnatural + tone

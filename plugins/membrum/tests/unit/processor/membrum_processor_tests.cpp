@@ -23,6 +23,7 @@
 #include "pluginterfaces/vst/ivstevents.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -1226,37 +1227,55 @@ TEST_CASE("Membrum: Audio begins in first process block (SC-002)",
 TEST_CASE("Membrum: SC-003 CPU budget -- single voice < 0.5% CPU at 44.1 kHz",
           "[membrum][processor][.perf]")
 {
-    // Process 10 seconds of audio (44100 * 10 = 441000 samples).
-    // At 44.1 kHz real-time rate, 10 seconds = 10000ms wall-clock.
-    // < 0.5% CPU means processing should take < 50ms.
+    // Measures the path the audio thread actually exercises in production:
+    // DrumVoice::processBlock in 256-sample chunks. The previous version of
+    // this test called the per-sample voice.process() API in a tight loop,
+    // which post-Phase-8B (membrane bank 16 -> 48 modes) became dominated
+    // by std::variant dispatch overhead AND the per-sample SVF coefficient
+    // smoother (one divide + one tan per sample). Neither of those are on
+    // the real audio path -- VoicePool always feeds DrumVoice through
+    // processBlock, which lifts the variant dispatch out of the inner loop
+    // and routes the per-sample math through the SIMD modal kernel +
+    // block-rate filter cutoff updates. Phase 9 perf rewrite (SIMD pass)
+    // optimised the block path; this test now validates the same.
     //
-    // Use DrumVoice directly to measure pure DSP cost without fixture overhead.
-    constexpr int totalSamples = 44100 * 10;
+    // 10 seconds of audio @ 44.1 kHz = 441000 samples. < 0.5% CPU means
+    // processing should take < 50 ms wall-clock.
+    constexpr int kTotalSamples = 44100 * 10;
+    constexpr int kBlockSize    = 256;
 
     Membrum::DrumVoice voice;
     voice.prepare(44100.0);
     voice.noteOn(0.8f);
 
-    // Warm up (ensure caches are hot)
-    float warmup = 0.0f;
-    for (int i = 0; i < 1024; ++i)
-        warmup += voice.process();
-    (void)warmup;
+    std::array<float, kBlockSize> blockBuf{};
 
-    // Re-trigger to get a full note. Re-trigger every 22050 samples (~500ms)
-    // to keep the voice active for the entire measurement duration.
+    // Warm up (ensure caches are hot)
+    for (int i = 0; i < 4; ++i)
+        voice.processBlock(blockBuf.data(), kBlockSize);
+
     voice.noteOn(0.8f);
 
     // Measure pure DSP processing time
     auto start = std::chrono::high_resolution_clock::now();
 
     float sink = 0.0f;
-    for (int i = 0; i < totalSamples; ++i)
+    int produced = 0;
+    while (produced < kTotalSamples)
     {
-        // Re-trigger periodically to keep voice active
-        if (i % 22050 == 0 && i > 0)
+        // Re-trigger every ~500 ms so the voice stays active for the entire
+        // measurement window (some bodies decay below silence threshold faster).
+        if (produced > 0 && (produced % 22016) == 0)
             voice.noteOn(0.8f);
-        sink += voice.process();
+
+        const int chunk = std::min(kBlockSize, kTotalSamples - produced);
+        voice.processBlock(blockBuf.data(), chunk);
+
+        // Touch the buffer so the compiler can't elide processBlock.
+        for (int i = 0; i < chunk; ++i)
+            sink += blockBuf[i];
+
+        produced += chunk;
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -1267,7 +1286,7 @@ TEST_CASE("Membrum: SC-003 CPU budget -- single voice < 0.5% CPU at 44.1 kHz",
 
     double cpuPercent = durationMs / 10000.0 * 100.0;
 
-    INFO("Processed " << totalSamples << " samples");
+    INFO("Processed " << kTotalSamples << " samples in " << kBlockSize << "-sample blocks");
     INFO("Wall-clock time: " << durationMs << " ms");
     INFO("CPU usage: " << cpuPercent << "%");
 

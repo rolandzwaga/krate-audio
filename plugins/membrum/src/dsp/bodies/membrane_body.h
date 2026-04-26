@@ -48,6 +48,15 @@ struct MembraneBody
         return sharedBank.processSample(excitation);
     }
 
+    /// Slow-path companion: SIMD per-sample with block-rate smoothing.
+    /// DrumVoice's FeedbackExciter loop calls this after a single
+    /// `sharedBank.prepareBlockSmoothing()` at block start.
+    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+                                              float excitation) noexcept
+    {
+        return sharedBank.processSampleNoSmooth(excitation);
+    }
+
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     // Delegates to ModalResonatorBank::processBlock, which uses the Highway
     // SIMD kernel (processModalBankSampleSIMD) for the per-mode inner loop.

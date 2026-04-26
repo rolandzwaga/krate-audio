@@ -84,9 +84,13 @@ public:
         // DC blocker (5 Hz cutoff: gentle, removes DC without affecting audio)
         dcBlocker_.prepare(sampleRate, 5.0f);
 
-        // Drive (tanh waveshaper). Drive amount 0 → process() returns 0.
-        // We guard against that with the bypass check in processSample().
-        drive_.setType(Krate::DSP::WaveshapeType::Tanh);
+        // Drive waveshaper. Phase 9 perf: switched from Tanh to ReciprocalSqrt
+        // (x / sqrt(x^2 + 1)). Same odd-only harmonic character as tanh but
+        // ~3x cheaper (rsqrtps vs the Padé tanh approximation). Drive amount 0
+        // bypasses the stage entirely (see the if(driveAmount_>0) gate in
+        // processSample), so this character change only matters when the user
+        // actually engages drive.
+        drive_.setType(Krate::DSP::WaveshapeType::ReciprocalSqrt);
         drive_.setDrive(1.0f);
         drive_.setAsymmetry(0.0f);
 
@@ -120,6 +124,7 @@ public:
         dcBlocker_.reset();
         pitchEnv_.reset();
         pitchEnvEnabled_ = false;
+        cutoffUpdateCounter_ = kCutoffUpdateInterval; // force update on next sample
     }
 
     // ------------------------------------------------------------------
@@ -306,6 +311,7 @@ public:
         filter_.resetIntegrators();
         filterEnv_.reset();
         pitchEnv_.reset();
+        cutoffUpdateCounter_ = kCutoffUpdateInterval; // force update on first sample
         filterEnv_.setVelocity(velocity);
         filterEnv_.gate(true);
         if (pitchEnvTimeMs_ > 0.0f)
@@ -383,14 +389,32 @@ public:
                                   && (filterEnvAmount_ == 0.0f);
         if (!filterBypass)
         {
-            // Apply filter envelope modulation to cutoff.
-            // envValue in [0, 1]; envAmount in [-1, 1]; modulation exponential
-            // so at amount=1 the cutoff can rise up to ~8x the base, and
-            // at amount=-1 it can fall by the same factor.
+            // Phase 9 perf: control-rate cutoff modulation. The naive form
+            // recomputed `cutoffHz * 8^(envAmt * envVal)` and called
+            // SVF::setCutoff (which itself triggers std::tan inside
+            // SVF::computeG and a per-sample divide inside the SVF
+            // smoother's advanceSmoother) on every audio sample. With the
+            // filter env active, that turned the per-voice slow path into
+            // ~30+ cycles of transcendentals + divides per sample. The
+            // filter envelope itself is slow (>=1 ms attack typical), so
+            // updating the cutoff target every kCutoffUpdateInterval
+            // samples (~167 us at 48 kHz) is well below audible artefacts.
+            // The SVF's own per-sample one-pole smoother interpolates
+            // between targets so the audio path stays click-free.
+            //
+            // The envelope itself advances every sample so its internal
+            // counters stay synchronised with the audio clock; the
+            // expensive modCutoff/setCutoff path is gated.
             const float envValue = filterEnv_.process();
-            const float modCutoff =
-                filterCutoffHz_ * std::pow(8.0f, filterEnvAmount_ * envValue);
-            filter_.setCutoff(modCutoff);
+            ++cutoffUpdateCounter_;
+            if (cutoffUpdateCounter_ >= kCutoffUpdateInterval)
+            {
+                cutoffUpdateCounter_ = 0;
+                // 8^x == exp2(3x); exp2 is ~5x cheaper than pow.
+                const float modCutoff =
+                    filterCutoffHz_ * std::exp2(3.0f * filterEnvAmount_ * envValue);
+                filter_.setCutoff(modCutoff);
+            }
             x = filter_.process(x);
         }
 
@@ -444,6 +468,14 @@ private:
 
     // Stored body natural fundamental (set by DrumVoice from size-derived f0).
     float naturalFundamentalHz_ = 0.0f;
+
+    // Phase 9 perf: control-rate cutoff modulation counter. Incremented every
+    // call to processSample(); when it hits kCutoffUpdateInterval the heavy
+    // exp2 + setCutoff path runs and the counter resets. The SVF's own
+    // per-sample smoother interpolates between coarse targets so the audio
+    // stays click-free.
+    static constexpr int kCutoffUpdateInterval = 8;  // ~167 us at 48 kHz
+    int cutoffUpdateCounter_ = kCutoffUpdateInterval; // first sample updates immediately
 
     // Member DSP objects
     Krate::DSP::SVF                 filter_{};

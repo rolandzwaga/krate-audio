@@ -752,6 +752,17 @@ private:
             bodyBank_.withActive(
                 [this, out, numSamples, level, pitchEnvForMembrane, morphActive, &exciter](
                     auto& body, Krate::DSP::ModalResonatorBank& sharedBank) noexcept {
+                    // Phase 9 perf: hoist the modal bank's coefficient
+                    // smoothing out of the per-sample inner loop. Without this
+                    // the slow path's per-sample processSample() smooths
+                    // 3 floats * numModes per sample, which after the Phase 8B
+                    // mode-count bump (membrane 16->48, plate 16->48,
+                    // shell 12->32) blew the FeedbackExciter combo's per-voice
+                    // CPU budget. processSampleNoSmooth() below pairs with
+                    // this single block-rate prepare and additionally routes
+                    // through the SIMD modal kernel when bow taps are off.
+                    sharedBank.prepareBlockSmoothing();
+
                     float lastBody = bodyBank_.getLastOutput();
                     for (int i = 0; i < numSamples; ++i)
                     {
@@ -768,7 +779,7 @@ private:
                             clickLayer_.processSample() * ClickLayer::kStandaloneOutputGain;
                         const float excMain = exciter.process(lastBody);
                         const float exc     = excMain + clickSample * 0.5f;
-                        const float bodyOut = body.processSample(sharedBank, exc);
+                        const float bodyOut = body.processSampleNoSmooth(sharedBank, exc);
                         lastBody            = bodyOut;
 
                         // Parallel noise layer (Phase 7) sums into body

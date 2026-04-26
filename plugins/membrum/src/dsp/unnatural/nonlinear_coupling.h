@@ -14,17 +14,18 @@
 //   env       = envFollower_.processSample(bodyOutput)
 //   dEnv      = env - previousEnv_
 //   modulated = bodyOutput * (1.0 + velocity_*amount_ * dEnv)
-//   return energyLimiter_.process(modulated)  // TanhADAA soft-clip
+//   return Sigmoid::recipSqrt(modulated)      // x / sqrt(x^2 + 1) ceiling
 //
-// SC-008 guarantee: TanhADAA ensures |output| <= 1.0 for any body output,
-// any velocity, any amount.
+// SC-008 guarantee: recipSqrt(x) = x / sqrt(x^2 + 1) is strictly bounded:
+// |output| < 1.0 for any finite input. Stateless and ~3x cheaper than the
+// previous TanhADAA limiter (no log1p, no antiderivative state).
 //
-// Real-time safety (FR-056): pre-allocated EnvelopeFollower + TanhADAA. No
-// allocation. Early-out when amount_ == 0 returns input unchanged (exact
-// bit-identical bypass, contract item 8).
+// Real-time safety (FR-056): stateless math operation; no allocation.
+// Early-out when amount_ == 0 returns input unchanged (exact bit-identical
+// bypass, contract item 8).
 // ==============================================================================
 
-#include <krate/dsp/primitives/tanh_adaa.h>
+#include <krate/dsp/core/sigmoid.h>
 #include <krate/dsp/processors/envelope_follower.h>
 
 namespace Membrum {
@@ -45,13 +46,8 @@ public:
         envFollower_.setReleaseTime(50.0f);
         envFollower_.reset();
 
-        // TanhADAA energy limiter. Drive = 1.0 keeps the transfer linear
-        // near zero and only soft-clips as inputs approach +/-1. We do not
-        // re-prepare TanhADAA (no prepare API); it is stateless beyond
-        // the previous-sample memory.
-        energyLimiter_.reset();
-        energyLimiter_.setDrive(1.0f);
-
+        // Phase 9 perf: energy limiter is now Sigmoid::recipSqrt (stateless).
+        // No setup needed. previousEnv_ tracks delta for the AM modulation.
         previousEnv_ = 0.0f;
         prepared_    = true;
     }
@@ -59,7 +55,6 @@ public:
     void reset() noexcept
     {
         envFollower_.reset();
-        energyLimiter_.reset();
         previousEnv_ = 0.0f;
     }
 
@@ -96,14 +91,14 @@ public:
 
         const float modulated = bodyOutput * (1.0f + couplingStrength * dEnv);
 
-        // Energy limiter: TanhADAA guarantees |output| <= 1.0 for any input
-        // (SC-008). This is the mandatory peak-safety layer.
-        return energyLimiter_.process(modulated);
+        // Energy limiter: recipSqrt(x) = x / sqrt(x^2 + 1) gives |output| < 1.0
+        // for any finite input (SC-008). Phase 9 perf: replaced TanhADAA which
+        // ran std::log1p per sample.
+        return Krate::DSP::Sigmoid::recipSqrt(modulated);
     }
 
 private:
     Krate::DSP::EnvelopeFollower envFollower_;
-    Krate::DSP::TanhADAA          energyLimiter_;
     float  amount_       = 0.0f;
     float  velocity_     = 1.0f;  // default 1.0 so tests without setVelocity work
     float  previousEnv_  = 0.0f;

@@ -56,19 +56,33 @@ void ProcessModalBankSampleSIMDImpl(
     const size_t N = hn::Lanes(d);
     const auto vExcitation = hn::Set(d, excitation);
 
-    auto vSum = hn::Zero(d);
+    // Phase 9 perf: dual accumulators break the FMA-into-vSum dependency
+    // chain. The Highway reduction docs explicitly recommend 2-4 split
+    // accumulators to hide the ~4-5 cycle FMA latency on x86. The Membrane
+    // body's 48-mode bank is 6 SIMD iters per sample (N=8 on AVX2); without
+    // split accumulators every iter waits on the previous Add(vSum, vSNew)
+    // to retire. Splitting halves that wait at zero algorithmic cost.
+    auto vSum0 = hn::Zero(d);
+    auto vSum1 = hn::Zero(d);
 
     size_t i = 0;
     const size_t count = static_cast<size_t>(numModes);
 
-    // SIMD loop: process N modes per iteration
+    // Phase 9 perf: state arrays in ModalResonatorBank are alignas(32) so we
+    // can use aligned Load/Store. Saves a couple of cycles vs LoadU on
+    // older AVX hardware. (Tail uses ScalarLoad implicitly.)
+
+    // SIMD loop: process N modes per iteration. Even iters fold into vSum0,
+    // odd into vSum1 -- the writes to sinState are independent across iters
+    // so there's no in-loop hazard.
+    bool useSum0 = true;
     for (; i + N <= count; i += N) {
-        // Load per-mode state
-        auto vSin = hn::LoadU(d, sinState + i);
-        auto vCos = hn::LoadU(d, cosState + i);
-        const auto vEps = hn::LoadU(d, epsilon + i);
-        const auto vR = hn::LoadU(d, radius + i);
-        const auto vGain = hn::LoadU(d, inputGain + i);
+        // Load per-mode state (aligned: state arrays are alignas(32))
+        auto vSin = hn::Load(d, sinState + i);
+        auto vCos = hn::Load(d, cosState + i);
+        const auto vEps = hn::Load(d, epsilon + i);
+        const auto vR = hn::Load(d, radius + i);
+        const auto vGain = hn::Load(d, inputGain + i);
 
         // Coupled-form resonator (FR-003):
         // s_new = R * (s + eps * c) + gain * excitation
@@ -80,16 +94,21 @@ void ProcessModalBankSampleSIMDImpl(
         const auto vCMinusEpsSNew = hn::NegMulAdd(vEps, vSNew, vCos);   // c - eps*s_new
         const auto vCNew = hn::Mul(vR, vCMinusEpsSNew);                 // R*(c - eps*s_new)
 
-        // Accumulate output
-        vSum = hn::Add(vSum, vSNew);
+        // Accumulate output into split accumulators (alternating)
+        if (useSum0) {
+            vSum0 = hn::Add(vSum0, vSNew);
+        } else {
+            vSum1 = hn::Add(vSum1, vSNew);
+        }
+        useSum0 = !useSum0;
 
-        // Write back state
-        hn::StoreU(vSNew, d, sinState + i);
-        hn::StoreU(vCNew, d, cosState + i);
+        // Write back state (aligned)
+        hn::Store(vSNew, d, sinState + i);
+        hn::Store(vCNew, d, cosState + i);
     }
 
-    // Horizontal sum of SIMD accumulator
-    *outSum = hn::ReduceSum(d, vSum);
+    // Combine split accumulators, then horizontal-sum once.
+    *outSum = hn::ReduceSum(d, hn::Add(vSum0, vSum1));
 
     // Scalar tail for remaining modes
     for (; i < count; ++i) {

@@ -44,6 +44,12 @@ struct ShellBody
         return sharedBank.processSample(excitation);
     }
 
+    [[nodiscard]] float processSampleNoSmooth(Krate::DSP::ModalResonatorBank& sharedBank,
+                                              float excitation) noexcept
+    {
+        return sharedBank.processSampleNoSmooth(excitation);
+    }
+
     // Block-rate fast path (Phase 9 SIMD emergency fallback / plan.md §SIMD).
     //
     // Shell has only 12 modes, which is awkward for wide SIMD (AVX2 lane 8
