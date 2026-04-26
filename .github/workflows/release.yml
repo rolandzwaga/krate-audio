@@ -545,12 +545,15 @@ jobs:
           cp -r plugins/${PLUGIN}/docs/assets _site/${PLUGIN}/ 2>/dev/null || true
 
       - name: Generate Signal Flow Diagram
-        if: needs.version.outputs.plugin == 'ruinae'
+        env:
+          PLUGIN: ${{ needs.version.outputs.plugin }}
         run: |
-          if [ -f plugins/ruinae/docs/ruinae_signal_flow.dot ]; then
+          dot_file="plugins/${PLUGIN}/docs/${PLUGIN}_signal_flow.dot"
+          if [ -f "$dot_file" ]; then
+            mkdir -p "_site/${PLUGIN}"
             node tools/generate-signal-flow.js \
-              plugins/ruinae/docs/ruinae_signal_flow.dot \
-              _site/ruinae/signal-flow.html
+              "$dot_file" \
+              "_site/${PLUGIN}/signal-flow.html"
           fi
 
       - name: Generate Root Index
