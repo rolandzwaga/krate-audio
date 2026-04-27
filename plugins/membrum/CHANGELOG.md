@@ -5,6 +5,26 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-04-27
+
+### Fixed
+
+- **macOS installer dropped factory presets one directory too high** --
+  the pkgbuild step in `.github/workflows/release.yml` staged presets
+  at `/Library/Application Support/Krate Audio/Membrum/{Acoustic,...}/`
+  for every plugin, but Membrum's `PresetManager` uses
+  `pluginName = "Membrum/Kits"` so it scans
+  `/Library/Application Support/Krate Audio/Membrum/Kits/`. The kit
+  browser came up empty on macOS because the presets were one level
+  shallow. The Windows installer was unaffected (the Inno Setup
+  script hard-codes the `Kits` subdirectory) and Linux was unaffected
+  (the README has the user copy presets manually to the correct
+  path). Fix: optional `"preset_subdir"` field in `version.json`
+  appended to the macOS staging destination; Membrum sets it to
+  `"Kits"`. Plugins without the field keep the original flat path --
+  Ruinae / Innexus / Gradus / Iterum / Disrumpo behaviour is
+  unchanged.
+
 ## [0.9.0] - 2026-04-26
 
 ### Added
