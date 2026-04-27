@@ -291,9 +291,18 @@ jobs:
             mkdir -p "staging/Applications"
             mv "artifact/bin/Release/${PLUGIN_NAME} AUv3.app" "staging/Applications/"
           fi
-          # Create factory presets directory and copy freshly generated presets
-          mkdir -p "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}"
-          cp -r presets/* "staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}/"
+          # Create factory presets directory and copy freshly generated presets.
+          # Plugins whose runtime PresetManager uses a nested pluginName (e.g.
+          # Membrum's "Membrum/Kits") declare the trailing segment via the
+          # optional `preset_subdir` field in version.json so the staged path
+          # matches what the plugin scans on load.
+          PRESET_SUBDIR=$(jq -r '.preset_subdir // empty' plugins/${PLUGIN}/version.json)
+          PRESET_DEST="staging/Library/Application Support/Krate Audio/${PLUGIN_NAME}"
+          if [ -n "$PRESET_SUBDIR" ]; then
+            PRESET_DEST="${PRESET_DEST}/${PRESET_SUBDIR}"
+          fi
+          mkdir -p "$PRESET_DEST"
+          cp -r presets/* "$PRESET_DEST/"
 
       - name: Build Installer
         env:
