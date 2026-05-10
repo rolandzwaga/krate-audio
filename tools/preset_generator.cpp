@@ -150,6 +150,9 @@ struct DigitalPreset {
     int modulationWaveform = 0;     // 0-2
     float mix = 0.5f;               // 0-1 (params file stores 0-1, not 0-100)
     float width = 100.0f;           // 0-200%
+    float wavefoldAmount = 0.0f;    // 0-1 (0 = disabled)
+    int wavefoldType = 0;           // 0-3
+    float wavefoldSymmetry = 0.0f;  // -1 to +1
 };
 
 struct PingPongPreset {
@@ -359,6 +362,7 @@ void writeBBDState(BinaryWriter& w, const BBDPreset& p) {
 }
 
 void writeDigitalState(BinaryWriter& w, const DigitalPreset& p) {
+    // Order MUST match saveDigitalParams() in digital_params.h
     w.writeFloat(p.delayTime);
     w.writeInt32(p.timeMode);
     w.writeInt32(p.noteValue);
@@ -371,6 +375,9 @@ void writeDigitalState(BinaryWriter& w, const DigitalPreset& p) {
     w.writeInt32(p.modulationWaveform);
     w.writeFloat(p.mix);
     w.writeFloat(p.width);
+    w.writeFloat(p.wavefoldAmount);
+    w.writeInt32(p.wavefoldType);
+    w.writeFloat(p.wavefoldSymmetry);
 }
 
 void writePingPongState(BinaryWriter& w, const PingPongPreset& p) {

@@ -5,6 +5,12 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-05-10
+
+### Fixed
+
+- **Factory preset corruption (PingPong + MultiTap modes)**: `preset_generator` was missing three Digital-mode fields (`wavefoldAmount`, `wavefoldType`, `wavefoldSymmetry`) introduced in earlier releases. Generated `.vstpreset` files were 12 bytes short in the Digital section, causing the processor to read misaligned bytes for every mode written after Digital. The most visible symptom was PingPong presets loading with dry/wet pinned to 0% (fully dry) because PingPong's mix slot ended up reading from MultiTap data. All 100 factory presets regenerated.
+
 ## [0.15.0] - 2026-03-14
 
 ### Changed
