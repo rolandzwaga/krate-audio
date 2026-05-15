@@ -26,17 +26,19 @@ bool writePresetFile(const std::filesystem::path& outputPath,
         return false;
     }
 
+    // Raw string literals avoid the embedded-quote escape noise; the trailing
+    // newlines stay as separate literals so each line maps 1:1 to the wire.
     std::ostringstream xml;
-    xml << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+    xml << R"(<?xml version="1.0" encoding="UTF-8"?>)" "\n";
     xml << "<MetaInfo>\n";
-    xml << "  <Attr id=\"MediaType\" value=\"VstPreset\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInName\" value=\"Membrum\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"PlugInCategory\" value=\"" << Membrum::kSubCategories << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"Name\" value=\"" << presetName << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalCategory\" value=\"" << subcategory << "\" type=\"string\"/>\n";
-    xml << "  <Attr id=\"MusicalInstrument\" value=\"" << subcategory << "\" type=\"string\"/>\n";
+    xml << R"(  <Attr id="MediaType" value="VstPreset" type="string"/>)" "\n";
+    xml << R"(  <Attr id="PlugInName" value="Membrum" type="string"/>)" "\n";
+    xml << R"(  <Attr id="PlugInCategory" value=")" << Membrum::kSubCategories << R"(" type="string"/>)" "\n";
+    xml << R"(  <Attr id="Name" value=")" << presetName << R"(" type="string"/>)" "\n";
+    xml << R"(  <Attr id="MusicalCategory" value=")" << subcategory << R"(" type="string"/>)" "\n";
+    xml << R"(  <Attr id="MusicalInstrument" value=")" << subcategory << R"(" type="string"/>)" "\n";
     if (!description.empty()) {
-        xml << "  <Attr id=\"Comment\" value=\"" << description << "\" type=\"string\"/>\n";
+        xml << R"(  <Attr id="Comment" value=")" << description << R"(" type="string"/>)" "\n";
     }
     xml << "</MetaInfo>\n";
     const std::string xmlStr = xml.str();

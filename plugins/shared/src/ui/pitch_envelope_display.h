@@ -62,7 +62,8 @@ public:
 
     static constexpr float kControlPointRadius = 10.0f;       // hit radius
     static constexpr float kControlPointDrawRadius = 4.0f;    // visual radius
-    static constexpr float kHitRadius = 10.0f;                // hit test radius
+    static constexpr float kHitRadius = 10.0f;                // hit test radius (initial click)
+    static constexpr float kDragRadius = 20.0f;               // sticky hit radius while dragging (Vital convention)
     static constexpr float kPadding = 6.0f;
     static constexpr float kCurveDragSensitivity = 0.005f;
     static constexpr float kLabelStripHeight = 14.0f;
@@ -72,6 +73,15 @@ public:
     static constexpr float kMinViewHeightForGrid = 40.0f;
     static constexpr float kMinViewHeightForLabels = 60.0f;
 
+    // Phase 10: clamp Mid handle's time fraction so it can't sit on top of
+    // the Start (X=0) or End (X=1) handles (Surge MSEG convention; prevents
+    // zero-length segments and hit-test ambiguity).
+    static constexpr float kMidFractionEpsilon = 0.02f;
+    // Curve handles sit at the geometric midpoint of each segment, offset by
+    // this many pixels along the segment's normal so they never overlap with
+    // the Mid breakpoint (which lives on the curve itself).
+    static constexpr float kCurveHandleNormalOffsetPx = 0.0f;  // unused -- curve handle is drawn ON the curve, hit test resolves Mid first.
+
     // =========================================================================
     // Types
     // =========================================================================
@@ -80,8 +90,12 @@ public:
         None,
         Start,      // vertical only
         End,        // vertical only
-        Time,       // horizontal only
-        Curve       // vertical delta on the segment body
+        Time,       // horizontal only (knee disabled; Time knob lives elsewhere when knee enabled)
+        Curve,      // vertical delta on the (single) segment body. Knee disabled.
+        // Phase 10 (3-point envelope):
+        Mid,        // 2D drag (X = midFractionN_, Y = midPitchN_). Knee enabled.
+        Curve1,     // vertical delta on segment 1 body. Knee enabled.
+        Curve2,     // vertical delta on segment 2 body. Knee enabled.
     };
 
     using ParameterCallback = std::function<void(uint32_t paramId, float normalizedValue)>;
@@ -142,10 +156,42 @@ public:
         setDirty();
     }
 
+    // Phase 10: 3-point envelope extension. midPitch is on the same 0..1 ->
+    // 20..2000 Hz log scale as Start/End; midFraction is the [0,1] portion of
+    // total time spent in segment 1; curve2 is the segment-2 curve amount on
+    // the same 0..1 -> [-1,+1] mapping as the legacy curve param.
+    void setKneeEnabled(bool enabled) {
+        if (isDragging_) return;
+        kneeEnabled_ = enabled;
+        setDirty();
+    }
+
+    void setMidPitchNormalized(float n) {
+        if (isDragging_) return;
+        midPitchN_ = std::clamp(n, 0.0f, 1.0f);
+        setDirty();
+    }
+
+    void setMidFractionNormalized(float n) {
+        if (isDragging_) return;
+        midFractionN_ = std::clamp(n, 0.0f, 1.0f);
+        setDirty();
+    }
+
+    void setCurve2Normalized(float n) {
+        if (isDragging_) return;
+        curve2N_ = std::clamp(n, 0.0f, 1.0f);
+        setDirty();
+    }
+
     [[nodiscard]] float getStartNormalized() const { return startN_; }
     [[nodiscard]] float getEndNormalized() const { return endN_; }
     [[nodiscard]] float getTimeNormalized() const { return timeN_; }
     [[nodiscard]] float getCurveNormalized() const { return curveN_; }
+    [[nodiscard]] bool  getKneeEnabled() const { return kneeEnabled_; }
+    [[nodiscard]] float getMidPitchNormalized()    const { return midPitchN_; }
+    [[nodiscard]] float getMidFractionNormalized() const { return midFractionN_; }
+    [[nodiscard]] float getCurve2Normalized()      const { return curve2N_; }
 
     // =========================================================================
     // Parameter ID Configuration
@@ -155,11 +201,19 @@ public:
     void setEndParamId(uint32_t paramId) { endParamId_ = paramId; }
     void setTimeParamId(uint32_t paramId) { timeParamId_ = paramId; }
     void setCurveParamId(uint32_t paramId) { curveParamId_ = paramId; }
+    void setKneeEnabledParamId(uint32_t paramId)  { kneeEnabledParamId_ = paramId; }
+    void setMidPitchParamId(uint32_t paramId)     { midPitchParamId_ = paramId; }
+    void setMidFractionParamId(uint32_t paramId)  { midFractionParamId_ = paramId; }
+    void setCurve2ParamId(uint32_t paramId)       { curve2ParamId_ = paramId; }
 
     [[nodiscard]] uint32_t getStartParamId() const { return startParamId_; }
     [[nodiscard]] uint32_t getEndParamId() const { return endParamId_; }
     [[nodiscard]] uint32_t getTimeParamId() const { return timeParamId_; }
     [[nodiscard]] uint32_t getCurveParamId() const { return curveParamId_; }
+    [[nodiscard]] uint32_t getKneeEnabledParamId() const { return kneeEnabledParamId_; }
+    [[nodiscard]] uint32_t getMidPitchParamId()    const { return midPitchParamId_; }
+    [[nodiscard]] uint32_t getMidFractionParamId() const { return midFractionParamId_; }
+    [[nodiscard]] uint32_t getCurve2ParamId()      const { return curve2ParamId_; }
 
     // =========================================================================
     // Callback Configuration
@@ -237,15 +291,66 @@ public:
         return std::clamp((bottom - pixelY) / span, 0.0f, 1.0f);
     }
 
-    /// Y coordinate on the drawn curve at given normalised time.
-    [[nodiscard]] float curveYAtTime(float timeN) const {
+    /// Y coordinate at the geometric midpoint of segment `seg` (1 or 2), in
+    /// pixel coordinates. Segment 1 spans Start..Mid (or Start..End when knee
+    /// disabled); segment 2 spans Mid..End (only when knee enabled).
+    [[nodiscard]] float segmentMidpointY(int seg) const {
         std::array<float, Krate::DSP::kCurveTableSize> table{};
-        float curveAmount = 2.0f * curveN_ - 1.0f;
+        if (!kneeEnabled_) {
+            const float curveAmount = 2.0f * curveN_ - 1.0f;
+            Krate::DSP::generatePowerCurveTable(table, curveAmount);
+            const float shaped = Krate::DSP::lookupCurveTable(table, 0.5f);
+            const float startY = pitchToPixelY(startN_);
+            const float endY   = pitchToPixelY(endN_);
+            return startY + shaped * (endY - startY);
+        }
+        const float amt = (seg == 1 ? curveN_ : curve2N_);
+        const float curveAmount = 2.0f * amt - 1.0f;
         Krate::DSP::generatePowerCurveTable(table, curveAmount);
-        float shaped = Krate::DSP::lookupCurveTable(table, std::clamp(timeN, 0.0f, 1.0f));
-        float startY = pitchToPixelY(startN_);
-        float endY = pitchToPixelY(endN_);
-        return startY + shaped * (endY - startY);
+        const float shaped = Krate::DSP::lookupCurveTable(table, 0.5f);
+        if (seg == 1) {
+            return pitchToPixelY(startN_)
+                 + shaped * (pitchToPixelY(midPitchN_) - pitchToPixelY(startN_));
+        }
+        return pitchToPixelY(midPitchN_)
+             + shaped * (pitchToPixelY(endN_) - pitchToPixelY(midPitchN_));
+    }
+
+    /// X position of the geometric midpoint of segment `seg` (1 or 2),
+    /// normalised in [0, 1] across the full envelope timeline.
+    [[nodiscard]] float segmentMidpointXNorm(int seg) const {
+        if (!kneeEnabled_) return 0.5f;
+        if (seg == 1) return midFractionN_ * 0.5f;
+        return midFractionN_ + (1.0f - midFractionN_) * 0.5f;
+    }
+
+    /// Y coordinate on the drawn curve at normalised time `timeN`, accounting
+    /// for the active mode (1-segment or 3-point).
+    [[nodiscard]] float curveYAtTime(float timeN) const {
+        const float t = std::clamp(timeN, 0.0f, 1.0f);
+        std::array<float, Krate::DSP::kCurveTableSize> table{};
+        if (!kneeEnabled_) {
+            const float curveAmount = 2.0f * curveN_ - 1.0f;
+            Krate::DSP::generatePowerCurveTable(table, curveAmount);
+            const float shaped = Krate::DSP::lookupCurveTable(table, t);
+            return pitchToPixelY(startN_)
+                 + shaped * (pitchToPixelY(endN_) - pitchToPixelY(startN_));
+        }
+        const float frac = std::clamp(midFractionN_, kMidFractionEpsilon, 1.0f - kMidFractionEpsilon);
+        if (t <= frac) {
+            const float local = (frac > 0.0f) ? (t / frac) : 0.0f;
+            const float curveAmount = 2.0f * curveN_ - 1.0f;
+            Krate::DSP::generatePowerCurveTable(table, curveAmount);
+            const float shaped = Krate::DSP::lookupCurveTable(table, local);
+            return pitchToPixelY(startN_)
+                 + shaped * (pitchToPixelY(midPitchN_) - pitchToPixelY(startN_));
+        }
+        const float local = (1.0f - frac > 0.0f) ? ((t - frac) / (1.0f - frac)) : 0.0f;
+        const float curveAmount = 2.0f * curve2N_ - 1.0f;
+        Krate::DSP::generatePowerCurveTable(table, curveAmount);
+        const float shaped = Krate::DSP::lookupCurveTable(table, local);
+        return pitchToPixelY(midPitchN_)
+             + shaped * (pitchToPixelY(endN_) - pitchToPixelY(midPitchN_));
     }
 
     [[nodiscard]] VSTGUI::CPoint getHandleCenter(DragTarget target) const {
@@ -259,6 +364,17 @@ public:
                 return VSTGUI::CPoint(rightX, pitchToPixelY(endN_));
             case DragTarget::Time:
                 return VSTGUI::CPoint(timeToPixelX(timeN_), curveYAtTime(timeN_));
+            case DragTarget::Mid:
+                return VSTGUI::CPoint(timeToPixelX(midFractionN_), pitchToPixelY(midPitchN_));
+            case DragTarget::Curve1:
+                return VSTGUI::CPoint(timeToPixelX(segmentMidpointXNorm(1)),
+                                      segmentMidpointY(1));
+            case DragTarget::Curve2:
+                return VSTGUI::CPoint(timeToPixelX(segmentMidpointXNorm(2)),
+                                      segmentMidpointY(2));
+            case DragTarget::Curve:
+                // Legacy single-segment curve handle (same as segment 1 midpoint).
+                return VSTGUI::CPoint(timeToPixelX(0.5f), segmentMidpointY(1));
             default:
                 return VSTGUI::CPoint(0, 0);
         }
@@ -269,8 +385,13 @@ public:
     // hitTest(CPoint&, const Event&) is not meaningful here, so the
     // -Woverloaded-virtual hide is deliberate.
     [[nodiscard]] DragTarget hitTest(const VSTGUI::CPoint& point) const {
-        // Start and End handles take priority over Time (which can coincide
-        // with Start when timeN==0 or with End when timeN==1).
+        // Hit-test priority (Surge MSEG / Vital convention):
+        //   1. Endpoint nodes (Start, End) take priority over interior handles.
+        //   2. Mid (interior breakpoint) before any curve handle.
+        //   3. Per-segment curve handles ON the curve line.
+        //   4. Time handle (knee disabled only -- replaced by dedicated Time
+        //      knob when knee enabled, per Phase 10 plan).
+        //   5. Fallback to vertical curve-drag on the segment body.
         const float r2 = kHitRadius * kHitRadius;
         auto hits = [&](DragTarget t) {
             auto c = getHandleCenter(t);
@@ -281,18 +402,33 @@ public:
 
         if (hits(DragTarget::Start)) return DragTarget::Start;
         if (hits(DragTarget::End))   return DragTarget::End;
-        if (hits(DragTarget::Time))  return DragTarget::Time;
 
-        // Curve drag: inside the envelope rect (excluding handles which were
-        // tested above), we interpret a press as a curve-amount adjustment.
+        if (kneeEnabled_) {
+            if (hits(DragTarget::Mid))    return DragTarget::Mid;
+            if (hits(DragTarget::Curve1)) return DragTarget::Curve1;
+            if (hits(DragTarget::Curve2)) return DragTarget::Curve2;
+        } else {
+            if (hits(DragTarget::Time))   return DragTarget::Time;
+        }
+
+        // Fallback: inside the envelope rect (excluding handles which were
+        // tested above), interpret a vertical press near the curve as a
+        // curve-amount adjustment for whichever segment contains the X.
         VSTGUI::CRect vs = getViewSize();
         float leftX = static_cast<float>(vs.left) + kPadding;
         float rightX = static_cast<float>(vs.right) - kPadding;
         if (point.x >= leftX && point.x <= rightX) {
-            float yCurve = curveYAtTime(pixelXToTime(static_cast<float>(point.x)));
+            const float tNorm = pixelXToTime(static_cast<float>(point.x));
+            float yCurve = curveYAtTime(tNorm);
             float dy = static_cast<float>(point.y) - yCurve;
             if (std::abs(dy) <= kHitRadius * 2.0f) {
-                return DragTarget::Curve;
+                if (!kneeEnabled_) return DragTarget::Curve;
+                // 3-point mode: pick the segment containing the press X.
+                const float frac = std::clamp(midFractionN_,
+                                              kMidFractionEpsilon,
+                                              1.0f - kMidFractionEpsilon);
+                return (tNorm < frac) ? DragTarget::Curve1
+                                      : DragTarget::Curve2;
             }
         }
 
@@ -410,13 +546,39 @@ private:
                 break;
             }
             case DragTarget::Curve: {
-                // Vertical delta from the press anchor adjusts curve amount.
+                // Single-segment vertical curve-drag (knee disabled).
                 float deltaY = static_cast<float>(where.y - lastDragPoint_.y);
-                // Down (positive deltaY) = more exponential (curveN -> 1).
-                // Up   (negative deltaY) = more logarithmic  (curveN -> 0).
                 float curveDelta = deltaY * kCurveDragSensitivity;
                 curveN_ = std::clamp(curveN_ + curveDelta, 0.0f, 1.0f);
                 fireParam(curveParamId_, curveN_);
+                setDirty();
+                break;
+            }
+            case DragTarget::Mid: {
+                // 2D drag: Y -> midPitch, X -> midFraction (clamped to keep
+                // the handle off the Start / End endpoints).
+                midPitchN_    = pixelYToPitch(static_cast<float>(where.y));
+                midFractionN_ = std::clamp(
+                    pixelXToTime(static_cast<float>(where.x)),
+                    kMidFractionEpsilon, 1.0f - kMidFractionEpsilon);
+                fireParam(midPitchParamId_,    midPitchN_);
+                fireParam(midFractionParamId_, midFractionN_);
+                setDirty();
+                break;
+            }
+            case DragTarget::Curve1: {
+                float deltaY = static_cast<float>(where.y - lastDragPoint_.y);
+                float curveDelta = deltaY * kCurveDragSensitivity;
+                curveN_ = std::clamp(curveN_ + curveDelta, 0.0f, 1.0f);
+                fireParam(curveParamId_, curveN_);
+                setDirty();
+                break;
+            }
+            case DragTarget::Curve2: {
+                float deltaY = static_cast<float>(where.y - lastDragPoint_.y);
+                float curveDelta = deltaY * kCurveDragSensitivity;
+                curve2N_ = std::clamp(curve2N_ + curveDelta, 0.0f, 1.0f);
+                fireParam(curve2ParamId_, curve2N_);
                 setDirty();
                 break;
             }
@@ -433,22 +595,39 @@ private:
 
     void notifyBeginEdit(DragTarget target) {
         if (!beginEditCallback_) return;
-        uint32_t id = paramIdForTarget(target);
+        // Mid's 2D drag touches two parameter IDs (pitch + fraction); open
+        // beginEdit for both so the host treats it as a single gesture
+        // spanning both automation lanes. All other targets are single-ID.
+        if (target == DragTarget::Mid) {
+            if (midPitchParamId_    != 0) beginEditCallback_(midPitchParamId_);
+            if (midFractionParamId_ != 0) beginEditCallback_(midFractionParamId_);
+            return;
+        }
+        const uint32_t id = paramIdForTarget(target);
         if (id != 0) beginEditCallback_(id);
     }
 
     void notifyEndEdit(DragTarget target) {
         if (!endEditCallback_) return;
-        uint32_t id = paramIdForTarget(target);
+        if (target == DragTarget::Mid) {
+            if (midPitchParamId_    != 0) endEditCallback_(midPitchParamId_);
+            if (midFractionParamId_ != 0) endEditCallback_(midFractionParamId_);
+            return;
+        }
+        const uint32_t id = paramIdForTarget(target);
         if (id != 0) endEditCallback_(id);
     }
 
     [[nodiscard]] uint32_t paramIdForTarget(DragTarget target) const {
         switch (target) {
-            case DragTarget::Start: return startParamId_;
-            case DragTarget::End:   return endParamId_;
-            case DragTarget::Time:  return timeParamId_;
-            case DragTarget::Curve: return curveParamId_;
+            case DragTarget::Start:  return startParamId_;
+            case DragTarget::End:    return endParamId_;
+            case DragTarget::Time:   return timeParamId_;
+            case DragTarget::Curve:  return curveParamId_;
+            case DragTarget::Curve1: return curveParamId_;   // segment 1 == legacy curve param
+            case DragTarget::Curve2: return curve2ParamId_;
+            // Mid is handled separately (multi-ID) in notify{Begin,End}Edit;
+            // returning 0 here is correct so the single-ID paths skip it.
             default: return 0;
         }
     }
@@ -504,25 +683,43 @@ private:
         if (!path) return;
 
         VSTGUI::CRect vs = getViewSize();
-        float leftX = static_cast<float>(vs.left) + kPadding;
+        float leftX  = static_cast<float>(vs.left)  + kPadding;
         float rightX = static_cast<float>(vs.right) - kPadding;
         float bottomY = pitchToPixelY(0.0f);
+        float startY  = pitchToPixelY(startN_);
+        float endY    = pitchToPixelY(endN_);
 
-        std::array<float, Krate::DSP::kCurveTableSize> table{};
-        float curveAmount = 2.0f * curveN_ - 1.0f;
-        Krate::DSP::generatePowerCurveTable(table, curveAmount);
+        // Helper: append a kCurveResolution-step power-curve segment to `path`
+        // from (x0,y0) -> (x1,y1) shaped by curveAmount, skipping the initial
+        // point because the path is already there.
+        auto appendSegment = [&](float x0, float y0, float x1, float y1,
+                                 float curveAmount) {
+            std::array<float, Krate::DSP::kCurveTableSize> table{};
+            Krate::DSP::generatePowerCurveTable(table, curveAmount);
+            for (int i = 1; i <= kCurveResolution; ++i) {
+                const float phase = static_cast<float>(i)
+                                  / static_cast<float>(kCurveResolution);
+                const float shaped = Krate::DSP::lookupCurveTable(table, phase);
+                const float x = x0 + phase * (x1 - x0);
+                const float y = y0 + shaped * (y1 - y0);
+                path->addLine(VSTGUI::CPoint(x, y));
+            }
+        };
 
-        float startY = pitchToPixelY(startN_);
-        float endY = pitchToPixelY(endN_);
-
-        // Build the curve path from Start -> End.
         path->beginSubpath(VSTGUI::CPoint(leftX, startY));
-        for (int i = 1; i <= kCurveResolution; ++i) {
-            float phase = static_cast<float>(i) / static_cast<float>(kCurveResolution);
-            float shaped = Krate::DSP::lookupCurveTable(table, phase);
-            float x = leftX + phase * (rightX - leftX);
-            float y = startY + shaped * (endY - startY);
-            path->addLine(VSTGUI::CPoint(x, y));
+        if (!kneeEnabled_) {
+            // Single segment: Start -> End.
+            const float curveAmount = 2.0f * curveN_ - 1.0f;
+            appendSegment(leftX, startY, rightX, endY, curveAmount);
+        } else {
+            // Two segments: Start -> Mid, then Mid -> End.
+            const float frac = std::clamp(midFractionN_,
+                                          kMidFractionEpsilon,
+                                          1.0f - kMidFractionEpsilon);
+            const float midX = leftX + frac * (rightX - leftX);
+            const float midY = pitchToPixelY(midPitchN_);
+            appendSegment(leftX, startY, midX, midY, 2.0f * curveN_  - 1.0f);
+            appendSegment(midX,  midY,   rightX, endY, 2.0f * curve2N_ - 1.0f);
         }
 
         // Close path to baseline for a translucent fill underneath the curve.
@@ -539,23 +736,32 @@ private:
     }
 
     void drawHandles(VSTGUI::CDrawContext* context) const {
-        auto drawOne = [&](DragTarget t) {
+        auto drawOne = [&](DragTarget t, float radius) {
             bool active = isDragging_ && dragTarget_ == t;
             auto center = getHandleCenter(t);
             VSTGUI::CRect r(
-                center.x - kControlPointDrawRadius,
-                center.y - kControlPointDrawRadius,
-                center.x + kControlPointDrawRadius,
-                center.y + kControlPointDrawRadius);
+                center.x - radius,
+                center.y - radius,
+                center.x + radius,
+                center.y + radius);
             context->setFillColor(active ? handleActiveColor_ : handleColor_);
             context->drawEllipse(r, VSTGUI::kDrawFilled);
             context->setFrameColor(gridColor_);
             context->setLineWidth(1.0);
             context->drawEllipse(r, VSTGUI::kDrawStroked);
         };
-        drawOne(DragTarget::Start);
-        drawOne(DragTarget::End);
-        drawOne(DragTarget::Time);
+        drawOne(DragTarget::Start, kControlPointDrawRadius);
+        drawOne(DragTarget::End,   kControlPointDrawRadius);
+        if (kneeEnabled_) {
+            // Mid breakpoint: same size as endpoints (it's a real handle).
+            drawOne(DragTarget::Mid, kControlPointDrawRadius);
+            // Curve handles: smaller (Vital convention -- closed-point
+            // curvature handles are visually subordinate to breakpoints).
+            drawOne(DragTarget::Curve1, kControlPointDrawRadius * 0.6f);
+            drawOne(DragTarget::Curve2, kControlPointDrawRadius * 0.6f);
+        } else {
+            drawOne(DragTarget::Time, kControlPointDrawRadius);
+        }
     }
 
     void drawLabels(VSTGUI::CDrawContext* context) const {
@@ -599,11 +805,23 @@ private:
     float timeN_  = 0.5f;
     float curveN_ = 0.5f;  // 0.5 -> curve amount 0 (linear)
 
+    // Phase 10 (3-point envelope extension). When kneeEnabled_ is true the
+    // editor renders Start -> Mid -> End instead of Start -> End, with curveN_
+    // shaping segment 1 and curve2N_ shaping segment 2.
+    bool  kneeEnabled_  = false;
+    float midPitchN_    = 0.5f;
+    float midFractionN_ = 0.5f;
+    float curve2N_      = 0.5f;
+
     // Parameter IDs (0 means unbound).
-    uint32_t startParamId_ = 0;
-    uint32_t endParamId_   = 0;
-    uint32_t timeParamId_  = 0;
-    uint32_t curveParamId_ = 0;
+    uint32_t startParamId_       = 0;
+    uint32_t endParamId_         = 0;
+    uint32_t timeParamId_        = 0;
+    uint32_t curveParamId_       = 0;
+    uint32_t kneeEnabledParamId_ = 0;
+    uint32_t midPitchParamId_    = 0;
+    uint32_t midFractionParamId_ = 0;
+    uint32_t curve2ParamId_      = 0;
 
     // Drag state.
     bool isDragging_ = false;
@@ -684,6 +902,10 @@ struct PitchEnvelopeDisplayCreator : VSTGUI::ViewCreatorAdapter {
         applyTag("end-tag",   &PitchEnvelopeDisplay::setEndParamId);
         applyTag("time-tag",  &PitchEnvelopeDisplay::setTimeParamId);
         applyTag("curve-tag", &PitchEnvelopeDisplay::setCurveParamId);
+        applyTag("knee-enabled-tag", &PitchEnvelopeDisplay::setKneeEnabledParamId);
+        applyTag("mid-pitch-tag",    &PitchEnvelopeDisplay::setMidPitchParamId);
+        applyTag("mid-fraction-tag", &PitchEnvelopeDisplay::setMidFractionParamId);
+        applyTag("curve2-tag",       &PitchEnvelopeDisplay::setCurve2ParamId);
 
         VSTGUI::CColor color;
         if (VSTGUI::UIViewCreator::stringToColor(
@@ -717,6 +939,10 @@ struct PitchEnvelopeDisplayCreator : VSTGUI::ViewCreatorAdapter {
         attributeNames.emplace_back("end-tag");
         attributeNames.emplace_back("time-tag");
         attributeNames.emplace_back("curve-tag");
+        attributeNames.emplace_back("knee-enabled-tag");
+        attributeNames.emplace_back("mid-pitch-tag");
+        attributeNames.emplace_back("mid-fraction-tag");
+        attributeNames.emplace_back("curve2-tag");
         attributeNames.emplace_back("background-color");
         attributeNames.emplace_back("grid-color");
         attributeNames.emplace_back("stroke-color");
@@ -732,6 +958,10 @@ struct PitchEnvelopeDisplayCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "end-tag")   return kTagType;
         if (attributeName == "time-tag")  return kTagType;
         if (attributeName == "curve-tag") return kTagType;
+        if (attributeName == "knee-enabled-tag") return kTagType;
+        if (attributeName == "mid-pitch-tag")    return kTagType;
+        if (attributeName == "mid-fraction-tag") return kTagType;
+        if (attributeName == "curve2-tag")       return kTagType;
         if (attributeName == "background-color") return kColorType;
         if (attributeName == "grid-color") return kColorType;
         if (attributeName == "stroke-color") return kColorType;
@@ -766,6 +996,10 @@ struct PitchEnvelopeDisplayCreator : VSTGUI::ViewCreatorAdapter {
         if (attributeName == "end-tag")   { tagToString(display->getEndParamId());   return true; }
         if (attributeName == "time-tag")  { tagToString(display->getTimeParamId());  return true; }
         if (attributeName == "curve-tag") { tagToString(display->getCurveParamId()); return true; }
+        if (attributeName == "knee-enabled-tag") { tagToString(display->getKneeEnabledParamId()); return true; }
+        if (attributeName == "mid-pitch-tag")    { tagToString(display->getMidPitchParamId());    return true; }
+        if (attributeName == "mid-fraction-tag") { tagToString(display->getMidFractionParamId()); return true; }
+        if (attributeName == "curve2-tag")       { tagToString(display->getCurve2ParamId());      return true; }
 
         if (attributeName == "background-color") {
             VSTGUI::UIViewCreator::colorToString(

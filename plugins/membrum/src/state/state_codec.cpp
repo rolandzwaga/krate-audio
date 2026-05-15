@@ -120,6 +120,11 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[50] = static_cast<double>(cfg.tensionModAmt);
     // Phase 8F: per-pad enable toggle (offset 59).
     snap.sound[51] = static_cast<double>(cfg.enabled);
+    // Phase 10: three-point pitch envelope extension (offsets 60-63).
+    snap.sound[52] = static_cast<double>(cfg.tsPitchEnvKneeEnabled);
+    snap.sound[53] = static_cast<double>(cfg.tsPitchEnvMidPitch);
+    snap.sound[54] = static_cast<double>(cfg.tsPitchEnvMidFraction);
+    snap.sound[55] = static_cast<double>(cfg.tsPitchEnvCurve2);
 
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
@@ -205,6 +210,11 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.tensionModAmt     = std::clamp(static_cast<float>(snap.sound[50]), 0.0f, 1.0f);
     // Phase 8F: per-pad enable toggle. Clamp [0, 1] then float-as-bool.
     cfg.enabled           = std::clamp(static_cast<float>(snap.sound[51]), 0.0f, 1.0f);
+    // Phase 10: three-point pitch envelope extension.
+    cfg.tsPitchEnvKneeEnabled = std::clamp(static_cast<float>(snap.sound[52]), 0.0f, 1.0f);
+    cfg.tsPitchEnvMidPitch    = std::clamp(static_cast<float>(snap.sound[53]), 0.0f, 1.0f);
+    cfg.tsPitchEnvMidFraction = std::clamp(static_cast<float>(snap.sound[54]), 0.0f, 1.0f);
+    cfg.tsPitchEnvCurve2      = std::clamp(static_cast<float>(snap.sound[55]), 0.0f, 1.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -227,9 +237,10 @@ PadPresetSnapshot toPadPresetSnapshot(const PadConfig& cfg) noexcept
     // flag, so loading a preset onto a pad never silently flips its
     // enable state.
     const PadSnapshot full = toPadSnapshot(cfg);
-    static_assert(std::tuple_size_v<decltype(snap.sound)> <=
-                  std::tuple_size_v<decltype(full.sound)>,
-                  "PadPresetSnapshot must not be wider than PadSnapshot");
+    // PadPresetSnapshot::sound mirrors PadSnapshot::sound exactly (Phase 10:
+    // both 56 slots); index 51 (kit-level enabled flag) and 28-29 (choke/bus
+    // float64 mirrors) are written but ignored on load -- see
+    // applyPadPresetSnapshot below.
     std::copy_n(full.sound.begin(), snap.sound.size(), snap.sound.begin());
     return snap;
 }
@@ -304,6 +315,14 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.secondaryMaterial = std::clamp(static_cast<float>(snap.sound[49]), 0.0f, 1.0f);
     // Phase 8E: nonlinear tension modulation.
     cfg.tensionModAmt     = std::clamp(static_cast<float>(snap.sound[50]), 0.0f, 1.0f);
+    // Note: snap.sound[51] (enabled) is intentionally skipped per FR-061 --
+    // per-pad presets must not carry per-pad-mute state.
+    // Phase 10: three-point pitch envelope extension. These are sound character
+    // and MUST round-trip through pad presets.
+    cfg.tsPitchEnvKneeEnabled = std::clamp(static_cast<float>(snap.sound[52]), 0.0f, 1.0f);
+    cfg.tsPitchEnvMidPitch    = std::clamp(static_cast<float>(snap.sound[53]), 0.0f, 1.0f);
+    cfg.tsPitchEnvMidFraction = std::clamp(static_cast<float>(snap.sound[54]), 0.0f, 1.0f);
+    cfg.tsPitchEnvCurve2      = std::clamp(static_cast<float>(snap.sound[55]), 0.0f, 1.0f);
 }
 
 // ============================================================================
@@ -415,7 +434,10 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     kit.selectedPadIndex =
         std::clamp(static_cast<int>(selPad), 0, static_cast<int>(kit.pads.size()) - 1);
 
-    double gc = 0.0, sb = 0.0, tr = 0.0, cd = 1.0;
+    double gc = 0.0;
+    double sb = 0.0;
+    double tr = 0.0;
+    double cd = 1.0;
     if (!readT(stream, gc)) return kResultFalse;
     if (!readT(stream, sb)) return kResultFalse;
     if (!readT(stream, tr)) return kResultFalse;

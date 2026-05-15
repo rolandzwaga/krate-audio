@@ -147,7 +147,17 @@ enum PadParamOffset : int
     // disabled pads neither audition, allocate voices, nor consume CPU.
     kPadEnabled              = 59,
     kPadActiveParamCountV8F  = 60,  // offsets 0-59 are active after Phase 8F
-    // Offsets 60-63 are RESERVED.
+
+    // Phase 10: three-point pitch envelope. Adds an optional middle breakpoint
+    // with its own pitch level + time fraction, plus a per-segment continuous
+    // curve amount. Knee defaults to OFF so existing 1-segment presets keep
+    // their exact shape; tsPitchEnvCurve (offset 16) is the curve amount for
+    // segment 1 (Start -> Mid when knee enabled, Start -> End when disabled).
+    kPadTSPitchEnvKneeEnabled = 60,  // float-as-bool, default 0 (OFF)
+    kPadTSPitchEnvMidPitch    = 61,  // 0..1 -> 20..2000 Hz log (Start/End mapping)
+    kPadTSPitchEnvMidFraction = 62,  // 0..1 fraction of total time, default 0.5
+    kPadTSPitchEnvCurve2      = 63,  // 0..1 -> -1..+1 power, default 0.5 (linear)
+    kPadActiveParamCountV10   = 64,  // offsets 0-63 are active after Phase 10
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -272,6 +282,17 @@ struct PadConfig
     // < 0.5 = off). Default 1.0 = ON so legacy kits that don't carry
     // the slot keep all 32 pads sounding after migration.
     float enabled              = 1.0f;
+
+    // Phase 10: three-point pitch envelope extension. Knee disabled by
+    // default reproduces the existing single-segment Start -> End sweep.
+    // When enabled the envelope hits midHz at totalTime * midFraction.
+    // Defaults chosen so toggling knee on with neutral mid (0.5 fraction,
+    // mid pitch between Start/End) and linear curve2 gives a shape close to
+    // the legacy linear interpolation.
+    float tsPitchEnvKneeEnabled = 0.0f;  // float-as-bool, default OFF
+    float tsPitchEnvMidPitch    = 0.5f;  // norm -> 20..2000 Hz log (~141 Hz)
+    float tsPitchEnvMidFraction = 0.5f;  // norm fraction of total time
+    float tsPitchEnvCurve2      = 0.5f;  // norm -> 0 curveAmount (linear)
 };
 
 /// Compute the VST3 parameter ID for a specific pad and offset.
@@ -302,7 +323,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV8F)
+    if (offset >= kPadActiveParamCountV10)
         return -1;  // reserved range
     return offset;
 }

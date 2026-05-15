@@ -75,6 +75,11 @@
     <control-tag name="DriveAmount" tag="214"/>
     <control-tag name="FoldAmount" tag="215"/>
     <control-tag name="PitchEnvCurve" tag="219"/>
+    <!-- Phase 10: three-point pitch envelope extension -->
+    <control-tag name="PitchEnvKneeEnabled" tag="321"/>
+    <control-tag name="PitchEnvMidPitch" tag="322"/>
+    <control-tag name="PitchEnvMidFraction" tag="323"/>
+    <control-tag name="PitchEnvCurve2" tag="324"/>
     <control-tag name="FilterEnvAttack" tag="220"/>
     <control-tag name="FilterEnvDecay" tag="221"/>
     <control-tag name="FilterEnvSustain" tag="222"/>
@@ -149,7 +154,7 @@
         <view class="ArcKnob" control-tag="Level" origin="296, 164" size="56, 56" arc-color="accent" arc-width="2.5"/>
         <view class="FieldsetContainer" origin="4, 252" size="388, 112" transparent="true"
               fieldset-title="Pitch Envelope" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="PitchEnvelopeDisplay" origin="8, 276" size="360, 80" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
+        <view class="PitchEnvelopeDisplay" origin="8, 276" size="360, 80" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" knee-enabled-tag="PitchEnvKneeEnabled" mid-pitch-tag="PitchEnvMidPitch" mid-fraction-tag="PitchEnvMidFraction" curve2-tag="PitchEnvCurve2" background-color="bg-panel"/>
         <view class="FieldsetContainer" origin="4, 372" size="388, 72" transparent="true"
               fieldset-title="Routing" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
         <view class="CTextLabel" title="Output Bus" origin="8, 388" size="80, 14" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="left"/>
@@ -314,9 +319,12 @@
         <!-- ============================================================= -->
         <view class="FieldsetContainer" origin="4, 626" size="388, 86" transparent="true"
               fieldset-title="Pitch Envelope" fieldset-color="btn-frame" fieldset-title-color="accent" fieldset-font-size="11" fieldset-radius="6"/>
-        <view class="PitchEnvelopeDisplay"                    origin="12, 642" size="240, 60" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" background-color="bg-panel"/>
-        <view class="COptionMenu" control-tag="PitchEnvCurve" origin="260, 646" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
-        <view class="CTextLabel" title="Curve"                origin="260, 670" size="72, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
+        <view class="PitchEnvelopeDisplay"                          origin="12, 642" size="240, 60" start-tag="PitchEnvStart" end-tag="PitchEnvEnd" time-tag="PitchEnvTime" curve-tag="PitchEnvCurve" knee-enabled-tag="PitchEnvKneeEnabled" mid-pitch-tag="PitchEnvMidPitch" mid-fraction-tag="PitchEnvMidFraction" curve2-tag="PitchEnvCurve2" background-color="bg-panel"/>
+        <!-- Phase 10: knee toggle (Advanced-only). Continuous Curve / Curve2 are
+             edited inline on the display via drag-the-segment handles, so the
+             previous COptionMenu for Curve is retired in Phase 10. -->
+        <view class="COptionMenu" control-tag="PitchEnvKneeEnabled" origin="260, 646" size="72, 20" font="label-font" font-color="text-primary" frame-color="accent" back-color="bg-panel" fill-color="bg-panel" frame-width="1" transparent="false" style-3D-in="false" style-3D-out="false"/>
+        <view class="CTextLabel" title="Knee"                       origin="260, 670" size="72, 10" font="label-font" font-color="text-primary" transparent="true" horizontal-alignment="center"/>
 
         <!-- ============================================================= -->
         <!-- Routing                                                        -->

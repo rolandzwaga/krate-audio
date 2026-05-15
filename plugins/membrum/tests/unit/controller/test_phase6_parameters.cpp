@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion pinned at 1 (pre-release reset)")
+    SECTION("kCurrentStateVersion pinned at 2 (Phase 10)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 1);
+        STATIC_REQUIRE(kCurrentStateVersion == 2);
     }
 }
 
@@ -164,9 +164,12 @@ TEST_CASE("padOffsetFromParamId accepts macro offsets 37-41", "[phase6_params]")
         REQUIRE(padOffsetFromParamId(padParamId(0, 59)) == 59);
     }
 
-    SECTION("Offset 60 is the first reserved offset (Phase 8F)")
+    SECTION("Phase 10 offsets 60-63 are active (three-point pitch envelope)")
     {
-        REQUIRE(padOffsetFromParamId(padParamId(0, 60)) == -1);
+        for (int off = 60; off <= 63; ++off)
+        {
+            REQUIRE(padOffsetFromParamId(padParamId(0, off)) == off);
+        }
     }
 }
 

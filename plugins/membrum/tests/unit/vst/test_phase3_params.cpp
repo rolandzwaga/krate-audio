@@ -62,6 +62,10 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     constexpr int kPhase8FPerPadParams  = 32 * 1;
     // Phase 9 adds 1 master-gain global (true global; no per-pad tail).
     constexpr int kPhase9Globals        = 1;
+    // Phase 10 adds 4 global pitch-env proxies (knee/midPitch/midFraction/curve2)
+    // + 32 * 4 per-pad.
+    constexpr int kPhase10Globals       = 4;
+    constexpr int kPhase10PerPadParams  = 32 * 4;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
@@ -73,7 +77,8 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
           + kPhase8DGlobals + kPhase8DPerPadParams
           + kPhase8EGlobals + kPhase8EPerPadParams
           + kPhase8FGlobals + kPhase8FPerPadParams
-          + kPhase9Globals);
+          + kPhase9Globals
+          + kPhase10Globals + kPhase10PerPadParams);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

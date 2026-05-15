@@ -85,11 +85,11 @@ private:
     std::array<PadCache, kNumPads> cache_{};
     bool                         prepared_ = false;
 
-    void applyTightness(PadConfig& cfg, const PadCache& cache) noexcept;
-    void applyBrightness(PadConfig& cfg, const PadCache& cache) noexcept;
-    void applyBodySize(PadConfig& cfg, const PadCache& cache) noexcept;
-    void applyPunch(PadConfig& cfg, const PadCache& cache) noexcept;
-    void applyComplexity(PadConfig& cfg, const PadCache& cache) noexcept;
+    static void applyTightness(PadConfig& cfg, const PadCache& cache) noexcept;
+    static void applyBrightness(PadConfig& cfg, const PadCache& cache) noexcept;
+    static void applyBodySize(PadConfig& cfg, const PadCache& cache) noexcept;
+    static void applyPunch(PadConfig& cfg, const PadCache& cache) noexcept;
+    static void applyComplexity(PadConfig& cfg, const PadCache& cache) noexcept;
 };
 
 // ==============================================================================

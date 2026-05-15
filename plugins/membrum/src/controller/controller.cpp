@@ -133,6 +133,11 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kTensionModAmtId,              .padOffset = kPadTensionModAmt },
     // Phase 8F: per-pad enable toggle (offset 59).
     {.globalId = kPadEnabledId,                 .padOffset = kPadEnabled },
+    // Phase 10: three-point pitch envelope extension (offsets 60-63).
+    {.globalId = kPitchEnvKneeEnabledId,        .padOffset = kPadTSPitchEnvKneeEnabled },
+    {.globalId = kPitchEnvMidPitchId,           .padOffset = kPadTSPitchEnvMidPitch },
+    {.globalId = kPitchEnvMidFractionId,        .padOffset = kPadTSPitchEnvMidFraction },
+    {.globalId = kPitchEnvCurve2Id,             .padOffset = kPadTSPitchEnvCurve2 },
 };
 
 // Per-pad parameter name table
@@ -162,7 +167,7 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadTSPitchEnvStart,    .name = "PitchEnv Start",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     {.offset = kPadTSPitchEnvEnd,      .name = "PitchEnv End",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     {.offset = kPadTSPitchEnvTime,     .name = "PitchEnv Time",       .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
-    {.offset = kPadTSPitchEnvCurve,    .name = "PitchEnv Curve",      .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvCurve,    .name = "PitchEnv Curve",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadTSFilterEnvAttack,  .name = "Filter Env Atk",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     {.offset = kPadTSFilterEnvDecay,   .name = "Filter Env Dec",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.1 },
     {.offset = kPadTSFilterEnvSustain, .name = "Filter Env Sus",      .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
@@ -219,13 +224,18 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadTensionModAmt,        .name = "Tension Mod",         .isDiscrete = false, .stepCount = 0, .defaultValue = 0.0 },
     // Phase 8F (per-pad enable toggle).
     {.offset = kPadEnabled,              .name = "Pad Enabled",         .isDiscrete = true,  .stepCount = 1, .defaultValue = 1.0 },
+    // Phase 10 (three-point pitch envelope extension).
+    {.offset = kPadTSPitchEnvKneeEnabled,.name = "PitchEnv Knee",       .isDiscrete = true,  .stepCount = 1, .defaultValue = 0.0 },
+    {.offset = kPadTSPitchEnvMidPitch,   .name = "PitchEnv Mid",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadTSPitchEnvMidFraction,.name = "PitchEnv Mid Frac",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    {.offset = kPadTSPitchEnvCurve2,     .name = "PitchEnv Curve2",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV8F,
-              "Pad param specs must match active param count (60 after Phase 8F)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV10,
+              "Pad param specs must match active param count (64 after Phase 10)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -374,19 +384,45 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         parameters.addParameter(filterTypeList);
     }
 
-    // Tone Shaper Pitch Envelope Curve selector (Exponential / Linear).
-    // Entry order must match the ToneShaperCurve enum (Exponential=0,
-    // Linear=1) so the StringListParameter's index -> normalised mapping
-    // (0->0.0, 1->1.0) lines up with the processor's
-    // std::clamp(static_cast<int>(v * 2.0f), 0, 1) decode.
+    // Tone Shaper Pitch Envelope segment-1 curve amount.
+    // Phase 10: promoted from a 2-option StringList (Exp/Lin) to a continuous
+    // RangeParameter. Norm 0.5 = linear (curveAmount 0); norm 0 = fast initial
+    // drop (curveAmount -1, classic 808 exponential decay shape); norm 1 = slow
+    // start / fast end (curveAmount +1). Drives the editor's drag-the-segment
+    // handle for segment 1; also serves as the single-segment curve when the
+    // knee toggle is OFF.
+    parameters.addParameter(
+        new RangeParameter(STR16("Tone Shaper PitchEnv Curve"),
+                           kToneShaperPitchEnvCurveId, nullptr,
+                           0.0, 1.0, 0.5, 0,
+                           ParameterInfo::kCanAutomate));
+
+    // ---- Phase 10: three-point pitch envelope ----
+    // Knee toggle: float-as-bool. >= 0.5 = ON enables the middle breakpoint,
+    // < 0.5 = OFF preserves the legacy 1-segment Start -> End shape.
     {
-        auto* pitchCurveList = new StringListParameter(
-            STR16("Tone Shaper PitchEnv Curve"), kToneShaperPitchEnvCurveId, nullptr,
+        auto* kneeList = new StringListParameter(
+            STR16("PitchEnv Knee"), kPitchEnvKneeEnabledId, nullptr,
             ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
-        pitchCurveList->appendString(STR16("Exponential"));
-        pitchCurveList->appendString(STR16("Linear"));
-        parameters.addParameter(pitchCurveList);
+        kneeList->appendString(STR16("Off"));
+        kneeList->appendString(STR16("On"));
+        parameters.addParameter(kneeList);
     }
+    // Mid pitch: same 0..1 -> 20..2000 Hz log mapping as Start/End.
+    parameters.addParameter(
+        new RangeParameter(STR16("PitchEnv Mid"), kPitchEnvMidPitchId, STR16("Hz"),
+                           0.0, 1.0, 0.5, 0,
+                           ParameterInfo::kCanAutomate));
+    // Mid fraction: portion of total time spent in segment 1.
+    parameters.addParameter(
+        new RangeParameter(STR16("PitchEnv Mid Fraction"), kPitchEnvMidFractionId, nullptr,
+                           0.0, 1.0, 0.5, 0,
+                           ParameterInfo::kCanAutomate));
+    // Segment-2 curve amount (same encoding as the Phase-2 curve param).
+    parameters.addParameter(
+        new RangeParameter(STR16("PitchEnv Curve 2"), kPitchEnvCurve2Id, nullptr,
+                           0.0, 1.0, 0.5, 0,
+                           ParameterInfo::kCanAutomate));
 
     // ---- Phase 3 parameters (polyphony / stealing / choke) ----
     parameters.addParameter(
@@ -696,6 +732,23 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         updateFilterEnvDisplay();
     }
 
+    // Tone Shaper pitch-envelope display: same treatment for the original four
+    // start/end/time/curve params plus the Phase 10 knee/mid/curve2 fields.
+    // The display holds its values independently of CControl's single-tag
+    // value_, so we push the new value through by hand on every source of
+    // change (knob/drag edit, automation, preset load, pad-switch sync).
+    if (tag == static_cast<ParamID>(kToneShaperPitchEnvStartId)
+        || tag == static_cast<ParamID>(kToneShaperPitchEnvEndId)
+        || tag == static_cast<ParamID>(kToneShaperPitchEnvTimeId)
+        || tag == static_cast<ParamID>(kToneShaperPitchEnvCurveId)
+        || tag == static_cast<ParamID>(kPitchEnvKneeEnabledId)
+        || tag == static_cast<ParamID>(kPitchEnvMidPitchId)
+        || tag == static_cast<ParamID>(kPitchEnvMidFractionId)
+        || tag == static_cast<ParamID>(kPitchEnvCurve2Id))
+    {
+        updatePitchEnvelopeDisplay();
+    }
+
     // If we're in the middle of a pad switch, don't recurse.
     if (suppressProxyForward_)
         return result;
@@ -833,6 +886,9 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // skip the setParamNormalized hook, so refresh the display once the sync
     // loop has settled all four A/D/S/R globals to the new pad's values.
     updateFilterEnvDisplay();
+    // And likewise for the pitch-envelope display so a pad switch repaints
+    // its start/end/time/curve handles to the new pad's stored values.
+    updatePitchEnvelopeDisplay();
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1304,6 +1360,10 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             });
         pitchEnvelopeDisplay_ = pev;
         pev->registerViewListener(this);
+        // Push current parameter state into the freshly-built display so a
+        // Simple<->Advanced template switch (or any other rebuild) does not
+        // strand it at its hard-coded constructor defaults.
+        updatePitchEnvelopeDisplay();
     }
 
     // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
@@ -1535,6 +1595,47 @@ void Controller::updateFilterEnvDisplay() noexcept
     pushTo(filterEnvOverlayDisplay_);
 }
 
+// ------------------------------------------------------------------------------
+// Push the four Tone Shaper pitch-envelope normalised values into the cached
+// PitchEnvelopeDisplay. The display owns its four parameter values internally
+// (startN_/endN_/timeN_/curveN_) -- they are not derived from CControl's
+// single-tag value_, so the standard EditController -> CControl propagation
+// path leaves them stale. This pushes them by hand whenever the host,
+// automation, a pad switch, or a UIViewSwitchContainer rebuild changes the
+// underlying state. Tolerant of a null display pointer.
+// ------------------------------------------------------------------------------
+void Controller::updatePitchEnvelopeDisplay() noexcept
+{
+    if (pitchEnvelopeDisplay_ == nullptr)
+        return;
+
+    const auto startNorm       = getParamNormalized(
+        static_cast<ParamID>(kToneShaperPitchEnvStartId));
+    const auto endNorm         = getParamNormalized(
+        static_cast<ParamID>(kToneShaperPitchEnvEndId));
+    const auto timeNorm        = getParamNormalized(
+        static_cast<ParamID>(kToneShaperPitchEnvTimeId));
+    const auto curveNorm       = getParamNormalized(
+        static_cast<ParamID>(kToneShaperPitchEnvCurveId));
+    const auto kneeNorm        = getParamNormalized(
+        static_cast<ParamID>(kPitchEnvKneeEnabledId));
+    const auto midPitchNorm    = getParamNormalized(
+        static_cast<ParamID>(kPitchEnvMidPitchId));
+    const auto midFractionNorm = getParamNormalized(
+        static_cast<ParamID>(kPitchEnvMidFractionId));
+    const auto curve2Norm      = getParamNormalized(
+        static_cast<ParamID>(kPitchEnvCurve2Id));
+
+    pitchEnvelopeDisplay_->setStartNormalized       (static_cast<float>(startNorm));
+    pitchEnvelopeDisplay_->setEndNormalized         (static_cast<float>(endNorm));
+    pitchEnvelopeDisplay_->setTimeNormalized        (static_cast<float>(timeNorm));
+    pitchEnvelopeDisplay_->setCurveNormalized       (static_cast<float>(curveNorm));
+    pitchEnvelopeDisplay_->setKneeEnabled           (kneeNorm >= 0.5);
+    pitchEnvelopeDisplay_->setMidPitchNormalized    (static_cast<float>(midPitchNorm));
+    pitchEnvelopeDisplay_->setMidFractionNormalized (static_cast<float>(midFractionNorm));
+    pitchEnvelopeDisplay_->setCurve2Normalized      (static_cast<float>(curve2Norm));
+}
+
 void Controller::pushKitEnabledToGrid(
     const Membrum::State::KitSnapshot& kit) noexcept
 {
@@ -1663,6 +1764,9 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Push current filter-envelope values into both displays -- the overlay
     // was just built and needs its initial shape / labels.
     updateFilterEnvDisplay();
+    // Same for the pitch-envelope display in whichever template was just
+    // built (Simple or Advanced).
+    updatePitchEnvelopeDisplay();
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
@@ -2066,61 +2170,59 @@ bool formatByPadOffset(int offset,
         return true;
 
     // --- Tone Shaper (Advanced) -----------------------------------------
-    case kPadTSFilterCutoff:   formatLogHz(norm, 20.0f, 20000.0f, out);  return true;
-    case kPadTSFilterResonance: formatPercent(norm, out);                return true;
+    case kPadTSFilterCutoff:    formatLogHz(norm, 20.0f, 20000.0f, out); return true;
     case kPadTSFilterEnvAmount: formatBipolarPercent(norm, out);         return true;
-    case kPadTSDriveAmount:    formatPercent(norm, out);                 return true;
-    case kPadTSFoldAmount:     formatPercent(norm, out);                 return true;
-    case kPadTSFilterEnvAttack:  formatLinearMs(norm, 0.0f, 500.0f, out);  return true;
-    case kPadTSFilterEnvDecay:   formatLinearMs(norm, 0.0f, 2000.0f, out); return true;
-    case kPadTSFilterEnvSustain: formatPercent(norm, out);                 return true;
+    case kPadTSFilterEnvAttack: formatLinearMs(norm, 0.0f,  500.0f, out); return true;
+    case kPadTSFilterEnvDecay:
     case kPadTSFilterEnvRelease: formatLinearMs(norm, 0.0f, 2000.0f, out); return true;
 
     // --- Unnatural Zone / Morph -----------------------------------------
-    case kPadModeStretch:      formatMultiplier(norm, 0.5f, 2.0f, out);  return true;
-    case kPadDecaySkew:        formatBipolarPercent(norm, out);          return true;
-    case kPadModeInjectAmount: formatPercent(norm, out);                 return true;
-    case kPadNonlinearCoupling: formatPercent(norm, out);                return true;
-    case kPadMorphDuration:    formatLinearMs(norm, 10.0f, 2000.0f, out); return true;
+    case kPadModeStretch:   formatMultiplier(norm, 0.5f, 2.0f, out);  return true;
+    case kPadDecaySkew:     formatBipolarPercent(norm, out);          return true;
+    case kPadMorphDuration: formatLinearMs(norm, 10.0f, 2000.0f, out); return true;
 
     // --- Exciter secondary params ---------------------------------------
-    case kPadFMRatio:              formatMultiplier(norm, 1.0f, 4.0f, out);  return true;
-    case kPadFeedbackAmount:       formatPercent(norm, out);                 return true;
-    case kPadNoiseBurstDuration:   formatLinearMs(norm, 2.0f, 15.0f, out);   return true;
-    case kPadFrictionPressure:     formatPercent(norm, out);                 return true;
-
-    // --- Phase 5 per-pad coupling ---------------------------------------
-    case kPadCouplingAmount:       formatPercent(norm, out);                 return true;
+    case kPadFMRatio:            formatMultiplier(norm, 1.0f, 4.0f, out); return true;
+    case kPadNoiseBurstDuration: formatLinearMs(norm, 2.0f, 15.0f, out);  return true;
 
     // --- Phase 7 parallel layers ----------------------------------------
-    case kPadNoiseLayerMix:        formatPercent(norm, out);                 return true;
     case kPadNoiseLayerCutoff:     formatLogHz(norm, 40.0f, 18000.0f, out);  return true;
     case kPadNoiseLayerResonance:  formatQ(norm, 0.3f, 5.0f, out);           return true;
     case kPadNoiseLayerDecay:      formatLogMs(norm, 20.0f, 2000.0f, out);   return true;
     case kPadNoiseLayerColor:      formatNoiseColor(norm, out);              return true;
-    case kPadClickLayerMix:        formatPercent(norm, out);                 return true;
     case kPadClickLayerContactMs:  formatLinearMs(norm, 2.0f, 5.0f, out);    return true;
     case kPadClickLayerBrightness: formatLogHz(norm, 200.0f, 12000.0f, out); return true;
 
-    // --- Phase 8A damping -----------------------------------------------
-    case kPadBodyDampingB1:        formatPercent(norm, out);                 return true;
-    case kPadBodyDampingB3:        formatPercent(norm, out);                 return true;
-
-    // --- Phase 8C air / scatter -----------------------------------------
-    case kPadAirLoading:           formatPercent(norm, out);                 return true;
-    case kPadModeScatter:          formatPercent(norm, out);                 return true;
-
     // --- Phase 8D shell coupling ----------------------------------------
-    case kPadCouplingStrength:     formatPercent(norm, out);                 return true;
-    case kPadSecondaryEnabled:     formatOnOff(norm, out);                   return true;
-    case kPadSecondarySize:        formatPercent(norm, out);                 return true;
-    case kPadSecondaryMaterial:    formatMaterial(norm, out);                return true;
-
-    // --- Phase 8E tension -----------------------------------------------
-    case kPadTensionModAmt:        formatPercent(norm, out);                 return true;
+    case kPadSecondaryEnabled:  formatOnOff(norm, out);    return true;
+    case kPadSecondaryMaterial: formatMaterial(norm, out); return true;
 
     // --- Phase 8F per-pad enable toggle ---------------------------------
-    case kPadEnabled:              formatOnOff(norm, out);                   return true;
+    case kPadEnabled:           formatOnOff(norm, out);    return true;
+
+    // --- All params that map straight to a percentage readout -----------
+    // Grouped via fall-through to eliminate identical-branch noise. Covers
+    // resonance, drive, fold, sustain, mode-inject, nonlinear coupling,
+    // feedback, friction, per-pad coupling, click/noise mix, damping,
+    // air-loading, scatter, shell coupling strength + size, tension mod.
+    case kPadTSFilterResonance:
+    case kPadTSDriveAmount:
+    case kPadTSFoldAmount:
+    case kPadTSFilterEnvSustain:
+    case kPadModeInjectAmount:
+    case kPadNonlinearCoupling:
+    case kPadFeedbackAmount:
+    case kPadFrictionPressure:
+    case kPadCouplingAmount:
+    case kPadNoiseLayerMix:
+    case kPadClickLayerMix:
+    case kPadBodyDampingB1:
+    case kPadBodyDampingB3:
+    case kPadAirLoading:
+    case kPadModeScatter:
+    case kPadCouplingStrength:
+    case kPadSecondarySize:
+    case kPadTensionModAmt:        formatPercent(norm, out); return true;
 
     default:
         return false;
@@ -2146,58 +2248,62 @@ Steinberg::tresult PLUGIN_API Controller::getParamStringByValue(
 
     // Exciter secondary params
     case kExciterFMRatioId:            formatMultiplier(valueNormalized, 1.0f, 4.0f, string);  return kResultOk;
-    case kExciterFeedbackAmountId:     formatPercent(valueNormalized, string);                 return kResultOk;
     case kExciterNoiseBurstDurationId: formatLinearMs(valueNormalized, 2.0f, 15.0f, string);   return kResultOk;
-    case kExciterFrictionPressureId:   formatPercent(valueNormalized, string);                 return kResultOk;
 
     // Tone Shaper
-    case kToneShaperFilterCutoffId:     formatLogHz(valueNormalized, 20.0f, 20000.0f, string);  return kResultOk;
-    case kToneShaperFilterResonanceId:  formatPercent(valueNormalized, string);                 return kResultOk;
-    case kToneShaperFilterEnvAmountId:  formatBipolarPercent(valueNormalized, string);          return kResultOk;
-    case kToneShaperDriveAmountId:      formatPercent(valueNormalized, string);                 return kResultOk;
-    case kToneShaperFoldAmountId:       formatPercent(valueNormalized, string);                 return kResultOk;
-    case kToneShaperFilterEnvAttackId:  formatLinearMs(valueNormalized, 0.0f, 500.0f,  string); return kResultOk;
-    case kToneShaperFilterEnvDecayId:   formatLinearMs(valueNormalized, 0.0f, 2000.0f, string); return kResultOk;
-    case kToneShaperFilterEnvSustainId: formatPercent(valueNormalized, string);                 return kResultOk;
+    case kToneShaperFilterCutoffId:    formatLogHz(valueNormalized, 20.0f, 20000.0f, string);  return kResultOk;
+    case kToneShaperFilterEnvAmountId: formatBipolarPercent(valueNormalized, string);          return kResultOk;
+    case kToneShaperFilterEnvAttackId: formatLinearMs(valueNormalized, 0.0f, 500.0f,  string); return kResultOk;
+    case kToneShaperFilterEnvDecayId:
     case kToneShaperFilterEnvReleaseId: formatLinearMs(valueNormalized, 0.0f, 2000.0f, string); return kResultOk;
 
     // Unnatural Zone / Material Morph
-    case kUnnaturalModeStretchId:       formatMultiplier(valueNormalized, 0.5f, 2.0f, string);   return kResultOk;
-    case kUnnaturalDecaySkewId:         formatBipolarPercent(valueNormalized, string);           return kResultOk;
-    case kUnnaturalModeInjectAmountId:  formatPercent(valueNormalized, string);                  return kResultOk;
-    case kUnnaturalNonlinearCouplingId: formatPercent(valueNormalized, string);                  return kResultOk;
-    case kMorphDurationMsId:            formatLinearMs(valueNormalized, 10.0f, 2000.0f, string); return kResultOk;
+    case kUnnaturalModeStretchId: formatMultiplier(valueNormalized, 0.5f, 2.0f, string);    return kResultOk;
+    case kUnnaturalDecaySkewId:   formatBipolarPercent(valueNormalized, string);            return kResultOk;
+    case kMorphDurationMsId:      formatLinearMs(valueNormalized, 10.0f, 2000.0f, string);  return kResultOk;
 
     // Phase 7 parallel layers
-    case kNoiseLayerMixId:        formatPercent(valueNormalized, string);                  return kResultOk;
     case kNoiseLayerCutoffId:     formatLogHz(valueNormalized, 40.0f, 18000.0f, string);   return kResultOk;
     case kNoiseLayerResonanceId:  formatQ(valueNormalized, 0.3f, 5.0f, string);            return kResultOk;
     case kNoiseLayerDecayId:      formatLogMs(valueNormalized, 20.0f, 2000.0f, string);    return kResultOk;
     case kNoiseLayerColorId:      formatNoiseColor(valueNormalized, string);               return kResultOk;
-    case kClickLayerMixId:        formatPercent(valueNormalized, string);                  return kResultOk;
     case kClickLayerContactMsId:  formatLinearMs(valueNormalized, 2.0f, 5.0f, string);     return kResultOk;
     case kClickLayerBrightnessId: formatLogHz(valueNormalized, 200.0f, 12000.0f, string);  return kResultOk;
 
-    // Phase 8 physics detail
-    case kBodyDampingB1Id:    formatPercent(valueNormalized, string);       return kResultOk;
-    case kBodyDampingB3Id:    formatPercent(valueNormalized, string);       return kResultOk;
-    case kAirLoadingId:       formatPercent(valueNormalized, string);       return kResultOk;
-    case kModeScatterId:      formatPercent(valueNormalized, string);       return kResultOk;
-    case kCouplingStrengthId: formatPercent(valueNormalized, string);       return kResultOk;
-    case kSecondaryEnabledId: formatOnOff(valueNormalized, string);         return kResultOk;
-    case kSecondarySizeId:    formatPercent(valueNormalized, string);       return kResultOk;
-    case kSecondaryMaterialId: formatMaterial(valueNormalized, string);     return kResultOk;
-    case kTensionModAmtId:    formatPercent(valueNormalized, string);       return kResultOk;
-    case kPadEnabledId:       formatOnOff(valueNormalized, string);         return kResultOk;
+    // Phase 8 physics detail (on/off + material strings).
+    case kSecondaryEnabledId:
+    case kPadEnabledId:        formatOnOff(valueNormalized, string);    return kResultOk;
+    case kSecondaryMaterialId: formatMaterial(valueNormalized, string); return kResultOk;
 
-    // Phase 5 coupling globals (right-column Coupling section).
-    case kGlobalCouplingId:   formatPercent(valueNormalized, string);                    return kResultOk;
-    case kSnareBuzzId:        formatPercent(valueNormalized, string);                    return kResultOk;
-    case kTomResonanceId:     formatPercent(valueNormalized, string);                    return kResultOk;
-    case kCouplingDelayId:    formatLinearMs(valueNormalized, 0.5f, 2.0f, string);       return kResultOk;
+    // Phase 5 coupling delay (right-column Coupling section).
+    case kCouplingDelayId: formatLinearMs(valueNormalized, 0.5f, 2.0f, string); return kResultOk;
 
     // Phase 9 master output gain (right-column Master section).
-    case kMasterGainId:       formatLinearDb(valueNormalized, -24.0f, 12.0f, string);    return kResultOk;
+    case kMasterGainId: formatLinearDb(valueNormalized, -24.0f, 12.0f, string); return kResultOk;
+
+    // All globals that read as a plain percentage. Grouped via fall-through
+    // to eliminate identical-branch warnings and keep the dispatch table
+    // tight (clang-tidy: bugprone-branch-clone).
+    case kExciterFeedbackAmountId:
+    case kExciterFrictionPressureId:
+    case kToneShaperFilterResonanceId:
+    case kToneShaperDriveAmountId:
+    case kToneShaperFoldAmountId:
+    case kToneShaperFilterEnvSustainId:
+    case kUnnaturalModeInjectAmountId:
+    case kUnnaturalNonlinearCouplingId:
+    case kNoiseLayerMixId:
+    case kClickLayerMixId:
+    case kBodyDampingB1Id:
+    case kBodyDampingB3Id:
+    case kAirLoadingId:
+    case kModeScatterId:
+    case kCouplingStrengthId:
+    case kSecondarySizeId:
+    case kTensionModAmtId:
+    case kGlobalCouplingId:
+    case kSnareBuzzId:
+    case kTomResonanceId:     formatPercent(valueNormalized, string); return kResultOk;
 
     default:
         break;

@@ -255,6 +255,14 @@ private:
     /// what the processor actually applies. Tolerant of a null display.
     void updateFilterEnvDisplay() noexcept;
 
+    /// Push the current tone-shaper pitch-envelope norm values
+    /// (kToneShaperPitchEnv{Start,End,Time,Curve}Id) into the cached
+    /// PitchEnvelopeDisplay. The display holds its four normalised values
+    /// independently of CControl's single-tag value_, so nothing syncs them
+    /// automatically when the host (preset load), a pad switch, or
+    /// UIViewSwitchContainer rebuilds the template. Tolerant of a null display.
+    void updatePitchEnvelopeDisplay() noexcept;
+
     /// Phase 8F: push the per-pad enable flags from a freshly-loaded
     /// KitSnapshot into the PadGridView mirror. Both load paths
     /// (setComponentState, kitPresetLoadProvider) write through setters

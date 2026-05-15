@@ -24,8 +24,9 @@ static const Steinberg::FUID kControllerUID(0x4D656D62, 0x72756D43, 0x74726C31, 
 static constexpr auto kSubCategories = "Instrument|Drum";
 
 // State version for serialization. Single, current format -- the plugin has
-// not shipped, so no legacy versions are accepted on read.
-constexpr Steinberg::int32 kCurrentStateVersion = 1;
+// not shipped, so no legacy versions are accepted on read. Phase 10 bumped
+// this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
+constexpr Steinberg::int32 kCurrentStateVersion = 2;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -160,6 +161,16 @@ enum ParameterIds : Steinberg::Vst::ParamID
     // RangeParameter [-24, +12] dB, default -6 dB. Applied to the main output
     // bus (L/R) only -- aux buses are pre-master sends.
     kMasterGainId                 = 320,
+
+    // ====== Phase 10: three-point pitch envelope ======
+    // Selected-pad proxies for the Phase 10 knee / mid / curve2 fields.
+    // The existing kToneShaperPitchEnvCurveId (219) is repurposed in Phase 10
+    // as the continuous segment-1 curve amount (was 2-step Exp/Lin StringList);
+    // norm 0.5 = linear, 0 = strong log/fast-drop, 1 = strong exp/slow-start.
+    kPitchEnvKneeEnabledId        = 321,  // float-as-bool, default 0 (OFF)
+    kPitchEnvMidPitchId           = 322,  // 0..1 -> 20..2000 Hz log (matches Start/End)
+    kPitchEnvMidFractionId        = 323,  // 0..1 fraction of total time
+    kPitchEnvCurve2Id             = 324,  // 0..1 -> -1..+1 power, default 0.5 (linear)
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -199,8 +210,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 1,
-              "Pre-release codec is pinned at state version 1");
+static_assert(kCurrentStateVersion == 2,
+              "Pre-release codec is pinned at state version 2 (Phase 10)");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -229,5 +240,9 @@ static_assert(kPadEnabledId < kPadBaseId,
 // Phase 9 collision guard.
 static_assert(kMasterGainId < kPadBaseId,
               "Phase 9 master gain ID must not collide with per-pad range");
+
+// Phase 10 collision guard: pitch-env extension proxies sit below per-pad base.
+static_assert(kPitchEnvCurve2Id < kPadBaseId,
+              "Phase 10 pitch-env IDs must not collide with per-pad range");
 
 } // namespace Membrum

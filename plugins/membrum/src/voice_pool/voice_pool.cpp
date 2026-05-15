@@ -632,6 +632,11 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
     case kPadTensionModAmt:        cfg.tensionModAmt     = normalizedValue; break;
     // Phase 8F: per-pad enable toggle (float-as-bool).
     case kPadEnabled:              cfg.enabled           = normalizedValue; break;
+    // Phase 10: three-point pitch envelope extension.
+    case kPadTSPitchEnvKneeEnabled: cfg.tsPitchEnvKneeEnabled = normalizedValue; break;
+    case kPadTSPitchEnvMidPitch:    cfg.tsPitchEnvMidPitch    = normalizedValue; break;
+    case kPadTSPitchEnvMidFraction: cfg.tsPitchEnvMidFraction = normalizedValue; break;
+    case kPadTSPitchEnvCurve2:      cfg.tsPitchEnvCurve2      = normalizedValue; break;
     default: break;
     }
 }
@@ -757,11 +762,19 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
         20.0f * std::pow(100.0f,
                          std::clamp(cfg.tsPitchEnvEnd,   0.0f, 1.0f)));
     v.toneShaper().setPitchEnvTimeMs(cfg.tsPitchEnvTime * 500.0f);
-    {
-        const int curveIdx =
-            std::clamp(static_cast<int>(cfg.tsPitchEnvCurve * 2.0f), 0, 1);
-        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
-    }
+    // Phase 10: continuous curve mapping. Norm 0.5 -> linear; 0 -> -1 (fast
+    // initial drop); 1 -> +1 (slow start, fast end).
+    v.toneShaper().setPitchEnvCurveAmount(
+        2.0f * std::clamp(cfg.tsPitchEnvCurve, 0.0f, 1.0f) - 1.0f);
+    // Phase 10: knee + middle breakpoint.
+    v.toneShaper().setPitchEnvKneeEnabled(cfg.tsPitchEnvKneeEnabled >= 0.5f);
+    v.toneShaper().setPitchEnvMidHz(
+        20.0f * std::pow(100.0f,
+                         std::clamp(cfg.tsPitchEnvMidPitch, 0.0f, 1.0f)));
+    v.toneShaper().setPitchEnvMidFraction(
+        std::clamp(cfg.tsPitchEnvMidFraction, 0.0f, 1.0f));
+    v.toneShaper().setPitchEnvCurve2Amount(
+        2.0f * std::clamp(cfg.tsPitchEnvCurve2, 0.0f, 1.0f) - 1.0f);
 
     // ---- Unnatural Zone ----------------------------------------------------
     // modeStretch is normalised over [0.5, 2.0] (1.0 = physical / Phase 1

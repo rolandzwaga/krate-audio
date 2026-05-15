@@ -28,13 +28,14 @@
 // processSample(x) must return x within -120 dBFS RMS.
 // ==============================================================================
 
+#include "pitch_segment_envelope.h"
+
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/envelope_utils.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/primitives/wavefolder.h>
 #include <krate/dsp/primitives/waveshaper.h>
-#include <krate/dsp/processors/multi_stage_envelope.h>
 
 #include <algorithm>
 #include <cmath>
@@ -49,10 +50,16 @@ enum class ToneShaperFilterType : int
     Bandpass = 2,
 };
 
+// Legacy convenience enum -- pre-Phase-10 callers expressed pitch-env curve as
+// a 2-option discrete choice (Exp/Lin). The new primary API is the continuous
+// setPitchEnvCurveAmount(float) in [-1, +1], 0 = linear. This enum is kept so
+// existing perf/test/tooling code that constructs a ToneShaper directly does
+// not need to change; the legacy setPitchEnvCurve(ToneShaperCurve) below maps
+// the two discrete options to representative continuous amounts.
 enum class ToneShaperCurve : int
 {
-    Exponential = 0,
-    Linear      = 1,
+    Exponential = 0,  // -> curveAmount -0.7 (fast initial drop, slow approach)
+    Linear      = 1,  // -> curveAmount  0.0 (straight line)
 };
 
 class ToneShaper
@@ -99,20 +106,11 @@ public:
         wavefolder_.setType(Krate::DSP::WavefoldType::Sine);
         wavefolder_.setFoldAmount(0.0f);
 
-        // Pitch envelope: 2-stage exponential fall from 1.0 to 0.0.
+        // Pitch envelope (Phase 10): 1- or 2-segment Hz trajectory driven by
+        // PitchSegmentEnvelope. Initial config rebuilt here from current
+        // state; subsequent setter calls trigger rebuildPitchEnv_().
         pitchEnv_.prepare(static_cast<float>(sampleRate));
-        pitchEnv_.setNumStages(4);
-        // Stage 0: instant rise to 1.0 (time = 0)
-        pitchEnv_.setStage(0, 1.0f, 0.0f, Krate::DSP::EnvCurve::Linear);
-        // Stage 1: fall to 0.0 over pitchEnvTimeMs_ with current curve
-        pitchEnv_.setStage(1, 0.0f, std::max(1.0f, pitchEnvTimeMs_),
-                           (pitchEnvCurve_ == ToneShaperCurve::Exponential)
-                               ? Krate::DSP::EnvCurve::Logarithmic
-                               : Krate::DSP::EnvCurve::Linear);
-        // Stages 2..3: held at 0.0
-        pitchEnv_.setStage(2, 0.0f, 0.0f, Krate::DSP::EnvCurve::Linear);
-        pitchEnv_.setStage(3, 0.0f, 0.0f, Krate::DSP::EnvCurve::Linear);
-        pitchEnv_.setSustainPoint(3);
+        rebuildPitchEnv_();
 
         prepared_ = true;
     }
@@ -218,42 +216,69 @@ public:
     void setPitchEnvStartHz(float hz) noexcept
     {
         pitchEnvStartHz_ = std::clamp(hz, 20.0f, 2000.0f);
+        if (prepared_) rebuildPitchEnv_();
     }
 
     void setPitchEnvEndHz(float hz) noexcept
     {
         pitchEnvEndHz_ = std::clamp(hz, 20.0f, 2000.0f);
+        if (prepared_) rebuildPitchEnv_();
     }
 
     void setPitchEnvTimeMs(float ms) noexcept
     {
         pitchEnvTimeMs_ = std::max(0.0f, ms);
-        if (pitchEnvTimeMs_ > 0.0f)
-        {
-            // Clamp to minimum of 1 ms to prevent divide-by-zero / infinite slope.
-            const float clampedMs = std::max(1.0f, pitchEnvTimeMs_);
-            const auto curve = (pitchEnvCurve_ == ToneShaperCurve::Exponential)
-                                   ? Krate::DSP::EnvCurve::Logarithmic
-                                   : Krate::DSP::EnvCurve::Linear;
-            pitchEnv_.setStage(1, 0.0f, clampedMs, curve);
-        }
-        // Note: when ms==0, pitchEnvTimeMs_=0 disables the env entirely and
-        // processPitchEnvelope() short-circuits — the pitchEnv_ stage may hold
-        // stale timing internally, but it is never consulted, so this is
-        // intentional and safe.
+        if (prepared_) rebuildPitchEnv_();
     }
 
+    /// Continuous curve amount in [-1, +1]. 0 = linear; negative = fast initial
+    /// drop / slow approach (classic 808-style exponential decay); positive =
+    /// slow start / fast end. When knee is enabled this drives segment 1.
+    void setPitchEnvCurveAmount(float amount) noexcept
+    {
+        pitchEnvCurve1Amount_ = std::clamp(amount, -1.0f, 1.0f);
+        if (prepared_) rebuildPitchEnv_();
+    }
+
+    /// Alias for callers that conceptually mean "curve of segment 1".
+    void setPitchEnvCurve1Amount(float amount) noexcept
+    {
+        setPitchEnvCurveAmount(amount);
+    }
+
+    void setPitchEnvCurve2Amount(float amount) noexcept
+    {
+        pitchEnvCurve2Amount_ = std::clamp(amount, -1.0f, 1.0f);
+        if (prepared_) rebuildPitchEnv_();
+    }
+
+    void setPitchEnvKneeEnabled(bool enabled) noexcept
+    {
+        pitchEnvKneeEnabled_ = enabled;
+        if (prepared_) rebuildPitchEnv_();
+    }
+
+    void setPitchEnvMidHz(float hz) noexcept
+    {
+        pitchEnvMidHz_ = std::clamp(hz, 20.0f, 2000.0f);
+        if (prepared_) rebuildPitchEnv_();
+    }
+
+    void setPitchEnvMidFraction(float fraction) noexcept
+    {
+        pitchEnvMidFraction_ = std::clamp(fraction, 0.0f, 1.0f);
+        if (prepared_) rebuildPitchEnv_();
+    }
+
+    /// Legacy 2-option setter: kept for pre-existing test/perf/tooling code.
+    /// Maps Exponential -> -0.7 (fast initial drop, matches the old
+    /// EnvCurve::Logarithmic shape), Linear -> 0.0. New code should call
+    /// setPitchEnvCurveAmount(float) directly.
     void setPitchEnvCurve(ToneShaperCurve curve) noexcept
     {
-        pitchEnvCurve_ = curve;
-        if (pitchEnvTimeMs_ > 0.0f)
-        {
-            const float clampedMs = std::max(1.0f, pitchEnvTimeMs_);
-            const auto envCurve = (curve == ToneShaperCurve::Exponential)
-                                      ? Krate::DSP::EnvCurve::Logarithmic
-                                      : Krate::DSP::EnvCurve::Linear;
-            pitchEnv_.setStage(1, 0.0f, clampedMs, envCurve);
-        }
+        setPitchEnvCurveAmount(curve == ToneShaperCurve::Exponential
+                                   ? -0.7f
+                                   :  0.0f);
     }
 
     // ------------------------------------------------------------------
@@ -316,7 +341,7 @@ public:
         filterEnv_.gate(true);
         if (pitchEnvTimeMs_ > 0.0f)
         {
-            pitchEnv_.gate(true);
+            pitchEnv_.noteOn();
             pitchEnvEnabled_ = true;
         }
         else
@@ -328,7 +353,7 @@ public:
     void noteOff() noexcept
     {
         filterEnv_.gate(false);
-        pitchEnv_.gate(false);
+        pitchEnv_.noteOff();
     }
 
     // ------------------------------------------------------------------
@@ -346,10 +371,10 @@ public:
         {
             return naturalFundamentalHz_;
         }
-        // Envelope output: 1.0 at trigger, decays to 0.0 over time (Stage 0->1).
-        // Interpolate: end + (start - end) * env
-        const float env = pitchEnv_.process();
-        return pitchEnvEndHz_ + (pitchEnvStartHz_ - pitchEnvEndHz_) * env;
+        // PitchSegmentEnvelope encodes Hz values directly in its LUTs, so the
+        // process() output IS the body's f0 target -- no further interpolation
+        // needed. Returns endHz once the envelope has fully elapsed.
+        return pitchEnv_.process();
     }
 
     /// Audio-rate process (body_output -> filtered/driven/folded output).
@@ -459,11 +484,18 @@ private:
     float driveAmount_ = 0.0f;
     float foldAmount_  = 0.0f;
 
-    // Pitch envelope state
+    // Pitch envelope state (Phase 10: 1-segment or 3-point with knee).
     float pitchEnvStartHz_        = 160.0f;
     float pitchEnvEndHz_          = 50.0f;
     float pitchEnvTimeMs_         = 0.0f;     // 0 = disabled
-    ToneShaperCurve pitchEnvCurve_ = ToneShaperCurve::Exponential;
+    bool  pitchEnvKneeEnabled_    = false;
+    float pitchEnvMidHz_          = 105.0f;   // (160+50)/2 -- musically neutral default
+    float pitchEnvMidFraction_    = 0.5f;
+    // Per-segment continuous curve amounts in [-1, +1]; 0 = linear,
+    // negative = fast initial drop (classic 808-style decay), positive =
+    // slow start / fast end.
+    float pitchEnvCurve1Amount_   = -0.7f;    // matches old default (Exp -> Log shape)
+    float pitchEnvCurve2Amount_   =  0.0f;    // linear, unused when knee disabled
     bool  pitchEnvEnabled_        = false;
 
     // Stored body natural fundamental (set by DrumVoice from size-derived f0).
@@ -483,9 +515,36 @@ private:
     Krate::DSP::Waveshaper          drive_{};
     Krate::DSP::Wavefolder          wavefolder_{};
     Krate::DSP::DCBlocker           dcBlocker_{};
-    Krate::DSP::MultiStageEnvelope  pitchEnv_{};
+    PitchSegmentEnvelope            pitchEnv_{};
 
     bool prepared_ = false;
+
+    // Rebuild the PitchSegmentEnvelope LUTs from the current parameter state.
+    // Called from every pitch-env setter and at prepare time. Runs O(256) per
+    // segment for the power-curve table fill; well-budgeted for user-edit and
+    // per-pad apply paths, never invoked from process().
+    void rebuildPitchEnv_() noexcept
+    {
+        // Use sample-time of at least 1 ms when the env is "enabled" so a stage
+        // of exactly 0 samples doesn't produce a divide-by-zero in the LUT
+        // phase calculation. When the user-set time is 0, we still call
+        // configureSingle with zero-length tables -- process() short-circuits
+        // on totalSamples_ == 0.
+        const float effectiveMs = std::max(pitchEnvTimeMs_, 0.0f);
+        if (!pitchEnvKneeEnabled_)
+        {
+            pitchEnv_.configureSingle(
+                pitchEnvStartHz_, pitchEnvEndHz_, effectiveMs,
+                pitchEnvCurve1Amount_);
+        }
+        else
+        {
+            pitchEnv_.configureThreePoint(
+                pitchEnvStartHz_, pitchEnvMidHz_, pitchEnvEndHz_,
+                effectiveMs, pitchEnvMidFraction_,
+                pitchEnvCurve1Amount_, pitchEnvCurve2Amount_);
+        }
+    }
 };
 
 } // namespace Membrum

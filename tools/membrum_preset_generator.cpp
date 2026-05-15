@@ -38,8 +38,8 @@
 // ==============================================================================
 
 constexpr int kNumPads           = 32;
-constexpr int kVersion           = 1;
-constexpr int kSoundSlotsPerPad  = 52;
+constexpr int kVersion           = 2;  // Phase 10: 56-slot sound array
+constexpr int kSoundSlotsPerPad  = 56;
 
 // kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136)
 const char kClassIdAscii[33] = "4D656D6272756D50726F633100000136";
@@ -84,7 +84,12 @@ struct Pad {
     double tsFilterType = 0.0, tsFilterCutoff = 1.0, tsFilterResonance = 0.0;
     double tsFilterEnvAmount = 0.5, tsDriveAmount = 0.0, tsFoldAmount = 0.0;
     double tsPitchEnvStart = 0.0, tsPitchEnvEnd = 0.0, tsPitchEnvTime = 0.0;
-    double tsPitchEnvCurve = 0.0;
+    // Phase 10: tsPitchEnvCurve is now a continuous segment-1 curve amount.
+    // Norm 0.5 -> curveAmount 0 (linear); 0.15 -> curveAmount -0.7 (matches the
+    // old StringList "Exp" / EnvCurve::Logarithmic decay shape); 0.5 -> linear
+    // (matches old "Lin"). Defaults to 0.15 to preserve the historical
+    // exponential drop shape -- per-preset overrides explicit-set as needed.
+    double tsPitchEnvCurve = 0.15;
     double tsFilterEnvAttack = 0.0, tsFilterEnvDecay = 0.1;
     double tsFilterEnvSustain = 0.0, tsFilterEnvRelease = 0.1;
     // Unnatural zone
@@ -134,6 +139,14 @@ struct Pad {
     double tensionModAmt = 0.0;
     // Phase 8F per-pad enable toggle (1.0 = on).
     double enabled = 1.0;
+
+    // Phase 10: three-point pitch envelope extension. Defaults: knee OFF,
+    // mid pitch at the midpoint of the 20..2000 Hz log scale (norm 0.5),
+    // mid fraction 0.5, segment-2 curve linear (norm 0.5 -> curveAmount 0).
+    double tsPitchEnvKneeEnabled = 0.0;
+    double tsPitchEnvMidPitch    = 0.5;
+    double tsPitchEnvMidFraction = 0.5;
+    double tsPitchEnvCurve2      = 0.5;
 };
 
 struct OverrideEntry {
@@ -256,6 +269,11 @@ void writePadToBuffer(std::vector<std::uint8_t>& buf, const Pad& p) {
         p.tensionModAmt,
         // [51] Phase 8F per-pad enable.
         p.enabled,
+        // [52..55] Phase 10 three-point pitch envelope extension.
+        p.tsPitchEnvKneeEnabled,
+        p.tsPitchEnvMidPitch,
+        p.tsPitchEnvMidFraction,
+        p.tsPitchEnvCurve2,
     };
     for (double v : sound)
         writeF64(buf, v);
@@ -729,7 +747,7 @@ Kit electronicKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchStart[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchEnd[i]);
         pads[p].tsPitchEnvTime  = tomPitchTime[i];
-        pads[p].tsPitchEnvCurve = 1.0;
+        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].airLoading       = 0.0;
         pads[p].couplingStrength = 0.0;
         pads[p].secondaryEnabled = 0.0;
@@ -1016,7 +1034,7 @@ Kit jazzBrushesKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchStart[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchEnd[i]);
         pads[p].tsPitchEnvTime  = 0.10;
-        pads[p].tsPitchEnvCurve = 1.0;
+        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].airLoading      = 0.65;
         pads[p].modeScatter     = 0.10;
         pads[p].couplingStrength  = 0.32;
@@ -1184,7 +1202,7 @@ Kit rockBigRoomKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
         pads[p].tsPitchEnvTime  = 0.08;
-        pads[p].tsPitchEnvCurve = 1.0;
+        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].tsDriveAmount   = 0.18;
         pads[p].airLoading      = 0.78;
         pads[p].modeScatter     = 0.12;
@@ -1335,7 +1353,7 @@ Kit vintageWoodKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
         pads[p].tsPitchEnvTime  = 0.10;
-        pads[p].tsPitchEnvCurve = 1.0;
+        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].tsDriveAmount   = 0.25;
         pads[p].airLoading      = 0.55;
         pads[p].modeScatter     = 0.18;
@@ -1413,7 +1431,7 @@ Kit orchestralKit() {
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(85);
     pads[0].tsPitchEnvTime  = 0.10;
-    pads[0].tsPitchEnvCurve = 1.0;
+    pads[0].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
     pads[0].airLoading       = 0.92;
     pads[0].couplingStrength = 0.45;
     pads[0].secondaryEnabled = 1.0;
@@ -1480,7 +1498,7 @@ Kit orchestralKit() {
         pads[p].tsPitchEnvStart = toLogNorm(timpaniHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(timpaniLo[i]);
         pads[p].tsPitchEnvTime  = 0.12;
-        pads[p].tsPitchEnvCurve = 1.0;
+        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
         pads[p].airLoading       = 0.85;
         pads[p].modeScatter      = 0.08;
         pads[p].couplingStrength = 0.40;
@@ -1687,7 +1705,7 @@ Kit nineOhNineKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
         pads[p].tsPitchEnvTime  = 0.10;
-        pads[p].tsPitchEnvCurve = 0.0;
+        pads[p].tsPitchEnvCurve = 0.15; // Phase 10: was "Exp" StringList -> norm 0.15 ~= curveAmount -0.7 (legacy log shape)
         pads[p].airLoading = 0.0;
         pads[p].couplingStrength = 0.0;
         pads[p].secondaryEnabled = 0.0;
@@ -1807,7 +1825,7 @@ Kit linnDrumKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomLo[i]);
         pads[p].tsPitchEnvTime  = 0.08;
-        pads[p].tsPitchEnvCurve = 0.0;
+        pads[p].tsPitchEnvCurve = 0.15; // Phase 10: was "Exp" StringList -> norm 0.15 ~= curveAmount -0.7 (legacy log shape)
         pads[p].airLoading = 0.0; pads[p].modeScatter = 0.0;
         pads[p].tensionModAmt = 0.20;
         pads[p].noiseLayerMix = 0.06;
@@ -2102,7 +2120,7 @@ Kit trapModernKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomLo[i]);
         pads[p].tsPitchEnvTime  = 0.06;
-        pads[p].tsPitchEnvCurve = 0.0;
+        pads[p].tsPitchEnvCurve = 0.15; // Phase 10: was "Exp" StringList -> norm 0.15 ~= curveAmount -0.7 (legacy log shape)
         pads[p].tsDriveAmount   = 0.18;
         pads[p].airLoading = 0.0;
         pads[p].tensionModAmt = 0.55;
@@ -2498,7 +2516,7 @@ Kit tablaKit() {
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(70);
     pads[0].tsPitchEnvTime  = 0.20;
-    pads[0].tsPitchEnvCurve = 1.0;
+    pads[0].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
     pads[0].airLoading = 0.62; pads[0].modeScatter = 0.10;
     pads[0].couplingStrength = 0.32; pads[0].secondaryEnabled = 1.0;
     pads[0].secondarySize = 0.45; pads[0].secondaryMaterial = 0.40;
@@ -3123,7 +3141,7 @@ Kit chaosEngineKit() {
         pads[p].tsPitchEnvStart = toLogNorm(180 + std::fmod(i * 30.0, 350.0));
         pads[p].tsPitchEnvEnd   = toLogNorm(40 + std::fmod(i * 12.0, 200.0));
         pads[p].tsPitchEnvTime  = 0.04 + (i % 5) * 0.04;
-        pads[p].tsPitchEnvCurve = (i % 2) ? 1.0 : 0.0;
+        pads[p].tsPitchEnvCurve = (i % 2) ? 0.5 : 0.15;  // Phase 10: was Lin/Exp toggle -> linear/log curveAmounts
         pads[p].macroTightness  = 0.20 + (i % 5) * 0.15;
         pads[p].macroBrightness = 0.30 + (i % 4) * 0.18;
         pads[p].macroBodySize   = 0.30 + (i % 5) * 0.14;

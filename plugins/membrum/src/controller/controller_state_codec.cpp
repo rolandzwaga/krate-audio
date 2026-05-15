@@ -55,25 +55,37 @@ struct LateSlot {
     int         offset;
     std::size_t snapIndex;
 };
-constexpr std::array<LateSlot, 18> kLateSlots = {{
+constexpr std::array<LateSlot, 22> kLateSlots = {{
     // Phase 7 noise layer (sound[34..38] -> offsets 42..46).
-    {kPadNoiseLayerMix,        34}, {kPadNoiseLayerCutoff,     35},
-    {kPadNoiseLayerResonance,  36}, {kPadNoiseLayerDecay,      37},
-    {kPadNoiseLayerColor,      38},
+    {.offset = kPadNoiseLayerMix,        .snapIndex = 34},
+    {.offset = kPadNoiseLayerCutoff,     .snapIndex = 35},
+    {.offset = kPadNoiseLayerResonance,  .snapIndex = 36},
+    {.offset = kPadNoiseLayerDecay,      .snapIndex = 37},
+    {.offset = kPadNoiseLayerColor,      .snapIndex = 38},
     // Phase 7 click layer (sound[39..41] -> offsets 47..49).
-    {kPadClickLayerMix,        39}, {kPadClickLayerContactMs,  40},
-    {kPadClickLayerBrightness, 41},
+    {.offset = kPadClickLayerMix,        .snapIndex = 39},
+    {.offset = kPadClickLayerContactMs,  .snapIndex = 40},
+    {.offset = kPadClickLayerBrightness, .snapIndex = 41},
     // Phase 8A body damping (sound[42..43] -> offsets 50..51).
-    {kPadBodyDampingB1,        42}, {kPadBodyDampingB3,        43},
+    {.offset = kPadBodyDampingB1,        .snapIndex = 42},
+    {.offset = kPadBodyDampingB3,        .snapIndex = 43},
     // Phase 8C air-loading + scatter (sound[44..45] -> offsets 52..53).
-    {kPadAirLoading,           44}, {kPadModeScatter,          45},
+    {.offset = kPadAirLoading,           .snapIndex = 44},
+    {.offset = kPadModeScatter,          .snapIndex = 45},
     // Phase 8D head/shell coupling (sound[46..49] -> offsets 54..57).
-    {kPadCouplingStrength,     46}, {kPadSecondaryEnabled,     47},
-    {kPadSecondarySize,        48}, {kPadSecondaryMaterial,    49},
+    {.offset = kPadCouplingStrength,     .snapIndex = 46},
+    {.offset = kPadSecondaryEnabled,     .snapIndex = 47},
+    {.offset = kPadSecondarySize,        .snapIndex = 48},
+    {.offset = kPadSecondaryMaterial,    .snapIndex = 49},
     // Phase 8E tension modulation (sound[50] -> offset 58).
-    {kPadTensionModAmt,        50},
+    {.offset = kPadTensionModAmt,        .snapIndex = 50},
     // Phase 8F per-pad enable toggle (sound[51] -> offset 59).
-    {kPadEnabled,              51},
+    {.offset = kPadEnabled,              .snapIndex = 51},
+    // Phase 10 three-point pitch envelope extension (sound[52..55] -> offsets 60..63).
+    {.offset = kPadTSPitchEnvKneeEnabled,  .snapIndex = 52},
+    {.offset = kPadTSPitchEnvMidPitch,     .snapIndex = 53},
+    {.offset = kPadTSPitchEnvMidFraction,  .snapIndex = 54},
+    {.offset = kPadTSPitchEnvCurve2,       .snapIndex = 55},
 }};
 
 // Macro block (Phase 6): 5 normalised values, one per macro.
@@ -83,9 +95,11 @@ constexpr std::array<int, 5> kMacroOffsets = {
 };
 
 // VST3 API does not declare `getParamNormalized` const, but it is logically
-// a read. Wrap the const_cast in one place.
+// a read. Wrap the const_cast in one place so the rest of the file can stay
+// const-correct.
 double readParam(const EditControllerEx1& ctrl, ParamID id) noexcept
 {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast): SDK API limitation.
     return const_cast<EditControllerEx1&>(ctrl).getParamNormalized(id);
 }
 

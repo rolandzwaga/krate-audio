@@ -216,6 +216,11 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kTensionModAmtId,      kPadTensionModAmt },
         // Phase 8F: per-pad enable toggle.
         { kPadEnabledId,         kPadEnabled },
+        // Phase 10: three-point pitch envelope extension.
+        { kPitchEnvKneeEnabledId, kPadTSPitchEnvKneeEnabled },
+        { kPitchEnvMidPitchId,    kPadTSPitchEnvMidPitch },
+        { kPitchEnvMidFractionId, kPadTSPitchEnvMidFraction },
+        { kPitchEnvCurve2Id,      kPadTSPitchEnvCurve2 },
     };
 }
 
@@ -253,6 +258,9 @@ std::set<int> proxiedOffsets()
         kPadTensionModAmt,
         // Phase 8F: per-pad enable toggle offset.
         kPadEnabled,
+        // Phase 10: three-point pitch envelope extension offsets.
+        kPadTSPitchEnvKneeEnabled, kPadTSPitchEnvMidPitch,
+        kPadTSPitchEnvMidFraction, kPadTSPitchEnvCurve2,
     };
 }
 

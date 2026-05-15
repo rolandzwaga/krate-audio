@@ -163,8 +163,10 @@ TEST_CASE("Processor::getState does NOT write kUiModeId bytes", "[ui_mode_sessio
     // adding 32 * 1 * 8 = 256 bytes.
     // Phase 9 v13 appends 1 master-gain float64 (8 bytes) at the end of the blob.
     // v14 drops the 2-byte override count (matrix removal).
+    // Phase 10 v2 (post-pre-release reset) adds 4 sound slots per pad,
+    // adding 32 * 4 * 8 = 1024 bytes.
     // If kUiModeId had been appended as an int32 it would be +4.
-    REQUIRE(bytes.size() == std::size_t{10610 + 2048 + 512 + 512 + 1024 + 256 + 256 + 8 - 2});
+    REQUIRE(bytes.size() == std::size_t{10610 + 2048 + 512 + 512 + 1024 + 256 + 256 + 8 - 2 + 1024});
 
     p.terminate();
 }

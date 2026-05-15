@@ -241,17 +241,17 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
     // Phase 8F: offset 59 is now active (per-pad enable toggle).
     CHECK(padOffsetFromParamId(kPadBaseId + 59) == 59);
 
-    // Offset 60 is the first reserved offset within pad 0's stride (Phase 8F).
-    int reservedId = kPadBaseId + 60;
-    CHECK(padOffsetFromParamId(reservedId) == -1);
+    // Phase 10: offsets 60-63 are now active (three-point pitch envelope).
+    for (int off = 60; off <= 63; ++off)
+    {
+        CHECK(padOffsetFromParamId(kPadBaseId + off) == off);
+    }
 
-    // Offset 63 (last in stride)
-    int lastReservedId = kPadBaseId + 63;
-    CHECK(padOffsetFromParamId(lastReservedId) == -1);
-
-    // Same for pad 5 offset 60+
-    int pad5Reserved = padParamId(5, 0) + 60;
-    CHECK(padOffsetFromParamId(pad5Reserved) == -1);
+    // After Phase 10 there are no reserved offsets remaining within the
+    // 64-stride; the next reserved range opens at offset 64 (which lands in
+    // the NEXT pad's stride anyway, so padOffsetFromParamId returns its
+    // offset 0 = kPadExciterType). The reserved-range guard is preserved
+    // by future-phase expansions.
 }
 
 TEST_CASE("padOffsetFromParamId rejects out-of-range IDs", "[pad_config]")

@@ -84,10 +84,21 @@ void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
         v.toneShaper().setPitchEnvEndHz(endHz);
     }
     v.toneShaper().setPitchEnvTimeMs(cfg.tsPitchEnvTime * 500.0f);
+    // Phase 10: continuous curve mapping. Norm 0.5 -> linear (curveAmount 0);
+    // norm 0 -> -1 (very fast initial drop), norm 1 -> +1 (slow start).
+    v.toneShaper().setPitchEnvCurveAmount(
+        2.0f * std::clamp(cfg.tsPitchEnvCurve, 0.0f, 1.0f) - 1.0f);
+    // Phase 10: knee + middle breakpoint.
+    v.toneShaper().setPitchEnvKneeEnabled(cfg.tsPitchEnvKneeEnabled >= 0.5f);
     {
-        const int curveIdx = std::clamp(static_cast<int>(cfg.tsPitchEnvCurve * 2.0f), 0, 1);
-        v.toneShaper().setPitchEnvCurve(static_cast<ToneShaperCurve>(curveIdx));
+        const float midHz = 20.0f * std::pow(100.0f,
+            std::clamp(cfg.tsPitchEnvMidPitch, 0.0f, 1.0f));
+        v.toneShaper().setPitchEnvMidHz(midHz);
     }
+    v.toneShaper().setPitchEnvMidFraction(
+        std::clamp(cfg.tsPitchEnvMidFraction, 0.0f, 1.0f));
+    v.toneShaper().setPitchEnvCurve2Amount(
+        2.0f * std::clamp(cfg.tsPitchEnvCurve2, 0.0f, 1.0f) - 1.0f);
 
     // Unnatural Zone
     v.unnaturalZone().setModeStretch(
@@ -162,6 +173,11 @@ RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() noexcept
     t.byOffset[kPadNoiseBurstDuration] = 0.5f;
     t.byOffset[kPadFrictionPressure]   = 0.0f;
     t.byOffset[kPadCouplingAmount]     = 0.5f;
+    // Phase 10: three-point pitch envelope extension defaults.
+    t.byOffset[kPadTSPitchEnvKneeEnabled] = 0.0f;
+    t.byOffset[kPadTSPitchEnvMidPitch]    = 0.5f;
+    t.byOffset[kPadTSPitchEnvMidFraction] = 0.5f;
+    t.byOffset[kPadTSPitchEnvCurve2]      = 0.5f;
     return t;
 }
 
@@ -575,6 +591,20 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         // ---- Phase 8F: per-pad enable toggle proxy ----
         case kPadEnabledId:
             voicePool_.setPadConfigField(selectedPadIndex_, kPadEnabled, fValue);
+            break;
+
+        // ---- Phase 10: three-point pitch envelope extension ----
+        case kPitchEnvKneeEnabledId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvKneeEnabled, fValue);
+            break;
+        case kPitchEnvMidPitchId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvMidPitch, fValue);
+            break;
+        case kPitchEnvMidFractionId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvMidFraction, fValue);
+            break;
+        case kPitchEnvCurve2Id:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvCurve2, fValue);
             break;
 
         // ---- Phase 9: global master output gain ----
@@ -1160,7 +1190,8 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
     {
         auto* attrs = message->getAttributes();
         if (attrs == nullptr) return kResultOk;
-        Steinberg::int64 midi = 0, velocity = 100;
+        Steinberg::int64 midi = 0;
+        Steinberg::int64 velocity = 100;
         attrs->getInt("midi", midi);
         attrs->getInt("velocity", velocity);
         const std::uint32_t word =

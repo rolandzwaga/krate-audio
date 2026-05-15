@@ -9,9 +9,9 @@
 // helpers to eliminate the previous 4-6x duplication of the pad-sound-
 // parameter serialisation block.
 //
-// Current version: v1. The plugin has not shipped, so there is no legacy
-// state to support -- the codec emits and accepts a single version.
-// PadSnapshot::sound carries 52 slots; PadPresetSnapshot carries 51.
+// Current version: v2 (Phase 10). The plugin has not shipped, so there is no
+// legacy state to support -- the codec emits and accepts a single version.
+// PadSnapshot::sound carries 56 slots; PadPresetSnapshot carries 55.
 // ==============================================================================
 
 #include "dsp/exciter_type.h"
@@ -53,7 +53,8 @@ struct PadSnapshot
     // indices 46-49  -> offsets 54-57 (coupling + secondary)  [Phase 8D]
     // index 50       -> offset 58     (tensionModAmt)         [Phase 8E]
     // index 51       -> offset 59     (enabled)               [Phase 8F]
-    std::array<double, 52> sound{};
+    // indices 52-55  -> offsets 60-63 (pitchEnv knee/mid/midFraction/curve2) [Phase 10]
+    std::array<double, 56> sound{};
 
     std::uint8_t chokeGroup{0};       ///< Authoritative (uint8) on load.
     std::uint8_t outputBus{0};        ///< Authoritative (uint8) on load.
@@ -93,7 +94,7 @@ struct PadPresetSnapshot
 {
     ExciterType   exciterType{};
     BodyModelType bodyModel{};
-    std::array<double, 51> sound{}; ///< Same layout as PadSnapshot::sound (indices 28-29 written but ignored on load).
+    std::array<double, 56> sound{}; ///< Same layout as PadSnapshot::sound. Indices 28-29 (chokeGroup/outputBus float64) and index 51 (kit-level enabled flag) are written but ignored on load -- per-pad presets must not carry routing or per-pad-mute data.
 };
 
 // ============================================================================
@@ -101,8 +102,8 @@ struct PadPresetSnapshot
 // accepted on read. Bumping these is a breaking change.
 // ============================================================================
 
-constexpr Steinberg::int32 kBlobVersion    = 1;
-constexpr Steinberg::int32 kPadBlobVersion = 1;
+constexpr Steinberg::int32 kBlobVersion    = 2;  // Phase 10: 56-slot sound array
+constexpr Steinberg::int32 kPadBlobVersion = 2;  // Phase 10: 56-slot sound array
 
 // ============================================================================
 // Blob codec -- one format for full kit/state.
@@ -113,7 +114,7 @@ constexpr Steinberg::int32 kPadBlobVersion = 1;
 //   Per pad (32 times):
 //     [int32 exciterType]
 //     [int32 bodyModel]
-//     [52 x float64 sound (see PadSnapshot)]
+//     [56 x float64 sound (see PadSnapshot)]
 //     [uint8 chokeGroup]
 //     [uint8 outputBus]
 //   [int32 selectedPadIndex]
@@ -144,8 +145,8 @@ Steinberg::tresult readKitBlob(Steinberg::IBStream* stream,
 //   [int32 version == kPadBlobVersion]
 //   [int32 exciterType]
 //   [int32 bodyModel]
-//   [51 x float64 sound]
-// Total: 420 bytes.
+//   [56 x float64 sound]
+// Total: 460 bytes.
 // ============================================================================
 
 Steinberg::tresult writePadPresetBlob(Steinberg::IBStream* stream,
