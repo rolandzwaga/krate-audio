@@ -181,11 +181,81 @@ public:
         // When disabled this is naturalFundamentalHz_; when enabled it's pitchEnvStartHz_.
         const float initialPitchHz = toneShaper_.processPitchEnvelope();
 
+        // Phase 11 (spec 145): configure the modal bank's output stage based on
+        // the exciter the next note will use. FeedbackExciter closes a
+        // body -> exciter loop and is the only documented passivity-loss path,
+        // so it keeps the +/-0.707 soft-clip safety net. Every other exciter
+        // gets the field-standard transparent path -- 1/N summation
+        // normalisation only -- so per-mode damping modulation (Material,
+        // decay, body-damping b1/b3) propagates audibly. See research
+        // citations: Faust physmodels.lib :> /(nModes); STK Modal (no clip);
+        // Bilbao NSS Chapter 5; Aramaki & Kronland-Martinet on material-as-
+        // damping; AAS Chromaphone Material/Tone split.
         // Configure the body for this note (applies deferred body-model swap).
         // For Membrane: we pass the baseline pitchHz — the mapper currently
         // ignores this and derives f0 from size_ (unchanged Phase 1 behavior).
         // The pitch envelope sweeping is done per-sample via updateFundamental.
         bodyBank_.configureForNoteOn(params_, initialPitchHz);
+
+        {
+            // Phase 11 (spec 145): drop the modal bank's output soft-clip
+            // entirely for non-feedback voices, and pre-scale the bank
+            // output by 1/sqrt(N) so the summed mode peak fits below
+            // unity for typical body presets. The 1/sqrt(N) is the
+            // energy-equalisation norm; the peak of N initially-in-phase
+            // modes with amplitudes summing to S has expected unit-impulse
+            // peak ~= S, which 1/sqrt(N) shapes back to roughly the body's
+            // unsaturated-RMS level (matches the steady-state RMS sum of
+            // uncorrelated mode contributions). Removing the clip is the
+            // field-standard approach (Faust physmodels.lib `:> /(nModes)`,
+            // STK Modal, Bilbao NSS): per-mode IIR poles are strictly
+            // |R| < 1 so the bank is BIBO-safe; the per-sample tanh at
+            // -3 dBFS was gain-staging masquerading as a stability
+            // safeguard. Downstream `softClip(shaped * env * level)` in
+            // this voice's post-chain still bounds the final voice output
+            // to [-1, 1] for the audio bus.
+            //
+            // FeedbackExciter loops body -> exciter and IS a documented
+            // passivity-loss path (Karjalainen et al.), so it keeps the
+            // legacy -3 dBFS safety clip. No gain scaling for that path
+            // either -- the loop's own gain budget is calibrated against
+            // the clipped output.
+            const bool feedbackExciter =
+                exciterBank_.getPendingType() == ExciterType::Feedback;
+            auto& bank = bodyBank_.getSharedBank();
+            if (feedbackExciter)
+            {
+                bank.setOutputGain(1.0f);
+                bank.setOutputSoftClipThreshold(0.707f);
+            }
+            else
+            {
+                // Phase 11 (spec 145): mode-count-aware peak normalisation
+                // + remove the legacy soft-clip on the non-feedback path.
+                // 1/sqrt(N) is the energy-equalisation norm (uncorrelated
+                // steady-state RMS for N modes); critically it is
+                // INDEPENDENT of per-mode amplitudes, so parameters that
+                // boost individual modes (decaySkew, modeScatter, future
+                // per-mode weights) preserve their relative effect rather
+                // than being self-cancelled by the normalisation. Per-body
+                // peak is roughly bounded by sum/sqrt(N) (Membrane ~0.36,
+                // Bell ~1.0, etc.); the downstream `softClip(shaped * env *
+                // level)` in this voice's post-chain bounds the audio
+                // output to [-1, 1] for the audio bus. FeedbackExciter
+                // keeps the legacy -3 dBFS clip as a documented passivity-
+                // loss safety net (Karjalainen et al.).
+                const int n = std::max(1, bank.getNumModes());
+                bank.setOutputGain(1.0f / std::sqrt(static_cast<float>(n)));
+                bank.setOutputSoftClipThreshold(0.0f);
+            }
+            bodyGainCompensation_      = 1.0f;
+            secondaryGainCompensation_ = 1.0f;
+
+            const int ns = std::max(1, secondaryBank_.getNumModes());
+            secondaryBank_.setOutputGain(
+                1.0f / std::sqrt(static_cast<float>(ns)));
+            secondaryBank_.setOutputSoftClipThreshold(0.0f);
+        }
 
         // If the pitch envelope is active AND body is Membrane, seed the
         // sharedBank with scaled frequencies matching the initial envelope Hz
@@ -600,6 +670,15 @@ private:
             // Single std::visit on the body; the body implementations route
             // to ModalResonatorBank::processBlock (SIMD) internally.
             bodyBank_.processBlock(bodyScratch, excScratch, chunk);
+            // Phase 11: compensate for the bank's 1/sum normalisation so the
+            // post-bank perceived loudness matches the pre-Phase-11 saturated
+            // peak. See the noteOn comment for the rationale.
+            if (bodyGainCompensation_ != 1.0f)
+            {
+                const float g = bodyGainCompensation_;
+                for (int i = 0; i < chunk; ++i)
+                    bodyScratch[i] *= g;
+            }
             lastBody = bodyScratch[chunk - 1];
 
             // --- Phase 8D: secondary (shell) bank with scalar coupling. --
@@ -618,6 +697,13 @@ private:
                 for (int i = 0; i < chunk; ++i)
                     secExc[i] = bodyScratch[i] * effectiveCoupling_;
                 secondaryBank_.processBlock(secExc, secOut, chunk);
+                // Phase 11: same 1/sum compensation for the shell bank.
+                if (secondaryGainCompensation_ != 1.0f)
+                {
+                    const float g = secondaryGainCompensation_;
+                    for (int i = 0; i < chunk; ++i)
+                        secOut[i] *= g;
+                }
                 // Mix shell output into the audible body output. This is
                 // passive (additive only, no return path into the body's
                 // modal excitation). The shell still rings audibly --
@@ -1259,6 +1345,13 @@ private:
     /// therefore never gets auto-noteOff'd) still retires after a few
     /// blocks of body-modal silence.
     int silentBlockCount_ = 0;
+
+    /// Phase 11 (spec 145): post-bank gain multiplier that restores the
+    /// historical perceived loudness after the bank's 1/sum amplitude
+    /// normalisation. Set in noteOn() from `sum(amplitudes) * 0.707`
+    /// (target = old saturated peak). 1.0 = no compensation (FeedbackExciter).
+    float bodyGainCompensation_      = 1.0f;
+    float secondaryGainCompensation_ = 1.0f;
 };
 
 } // namespace Membrum

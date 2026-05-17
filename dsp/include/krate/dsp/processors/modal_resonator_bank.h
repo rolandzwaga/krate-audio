@@ -101,6 +101,65 @@ public:
     ModalResonatorBank() noexcept = default;
     ~ModalResonatorBank() override = default;
 
+    // -------------------------------------------------------------------------
+    // Output-stage configuration (Phase 11 / spec 145)
+    //
+    // The bank has historically applied a per-sample soft-clip at +/-0.707
+    // (`kSoftClipThreshold`) to its summed mode output, plus no
+    // mode-count normalisation. This is BIBO-safe but produces "gain-staging
+    // masquerading as safety" -- on percussive transients the modal sum sits
+    // pinned at the clipper ceiling for the entire ring-out, which silently
+    // masks per-mode damping modulation (Material, decay, b1/b3, etc.).
+    //
+    // The defaults are kept at LEGACY to preserve bit-identity for existing
+    // consumers (Innexus' physical_model_mixer expects clipped input). New
+    // consumers (Membrum's percussion voices) opt into the transparent
+    // path via these setters. Field-standard analogues:
+    //   - Faust physmodels.lib `:> /(nModes)` summation normalisation
+    //   - STK Modal -- no output clipping
+    //   - Bilbao NSS -- stability via energy methods, not output saturation
+    // See plugins/membrum spec 145 research notes for full citations.
+    // -------------------------------------------------------------------------
+
+    /// Linear gain applied to the summed bank output (before the soft-clip).
+    /// Default 1.0 preserves the historical scale. Callers that want the
+    /// Faust-style "sum-of-N-modes" headroom apply `1/N` or `1/sqrt(N)`
+    /// here; callers with body-specific amplitude profiles (Bessel Membrane,
+    /// Bell, etc.) can compute and pass `1 / sum(amplitudes)` for an
+    /// amplitude-aware peak ceiling.
+    void setOutputGain(float gain) noexcept { outputGain_ = gain; }
+
+    /// Configure the soft-clip threshold applied to the summed bank output.
+    /// `threshold > 0` engages the tanh-shaped clipper at that level
+    /// (`softClip(x / threshold) * threshold`). `threshold <= 0` disables
+    /// the clipper entirely. Default is `kSoftClipThreshold = 0.707f`
+    /// (-3 dBFS) -- preserves Innexus' physical_model_mixer bit-identity.
+    /// Membrum's non-feedback voices raise this to 1.0 so the clipper only
+    /// engages at near-clip levels rather than masking transient damping
+    /// modulation throughout the entire ring-out.
+    void setOutputSoftClipThreshold(float threshold) noexcept
+    {
+        outputSoftClipThreshold_ = threshold;
+    }
+
+    [[nodiscard]] float getOutputGain() const noexcept { return outputGain_; }
+    [[nodiscard]] float getOutputSoftClipThreshold() const noexcept
+    {
+        return outputSoftClipThreshold_;
+    }
+
+    /// Sum of the per-mode input gains stored at the last setModes/updateModes
+    /// call. With initially-in-phase impulse excitation the bank's transient
+    /// peak amplitude is upper-bounded by this sum, so `1 / inputGainSum()`
+    /// is the canonical "unit-peak" output gain that keeps the bank in its
+    /// linear region for any body's amplitude profile (Bessel Membrane,
+    /// Bell, Plate, etc.). Returns 1.0 if the bank has not yet been
+    /// configured (avoids divide-by-zero in callers).
+    [[nodiscard]] float getInputGainSum() const noexcept
+    {
+        return (inputGainSum_ > 1e-6f) ? inputGainSum_ : 1.0f;
+    }
+
     // Non-copyable (large aligned arrays), movable
     ModalResonatorBank(const ModalResonatorBank&) = delete;
     ModalResonatorBank& operator=(const ModalResonatorBank&) = delete;
@@ -259,11 +318,11 @@ public:
         }
 
         const float ex = applyTransientEmphasis(excitation);
-        const float modeSum = processModalBankSampleSIMD(
+        float modeSum = processModalBankSampleSIMD(
             sinState_, cosState_, epsilon_, radius_, inputGain_,
             ex, numModes_);
 
-        return softClip(modeSum / kSoftClipThreshold) * kSoftClipThreshold;
+        return applyOutputStage(modeSum);
     }
 
     /// Process a single sample with optional decay scaling (mallet choke).
@@ -294,8 +353,7 @@ public:
                 sinState_, cosState_, epsilon_, radius_, inputGain_,
                 ex, numModes_);
 
-            // Soft-clip safety limiter (FR-010)
-            output[i] = softClip(modeSum / kSoftClipThreshold) * kSoftClipThreshold;
+            output[i] = applyOutputStage(modeSum);
         }
         flushSilentModes();
     }
@@ -510,6 +568,14 @@ private:
     float envelopeAttackCoeff_ = 0.0f;
     bool prepared_ = false;
 
+    // Output-stage configuration (Phase 11 / spec 145). Defaults preserve the
+    // historical "softClip-only at 0.707, no extra gain" behaviour so
+    // existing consumers (Innexus physical_model_mixer) are bit-identical.
+    // Membrum opts into the transparent path via the setters above.
+    float outputGain_               = 1.0f;
+    float outputSoftClipThreshold_  = kSoftClipThreshold;  // 0.707 default
+    float inputGainSum_             = 0.0f;  // updated by computeModeCoefficients
+
     // IResonator energy followers (FR-023)
     float controlEnergy_ = 0.0f;
     float perceptualEnergy_ = 0.0f;
@@ -582,6 +648,7 @@ private:
 
         numModes_ = numPartials;
         numActiveModes_ = 0;
+        inputGainSum_ = 0.0f;
 
         // Chaigne-Lambourg damping coefficients (FR-006).
         // b1 floor mirrors the legacy decayTime clamp of 5.0 s -> 0.2 s^-1;
@@ -646,6 +713,7 @@ private:
             inputGainTarget_[k] = gain_k;
             active_[k] = true;
             ++numActiveModes_;
+            inputGainSum_ += std::abs(gain_k);
         }
 
         // Deactivate and zero coefficients for modes beyond numPartials
@@ -667,6 +735,19 @@ private:
             initBowedModeFilters();
             recomputeBowWeights();
         }
+    }
+
+    /// Apply the configured output stage (linear gain + optional soft-clip)
+    /// to a raw mode sum. Inlined hot-path: with default settings
+    /// (gain=1.0, threshold=0.707) this reduces to the historical
+    /// `softClip(x / 0.707) * 0.707` expression bit-identically.
+    [[nodiscard]] float applyOutputStage(float modeSum) const noexcept
+    {
+        modeSum *= outputGain_;
+        const float t = outputSoftClipThreshold_;
+        if (t > 0.0f)
+            modeSum = softClip(modeSum / t) * t;
+        return modeSum;
     }
 
     /// Smooth coefficients toward targets (one-pole per coefficient).
@@ -734,8 +815,7 @@ private:
             }
         }
 
-        // Soft-clip safety limiter (FR-010)
-        output = softClip(output / kSoftClipThreshold) * kSoftClipThreshold;
+        output = applyOutputStage(output);
 
         // FR-020: Feed output through bowed-mode bandpass velocity taps
         if (bowModeActive_) {

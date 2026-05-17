@@ -47,6 +47,7 @@ add_executable(membrum_tests
     unit/unnatural/test_mode_inject.cpp
     unit/unnatural/test_nonlinear_coupling.cpp
     unit/unnatural/test_material_morph.cpp
+    unit/unnatural/test_material_morph_audibility.cpp
 
     # Phase 2: top-level cross-cutting tests
     unit/test_exciter_body_matrix.cpp

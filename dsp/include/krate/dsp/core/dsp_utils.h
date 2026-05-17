@@ -99,13 +99,16 @@ inline void clear(float* buffer, size_t numSamples) noexcept {
     return std::clamp(sample, -1.0f, 1.0f);
 }
 
-/// Soft clip using tanh-like curve
+/// Soft clip using tanh-like curve. Output is strictly bounded to [-1, 1]:
+/// the polynomial form can compute 1.0 + 1 ULP at the |sample| = 3 knee due
+/// to FMA / division rounding, so the result is clamped on the way out.
 [[nodiscard]] inline float softClip(float sample) noexcept {
     // Fast approximation of tanh
     if (sample > 3.0f) return 1.0f;
     if (sample < -3.0f) return -1.0f;
     const float x2 = sample * sample;
-    return sample * (27.0f + x2) / (27.0f + 9.0f * x2);
+    const float y  = sample * (27.0f + x2) / (27.0f + 9.0f * x2);
+    return std::clamp(y, -1.0f, 1.0f);
 }
 
 // ==============================================================================
