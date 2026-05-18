@@ -103,10 +103,18 @@ TEST_CASE("VoicePool maxPolyphony=1 matches Phase 2 DrumVoice reference",
         20.0f * std::pow(1000.0f, std::clamp(kCfg.tsFilterCutoff, 0.0f, 1.0f)));
     voice.toneShaper().setFilterResonance(kCfg.tsFilterResonance);
     voice.toneShaper().setFilterEnvAmount(kCfg.tsFilterEnvAmount * 2.0f - 1.0f);
-    voice.toneShaper().setFilterEnvAttackMs(kCfg.tsFilterEnvAttack * 500.0f);
-    voice.toneShaper().setFilterEnvDecayMs(kCfg.tsFilterEnvDecay * 2000.0f);
-    voice.toneShaper().setFilterEnvSustain(kCfg.tsFilterEnvSustain);
-    voice.toneShaper().setFilterEnvReleaseMs(kCfg.tsFilterEnvRelease * 2000.0f);
+    // Filter envelope time scaling: cubic decode mirrors processor.cpp /
+    // voice_pool.cpp (norm^3 * maxMs) to round-trip the ADSRDisplay's drag
+    // encoding.
+    {
+        const float aN = std::clamp(kCfg.tsFilterEnvAttack,  0.0f, 1.0f);
+        const float dN = std::clamp(kCfg.tsFilterEnvDecay,   0.0f, 1.0f);
+        const float rN = std::clamp(kCfg.tsFilterEnvRelease, 0.0f, 1.0f);
+        voice.toneShaper().setFilterEnvAttackMs (aN * aN * aN * 500.0f);
+        voice.toneShaper().setFilterEnvDecayMs  (dN * dN * dN * 2000.0f);
+        voice.toneShaper().setFilterEnvSustain  (kCfg.tsFilterEnvSustain);
+        voice.toneShaper().setFilterEnvReleaseMs(rN * rN * rN * 2000.0f);
+    }
     voice.toneShaper().setDriveAmount(kCfg.tsDriveAmount);
     voice.toneShaper().setFoldAmount(kCfg.tsFoldAmount);
     voice.toneShaper().setPitchEnvStartHz(

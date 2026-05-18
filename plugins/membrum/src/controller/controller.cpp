@@ -721,6 +721,20 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     if (tag == static_cast<ParamID>(kMorphEnabledId))
         updateMorphControlsEnabled();
 
+    // Body model gate for the pitch-envelope section: the envelope only
+    // retargets f0 on Membrane bodies (drum_voice.h:486), so dim/disable the
+    // controls when any other body type is selected. Fires on the global proxy
+    // tag whether the change came from the user, automation, preset load, or
+    // syncGlobalProxyFromPad's pad-switch sync.
+    if (tag == static_cast<ParamID>(kBodyModelId))
+    {
+        updatePitchEnvControlsEnabled();
+        // Same gate hides the Material Morph power toggle on non-Membrane
+        // bodies (drum_voice.h:1238): the morph's body-mapper refresh is
+        // Membrane-only, so the toggle would enable an inert section.
+        updateMorphEnabledToggleVisibility();
+    }
+
     // Tone Shaper filter-envelope display: repaint the curve whenever any of
     // the four A/D/S/R parameters moves, regardless of source (knob edit,
     // automation, preset load, or the direct-setter pad-switch sync path).
@@ -889,6 +903,14 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // And likewise for the pitch-envelope display so a pad switch repaints
     // its start/end/time/curve handles to the new pad's stored values.
     updatePitchEnvelopeDisplay();
+    // BodyModel proxy was just refreshed via the direct base-class setter
+    // (which skipped the kBodyModelId hook in our setParamNormalized
+    // override), so re-evaluate the pitch-env section gate for the newly
+    // selected pad's body type.
+    updatePitchEnvControlsEnabled();
+    // Same reasoning for the Material Morph toggle: re-check visibility for
+    // the freshly-synced body model.
+    updateMorphEnabledToggleVisibility();
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1364,6 +1386,39 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
         // Simple<->Advanced template switch (or any other rebuild) does not
         // strand it at its hard-coded constructor defaults.
         updatePitchEnvelopeDisplay();
+        // Apply the current Body gate so the freshly-built display starts in
+        // the right dim/enabled state (e.g. when the selected pad's body is
+        // not Membrane).
+        updatePitchEnvControlsEnabled();
+    }
+
+    // Pitch-envelope Knee menu (Advanced template only). Cached by control-tag
+    // so updatePitchEnvControlsEnabled() can cascade the Body gate across the
+    // whole section. Tagged here separately from the Material Morph block to
+    // keep the conditional simple.
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(view))
+    {
+        if (ctrl->getTag() == static_cast<int32>(kPitchEnvKneeEnabledId))
+        {
+            pitchEnvKneeView_ = ctrl;
+            ctrl->registerViewListener(this);
+            updatePitchEnvControlsEnabled();
+        }
+    }
+
+    // "Knee" label sits next to the PitchEnvKneeEnabled menu in the Advanced
+    // template; dim it alongside the rest of the pitch-env section. It is the
+    // only CTextLabel in the uidesc with this title, so a title match is
+    // unambiguous.
+    if (auto* label = dynamic_cast<VSTGUI::CTextLabel*>(view))
+    {
+        VSTGUI::UTF8StringPtr t = label->getText();
+        if (t != nullptr && std::strcmp(t, "Knee") == 0)
+        {
+            pitchEnvKneeLabel_ = label;
+            label->registerViewListener(this);
+            updatePitchEnvControlsEnabled();
+        }
     }
 
     // MaterialMorph XY pad (Advanced template). The shared XYMorphPad drives
@@ -1408,6 +1463,12 @@ VSTGUI::CView* Controller::verifyView(VSTGUI::CView* view,
             morphCurveView_ = ctrl;
             ctrl->registerViewListener(this);
             morphViewCached = true;
+        }
+        else if (tag == static_cast<int32>(kMorphEnabledId))
+        {
+            morphEnabledToggleView_ = ctrl;
+            ctrl->registerViewListener(this);
+            updateMorphEnabledToggleVisibility();
         }
     }
 
@@ -1480,10 +1541,13 @@ void Controller::viewWillDelete(VSTGUI::CView* view)
 
     if (view == outputBusSelView_)         outputBusSelView_         = nullptr;
     if (view == pitchEnvelopeDisplay_)     pitchEnvelopeDisplay_     = nullptr;
+    if (view == pitchEnvKneeView_)         pitchEnvKneeView_         = nullptr;
+    if (view == pitchEnvKneeLabel_)        pitchEnvKneeLabel_        = nullptr;
     if (view == xyMorphPad_)               xyMorphPad_               = nullptr;
     if (view == morphDurationView_)        morphDurationView_        = nullptr;
     if (view == morphCurveView_)           morphCurveView_           = nullptr;
     if (view == morphDurLabel_)            morphDurLabel_            = nullptr;
+    if (view == morphEnabledToggleView_)   morphEnabledToggleView_   = nullptr;
     if (view == filterEnvDisplay_)         filterEnvDisplay_         = nullptr;
 
     view->unregisterViewListener(this);
@@ -1558,6 +1622,75 @@ void Controller::updateMorphControlsEnabled() noexcept
 }
 
 // ------------------------------------------------------------------------------
+// Reflect the BodyModel selection (via the global proxy that tracks the
+// selected pad) onto the cached pitch-envelope views. The pitch envelope only
+// retargets the modal bank's f0 for Membrane bodies -- on Plate/Shell/String/
+// Bell/NoiseBody it advances but its output is ignored (see drum_voice.h:486).
+// Dim + block mouse input for the entire section when the selected body is
+// not Membrane so the UI cannot suggest controls that have no audible effect.
+// ------------------------------------------------------------------------------
+bool Controller::isMembraneBodySelectedForTest() noexcept
+{
+    // Mirror the processor's normalized-to-discrete clamp (processor.cpp:288):
+    // bodyIdx = clamp(static_cast<int>(norm * kCount), 0, kCount - 1). Membrane
+    // is 0, which corresponds to norm < 1/6.
+    const auto bodyNorm =
+        getParamNormalized(static_cast<ParamID>(kBodyModelId));
+    const int bodyIdx = std::clamp(
+        static_cast<int>(bodyNorm * static_cast<double>(BodyModelType::kCount)),
+        0,
+        static_cast<int>(BodyModelType::kCount) - 1);
+    return bodyIdx == static_cast<int>(BodyModelType::Membrane);
+}
+
+void Controller::updatePitchEnvControlsEnabled() noexcept
+{
+    const bool enabled = isMembraneBodySelectedForTest();
+    const float alpha  = enabled ? 1.0f : 0.35f;
+
+    auto apply = [enabled, alpha](VSTGUI::CView* v) {
+        if (v == nullptr) return;
+        if (v->getAlphaValue() == alpha
+            && v->getMouseEnabled() == enabled)
+            return;
+        v->setAlphaValue(alpha);
+        v->setMouseEnabled(enabled);
+        v->invalid();
+    };
+
+    apply(pitchEnvelopeDisplay_);
+    apply(pitchEnvKneeView_);
+    apply(pitchEnvKneeLabel_);
+}
+
+// ------------------------------------------------------------------------------
+// Hide the Material Morph power toggle when the selected pad's body is not
+// Membrane. Material Morph's body-mapper refresh only supports Membrane bodies
+// (drum_voice.h:1238) -- on every other body the morph counter ticks but the
+// mode bank is never re-mapped, so the section is inert. Hiding the toggle
+// removes the only entry point for enabling that inert path.
+//
+// We deliberately preserve the underlying kMorphEnabledId parameter value
+// across body switches: a pad set to Membrane with morph ON, then flipped to
+// Plate, will re-show the toggle (still ON) when flipped back. That keeps
+// preset state stable and avoids surprising the user with a parameter write
+// triggered purely by a body change.
+// ------------------------------------------------------------------------------
+void Controller::updateMorphEnabledToggleVisibility() noexcept
+{
+    if (morphEnabledToggleView_ == nullptr)
+        return;
+    const bool visible = isMembraneBodySelectedForTest();
+    // Always call setVisible() rather than short-circuiting on the current
+    // isVisible() state: UIViewSwitchContainer's template build can leave the
+    // toggle in a transient non-default state at the moment verifyView fires,
+    // and a short-circuit there strands the toggle hidden until the next
+    // explicit param edit. setVisible() is cheap and idempotent.
+    morphEnabledToggleView_->setVisible(visible);
+    morphEnabledToggleView_->invalid();
+}
+
+// ------------------------------------------------------------------------------
 // Push the four Tone Shaper filter-envelope normalized values into the cached
 // ADSRDisplay, converting attack/decay/release to their true DSP millisecond
 // ranges (x500 for attack, x2000 for decay and release -- see
@@ -1579,10 +1712,18 @@ void Controller::updateFilterEnvDisplay() noexcept
     const auto releaseNorm = getParamNormalized(
         static_cast<ParamID>(kToneShaperFilterEnvReleaseId));
 
-    const float attackMs  = static_cast<float>(attackNorm) * 500.0f;
-    const float decayMs   = static_cast<float>(decayNorm)  * 2000.0f;
+    // Decode cubically (norm^3 * maxMs) to round-trip the ADSRDisplay's drag
+    // encoding (adsr_display.h::normalizedToTimeMs). Linear decoding here
+    // strands the display at a different ms than the user dragged to after a
+    // pad-switch sync or any other refresh path. Sustain is a pure [0,1]
+    // level and needs no scaling.
+    const float aN = std::clamp(static_cast<float>(attackNorm),  0.0f, 1.0f);
+    const float dN = std::clamp(static_cast<float>(decayNorm),   0.0f, 1.0f);
+    const float rN = std::clamp(static_cast<float>(releaseNorm), 0.0f, 1.0f);
+    const float attackMs  = aN * aN * aN * 500.0f;
+    const float decayMs   = dN * dN * dN * 2000.0f;
     const float sustain   = static_cast<float>(sustainNorm);
-    const float releaseMs = static_cast<float>(releaseNorm) * 2000.0f;
+    const float releaseMs = rN * rN * rN * 2000.0f;
 
     auto pushTo = [&](Krate::Plugins::ADSRDisplay* display) {
         if (display == nullptr) return;
@@ -1672,6 +1813,14 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             if (activeEditor_ == nullptr)
                 return;
             updateMeterViews(cachedMeters_);
+            // Belt-and-braces refresh of the Material Morph power-toggle
+            // visibility. UIViewSwitchContainer's animated template swap can
+            // strand the freshly-built toggle in the wrong visibility state
+            // even though verifyView already called the helper -- some hosts
+            // run the swap after our delegate hook returns. The poll tick
+            // catches that within ~33 ms; the helper is a no-op when the
+            // cached pointer is null or the toggle state already matches.
+            updateMorphEnabledToggleVisibility();
         },
         33 /* ~30 Hz */,
         true /* start immediately */));
@@ -1767,6 +1916,12 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // Same for the pitch-envelope display in whichever template was just
     // built (Simple or Advanced).
     updatePitchEnvelopeDisplay();
+    // Apply the Body gate to the freshly-built pitch-env section so it opens
+    // in the correct dim/enabled state for the selected pad's body type.
+    updatePitchEnvControlsEnabled();
+    // And hide the Material Morph toggle if the selected pad is currently on
+    // a non-Membrane body.
+    updateMorphEnabledToggleVisibility();
 }
 
 void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)

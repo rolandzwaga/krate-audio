@@ -749,10 +749,18 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
         20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
     v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
     v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
-    v.toneShaper().setFilterEnvAttackMs(cfg.tsFilterEnvAttack * 500.0f);
-    v.toneShaper().setFilterEnvDecayMs(cfg.tsFilterEnvDecay * 2000.0f);
-    v.toneShaper().setFilterEnvSustain(cfg.tsFilterEnvSustain);
-    v.toneShaper().setFilterEnvReleaseMs(cfg.tsFilterEnvRelease * 2000.0f);
+    // Filter envelope time scaling: cubic decode (norm^3 * maxMs) to match the
+    // ADSRDisplay's drag encoding. See processor.cpp at the matching apply
+    // site for the full rationale (display/processor round-trip alignment).
+    {
+        const float aN = std::clamp(cfg.tsFilterEnvAttack,  0.0f, 1.0f);
+        const float dN = std::clamp(cfg.tsFilterEnvDecay,   0.0f, 1.0f);
+        const float rN = std::clamp(cfg.tsFilterEnvRelease, 0.0f, 1.0f);
+        v.toneShaper().setFilterEnvAttackMs (aN * aN * aN * 500.0f);
+        v.toneShaper().setFilterEnvDecayMs  (dN * dN * dN * 2000.0f);
+        v.toneShaper().setFilterEnvSustain  (cfg.tsFilterEnvSustain);
+        v.toneShaper().setFilterEnvReleaseMs(rN * rN * rN * 2000.0f);
+    }
     v.toneShaper().setDriveAmount(cfg.tsDriveAmount);
     v.toneShaper().setFoldAmount(cfg.tsFoldAmount);
     v.toneShaper().setPitchEnvStartHz(

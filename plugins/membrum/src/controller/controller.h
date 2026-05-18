@@ -148,6 +148,15 @@ public:
     // Test-only accessors for cached meters.
     [[nodiscard]] const MetersBlock& cachedMetersForTest() const noexcept { return cachedMeters_; }
 
+    /// Test-only: returns true when the currently-selected pad's BodyModel is
+    /// Membrane. Several UI gates share this predicate (pitch-envelope section
+    /// dim, Material Morph toggle visibility) because the corresponding DSP
+    /// paths are Membrane-only. The accessor lets unit tests assert the
+    /// decision without a live editor frame populating the cached view
+    /// pointers. Not const because EditController::getParamNormalized() is not
+    /// const in the SDK.
+    [[nodiscard]] bool isMembraneBodySelectedForTest() noexcept;
+
     // Phase 4: pad preset providers (FR-060 through FR-063)
     /// Produces a 284-byte pad preset blob for the currently selected pad
     Steinberg::IBStream* padPresetStateProvider();
@@ -192,6 +201,14 @@ private:
     // willClose().
     Krate::Plugins::PitchEnvelopeDisplay* pitchEnvelopeDisplay_ = nullptr;
 
+    // Pitch-envelope auxiliary controls cached so updatePitchEnvControlsEnabled()
+    // can dim/disable the entire section when the selected pad's BodyModel is
+    // not Membrane (pitch envelope only retargets f0 on Membrane bodies; see
+    // drum_voice.h:486). The Knee menu + label live only in the Advanced
+    // template, so the pointers may be null when the Simple template is shown.
+    VSTGUI::CControl*    pitchEnvKneeView_  = nullptr;
+    VSTGUI::CTextLabel*  pitchEnvKneeLabel_ = nullptr;
+
     // Mode toggle button (Acoustic / Extended). Lifetime owned by VSTGUI view tree.
     Membrum::UI::OutlineActionButton*  modeToggleButton_ = nullptr;
 
@@ -225,6 +242,13 @@ private:
     VSTGUI::CControl*                morphCurveView_       = nullptr;
     VSTGUI::CTextLabel*              morphDurLabel_        = nullptr;
 
+    // MorphEnabled power-button toggle (Advanced template). Hidden when the
+    // selected pad's BodyModel is not Membrane, since Material Morph's mode
+    // refresh path only supports Membrane bodies (drum_voice.h:1238). Hiding
+    // the toggle prevents users enabling a section that would be silently
+    // inert on Plate / Shell / String / Bell / NoiseBody.
+    VSTGUI::CControl*                morphEnabledToggleView_ = nullptr;
+
     // Tone Shaper Filter ADSR display (Advanced template). Cached in
     // verifyView() so setParamNormalized() / syncGlobalProxyFromPad can push
     // the current attack/decay/sustain/release values into the display.
@@ -248,6 +272,23 @@ private:
     /// willClose). Called from didOpen, syncGlobalProxyFromPad, and
     /// setParamNormalized on kMorphEnabledId writes.
     void updateMorphControlsEnabled() noexcept;
+
+    /// Reflect the current kBodyModelId selection (per the global proxy that
+    /// tracks the selected pad) onto the cached pitch-envelope views: dim and
+    /// disable mouse when the selected body is not Membrane, since the pitch
+    /// envelope only retargets the modal bank's f0 for Membrane bodies (see
+    /// drum_voice.h:486). Tolerant of missing views. Called from didOpen,
+    /// verifyView, syncGlobalProxyFromPad, and setParamNormalized on
+    /// kBodyModelId writes.
+    void updatePitchEnvControlsEnabled() noexcept;
+
+    /// Hide the Material Morph power toggle when the selected pad's BodyModel
+    /// is not Membrane. Material Morph's body-mapper refresh is Membrane-only
+    /// (drum_voice.h:1238), so on other bodies the toggle would be inert; we
+    /// hide rather than dim so the user cannot turn the section on at all.
+    /// Tolerant of a missing view. Called from the same sites as
+    /// updatePitchEnvControlsEnabled().
+    void updateMorphEnabledToggleVisibility() noexcept;
 
     /// Push the current tone-shaper filter-envelope norm values into the
     /// cached ADSRDisplay, converting to true DSP milliseconds (attack x500,

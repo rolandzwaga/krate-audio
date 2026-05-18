@@ -69,10 +69,21 @@ void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
         20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
     v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
     v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
-    v.toneShaper().setFilterEnvAttackMs(cfg.tsFilterEnvAttack * 500.0f);
-    v.toneShaper().setFilterEnvDecayMs(cfg.tsFilterEnvDecay * 2000.0f);
-    v.toneShaper().setFilterEnvSustain(cfg.tsFilterEnvSustain);
-    v.toneShaper().setFilterEnvReleaseMs(cfg.tsFilterEnvRelease * 2000.0f);
+    // Filter envelope time scaling: cubic decode (norm^3 * maxMs) to match
+    // the ADSRDisplay's drag encoding. Linear scaling here would round-trip
+    // incorrectly through the display: the user drags to a target ms, the
+    // display sends back the cubic-encoded normalized value, and any linear
+    // decode here produces a different ms than was drawn. Sustain is a pure
+    // [0,1] level and needs no scaling. See adsr_display.h::normalizedToTimeMs.
+    {
+        const float aN = std::clamp(cfg.tsFilterEnvAttack,  0.0f, 1.0f);
+        const float dN = std::clamp(cfg.tsFilterEnvDecay,   0.0f, 1.0f);
+        const float rN = std::clamp(cfg.tsFilterEnvRelease, 0.0f, 1.0f);
+        v.toneShaper().setFilterEnvAttackMs (aN * aN * aN * 500.0f);
+        v.toneShaper().setFilterEnvDecayMs  (dN * dN * dN * 2000.0f);
+        v.toneShaper().setFilterEnvSustain  (cfg.tsFilterEnvSustain);
+        v.toneShaper().setFilterEnvReleaseMs(rN * rN * rN * 2000.0f);
+    }
     v.toneShaper().setDriveAmount(cfg.tsDriveAmount);
     v.toneShaper().setFoldAmount(cfg.tsFoldAmount);
     {

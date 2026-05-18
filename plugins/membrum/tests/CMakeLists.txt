@@ -116,6 +116,8 @@ add_executable(membrum_tests
     unit/controller/test_param_reachability_in_editor.cpp
     unit/controller/test_voice_management_ui.cpp
     unit/controller/test_output_routing_ui.cpp
+    unit/controller/test_pitch_env_body_gate.cpp
+    unit/controller/test_adsr_persist.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp
