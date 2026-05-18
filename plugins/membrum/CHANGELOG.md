@@ -5,6 +5,83 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-05-18
+
+### Added
+
+- **Three-point pitch envelope (Phase 10).** Optional middle breakpoint
+  (`knee`) turns the per-pad pitch envelope into Start -> Mid -> End,
+  with each segment shaped by a continuous power-curve amount
+  ([-1, +1], 0 = linear). Four new params plumbed end-to-end: knee
+  toggle, mid pitch, mid time fraction, segment-2 curve. The Advanced
+  template gains a "Knee" menu next to the pitch-envelope display; both
+  Curve and Curve2 are now edited inline via drag-the-segment handles
+  on the display (the legacy Exp/Lin dropdown is retired). New
+  Membrum-local `PitchSegmentEnvelope` (1- or 2-segment power-curve
+  LUTs in Hz space) replaces the previous `MultiStageEnvelope` use for
+  pitch.
+
+- **Hold-pad audition.** Mouse-down on a pad in the grid now fires
+  noteOn; mouse-up fires the matching noteOff. Lets the user sustain a
+  pad's voice for as long as the button is held, essential for hearing
+  morph / pitch-envelope trajectories that span hundreds of ms.
+  Previously the audition fired noteOn only and the voice rang to
+  natural decay, often clipping the audible trajectory.
+
+- **Body-gated UI for pitch envelope and Material Morph.** Both
+  sections affect audio only on Membrane bodies (see `drum_voice.h`:
+  pitch envelope retargets f0 only for Membrane; Material Morph's
+  body-mapper refresh is Membrane-only). The pitch-envelope section
+  (display + Knee menu + label) now dims and disables on
+  Plate / Shell / String / Bell / NoiseBody, and the Material Morph
+  power toggle is hidden on those bodies so it cannot enable an inert
+  section. The underlying `kMorphEnabledId` value is preserved across
+  body switches.
+
+### Changed
+
+- **State codec bumped to v2.** `PadSnapshot::sound` widened 52 -> 56
+  slots to carry the new Phase-10 pitch-envelope fields. Legacy v1
+  blobs are rejected per the existing pre-release policy; all 20
+  factory kit presets were regenerated with the legacy "Exp" (0.0)
+  remapped to 0.15 (~= curveAmount -0.7, matches the old log shape)
+  and "Lin" (1.0) remapped to 0.5 (= linear) so audible decay is
+  preserved.
+
+- **`kToneShaperPitchEnvCurveId` promoted to a continuous
+  RangeParameter.** Previously a 2-step StringList (Exp / Lin); now a
+  bipolar curve amount whose 0.5 normalized value is linear. Editor
+  drag-the-segment handles drive it directly.
+
+- **Filter envelope Attack/Decay/Release encoding is now cubic.** The
+  shared `ADSRDisplay` drag handlers encode times as
+  `norm = cbrt(ms / max)`, but Membrum's processor and the
+  controller's display refresh previously decoded linearly
+  (`ms = norm * max`). The mismatch caused a visible "reset" on every
+  pad reselect (drag to 100 ms -> display redrew at 292.5 ms after the
+  sync) and audio that didn't match the display. All three sites
+  (`processor.cpp`, `voice_pool.cpp`, `updateFilterEnvDisplay`) now
+  decode cubically (`ms = norm^3 * max`). **Compat caveat:** filter
+  envelopes saved in presets created against 0.9.x will sound faster
+  (a preset that stored `norm=0.5` for Attack used to play 250 ms; now
+  plays 62.5 ms). Re-bake or migrate presets as needed.
+
+### Fixed
+
+- **Material XY morph audibility (Phase 11).** The modal resonator
+  bank's per-sample tanh soft-clip at +/-0.707 was pinning the 8-mode
+  sum at its ceiling during the ring-out and silently masked any
+  modulation of per-mode damping coefficients -- Material, decay,
+  b1/b3, decaySkew. Non-feedback voices now use a 1/sqrt(N)
+  energy-equal summation gain and disable the per-sample clip
+  entirely; per-mode poles are strictly |R|<1 by construction so the
+  bank is BIBO-safe (Bilbao NSS, Smith PASP), and the downstream
+  `Krate::DSP::softClip` in DrumVoice's post-chain still bounds the
+  audio bus output to [-1, 1]. FeedbackExciter keeps the legacy
+  -3 dBFS clip as a documented passivity-loss safety net. Default
+  `ModalResonatorBank` behaviour is unchanged so Innexus'
+  `physical_model_mixer` stays bit-identical.
+
 ## [0.9.1] - 2026-04-27
 
 ### Fixed
