@@ -298,6 +298,11 @@ int PadGridView::handleMouseDown(VSTGUI::CPoint localPoint,
         if (auditionCallback_)
             auditionCallback_(padIdx, kAuditionVelocity);
     }
+    // Remember which pad is held so onMouseUpEvent can fire a matching
+    // noteOff. The user can sustain a pad for as long as they hold the
+    // mouse button, which is essential for hearing morph / pitch-envelope
+    // trajectories that span hundreds of milliseconds.
+    auditionHeldPad_ = padIdx;
     return padIdx;
 }
 
@@ -372,6 +377,22 @@ void PadGridView::onMouseDownEvent(VSTGUI::MouseDownEvent& event)
     const int pad = handleMouseDown(event.mousePosition, isShift, isRight);
     if (pad >= 0)
         event.consumed = true;
+}
+
+void PadGridView::onMouseUpEvent(VSTGUI::MouseUpEvent& event)
+{
+    // Release the held pad's voice on mouse-up so the user can sustain a
+    // pad for as long as the mouse button is down. Without this, the
+    // audition fires noteOn but never noteOff -- the voice rings to
+    // natural decay, which can clip the audible morph / pitch-envelope
+    // trajectory the user is trying to evaluate.
+    if (auditionHeldPad_ >= 0)
+    {
+        if (auditionOffCallback_)
+            auditionOffCallback_(auditionHeldPad_);
+        auditionHeldPad_ = -1;
+        event.consumed = true;
+    }
 }
 
 // ------------------------------------------------------------------------------

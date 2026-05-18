@@ -14,6 +14,7 @@ add_executable(membrum_tests
 
     # Processor tests
     unit/processor/membrum_processor_tests.cpp
+    unit/processor/test_morph_host_simulation.cpp
 
     # Phase 2: architecture refactor tests
     unit/architecture/test_exciter_bank.cpp
@@ -48,6 +49,7 @@ add_executable(membrum_tests
     unit/unnatural/test_nonlinear_coupling.cpp
     unit/unnatural/test_material_morph.cpp
     unit/unnatural/test_material_morph_audibility.cpp
+    unit/unnatural/test_morph_diagnose.cpp
 
     # Phase 2: top-level cross-cutting tests
     unit/test_exciter_body_matrix.cpp

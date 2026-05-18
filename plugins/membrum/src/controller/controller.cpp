@@ -1181,6 +1181,23 @@ VSTGUI::CView* Controller::createCustomView(
             sendMessage(owned);
         });
 
+        // Mouse-up after an audition: send an AuditionPadOff message so the
+        // processor releases the held voice. Lets the user sustain a pad
+        // for as long as the mouse button is down (essential for hearing
+        // long morph / pitch-envelope trajectories).
+        view->setAuditionOffCallback([this](int padIndex) {
+            if (padIndex < 0 || padIndex >= kNumPads) return;
+            const int midi = 36 + padIndex;
+            auto* msg = allocateMessage();
+            if (msg == nullptr) return;
+            Steinberg::IPtr<Steinberg::Vst::IMessage> owned(msg, false);
+            owned->setMessageID("AuditionPadOff");
+            auto* attrs = owned->getAttributes();
+            if (attrs == nullptr) return;
+            attrs->setInt("midi", static_cast<Steinberg::int64>(midi));
+            sendMessage(owned);
+        });
+
         // Phase 8F: power-glyph click toggles the per-pad enable parameter
         // directly (no proxy detour). The toggle goes through the standard
         // beginEdit/performEdit/endEdit gesture so DAW automation lanes

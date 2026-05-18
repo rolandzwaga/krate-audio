@@ -120,9 +120,16 @@ public:
     /// Implementations SHOULD drive `kSelectedPadId` via beginEdit/performEdit/endEdit.
     using SelectCallback   = std::function<void(int padIndex)>;
 
-    /// Fires when the user shift-clicks or right-clicks a pad.
+    /// Fires when the user shift-clicks or right-clicks a pad, or on
+    /// mouse-down for a regular left-click.
     /// `velocity` is normalised in [0, 1].
     using AuditionCallback = std::function<void(int padIndex, float velocity)>;
+
+    /// Fires on mouse-up after a previous audition. Implementations should
+    /// send a noteOff for the pad so the voice releases naturally instead
+    /// of ringing until its modal envelope expires. Lets the user "hold"
+    /// a pad for sustained auditing of the body / morph state.
+    using AuditionOffCallback = std::function<void(int padIndex)>;
 
     /// Phase 8F: fires when the user clicks the small power glyph in the
     /// bottom-right of a pad cell. Implementations SHOULD toggle the
@@ -142,6 +149,10 @@ public:
     // --- callbacks ---------------------------------------------------------
     void setSelectCallback(SelectCallback cb)     noexcept { selectCallback_   = std::move(cb); }
     void setAuditionCallback(AuditionCallback cb) noexcept { auditionCallback_ = std::move(cb); }
+    void setAuditionOffCallback(AuditionOffCallback cb) noexcept
+    {
+        auditionOffCallback_ = std::move(cb);
+    }
     void setEnableToggleCallback(EnableToggleCallback cb) noexcept
     {
         enableToggleCallback_ = std::move(cb);
@@ -202,6 +213,7 @@ public:
     // --- VSTGUI hooks ------------------------------------------------------
     void draw(VSTGUI::CDrawContext* ctx) override;
     void onMouseDownEvent(VSTGUI::MouseDownEvent& event) override;
+    void onMouseUpEvent(VSTGUI::MouseUpEvent& event) override;
     void onMouseEnterEvent(VSTGUI::MouseEnterEvent& event) override;
     void onMouseExitEvent(VSTGUI::MouseExitEvent& event) override;
     bool attached(VSTGUI::CView* parent) override;
@@ -218,9 +230,16 @@ private:
 
     PadGlowPublisher* glowPublisher_ = nullptr;
     PadMetaProvider   metaProvider_;
-    SelectCallback    selectCallback_;
-    AuditionCallback  auditionCallback_;
+    SelectCallback       selectCallback_;
+    AuditionCallback     auditionCallback_;
+    AuditionOffCallback  auditionOffCallback_;
     EnableToggleCallback enableToggleCallback_;
+
+    // Pad currently held with mouse-down (-1 = none). Set in onMouseDownEvent
+    // when an audition fires; cleared in onMouseUpEvent (or onMouseCancel).
+    // Lets the user sustain a pad's voice for as long as the mouse is held
+    // so the body's morph trajectory can fully evolve.
+    int auditionHeldPad_ = -1;
 
     int selectedPad_ = 0;
 

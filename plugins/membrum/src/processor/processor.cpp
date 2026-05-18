@@ -1213,6 +1213,22 @@ tresult PLUGIN_API Processor::notify(Steinberg::Vst::IMessage* message)
         return kResultOk;
     }
 
+    if (std::strcmp(id, "AuditionPadOff") == 0)
+    {
+        auto* attrs = message->getAttributes();
+        if (attrs == nullptr) return kResultOk;
+        Steinberg::int64 midi = 0;
+        attrs->getInt("midi", midi);
+        // Encode velocity=0 in the pending-audition word so the audio-thread
+        // consume path takes the noteOff branch (same as a MIDI release).
+        const std::uint32_t word =
+            0x4000u
+            | (static_cast<std::uint32_t>(midi & 0x7F))
+            | (0u << 7);  // velocity 0
+        pendingAudition_.store(word, std::memory_order_release);
+        return kResultOk;
+    }
+
     return AudioEffect::notify(message);
 }
 
