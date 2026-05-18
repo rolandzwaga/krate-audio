@@ -507,28 +507,86 @@ Kit acousticKit() {
     pads[0].clickLayerBrightness = 0.45;
     pads[0].noiseLayerMix        = 0.10;
 
-    // ---- Pad 2: Acoustic Snare ----
+    // ---- Pad 2: Acoustic Snare (redesigned for fat thwack + bright wires) ----
+    // Recipe: short noise-burst excitation (~4 ms) drives a moderately-damped
+    // membrane (~200 Hz) with strong wood-shell coupling. A prominent stick
+    // crack (clickLayerMix near unity, contact 0.06 ms) sits on top of bright
+    // snare-wire buzz (cutoff ~7 kHz, color hot, decay ~0.32). Tension pitch
+    // mod adds the energy-driven upward crack on attack; a small pitch-env
+    // drop (280 -> 200 Hz / 50 ms) adds the "thump" weight that distinguishes
+    // a snare from a hi-hat. Mild drive fattens body harmonics; a positive
+    // filter-env sweep adds perceived punch.
     pads[2].exciterType = ExciterType::NoiseBurst;
-    pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.5;
-    pads[2].size = 0.5;
-    pads[2].decay = 0.4;
-    pads[2].level = 0.82;
-    pads[2].noiseBurstDuration = (8 - 2) / 13.0;
-    pads[2].noiseLayerMix        = 0.65;
-    pads[2].noiseLayerCutoff     = 0.72;
-    pads[2].noiseLayerResonance  = 0.15;
-    pads[2].noiseLayerDecay      = 0.45;
-    pads[2].noiseLayerColor      = 0.62;
-    pads[2].clickLayerMix        = 0.55;
-    pads[2].clickLayerContactMs  = 0.15;
-    pads[2].clickLayerBrightness = 0.78;
-    pads[2].airLoading  = 0.50;
-    pads[2].modeScatter = 0.15;
-    pads[2].couplingStrength  = 0.25;
+    pads[2].bodyModel   = BodyModelType::Membrane;
+    pads[2].material  = 0.38;   // woodier still for body sustain
+    pads[2].size      = 0.64;   // deeper body -> ~130 Hz head fundamental;
+                                // pushes the perceptual centroid down out of
+                                // the small-vessel "jar" register and into
+                                // the proper 14x6.5 snare-housing weight.
+    pads[2].decay     = 0.66;   // longer body, full tail
+    pads[2].level     = 1.0;
+    pads[2].noiseBurstDuration = (4.0 - 2.0) / 13.0;  // ~4 ms, sharp
+
+    // Stick crack: prominent and bright
+    pads[2].clickLayerMix        = 0.92;
+    pads[2].clickLayerContactMs  = 0.06;
+    pads[2].clickLayerBrightness = 0.92;
+
+    // Snare wires: bright, audible buzz, short decay
+    pads[2].noiseLayerMix        = 0.82;
+    pads[2].noiseLayerCutoff     = 0.88;
+    pads[2].noiseLayerResonance  = 0.12;
+    pads[2].noiseLayerDecay      = 0.32;
+    pads[2].noiseLayerColor      = 0.78;
+
+    // Modal character. Aggressive modeScatter + lowered air loading + a
+    // touch of nonlinearCoupling break up the single-pitch ring and give
+    // the body the broadband / inharmonic character of a real shell-coupled
+    // drumhead. Rossing 1982: head modes are inharmonic in a real drum
+    // (typical 14" snare ratios 1 : 1.5 : 2.0 : 2.4 etc., not 1 : 2 : 3),
+    // and shell coupling adds additional decoupled modes around the
+    // 300-600 Hz region that we can only reach by pushing modeScatter and
+    // the secondary modal bank further up.
+    pads[2].airLoading        = 0.42;
+    pads[2].modeScatter       = 0.42;
+    pads[2].bodyDampingB1     = 0.28;
+    pads[2].bodyDampingB3     = 0.03;
+    pads[2].nonlinearCoupling = 0.20;   // mild head/shell nonlinearity
+
+    // Shell coupling: cranked. The secondary modal bank is now the wood-
+    // shell housing, large and coupled strongly enough to ring as its
+    // own audible body around 250-500 Hz on top of the head fundamental.
+    pads[2].couplingStrength  = 0.78;
     pads[2].secondaryEnabled  = 1.0;
-    pads[2].secondarySize     = 0.55;
-    pads[2].secondaryMaterial = 0.50;
+    pads[2].secondarySize     = 0.78;   // large shell
+    pads[2].secondaryMaterial = 0.52;
+
+    // Tension pitch crack on attack (energy-driven up-and-relax)
+    pads[2].tensionModAmt = 0.32;
+
+    // Pitch envelope: deeper, longer drop for genuine "housing" thump.
+    // 200 Hz -> 130 Hz over ~65 ms.
+    pads[2].tsPitchEnvStart = toLogNorm(200);
+    pads[2].tsPitchEnvEnd   = toLogNorm(130);
+    pads[2].tsPitchEnvTime  = 0.13;       // 65 ms (linear 0..500 ms)
+    pads[2].tsPitchEnvCurve = 0.15;       // exponential drop (classic shape)
+
+    // Drive: stronger nonlinearity fills the 200-500 Hz region with
+    // harmonics derived from the head fundamental + shell ring, giving
+    // perceived body weight that a clean modal sum can't reach.
+    pads[2].tsDriveAmount = 0.40;
+
+    // Filter envelope sweep: positive LP sweep makes the attack punchier.
+    // EnvAmount 0.78 -> +0.56 amount; decay norm 0.385 cubic-decodes to
+    // ~114 ms; release short. Filter cutoff 0.85 maps to ~7 kHz peak.
+    pads[2].tsFilterType         = 0.0;   // Lowpass
+    pads[2].tsFilterCutoff       = 0.85;
+    pads[2].tsFilterResonance    = 0.18;
+    pads[2].tsFilterEnvAmount    = 0.78;
+    pads[2].tsFilterEnvAttack    = 0.0;
+    pads[2].tsFilterEnvDecay     = 0.385;
+    pads[2].tsFilterEnvSustain   = 0.0;
+    pads[2].tsFilterEnvRelease   = 0.20;
 
     // ---- Pad 4: Side Stick ----
     pads[4].exciterType = ExciterType::Impulse;
@@ -669,26 +727,68 @@ Kit electronicKit() {
     pads[0].clickLayerBrightness = 0.30;
     pads[0].noiseLayerMix        = 0.0;
 
-    // ---- Pads 2 & 4: 808 / electronic snares ----
+    // ---- Pads 2 & 4: 808 / electronic snares. The 808/909 snare uses TWO
+    //                  tonal layers + noise: a main mid-low body (boop) and
+    //                  a higher metallic shimmer body. We model that with
+    //                  the primary Membrane (boop) + secondary metallic
+    //                  modal bank (shimmer). Noise sits on top with a tail
+    //                  longer than the body so the snare doesn't feel thin. ----
     for (int p : {2, 4}) {
         pads[p].exciterType = ExciterType::NoiseBurst;
         pads[p].bodyModel = BodyModelType::Membrane;
-        pads[p].level = 0.8;
+        pads[p].level = 1.0;
         pads[p].airLoading       = 0.0;
-        pads[p].couplingStrength = 0.0;
-        pads[p].secondaryEnabled = 0.0;
         pads[p].modeScatter      = 0.0;
-        pads[p].noiseLayerMix      = 0.55;
-        pads[p].noiseLayerCutoff   = 0.85;
-        pads[p].noiseLayerColor    = 0.82;
-        pads[p].noiseLayerDecay    = 0.30;
-        pads[p].clickLayerMix      = 0.32;
-        pads[p].clickLayerContactMs = 0.18;
+        // Secondary metallic body adds the high-frequency "ring" that real
+        // 808/909 snares get from their second oscillator. Tuned smaller
+        // and metallic so it shimmers above the main boop without muddying
+        // the low-mid weight.
+        pads[p].couplingStrength = 0.35;
+        pads[p].secondaryEnabled = 1.0;
+        pads[p].secondarySize    = 0.38;
+        pads[p].secondaryMaterial = 0.85;
+        // Main body damping: low enough that the boop lasts ~150-250 ms
+        // (not "steady sine" but not a hat either).
+        pads[p].bodyDampingB1    = 0.18;
+        pads[p].bodyDampingB3    = 0.05;
+        // Drive fattens the body harmonics so it doesn't sound like a clean
+        // sine; gives the 808 its boxy nonlinear bite.
+        pads[p].tsDriveAmount    = 0.48;
+        pads[p].tsFilterType     = FilterType::LP;
+        pads[p].tsFilterCutoff   = 0.80;
+        pads[p].tsFilterResonance= 0.22;
+        pads[p].tsFilterEnvAmount= 0.60;
+        pads[p].tsFilterEnvAttack= 0.0;
+        pads[p].tsFilterEnvDecay = 0.385;
+        pads[p].tsFilterEnvSustain= 0.0;
+        pads[p].tsFilterEnvRelease= 0.20;
+        pads[p].tensionModAmt    = 0.35;
+        pads[p].tsPitchEnvCurve  = 0.10;
+        // Noise: pushed back up so the snare has real "fffft" weight, with
+        // a long tail extending past the body decay so the snare doesn't
+        // feel short.
+        pads[p].noiseLayerMix      = 0.62;
+        pads[p].noiseLayerCutoff   = 0.82;
+        pads[p].noiseLayerColor    = 0.78;
+        pads[p].noiseLayerDecay    = 0.40;
+        pads[p].noiseLayerResonance= 0.12;
+        pads[p].clickLayerMix      = 0.55;
+        pads[p].clickLayerContactMs = 0.08;
+        pads[p].clickLayerBrightness= 0.72;
     }
-    pads[2].material = 0.55; pads[2].size = 0.45; pads[2].decay = 0.35;
-    pads[2].noiseBurstDuration = (6 - 2) / 13.0;
-    pads[4].material = 0.6;  pads[4].size = 0.4;  pads[4].decay = 0.3;
-    pads[4].noiseBurstDuration = (5 - 2) / 13.0;
+    // Pad 2: classic 808 snare -- deeper boop with metallic high body
+    pads[2].material = 0.58; pads[2].size = 0.68; pads[2].decay = 0.85;
+    pads[2].noiseBurstDuration = (4.0 - 2.0) / 13.0;
+    pads[2].tsPitchEnvStart = toLogNorm(400);
+    pads[2].tsPitchEnvEnd   = toLogNorm(110);
+    pads[2].tsPitchEnvTime  = 0.13;
+
+    // Pad 4: brighter, slightly shorter sister snare (rim-shot ish, but tonal).
+    pads[4].material = 0.66; pads[4].size = 0.60; pads[4].decay = 0.72;
+    pads[4].noiseBurstDuration = (3.0 - 2.0) / 13.0;
+    pads[4].tsPitchEnvStart = toLogNorm(480);
+    pads[4].tsPitchEnvEnd   = toLogNorm(160);
+    pads[4].tsPitchEnvTime  = 0.10;
 
     // ---- Hats: pads 6 (closed) / 8 (pedal) / 10 (open), choke group 1 ----
     pads[6].exciterType = ExciterType::NoiseBurst;
@@ -804,23 +904,46 @@ Kit experimentalKit() {
     pads[0].clickLayerBrightness = 0.40;
     pads[0].noiseLayerMix       = 0.25;
 
-    // ---- Pad 2: Feedback Snare (resonant shell + scatter) ----
+    // ---- Pad 2: Feedback Snare (resonant shell + scatter, redesigned:
+    //              keeps the FX-snare character but with a real housing
+    //              underneath and a proper crack on top). ----
     pads[2].exciterType = ExciterType::Feedback;
     pads[2].bodyModel = BodyModelType::Shell;
-    pads[2].material = 0.6;
-    pads[2].size = 0.4;
-    pads[2].decay = 0.35;
-    pads[2].level = 0.8;
+    pads[2].material = 0.55;
+    pads[2].size = 0.55;
+    pads[2].decay = 0.58;
+    pads[2].level = 0.95;
     pads[2].feedbackAmount = 0.4;
-    pads[2].modeScatter      = 0.30;
-    pads[2].couplingStrength  = 0.40;
+    pads[2].modeScatter      = 0.42;
+    pads[2].nonlinearCoupling = 0.22;
+    pads[2].couplingStrength  = 0.65;
     pads[2].secondaryEnabled  = 1.0;
-    pads[2].secondarySize     = 0.45;
+    pads[2].secondarySize     = 0.65;
     pads[2].secondaryMaterial = 0.70;
     pads[2].tensionModAmt     = 0.40;
-    pads[2].noiseLayerMix     = 0.40;
-    pads[2].noiseLayerCutoff  = 0.65;
-    pads[2].clickLayerMix     = 0.35;
+    pads[2].tsDriveAmount     = 0.30;
+    pads[2].tsFilterType      = FilterType::LP;
+    pads[2].tsFilterCutoff    = 0.80;
+    pads[2].tsFilterResonance = 0.20;
+    pads[2].tsFilterEnvAmount = 0.70;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay  = 0.385;
+    pads[2].tsFilterEnvSustain= 0.0;
+    pads[2].tsFilterEnvRelease= 0.20;
+    pads[2].tsPitchEnvStart   = toLogNorm(230);
+    pads[2].tsPitchEnvEnd     = toLogNorm(160);
+    pads[2].tsPitchEnvTime    = 0.12;
+    pads[2].tsPitchEnvCurve   = 0.15;
+    pads[2].noiseLayerMix     = 0.70;
+    pads[2].noiseLayerCutoff  = 0.80;
+    pads[2].noiseLayerColor   = 0.70;
+    pads[2].noiseLayerDecay   = 0.32;
+    pads[2].clickLayerMix     = 0.85;
+    pads[2].clickLayerContactMs = 0.08;
+    pads[2].clickLayerBrightness = 0.85;
+    pads[2].airLoading        = 0.42;
+    pads[2].bodyDampingB1     = 0.28;
+    pads[2].bodyDampingB3     = 0.04;
 
     // ---- Pad 4: Friction FX ----
     pads[4].exciterType = ExciterType::Friction;
@@ -943,13 +1066,16 @@ Kit jazzBrushesKit() {
     pads[0].macroBodySize = 0.55;  pads[0].macroPunch     = 0.32;
     pads[0].macroComplexity = 0.40;
 
-    // Brush snare (sweep)
+    // Brush snare (sweep) -- intentionally NO stick crack; the brushy
+    // sweep is the character. Gains more body and woody shell so the
+    // underlying drum body sits beneath the sweep.
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel   = BodyModelType::Membrane;
-    pads[2].material = 0.55; pads[2].size = 0.45; pads[2].decay = 0.30;
-    pads[2].level = 0.75;
+    pads[2].material = 0.42; pads[2].size = 0.60; pads[2].decay = 0.55;
+    pads[2].level = 0.92;
     pads[2].noiseBurstDuration = 0.85;
     pads[2].frictionPressure   = 0.60;
+    pads[2].tsDriveAmount = 0.20;
     pads[2].tsFilterType    = FilterType::HP;
     pads[2].tsFilterCutoff  = 0.25;
     pads[2].tsFilterResonance = 0.10;
@@ -961,32 +1087,55 @@ Kit jazzBrushesKit() {
     pads[2].morphEnabled = 1.0;
     pads[2].morphStart = 0.55; pads[2].morphEnd = 0.30;
     pads[2].morphDuration = 0.35; pads[2].morphCurve = 0.6;
-    pads[2].noiseLayerMix    = 0.70; pads[2].noiseLayerCutoff = 0.55;
-    pads[2].noiseLayerColor  = 0.40; pads[2].noiseLayerDecay = 0.55;
+    pads[2].noiseLayerMix    = 0.75; pads[2].noiseLayerCutoff = 0.62;
+    pads[2].noiseLayerColor  = 0.45; pads[2].noiseLayerDecay = 0.55;
     pads[2].noiseLayerResonance = 0.05;
     pads[2].clickLayerMix    = 0.0;
-    pads[2].airLoading  = 0.45; pads[2].modeScatter = 0.35;
-    pads[2].couplingStrength = 0.0;  pads[2].secondaryEnabled = 0.0;
-    pads[2].bodyDampingB1 = 0.45; pads[2].bodyDampingB3 = 0.05;
+    pads[2].airLoading  = 0.45; pads[2].modeScatter = 0.38;
+    pads[2].nonlinearCoupling = 0.18;
+    pads[2].couplingStrength = 0.60; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.65; pads[2].secondaryMaterial = 0.45;
+    pads[2].tensionModAmt = 0.20;
+    pads[2].tsPitchEnvStart = toLogNorm(210);
+    pads[2].tsPitchEnvEnd   = toLogNorm(150);
+    pads[2].tsPitchEnvTime  = 0.13;
+    pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.04;
     pads[2].macroTightness = 0.30; pads[2].macroBrightness = 0.50;
     pads[2].macroBodySize = 0.55;  pads[2].macroPunch = 0.20;
     pads[2].macroComplexity = 0.65;
     pads[2].couplingAmount = 0.65;
 
-    // Brush snare (tap)
+    // Brush snare (tap) -- softer than studio crack but uses the same body
+    // recipe so the housing is audible. Click stays soft (mallet feel).
     pads[4].exciterType = ExciterType::NoiseBurst;
     pads[4].bodyModel   = BodyModelType::Membrane;
-    pads[4].material = 0.55; pads[4].size = 0.45; pads[4].decay = 0.30;
-    pads[4].level = 0.78;
-    pads[4].noiseBurstDuration = 0.30;
-    pads[4].noiseLayerMix    = 0.45; pads[4].noiseLayerCutoff = 0.65;
-    pads[4].noiseLayerColor  = 0.55; pads[4].noiseLayerDecay = 0.20;
-    pads[4].clickLayerMix    = 0.40; pads[4].clickLayerContactMs = 0.18;
-    pads[4].clickLayerBrightness = 0.55;
-    pads[4].airLoading  = 0.45; pads[4].modeScatter = 0.18;
-    pads[4].couplingStrength = 0.22; pads[4].secondaryEnabled = 1.0;
-    pads[4].secondarySize = 0.50; pads[4].secondaryMaterial = 0.50;
-    pads[4].bodyDampingB1 = 0.40; pads[4].bodyDampingB3 = 0.10;
+    pads[4].material = 0.40; pads[4].size = 0.60; pads[4].decay = 0.58;
+    pads[4].level = 0.95;
+    pads[4].noiseBurstDuration = (5.0 - 2.0) / 13.0;
+    pads[4].tsDriveAmount = 0.22;
+    pads[4].tsFilterType    = FilterType::LP;
+    pads[4].tsFilterCutoff  = 0.78;
+    pads[4].tsFilterResonance = 0.15;
+    pads[4].tsFilterEnvAmount = 0.65;
+    pads[4].tsFilterEnvAttack = 0.0;
+    pads[4].tsFilterEnvDecay = 0.385;
+    pads[4].tsFilterEnvSustain = 0.0;
+    pads[4].tsFilterEnvRelease = 0.20;
+    pads[4].noiseLayerMix    = 0.65; pads[4].noiseLayerCutoff = 0.72;
+    pads[4].noiseLayerColor  = 0.60; pads[4].noiseLayerDecay = 0.28;
+    pads[4].clickLayerMix    = 0.62; pads[4].clickLayerContactMs = 0.14;
+    pads[4].clickLayerBrightness = 0.60;
+    pads[4].airLoading  = 0.45; pads[4].modeScatter = 0.38;
+    pads[4].nonlinearCoupling = 0.18;
+    pads[4].couplingStrength = 0.62; pads[4].secondaryEnabled = 1.0;
+    pads[4].secondarySize = 0.68; pads[4].secondaryMaterial = 0.48;
+    pads[4].tensionModAmt = 0.25;
+    pads[4].tsPitchEnvStart = toLogNorm(210);
+    pads[4].tsPitchEnvEnd   = toLogNorm(150);
+    pads[4].tsPitchEnvTime  = 0.12;
+    pads[4].tsPitchEnvCurve = 0.15;
+    pads[4].bodyDampingB1 = 0.28; pads[4].bodyDampingB3 = 0.04;
     pads[4].macroTightness = 0.55; pads[4].macroBrightness = 0.55;
     pads[4].macroComplexity = 0.40;
 
@@ -1125,27 +1274,36 @@ Kit rockBigRoomKit() {
     pads[0].macroComplexity = 0.40;
     pads[0].couplingAmount = 0.75;
 
-    // Crack snare
+    // Crack snare (redesigned: massive housing, big-room body)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.55; pads[2].size = 0.50; pads[2].decay = 0.35;
-    pads[2].level = 0.88;
-    pads[2].noiseBurstDuration = 0.40;
-    pads[2].tsDriveAmount = 0.22;
-    pads[2].tsFilterType = FilterType::BP;
-    pads[2].tsFilterCutoff = 0.55;
+    pads[2].material = 0.38; pads[2].size = 0.66; pads[2].decay = 0.68;
+    pads[2].level = 1.0;
+    pads[2].noiseBurstDuration = (4.0 - 2.0) / 13.0;
+    pads[2].tsDriveAmount = 0.42;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.85;
     pads[2].tsFilterResonance = 0.20;
-    pads[2].tsFilterEnvAmount = 0.40;
-    pads[2].tsFilterEnvDecay = 0.18;
-    pads[2].noiseLayerMix    = 0.70; pads[2].noiseLayerCutoff = 0.78;
-    pads[2].noiseLayerResonance = 0.20;
-    pads[2].noiseLayerColor  = 0.70; pads[2].noiseLayerDecay = 0.40;
-    pads[2].clickLayerMix    = 0.65; pads[2].clickLayerContactMs = 0.12;
-    pads[2].clickLayerBrightness = 0.85;
-    pads[2].airLoading = 0.55; pads[2].modeScatter = 0.20;
-    pads[2].couplingStrength = 0.45; pads[2].secondaryEnabled = 1.0;
-    pads[2].secondarySize = 0.55; pads[2].secondaryMaterial = 0.50;
-    pads[2].bodyDampingB1 = 0.42; pads[2].bodyDampingB3 = 0.10;
+    pads[2].tsFilterEnvAmount = 0.78;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].noiseLayerMix    = 0.85; pads[2].noiseLayerCutoff = 0.88;
+    pads[2].noiseLayerResonance = 0.15;
+    pads[2].noiseLayerColor  = 0.80; pads[2].noiseLayerDecay = 0.35;
+    pads[2].clickLayerMix    = 0.95; pads[2].clickLayerContactMs = 0.06;
+    pads[2].clickLayerBrightness = 0.92;
+    pads[2].airLoading = 0.42; pads[2].modeScatter = 0.42;
+    pads[2].nonlinearCoupling = 0.22;
+    pads[2].couplingStrength = 0.78; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.80; pads[2].secondaryMaterial = 0.52;
+    pads[2].tensionModAmt = 0.32;
+    pads[2].tsPitchEnvStart = toLogNorm(220);
+    pads[2].tsPitchEnvEnd   = toLogNorm(130);
+    pads[2].tsPitchEnvTime  = 0.14;
+    pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.04;
     pads[2].macroPunch = 0.85; pads[2].macroBrightness = 0.70;
     pads[2].macroComplexity = 0.50; pads[2].macroTightness = 0.65;
     pads[2].couplingAmount = 0.70;
@@ -1280,26 +1438,36 @@ Kit vintageWoodKit() {
     pads[0].macroBodySize = 0.70; pads[0].macroPunch = 0.65;
     pads[0].macroBrightness = 0.30; pads[0].macroComplexity = 0.45;
 
-    // Wood-shell snare
+    // Wood-shell snare (redesigned: deeper wood housing, warmer body)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.45; pads[2].size = 0.45; pads[2].decay = 0.32;
-    pads[2].level = 0.82;
-    pads[2].noiseBurstDuration = 0.35;
-    pads[2].tsDriveAmount = 0.32;
-    pads[2].tsFilterType = FilterType::HP;
-    pads[2].tsFilterCutoff = 0.32;
+    pads[2].material = 0.32; pads[2].size = 0.62; pads[2].decay = 0.66;
+    pads[2].level = 1.0;
+    pads[2].noiseBurstDuration = (5.0 - 2.0) / 13.0;
+    pads[2].tsDriveAmount = 0.38;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.80;
     pads[2].tsFilterResonance = 0.18;
-    pads[2].tsFilterEnvAmount = 0.45;
-    pads[2].tsFilterEnvDecay = 0.15;
-    pads[2].noiseLayerMix    = 0.55; pads[2].noiseLayerCutoff = 0.62;
-    pads[2].noiseLayerColor  = 0.50; pads[2].noiseLayerDecay = 0.32;
-    pads[2].clickLayerMix    = 0.70; pads[2].clickLayerContactMs = 0.16;
-    pads[2].clickLayerBrightness = 0.70;
-    pads[2].airLoading = 0.40; pads[2].modeScatter = 0.30;
-    pads[2].couplingStrength = 0.55; pads[2].secondaryEnabled = 1.0;
-    pads[2].secondarySize = 0.50; pads[2].secondaryMaterial = 0.32;
-    pads[2].bodyDampingB1 = 0.44; pads[2].bodyDampingB3 = 0.10;
+    pads[2].tsFilterEnvAmount = 0.72;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].noiseLayerMix    = 0.78; pads[2].noiseLayerCutoff = 0.78;
+    pads[2].noiseLayerResonance = 0.12;
+    pads[2].noiseLayerColor  = 0.62; pads[2].noiseLayerDecay = 0.35;
+    pads[2].clickLayerMix    = 0.88; pads[2].clickLayerContactMs = 0.08;
+    pads[2].clickLayerBrightness = 0.78;
+    pads[2].airLoading = 0.45; pads[2].modeScatter = 0.40;
+    pads[2].nonlinearCoupling = 0.22;
+    pads[2].couplingStrength = 0.80; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.75; pads[2].secondaryMaterial = 0.32;
+    pads[2].tensionModAmt = 0.30;
+    pads[2].tsPitchEnvStart = toLogNorm(200);
+    pads[2].tsPitchEnvEnd   = toLogNorm(130);
+    pads[2].tsPitchEnvTime  = 0.13;
+    pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.04;
     pads[2].macroTightness = 0.70; pads[2].macroBrightness = 0.55;
     pads[2].macroComplexity = 0.55;
 
@@ -1463,21 +1631,51 @@ Kit orchestralKit() {
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.08;
     pads[2].couplingAmount = 0.85;
 
-    // Snare drum (4)
+    // Snare drum (4, redesigned: orchestral snare without ANY pitch glide
+    // and with minimal drive. The pitch glide + drive combo reads as a
+    // synth kick; a real snare just has a sharp stick crack, bright wire
+    // buzz, and a short tat from the head -- no synthesized "boop".)
     pads[4].exciterType = ExciterType::NoiseBurst;
     pads[4].bodyModel = BodyModelType::Membrane;
-    pads[4].material = 0.55; pads[4].size = 0.42; pads[4].decay = 0.45;
-    pads[4].level = 0.82;
-    pads[4].noiseBurstDuration = 0.55;
-    pads[4].noiseLayerMix    = 0.75; pads[4].noiseLayerCutoff = 0.78;
-    pads[4].noiseLayerResonance = 0.20;
-    pads[4].noiseLayerColor  = 0.70; pads[4].noiseLayerDecay = 0.50;
-    pads[4].clickLayerMix    = 0.55; pads[4].clickLayerContactMs = 0.12;
-    pads[4].clickLayerBrightness = 0.78;
-    pads[4].airLoading = 0.50; pads[4].modeScatter = 0.25;
-    pads[4].couplingStrength = 0.32; pads[4].secondaryEnabled = 1.0;
-    pads[4].secondarySize = 0.55; pads[4].secondaryMaterial = 0.50;
-    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.10;
+    // Tight, high-tuned head (~320 Hz). The body is a brief transient
+    // element, NOT a sustained tonal layer.
+    pads[4].material = 0.55; pads[4].size = 0.38; pads[4].decay = 0.30;
+    pads[4].level = 0.92;
+    pads[4].noiseBurstDuration = (3.0 - 2.0) / 13.0;
+    // Drive near zero: a real snare has no distortion; drive on a tonal
+    // body is exactly what makes it sound like a saturated synth kick.
+    pads[4].tsDriveAmount = 0.06;
+    pads[4].tsFilterType = FilterType::LP;
+    pads[4].tsFilterCutoff = 0.92;
+    pads[4].tsFilterResonance = 0.12;
+    pads[4].tsFilterEnvAmount = 0.55;
+    pads[4].tsFilterEnvAttack = 0.0;
+    pads[4].tsFilterEnvDecay = 0.32;     // ~33 ms after cubic decode
+    pads[4].tsFilterEnvSustain = 0.0;
+    pads[4].tsFilterEnvRelease = 0.15;
+    // The snare IS the noise. Wires dominate.
+    pads[4].noiseLayerMix    = 0.98; pads[4].noiseLayerCutoff = 0.94;
+    pads[4].noiseLayerResonance = 0.10;
+    pads[4].noiseLayerColor  = 0.90; pads[4].noiseLayerDecay = 0.30;
+    pads[4].clickLayerMix    = 0.95; pads[4].clickLayerContactMs = 0.05;
+    pads[4].clickLayerBrightness = 0.95;
+    pads[4].airLoading = 0.25; pads[4].modeScatter = 0.25;
+    pads[4].nonlinearCoupling = 0.0;
+    // Light shell coupling, small tight shell -- the orchestral snare is
+    // 14"x5", not a deep ringing housing.
+    pads[4].couplingStrength = 0.28; pads[4].secondaryEnabled = 1.0;
+    pads[4].secondarySize = 0.32; pads[4].secondaryMaterial = 0.70;
+    // Tiny tension blip on attack (real snare heads pitch up briefly
+    // under stick energy then relax -- this is the natural snare crack).
+    pads[4].tensionModAmt = 0.18;
+    // NO pitch envelope. The body sits at its natural ~320 Hz fundamental
+    // determined by size + material; any glide makes it sound synth.
+    pads[4].tsPitchEnvStart = 0.0;
+    pads[4].tsPitchEnvEnd   = 0.0;
+    pads[4].tsPitchEnvTime  = 0.0;
+    pads[4].tsPitchEnvCurve = 0.5;
+    // Fast body damping so the body is a transient tat, not a tonal note.
+    pads[4].bodyDampingB1 = 0.62; pads[4].bodyDampingB3 = 0.18;
     pads[4].macroBrightness = 0.65; pads[4].macroComplexity = 0.55;
 
     // Timpani toms
@@ -1644,18 +1842,46 @@ Kit nineOhNineKit() {
     pads[0].bodyDampingB1 = 0.42; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.85; pads[0].macroBodySize = 0.45;
 
-    // 909 snare
+    // 909 snare (redesigned: dual tonal layers + long noise tail. The
+    // primary membrane is the boop body with moderate damping (decays in
+    // ~150 ms, NOT a steady sine and NOT instant); secondary metallic body
+    // adds the high "ping" the 909 is famous for; noise extends longest
+    // for the snare-wire shhh tail.)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.62; pads[2].size = 0.38; pads[2].decay = 0.20;
-    pads[2].level = 0.82;
-    pads[2].noiseBurstDuration = 0.30;
-    pads[2].noiseLayerMix    = 0.75; pads[2].noiseLayerCutoff = 0.92;
-    pads[2].noiseLayerColor  = 0.92; pads[2].noiseLayerDecay = 0.22;
-    pads[2].clickLayerMix    = 0.40; pads[2].clickLayerContactMs = 0.10;
-    pads[2].clickLayerBrightness = 0.92;
+    pads[2].material = 0.58; pads[2].size = 0.58; pads[2].decay = 0.55;
+    pads[2].level = 1.0;
+    pads[2].noiseBurstDuration = (3.0 - 2.0) / 13.0;
+    pads[2].tsDriveAmount = 0.48;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.82;
+    pads[2].tsFilterResonance = 0.22;
+    pads[2].tsFilterEnvAmount = 0.60;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].tensionModAmt = 0.32;
+    pads[2].tsPitchEnvStart = toLogNorm(380);
+    pads[2].tsPitchEnvEnd   = toLogNorm(140);
+    pads[2].tsPitchEnvTime  = 0.09;
+    pads[2].tsPitchEnvCurve = 0.10;
+    // Metallic secondary body for the 909 "ping" shimmer.
+    pads[2].couplingStrength = 0.38;
+    pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize    = 0.32;
+    pads[2].secondaryMaterial= 0.90;
+    // Noise: long tail (decay > body damping) so the snare has the "shhh"
+    // sustain that distinguishes a snare from a tom or hat.
+    pads[2].noiseLayerMix    = 0.78; pads[2].noiseLayerCutoff = 0.86;
+    pads[2].noiseLayerResonance = 0.15;
+    pads[2].noiseLayerColor  = 0.86; pads[2].noiseLayerDecay = 0.48;
+    pads[2].clickLayerMix    = 0.62; pads[2].clickLayerContactMs = 0.08;
+    pads[2].clickLayerBrightness = 0.78;
     pads[2].airLoading = 0.0; pads[2].modeScatter = 0.0;
-    pads[2].bodyDampingB1 = 0.45; pads[2].bodyDampingB3 = 0.30;
+    // Moderate body damping: body sustains audibly (~120-150 ms) instead of
+    // either ringing forever (steady sine) or decaying instantly (thin hat).
+    pads[2].bodyDampingB1 = 0.38; pads[2].bodyDampingB3 = 0.20;
     pads[2].macroBrightness = 0.85; pads[2].macroPunch = 0.65;
 
     // Rim shot (4)
@@ -1767,18 +1993,33 @@ Kit linnDrumKit() {
     pads[0].bodyDampingB1 = 0.38; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.55; pads[0].macroBodySize = 0.45;
 
-    // LinnDrum snare
+    // LinnDrum snare (redesigned: retro sampled-style, audible body + click)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.58; pads[2].size = 0.38; pads[2].decay = 0.22;
-    pads[2].level = 0.80;
-    pads[2].noiseBurstDuration = 0.32;
-    pads[2].noiseLayerMix = 0.62; pads[2].noiseLayerCutoff = 0.78;
-    pads[2].noiseLayerColor = 0.72; pads[2].noiseLayerDecay = 0.22;
-    pads[2].clickLayerMix = 0.42; pads[2].clickLayerContactMs = 0.12;
-    pads[2].clickLayerBrightness = 0.78;
-    pads[2].airLoading = 0.0; pads[2].modeScatter = 0.05;
-    pads[2].bodyDampingB1 = 0.40; pads[2].bodyDampingB3 = 0.30;
+    pads[2].material = 0.45; pads[2].size = 0.52; pads[2].decay = 0.45;
+    pads[2].level = 1.0;
+    pads[2].noiseBurstDuration = (4.0 - 2.0) / 13.0;
+    pads[2].tsDriveAmount = 0.28;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.82;
+    pads[2].tsFilterResonance = 0.18;
+    pads[2].tsFilterEnvAmount = 0.68;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].tensionModAmt = 0.28;
+    pads[2].tsPitchEnvStart = toLogNorm(240);
+    pads[2].tsPitchEnvEnd   = toLogNorm(170);
+    pads[2].tsPitchEnvTime  = 0.11;
+    pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].noiseLayerMix = 0.82; pads[2].noiseLayerCutoff = 0.84;
+    pads[2].noiseLayerResonance = 0.12;
+    pads[2].noiseLayerColor = 0.78; pads[2].noiseLayerDecay = 0.28;
+    pads[2].clickLayerMix = 0.88; pads[2].clickLayerContactMs = 0.07;
+    pads[2].clickLayerBrightness = 0.85;
+    pads[2].airLoading = 0.0; pads[2].modeScatter = 0.10;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
 
     // CR-78 cowbell (4)
     pads[4].exciterType = ExciterType::FMImpulse;
@@ -1895,23 +2136,39 @@ Kit modularWestCoastKit() {
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroComplexity = 0.85; pads[0].macroPunch = 0.65;
 
-    // Snare (FM Plate)
+    // Snare (FM Plate, redesigned: keeps FM character, gains body + click)
     pads[2].exciterType = ExciterType::FMImpulse;
     pads[2].bodyModel = BodyModelType::Plate;
-    pads[2].material = 0.55; pads[2].size = 0.40; pads[2].decay = 0.35;
-    pads[2].level = 0.78;
+    pads[2].material = 0.45; pads[2].size = 0.55; pads[2].decay = 0.55;
+    pads[2].level = 0.95;
     pads[2].fmRatio = 0.55;
     pads[2].modeStretch = 0.55;
     pads[2].modeInjectAmount = 0.0;
     pads[2].nonlinearCoupling = 0.45;
+    pads[2].tsDriveAmount = 0.28;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.85;
+    pads[2].tsFilterResonance = 0.20;
+    pads[2].tsFilterEnvAmount = 0.70;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].tensionModAmt = 0.30;
+    pads[2].tsPitchEnvStart = toLogNorm(230);
+    pads[2].tsPitchEnvEnd   = toLogNorm(160);
+    pads[2].tsPitchEnvTime  = 0.12;
+    pads[2].tsPitchEnvCurve = 0.15;
     pads[2].morphEnabled = 1.0;
     pads[2].morphStart = 0.55; pads[2].morphEnd = 0.80;
     pads[2].morphDuration = 0.30; pads[2].morphCurve = 0.6;
-    pads[2].noiseLayerMix = 0.30; pads[2].noiseLayerCutoff = 0.65;
-    pads[2].noiseLayerColor = 0.62; pads[2].noiseLayerDecay = 0.30;
-    pads[2].clickLayerMix = 0.45; pads[2].clickLayerBrightness = 0.78;
+    pads[2].noiseLayerMix = 0.60; pads[2].noiseLayerCutoff = 0.78;
+    pads[2].noiseLayerResonance = 0.12;
+    pads[2].noiseLayerColor = 0.70; pads[2].noiseLayerDecay = 0.30;
+    pads[2].clickLayerMix = 0.85; pads[2].clickLayerContactMs = 0.07;
+    pads[2].clickLayerBrightness = 0.85;
     pads[2].airLoading = 0.0; pads[2].modeScatter = 0.45;
-    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.30;
+    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.18;
 
     // Sub-bell perc (4)
     pads[4].exciterType = ExciterType::FMImpulse;
@@ -2042,25 +2299,36 @@ Kit trapModernKit() {
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.95; pads[0].macroBodySize = 0.95;
 
-    // Modern crispy snare
+    // Modern crispy snare (redesigned: trap brightness + audible housing)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.65; pads[2].size = 0.42; pads[2].decay = 0.30;
-    pads[2].level = 0.88;
-    pads[2].noiseBurstDuration = 0.40;
-    pads[2].tsFilterType = FilterType::HP;
-    pads[2].tsFilterCutoff = 0.45;
-    pads[2].tsFilterResonance = 0.30;
-    pads[2].tsFilterEnvAmount = 0.55;
-    pads[2].tsFilterEnvDecay = 0.18;
-    pads[2].tsDriveAmount = 0.20;
-    pads[2].noiseLayerMix = 0.78; pads[2].noiseLayerCutoff = 0.92;
-    pads[2].noiseLayerResonance = 0.30;
-    pads[2].noiseLayerColor = 0.95; pads[2].noiseLayerDecay = 0.32;
-    pads[2].clickLayerMix = 0.85; pads[2].clickLayerContactMs = 0.10;
-    pads[2].clickLayerBrightness = 0.95;
-    pads[2].airLoading = 0.0; pads[2].modeScatter = 0.20;
-    pads[2].bodyDampingB1 = 0.32; pads[2].bodyDampingB3 = 0.30;
+    pads[2].material = 0.48; pads[2].size = 0.56; pads[2].decay = 0.52;
+    pads[2].level = 1.0;
+    pads[2].noiseBurstDuration = (3.0 - 2.0) / 13.0;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.92;
+    pads[2].tsFilterResonance = 0.22;
+    pads[2].tsFilterEnvAmount = 0.78;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.385;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.20;
+    pads[2].tsDriveAmount = 0.34;
+    pads[2].tensionModAmt = 0.32;
+    pads[2].tsPitchEnvStart = toLogNorm(250);
+    pads[2].tsPitchEnvEnd   = toLogNorm(170);
+    pads[2].tsPitchEnvTime  = 0.10;
+    pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].noiseLayerMix = 0.90; pads[2].noiseLayerCutoff = 0.95;
+    pads[2].noiseLayerResonance = 0.20;
+    pads[2].noiseLayerColor = 0.96; pads[2].noiseLayerDecay = 0.30;
+    pads[2].clickLayerMix = 0.95; pads[2].clickLayerContactMs = 0.06;
+    pads[2].clickLayerBrightness = 0.97;
+    pads[2].airLoading = 0.10; pads[2].modeScatter = 0.25;
+    pads[2].nonlinearCoupling = 0.18;
+    pads[2].couplingStrength = 0.55; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.62; pads[2].secondaryMaterial = 0.55;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
     pads[2].macroBrightness = 0.95; pads[2].macroPunch = 0.85;
     pads[2].macroTightness = 0.85;
 
@@ -2811,20 +3079,39 @@ Kit cajonFramesKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(220);
     pads[2].macroPunch = 0.85;
 
-    // Cajón snare side (4)
+    // Cajón snare side (4, redesigned: hand-percussion snare side, fuller
+    // body but stays hand-driven rather than stick-driven, so click is
+    // moderate not maximum).
     pads[4].exciterType = ExciterType::NoiseBurst;
     pads[4].bodyModel = BodyModelType::Plate;
-    pads[4].material = 0.40; pads[4].size = 0.45; pads[4].decay = 0.32;
-    pads[4].level = 0.78;
-    pads[4].noiseBurstDuration = 0.30;
+    pads[4].material = 0.35; pads[4].size = 0.58; pads[4].decay = 0.55;
+    pads[4].level = 0.95;
+    pads[4].noiseBurstDuration = (5.0 - 2.0) / 13.0;
     pads[4].modeStretch = 0.42; pads[4].decaySkew = 0.40;
-    pads[4].noiseLayerMix = 0.65; pads[4].noiseLayerCutoff = 0.62;
-    pads[4].noiseLayerColor = 0.55; pads[4].noiseLayerDecay = 0.30;
-    pads[4].clickLayerMix = 0.45; pads[4].clickLayerBrightness = 0.62;
-    pads[4].airLoading = 0.30; pads[4].modeScatter = 0.30;
-    pads[4].couplingStrength = 0.40; pads[4].secondaryEnabled = 1.0;
-    pads[4].secondarySize = 0.40; pads[4].secondaryMaterial = 0.30;
-    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.10;
+    pads[4].tsDriveAmount = 0.25;
+    pads[4].tsFilterType = FilterType::LP;
+    pads[4].tsFilterCutoff = 0.78;
+    pads[4].tsFilterResonance = 0.15;
+    pads[4].tsFilterEnvAmount = 0.65;
+    pads[4].tsFilterEnvAttack = 0.0;
+    pads[4].tsFilterEnvDecay = 0.385;
+    pads[4].tsFilterEnvSustain = 0.0;
+    pads[4].tsFilterEnvRelease = 0.20;
+    pads[4].tensionModAmt = 0.25;
+    pads[4].tsPitchEnvStart = toLogNorm(210);
+    pads[4].tsPitchEnvEnd   = toLogNorm(140);
+    pads[4].tsPitchEnvTime  = 0.13;
+    pads[4].tsPitchEnvCurve = 0.15;
+    pads[4].noiseLayerMix = 0.75; pads[4].noiseLayerCutoff = 0.75;
+    pads[4].noiseLayerResonance = 0.10;
+    pads[4].noiseLayerColor = 0.65; pads[4].noiseLayerDecay = 0.30;
+    pads[4].clickLayerMix = 0.72; pads[4].clickLayerContactMs = 0.10;
+    pads[4].clickLayerBrightness = 0.70;
+    pads[4].airLoading = 0.35; pads[4].modeScatter = 0.38;
+    pads[4].nonlinearCoupling = 0.18;
+    pads[4].couplingStrength = 0.62; pads[4].secondaryEnabled = 1.0;
+    pads[4].secondarySize = 0.62; pads[4].secondaryMaterial = 0.30;
+    pads[4].bodyDampingB1 = 0.28; pads[4].bodyDampingB3 = 0.05;
 
     // Frame drum tap (6)
     pads[6].exciterType = ExciterType::Mallet;
