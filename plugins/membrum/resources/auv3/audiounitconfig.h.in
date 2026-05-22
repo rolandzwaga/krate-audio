@@ -1,5 +1,8 @@
 // Membrum AUv3 Audio Unit Configuration
 // Copyright (c) 2026 Krate Audio. All rights reserved.
+//
+// AUTO-GENERATED FROM audiounitconfig.h.in - DO NOT EDIT THE .h FILE.
+// kAUcomponentVersion is derived from version.json by CMake.
 
 // Effect (aufx), Generator (augn), Instrument (aumu), and Music Effect (aufm)
 #define kAUcomponentType          'aumu'
@@ -17,13 +20,19 @@
 #define kAUcomponentName          Krate Audio: Membrum
 #define kAUcomponentTag           Synthesizer
 
-// 0.1.0 = (0 << 16) | (1 << 8) | 0 = 256
-#define kAUcomponentVersion       256
+// @AU_VERSION_COMMENT@
+#define kAUcomponentVersion       @AU_COMPONENT_VERSION@
 
-// 00220032 == two configs:
-//   0022 = (0 in, 2 out) instrument main stereo only
-//   0032 = (0 in, 32 out) instrument with 16 stereo buses
-#define kSupportedNumChannels     00220032
+// Channel capabilities describe ONLY the main output bus (element 0 in
+// AU vocabulary). Membrum's 15 aux stereo buses are exposed as separate
+// AU output elements at runtime; they are NOT encoded here, and AU's
+// flat channel-count format cannot represent them anyway.
+//
+// "02" = one config: 0 in, 2 out (stereo instrument, no sidechain).
+// Previous value "00220032" parsed as (0,0)+(2,2)+(0,0)+(3,2) per the
+// digit-pair format and caused AU host init to fail because (2,2)
+// declares stereo audio input the processor does not provide.
+#define kSupportedNumChannels     02
 
 #define kAUcomponentFlags         0
 #define kAUcomponentFlagsMask     0

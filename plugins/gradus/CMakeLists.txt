@@ -40,6 +40,21 @@ configure_file(
 )
 
 # ==============================================================================
+# AUv3 audiounitconfig.h Generation (kAUcomponentVersion synced to version.json)
+# ==============================================================================
+# Hex-style version: (major << 16) | (minor << 8) | patch. Used by macOS hosts
+# for AU plugin caching. CMake's math() evaluates the shift in decimal.
+math(EXPR AU_COMPONENT_VERSION
+    "(${PROJECT_VERSION_MAJOR} << 16) | (${PROJECT_VERSION_MINOR} << 8) | ${PROJECT_VERSION_PATCH}")
+set(AU_VERSION_COMMENT
+    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} = (${PROJECT_VERSION_MAJOR} << 16) | (${PROJECT_VERSION_MINOR} << 8) | ${PROJECT_VERSION_PATCH} = ${AU_COMPONENT_VERSION}")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3/audiounitconfig.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3/audiounitconfig.h"
+    @ONLY
+)
+
+# ==============================================================================
 # Plugin Target
 # ==============================================================================
 set(PLUGIN_NAME "${GRADUS_NAME}")

@@ -40,6 +40,19 @@ configure_file(
 )
 
 # ==============================================================================
+# AUv3 audiounitconfig.h Generation (kAUcomponentVersion synced to version.json)
+# ==============================================================================
+math(EXPR AU_COMPONENT_VERSION
+    "(${PROJECT_VERSION_MAJOR} << 16) | (${PROJECT_VERSION_MINOR} << 8) | ${PROJECT_VERSION_PATCH}")
+set(AU_VERSION_COMMENT
+    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH} = (${PROJECT_VERSION_MAJOR} << 16) | (${PROJECT_VERSION_MINOR} << 8) | ${PROJECT_VERSION_PATCH} = ${AU_COMPONENT_VERSION}")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3/audiounitconfig.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/auv3/audiounitconfig.h"
+    @ONLY
+)
+
+# ==============================================================================
 # membrum_dsp -- INTERFACE library exposing SDK-free header-only DSP
 # ==============================================================================
 # Consumed by the Membrum plugin target AND by out-of-plugin tools

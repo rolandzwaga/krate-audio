@@ -1,0 +1,37 @@
+// Gradus AUv3 Audio Unit Configuration
+// Copyright (c) 2026 Krate Audio. All rights reserved.
+//
+// AUTO-GENERATED FROM audiounitconfig.h.in - DO NOT EDIT THE .h FILE.
+// kAUcomponentVersion is derived from version.json by CMake.
+
+// Effect (aufx), Generator (augn), Instrument (aumu), and Music Effect (aufm)
+#define kAUcomponentType          'aumu'
+#define kAUcomponentType1         aumu
+
+// A subtype code (unique ID), exactly 4 alphanumeric characters
+#define kAUcomponentSubType       'Grad'
+#define kAUcomponentSubType1      Grad
+
+// A manufacturer code, exactly 4 alphanumeric characters
+#define kAUcomponentManufacturer  'KrAt'
+#define kAUcomponentManufacturer1 KrAt
+
+#define kAUcomponentDescription   AUv3WrapperExtension
+#define kAUcomponentName          Krate Audio: Gradus
+#define kAUcomponentTag           Synthesizer
+
+// @AU_VERSION_COMMENT@
+#define kAUcomponentVersion       @AU_COMPONENT_VERSION@
+
+// Channel capabilities. Format: each digit is one integer, pairs interpreted
+// as (input, output) configs. See AUv3Wrapper.mm parser (substringWithRange:1).
+//   "02"   = one config: 0 in, 2 out  (instrument, no sidechain)   <- THIS PLUGIN
+//   "0222" = two configs: (0in,2out) + (2in,2out)                  (instrument + sidechain)
+//   "1122" = two configs: (1in,1out) + (2in,2out)                  (mono+stereo effect)
+// Previously was "0022" which parsed as (0,0)+(2,2) and made Ableton fail init
+// because the VST3 processor refuses any non-zero audio input bus.
+#define kSupportedNumChannels     02
+
+#define kAUcomponentFlags         0
+#define kAUcomponentFlagsMask     0
+#define kAUapplicationDelegateClassName AppDelegate
