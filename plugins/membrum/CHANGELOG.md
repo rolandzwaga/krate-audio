@@ -5,6 +5,16 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-05-22
+
+### Fixed
+
+- **AU and AUv3 builds failed to load on macOS hosts.** `kSupportedNumChannels` in `audiounitconfig.h` was `00220032`, which the AUv3 wrapper parsed as four configs `(0,0)+(2,2)+(0,0)+(3,2)` — the `(2,2)` entry declared stereo audio input the processor does not provide, causing AU init to fail with `kAudioUnitErr_FormatNotSupported (-10875)`. Corrected to `02` (main bus is stereo, no audio inputs). Aux output buses (15 stereo aux outs added via `BusTypes::kAux`) are exposed as separate AU output elements at runtime; they are not encodable in the single-digit-pair `kSupportedNumChannels` format and never were. `au-info.plist` also had a spurious `0 in / 32 out` channel-info entry which has been removed.
+
+### Changed
+
+- **`audiounitconfig.h` is now generated from `audiounitconfig.h.in`** by CMake `configure_file`, with `kAUcomponentVersion` derived from `version.json`. The generated `.h` is gitignored; edit the `.in` template only.
+
 ## [0.10.1] - 2026-05-22
 
 ### Changed

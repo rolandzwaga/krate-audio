@@ -5,6 +5,16 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-05-22
+
+### Fixed
+
+- **AU and AUv3 builds failed to load on macOS hosts (e.g. Ableton Live 12).** `kSupportedNumChannels` in `audiounitconfig.h` was `0022`, which the AUv3 wrapper parsed as two configs `(0in,0out) + (2in,2out)` rather than the intended single `(0in,2out)` instrument config. The `(2,2)` entry declared stereo audio input that Gradus's processor rejects in `setBusArrangements()`, so AU init returned `kAudioUnitErr_FormatNotSupported (-10875)` and hosts surfaced "plugin couldn't be used". Corrected to `02` (one config: 0 in, 2 out), matching the SDK's `note_expression_synth_auv3` pattern. Note that even after this fix Ableton Live cannot route MIDI output from an `aumu` AU plugin — that is a Live limitation; use the VST3 build to route Gradus's arpeggiated MIDI to another instrument in Live.
+
+### Changed
+
+- **`audiounitconfig.h` is now generated from `audiounitconfig.h.in`** by CMake `configure_file`, with `kAUcomponentVersion` derived from `version.json`. The generated `.h` is gitignored; edit the `.in` template only.
+
 ## [1.7.0] - 2026-04-07
 
 ### Added
