@@ -1591,45 +1591,56 @@ Kit orchestralKit() {
     Kit k{"Orchestral", "Acoustic", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Timpani (kick slot)
+    // Timpani (kick slot). Aggressive headroom cut: level / airLoading /
+    // tensionModAmt all dropped well below the previous values because the
+    // first pass at 0.65/0.65/0.30 was still clipping. The 1/sqrt(N)
+    // summation gain on the bank (Phase 11) raised effective per-mode
+    // amplitudes, so what used to be safe levels now overshoot the post-
+    // chain softClip [-1, 1] clamp.
     pads[0].exciterType = ExciterType::Mallet;
     pads[0].bodyModel = BodyModelType::Membrane;
-    pads[0].material = 0.30; pads[0].size = 0.95; pads[0].decay = 0.85;
-    pads[0].level = 0.82;
+    pads[0].material = 0.30; pads[0].size = 0.92; pads[0].decay = 0.85;
+    pads[0].level = 0.70;
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(85);
     pads[0].tsPitchEnvTime  = 0.10;
-    pads[0].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
-    pads[0].airLoading       = 0.92;
-    pads[0].couplingStrength = 0.45;
-    pads[0].secondaryEnabled = 1.0;
-    pads[0].secondarySize    = 0.65; pads[0].secondaryMaterial = 0.50;
-    pads[0].tensionModAmt    = 0.55;
+    pads[0].tsPitchEnvCurve = 0.5;
+    pads[0].airLoading       = 0.70;
+    // Timpani is a kettle drum: single head, no shell ring. The secondary
+    // modal bank's output is added directly to the body without gain
+    // scaling (drum_voice.h:731), which on a large low-damping timpani
+    // dominated the body signal and saturated the post-chain softClip.
+    // Verified via diagnose_orch: enabling secondary multiplied RMS ~3.4x
+    // and caused 7000+ clipped samples; disabling it drops to ~100 (just
+    // the brief attack transient, inaudible).
+    pads[0].couplingStrength = 0.0;
+    pads[0].secondaryEnabled = 0.0;
+    pads[0].tensionModAmt    = 0.18;
     pads[0].clickLayerMix       = 0.32; pads[0].clickLayerContactMs = 0.28;
     pads[0].clickLayerBrightness = 0.30;
     pads[0].noiseLayerMix = 0.12;
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.95; pads[0].macroComplexity = 0.55;
-    pads[0].couplingAmount = 0.85;
+    pads[0].couplingAmount = 0.60;
 
-    // Bass drum (2)
+    // Bass drum (2). Same aggressive headroom cut.
     pads[2].exciterType = ExciterType::Mallet;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.32; pads[2].size = 0.92; pads[2].decay = 0.55;
-    pads[2].level = 0.85;
+    pads[2].material = 0.32; pads[2].size = 0.90; pads[2].decay = 0.55;
+    pads[2].level = 0.72;
     pads[2].tsPitchEnvStart = toLogNorm(110);
     pads[2].tsPitchEnvEnd   = toLogNorm(40);
     pads[2].tsPitchEnvTime  = 0.06;
-    pads[2].airLoading       = 0.90;
-    pads[2].couplingStrength = 0.40;
-    pads[2].secondaryEnabled = 1.0;
-    pads[2].secondarySize    = 0.55; pads[2].secondaryMaterial = 0.45;
-    pads[2].tensionModAmt    = 0.20;
+    pads[2].airLoading       = 0.70;
+    // Concert bass drum is also single-head; same secondary-disable fix.
+    pads[2].couplingStrength = 0.0;
+    pads[2].secondaryEnabled = 0.0;
+    pads[2].tensionModAmt    = 0.15;
     pads[2].clickLayerMix       = 0.30; pads[2].clickLayerContactMs = 0.42;
     pads[2].clickLayerBrightness = 0.20;
     pads[2].noiseLayerMix = 0.08;
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.08;
-    pads[2].couplingAmount = 0.85;
+    pads[2].couplingAmount = 0.60;
 
     // Snare drum (4, redesigned: orchestral snare without ANY pitch glide
     // and with minimal drive. The pitch glide + drive combo reads as a
@@ -1678,9 +1689,9 @@ Kit orchestralKit() {
     pads[4].bodyDampingB1 = 0.62; pads[4].bodyDampingB3 = 0.18;
     pads[4].macroBrightness = 0.65; pads[4].macroComplexity = 0.55;
 
-    // Timpani toms
+    // Timpani toms. Aggressive headroom cut.
     const int    timpaniPads[] = {5, 7, 9, 11, 14};
-    const double timpaniSize[] = {0.92, 0.85, 0.78, 0.70, 0.62};
+    const double timpaniSize[] = {0.88, 0.82, 0.75, 0.68, 0.60};
     const double timpaniHi[]   = {180, 220, 280, 350, 440};
     const double timpaniLo[]   = {80, 100, 130, 165, 215};
     const double timpaniDecay[] = {0.80, 0.72, 0.65, 0.58, 0.50};
@@ -1692,25 +1703,24 @@ Kit orchestralKit() {
         pads[p].material = 0.32 + 0.04 * i;
         pads[p].size = timpaniSize[i];
         pads[p].decay = timpaniDecay[i];
-        pads[p].level = 0.80;
+        pads[p].level = 0.65;
         pads[p].tsPitchEnvStart = toLogNorm(timpaniHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(timpaniLo[i]);
         pads[p].tsPitchEnvTime  = 0.12;
-        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
-        pads[p].airLoading       = 0.85;
+        pads[p].tsPitchEnvCurve = 0.5;
+        pads[p].airLoading       = 0.65;
         pads[p].modeScatter      = 0.08;
-        pads[p].couplingStrength = 0.40;
-        pads[p].secondaryEnabled = 1.0;
-        pads[p].secondarySize    = 0.45 + 0.02 * i;
-        pads[p].secondaryMaterial = 0.50;
-        pads[p].tensionModAmt    = 0.40;
+        // Timpani: kettle drum, no shell. Same secondary-disable fix.
+        pads[p].couplingStrength = 0.0;
+        pads[p].secondaryEnabled = 0.0;
+        pads[p].tensionModAmt    = 0.15;
         pads[p].noiseLayerMix    = 0.12; pads[p].noiseLayerCutoff = 0.40;
         pads[p].clickLayerMix    = 0.32; pads[p].clickLayerContactMs = 0.28;
         pads[p].clickLayerBrightness = 0.32;
         pads[p].bodyDampingB1 = timpaniB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroBodySize = 0.85 - 0.05 * i;
         pads[p].macroComplexity = 0.55;
-        pads[p].couplingAmount = 0.80;
+        pads[p].couplingAmount = 0.55;
     }
 
     // Triangle (12)
@@ -1812,9 +1822,13 @@ Kit orchestralKit() {
     pads[3].decaySkew = 0.55;
 
     k.opts.maxPolyphony    = 16;
-    k.opts.globalCoupling  = 0.45;
+    // Kit-level coupling globals reduced: globalCoupling=0.45 +
+    // tomResonance=0.55 were piling sympathetic energy across voices,
+    // pushing the body sum into the post-chain softClip on the body-heavy
+    // timpani / bass / tom pads.
+    k.opts.globalCoupling  = 0.20;
     k.opts.snareBuzz       = 0.20;
-    k.opts.tomResonance    = 0.55;
+    k.opts.tomResonance    = 0.25;
     k.opts.couplingDelayMs = 1.6;
     k.crafted = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17};
     return k;
