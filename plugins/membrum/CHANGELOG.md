@@ -5,6 +5,53 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-05-22
+
+### Changed
+
+- **Snare presets redesigned across all 12 kits.** The previous snares
+  sounded thin and hi-hat-like across every kit because the stick click
+  was too quiet (mix ~0.55), the modal body decay was too short
+  (~0.35-0.40 s), there was no drive, no tension pitch modulation, the
+  noise wires were dark, and no filter-envelope sweep gave perceived
+  attack punch. New per-kit recipes push `clickLayerMix` to 0.55-0.97
+  (depending on kit), `noiseLayerMix` to 0.62-0.98, raise modal body
+  weight via `couplingStrength` + `secondaryEnabled` (wood-shell modes
+  around 250-500 Hz) on acoustic kits, add a positive filter-envelope
+  sweep (`tsFilterEnvAmount` 0.55-0.78, cubic-decoded ~114 ms decay),
+  introduce `tensionModAmt` 0.18-0.40 for the natural snare crack
+  pitch blip on attack, and use kit-character-specific pitch envelopes
+  (deep housing thump on acoustic kits, aggressive boop glide on 808
+  and 909, no glide on orchestral). 808 and 909 specifically use a
+  dual-layer architecture: primary tonal "boop" body + metallic
+  secondary modal bank for the shimmer character + a noise tail
+  extending past the body decay.
+
+### Fixed
+
+- **Orchestral kit timpani / bass drum / toms distortion.** Pad 0
+  (timpani kick), Pad 2 (concert bass drum), and pads 5/7/9/11/14
+  (timpani toms) audibly clipped on hard hits and the distortion did
+  not respond to large `level` / `airLoading` / `tensionModAmt`
+  reductions. Bisecting the signal sources via a direct render of pad
+  0 bypassing the preset showed the cause: the secondary modal bank
+  output is summed directly into the primary body output without
+  attenuation (drum_voice.h:731). With a large low-damping membrane on
+  both banks (the orchestral pads' physics-modelling recipe), the sum
+  doubles the body amplitude and saturates the post-chain softClip
+  continuously -- the rms-equal `1/sqrt(N)` gain applied per bank in
+  Phase 11 is enough to bound each bank individually but not their
+  additive sum. Disabling `secondaryEnabled` on these pads dropped
+  rms from 0.6695 to 0.1960 and the count of samples pinned at the
+  softClip ceiling from 7588 to 96 (the brief attack transient).
+  Musically this is also more correct: the timpani is a kettle drum
+  with a single head, and a concert bass drum is a single-head
+  instrument, so neither has a real shell-coupling ring to model.
+- A permanent diagnose test
+  (`plugins/membrum/tests/unit/diagnose/test_orchestral_distortion.cpp`)
+  now guards against the same regression resurfacing on any pad that
+  configures large-body Membrane + secondary bank + low damping.
+
 ## [0.10.0] - 2026-05-18
 
 ### Added
