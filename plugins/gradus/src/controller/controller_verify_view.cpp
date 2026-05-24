@@ -15,6 +15,7 @@
 #include "../ui/pin_flag_strip.h"
 #include "../ui/markov_matrix_editor.h"
 #include "../ui/speed_curve_editor.h"
+#include "../ui/piano_roll_view.h"
 #include "ui/arp_lane_editor.h"
 
 #include "ui/toggle_button.h"
@@ -67,6 +68,13 @@ VSTGUI::CView* Controller::verifyView(
     // Capture DetailStrip pointer (created by createCustomView)
     if (auto* strip = dynamic_cast<DetailStrip*>(view))
         detailStrip_ = strip;
+
+    // Spec 142: capture PianoRollView (also created by createCustomView).
+    // verifyView fires for every view in the tree; updating the cache here
+    // covers UIViewSwitchContainer-driven reconstructions when the user
+    // toggles Source = Sequencer ↔ Live.
+    if (auto* prv = dynamic_cast<PianoRollView*>(view))
+        pianoRollView_ = prv;
 
     // Capture contextual labels by custom-view-name (no control-tag available)
     if (const auto* nameAttr = attributes.getAttributeValue("custom-view-name")) {

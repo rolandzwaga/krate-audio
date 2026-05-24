@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "source_mode_disable_list.h"
 #include "../plugin_ids.h"
 #include "../parameters/arpeggiator_params.h"
 #include "../parameters/dropdown_mappings.h"
@@ -25,8 +26,14 @@
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
 
+#include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/plugin-bindings/vst3editor.h"
+
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -109,6 +116,22 @@ tresult PLUGIN_API Controller::setParamNormalized(
     else if (tag == kArpEuclideanEnabledId || tag == kArpEuclideanHitsId ||
              tag == kArpEuclideanStepsId || tag == kArpEuclideanRotationId)
         viewDirtyFlags_.fetch_or(kDirtyEuclidean, std::memory_order_relaxed);
+
+    // Spec 142: Sequencer mode source toggle (FR-027 visibility,
+    // FR-036 disabled controls). Set BOTH dirty bits so the source-mode
+    // handler runs AND any sequencer-lane refresh logic also fires.
+    else if (tag == kArpSourceModeId)
+        viewDirtyFlags_.fetch_or(
+            kDirtyArpSourceMode | kDirtySequencerNoteLane,
+            std::memory_order_relaxed);
+
+    // Spec 142: Sequencer Note lane params (pitches 3743-3774, rests 3775-3806,
+    // length 3742, modulators 3807-3810, playhead 3811). Piano-roll view
+    // picks these up via its own IDependent on each param, but flagging the
+    // generic dirty bit lets future controller-side helpers (e.g., audition
+    // ring overlays) hook in cheaply.
+    else if (tag >= kArpSequencerNoteLaneLengthId && tag <= kArpSequencerNoteLaneEndId)
+        viewDirtyFlags_.fetch_or(kDirtySequencerNoteLane, std::memory_order_relaxed);
 
     // Generic arp range → ring invalidation
     else if (tag >= 3001 && tag <= 3400)
@@ -424,6 +447,65 @@ void Controller::syncViewsFromParams()
                     delayEditor->setStepValue(i, r.row, static_cast<float>(
                         paramNorm(static_cast<ParamID>(r.baseId + i))));
                 }
+            }
+        }
+    }
+
+    // --- Spec 142 FR-036: Source = Sequencer disables FR-022 controls ---
+    if ((flags & kDirtyArpSourceMode) && activeEditor_) {
+        auto* frame = activeEditor_->getFrame();
+        if (frame) {
+            const bool sequencerActive =
+                paramNorm(kArpSourceModeId) >= 0.5;
+            const float alpha = sequencerActive ? 0.4f : 1.0f;
+            const bool  enabled = !sequencerActive;
+
+            // Walk every CControl in the frame; toggle enable + alpha when
+            // the control's tag is in the disable list. We walk the tree
+            // (containers contain controls inside lane editors etc.).
+            std::function<void(VSTGUI::CViewContainer*)> walk =
+                [&](VSTGUI::CViewContainer* container) {
+                    if (!container) return;
+                    container->forEachChild([&](VSTGUI::CView* child) {
+                        if (auto* sub = dynamic_cast<VSTGUI::CViewContainer*>(child)) {
+                            walk(sub);
+                        }
+                        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(child)) {
+                            const auto tag = ctrl->getTag();
+                            if (tag >= 0 &&
+                                isSourceSequencerDisabledParam(
+                                    static_cast<uint32_t>(tag))) {
+                                ctrl->setMouseEnabled(enabled);
+                                ctrl->setAlphaValue(alpha);
+                                ctrl->invalid();
+                            }
+                        }
+                    });
+                };
+            walk(frame);
+
+            // Markov editor: hide entirely when Source = Sequencer (its 49
+            // cell params are inert per FR-022 / FR-036; the editor itself
+            // also uses ArpMode visibility, but explicit disable here is
+            // belt-and-braces so an ArpMode=Markov + Source=Sequencer
+            // combination doesn't leave the matrix interactive).
+            if (markovEditor_) {
+                if (sequencerActive) {
+                    markovEditor_->setMouseEnabled(false);
+                    markovEditor_->setAlphaValue(0.4f);
+                } else {
+                    markovEditor_->setMouseEnabled(true);
+                    markovEditor_->setAlphaValue(1.0f);
+                }
+                markovEditor_->invalid();
+            }
+
+            // Pin flag strip: same treatment (its 32 cell params are in the
+            // disable list, but the strip itself is a single CView container).
+            if (pinFlagStrip_) {
+                pinFlagStrip_->setMouseEnabled(enabled);
+                pinFlagStrip_->setAlphaValue(alpha);
+                pinFlagStrip_->invalid();
             }
         }
     }

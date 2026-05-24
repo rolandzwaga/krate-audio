@@ -148,4 +148,28 @@ void Controller::wireCopyPasteCallbacks() {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Spec 142: Sequencer Note lane (lane index 9 inside ArpeggiatorCore).
+// -----------------------------------------------------------------------------
+// The Sequencer Note lane has no `IArpLane` UI representation — it is edited
+// via the PianoRollView (hosted inside a UIViewSwitchContainer) and its lane
+// modulators (Speed/Swing/Jitter/SpeedCurveDepth) are bound directly via
+// control-tag in editor.uidesc. These helper accessors expose the lane's
+// per-step pitch base ID and the length param ID for code paths that want
+// to walk all-lanes uniformly without bumping `kArpLaneCount` (which would
+// add a tab to the ring/LaneTabBar — see FR-035: the ring view is unchanged).
+//
+// IDependent wiring for the lane's 64 step params + length + playhead lives
+// inside `PianoRollView::attached()`. The lane-level modulator knobs use the
+// standard control-tag binding path (no IDependent registration needed).
+// -----------------------------------------------------------------------------
+
+uint32_t Controller::getSequencerNoteLaneStepBaseParamId() const noexcept {
+    return kArpSequencerNoteLaneStep0Id;
+}
+
+uint32_t Controller::getSequencerNoteLaneLengthParamId() const noexcept {
+    return kArpSequencerNoteLaneLengthId;
+}
+
 } // namespace Gradus

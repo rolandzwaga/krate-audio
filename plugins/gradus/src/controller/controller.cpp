@@ -19,6 +19,7 @@
 #include "../ui/detail_strip.h"
 #include "../ui/speed_curve_editor.h"
 #include "../ui/speed_curve_data.h"
+#include "../ui/piano_roll_view.h"
 
 #include "controller_state_helpers.h"
 #include "vstgui/lib/controls/ccontrol.h"
@@ -282,6 +283,16 @@ VSTGUI::CView* Controller::createCustomView(
         return strip;
     }
 
+    // Spec 142: Piano-roll custom view for the Sequencer Note lane.
+    // Hosted inside a UIViewSwitchContainer (PianoRollContent template);
+    // recreated each time the user switches Source = Sequencer, so the
+    // controller's pianoRollView_ pointer is recaptured per swap.
+    if (viewName == "PianoRollView") {
+        auto* prv = new PianoRollView(viewRect, this);
+        pianoRollView_ = prv;
+        return prv;
+    }
+
     return nullptr;
 }
 
@@ -383,6 +394,10 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     rangeModeMenu_ = nullptr;
     pinFlagStrip_ = nullptr;
     markovEditor_ = nullptr;
+    // Spec 142: piano-roll view is VSTGUI-owned via the UIViewSwitchContainer
+    // template. We only drop the cache pointer here — the view is torn down
+    // by the frame.
+    pianoRollView_ = nullptr;
     // Speed curve views are owned by the frame — remove before nulling
     if (auto* frame = editor->getFrame()) {
         for (auto*& sce : speedCurveEditors_) {

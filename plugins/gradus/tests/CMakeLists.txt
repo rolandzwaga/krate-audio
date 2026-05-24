@@ -32,6 +32,11 @@ add_executable(gradus_tests
     # Held-note transposition semantics tests (spec 142, Phase 4, US2)
     unit/processor/source_mode_transpose_test.cpp
 
+    # Piano-roll view tests (spec 142, Phase 6, US3)
+    unit/ui/piano_roll_view_test.cpp
+    unit/ui/piano_roll_playhead_test.cpp
+    unit/ui/piano_roll_visibility_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
