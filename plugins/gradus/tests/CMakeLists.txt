@@ -23,6 +23,12 @@ add_executable(gradus_tests
     # State v2 -> v3 migration tests (spec 142)
     unit/vst/state_v2_v3_migration_test.cpp
 
+    # Sequencer Note lane (lane 10) tests (spec 142, Phase 3)
+    unit/processor/arpeggiator_core_sequencer_test.cpp
+    unit/processor/sequencer_polymetric_test.cpp
+    unit/processor/sequencer_rests_advance_test.cpp
+    unit/processor/live_mode_byte_identical_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp

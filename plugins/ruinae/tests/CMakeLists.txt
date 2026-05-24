@@ -97,6 +97,9 @@ add_executable(ruinae_tests
     # Preset Format Compatibility Tests (generator ↔ processor)
     unit/preset_format_compat_test.cpp
 
+    # SC-004b: byte-identical MIDI regression after ArpeggiatorCore kNumLanes 9->10 (spec 142)
+    unit/ruinae_byte_identical_post_lane10_test.cpp
+
     # Preset Safety Tests (RTTransferT crash-proof loading)
     unit/preset_safety_test.cpp
     integration/preset_switch_safety_test.cpp
