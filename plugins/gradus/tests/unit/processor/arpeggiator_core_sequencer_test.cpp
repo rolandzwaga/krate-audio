@@ -520,3 +520,186 @@ TEST_CASE("ArpeggiatorCore: SC-002 side-by-side sequencer output matches equival
                 static_cast<int>(liveOns[i].velocity));
     }
 }
+
+// =============================================================================
+// Phase 8 (US6): FR-023 — output-side scale quantize applies in Sequencer mode.
+//
+// Background: Gradus does NOT have an unconditional "snap-to-scale" stage that
+// runs on every emitted note (such a stage would break SC-004 byte-identical
+// Live MIDI for pre-feature presets where the default scale is Chromatic and
+// no transpose / pitch lane offset is applied). The "output-side scale
+// quantize" referred to by FR-023 is the existing pair of scale-aware stages
+// in fireStep:
+//
+//   1. Pitch lane offset stage (arpeggiator_core.h:2199-2218): when scale is
+//      non-Chromatic AND pitch lane offset != 0, the offset is interpreted as
+//      scale degrees and ScaleHarmonizer::calculate() produces an in-scale
+//      result.
+//   2. Global transpose stage (arpeggiator_core.h:2226-2241): when scale is
+//      non-Chromatic AND transpose != 0, the transpose is interpreted as scale
+//      degrees and ScaleHarmonizer::calculate() produces an in-scale result.
+//
+// Both stages run unconditionally regardless of sourceMode — they sit AFTER
+// the Sequencer-mode early-branch (which only replaces the source pitch +
+// velocity). So FR-023 is satisfied structurally: Seq-emitted notes pass
+// through the same downstream stages as Live-emitted notes.
+//
+// The tests below verify this by exercising the scale-aware stages in Seq
+// mode and comparing the output against the equivalent Live-mode pipeline
+// (parity assertion — proves FR-023 without depending on the exact numerical
+// output of ScaleHarmonizer::calculate(), which has its own dedicated
+// coverage in dsp/tests/unit/core/scale_harmonizer_test.cpp).
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: FR-023 output scale-aware transpose applies in Sequencer mode",
+          "[arpeggiator_core][sequencer][scale][FR-023]")
+{
+    // Drive two cores: one in Live mode (held note 60 → emits 60 per step in
+    // ArpMode::Up with single held note), one in Seq mode (programmed step
+    // pitch = 60, no held note → emits 60 per step). Both with transpose=+2
+    // and scale = C Natural Minor. The transpose stage runs in both code
+    // paths AFTER the source pitch is resolved — outputs MUST match (FR-023).
+    auto configureCommon = [](ArpeggiatorCore& arp) {
+        arp.prepare(44100.0, 512);
+        arp.setEnabled(true);
+        arp.setMode(ArpMode::Up);
+        arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+        arp.setLatchMode(LatchMode::Off);
+        arp.setRetrigger(ArpRetriggerMode::Off);
+        arp.setRootNote(0);  // C
+        arp.setScaleType(ScaleType::NaturalMinor);
+        arp.setTranspose(2);  // +2 scale degrees
+    };
+
+    ArpeggiatorCore arpLive;
+    ArpeggiatorCore arpSeq;
+    configureCommon(arpLive);
+    configureCommon(arpSeq);
+
+    arpLive.setSourceMode(SourceMode::Live);
+    arpLive.noteOn(60, 100);  // Live: hold C, emit C repeatedly
+
+    arpSeq.setSourceMode(SourceMode::Sequencer);
+    arpSeq.seqNoteLane().setLength(1);
+    arpSeq.seqNoteLane().setStep(0, 60);                          // programmed pitch = C
+    arpSeq.seqRestFlags()[0].store(0, std::memory_order_relaxed); // not a rest
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+    BlockContext ctxLive = ctx;
+    BlockContext ctxSeq = ctx;
+
+    constexpr size_t kBlocks = 80;
+    auto liveOns = filterNoteOns(collectEvents(arpLive, ctxLive, kBlocks));
+    auto seqOns  = filterNoteOns(collectEvents(arpSeq,  ctxSeq,  kBlocks));
+
+    REQUIRE(liveOns.size() == seqOns.size());
+    REQUIRE(liveOns.size() >= 4);  // sanity floor
+
+    // Parity: the transpose stage produced identical emitted pitches in both
+    // pipelines. If the scale-aware transpose stage were bypassed in Seq mode
+    // (regression), Seq emissions would be Live + 0 (no transpose) while
+    // Live emissions would be the scale-transposed value — they would differ.
+    for (size_t i = 0; i < liveOns.size(); ++i) {
+        INFO("note index " << i);
+        REQUIRE(static_cast<int>(seqOns[i].note) ==
+                static_cast<int>(liveOns[i].note));
+    }
+
+    // Additional sanity: the transposed result is in C minor (the scale stage
+    // ran). Natural Minor degrees indexed from 0:
+    //   d0=C(0), d1=D(2), d2=Eb(3), d3=F(5), d4=G(7), d5=Ab(8), d6=Bb(10).
+    // C (degree 0) + 2 scale degrees = Eb (degree 2, semitone 3) = MIDI 63.
+    // (Direct Chromatic +2 would give 62 = D natural — which is NOT in C minor.)
+    REQUIRE(static_cast<int>(seqOns[0].note) == 63);
+}
+
+TEST_CASE("ArpeggiatorCore: FR-023 output scale Chromatic passes pattern through unquantized",
+          "[arpeggiator_core][sequencer][scale][FR-023]")
+{
+    // With scale=Chromatic both the pitch lane and global transpose stages
+    // perform direct semitone math (no scale snap). A Seq pattern with no
+    // transpose / no pitch offset must emit programmed pitches unchanged.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+    arp.setSourceMode(SourceMode::Sequencer);
+    arp.setScaleType(ScaleType::Chromatic);  // explicit — default is already Chromatic
+    arp.setTranspose(0);
+
+    primeSeqLane(arp, {60, 64, 67, 60}, {0, 0, 0, 0}, 4);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto noteOns = filterNoteOns(collectEvents(arp, ctx, 80));
+    REQUIRE(noteOns.size() >= 4);
+
+    // No scale quantization applied — programmed pitches emitted exactly.
+    REQUIRE(static_cast<int>(noteOns[0].note) == 60);
+    REQUIRE(static_cast<int>(noteOns[1].note) == 64);
+    REQUIRE(static_cast<int>(noteOns[2].note) == 67);
+    REQUIRE(static_cast<int>(noteOns[3].note) == 60);
+}
+
+TEST_CASE("ArpeggiatorCore: FR-021 pitch formula stacks before scale-aware stages",
+          "[arpeggiator_core][sequencer][transpose][FR-021]")
+{
+    // FR-021 / FR-021a: finalPitch = programmedPitch + (heldRoot - 60)
+    //                              + kArpTranspose + pitchLaneOffset,
+    // evaluated BEFORE the output scale-aware transpose stage.
+    //
+    // We use scale=Chromatic so each stage is a direct semitone add, making
+    // the additive contract observable as integer arithmetic. Setup:
+    //   programmedPitch       = 60   (Seq lane step 0)
+    //   heldRoot              = 62   (hold note 62 → +(62-60) = +2)
+    //   kArpTranspose         = +1
+    //   pitch lane offset     = +1   (set via pitchLane().setStep(0, 1))
+    // Expected emit = 60 + 2 + 1 + 1 = 64.
+    //
+    // Verifying the FULL stacked value (64) reaches the emission proves all
+    // four stages ran in order. If transpose or the pitch lane stage were
+    // bypassed in Seq mode, the result would be < 64.
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+    arp.setSourceMode(SourceMode::Sequencer);
+    arp.setScaleType(ScaleType::Chromatic);
+
+    // Programmed pitch = 60 at step 0; length=1 so step 0 fires every time.
+    primeSeqLane(arp, {60}, {0}, 1);
+
+    // Pitch lane: length=1, step 0 value = +1.
+    arp.pitchLane().setLength(1);
+    arp.pitchLane().setStep(0, static_cast<int8_t>(1));
+
+    // Global transpose = +1.
+    arp.setTranspose(1);
+
+    // Hold note 62 → heldRoot=62 → +(62-60)=+2.
+    arp.noteOn(62, 100);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    auto noteOns = filterNoteOns(collectEvents(arp, ctx, 80));
+    REQUIRE(noteOns.size() >= 4);
+
+    // Stacked: 60 + 2 + 1 + 1 = 64. Each emit must equal 64 (length=1 pattern,
+    // held note unchanged, all stages additive in Chromatic mode).
+    for (size_t i = 0; i < noteOns.size(); ++i) {
+        INFO("note index " << i << " (FR-021 stacking)");
+        REQUIRE(static_cast<int>(noteOns[i].note) == 64);
+    }
+}
