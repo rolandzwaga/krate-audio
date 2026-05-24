@@ -1324,6 +1324,62 @@ The Dice trigger (`diceTrigger`) is NOT serialized -- it is a momentary action, 
 
 ---
 
+## Gradus Sequencer Note Lane Parameters (Spec 142)
+
+**File**: `plugins/gradus/src/parameters/arpeggiator_params.h` | `plugins/gradus/src/plugin_ids.h`
+**IDs**: 3741-3811 (71 parameters; Gradus-exclusive, outside the shared 3000-3372 Ruinae range)
+
+### Purpose
+
+The Sequencer Note lane is Gradus's piano-roll source mode (Spec 142, US1-US3). It extends `ArpeggiatorCore` with a 32-step pattern (pitches + rest flags + lane-level modulators) that drives the existing downstream lane processors when `kArpSourceModeId` is set to Sequencer. All IDs are allocated densely starting at `kArpMidiDelayPlayheadId + 1 = 3741` and never appear in Ruinae.
+
+### Parameter ID Allocation
+
+| ID | Symbol | Type | Range / Default | Flags |
+|----|--------|------|-----------------|-------|
+| 3741 | `kArpSourceModeId` | StringListParameter (Live/Sequencer) | default 0 (Live) | `kCanAutomate` |
+| 3742 | `kArpSequencerNoteLaneLengthId` | RangeParameter | 1-32, default 16 | `kCanAutomate` (visible) |
+| 3743-3774 | `kArpSequencerNoteLaneStep0Id..Step31Id` | RangeParameter | 0-127, default 60 | `kCanAutomate \| kIsHidden` |
+| 3775-3806 | `kArpSequencerNoteLaneRestStep0Id..RestStep31Id` | Toggle | 0-1, default 1 (rest) | `kCanAutomate \| kIsHidden` |
+| 3807 | `kArpSequencerNoteLaneSpeedId` | RangeParameter | 0.25-4.0, default 1.0 | `kCanAutomate` (visible) |
+| 3808 | `kArpSequencerNoteLaneSwingId` | RangeParameter | 0-75%, default 0 | `kCanAutomate` (visible) |
+| 3809 | `kArpSequencerNoteLaneJitterId` | RangeParameter | 0-4, default 0 | `kCanAutomate` (visible) |
+| 3810 | `kArpSequencerNoteLaneSpeedCurveDepthId` | RangeParameter | 0.0-1.0, default 0.0 | `kCanAutomate` (visible) |
+| 3811 | `kArpSequencerNoteLanePlayheadId` | RangeParameter | output-only | `kCanAutomate \| kIsHidden`, **NOT persisted** |
+| **3811** | **`kArpSequencerNoteLaneEndId`** | sentinel | — | — |
+
+### Contract Static Asserts
+
+Four `static_assert`s in `plugin_ids.h` guarantee the dense-block invariants survive future edits:
+
+```cpp
+static_assert(kArpSequencerNoteLaneStep31Id == kArpSequencerNoteLaneStep0Id + 31);
+static_assert(kArpSequencerNoteLaneRestStep31Id == kArpSequencerNoteLaneRestStep0Id + 31);
+static_assert(kArpSequencerNoteLaneEndId == 3811);
+static_assert(kArpSequencerNoteLanePlayheadId == kArpSequencerNoteLaneEndId);
+```
+
+### Flag Conventions
+
+- **All 71 IDs use `kCanAutomate`** — this is mandated by FR-003 so the piano-roll view's edits round-trip cleanly through host automation lanes. Step pitches and rest flags are reachable from the host's parameter list even though they are hidden by default.
+- **`kIsHidden` on the 64 step params (32 pitch + 32 rest flags)** — the piano-roll view is the intended editor; the host's generic parameter list does not need 64 individual cells. Length, Speed, Swing, Jitter, and SpeedCurveDepth remain visible.
+- **Playhead uses `kCanAutomate | kIsHidden` and is NOT serialized** — this mirrors the other lane playheads (audio->UI output flow). The processor writes it each block; the UI's `PianoRollView` reads it via `IDependent` for cursor rendering. Persisting it would conflict with playback state restoration.
+
+### Range Check Extension
+
+`Processor::processParameterChanges()` extends its arp-range guard to include the new IDs in one combined check, so the existing dispatch helper handles them via the same `handleArpParamChange` path:
+
+```cpp
+if ((id >= kArpEnabledId && id <= kArpMidiDelayPlayheadId) ||
+    (id >= kArpSourceModeId && id <= kArpSequencerNoteLaneEndId)) {
+    Gradus::handleArpParamChange(arpParams_, id, value);
+}
+```
+
+This avoids two parallel dispatch paths and ensures range coverage is verified by the existing parameter unit tests.
+
+---
+
 ## Denormalization Mappings Reference
 
 | Mapping | Parameters | Formula |

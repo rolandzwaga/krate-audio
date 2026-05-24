@@ -384,13 +384,17 @@ The audio-thread inertness for FR-022 controls is implicit in the `fireStep` ear
 
 ### 10.1 Architecture Documentation
 
-- [ ] T090 Check if `specs/_architecture_/` exists in the repository for Gradus components; if it exists, update the appropriate layer section with the new `ArpeggiatorCore` extension (`kNumLanes` 9→10, `SourceMode` enum, `seqNoteLane_`, `seqRestFlags_`, conditional-inert branch) and `PianoRollView` (VSTGUI custom view for Sequencer Note lane visual editing)
-- [ ] T091 If `specs/_architecture_/` does not exist, create a brief inline comment in `dsp/include/krate/dsp/processors/arpeggiator_core.h` at the `kNumLanes` declaration documenting the lane index → purpose mapping (including lane 10 = Sequencer Note, conditionally inert in Live mode) — future developers need this orientation
+- [X] T090 Updated four architecture docs in `specs/_architecture_/`:
+  - **`layer-2-processors.md`**: extended `ArpeggiatorCore`'s intro paragraph to mention the Sequencer Note lane; added a new "**Sequencer Note lane (Spec 142, Gradus only)**" subsection inside the existing ArpeggiatorCore section documenting `kNumLanes` 9->10, the `SourceMode` enum + `setSourceMode()` API, `seqNoteLane_` + `seqRestFlags_` storage, the conditional-inert branch (SC-004/SC-004b guarantee), source-mode-aware `noteOff` (Latch bypass), per-stage pitch clamp, base velocity from last-held note, and the grilling-pass lane-bounds audit fix.
+  - **`plugin-parameter-system.md`**: added "**Gradus Sequencer Note Lane Parameters (Spec 142)**" section after the Spice/Humanize backward-compat table documenting the 71 new IDs 3741-3811, sentinel `kArpSequencerNoteLaneEndId`, the four `static_assert` contracts, `kCanAutomate` (FR-003) + `kIsHidden` flag conventions, Playhead audio->UI flow (not persisted), and the combined arp-range guard extension in `processParameterChanges`.
+  - **`plugin-state-persistence.md`**: added "**Gradus v2 -> v3 Migration (Spec 142)**" section after the pre-arp backward-compat note documenting the version bump 2->3, the 280-byte v3 appendix (8 fields, exact byte layout, with link to `contracts/state-stream-v3.md`), the version dispatch (v2 EOFs cleanly through `loadSequencerNoteLaneParams`, v3 reads in sequence, v>3 returns `kResultFalse`), and references to SC-004 / SC-004b test files.
+  - **`plugin-ui-patterns.md`**: added "**PianoRollView (Spec 142)**" section after `PitchEnvelopeDisplay` documenting the humble-object split (logic header vs VSTGUI integration), 48-row x N-column grid with `static_assert(kPitchRows == 48)`, mouse state machine (IDLE -> DRAGGING with lock-to-start-pitch, click semantics, right-click rest), atomic `editStep` via beginEdit/performEdit/endEdit, IDependent registration in `attached()` + unregistration in `removed()` AND destructor (defense in depth), UIViewSwitchContainer wiring (EmptyContent + PianoRollContent), and the FR-036 disabled-controls list (`source_mode_disable_list.h`).
+- [X] T091 **N/A** — Phase 10 architecture docs directory `specs/_architecture_/` exists, so T090 applies. T091 (inline-comment fallback for the lane index -> purpose mapping in `arpeggiator_core.h`) is explicitly the fallback for the no-architecture-docs case and is not required when T090 is satisfied.
 
 ### 10.2 Final Commit
 
-- [ ] T092 **Commit Phase 10 (architecture documentation)**
-- [ ] T093 Verify all spec work is on feature branch `142-gradus-piano-roll-sequencer`
+- [X] T092 **Commit Phase 10 (architecture documentation)** — see commit summary below.
+- [X] T093 Verify all spec work is on feature branch `142-gradus-piano-roll-sequencer` — `git branch --show-current` confirms.
 
 ---
 

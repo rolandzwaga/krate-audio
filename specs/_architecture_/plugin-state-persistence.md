@@ -661,6 +661,57 @@ All arpeggiator state values survive a `getState()`/`setState()` round-trip with
 
 ---
 
+## Gradus v2 -> v3 Migration (Spec 142)
+
+**File**: `plugins/gradus/src/processor/processor.cpp` | `plugins/gradus/src/parameters/arpeggiator_params.h`
+
+### Background
+
+Spec 142 added the Source mode toggle (`kArpSourceModeId = 3741`) and the Sequencer Note lane (32 pitches + 32 rest flags + length + 4 modulators + playhead) at IDs 3742-3811. This required bumping the Gradus `kCurrentStateVersion` from `2` to `3`. The v3 stream appends a new EOF-safe block immediately after the existing arp params.
+
+### Stream Append (v3 Appendix)
+
+The v3 appendix is 8 fields written in fixed order via `saveSequencerNoteLaneParams(arpParams_, streamer)` immediately after `saveArpParams`:
+
+```
+[int32: sourceMode (0=Live, 1=Sequencer)]              (4 bytes)
+[int32: seqNoteLaneLength (1-32)]                      (4 bytes)
+[int32 x32: seqNoteLanePitches[0..31] (0-127 each)]    (128 bytes)
+[int32 x32: seqNoteLaneRestFlags[0..31] (0 or 1)]      (128 bytes)
+[float: seqNoteLaneSpeed (0.25-4.0)]                   (4 bytes)
+[float: seqNoteLaneSwing (0-75%)]                      (4 bytes)
+[int32: seqNoteLaneJitter (0-4)]                       (4 bytes)
+[float: seqNoteLaneSpeedCurveDepth (0.0-1.0)]          (4 bytes)
+```
+
+Total appendix size: 280 bytes. Exact byte layout in `specs/142-gradus-piano-roll-sequencer/contracts/state-stream-v3.md`. The `kArpSequencerNoteLanePlayheadId` (3811) is intentionally NOT serialized — it is an audio-thread output flow read by the piano-roll view's playhead cursor, and persisting it would conflict with playback state restoration.
+
+### Version Dispatch in `Processor::setState()`
+
+```cpp
+int32 version = 0;
+if (!streamer.readInt32(version)) return kResultFalse;
+
+if (version == 2 || version == 3) {
+    if (!loadArpParams(arpParams_, streamer)) return kResultFalse;
+    // EOF-safe: on v2 streams, loadSequencerNoteLaneParams hits EOF at the
+    // first sourceMode read and returns true, leaving all 71 sequencer
+    // fields at their struct defaults (Source=Live, length=16, pitches=60,
+    // rest flags=1, speed=1.0, swing=0, jitter=0, curveDepth=0).
+    loadSequencerNoteLaneParams(arpParams_, streamer);
+} else {
+    return kResultFalse;  // defensive guard against unknown future versions
+}
+```
+
+A v2 stream therefore round-trips through v3 `setState` as Source=Live with a default silent pattern, producing **byte-identical Live MIDI** for the pre-feature audio path — verified by SC-004 (`live_mode_byte_identical_test.cpp`) against three v2 fixture binaries committed in Phase 1 (default, heavy lanes, MIDI delay). The same conditional-inert lane-10 branch in `ArpeggiatorCore` (see [Layer 2: ArpeggiatorCore](layer-2-processors.md#arpeggiatorcore)) also guarantees Ruinae factory presets remain byte-identical (SC-004b, `ruinae_byte_identical_post_lane10_test.cpp`).
+
+### Defensive Guard
+
+`version > 3` returns `kResultFalse` rather than silently keeping defaults. This prevents corruption if a downgrade scenario writes a future-format stream into an older binary — the host receives a clean error rather than a partial restore.
+
+---
+
 ## Backward Compatibility Rules
 
 1. **New packs are always appended** at the end of the stream, never inserted between existing packs
