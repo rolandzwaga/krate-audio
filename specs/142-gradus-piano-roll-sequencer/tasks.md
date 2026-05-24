@@ -96,7 +96,7 @@
 
 ### 2.5 Commit
 
-- [ ] T021 **Commit Phase 2 (parameter plumbing + state migration)**: stage `plugins/gradus/src/plugin_ids.h`, `plugins/gradus/src/parameters/arpeggiator_params.h`, `plugins/gradus/src/processor/processor.cpp`, `plugins/gradus/src/controller/controller.cpp`, `plugins/gradus/tests/unit/vst/state_v2_v3_migration_test.cpp`, `plugins/gradus/tests/unit/vst/gradus_vst_tests.cpp`, `plugins/gradus/tests/CMakeLists.txt`
+- [X] T021 **Commit Phase 2 (parameter plumbing + state migration)**: stage `plugins/gradus/src/plugin_ids.h`, `plugins/gradus/src/parameters/arpeggiator_params.h`, `plugins/gradus/src/processor/processor.cpp`, `plugins/gradus/src/controller/controller.cpp`, `plugins/gradus/tests/unit/vst/state_v2_v3_migration_test.cpp`, `plugins/gradus/tests/unit/vst/gradus_vst_tests.cpp`, `plugins/gradus/tests/CMakeLists.txt`
 
 **Checkpoint**: Parameter plumbing complete. State migration tested. User story implementation can now begin.
 
