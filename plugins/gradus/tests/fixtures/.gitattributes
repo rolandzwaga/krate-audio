@@ -1,0 +1,6 @@
+# Spec 142 migration regression fixtures: byte-identical comparison required
+# across Windows / macOS / Linux. Prevent any line-ending translation that
+# would silently corrupt the goldens.
+* binary
+*.bin binary
+*.txt -text
