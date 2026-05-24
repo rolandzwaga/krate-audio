@@ -331,7 +331,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     // Bake speed curve tables from deserialized curve data and apply to arpCore
     {
-        std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+        std::scoped_lock lock(arpParams_.speedCurveMutex_);
         for (size_t i = 0; i < 8; ++i) {
             const auto& curve = arpParams_.speedCurves[i];
             arpParams_.speedCurveEnabledFlags[i].store(
@@ -393,12 +393,12 @@ tresult PLUGIN_API Processor::notify(IMessage* message)
         Steinberg::uint32 curveSize = 0;
         if (attrs->getBinary("curveData", curveData, curveSize) == kResultOk &&
             curveData && curveSize > 0) {
-            std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+            std::scoped_lock lock(arpParams_.speedCurveMutex_);
             auto& curve = arpParams_.speedCurves[laneIdx];
             curve.enabled = (enabled != 0);
 
             // Deserialize: presetIndex(int32) + numPoints(int32) + points(6 floats each)
-            auto* bytes = static_cast<const char*>(curveData);
+            const auto* bytes = static_cast<const char*>(curveData);
             Steinberg::uint32 offset = 0;
             auto readInt = [&](int32& val) -> bool {
                 if (offset + sizeof(int32) > curveSize) return false;
@@ -413,7 +413,8 @@ tresult PLUGIN_API Processor::notify(IMessage* message)
                 return true;
             };
 
-            int32 presetIdx = 0, numPoints = 0;
+            int32 presetIdx = 0;
+            int32 numPoints = 0;
             if (readInt(presetIdx) && readInt(numPoints)) {
                 curve.presetIndex = presetIdx;
                 numPoints = std::clamp(numPoints, int32{0}, int32{64});

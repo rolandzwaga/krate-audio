@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <utility>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -306,7 +307,7 @@ void Controller::syncViewsFromParams()
     if (flags & kDirtyMarkov) {
         if (markovEditor_) {
             // Sync all cell values
-            for (int i = 0; i < static_cast<int>(Krate::DSP::kMarkovMatrixSize); ++i) {
+            for (int i = 0; std::cmp_less(i, Krate::DSP::kMarkovMatrixSize); ++i) {
                 auto v = static_cast<float>(paramNorm(
                     static_cast<ParamID>(kArpMarkovCell00Id + i)));
                 markovEditor_->setCellValueFlat(i, v);
@@ -326,15 +327,15 @@ void Controller::syncViewsFromParams()
             int laneIndex;
         };
         const PlayheadEntry entries[] = {
-            {kArpVelocityPlayheadId,  velocityLane_,  0},
-            {kArpGatePlayheadId,      gateLane_,      1},
-            {kArpPitchPlayheadId,     pitchLane_,     2},
-            {kArpModifierPlayheadId,  modifierLane_,  3},
-            {kArpConditionPlayheadId, conditionLane_, 4},
-            {kArpRatchetPlayheadId,   ratchetLane_,   5},
-            {kArpChordPlayheadId,     chordLane_,     6},
-            {kArpInversionPlayheadId, inversionLane_, 7},
-            {kArpMidiDelayPlayheadId, midiDelayLane_, 8},
+            {.id = kArpVelocityPlayheadId,  .lane = velocityLane_,  .laneIndex = 0},
+            {.id = kArpGatePlayheadId,      .lane = gateLane_,      .laneIndex = 1},
+            {.id = kArpPitchPlayheadId,     .lane = pitchLane_,     .laneIndex = 2},
+            {.id = kArpModifierPlayheadId,  .lane = modifierLane_,  .laneIndex = 3},
+            {.id = kArpConditionPlayheadId, .lane = conditionLane_, .laneIndex = 4},
+            {.id = kArpRatchetPlayheadId,   .lane = ratchetLane_,   .laneIndex = 5},
+            {.id = kArpChordPlayheadId,     .lane = chordLane_,     .laneIndex = 6},
+            {.id = kArpInversionPlayheadId, .lane = inversionLane_, .laneIndex = 7},
+            {.id = kArpMidiDelayPlayheadId, .lane = midiDelayLane_, .laneIndex = 8},
         };
         for (const auto& e : entries) {
             double val = paramNorm(e.id);
@@ -434,13 +435,13 @@ void Controller::syncViewsFromParams()
                 MidiDelayLaneEditor::KnobRow row;
             };
             const DelayRow rows[] = {
-                {kArpMidiDelayActiveStep0Id,     MidiDelayLaneEditor::KnobRow::kActive},
-                {kArpMidiDelayTimeModeStep0Id,  MidiDelayLaneEditor::KnobRow::kTimeMode},
-                {kArpMidiDelayTimeStep0Id,       MidiDelayLaneEditor::KnobRow::kDelayTime},
-                {kArpMidiDelayFeedbackStep0Id,   MidiDelayLaneEditor::KnobRow::kFeedback},
-                {kArpMidiDelayVelDecayStep0Id,   MidiDelayLaneEditor::KnobRow::kVelDecay},
-                {kArpMidiDelayPitchShiftStep0Id, MidiDelayLaneEditor::KnobRow::kPitchShift},
-                {kArpMidiDelayGateScaleStep0Id,  MidiDelayLaneEditor::KnobRow::kGateScale},
+                {.baseId = kArpMidiDelayActiveStep0Id,     .row = MidiDelayLaneEditor::KnobRow::kActive},
+                {.baseId = kArpMidiDelayTimeModeStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kTimeMode},
+                {.baseId = kArpMidiDelayTimeStep0Id,       .row = MidiDelayLaneEditor::KnobRow::kDelayTime},
+                {.baseId = kArpMidiDelayFeedbackStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kFeedback},
+                {.baseId = kArpMidiDelayVelDecayStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kVelDecay},
+                {.baseId = kArpMidiDelayPitchShiftStep0Id, .row = MidiDelayLaneEditor::KnobRow::kPitchShift},
+                {.baseId = kArpMidiDelayGateScaleStep0Id,  .row = MidiDelayLaneEditor::KnobRow::kGateScale},
             };
             for (const auto& r : rows) {
                 for (int i = 0; i < 32; ++i) {

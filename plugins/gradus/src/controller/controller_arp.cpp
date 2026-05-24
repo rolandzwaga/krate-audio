@@ -164,11 +164,11 @@ void Controller::wireCopyPasteCallbacks() {
 // standard control-tag binding path (no IDependent registration needed).
 // -----------------------------------------------------------------------------
 
-uint32_t Controller::getSequencerNoteLaneStepBaseParamId() const noexcept {
+uint32_t Controller::getSequencerNoteLaneStepBaseParamId() noexcept {
     return kArpSequencerNoteLaneStep0Id;
 }
 
-uint32_t Controller::getSequencerNoteLaneLengthParamId() const noexcept {
+uint32_t Controller::getSequencerNoteLaneLengthParamId() noexcept {
     return kArpSequencerNoteLaneLengthId;
 }
 

@@ -477,8 +477,9 @@ void Controller::sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& dat
     {
         // Format: presetIndex(int32) + numPoints(int32) + points(6 floats each)
         auto numPoints = static_cast<Steinberg::int32>(data.points.size());
-        Steinberg::uint32 curveSize = 2 * sizeof(Steinberg::int32)
-            + static_cast<Steinberg::uint32>(numPoints) * 6 * sizeof(float);
+        const size_t curveSizeBytes = 2 * sizeof(Steinberg::int32)
+            + static_cast<size_t>(numPoints) * 6 * sizeof(float);
+        auto curveSize = static_cast<Steinberg::uint32>(curveSizeBytes);
         std::vector<char> curveBlob(curveSize);
         Steinberg::uint32 offset = 0;
 

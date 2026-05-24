@@ -95,8 +95,8 @@ public:
     // The Sequencer Note lane is edited via PianoRollView; these accessors
     // expose its per-step pitch base ID + length param ID for any future
     // unified-lane walk that wants to include it without bumping kArpLaneCount.
-    [[nodiscard]] uint32_t getSequencerNoteLaneStepBaseParamId() const noexcept;
-    [[nodiscard]] uint32_t getSequencerNoteLaneLengthParamId() const noexcept;
+    [[nodiscard]] static uint32_t getSequencerNoteLaneStepBaseParamId() noexcept;
+    [[nodiscard]] static uint32_t getSequencerNoteLaneLengthParamId() noexcept;
 
     // Preset management
     void openPresetBrowser();
