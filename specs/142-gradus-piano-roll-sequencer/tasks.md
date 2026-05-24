@@ -279,7 +279,7 @@ The transposition formula in `fireStep` was implemented as part of T030 (Phase 3
 
 ### 6.5 Commit
 
-- [ ] T066 [US3] **Commit Phase 6 (PianoRollView + UIDesc integration + disabled controls wiring)**: stage `plugins/gradus/src/ui/piano_roll_view.h`, `plugins/gradus/src/controller/controller.h`, `plugins/gradus/src/controller/controller.cpp`, `plugins/gradus/src/controller/controller_arp.cpp`, `plugins/gradus/src/controller/controller_view_sync.cpp`, `plugins/gradus/src/controller/controller_verify_view.cpp`, `plugins/gradus/resources/editor.uidesc`, all new test files, `plugins/gradus/tests/CMakeLists.txt`
+- [X] T066 [US3] **Commit Phase 6 (PianoRollView + UIDesc integration + disabled controls wiring)**: stage `plugins/gradus/src/ui/piano_roll_view.h`, `plugins/gradus/src/controller/controller.h`, `plugins/gradus/src/controller/controller.cpp`, `plugins/gradus/src/controller/controller_arp.cpp`, `plugins/gradus/src/controller/controller_view_sync.cpp`, `plugins/gradus/src/controller/controller_verify_view.cpp`, `plugins/gradus/resources/editor.uidesc`, all new test files, `plugins/gradus/tests/CMakeLists.txt`. Commit hash: `d48547b7`.
 
 **Checkpoint**: User Story 3 complete. Piano roll renders, responds to all mouse gestures, syncs with external param changes, and is correctly shown/hidden by source mode.
 
