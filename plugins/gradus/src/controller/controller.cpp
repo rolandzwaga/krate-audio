@@ -44,6 +44,9 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     // Register all arpeggiator parameters (shared IDs with Ruinae)
     registerArpParams(parameters);
 
+    // Register Sequencer Note lane parameters (spec 142, Gradus-only)
+    registerSequencerNoteLaneParams(parameters);
+
     // Audition sound parameters
     parameters.addParameter(STR16("Audition Enabled"), nullptr, 1,
         0.0, ParameterInfo::kCanAutomate, kAuditionEnabledId);

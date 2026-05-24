@@ -26,7 +26,7 @@ static const Steinberg::FUID kControllerUID(0x3D2C1B7A, 0x7B6A5F4E, 0x1F0E9D8C, 
 static constexpr auto kSubCategories = "Instrument|Synth";
 
 // State version for serialization
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 // ==============================================================================
 // Parameter IDs
@@ -497,6 +497,45 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kArpMidiDelayPlayheadId           = 3740,
 
     // ==========================================================================
+    // Sequencer Note Lane Parameters (3741-3811) — Gradus-specific
+    // ==========================================================================
+    // Spec 142: piano-roll-sequencer. 71 parameters total:
+    //   1 top-level source mode toggle (Live/Sequencer)
+    //   1 lane length (1-32 steps)
+    //   32 per-step pitches (0-127, hidden, default 60)
+    //   32 per-step rest flags (0/1, hidden, default 1 = rest)
+    //   4 lane modulators (Speed, Swing, Jitter, SpeedCurveDepth)
+    //   1 playhead (hidden, output-only, not persisted)
+    // See contracts/param-ids.md.
+
+    kArpSourceModeId                  = 3741,  // Live (0) / Sequencer (1)
+
+    kArpSequencerNoteLaneLengthId     = 3742,  // 1-32 steps, default 16
+
+    // Per-step pitches (3743..3774): 32 params, range 0-127, default 60
+    kArpSequencerNoteLaneStep0Id      = 3743,
+    // kArpSequencerNoteLaneStep1Id .. Step30Id = 3744..3773
+    kArpSequencerNoteLaneStep31Id     = 3774,
+
+    // Per-step rest flags (3775..3806): 32 params, range 0-1, default 1
+    kArpSequencerNoteLaneRestStep0Id  = 3775,
+    // kArpSequencerNoteLaneRestStep1Id .. RestStep30Id = 3776..3805
+    kArpSequencerNoteLaneRestStep31Id = 3806,
+
+    // Lane modulators (3807..3810)
+    kArpSequencerNoteLaneSpeedId           = 3807,  // 0.25x..4.0x (snapped)
+    kArpSequencerNoteLaneSwingId           = 3808,  // 0..75 %
+    kArpSequencerNoteLaneJitterId          = 3809,  // 0..4 steps
+    kArpSequencerNoteLaneSpeedCurveDepthId = 3810,  // 0..1
+
+    // Playhead (hidden, output-only, not persisted)
+    kArpSequencerNoteLanePlayheadId   = 3811,
+
+    // End sentinel for the new block (== Playhead — same value, distinct
+    // symbol so the range check in processParameterChanges is self-documenting).
+    kArpSequencerNoteLaneEndId        = 3811,
+
+    // ==========================================================================
     // Audition Sound Parameters (4000-4003) — Gradus-specific
     // ==========================================================================
     kAuditionEnabledId  = 4000,    // on/off toggle, default off
@@ -508,5 +547,19 @@ enum ParameterIds : Steinberg::Vst::ParamID
 };
 
 // Operating mode constants are defined in arpeggiator_params.h (ArpOperatingMode enum)
+
+// ==============================================================================
+// Compile-time sentinel checks for the Sequencer Note lane block (spec 142).
+// These guarantee the dense-packed ID assignments stay consistent if anyone
+// renumbers nearby blocks. See contracts/param-ids.md "Contract Requirements".
+// ==============================================================================
+static_assert(kArpSequencerNoteLaneStep31Id == kArpSequencerNoteLaneStep0Id + 31,
+    "Sequencer Note pitch step IDs must be densely packed (3743..3774).");
+static_assert(kArpSequencerNoteLaneRestStep31Id == kArpSequencerNoteLaneRestStep0Id + 31,
+    "Sequencer Note rest flag IDs must be densely packed (3775..3806).");
+static_assert(kArpSequencerNoteLaneEndId == 3811,
+    "Sequencer Note lane block ends at ID 3811.");
+static_assert(kArpSequencerNoteLanePlayheadId == kArpSequencerNoteLaneEndId,
+    "Sequencer Note Playhead is the last ID in the block.");
 
 } // namespace Gradus

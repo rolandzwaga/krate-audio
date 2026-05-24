@@ -978,3 +978,128 @@ TEST_CASE("Gradus Controller::setParamNormalized safely handles pin flag IDs wit
 
     REQUIRE(controller.terminate() == kResultOk);
 }
+
+// =============================================================================
+// Sequencer Note Lane Parameter IDs (spec 142: piano-roll-sequencer)
+// =============================================================================
+// Verifies all 71 new param IDs (3741..3811) are present after Controller
+// initialization, that they do not duplicate any existing IDs, and that the
+// static_assert sentinel relationships hold at compile time.
+// (See contracts/param-ids.md.)
+
+TEST_CASE("all sequencer note lane param IDs exist after Controller::initialize",
+          "[gradus][vst][seqnote][ids]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Build a set of all registered IDs.
+    std::set<ParamID> registered;
+    const int32 paramCount = controller.getParameterCount();
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        registered.insert(info.id);
+    }
+
+    // Source mode (3741)
+    CHECK(registered.count(Gradus::kArpSourceModeId) == 1);
+
+    // Length (3742)
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneLengthId) == 1);
+
+    // 32 pitch step params (3743..3774)
+    for (int i = 0; i < 32; ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSequencerNoteLaneStep0Id + i);
+        INFO("Missing pitch step ID " << id << " (i=" << i << ")");
+        CHECK(registered.count(id) == 1);
+    }
+
+    // 32 rest flag params (3775..3806)
+    for (int i = 0; i < 32; ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSequencerNoteLaneRestStep0Id + i);
+        INFO("Missing rest flag ID " << id << " (i=" << i << ")");
+        CHECK(registered.count(id) == 1);
+    }
+
+    // Lane modulators (3807..3810) + playhead (3811)
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSpeedId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSwingId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneJitterId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSpeedCurveDepthId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLanePlayheadId) == 1);
+
+    // FR-003: kArpSourceModeId MUST have kCanAutomate flag set (so host
+    // automation can drive the Source toggle).
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        if (info.id == Gradus::kArpSourceModeId) {
+            CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        }
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("no duplicate param IDs in 3741-3811 range",
+          "[gradus][vst][seqnote][ids]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Walk all parameters and count occurrences of each ID in the new range.
+    std::vector<int> counts(
+        Gradus::kArpSequencerNoteLaneEndId
+        - Gradus::kArpSourceModeId + 1, 0);
+
+    const int32 paramCount = controller.getParameterCount();
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        if (info.id >= Gradus::kArpSourceModeId &&
+            info.id <= Gradus::kArpSequencerNoteLaneEndId) {
+            counts[info.id - Gradus::kArpSourceModeId] += 1;
+        }
+    }
+
+    // Every ID in [3741..3811] should appear exactly once.
+    for (size_t i = 0; i < counts.size(); ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSourceModeId + i);
+        INFO("ID " << id << " count = " << counts[i]);
+        CHECK(counts[i] == 1);
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("static_assert sentinel relationships",
+          "[gradus][vst][seqnote][ids]")
+{
+    // These are compile-time guarantees from plugin_ids.h. Validate the
+    // runtime values match the contract.
+    CHECK(Gradus::kArpSequencerNoteLaneStep31Id
+          == Gradus::kArpSequencerNoteLaneStep0Id + 31);
+    CHECK(Gradus::kArpSequencerNoteLaneRestStep31Id
+          == Gradus::kArpSequencerNoteLaneRestStep0Id + 31);
+    CHECK(Gradus::kArpSequencerNoteLaneEndId == 3811);
+    CHECK(Gradus::kArpSequencerNoteLanePlayheadId
+          == Gradus::kArpSequencerNoteLaneEndId);
+
+    // Source mode anchors the new block at 3741.
+    CHECK(Gradus::kArpSourceModeId == 3741);
+    CHECK(Gradus::kArpSequencerNoteLaneLengthId == 3742);
+    CHECK(Gradus::kArpSequencerNoteLaneStep0Id == 3743);
+    CHECK(Gradus::kArpSequencerNoteLaneRestStep0Id == 3775);
+    CHECK(Gradus::kArpSequencerNoteLaneSpeedId == 3807);
+    CHECK(Gradus::kArpSequencerNoteLaneSwingId == 3808);
+    CHECK(Gradus::kArpSequencerNoteLaneJitterId == 3809);
+    CHECK(Gradus::kArpSequencerNoteLaneSpeedCurveDepthId == 3810);
+    CHECK(Gradus::kArpSequencerNoteLanePlayheadId == 3811);
+
+    // kCurrentStateVersion bumped to 3.
+    CHECK(Gradus::kCurrentStateVersion == 3);
+}

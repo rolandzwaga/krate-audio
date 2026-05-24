@@ -283,11 +283,14 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // 1. State version
+    // 1. State version (bumped to 3 in spec 142 for Sequencer Note lane)
     streamer.writeInt32(kCurrentStateVersion);
 
     // 2. Arp params (audition params are session-only, not saved in presets)
     saveArpParams(arpParams_, streamer);
+
+    // 3. Sequencer Note lane appendix (spec 142, v3)
+    saveSequencerNoteLaneParams(arpParams_, streamer);
 
     return kResultOk;
 }
@@ -299,14 +302,26 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // 1. Read and discard state version (single version, no migration needed)
+    // 1. Read state version and dispatch.
+    //    v2: legacy stream (no Sequencer Note lane appendix); EOF on the new
+    //        block leaves defaults in place (FR-039a).
+    //    v3: full v2 block + Sequencer Note lane appendix.
+    //   >v3: future-incompatible; reject defensively.
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
-    (void)version;
+    if (version != 2 && version != 3)
+        return kResultFalse;
 
-    // 2. Load arp params
+    // 2. Load arp params (v2 block; identical layout in v2 and v3 streams).
     if (!loadArpParams(arpParams_, streamer))
+        return kResultFalse;
+
+    // 3. Load Sequencer Note lane appendix.
+    //    For v2 streams this hits EOF on the first field and leaves defaults
+    //    intact. For v3 streams it reads the appendix fully; a corrupt stream
+    //    returns false here.
+    if (!loadSequencerNoteLaneParams(arpParams_, streamer))
         return kResultFalse;
 
     // Force arp to MIDI mode (always on in Gradus)
@@ -441,10 +456,12 @@ void Processor::processParameterChanges(IParameterChanges* changes)
         if (queue->getPoint(numPoints - 1, sampleOffset, value) != kResultOk)
             continue;
 
-        // Try arp params (base range 3000-3495 + speed curve 3500-3507 + delay 3510-3740)
+        // Try arp params (base range 3000-3495 + speed curve 3500-3507 + delay 3510-3740
+        // + sequencer note lane 3741-3811, spec 142)
         if ((id >= kArpBaseId && id <= kArpEndId) ||
             (id >= kArpVelocityLaneSpeedCurveDepthId && id <= kArpInversionLaneSpeedCurveDepthId) ||
-            (id >= kArpMidiDelayLaneLengthId && id <= kArpMidiDelayPlayheadId)) {
+            (id >= kArpMidiDelayLaneLengthId && id <= kArpMidiDelayPlayheadId) ||
+            (id >= kArpSourceModeId && id <= kArpSequencerNoteLaneEndId)) {
             handleArpParamChange(arpParams_, id, value);
             continue;
         }

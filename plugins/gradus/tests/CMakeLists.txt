@@ -20,6 +20,9 @@ add_executable(gradus_tests
     # VST3 validation and parameter tests
     unit/vst/gradus_vst_tests.cpp
 
+    # State v2 -> v3 migration tests (spec 142)
+    unit/vst/state_v2_v3_migration_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
