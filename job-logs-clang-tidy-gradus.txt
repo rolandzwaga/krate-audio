@@ -1,58 +1,0 @@
-[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
-[INFO] Parallel jobs: 32
-[INFO] Using compile_commands.json from: build/windows-ninja
-[INFO] Found 7 source files to analyze
-[1/7] plugins/gradus/src/entry.cpp                    
-F:\projects\iterum\plugins\gradus\src\processor\processor.cpp:334:9: warning: use 'std::scoped_lock' instead of 'std::lock_guard' [modernize-use-scoped-lock]
-F:\projects\iterum\plugins\gradus\src\processor\processor.cpp:396:13: warning: use 'std::scoped_lock' instead of 'std::lock_guard' [modernize-use-scoped-lock]
-F:\projects\iterum\plugins\gradus\src\processor\processor.cpp:401:13: warning: 'auto *bytes' can be declared as 'const auto *bytes' [readability-qualified-auto]
-F:\projects\iterum\plugins\gradus\src\processor\processor.cpp:416:13: warning: multiple declarations in a single statement reduces readability [readability-isolate-declaration]
-[2/7] plugins/gradus/src/processor/processor.cpp                    [3/7] plugins/gradus/src/controller/controller_presets.cpp                    
-F:\projects\iterum\plugins\gradus\src\controller\controller_arp.cpp:167:22: warning: method 'getSequencerNoteLaneStepBaseParamId' can be made static [readability-convert-member-functions-to-static]
-F:\projects\iterum\plugins\gradus\src\controller\controller_arp.cpp:171:22: warning: method 'getSequencerNoteLaneLengthParamId' can be made static [readability-convert-member-functions-to-static]
-[4/7] plugins/gradus/src/controller/controller_arp.cpp                    
-F:\projects\iterum\plugins\gradus\src\controller\controller.cpp:481:15: warning: performing an implicit widening conversion to type 'unsigned long long' of a multiplication performed in type 'Steinberg::uint32' (aka 'unsigned int') [bugprone-implicit-widening-of-multiplication-result]
-F:\projects\iterum\plugins\gradus\src\controller\controller.cpp:481:15: note: make conversion explicit to silence this warning
-F:\projects\iterum\plugins\gradus\src\controller\controller.cpp:481:15: note: perform multiplication in a wider type
-[5/7] plugins/gradus/src/controller/controller.cpp                    [6/7] plugins/gradus/src/controller/controller_verify_view.cpp                    
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:309:29: warning: comparison between 'signed' and 'unsigned' integers [modernize-use-integer-sign-comparison]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:329:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:330:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:331:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:332:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:333:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:334:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:335:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:336:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:337:13: warning: use designated initializer list to initialize 'PlayheadEntry' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:323:9: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:437:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:438:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:439:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:440:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:441:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:442:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:443:17: warning: use designated initializer list to initialize 'DelayRow' [modernize-use-designated-initializers]
-F:\projects\iterum\plugins\gradus\src\controller\controller_view_sync.cpp:432:13: note: aggregate type is defined here
-[7/7] plugins/gradus/src/controller/controller_view_sync.cpp                    
-
-============================================================
-[INFO] Clang-Tidy Analysis Complete
-  Files analyzed: 7
-[OK]   Errors: 0
-[WARN]   Warnings: 24
-============================================================

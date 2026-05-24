@@ -1,12 +1,0 @@
-[INFO] Using clang-tidy: C:\Program Files\LLVM\bin\clang-tidy.exe
-[INFO] Parallel jobs: 32
-[INFO] Using compile_commands.json from: build/windows-ninja
-[INFO] Found 7 source files to analyze
-[1/7] plugins/gradus/src/entry.cpp                    [2/7] plugins/gradus/src/processor/processor.cpp                    [3/7] plugins/gradus/src/controller/controller_presets.cpp                    [4/7] plugins/gradus/src/controller/controller_arp.cpp                    [5/7] plugins/gradus/src/controller/controller.cpp                    [6/7] plugins/gradus/src/controller/controller_view_sync.cpp                    [7/7] plugins/gradus/src/controller/controller_verify_view.cpp                    
-
-============================================================
-[INFO] Clang-Tidy Analysis Complete
-  Files analyzed: 7
-[OK]   Errors: 0
-[OK]   Warnings: 0
-============================================================
