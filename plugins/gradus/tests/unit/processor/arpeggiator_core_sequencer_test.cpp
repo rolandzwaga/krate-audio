@@ -372,3 +372,151 @@ TEST_CASE("ArpeggiatorCore: Latch=Hold ignored in Seq mode (heldNotes empties on
         REQUIRE(arp.heldNotes().empty());
     }
 }
+
+// =============================================================================
+// T030d (Beat retrigger): bar-boundary retrigger resets lane 10 playhead
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: retrigger Beat resets lane 10 playhead on bar boundary",
+          "[arpeggiator_core][sequencer][retrigger][FR-022a]")
+{
+    ArpeggiatorCore arp;
+    arp.prepare(44100.0, 512);
+    arp.setEnabled(true);
+    arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+    arp.setSourceMode(SourceMode::Sequencer);
+    arp.setRetrigger(ArpRetriggerMode::Beat);
+
+    // Long pattern so the playhead does not naturally wrap during the lead-in.
+    std::vector<uint8_t> pitches(32);
+    std::vector<int>     rests(32, 0);
+    for (size_t i = 0; i < 32; ++i) {
+        pitches[i] = static_cast<uint8_t>(60 + (i % 12));
+    }
+    primeSeqLane(arp, pitches, rests, 32);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.timeSignatureNumerator = 4;
+    ctx.timeSignatureDenominator = 4;
+    ctx.isPlaying = true;
+
+    // At 120 BPM, 4/4, 44.1kHz: bar = 4 * 22050 = 88200 samples.
+    // Start the transport in the middle of a bar so the playhead advances a
+    // few steps before the next bar boundary fires.
+    const int64_t barSamples = static_cast<int64_t>(ctx.samplesPerBar());
+    REQUIRE(barSamples > 0);
+
+    // Run starting at sample 0 for half a bar's worth of blocks (no boundary
+    // because the first block starts exactly at a bar boundary which resets
+    // immediately to step 0). Use a non-zero start position instead so the
+    // playhead can advance before the next bar boundary.
+    ctx.transportPositionSamples = barSamples / 2;  // mid-bar
+
+    // Advance until just BEFORE the next bar boundary so the playhead is
+    // non-zero.
+    const size_t blocksToAdvance = static_cast<size_t>(
+        (barSamples - ctx.transportPositionSamples) / static_cast<int64_t>(ctx.blockSize));
+    REQUIRE(blocksToAdvance > 0);
+    (void)collectEvents(arp, ctx, blocksToAdvance > 1 ? blocksToAdvance - 1 : 1);
+
+    // Sanity: the playhead should have advanced off step 0 after running
+    // through several sixteenth-note steps (one 1/16 @120BPM = 5512 samples;
+    // half a bar is 44100 samples → ~8 sixteenth steps).
+    REQUIRE(arp.seqNoteLane().currentStep() != 0);
+
+    // The next processBlock call will straddle the bar boundary at
+    // ctx.transportPositionSamples == barSamples, triggering the Beat retrigger
+    // which calls resetLanes() — and resetLanes() resets seqNoteLane_ (see
+    // arpeggiator_core.h:2671).
+    (void)collectEvents(arp, ctx, 2);
+
+    REQUIRE(arp.seqNoteLane().currentStep() == 0);
+}
+
+// =============================================================================
+// SC-002: side-by-side parity — Sequencer output threads through downstream
+//          lanes the same way Live mode does
+// =============================================================================
+
+TEST_CASE("ArpeggiatorCore: SC-002 side-by-side sequencer output matches equivalent live-mode output",
+          "[arpeggiator_core][sequencer][SC-002]")
+{
+    // Configure two cores with identical downstream-lane settings. Instance A
+    // runs in Live mode with one held note (64); instance B runs in Sequencer
+    // mode with a 1-step pattern of pitch=64. Both should emit the same pitch
+    // sequence and velocity through the downstream lane pipeline. We hold the
+    // same root note in B (heldRoot=64) so that the Seq mode's transposition
+    // formula (programmedPitch + heldRoot - 60) = 64 + (64-60) = 68 — to make
+    // the two paths emit identical absolute pitches we instead pin Live to no
+    // transposition by holding note 64 and Seq to programmedPitch=64 with no
+    // held note (heldRoot defaults to 60 → transposition = 0 → emitted = 64).
+    //
+    // The downstream lane pipeline (velocity, gate, modifier, ratchet,
+    // condition, chord, inversion, MIDI delay) operates AFTER the source
+    // selection branch, so equivalent inputs must produce equivalent outputs.
+
+    auto configureCore = [](ArpeggiatorCore& arp) {
+        arp.prepare(44100.0, 512);
+        arp.setEnabled(true);
+        arp.setMode(ArpMode::Up);  // Live mode uses Up; Seq mode bypasses selector
+        arp.setNoteValue(NoteValue::Sixteenth, NoteModifier::None);
+        arp.setLatchMode(LatchMode::Off);
+        arp.setRetrigger(ArpRetriggerMode::Off);
+        // Leave all lane defaults (length=1, value=identity) so downstream
+        // lanes are pass-through and the comparison is meaningful.
+    };
+
+    ArpeggiatorCore arpLive;
+    ArpeggiatorCore arpSeq;
+    configureCore(arpLive);
+    configureCore(arpSeq);
+
+    // Live: hold a single note 64 with velocity 100.
+    arpLive.setSourceMode(SourceMode::Live);
+    arpLive.noteOn(64, 100);
+
+    // Seq: program a 1-step pattern with pitch 64; no held note → heldRoot=60,
+    // transposition = 64 - 60 = ... wait, the formula adds (heldRoot - 60) so
+    // with no held note heldRoot=60 → offset=0 → emitted = 64. Velocity falls
+    // back to 100 per FR-025a. So Seq and Live emit (64, vel=100) repeatedly.
+    arpSeq.setSourceMode(SourceMode::Sequencer);
+    arpSeq.seqNoteLane().setLength(1);
+    arpSeq.seqNoteLane().setStep(0, 64);
+    arpSeq.seqRestFlags()[0].store(0, std::memory_order_relaxed);
+
+    BlockContext ctx;
+    ctx.sampleRate = 44100.0;
+    ctx.blockSize = 512;
+    ctx.tempoBPM = 120.0;
+    ctx.isPlaying = true;
+
+    BlockContext ctxLive = ctx;
+    BlockContext ctxSeq = ctx;
+
+    constexpr size_t kBlocks = 80;  // ~1 second of audio at 44.1k/512
+    auto liveEvents = collectEvents(arpLive, ctxLive, kBlocks);
+    auto seqEvents  = collectEvents(arpSeq,  ctxSeq,  kBlocks);
+
+    auto liveOns = filterNoteOns(liveEvents);
+    auto seqOns  = filterNoteOns(seqEvents);
+
+    // Both pipelines must emit the same NUMBER of note-ons over the same
+    // transport window (lane timing is identical because lane modulators are
+    // at defaults).
+    REQUIRE(liveOns.size() == seqOns.size());
+    REQUIRE(liveOns.size() >= 4);  // sanity floor
+
+    // Pitch and velocity equivalence at each emitted note. Floating-point
+    // values inside the lane chain stay deterministic for identical inputs,
+    // so an exact equality check on the discrete MIDI ints is appropriate.
+    for (size_t i = 0; i < liveOns.size(); ++i) {
+        INFO("note index " << i);
+        REQUIRE(static_cast<int>(seqOns[i].note) ==
+                static_cast<int>(liveOns[i].note));
+        REQUIRE(static_cast<int>(seqOns[i].velocity) ==
+                static_cast<int>(liveOns[i].velocity));
+    }
+}

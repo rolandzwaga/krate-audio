@@ -1769,6 +1769,16 @@ private:
             }
             // T030c: transposition formula uses heldRoot-60. Output scale
             // quantize and pitch lane / kArpTranspose are stacked downstream.
+            //
+            // Note (spec 142 Phase 3 compliance): this clamp runs BEFORE the
+            // pitch lane and global kArpTranspose stages, each of which
+            // applies its own [0,127] clamp on the final emitted pitch. The
+            // per-stage clamping mirrors Live mode's behavior (the pitch lane
+            // and global transpose clamp independently in Live too) and is
+            // acceptable per FR-024 ("clamped per existing Gradus output-clamp
+            // behavior — consistent with how the pitch lane behaves in Live
+            // mode today"). FR-024 only mandates that the final emitted pitch
+            // be in range, which the downstream stages guarantee.
             int transposed = std::clamp(
                 static_cast<int>(programmedPitch) + (heldRoot - 60), 0, 127);
             result.notes[0] = static_cast<uint8_t>(transposed);

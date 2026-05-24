@@ -341,12 +341,11 @@ void verifyPreset(const std::filesystem::path& presetPath,
     const auto goldenPath = fixturesDir /
         ("ruinae_factory_" + safe + "_golden_midi.txt");
 
-    // If no paired golden exists, skip silently (defensive: not every preset
-    // necessarily has been captured — but we expect them all).
-    if (!std::filesystem::exists(goldenPath)) {
-        WARN("missing golden for preset " << stem);
-        return;
-    }
+    // SC-004b requires 100% factory-preset coverage. A missing golden must be
+    // a hard failure so any future preset added without a paired golden trips
+    // CI immediately (compliance fix, spec 142 Phase 3 retry).
+    INFO("missing golden file: " << goldenPath.string());
+    REQUIRE(std::filesystem::exists(goldenPath));
 
     auto golden = readFile(goldenPath);
 
