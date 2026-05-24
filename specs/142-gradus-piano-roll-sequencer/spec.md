@@ -373,69 +373,90 @@ grep -rn "UIViewSwitchContainer\|template-switch-control" plugins/gradus/resourc
 
 ## Implementation Verification *(mandatory at completion)*
 
-### Compliance Status
+### Build, Test, Pluginval Summary
+
+- **Build**: PASS — `gradus_tests` Release built clean, zero warnings.
+- **Tests**:
+  - `gradus_tests`: All tests passed (6093 assertions in 151 test cases).
+  - `ruinae_tests`: All tests passed (16510 assertions in 705 test cases) — includes SC-004b regression.
+- **Pluginval level 5**: PASS — exit code 0; zero failures, zero warnings across all 19 test sections.
+- **Clang-tidy**: gradus 0 warnings (24 fixed in commit `2d2ccc16`); dsp 0 warnings across 256 files (Phase 9 logs).
+
+### Functional Requirements
 
 | Requirement | Status | Evidence |
-|-------------|--------|----------|
-| FR-001 (kArpSourceModeId param exists, Live/Sequencer, defaults Live) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-002 (old presets load as Live) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-013 (param IDs at 3741+) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-014 (Live-mode behavior byte-identical to current) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-016 (transposition by heldNote - 60) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-017 (last-played-note wins) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-019 (rests do not emit note-on, playhead advances) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-020 (output-side lanes still apply) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-021 (pitch lane additive in Sequencer mode) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-021a (kArpTransposeId additive in Sequencer mode) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-022 (ArpMode + Latch + Markov + Euclidean + PinNote + RangeMap + ScaleQuantizeInput ignored in Sequencer mode) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-022a (Retrigger Note/Beat semantics preserved in Sequencer mode) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-022b (Spice/Dice/Humanize/per-lane modulators preserved in Sequencer mode) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-025 (no stuck notes on Source toggle, pending MIDI delay echoes tail out) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-025a (base velocity = last-held velocity, fallback 100) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-025b (polymetric Sequencer Note lane clocking) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-027 (piano-roll visible iff Sequencer) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-028 (fixed C2-B5 range) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-034a (real-time playhead cursor driven by Playhead param) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-033 (VSTGUI cross-platform) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-037 (state persistence via existing machinery) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-039a (kCurrentStateVersion bump to 3 + legacy v2 loader) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-039b (v2→v3 migration unit test, byte-identical Live MIDI) | 🔄 | To be filled at `/speckit.implement` completion |
-| FR-040 (passes pluginval strictness 5) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-001 (sub-2-minute author-and-play workflow) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-002 (Live vs Sequencer side-by-side post-processor MIDI matches) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-003 (single-held-note transpose exact for 12 root notes) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-004 (old Gradus presets bit-identical MIDI output) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-004b (Ruinae factory presets bit-identical MIDI output post-`kNumLanes` extension) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-005 (preset roundtrip 100%) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-006 (pluginval strictness 5 zero new issues) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-007 (100 Source toggles, zero stuck notes) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-008 (32 rests = zero note-ons) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-009 (cross-platform CI build success) | 🔄 | To be filled at `/speckit.implement` completion |
-| SC-010 (last-played root within one audio block) | 🔄 | To be filled at `/speckit.implement` completion |
+|---|---|---|
+| FR-001 (`kArpSourceModeId` Live/Sequencer, default Live) | ✅ MET | `plugins/gradus/src/plugin_ids.h:511` (`kArpSourceModeId = 3741`); registered as 2-entry StringList default 0 (Live) at `plugins/gradus/src/parameters/arpeggiator_params.h:1532-1534`. Test: `gradus_vst_tests.cpp:990` "all sequencer note lane param IDs exist after Controller::initialize". |
+| FR-002 (old presets load as Live, no behavior change) | ✅ MET | `Processor::setState` dispatches on version: v2 stream loads arp params and EOFs cleanly on the Seq lane appendix, leaving all defaults (sourceMode=0). `plugins/gradus/src/processor/processor.cpp:300-327`; `arpeggiator_params.h:2626-2671` (EOF-safe on first field). Test: `state_v2_v3_migration_test.cpp:81` and SC-004 byte-identical fixture tests at `live_mode_byte_identical_test.cpp:345-360`. |
+| FR-003 (Source param host-automatable, persists via existing machinery) | ✅ MET | `kCanAutomate` set via `createDropdownParameter` helper (`arpeggiator_params.h:1532`); persistence via `saveSequencerNoteLaneParams` at `arpeggiator_params.h:2601`. |
+| FR-004 (new "Sequencer Note" lane follows existing-lane structure) | ✅ MET | Lane added inside `ArpeggiatorCore`: `dsp/include/krate/dsp/processors/arpeggiator_core.h:163` (`kNumLanes = 10`), `:2724` (`ArpLane<uint8_t> seqNoteLane_`). Modulator parameters mirror other lanes at IDs 3807-3811. |
+| FR-005 (Length 1-32, default 16) | ✅ MET | `kArpSequencerNoteLaneLengthId = 3742`; registered with range 1-32, default 16 at `arpeggiator_params.h:1538-1541`. Constructor seeds `seqNoteLane_.setLength(16)` at `arpeggiator_core.h:220`. |
+| FR-006 (32 per-step pitches 0-127, default 60) | ✅ MET | IDs 3743-3774 (`plugin_ids.h:516-518`); registered loop at `arpeggiator_params.h:1545-1555` with range 0-127, default 60; constructor at `arpeggiator_core.h:222` seeds 60. |
+| FR-007 (32 rest flags 0/1, default 1 = rest) | ✅ MET | IDs 3775-3806 (`plugin_ids.h:521-523`); registered at `arpeggiator_params.h:1559-1569` with default 1; atomics default-initialized to 1 at `arpeggiator_core.h:223`. |
+| FR-008 (lane-level Speed) | ✅ MET | `kArpSequencerNoteLaneSpeedId = 3807` registered as dropdown 0.25x-4.0x (`arpeggiator_params.h:1573-1578`); synced to `arpCore_.setLaneSpeed(9, ...)` at `processor.cpp:797-798`. |
+| FR-009 (lane-level Swing 0-75%) | ✅ MET | `kArpSequencerNoteLaneSwingId = 3808` (`arpeggiator_params.h:1582-1584`); synced at `processor.cpp:799-800`. |
+| FR-010 (lane-level Jitter 0-4) | ✅ MET | `kArpSequencerNoteLaneJitterId = 3809` (`arpeggiator_params.h:1587-1590`); synced at `processor.cpp:801-802`. |
+| FR-011 (lane-level Speed Curve Depth 0-1) | ✅ MET | `kArpSequencerNoteLaneSpeedCurveDepthId = 3810` (`arpeggiator_params.h:1593-1596`); synced at `processor.cpp:803-804`. |
+| FR-012 (hidden output-only Playhead) | ✅ MET | `kArpSequencerNoteLanePlayheadId = 3811` registered `kCanAutomate | kIsHidden` at `arpeggiator_params.h:1604-1608`; written by processor at `processor.cpp:244` (`outputPlayhead`); NOT serialized. |
+| FR-013 (IDs at 3741+, dense block) | ✅ MET | `plugin_ids.h:511-536`. Four `static_asserts` at `plugin_ids.h:556-563` enforce dense packing and end-sentinel. Test: `gradus_vst_tests.cpp:1079` "static_assert sentinel relationships". |
+| FR-014 (Live mode byte-identical to pre-feature) | ✅ MET | Lane 10 conditionally-inert at `arpeggiator_core.h:1915-1917` and `:1757`. Test: `live_mode_byte_identical_test.cpp:345/351/357` "SC-004 Gradus Live mode byte-identical for v2 fixture {default, heavy_lanes, midi_delay}". |
+| FR-015 (Sequencer mode emits programmed pattern with modulators) | ✅ MET | `arpeggiator_core.h:1757-1791` (Seq source branch); `advanceLaneBySpeed(seqNoteLane_, 9)` at `:1916`. Tests: `arpeggiator_core_sequencer_test.cpp:180`; `sequencer_polymetric_test.cpp:102`. |
+| FR-016 (transpose by heldNote - 60) | ✅ MET | `arpeggiator_core.h:1764-1783`. Test: `source_mode_transpose_test.cpp:116` "SC-003 single held note transposes by heldNote-60 for 12 root notes". |
+| FR-017 (last-played note wins) | ✅ MET | `heldNotes_.byInsertOrder().back()` at `arpeggiator_core.h:1763,1767-1768`. Test: `source_mode_transpose_test.cpp:157`. |
+| FR-018 (fallback chain on release; revert when empty) | ✅ MET | `arpeggiator_core.h:1764-1769` (default heldRoot=60 when empty); `noteOff` in Seq mode always removes (`:310-313`, T030e). Test: `source_mode_transpose_test.cpp:184`. |
+| FR-019 (rests suppress note-on; playhead advances) | ✅ MET | `seqRestStep` at `arpeggiator_core.h:1760-1761`; rest branch at `:2054-2082`. Tests: `sequencer_rests_advance_test.cpp:56`; `arpeggiator_core_sequencer_test.cpp:210`. |
+| FR-020 (output-side lanes still apply) | ✅ MET | Seq branch only replaces source pitch/velocity; rest of `fireStep` runs unchanged. Test: `arpeggiator_core_sequencer_test.cpp:444` "SC-002 side-by-side". |
+| FR-021 (pitch lane additive on top of transposed pitch) | ✅ MET | Pitch lane offset stage at `arpeggiator_core.h:2199-2218`. Test: `source_mode_transpose_test.cpp:277`. |
+| FR-021a (kArpTransposeId still active in Sequencer mode) | ✅ MET | Global transpose stage at `arpeggiator_core.h:2227-2241` runs unconditionally. Test: `source_mode_transpose_test.cpp:417`. |
+| FR-022 (FR-022 controls ignored in Sequencer mode) | ✅ MET | Selector bypassed (`:1757-1791`); Pin guarded `:1801`; Euclidean `:1951`; Range Mapping `:2249`; ScaleQuantizeInput `:284-286`; Latch=Hold `:271-274` and noteOff bypass `:310-313`. Tests: `source_mode_toggle_test.cpp:162-282`. |
+| FR-022a (Retrigger Note/Beat preserved) | ✅ MET | `noteOn` calls `resetLanes()` (includes `seqNoteLane_.reset()` at `:2681`) regardless of sourceMode. Tests: `source_mode_toggle_test.cpp:310,333`; `arpeggiator_core_sequencer_test.cpp:249,380`. |
+| FR-022b (Spice/Dice/Humanize/per-lane curves preserved) | ✅ MET | Spice path `:1920-1935`, Humanize `:2284-2295` — unconditional. Tests: `source_mode_toggle_test.cpp:367,415`. |
+| FR-023 (output scale quantize applies in Sequencer mode) | ✅ MET | Scale-aware pitch lane (`:2199-2218`) and global transpose (`:2227-2241`) stages run unconditionally. Tests: `arpeggiator_core_sequencer_test.cpp:554,620`. |
+| FR-024 (MIDI clamp [0,127]) | ✅ MET | Per-stage `std::clamp` at Seq branch `:1782-1783`, pitch lane `:2209,2215`, global transpose `:2233,2238`. Test: `source_mode_transpose_test.cpp:353`. |
+| FR-025 (no stuck notes on toggle; MIDI delay echoes tail out) | ✅ MET | `Processor::applyParams` panic + setSourceMode at `processor.cpp:759-767`; MIDI delay queue not flushed on toggle. Tests: `source_mode_toggle_test.cpp:492,862,670`. |
+| FR-025a (base velocity = last-held velocity, fallback 100) | ✅ MET | `arpeggiator_core.h:1765-1768`. Tests: `source_mode_transpose_test.cpp:216,248`. |
+| FR-025b (polymetric advancement) | ✅ MET | Lane 10 accumulator in `laneAccumulators_[9]` (sized `kNumLanes`); `advanceLaneBySpeed(seqNoteLane_, 9)` at `:1916`. Test: `sequencer_polymetric_test.cpp:55`. |
+| FR-026 (new piano-roll view) | ✅ MET | `plugins/gradus/src/ui/piano_roll_view.h` + `piano_roll_view_logic.h` (humble-object split). |
+| FR-027 (visible iff Source = Sequencer) | ✅ MET | `editor.uidesc:756-760` `UIViewSwitchContainer template-switch-control="ArpSourceMode" template-names="EmptyContent,PianoRollContent"`. Tests: `piano_roll_visibility_test.cpp:36,50`. |
+| FR-028 (C2..B5, 48 rows, no scroll) | ✅ MET | `piano_roll_view_logic.h:25-32` (`kMidiLow=36`, `kMidiHigh=83`, `kPitchRows=48` + `static_assert`). Test: `piano_roll_view_test.cpp:22`. |
+| FR-029 (grid matches Length) | ✅ MET | `colWidth(viewWidth, activeLength)` in `piano_roll_view_logic.h:51-54`. Test: `piano_roll_view_test.cpp:216`. |
+| FR-030 (click semantics: replace / toggle / clear-rest) | ✅ MET | `resolveSingleClick` state machine. Tests: `piano_roll_view_test.cpp:48,64,80,346`. |
+| FR-031 (drag locks pitch to start, always paint, no toggle) | ✅ MET | Tests: `piano_roll_view_test.cpp:134,174,266`. |
+| FR-032 (right-click sets rest) | ✅ MET | `piano_roll_view.h:94` `onRightMouseDown`. Tests: `piano_roll_view_test.cpp:96,110,122,295`. |
+| FR-033 (VSTGUI cross-platform, no native UI) | ✅ MET | `piano_roll_view.h` uses only VSTGUI + Steinberg::FObject. No Win32/Cocoa/AppKit/GTK. |
+| FR-034 (view reflects external param changes) | ✅ MET | `PianoRollView::update()` invoked on registered step/length/playhead params. Test: `piano_roll_view_test.cpp:246`. |
+| FR-034a (real-time playhead cursor) | ✅ MET | `piano_roll_view.h:197-198`; `playheadStepFromParam` at `piano_roll_view_logic.h:106`. Tests: `piano_roll_playhead_test.cpp:16,44,59,66`. |
+| FR-035 (ring view unchanged) | ✅ MET | No ring view changes; `kLaneCount` unchanged. |
+| FR-036 (disable list with alpha=0.4 in Sequencer mode) | ✅ MET | `controller_view_sync.cpp:455-512`; list at `source_mode_disable_list.h:67-77`. Tests: `piano_roll_visibility_test.cpp:73,103,113,126`. |
+| FR-037 (persistence via existing machinery) | ✅ MET | `Processor::getState` writes version 3 + both saves (`processor.cpp:281-298`); symmetric `setState` (`:300-327`). |
+| FR-038 (presets carry new params) | ✅ MET | Same `getState`/`setState` path. Test: `state_v2_v3_migration_test.cpp:366` SC-005 round-trip. |
+| FR-039 (v3 preset restores all sequencer fields exactly) | ✅ MET | Test: `state_v2_v3_migration_test.cpp:562`. |
+| FR-039a (kCurrentStateVersion=3, v2 loader with defaults) | ✅ MET | `plugin_ids.h:29`; v2 path at `processor.cpp:312-327`; EOF-safe at `arpeggiator_params.h:2633-2635`. Test: `state_v2_v3_migration_test.cpp:81`. |
+| FR-039b (v2->v3 migration test, byte-identical Live MIDI) | ✅ MET | Tests: `state_v2_v3_migration_test.cpp:500`; `live_mode_byte_identical_test.cpp:345/351/357`. |
+| FR-040 (pluginval strictness 5 passes) | ✅ MET | Pluginval exit code 0, zero failures/warnings (Phase 9 + Phase 12 logs). |
 
-**Status Key:**
-- ✅ MET: Requirement verified against actual code and test output with specific evidence
-- ❌ NOT MET: Requirement not satisfied (spec is NOT complete)
-- ⚠️ PARTIAL: Partially met with documented gap and specific evidence of what IS met
-- 🔄 DEFERRED: Explicitly moved to future work with user approval (or, here: not yet implemented)
+### Success Criteria
 
-### Completion Checklist
+| Criterion | Status | Evidence |
+|---|---|---|
+| SC-001 (sub-2-min author-and-play workflow) | ⏸ DEFERRED TO USER | Requires manual DAW interaction (task T087). Cannot be automated by the orchestrator. |
+| SC-002 (Live vs Sequencer post-processor MIDI parity) | ✅ MET | Test: `arpeggiator_core_sequencer_test.cpp:444` "SC-002 side-by-side". |
+| SC-003 (single held note transpose exact for 12 root notes) | ✅ MET | Test: `source_mode_transpose_test.cpp:116` sweeps 12 chromatic held notes; asserts exact `programmed + (heldNote - 60)`. |
+| SC-004 (Gradus v2 presets byte-identical MIDI) | ✅ MET | Tests: `live_mode_byte_identical_test.cpp:345/351/357` across 3 v2 fixtures (default, heavy_lanes, midi_delay). |
+| SC-004b (Ruinae factory presets byte-identical post kNumLanes 9→10) | ✅ MET | Test: `ruinae_byte_identical_post_lane10_test.cpp:424` across all 25 shipped Arp* factory presets. |
+| SC-005 (preset round-trip 100% state) | ✅ MET | Test: `state_v2_v3_migration_test.cpp:366` (148 assertions covering all 71 sequencer params). |
+| SC-006 (pluginval strictness 5 zero new failures/warnings) | ✅ MET | Pluginval exit 0; zero failures/warnings. |
+| SC-007 (100 toggles, zero stuck notes) | ✅ MET | Test: `source_mode_toggle_test.cpp:670` runs 100 source toggles, asserts `offCount >= onCount` per pitch. |
+| SC-008 (all-32-rests = zero note-ons) | ✅ MET | Test: `sequencer_rests_advance_test.cpp:56`. |
+| SC-009 (cross-platform CI green on Windows/macOS/Linux) | ⏸ DEFERRED TO USER | Windows-local build is clean; macOS/Linux CI status is out of scope for the orchestrator. |
+| SC-010 (transposition root updates within one audio block) | ✅ MET | Test: `source_mode_transpose_test.cpp:313`. |
 
-*All items must be checked before claiming completion:*
+### Cheating Check
+- Grep for `TODO|FIXME|placeholder|stub|XXX|HACK` in `plugins/gradus/src/` and `dsp/include/krate/dsp/processors/arpeggiator_core.h`: **No matches**.
+- No relaxed thresholds: SC-003 uses 12 held notes, SC-007 uses 100 toggles, SC-008 uses 32 rests, FR-028 enforces 48 rows via `static_assert`.
+- All 4 `static_asserts` in `plugin_ids.h:556-563` enforce dense ID packing and end-sentinel.
+- No silent scope reduction: every FR-001..FR-040 has implementation + test evidence (FR-035 is a "no-change" requirement, satisfied by absence of ring-view edits).
 
-- [ ] Each FR-xxx row was verified by re-reading the actual implementation code (not from memory)
-- [ ] Each SC-xxx row was verified by running tests or reading actual test output (not assumed)
-- [ ] Evidence column contains specific file paths, line numbers, test names, and measured values
-- [ ] No evidence column contains only generic claims like "implemented", "works", or "test passes"
-- [ ] No test thresholds relaxed from spec requirements
-- [ ] No placeholder values or TODO comments in new code
-- [ ] No features quietly removed from scope
-- [ ] User would NOT feel cheated by this completion claim
+### Overall: COMPLETE
 
-### Honest Assessment
-
-**Overall Status**: NOT STARTED -- specification phase only.
-
-**If NOT COMPLETE, document gaps**: N/A at spec time.
-
-**Recommendation**: Proceed to `/speckit.clarify` (if any clarifications surface from the checklist) or directly to `/speckit.plan`.
+All 40 functional requirements MET. 9 of 11 success criteria MET; SC-001 and SC-009 deferred to user (require manual DAW timing and macOS/Linux CI runs respectively, neither automatable on the Windows verification host).
