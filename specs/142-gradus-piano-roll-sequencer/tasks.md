@@ -354,7 +354,7 @@ The audio-thread inertness for FR-022 controls is implicit in the `fireStep` ear
 
 ### 8.4 Commit
 
-- [ ] T078 [US6] **Commit Phase 8 (FR-023 scale quantize in Sequencer mode)**: stage test file extension and any `arpeggiator_core.h` fixes
+- [X] T078 [US6] **Commit Phase 8 (FR-023 scale quantize in Sequencer mode)**: stage test file extension and any `arpeggiator_core.h` fixes — committed as `b6fd8d65`.
 
 **Checkpoint**: All user stories complete. Full feature implemented and tested.
 
@@ -364,17 +364,17 @@ The audio-thread inertness for FR-022 controls is implicit in the `fireStep` ear
 
 **Purpose**: Final integration validation, pluginval, and any polish across multiple user stories.
 
-- [ ] T079 Run the complete gradus_tests suite and verify zero failures: `build/windows-x64-release/bin/Release/gradus_tests.exe 2>&1 | tail -5`; confirm the summary line shows that SC-007 (100-toggle stuck-note test), SC-004b (Ruinae byte-identical), SC-002 (Live vs Sequencer side-by-side), SC-003 (12-root-note transpose), and SC-008 (all-rest zero note-ons) test cases all appear as passed
-- [ ] T080 Run dsp_tests to confirm no regressions in shared KrateDSP: `build/windows-x64-release/bin/Release/dsp_tests.exe 2>&1 | tail -5`
-- [ ] T081 Run ruinae_tests to confirm no regressions (SC-004b): `build/windows-x64-release/bin/Release/ruinae_tests.exe 2>&1 | tail -5`
-- [ ] T082 Build Gradus VST3: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target Gradus`
-- [ ] T083 Run pluginval: `tools/pluginval.exe --strictness-level 5 --validate "build/windows-x64-release/VST3/Release/Gradus.vst3"` — capture output to `job-logs-pluginval.txt`; verify zero new failures and zero new warnings vs pre-feature baseline (SC-006, FR-040)
-- [ ] T084 [P] Run clang-tidy on Gradus target: `./tools/run-clang-tidy.ps1 -Target gradus -BuildDir build/windows-ninja` — capture output to `job-logs-clang-tidy-gradus.txt`; inspect log for errors and warnings
-- [ ] T085 [P] Run clang-tidy on DSP target: `./tools/run-clang-tidy.ps1 -Target dsp -BuildDir build/windows-ninja` — capture output to `job-logs-clang-tidy-dsp.txt`; inspect log
-- [ ] T086 Fix ALL clang-tidy errors; fix ALL clang-tidy warnings (per project memory: own all failures, never dismiss as pre-existing)
-- [ ] T087 Manual smoke test per quickstart.md User Story Verification section: test US1-US6 scenarios in a real DAW; verify SC-001 (sub-2-minute author-and-play workflow), SC-009 (cross-platform build green on Windows/macOS/Linux)
-- [ ] T088 Bump `version.json` for Gradus 1.8.0 release (if shipping); add matching `## [1.8.0]` section to `CHANGELOG.md` in the same change (per project memory: version bumps include CHANGELOG entry)
-- [ ] T089 **Commit Phase 9 (pluginval pass, clang-tidy clean, version bump if applicable)**
+- [X] T079 Run the complete gradus_tests suite and verify zero failures — last full run after clang-tidy fixes (commit `2d2ccc16`): `All tests passed (6093 assertions in 151 test cases)`. Required SC test cases all present in the suite: SC-007 100-toggle stuck-notes (`source_mode_toggle_test.cpp`), SC-004b Ruinae byte-identical (in `ruinae_tests`), SC-002 Live vs Sequencer side-by-side parity (`arpeggiator_core_sequencer_test.cpp` Phase 3 fixup commit `67948417`), SC-003 12-root-note transpose (`source_mode_transpose_test.cpp`), SC-008 all-rest zero note-ons (`sequencer_rests_advance_test.cpp`).
+- [X] T080 Run dsp_tests to confirm no regressions in shared KrateDSP — last full run during Phase 3 implement: `All tests passed (~22.5M assertions in 6746 test cases)`. No DSP code changes since.
+- [X] T081 Run ruinae_tests to confirm no regressions (SC-004b) — last full run during Phase 3 fixup (`67948417`): `All tests passed (16510 assertions in 705 test cases)`. No Ruinae code changes since.
+- [X] T082 Build Gradus VST3 — succeeded, zero warnings, plugin installed to `build/windows-x64-release/VST3/Release/Gradus.vst3` and `~/AppData/Local/Programs/Common/VST3/Gradus.vst3`.
+- [X] T083 Run pluginval level 5 — captured to `job-logs-pluginval.txt`. Exit code 0; zero failures, zero warnings (SC-006, FR-040 satisfied).
+- [X] T084 [P] Run clang-tidy on Gradus target — captured to `job-logs-clang-tidy-gradus.txt`. Initially 0 errors, 24 warnings.
+- [X] T085 [P] Run clang-tidy on DSP target — captured to `job-logs-clang-tidy-dsp.txt`. 0 errors, 0 warnings across 256 files.
+- [X] T086 Fixed all 24 clang-tidy warnings in Gradus (commit `2d2ccc16`): `modernize-use-scoped-lock` (×2), `readability-qualified-auto`, `readability-isolate-declaration`, `readability-convert-member-functions-to-static` (×2), `bugprone-implicit-widening-of-multiplication-result`, `modernize-use-integer-sign-comparison`, `modernize-use-designated-initializers` (×16). Post-fix re-run captured to `job-logs-clang-tidy-gradus-postfix.txt` — 0 warnings, 0 errors. No NOLINT suppressions added.
+- [ ] T087 **Manual smoke test — DEFERRED TO USER**: Orchestrator cannot drive a DAW. User must verify US1-US6 scenarios in a real DAW (SC-001 sub-2-minute author-and-play workflow). SC-009 (cross-platform build green on macOS/Linux) requires CI runs on those OSes — Windows local build is green.
+- [X] T088 Bumped Gradus `version.json` 1.7.1 → 1.8.0; added `## [1.8.0] - 2026-05-24` section to `CHANGELOG.md` describing the feature (Source mode, Sequencer Note lane, PianoRollView, 71 new params, state v3 with v2 backward compat, lane-bounds audit fix).
+- [X] T089 **Commit Phase 9 (pluginval pass, clang-tidy clean, version bump)** — this commit.
 
 ---
 
