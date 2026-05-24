@@ -240,6 +240,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             {kArpChordPlayheadId,     arpCore_.chordLane().currentStep()},
             {kArpInversionPlayheadId, arpCore_.inversionLane().currentStep()},
             {kArpMidiDelayPlayheadId, arpCore_.midiDelayLane().currentStep()},
+            // Spec 142: Sequencer Note lane (lane 9) playhead for UI piano-roll cursor.
+            {kArpSequencerNoteLanePlayheadId, arpCore_.seqNoteLane().currentStep()},
         };
         for (const auto& [id, step] : playheads) {
             outputPlayhead(id, static_cast<float>(step) / kMaxLaneStepsF);
@@ -742,6 +744,63 @@ void Processor::applyParamsToEngine()
 
             midiDelay_.setStepConfig(static_cast<size_t>(i), cfg);
         }
+    }
+
+    // --- Spec 142: Sequencer Note lane (lane 9) sync ---
+    {
+        // Sync source mode (Live / Sequencer). On a Live->Seq or Seq->Live
+        // transition, emit a panic note-off for any sounding programmed note
+        // BEFORE handing control to the new source. Lane playheads are NOT
+        // reset (spec Q5-A). Block-boundary granularity is acceptable —
+        // Source toggle is a meta-control, not sample-accurate.
+        const int newSourceMode = std::clamp(
+            arpParams_.sourceMode.load(std::memory_order_relaxed), 0, 1);
+        if (newSourceMode != prevSourceMode_) {
+            // Panic note-off for any sounding programmed note BEFORE handing
+            // the pipeline to the new source. requestPanicNoteOff() sets the
+            // arp's needsDisableNoteOff_ flag; the next processBlock() emits
+            // a noteOff at sample 0 for every entry in currentArpNotes_,
+            // then clears the buffer. Lane playheads are NOT touched (Q5-A).
+            arpCore_.requestPanicNoteOff();
+            arpCore_.setSourceMode(static_cast<Krate::DSP::SourceMode>(newSourceMode));
+            prevSourceMode_ = newSourceMode;
+        } else {
+            // Idempotent: always assert the current source mode so a stale
+            // arpCore_ (e.g. after setState) gets the right value.
+            arpCore_.setSourceMode(static_cast<Krate::DSP::SourceMode>(newSourceMode));
+        }
+
+        // Sync lane 9 (Sequencer Note) pattern: length, 32 pitches, 32 rest flags.
+        const auto seqLen = std::clamp(
+            arpParams_.seqNoteLaneLength.load(std::memory_order_relaxed), 1, 32);
+        arpCore_.seqNoteLane().setLength(kMaxLaneSteps);
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            const int pitch = std::clamp(
+                arpParams_.seqNoteLanePitches[i].load(std::memory_order_relaxed),
+                0, 127);
+            arpCore_.seqNoteLane().setStep(static_cast<size_t>(i),
+                static_cast<uint8_t>(pitch));
+        }
+        arpCore_.seqNoteLane().setLength(static_cast<size_t>(seqLen));
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            const int rest =
+                arpParams_.seqNoteLaneRestFlags[i].load(std::memory_order_relaxed);
+            arpCore_.seqRestFlags()[i].store(
+                static_cast<uint8_t>(rest != 0 ? 1 : 0),
+                std::memory_order_relaxed);
+        }
+
+        // Sync lane 9 modulators (speed, swing, jitter, speed-curve depth).
+        // These calls are now safe thanks to the T029 audit (each setter
+        // accepts laneIndex < kNumLanes == 10).
+        arpCore_.setLaneSpeed(9,
+            arpParams_.seqNoteLaneSpeed.load(std::memory_order_relaxed));
+        arpCore_.setLaneSwing(9,
+            arpParams_.seqNoteLaneSwing.load(std::memory_order_relaxed));
+        arpCore_.setLaneLengthJitter(9,
+            arpParams_.seqNoteLaneJitter.load(std::memory_order_relaxed));
+        arpCore_.setLaneSpeedCurveDepth(9,
+            arpParams_.seqNoteLaneSpeedCurveDepth.load(std::memory_order_relaxed));
     }
 }
 
