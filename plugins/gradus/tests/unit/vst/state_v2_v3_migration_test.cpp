@@ -350,3 +350,317 @@ TEST_CASE("v3 setState rejects unknown future versions",
     stream->release();
     REQUIRE(processor.terminate() == kResultOk);
 }
+
+// =============================================================================
+// SC-005 / FR-039 — Phase 5 (US4): preset round-trip preserves 100% of
+// Sequencer Note lane state.
+//
+// Sets NON-DEFAULT values for ALL 71 sequencer note lane params (sourceMode,
+// length, 32 pitches, 32 rest flags, speed, swing, jitter, speedCurveDepth),
+// pushes them through a v3 setState, then round-trips through getState and
+// verifies every field is bit-exact in the re-emitted v3 appendix. This is
+// the SC-005 success criterion: 100% of programmed pattern state survives a
+// preset save+load cycle.
+// =============================================================================
+
+TEST_CASE("SC-005 preset round-trip preserves 100% of Sequencer Note lane state",
+          "[gradus][vst][state][migration][sc005]")
+{
+    // Pick deliberately non-default values across all 71 params.
+    constexpr int kSourceMode      = 1;        // Sequencer
+    constexpr int kLength          = 23;       // != default 16
+    constexpr float kSpeed         = 2.0f;     // != default 1.0
+    constexpr float kSwing         = 37.5f;    // != default 0.0
+    constexpr int kJitter          = 2;        // != default 0
+    constexpr float kCurveDepth    = 0.75f;    // != default 0.0
+
+    // Distinct pitch per step: 36 + i (covers 36..67, all in [0,127]).
+    // Distinct rest flag per step: alternating 0/1.
+    auto expectedPitch    = [](int i) { return 36 + i; };
+    auto expectedRestFlag = [](int i) { return i % 2; };
+
+    // 1. Build a v3 stream populated with the chosen values.
+    auto* inStream = new MemoryStream();
+    {
+        IBStreamer writer(inStream, kLittleEndian);
+        writer.writeInt32(3);
+
+        // Default v2 block (sourceMode/seqLane are independent of v2 fields).
+        Gradus::ArpeggiatorParams baseline;
+        Gradus::saveArpParams(baseline, writer);
+
+        // v3 appendix
+        writer.writeInt32(kSourceMode);
+        writer.writeInt32(kLength);
+        for (int i = 0; i < 32; ++i) {
+            writer.writeInt32(expectedPitch(i));
+        }
+        for (int i = 0; i < 32; ++i) {
+            writer.writeInt32(expectedRestFlag(i));
+        }
+        writer.writeFloat(kSpeed);
+        writer.writeFloat(kSwing);
+        writer.writeInt32(kJitter);
+        writer.writeFloat(kCurveDepth);
+    }
+    inStream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    // 2. Load into a fresh processor.
+    Gradus::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+    REQUIRE(processor.setState(inStream) == kResultOk);
+
+    // 3. getState back out and verify every one of the 71 fields is bit-exact.
+    auto* outStream = new MemoryStream();
+    REQUIRE(processor.getState(outStream) == kResultOk);
+    outStream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    IBStreamer reader(outStream, kLittleEndian);
+    int32 version = 0;
+    REQUIRE(reader.readInt32(version));
+    CHECK(version == 3);
+
+    // Consume the v2 block so the read position lands on the v3 appendix.
+    Gradus::ArpeggiatorParams scratch;
+    REQUIRE(Gradus::loadArpParams(scratch, reader) == true);
+
+    // --- v3 appendix verification (all 71 fields) ---
+
+    // 1: sourceMode
+    int32 sourceMode = -1;
+    REQUIRE(reader.readInt32(sourceMode));
+    CHECK(sourceMode == kSourceMode);
+
+    // 2: length
+    int32 length = -1;
+    REQUIRE(reader.readInt32(length));
+    CHECK(length == kLength);
+
+    // 3..34: 32 pitches
+    for (int i = 0; i < 32; ++i) {
+        int32 pitch = -1;
+        REQUIRE(reader.readInt32(pitch));
+        CHECK(pitch == expectedPitch(i));
+    }
+
+    // 35..66: 32 rest flags
+    for (int i = 0; i < 32; ++i) {
+        int32 restFlag = -1;
+        REQUIRE(reader.readInt32(restFlag));
+        CHECK(restFlag == expectedRestFlag(i));
+    }
+
+    // 67: speed
+    float speed = 0.0f;
+    REQUIRE(reader.readFloat(speed));
+    CHECK(speed == Approx(kSpeed));
+
+    // 68: swing
+    float swing = -1.0f;
+    REQUIRE(reader.readFloat(swing));
+    CHECK(swing == Approx(kSwing));
+
+    // 69: jitter
+    int32 jitter = -1;
+    REQUIRE(reader.readInt32(jitter));
+    CHECK(jitter == kJitter);
+
+    // 70: speed curve depth
+    float depth = -1.0f;
+    REQUIRE(reader.readFloat(depth));
+    CHECK(depth == Approx(kCurveDepth));
+
+    // 71 (kArpSequencerNoteLanePlayheadId): NOT serialized — confirm by
+    // reading a 4-byte int from the stream and expecting EOF / no playhead.
+    // (Per contracts/state-stream-v3.md: "No persisted playhead — it's
+    // runtime-only.") The v3 appendix ends after speedCurveDepth.
+    int32 trailing = 0;
+    const bool hasTrailing = reader.readInt32(trailing);
+    CHECK_FALSE(hasTrailing);  // FR-039: playhead must NOT be in the stream
+
+    inStream->release();
+    outStream->release();
+    REQUIRE(processor.terminate() == kResultOk);
+}
+
+// =============================================================================
+// FR-039b — Phase 5 (US4): loading a v2 fixture via v3 setState produces a
+// well-formed v3 stream on the way back out.
+//
+// This is a FOCUSED smoke check for the v2-via-v3 dispatch path. The full
+// byte-identical-MIDI assertion (60-second sequence) is owned by Phase 3's
+// `live_mode_byte_identical_test.cpp` (T025); duplicating the 60-second run
+// here would just burn test time. We confirm here that:
+//   * setState accepts each v2 fixture
+//   * the subsequent getState produces a v3-versioned stream
+//   * the v3 appendix is present (i.e., dispatch wrote it) and holds the
+//     defaults mandated by FR-039a (sourceMode=Live, length=16, etc.)
+// =============================================================================
+
+TEST_CASE("FR-039b loading v2 fixture via v3 setState produces v3 stream with defaults",
+          "[gradus][vst][state][migration][fr039b]")
+{
+    const std::array<const char*, 3> fixtures{{
+        "gradus_v2_preset_default.bin",
+        "gradus_v2_preset_heavy_lanes.bin",
+        "gradus_v2_preset_midi_delay.bin",
+    }};
+
+    for (const auto* name : fixtures) {
+        CAPTURE(name);
+
+        auto bytes = loadV2Fixture(name);
+        auto* inStream = makeStreamFromBytes(bytes);
+
+        Gradus::Processor processor;
+        REQUIRE(processor.initialize(nullptr) == kResultOk);
+
+        // setState dispatches version == 2 -> loadArpParams + loadSeq* (EOFs on
+        // first new field, leaves defaults). FR-039b: must succeed.
+        REQUIRE(processor.setState(inStream) == kResultOk);
+
+        // Re-serialize via getState and verify it's a well-formed v3 stream.
+        auto* outStream = new MemoryStream();
+        REQUIRE(processor.getState(outStream) == kResultOk);
+        outStream->seek(0, IBStream::kIBSeekSet, nullptr);
+
+        IBStreamer reader(outStream, kLittleEndian);
+        int32 version = 0;
+        REQUIRE(reader.readInt32(version));
+        CHECK(version == 3);
+
+        // Skip v2 block.
+        Gradus::ArpeggiatorParams scratch;
+        REQUIRE(Gradus::loadArpParams(scratch, reader) == true);
+
+        // v3 appendix MUST be present (dispatch path wrote it) and at defaults.
+        int32 sourceMode = -1;
+        REQUIRE(reader.readInt32(sourceMode));
+        CHECK(sourceMode == 0);  // Live default for v2 fixtures (FR-039a)
+
+        int32 length = -1;
+        REQUIRE(reader.readInt32(length));
+        CHECK(length == 16);  // default
+
+        inStream->release();
+        outStream->release();
+        REQUIRE(processor.terminate() == kResultOk);
+    }
+}
+
+// =============================================================================
+// FR-039 — Phase 5 (US4): v3 preset restores source, all 32 pitches, rest
+// flags, length, AND all modulators exactly after a full getState->setState
+// cycle via the processor pipeline.
+//
+// Distinct from the SC-005 case above: this one loads chosen values into one
+// processor, drains them back out via getState, then loads that stream into
+// a SECOND fresh processor and confirms a final getState yields a bit-exact
+// match. Verifies the round-trip is idempotent across two processor lives.
+// =============================================================================
+
+TEST_CASE("FR-039 v3 preset restores source, pitches, rest flags, length, modulators",
+          "[gradus][vst][state][migration][fr039]")
+{
+    // Choose a representative non-default pattern (a 12-step ascending C-major
+    // figure with alternating rests, all modulators non-default).
+    constexpr int kSourceMode  = 1;
+    constexpr int kLength      = 12;
+    const std::array<int, 32> kPitches = {{
+        60, 62, 64, 65, 67, 69, 71, 72,
+        74, 76, 77, 79, 60, 60, 60, 60,
+        60, 60, 60, 60, 60, 60, 60, 60,
+        60, 60, 60, 60, 60, 60, 60, 60,
+    }};
+    std::array<int, 32> kRestFlags{};
+    for (int i = 0; i < 32; ++i) kRestFlags[static_cast<size_t>(i)] = (i % 3 == 0) ? 1 : 0;
+    constexpr float kSpeed      = 1.5f;
+    constexpr float kSwing      = 50.0f;
+    constexpr int kJitter       = 4;
+    constexpr float kCurveDepth = 0.5f;
+
+    // --- Round 1: load chosen values into Processor A, then getState. ---
+    auto* round1In = new MemoryStream();
+    {
+        IBStreamer writer(round1In, kLittleEndian);
+        writer.writeInt32(3);
+        Gradus::ArpeggiatorParams baseline;
+        Gradus::saveArpParams(baseline, writer);
+        writer.writeInt32(kSourceMode);
+        writer.writeInt32(kLength);
+        for (int i = 0; i < 32; ++i) writer.writeInt32(kPitches[static_cast<size_t>(i)]);
+        for (int i = 0; i < 32; ++i) writer.writeInt32(kRestFlags[static_cast<size_t>(i)]);
+        writer.writeFloat(kSpeed);
+        writer.writeFloat(kSwing);
+        writer.writeInt32(kJitter);
+        writer.writeFloat(kCurveDepth);
+    }
+    round1In->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    Gradus::Processor processorA;
+    REQUIRE(processorA.initialize(nullptr) == kResultOk);
+    REQUIRE(processorA.setState(round1In) == kResultOk);
+
+    auto* round1Out = new MemoryStream();
+    REQUIRE(processorA.getState(round1Out) == kResultOk);
+    round1Out->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    // --- Round 2: load Processor A's emitted stream into Processor B. ---
+    Gradus::Processor processorB;
+    REQUIRE(processorB.initialize(nullptr) == kResultOk);
+    REQUIRE(processorB.setState(round1Out) == kResultOk);
+
+    auto* round2Out = new MemoryStream();
+    REQUIRE(processorB.getState(round2Out) == kResultOk);
+    round2Out->seek(0, IBStream::kIBSeekSet, nullptr);
+
+    // Verify the v3 appendix on the second emitted stream matches the originals.
+    IBStreamer reader(round2Out, kLittleEndian);
+    int32 version = 0;
+    REQUIRE(reader.readInt32(version));
+    CHECK(version == 3);
+
+    Gradus::ArpeggiatorParams scratch;
+    REQUIRE(Gradus::loadArpParams(scratch, reader) == true);
+
+    int32 sourceMode = -1;
+    REQUIRE(reader.readInt32(sourceMode));
+    CHECK(sourceMode == kSourceMode);
+
+    int32 length = -1;
+    REQUIRE(reader.readInt32(length));
+    CHECK(length == kLength);
+
+    for (int i = 0; i < 32; ++i) {
+        int32 pitch = -1;
+        REQUIRE(reader.readInt32(pitch));
+        CHECK(pitch == kPitches[static_cast<size_t>(i)]);
+    }
+    for (int i = 0; i < 32; ++i) {
+        int32 restFlag = -1;
+        REQUIRE(reader.readInt32(restFlag));
+        CHECK(restFlag == kRestFlags[static_cast<size_t>(i)]);
+    }
+
+    float speed = 0.0f;
+    REQUIRE(reader.readFloat(speed));
+    CHECK(speed == Approx(kSpeed));
+
+    float swing = -1.0f;
+    REQUIRE(reader.readFloat(swing));
+    CHECK(swing == Approx(kSwing));
+
+    int32 jitter = -1;
+    REQUIRE(reader.readInt32(jitter));
+    CHECK(jitter == kJitter);
+
+    float depth = -1.0f;
+    REQUIRE(reader.readFloat(depth));
+    CHECK(depth == Approx(kCurveDepth));
+
+    round1In->release();
+    round1Out->release();
+    round2Out->release();
+    REQUIRE(processorA.terminate() == kResultOk);
+    REQUIRE(processorB.terminate() == kResultOk);
+}
