@@ -179,28 +179,28 @@
 
 > Constitution Principle XII: Tests MUST be written and FAIL before implementation begins
 
-- [ ] T037 [P] [US2] Write failing tests in `plugins/gradus/tests/unit/processor/source_mode_transpose_test.cpp`: TEST_CASE "SC-003 single held note transposes by heldNote-60 for 12 root notes" (hold each of 12 notes spanning keyboard, assert every emitted programmed pitch offset by exactly heldNote-60, FR-016, SC-003); TEST_CASE "FR-017 last-played note wins as transposition root" (hold note 60, add note 65 while holding, assert root is 65); TEST_CASE "FR-018 release of last-held note falls back to next-most-recent" (hold 60 then 65, release 65, assert root reverts to 60); TEST_CASE "no held notes = no transposition, base velocity = 100" (FR-015, FR-025a: empty buffer, assert root=60, velocity=100); TEST_CASE "held note velocity used as base velocity" (FR-025a: hold note with vel=80, assert emitted note carries vel=80 before velocity lane scaling); TEST_CASE "FR-021 pitch lane offset stacks additively with held-note transpose and kArpTransposeId" (FR-021, FR-021a: program pitch=60, hold note 62, set kArpTranspose=+2, set pitch lane step=+1, assert final emit=60+(62-60)+2+1=65); TEST_CASE "SC-010 transposition root updates within one audio block of note-on"
+- [X] T037 [P] [US2] Write failing tests in `plugins/gradus/tests/unit/processor/source_mode_transpose_test.cpp`: TEST_CASE "SC-003 single held note transposes by heldNote-60 for 12 root notes" (hold each of 12 notes spanning keyboard, assert every emitted programmed pitch offset by exactly heldNote-60, FR-016, SC-003); TEST_CASE "FR-017 last-played note wins as transposition root" (hold note 60, add note 65 while holding, assert root is 65); TEST_CASE "FR-018 release of last-held note falls back to next-most-recent" (hold 60 then 65, release 65, assert root reverts to 60); TEST_CASE "no held notes = no transposition, base velocity = 100" (FR-015, FR-025a: empty buffer, assert root=60, velocity=100); TEST_CASE "held note velocity used as base velocity" (FR-025a: hold note with vel=80, assert emitted note carries vel=80 before velocity lane scaling); TEST_CASE "FR-021 pitch lane offset stacks additively with held-note transpose and kArpTransposeId" (FR-021, FR-021a: program pitch=60, hold note 62, set kArpTranspose=+2, set pitch lane step=+1, assert final emit=60+(62-60)+2+1=65); TEST_CASE "SC-010 transposition root updates within one audio block of note-on"
 
 ### 4.2 Implementation for User Story 2
 
 The transposition formula in `fireStep` was implemented as part of T030 (Phase 3). This phase adds any missing edge-case handling:
 
-- [ ] T038 [US2] Verify `fireStep` transposition formula in `dsp/include/krate/dsp/processors/arpeggiator_core.h` covers all FR-018 edge cases: fallback to 60 when `heldNotes_.empty()`; fallback to `byInsertOrder().back()` when multiple notes held; correct `clamp(transposedPitch, 0, 127)` per FR-024; velocity fallback to 100 when buffer empty (FR-025a). Make corrections as needed. Add TEST_CASE "FR-024 out-of-range pitch is clamped to [0,127]" to `source_mode_transpose_test.cpp`: program pitch 110, hold note 30 (transpose -30), assert emitted note = 80 (not clamped); program pitch 110, hold note 60 (no transpose), add pitch lane +24, assert final = clamp(110+0+0+24, 0, 127) = 127; program pitch 5, hold note 40 (transpose -20), assert emitted = clamp(5-20, 0, 127) = 0.
-- [ ] T039 [US2] Verify `kArpTransposeId` participation in the transposition formula (FR-021a): confirm `transposeParam` is read from `arpParams_` and added in `fireStep` in Sequencer mode. If the existing global transpose read in `fireStep` bypasses Sequencer mode, fix it.
-- [ ] T040 [US2] Verify pitch lane offset participates in the formula (FR-021): confirm `pitchLaneOffset = pitchLane_.currentValue()` is added after the transposed base pitch in Sequencer mode's emission path. The formula must be `finalPitch = programmedPitch + (heldRoot-60) + kArpTranspose + pitchLaneOffset` before output scale quantize.
+- [X] T038 [US2] Verify `fireStep` transposition formula in `dsp/include/krate/dsp/processors/arpeggiator_core.h` covers all FR-018 edge cases: fallback to 60 when `heldNotes_.empty()`; fallback to `byInsertOrder().back()` when multiple notes held; correct `clamp(transposedPitch, 0, 127)` per FR-024; velocity fallback to 100 when buffer empty (FR-025a). Make corrections as needed. Add TEST_CASE "FR-024 out-of-range pitch is clamped to [0,127]" to `source_mode_transpose_test.cpp`: program pitch 110, hold note 30 (transpose -30), assert emitted note = 80 (not clamped); program pitch 110, hold note 60 (no transpose), add pitch lane +24, assert final = clamp(110+0+0+24, 0, 127) = 127; program pitch 5, hold note 40 (transpose -20), assert emitted = clamp(5-20, 0, 127) = 0.
+- [X] T039 [US2] Verify `kArpTransposeId` participation in the transposition formula (FR-021a): confirm `transposeParam` is read from `arpParams_` and added in `fireStep` in Sequencer mode. If the existing global transpose read in `fireStep` bypasses Sequencer mode, fix it.
+- [X] T040 [US2] Verify pitch lane offset participates in the formula (FR-021): confirm `pitchLaneOffset = pitchLane_.currentValue()` is added after the transposed base pitch in Sequencer mode's emission path. The formula must be `finalPitch = programmedPitch + (heldRoot-60) + kArpTranspose + pitchLaneOffset` before output scale quantize.
 
 ### 4.3 Build and Verify
 
-- [ ] T041 [US2] Build: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target gradus_tests`
-- [ ] T042 [US2] Verify all US2 tests pass (T037 test cases); verify SC-003 (exact semitone offset for 12 root notes) and SC-010 (root updates within one audio block)
+- [X] T041 [US2] Build: `"C:/Program Files/CMake/bin/cmake.exe" --build build/windows-x64-release --config Release --target gradus_tests`
+- [X] T042 [US2] Verify all US2 tests pass (T037 test cases); verify SC-003 (exact semitone offset for 12 root notes) and SC-010 (root updates within one audio block)
 
 ### 4.4 Cross-Platform Verification
 
-- [ ] T043 [US2] Check `plugins/gradus/tests/CMakeLists.txt`: add `source_mode_transpose_test.cpp` to `-fno-fast-math` list if it uses any IEEE 754 functions
+- [X] T043 [US2] Check `plugins/gradus/tests/CMakeLists.txt`: add `source_mode_transpose_test.cpp` to `-fno-fast-math` list if it uses any IEEE 754 functions — verified the new test file does not use `std::isnan`/`std::isfinite`/`std::isinf`, so no CMake change required.
 
 ### 4.5 Commit
 
-- [ ] T044 [US2] **Commit Phase 4 (held-note transpose semantics)**: stage `dsp/include/krate/dsp/processors/arpeggiator_core.h`, `plugins/gradus/tests/unit/processor/source_mode_transpose_test.cpp`, `plugins/gradus/tests/CMakeLists.txt`
+- [X] T044 [US2] **Commit Phase 4 (held-note transpose semantics)**: stage `dsp/include/krate/dsp/processors/arpeggiator_core.h`, `plugins/gradus/tests/unit/processor/source_mode_transpose_test.cpp`, `plugins/gradus/tests/CMakeLists.txt`
 
 **Checkpoint**: User Story 2 complete. Transposition via held notes verified for all SC-003 and SC-010 criteria.
 

@@ -29,6 +29,9 @@ add_executable(gradus_tests
     unit/processor/sequencer_rests_advance_test.cpp
     unit/processor/live_mode_byte_identical_test.cpp
 
+    # Held-note transposition semantics tests (spec 142, Phase 4, US2)
+    unit/processor/source_mode_transpose_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
