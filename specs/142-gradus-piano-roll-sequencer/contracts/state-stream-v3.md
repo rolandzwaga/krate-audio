@@ -97,7 +97,7 @@ Written immediately after the MIDI delay lane (item 24 above), in this order:
    - `seqNoteLaneSpeed = 1.0`
    - `seqNoteLaneSwing = 0.0`
    - `seqNoteLaneJitter = 0`
-   - `seqNoteLaneSpeedCurveDepth = 0.5`
+   - `seqNoteLaneSpeedCurveDepth = 0.0`
 5. Result: Gradus runs in Live mode with an empty (all-rest) Sequencer pattern.
 6. **MIDI output MUST be byte-identical** to pre-feature Gradus for any held-note
    input over a 60-second test sequence (SC-004, FR-039b).

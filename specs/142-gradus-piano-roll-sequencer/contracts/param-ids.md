@@ -35,7 +35,7 @@ types, ranges, defaults, and binding requirements.
 | 3807 | `kArpSequencerNoteLaneSpeedId` | Discrete (snapped to `kLaneSpeedValues`) | 0.25x..4.0x | 1.0x | No | Yes | Per-lane speed multiplier |
 | 3808 | `kArpSequencerNoteLaneSwingId` | Range | 0..75 (%) | 0 | No | Yes | Per-lane swing |
 | 3809 | `kArpSequencerNoteLaneJitterId` | Range | 0..4 (steps) | 0 | No | Yes | Per-lane length jitter |
-| 3810 | `kArpSequencerNoteLaneSpeedCurveDepthId` | Range | 0..1 | 0.5 | No | Yes | Per-lane speed curve depth |
+| 3810 | `kArpSequencerNoteLaneSpeedCurveDepthId` | Range | 0..1 | 0.0 | No | Yes | Per-lane speed curve depth (default 0 = curve off; users opt in by raising) |
 | 3811 | `kArpSequencerNoteLanePlayheadId` | Range | 0..1 (normalized) | 0 | Yes | **No** | Output-only (audio → UI) |
 
 End of block: `kArpSequencerNoteLaneEndId = 3811`.

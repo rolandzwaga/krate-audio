@@ -1597,11 +1597,14 @@ inline void registerSequencerNoteLaneParams(
 
     // Playhead (3811): hidden, output-only. Driven by processor; UI reads it
     // to render the playhead cursor on the piano roll. NOT persisted —
-    // saveSequencerNoteLaneParams skips it.
+    // saveSequencerNoteLaneParams skips it. Flags per contract param-ids.md
+    // requirement 7 (kCanAutomate) and task T011 (kCanAutomate | kIsHidden):
+    // automation-flagged so the host can deliver the processor-driven value
+    // back to the UI via the standard parameter-change pipeline.
     auto* seqPlayhead = new RangeParameter(
         STR16("Seq Note Playhead"), kArpSequencerNoteLanePlayheadId,
         STR16(""), 0.0, 1.0, 0.0, 0,
-        ParameterInfo::kIsHidden | ParameterInfo::kIsReadOnly);
+        ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden);
     parameters.addParameter(seqPlayhead);
 }
 

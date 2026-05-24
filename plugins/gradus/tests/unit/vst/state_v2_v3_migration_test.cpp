@@ -7,12 +7,17 @@
 //     all rest flags=1, modulators at defaults).
 //   * v3 round-trip preserves all 71 new fields bit-exact.
 //   * v3 setState refuses unknown future versions (version > 3 -> kResultFalse).
-//   * v2-format streams still produce byte-identical MIDI output in Live mode
-//     (regression guard for SC-004, FR-039b).
+//   * v2-format streams round-trip base arp params bit-exact through the v3
+//     state stream — the state-stream side of SC-004 / FR-039b.
 //
-// The byte-identical-MIDI assertion is exercised in a separate Phase 3 test
-// (`live_mode_byte_identical_test.cpp`). This file owns the state-stream side
-// of the contract only — Phase 2 scope.
+// SCOPE SPLIT (intentional):
+//   The byte-identical-MIDI assertion required by SC-004 / FR-039b is NOT
+//   exercised in this file. It lives in the Phase 3 test
+//   `plugins/gradus/tests/unit/processor/live_mode_byte_identical_test.cpp`
+//   (task T025), which can only run once lane 10 (Sequencer Note) is wired
+//   into the audio path. Phase 2 owns the state-stream contract; Phase 3
+//   owns the audio-thread regression. Together they cover SC-004 / FR-039b
+//   end-to-end.
 // ==============================================================================
 
 #include <catch2/catch_test_macros.hpp>
@@ -253,11 +258,19 @@ TEST_CASE("v3 round-trip preserves all sequencer fields",
 }
 
 // =============================================================================
-// SC-004 / FR-039b: v2-stream Live mode produces byte-identical state
-// (state-side check; full MIDI byte-identical is Phase 3's live_mode test)
+// SC-004 / FR-039b: v2-stream round-trips base arp params through v3 state
+//
+// This test is the STATE-STREAM half of the SC-004 / FR-039b backward-compat
+// contract: a v2-formatted state stream, when loaded by v3 setState and then
+// re-emitted via getState, preserves every base arp param bit-exact. It does
+// NOT exercise the audio path — the byte-identical MIDI assertion (SC-004 in
+// its strict form) lives in the Phase 3 test
+// `plugins/gradus/tests/unit/processor/live_mode_byte_identical_test.cpp`
+// (task T025). The scope split is intentional: Phase 2 owns the state-stream
+// contract; Phase 3 owns the audio-thread regression once lane 10 is wired in.
 // =============================================================================
 
-TEST_CASE("v2-stream Live mode preserves base arp params byte-identical",
+TEST_CASE("v2-stream Live mode preserves base arp params",
           "[gradus][vst][state][migration][sc004]")
 {
     // Load the heavy_lanes v2 fixture which exercises all modulator lanes.
