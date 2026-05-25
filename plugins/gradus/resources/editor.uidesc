@@ -736,50 +736,56 @@
               background-color="bg" class="CViewContainer"
               transparent="false">
 
-        <!-- Modulator header strip (660x40) -->
+        <!-- Modulator header strip (660x40). Steps + Speed are dropdowns to  -->
+        <!-- match the other lanes' Steps/Speed selectors; Swing/Jitter/Curve -->
+        <!-- stay as ArcKnobs since they're continuous values.                -->
+        <!-- The Length param stays a RangeParameter (1..32); the controller  -->
+        <!-- populates the Length COptionMenu with 32 numeric entries in      -->
+        <!-- verifyView so it renders as a proper dropdown without changing   -->
+        <!-- the underlying param type (which would break host caches).       -->
         <view class="CViewContainer" origin="0, 0" size="660, 40"
               transparent="true">
-            <!-- Length -->
+            <!-- Steps -->
             <view class="CTextLabel" origin="10, 4" size="56, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
-                  text-alignment="center" transparent="true" title="LENGTH"/>
-            <view class="ArcKnob" origin="24, 14" size="32, 24"
+                  text-alignment="center" transparent="true" title="STEPS"/>
+            <view class="COptionMenu" origin="14, 16" size="48, 18"
                   control-tag="ArpSequencerNoteLaneLength" default-value="0.484"
-                  arc-color="arpeggiator" guide-color="knob-guide"
-                  popup-position="top"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Sequencer Note lane length (1-32 steps)"/>
             <!-- Speed -->
-            <view class="CTextLabel" origin="80, 4" size="56, 10"
+            <view class="CTextLabel" origin="80, 4" size="64, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="SPEED"/>
-            <view class="ArcKnob" origin="94, 14" size="32, 24"
+            <view class="COptionMenu" origin="84, 16" size="56, 18"
                   control-tag="ArpSequencerNoteLaneSpeed" default-value="0.333"
-                  arc-color="arpeggiator" guide-color="knob-guide"
-                  popup-position="top"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
                   tooltip="Sequencer Note lane speed multiplier"/>
             <!-- Swing -->
-            <view class="CTextLabel" origin="150, 4" size="56, 10"
+            <view class="CTextLabel" origin="160, 4" size="56, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="SWING"/>
-            <view class="ArcKnob" origin="164, 14" size="32, 24"
+            <view class="ArcKnob" origin="174, 14" size="32, 24"
                   control-tag="ArpSequencerNoteLaneSwing" default-value="0"
                   arc-color="arpeggiator" guide-color="knob-guide"
                   popup-position="top"
                   tooltip="Sequencer Note lane swing (0-75%)"/>
             <!-- Jitter -->
-            <view class="CTextLabel" origin="220, 4" size="56, 10"
+            <view class="CTextLabel" origin="230, 4" size="56, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="JITTER"/>
-            <view class="ArcKnob" origin="234, 14" size="32, 24"
+            <view class="ArcKnob" origin="244, 14" size="32, 24"
                   control-tag="ArpSequencerNoteLaneJitter" default-value="0"
                   arc-color="arpeggiator" guide-color="knob-guide"
                   popup-position="top"
                   tooltip="Sequencer Note lane length jitter (0-4 steps)"/>
             <!-- Speed Curve Depth -->
-            <view class="CTextLabel" origin="290, 4" size="56, 10"
+            <view class="CTextLabel" origin="300, 4" size="56, 10"
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="center" transparent="true" title="CURVE"/>
-            <view class="ArcKnob" origin="304, 14" size="32, 24"
+            <view class="ArcKnob" origin="314, 14" size="32, 24"
                   control-tag="ArpSequencerNoteLaneSpeedCurveDepth" default-value="0.5"
                   arc-color="arpeggiator" guide-color="knob-guide"
                   popup-position="top"
