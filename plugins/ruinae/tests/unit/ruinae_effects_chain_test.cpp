@@ -167,7 +167,9 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
           "[systems][ruinae_effects_chain][US1]") {
     // SC-004: Default state output within -120 dBFS of input
     // Strategy: impulse-based sample-level verification.
-    // The compensation delay uses integer-read DelayLine (sample-perfect).
+    // The dry portion of the mix bypasses the latency compensation delay, so
+    // at mix=0 the dry impulse appears at sample 0, not at the comp-delay
+    // offset.
     RuinaeEffectsChain chain;
     prepareChain(chain);
     chain.setDelayEnabled(true);
@@ -179,15 +181,14 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
     chain.setReverbParams(reverbParams);
     chain.setPhaserEnabled(false);
 
-    // Let the DigitalDelay mix smoother settle to 0.0
-    // (default mix may be non-zero; smoother needs ~882 samples at 20ms)
+    // Settle any smoothers with silence
     for (int b = 0; b < 4; ++b) {
         std::vector<float> tempL(kBlockSize, 0.0f);
         std::vector<float> tempR(kBlockSize, 0.0f);
         chain.processBlock(tempL.data(), tempR.data(), kBlockSize);
     }
 
-    // Process an impulse - buffer must be larger than latency
+    // Process an impulse
     constexpr size_t kLen = 8192;
     std::vector<float> left(kLen, 0.0f);
     std::vector<float> right(kLen, 0.0f);
@@ -196,19 +197,14 @@ TEST_CASE("RuinaeEffectsChain FR-006: dry pass-through at default settings",
 
     chain.processBlock(left.data(), right.data(), kLen);
 
-    // Compensation delay is 6144 samples (spectral FFT 1024 + harmonizer PV 5120)
-    const size_t latency = chain.getLatencySamples();
-    REQUIRE(latency == 6144);
-
-    // The impulse should appear at exactly the latency offset
-    INFO("Output at latency (" << latency << "): " << left[latency]);
-    REQUIRE(left[latency] == Approx(1.0f).margin(1e-6f));
-    REQUIRE(right[latency] == Approx(1.0f).margin(1e-6f));
+    // The dry impulse must appear at sample 0 (immediate pass-through).
+    INFO("Output at sample 0: " << left[0]);
+    REQUIRE(left[0] == Approx(1.0f).margin(1e-6f));
+    REQUIRE(right[0] == Approx(1.0f).margin(1e-6f));
 
     // All other samples should be near-silent (-120 dBFS = 1e-6 linear)
     float maxDeviation = 0.0f;
-    for (size_t i = 0; i < kLen; ++i) {
-        if (i == latency) continue;
+    for (size_t i = 1; i < kLen; ++i) {
         maxDeviation = std::max(maxDeviation, std::abs(left[i]));
     }
     float deviationDb = linearToDbFS(maxDeviation);
@@ -1088,21 +1084,33 @@ TEST_CASE("RuinaeEffectsChain FR-027: latency constant across delay type switche
     }
 }
 
-TEST_CASE("RuinaeEffectsChain latency compensation for non-spectral delays",
+TEST_CASE("RuinaeEffectsChain dry/wet timing: dry immediate, wet after comp delay",
           "[systems][ruinae_effects_chain]") {
-    // Verify compensation delays are applied to non-spectral types
+    // With the dry/wet mix performed externally, an impulse at mix=0.5 must
+    // produce: a dry peak at sample 0 (immediate) and wet energy at
+    // comp_delay + delay_time.
     RuinaeEffectsChain chain;
     prepareChain(chain);
     chain.setDelayEnabled(true);
-
-    chain.setDelayMix(0.0f);  // Dry only to test compensation delay
+    chain.setDelayMix(0.5f);
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(50.0f);
+    chain.setDelayType(RuinaeDelayType::Digital);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
     ReverbParams reverbParams;
     reverbParams.mix = 0.0f;
     chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
 
-    // Process an impulse through Digital (has compensation)
-    // Buffer must be larger than latency (6144) to find the impulse
-    constexpr size_t kLen = 8192;
+    // Settle smoothers
+    for (int b = 0; b < 4; ++b) {
+        std::vector<float> tempL(kBlockSize, 0.0f);
+        std::vector<float> tempR(kBlockSize, 0.0f);
+        chain.processBlock(tempL.data(), tempR.data(), kBlockSize);
+    }
+
+    constexpr size_t kLen = 16384;
     std::vector<float> left(kLen, 0.0f);
     std::vector<float> right(kLen, 0.0f);
     left[0] = 1.0f;
@@ -1110,23 +1118,72 @@ TEST_CASE("RuinaeEffectsChain latency compensation for non-spectral delays",
 
     chain.processBlock(left.data(), right.data(), kLen);
 
-    // Find the impulse position in output
-    size_t latency = chain.getLatencySamples();
-    float peakVal = 0.0f;
-    size_t peakPos = 0;
-    for (size_t i = 0; i < kLen; ++i) {
-        if (std::abs(left[i]) > peakVal) {
-            peakVal = std::abs(left[i]);
-            peakPos = i;
+    // Dry must appear at sample 0 with amplitude ~0.5 (1-mix)
+    REQUIRE(std::abs(left[0]) == Approx(0.5f).margin(0.05f));
+
+    // Wet energy should appear near comp_delay + delay_time.
+    const size_t latency = chain.getLatencySamples();
+    const size_t wetExpected = latency + static_cast<size_t>(50.0 * kSampleRate / 1000.0);
+    float wetPeak = 0.0f;
+    for (size_t i = wetExpected - 256; i < wetExpected + 256 && i < kLen; ++i) {
+        wetPeak = std::max(wetPeak, std::abs(left[i]));
+    }
+    INFO("Wet peak near sample " << wetExpected << ": " << wetPeak);
+    REQUIRE(wetPeak > 0.05f);
+}
+
+// Regression: when the delay slot is enabled, the dry portion of the dry/wet
+// mix must NOT be delayed by the latency-compensation delay. Previously the
+// chain applied compensation to the delay processor's already-mixed output,
+// pushing the dry signal back by ~6144 samples (~140 ms at 44.1 kHz) regardless
+// of the user's mix value. With mix=0.2 (mostly dry) the synth attack was
+// audibly late after the MIDI note.
+TEST_CASE("RuinaeEffectsChain dry signal not delayed by comp delay (regression)",
+          "[systems][ruinae_effects_chain]") {
+    RuinaeEffectsChain chain;
+    prepareChain(chain);
+    chain.setDelayEnabled(true);
+    chain.setDelayMix(0.2f);          // 80% dry / 20% wet
+    chain.setDelayFeedback(0.0f);
+    chain.setDelayTime(500.0f);       // Long delay so wet tail is far from dry
+    chain.setDelayType(RuinaeDelayType::Digital);
+
+    ReverbParams reverbParams;
+    reverbParams.mix = 0.0f;
+    chain.setReverbParams(reverbParams);
+    chain.setReverbEnabled(false);
+    chain.setModulationType(ModulationType::None);
+    chain.setHarmonizerEnabled(false);
+
+    // Let smoothers settle so the mix snaps to the requested values
+    for (int b = 0; b < 4; ++b) {
+        std::vector<float> tempL(kBlockSize, 0.0f);
+        std::vector<float> tempR(kBlockSize, 0.0f);
+        chain.processBlock(tempL.data(), tempR.data(), kBlockSize);
+    }
+
+    constexpr size_t kLen = 4096;
+    std::vector<float> left(kLen, 0.0f);
+    std::vector<float> right(kLen, 0.0f);
+    left[0] = 1.0f;
+    right[0] = 1.0f;
+
+    chain.processBlock(left.data(), right.data(), kLen);
+
+    // The dry portion (0.8 of input) must appear at or very near sample 0,
+    // not at the comp-delay offset (~6144 samples).
+    float earlyPeakL = 0.0f;
+    size_t earlyPeakPos = 0;
+    for (size_t i = 0; i < 64; ++i) {
+        if (std::abs(left[i]) > earlyPeakL) {
+            earlyPeakL = std::abs(left[i]);
+            earlyPeakPos = i;
         }
     }
 
-    INFO("Peak at sample " << peakPos << " (expected near " << latency << ")");
-    // Peak should be approximately at the latency offset
-    if (peakVal > 0.01f) {
-        REQUIRE(peakPos >= latency - 2);
-        REQUIRE(peakPos <= latency + 2);
-    }
+    INFO("Early peak L: " << earlyPeakL << " at sample " << earlyPeakPos);
+    REQUIRE(earlyPeakL == Approx(0.8f).margin(0.05f));
+    REQUIRE(earlyPeakPos <= 2);
 }
 
 // =============================================================================
