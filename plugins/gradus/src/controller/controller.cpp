@@ -19,6 +19,7 @@
 #include "../ui/detail_strip.h"
 #include "../ui/speed_curve_editor.h"
 #include "../ui/speed_curve_data.h"
+#include "../ui/piano_roll_view.h"
 
 #include "controller_state_helpers.h"
 #include "vstgui/lib/controls/ccontrol.h"
@@ -43,6 +44,9 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
 
     // Register all arpeggiator parameters (shared IDs with Ruinae)
     registerArpParams(parameters);
+
+    // Register Sequencer Note lane parameters (spec 142, Gradus-only)
+    registerSequencerNoteLaneParams(parameters);
 
     // Audition sound parameters
     parameters.addParameter(STR16("Audition Enabled"), nullptr, 1,
@@ -279,6 +283,16 @@ VSTGUI::CView* Controller::createCustomView(
         return strip;
     }
 
+    // Spec 142: Piano-roll custom view for the Sequencer Note lane.
+    // Hosted inside a UIViewSwitchContainer (PianoRollContent template);
+    // recreated each time the user switches Source = Sequencer, so the
+    // controller's pianoRollView_ pointer is recaptured per swap.
+    if (viewName == "PianoRollView") {
+        auto* prv = new PianoRollView(viewRect, this);
+        pianoRollView_ = prv;
+        return prv;
+    }
+
     return nullptr;
 }
 
@@ -380,6 +394,10 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     rangeModeMenu_ = nullptr;
     pinFlagStrip_ = nullptr;
     markovEditor_ = nullptr;
+    // Spec 142: piano-roll view is VSTGUI-owned via the UIViewSwitchContainer
+    // template. We only drop the cache pointer here — the view is torn down
+    // by the frame.
+    pianoRollView_ = nullptr;
     // Speed curve views are owned by the frame — remove before nulling
     if (auto* frame = editor->getFrame()) {
         for (auto*& sce : speedCurveEditors_) {
@@ -422,6 +440,40 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 }
 
 // ==============================================================================
+// Spec 142: Sequencer Note Lane param IMessage Sending
+// ==============================================================================
+// Belt-and-suspenders: some hosts don't relay programmatically-driven UI
+// param changes (PianoRollView cell clicks, COptionMenu selections in the
+// header strip) through the host's parameter queue to the Processor's
+// processParameterChanges. The Controller's parameter cache is updated and
+// the UI looks correct, but the Processor's atomics stay stale — so on
+// project save, getState writes the old values. By sending an IMessage
+// directly from Controller to Processor on every Sequencer Note lane param
+// change, the Processor's atomics are guaranteed to track the UI state
+// regardless of host behavior. Same workaround pattern as sendSpeedCurveTable.
+
+void Controller::sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
+                                       Steinberg::Vst::ParamValue value)
+{
+    auto msg = Steinberg::owned(allocateMessage());
+    if (!msg) return;
+
+    msg->setMessageID("SeqNoteLaneParam");
+    auto* attrs = msg->getAttributes();
+    if (!attrs) return;
+
+    attrs->setInt("id", static_cast<Steinberg::int64>(id));
+
+    // IAttributeList has no setFloat — encode normalized value (double) as
+    // raw bits in an int64. Processor decodes via the inverse cast.
+    Steinberg::int64 valueBits = 0;
+    std::memcpy(&valueBits, &value, sizeof(Steinberg::Vst::ParamValue));
+    attrs->setInt("valueBits", valueBits);
+
+    sendMessage(msg);
+}
+
+// ==============================================================================
 // Speed Curve IMessage Sending
 // ==============================================================================
 
@@ -459,8 +511,9 @@ void Controller::sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& dat
     {
         // Format: presetIndex(int32) + numPoints(int32) + points(6 floats each)
         auto numPoints = static_cast<Steinberg::int32>(data.points.size());
-        Steinberg::uint32 curveSize = 2 * sizeof(Steinberg::int32)
-            + static_cast<Steinberg::uint32>(numPoints) * 6 * sizeof(float);
+        const size_t curveSizeBytes = 2 * sizeof(Steinberg::int32)
+            + static_cast<size_t>(numPoints) * 6 * sizeof(float);
+        auto curveSize = static_cast<Steinberg::uint32>(curveSizeBytes);
         std::vector<char> curveBlob(curveSize);
         Steinberg::uint32 offset = 0;
 

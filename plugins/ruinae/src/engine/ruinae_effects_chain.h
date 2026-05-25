@@ -30,6 +30,7 @@
 #include <krate/dsp/effects/spectral_delay.h>
 #include <krate/dsp/effects/tape_delay.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/chorus.h>
 #include <krate/dsp/processors/flanger.h>
 #include <krate/dsp/processors/phaser.h>
@@ -199,10 +200,25 @@ public:
         tempR_.resize(maxBlockSize, 0.0f);
         crossfadeOutL_.resize(maxBlockSize, 0.0f);
         crossfadeOutR_.resize(maxBlockSize, 0.0f);
+        delayDryL_.resize(maxBlockSize, 0.0f);
+        delayDryR_.resize(maxBlockSize, 0.0f);
 
         // Allocate reverb crossfade temp buffers (125-dual-reverb)
         reverbCrossfadeTempL_.resize(maxBlockSize, 0.0f);
         reverbCrossfadeTempR_.resize(maxBlockSize, 0.0f);
+
+        // Force each delay processor's internal mix to 100% wet. The chain
+        // performs the dry/wet mix externally so that the latency-compensation
+        // delay only delays the wet signal, not the dry signal.
+        digitalDelay_.setMix(1.0f);
+        tapeDelay_.setMix(1.0f);
+        pingPongDelay_.setMix(1.0f);
+        granularDelay_.setDryWet(1.0f);
+        spectralDelay_.setDryWetMix(1.0f);
+
+        // Configure the external dry/wet smoother so parameter changes don't click.
+        userDelayMixSmoother_.configure(20.0f, static_cast<float>(sampleRate));
+        userDelayMixSmoother_.snapTo(userDelayMix_);
 
         // Snap parameters on all delays to avoid initial smoothing artifacts
         digitalDelay_.snapParameters();
@@ -267,6 +283,7 @@ public:
         digitalDelay_.snapParameters();
         pingPongDelay_.snapParameters();
         spectralDelay_.snapParameters();
+        userDelayMixSmoother_.snapTo(userDelayMix_);
     }
 
     // =========================================================================
@@ -444,13 +461,13 @@ public:
     }
 
     /// @brief Set delay dry/wet mix (FR-015).
-    /// Forwarded to all delay types using correct per-type API.
+    /// The mix is applied EXTERNALLY by the chain (after latency compensation
+    /// of the wet path) so that the dry signal is not delayed by the
+    /// compensation delay. The per-type delay processors always run at 100% wet.
+    /// A short smoother prevents zipper noise when the mix value changes.
     void setDelayMix(float mix) noexcept {
-        digitalDelay_.setMix(mix);
-        tapeDelay_.setMix(mix);
-        pingPongDelay_.setMix(mix);
-        granularDelay_.setDryWet(mix);          // Different name!
-        spectralDelay_.setDryWetMix(mix);       // 0-1 normalized
+        userDelayMix_ = std::clamp(mix, 0.0f, 1.0f);
+        userDelayMixSmoother_.setTarget(userDelayMix_);
     }
 
     /// @brief Set tempo for synced delay modes (FR-016).
@@ -780,10 +797,20 @@ private:
 
         // ---------------------------------------------------------------
         // Slot 1: Delay (FR-005) with crossfade (FR-010)
+        //
+        // The delay processors run at 100% wet. We save the dry input here
+        // and mix it back with the wet (and comp-delayed) output below so
+        // that the dry signal is NOT affected by the latency compensation
+        // delay -- otherwise the dry portion of the user's mix would be
+        // pushed back by ~6144 samples (~140 ms), which is audible as a
+        // late synth onset relative to MIDI input.
         // ---------------------------------------------------------------
         if (!delayEnabled_) {
             // Skip delay processing entirely
         } else if (preWarming_) {
+            // Save dry input before any delay processing for external mix.
+            std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
             // Pre-warm phase: feed audio to incoming delay so its buffer
             // fills before the crossfade begins (eliminates delay-line-fill
             // artifact). Active delay produces output normally; incoming
@@ -830,6 +857,10 @@ private:
                 preWarmRemaining_ -= numSamples;
             }
         } else if (crossfading_) {
+            // Save dry input before any delay processing for external mix.
+            std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
+
             const bool outIsSpectral =
                 (activeDelayType_ == RuinaeDelayType::Spectral);
             const bool inIsSpectral =
@@ -884,12 +915,29 @@ private:
                 applyCompensation(left, right, numSamples);
             }
         } else {
+            // Save dry input before any delay processing for external mix.
+            std::memcpy(delayDryL_.data(), left, numSamples * sizeof(float));
+            std::memcpy(delayDryR_.data(), right, numSamples * sizeof(float));
+
             // Normal processing: active delay only
             processDelayTypeRaw(activeDelayType_, left, right, numSamples, ctx);
             if (activeDelayType_ != RuinaeDelayType::Spectral) {
                 applyCompensation(left, right, numSamples);
             } else {
                 warmBothCompDelays(left, right, numSamples);
+            }
+        }
+
+        // External dry/wet mix for the delay slot. left/right currently hold
+        // the 100%-wet (and latency-compensated) delay output; delayDryL_/R_
+        // hold the dry input captured before delay processing. Smoothed
+        // per-sample to avoid zipper noise on mix changes.
+        if (delayEnabled_) {
+            for (size_t i = 0; i < numSamples; ++i) {
+                const float wetGain = userDelayMixSmoother_.process();
+                const float dryGain = 1.0f - wetGain;
+                left[i]  = dryGain * delayDryL_[i] + wetGain * left[i];
+                right[i] = dryGain * delayDryR_[i] + wetGain * right[i];
             }
         }
 
@@ -1342,6 +1390,14 @@ private:
     std::vector<float> tempR_;
     std::vector<float> crossfadeOutL_;
     std::vector<float> crossfadeOutR_;
+
+    // Dry input captured before delay processing, used to perform the
+    // dry/wet mix externally so the dry signal bypasses the latency
+    // compensation delay.
+    std::vector<float> delayDryL_;
+    std::vector<float> delayDryR_;
+    float userDelayMix_ = 1.0f;
+    OnePoleSmoother userDelayMixSmoother_;
 };
 
 } // namespace Krate::DSP

@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include "controller.h"
+#include "source_mode_disable_list.h"
 #include "../plugin_ids.h"
 #include "../parameters/arpeggiator_params.h"
 #include "../parameters/dropdown_mappings.h"
@@ -25,8 +26,15 @@
 #include "ui/arp_chord_lane.h"
 #include "ui/arp_inversion_lane.h"
 
+#include "vstgui/lib/cframe.h"
+#include "vstgui/lib/cviewcontainer.h"
+#include "vstgui/lib/controls/ccontrol.h"
+#include "vstgui/plugin-bindings/vst3editor.h"
+
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <utility>
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -43,6 +51,14 @@ tresult PLUGIN_API Controller::setParamNormalized(
     ParamID tag, ParamValue value)
 {
     tresult result = EditControllerEx1::setParamNormalized(tag, value);
+
+    // Spec 142: forward Sequencer Note lane param changes to the Processor
+    // via IMessage. See controller.h sendSeqNoteLaneParam declaration for why
+    // we can't rely on the host's parameter queue alone. Skip the read-only
+    // playhead (3811) since the Processor writes it, not the Controller.
+    if (tag >= kArpSourceModeId && tag < kArpSequencerNoteLanePlayheadId) {
+        sendSeqNoteLaneParam(tag, value);
+    }
 
     // --- Classify parameter into dirty categories ---
 
@@ -109,6 +125,22 @@ tresult PLUGIN_API Controller::setParamNormalized(
     else if (tag == kArpEuclideanEnabledId || tag == kArpEuclideanHitsId ||
              tag == kArpEuclideanStepsId || tag == kArpEuclideanRotationId)
         viewDirtyFlags_.fetch_or(kDirtyEuclidean, std::memory_order_relaxed);
+
+    // Spec 142: Sequencer mode source toggle (FR-027 visibility,
+    // FR-036 disabled controls). Set BOTH dirty bits so the source-mode
+    // handler runs AND any sequencer-lane refresh logic also fires.
+    else if (tag == kArpSourceModeId)
+        viewDirtyFlags_.fetch_or(
+            kDirtyArpSourceMode | kDirtySequencerNoteLane,
+            std::memory_order_relaxed);
+
+    // Spec 142: Sequencer Note lane params (pitches 3743-3774, rests 3775-3806,
+    // length 3742, modulators 3807-3810, playhead 3811). Piano-roll view
+    // picks these up via its own IDependent on each param, but flagging the
+    // generic dirty bit lets future controller-side helpers (e.g., audition
+    // ring overlays) hook in cheaply.
+    else if (tag >= kArpSequencerNoteLaneLengthId && tag <= kArpSequencerNoteLaneEndId)
+        viewDirtyFlags_.fetch_or(kDirtySequencerNoteLane, std::memory_order_relaxed);
 
     // Generic arp range → ring invalidation
     else if (tag >= 3001 && tag <= 3400)
@@ -283,7 +315,7 @@ void Controller::syncViewsFromParams()
     if (flags & kDirtyMarkov) {
         if (markovEditor_) {
             // Sync all cell values
-            for (int i = 0; i < static_cast<int>(Krate::DSP::kMarkovMatrixSize); ++i) {
+            for (int i = 0; std::cmp_less(i, Krate::DSP::kMarkovMatrixSize); ++i) {
                 auto v = static_cast<float>(paramNorm(
                     static_cast<ParamID>(kArpMarkovCell00Id + i)));
                 markovEditor_->setCellValueFlat(i, v);
@@ -303,15 +335,15 @@ void Controller::syncViewsFromParams()
             int laneIndex;
         };
         const PlayheadEntry entries[] = {
-            {kArpVelocityPlayheadId,  velocityLane_,  0},
-            {kArpGatePlayheadId,      gateLane_,      1},
-            {kArpPitchPlayheadId,     pitchLane_,     2},
-            {kArpModifierPlayheadId,  modifierLane_,  3},
-            {kArpConditionPlayheadId, conditionLane_, 4},
-            {kArpRatchetPlayheadId,   ratchetLane_,   5},
-            {kArpChordPlayheadId,     chordLane_,     6},
-            {kArpInversionPlayheadId, inversionLane_, 7},
-            {kArpMidiDelayPlayheadId, midiDelayLane_, 8},
+            {.id = kArpVelocityPlayheadId,  .lane = velocityLane_,  .laneIndex = 0},
+            {.id = kArpGatePlayheadId,      .lane = gateLane_,      .laneIndex = 1},
+            {.id = kArpPitchPlayheadId,     .lane = pitchLane_,     .laneIndex = 2},
+            {.id = kArpModifierPlayheadId,  .lane = modifierLane_,  .laneIndex = 3},
+            {.id = kArpConditionPlayheadId, .lane = conditionLane_, .laneIndex = 4},
+            {.id = kArpRatchetPlayheadId,   .lane = ratchetLane_,   .laneIndex = 5},
+            {.id = kArpChordPlayheadId,     .lane = chordLane_,     .laneIndex = 6},
+            {.id = kArpInversionPlayheadId, .lane = inversionLane_, .laneIndex = 7},
+            {.id = kArpMidiDelayPlayheadId, .lane = midiDelayLane_, .laneIndex = 8},
         };
         for (const auto& e : entries) {
             double val = paramNorm(e.id);
@@ -411,19 +443,78 @@ void Controller::syncViewsFromParams()
                 MidiDelayLaneEditor::KnobRow row;
             };
             const DelayRow rows[] = {
-                {kArpMidiDelayActiveStep0Id,     MidiDelayLaneEditor::KnobRow::kActive},
-                {kArpMidiDelayTimeModeStep0Id,  MidiDelayLaneEditor::KnobRow::kTimeMode},
-                {kArpMidiDelayTimeStep0Id,       MidiDelayLaneEditor::KnobRow::kDelayTime},
-                {kArpMidiDelayFeedbackStep0Id,   MidiDelayLaneEditor::KnobRow::kFeedback},
-                {kArpMidiDelayVelDecayStep0Id,   MidiDelayLaneEditor::KnobRow::kVelDecay},
-                {kArpMidiDelayPitchShiftStep0Id, MidiDelayLaneEditor::KnobRow::kPitchShift},
-                {kArpMidiDelayGateScaleStep0Id,  MidiDelayLaneEditor::KnobRow::kGateScale},
+                {.baseId = kArpMidiDelayActiveStep0Id,     .row = MidiDelayLaneEditor::KnobRow::kActive},
+                {.baseId = kArpMidiDelayTimeModeStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kTimeMode},
+                {.baseId = kArpMidiDelayTimeStep0Id,       .row = MidiDelayLaneEditor::KnobRow::kDelayTime},
+                {.baseId = kArpMidiDelayFeedbackStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kFeedback},
+                {.baseId = kArpMidiDelayVelDecayStep0Id,   .row = MidiDelayLaneEditor::KnobRow::kVelDecay},
+                {.baseId = kArpMidiDelayPitchShiftStep0Id, .row = MidiDelayLaneEditor::KnobRow::kPitchShift},
+                {.baseId = kArpMidiDelayGateScaleStep0Id,  .row = MidiDelayLaneEditor::KnobRow::kGateScale},
             };
             for (const auto& r : rows) {
                 for (int i = 0; i < 32; ++i) {
                     delayEditor->setStepValue(i, r.row, static_cast<float>(
                         paramNorm(static_cast<ParamID>(r.baseId + i))));
                 }
+            }
+        }
+    }
+
+    // --- Spec 142 FR-036: Source = Sequencer disables FR-022 controls ---
+    if ((flags & kDirtyArpSourceMode) && activeEditor_) {
+        auto* frame = activeEditor_->getFrame();
+        if (frame) {
+            const bool sequencerActive =
+                paramNorm(kArpSourceModeId) >= 0.5;
+            const float alpha = sequencerActive ? 0.4f : 1.0f;
+            const bool  enabled = !sequencerActive;
+
+            // Walk every CControl in the frame; toggle enable + alpha when
+            // the control's tag is in the disable list. We walk the tree
+            // (containers contain controls inside lane editors etc.).
+            std::function<void(VSTGUI::CViewContainer*)> walk =
+                [&](VSTGUI::CViewContainer* container) {
+                    if (!container) return;
+                    container->forEachChild([&](VSTGUI::CView* child) {
+                        if (auto* sub = dynamic_cast<VSTGUI::CViewContainer*>(child)) {
+                            walk(sub);
+                        }
+                        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(child)) {
+                            const auto tag = ctrl->getTag();
+                            if (tag >= 0 &&
+                                isSourceSequencerDisabledParam(
+                                    static_cast<uint32_t>(tag))) {
+                                ctrl->setMouseEnabled(enabled);
+                                ctrl->setAlphaValue(alpha);
+                                ctrl->invalid();
+                            }
+                        }
+                    });
+                };
+            walk(frame);
+
+            // Markov editor: hide entirely when Source = Sequencer (its 49
+            // cell params are inert per FR-022 / FR-036; the editor itself
+            // also uses ArpMode visibility, but explicit disable here is
+            // belt-and-braces so an ArpMode=Markov + Source=Sequencer
+            // combination doesn't leave the matrix interactive).
+            if (markovEditor_) {
+                if (sequencerActive) {
+                    markovEditor_->setMouseEnabled(false);
+                    markovEditor_->setAlphaValue(0.4f);
+                } else {
+                    markovEditor_->setMouseEnabled(true);
+                    markovEditor_->setAlphaValue(1.0f);
+                }
+                markovEditor_->invalid();
+            }
+
+            // Pin flag strip: same treatment (its 32 cell params are in the
+            // disable list, but the strip itself is a single CView container).
+            if (pinFlagStrip_) {
+                pinFlagStrip_->setMouseEnabled(enabled);
+                pinFlagStrip_->setAlphaValue(alpha);
+                pinFlagStrip_->invalid();
             }
         }
     }

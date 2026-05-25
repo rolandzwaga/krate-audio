@@ -5,6 +5,12 @@ All notable changes to Ruinae will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2026-05-25
+
+### Fixed
+
+- **Delay effect dry signal arriving late** — When the delay slot was enabled, the latency-compensation delay was applied to the per-type delay processor's already-mixed dry+wet output, dragging the dry portion back by ~6144 samples (~140 ms at 44.1 kHz). At low mix values (e.g. 20 %) the synth attack audibly lagged the MIDI note. Fixed by forcing each delay processor to 100 % wet internally, capturing the dry input before delay processing, and performing `(1-mix)·dry + mix·compDelayedWet` outside the delay block. Dry is now immediate; wet stays comp-aligned across delay types so cross-fades and type switches remain smooth. Includes a smoothed external mix to avoid zipper noise.
+
 ## [0.11.1] - 2026-04-08
 
 ### Fixed

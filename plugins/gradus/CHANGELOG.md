@@ -5,6 +5,24 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-05-24
+
+### Added
+
+- **Piano-Roll Sequencer mode** — A new Source dropdown (Live / Sequencer) selects whether Gradus plays held MIDI notes through its existing pattern lanes (Live, unchanged) or plays a programmable 32-step pitch pattern through the same downstream pipeline (Sequencer). When Source = Sequencer, held MIDI input transposes the pattern by `(heldNote - 60)` semitones — last-played note wins; releasing falls back to next-most-recent; no held notes = no transposition. All lane processors (Velocity, Gate, Pitch, Modifier, Ratchet, Condition, Chord, Inversion, MIDI Delay) apply identically in both modes.
+- **PianoRollView UI** — VSTGUI custom view renders the Sequencer Note lane as a 48-row × N-column grid (C2 to B5, length 1–32). Left-click places a note (locks pitch to the clicked row); right-click sets a rest; click-and-drag paints the start-pitch across columns. The playhead cursor is driven by a hidden output parameter from the audio thread. The piano roll is shown only when Source = Sequencer (via `UIViewSwitchContainer`).
+- **Sequencer Note lane (lane 10)** — A 10th lane inside `ArpeggiatorCore` carries the programmable pattern: 32 step pitches (0–127), 32 rest flags, length (1–32), and per-lane Speed/Swing/Jitter/SpeedCurveDepth modulators. The lane is **conditionally inert** in Live mode (no advance, no emission), so Live-mode MIDI output is byte-identical to v1.7.x.
+- **71 new automatable parameters** (IDs 3741–3811) — Source mode, length, 32 pitches, 32 rest flags, 4 modulators, playhead. Sequencer-mode controls that are inapplicable in the other mode (ArpMode, Octave, Markov, Euclidean, Pin Note, Range Mapping, ScaleQuantizeInput, LatchMode) are visually disabled (greyed) and audio-thread inert when Source = Sequencer.
+- **State version 3** — Preset format extended with a Sequencer Note lane appendix. v2 presets load cleanly into v3 (all rest flags default to 1, all pitches default to 60, Source defaults to Live), and their Live-mode MIDI output is verified byte-identical to v1.7.x via regression fixtures.
+
+### Fixed
+
+- **Lane-bounds audit (`ArpeggiatorCore`)** — Replaced hardcoded lane-count literals with the `kNumLanes` symbol everywhere. Fixes a pre-existing bug at `consumePendingCurveTables` (was iterating `< 8`, silently skipping lane 8's MIDI Delay curve table consume).
+
+### Changed
+
+- **`kNumLanes` bumped 9 → 10** — All per-lane storage arrays sized accordingly; retrigger reset loops iterate `< kNumLanes`. Pluginval level 5 passes with zero failures and zero warnings.
+
 ## [1.7.1] - 2026-05-22
 
 ### Fixed

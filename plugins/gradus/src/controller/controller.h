@@ -34,6 +34,7 @@ class DetailStrip;
 class PinFlagStrip;
 class MarkovMatrixEditor;
 class SpeedCurveEditor;
+class PianoRollView;
 } // namespace Gradus
 
 namespace Gradus {
@@ -90,6 +91,13 @@ public:
     void onLanePaste(int targetLaneIndex);
     void wireCopyPasteCallbacks();
 
+    // Spec 142: Sequencer Note lane (lane index 9 inside ArpeggiatorCore).
+    // The Sequencer Note lane is edited via PianoRollView; these accessors
+    // expose its per-step pitch base ID + length param ID for any future
+    // unified-lane walk that wants to include it without bumping kArpLaneCount.
+    [[nodiscard]] static uint32_t getSequencerNoteLaneStepBaseParamId() noexcept;
+    [[nodiscard]] static uint32_t getSequencerNoteLaneLengthParamId() noexcept;
+
     // Preset management
     void openPresetBrowser();
     void closePresetBrowser();
@@ -135,6 +143,8 @@ private:
         kDirtyEuclidean     = 1u << 15,
         kDirtyLaneLengths   = 1u << 16,
         kDirtyArpMode       = 1u << 17,
+        kDirtyArpSourceMode = 1u << 18,
+        kDirtySequencerNoteLane = 1u << 19,
     };
     std::atomic<uint32_t> viewDirtyFlags_{0};
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> viewSyncTimer_;
@@ -209,6 +219,12 @@ private:
     std::array<SpeedCurveData, 8> pendingSpeedCurves_{};
     bool hasPendingSpeedCurves_ = false;
 
+    // Spec 142: Piano-roll view for the Sequencer Note lane (VSTGUI-owned,
+    // nulled in willClose). The view is hosted inside a UIViewSwitchContainer
+    // so the pointer is recaptured each time the editor opens; we do NOT
+    // cache it across UIViewSwitchContainer swaps.
+    PianoRollView* pianoRollView_ = nullptr;
+
     // Markov Chain mode editor (visible only when Markov arp mode active)
     MarkovMatrixEditor* markovEditor_ = nullptr;
     // Guard against recursive loads when state recall fires setParamNormalized
@@ -221,6 +237,15 @@ private:
     // Speed curve IMessage helper
     void sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data);
     void showSpeedCurveForLane(int laneIndex);
+
+    // Spec 142: forward Sequencer Note lane parameter edits to the Processor
+    // via IMessage. Some hosts don't relay programmatically-driven UI param
+    // changes (PianoRollView clicks, COptionMenu selections) back through the
+    // host's parameter queue to processParameterChanges, so Processor atomics
+    // miss the update — getState then saves stale values. Same workaround as
+    // sendSpeedCurveTable (see controller.cpp:458 for the rationale).
+    void sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
+                              Steinberg::Vst::ParamValue value);
 
     // Shared state loading helpers (used by setComponentState + preset loading)
     template<typename SetParamFn>

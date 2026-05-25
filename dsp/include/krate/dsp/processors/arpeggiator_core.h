@@ -69,6 +69,15 @@ enum class ArpRetriggerMode : uint8_t {
     Beat      ///< Reset at bar boundaries
 };
 
+/// @brief Note-source mode (spec 142, Gradus Sequencer Note lane).
+/// Gradus selects between live held-note MIDI input (Live) and the programmed
+/// Sequencer Note pattern (Sequencer). Ruinae never uses anything but Live —
+/// lane 10 is conditionally inert in Live mode so Ruinae is unaffected.
+enum class SourceMode : uint8_t {
+    Live = 0,   ///< Live held-note MIDI input drives the arp pipeline (default).
+    Sequencer   ///< Programmed Sequencer Note lane pattern drives the pipeline.
+};
+
 // =============================================================================
 // TrigCondition (076-conditional-trigs, FR-001, FR-002)
 // =============================================================================
@@ -148,7 +157,10 @@ public:
 
     static constexpr size_t kMaxEvents = 128;
     static constexpr size_t kMaxPendingNoteOffs = 32;
-    static constexpr size_t kNumLanes = 9;  ///< 8 original lanes + MIDI delay
+    /// 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet, 5=condition,
+    /// 6=chord, 7=inversion, 8=MIDI delay, 9=sequencer note (spec 142, lane 10).
+    /// Lane 9 is conditionally inert in Live mode (`sourceMode_ == Live`).
+    static constexpr size_t kNumLanes = 10;
     static constexpr double kMinSampleRate = 1000.0;
     static constexpr float kMinFreeRate = 0.5f;
     static constexpr float kMaxFreeRate = 50.0f;
@@ -202,6 +214,14 @@ public:
         // ScaleHarmonizer defaults to Major, but the arp must default to Chromatic
         // so existing presets/behavior are unchanged.
         scaleHarmonizer_.setScale(ScaleType::Chromatic);
+
+        // Spec 142: Sequencer Note lane defaults. Pitch step[0]=60 (C4), all
+        // rest flags=1 (rest) so a fresh pattern is silent until user populates.
+        seqNoteLane_.setLength(16);
+        for (size_t i = 0; i < 32; ++i) {
+            seqNoteLane_.setStep(i, static_cast<uint8_t>(60));
+            seqRestFlags_[i].store(1, std::memory_order_relaxed);
+        }
     }
 
     // =========================================================================
@@ -247,7 +267,9 @@ public:
 
         // Latch Hold: if currently latched (all keys were released), clear old
         // pattern and start fresh. This replaces the entire latched pattern.
-        if (latchMode_ == LatchMode::Hold && latchActive_) {
+        // Spec 142 FR-022: Latch is inert in Sequencer mode — skip.
+        if (sourceMode_ != SourceMode::Sequencer
+            && latchMode_ == LatchMode::Hold && latchActive_) {
             heldNotes_.clear();
             latchActive_ = false;
         }
@@ -256,8 +278,12 @@ public:
 
         // Scale quantize input (FR-009): snap note to nearest scale note
         // before entering the held notes buffer.
+        // Spec 142 FR-022: ScaleQuantizeInput is inert in Sequencer mode —
+        // the pattern is the source, not held-input quantize.
         uint8_t effectiveNote = note;
-        if (scaleQuantizeInput_ && scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
+        if (scaleQuantizeInput_
+            && sourceMode_ != SourceMode::Sequencer
+            && scaleHarmonizer_.getScale() != ScaleType::Chromatic) {
             effectiveNote = static_cast<uint8_t>(
                 std::clamp(scaleHarmonizer_.quantizeToScale(static_cast<int>(note)), 0, 127));
         }
@@ -273,9 +299,17 @@ public:
 
     /// @brief Handle incoming MIDI note-off.
     /// Behavior depends on latch mode (remove, ignore, or track).
+    /// Spec 142 (T030e, FR-022): in Sequencer mode the Latch parameter is
+    /// inert — the transposition root must revert on physical key release.
+    /// We bypass the switch entirely and always remove the note.
     inline void noteOff(uint8_t note) noexcept {
         if (physicalKeysHeld_ > 0) {
             --physicalKeysHeld_;
+        }
+
+        if (sourceMode_ == SourceMode::Sequencer) {
+            heldNotes_.noteOff(note);
+            return;
         }
 
         switch (latchMode_) {
@@ -546,6 +580,55 @@ public:
         return midiDelayLane_;
     }
 
+    // =========================================================================
+    // Sequencer Note Lane Accessor (spec 142, lane index 9)
+    // =========================================================================
+
+    /// @brief Access the Sequencer Note lane (lane 10 — index 9).
+    /// Stores per-step MIDI pitches (uint8_t, 0-127). Pairs with
+    /// `seqRestFlags()` (separate atomic array) per step. The lane is
+    /// conditionally inert in Live mode — `fireStep` skips advance + emission
+    /// when `sourceMode_ == SourceMode::Live`.
+    ArpLane<uint8_t>& seqNoteLane() noexcept { return seqNoteLane_; }
+    [[nodiscard]] const ArpLane<uint8_t>& seqNoteLane() const noexcept {
+        return seqNoteLane_;
+    }
+
+    /// @brief Access the per-step rest flags for the Sequencer Note lane.
+    /// rest=1 suppresses note-on for that step; the playhead still advances
+    /// (FR-019). Stored as `std::atomic<uint8_t>` so the controller's UI
+    /// thread can write the flags and the audio thread reads them.
+    std::array<std::atomic<uint8_t>, 32>& seqRestFlags() noexcept {
+        return seqRestFlags_;
+    }
+    [[nodiscard]] const std::array<std::atomic<uint8_t>, 32>&
+    seqRestFlags() const noexcept { return seqRestFlags_; }
+
+    /// @brief Set the note-source mode (Live vs Sequencer). Spec 142.
+    /// Lane playheads are NOT reset on mode change (per spec Q5-A); held
+    /// notes also remain in `heldNotes_` (single source of truth).
+    void setSourceMode(SourceMode mode) noexcept { sourceMode_ = mode; }
+
+    /// @brief Get the current note-source mode.
+    [[nodiscard]] SourceMode sourceMode() const noexcept { return sourceMode_; }
+
+    /// @brief Request a panic note-off for any currently sounding arp note.
+    /// On the next `processBlock`, all notes in `currentArpNotes_` will emit
+    /// a noteOff at sample offset 0. Lane playheads are NOT touched. Spec 142
+    /// uses this on source-mode toggle to avoid stuck notes.
+    void requestPanicNoteOff() noexcept { needsDisableNoteOff_ = true; }
+
+    // =========================================================================
+    // HeldNoteBuffer Accessor (read-only; spec 142 transposition root needs it)
+    // =========================================================================
+
+    /// @brief Read-only access to the held-note buffer.
+    /// Used by tests (and downstream code) to introspect the most-recently-held
+    /// note for transposition-root determination in Sequencer mode.
+    [[nodiscard]] const HeldNoteBuffer& heldNotes() const noexcept {
+        return heldNotes_;
+    }
+
     /// @brief Set the global voicing mode.
     void setVoicingMode(VoicingMode mode) noexcept { voicingMode_ = mode; }
 
@@ -576,8 +659,12 @@ public:
 
     /// @brief Consume pending curve table updates. Call from audio thread only
     /// (e.g., at the start of process()).
+    /// @note Spec 142 (T029): iteration upper bound corrected from a hardcoded
+    /// `8` to `kNumLanes` — the previous loop silently skipped lanes 8+ (MIDI
+    /// delay, sequencer note), so their curve tables would never be activated
+    /// even when staged from the controller.
     void consumePendingCurveTables() noexcept {
-        for (size_t i = 0; i < 8; ++i) {
+        for (size_t i = 0; i < kNumLanes; ++i) {
             if (laneSpeedCurveTableDirty_[i].load(std::memory_order_acquire)) {
                 laneSpeedCurveTables_[i] = laneSpeedCurveTablesStaging_[i];
                 laneSpeedCurveTableDirty_[i].store(false, std::memory_order_relaxed);
@@ -595,6 +682,43 @@ public:
     void setLaneSpeedCurveEnabled(size_t laneIndex, bool enabled) noexcept {
         if (laneIndex < kNumLanes)
             laneSpeedCurveEnabled_[laneIndex].store(enabled, std::memory_order_relaxed);
+    }
+
+    // =========================================================================
+    // Per-Lane Modulator Accessors (spec 142 T029 — round-trip introspection)
+    // =========================================================================
+
+    /// @brief Read per-lane speed multiplier (returns 1.0 if out of bounds).
+    [[nodiscard]] float laneSpeed(size_t laneIndex) const noexcept {
+        return laneIndex < kNumLanes ? laneSpeedMultipliers_[laneIndex] : 1.0f;
+    }
+
+    /// @brief Read per-lane swing as a 0..1 fraction (returns 0 if OOB).
+    [[nodiscard]] float laneSwing(size_t laneIndex) const noexcept {
+        return laneIndex < kNumLanes ? laneSwingAmounts_[laneIndex] : 0.0f;
+    }
+
+    /// @brief Read per-lane length jitter (returns 0 if OOB).
+    [[nodiscard]] int laneLengthJitter(size_t laneIndex) const noexcept {
+        return laneIndex < kNumLanes ? laneLengthJitters_[laneIndex] : 0;
+    }
+
+    /// @brief Read per-lane speed-curve depth (returns 0 if OOB).
+    [[nodiscard]] float laneSpeedCurveDepth(size_t laneIndex) const noexcept {
+        return laneIndex < kNumLanes ? laneSpeedCurveDepths_[laneIndex] : 0.0f;
+    }
+
+    /// @brief Read per-lane speed-curve enabled flag (returns false if OOB).
+    [[nodiscard]] bool laneSpeedCurveEnabled(size_t laneIndex) const noexcept {
+        return laneIndex < kNumLanes
+            && laneSpeedCurveEnabled_[laneIndex].load(std::memory_order_relaxed);
+    }
+
+    /// @brief Read per-lane speed-curve table (returns lane 0 if OOB).
+    /// @note Call `consumePendingCurveTables()` first to pull staged updates.
+    [[nodiscard]] const std::array<float, 256>&
+    laneSpeedCurveTable(size_t laneIndex) const noexcept {
+        return laneSpeedCurveTables_[laneIndex < kNumLanes ? laneIndex : 0];
     }
 
     // =========================================================================
@@ -968,8 +1092,11 @@ public:
         }
 
         // Empty buffer with latch Off: emit NoteOff for current arp notes,
-        // flush all pending NoteOffs, then return (FR-007, FR-024)
-        if (heldNotes_.empty()) {
+        // flush all pending NoteOffs, then return (FR-007, FR-024).
+        // Spec 142: in Sequencer mode the pattern (lane 9) is the source,
+        // so an empty held buffer must NOT short-circuit playback. Held
+        // notes only supply transposition root + base velocity in Seq mode.
+        if (heldNotes_.empty() && sourceMode_ != SourceMode::Sequencer) {
             // If buffer just became empty (latch Off, all keys released),
             // emit NoteOff for currently sounding arp note(s) and flush
             // ALL pending NoteOffs at sampleOffset 0 to prevent stuck notes.
@@ -1619,16 +1746,59 @@ private:
                           size_t maxEvents,
                           [[maybe_unused]] size_t samplesProcessed,
                           [[maybe_unused]] size_t blockSize) noexcept {
-        // Advance NoteSelector to get next note(s)
-        ArpNoteResult result = selector_.advance(heldNotes_);
+        // Spec 142 T030b/T030c: in Sequencer mode the source pitch comes from
+        // lane 9 (seqNoteLane_), bypassing ArpMode/Octave/Markov/etc. The
+        // selector_ is NOT consulted at all — it would mutate internal state
+        // that is irrelevant to Seq mode. Transposition root + base velocity
+        // are read from heldNotes_ (single source of truth across both modes).
+        const bool seqMode = (sourceMode_ == SourceMode::Sequencer);
+        bool seqRestStep = false;
+        ArpNoteResult result;
+        if (seqMode) {
+            const size_t seqStep = seqNoteLane_.currentStep();
+            const uint8_t programmedPitch = seqNoteLane_.currentValue();
+            seqRestStep = (seqStep < 32) && (seqRestFlags_[seqStep].load(
+                std::memory_order_relaxed) != 0);
+
+            auto held = heldNotes_.byInsertOrder();
+            int heldRoot = 60;     // FR-018: default = no transposition
+            uint8_t baseVel = 100; // FR-025a: default base velocity
+            if (!held.empty()) {
+                heldRoot = static_cast<int>(held.back().note);
+                baseVel = held.back().velocity;
+            }
+            // T030c: transposition formula uses heldRoot-60. Output scale
+            // quantize and pitch lane / kArpTranspose are stacked downstream.
+            //
+            // Note (spec 142 Phase 3 compliance): this clamp runs BEFORE the
+            // pitch lane and global kArpTranspose stages, each of which
+            // applies its own [0,127] clamp on the final emitted pitch. The
+            // per-stage clamping mirrors Live mode's behavior (the pitch lane
+            // and global transpose clamp independently in Live too) and is
+            // acceptable per FR-024 ("clamped per existing Gradus output-clamp
+            // behavior — consistent with how the pitch lane behaves in Live
+            // mode today"). FR-024 only mandates that the final emitted pitch
+            // be in range, which the downstream stages guarantee.
+            int transposed = std::clamp(
+                static_cast<int>(programmedPitch) + (heldRoot - 60), 0, 127);
+            result.notes[0] = static_cast<uint8_t>(transposed);
+            result.velocities[0] = baseVel;
+            result.count = 1;  // always emit one — rest is handled below via
+                               // the modifier-rest path so all lanes advance.
+        } else {
+            // Live mode: original behavior — advance the selector against held notes.
+            result = selector_.advance(heldNotes_);
+        }
 
         if (result.count > 0) {
             // v1.5 Part 3: Step Pinning — if the current pitch-lane step is
             // pinned, override the arp-pattern note(s) with the global pin note.
             // Indexed by the pitch lane's current step (pitch lane is the natural
             // "pattern position" for pitch overrides).
+            // FR-022: pin note is inert in Sequencer mode — pattern owns ordering.
             const size_t pitchStepIdx = pitchLane_.currentStep();
-            const bool isPinnedStep = (pitchStepIdx < 32 && pinFlags_[pitchStepIdx]);
+            const bool isPinnedStep = (pitchStepIdx < 32 && pinFlags_[pitchStepIdx])
+                                       && !seqMode;
             if (isPinnedStep) {
                 // Collapse to a single pinned note (chord expansion disabled for pinned steps)
                 result.notes[0] = pinNote_;
@@ -1739,6 +1909,12 @@ private:
             advanceLaneBySpeed(chordLane_,     6);
             advanceLaneBySpeed(inversionLane_, 7);
             advanceLaneBySpeed(midiDelayLane_, 8);
+            // Spec 142 T030a: lane 9 (Sequencer Note) advances ONLY in Seq mode.
+            // In Live mode the lane is fully inert — neither advances nor emits,
+            // preserving byte-identical Live MIDI (SC-004, SC-004b).
+            if (sourceMode_ == SourceMode::Sequencer) {
+                advanceLaneBySpeed(seqNoteLane_, 9);
+            }
 
             // 077-spice-dice-humanize: apply Spice blend (FR-008, FR-009)
             if (spice_ > 0.0f) {
@@ -1770,7 +1946,9 @@ private:
             // Evaluated AFTER all lane advances but BEFORE modifier evaluation.
             // All lanes above advance unconditionally on every step tick,
             // including Euclidean rest steps (FR-004, FR-011).
-            if (euclideanEnabled_) {
+            // Spec 142 FR-022: Euclidean is inert in Sequencer mode (the
+            // pattern owns hit timing; Euclidean gating would silence steps).
+            if (euclideanEnabled_ && !seqMode) {
                 bool isHitStep = EuclideanPattern::isHit(
                     euclideanPattern_,
                     static_cast<int>(euclideanPosition_),
@@ -1867,9 +2045,13 @@ private:
 
             // --- Modifier evaluation (073-per-step-mods) ---
             // Priority: Rest > Tie > Slide > Accent
+            // Spec 142 (T030b): a Sequencer-mode rest step is treated as a
+            // modifier rest — the noteOn is suppressed, any sounding note
+            // emits its noteOff, and the playhead continues to advance for
+            // all lanes (FR-019, SC-008).
 
             // Rest: kStepActive not set -> suppress noteOn, emit noteOff for previous
-            if (!(modifierFlags & kStepActive)) {
+            if (seqRestStep || !(modifierFlags & kStepActive)) {
                 // Cancel pending noteOffs first to prevent double NoteOff emission
                 // (emitDuePendingNoteOffs would otherwise re-emit for these notes)
                 cancelPendingNoteOffsForCurrentNotes();
@@ -2062,7 +2244,9 @@ private:
             // Mode 0=Wrap, 1=Clamp, 2=Skip (drop notes that fall outside).
             // Pinned steps bypass range mapping — the pin note is the user's
             // explicit target and should not be folded/clamped.
-            if (!isPinnedStep && (rangeLow_ > 0 || rangeHigh_ < 127)) {
+            // Spec 142 FR-022: Range Mapping is inert in Sequencer mode — the
+            // pattern is the source, not held-input mapping.
+            if (!isPinnedStep && !seqMode && (rangeLow_ > 0 || rangeHigh_ < 127)) {
                 const int lo = std::min(rangeLow_, rangeHigh_);
                 const int hi = std::max(rangeLow_, rangeHigh_);
                 const int span = hi - lo + 1;
@@ -2494,6 +2678,7 @@ private:
         chordLane_.reset();                  // arp-chord-lane: reset chord lane position
         inversionLane_.reset();              // arp-chord-lane: reset inversion lane position
         midiDelayLane_.reset();              // MIDI delay lane: reset position
+        seqNoteLane_.reset();                // Spec 142: Sequencer Note lane (lane 10) playhead reset
         loopCount_ = 0;                      // 076-conditional-trigs: reset loop counter
         // fillActive_ intentionally NOT reset (FR-022: performance control)
         // conditionRng_ intentionally NOT reset (FR-035: continuous randomness)
@@ -2534,15 +2719,27 @@ private:
     ArpLane<uint8_t> chordLane_;     ///< Per-step ChordType (default: length=1, step[0]=0=None)
     ArpLane<uint8_t> inversionLane_; ///< Per-step InversionType (default: length=1, step[0]=0=Root)
     ArpLane<uint8_t> midiDelayLane_; ///< MIDI delay step tracking (lane index 8)
+    /// Sequencer Note lane (spec 142 — lane index 9). Stores 32 MIDI pitches.
+    /// Conditionally inert in Live mode: fireStep skips advance + emission.
+    ArpLane<uint8_t> seqNoteLane_;
+    /// Per-step rest flags for the Sequencer Note lane (FR-019). Atomic so
+    /// the controller's UI thread can update; the audio thread reads on each
+    /// step boundary. Default = 1 (rest) so a fresh pattern is silent until
+    /// the user populates it.
+    std::array<std::atomic<uint8_t>, 32> seqRestFlags_{};
+    /// Note source mode (spec 142). Default Live — Ruinae never overrides.
+    SourceMode sourceMode_{SourceMode::Live};
     VoicingMode voicingMode_{VoicingMode::Close}; ///< Global voicing mode
 
     // =========================================================================
     // Per-Lane Speed Multipliers
     // =========================================================================
     // Lane index: 0=velocity, 1=gate, 2=pitch, 3=modifier, 4=ratchet,
-    //             5=condition, 6=chord, 7=inversion
-    std::array<float, kNumLanes> laneSpeedMultipliers_{{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
-    std::array<float, kNumLanes> laneAccumulators_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+    //             5=condition, 6=chord, 7=inversion, 8=midiDelay, 9=seqNote (spec 142)
+    std::array<float, kNumLanes> laneSpeedMultipliers_{
+        {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f}};
+    std::array<float, kNumLanes> laneAccumulators_{
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
     // =========================================================================
     // Per-Lane Speed Curves
@@ -2595,8 +2792,10 @@ private:
     std::array<int32_t, 32> strumOffsets_{};   ///< Per-chord precomputed offsets
 
     // v1.5: Per-lane swing
-    std::array<float, kNumLanes> laneSwingAmounts_{{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
-    std::array<uint8_t, kNumLanes> laneSwingCounters_{{0, 0, 0, 0, 0, 0, 0, 0, 0}};
+    std::array<float, kNumLanes> laneSwingAmounts_{
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
+    std::array<uint8_t, kNumLanes> laneSwingCounters_{
+        {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}};
 
     // v1.5 Part 2
     int velocityCurveType_{0};        ///< 0=Linear, 1=Exp, 2=Log, 3=S-Curve

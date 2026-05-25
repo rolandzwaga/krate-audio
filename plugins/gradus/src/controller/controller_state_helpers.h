@@ -148,6 +148,83 @@ void Controller::loadMidiDelayFromStream(
 }
 
 // ==============================================================================
+// loadSequencerNoteLaneFromStream (spec 142)
+// ==============================================================================
+// Reads the v3 Sequencer Note lane appendix (kArpSourceModeId 3741 through
+// kArpSequencerNoteLaneSpeedCurveDepthId 3810) and pushes normalized values
+// into the controller's parameter cache. EOF-safe at every field so v2-format
+// streams (which lack this appendix entirely) leave controller defaults in
+// place. Mirrors the Processor-side loadSequencerNoteLaneParams contract from
+// contracts/state-stream-v3.md.
+
+template<typename SetParamFn>
+void loadSequencerNoteLaneFromStream(Steinberg::IBStreamer& streamer, SetParamFn setParam)
+{
+    using namespace Steinberg;
+    Steinberg::int32  iv = 0;
+    float fv = 0.0f;
+
+    // 1. sourceMode (StringList Live/Sequencer): EOF here means pre-v3 stream
+    //    — defaults already in controller cache, nothing more to do.
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpSourceModeId,
+        std::clamp(static_cast<int>(iv), 0, 1) == 1 ? 1.0 : 0.0);
+
+    // 2. Lane length (1..32)
+    if (!streamer.readInt32(iv)) return;
+    {
+        int len = std::clamp(static_cast<int>(iv), 1, 32);
+        setParam(kArpSequencerNoteLaneLengthId, (len - 1) / 31.0);
+    }
+
+    // 3. Per-step pitches (32)
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(iv)) return;
+        int pitch = std::clamp(static_cast<int>(iv), 0, 127);
+        setParam(static_cast<Vst::ParamID>(kArpSequencerNoteLaneStep0Id + i),
+            static_cast<double>(pitch) / 127.0);
+    }
+
+    // 4. Per-step rest flags (32)
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(iv)) return;
+        setParam(static_cast<Vst::ParamID>(kArpSequencerNoteLaneRestStep0Id + i),
+            (iv != 0) ? 1.0 : 0.0);
+    }
+
+    // 5. Lane Speed (0.25, 0.5, 1.0, 2.0, 4.0) — match the nearest dropdown
+    //    entry as the lane uses StringList-style snapping, same pattern as
+    //    kArpMidiDelayLaneSpeedId above.
+    if (!streamer.readFloat(fv)) return;
+    {
+        float speed = std::clamp(fv, 0.25f, 4.0f);
+        int bestIdx = kLaneSpeedDefault; // 1.0x
+        float bestDist = 99.0f;
+        for (int i = 0; i < kLaneSpeedCount; ++i) {
+            float dist = std::abs(kLaneSpeedValues[i] - speed);
+            if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        }
+        setParam(kArpSequencerNoteLaneSpeedId,
+            static_cast<double>(bestIdx) / static_cast<double>(kLaneSpeedCount - 1));
+    }
+
+    // 6. Lane Swing (0..75)
+    if (!streamer.readFloat(fv)) return;
+    setParam(kArpSequencerNoteLaneSwingId,
+        static_cast<double>(std::clamp(fv, 0.0f, 75.0f)) / 75.0);
+
+    // 7. Lane Jitter (0..4)
+    if (!streamer.readInt32(iv)) return;
+    setParam(kArpSequencerNoteLaneJitterId,
+        static_cast<double>(std::clamp(static_cast<int>(iv), 0, 4)) / 4.0);
+
+    // 8. Lane Speed Curve Depth (0..1)
+    if (!streamer.readFloat(fv)) return;
+    setParam(kArpSequencerNoteLaneSpeedCurveDepthId,
+        static_cast<double>(std::clamp(fv, 0.0f, 1.0f)));
+}
+
+// ==============================================================================
 // loadFullState — Single entry point for all state loading
 // ==============================================================================
 // Used by both setComponentState (host recall) and loadComponentStateWithNotify
@@ -163,6 +240,7 @@ void Controller::loadFullState(Steinberg::IBStreamer& streamer, SetParamFn setPa
 
     loadSpeedCurvesFromStream(streamer, setParam);
     loadMidiDelayFromStream(streamer, setParam);
+    loadSequencerNoteLaneFromStream(streamer, setParam);
 }
 
 } // namespace Gradus

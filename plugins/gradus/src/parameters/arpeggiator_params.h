@@ -214,6 +214,19 @@ struct ArpeggiatorParams {
     std::atomic<int>   midiDelayLaneJitter{0};
     std::atomic<float> midiDelayLaneSpeedCurveDepth{0.5f};
 
+    // --- Sequencer Note Lane (spec 142: piano-roll-sequencer) ---
+    // Storage for the new top-level source toggle + the 10th lane that hosts
+    // the piano-roll-driven pattern. See contracts/param-ids.md and
+    // data-model.md Entity 2 for the defaults.
+    std::atomic<int>   sourceMode{0};               // 0=Live, 1=Sequencer
+    std::atomic<int>   seqNoteLaneLength{16};       // 1-32
+    std::array<std::atomic<int>, 32> seqNoteLanePitches{};    // 0-127, default 60
+    std::array<std::atomic<int>, 32> seqNoteLaneRestFlags{};  // 0/1, default 1 (rest)
+    std::atomic<float> seqNoteLaneSpeed{1.0f};      // 0.25..4.0 (snapped)
+    std::atomic<float> seqNoteLaneSwing{0.0f};      // 0..75 %
+    std::atomic<int>   seqNoteLaneJitter{0};        // 0..4 steps
+    std::atomic<float> seqNoteLaneSpeedCurveDepth{0.0f};  // 0..1
+
     // Per-lane speed curve data (serialized in state, not automatable).
     // Protected by speedCurveMutex_ for thread-safe access during
     // save/load (audio thread) and IMessage handling (message thread).
@@ -268,6 +281,18 @@ struct ArpeggiatorParams {
         // midiDelayPitchShiftSteps default to 0 via value-initialization
         for (auto& step : midiDelayGateScaleSteps) {
             step.store(1.0f, std::memory_order_relaxed);  // 100% gate scaling
+        }
+
+        // --- Sequencer Note Lane defaults (spec 142, data-model.md Entity 2) ---
+        // Pitches default to MIDI 60 (C4) so an empty pattern produces a
+        // recognizable note when rests are cleared.
+        for (auto& step : seqNoteLanePitches) {
+            step.store(60, std::memory_order_relaxed);
+        }
+        // Rest flags default to 1 (rest). An untouched pattern emits no notes,
+        // which is the safe default for backward-compatible v2 preset loads.
+        for (auto& step : seqNoteLaneRestFlags) {
+            step.store(1, std::memory_order_relaxed);
         }
     }
 };
@@ -765,6 +790,66 @@ inline void handleArpParamChange(
                     case kArpInversionLaneSpeedCurveDepthId: params.inversionLaneSpeedCurveDepth.store(depth, std::memory_order_relaxed); break;
                     default: break;
                 }
+            }
+            // --- Sequencer Note Lane (3741-3811, spec 142) ---
+            // Source mode toggle: StringList (Live=0, Sequencer=1)
+            else if (id == kArpSourceModeId) {
+                params.sourceMode.store(
+                    std::clamp(static_cast<int>(std::round(value)), 0, 1),
+                    std::memory_order_relaxed);
+            }
+            // Lane length (1-32, stepCount=31)
+            else if (id == kArpSequencerNoteLaneLengthId) {
+                params.seqNoteLaneLength.store(
+                    std::clamp(static_cast<int>(1.0 + std::round(value * 31.0)), 1, 32),
+                    std::memory_order_relaxed);
+            }
+            // Per-step pitches (3743..3774): 0-127, stepCount=127
+            else if (id >= kArpSequencerNoteLaneStep0Id &&
+                     id <= kArpSequencerNoteLaneStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneStep0Id);
+                int pitch = std::clamp(
+                    static_cast<int>(std::round(value * 127.0)), 0, 127);
+                params.seqNoteLanePitches[stepIdx].store(
+                    pitch, std::memory_order_relaxed);
+            }
+            // Per-step rest flags (3775..3806): 0/1 toggle
+            else if (id >= kArpSequencerNoteLaneRestStep0Id &&
+                     id <= kArpSequencerNoteLaneRestStep31Id) {
+                int stepIdx = static_cast<int>(id - kArpSequencerNoteLaneRestStep0Id);
+                params.seqNoteLaneRestFlags[stepIdx].store(
+                    value >= 0.5 ? 1 : 0, std::memory_order_relaxed);
+            }
+            // Lane speed (3807): snapped 0.25..4.0x
+            else if (id == kArpSequencerNoteLaneSpeedId) {
+                int idx = std::clamp(
+                    static_cast<int>(std::round(value * (kLaneSpeedCount - 1))),
+                    0, kLaneSpeedCount - 1);
+                params.seqNoteLaneSpeed.store(
+                    kLaneSpeedValues[idx], std::memory_order_relaxed);
+            }
+            // Lane swing (3808): 0..75 %
+            else if (id == kArpSequencerNoteLaneSwingId) {
+                float swing = std::clamp(static_cast<float>(value * 75.0), 0.0f, 75.0f);
+                params.seqNoteLaneSwing.store(swing, std::memory_order_relaxed);
+            }
+            // Lane jitter (3809): 0..4 steps
+            else if (id == kArpSequencerNoteLaneJitterId) {
+                int jitter = std::clamp(
+                    static_cast<int>(std::round(value * 4.0)), 0, 4);
+                params.seqNoteLaneJitter.store(jitter, std::memory_order_relaxed);
+            }
+            // Lane speed curve depth (3810): 0..1
+            else if (id == kArpSequencerNoteLaneSpeedCurveDepthId) {
+                float depth = std::clamp(static_cast<float>(value), 0.0f, 1.0f);
+                params.seqNoteLaneSpeedCurveDepth.store(
+                    depth, std::memory_order_relaxed);
+            }
+            // Playhead (3811): read-only — writes from processParameterChanges
+            // are a no-op. The processor writes the playhead by pushing values
+            // back through the parameter container, not via this path.
+            else if (id == kArpSequencerNoteLanePlayheadId) {
+                // intentional no-op (FR-034a contract: playhead is output-only)
             }
             break;
     }
@@ -1428,6 +1513,99 @@ inline void registerArpParams(
         STR16("MIDI Delay Playhead"), kArpMidiDelayPlayheadId,
         STR16(""), 0.0, 1.0, 0.0, 0, ParameterInfo::kIsReadOnly);
     parameters.addParameter(delayPlayhead);
+}
+
+// =============================================================================
+// registerSequencerNoteLaneParams: Register 71 new params (spec 142)
+// =============================================================================
+// Called on UI thread from Controller::initialize() alongside registerArpParams.
+// All persisted params get kCanAutomate. The Playhead is read-only (no
+// kCanAutomate flag) — see FR-034a, contracts/param-ids.md.
+
+inline void registerSequencerNoteLaneParams(
+    Steinberg::Vst::ParameterContainer& parameters)
+{
+    using namespace Steinberg::Vst;
+
+    // Source mode (3741): StringList (Live=0, Sequencer=1), visible,
+    // host-automatable. FR-003 REQUIRES kCanAutomate on this param.
+    parameters.addParameter(createDropdownParameter(
+        STR16("Arp Source Mode"), kArpSourceModeId,
+        {STR16("Live"), STR16("Sequencer")}));
+
+    // Lane length (3742): 1-32 steps, visible, default 16.
+    parameters.addParameter(
+        new RangeParameter(STR16("Seq Note Lane Length"),
+            kArpSequencerNoteLaneLengthId, STR16(""),
+            1, 32, 16, 31,
+            ParameterInfo::kCanAutomate));
+
+    // Per-step pitches (3743..3774): 32 params, 0-127, default 60 (C4),
+    // hidden (managed via piano-roll view), automatable.
+    for (int i = 0; i < 32; ++i) {
+        char nameBuf[48];
+        snprintf(nameBuf, sizeof(nameBuf), "Seq Note Pitch %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(nameBuf);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpSequencerNoteLaneStep0Id + i),
+                STR16(""), 0, 127, 60, 127,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // Per-step rest flags (3775..3806): 32 toggles, default 1 (rest),
+    // hidden, automatable.
+    for (int i = 0; i < 32; ++i) {
+        char nameBuf[48];
+        snprintf(nameBuf, sizeof(nameBuf), "Seq Note Rest %d", i + 1);
+        Steinberg::Vst::String128 name16;
+        Steinberg::UString(name16, 128).fromAscii(nameBuf);
+        parameters.addParameter(
+            new RangeParameter(name16,
+                static_cast<ParamID>(kArpSequencerNoteLaneRestStep0Id + i),
+                STR16(""), 0, 1, 1, 1,
+                ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden));
+    }
+
+    // Lane speed (3807): snapped dropdown across kLaneSpeedValues, default
+    // index kLaneSpeedDefault (1.0x).
+    parameters.addParameter(createDropdownParameterWithDefault(
+        STR16("Seq Note Lane Speed"), kArpSequencerNoteLaneSpeedId,
+        kLaneSpeedDefault,
+        {STR16("0.25x"), STR16("0.5x"), STR16("0.75x"), STR16("1x"),
+         STR16("1.25x"), STR16("1.5x"), STR16("1.75x"), STR16("2x"),
+         STR16("3x"), STR16("4x")}));
+
+    // Lane swing (3808): 0-75 %, default 0.
+    parameters.addParameter(
+        new RangeParameter(STR16("Seq Note Lane Swing"),
+            kArpSequencerNoteLaneSwingId, STR16("%"),
+            0.0, 75.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // Lane jitter (3809): 0-4 steps, default 0.
+    parameters.addParameter(
+        new RangeParameter(STR16("Seq Note Lane Jitter"),
+            kArpSequencerNoteLaneJitterId, STR16("steps"),
+            0.0, 4.0, 0.0, 4, ParameterInfo::kCanAutomate));
+
+    // Lane speed-curve depth (3810): 0-1, default 0 (curve off).
+    parameters.addParameter(
+        new RangeParameter(STR16("Seq Note Speed Curve Depth"),
+            kArpSequencerNoteLaneSpeedCurveDepthId, STR16(""),
+            0.0, 1.0, 0.0, 0, ParameterInfo::kCanAutomate));
+
+    // Playhead (3811): hidden, output-only. Driven by processor; UI reads it
+    // to render the playhead cursor on the piano roll. NOT persisted —
+    // saveSequencerNoteLaneParams skips it. Flags per contract param-ids.md
+    // requirement 7 (kCanAutomate) and task T011 (kCanAutomate | kIsHidden):
+    // automation-flagged so the host can deliver the processor-driven value
+    // back to the UI via the standard parameter-change pipeline.
+    auto* seqPlayhead = new RangeParameter(
+        STR16("Seq Note Playhead"), kArpSequencerNoteLanePlayheadId,
+        STR16(""), 0.0, 1.0, 0.0, 0,
+        ParameterInfo::kCanAutomate | ParameterInfo::kIsHidden);
+    parameters.addParameter(seqPlayhead);
 }
 
 // =============================================================================
@@ -2405,6 +2583,89 @@ inline bool loadArpParams(
     params.midiDelayLaneJitter.store(std::clamp(intVal, 0, 4), std::memory_order_relaxed);
     if (!streamer.readFloat(floatVal)) return false;
     params.midiDelayLaneSpeedCurveDepth.store(std::clamp(floatVal, 0.0f, 1.0f), std::memory_order_relaxed);
+
+    return true;
+}
+
+// =============================================================================
+// saveSequencerNoteLaneParams: Serialize v3 appendix (spec 142)
+// =============================================================================
+// Writes the 8 fields of the Sequencer Note lane block in the order defined by
+// contracts/state-stream-v3.md. The Playhead (3811) is NOT persisted — it's
+// runtime-only output state.
+
+inline void saveSequencerNoteLaneParams(
+    const ArpeggiatorParams& params,
+    Steinberg::IBStreamer& streamer)
+{
+    streamer.writeInt32(params.sourceMode.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.seqNoteLaneLength.load(std::memory_order_relaxed));
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(
+            params.seqNoteLanePitches[i].load(std::memory_order_relaxed));
+    }
+    for (int i = 0; i < 32; ++i) {
+        streamer.writeInt32(
+            params.seqNoteLaneRestFlags[i].load(std::memory_order_relaxed));
+    }
+    streamer.writeFloat(params.seqNoteLaneSpeed.load(std::memory_order_relaxed));
+    streamer.writeFloat(params.seqNoteLaneSwing.load(std::memory_order_relaxed));
+    streamer.writeInt32(params.seqNoteLaneJitter.load(std::memory_order_relaxed));
+    streamer.writeFloat(
+        params.seqNoteLaneSpeedCurveDepth.load(std::memory_order_relaxed));
+}
+
+// =============================================================================
+// loadSequencerNoteLaneParams: Deserialize v3 appendix (spec 142)
+// =============================================================================
+// EOF-safe on the FIRST field (sourceMode) — that's the v2->v3 migration
+// pivot. Subsequent fields return false on EOF (treated as a corrupt v3
+// stream). All values are range-clamped per the validation rules in
+// data-model.md.
+
+inline bool loadSequencerNoteLaneParams(
+    ArpeggiatorParams& params,
+    Steinberg::IBStreamer& streamer)
+{
+    Steinberg::int32 intVal = 0;
+    float floatVal = 0.0f;
+
+    // EOF on the first field => v2 stream; keep defaults (FR-039a).
+    if (!streamer.readInt32(intVal)) return true;
+    params.sourceMode.store(std::clamp(intVal, 0, 1),
+        std::memory_order_relaxed);
+
+    // From here, EOF signals a corrupt v3 stream.
+    if (!streamer.readInt32(intVal)) return false;
+    params.seqNoteLaneLength.store(std::clamp(intVal, 1, 32),
+        std::memory_order_relaxed);
+
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.seqNoteLanePitches[i].store(std::clamp(intVal, 0, 127),
+            std::memory_order_relaxed);
+    }
+    for (int i = 0; i < 32; ++i) {
+        if (!streamer.readInt32(intVal)) return false;
+        params.seqNoteLaneRestFlags[i].store(intVal != 0 ? 1 : 0,
+            std::memory_order_relaxed);
+    }
+
+    if (!streamer.readFloat(floatVal)) return false;
+    params.seqNoteLaneSpeed.store(std::clamp(floatVal, 0.25f, 4.0f),
+        std::memory_order_relaxed);
+
+    if (!streamer.readFloat(floatVal)) return false;
+    params.seqNoteLaneSwing.store(std::clamp(floatVal, 0.0f, 75.0f),
+        std::memory_order_relaxed);
+
+    if (!streamer.readInt32(intVal)) return false;
+    params.seqNoteLaneJitter.store(std::clamp(intVal, 0, 4),
+        std::memory_order_relaxed);
+
+    if (!streamer.readFloat(floatVal)) return false;
+    params.seqNoteLaneSpeedCurveDepth.store(std::clamp(floatVal, 0.0f, 1.0f),
+        std::memory_order_relaxed);
 
     return true;
 }

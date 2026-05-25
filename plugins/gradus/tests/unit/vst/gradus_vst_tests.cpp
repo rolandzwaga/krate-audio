@@ -807,6 +807,89 @@ TEST_CASE("Gradus Controller restores MIDI delay params from setComponentState",
 }
 
 // =============================================================================
+// Spec 142 regression: Controller must restore Sequencer Note lane appendix
+// =============================================================================
+// Bug: Controller::setComponentState -> loadFullState read only arp + speed
+// curves + midi delay; the v3 Sequencer Note lane appendix was never consumed,
+// so kArpSourceModeId, length, pitches, rest flags, and lane modulators all
+// stayed at controller defaults after a DAW project reload or preset recall.
+// This test reproduces the bug and gates the fix.
+
+TEST_CASE("Gradus Controller restores Sequencer Note lane params from setComponentState",
+          "[gradus][vst][seq][state][spec142]")
+{
+    using namespace Steinberg;
+    using namespace Steinberg::Vst;
+
+    // 1. Create processor params with non-default Sequencer Note lane state.
+    Gradus::ArpeggiatorParams src;
+    src.sourceMode.store(1, std::memory_order_relaxed);           // Sequencer
+    src.seqNoteLaneLength.store(12, std::memory_order_relaxed);
+    src.seqNoteLanePitches[0].store(48, std::memory_order_relaxed);
+    src.seqNoteLanePitches[3].store(72, std::memory_order_relaxed);
+    src.seqNoteLaneRestFlags[0].store(0, std::memory_order_relaxed);
+    src.seqNoteLaneRestFlags[3].store(0, std::memory_order_relaxed);
+    src.seqNoteLaneSpeed.store(2.0f, std::memory_order_relaxed);
+    src.seqNoteLaneSwing.store(50.0f, std::memory_order_relaxed);
+    src.seqNoteLaneJitter.store(2, std::memory_order_relaxed);
+    src.seqNoteLaneSpeedCurveDepth.store(0.75f, std::memory_order_relaxed);
+
+    // 2. Build a v3 processor stream: version | arp block | seq appendix.
+    auto* stream = new MemoryStream();
+    IBStreamer writer(stream, kLittleEndian);
+    writer.writeInt32(Gradus::kCurrentStateVersion);
+    Gradus::saveArpParams(src, writer);
+    Gradus::saveSequencerNoteLaneParams(src, writer);
+
+    // 3. Create controller and initialize.
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // 4. Load state into controller.
+    stream->seek(0, IBStream::kIBSeekSet, nullptr);
+    REQUIRE(controller.setComponentState(stream) == kResultOk);
+
+    // 5. Check sequencer params landed in controller's parameter objects.
+    auto checkParam = [&](ParamID id, double expected, const char* name) {
+        auto* param = controller.getParameterObject(id);
+        REQUIRE(param);
+        double actual = param->getNormalized();
+        INFO(name << ": expected " << expected << " got " << actual);
+        CHECK(actual == Catch::Approx(expected).margin(0.01));
+    };
+
+    // sourceMode is a 2-entry StringList: value 1 → normalized 1.0
+    checkParam(Gradus::kArpSourceModeId, 1.0, "sourceMode");
+    // length 12 → normalized (12-1)/31 ≈ 0.3548
+    checkParam(Gradus::kArpSequencerNoteLaneLengthId, 11.0 / 31.0, "length");
+    // pitch[0] = 48 → normalized 48/127 ≈ 0.378
+    checkParam(Gradus::kArpSequencerNoteLaneStep0Id, 48.0 / 127.0, "pitch[0]");
+    // pitch[3] = 72 → normalized 72/127 ≈ 0.567
+    checkParam(static_cast<ParamID>(Gradus::kArpSequencerNoteLaneStep0Id + 3),
+               72.0 / 127.0, "pitch[3]");
+    // rest[0] = 0 → normalized 0.0 (play)
+    checkParam(Gradus::kArpSequencerNoteLaneRestStep0Id, 0.0, "rest[0]");
+    // rest[3] = 0 → normalized 0.0
+    checkParam(static_cast<ParamID>(Gradus::kArpSequencerNoteLaneRestStep0Id + 3),
+               0.0, "rest[3]");
+    // rest[1] should still be default 1 (rest)
+    checkParam(static_cast<ParamID>(Gradus::kArpSequencerNoteLaneRestStep0Id + 1),
+               1.0, "rest[1] default");
+    // Speed 2.0 → 10-entry dropdown {0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0,
+    // 3.0, 4.0} → index 7 → normalized 7/9 ≈ 0.7778
+    checkParam(Gradus::kArpSequencerNoteLaneSpeedId, 7.0 / 9.0, "speed");
+    // Swing 50.0 of [0, 75] range → 50/75 ≈ 0.667
+    checkParam(Gradus::kArpSequencerNoteLaneSwingId, 50.0 / 75.0, "swing");
+    // Jitter 2 of [0,4] → 0.5
+    checkParam(Gradus::kArpSequencerNoteLaneJitterId, 0.5, "jitter");
+    // Curve depth 0.75 → 0.75
+    checkParam(Gradus::kArpSequencerNoteLaneSpeedCurveDepthId, 0.75, "curve depth");
+
+    REQUIRE(controller.terminate() == kResultOk);
+    stream->release();
+}
+
+// =============================================================================
 // Parameter ID Range Integrity Tests
 // =============================================================================
 // These tests guard against overlapping ID ranges that cause one category
@@ -977,4 +1060,129 @@ TEST_CASE("Gradus Controller::setParamNormalized safely handles pin flag IDs wit
     }
 
     REQUIRE(controller.terminate() == kResultOk);
+}
+
+// =============================================================================
+// Sequencer Note Lane Parameter IDs (spec 142: piano-roll-sequencer)
+// =============================================================================
+// Verifies all 71 new param IDs (3741..3811) are present after Controller
+// initialization, that they do not duplicate any existing IDs, and that the
+// static_assert sentinel relationships hold at compile time.
+// (See contracts/param-ids.md.)
+
+TEST_CASE("all sequencer note lane param IDs exist after Controller::initialize",
+          "[gradus][vst][seqnote][ids]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Build a set of all registered IDs.
+    std::set<ParamID> registered;
+    const int32 paramCount = controller.getParameterCount();
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        registered.insert(info.id);
+    }
+
+    // Source mode (3741)
+    CHECK(registered.count(Gradus::kArpSourceModeId) == 1);
+
+    // Length (3742)
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneLengthId) == 1);
+
+    // 32 pitch step params (3743..3774)
+    for (int i = 0; i < 32; ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSequencerNoteLaneStep0Id + i);
+        INFO("Missing pitch step ID " << id << " (i=" << i << ")");
+        CHECK(registered.count(id) == 1);
+    }
+
+    // 32 rest flag params (3775..3806)
+    for (int i = 0; i < 32; ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSequencerNoteLaneRestStep0Id + i);
+        INFO("Missing rest flag ID " << id << " (i=" << i << ")");
+        CHECK(registered.count(id) == 1);
+    }
+
+    // Lane modulators (3807..3810) + playhead (3811)
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSpeedId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSwingId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneJitterId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLaneSpeedCurveDepthId) == 1);
+    CHECK(registered.count(Gradus::kArpSequencerNoteLanePlayheadId) == 1);
+
+    // FR-003: kArpSourceModeId MUST have kCanAutomate flag set (so host
+    // automation can drive the Source toggle).
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        if (info.id == Gradus::kArpSourceModeId) {
+            CHECK((info.flags & ParameterInfo::kCanAutomate) != 0);
+        }
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("no duplicate param IDs in 3741-3811 range",
+          "[gradus][vst][seqnote][ids]")
+{
+    Gradus::Controller controller;
+    REQUIRE(controller.initialize(nullptr) == kResultOk);
+
+    // Walk all parameters and count occurrences of each ID in the new range.
+    std::vector<int> counts(
+        Gradus::kArpSequencerNoteLaneEndId
+        - Gradus::kArpSourceModeId + 1, 0);
+
+    const int32 paramCount = controller.getParameterCount();
+    for (int32 i = 0; i < paramCount; ++i) {
+        ParameterInfo info{};
+        REQUIRE(controller.getParameterInfo(i, info) == kResultOk);
+        if (info.id >= Gradus::kArpSourceModeId &&
+            info.id <= Gradus::kArpSequencerNoteLaneEndId) {
+            counts[info.id - Gradus::kArpSourceModeId] += 1;
+        }
+    }
+
+    // Every ID in [3741..3811] should appear exactly once.
+    for (size_t i = 0; i < counts.size(); ++i) {
+        const ParamID id =
+            static_cast<ParamID>(Gradus::kArpSourceModeId + i);
+        INFO("ID " << id << " count = " << counts[i]);
+        CHECK(counts[i] == 1);
+    }
+
+    REQUIRE(controller.terminate() == kResultOk);
+}
+
+TEST_CASE("static_assert sentinel relationships",
+          "[gradus][vst][seqnote][ids]")
+{
+    // These are compile-time guarantees from plugin_ids.h. Validate the
+    // runtime values match the contract.
+    CHECK(Gradus::kArpSequencerNoteLaneStep31Id
+          == Gradus::kArpSequencerNoteLaneStep0Id + 31);
+    CHECK(Gradus::kArpSequencerNoteLaneRestStep31Id
+          == Gradus::kArpSequencerNoteLaneRestStep0Id + 31);
+    CHECK(Gradus::kArpSequencerNoteLaneEndId == 3811);
+    CHECK(Gradus::kArpSequencerNoteLanePlayheadId
+          == Gradus::kArpSequencerNoteLaneEndId);
+
+    // Source mode anchors the new block at 3741.
+    CHECK(Gradus::kArpSourceModeId == 3741);
+    CHECK(Gradus::kArpSequencerNoteLaneLengthId == 3742);
+    CHECK(Gradus::kArpSequencerNoteLaneStep0Id == 3743);
+    CHECK(Gradus::kArpSequencerNoteLaneRestStep0Id == 3775);
+    CHECK(Gradus::kArpSequencerNoteLaneSpeedId == 3807);
+    CHECK(Gradus::kArpSequencerNoteLaneSwingId == 3808);
+    CHECK(Gradus::kArpSequencerNoteLaneJitterId == 3809);
+    CHECK(Gradus::kArpSequencerNoteLaneSpeedCurveDepthId == 3810);
+    CHECK(Gradus::kArpSequencerNoteLanePlayheadId == 3811);
+
+    // kCurrentStateVersion bumped to 3.
+    CHECK(Gradus::kCurrentStateVersion == 3);
 }

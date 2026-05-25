@@ -541,6 +541,116 @@ add_custom_target(generate_membrum_presets
 )
 
 # ==============================================================================
+# gen_v2_fixtures — Spec 142 migration regression fixture generator
+# ==============================================================================
+# Generates byte-exact v2 state fixtures (.bin) for the Gradus processor and
+# golden MIDI captures (.txt) for both Gradus and Ruinae before the spec-142
+# kCurrentStateVersion 2->3 / kNumLanes 9->10 changes land. Must be run on the
+# pre-feature parent commit; the harness source is checked in so future
+# maintainers can re-generate.
+#
+# Build: cmake --build build --target gen_v2_fixtures
+# Run  : build/.../bin/Release/gen_v2_fixtures.exe
+#
+# Outputs:
+#   plugins/gradus/tests/fixtures/gradus_v2_preset_{default,heavy_lanes,midi_delay}.bin
+#   plugins/gradus/tests/fixtures/gradus_v2_golden_midi_{default,heavy_lanes,midi_delay}.txt
+#   plugins/ruinae/tests/fixtures/ruinae_factory_{preset}_golden_midi.txt (per arp preset)
+#
+# Marked EXCLUDE_FROM_ALL: not built by default; only when explicitly requested.
+# ==============================================================================
+add_executable(gen_v2_fixtures EXCLUDE_FROM_ALL
+    # Harness orchestration (plugin-agnostic)
+    tools/gen_v2_fixtures/main.cpp
+    tools/gen_v2_fixtures/common.cpp
+
+    # Per-plugin generators (each lives in its own TU so the Gradus and Ruinae
+    # plugin_ids.h enum namespaces — which contain conflicting symbols at the
+    # same numeric IDs — never compile together in a single translation unit)
+    tools/gen_v2_fixtures/gen_gradus.cpp
+    tools/gen_v2_fixtures/gen_ruinae.cpp
+
+    # Gradus processor (audio thread) + parameters
+    plugins/gradus/src/processor/processor.cpp
+
+    # Ruinae processor (audio thread)
+    plugins/ruinae/src/processor/processor.cpp
+    plugins/ruinae/src/processor/processor_state.cpp
+    plugins/ruinae/src/processor/processor_params.cpp
+    plugins/ruinae/src/processor/processor_midi.cpp
+    plugins/ruinae/src/processor/processor_messaging.cpp
+
+    # VST3 SDK helpers (PresetFile + MemoryStream + module init)
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/vstpresetfile.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/hostclasses.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/hosting/pluginterfacesupport.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
+
+    # GetPluginFactory stub (resolves entry-point symbol referenced by SDK)
+    plugins/gradus/tests/vstgui_test_stubs.cpp
+)
+
+target_link_libraries(gen_v2_fixtures
+    PRIVATE
+        KrateDSP
+        KratePluginsShared
+        sdk
+)
+
+# Target-level include directories: common ones used by every TU.
+target_include_directories(gen_v2_fixtures
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/tools/gen_v2_fixtures
+        ${vst3sdk_SOURCE_DIR}
+)
+
+# Per-source include dirs: each plugin's src/ is added ONLY for the TU that
+# includes its headers, so the `#include "plugin_ids.h"` in each TU resolves
+# to the correct plugin's plugin_ids.h.
+set_source_files_properties(
+    tools/gen_v2_fixtures/gen_gradus.cpp
+    plugins/gradus/src/processor/processor.cpp
+    PROPERTIES
+        INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/plugins/gradus/src"
+)
+set_source_files_properties(
+    tools/gen_v2_fixtures/gen_ruinae.cpp
+    plugins/ruinae/src/processor/processor.cpp
+    plugins/ruinae/src/processor/processor_state.cpp
+    plugins/ruinae/src/processor/processor_params.cpp
+    plugins/ruinae/src/processor/processor_midi.cpp
+    plugins/ruinae/src/processor/processor_messaging.cpp
+    PROPERTIES
+        INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/plugins/ruinae/src"
+)
+
+target_compile_features(gen_v2_fixtures PRIVATE cxx_std_20)
+
+set_target_properties(gen_v2_fixtures PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
+# Match gradus_tests warning posture (silence VST SDK headers' /W4 chatter)
+if(MSVC)
+    target_compile_options(gen_v2_fixtures PRIVATE
+        /W4
+        /permissive-
+        /Zc:__cplusplus
+        /wd4100
+        /wd4458
+    )
+else()
+    target_compile_options(gen_v2_fixtures PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wno-unused-parameter
+    )
+endif()
+
+# ==============================================================================
 # Control Testbench (UI Development Tool)
 # ==============================================================================
 # Standalone application for testing custom VSTGUI controls without loading

@@ -240,6 +240,8 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
             {kArpChordPlayheadId,     arpCore_.chordLane().currentStep()},
             {kArpInversionPlayheadId, arpCore_.inversionLane().currentStep()},
             {kArpMidiDelayPlayheadId, arpCore_.midiDelayLane().currentStep()},
+            // Spec 142: Sequencer Note lane (lane 9) playhead for UI piano-roll cursor.
+            {kArpSequencerNoteLanePlayheadId, arpCore_.seqNoteLane().currentStep()},
         };
         for (const auto& [id, step] : playheads) {
             outputPlayhead(id, static_cast<float>(step) / kMaxLaneStepsF);
@@ -283,11 +285,14 @@ tresult PLUGIN_API Processor::getState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // 1. State version
+    // 1. State version (bumped to 3 in spec 142 for Sequencer Note lane)
     streamer.writeInt32(kCurrentStateVersion);
 
     // 2. Arp params (audition params are session-only, not saved in presets)
     saveArpParams(arpParams_, streamer);
+
+    // 3. Sequencer Note lane appendix (spec 142, v3)
+    saveSequencerNoteLaneParams(arpParams_, streamer);
 
     return kResultOk;
 }
@@ -299,14 +304,26 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     IBStreamer streamer(state, kLittleEndian);
 
-    // 1. Read and discard state version (single version, no migration needed)
+    // 1. Read state version and dispatch.
+    //    v2: legacy stream (no Sequencer Note lane appendix); EOF on the new
+    //        block leaves defaults in place (FR-039a).
+    //    v3: full v2 block + Sequencer Note lane appendix.
+    //   >v3: future-incompatible; reject defensively.
     int32 version = 0;
     if (!streamer.readInt32(version))
         return kResultFalse;
-    (void)version;
+    if (version != 2 && version != 3)
+        return kResultFalse;
 
-    // 2. Load arp params
+    // 2. Load arp params (v2 block; identical layout in v2 and v3 streams).
     if (!loadArpParams(arpParams_, streamer))
+        return kResultFalse;
+
+    // 3. Load Sequencer Note lane appendix.
+    //    For v2 streams this hits EOF on the first field and leaves defaults
+    //    intact. For v3 streams it reads the appendix fully; a corrupt stream
+    //    returns false here.
+    if (!loadSequencerNoteLaneParams(arpParams_, streamer))
         return kResultFalse;
 
     // Force arp to MIDI mode (always on in Gradus)
@@ -314,7 +331,7 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 
     // Bake speed curve tables from deserialized curve data and apply to arpCore
     {
-        std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+        std::scoped_lock lock(arpParams_.speedCurveMutex_);
         for (size_t i = 0; i < 8; ++i) {
             const auto& curve = arpParams_.speedCurves[i];
             arpParams_.speedCurveEnabledFlags[i].store(
@@ -338,6 +355,29 @@ tresult PLUGIN_API Processor::setState(IBStream* state)
 tresult PLUGIN_API Processor::notify(IMessage* message)
 {
     if (!message) return kResultFalse;
+
+    // Spec 142: Sequencer Note lane param update from Controller. This is the
+    // belt-and-suspenders path that guarantees the Processor's atomics track
+    // UI edits even if the host doesn't relay them through processParameter
+    // Changes. See controller.h::sendSeqNoteLaneParam for the rationale.
+    if (strcmp(message->getMessageID(), "SeqNoteLaneParam") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs) return kResultFalse;
+
+        int64 idRaw = 0;
+        int64 valueBits = 0;
+        if (attrs->getInt("id", idRaw) != kResultOk) return kResultFalse;
+        if (attrs->getInt("valueBits", valueBits) != kResultOk) return kResultFalse;
+
+        Steinberg::Vst::ParamValue value = 0.0;
+        std::memcpy(&value, &valueBits, sizeof(Steinberg::Vst::ParamValue));
+
+        auto id = static_cast<Steinberg::Vst::ParamID>(idRaw);
+        // Reuse the same handler used by processParameterChanges so the
+        // atomic-update logic stays in one place.
+        Gradus::handleArpParamChange(arpParams_, id, value);
+        return kResultOk;
+    }
 
     if (strcmp(message->getMessageID(), "SpeedCurveTable") == 0) {
         auto* attrs = message->getAttributes();
@@ -376,12 +416,12 @@ tresult PLUGIN_API Processor::notify(IMessage* message)
         Steinberg::uint32 curveSize = 0;
         if (attrs->getBinary("curveData", curveData, curveSize) == kResultOk &&
             curveData && curveSize > 0) {
-            std::lock_guard<std::mutex> lock(arpParams_.speedCurveMutex_);
+            std::scoped_lock lock(arpParams_.speedCurveMutex_);
             auto& curve = arpParams_.speedCurves[laneIdx];
             curve.enabled = (enabled != 0);
 
             // Deserialize: presetIndex(int32) + numPoints(int32) + points(6 floats each)
-            auto* bytes = static_cast<const char*>(curveData);
+            const auto* bytes = static_cast<const char*>(curveData);
             Steinberg::uint32 offset = 0;
             auto readInt = [&](int32& val) -> bool {
                 if (offset + sizeof(int32) > curveSize) return false;
@@ -396,7 +436,8 @@ tresult PLUGIN_API Processor::notify(IMessage* message)
                 return true;
             };
 
-            int32 presetIdx = 0, numPoints = 0;
+            int32 presetIdx = 0;
+            int32 numPoints = 0;
             if (readInt(presetIdx) && readInt(numPoints)) {
                 curve.presetIndex = presetIdx;
                 numPoints = std::clamp(numPoints, int32{0}, int32{64});
@@ -441,10 +482,12 @@ void Processor::processParameterChanges(IParameterChanges* changes)
         if (queue->getPoint(numPoints - 1, sampleOffset, value) != kResultOk)
             continue;
 
-        // Try arp params (base range 3000-3495 + speed curve 3500-3507 + delay 3510-3740)
+        // Try arp params (base range 3000-3495 + speed curve 3500-3507 + delay 3510-3740
+        // + sequencer note lane 3741-3811, spec 142)
         if ((id >= kArpBaseId && id <= kArpEndId) ||
             (id >= kArpVelocityLaneSpeedCurveDepthId && id <= kArpInversionLaneSpeedCurveDepthId) ||
-            (id >= kArpMidiDelayLaneLengthId && id <= kArpMidiDelayPlayheadId)) {
+            (id >= kArpMidiDelayLaneLengthId && id <= kArpMidiDelayPlayheadId) ||
+            (id >= kArpSourceModeId && id <= kArpSequencerNoteLaneEndId)) {
             handleArpParamChange(arpParams_, id, value);
             continue;
         }
@@ -725,6 +768,63 @@ void Processor::applyParamsToEngine()
 
             midiDelay_.setStepConfig(static_cast<size_t>(i), cfg);
         }
+    }
+
+    // --- Spec 142: Sequencer Note lane (lane 9) sync ---
+    {
+        // Sync source mode (Live / Sequencer). On a Live->Seq or Seq->Live
+        // transition, emit a panic note-off for any sounding programmed note
+        // BEFORE handing control to the new source. Lane playheads are NOT
+        // reset (spec Q5-A). Block-boundary granularity is acceptable —
+        // Source toggle is a meta-control, not sample-accurate.
+        const int newSourceMode = std::clamp(
+            arpParams_.sourceMode.load(std::memory_order_relaxed), 0, 1);
+        if (newSourceMode != prevSourceMode_) {
+            // Panic note-off for any sounding programmed note BEFORE handing
+            // the pipeline to the new source. requestPanicNoteOff() sets the
+            // arp's needsDisableNoteOff_ flag; the next processBlock() emits
+            // a noteOff at sample 0 for every entry in currentArpNotes_,
+            // then clears the buffer. Lane playheads are NOT touched (Q5-A).
+            arpCore_.requestPanicNoteOff();
+            arpCore_.setSourceMode(static_cast<Krate::DSP::SourceMode>(newSourceMode));
+            prevSourceMode_ = newSourceMode;
+        } else {
+            // Idempotent: always assert the current source mode so a stale
+            // arpCore_ (e.g. after setState) gets the right value.
+            arpCore_.setSourceMode(static_cast<Krate::DSP::SourceMode>(newSourceMode));
+        }
+
+        // Sync lane 9 (Sequencer Note) pattern: length, 32 pitches, 32 rest flags.
+        const auto seqLen = std::clamp(
+            arpParams_.seqNoteLaneLength.load(std::memory_order_relaxed), 1, 32);
+        arpCore_.seqNoteLane().setLength(kMaxLaneSteps);
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            const int pitch = std::clamp(
+                arpParams_.seqNoteLanePitches[i].load(std::memory_order_relaxed),
+                0, 127);
+            arpCore_.seqNoteLane().setStep(static_cast<size_t>(i),
+                static_cast<uint8_t>(pitch));
+        }
+        arpCore_.seqNoteLane().setLength(static_cast<size_t>(seqLen));
+        for (int i = 0; i < kMaxLaneSteps; ++i) {
+            const int rest =
+                arpParams_.seqNoteLaneRestFlags[i].load(std::memory_order_relaxed);
+            arpCore_.seqRestFlags()[i].store(
+                static_cast<uint8_t>(rest != 0 ? 1 : 0),
+                std::memory_order_relaxed);
+        }
+
+        // Sync lane 9 modulators (speed, swing, jitter, speed-curve depth).
+        // These calls are now safe thanks to the T029 audit (each setter
+        // accepts laneIndex < kNumLanes == 10).
+        arpCore_.setLaneSpeed(9,
+            arpParams_.seqNoteLaneSpeed.load(std::memory_order_relaxed));
+        arpCore_.setLaneSwing(9,
+            arpParams_.seqNoteLaneSwing.load(std::memory_order_relaxed));
+        arpCore_.setLaneLengthJitter(9,
+            arpParams_.seqNoteLaneJitter.load(std::memory_order_relaxed));
+        arpCore_.setLaneSpeedCurveDepth(9,
+            arpParams_.seqNoteLaneSpeedCurveDepth.load(std::memory_order_relaxed));
     }
 }
 

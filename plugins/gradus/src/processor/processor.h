@@ -73,6 +73,9 @@ private:
     int prevArpNoteValue_{10};
     Krate::DSP::LatchMode prevArpLatchMode_{Krate::DSP::LatchMode::Off};
     Krate::DSP::ArpRetriggerMode prevArpRetrigger_{Krate::DSP::ArpRetriggerMode::Off};
+    // Spec 142: track previous source mode so we can detect toggle edges and
+    // emit a panic note-off for any sounding programmed note.
+    int prevSourceMode_{0};  // 0 = Live (matches ArpeggiatorParams::sourceMode default)
 
     // Transport state
     bool wasTransportPlaying_{false};

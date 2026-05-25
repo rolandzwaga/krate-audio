@@ -120,6 +120,17 @@
         <control-tag name="AuditionVolume" tag="4001"/>
         <control-tag name="AuditionWaveform" tag="4002"/>
         <control-tag name="AuditionDecay" tag="4003"/>
+
+        <!-- Spec 142: Sequencer Note lane (Source toggle + lane controls).
+             Note: 64 per-step pitch+rest params (3743..3806) are hidden and
+             edited via PianoRollView, so they have no control-tag here. -->
+        <control-tag name="ArpSourceMode" tag="3741"/>
+        <control-tag name="ArpSequencerNoteLaneLength" tag="3742"/>
+        <control-tag name="ArpSequencerNoteLaneSpeed" tag="3807"/>
+        <control-tag name="ArpSequencerNoteLaneSwing" tag="3808"/>
+        <control-tag name="ArpSequencerNoteLaneJitter" tag="3809"/>
+        <control-tag name="ArpSequencerNoteLaneSpeedCurveDepth" tag="3810"/>
+
         <!-- Version display -->
         <control-tag name="VersionLabel" tag="9999"/>
     </control-tags>
@@ -145,6 +156,18 @@
                   font="~ NormalFontSmaller" font-color="text-secondary"
                   text-alignment="left" transparent="true"
                   title="Step Arpeggiator"/>
+
+            <!-- Spec 142: Source mode toggle (Live / Sequencer). FR-001:
+                 defaults to Live, FR-003: automatable. Drives the
+                 UIViewSwitchContainer that hosts the PianoRollView. -->
+            <view class="CTextLabel" origin="340, 8" size="42, 12"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="right" transparent="true" title="Source"/>
+            <view class="COptionMenu" origin="386, 8" size="92, 20"
+                  control-tag="ArpSourceMode" default-value="0"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Note source: Live (held MIDI) or Sequencer (piano-roll pattern)"/>
         </view>
 
         <!-- ============================================================ -->
@@ -664,5 +687,122 @@
                   title="v1.0.0"/>
         </view>
 
+        <!-- ============================================================ -->
+        <!-- Spec 142: Sequencer Note lane modulator strip (FR-022b).    -->
+        <!-- Always visible in both Live and Sequencer modes. Lane Length-->
+        <!-- only takes effect in Sequencer mode but is harmless in Live. -->
+        <!-- Placed in the unused space at (490, 36)-(800, 68) above the  -->
+        <!-- Spec 142: footer modulator strip for the Sequencer Note lane -->
+        <!-- (Length / Speed / Swing / Jitter / Curve Depth) was removed; -->
+        <!-- those controls now live in the PianoRollContent header strip -->
+        <!-- so they're visible only when Source = Sequencer.             -->
+        <!-- ============================================================ -->
+
+        <!-- ============================================================ -->
+        <!-- Spec 142: UIViewSwitchContainer for the piano-roll editor.  -->
+        <!-- FR-027: visible iff Source = Sequencer (value 1 → second    -->
+        <!-- template). EmptyContent is a transparent placeholder so the -->
+        <!-- ring display below shows through in Live mode.              -->
+        <!-- Position overlays the ring display at (8, 112) size 660x660 -->
+        <!-- so the piano roll uses the same visual real estate when the -->
+        <!-- user is editing the pattern.                                -->
+        <!-- ============================================================ -->
+        <view class="UIViewSwitchContainer"
+              origin="8, 112" size="660, 660"
+              transparent="true"
+              template-names="EmptyContent,PianoRollContent"
+              template-switch-control="ArpSourceMode"/>
+
     </template>
+
+    <!-- ============================================================ -->
+    <!-- Spec 142: UIViewSwitchContainer templates                  -->
+    <!-- ============================================================ -->
+
+    <!-- EmptyContent: shown when ArpSourceMode = 0 (Live). A transparent
+         placeholder so the ring display below the switch container stays
+         visible. -->
+    <template name="EmptyContent" size="660, 660"
+              background-color="bg" class="CViewContainer"
+              transparent="true"/>
+
+    <!-- PianoRollContent: shown when ArpSourceMode = 1 (Sequencer). Hosts
+         a header strip with Length/Speed/Swing/Jitter/Curve modulator knobs
+         (visible only in Sequencer mode, since they're meaningless in Live)
+         above a CScrollView whose inner PianoRollView is 660x1152 — 48 rows
+         at 24px each. User scrolls vertically to bring out-of-viewport
+         rows into view. -->
+    <template name="PianoRollContent" size="660, 660"
+              background-color="bg" class="CViewContainer"
+              transparent="false">
+
+        <!-- Modulator header strip (660x40). Steps + Speed are dropdowns to  -->
+        <!-- match the other lanes' Steps/Speed selectors; Swing/Jitter/Curve -->
+        <!-- stay as ArcKnobs since they're continuous values.                -->
+        <!-- The Length param stays a RangeParameter (1..32); the controller  -->
+        <!-- populates the Length COptionMenu with 32 numeric entries in      -->
+        <!-- verifyView so it renders as a proper dropdown without changing   -->
+        <!-- the underlying param type (which would break host caches).       -->
+        <view class="CViewContainer" origin="0, 0" size="660, 40"
+              transparent="true">
+            <!-- Steps -->
+            <view class="CTextLabel" origin="10, 4" size="56, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="STEPS"/>
+            <view class="COptionMenu" origin="14, 16" size="48, 18"
+                  control-tag="ArpSequencerNoteLaneLength" default-value="0.484"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Sequencer Note lane length (1-32 steps)"/>
+            <!-- Speed -->
+            <view class="CTextLabel" origin="80, 4" size="64, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="SPEED"/>
+            <view class="COptionMenu" origin="84, 16" size="56, 18"
+                  control-tag="ArpSequencerNoteLaneSpeed" default-value="0.333"
+                  font="~ NormalFontSmaller" font-color="text-menu"
+                  back-color="bg-dropdown" frame-color="frame-dropdown"
+                  tooltip="Sequencer Note lane speed multiplier"/>
+            <!-- Swing -->
+            <view class="CTextLabel" origin="160, 4" size="56, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="SWING"/>
+            <view class="ArcKnob" origin="174, 14" size="32, 24"
+                  control-tag="ArpSequencerNoteLaneSwing" default-value="0"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  popup-position="top"
+                  tooltip="Sequencer Note lane swing (0-75%)"/>
+            <!-- Jitter -->
+            <view class="CTextLabel" origin="230, 4" size="56, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="JITTER"/>
+            <view class="ArcKnob" origin="244, 14" size="32, 24"
+                  control-tag="ArpSequencerNoteLaneJitter" default-value="0"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  popup-position="top"
+                  tooltip="Sequencer Note lane length jitter (0-4 steps)"/>
+            <!-- Speed Curve Depth -->
+            <view class="CTextLabel" origin="300, 4" size="56, 10"
+                  font="~ NormalFontSmaller" font-color="text-secondary"
+                  text-alignment="center" transparent="true" title="CURVE"/>
+            <view class="ArcKnob" origin="314, 14" size="32, 24"
+                  control-tag="ArpSequencerNoteLaneSpeedCurveDepth" default-value="0.5"
+                  arc-color="arpeggiator" guide-color="knob-guide"
+                  popup-position="top"
+                  tooltip="Sequencer Note lane speed-curve depth (0-1)"/>
+        </view>
+
+        <!-- Scrollable piano roll: viewport 660x620, inner content 660x1152
+             (48 rows x 24px each). Vertical scrollbar only — 32 columns
+             always fit the 660px width. -->
+        <view class="CScrollView" origin="0, 40" size="660, 620"
+              container-size="660, 1152"
+              horizontal-scrollbar="false" vertical-scrollbar="true"
+              scrollbar-width="12" background-color="bg" transparent="false">
+            <view custom-view-name="PianoRollView"
+                  origin="0, 0" size="660, 1152"
+                  transparent="false"/>
+        </view>
+    </template>
+
 </vstgui-ui-description>

@@ -15,6 +15,7 @@
 #include "../ui/pin_flag_strip.h"
 #include "../ui/markov_matrix_editor.h"
 #include "../ui/speed_curve_editor.h"
+#include "../ui/piano_roll_view.h"
 #include "ui/arp_lane_editor.h"
 
 #include "ui/toggle_button.h"
@@ -67,6 +68,30 @@ VSTGUI::CView* Controller::verifyView(
     // Capture DetailStrip pointer (created by createCustomView)
     if (auto* strip = dynamic_cast<DetailStrip*>(view))
         detailStrip_ = strip;
+
+    // Spec 142: capture PianoRollView (also created by createCustomView).
+    // verifyView fires for every view in the tree; updating the cache here
+    // covers UIViewSwitchContainer-driven reconstructions when the user
+    // toggles Source = Sequencer ↔ Live.
+    if (auto* prv = dynamic_cast<PianoRollView*>(view))
+        pianoRollView_ = prv;
+
+    // Spec 142: populate the Sequencer Note lane Steps dropdown (1..32). The
+    // underlying parameter stays a RangeParameter (changing the type to
+    // StringListParameter at the same ID breaks host parameter caches and
+    // prevents the editor from loading — see commit 92c56583 / dbc5d679).
+    // COptionMenu's menu entries are added manually here so the dropdown
+    // renders properly while the param type remains unchanged.
+    if (auto* menu = dynamic_cast<VSTGUI::COptionMenu*>(view)) {
+        if (menu->getTag() == kArpSequencerNoteLaneLengthId &&
+            menu->getNbEntries() == 0) {
+            for (int i = 1; i <= 32; ++i) {
+                char buf[8];
+                snprintf(buf, sizeof(buf), "%d", i);
+                menu->addEntry(buf);
+            }
+        }
+    }
 
     // Capture contextual labels by custom-view-name (no control-tag available)
     if (const auto* nameAttr = attributes.getAttributeValue("custom-view-name")) {

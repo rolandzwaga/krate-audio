@@ -1,0 +1,5 @@
+# Spec 142 SC-004b Ruinae factory-preset golden MIDI: byte-identical
+# comparison required across Windows / macOS / Linux. Prevent any line-ending
+# translation that would silently corrupt the goldens.
+* binary
+*.txt -text

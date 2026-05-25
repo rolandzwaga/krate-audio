@@ -1101,3 +1101,102 @@ Parameter edits are forwarded to the owning controller via an `EditCallback` ins
 - `DragTarget` enum (`None / Start / End / Time`) and `EditOp` enum cleanly separate view interaction state from controller-side VST3 edit-gesture handling
 
 **Consumers:** Membrum Phase 6 editor Acoustic mode Selected-Pad panel.
+
+---
+
+## PianoRollView (Spec 142)
+
+### Overview
+
+**Location:** [`plugins/gradus/src/ui/piano_roll_view.h`](../../plugins/gradus/src/ui/piano_roll_view.h) (VSTGUI integration) + [`plugins/gradus/src/ui/piano_roll_view_logic.h`](../../plugins/gradus/src/ui/piano_roll_view_logic.h) (pure logic)
+
+**Purpose:** Cross-platform VSTGUI custom view that renders Gradus's Sequencer Note lane pattern as a 48-row x N-column piano-roll grid (C2 MIDI 36 .. B5 MIDI 83). Visible only when `kArpSourceModeId == Sequencer` via a `UIViewSwitchContainer`. Edits the 64 lane step params (32 pitch + 32 rest flag) atomically through the controller's `beginEdit` / `performEdit` / `endEdit` gesture path; receives external param changes (preset load, host automation) via the VST3 `Steinberg::FObject` (`IDependent`) pattern. Driven-only playhead cursor reads `kArpSequencerNoteLanePlayheadId`.
+
+**When to use:** Gradus Sequencer mode authoring (Spec 142 US3). Plugin-local view; not promoted to `plugins/shared/` per the project's "duplicate twice before extracting" guidance — there is no second consumer yet.
+
+**Namespace:** `Gradus::UI` (the logic header is in `Gradus::UI::PianoRollLogic`).
+
+### Humble-Object Split
+
+Split into two headers to keep mouse-state-machine and grid-geometry logic testable without spinning up VSTGUI:
+
+| Header | Contents | Test target |
+|--------|----------|-------------|
+| `piano_roll_view_logic.h` | `stepFromX`, `pitchFromY`, `cellRect`, mouse state-machine (`IDLE`/`DRAGGING`), click-vs-toggle-vs-replace decision, drag clamping | `piano_roll_view_test.cpp` (13 scenarios, no VSTGUI link) |
+| `piano_roll_view.h` | `PianoRollView : CView, FObject`, draw/onMouseDown/onMouseMoved/onMouseUp, IDependent registration, controller wiring | Linked into `gradus_tests` for integration coverage |
+
+The logic header is `#include`-able from a free-standing unit test executable; the integration header pulls in `VSTGUI::CView`, `CDrawContext`, etc. This mirrors the same pattern used by `ADSRDisplay` and `CouplingMatrixView` — pure logic separated from rendering.
+
+### Grid Geometry
+
+| Constant | Value | Note |
+|----------|-------|------|
+| `kMidiLow` | 36 (C2) | Bottom row |
+| `kMidiHigh` | 83 (B5) | Top row |
+| `kPitchRows` | 48 | `static_assert(kPitchRows == 48, "FR-028: piano roll must show exactly 48 rows (C2..B5)")` |
+| Active columns | 1..32 | Driven by `kArpSequencerNoteLaneLengthId`; only the first `length` columns are editable |
+
+No scrolling in v1 — the 4-octave window is fixed per FR-028. Programmed pitches outside [36, 83] remain valid in the underlying parameter (range 0-127) but aren't editable from this view.
+
+### Mouse State Machine
+
+```
+IDLE
+  -- left-click on cell --> editStep(row, col):
+       if currentRestFlag == 1:        // resting -> place note at clicked pitch
+           setPitch(clickedPitch); setRest(0)
+       elif currentPitch == clickedPitch:  // same-pitch click -> toggle to rest
+           setRest(1)
+       else:                                // different pitch -> silent replace
+           setPitch(clickedPitch); setRest(0)
+     transition to DRAGGING (capture startPitch)
+
+  -- right-click on cell --> editStep: setRest(1)
+     stays in IDLE (no drag from right-click)
+
+DRAGGING (startPitch locked)
+  -- mouse move across columns --> for each new column under cursor:
+       setPitch(startPitch); setRest(0)        // ALWAYS PAINT, never toggles
+       (out-of-bounds X/Y clamped to visible grid)
+
+  -- mouse up --> transition back to IDLE
+```
+
+Drag semantics are clarified in spec.md (Session 2026-05-23): "Always paint" during drag — never toggles to rest — and the pitch row is locked to where the drag began (vertical mouse motion ignored). Toggle-to-rest fires only on isolated single clicks. Right-click during a drag is ignored (right-button gestures are single-click only).
+
+### Atomic Edit Pattern
+
+`editStep(step, pitch, rest)` writes BOTH the pitch param (`kArpSequencerNoteLaneStep0Id + step`) and the rest-flag param (`kArpSequencerNoteLaneRestStep0Id + step`) inside a single `beginEdit` / `performEdit` / `endEdit` cycle per param. This keeps host automation lanes clean (one undo-able edit per click) and prevents the rest flag and pitch from drifting out of sync.
+
+### IDependent Lifecycle (Defense in Depth)
+
+The view inherits from both `VSTGUI::CView` and `Steinberg::FObject` to participate in VST3 parameter notifications:
+
+- `attached()` -- registers `addDependent(this)` on the 64 step params + length param + playhead param.
+- `removed()` -- unregisters via `removeDependent(this)`.
+- destructor -- ALSO unregisters via `removeDependent(this)`.
+
+Registering teardown in both `removed()` AND the destructor is defense-in-depth: `removed()` should always fire before destruction, but if the editor's view hierarchy is torn down in an unusual order (host crashes, parameter race), the destructor catches the case and prevents the parameter from holding a dangling `IDependent*`.
+
+The controller does NOT cache the `PianoRollView*` across `UIViewSwitchContainer` swaps — the pointer becomes dangling when Source switches back to Live and the view is destroyed. The view is re-discovered via `verifyView` on each switch.
+
+### UIViewSwitchContainer Visibility (FR-027)
+
+`editor.uidesc` wires a `UIViewSwitchContainer` with `template-switch-control="ArpSourceMode"` and two templates:
+
+- index 0 — `EmptyContent` (Live mode placeholder, shown when `kArpSourceModeId == 0`)
+- index 1 — `PianoRollContent` (contains the `PianoRollView` instance, shown when `kArpSourceModeId == 1`)
+
+VSTGUI's `UIViewSwitchContainer` maps the parameter value directly to the template index (value 0 -> first template), so the `template-names` order must be exactly `"EmptyContent,PianoRollContent"`. Editor window size is unchanged from pre-feature Gradus.
+
+### FR-036 Disabled Controls
+
+Controls listed in [`source_mode_disable_list.h`](../../plugins/gradus/src/controller/source_mode_disable_list.h) (single source of truth) are visually disabled when Source = Sequencer via `setMouseEnabled(false)` + `setAlphaValue(0.4f)`, applied by `Controller::syncViewsFromParams` when the `kDirtyArpSourceMode` flag is set. Re-enabled when Source reverts to Live. The list covers ArpMode, OctaveRange, OctaveMode, ScaleQuantizeInput, LatchMode, all Markov controls, all Euclidean controls, all Pin Note controls, and all Range Mapping controls. Controls whose audio-thread effect is preserved (Retrigger, Transpose, Spice/Dice/Humanize/per-lane modulators) remain enabled in both modes.
+
+### Design Notes
+
+- Cross-platform per FR-033: VSTGUI primitives only (`CView`, `CDrawContext`, `CPoint`, `CRect`, `CColor`, `kLButton`/`kRButton`). No Win32/Cocoa/AppKit/GTK calls.
+- The playhead cursor uses the same read pattern as the ring view's playhead indicator (FR-034a) — no new parameter or message channel was introduced.
+- Drag-paint clamping: when the mouse exits the view bounds during a drag, the step column is clamped to `[0, length-1]` and the locked start-pitch is reused. Pitch never follows the cursor vertically during a drag (FR-031).
+
+**Consumers:** Gradus Sequencer mode editor (Spec 142).
