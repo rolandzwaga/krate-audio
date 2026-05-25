@@ -440,6 +440,40 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
 }
 
 // ==============================================================================
+// Spec 142: Sequencer Note Lane param IMessage Sending
+// ==============================================================================
+// Belt-and-suspenders: some hosts don't relay programmatically-driven UI
+// param changes (PianoRollView cell clicks, COptionMenu selections in the
+// header strip) through the host's parameter queue to the Processor's
+// processParameterChanges. The Controller's parameter cache is updated and
+// the UI looks correct, but the Processor's atomics stay stale — so on
+// project save, getState writes the old values. By sending an IMessage
+// directly from Controller to Processor on every Sequencer Note lane param
+// change, the Processor's atomics are guaranteed to track the UI state
+// regardless of host behavior. Same workaround pattern as sendSpeedCurveTable.
+
+void Controller::sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
+                                       Steinberg::Vst::ParamValue value)
+{
+    auto msg = Steinberg::owned(allocateMessage());
+    if (!msg) return;
+
+    msg->setMessageID("SeqNoteLaneParam");
+    auto* attrs = msg->getAttributes();
+    if (!attrs) return;
+
+    attrs->setInt("id", static_cast<Steinberg::int64>(id));
+
+    // IAttributeList has no setFloat — encode normalized value (double) as
+    // raw bits in an int64. Processor decodes via the inverse cast.
+    Steinberg::int64 valueBits = 0;
+    std::memcpy(&valueBits, &value, sizeof(Steinberg::Vst::ParamValue));
+    attrs->setInt("valueBits", valueBits);
+
+    sendMessage(msg);
+}
+
+// ==============================================================================
 // Speed Curve IMessage Sending
 // ==============================================================================
 

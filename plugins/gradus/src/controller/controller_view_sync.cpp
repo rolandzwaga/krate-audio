@@ -52,6 +52,14 @@ tresult PLUGIN_API Controller::setParamNormalized(
 {
     tresult result = EditControllerEx1::setParamNormalized(tag, value);
 
+    // Spec 142: forward Sequencer Note lane param changes to the Processor
+    // via IMessage. See controller.h sendSeqNoteLaneParam declaration for why
+    // we can't rely on the host's parameter queue alone. Skip the read-only
+    // playhead (3811) since the Processor writes it, not the Controller.
+    if (tag >= kArpSourceModeId && tag < kArpSequencerNoteLanePlayheadId) {
+        sendSeqNoteLaneParam(tag, value);
+    }
+
     // --- Classify parameter into dirty categories ---
 
     // Lane step/length parameters (LengthId is always 1 below Step0Id)

@@ -238,6 +238,15 @@ private:
     void sendSpeedCurveTable(size_t laneIndex, const SpeedCurveData& data);
     void showSpeedCurveForLane(int laneIndex);
 
+    // Spec 142: forward Sequencer Note lane parameter edits to the Processor
+    // via IMessage. Some hosts don't relay programmatically-driven UI param
+    // changes (PianoRollView clicks, COptionMenu selections) back through the
+    // host's parameter queue to processParameterChanges, so Processor atomics
+    // miss the update — getState then saves stale values. Same workaround as
+    // sendSpeedCurveTable (see controller.cpp:458 for the rationale).
+    void sendSeqNoteLaneParam(Steinberg::Vst::ParamID id,
+                              Steinberg::Vst::ParamValue value);
+
     // Shared state loading helpers (used by setComponentState + preset loading)
     template<typename SetParamFn>
     void loadSpeedCurvesFromStream(Steinberg::IBStreamer& streamer, SetParamFn setParam);

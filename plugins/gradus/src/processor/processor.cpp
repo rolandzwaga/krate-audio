@@ -356,6 +356,29 @@ tresult PLUGIN_API Processor::notify(IMessage* message)
 {
     if (!message) return kResultFalse;
 
+    // Spec 142: Sequencer Note lane param update from Controller. This is the
+    // belt-and-suspenders path that guarantees the Processor's atomics track
+    // UI edits even if the host doesn't relay them through processParameter
+    // Changes. See controller.h::sendSeqNoteLaneParam for the rationale.
+    if (strcmp(message->getMessageID(), "SeqNoteLaneParam") == 0) {
+        auto* attrs = message->getAttributes();
+        if (!attrs) return kResultFalse;
+
+        int64 idRaw = 0;
+        int64 valueBits = 0;
+        if (attrs->getInt("id", idRaw) != kResultOk) return kResultFalse;
+        if (attrs->getInt("valueBits", valueBits) != kResultOk) return kResultFalse;
+
+        Steinberg::Vst::ParamValue value = 0.0;
+        std::memcpy(&value, &valueBits, sizeof(Steinberg::Vst::ParamValue));
+
+        auto id = static_cast<Steinberg::Vst::ParamID>(idRaw);
+        // Reuse the same handler used by processParameterChanges so the
+        // atomic-update logic stays in one place.
+        Gradus::handleArpParamChange(arpParams_, id, value);
+        return kResultOk;
+    }
+
     if (strcmp(message->getMessageID(), "SpeedCurveTable") == 0) {
         auto* attrs = message->getAttributes();
         if (!attrs) return kResultFalse;
