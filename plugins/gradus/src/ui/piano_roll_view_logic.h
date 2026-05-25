@@ -28,6 +28,12 @@ inline constexpr int kPitchRows    = kMidiHigh - kMidiLow + 1;          // 48
 inline constexpr int kMaxSteps     = 32;                                // FR-005 max length
 inline constexpr int kPlayheadParamScale = 32;                          // FR-034a
 
+// Inner-content row height. The PianoRollView lives inside a CScrollView so
+// rows can be a comfortable click target without losing any pitches off the
+// bottom — the user scrolls to bring more rows into view.
+inline constexpr int kRowHeightPx        = 24;
+inline constexpr int kInnerContentHeight = kPitchRows * kRowHeightPx;   // 1152
+
 static_assert(kPitchRows == 48,
               "FR-028: piano roll must show exactly 48 rows (C2..B5)");
 
