@@ -1533,12 +1533,26 @@ inline void registerSequencerNoteLaneParams(
         STR16("Arp Source Mode"), kArpSourceModeId,
         {STR16("Live"), STR16("Sequencer")}));
 
-    // Lane length (3742): 1-32 steps, visible, default 16.
-    parameters.addParameter(
-        new RangeParameter(STR16("Seq Note Lane Length"),
-            kArpSequencerNoteLaneLengthId, STR16(""),
-            1, 32, 16, 31,
-            ParameterInfo::kCanAutomate));
+    // Lane length (3742): 1-32 steps, registered as a 32-entry StringList so
+    // the UI renders it as a discrete dropdown (matches the other lane Steps
+    // controls). Default index 15 → label "16". Persistence is unchanged:
+    // normalized index i ∈ [0,31] still encodes length i+1 on the wire.
+    {
+        auto* lengthParam = new StringListParameter(
+            STR16("Seq Note Lane Steps"),
+            kArpSequencerNoteLaneLengthId,
+            nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        for (int i = 1; i <= 32; ++i) {
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%d", i);
+            Steinberg::Vst::String128 label;
+            Steinberg::UString(label, 128).fromAscii(buf);
+            lengthParam->appendString(label);
+        }
+        lengthParam->setNormalized(lengthParam->toNormalized(15)); // index 15 = "16"
+        parameters.addParameter(lengthParam);
+    }
 
     // Per-step pitches (3743..3774): 32 params, 0-127, default 60 (C4),
     // hidden (managed via piano-roll view), automatable.
