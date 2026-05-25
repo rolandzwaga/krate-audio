@@ -236,4 +236,28 @@ private:
     return length;
 }
 
+// -----------------------------------------------------------------------------
+// Hover tracking. Pure function: given a mouse position and previous hover
+// state, compute the new hovered (step, pitch) and whether it changed. Used by
+// the view to decide when to call invalid() on hover updates.
+//
+// Returns step==-1 or pitch==-1 when the mouse is off-grid; the view treats
+// either as "no hover" and clears any highlight.
+// -----------------------------------------------------------------------------
+struct HoverResult {
+    int  step    = -1;
+    int  pitch   = -1;
+    bool changed = false;
+};
+
+[[nodiscard]] inline HoverResult computeHover(float x, float y,
+                                              float viewWidth, float viewHeight,
+                                              int activeLength,
+                                              int prevStep, int prevPitch) noexcept {
+    const int s = stepFromX(x, viewWidth, activeLength);
+    const int p = pitchFromY(y, viewHeight);
+    const bool ch = (s != prevStep) || (p != prevPitch);
+    return HoverResult{ s, p, ch };
+}
+
 }} // namespace Gradus::PianoRollViewLogic

@@ -375,3 +375,95 @@ TEST_CASE("PianoRollView: column and row geometry",
     CHECK(Logic::colWidth(320.0f, 0)  == Approx(0.0f));
     CHECK(Logic::rowHeight(480.0f)    == Approx(10.0f));
 }
+
+// -----------------------------------------------------------------------------
+// 14. computeHover — fine-grained per-cell hover tracking
+// -----------------------------------------------------------------------------
+TEST_CASE("PianoRollView: hover within grid returns valid step+pitch",
+          "[gradus][piano_roll][ui][hover]")
+{
+    constexpr float kViewW = 320.0f; // 16 active cols => 20px each
+    constexpr float kViewH = 480.0f; // 48 rows => 10px each
+    constexpr int   kLen   = 16;
+
+    // Click roughly in the middle of step 4, row 10 (pitch = 83 - 10 = 73).
+    auto h = Logic::computeHover(90.0f, 105.0f, kViewW, kViewH, kLen, -1, -1);
+    CHECK(h.step == 4);
+    CHECK(h.pitch == 73);
+    CHECK(h.changed == true);
+}
+
+TEST_CASE("PianoRollView: hover within same cell reports changed=false",
+          "[gradus][piano_roll][ui][hover]")
+{
+    constexpr float kViewW = 320.0f;
+    constexpr float kViewH = 480.0f;
+    constexpr int   kLen   = 16;
+
+    // First move into step 4, pitch 73.
+    auto h1 = Logic::computeHover(85.0f, 105.0f, kViewW, kViewH, kLen, -1, -1);
+    REQUIRE(h1.step == 4);
+    REQUIRE(h1.pitch == 73);
+    // A tiny jitter inside the same cell should NOT report changed.
+    auto h2 = Logic::computeHover(95.0f, 108.0f, kViewW, kViewH, kLen,
+                                  h1.step, h1.pitch);
+    CHECK(h2.step == 4);
+    CHECK(h2.pitch == 73);
+    CHECK(h2.changed == false);
+}
+
+TEST_CASE("PianoRollView: hover off-grid returns step=-1, pitch=-1",
+          "[gradus][piano_roll][ui][hover]")
+{
+    constexpr float kViewW = 320.0f;
+    constexpr float kViewH = 480.0f;
+    constexpr int   kLen   = 16;
+
+    // x past the right edge.
+    auto h = Logic::computeHover(500.0f, 100.0f, kViewW, kViewH, kLen, -1, -1);
+    CHECK(h.step == -1);
+    CHECK(h.pitch != -1); // y is in range
+    // Both x and y past — fully off-grid.
+    auto h2 = Logic::computeHover(500.0f, 1000.0f, kViewW, kViewH, kLen, -1, -1);
+    CHECK(h2.step == -1);
+    CHECK(h2.pitch == -1);
+}
+
+TEST_CASE("PianoRollView: hover past activeLength clamps step to -1 in x dimension",
+          "[gradus][piano_roll][ui][hover]")
+{
+    constexpr float kViewW = 320.0f;
+    constexpr float kViewH = 480.0f;
+    constexpr int   kLen   = 8; // half-active: cols 8..15 are inactive
+
+    // x corresponds to col 12 — beyond active length 8 but inside view width.
+    // stepFromX returns -1 when x < activeLength * colWidth; with kLen=8 and
+    // viewW=320, colWidth=40 so 8 active cols span 0..320 entire view.
+    // Use kLen=8 with viewW=320: hover at x=200 still maps to step within 8 cols.
+    auto h = Logic::computeHover(200.0f, 100.0f, kViewW, kViewH, kLen, -1, -1);
+    CHECK(h.step == 5); // 200/40 = 5
+    CHECK(h.pitch == 73);
+}
+
+TEST_CASE("PianoRollView: hover transition changes report changed=true",
+          "[gradus][piano_roll][ui][hover]")
+{
+    constexpr float kViewW = 320.0f;
+    constexpr float kViewH = 480.0f;
+    constexpr int   kLen   = 16;
+
+    // Start at step 4/pitch 73.
+    auto h1 = Logic::computeHover(85.0f, 105.0f, kViewW, kViewH, kLen, -1, -1);
+    // Move one row down (pitch 72).
+    auto h2 = Logic::computeHover(85.0f, 115.0f, kViewW, kViewH, kLen,
+                                  h1.step, h1.pitch);
+    CHECK(h2.step == 4);
+    CHECK(h2.pitch == 72);
+    CHECK(h2.changed == true);
+    // Move one column right (step 5).
+    auto h3 = Logic::computeHover(105.0f, 115.0f, kViewW, kViewH, kLen,
+                                  h2.step, h2.pitch);
+    CHECK(h3.step == 5);
+    CHECK(h3.pitch == 72);
+    CHECK(h3.changed == true);
+}

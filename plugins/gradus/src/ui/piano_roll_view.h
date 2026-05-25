@@ -71,6 +71,7 @@ public:
     void draw(VSTGUI::CDrawContext* context) override
     {
         drawGrid(context);
+        drawHoverCell(context);
         drawNotes(context);
         drawPlayhead(context);
         setDirty(false);
@@ -107,22 +108,47 @@ public:
     VSTGUI::CMouseEventResult onMouseMoved(VSTGUI::CPoint& where,
                                            const VSTGUI::CButtonState& buttons) override
     {
+        const auto local = toLocal(where);
+        const int activeLength = currentActiveLength();
+        const auto w = static_cast<float>(getViewSize().getWidth());
+        const auto h = static_cast<float>(getViewSize().getHeight());
+
+        // Hover tracking is suppressed during drag so the cursor highlight
+        // doesn't flicker while the user is painting.
         if (stateMachine_.state() != PianoRollLogic::MouseStateMachine::State::kDragging) {
-            return VSTGUI::kMouseEventNotHandled;
+            const auto hover = PianoRollLogic::computeHover(
+                static_cast<float>(local.x), static_cast<float>(local.y),
+                w, h, activeLength,
+                hoveredStep_, hoveredPitch_);
+            if (hover.changed) {
+                hoveredStep_  = hover.step;
+                hoveredPitch_ = hover.pitch;
+                invalid();
+            }
+            return VSTGUI::kMouseEventHandled;
         }
+
         if (!buttons.isLeftButton()) {
             return VSTGUI::kMouseEventNotHandled;
         }
-        const auto local = toLocal(where);
-        const int activeLength = currentActiveLength();
         // Drag clamps out-of-bounds x to nearest in-range column.
         const int step = PianoRollLogic::stepFromXClamped(
-            static_cast<float>(local.x),
-            static_cast<float>(getViewSize().getWidth()),
-            activeLength);
+            static_cast<float>(local.x), w, activeLength);
         auto edit = stateMachine_.onMouseMovedDragging(step);
         if (edit.valid) {
             applyEdit(edit);
+            invalid();
+        }
+        return VSTGUI::kMouseEventHandled;
+    }
+
+    VSTGUI::CMouseEventResult onMouseExited(VSTGUI::CPoint& where,
+                                            const VSTGUI::CButtonState& buttons) override
+    {
+        (void)where; (void)buttons;
+        if (hoveredStep_ != -1 || hoveredPitch_ != -1) {
+            hoveredStep_  = -1;
+            hoveredPitch_ = -1;
             invalid();
         }
         return VSTGUI::kMouseEventHandled;
@@ -214,16 +240,20 @@ private:
     PianoRollLogic::StepArray                steps_{};
     int                             activeLength_         = 16;
     int                             playheadStep_         = -1;
+    int                             hoveredStep_          = -1;
+    int                             hoveredPitch_         = -1;
     bool                            dependentsRegistered_ = false;
     PianoRollLogic::MouseStateMachine        stateMachine_{};
 
     // Drawing palette.
     VSTGUI::CColor accentColor_     {0xD4, 0xA8, 0x56, 0xFF}; // gold
     VSTGUI::CColor backgroundColor_ {0x1A, 0x1A, 0x2E, 0xFF};
-    VSTGUI::CColor gridLineColor_   {0x30, 0x30, 0x44, 0xFF};
+    VSTGUI::CColor cellLineColor_   {0x28, 0x28, 0x3A, 0x60}; // faint per-cell grid
+    VSTGUI::CColor gridLineColor_   {0x30, 0x30, 0x44, 0xFF}; // brighter octave / 4-step lines
     VSTGUI::CColor restColor_       {0x44, 0x44, 0x55, 0x80};
     VSTGUI::CColor inactiveColor_   {0x10, 0x10, 0x18, 0xFF};
     VSTGUI::CColor playheadColor_   {0xFF, 0xFF, 0xFF, 0x30};
+    VSTGUI::CColor hoverColor_      {0xD4, 0xA8, 0x56, 0x40}; // accent @ 25% alpha
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -270,37 +300,53 @@ private:
         ctx->setFillColor(backgroundColor_);
         ctx->drawRect(size, VSTGUI::kDrawFilled);
 
-        // Inactive (right-of-length) region is dimmed.
         const int   len = currentActiveLength();
         const float w   = static_cast<float>(size.getWidth());
+        const float h   = static_cast<float>(size.getHeight());
         const float cw  = PianoRollLogic::colWidth(w, len);
-        if (len < PianoRollLogic::kMaxSteps && cw > 0.0f) {
-            // We only paint visible columns 0..len-1 so nothing extra is
-            // drawn beyond — but tinting helps if the visible width still
-            // covers all 32 columns visually. (No-op here; reserved for
-            // future styling.)
-            (void)cw;
+        const float rh  = PianoRollLogic::rowHeight(h);
+        ctx->setLineWidth(1.0);
+
+        // Pass 1: per-cell faint grid (every row, every step).
+        ctx->setFrameColor(cellLineColor_);
+        for (int row = 0; row <= PianoRollLogic::kPitchRows; ++row) {
+            const float y = static_cast<float>(row) * rh;
+            ctx->drawLine(
+                VSTGUI::CPoint{size.left,  size.top + static_cast<VSTGUI::CCoord>(y)},
+                VSTGUI::CPoint{size.right, size.top + static_cast<VSTGUI::CCoord>(y)});
+        }
+        for (int step = 0; step <= len; ++step) {
+            const float x = static_cast<float>(step) * cw;
+            ctx->drawLine(
+                VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.top},
+                VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.bottom});
         }
 
-        // Light horizontal lines once per octave (every 12 rows from the top).
+        // Pass 2: brighter octave (every 12 rows) and 4-step lines on top.
         ctx->setFrameColor(gridLineColor_);
-        ctx->setLineWidth(1.0);
-        const float rh = PianoRollLogic::rowHeight(static_cast<float>(size.getHeight()));
         for (int row = 0; row <= PianoRollLogic::kPitchRows; row += 12) {
             const float y = static_cast<float>(row) * rh;
             ctx->drawLine(
-                VSTGUI::CPoint{size.left,
-                               size.top + static_cast<VSTGUI::CCoord>(y)},
-                VSTGUI::CPoint{size.right,
-                               size.top + static_cast<VSTGUI::CCoord>(y)});
+                VSTGUI::CPoint{size.left,  size.top + static_cast<VSTGUI::CCoord>(y)},
+                VSTGUI::CPoint{size.right, size.top + static_cast<VSTGUI::CCoord>(y)});
         }
-        // Vertical step boundaries (every 4 steps).
         for (int step = 0; step <= len; step += 4) {
             const float x = static_cast<float>(step) * cw;
             ctx->drawLine(
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.top},
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.bottom});
         }
+    }
+
+    void drawHoverCell(VSTGUI::CDrawContext* ctx)
+    {
+        if (hoveredStep_ < 0 || hoveredPitch_ < PianoRollLogic::kMidiLow ||
+            hoveredPitch_ > PianoRollLogic::kMidiHigh) {
+            return;
+        }
+        if (hoveredStep_ >= currentActiveLength()) return;
+        ctx->setFillColor(hoverColor_);
+        ctx->drawRect(cellRect(hoveredStep_, hoveredPitch_), VSTGUI::kDrawFilled);
     }
 
     void drawNotes(VSTGUI::CDrawContext* ctx)
