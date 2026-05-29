@@ -31,6 +31,7 @@
 #include <memory>
 #include <vector>
 #include "vst_param_changes.h"
+#include "vst_event_list.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -53,34 +54,9 @@ ProcessSetup makeSetup(double sampleRate = kSampleRate,
 
 // ---- Minimal event / param plumbing ----
 
-class EventList : public IEventList
-{
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getEventCount() override { return static_cast<int32>(events_.size()); }
-    tresult PLUGIN_API getEvent(int32 i, Event& e) override
-    {
-        if (i < 0 || i >= static_cast<int32>(events_.size())) return kResultFalse;
-        e = events_[static_cast<size_t>(i)];
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addEvent(Event& e) override { events_.push_back(e); return kResultTrue; }
-    void addNoteOn(int16 pitch, float velocity)
-    {
-        Event e{};
-        e.type = Event::kNoteOnEvent;
-        e.noteOn.channel = 0;
-        e.noteOn.pitch = pitch;
-        e.noteOn.velocity = velocity;
-        e.noteOn.noteId = pitch;
-        events_.push_back(e);
-    }
-    void clear() { events_.clear(); }
-private:
-    std::vector<Event> events_;
-};
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using EventList = Krate::Test::EventListNoteIdEqPitch;
+
 
 // Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
 using ParamQueue = Krate::Test::ParamValueQueue;

@@ -55,6 +55,7 @@
 #include <memory>
 #include <vector>
 #include "vst_param_changes.h"
+#include "vst_event_list.h"
 
 using namespace Krate::DSP;
 using namespace Steinberg;
@@ -773,32 +774,9 @@ using SingleParamChange = Krate::Test::ParameterChanges;
 using MultiParamChange = Krate::Test::ParameterChanges;
 
 
-class TestEventList : public IEventList {
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override {
-        return kNoInterface;
-    }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using TestEventList = Krate::Test::EventList;
 
-    int32 PLUGIN_API getEventCount() override {
-        return static_cast<int32>(events_.size());
-    }
-    tresult PLUGIN_API getEvent(int32 index, Event& e) override {
-        if (index < 0 || index >= static_cast<int32>(events_.size()))
-            return kResultFalse;
-        e = events_[static_cast<size_t>(index)];
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addEvent(Event& e) override {
-        events_.push_back(e);
-        return kResultTrue;
-    }
-    void clear() { events_.clear(); }
-
-private:
-    std::vector<Event> events_;
-};
 
 struct CapturedMidi {
     int64_t absoluteSample;
