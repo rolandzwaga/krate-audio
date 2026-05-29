@@ -19,6 +19,7 @@
 #include "pluginterfaces/vst/ivstprocesscontext.h"
 
 #include <vector>
+#include "vst_param_changes.h"
 
 using Catch::Approx;
 
@@ -43,19 +44,9 @@ public:
     }
 };
 
-class TempoTestParamChanges : public Steinberg::Vst::IParameterChanges {
-public:
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
-        return Steinberg::kNoInterface;
-    }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-    Steinberg::int32 PLUGIN_API getParameterCount() override { return 0; }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
-        Steinberg::int32) override { return nullptr; }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
-        const Steinberg::Vst::ParamID&, Steinberg::int32&) override { return nullptr; }
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using TempoTestParamChanges = Krate::Test::ParameterChanges;
+
 
 // =============================================================================
 // Tests

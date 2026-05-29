@@ -22,6 +22,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 namespace {
 
@@ -73,54 +74,12 @@ bool looksLikeWhiteNoise(const float* buf, int n) {
 }
 
 // ---- VST3 parameter change helpers ----
-class SimpleParamValueQueue : public Steinberg::Vst::IParamValueQueue {
-public:
-    SimpleParamValueQueue(Steinberg::Vst::ParamID id, double value)
-        : id_(id), value_(value) {}
-    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id_; }
-    Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
-    Steinberg::tresult PLUGIN_API getPoint(
-        Steinberg::int32 index, Steinberg::int32& sampleOffset,
-        Steinberg::Vst::ParamValue& value) override {
-        if (index != 0) return Steinberg::kResultFalse;
-        sampleOffset = 0;
-        value = value_;
-        return Steinberg::kResultTrue;
-    }
-    Steinberg::tresult PLUGIN_API addPoint(
-        Steinberg::int32, Steinberg::Vst::ParamValue, Steinberg::int32&) override {
-        return Steinberg::kResultFalse;
-    }
-    DECLARE_FUNKNOWN_METHODS
-private:
-    Steinberg::Vst::ParamID id_;
-    double value_;
-};
-IMPLEMENT_FUNKNOWN_METHODS(SimpleParamValueQueue, Steinberg::Vst::IParamValueQueue,
-                           Steinberg::Vst::IParamValueQueue::iid)
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using SimpleParamValueQueue = Krate::Test::ParamValueQueue;
+using SimpleParameterChanges = Krate::Test::ParameterChanges;
 
-class SimpleParameterChanges : public Steinberg::Vst::IParameterChanges {
-public:
-    void addChange(Steinberg::Vst::ParamID id, double value) {
-        queues_.push_back(std::make_unique<SimpleParamValueQueue>(id, value));
-    }
-    Steinberg::int32 PLUGIN_API getParameterCount() override {
-        return static_cast<Steinberg::int32>(queues_.size());
-    }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32 index) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size())) return nullptr;
-        return queues_[index].get();
-    }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
-        const Steinberg::Vst::ParamID&, Steinberg::int32&) override {
-        return nullptr;
-    }
-    DECLARE_FUNKNOWN_METHODS
-private:
-    std::vector<std::unique_ptr<SimpleParamValueQueue>> queues_;
-};
-IMPLEMENT_FUNKNOWN_METHODS(SimpleParameterChanges, Steinberg::Vst::IParameterChanges,
-                           Steinberg::Vst::IParameterChanges::iid)
+
+
 
 struct ProcessorFixture {
     std::unique_ptr<Disrumpo::Processor> processor;

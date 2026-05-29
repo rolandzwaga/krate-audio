@@ -32,6 +32,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -44,54 +45,12 @@ using Catch::Approx;
 
 namespace {
 
-class SingleParamQueueST : public IParamValueQueue
-{
-public:
-    SingleParamQueueST(ParamID id, ParamValue value) : id_(id), value_(value) {}
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
-    {
-        if (index != 0) return kResultFalse;
-        sampleOffset = 0;
-        value = value_;
-        return kResultOk;
-    }
-    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
-private:
-    ParamID id_;
-    ParamValue value_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using SingleParamQueueST = Krate::Test::ParamValueQueue;
+using MultiParamChangesST = Krate::Test::ParameterChanges;
 
-class MultiParamChangesST : public IParameterChanges
-{
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getParameterCount() override
-    {
-        return static_cast<int32>(queues_.size());
-    }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-    {
-        if (index < 0 || index >= static_cast<int32>(queues_.size())) return nullptr;
-        return queues_[static_cast<size_t>(index)].get();
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override
-    {
-        return nullptr;
-    }
-    void add(ParamID id, ParamValue value)
-    {
-        queues_.push_back(std::make_unique<SingleParamQueueST>(id, value));
-    }
-private:
-    std::vector<std::unique_ptr<SingleParamQueueST>> queues_;
-};
+
+
 
 // Fixture: initialized processor ready for state save/load.
 struct StateFixture

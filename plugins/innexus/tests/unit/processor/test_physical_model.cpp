@@ -25,6 +25,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 using Catch::Approx;
 using namespace Steinberg;
@@ -566,61 +567,13 @@ static std::unique_ptr<Innexus::Processor> createImpactExciterProcessor()
 }
 
 /// Minimal IParamValueQueue for test parameter injection
-class T025ParamValueQueue : public IParamValueQueue
-{
-public:
-    T025ParamValueQueue(ParamID id, ParamValue val) : id_(id), value_(val) {}
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32 /*index*/, int32& sampleOffset,
-                                 ParamValue& value) override
-    {
-        sampleOffset = 0;
-        value = value_;
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addPoint(int32 /*sampleOffset*/, ParamValue /*value*/,
-                                 int32& /*index*/) override
-    {
-        return kResultFalse;
-    }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    ParamID id_;
-    ParamValue value_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using T025ParamValueQueue = Krate::Test::ParamValueQueue;
+using T025ParameterChanges = Krate::Test::ParameterChanges;
+
 
 /// Minimal IParameterChanges for test parameter injection
-class T025ParameterChanges : public IParameterChanges
-{
-public:
-    void addChange(ParamID id, ParamValue val)
-    {
-        queues_.emplace_back(id, val);
-    }
-    int32 PLUGIN_API getParameterCount() override
-    {
-        return static_cast<int32>(queues_.size());
-    }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-    {
-        if (index < 0 || index >= static_cast<int32>(queues_.size()))
-            return nullptr;
-        return &queues_[static_cast<size_t>(index)];
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID& /*id*/,
-                                                    int32& /*index*/) override
-    {
-        return nullptr;
-    }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    std::vector<T025ParamValueQueue> queues_;
-};
+
 
 /// Helper to set normalized parameter via processParameterChanges simulation.
 /// Processes one silent block with the parameter change so the processor picks it up.
