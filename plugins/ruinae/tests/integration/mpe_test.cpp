@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include "vst_param_changes.h"
 
 using Catch::Approx;
 using namespace Steinberg;
@@ -33,15 +34,9 @@ using namespace Steinberg::Vst;
 
 static constexpr int32 kBlockSize = 512;
 
-class EmptyParamChanges : public IParameterChanges {
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getParameterCount() override { return 0; }
-    IParamValueQueue* PLUGIN_API getParameterData(int32) override { return nullptr; }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using EmptyParamChanges = Krate::Test::ParameterChanges;
+
 
 class MpeEventList : public IEventList {
 public:

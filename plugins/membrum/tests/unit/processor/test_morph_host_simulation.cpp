@@ -27,46 +27,19 @@
 #include <cstdio>
 #include <cstdint>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
 
 namespace {
 
-class PV : public IParamValueQueue
-{
-public:
-    PV(ParamID id, ParamValue v) : id_(id), v_(v) {}
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32, int32& s, ParamValue& v) override
-    { s = 0; v = v_; return kResultTrue; }
-    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    ParamID    id_;
-    ParamValue v_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using PV = Krate::Test::ParamValueQueue;
+using PC = Krate::Test::ParameterChanges;
 
-class PC : public IParameterChanges
-{
-public:
-    void add(ParamID id, ParamValue v) { q_.emplace_back(id, v); }
-    int32 PLUGIN_API getParameterCount() override
-    { return static_cast<int32>(q_.size()); }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 i) override
-    { return (i >= 0 && i < static_cast<int32>(q_.size()))
-        ? &q_[static_cast<std::size_t>(i)] : nullptr; }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override
-    { return nullptr; }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    std::vector<PV> q_;
-};
+
+
 
 class EL : public IEventList
 {

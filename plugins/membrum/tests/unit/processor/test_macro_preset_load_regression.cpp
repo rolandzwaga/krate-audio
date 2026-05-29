@@ -51,6 +51,7 @@
 
 #include <array>
 #include <vector>
+#include "vst_param_changes.h"
 
 using Catch::Matchers::WithinAbs;
 using namespace Membrum;
@@ -302,51 +303,12 @@ TEST_CASE("Regression: applyPadSnapshotToParams writes macros before per-pad fie
 // ==============================================================================
 namespace {
 
-class SingleQ : public Steinberg::Vst::IParamValueQueue
-{
-public:
-    SingleQ(Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue v)
-        : id_(id), v_(v) {}
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override
-    { return Steinberg::kNoInterface; }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return id_; }
-    Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
-    Steinberg::tresult PLUGIN_API getPoint(Steinberg::int32, Steinberg::int32& off,
-                                           Steinberg::Vst::ParamValue& v) override
-    { off = 0; v = v_; return Steinberg::kResultOk; }
-    Steinberg::tresult PLUGIN_API addPoint(Steinberg::int32, Steinberg::Vst::ParamValue,
-                                            Steinberg::int32&) override
-    { return Steinberg::kResultFalse; }
-private:
-    Steinberg::Vst::ParamID id_;
-    Steinberg::Vst::ParamValue v_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using SingleQ = Krate::Test::ParamValueQueue;
+using PCList = Krate::Test::ParameterChanges;
 
-class PCList : public Steinberg::Vst::IParameterChanges
-{
-public:
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override
-    { return Steinberg::kNoInterface; }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-    Steinberg::int32 PLUGIN_API getParameterCount() override
-    { return static_cast<Steinberg::int32>(qs_.size()); }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(Steinberg::int32 i) override
-    {
-        return (i < 0 || i >= static_cast<Steinberg::int32>(qs_.size()))
-                   ? nullptr
-                   : &qs_[static_cast<std::size_t>(i)];
-    }
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
-        const Steinberg::Vst::ParamID&, Steinberg::int32&) override
-    { return nullptr; }
-    void add(Steinberg::Vst::ParamID id, Steinberg::Vst::ParamValue v)
-    { qs_.emplace_back(id, v); }
-private:
-    std::vector<SingleQ> qs_;
-};
+
+
 
 void runEmptyBlock(Membrum::Processor& p,
                    Steinberg::Vst::IParameterChanges* pc)

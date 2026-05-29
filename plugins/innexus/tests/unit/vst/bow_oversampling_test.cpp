@@ -22,6 +22,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -116,61 +117,13 @@ std::unique_ptr<Innexus::Processor> createProcessor()
 }
 
 // Minimal IParamValueQueue for sending a single parameter change
-class BowOsParamValueQueue : public IParamValueQueue
-{
-public:
-    BowOsParamValueQueue(ParamID id, ParamValue val) : id_(id), value_(val) {}
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32 /*index*/, int32& sampleOffset,
-                                 ParamValue& value) override
-    {
-        sampleOffset = 0;
-        value = value_;
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addPoint(int32 /*sampleOffset*/, ParamValue /*value*/,
-                                 int32& /*index*/) override
-    {
-        return kResultFalse;
-    }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    ParamID id_;
-    ParamValue value_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using BowOsParamValueQueue = Krate::Test::ParamValueQueue;
+using BowOsParameterChanges = Krate::Test::ParameterChanges;
+
 
 // Minimal IParameterChanges for sending parameter changes to a processor
-class BowOsParameterChanges : public IParameterChanges
-{
-public:
-    void addChange(ParamID id, ParamValue val)
-    {
-        queues_.emplace_back(id, val);
-    }
-    int32 PLUGIN_API getParameterCount() override
-    {
-        return static_cast<int32>(queues_.size());
-    }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-    {
-        if (index < 0 || index >= static_cast<int32>(queues_.size()))
-            return nullptr;
-        return &queues_[static_cast<size_t>(index)];
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID& /*id*/,
-                                                    int32& /*index*/) override
-    {
-        return nullptr;
-    }
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-private:
-    std::vector<BowOsParamValueQueue> queues_;
-};
+
 
 // Helper: send a parameter change to a processor by processing one silent block
 void setProcessorParam(Innexus::Processor& proc, ParamID id, double value)

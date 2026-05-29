@@ -26,6 +26,7 @@
 #include "pluginterfaces/vst/vsttypes.h"
 
 #include <vector>
+#include "vst_param_changes.h"
 
 using Catch::Approx;
 
@@ -41,73 +42,12 @@ public:
 };
 
 // Mock single-value parameter queue
-class StepCountParamQueue : public Steinberg::Vst::IParamValueQueue {
-public:
-    StepCountParamQueue(Steinberg::Vst::ParamID id, double value)
-        : paramId_(id), value_(value) {}
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using StepCountParamQueue = Krate::Test::ParamValueQueue;
+using StepCountParamChanges = Krate::Test::ParameterChanges;
 
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
-        return Steinberg::kNoInterface;
-    }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-
-    Steinberg::Vst::ParamID PLUGIN_API getParameterId() override { return paramId_; }
-    Steinberg::int32 PLUGIN_API getPointCount() override { return 1; }
-
-    Steinberg::tresult PLUGIN_API getPoint(
-        Steinberg::int32 index,
-        Steinberg::int32& sampleOffset,
-        Steinberg::Vst::ParamValue& value) override {
-        if (index != 0) return Steinberg::kResultFalse;
-        sampleOffset = 0;
-        value = value_;
-        return Steinberg::kResultTrue;
-    }
-
-    Steinberg::tresult PLUGIN_API addPoint(
-        Steinberg::int32, Steinberg::Vst::ParamValue,
-        Steinberg::int32&) override {
-        return Steinberg::kResultFalse;
-    }
-
-private:
-    Steinberg::Vst::ParamID paramId_;
-    double value_;
-};
 
 // Mock parameter changes container
-class StepCountParamChanges : public Steinberg::Vst::IParameterChanges {
-public:
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
-        return Steinberg::kNoInterface;
-    }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-
-    Steinberg::int32 PLUGIN_API getParameterCount() override {
-        return static_cast<Steinberg::int32>(queues_.size());
-    }
-
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API getParameterData(
-        Steinberg::int32 index) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(queues_.size()))
-            return nullptr;
-        return &queues_[static_cast<size_t>(index)];
-    }
-
-    Steinberg::Vst::IParamValueQueue* PLUGIN_API addParameterData(
-        const Steinberg::Vst::ParamID&, Steinberg::int32&) override {
-        return nullptr;
-    }
-
-    void add(Steinberg::Vst::ParamID id, double value) {
-        queues_.emplace_back(id, value);
-    }
-
-private:
-    std::vector<StepCountParamQueue> queues_;
-};
 
 static std::unique_ptr<StepCountTestableProcessor> makeTestProcessor() {
     auto p = std::make_unique<StepCountTestableProcessor>();

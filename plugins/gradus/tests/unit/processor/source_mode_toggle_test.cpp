@@ -54,6 +54,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Krate::DSP;
 using namespace Steinberg;
@@ -767,61 +768,10 @@ namespace {
 // Minimal IParameterChanges shim that lets us drive Source toggle through
 // processParameterChanges (the Processor's source-mode toggle wiring fires on
 // param edge detection in applyParams).
-class SingleParamChange : public IParameterChanges {
-public:
-    void setChange(ParamID id, ParamValue value) {
-        id_ = id;
-        value_ = value;
-        active_ = true;
-    }
-    void clear() { active_ = false; }
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using SingleParamChange = Krate::Test::ParameterChanges;
+using MultiParamChange = Krate::Test::ParameterChanges;
 
-    tresult PLUGIN_API queryInterface(const TUID, void**) override {
-        return kNoInterface;
-    }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-
-    int32 PLUGIN_API getParameterCount() override { return active_ ? 1 : 0; }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 idx) override {
-        if (!active_ || idx != 0) return nullptr;
-        return &queue_;
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override {
-        return nullptr;
-    }
-
-private:
-    class Queue : public IParamValueQueue {
-    public:
-        Queue(ParamID& id, ParamValue& value) : id_(id), value_(value) {}
-        tresult PLUGIN_API queryInterface(const TUID, void**) override {
-            return kNoInterface;
-        }
-        uint32 PLUGIN_API addRef() override { return 1; }
-        uint32 PLUGIN_API release() override { return 1; }
-        ParamID PLUGIN_API getParameterId() override { return id_; }
-        int32 PLUGIN_API getPointCount() override { return 1; }
-        tresult PLUGIN_API getPoint(int32 idx, int32& sampleOffset,
-                                     ParamValue& value) override {
-            if (idx != 0) return kResultFalse;
-            sampleOffset = 0;
-            value = value_;
-            return kResultOk;
-        }
-        tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override {
-            return kResultFalse;
-        }
-    private:
-        ParamID& id_;
-        ParamValue& value_;
-    };
-
-    ParamID id_{0};
-    ParamValue value_{0.0};
-    bool active_{false};
-    Queue queue_{id_, value_};
-};
 
 class TestEventList : public IEventList {
 public:
@@ -887,64 +837,7 @@ TEST_CASE("Seq toggle: FR-025 pending MIDI delay echoes survive source toggle â€
     // Multi-param change shim: deliver a batch of param changes in ONE
     // processParameterChanges call so applyParams sees them all before the
     // first sequencer fire.
-    class MultiParamChange : public IParameterChanges {
-    public:
-        void add(ParamID id, ParamValue value) {
-            entries_.push_back({id, value});
-        }
-        void clear() { entries_.clear(); }
-
-        tresult PLUGIN_API queryInterface(const TUID, void**) override {
-            return kNoInterface;
-        }
-        uint32 PLUGIN_API addRef() override { return 1; }
-        uint32 PLUGIN_API release() override { return 1; }
-
-        int32 PLUGIN_API getParameterCount() override {
-            return static_cast<int32>(entries_.size());
-        }
-        IParamValueQueue* PLUGIN_API getParameterData(int32 idx) override {
-            if (idx < 0 || idx >= static_cast<int32>(entries_.size()))
-                return nullptr;
-            cachedIdx_ = static_cast<size_t>(idx);
-            return &queue_;
-        }
-        IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override {
-            return nullptr;
-        }
-
-    private:
-        struct Entry { ParamID id; ParamValue value; };
-        class Queue : public IParamValueQueue {
-        public:
-            Queue(MultiParamChange& parent) : parent_(parent) {}
-            tresult PLUGIN_API queryInterface(const TUID, void**) override {
-                return kNoInterface;
-            }
-            uint32 PLUGIN_API addRef() override { return 1; }
-            uint32 PLUGIN_API release() override { return 1; }
-            ParamID PLUGIN_API getParameterId() override {
-                return parent_.entries_[parent_.cachedIdx_].id;
-            }
-            int32 PLUGIN_API getPointCount() override { return 1; }
-            tresult PLUGIN_API getPoint(int32 idx, int32& sampleOffset,
-                                         ParamValue& value) override {
-                if (idx != 0) return kResultFalse;
-                sampleOffset = 0;
-                value = parent_.entries_[parent_.cachedIdx_].value;
-                return kResultOk;
-            }
-            tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override {
-                return kResultFalse;
-            }
-        private:
-            MultiParamChange& parent_;
-        };
-
-        std::vector<Entry> entries_;
-        size_t cachedIdx_{0};
-        Queue queue_{*this};
-    };
+    
 
     // Build the configuration block: all params delivered in one process().
     // Note value: 1/16 (Sixteenth dropdown index 13). Each click is ~22050

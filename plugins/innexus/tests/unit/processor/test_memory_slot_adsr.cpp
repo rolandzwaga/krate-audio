@@ -29,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -138,65 +139,9 @@ private:
 };
 
 // Parameter changes container
-class SlotTestParamChanges : public IParameterChanges
-{
-public:
-    class ParamQueue : public IParamValueQueue
-    {
-    public:
-        ParamQueue(ParamID id, ParamValue val) : id_(id), value_(val) {}
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using SlotTestParamChanges = Krate::Test::ParameterChanges;
 
-        tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-        uint32 PLUGIN_API addRef() override { return 1; }
-        uint32 PLUGIN_API release() override { return 1; }
-
-        ParamID PLUGIN_API getParameterId() override { return id_; }
-        int32 PLUGIN_API getPointCount() override { return 1; }
-        tresult PLUGIN_API getPoint(int32 index, int32& sampleOffset, ParamValue& value) override
-        {
-            if (index != 0) return kResultFalse;
-            sampleOffset = 0;
-            value = value_;
-            return kResultTrue;
-        }
-        tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
-
-    private:
-        ParamID id_;
-        ParamValue value_;
-    };
-
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-
-    int32 PLUGIN_API getParameterCount() override
-    {
-        return static_cast<int32>(queues_.size());
-    }
-
-    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-    {
-        if (index < 0 || index >= static_cast<int32>(queues_.size()))
-            return nullptr;
-        return &queues_[static_cast<size_t>(index)];
-    }
-
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override
-    {
-        return nullptr;
-    }
-
-    void addParam(ParamID id, ParamValue value)
-    {
-        queues_.emplace_back(id, value);
-    }
-
-    void clear() { queues_.clear(); }
-
-private:
-    std::vector<ParamQueue> queues_;
-};
 
 /// Process one block through the processor.
 static void processSlotBlock(

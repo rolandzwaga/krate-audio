@@ -29,6 +29,7 @@
 #include <cstring>
 #include <numeric>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -142,68 +143,13 @@ private:
 };
 
 // Minimal parameter value queue
-class PipelineTestParamValueQueue : public IParamValueQueue
-{
-public:
-    PipelineTestParamValueQueue(ParamID id, ParamValue val)
-        : id_(id), value_(val) {}
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using PipelineTestParamValueQueue = Krate::Test::ParamValueQueue;
+using PipelineTestParameterChanges = Krate::Test::ParameterChanges;
 
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32 /*index*/, int32& sampleOffset,
-                                 ParamValue& value) override
-    {
-        sampleOffset = 0;
-        value = value_;
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override
-    {
-        return kResultFalse;
-    }
-
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-
-private:
-    ParamID id_;
-    ParamValue value_;
-};
 
 // Parameter changes container
-class PipelineTestParameterChanges : public IParameterChanges
-{
-public:
-    void addChange(ParamID id, ParamValue val)
-    {
-        queues_.emplace_back(id, val);
-    }
 
-    int32 PLUGIN_API getParameterCount() override
-    {
-        return static_cast<int32>(queues_.size());
-    }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 index) override
-    {
-        if (index < 0 || index >= static_cast<int32>(queues_.size()))
-            return nullptr;
-        return &queues_[static_cast<size_t>(index)];
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override
-    {
-        return nullptr;
-    }
-
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-
-    void clear() { queues_.clear(); }
-
-private:
-    std::vector<PipelineTestParamValueQueue> queues_;
-};
 
 // Helper fixture for pipeline integration tests
 struct PipelineTestFixture

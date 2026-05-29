@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include "vst_param_changes.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -81,43 +82,12 @@ private:
     std::vector<Event> events_;
 };
 
-class ParamQueue : public IParamValueQueue
-{
-public:
-    ParamQueue(ParamID id, ParamValue v) : id_(id), value_(v) {}
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    ParamID PLUGIN_API getParameterId() override { return id_; }
-    int32 PLUGIN_API getPointCount() override { return 1; }
-    tresult PLUGIN_API getPoint(int32 i, int32& off, ParamValue& v) override
-    {
-        if (i != 0) return kResultFalse;
-        off = 0; v = value_; return kResultOk;
-    }
-    tresult PLUGIN_API addPoint(int32, ParamValue, int32&) override { return kResultFalse; }
-private:
-    ParamID id_;
-    ParamValue value_;
-};
+// Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
+using ParamQueue = Krate::Test::ParamValueQueue;
+using ParamChanges = Krate::Test::ParameterChanges;
 
-class ParamChanges : public IParameterChanges
-{
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getParameterCount() override { return static_cast<int32>(q_.size()); }
-    IParamValueQueue* PLUGIN_API getParameterData(int32 i) override
-    {
-        if (i < 0 || i >= static_cast<int32>(q_.size())) return nullptr;
-        return q_[static_cast<size_t>(i)].get();
-    }
-    IParamValueQueue* PLUGIN_API addParameterData(const ParamID&, int32&) override { return nullptr; }
-    void add(ParamID id, ParamValue v) { q_.push_back(std::make_unique<ParamQueue>(id, v)); }
-private:
-    std::vector<std::unique_ptr<ParamQueue>> q_;
-};
+
+
 
 } // namespace
 
