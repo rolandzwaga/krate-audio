@@ -186,7 +186,7 @@ TEST_CASE("Euclidean_Bells preset level analysis",
         float oscATuneSemi = readF();
         float oscAFineCents = readF();
         float oscALevel = readF();
-        float oscAPhase = readF();
+        [[maybe_unused]] float oscAPhase = readF();
         WARN("OscA type: " << oscAType << " | level: " << oscALevel
              << " | tuneSemi: " << oscATuneSemi << " | fineCents: " << oscAFineCents);
         // Skip remaining OscA type-specific params (waveform, pw, phaseMod, freqMod, pd*, sync*,
@@ -197,7 +197,7 @@ TEST_CASE("Euclidean_Bells preset level analysis",
         // OscB: same layout as OscA
         int32_t oscBType = readI();
         float oscBTuneSemi = readF();
-        float oscBFineCents = readF();
+        [[maybe_unused]] float oscBFineCents = readF();
         float oscBLevel = readF();
         readF(); // phase
         WARN("OscB type: " << oscBType << " | level: " << oscBLevel
