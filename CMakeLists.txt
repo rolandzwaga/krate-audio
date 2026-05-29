@@ -437,6 +437,11 @@ add_subdirectory(plugins/shared)
 # ==============================================================================
 # Plugins
 # ==============================================================================
+# Shared plugin CMake helpers (version parsing, AU targets, install, warnings).
+# Defined here so they are visible to every plugin subdirectory added below.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+include(KratePlugin)
+
 add_subdirectory(plugins/iterum)
 add_subdirectory(plugins/disrumpo)
 add_subdirectory(plugins/ruinae)
