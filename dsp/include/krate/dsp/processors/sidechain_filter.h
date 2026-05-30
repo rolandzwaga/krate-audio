@@ -22,6 +22,7 @@
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -670,7 +671,7 @@ private:
     // =========================================================================
 
     bool prepared_ = false;
-    float maxCutoffLimit_ = 20000.0f;   ///< Nyquist-safe limit
+    float maxCutoffLimit_ = kMaxAudioFreqHz;   ///< Nyquist-safe limit
 };
 
 } // namespace DSP

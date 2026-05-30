@@ -26,6 +26,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/processors/envelope_follower.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -121,7 +122,7 @@ public:
     static constexpr float kMaxPanOctaveRange = 4.0f;   ///< FR-013: 4 octave max
     static constexpr float kDefaultBaseQ = 0.707f;      ///< FR-020: Butterworth Q
     static constexpr float kMinBaseCutoff = 20.0f;      ///< FR-019: 20 Hz
-    static constexpr float kMaxBaseCutoff = 20000.0f;   ///< FR-019: 20 kHz
+    static constexpr float kMaxBaseCutoff = kMaxAudioFreqHz;   ///< FR-019: 20 kHz
     static constexpr float kMinBaseQ = 0.1f;            ///< FR-020
     static constexpr float kMaxBaseQ = 30.0f;           ///< FR-020
 
@@ -892,7 +893,7 @@ private:
     // =========================================================================
 
     bool prepared_ = false;
-    float maxCutoff_ = 20000.0f;         ///< Cached max cutoff for sample rate
+    float maxCutoff_ = kMaxAudioFreqHz;         ///< Cached max cutoff for sample rate
 };
 
 } // namespace DSP

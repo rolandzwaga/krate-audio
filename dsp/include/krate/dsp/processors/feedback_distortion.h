@@ -24,6 +24,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/envelope_follower.h>
 #include <krate/dsp/core/db_utils.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -115,7 +116,7 @@ public:
     /// @name Tone Filter Parameters (FR-020, FR-022)
     /// @{
     static constexpr float kMinToneHz = 20.0f;         ///< Minimum tone frequency
-    static constexpr float kMaxToneHz = 20000.0f;      ///< Maximum tone frequency
+    static constexpr float kMaxToneHz = kMaxAudioFreqHz;      ///< Maximum tone frequency
     static constexpr float kDefaultToneHz = 5000.0f;   ///< Default: mild filtering
     static constexpr int kMaxFilterStages = 4;          ///< Maximum cascaded filter stages
     /// @}

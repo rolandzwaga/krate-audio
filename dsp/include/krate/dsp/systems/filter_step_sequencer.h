@@ -25,6 +25,7 @@
 #include <krate/dsp/primitives/sequencer_core.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -49,7 +50,7 @@ struct SequencerStep {
 
     /// @brief Clamp all parameters to valid ranges
     void clamp() noexcept {
-        cutoffHz = std::clamp(cutoffHz, 20.0f, 20000.0f);
+        cutoffHz = std::clamp(cutoffHz, 20.0f, kMaxAudioFreqHz);
         q = std::clamp(q, 0.5f, 20.0f);
         gainDb = std::clamp(gainDb, -24.0f, 12.0f);
     }
@@ -412,7 +413,7 @@ inline const SequencerStep& FilterStepSequencer::getStep(size_t stepIndex) const
 
 inline void FilterStepSequencer::setStepCutoff(size_t stepIndex, float hz) noexcept {
     if (stepIndex >= kMaxSteps) return;
-    steps_[stepIndex].cutoffHz = std::clamp(hz, 20.0f, 20000.0f);
+    steps_[stepIndex].cutoffHz = std::clamp(hz, 20.0f, kMaxAudioFreqHz);
 }
 
 inline void FilterStepSequencer::setStepQ(size_t stepIndex, float q) noexcept {

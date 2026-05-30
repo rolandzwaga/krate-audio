@@ -20,6 +20,7 @@
 #include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/processors/envelope_follower.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -438,7 +439,7 @@ private:
     FilterType filterType_ = FilterType::Lowpass;
     float minFrequency_ = kDefaultMinFrequency;
     float maxFrequency_ = kDefaultMaxFrequency;
-    float maxFrequencyLimit_ = 20000.0f;  // Nyquist limit, set in prepare()
+    float maxFrequencyLimit_ = kMaxAudioFreqHz;  // Nyquist limit, set in prepare()
     float resonance_ = kDefaultResonance;
     float depth_ = 1.0f;
     float mix_ = 1.0f;

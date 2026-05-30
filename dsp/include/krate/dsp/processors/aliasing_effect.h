@@ -22,6 +22,7 @@
 #include <krate/dsp/primitives/sample_rate_reducer.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/frequency_shifter.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -459,12 +460,12 @@ private:
     float downsampleFactor_ = kDefaultDownsampleFactor;
     float frequencyShiftHz_ = 0.0f;
     float bandLowHz_ = kMinBandFrequencyHz;
-    float bandHighHz_ = 20000.0f;
+    float bandHighHz_ = kMaxAudioFreqHz;
     float mix_ = 1.0f;
 
     // State
     double sampleRate_ = 44100.0;
-    float maxBandFrequencyHz_ = 20000.0f;
+    float maxBandFrequencyHz_ = kMaxAudioFreqHz;
     bool prepared_ = false;
 };
 

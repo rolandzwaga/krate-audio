@@ -24,6 +24,7 @@
 #include <krate/dsp/primitives/noise_oscillator.h>
 #include <krate/dsp/primitives/polyblep_oscillator.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -82,7 +83,7 @@ public:
     // =========================================================================
 
     static constexpr float kMinFreqHz = 0.1f;          ///< Min carrier freq
-    static constexpr float kMaxFreqHz = 20000.0f;      ///< Max carrier freq
+    static constexpr float kMaxFreqHz = kMaxAudioFreqHz;      ///< Max carrier freq
     static constexpr float kMinRatio = 0.25f;           ///< Min carrier ratio
     static constexpr float kMaxRatio = 16.0f;           ///< Max carrier ratio
     static constexpr float kMaxSpreadOffsetHz = 50.0f;  ///< Max stereo spread

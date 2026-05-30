@@ -33,6 +33,7 @@
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -91,7 +92,7 @@ static constexpr float kMaxLevelDb = 6.0f;
 static constexpr float kMinFilterCutoff = 20.0f;
 
 /// @brief Maximum filter cutoff in Hz (FR-016)
-static constexpr float kMaxFilterCutoff = 20000.0f;
+static constexpr float kMaxFilterCutoff = kMaxAudioFreqHz;
 
 /// @brief Minimum filter Q factor (FR-017)
 static constexpr float kMinFilterQ = 0.5f;
@@ -824,7 +825,7 @@ inline void TapManager::process(const float* leftIn, const float* rightIn,
             const float gain = tap.levelSmoother.process();
 
             // Skip processing if gain is negligible
-            if (gain < 1e-6f) continue;
+            if (gain < kSilenceThreshold) continue;
 
             // Read from delay line with interpolation (SC-003: within 1 sample accuracy)
             float sample = delayLine_.readLinear(delaySamples);

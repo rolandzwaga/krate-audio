@@ -39,6 +39,7 @@
 // Layer 3 dependencies
 #include <krate/dsp/systems/voice_allocator.h>
 #include <krate/dsp/systems/synth_voice.h>
+#include <krate/dsp/core/audio_constants.h>
 
 // Standard library
 #include <algorithm>
@@ -510,7 +511,7 @@ public:
     /// @brief Set global filter cutoff frequency (FR-021).
     void setGlobalFilterCutoff(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
-        hz = std::clamp(hz, 20.0f, 20000.0f);
+        hz = std::clamp(hz, 20.0f, kMaxAudioFreqHz);
         globalFilter_.setCutoff(hz);
     }
 

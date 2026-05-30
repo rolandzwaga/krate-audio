@@ -35,6 +35,7 @@
 #include <krate/dsp/systems/flexible_feedback_network.h>
 #include <krate/dsp/primitives/i_feedback_processor.h>
 #include <krate/dsp/systems/modulation_matrix.h>       // For optional modulation
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -255,7 +256,7 @@ public:
 
     // Filter (FR-020, FR-021)
     static constexpr float kMinFilterCutoff = 20.0f;
-    static constexpr float kMaxFilterCutoff = 20000.0f;
+    static constexpr float kMaxFilterCutoff = kMaxAudioFreqHz;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
     // Output (FR-022)

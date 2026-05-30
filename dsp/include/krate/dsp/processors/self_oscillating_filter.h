@@ -46,6 +46,7 @@
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/ladder_filter.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -106,7 +107,7 @@ public:
     static constexpr float kMinFrequency = 20.0f;
 
     /// Maximum oscillation frequency (Hz)
-    static constexpr float kMaxFrequency = 20000.0f;
+    static constexpr float kMaxFrequency = kMaxAudioFreqHz;
 
     /// Minimum attack time (ms)
     static constexpr float kMinAttackMs = 0.0f;

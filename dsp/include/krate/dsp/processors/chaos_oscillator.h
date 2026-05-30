@@ -27,6 +27,7 @@
 #include <krate/dsp/core/fast_math.h>
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/primitives/dc_blocker.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -238,7 +239,7 @@ public:
     static constexpr size_t kMaxSubsteps = 200;
     static constexpr size_t kResetCooldownSamples = 100;
     static constexpr float kMinFrequency = 0.1f;
-    static constexpr float kMaxFrequency = 20000.0f;
+    static constexpr float kMaxFrequency = kMaxAudioFreqHz;
     static constexpr float kDefaultDCBlockerCutoff = 10.0f;
 
     // =========================================================================

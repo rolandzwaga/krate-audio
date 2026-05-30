@@ -25,6 +25,7 @@
 #include <krate/dsp/primitives/delay_line.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/primitives/svf.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <array>
 #include <cmath>
@@ -78,7 +79,7 @@ public:
 
     static constexpr size_t kMaxFilters = N;
     static constexpr float kMinCutoff = 20.0f;
-    static constexpr float kMaxCutoff = 20000.0f;
+    static constexpr float kMaxCutoff = kMaxAudioFreqHz;
     static constexpr float kMinQ = 0.5f;
     static constexpr float kMaxQ = 30.0f;
     static constexpr float kMinFeedback = -1.0f;

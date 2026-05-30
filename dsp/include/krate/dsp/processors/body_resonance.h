@@ -27,6 +27,7 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -544,11 +545,11 @@ private:
                                                     (t60nyq * sampleRate_));
 
             // p_i = (R0^M - Rpi^M) / (R0^M + Rpi^M)
-            fdnAbsorptionCoeff_[i] = (r0m - rpim) / (r0m + rpim + 1e-12f);
+            fdnAbsorptionCoeff_[i] = (r0m - rpim) / (r0m + rpim + kDenormalGuard);
 
             // g_i = 2 * R0^M * Rpi^M / (R0^M + Rpi^M)
             fdnAbsorptionGain_[i] = 2.0f * r0m * rpim /
-                                    (r0m + rpim + 1e-12f);
+                                    (r0m + rpim + kDenormalGuard);
         }
     }
 

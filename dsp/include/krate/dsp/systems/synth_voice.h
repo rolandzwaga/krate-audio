@@ -28,6 +28,7 @@
 #include <krate/dsp/primitives/adsr_envelope.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/primitives/envelope_utils.h>
+#include <krate/dsp/core/audio_constants.h>
 
 // Standard library
 #include <algorithm>
@@ -239,7 +240,7 @@ public:
     /// NaN/Inf inputs silently ignored (FR-032).
     void setFilterCutoff(float hz) noexcept {
         if (detail::isNaN(hz) || detail::isInf(hz)) return;
-        filterCutoffHz_ = std::clamp(hz, 20.0f, 20000.0f);
+        filterCutoffHz_ = std::clamp(hz, 20.0f, kMaxAudioFreqHz);
     }
 
     /// @brief Set filter resonance Q (FR-016). Range: [0.1, 30].
