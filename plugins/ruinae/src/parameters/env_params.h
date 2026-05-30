@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 
 namespace Ruinae {
@@ -97,7 +98,7 @@ struct ModEnvParams : EnvParams {
 // Field table — single source for stream order, ID offsets, and mappings
 // ============================================================================
 
-enum class EnvMap { Time, Sustain, Curve, BezierEnabled, BezierCp };
+enum class EnvMap : std::uint8_t { Time, Sustain, Curve, BezierEnabled, BezierCp };
 
 struct EnvField {
     std::atomic<float> EnvParams::* member;  // points into EnvParams
@@ -109,26 +110,26 @@ struct EnvField {
 // layout shared by the Amp/Filter/Mod blocks in plugin_ids.h.
 inline const EnvField* envFields() {
     static const EnvField fields[] = {
-        {&EnvParams::attackMs,          0, EnvMap::Time},
-        {&EnvParams::decayMs,           1, EnvMap::Time},
-        {&EnvParams::sustain,           2, EnvMap::Sustain},
-        {&EnvParams::releaseMs,         3, EnvMap::Time},
-        {&EnvParams::attackCurve,       4, EnvMap::Curve},
-        {&EnvParams::decayCurve,        5, EnvMap::Curve},
-        {&EnvParams::releaseCurve,      6, EnvMap::Curve},
-        {&EnvParams::bezierEnabled,     7, EnvMap::BezierEnabled},
-        {&EnvParams::bezierAttackCp1X, 10, EnvMap::BezierCp},
-        {&EnvParams::bezierAttackCp1Y, 11, EnvMap::BezierCp},
-        {&EnvParams::bezierAttackCp2X, 12, EnvMap::BezierCp},
-        {&EnvParams::bezierAttackCp2Y, 13, EnvMap::BezierCp},
-        {&EnvParams::bezierDecayCp1X,  14, EnvMap::BezierCp},
-        {&EnvParams::bezierDecayCp1Y,  15, EnvMap::BezierCp},
-        {&EnvParams::bezierDecayCp2X,  16, EnvMap::BezierCp},
-        {&EnvParams::bezierDecayCp2Y,  17, EnvMap::BezierCp},
-        {&EnvParams::bezierReleaseCp1X, 18, EnvMap::BezierCp},
-        {&EnvParams::bezierReleaseCp1Y, 19, EnvMap::BezierCp},
-        {&EnvParams::bezierReleaseCp2X, 20, EnvMap::BezierCp},
-        {&EnvParams::bezierReleaseCp2Y, 21, EnvMap::BezierCp},
+        {.member = &EnvParams::attackMs,          .offset = 0,  .map = EnvMap::Time},
+        {.member = &EnvParams::decayMs,           .offset = 1,  .map = EnvMap::Time},
+        {.member = &EnvParams::sustain,           .offset = 2,  .map = EnvMap::Sustain},
+        {.member = &EnvParams::releaseMs,         .offset = 3,  .map = EnvMap::Time},
+        {.member = &EnvParams::attackCurve,       .offset = 4,  .map = EnvMap::Curve},
+        {.member = &EnvParams::decayCurve,        .offset = 5,  .map = EnvMap::Curve},
+        {.member = &EnvParams::releaseCurve,      .offset = 6,  .map = EnvMap::Curve},
+        {.member = &EnvParams::bezierEnabled,     .offset = 7,  .map = EnvMap::BezierEnabled},
+        {.member = &EnvParams::bezierAttackCp1X,  .offset = 10, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierAttackCp1Y,  .offset = 11, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierAttackCp2X,  .offset = 12, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierAttackCp2Y,  .offset = 13, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierDecayCp1X,   .offset = 14, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierDecayCp1Y,   .offset = 15, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierDecayCp2X,   .offset = 16, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierDecayCp2Y,   .offset = 17, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierReleaseCp1X, .offset = 18, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierReleaseCp1Y, .offset = 19, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierReleaseCp2X, .offset = 20, .map = EnvMap::BezierCp},
+        {.member = &EnvParams::bezierReleaseCp2Y, .offset = 21, .map = EnvMap::BezierCp},
     };
     return fields;
 }
@@ -168,10 +169,10 @@ inline void applyEnvNormalized(EnvParams& params, const EnvField& field,
 inline void handleEnvParamChange(EnvParams& params, Steinberg::Vst::ParamID base,
                                  Steinberg::Vst::ParamID id,
                                  Steinberg::Vst::ParamValue value) {
-    const int offset = static_cast<int>(id) - static_cast<int>(base);
+    const Steinberg::Vst::ParamID offset = id - base;
     const EnvField* fields = envFields();
     for (int i = 0; i < kEnvFieldCount; ++i) {
-        if (static_cast<int>(fields[i].offset) == offset) {
+        if (fields[i].offset == offset) {
             applyEnvNormalized(params, fields[i], value);
             return;
         }
