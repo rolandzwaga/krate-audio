@@ -8,6 +8,7 @@
 // ==============================================================================
 
 #include "plugin_ids.h"
+#include "parameters/param_display.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -346,18 +347,12 @@ inline Steinberg::tresult formatTapeParam(
     switch (id) {
         case kTapeMotorSpeedId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 1980.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kTapeMotorInertiaId: {
             float ms = static_cast<float>(100.0 + normalizedValue * 900.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kTapeWearId:
@@ -366,18 +361,12 @@ inline Steinberg::tresult formatTapeParam(
         case kTapeSpliceIntensityId:
         case kTapeMixId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kTapeFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 120.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kTapeSpliceEnabledId:
@@ -392,30 +381,23 @@ inline Steinberg::tresult formatTapeParam(
         case kTapeHead2LevelId:
         case kTapeHead3LevelId: {
             double dB = -96.0 + normalizedValue * 102.0;
-            char8 text[32];
             if (dB <= -96.0) {
-                snprintf(text, sizeof(text), "-inf dB");
-            } else {
-                snprintf(text, sizeof(text), "%.1f dB", dB);
+                return formatParamText(string, "-inf dB");
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f dB", dB);
         }
 
         case kTapeHead1PanId:
         case kTapeHead2PanId:
         case kTapeHead3PanId: {
             float pan = static_cast<float>(normalizedValue * 200.0 - 100.0);
-            char8 text[32];
             if (pan < -1.0f) {
-                snprintf(text, sizeof(text), "L%.0f", -pan);
-            } else if (pan > 1.0f) {
-                snprintf(text, sizeof(text), "R%.0f", pan);
-            } else {
-                snprintf(text, sizeof(text), "C");
+                return formatParamText(string, "L%.0f", -pan);
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            if (pan > 1.0f) {
+                return formatParamText(string, "R%.0f", pan);
+            }
+            return formatParamText(string, "C");
         }
     }
 

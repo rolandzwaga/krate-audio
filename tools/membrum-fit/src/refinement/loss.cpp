@@ -105,10 +105,10 @@ std::vector<float> computeMFCC(std::span<const float> signal, double sampleRate)
         const float mHi  = mel2hz(kMelLow + (m + 2) * melStep);
         for (std::size_t k = 0; k < mag.size(); ++k) {
             const float f = k * binHz;
-            float w = 0.0f;
-            if (f >= mLo && f <= mMid) w = (f - mLo) / std::max(mMid - mLo, 1e-6f);
-            else if (f > mMid && f <= mHi) w = (mHi - f) / std::max(mHi - mMid, 1e-6f);
-            melEnergies[m] += w * mag[k];
+            float weight = 0.0f;
+            if (f >= mLo && f <= mMid) weight = (f - mLo) / std::max(mMid - mLo, 1e-6f);
+            else if (f > mMid && f <= mHi) weight = (mHi - f) / std::max(mHi - mMid, 1e-6f);
+            melEnergies[m] += weight * mag[k];
         }
         melEnergies[m] = std::log(std::max(melEnergies[m], 1e-9f));
     }

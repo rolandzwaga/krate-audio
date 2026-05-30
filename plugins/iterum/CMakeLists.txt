@@ -8,6 +8,8 @@
 # Version + Generated Files (see cmake/KratePlugin.cmake)
 # ==============================================================================
 krate_plugin_read_version(ITERUM)
+# Iterum's UI badge shows a bare "v<version>" (no plugin name prefix).
+set(KRATE_PLUGIN_UI_VERSION "\"v\" VERSION_STR")
 krate_plugin_configure_generated_files()
 
 # ==============================================================================
@@ -48,6 +50,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/granular_params.h
     src/parameters/multitap_params.h
     src/parameters/note_value_ui.h
+    src/parameters/param_display.h
     src/parameters/pingpong_params.h
     src/parameters/reverse_params.h
     src/parameters/shimmer_params.h

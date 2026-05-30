@@ -60,6 +60,7 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/parameters/amp_env_params.h
     src/parameters/filter_env_params.h
     src/parameters/mod_env_params.h
+    src/parameters/lfo_params.h
     src/parameters/lfo1_params.h
     src/parameters/lfo2_params.h
     src/parameters/chaos_mod_params.h

@@ -16,7 +16,7 @@
 #include "ui/xy_morph_pad.h"             // shared XYMorphPad (Krate::Plugins)
 #include "ui/adsr_display.h"             // shared ADSRDisplay   (Krate::Plugins)
 #include "ui/adsr_expanded_overlay.h"    // Membrum::UI::ADSRExpandedOverlayView
-#include "ui/outline_button.h"           // Membrum::UI::IconExpandActionButton
+#include "ui/membrum_buttons.h"          // Membrum::UI::IconExpandActionButton + shared OutlineActionButton
 #include "preset/membrum_preset_config.h"
 
 #include "preset/preset_manager.h"
@@ -34,7 +34,7 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/uidescription/uiattributes.h"
 
-#include "../ui/outline_button.h"
+#include "../ui/membrum_buttons.h"
 #include "../ui/preset_inline_browser_view.h"
 #include "vstgui/lib/controls/ctextlabel.h"
 #include "vstgui/lib/controls/ccontrol.h"

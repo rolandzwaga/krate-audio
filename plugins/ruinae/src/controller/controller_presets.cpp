@@ -16,6 +16,7 @@
 #include "ui/save_preset_dialog_view.h"
 #include "ui/mod_matrix_grid.h"
 #include "ui/update_banner_view.h"
+#include "ui/outline_button.h"
 #include "vstgui/uidescription/uiattributes.h"
 
 // Parameter pack headers (for loadXxxParamsToController)
@@ -119,89 +120,8 @@ public:
 #endif
 };
 
-// ==============================================================================
-// OutlineButton: Minimal outline-style button matching Ruinae dark theme
-// ==============================================================================
-class OutlineButton : public VSTGUI::CView {
-public:
-    OutlineButton(const VSTGUI::CRect& size, std::string title,
-                  const VSTGUI::CColor& frameColor = VSTGUI::CColor(64, 64, 72))
-        : CView(size)
-        , title_(std::move(title))
-        , frameColor_(frameColor)
-    {}
-
-    void draw(VSTGUI::CDrawContext* context) override {
-        context->setDrawMode(VSTGUI::kAntiAliasing | VSTGUI::kNonIntegralMode);
-        auto r = getViewSize();
-        r.inset(0.5, 0.5);
-
-        auto path = VSTGUI::owned(context->createGraphicsPath());
-        if (path) {
-            constexpr double kRadius = 3.0;
-            path->addRoundRect(r, kRadius);
-
-            if (hovered_) {
-                context->setFillColor(VSTGUI::CColor(255, 255, 255, 20));
-                context->drawGraphicsPath(path,
-                    VSTGUI::CDrawContext::kPathFilled);
-            }
-
-            context->setFrameColor(frameColor_);
-            context->setLineWidth(1.0);
-            context->drawGraphicsPath(path,
-                VSTGUI::CDrawContext::kPathStroked);
-        }
-
-        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>(
-            *VSTGUI::kNormalFontSmaller);
-        context->setFont(font);
-        context->setFontColor(VSTGUI::CColor(192, 192, 192));
-        context->drawString(
-            VSTGUI::UTF8String(title_), getViewSize(),
-            VSTGUI::kCenterText);
-
-        setDirty(false);
-    }
-
-    VSTGUI::CMouseEventResult onMouseEntered(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& /*buttons*/) override {
-        hovered_ = true;
-        if (auto* frame = getFrame())
-            frame->setCursor(VSTGUI::kCursorHand);
-        invalid();
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseExited(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& /*buttons*/) override {
-        hovered_ = false;
-        if (auto* frame = getFrame())
-            frame->setCursor(VSTGUI::kCursorDefault);
-        invalid();
-        return VSTGUI::kMouseEventHandled;
-    }
-
-    VSTGUI::CMouseEventResult onMouseDown(
-        VSTGUI::CPoint& /*where*/,
-        const VSTGUI::CButtonState& buttons) override {
-        if (buttons.isLeftButton()) {
-            onClick();
-            return VSTGUI::kMouseDownEventHandledButDontNeedMovedOrUpEvents;
-        }
-        return VSTGUI::kMouseEventNotHandled;
-    }
-
-protected:
-    virtual void onClick() = 0;
-
-private:
-    std::string title_;
-    VSTGUI::CColor frameColor_;
-    bool hovered_ = false;
-};
+// Shared dark-theme outline button base (CView + virtual onClick()).
+using Krate::Plugins::OutlineButton;
 
 class PresetBrowserButton : public OutlineButton {
 public:

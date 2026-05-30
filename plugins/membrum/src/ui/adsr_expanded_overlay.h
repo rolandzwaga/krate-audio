@@ -14,7 +14,7 @@
 // ==============================================================================
 
 #include "ui/adsr_display.h"
-#include "outline_button.h"
+#include "membrum_buttons.h"
 
 #include "vstgui/lib/cviewcontainer.h"
 #include "vstgui/lib/cframe.h"

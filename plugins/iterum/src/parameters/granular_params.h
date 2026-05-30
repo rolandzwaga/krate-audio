@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -412,37 +413,25 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularGrainSizeId: {
             // 10-500ms
             double ms = 10.0 + valueNormalized * 490.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", ms);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", ms);
         }
 
         case kGranularDensityId: {
             // 1-100 grains/sec
             double density = 1.0 + valueNormalized * 99.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.1f", density);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.1f", density);
         }
 
         case kGranularDelayTimeId: {
             // 0-2000ms
             double ms = valueNormalized * 2000.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", ms);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", ms);
         }
 
         case kGranularPitchId: {
             // -24 to +24 semitones
             double semitones = -24.0 + valueNormalized * 48.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%+.1f", semitones);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%+.1f", semitones);
         }
 
         case kGranularPitchSprayId:
@@ -455,10 +444,7 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         case kGranularFreezeId: {
@@ -470,10 +456,7 @@ inline Steinberg::tresult formatGranularParam(
         case kGranularFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         // kGranularEnvelopeTypeId: handled by StringListParameter::toString() automatically
