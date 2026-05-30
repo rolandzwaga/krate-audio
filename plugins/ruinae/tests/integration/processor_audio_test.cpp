@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <vector>
 #include "vst_param_changes.h"
+#include "vst_event_list.h"
 
 using Catch::Approx;
 
@@ -29,61 +30,9 @@ using Catch::Approx;
 // Minimal Mock IEventList for testing
 // =============================================================================
 
-class MockEventList : public Steinberg::Vst::IEventList {
-public:
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
-        return Steinberg::kNoInterface;
-    }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using MockEventList = Krate::Test::EventList;
 
-    Steinberg::int32 PLUGIN_API getEventCount() override {
-        return static_cast<Steinberg::int32>(events_.size());
-    }
-
-    Steinberg::tresult PLUGIN_API getEvent(Steinberg::int32 index,
-                                            Steinberg::Vst::Event& e) override {
-        if (index < 0 || index >= static_cast<Steinberg::int32>(events_.size()))
-            return Steinberg::kResultFalse;
-        e = events_[static_cast<size_t>(index)];
-        return Steinberg::kResultTrue;
-    }
-
-    Steinberg::tresult PLUGIN_API addEvent(Steinberg::Vst::Event& e) override {
-        events_.push_back(e);
-        return Steinberg::kResultTrue;
-    }
-
-    void addNoteOn(int16_t pitch, float velocity, int32_t sampleOffset = 0) {
-        Steinberg::Vst::Event e{};
-        e.type = Steinberg::Vst::Event::kNoteOnEvent;
-        e.sampleOffset = sampleOffset;
-        e.noteOn.channel = 0;
-        e.noteOn.pitch = pitch;
-        e.noteOn.velocity = velocity;
-        e.noteOn.noteId = -1;
-        e.noteOn.length = 0;
-        e.noteOn.tuning = 0.0f;
-        events_.push_back(e);
-    }
-
-    void addNoteOff(int16_t pitch, int32_t sampleOffset = 0) {
-        Steinberg::Vst::Event e{};
-        e.type = Steinberg::Vst::Event::kNoteOffEvent;
-        e.sampleOffset = sampleOffset;
-        e.noteOff.channel = 0;
-        e.noteOff.pitch = pitch;
-        e.noteOff.velocity = 0.0f;
-        e.noteOff.noteId = -1;
-        e.noteOff.tuning = 0.0f;
-        events_.push_back(e);
-    }
-
-    void clear() { events_.clear(); }
-
-private:
-    std::vector<Steinberg::Vst::Event> events_;
-};
 
 // =============================================================================
 // Minimal Mock IParameterChanges (empty -- no parameter changes)

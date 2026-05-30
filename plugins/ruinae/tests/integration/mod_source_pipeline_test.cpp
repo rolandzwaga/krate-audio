@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include "vst_param_changes.h"
+#include "vst_event_list.h"
 
 using Catch::Approx;
 using namespace Krate::DSP;
@@ -54,22 +55,9 @@ using PipelineParamChanges = Krate::Test::ParameterChanges;
 // Mock: Empty Event List
 // =============================================================================
 
-class PipelineEmptyEventList : public Steinberg::Vst::IEventList {
-public:
-    Steinberg::tresult PLUGIN_API queryInterface(const Steinberg::TUID, void**) override {
-        return Steinberg::kNoInterface;
-    }
-    Steinberg::uint32 PLUGIN_API addRef() override { return 1; }
-    Steinberg::uint32 PLUGIN_API release() override { return 1; }
-    Steinberg::int32 PLUGIN_API getEventCount() override { return 0; }
-    Steinberg::tresult PLUGIN_API getEvent(Steinberg::int32,
-                                            Steinberg::Vst::Event&) override {
-        return Steinberg::kResultFalse;
-    }
-    Steinberg::tresult PLUGIN_API addEvent(Steinberg::Vst::Event&) override {
-        return Steinberg::kResultTrue;
-    }
-};
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using PipelineEmptyEventList = Krate::Test::EventList;
+
 
 // =============================================================================
 // Mock: NoteOn Event List (fires once)

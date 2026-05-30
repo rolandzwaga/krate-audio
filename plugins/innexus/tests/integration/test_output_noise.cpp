@@ -27,6 +27,7 @@
 #include <numeric>
 #include <vector>
 #include "vst_param_changes.h"
+#include "vst_event_list.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -38,45 +39,9 @@ using namespace Steinberg::Vst;
 static constexpr double kTestSampleRate = 44100.0;
 static constexpr int32 kTestBlockSize = 512;
 
-class NoiseTestEventList : public IEventList
-{
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
-    int32 PLUGIN_API getEventCount() override { return static_cast<int32>(events_.size()); }
-    tresult PLUGIN_API getEvent(int32 index, Event& e) override
-    {
-        if (index < 0 || index >= static_cast<int32>(events_.size()))
-            return kResultFalse;
-        e = events_[static_cast<size_t>(index)];
-        return kResultTrue;
-    }
-    tresult PLUGIN_API addEvent(Event& e) override
-    {
-        events_.push_back(e);
-        return kResultTrue;
-    }
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using NoiseTestEventList = Krate::Test::EventListNoteIdEqPitch;
 
-    void addNoteOn(int16 pitch, float velocity, int32 sampleOffset = 0)
-    {
-        Event e{};
-        e.type = Event::kNoteOnEvent;
-        e.sampleOffset = sampleOffset;
-        e.noteOn.channel = 0;
-        e.noteOn.pitch = pitch;
-        e.noteOn.velocity = velocity;
-        e.noteOn.noteId = pitch;
-        e.noteOn.tuning = 0.0f;
-        e.noteOn.length = 0;
-        events_.push_back(e);
-    }
-
-    void clear() { events_.clear(); }
-
-private:
-    std::vector<Event> events_;
-};
 
 // Parameter-change mocks consolidated into tests/test_helpers/vst_param_changes.h
 using NoiseTestParamValueQueue = Krate::Test::ParamValueQueue;

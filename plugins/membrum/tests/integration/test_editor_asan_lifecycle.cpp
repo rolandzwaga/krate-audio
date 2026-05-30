@@ -39,6 +39,7 @@
 #include <cstdint>
 #include <cstring>
 #include <vector>
+#include "vst_event_list.h"
 
 using namespace Membrum;
 using namespace Steinberg;
@@ -49,31 +50,9 @@ namespace {
 // Minimal IEventList impl shared by all cycles -- buffers a handful of
 // note-on / note-off events and replays them through the Processor's MIDI
 // ingestion path.
-class FixedEventList : public IEventList
-{
-public:
-    tresult PLUGIN_API queryInterface(const TUID, void**) override { return kNoInterface; }
-    uint32 PLUGIN_API addRef() override { return 1; }
-    uint32 PLUGIN_API release() override { return 1; }
+// IEventList mock consolidated into tests/test_helpers/vst_event_list.h
+using FixedEventList = Krate::Test::EventList;
 
-    int32 PLUGIN_API getEventCount() override { return static_cast<int32>(events_.size()); }
-    tresult PLUGIN_API getEvent(int32 index, Event& e) override
-    {
-        if (index < 0 || index >= static_cast<int32>(events_.size()))
-            return kInvalidArgument;
-        e = events_[static_cast<std::size_t>(index)];
-        return kResultOk;
-    }
-    tresult PLUGIN_API addEvent(Event& e) override
-    {
-        events_.push_back(e);
-        return kResultOk;
-    }
-    void clear() { events_.clear(); }
-
-private:
-    std::vector<Event> events_;
-};
 
 } // namespace
 
