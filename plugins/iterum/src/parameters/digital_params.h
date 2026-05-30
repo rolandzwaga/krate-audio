@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
@@ -291,14 +292,10 @@ inline Steinberg::tresult formatDigitalParam(
     switch (id) {
         case kDigitalDelayTimeId: {
             float ms = static_cast<float>(1.0 + normalizedValue * 9999.0);
-            char8 text[32];
             if (ms >= 1000.0f) {
-                snprintf(text, sizeof(text), "%.2f s", ms / 1000.0f);
-            } else {
-                snprintf(text, sizeof(text), "%.1f ms", ms);
+                return formatParamText(string, "%.2f s", ms / 1000.0f);
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         // kDigitalTimeModeId: handled by StringListParameter::toString() automatically
@@ -306,10 +303,7 @@ inline Steinberg::tresult formatDigitalParam(
 
         case kDigitalFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 120.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kDigitalLimiterCharacterId: handled by StringListParameter::toString() automatically
@@ -317,62 +311,41 @@ inline Steinberg::tresult formatDigitalParam(
 
         case kDigitalAgeId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kDigitalModDepthId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kDigitalModRateId: {
             float hz = static_cast<float>(0.1 + normalizedValue * 9.9);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.2f Hz", hz);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.2f Hz", hz);
         }
 
         // kDigitalModWaveformId: handled by StringListParameter::toString() automatically
 
         case kDigitalMixId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kDigitalWidthId: {
             float percent = static_cast<float>(normalizedValue * 200.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kDigitalWavefoldAmountId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kDigitalWavefoldTypeId: handled by StringListParameter::toString() automatically
 
         case kDigitalWavefoldSymmetryId: {
             float percent = static_cast<float>((normalizedValue - 0.5) * 200.0);  // -100 to +100
-            char8 text[32];
-            snprintf(text, sizeof(text), "%+.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%+.0f%%", percent);
         }
     }
 

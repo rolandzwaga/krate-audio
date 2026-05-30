@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -317,10 +318,7 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralSpreadId: {
             // 0-2000ms
             double ms = valueNormalized * 2000.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", ms);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", ms);
         }
 
         // kSpectralSpreadDirectionId: handled by StringListParameter::toString() automatically
@@ -328,19 +326,13 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         case kSpectralFeedbackTiltId: {
             // -100% to +100%
             double percent = (-1.0 + valueNormalized * 2.0) * 100.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%+.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%+.0f", percent);
         }
 
         case kSpectralFreezeId: {
@@ -354,10 +346,7 @@ inline Steinberg::tresult formatSpectralParam(
         case kSpectralStereoWidthId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         // kSpectralSpreadCurveId: handled by StringListParameter::toString() automatically

@@ -14,6 +14,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
@@ -341,65 +342,43 @@ inline Steinberg::tresult formatMultiTapParam(
 
         case kMultiTapTapCountId: {
             int count = static_cast<int>(2.0 + normalizedValue * 14.0 + 0.5);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%d", count);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%d", count);
         }
 
         case kMultiTapFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 110.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kMultiTapFeedbackLPCutoffId:
         case kMultiTapFeedbackHPCutoffId: {
             float hz = static_cast<float>(20.0 * std::pow(1000.0, normalizedValue));
-            char8 text[32];
             if (hz >= 1000.0f) {
-                snprintf(text, sizeof(text), "%.2f kHz", hz / 1000.0f);
-            } else {
-                snprintf(text, sizeof(text), "%.0f Hz", hz);
+                return formatParamText(string, "%.2f kHz", hz / 1000.0f);
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f Hz", hz);
         }
 
         case kMultiTapMorphTimeId: {
             float ms = static_cast<float>(50.0 + normalizedValue * 1950.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kMultiTapMixId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // Custom Pattern Time Ratios (950-965)
         default:
             if (id >= kMultiTapCustomTime0Id && id <= kMultiTapCustomTime15Id) {
                 float percent = static_cast<float>(normalizedValue * 100.0);
-                char8 text[32];
-                snprintf(text, sizeof(text), "%.0f%%", percent);
-                Steinberg::UString(string, 128).fromAscii(text);
-                return kResultOk;
+                return formatParamText(string, "%.0f%%", percent);
             }
             // Custom Pattern Levels (966-981)
             else if (id >= kMultiTapCustomLevel0Id && id <= kMultiTapCustomLevel15Id) {
                 float percent = static_cast<float>(normalizedValue * 100.0);
-                char8 text[32];
-                snprintf(text, sizeof(text), "%.0f%%", percent);
-                Steinberg::UString(string, 128).fromAscii(text);
-                return kResultOk;
+                return formatParamText(string, "%.0f%%", percent);
             }
             break;
     }

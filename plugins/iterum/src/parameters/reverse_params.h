@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/param_display.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -215,28 +216,19 @@ inline Steinberg::tresult formatReverseParam(
     switch (id) {
         case kReverseChunkSizeId: {
             float ms = static_cast<float>(10.0 + normalizedValue * 1990.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kReverseCrossfadeId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kReversePlaybackModeId: handled by StringListParameter::toString() automatically
 
         case kReverseFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 120.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kReverseFilterEnabledId:
@@ -246,24 +238,17 @@ inline Steinberg::tresult formatReverseParam(
 
         case kReverseFilterCutoffId: {
             float hz = static_cast<float>(20.0 * std::pow(1000.0, normalizedValue));
-            char8 text[32];
             if (hz >= 1000.0f) {
-                snprintf(text, sizeof(text), "%.2f kHz", hz / 1000.0f);
-            } else {
-                snprintf(text, sizeof(text), "%.0f Hz", hz);
+                return formatParamText(string, "%.2f kHz", hz / 1000.0f);
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f Hz", hz);
         }
 
         // kReverseFilterTypeId: handled by StringListParameter::toString() automatically
 
         case kReverseMixId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
     }
 

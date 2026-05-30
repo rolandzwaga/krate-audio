@@ -30,8 +30,8 @@ class SavePresetDialogView;
 namespace Steinberg { class IBStream; }
 
 namespace Membrum::State { struct KitSnapshot; }
-namespace Membrum::UI { class PadGridView; class KitMetersView; class OutlineActionButton; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
-namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; }
+namespace Membrum::UI { class PadGridView; class KitMetersView; class InlinePresetBrowserView; class ADSRExpandedOverlayView; }
+namespace Krate::Plugins { class PitchEnvelopeDisplay; class XYMorphPad; class ADSRDisplay; class OutlineActionButton; }
 
 namespace VSTGUI { class CTextLabel; class CControl; }
 
@@ -210,7 +210,7 @@ private:
     VSTGUI::CTextLabel*  pitchEnvKneeLabel_ = nullptr;
 
     // Mode toggle button (Acoustic / Extended). Lifetime owned by VSTGUI view tree.
-    Membrum::UI::OutlineActionButton*  modeToggleButton_ = nullptr;
+    Krate::Plugins::OutlineActionButton*  modeToggleButton_ = nullptr;
 
     VSTGUI::CTextLabel*              cpuLabel_       = nullptr;
 

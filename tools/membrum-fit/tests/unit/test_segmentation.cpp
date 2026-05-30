@@ -28,8 +28,8 @@ TEST_CASE("Segmentation: short sample (<100ms decay) is rejected") {
     std::vector<float> x(N);
     constexpr float pi = 3.14159265358979323846f;
     for (int i = 0; i < N; ++i) {
-        x[i] = std::exp(-30.0f * i / static_cast<float>(sr))
-             * std::sin(2.0f * pi * 220.0f * i / sr);
+        const float t = i / static_cast<float>(sr);
+        x[i] = std::exp(-30.0f * t) * std::sin(2.0f * pi * 220.0f * t);
     }
     const auto seg = MembrumFit::segmentSample(x, sr);
     REQUIRE(!MembrumFit::isSegmentationUsable(seg, sr));

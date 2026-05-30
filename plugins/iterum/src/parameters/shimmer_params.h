@@ -9,6 +9,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "public.sdk/source/vst/vstparameters.h"
 #include "public.sdk/source/vst/vsteditcontroller.h"
@@ -289,28 +290,19 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerDelayTimeId: {
             // 10-5000ms
             double ms = 10.0 + valueNormalized * 4990.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", ms);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", ms);
         }
 
         case kShimmerPitchSemitonesId: {
             // -24 to +24 semitones
             double st = -24.0 + valueNormalized * 48.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%+.0f", st);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%+.0f", st);
         }
 
         case kShimmerPitchCentsId: {
             // -100 to +100 cents
             double ct = -100.0 + valueNormalized * 200.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%+.0f", ct);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%+.0f", ct);
         }
 
         case kShimmerPitchBlendId:
@@ -318,19 +310,13 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerMixId: {
             // 0-100%
             double percent = valueNormalized * 100.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         case kShimmerFeedbackId: {
             // 0-120%
             double percent = valueNormalized * 120.0;
-            char text[32];
-            std::snprintf(text, sizeof(text), "%.0f", percent);
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", percent);
         }
 
         case kShimmerFilterEnabledId: {
@@ -342,14 +328,10 @@ inline Steinberg::tresult formatShimmerParam(
         case kShimmerFilterCutoffId: {
             // 20-20000Hz
             double hz = 20.0 + valueNormalized * 19980.0;
-            char text[32];
             if (hz >= 1000.0) {
-                std::snprintf(text, sizeof(text), "%.1fk", hz / 1000.0);
-            } else {
-                std::snprintf(text, sizeof(text), "%.0f", hz);
+                return formatParamText(string, "%.1fk", hz / 1000.0);
             }
-            UString(string, 128).fromAscii(text);
-            return kResultTrue;
+            return formatParamText(string, "%.0f", hz);
         }
 
         default:

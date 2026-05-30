@@ -10,6 +10,7 @@
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
 #include "parameters/note_value_ui.h"
+#include "parameters/param_display.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
@@ -214,52 +215,34 @@ inline Steinberg::tresult formatBBDParam(
     switch (id) {
         case kBBDDelayTimeId: {
             float ms = static_cast<float>(20.0 + normalizedValue * 980.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f ms", ms);
         }
 
         case kBBDFeedbackId: {
             float percent = static_cast<float>(normalizedValue * 120.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kBBDModDepthId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kBBDModRateId: {
             float hz = static_cast<float>(0.1 + normalizedValue * 9.9);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.2f Hz", hz);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.2f Hz", hz);
         }
 
         case kBBDAgeId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         // kBBDEraId: handled by StringListParameter::toString() automatically
 
         case kBBDMixId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
     }
 

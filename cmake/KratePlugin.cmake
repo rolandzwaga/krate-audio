@@ -28,8 +28,9 @@
 #   ${PREFIX}_VERSION / _NAME / _DESCRIPTION / _PUBLISHER / _URL / _COPYRIGHT
 # plus PROJECT_VERSION_MAJOR / _MINOR / _PATCH (used by configure_file + the SDK).
 #
-# PREFIX must match the @PREFIX_*@ tokens in src/version.h.in and
-# resources/win32resource.rc.in (e.g. ITERUM, GRADUS, MEMBRUM).
+# PREFIX (e.g. ITERUM, GRADUS, MEMBRUM) selects the version.json metadata; the
+# values are mirrored into neutral KRATE_PLUGIN_* vars consumed by the shared
+# cmake/version.h.in and cmake/win32resource.rc.in templates.
 # ------------------------------------------------------------------------------
 macro(krate_plugin_read_version PREFIX)
     file(READ "${CMAKE_CURRENT_SOURCE_DIR}/version.json" VERSION_JSON)
@@ -46,30 +47,47 @@ macro(krate_plugin_read_version PREFIX)
     list(GET VERSION_LIST 1 PROJECT_VERSION_MINOR)
     list(GET VERSION_LIST 2 PROJECT_VERSION_PATCH)
 
+    # Neutral mirrors consumed by the shared cmake/version.h.in and
+    # cmake/win32resource.rc.in templates (which use @KRATE_PLUGIN_*@ tokens so a
+    # single template serves every plugin).
+    set(KRATE_PLUGIN_NAME        "${${PREFIX}_NAME}")
+    set(KRATE_PLUGIN_DESCRIPTION "${${PREFIX}_DESCRIPTION}")
+    set(KRATE_PLUGIN_PUBLISHER   "${${PREFIX}_PUBLISHER}")
+    set(KRATE_PLUGIN_URL         "${${PREFIX}_URL}")
+    set(KRATE_PLUGIN_COPYRIGHT   "${${PREFIX}_COPYRIGHT}")
+
+    # Default UI display version: `"<Name> v" VERSION_STR`. A plugin may override
+    # KRATE_PLUGIN_UI_VERSION before krate_plugin_configure_generated_files();
+    # Iterum uses the bare `"v" VERSION_STR` form. VERSION_STR is left literal for
+    # the C preprocessor (configure_file runs with @ONLY).
+    set(KRATE_PLUGIN_UI_VERSION "\"${${PREFIX}_NAME} v\" VERSION_STR")
+
     message(STATUS "[${PREFIX}] Version: ${${PREFIX}_VERSION} (${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH})")
 endmacro()
 
 # ------------------------------------------------------------------------------
 # krate_plugin_configure_generated_files()
 # ------------------------------------------------------------------------------
-# Generates, from the .in templates in the current plugin source tree:
-#   src/version.h
-#   resources/win32resource.rc
+# Generates:
+#   src/version.h                      (from shared cmake/version.h.in)
+#   resources/win32resource.rc         (from shared cmake/win32resource.rc.in)
 #   resources/auv3/audiounitconfig.h   (kAUcomponentVersion synced to version.json)
 #
-# Must be called AFTER krate_plugin_read_version() so the @PREFIX_*@ and
+# Must be called AFTER krate_plugin_read_version() so the @KRATE_PLUGIN_*@ and
 # @PROJECT_VERSION_*@ tokens resolve. This is a macro so those caller-scope
 # variables are visible to configure_file().
 # ------------------------------------------------------------------------------
 macro(krate_plugin_configure_generated_files)
+    # Single shared templates (cmake/version.h.in, cmake/win32resource.rc.in) with
+    # neutral @KRATE_PLUGIN_*@ tokens, generated into each plugin's source tree.
     configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in"
+        "${CMAKE_SOURCE_DIR}/cmake/version.h.in"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/version.h"
         @ONLY
     )
 
     configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32resource.rc.in"
+        "${CMAKE_SOURCE_DIR}/cmake/win32resource.rc.in"
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/win32resource.rc"
         @ONLY
     )

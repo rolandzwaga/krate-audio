@@ -10,6 +10,7 @@
 
 #include "plugin_ids.h"
 #include "controller/parameter_helpers.h"
+#include "parameters/param_display.h"
 #include "parameters/note_value_ui.h"
 #include "pluginterfaces/base/ftypes.h"
 #include "pluginterfaces/base/ustring.h"
@@ -469,10 +470,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinSliceLengthMs +
                 normalizedValue * (PatternFreezeConstants::kMaxSliceLengthMs -
                                    PatternFreezeConstants::kMinSliceLengthMs));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kFreezeEuclideanStepsId: {
@@ -480,27 +478,18 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinEuclideanSteps +
                 normalizedValue * (PatternFreezeConstants::kMaxEuclideanSteps -
                                    PatternFreezeConstants::kMinEuclideanSteps) + 0.5);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%d", steps);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%d", steps);
         }
 
         case kFreezeEuclideanHitsId: {
             // Hits depend on steps, simplified display
             int hits = static_cast<int>(normalizedValue * 31 + 1);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%d", hits);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%d", hits);
         }
 
         case kFreezeEuclideanRotationId: {
             int rotation = static_cast<int>(normalizedValue * 31);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%d", rotation);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%d", rotation);
         }
 
         case kFreezeGranularDensityId: {
@@ -508,10 +497,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinGranularDensity +
                 normalizedValue * (PatternFreezeConstants::kMaxGranularDensity -
                                    PatternFreezeConstants::kMinGranularDensity));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.1f Hz", hz);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.1f Hz", hz);
         }
 
         case kFreezeGranularPositionJitterId:
@@ -519,10 +505,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
         case kFreezeDroneDriftId:
         case kFreezeNoiseFilterSweepId: {
             float percent = static_cast<float>(normalizedValue * 100.0);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f%%", percent);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f%%", percent);
         }
 
         case kFreezeGranularGrainSizeId: {
@@ -530,10 +513,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinGranularGrainSize +
                 normalizedValue * (PatternFreezeConstants::kMaxGranularGrainSize -
                                    PatternFreezeConstants::kMinGranularGrainSize));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kFreezeDroneVoiceCountId: {
@@ -541,10 +521,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinDroneVoiceCount +
                 normalizedValue * (PatternFreezeConstants::kMaxDroneVoiceCount -
                                    PatternFreezeConstants::kMinDroneVoiceCount) + 0.5);
-            char8 text[32];
-            snprintf(text, sizeof(text), "%d", voices);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%d", voices);
         }
 
         case kFreezeDroneDriftRateId: {
@@ -552,22 +529,15 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinDroneDriftRate +
                 normalizedValue * (PatternFreezeConstants::kMaxDroneDriftRate -
                                    PatternFreezeConstants::kMinDroneDriftRate));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.2f Hz", hz);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.2f Hz", hz);
         }
 
         case kFreezeNoiseFilterCutoffId: {
             float hz = static_cast<float>(20.0 * std::pow(1000.0, normalizedValue));
-            char8 text[32];
             if (hz >= 1000.0f) {
-                snprintf(text, sizeof(text), "%.2f kHz", hz / 1000.0f);
-            } else {
-                snprintf(text, sizeof(text), "%.0f Hz", hz);
+                return formatParamText(string, "%.2f kHz", hz / 1000.0f);
             }
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f Hz", hz);
         }
 
         case kFreezeEnvelopeAttackId: {
@@ -575,10 +545,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinEnvelopeAttackMs +
                 normalizedValue * (PatternFreezeConstants::kMaxEnvelopeAttackMs -
                                    PatternFreezeConstants::kMinEnvelopeAttackMs));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
 
         case kFreezeEnvelopeReleaseId: {
@@ -586,10 +553,7 @@ inline Steinberg::tresult formatPatternFreezeParam(
                 PatternFreezeConstants::kMinEnvelopeReleaseMs +
                 normalizedValue * (PatternFreezeConstants::kMaxEnvelopeReleaseMs -
                                    PatternFreezeConstants::kMinEnvelopeReleaseMs));
-            char8 text[32];
-            snprintf(text, sizeof(text), "%.0f ms", ms);
-            Steinberg::UString(string, 128).fromAscii(text);
-            return kResultOk;
+            return formatParamText(string, "%.0f ms", ms);
         }
     }
 

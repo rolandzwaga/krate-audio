@@ -76,6 +76,8 @@ if(MSVC)
         /wd4100  # unused parameter
         /wd4244  # double -> float narrowing (Eigen / signal math)
         /wd4267  # size_t -> int narrowing
+        /wd4127  # conditional expression is constant (Eigen template headers)
+        /wd5054  # operator '&' deprecated between enums (Eigen template headers)
     )
 else()
     target_compile_options(membrum_fit_core PRIVATE
