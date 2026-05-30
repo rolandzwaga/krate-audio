@@ -34,6 +34,7 @@
 
 #include "arp_lane.h"
 
+#include "vstgui/lib/ccolor.h"
 #include "vstgui/lib/controls/ccontrol.h"
 #include "vstgui/uidescription/iviewcreator.h"
 #include "vstgui/uidescription/uiviewfactory.h"
