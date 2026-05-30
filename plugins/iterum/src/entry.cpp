@@ -21,7 +21,7 @@
 #include "ui/icon_segment_button.h"
 #include "ui/toggle_button.h"
 
-#include "public.sdk/source/main/pluginfactory.h"
+#include "plugin_factory.h"
 
 // ==============================================================================
 // Plugin Factory Definition
@@ -29,43 +29,7 @@
 
 #define stringPluginName "Iterum"
 
-BEGIN_FACTORY_DEF(
-    stringCompanyName,      // Vendor name
-    stringVendorURL,        // Vendor URL (defined in version.h as empty)
-    stringVendorEmail       // Vendor email (defined in version.h as empty)
-)
-
-    // ==========================================================================
-    // Processor Component Registration
-    // ==========================================================================
-    DEF_CLASS2(
-        INLINE_UID_FROM_FUID(Iterum::kProcessorUID),
-        PClassInfo::kManyInstances,           // cardinality
-        kVstAudioEffectClass,                 // component category
-        stringPluginName,                     // plugin name
-        Steinberg::Vst::kDistributable,       // Constitution: enable separation
-        Iterum::kSubCategories,              // subcategories
-        FULL_VERSION_STR,                     // version
-        kVstVersionString,                    // SDK version
-        Iterum::Processor::createInstance    // factory function
-    )
-
-    // ==========================================================================
-    // Controller Component Registration
-    // ==========================================================================
-    DEF_CLASS2(
-        INLINE_UID_FROM_FUID(Iterum::kControllerUID),
-        PClassInfo::kManyInstances,           // cardinality
-        kVstComponentControllerClass,         // component category
-        stringPluginName "Controller",        // controller name
-        0,                                    // unused for controller
-        "",                                   // unused for controller
-        FULL_VERSION_STR,                     // version
-        kVstVersionString,                    // SDK version
-        Iterum::Controller::createInstance   // factory function
-    )
-
-END_FACTORY
+KRATE_DEFINE_PLUGIN_FACTORY(Iterum, stringPluginName, Iterum::kSubCategories)
 
 // ==============================================================================
 // Module Entry/Exit (Platform Specific)
