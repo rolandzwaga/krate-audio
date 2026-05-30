@@ -26,9 +26,10 @@
 #include <thread>
 #include <vector>
 
+#include "vst_event_list.h"
+
 #ifdef _WIN32
 #include <windows.h>
-#include "vst_event_list.h"
 #endif
 
 using namespace Steinberg;
