@@ -5,6 +5,16 @@ All notable changes to Iterum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2026-05-30
+
+### Fixed
+
+- **Freeze settings lost on preset save**: the controller's preset-save path (`createComponentStateStream`) hand-re-serialized parameters and wrote a block of hardcoded placeholder values for Freeze mode (`freezeEnabled=1`, `delayTime=500`, `feedback=0.5`, …) instead of the live Freeze parameters, so Freeze settings were silently discarded when saving a preset. The controller now delegates to `Processor::getState()`, guaranteeing the saved stream matches the processor's state byte-for-byte.
+
+### Changed
+
+- Internal: centralized recurring DSP magic numbers (max audio frequency, silence threshold, denormal guard) into a shared `audio_constants.h` header used across the DSP library. Pure refactor — no audible or behavioral change.
+
 ## [0.15.1] - 2026-05-10
 
 ### Fixed

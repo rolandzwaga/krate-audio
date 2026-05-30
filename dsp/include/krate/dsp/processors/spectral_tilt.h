@@ -44,6 +44,7 @@
 #include <krate/dsp/core/math_constants.h>
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -103,7 +104,7 @@ public:
     static constexpr float kMinPivot = 20.0f;
 
     /// Maximum pivot frequency in Hz (FR-003, Edge Case)
-    static constexpr float kMaxPivot = 20000.0f;
+    static constexpr float kMaxPivot = kMaxAudioFreqHz;
 
     /// Minimum smoothing time in milliseconds (FR-014)
     static constexpr float kMinSmoothing = 1.0f;

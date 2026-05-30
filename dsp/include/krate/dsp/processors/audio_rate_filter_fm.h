@@ -21,6 +21,7 @@
 #include <krate/dsp/core/phase_utils.h>
 #include <krate/dsp/primitives/svf.h>
 #include <krate/dsp/primitives/oversampler.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -102,7 +103,7 @@ public:
     static constexpr float kMinModFreq = 0.1f;
 
     /// Maximum modulator frequency (Hz)
-    static constexpr float kMaxModFreq = 20000.0f;
+    static constexpr float kMaxModFreq = kMaxAudioFreqHz;
 
     /// Minimum Q factor
     static constexpr float kMinQ = 0.5f;

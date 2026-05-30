@@ -21,6 +21,7 @@
 #include <krate/dsp/primitives/biquad.h>
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/systems/sympathetic_resonance_simd.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -403,16 +404,16 @@ private:
         // Recover r from r²
         float r = std::sqrt(c.rSquared);
         float oneMinusR = 1.0f - r;
-        if (oneMinusR < 1e-12f) return 1e-6f; // Degenerate: r≈1
+        if (oneMinusR < kDenormalGuard) return 1e-6f; // Degenerate: r≈1
 
         // cos(2ω) from cos(ω): use double-angle identity
         // coeff = 2*r*cos(ω), so cos(ω) = coeff / (2*r)
-        float cosOmega = (r > 1e-12f) ? c.coeff / (2.0f * r) : 1.0f;
+        float cosOmega = (r > kDenormalGuard) ? c.coeff / (2.0f * r) : 1.0f;
         float cos2Omega = 2.0f * cosOmega * cosOmega - 1.0f;
 
         // |D|² = (1-r)² × (1 - 2r⋅cos(2ω) + r²)
         float inner = 1.0f - 2.0f * r * cos2Omega + c.rSquared;
-        if (inner < 1e-12f) inner = 1e-12f;
+        if (inner < kDenormalGuard) inner = kDenormalGuard;
         float sqrtInner = std::sqrt(inner);
 
         return oneMinusR * sqrtInner;

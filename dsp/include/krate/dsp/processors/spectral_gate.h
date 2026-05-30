@@ -38,6 +38,7 @@
 #include <krate/dsp/primitives/spectral_buffer.h>
 #include <krate/dsp/primitives/spectral_utils.h>
 #include <krate/dsp/primitives/smoother.h>
+#include <krate/dsp/core/audio_constants.h>
 
 // Standard library
 #include <algorithm>
@@ -118,7 +119,7 @@ public:
 
     /// FR-009: Frequency range bounds (Hz)
     static constexpr float kMinFrequencyHz = 20.0f;
-    static constexpr float kMaxFrequencyHz = 20000.0f;
+    static constexpr float kMaxFrequencyHz = kMaxAudioFreqHz;
 
     /// FR-011: Smearing amount range
     static constexpr float kMinSmearAmount = 0.0f;

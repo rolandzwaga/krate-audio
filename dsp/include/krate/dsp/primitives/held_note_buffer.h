@@ -16,6 +16,7 @@
 
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/core/scale_harmonizer.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -707,7 +708,7 @@ private:
         }
 
         int nextDegree = currentDegree;
-        if (rowSum > 1e-6f) {
+        if (rowSum > kSilenceThreshold) {
             // 24-bit-mantissa uniform in [0, 1)
             const float r = (rng_.next() & 0x00FFFFFFu) / 16777216.0f;
             const float target = r * rowSum;

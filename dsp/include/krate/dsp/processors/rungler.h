@@ -26,6 +26,7 @@
 #include <krate/dsp/core/modulation_source.h>
 #include <krate/dsp/core/random.h>
 #include <krate/dsp/primitives/one_pole.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -80,7 +81,7 @@ public:
     // =========================================================================
 
     static constexpr float kMinFrequency = 0.1f;
-    static constexpr float kMaxFrequency = 20000.0f;
+    static constexpr float kMaxFrequency = kMaxAudioFreqHz;
     static constexpr float kDefaultOsc1Freq = 200.0f;
     static constexpr float kDefaultOsc2Freq = 300.0f;
     static constexpr size_t kMinBits = 4;

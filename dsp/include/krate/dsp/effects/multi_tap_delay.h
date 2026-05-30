@@ -33,6 +33,7 @@
 #include <krate/dsp/systems/tap_manager.h>
 #include <krate/dsp/systems/feedback_network.h>
 #include <krate/dsp/systems/modulation_matrix.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <array>
@@ -1149,7 +1150,7 @@ private:
 
     // Feedback parameters
     float feedbackAmount_ = 0.5f;
-    float feedbackLPCutoff_ = 20000.0f;
+    float feedbackLPCutoff_ = kMaxAudioFreqHz;
     float feedbackHPCutoff_ = 20.0f;
 
     // Output parameters

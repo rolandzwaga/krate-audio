@@ -30,6 +30,7 @@
 #include <krate/dsp/processors/ducking_processor.h>
 #include <krate/dsp/systems/delay_engine.h>            // For TimeMode enum
 #include <krate/dsp/systems/flexible_feedback_network.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -148,7 +149,7 @@ public:
 
     // Filter
     static constexpr float kMinFilterCutoff = 20.0f;
-    static constexpr float kMaxFilterCutoff = 20000.0f;
+    static constexpr float kMaxFilterCutoff = kMaxAudioFreqHz;
     static constexpr float kDefaultFilterCutoff = 4000.0f;
 
     // Internal

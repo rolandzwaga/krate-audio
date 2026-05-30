@@ -35,6 +35,7 @@
 #include <krate/dsp/primitives/smoother.h>
 #include <krate/dsp/processors/noise_generator.h>
 #include <krate/dsp/processors/tape_saturator.h>
+#include <krate/dsp/core/audio_constants.h>
 
 #include <algorithm>
 #include <cmath>
@@ -124,7 +125,7 @@ public:
     // HF rolloff frequency defaults by tape speed
     static constexpr float kHfRolloff_7_5 = 10000.0f;
     static constexpr float kHfRolloff_15 = 15000.0f;
-    static constexpr float kHfRolloff_30 = 20000.0f;
+    static constexpr float kHfRolloff_30 = kMaxAudioFreqHz;
 
     // Wow/Flutter depth defaults by machine model
     static constexpr float kStuderWowDepth = 6.0f;
