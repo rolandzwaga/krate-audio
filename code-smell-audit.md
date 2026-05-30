@@ -28,7 +28,7 @@ Status legend: ✅ DONE (merged/committed) · ⬜ not started.
 | 2 | Shared `IParamValueQueue`/`IParameterChanges` test mock header | cross-plugin (test) | 2400 | medium | ✅ DONE — `tests/test_helpers/vst_param_changes.h`, branch `test/shared-param-change-mocks` |
 | 3 | Shared `IEventList` + note-on/off MIDI test helpers | cross-plugin (test) | 450 | medium | ✅ DONE — `tests/test_helpers/vst_event_list.h`, branch `test/shared-event-list-mock` |
 | 4 | Ruinae ADSR env param files (amp/filter/mod) → one config-driven file | intra-area:ruinae | 400 | medium | ✅ DONE — `plugins/ruinae/src/parameters/env_params.h`, branch `refactor/ruinae-env-param-config` |
-| 5 | Shared arp-lane base + enum-popup template (chord/inversion/condition/modifier) | intra-area:shared | 600 | medium | ⬜ |
+| 5 | Shared arp-lane base + enum-popup template (chord/inversion/condition/modifier) | intra-area:shared | 600 | medium | ✅ DONE — `plugins/shared/src/ui/enum_popup_arp_lane.h`, branch `refactor/shared-enum-popup-arp-lane` |
 | 6 | OutlineButton CView base (+ PresetBrowserButton/SavePresetButton) hoist | cross-plugin (UI) | 300 | medium | ⬜ |
 | 7 | Single shared `version.h.in` + `win32resource.rc.in` templates | cross-plugin (build) | 320 | low | ⬜ |
 | 8 | Ruinae LFO1/LFO2 param files → base-ID-parameterized functions | intra-area:ruinae | 175 | low | ⬜ |
@@ -147,7 +147,7 @@ iterum `DelayTimeSyncController` vs innexus `ModulatorSubController` share resyn
 
 **Membrum** — modal body mappers `map()` + `lerp()` (~65, traits-parameterized for plate/shell/bell only; exclude Noise/Membrane — FR-031 bit-identity); modal body wrappers Membrane/Plate/Shell/Bell → `template<class Mapper> ModalBody` (~150, Shell's `decayScale` via policy param).
 
-**Shared arp lanes** — chord/inversion near-identical (~600, `EnumPopupArpLane` template, keep 2 named concrete shells + ViewCreators for uidesc strings); IArpLane interface boilerplate across 4 lanes → `ArpLaneBase` (~260, non-template, exclude `ArpLaneEditor`); per-lane ViewCreator template (~180); trail/skip/playhead overlay free helper (~135, 4 enum lanes only — `arp_lane_editor.h:1227` uses different geometry); `drawMiniPreview`/`drawDisabledOverlay` free functions (~65, exclude modifier's dot-based preview).
+**Shared arp lanes** — chord/inversion near-identical (~600, `EnumPopupArpLane` template, keep 2 named concrete shells + ViewCreators for uidesc strings) — ✅ DONE (branch `refactor/shared-enum-popup-arp-lane`): `EnumPopupArpLane<Traits>` + `EnumPopupArpLaneCreator<LaneT>` in `enum_popup_arp_lane.h`; `ArpChordLane`/`ArpInversionLane` are now trait-driven shells (count/divisor/labels/lane-type-id/view-names only). −596 net; ruinae/gradus/shared tests + pluginval strictness-5 green; condition (custom invert table + tooltips + `setStepCondition` API) and modifier (dot-grid bitmask) deliberately excluded; IArpLane interface boilerplate across 4 lanes → `ArpLaneBase` (~260, non-template, exclude `ArpLaneEditor`); per-lane ViewCreator template (~180); trail/skip/playhead overlay free helper (~135, 4 enum lanes only — `arp_lane_editor.h:1227` uses different geometry); `drawMiniPreview`/`drawDisabledOverlay` free functions (~65, exclude modifier's dot-based preview).
 
 ---
 
