@@ -33,10 +33,10 @@ Status legend: ✅ DONE (merged/committed) · ⬜ not started.
 | 7 | Single shared `version.h.in` + `win32resource.rc.in` templates | cross-plugin (build) | 320 | low | ✅ DONE — `cmake/version.h.in` + `cmake/win32resource.rc.in`, branch `refactor/ranks-6-to-9` |
 | 8 | Ruinae LFO1/LFO2 param files → base-ID-parameterized functions | intra-area:ruinae | 175 | low | ✅ DONE — `plugins/ruinae/src/parameters/lfo_params.h`, branch `refactor/ranks-6-to-9` |
 | 9 | Iterum `formatXxxParam` snprintf display helpers | intra-area:iterum | 170 | low | ✅ DONE — `plugins/iterum/src/parameters/param_display.h`, branch `refactor/ranks-6-to-9` |
-| 10 | Iterum controller re-serializer → host-delegation (also fixes Freeze save bug) | intra-area:iterum | 170 | low | ⬜ |
-| 11 | Per-lane ViewCreator registration template (shared arp lanes) | intra-area:shared | 180 | low | ⬜ |
-| 12 | Iterum private `parameter_helpers.h` + `note_value_ui.h` → shared wrappers | cross-plugin (param) | 235 | low | ⬜ |
-| 13 | `entry.cpp` plugin-factory macro | cross-plugin (build) | 110 | low | ⬜ |
+| 10 | Iterum controller re-serializer → host-delegation (also fixes Freeze save bug) | intra-area:iterum | 170 | low | ✅ DONE — `createComponentStateStream` host-delegation, branch `refactor/ranks-10-to-13` |
+| 11 | Per-lane ViewCreator registration template (shared arp lanes) | intra-area:shared | 180 | low | ✅ DONE — `plugins/shared/src/ui/arp_lane_view_creator.h`, branch `refactor/ranks-10-to-13` |
+| 12 | Iterum private `parameter_helpers.h` + `note_value_ui.h` → shared wrappers | cross-plugin (param) | 235 | low | ✅ DONE — Iterum/Innexus wrappers over shared, branch `refactor/ranks-10-to-13` |
+| 13 | `entry.cpp` plugin-factory macro | cross-plugin (build) | 110 | low | ✅ DONE — `plugins/shared/src/plugin_factory.h`, branch `refactor/ranks-10-to-13` |
 | 14 | Iterum 11 per-mode param packs → descriptor-driven boilerplate | intra-area:iterum | 500 | high | ⬜ |
 
 Effort key: **low** = mechanical, single PR, low test risk. **medium** = touches many files or needs golden/round-trip re-verification. **high** = larger refactor with state-format or escape-hatch complexity.
