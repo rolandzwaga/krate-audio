@@ -18,6 +18,7 @@
 #include "ui/update_banner_view.h"
 
 #include "public.sdk/source/vst/vstparameters.h"
+#include "pluginterfaces/vst/ivstcomponent.h"
 
 #include "vstgui/lib/cframe.h"
 #include "vstgui/lib/platform/iplatformframe.h"
@@ -1222,193 +1223,22 @@ void Controller::resetPatternToDefault() {
 // ==============================================================================
 
 Steinberg::MemoryStream* Controller::createComponentStateStream() {
-    // Create a memory stream and serialize current parameter values
-    // in the same format as Processor::getState()
+    // Delegate to host via IComponent::getState() -- does NOT re-serialize
+    // parameters from the controller. This guarantees the saved stream matches
+    // Processor::getState() byte-for-byte (and avoids drift bugs such as the
+    // legacy hand-written Freeze block, which wrote hardcoded placeholders
+    // instead of the live freeze parameters). Caller owns the returned stream.
+    Steinberg::FUnknownPtr<Steinberg::Vst::IComponent> component(getComponentHandler());
+    if (!component)
+        return nullptr;
+
     auto* stream = new Steinberg::MemoryStream();
-    Steinberg::IBStreamer streamer(stream, kLittleEndian);
-
-    // Helper to get denormalized float from controller parameter
-    auto getFloat = [this](Steinberg::Vst::ParamID id, float defaultVal, float scale = 1.0f) -> float {
-        if (auto* param = getParameterObject(id)) {
-            return static_cast<float>(param->toPlain(param->getNormalized())) * scale;
-        }
-        return defaultVal;
-    };
-
-    // Helper to get int32 from controller parameter
-    auto getInt32 = [this](Steinberg::Vst::ParamID id, Steinberg::int32 defaultVal) -> Steinberg::int32 {
-        if (auto* param = getParameterObject(id)) {
-            return static_cast<Steinberg::int32>(param->toPlain(param->getNormalized()));
-        }
-        return defaultVal;
-    };
-
-    // Write global parameters (must match Processor::getState order)
-    // Gain: normalized 0-1 maps to 0-2 linear
-    float gain = static_cast<float>(getParamNormalized(kGainId) * 2.0);
-    streamer.writeFloat(gain);
-
-    // Mode (0-10)
-    Steinberg::int32 mode = getInt32(kModeId, 0);
-    streamer.writeInt32(mode);
-
-    // Granular params - must match saveGranularParams order exactly
-    streamer.writeFloat(getFloat(kGranularGrainSizeId, 100.0f));
-    streamer.writeFloat(getFloat(kGranularDensityId, 10.0f));
-    streamer.writeFloat(getFloat(kGranularDelayTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kGranularPitchId, 0.0f));
-    streamer.writeFloat(getFloat(kGranularPitchSprayId, 0.0f));
-    streamer.writeFloat(getFloat(kGranularPositionSprayId, 0.0f));
-    streamer.writeFloat(getFloat(kGranularPanSprayId, 0.0f));
-    streamer.writeFloat(getFloat(kGranularReverseProbId, 0.0f));
-    streamer.writeInt32(getInt32(kGranularFreezeId, 0));
-    streamer.writeFloat(getFloat(kGranularFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kGranularMixId, 0.5f));
-    streamer.writeInt32(getInt32(kGranularEnvelopeTypeId, 0));
-    streamer.writeInt32(getInt32(kGranularTimeModeId, 0));
-    streamer.writeInt32(getInt32(kGranularNoteValueId, 4));
-    streamer.writeFloat(getFloat(kGranularJitterId, 0.0f));
-    streamer.writeInt32(getInt32(kGranularPitchQuantId, 0));
-    streamer.writeFloat(getFloat(kGranularTextureId, 0.0f));
-    streamer.writeFloat(getFloat(kGranularStereoWidthId, 0.0f));
-
-    // Spectral params - must match saveSpectralParams order exactly
-    streamer.writeInt32(getInt32(kSpectralFFTSizeId, 2048));
-    streamer.writeFloat(getFloat(kSpectralBaseDelayId, 250.0f));
-    streamer.writeFloat(getFloat(kSpectralSpreadId, 500.0f));
-    streamer.writeInt32(getInt32(kSpectralSpreadDirectionId, 0));
-    streamer.writeFloat(getFloat(kSpectralFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kSpectralFeedbackTiltId, 0.0f));
-    streamer.writeInt32(getInt32(kSpectralFreezeId, 0));
-    streamer.writeFloat(getFloat(kSpectralDiffusionId, 0.5f));
-    streamer.writeFloat(getFloat(kSpectralMixId, 50.0f));
-    streamer.writeInt32(getInt32(kSpectralSpreadCurveId, 0));
-    streamer.writeFloat(getFloat(kSpectralStereoWidthId, 0.5f));
-    streamer.writeInt32(getInt32(kSpectralTimeModeId, 0));
-    streamer.writeInt32(getInt32(kSpectralNoteValueId, 4));
-
-    // Freeze params - must match saveFreezeParams order exactly
-    // Write placeholder values for backwards compatibility with older versions
-    // Legacy shimmer/diffusion parameters removed in v0.12
-    streamer.writeInt32(1);       // freezeEnabled (always on)
-    streamer.writeFloat(500.0f);  // delayTime
-    streamer.writeInt32(0);       // timeMode
-    streamer.writeInt32(4);       // noteValue
-    streamer.writeFloat(0.5f);    // feedback
-    streamer.writeFloat(0.0f);    // pitchSemitones
-    streamer.writeFloat(0.0f);    // pitchCents
-    streamer.writeFloat(0.0f);    // shimmerMix
-    streamer.writeFloat(0.5f);    // decay
-    streamer.writeFloat(0.3f);    // diffusionAmount
-    streamer.writeFloat(0.5f);    // diffusionSize
-    streamer.writeInt32(0);       // filterEnabled
-    streamer.writeInt32(0);       // filterType
-    streamer.writeFloat(1000.0f); // filterCutoff
-    streamer.writeFloat(getFloat(kFreezeMixId, 0.5f));
-
-    // Reverse params - must match saveReverseParams order exactly
-    streamer.writeFloat(getFloat(kReverseChunkSizeId, 500.0f));
-    streamer.writeFloat(getFloat(kReverseCrossfadeId, 50.0f));
-    streamer.writeInt32(getInt32(kReversePlaybackModeId, 0));
-    streamer.writeFloat(getFloat(kReverseFeedbackId, 0.0f));
-    streamer.writeInt32(getInt32(kReverseFilterEnabledId, 0));
-    streamer.writeFloat(getFloat(kReverseFilterCutoffId, 4000.0f));
-    streamer.writeInt32(getInt32(kReverseFilterTypeId, 0));
-    streamer.writeFloat(getFloat(kReverseMixId, 0.5f));
-
-    // Shimmer params - must match saveShimmerParams order exactly
-    streamer.writeFloat(getFloat(kShimmerDelayTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kShimmerPitchSemitonesId, 12.0f));
-    streamer.writeFloat(getFloat(kShimmerPitchCentsId, 0.0f));
-    streamer.writeFloat(getFloat(kShimmerPitchBlendId, 100.0f));
-    streamer.writeFloat(getFloat(kShimmerFeedbackId, 0.5f));
-    streamer.writeFloat(1.0f);  // Legacy diffusionAmount slot (always 100%)
-    streamer.writeFloat(getFloat(kShimmerDiffusionSizeId, 50.0f));
-    streamer.writeInt32(getInt32(kShimmerFilterEnabledId, 0));
-    streamer.writeFloat(getFloat(kShimmerFilterCutoffId, 4000.0f));
-    streamer.writeFloat(getFloat(kShimmerMixId, 50.0f));
-
-    // Tape params - must match saveTapeParams order exactly
-    streamer.writeFloat(getFloat(kTapeMotorSpeedId, 500.0f));
-    streamer.writeFloat(getFloat(kTapeMotorInertiaId, 300.0f));
-    streamer.writeFloat(getFloat(kTapeWearId, 0.3f));
-    streamer.writeFloat(getFloat(kTapeSaturationId, 0.5f));
-    streamer.writeFloat(getFloat(kTapeAgeId, 0.3f));
-    streamer.writeInt32(getInt32(kTapeSpliceEnabledId, 0));
-    streamer.writeFloat(getFloat(kTapeSpliceIntensityId, 0.5f));
-    streamer.writeFloat(getFloat(kTapeFeedbackId, 0.4f));
-    streamer.writeFloat(getFloat(kTapeMixId, 0.5f));
-    streamer.writeInt32(getInt32(kTapeHead1EnabledId, 1));
-    streamer.writeInt32(getInt32(kTapeHead2EnabledId, 0));
-    streamer.writeInt32(getInt32(kTapeHead3EnabledId, 0));
-    streamer.writeFloat(getFloat(kTapeHead1LevelId, 1.0f));
-    streamer.writeFloat(getFloat(kTapeHead2LevelId, 1.0f));
-    streamer.writeFloat(getFloat(kTapeHead3LevelId, 1.0f));
-    streamer.writeFloat(getFloat(kTapeHead1PanId, 0.0f));
-    streamer.writeFloat(getFloat(kTapeHead2PanId, 0.0f));
-    streamer.writeFloat(getFloat(kTapeHead3PanId, 0.0f));
-
-    // BBD params - must match saveBBDParams order exactly
-    streamer.writeFloat(getFloat(kBBDDelayTimeId, 300.0f));
-    streamer.writeFloat(getFloat(kBBDFeedbackId, 0.4f));
-    streamer.writeFloat(getFloat(kBBDModDepthId, 0.0f));
-    streamer.writeFloat(getFloat(kBBDModRateId, 0.5f));
-    streamer.writeFloat(getFloat(kBBDAgeId, 0.2f));
-    streamer.writeInt32(getInt32(kBBDEraId, 0));
-    streamer.writeFloat(getFloat(kBBDMixId, 0.5f));
-
-    // Digital params - must match saveDigitalParams order exactly
-    streamer.writeFloat(getFloat(kDigitalDelayTimeId, 500.0f));
-    streamer.writeInt32(getInt32(kDigitalTimeModeId, 0));
-    streamer.writeInt32(getInt32(kDigitalNoteValueId, 4));
-    streamer.writeFloat(getFloat(kDigitalFeedbackId, 0.5f));
-    streamer.writeInt32(getInt32(kDigitalLimiterCharacterId, 0));
-    streamer.writeInt32(getInt32(kDigitalEraId, 0));
-    streamer.writeFloat(getFloat(kDigitalAgeId, 0.0f));
-    streamer.writeFloat(getFloat(kDigitalModDepthId, 0.0f));
-    streamer.writeFloat(getFloat(kDigitalModRateId, 0.5f));
-    streamer.writeInt32(getInt32(kDigitalModWaveformId, 0));
-    streamer.writeFloat(getFloat(kDigitalMixId, 0.5f));
-    streamer.writeFloat(getFloat(kDigitalWidthId, 100.0f));
-
-    // PingPong params - must match savePingPongParams order exactly
-    streamer.writeFloat(getFloat(kPingPongDelayTimeId, 500.0f));
-    streamer.writeInt32(getInt32(kPingPongTimeModeId, 1));
-    streamer.writeInt32(getInt32(kPingPongNoteValueId, 4));
-    streamer.writeInt32(getInt32(kPingPongLRRatioId, 0));
-    streamer.writeFloat(getFloat(kPingPongFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kPingPongCrossFeedbackId, 1.0f));
-    streamer.writeFloat(getFloat(kPingPongWidthId, 100.0f));
-    streamer.writeFloat(getFloat(kPingPongModDepthId, 0.0f));
-    streamer.writeFloat(getFloat(kPingPongModRateId, 1.0f));
-    streamer.writeFloat(getFloat(kPingPongMixId, 0.5f));
-
-    // MultiTap params - must match saveMultiTapParams order exactly
-    // Simplified design: No TimeMode, BaseTime, or Tempo parameters
-    streamer.writeInt32(getInt32(kMultiTapNoteValueId, 2));      // Default: Quarter
-    streamer.writeInt32(getInt32(kMultiTapNoteModifierId, 0));   // Default: None
-    streamer.writeInt32(getInt32(kMultiTapTimingPatternId, 2));
-    streamer.writeInt32(getInt32(kMultiTapSpatialPatternId, 2));
-    streamer.writeInt32(getInt32(kMultiTapTapCountId, 4));
-    streamer.writeFloat(getFloat(kMultiTapFeedbackId, 0.5f));
-    streamer.writeFloat(getFloat(kMultiTapFeedbackLPCutoffId, 20000.0f));
-    streamer.writeFloat(getFloat(kMultiTapFeedbackHPCutoffId, 20.0f));
-    streamer.writeFloat(getFloat(kMultiTapMorphTimeId, 500.0f));
-    streamer.writeFloat(getFloat(kMultiTapMixId, 50.0f));
-
-    // Custom Pattern Data (spec 046)
-    for (int i = 0; i < 16; ++i) {
-        float defaultTime = static_cast<float>(i + 1) / 17.0f;
-        streamer.writeFloat(getFloat(kMultiTapCustomTime0Id + i, defaultTime));
+    if (component->getState(stream) != Steinberg::kResultOk) {
+        stream->release();
+        return nullptr;
     }
-    for (int i = 0; i < 16; ++i) {
-        streamer.writeFloat(getFloat(kMultiTapCustomLevel0Id + i, 1.0f));
-    }
-    streamer.writeInt32(getInt32(kMultiTapSnapDivisionId, 14));   // Default: 1/4 (index 14)
 
-    // Seek to beginning so the stream can be read
     stream->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
-
     return stream;
 }
 

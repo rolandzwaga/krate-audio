@@ -17,6 +17,7 @@
 // ==============================================================================
 
 #include "arp_lane.h"
+#include "arp_lane_view_creator.h"
 #include "arp_lane_header.h"
 #include "color_utils.h"
 
@@ -46,6 +47,13 @@ namespace Krate::Plugins {
 
 class ArpModifierLane : public VSTGUI::CControl, public IArpLane {
 public:
+    // =========================================================================
+    // ViewCreator identity (consumed by ArpLaneViewCreator<ArpModifierLane>)
+    // =========================================================================
+    static constexpr const char* kViewName = "ArpModifierLane";
+    static constexpr const char* kDisplayName = "Arp Modifier Lane";
+    static constexpr const char* kStepBaseAttr = "step-flag-base-param-id";
+
     // =========================================================================
     // Constants
     // =========================================================================
@@ -119,6 +127,9 @@ public:
     void setStepFlagBaseParamId(uint32_t baseId) {
         stepFlagBaseParamId_ = baseId;
     }
+
+    // Uniform step-base setter consumed by ArpLaneViewCreator<ArpModifierLane>.
+    void setStepBaseId(uint32_t baseId) { setStepFlagBaseParamId(baseId); }
 
     void setLengthParamId(uint32_t paramId) {
         header_.setLengthParamId(paramId);
@@ -684,103 +695,9 @@ private:
 // ViewCreator Registration
 // =============================================================================
 
-struct ArpModifierLaneCreator : VSTGUI::ViewCreatorAdapter {
-    ArpModifierLaneCreator() {
-        VSTGUI::UIViewFactory::registerViewCreator(*this);
-    }
-
-    VSTGUI::IdStringPtr getViewName() const override { return "ArpModifierLane"; }
-
-    VSTGUI::IdStringPtr getBaseViewName() const override {
-        return VSTGUI::UIViewCreator::kCControl;
-    }
-
-    VSTGUI::UTF8StringPtr getDisplayName() const override {
-        return "Arp Modifier Lane";
-    }
-
-    VSTGUI::CView* create(
-        const VSTGUI::UIAttributes& /*attributes*/,
-        const VSTGUI::IUIDescription* /*description*/) const override {
-        return new ArpModifierLane(VSTGUI::CRect(0, 0, 500, 60), nullptr, -1);
-    }
-
-    bool apply(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
-               const VSTGUI::IUIDescription* description) const override {
-        auto* lane = dynamic_cast<ArpModifierLane*>(view);
-        if (!lane)
-            return false;
-
-        // Accent color
-        VSTGUI::CColor color;
-        if (VSTGUI::UIViewCreator::stringToColor(
-                attributes.getAttributeValue("accent-color"), color, description))
-            lane->setAccentColor(color);
-
-        // Lane name
-        const auto* nameStr = attributes.getAttributeValue("lane-name");
-        if (nameStr)
-            lane->setLaneName(*nameStr);
-
-        // Step flag base param ID
-        const auto* baseIdStr = attributes.getAttributeValue("step-flag-base-param-id");
-        if (baseIdStr) {
-            auto id = static_cast<uint32_t>(std::stoul(*baseIdStr));
-            lane->setStepFlagBaseParamId(id);
-        }
-
-        // Length param ID
-        const auto* lengthIdStr = attributes.getAttributeValue("length-param-id");
-        if (lengthIdStr) {
-            auto id = static_cast<uint32_t>(std::stoul(*lengthIdStr));
-            lane->setLengthParamId(id);
-        }
-
-        // Playhead param ID
-        const auto* playheadIdStr = attributes.getAttributeValue("playhead-param-id");
-        if (playheadIdStr) {
-            auto id = static_cast<uint32_t>(std::stoul(*playheadIdStr));
-            lane->setPlayheadParamId(id);
-        }
-
-        return true;
-    }
-
-    bool getAttributeNames(
-        VSTGUI::IViewCreator::StringList& attributeNames) const override {
-        attributeNames.emplace_back("accent-color");
-        attributeNames.emplace_back("lane-name");
-        attributeNames.emplace_back("step-flag-base-param-id");
-        attributeNames.emplace_back("length-param-id");
-        attributeNames.emplace_back("playhead-param-id");
-        return true;
-    }
-
-    AttrType getAttributeType(const std::string& attributeName) const override {
-        if (attributeName == "accent-color") return kColorType;
-        if (attributeName == "lane-name") return kStringType;
-        if (attributeName == "step-flag-base-param-id") return kStringType;
-        if (attributeName == "length-param-id") return kStringType;
-        if (attributeName == "playhead-param-id") return kStringType;
-        return kUnknownType;
-    }
-
-    bool getAttributeValue(VSTGUI::CView* view,
-                           const std::string& attributeName,
-                           std::string& stringValue,
-                           const VSTGUI::IUIDescription* desc) const override {
-        auto* lane = dynamic_cast<ArpModifierLane*>(view);
-        if (!lane)
-            return false;
-
-        if (attributeName == "accent-color") {
-            VSTGUI::UIViewCreator::colorToString(
-                lane->getAccentColor(), stringValue, desc);
-            return true;
-        }
-        return false;
-    }
-};
+// Shared ArpLaneViewCreator template; view/display/step-base names come from
+// the ArpModifierLane class. Preserves the "step-flag-base-param-id" attribute.
+using ArpModifierLaneCreator = ArpLaneViewCreator<ArpModifierLane>;
 
 inline ArpModifierLaneCreator gArpModifierLaneCreator;
 

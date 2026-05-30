@@ -21,6 +21,7 @@
 // ==============================================================================
 
 #include "arp_lane.h"
+#include "arp_lane_view_creator.h"
 #include "arp_lane_header.h"
 #include "color_utils.h"
 
@@ -69,6 +70,12 @@ public:
     static constexpr float kBodyHeight = 47.0f;
     static constexpr float kLeftMargin = 40.0f;
     static constexpr float kNormDivisor = static_cast<float>(Traits::kValueCount - 1);
+
+    // ViewCreator identity, forwarded from Traits so the shared
+    // ArpLaneViewCreator<LaneT> template can read it off the lane type.
+    static constexpr const char* kViewName = Traits::kViewName;
+    static constexpr const char* kDisplayName = Traits::kDisplayName;
+    static constexpr const char* kStepBaseAttr = "step-base-param-id";
 
     using TraitsType = Traits;
 
@@ -123,6 +130,9 @@ public:
     void setLaneName(const std::string& name) { header_.setLaneName(name); }
 
     void setStepBaseParamId(uint32_t baseId) { stepBaseParamId_ = baseId; }
+
+    // Uniform step-base setter consumed by ArpLaneViewCreator<LaneT>.
+    void setStepBaseId(uint32_t baseId) { setStepBaseParamId(baseId); }
     void setLengthParamId(uint32_t paramId) { header_.setLengthParamId(paramId); }
     void setPlayheadParamId(uint32_t paramId) { playheadParamId_ = paramId; }
 
@@ -672,91 +682,10 @@ protected:
 // from LaneT::TraitsType. Each concrete lane instantiates one global creator.
 // =============================================================================
 
+// LaneT derives from EnumPopupArpLane<Traits>, which forwards
+// kViewName/kDisplayName/kStepBaseAttr ("step-base-param-id") from Traits, so the
+// generic ArpLaneViewCreator<LaneT> reads them off the lane type directly.
 template <class LaneT>
-struct EnumPopupArpLaneCreator : VSTGUI::ViewCreatorAdapter {
-    using Traits = typename LaneT::TraitsType;
-
-    EnumPopupArpLaneCreator() {
-        VSTGUI::UIViewFactory::registerViewCreator(*this);
-    }
-
-    VSTGUI::IdStringPtr getViewName() const override { return Traits::kViewName; }
-
-    VSTGUI::IdStringPtr getBaseViewName() const override {
-        return VSTGUI::UIViewCreator::kCControl;
-    }
-
-    VSTGUI::UTF8StringPtr getDisplayName() const override {
-        return Traits::kDisplayName;
-    }
-
-    VSTGUI::CView* create(
-        const VSTGUI::UIAttributes& /*attributes*/,
-        const VSTGUI::IUIDescription* /*description*/) const override {
-        return new LaneT(VSTGUI::CRect(0, 0, 500, 44), nullptr, -1);
-    }
-
-    bool apply(VSTGUI::CView* view, const VSTGUI::UIAttributes& attributes,
-               const VSTGUI::IUIDescription* description) const override {
-        auto* lane = dynamic_cast<LaneT*>(view);
-        if (!lane) return false;
-
-        VSTGUI::CColor color;
-        if (VSTGUI::UIViewCreator::stringToColor(
-                attributes.getAttributeValue("accent-color"), color, description))
-            lane->setAccentColor(color);
-
-        const auto* nameStr = attributes.getAttributeValue("lane-name");
-        if (nameStr) lane->setLaneName(*nameStr);
-
-        const auto* baseIdStr = attributes.getAttributeValue("step-base-param-id");
-        if (baseIdStr)
-            lane->setStepBaseParamId(static_cast<uint32_t>(std::stoul(*baseIdStr)));
-
-        const auto* lengthIdStr = attributes.getAttributeValue("length-param-id");
-        if (lengthIdStr)
-            lane->setLengthParamId(static_cast<uint32_t>(std::stoul(*lengthIdStr)));
-
-        const auto* playheadIdStr = attributes.getAttributeValue("playhead-param-id");
-        if (playheadIdStr)
-            lane->setPlayheadParamId(static_cast<uint32_t>(std::stoul(*playheadIdStr)));
-
-        return true;
-    }
-
-    bool getAttributeNames(
-        VSTGUI::IViewCreator::StringList& attributeNames) const override {
-        attributeNames.emplace_back("accent-color");
-        attributeNames.emplace_back("lane-name");
-        attributeNames.emplace_back("step-base-param-id");
-        attributeNames.emplace_back("length-param-id");
-        attributeNames.emplace_back("playhead-param-id");
-        return true;
-    }
-
-    AttrType getAttributeType(const std::string& attributeName) const override {
-        if (attributeName == "accent-color") return kColorType;
-        if (attributeName == "lane-name") return kStringType;
-        if (attributeName == "step-base-param-id") return kStringType;
-        if (attributeName == "length-param-id") return kStringType;
-        if (attributeName == "playhead-param-id") return kStringType;
-        return kUnknownType;
-    }
-
-    bool getAttributeValue(VSTGUI::CView* view,
-                           const std::string& attributeName,
-                           std::string& stringValue,
-                           const VSTGUI::IUIDescription* desc) const override {
-        auto* lane = dynamic_cast<LaneT*>(view);
-        if (!lane) return false;
-
-        if (attributeName == "accent-color") {
-            VSTGUI::UIViewCreator::colorToString(
-                lane->getAccentColor(), stringValue, desc);
-            return true;
-        }
-        return false;
-    }
-};
+using EnumPopupArpLaneCreator = ArpLaneViewCreator<LaneT>;
 
 } // namespace Krate::Plugins
