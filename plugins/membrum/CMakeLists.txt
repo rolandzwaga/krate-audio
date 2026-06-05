@@ -82,6 +82,41 @@ target_link_libraries(membrum_dsp INTERFACE
 target_compile_features(membrum_dsp INTERFACE cxx_std_20)
 
 # ==============================================================================
+# membrum_float_guard -- non-finite (NaN/Inf) detection, built WITHOUT fast-math
+# ==============================================================================
+# The VST3 SDK enables -ffast-math (-ffinite-math-only) globally. Under it the
+# compiler may assume floats are never NaN/Inf and fold inline NaN/Inf bit-checks
+# to a constant `false` (Apple clang / arm64 does exactly this), silently
+# disabling real-time-safety guards. This single-function TU is compiled with
+# fast-math turned OFF so the check is always evaluated, on every compiler.
+# Linked through membrum_dsp (INTERFACE) so every consumer -- plugin, tests and
+# SDK-free tools -- picks up the definition automatically.
+add_library(membrum_float_guard STATIC
+    src/dsp/float_guard.h
+    src/dsp/float_guard.cpp
+)
+
+target_include_directories(membrum_float_guard PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_compile_features(membrum_float_guard PUBLIC cxx_std_20)
+
+if(MSVC)
+    target_compile_options(membrum_float_guard PRIVATE /fp:precise)
+else()
+    target_compile_options(membrum_float_guard PRIVATE
+        -fno-fast-math -fno-finite-math-only)
+endif()
+
+# Match the universal-binary arches of the plugin bundle on macOS (arm64+x86_64).
+smtg_target_setup_universal_binary(membrum_float_guard)
+
+# Propagate to all membrum_dsp consumers so FeedbackExciter::process() resolves
+# Membrum::DSP::isNonFinite without each target having to link it explicitly.
+target_link_libraries(membrum_dsp INTERFACE membrum_float_guard)
+
+# ==============================================================================
 # membrum_preset_io -- STATIC library wrapping the SDK-coupled state codec
 # ==============================================================================
 # The state codec pulls in pluginterfaces/base/ibstream.h, so it must live in a
