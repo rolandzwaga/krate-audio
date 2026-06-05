@@ -24,6 +24,7 @@
 //       shape for per-sample single-voice feedback, see research.md §3).
 // ==============================================================================
 
+#include <krate/dsp/core/db_utils.h>
 #include <krate/dsp/core/pattern_freeze_types.h>
 #include <krate/dsp/primitives/dc_blocker.h>
 #include <krate/dsp/primitives/noise_oscillator.h>
@@ -133,9 +134,20 @@ struct FeedbackExciter
         if (!active_)
             return 0.0f;
 
-        // Sanitize pathological body feedback — the body can ring above unity
-        // during transient moments; we treat everything as a raw velocity-like
-        // input and rely on the limiter chain.
+        // Sanitize non-finite body feedback BEFORE it reaches the energy
+        // follower. A closed feedback loop (modal bank at up to 0.85 gain) can
+        // emit NaN/Inf under sustained drive; the RMS EnvelopeFollower does not
+        // validate its input, so a single bad sample would poison its smoothing
+        // state permanently (NaN survives flushDenormal) and silently disable
+        // the energy limiter for the life of the voice. Bit-manipulation checks
+        // because the VST3 SDK builds with -ffast-math, which optimizes
+        // std::isfinite() away (see CLAUDE.md / db_utils.h).
+        if (Krate::DSP::detail::isNaN(bodyFeedback) ||
+            Krate::DSP::detail::isInf(bodyFeedback))
+            bodyFeedback = 0.0f;
+
+        // The body can ring above unity during transient moments; we treat
+        // everything as a raw velocity-like input and rely on the limiter chain.
         const float absFb = bodyFeedback < 0.0f ? -bodyFeedback : bodyFeedback;
         const float energy = energyFollower_.processSample(absFb);
         const float energyOverThreshold =

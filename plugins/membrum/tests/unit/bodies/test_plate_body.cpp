@@ -44,6 +44,36 @@ TEST_CASE("PlateBody: configureForNoteOn + processSample is allocation-free",
     }
 }
 
+// ==============================================================================
+// Correctness audit (Finding 1): kPlateRatios[k] must equal (m^2+n^2)/2 derived
+// from the (m,n) pair stored at the SAME index in kPlateIndices. Indices 8..15
+// were built from a different sort order, so the resonator bank was fed
+// frequencies that matched neither the labelled mode nor any valid plate mode
+// (several entries exceeded SC-002's +/-3% tolerance). The defect also
+// propagated to NoiseBody, which reads frequency from kPlateRatios[k] and
+// strike-amplitude from kPlateIndices[k] — for k=8..15 the two described
+// different modes. This pure-data check guards both arrays at every index.
+// ==============================================================================
+TEST_CASE("PlateModes: kPlateRatios == (m^2+n^2)/2 of kPlateIndices at every "
+          "index (correctness audit Finding 1)",
+          "[membrum][body][plate][modes][table]")
+{
+    using Membrum::Bodies::kPlateMaxModeCount;
+    using Membrum::Bodies::kPlateIndices;
+    using Membrum::Bodies::kPlateRatios;
+    using Membrum::Bodies::PlateModeIndices;
+
+    for (int k = 0; k < kPlateMaxModeCount; ++k)
+    {
+        const PlateModeIndices idx = kPlateIndices[k];
+        const float expected =
+            static_cast<float>(idx.m * idx.m + idx.n * idx.n) / 2.0f;
+        INFO("index " << k << " (m=" << idx.m << ", n=" << idx.n
+             << ") ratio=" << kPlateRatios[k] << " expected=" << expected);
+        CHECK(kPlateRatios[k] == Approx(expected).margin(1e-4));
+    }
+}
+
 TEST_CASE("PlateBody: first 8 partial ratios within +/-3% (SC-002, US2-2)",
           "[membrum][body][plate][modes][BodyModes]")
 {

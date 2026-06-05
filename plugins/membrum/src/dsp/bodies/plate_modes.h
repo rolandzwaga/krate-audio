@@ -48,11 +48,8 @@ inline constexpr PlateModeIndices kPlateIndices[kPlateMaxModeCount] = {
     {1, 4},  // 17 -> 8.500
     {3, 3},  // 18 -> 9.000
     {2, 4},  // 20 -> 10.000
-    {3, 4},  // 25 -> 12.500  (degenerate row 1)
-    {1, 5},  // 26 -> 13.000  (spec 135 table uses 13.000)
-    // Note: the spec-documented first-16 table lists 13.000 twice to honor the
-    // (3,2)/(2,3) degenerate pair. We reproduce those measurements literally so
-    // SC-002 tolerance (+/-3%) is met, and fill the 11th slot with (2,5).
+    {3, 4},  // 25 -> 12.500
+    {1, 5},  // 26 -> 13.000
     {2, 5},  // 29 -> 14.500
     {4, 4},  // 32 -> 16.000
     {1, 6},  // 37 -> 18.500
@@ -95,13 +92,16 @@ inline constexpr PlateModeIndices kPlateIndices[kPlateMaxModeCount] = {
     {7, 9},  // 130 -> 65.000
 };
 
-// Mode ratios relative to (1,1) fundamental. First 16 reproduce the
-// spec 135 verified values exactly (the (3,2)/(2,3) degeneracy at 13.000
-// and the canonical {1.000, 2.500, 4.000, 5.000, 6.500, 8.500, 9.000, 10.000}
-// opening series). Remaining entries (17..40) are computed from (m^2+n^2)/2.
+// Mode ratios relative to (1,1) fundamental. Every entry is (m^2+n^2)/2 for
+// the (m,n) pair stored at the SAME index in kPlateIndices above — the two
+// arrays MUST stay in lock-step, otherwise the resonator bank receives a
+// frequency for one mode and a strike-amplitude for another (the consumers in
+// plate_mapper.h / noise_body_mapper.h read frequency from kPlateRatios[k] and
+// amplitude from kPlateIndices[k]). Indices 8..15 were previously desynced
+// (built from a different sort order) and are now regenerated to match.
 inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
     1.000f, 2.500f, 4.000f, 5.000f, 6.500f, 8.500f, 9.000f, 10.000f,
-    13.000f, 13.000f, 16.250f, 17.000f, 18.500f, 20.000f, 22.500f, 25.000f,
+    12.500f, 13.000f, 14.500f, 16.000f, 18.500f, 17.000f, 20.500f, 20.000f,
     // 17..40 extended table for Noise Body (FR-062):
     25.000f, 22.500f, 25.000f, 26.000f, 26.500f, 30.500f, 29.000f, 32.500f,
     36.000f, 32.500f, 34.000f, 37.000f, 36.500f, 42.500f, 41.000f, 40.000f,

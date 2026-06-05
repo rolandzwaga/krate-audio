@@ -17,6 +17,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 
 using membrum_exciter_tests::isFiniteSample;
 using membrum_exciter_tests::runBurst;
@@ -162,6 +163,51 @@ TEST_CASE("FeedbackExciter: non-zero body feedback sustains longer than zero",
     }
     INFO("energyA(no fb)=" << energyA << " energyB(with fb)=" << energyB);
     CHECK(energyB > energyA);
+}
+
+TEST_CASE("FeedbackExciter: non-finite body feedback is treated as zero "
+          "(correctness audit Finding 7)",
+          "[membrum][exciter][feedback][robustness]")
+{
+    constexpr double kSR = 44100.0;
+
+    // A single NaN/Inf body-feedback sample must produce exactly the same
+    // output — and leave exactly the same internal state — as feeding 0.0.
+    // Pre-fix the raw value poisons the RMS energy follower's smoothing state
+    // permanently (NaN survives flushDenormal), disabling the energy limiter
+    // for the life of the voice; the two exciters then diverge forever.
+    for (float poison : {std::numeric_limits<float>::quiet_NaN(),
+                         std::numeric_limits<float>::infinity(),
+                         -std::numeric_limits<float>::infinity()})
+    {
+        Membrum::FeedbackExciter poisoned;  // receives the pathological value
+        Membrum::FeedbackExciter clean;     // receives 0.0 at the same step
+        poisoned.prepare(kSR, 0);
+        clean.prepare(kSR, 0);
+        poisoned.trigger(0.9f);
+        clean.trigger(0.9f);
+
+        // Identical warm-up keeps both internal states bit-for-bit equal.
+        for (int i = 0; i < 32; ++i)
+        {
+            (void)poisoned.process(0.5f);
+            (void)clean.process(0.5f);
+        }
+
+        (void)poisoned.process(poison);
+        (void)clean.process(0.0f);
+
+        bool identical = true;
+        for (int i = 0; i < 4096; ++i)
+        {
+            const float fb = (i & 1) ? 0.6f : -0.6f;
+            const float a  = poisoned.process(fb);
+            const float b  = clean.process(fb);
+            // Exact equality: a divergent (or NaN) sample trips this.
+            if (!(a == b)) { identical = false; break; }
+        }
+        CHECK(identical);
+    }
 }
 
 TEST_CASE("FeedbackExciter: peak <= 0 dBFS for extreme bodyFeedback (SC-008)",
