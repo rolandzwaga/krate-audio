@@ -17,7 +17,8 @@
 
 #include <array>
 #include <cmath>
-#include <limits>
+#include <cstdint>
+#include <cstring>
 
 using membrum_exciter_tests::isFiniteSample;
 using membrum_exciter_tests::runBurst;
@@ -165,6 +166,22 @@ TEST_CASE("FeedbackExciter: non-zero body feedback sustains longer than zero",
     CHECK(energyB > energyA);
 }
 
+// Build a non-finite float from its IEEE-754 bit pattern, routed through a
+// volatile sink so the optimizer cannot constant-fold it. The VST3 SDK enables
+// -ffast-math (-ffinite-math-only) globally; under that flag the compiler
+// assumes NaN/Inf never occur, so std::numeric_limits<float>::infinity() /
+// quiet_NaN() are UB and get folded to finite garbage (which then sails past
+// the production guard and breaks this test). The volatile read forces a real
+// non-finite bit pattern to exist at runtime regardless of the FP mode.
+static float nonFiniteFromBits(std::uint32_t bits) noexcept
+{
+    volatile std::uint32_t v = bits;
+    const std::uint32_t    read = v;  // volatile load defeats constant folding
+    float f = 0.0f;
+    std::memcpy(&f, &read, sizeof(f));
+    return f;
+}
+
 TEST_CASE("FeedbackExciter: non-finite body feedback is treated as zero "
           "(correctness audit Finding 7)",
           "[membrum][exciter][feedback][robustness]")
@@ -176,9 +193,10 @@ TEST_CASE("FeedbackExciter: non-finite body feedback is treated as zero "
     // Pre-fix the raw value poisons the RMS energy follower's smoothing state
     // permanently (NaN survives flushDenormal), disabling the energy limiter
     // for the life of the voice; the two exciters then diverge forever.
-    for (float poison : {std::numeric_limits<float>::quiet_NaN(),
-                         std::numeric_limits<float>::infinity(),
-                         -std::numeric_limits<float>::infinity()})
+    const float kQuietNaN = nonFiniteFromBits(0x7FC00000u);
+    const float kPosInf   = nonFiniteFromBits(0x7F800000u);
+    const float kNegInf   = nonFiniteFromBits(0xFF800000u);
+    for (float poison : {kQuietNaN, kPosInf, kNegInf})
     {
         Membrum::FeedbackExciter poisoned;  // receives the pathological value
         Membrum::FeedbackExciter clean;     // receives 0.0 at the same step
