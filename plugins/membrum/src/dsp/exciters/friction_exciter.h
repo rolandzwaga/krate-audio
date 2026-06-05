@@ -60,12 +60,25 @@ struct FrictionExciter
         active_        = false;
     }
 
+    /// Set the Friction Pressure from a normalized [0,1] host value
+    /// (plugin_ids.h kExciterFrictionPressureId). It adds to the velocity-
+    /// derived bow-pressure baseline: at 0 the bow is velocity-driven exactly
+    /// as before; higher values press harder. Applied on the next trigger().
+    void setPressure(float normalized) noexcept
+    {
+        pressureAmount_ = std::clamp(normalized, 0.0f, 1.0f);
+    }
+
     void trigger(float velocity) noexcept
     {
         velocity = std::clamp(velocity, 0.0f, 1.0f);
 
-        // FR-013: velocity → pressure, speed.
-        core_.setPressure(0.1f + (0.5f - 0.1f) * velocity);
+        // FR-013: velocity → pressure, speed. The Friction Pressure parameter
+        // adds an extra bow-pressure bias on top of the velocity baseline
+        // (amount=0 -> legacy behaviour, amount=1 -> +0.5 heavier bowing).
+        core_.setPressure(
+            std::clamp(0.1f + (0.5f - 0.1f) * velocity + pressureAmount_ * 0.5f,
+                       0.0f, 1.0f));
         core_.setSpeed(0.2f + (0.8f - 0.2f) * velocity);
         core_.setPosition(0.13f); // default bridge-ish position
 
@@ -130,6 +143,8 @@ private:
     double sampleRate_         = 44100.0;
     int    sampleCounter_      = 0;
     int    autoReleaseSamples_ = 0;
+    // User Friction Pressure bias [0,1]; 0 = legacy velocity-only behaviour.
+    float  pressureAmount_     = 0.0f;
     bool   active_             = false;
 };
 

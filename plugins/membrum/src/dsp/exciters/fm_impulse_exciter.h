@@ -75,7 +75,9 @@ struct FMImpulseExciter
         // centroid doubles between v=0.23 and v=1.0. 400 Hz (soft) → 2500 Hz
         // (hard). The 1:1.4 ratio is preserved at every velocity.
         constexpr float kCarrierRatio  = 1.0f;
-        constexpr float kModulatorRatio = 1.4f;
+        // FM Ratio parameter: norm [0,1] -> [1.0, 4.0] (default norm 0.13333
+        // reproduces the classic 1.4 Chowning-bell ratio).
+        const float kModulatorRatio = 1.0f + 3.0f * modulatorRatioNorm_;
         carrierRatio_   = kCarrierRatio;
         modulatorRatio_ = kModulatorRatio;
         const float baseFreq = 400.0f * std::pow(6.25f, velocity); // 400 → 2500
@@ -99,6 +101,15 @@ struct FMImpulseExciter
     void release() noexcept
     {
         // Impulse; release is a no-op.
+    }
+
+    /// Set the carrier:modulator FM ratio from a normalized [0,1] host value,
+    /// mapped linearly to [1.0, 4.0] (plugin_ids.h kExciterFMRatioId). Applied
+    /// on the next trigger(). The default reproduces the historical 1.4
+    /// Chowning-bell ratio so an un-set parameter does not change the timbre.
+    void setModulatorRatio(float normalized) noexcept
+    {
+        modulatorRatioNorm_ = std::clamp(normalized, 0.0f, 1.0f);
     }
 
     [[nodiscard]] float process(float /*bodyFeedback*/) noexcept
@@ -140,6 +151,8 @@ private:
     float  modIndexCoeff_    = 0.0f;
     float  carrierRatio_     = 1.0f;
     float  modulatorRatio_   = 1.4f;
+    // Normalized FM ratio; default (1.4-1.0)/3.0 -> 1.4 modulator ratio.
+    float  modulatorRatioNorm_ = (1.4f - 1.0f) / 3.0f;
     float  modulationIndex_  = 0.0f;
     float  carrierAmplitude_ = 0.0f;
     bool   active_           = false;

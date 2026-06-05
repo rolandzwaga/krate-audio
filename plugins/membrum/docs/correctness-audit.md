@@ -20,9 +20,9 @@ This audit reviewed the Membrum physical-modelling drum-synth VST3 plugin across
 **Top risks (in priority order):**
 1. **Heap buffer overflow on the audio thread** when host block size exceeds 8192 samples — the only memory-safety defect (Finding 2).
 2. **Plate mode-ratio table desync (indices 8–15)** — the resonator bank is fed frequencies that match neither the labelled mode nor any valid plate mode; several entries exceed the project's own ±3% tolerance (Finding 1).
-3. **Two fully dead audio parameters** (FM Ratio, Feedback Amount) — host-automatable, persisted knobs with zero audio effect (Findings 3, 4).
+3. ~~**Three fully dead audio parameters** (FM Ratio, Feedback Amount, Friction Pressure) — host-automatable, persisted knobs with zero audio effect (Findings 3, 4, 5).~~ **✅ FIXED 2026-06-05** — all three plumbed through `applyPadConfigToSlot` with non-regression default mappings; FM Ratio per-pad default aligned to 1.4 (also closing #9). Regression test `test_dead_exciter_params.cpp`.
 
-No critical (crash-on-normal-use / data-corruption) defects were found; the highest-impact item (Finding 2) is conditionally reachable rather than triggered by typical real-time playback.
+No critical (crash-on-normal-use / data-corruption) defects were found; the highest-impact item (Finding 2) is conditionally reachable rather than triggered by typical real-time playback. **Update (2026-06-05):** the heap-overflow defect (Finding 2 in §3) and all three dead-parameter defects (Findings 3–5) have since been fixed; the remaining open high-severity item is the plate mode-ratio table desync.
 
 ---
 
@@ -87,20 +87,26 @@ Also verified correct (rejected as defects): `DataExchangeHandler` allocation co
 
 ### What's wrong
 
-**[HIGH] FM Ratio parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:687` (applyPadConfigToSlot) vs `pad_config.h:213`.
+**[HIGH] ✅ FIXED (2026-06-05)** **FM Ratio parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp` (applyPadConfigToSlot) vs `pad_config.h:213`.
+> **Resolution:** `FMImpulseExciter::setModulatorRatio(normalized)` maps norm [0,1] → ratio [1.0, 4.0], applied on the next `trigger()`. `ExciterBank::setFMRatio` caches the value and replays it across variant swaps; `DrumVoice::setFMRatio` forwards to the bank; and `applyPadConfigToSlot` now calls `v.setFMRatio(cfg.fmRatio)`. The per-pad default was aligned to norm 0.133333 (→ 1.4, the documented Chowning-bell ratio) in `pad_config.h`, `controller.cpp`, and `processor.cpp` so plumbing the knob does not change the default FM timbre — this also resolves finding #9 below. Regression test: `tests/unit/voice_pool/test_dead_exciter_params.cpp`.
+
 `kExciterFMRatioId (202)` → `kPadFMRatio` is registered, dispatched (`processor.cpp:405-407`), stored into `PadConfig::fmRatio` (`voice_pool.cpp:600`), and round-tripped through state (`state_codec.cpp:91/175/284`) — but `applyPadConfigToSlot` **never forwards `cfg.fmRatio` to any voice**, and `DrumVoice` has no `setFMRatio()`. `FMImpulseExciter` hardcodes its 1:1.4 Chowning-bell ratio (`fm_impulse_exciter.h:78`) and exposes no setter. The knob reaches `PadConfig` and dies there — a registered, formatted, persisted, host-automatable parameter with **zero audio effect**. **Fix:** denormalize `cfg.fmRatio` (norm 0..1 → 1.0..4.0 per `plugin_ids.h:57`) and push it into the exciter via a new `DrumVoice` setter, mirroring the `noiseBurstDuration` plumbing at `voice_pool.cpp:716`.
 
-**[HIGH] Feedback Amount parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601` vs `feedback_exciter.h:94`.
+**[HIGH] ✅ FIXED (2026-06-05)** **Feedback Amount parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp` vs `feedback_exciter.h`.
+> **Resolution:** `FeedbackExciter::setFeedbackAmount(normalized)` raises the feedback-drive floor above the velocity baseline — `drive = velocity + amount·(1 − velocity)`, `feedbackAmount_ = drive·kMaxFeedback`. `amount=0` is bit-identical to the legacy velocity-only behaviour (no default regression) and `drive ∈ [0,1]` keeps the SC-008 ≤ 0 dBFS guarantee. `ExciterBank::setFeedbackAmount` (cached + replayed on swap) and `DrumVoice::setFeedbackAmount` forward it; `applyPadConfigToSlot` now calls `v.setFeedbackAmount(cfg.feedbackAmount)`. Regression test: `tests/unit/voice_pool/test_dead_exciter_params.cpp`.
+
 `kExciterFeedbackAmountId (203)` → `kPadFeedbackAmount` is dispatched, stored (`voice_pool.cpp:601`), and persisted (`state_codec.cpp:92/176/285`), but `applyPadConfigToSlot` never forwards `cfg.feedbackAmount`. `FeedbackExciter` sets `feedbackAmount_ = velocity·kMaxFeedback` purely at trigger (`:94`) and exposes no setter; `ExciterBank` has no forwarding path. The knob is fully inert. **Fix:** forward `cfg.feedbackAmount` into `FeedbackExciter` (as a multiplier on / replacement for the velocity drive), or remove the parameter if velocity-only is intended.
 
 ### What's wrong but lower-impact
 
-**[MEDIUM] Friction Pressure parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:603` vs `:687`.
+**[MEDIUM] ✅ FIXED (2026-06-05)** **Friction Pressure parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp` vs `friction_exciter.h`.
+> **Resolution:** `FrictionExciter::setPressure(normalized)` adds a bow-pressure bias on top of the velocity baseline — `pressure = clamp(0.1 + 0.4·velocity + amount·0.5, 0, 1)`. `amount=0` (the per-pad default) reproduces the legacy velocity-only pressure exactly. `ExciterBank::setFrictionPressure` (cached + replayed on swap) and `DrumVoice::setFrictionPressure` forward it; `applyPadConfigToSlot` now calls `v.setFrictionPressure(cfg.frictionPressure)`. Regression test: `tests/unit/voice_pool/test_dead_exciter_params.cpp`.
+
 `kExciterFrictionPressureId (205)` → `kPadFrictionPressure` is registered, UI-bound (`editor.uidesc:216`), dispatched (`processor.cpp:414-415`), stored (`voice_pool.cpp:603`), and persisted, but `applyPadConfigToSlot` never forwards `cfg.frictionPressure`, and `FrictionExciter` derives bow pressure solely from velocity (`friction_exciter.h:68`) with no setter. The control is inert. *(Severity medium not high: a single cosmetic control, no crash/corruption/RT impact.)* **Fix:** forward `cfg.frictionPressure` into the FrictionExciter bow-pressure input, parallel to line 716. *(Note: the "default norm 0.3" in the original expectation is imprecise — the PadConfig field and per-pad registration default to 0.0; only the global proxy defaults to 0.3.)*
 
 ### Cosmetic / metadata inconsistencies (low / info)
 
-**[LOW] Global-proxy default differs from per-pad default for FM Ratio** — `controller.cpp:315` (proxy 0.133333 → 1.4×) vs `:186` (per-pad 0.5 → 2.5×, backed by `pad_config.h:213` / `processor.cpp:182`). On a fresh instance the proxy displays 1.4× while the DSP value is 2.5×, until the user selects a pad or moves the control (proxy resyncs). Initial-display only; no audio/state impact.
+**[LOW] ✅ FIXED (2026-06-05)** **Global-proxy default differs from per-pad default for FM Ratio** — `controller.cpp:315` (proxy 0.133333 → 1.4×) vs `:186` (per-pad 0.5 → 2.5×, backed by `pad_config.h:213` / `processor.cpp:182`). On a fresh instance the proxy displays 1.4× while the DSP value is 2.5×, until the user selects a pad or moves the control (proxy resyncs). Initial-display only; no audio/state impact. **Resolution:** the per-pad default (`controller.cpp:186`), the `PadConfig::fmRatio` field default (`pad_config.h:213`), and the MacroMapper baseline (`processor.cpp:182`) were all aligned to 0.133333 (→ 1.4×), matching the proxy — fixed together with the FM Ratio plumbing (finding 3).
 
 **[LOW] Global-proxy default differs from per-pad default for Friction Pressure** — `controller.cpp:318` (proxy 0.3) vs `:189` (per-pad 0.0, `pad_config.h:216`; `DefaultKit` never sets it, so all 32 pads start at 0.0). Self-heals on first `syncGlobalProxyFromPad`.
 
@@ -157,17 +163,17 @@ The class is constructed in `didOpen()` but non-functional: `attachUiModeSwitch(
 ### High
 1. ~~**Heap buffer overflow on oversized host blocks** — `plugins/membrum/src/voice_pool/voice_pool.cpp:57-63, :327, :374` (+ `processor.cpp:1107-1108`, `:700-723`). Reject setup when `maxSamplesPerBlock > kVoicePoolMaxBlock`, raise the cap, or segment `numSamples` in `processBlock`.~~ **✅ FIXED 2026-06-05** — scratch grown to actual host block size + `numSamples` clamp in both `processBlock` overloads; regression test `test_oversized_block.cpp`. *(Memory safety — was fixed first.)*
 2. **Plate mode-ratio table desync** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111`. Regenerate `kPlateRatios[8..15]` as `(m²+n²)/2` from `kPlateIndices` → 12.5/14.5/16.0/17.0/20.5/20.0 (or reorder `kPlateIndices`). Re-verify NoiseBody (`noise_body_mapper.h:90,94`) after the fix.
-3. **FM Ratio dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:687`. Add a `DrumVoice`/`FMImpulseExciter` ratio setter; denormalize `cfg.fmRatio` (0..1 → 1.0..4.0) and forward it in `applyPadConfigToSlot`, mirroring line 716.
-4. **Feedback Amount dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601`. Forward `cfg.feedbackAmount` into `FeedbackExciter` (add a setter), or remove the parameter.
+3. ~~**FM Ratio dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp`. Add a `DrumVoice`/`FMImpulseExciter` ratio setter; denormalize `cfg.fmRatio` (0..1 → 1.0..4.0) and forward it in `applyPadConfigToSlot`.~~ **✅ FIXED 2026-06-05** — `setModulatorRatio` + `ExciterBank`/`DrumVoice` forwarders + `applyPadConfigToSlot` wiring; per-pad default aligned to 1.4 (also closes #9). Test `test_dead_exciter_params.cpp`.
+4. ~~**Feedback Amount dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601`. Forward `cfg.feedbackAmount` into `FeedbackExciter`.~~ **✅ FIXED 2026-06-05** — `setFeedbackAmount` raises the drive floor (`amount=0` = legacy velocity-only, SC-008 preserved); forwarded through `ExciterBank`/`DrumVoice`/`applyPadConfigToSlot`. Test `test_dead_exciter_params.cpp`.
 
 ### Medium
-5. **Friction Pressure dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:603`. Forward `cfg.frictionPressure` into the FrictionExciter bow-pressure input.
+5. ~~**Friction Pressure dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:603`. Forward `cfg.frictionPressure` into the FrictionExciter bow-pressure input.~~ **✅ FIXED 2026-06-05** — `setPressure` adds a velocity-baseline bias (`amount=0` = legacy); forwarded through `ExciterBank`/`DrumVoice`/`applyPadConfigToSlot`. Test `test_dead_exciter_params.cpp`.
 6. **PadGridView selection highlight stale on automation/preset load** — `controller.cpp:771-778, :962-964, :1077-1079, :1225-1232`. Push `padGridView_->setSelectedPadIndex(selectedPadIndex_)` (null-guarded) on every `kSelectedPadId` change.
 
 ### Low
 7. **FeedbackExciter NaN poisoning of energy limiter** — `feedback_exciter.h:124-128`. Sanitize `bodyFeedback` with `std::isfinite` before feeding the follower.
 8. **Plate even-n modes decoupled from Strike Position** — `plate_modes.h:122-134`. Optional: diagonal `y0` mapping. *(Documented design choice.)*
-9. **FM Ratio proxy/per-pad default mismatch** — `controller.cpp:315` vs `:186`. Align defaults.
+9. ~~**FM Ratio proxy/per-pad default mismatch** — `controller.cpp:315` vs `:186`. Align defaults.~~ **✅ FIXED 2026-06-05** — per-pad default, `PadConfig` field, and MacroMapper baseline aligned to 0.133333 (→ 1.4×) alongside finding 3.
 10. **Friction Pressure proxy/per-pad default mismatch** — `controller.cpp:318` vs `:189`. Align defaults.
 11. **Morph Enabled proxy continuous vs toggle** — `controller.cpp:335`. Register with `stepCount=1` (or a 2-entry StringList).
 12. **setParamNormalized mutates views inline** — `controller.cpp:712-836` (+ helpers `:1615/:1663/:1718/:1765`). Defer via `IDependent`+`deferUpdate` or the timer.

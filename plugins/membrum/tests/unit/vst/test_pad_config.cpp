@@ -116,8 +116,9 @@ TEST_CASE("PadConfig default-constructed has correct defaults", "[pad_config]")
     CHECK(pad.chokeGroup == 0);
     CHECK(pad.outputBus == 0);
 
-    // Exciter secondary params
-    CHECK(pad.fmRatio == Catch::Approx(0.5f).margin(1e-6f));
+    // Exciter secondary params. fmRatio default (norm of [1.0,4.0]) maps to
+    // the documented 1.4 Chowning-bell ratio, matching the global proxy.
+    CHECK(pad.fmRatio == Catch::Approx(0.133333f).margin(1e-5f));
     CHECK(pad.feedbackAmount == Catch::Approx(0.0f).margin(1e-6f));
     CHECK(pad.noiseBurstDuration == Catch::Approx(0.5f).margin(1e-6f));
     CHECK(pad.frictionPressure == Catch::Approx(0.0f).margin(1e-6f));
@@ -232,8 +233,8 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
 
     // Offsets 54-57 are valid Phase 8D fields (coupling + secondary body).
     for (int off = 54; off <= 57; ++off) {
-        const int couplingId = kPadBaseId + off;
-        CHECK(padOffsetFromParamId(couplingId) == off);
+        const int couplingFieldId = kPadBaseId + off;
+        CHECK(padOffsetFromParamId(couplingFieldId) == off);
     }
 
     // Offset 58 is the valid Phase 8E tensionModAmt field.

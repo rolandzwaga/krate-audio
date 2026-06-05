@@ -210,7 +210,7 @@ struct PadConfig
     std::uint8_t outputBus  = 0;  // [0, 15], 0 = main only
 
     // Exciter secondary params (per-pad, Phase 4)
-    float fmRatio            = 0.5f;   // normalized FM ratio
+    float fmRatio            = 0.133333f; // norm of [1.0,4.0]; default -> 1.4 bell
     float feedbackAmount     = 0.0f;   // FM feedback amount
     float noiseBurstDuration = 0.5f;   // normalized burst duration
     float frictionPressure   = 0.0f;   // friction exciter pressure

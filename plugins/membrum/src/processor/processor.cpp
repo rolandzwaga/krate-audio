@@ -179,7 +179,7 @@ RegisteredDefaultsTable Processor::buildRegisteredDefaultsTable() noexcept
     t.byOffset[kPadDecaySkew]          = 0.5f;
     t.byOffset[kPadModeInjectAmount]   = 0.0f;
     t.byOffset[kPadNonlinearCoupling]  = 0.0f;
-    t.byOffset[kPadFMRatio]            = 0.5f;
+    t.byOffset[kPadFMRatio]            = 0.133333f; // -> 1.4 bell ratio
     t.byOffset[kPadFeedbackAmount]     = 0.0f;
     t.byOffset[kPadNoiseBurstDuration] = 0.5f;
     t.byOffset[kPadFrictionPressure]   = 0.0f;
