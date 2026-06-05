@@ -1,0 +1,123 @@
+name: Valgrind Nightly (Membrum)
+
+# ============================================================================
+# Nightly Valgrind / memcheck run for the Membrum test suite.
+# ============================================================================
+# Catches memory errors that AddressSanitizer does NOT — specifically
+# operator new/delete family mismatches and reads of uninitialised memory.
+#
+# Background: the Membrum suite once hit an intermittent SIGSEGV on the Linux
+# CI runner. It was reported inside the voice-steal test but was actually a
+# victim of cross-test heap corruption surfaced by Catch2's random ordering.
+# Root cause: a global `operator delete` override in test_allocation_matrix.cpp
+# freed a libstdc++-allocated std::string with std::free under
+# -fvisibility=hidden (an "operator new vs free" mismatch). That is silent UB
+# on a vanilla glibc heap and invisible to ASan (its own new/delete
+# interceptors absorb the override), but corrupts allocator bookkeeping under
+# other layouts.
+#
+# memcheck tracks every allocation's family precisely, so a single run catches
+# such a mismatch deterministically, independent of test order. This is the
+# regression guard for that class of bug.
+#
+# Why nightly (not per-PR): a full memcheck pass over the heavy DSP suite takes
+# ~20-60 min and can emit spurious "uninitialised value" reports on SIMD code,
+# so running it on every PR would tax feedback and risk flaky reds. Nightly on
+# `main` catches regressions within 24 h without that cost. Use the manual
+# "Run workflow" button (workflow_dispatch) to run it on demand, e.g. before a
+# release or when touching allocation-sensitive code.
+# ============================================================================
+
+on:
+  schedule:
+    # 05:17 UTC daily (off-peak; odd minute avoids the top-of-hour stampede).
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+    inputs:
+      rng_seed:
+        description: 'Catch2 --rng-seed for the run order'
+        type: string
+        required: false
+        default: '1099410096'
+
+concurrency:
+  group: valgrind-nightly
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  CCACHE_MAXSIZE: 500M
+  CCACHE_COMPRESS: true
+  CCACHE_COMPRESSLEVEL: 6
+
+jobs:
+  valgrind-membrum:
+    name: Linux Valgrind (Membrum)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            valgrind ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.20
+        with:
+          key: linux-valgrind-${{ env.BUILD_TYPE }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
+
+      - name: Cache FetchContent
+        uses: actions/cache@v5
+        with:
+          path: build-vg/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-
+
+      # Plain Release (no sanitizer): valgrind instruments the unmodified binary.
+      - name: Configure CMake (Release)
+        run: |
+          cmake -S . -B build-vg -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build membrum_tests
+        run: cmake --build build-vg --parallel --target membrum_tests
+
+      # One memcheck run is enough: the new/delete family mismatch is detected
+      # per-allocation, regardless of test order. --error-exitcode=99 turns any
+      # memcheck error (mismatched free, invalid read/write, uninitialised use)
+      # into a job failure. Leak checking is off — we only care about invalid
+      # accesses and mismatched frees, not the static/"still reachable"
+      # allocations Catch2 keeps for the process lifetime.
+      - name: Run membrum_tests under Valgrind/memcheck
+        timeout-minutes: 90
+        run: |
+          BIN="build-vg/bin/${{ env.BUILD_TYPE }}/membrum_tests"
+          test -x "$BIN" || { echo "FAIL: $BIN not found"; exit 1; }
+          SEED="${{ github.event.inputs.rng_seed || '1099410096' }}"
+          valgrind \
+            --tool=memcheck \
+            --error-exitcode=99 \
+            --leak-check=no \
+            --errors-for-leak-kinds=none \
+            --track-origins=yes \
+            --num-callers=25 \
+            "$BIN" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks \
+              --order rand --rng-seed "$SEED"
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
