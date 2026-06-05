@@ -78,6 +78,7 @@ add_executable(membrum_tests
     unit/voice_pool/test_polyphony_allocation_matrix.cpp
     unit/voice_pool/test_phase2_regression_maxpoly1.cpp
     unit/voice_pool/test_poly_change_live.cpp
+    unit/voice_pool/test_oversized_block.cpp
 
     # Phase 4: PadConfig, per-pad parameters, multi-bus, presets
     unit/vst/test_pad_config.cpp

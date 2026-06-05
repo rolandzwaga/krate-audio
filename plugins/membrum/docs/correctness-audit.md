@@ -1,0 +1,204 @@
+# Membrum Plugin Correctness Audit
+
+## 1. Executive Summary
+
+This audit reviewed the Membrum physical-modelling drum-synth VST3 plugin across six dimensions: physical-modelling correctness (bodies + exciters), audio-engine real-time safety, parameter-wiring integrity, VST3 best-practices compliance, and VSTGUI/UI correctness. Of 39 candidate findings investigated, **23 were confirmed** and 16 were rejected after verification (including the rejection of several plausible-sounding "bugs" that turned out to be correct-by-derivation, e.g. the membrane Bessel-zero near-duplicate at indices 46/47, and the ExciterType/BodyModel denormalization scheme).
+
+**Overall health: good.** The DSP core, voice-allocation/stealing machinery, state codec round-trip, sample-rate/block-size handling, FUID/factory configuration, and editor lifecycle are all sound. The bulk of the confirmed issues are either timbral/cosmetic, latent (no real-world trigger), or documented design simplifications. There are, however, **four genuine functional defects** (one physics, one memory-safety, two dead audio parameters) that warrant prompt action.
+
+**Count by severity:**
+
+| Severity | Count |
+|----------|-------|
+| Critical | 0 |
+| High     | 4 |
+| Medium   | 2 |
+| Low      | 11 |
+| Info     | 6 |
+| **Total**| **23** |
+
+**Top risks (in priority order):**
+1. **Heap buffer overflow on the audio thread** when host block size exceeds 8192 samples — the only memory-safety defect (Finding 2).
+2. **Plate mode-ratio table desync (indices 8–15)** — the resonator bank is fed frequencies that match neither the labelled mode nor any valid plate mode; several entries exceed the project's own ±3% tolerance (Finding 1).
+3. **Two fully dead audio parameters** (FM Ratio, Feedback Amount) — host-automatable, persisted knobs with zero audio effect (Findings 3, 4).
+
+No critical (crash-on-normal-use / data-corruption) defects were found; the highest-impact item (Finding 2) is conditionally reachable rather than triggered by typical real-time playback.
+
+---
+
+## 2. Physical-Modelling Correctness (Bodies + Exciters)
+
+### What's wrong
+
+**[HIGH] Plate mode-ratio table desync, indices 8–15** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111` (vs `kPlateIndices` at `:42-96`).
+For a simply-supported square plate the modal ratio must equal `(m²+n²)/2` for the mode's `(m,n)` index, per the file's own cited source (Leissa NASA SP-160; Fletcher & Rossing). Eight consecutive entries in `kPlateRatios` (indices 8–15) are inconsistent with the `(m,n)` pair stored at the same index in `kPlateIndices` — the two arrays were built from different sort orders:
+
+| idx | (m,n) | true (m²+n²)/2 | table value | error |
+|-----|-------|----------------|-------------|-------|
+| 8   | (3,4) | 12.500 | 13.000 | ~4% |
+| 10  | (2,5) | 14.500 | 16.250 | ~12% |
+| 11  | (4,4) | 16.000 | 17.000 | ~6% |
+| 13  | (3,5) | 17.000 | 20.000 | ~18% |
+| 14  | (4,5) | 20.500 | 22.500 | ~10% |
+| 15  | (2,6) | 20.000 | 25.000 | ~25% |
+
+Several of these exceed the project's own SC-002 ±3% tolerance. The header's justification (a "(3,2)/(2,3) degenerate pair") is fictitious — no `(3,2)` or `(2,3)` exists in `kPlateIndices`. The defect **propagates to NoiseBody**, which reuses `kPlateRatios` verbatim (`noise_body_mapper.h:90` sets frequency from the ratio while `:94` sets amplitude from `computePlateAmplitude(k)`, which reads `kPlateIndices[k]` — so for k=8..15 frequency and strike-amplitude describe different modes). Indices 16–47 are already correct; only 8–15 need fixing. **Fix:** regenerate `kPlateRatios[8..15]` as `(m²+n²)/2` from `kPlateIndices` (12.5/14.5/16.0/17.0/20.5/20.0), or reorder `kPlateIndices` to match the ratio array's sort. *(Severity high, not critical: output is still a plausible inharmonic spectrum, not invalid audio.)*
+
+### What's right but worth noting (design simplifications / annotation issues)
+
+**[LOW] Plate strike fixes y0=0.5, silencing even-n response to Strike Position** — `plugins/membrum/src/dsp/bodies/plate_modes.h:122-134`.
+`computePlateAmplitude` hard-codes `y0=0.5`, so `sin(n·π/2)=0` for every even n. Of the first 16 plate modes, the 8 even-n modes sit at the constant amplitude floor (0.05 in `plate_mapper.h:51`, 0.03 in `noise_body_mapper.h:95`) regardless of the Strike Position control — half the modal palette is decoupled from the strike knob. This is a *documented, intentional* 1-D-strike simplification (lines 116–121 cite research.md §4.7), not a correctness bug; the modes are not silenced, only unresponsive to strike. **Optional refinement:** map the strike scalar diagonally (`y0 = 0.5 + k·(strikePos−0.5)`) so even-n modes receive strike-dependent excitation.
+
+**[INFO] DampingLaw `b3` documented as `s/rad²` but applied to `f` in Hz** — `dsp/include/krate/dsp/processors/modal_resonator_bank.h:83` and `:697` (mirrored at `membrane_mapper.h:48`).
+`decayRate_k = b1 + b3·f²` with `f` in Hz means `b3` must carry units of seconds-per-Hz² for the `exp()` argument to be dimensionless, not `s/rad²` — the annotation is off by a `(2π)² ≈ 39.5` factor. The code never converts Hz→rad/s, so the comment (which echoes the Chaigne-Askenfelt angular-frequency convention) simply mismatches the implementation. The numerics are self-consistent and correct across all callers. **Comment-only; zero functional/audible impact.**
+
+**[INFO] NonlinearCoupling bilinear-AM is bounded by recipSqrt** — `plugins/membrum/src/dsp/unnatural/nonlinear_coupling.h:69-98`.
+Verified correct: `modulated = body·(1 + velocity·amount·8·dEnv)` followed by `Sigmoid::recipSqrt` (`|out|<1` for any finite input; `±Inf→±1`). `amount==0` is a bit-identical bypass. Correctly documented as a non-physical *character* knob (not a von-Kármán w³ plate nonlinearity), not a stability hazard. **No change needed.**
+
+### Exciter robustness
+
+**[LOW] FeedbackExciter energy-limiter state is poisoned by NaN body feedback** — `plugins/membrum/src/dsp/exciters/feedback_exciter.h:124-128`.
+`energyFollower_.processSample(absFb)` is fed raw `bodyFeedback` with no NaN/Inf guard; the `EnvelopeFollower` header explicitly states it does *not* validate input. If the body ever emits NaN/Inf into the closed loop, the follower's smoothing state becomes NaN permanently, so `energyGain = 1 − clamp(NaN−0.35,0,1)` is NaN forever — the energy limiter is silently disabled for the life of the voice. Final output stays bounded only because downstream `SVF::process()` resets on NaN and the explicit ±1 clamp (`:153-154`) catches it. The trigger is plausible (Gordon-Smith modal bank in a feedback loop up to gain 0.85 can overflow to Inf under sustained drive). The header comment claims to "sanitize pathological body feedback" but only handles sign via `abs()`. **Fix (robustness hardening):** `const float fb = std::isfinite(bodyFeedback) ? bodyFeedback : 0.0f;` before feeding the follower.
+
+---
+
+## 3. Audio Engine & Real-Time Safety
+
+### What's wrong
+
+**[HIGH] ✅ FIXED (2026-06-05)** **Scratch buffers clamped to 8192 but no guard against larger host block sizes — potential heap buffer overflow on the audio thread** — `plugins/membrum/src/voice_pool/voice_pool.cpp:57-63, :327, :374`.
+> **Resolution:** `VoicePool::prepare()` now sizes the scratch buffers to the host's *actual* `maxSamplesPerBlock` (`std::max(maxBlockSize, kVoicePoolMaxBlock)`), with `kVoicePoolMaxBlock` repurposed as a minimum reservation floor rather than a hard cap. Both `processBlock` overloads additionally clamp `numSamples` to `maxBlockSize_` as defense-in-depth against a host that violates the `ProcessSetup` contract. Regression test: `tests/unit/voice_pool/test_oversized_block.cpp` (crashed the process pre-fix via heap corruption; 57 345 assertions pass post-fix). Full suite green (538 cases), pluginval strictness 5 passes.
+
+`VoicePool::prepare()` clamps `maxBlockSize` to `[1, kVoicePoolMaxBlock=8192]` (`voice_pool.h:71`) and sizes `scratchL_`/`scratchR_` to the clamped value. But `Processor::setupProcessing` (`processor.cpp:1107-1108`) stores `setup.maxSamplesPerBlock` raw with **no rejection of values > 8192**, and `Processor::process` (`processor.cpp:700-723`) passes `data.numSamples` straight to `VoicePool::processBlock` with no clamp. Both `processBlock` overloads then call `VP_VOICES[slot].processBlock(scratch, numSamples)` and `outL[i] += scratch[i]` up to `numSamples`. `DrumVoice` correctly chunks its *own* 2048-sized internal scratch but writes the full `numSamples` into the caller's buffer — so if a host's `maxSamplesPerBlock` exceeds 8192 (legal per VST3; common in offline/bounce/freeze render and pluginval stress modes), `DrumVoice` writes past the 8192-float scratch buffer → **out-of-bounds heap write on the audio thread**, followed by OOB reads in the accumulation loops. VST3 guarantees `numSamples ≤ maxSamplesPerBlock` but does **not** cap `maxSamplesPerBlock ≤ 8192`. **Fix:** reject/refuse setup when `maxSamplesPerBlock > kVoicePoolMaxBlock`, raise the cap, or segment `numSamples` in `processBlock`.
+
+### What's right (verified correct — no defect)
+
+**[INFO] Voice steal / choke / quietest paths — bounds and slot bookkeeping correct** — `plugins/membrum/src/voice_pool/voice_pool.cpp:115-244, :898-974, :1018-1085`.
+`beginFastRelease()` guards `slot ∈ [0,kMaxVoices)` and is idempotent on already-FastReleasing slots (FR-127), preventing a double `std::swap` that would corrupt the shadow array. `selectQuietestActiveSlot()` scans only `[0,maxPolyphony_)` and returns −1 when none. Allocator `voiceIndex` is bounded by `maxPolyphony_ ≤ kMaxVoices`. No double `voiceFinished`: Quietest pre-pass and choke path both pair `noteOff+voiceFinished` and set state=Free before `allocator.noteOn` runs. The double-array shadow crossfade is sound. **No change.**
+
+**[INFO] FTZ/DAZ set only in `setupProcessing()`, not re-armed per `process()`** — `plugins/membrum/src/processor/processor.cpp:1099-1104`.
+MXCSR is per-thread on x86; setting it once in `setupProcessing()` is the idiomatic VST3 pattern and is contractually safe between `setActive(true/false)`. The unconditional 1e-6 fast-release floor (`voice_pool.cpp:1002`) protects release tails independent of FTZ/DAZ. The only (uncommon) failure mode is mid-session audio-thread migration without re-setup, whose worst consequence is bounded CPU spikes from denormals — not wrong output or a crash. **Genuine but low-impact robustness nit; optionally arm FTZ/DAZ at the top of `process()` or document the stable-thread assumption.**
+
+Also verified correct (rejected as defects): `DataExchangeHandler` allocation confined to `connect()` with a clean alloc/lock/exception/IO-free audio path; `MacroMapper::apply` RT-safety and incremental delta layering; sample-rate / block-size re-preparation (`prepare()` recomputes all SR-derived coefficients and reallocates scratch); FeedbackExciter overall topology bounded to ≤0 dBFS (SC-008); ImpactExciter, BowExciter/FrictionExciter (STK power-law stick-slip), MaterialMorph/FMImpulse exponential paths, and the always-on Click/Noise/ModeInject layers — all div-by-zero-safe and energy-bounded.
+
+---
+
+## 4. Parameter-Wiring Integrity
+
+### What's wrong
+
+**[HIGH] FM Ratio parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:687` (applyPadConfigToSlot) vs `pad_config.h:213`.
+`kExciterFMRatioId (202)` → `kPadFMRatio` is registered, dispatched (`processor.cpp:405-407`), stored into `PadConfig::fmRatio` (`voice_pool.cpp:600`), and round-tripped through state (`state_codec.cpp:91/175/284`) — but `applyPadConfigToSlot` **never forwards `cfg.fmRatio` to any voice**, and `DrumVoice` has no `setFMRatio()`. `FMImpulseExciter` hardcodes its 1:1.4 Chowning-bell ratio (`fm_impulse_exciter.h:78`) and exposes no setter. The knob reaches `PadConfig` and dies there — a registered, formatted, persisted, host-automatable parameter with **zero audio effect**. **Fix:** denormalize `cfg.fmRatio` (norm 0..1 → 1.0..4.0 per `plugin_ids.h:57`) and push it into the exciter via a new `DrumVoice` setter, mirroring the `noiseBurstDuration` plumbing at `voice_pool.cpp:716`.
+
+**[HIGH] Feedback Amount parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601` vs `feedback_exciter.h:94`.
+`kExciterFeedbackAmountId (203)` → `kPadFeedbackAmount` is dispatched, stored (`voice_pool.cpp:601`), and persisted (`state_codec.cpp:92/176/285`), but `applyPadConfigToSlot` never forwards `cfg.feedbackAmount`. `FeedbackExciter` sets `feedbackAmount_ = velocity·kMaxFeedback` purely at trigger (`:94`) and exposes no setter; `ExciterBank` has no forwarding path. The knob is fully inert. **Fix:** forward `cfg.feedbackAmount` into `FeedbackExciter` (as a multiplier on / replacement for the velocity drive), or remove the parameter if velocity-only is intended.
+
+### What's wrong but lower-impact
+
+**[MEDIUM] Friction Pressure parameter is dead at the audio path** — `plugins/membrum/src/voice_pool/voice_pool.cpp:603` vs `:687`.
+`kExciterFrictionPressureId (205)` → `kPadFrictionPressure` is registered, UI-bound (`editor.uidesc:216`), dispatched (`processor.cpp:414-415`), stored (`voice_pool.cpp:603`), and persisted, but `applyPadConfigToSlot` never forwards `cfg.frictionPressure`, and `FrictionExciter` derives bow pressure solely from velocity (`friction_exciter.h:68`) with no setter. The control is inert. *(Severity medium not high: a single cosmetic control, no crash/corruption/RT impact.)* **Fix:** forward `cfg.frictionPressure` into the FrictionExciter bow-pressure input, parallel to line 716. *(Note: the "default norm 0.3" in the original expectation is imprecise — the PadConfig field and per-pad registration default to 0.0; only the global proxy defaults to 0.3.)*
+
+### Cosmetic / metadata inconsistencies (low / info)
+
+**[LOW] Global-proxy default differs from per-pad default for FM Ratio** — `controller.cpp:315` (proxy 0.133333 → 1.4×) vs `:186` (per-pad 0.5 → 2.5×, backed by `pad_config.h:213` / `processor.cpp:182`). On a fresh instance the proxy displays 1.4× while the DSP value is 2.5×, until the user selects a pad or moves the control (proxy resyncs). Initial-display only; no audio/state impact.
+
+**[LOW] Global-proxy default differs from per-pad default for Friction Pressure** — `controller.cpp:318` (proxy 0.3) vs `:189` (per-pad 0.0, `pad_config.h:216`; `DefaultKit` never sets it, so all 32 pads start at 0.0). Self-heals on first `syncGlobalProxyFromPad`.
+
+**[LOW] Morph Enabled proxy registered as continuous (stepCount=0) while per-pad target is a 1-step toggle** — `controller.cpp:335` (in `kPhase2Specs`, built as `RangeParameter(...,stepCount=0)`) vs `:179` (per-pad `stepCount=1`). The same file registers other boolean proxies as `StringListParameter` (`kPitchEnvKneeEnabledId`, `kMorphCurveId`), confirming this is an unintended lapse. Metadata-only — the ToggleButton snaps to 0/1 and DSP thresholds at 0.5. **Fix:** register with `stepCount=1` (or a 2-entry StringList to match the file's own convention).
+
+**[INFO] Output Bus proxy is a StringListParameter but the per-pad target is a stepped RangeParameter** — `controller.cpp:513-527` vs `:185`. The normalized↔index mapping is *guaranteed* identical (both `stepCount=15`, `min=0`, same SDK `ToNormalized`/`FromNormalized` helpers), so there is no functional defect — a maintainability/consistency nit vs the ExciterType/BodyModel proxies which use StringList on both ends.
+
+### Verified correct (rejected)
+
+`kUiModeId` registered automatable but intentionally unhandled in the processor (session-scoped by design, covered by tests); and the ExciterType/BodyModel `static_cast(value·kCount)` denormalization, which is mathematically identical to the SDK StringListParameter decode and the project's own codec — not the claimed off-by-one.
+
+---
+
+## 5. VST3 Best-Practices Compliance
+
+**[LOW] `setParamNormalized()` mutates VSTGUI views directly** — `controller.cpp:712-836`, helpers `updateMorphControlsEnabled:1615`, `updatePitchEnvControlsEnabled:1663`, `updateFilterEnvDisplay:1718`, `updatePitchEnvelopeDisplay:1765`.
+These helpers call `setAlphaValue`/`setMouseEnabled`/`invalid`/`setVisible` on cached views inline from `setParamNormalized` and `setComponentState`, deviating from the project's own `THREAD-SAFETY.md` (use `IDependent + deferUpdate`). **However**, the VST3 SDK tags `setParamNormalized`/`setComponentState`/`setState` as `[UI-thread & Connected]`, so on a compliant host these run on the UI thread and cannot race the 30 Hz timer/render — the original "any thread" premise is wrong. This is defense-in-depth against known non-compliant hosts plus consistency with the `IDependent` pattern already used for `kUiModeId`, not a demonstrable race. **Fix (consistency/robustness):** route view mutations through `deferUpdate`/the existing timer, or guard with a UI-thread/activeEditor check.
+
+**[LOW] State codec uses raw IBStream read/write with no byte-order handling** — `state_codec.cpp:24-41` (`readT`/`writeT`), used by `writeKitBlob:332` / `readKitBlob:387` / `writePadPresetBlob:492`.
+Multibyte values (int32/double) are serialized via raw `sizeof(T)` reads/writes with no endian marker, unlike all five sibling plugins which use `Steinberg::IBStreamer` (which performs explicit byte-order swaps). The format is non-portable across endianness. **Latent only** — every realistic VST3 target is little-endian and no shipping big-endian host exists. **Fix:** serialize via `IBStreamer` with explicit `kLittleEndian`, matching the rest of the monorepo.
+
+**[LOW] No `setBusArrangements` override for a 16-bus output instrument** — `processor.cpp:201-214` (1 main + 15 aux stereo outs); no override anywhere in `plugins/membrum/src`.
+The base `AudioEffect::setBusArrangements` default-accepts whatever the host proposes per bus. The render path (`processor.cpp:713-746`) unconditionally reads `channelBuffers32[0]`/`[1]` on every bus, so a host proposing a mono/quad arrangement would be accepted and then read out of bounds. *(canProcessSampleSize is correctly self-consistent — base advertises 32-bit only and the path only reads `channelBuffers32`.)* **Fix:** override `setBusArrangements` to validate/lock each output bus to `kStereo`. Low severity — well-behaved hosts honor declared defaults.
+
+**[INFO]** Rejected positive verifications: Component/Controller FUIDs distinct and correct, factory registration and AU config (`'aumu'`, `kSupportedNumChannels=02`) valid, no processor↔controller cross-includes; and MIDI events intentionally channel-agnostic (correct for a GM-mapped drum instrument).
+
+---
+
+## 6. VSTGUI / UI Correctness
+
+**[MEDIUM] PadGridView selection highlight never updates from host/automation/preset** — `controller.cpp:771-778, 962`; `pad_grid_view.cpp:158-166`.
+The highlight is drawn from `selectedPad_` (`pad_grid_view.cpp:482`), which is mutated only by mouse-down (`:296`) or `setSelectedPadIndex()` (`:164`). `setSelectedPadIndex()` has **zero controller call sites** (grep: declaration, definition, two test calls only). Every controller path that updates `selectedPadIndex_` — the `kSelectedPadId` branch (`:771-778`), `setComponentState` (`:962-964`), kit preset load (`:1077-1079`), and initial grid wiring (`:1225-1232`) — omits the push into the grid. Result: loading a project/preset with a non-zero selected pad, or moving `kSelectedPadId` via automation, leaves the highlight stale until the next click. Purely cosmetic (parameter, proxies, and audio all track correctly), but triggered by common real-world paths. **Fix:** on every source of `kSelectedPadId` change, call `padGridView_->setSelectedPadIndex(selectedPadIndex_)` (null-guarded), mirroring the existing `setPadEnabled` push pattern.
+
+**[LOW] MembrumEditorController is effectively dead code** — `membrum_editor_controller.cpp:36-46`; `controller.cpp:1822-1823`.
+The class is constructed in `didOpen()` but non-functional: `attachUiModeSwitch()` has zero callers, there is no `createSubController` override and no uidesc sub-controller attribute, so `uiModeSwitch_` stays null and `update()` is a permanent no-op. Actual Acoustic/Extended view switching is handled entirely by the uidesc `UIViewSwitchContainer` (`editor.uidesc:344`) + hidden `CParamDisplay` proxy (`:351`). The class's only runtime effect is one redundant `IDependent` subscription. **Fix:** either wire it correctly (sub-controller + `attachUiModeSwitch`), or delete it and rely on the documented uidesc mechanism. *(Maintainability/clarity, not functional — view switching works regardless.)*
+
+**[LOW] Latent thread-safety: `MembrumEditorController::update()` calls `setCurrentViewIndex()` synchronously from an IDependent callback** — `membrum_editor_controller.cpp:48-64`.
+`update()` is dispatched synchronously by `Parameter::changed()` on the value-setting thread (not guaranteed UI thread); `UIViewSwitchContainer::setCurrentViewIndex()` mutates the view tree with no deferral — exactly the violation documented in PITFALLS incident 2025-12-29. It is **dead today** (`uiModeSwitch_` is never set), so the hazard is latent and materializes only if the sub-controller is wired up. **Fix (if wired):** route through `deferUpdate`/timer, or keep the UI-thread-safe hidden-CParamDisplay proxy.
+
+**[LOW] ChokeGroup COptionMenu bound to a RangeParameter shows raw numbers** — `controller.cpp:441-444`; `editor.uidesc:163,337,48`.
+`ChokeGroupSel` (tag 252 = `kChokeGroupId`) is a `COptionMenu` but `kChokeGroupId` is registered as `RangeParameter(0..8, stepCount=8)`, unlike the sibling `OutputBusSel` which is correctly a `StringListParameter`. The menu is populated (not broken) but displays `"0".."8"` instead of friendly labels. **Fix:** register `kChokeGroupId` as a `StringListParameter` (`"None"`, `"CG1".."CG8"`) for meaningful labels and consistency with OutputBus. Functional today; cosmetic only.
+
+**[INFO] `PadGridView::padEnabledInitialized_` is a dead member** — `pad_grid_view.h:252`. Declared but never read or written; the intended one-shot-init gate was never implemented. Harmless but misleading. **Fix:** remove it or implement the gate.
+
+**[INFO]** Rejected positive verification: editor lifecycle, `IDependent` add/remove balance, `viewWillDelete` dangling-pointer nulling, UI-thread DataExchange flow (`dispatchOnBackgroundThread=false`), and cross-platform purity (no Win32/Cocoa/native-popup APIs) all confirmed correct.
+
+---
+
+## 7. Prioritized Remediation List
+
+### Critical
+*(none)*
+
+### High
+1. ~~**Heap buffer overflow on oversized host blocks** — `plugins/membrum/src/voice_pool/voice_pool.cpp:57-63, :327, :374` (+ `processor.cpp:1107-1108`, `:700-723`). Reject setup when `maxSamplesPerBlock > kVoicePoolMaxBlock`, raise the cap, or segment `numSamples` in `processBlock`.~~ **✅ FIXED 2026-06-05** — scratch grown to actual host block size + `numSamples` clamp in both `processBlock` overloads; regression test `test_oversized_block.cpp`. *(Memory safety — was fixed first.)*
+2. **Plate mode-ratio table desync** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111`. Regenerate `kPlateRatios[8..15]` as `(m²+n²)/2` from `kPlateIndices` → 12.5/14.5/16.0/17.0/20.5/20.0 (or reorder `kPlateIndices`). Re-verify NoiseBody (`noise_body_mapper.h:90,94`) after the fix.
+3. **FM Ratio dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:687`. Add a `DrumVoice`/`FMImpulseExciter` ratio setter; denormalize `cfg.fmRatio` (0..1 → 1.0..4.0) and forward it in `applyPadConfigToSlot`, mirroring line 716.
+4. **Feedback Amount dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601`. Forward `cfg.feedbackAmount` into `FeedbackExciter` (add a setter), or remove the parameter.
+
+### Medium
+5. **Friction Pressure dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:603`. Forward `cfg.frictionPressure` into the FrictionExciter bow-pressure input.
+6. **PadGridView selection highlight stale on automation/preset load** — `controller.cpp:771-778, :962-964, :1077-1079, :1225-1232`. Push `padGridView_->setSelectedPadIndex(selectedPadIndex_)` (null-guarded) on every `kSelectedPadId` change.
+
+### Low
+7. **FeedbackExciter NaN poisoning of energy limiter** — `feedback_exciter.h:124-128`. Sanitize `bodyFeedback` with `std::isfinite` before feeding the follower.
+8. **Plate even-n modes decoupled from Strike Position** — `plate_modes.h:122-134`. Optional: diagonal `y0` mapping. *(Documented design choice.)*
+9. **FM Ratio proxy/per-pad default mismatch** — `controller.cpp:315` vs `:186`. Align defaults.
+10. **Friction Pressure proxy/per-pad default mismatch** — `controller.cpp:318` vs `:189`. Align defaults.
+11. **Morph Enabled proxy continuous vs toggle** — `controller.cpp:335`. Register with `stepCount=1` (or a 2-entry StringList).
+12. **setParamNormalized mutates views inline** — `controller.cpp:712-836` (+ helpers `:1615/:1663/:1718/:1765`). Defer via `IDependent`+`deferUpdate` or the timer.
+13. **State codec not endian-safe** — `state_codec.cpp:24-41`. Use `IBStreamer` with `kLittleEndian`.
+14. **No `setBusArrangements` override** — `processor.cpp:201-214`. Add an override locking each bus to `kStereo`.
+15. **MembrumEditorController dead code** — `membrum_editor_controller.cpp:36-46`. Wire correctly or delete.
+16. **Latent unsafe `setCurrentViewIndex` in `update()`** — `membrum_editor_controller.cpp:48-64`. Defer if ever wired.
+17. **ChokeGroup menu shows raw integers** — `controller.cpp:441-444`. Convert `kChokeGroupId` to a `StringListParameter`.
+
+### Info
+18. **DampingLaw `b3` units-comment mismatch** — `modal_resonator_bank.h:83, :697` (and `membrane_mapper.h:48`). Correct the comment to Hz units (or convert Hz→rad/s if rad was intended).
+19. **Output Bus proxy/per-pad type inconsistency** — `controller.cpp:513-527` vs `:185`. Optional: use StringList on both ends.
+20. **`padEnabledInitialized_` dead member** — `pad_grid_view.h:252`. Remove or implement.
+21–23. NonlinearCoupling recipSqrt bound, FTZ/DAZ one-shot arming, and voice-steal bookkeeping are **verified correct** — documentation/no-change items.
+
+---
+
+## 8. What Was Checked and Found Correct (Credit Where Due)
+
+The audit confirmed a large amount of correct, well-engineered code. The following were specifically scrutinized and **passed**:
+
+**Physical modelling.** The membrane Bessel-zero table is accurate to 4 decimals with correct `(m,n)` tagging — the suspected near-duplicate at indices 46/47 is two genuinely distinct modes (`j₁,₆=19.6159`, `j₁₁,₂=19.6160`), a real, well-known Bessel-zero clustering, not a data error. BowExciter/FrictionExciter faithfully reproduce the STK/McIntyre-Woodhouse power-law stick-slip model with conservative clamps. ImpactExciter's Hertzian contact (`mass^0.4` duration scaling, skewed raised-half-sine, leaky-integrator energy cap) is sensible and bounded. ToneShaper's Cytomic TPT SVF coefficient math is canonical and unconditionally stable (denominator `> 1`, cutoff/Q always re-clamped). FMImpulse/MaterialMorph exponential paths and the always-on Click/Noise/ModeInject layers are all div-by-zero-safe and energy-bounded.
+
+**Real-time safety.** FeedbackExciter is provably bounded to ≤0 dBFS via a layered limiter ending in an unconditional ±1 clamp (SC-008, backed by a worst-case square-wave test). Voice steal/choke/quietest logic has correct bounds and no double-free/double-fade. The audio path is allocation/lock/exception/IO-free (the only `make_unique` sites are in constructors, `prepare()`, and `connect()` — all setup-thread). `MacroMapper::apply` is RT-safe with correct incremental delta layering. Sample-rate and block-size changes correctly re-prepare every SR-derived coefficient and reallocate scratch.
+
+**Parameter wiring.** `kUiModeId`'s automatable-but-unhandled-in-processor design is intentional, session-scoped, and test-covered. The ExciterType/BodyModel selector denormalization is mathematically identical to both the SDK `StringListParameter` decode and the plugin's own state codec.
+
+**State persistence.** The single-source-of-truth blob codec round-trips correctly with defensive range-clamping on every field; the Phase 8G macro-ordering invariant and `bodyDamping` sentinel handling are sound.
+
+**VST3 / VSTGUI.** Component and Controller FUIDs are distinct and correct; factory registration, AU config (`'aumu'`, `kSupportedNumChannels=02`), and `setControllerClass` are valid; no processor↔controller cross-includes. Editor lifecycle is clean: `willClose`/`viewWillDelete` null all cached view pointers, `IDependent` add/remove is balanced, DataExchange is delivered on the UI thread (`dispatchOnBackgroundThread=false`) into a controller-side mirror polled by PadGridView's own timer, and the UI is fully cross-platform (no Win32/Cocoa/native-popup APIs). Channel-agnostic MIDI handling is the correct, conventional behavior for a GM-mapped drum instrument.
+
+---
+
+*Generated by the `membrum-correctness-audit` workflow (52 agents, 4 phases: Map → Evaluate → Verify → Synthesize). 39 candidate findings → 23 confirmed, 16 rejected after adversarial verification.*

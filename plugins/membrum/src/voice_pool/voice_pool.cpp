@@ -54,8 +54,18 @@ void VoicePool::prepare(double sampleRate, int maxBlockSize) noexcept
     sampleRate  = std::clamp(sampleRate, 22050.0, 192000.0);
     sampleRate_ = sampleRate;
 
-    maxBlockSize = std::clamp(maxBlockSize, 1, kVoicePoolMaxBlock);
-    maxBlockSize_ = maxBlockSize;
+    // Size the scratch buffers to the host's ACTUAL maximum block size. VST3
+    // permits maxSamplesPerBlock to exceed any fixed constant -- offline /
+    // bounce / freeze renders (and pluginval stress modes) routinely use very
+    // large blocks -- and VST3 only guarantees numSamples <= maxSamplesPerBlock,
+    // never numSamples <= kVoicePoolMaxBlock. Previously the allocation was
+    // clamped to kVoicePoolMaxBlock while processBlock still wrote `numSamples`
+    // worth of audio into the scratch, producing an out-of-bounds heap write on
+    // the audio thread for any block larger than 8192. kVoicePoolMaxBlock is now
+    // the *minimum* reservation (small-block hosts still get a sensible floor);
+    // we grow to fit anything larger. This remains the ONLY allocation point
+    // (FR-116 / FR-117) and runs on the setup thread.
+    maxBlockSize_ = std::max(maxBlockSize, kVoicePoolMaxBlock);
 
     // FR-116/FR-117/Q4: this is the ONLY allocation point in VoicePool. All
     // subsequent audio-thread calls are allocation-free.
@@ -287,6 +297,14 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
 
+    // Memory-safety guard: never render more samples than the scratch buffers
+    // were sized for in prepare(). A spec-compliant host always passes
+    // numSamples <= maxBlockSize_ (the size we reserved), so this clamp is
+    // defense-in-depth against a host that violates the ProcessSetup contract
+    // by passing an oversized block -- it turns a heap overflow into (at worst)
+    // a truncated block.
+    numSamples = std::min(numSamples, maxBlockSize_);
+
     // Zero the output buffers first (FR-165 per-block accumulate model).
     for (int i = 0; i < numSamples; ++i)
     {
@@ -407,6 +425,10 @@ void VoicePool::processBlock(float* outL, float* outR,
 {
     if (numSamples <= 0 || outL == nullptr || outR == nullptr)
         return;
+
+    // Memory-safety guard (see mono overload): clamp to the reserved scratch
+    // size so an out-of-contract oversized block cannot overflow the heap.
+    numSamples = std::min(numSamples, maxBlockSize_);
 
     // Zero the main output buffers (FR-165 per-block accumulate model).
     for (int i = 0; i < numSamples; ++i)
