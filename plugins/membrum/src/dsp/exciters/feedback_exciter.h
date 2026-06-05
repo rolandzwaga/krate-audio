@@ -88,10 +88,25 @@ struct FeedbackExciter
         active_                  = false;
     }
 
+    /// Set the Feedback Amount drive from a normalized [0,1] host value
+    /// (plugin_ids.h kExciterFeedbackAmountId). It raises the feedback-drive
+    /// floor above the velocity-derived baseline: at 0 the exciter is driven
+    /// exactly by velocity as before; at 1 it always runs at the maximum
+    /// permitted feedback. Applied on the next trigger(). SC-008 is preserved
+    /// because the effective drive stays in [0, 1] -> feedbackAmount_ ≤
+    /// kMaxFeedback.
+    void setFeedbackAmount(float normalized) noexcept
+    {
+        feedbackDrive_ = std::clamp(normalized, 0.0f, 1.0f);
+    }
+
     void trigger(float velocity) noexcept
     {
         velocity        = std::clamp(velocity, 0.0f, 1.0f);
-        feedbackAmount_ = velocity * kMaxFeedback;
+        // Blend velocity with the user drive floor: amount=0 -> velocity-only
+        // (legacy behaviour), amount=1 -> always full drive. Stays in [0,1].
+        const float drive = velocity + feedbackDrive_ * (1.0f - velocity);
+        feedbackAmount_ = drive * kMaxFeedback;
         amplitudeEnv_   = velocity;
         // FR-016 / SC-004: velocity drives spectral content — open the lowpass
         // as velocity rises so the centroid ratio clears 2.0 between v=0.23
@@ -171,6 +186,10 @@ private:
     Krate::DSP::NoiseOscillator  seedNoise_{};
     double sampleRate_              = 44100.0;
     float  feedbackAmount_          = 0.0f;
+    // User Feedback Amount drive [0,1]; 0 = legacy velocity-only behaviour.
+    // Persists across reset()/retrigger (it is a host parameter, not voice
+    // state); ExciterBank replays it after a variant swap.
+    float  feedbackDrive_           = 0.0f;
     float  amplitudeEnv_            = 0.0f;
     float  decayCoeff_              = 0.0f;
     int    impulseSamplesRemaining_ = 0;

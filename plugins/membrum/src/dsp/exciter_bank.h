@@ -129,6 +129,34 @@ public:
             std::get<NoiseBurstExciter>(active_).setContactMs(normalized);
     }
 
+    /// Phase 4 (audit finding 3): forward the normalized FM Ratio parameter to
+    /// the FMImpulse exciter if it is (or is about to be) the active variant.
+    /// Cached so a later variant swap re-applies the host's value.
+    void setFMRatio(float normalized) noexcept
+    {
+        pendingFMRatioNorm_ = normalized;
+        if (std::holds_alternative<FMImpulseExciter>(active_))
+            std::get<FMImpulseExciter>(active_).setModulatorRatio(normalized);
+    }
+
+    /// Phase 4 (audit finding 4): forward the normalized Feedback Amount
+    /// parameter to the Feedback exciter if it is (or is about to be) active.
+    void setFeedbackAmount(float normalized) noexcept
+    {
+        pendingFeedbackNorm_ = normalized;
+        if (std::holds_alternative<FeedbackExciter>(active_))
+            std::get<FeedbackExciter>(active_).setFeedbackAmount(normalized);
+    }
+
+    /// Phase 4 (audit finding 5): forward the normalized Friction Pressure
+    /// parameter to the Friction exciter if it is (or is about to be) active.
+    void setFrictionPressure(float normalized) noexcept
+    {
+        pendingFrictionNorm_ = normalized;
+        if (std::holds_alternative<FrictionExciter>(active_))
+            std::get<FrictionExciter>(active_).setPressure(normalized);
+    }
+
 private:
     using Variant = std::variant<
         ImpulseExciter,
@@ -179,6 +207,14 @@ private:
         // automation value across a type swap.
         if (std::holds_alternative<NoiseBurstExciter>(active_))
             std::get<NoiseBurstExciter>(active_).setContactMs(pendingNoiseBurstContactNorm_);
+        // Replay the secondary exciter parameters into the freshly-swapped
+        // exciter so their host automation values survive a type swap.
+        if (std::holds_alternative<FMImpulseExciter>(active_))
+            std::get<FMImpulseExciter>(active_).setModulatorRatio(pendingFMRatioNorm_);
+        if (std::holds_alternative<FeedbackExciter>(active_))
+            std::get<FeedbackExciter>(active_).setFeedbackAmount(pendingFeedbackNorm_);
+        if (std::holds_alternative<FrictionExciter>(active_))
+            std::get<FrictionExciter>(active_).setPressure(pendingFrictionNorm_);
     }
 
     Variant      active_;
@@ -186,6 +222,12 @@ private:
     ExciterType  pendingType_ = ExciterType::Impulse;
     double       sampleRate_  = 44100.0;
     float        pendingNoiseBurstContactNorm_ = 0.5f;  // Phase 7: cached across swaps.
+    // Secondary exciter params, cached across swaps. Defaults reproduce the
+    // historical hardcoded values: FM ratio 1.4 (norm 0.13333), feedback and
+    // friction default to legacy velocity-only behaviour (norm 0).
+    float        pendingFMRatioNorm_  = (1.4f - 1.0f) / 3.0f;
+    float        pendingFeedbackNorm_ = 0.0f;
+    float        pendingFrictionNorm_ = 0.0f;
     std::uint32_t voiceId_    = 0;
 };
 

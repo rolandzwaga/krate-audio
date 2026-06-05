@@ -1018,6 +1018,13 @@ public:
         exciterBank_.setNoiseBurstContactMs(v);
     }
 
+    /// Audit findings 3-5: plumb the secondary exciter parameters (FM Ratio,
+    /// Feedback Amount, Friction Pressure) through to their exciters so the
+    /// host-side knobs finally take effect. Normalized [0,1] in every case.
+    void setFMRatio(float v) noexcept { exciterBank_.setFMRatio(v); }
+    void setFeedbackAmount(float v) noexcept { exciterBank_.setFeedbackAmount(v); }
+    void setFrictionPressure(float v) noexcept { exciterBank_.setFrictionPressure(v); }
+
     [[nodiscard]] ToneShaper& toneShaper() noexcept { return toneShaper_; }
     [[nodiscard]] UnnaturalZone& unnaturalZone() noexcept { return unnaturalZone_; }
 

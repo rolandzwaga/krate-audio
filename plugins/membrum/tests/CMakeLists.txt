@@ -84,6 +84,7 @@ add_executable(membrum_tests
     unit/vst/test_pad_config.cpp
     unit/vst/test_pad_parameters.cpp
     unit/voice_pool/test_per_pad_dispatch.cpp
+    unit/voice_pool/test_dead_exciter_params.cpp
     unit/voice_pool/test_multi_bus_output.cpp
     unit/vst/test_bus_activation.cpp
     unit/processor/test_default_kit.cpp

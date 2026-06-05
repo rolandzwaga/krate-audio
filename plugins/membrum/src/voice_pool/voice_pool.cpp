@@ -736,6 +736,11 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     // Phase 7 bug-fix: finally plumb PadConfig::noiseBurstDuration (normalized)
     // through to the NoiseBurstExciter. Previously stored and ignored.
     v.setNoiseBurstContactMs(cfg.noiseBurstDuration);
+    // Audit findings 3-5: plumb the remaining secondary exciter params that
+    // were stored in PadConfig but never forwarded to a voice (dead knobs).
+    v.setFMRatio(cfg.fmRatio);
+    v.setFeedbackAmount(cfg.feedbackAmount);
+    v.setFrictionPressure(cfg.frictionPressure);
     // Phase 8A: per-mode damping law overrides (sentinel -1.0f preserves
     // legacy brightness-derived behaviour).
     v.setBodyDampingB1(cfg.bodyDampingB1);
