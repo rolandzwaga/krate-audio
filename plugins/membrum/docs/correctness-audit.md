@@ -19,10 +19,10 @@ This audit reviewed the Membrum physical-modelling drum-synth VST3 plugin across
 
 **Top risks (in priority order):**
 1. **Heap buffer overflow on the audio thread** when host block size exceeds 8192 samples — the only memory-safety defect (Finding 2).
-2. **Plate mode-ratio table desync (indices 8–15)** — the resonator bank is fed frequencies that match neither the labelled mode nor any valid plate mode; several entries exceed the project's own ±3% tolerance (Finding 1).
+2. ~~**Plate mode-ratio table desync (indices 8–15)** — the resonator bank is fed frequencies that match neither the labelled mode nor any valid plate mode; several entries exceed the project's own ±3% tolerance (Finding 1).~~ **✅ FIXED 2026-06-05** — `kPlateRatios[8..15]` regenerated as `(m²+n²)/2` from `kPlateIndices`; NoiseBody reuse re-verified. Regression test `test_plate_body.cpp` ("kPlateRatios == (m²+n²)/2 … at every index").
 3. ~~**Three fully dead audio parameters** (FM Ratio, Feedback Amount, Friction Pressure) — host-automatable, persisted knobs with zero audio effect (Findings 3, 4, 5).~~ **✅ FIXED 2026-06-05** — all three plumbed through `applyPadConfigToSlot` with non-regression default mappings; FM Ratio per-pad default aligned to 1.4 (also closing #9). Regression test `test_dead_exciter_params.cpp`.
 
-No critical (crash-on-normal-use / data-corruption) defects were found; the highest-impact item (Finding 2) is conditionally reachable rather than triggered by typical real-time playback. **Update (2026-06-05):** the heap-overflow defect (Finding 2 in §3) and all three dead-parameter defects (Findings 3–5) have since been fixed; the remaining open high-severity item is the plate mode-ratio table desync.
+No critical (crash-on-normal-use / data-corruption) defects were found; the highest-impact item (Finding 2) is conditionally reachable rather than triggered by typical real-time playback. **Update (2026-06-05):** the heap-overflow defect (Finding 2 in §3), all three dead-parameter defects (Findings 3–5), the plate mode-ratio table desync (Finding 1), and the FeedbackExciter NaN-poisoning robustness nit (Finding 7) have all since been fixed. **No open high-severity items remain.**
 
 ---
 
@@ -30,7 +30,9 @@ No critical (crash-on-normal-use / data-corruption) defects were found; the high
 
 ### What's wrong
 
-**[HIGH] Plate mode-ratio table desync, indices 8–15** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111` (vs `kPlateIndices` at `:42-96`).
+**[HIGH] ✅ FIXED (2026-06-05)** **Plate mode-ratio table desync, indices 8–15** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111` (vs `kPlateIndices` at `:42-96`).
+> **Resolution:** `kPlateRatios[8..15]` regenerated as `(m²+n²)/2` from the `(m,n)` pair at the same index in `kPlateIndices` → 12.5/13.0/14.5/16.0/18.5/17.0/20.5/20.0 (indices 9 and 12 were already correct; the other six were wrong). Both consumers (`plate_mapper.h`, `noise_body_mapper.h`) read frequency from `kPlateRatios[k]` and strike-amplitude from `kPlateIndices[k]`, so the single-array fix realigns frequency and amplitude for the same mode in NoiseBody too. The fictitious "(3,2)/(2,3) degenerate pair" justification comment was deleted. Regression test `tests/unit/bodies/test_plate_body.cpp` asserts `kPlateRatios[k] == (m²+n²)/2` of `kPlateIndices[k]` across all 48 entries (red pre-fix at indices 8/10/11/13/14/15). Full membrum suite green (544 cases), pluginval strictness 5 passes.
+
 For a simply-supported square plate the modal ratio must equal `(m²+n²)/2` for the mode's `(m,n)` index, per the file's own cited source (Leissa NASA SP-160; Fletcher & Rossing). Eight consecutive entries in `kPlateRatios` (indices 8–15) are inconsistent with the `(m,n)` pair stored at the same index in `kPlateIndices` — the two arrays were built from different sort orders:
 
 | idx | (m,n) | true (m²+n²)/2 | table value | error |
@@ -57,8 +59,10 @@ Verified correct: `modulated = body·(1 + velocity·amount·8·dEnv)` followed b
 
 ### Exciter robustness
 
-**[LOW] FeedbackExciter energy-limiter state is poisoned by NaN body feedback** — `plugins/membrum/src/dsp/exciters/feedback_exciter.h:124-128`.
-`energyFollower_.processSample(absFb)` is fed raw `bodyFeedback` with no NaN/Inf guard; the `EnvelopeFollower` header explicitly states it does *not* validate input. If the body ever emits NaN/Inf into the closed loop, the follower's smoothing state becomes NaN permanently, so `energyGain = 1 − clamp(NaN−0.35,0,1)` is NaN forever — the energy limiter is silently disabled for the life of the voice. Final output stays bounded only because downstream `SVF::process()` resets on NaN and the explicit ±1 clamp (`:153-154`) catches it. The trigger is plausible (Gordon-Smith modal bank in a feedback loop up to gain 0.85 can overflow to Inf under sustained drive). The header comment claims to "sanitize pathological body feedback" but only handles sign via `abs()`. **Fix (robustness hardening):** `const float fb = std::isfinite(bodyFeedback) ? bodyFeedback : 0.0f;` before feeding the follower.
+**[LOW] ✅ FIXED (2026-06-05)** **FeedbackExciter energy-limiter state is poisoned by NaN body feedback** — `plugins/membrum/src/dsp/exciters/feedback_exciter.h`.
+> **Resolution:** `process()` now sanitizes `bodyFeedback` to `0.0f` when non-finite, *before* it reaches the RMS `energyFollower_` (and before it re-enters the `raw` mix). The check uses the bit-manipulation `Krate::DSP::detail::isNaN`/`isInf` helpers rather than `std::isfinite`, because the VST3 SDK builds with `-ffast-math` (which optimizes `std::isfinite` away — see CLAUDE.md / `db_utils.h`). Regression test `tests/unit/exciters/test_feedback_exciter.cpp` ("non-finite body feedback is treated as zero") asserts `process(NaN/±Inf)` is bit-identical to `process(0.0)` from identical state — red pre-fix (the poisoned follower diverges for the life of the voice), green post-fix.
+
+`energyFollower_.processSample(absFb)` was fed raw `bodyFeedback` with no NaN/Inf guard; the `EnvelopeFollower` header explicitly states it does *not* validate input. If the body ever emits NaN/Inf into the closed loop, the follower's smoothing state becomes NaN permanently, so `energyGain = 1 − clamp(NaN−0.35,0,1)` is NaN forever — the energy limiter is silently disabled for the life of the voice. Final output stays bounded only because downstream `SVF::process()` resets on NaN and the explicit ±1 clamp catches it. The trigger is plausible (Gordon-Smith modal bank in a feedback loop up to gain 0.85 can overflow to Inf under sustained drive). The header comment claimed to "sanitize pathological body feedback" but only handled sign via `abs()`.
 
 ---
 
@@ -162,7 +166,7 @@ The class is constructed in `didOpen()` but non-functional: `attachUiModeSwitch(
 
 ### High
 1. ~~**Heap buffer overflow on oversized host blocks** — `plugins/membrum/src/voice_pool/voice_pool.cpp:57-63, :327, :374` (+ `processor.cpp:1107-1108`, `:700-723`). Reject setup when `maxSamplesPerBlock > kVoicePoolMaxBlock`, raise the cap, or segment `numSamples` in `processBlock`.~~ **✅ FIXED 2026-06-05** — scratch grown to actual host block size + `numSamples` clamp in both `processBlock` overloads; regression test `test_oversized_block.cpp`. *(Memory safety — was fixed first.)*
-2. **Plate mode-ratio table desync** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111`. Regenerate `kPlateRatios[8..15]` as `(m²+n²)/2` from `kPlateIndices` → 12.5/14.5/16.0/17.0/20.5/20.0 (or reorder `kPlateIndices`). Re-verify NoiseBody (`noise_body_mapper.h:90,94`) after the fix.
+2. ~~**Plate mode-ratio table desync** — `plugins/membrum/src/dsp/bodies/plate_modes.h:102-111`. Regenerate `kPlateRatios[8..15]` as `(m²+n²)/2` from `kPlateIndices` → 12.5/14.5/16.0/17.0/20.5/20.0 (or reorder `kPlateIndices`). Re-verify NoiseBody (`noise_body_mapper.h:90,94`) after the fix.~~ **✅ FIXED 2026-06-05** — `kPlateRatios[8..15]` regenerated from `kPlateIndices`; NoiseBody re-verified; fictitious degenerate-pair comment removed. Test `test_plate_body.cpp` guards all 48 entries.
 3. ~~**FM Ratio dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp`. Add a `DrumVoice`/`FMImpulseExciter` ratio setter; denormalize `cfg.fmRatio` (0..1 → 1.0..4.0) and forward it in `applyPadConfigToSlot`.~~ **✅ FIXED 2026-06-05** — `setModulatorRatio` + `ExciterBank`/`DrumVoice` forwarders + `applyPadConfigToSlot` wiring; per-pad default aligned to 1.4 (also closes #9). Test `test_dead_exciter_params.cpp`.
 4. ~~**Feedback Amount dead parameter** — `plugins/membrum/src/voice_pool/voice_pool.cpp:601`. Forward `cfg.feedbackAmount` into `FeedbackExciter`.~~ **✅ FIXED 2026-06-05** — `setFeedbackAmount` raises the drive floor (`amount=0` = legacy velocity-only, SC-008 preserved); forwarded through `ExciterBank`/`DrumVoice`/`applyPadConfigToSlot`. Test `test_dead_exciter_params.cpp`.
 
@@ -171,7 +175,7 @@ The class is constructed in `didOpen()` but non-functional: `attachUiModeSwitch(
 6. **PadGridView selection highlight stale on automation/preset load** — `controller.cpp:771-778, :962-964, :1077-1079, :1225-1232`. Push `padGridView_->setSelectedPadIndex(selectedPadIndex_)` (null-guarded) on every `kSelectedPadId` change.
 
 ### Low
-7. **FeedbackExciter NaN poisoning of energy limiter** — `feedback_exciter.h:124-128`. Sanitize `bodyFeedback` with `std::isfinite` before feeding the follower.
+7. ~~**FeedbackExciter NaN poisoning of energy limiter** — `feedback_exciter.h:124-128`. Sanitize `bodyFeedback` with `std::isfinite` before feeding the follower.~~ **✅ FIXED 2026-06-05** — non-finite `bodyFeedback` zeroed before the follower using `-ffast-math`-safe `detail::isNaN`/`isInf`. Test `test_feedback_exciter.cpp` ("non-finite body feedback is treated as zero").
 8. **Plate even-n modes decoupled from Strike Position** — `plate_modes.h:122-134`. Optional: diagonal `y0` mapping. *(Documented design choice.)*
 9. ~~**FM Ratio proxy/per-pad default mismatch** — `controller.cpp:315` vs `:186`. Align defaults.~~ **✅ FIXED 2026-06-05** — per-pad default, `PadConfig` field, and MacroMapper baseline aligned to 0.133333 (→ 1.4×) alongside finding 3.
 10. **Friction Pressure proxy/per-pad default mismatch** — `controller.cpp:318` vs `:189`. Align defaults.

@@ -844,3 +844,7 @@ jobs:
           name: Membrum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Membrum.vst3
           if-no-files-found: warn
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats

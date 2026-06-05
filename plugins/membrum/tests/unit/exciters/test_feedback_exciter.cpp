@@ -11,12 +11,15 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "dsp/exciters/feedback_exciter.h"
+#include "dsp/float_guard.h"
 #include "exciter_test_helpers.h"
 
 #include <allocation_detector.h>
 
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 
 using membrum_exciter_tests::isFiniteSample;
 using membrum_exciter_tests::runBurst;
@@ -162,6 +165,67 @@ TEST_CASE("FeedbackExciter: non-zero body feedback sustains longer than zero",
     }
     INFO("energyA(no fb)=" << energyA << " energyB(with fb)=" << energyB);
     CHECK(energyB > energyA);
+}
+
+// Build a non-finite float from its IEEE-754 bit pattern, routed through a
+// volatile sink so the optimizer cannot constant-fold it. The VST3 SDK enables
+// -ffast-math (-ffinite-math-only) globally; under that flag the compiler
+// assumes NaN/Inf never occur, so std::numeric_limits<float>::infinity() /
+// quiet_NaN() are UB and get folded to finite garbage (which then sails past
+// the production guard and breaks this test). The volatile read forces a real
+// non-finite bit pattern to exist at runtime regardless of the FP mode.
+static float nonFiniteFromBits(std::uint32_t bits) noexcept
+{
+    volatile std::uint32_t v = bits;
+    const std::uint32_t    read = v;  // volatile load defeats constant folding
+    float f = 0.0f;
+    std::memcpy(&f, &read, sizeof(f));
+    return f;
+}
+
+TEST_CASE("FeedbackExciter: non-finite body feedback never reaches the output "
+          "(correctness audit Finding 7)",
+          "[membrum][exciter][feedback][robustness]")
+{
+    constexpr double kSR = 44100.0;
+
+    // A single NaN/+-Inf body-feedback sample must not poison the voice: every
+    // subsequent output must stay finite. Without the input guard an Inf becomes
+    // Inf*0 = NaN inside the RMS energy limiter and propagates for the life of
+    // the voice -- and the downstream +/-1 clamp cannot rescue it, because under
+    // the SDK's global -ffast-math (-ffinite-math-only) `NaN > 1.0f` folds to
+    // false. The guard lives in a -fno-fast-math TU (Membrum::DSP::isNonFinite)
+    // precisely so it is not optimised away; we reuse it here to check the
+    // OUTPUT, so the assertion itself cannot be folded either.
+    //
+    // NOTE: this deliberately does NOT compare against process(0.0f). Under
+    // -ffast-math the compiler constant-propagates a literal-0 argument and
+    // optimises that call site differently from a runtime-zeroed one, so exact
+    // bit-equality between the two is unattainable even when the guard is
+    // perfect (verified: the comparison diverges on gcc -ffast-math regardless
+    // of the guard). Output finiteness is the property that actually matters.
+    const float kQuietNaN = nonFiniteFromBits(0x7FC00000u);
+    const float kPosInf   = nonFiniteFromBits(0x7F800000u);
+    const float kNegInf   = nonFiniteFromBits(0xFF800000u);
+    for (float poison : {kQuietNaN, kPosInf, kNegInf})
+    {
+        Membrum::FeedbackExciter exc;
+        exc.prepare(kSR, 0);
+        exc.trigger(0.9f);
+
+        for (int i = 0; i < 32; ++i) (void)exc.process(0.5f);
+
+        (void)exc.process(poison);  // the pathological sample
+
+        int nonFiniteOutputs = 0;
+        for (int i = 0; i < 4096; ++i)
+        {
+            const float fb  = (i & 1) ? 0.6f : -0.6f;
+            const float out = exc.process(fb);
+            if (Membrum::DSP::isNonFinite(out)) ++nonFiniteOutputs;
+        }
+        CHECK(nonFiniteOutputs == 0);
+    }
 }
 
 TEST_CASE("FeedbackExciter: peak <= 0 dBFS for extreme bodyFeedback (SC-008)",
