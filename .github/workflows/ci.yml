@@ -844,3 +844,94 @@ jobs:
           name: Membrum-Linux-x64
           path: build/VST3/${{ env.BUILD_TYPE }}/Membrum.vst3
           if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
+  # Valgrind / memcheck lane (Linux, Release)
+  # ---------------------------------------------------------------------------
+  # Purpose: catch memory errors that AddressSanitizer does NOT — specifically
+  # operator new/delete family mismatches and reads of uninitialised memory.
+  #
+  # Background: the Membrum suite hit an intermittent SIGSEGV on the GitHub Linux
+  # runner. It was reported inside the voice-steal test but was actually a victim
+  # of cross-test heap corruption surfaced by Catch2's random ordering. Root
+  # cause: a global `operator delete` override in test_allocation_matrix.cpp
+  # freed a libstdc++-allocated std::string with std::free under -fvisibility=
+  # hidden (an "operator new vs free" mismatch). That is silent UB on a vanilla
+  # glibc heap and invisible to ASan (its own new/delete interceptors absorb the
+  # override), but it corrupts allocator bookkeeping under other layouts.
+  #
+  # memcheck tracks every allocation's family precisely, so a SINGLE run catches
+  # such a mismatch deterministically, independent of Catch2's ordering. This
+  # lane is the regression guard for that class of bug. Leak checking is off:
+  # we only care about invalid accesses, mismatched frees and uninitialised
+  # reads, not the static/"still reachable" allocations Catch2 keeps for life.
+  valgrind-linux:
+    name: Linux Valgrind (Membrum)
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.membrum == 'true' || needs.detect-changes.outputs.dsp == 'true' || needs.detect-changes.outputs.shared == 'true' || needs.detect-changes.outputs.infra == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            valgrind ninja-build libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.20
+        with:
+          key: linux-valgrind-${{ env.BUILD_TYPE }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
+
+      - name: Cache FetchContent
+        uses: actions/cache@v5
+        with:
+          path: build-vg/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-${{ hashFiles('CMakeLists.txt', 'dsp/CMakeLists.txt', 'plugins/shared/CMakeLists.txt', 'plugins/membrum/CMakeLists.txt', 'tests/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-vg-
+
+      # Plain Release (no sanitizer): valgrind instruments the unmodified binary.
+      - name: Configure CMake (Release)
+        run: |
+          cmake -S . -B build-vg -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build membrum_tests
+        run: cmake --build build-vg --parallel --target membrum_tests
+
+      # One memcheck run is enough: the new/delete family mismatch is detected
+      # per-allocation, regardless of test order. We still pass the original
+      # repro seed's ordering for good measure. --error-exitcode=99 turns any
+      # memcheck error (mismatched free, invalid read/write, uninitialised use)
+      # into a lane failure.
+      - name: Run membrum_tests under Valgrind/memcheck
+        timeout-minutes: 45
+        run: |
+          BIN="build-vg/bin/${{ env.BUILD_TYPE }}/membrum_tests"
+          test -x "$BIN" || { echo "FAIL: $BIN not found"; exit 1; }
+          valgrind \
+            --tool=memcheck \
+            --error-exitcode=99 \
+            --leak-check=no \
+            --errors-for-leak-kinds=none \
+            --track-origins=yes \
+            --num-callers=25 \
+            "$BIN" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks \
+              --order rand --rng-seed 1099410096
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
