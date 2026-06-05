@@ -68,7 +68,11 @@ namespace Membrum {
 // ------------------------------------------------------------------
 
 constexpr int   kMaxVoices         = 16;      // FR-110
-constexpr int   kVoicePoolMaxBlock = 8192;    // FR-117 scratch buffer max block size
+// FR-117: minimum scratch-buffer reservation. prepare() reserves at least this
+// many samples but GROWS to the host's actual maxSamplesPerBlock when larger,
+// so a host that uses very large blocks (offline/bounce/freeze renders) cannot
+// overflow the audio-thread scratch. This is a floor, NOT a hard cap.
+constexpr int   kVoicePoolMaxBlock = 8192;
 // FR-124 (Option B): kFastReleaseSecs is the TOTAL wall-clock decay time to
 // the 1e-6 denormal floor, NOT the time constant τ. The per-sample decay
 // coefficient is `k = exp(-kFastReleaseLnFloor / (kFastReleaseSecs * sr))`
