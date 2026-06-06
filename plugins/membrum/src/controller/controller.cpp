@@ -753,7 +753,7 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     // syncGlobalProxyFromPad -> EditControllerEx1::setParamNormalized), cascade
     // the new state across the cached section views.
     if (tag == static_cast<ParamID>(kMorphEnabledId))
-        updateMorphControlsEnabled();
+        requestViewRefresh(kRefreshMorphControls);
 
     // Body model gate for the pitch-envelope section: the envelope only
     // retargets f0 on Membrane bodies (drum_voice.h:486), so dim/disable the
@@ -762,11 +762,10 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
     // syncGlobalProxyFromPad's pad-switch sync.
     if (tag == static_cast<ParamID>(kBodyModelId))
     {
-        updatePitchEnvControlsEnabled();
         // Same gate hides the Material Morph power toggle on non-Membrane
         // bodies (drum_voice.h:1238): the morph's body-mapper refresh is
         // Membrane-only, so the toggle would enable an inert section.
-        updateMorphEnabledToggleVisibility();
+        requestViewRefresh(kRefreshPitchEnvControls | kRefreshMorphToggleVis);
     }
 
     // Tone Shaper filter-envelope display: repaint the curve whenever any of
@@ -777,7 +776,7 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         || tag == static_cast<ParamID>(kToneShaperFilterEnvSustainId)
         || tag == static_cast<ParamID>(kToneShaperFilterEnvReleaseId))
     {
-        updateFilterEnvDisplay();
+        requestViewRefresh(kRefreshFilterEnvDisplay);
     }
 
     // Tone Shaper pitch-envelope display: same treatment for the original four
@@ -794,7 +793,7 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         || tag == static_cast<ParamID>(kPitchEnvMidFractionId)
         || tag == static_cast<ParamID>(kPitchEnvCurve2Id))
     {
-        updatePitchEnvelopeDisplay();
+        requestViewRefresh(kRefreshPitchEnvDisplay);
     }
 
     // If we're in the middle of a pad switch, don't recurse.
@@ -932,25 +931,15 @@ void Controller::syncGlobalProxyFromPad(int padIndex)
     // Output Bus tooltip so it reflects that pad's assigned bus.
     updateOutputBusTooltip();
     // The sync loop above calls the base class setter directly, which bypasses
-    // the derived setParamNormalized() override and its kMorphEnabledId hook.
-    // Reflect the freshly-synced state onto the Material Morph views so the
-    // dim/enable visuals track pad selection.
-    updateMorphControlsEnabled();
-    // Same reasoning for the filter-envelope display: direct base-class writes
-    // skip the setParamNormalized hook, so refresh the display once the sync
-    // loop has settled all four A/D/S/R globals to the new pad's values.
-    updateFilterEnvDisplay();
-    // And likewise for the pitch-envelope display so a pad switch repaints
-    // its start/end/time/curve handles to the new pad's stored values.
-    updatePitchEnvelopeDisplay();
-    // BodyModel proxy was just refreshed via the direct base-class setter
-    // (which skipped the kBodyModelId hook in our setParamNormalized
-    // override), so re-evaluate the pitch-env section gate for the newly
-    // selected pad's body type.
-    updatePitchEnvControlsEnabled();
-    // Same reasoning for the Material Morph toggle: re-check visibility for
-    // the freshly-synced body model.
-    updateMorphEnabledToggleVisibility();
+    // the derived setParamNormalized() override and its per-tag hooks. Reflect
+    // the freshly-synced state onto every gated section/display so the visuals
+    // track pad selection: Material Morph dim/enable + toggle visibility, the
+    // filter- and pitch-envelope displays, and the pitch-env Body gate. Routed
+    // through requestViewRefresh so a non-compliant host calling
+    // setComponentState off the UI thread defers the mutation (finding 12).
+    requestViewRefresh(kRefreshMorphControls | kRefreshFilterEnvDisplay
+                       | kRefreshPitchEnvDisplay | kRefreshPitchEnvControls
+                       | kRefreshMorphToggleVis);
 }
 
 void Controller::forwardGlobalToPad(ParamID globalId, ParamValue value)
@@ -1660,6 +1649,31 @@ void Controller::updateOutputBusTooltip() noexcept
 // so it is safe to call before verifyView caches them or after willClose
 // zeros them.
 // ------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
+// Audit finding 12: keep all VSTGUI view mutation on the UI thread. The SDK
+// tags setParamNormalized()/setComponentState() as [UI-thread], so on a
+// compliant host this applies immediately (zero added latency, identical to the
+// old inline calls). A non-compliant host driving those callbacks from a worker
+// thread instead queues the work for the 30 Hz poll timer, which drains it on
+// the UI thread within ~33 ms. The helpers are all idempotent and null-safe.
+// ------------------------------------------------------------------------------
+void Controller::requestViewRefresh(std::uint32_t flags) noexcept
+{
+    if (std::this_thread::get_id() == uiThreadId_)
+        applyViewRefresh(flags);
+    else
+        pendingViewRefresh_.fetch_or(flags, std::memory_order_relaxed);
+}
+
+void Controller::applyViewRefresh(std::uint32_t flags) noexcept
+{
+    if (flags & kRefreshMorphControls)    updateMorphControlsEnabled();
+    if (flags & kRefreshPitchEnvControls) updatePitchEnvControlsEnabled();
+    if (flags & kRefreshMorphToggleVis)   updateMorphEnabledToggleVisibility();
+    if (flags & kRefreshFilterEnvDisplay) updateFilterEnvDisplay();
+    if (flags & kRefreshPitchEnvDisplay)  updatePitchEnvelopeDisplay();
+}
+
 void Controller::updateMorphControlsEnabled() noexcept
 {
     const bool enabled =
@@ -1864,6 +1878,11 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // leak a timer between editor instances.
     activeEditor_ = editor;
 
+    // Audit finding 12: didOpen() is a guaranteed UI-thread callback. Record
+    // the UI thread id so requestViewRefresh() can tell an off-thread caller
+    // (non-compliant host) from the normal in-thread case.
+    uiThreadId_ = std::this_thread::get_id();
+
     // Phase 6: instantiate the editor sub-controller that listens to
     // kUiModeId and drives the Acoustic/Extended UIViewSwitchContainer.
     // Without this the mode toggle only flips its own label.
@@ -1877,6 +1896,13 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
             // own 30 Hz poll against PadGlowPublisher.
             if (activeEditor_ == nullptr)
                 return;
+            // Audit finding 12: drain any view refreshes queued by an
+            // off-UI-thread setParamNormalized()/setComponentState() and apply
+            // them here on the UI thread.
+            const auto pending =
+                pendingViewRefresh_.exchange(0, std::memory_order_relaxed);
+            if (pending != 0)
+                applyViewRefresh(pending);
             updateMeterViews(cachedMeters_);
             // Belt-and-braces refresh of the Material Morph power-toggle
             // visibility. UIViewSwitchContainer's animated template swap can
@@ -2005,6 +2031,11 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
     editorSubController_ = nullptr;
 
     activeEditor_      = nullptr;
+    // Audit finding 12: drop any queued view refreshes and forget the UI thread
+    // id so a refresh queued against this (now torn-down) editor cannot leak
+    // into a freshly-opened one. didOpen() re-applies all sections directly.
+    pendingViewRefresh_.store(0, std::memory_order_relaxed);
+    uiThreadId_ = std::thread::id{};
     padGridView_       = nullptr;
     kitMetersView_     = nullptr;
     pitchEnvelopeDisplay_ = nullptr;

@@ -4,9 +4,11 @@
 
 #include "state/state_codec.h"
 
+#include "base/source/fstreamer.h"
 
 #include <algorithm>
 #include <cstring>
+#include <type_traits>
 
 namespace Membrum::State {
 
@@ -15,29 +17,42 @@ using Steinberg::tresult;
 using Steinberg::kResultOk;
 using Steinberg::kResultFalse;
 using Steinberg::IBStream;
+using Steinberg::IBStreamer;
 
 namespace {
 
-// Small helpers that treat a short read as a failure. A partial read leaves
-// the caller's destination bytes in an undefined state; wrap in std::memset
-// upstream if the caller wants to fall back to a default on partial reads.
+// Audit finding 13: serialise every multibyte value through IBStreamer with an
+// explicit little-endian byte order, matching all five sibling plugins. The
+// previous raw IBStream::read/write of sizeof(T) bytes was non-portable across
+// host endianness. On a little-endian host the on-wire bytes are identical, so
+// existing states/presets remain loadable.
+//
+// readT treats a short/failed read as a failure; writeT is best-effort (the
+// callers report kResultOk regardless, matching the legacy behaviour).
 template <typename T>
-bool readT(IBStream* s, T& dst) noexcept
+bool readT(IBStreamer& s, T& dst) noexcept
 {
-    Steinberg::int32 got = 0;
-    const auto size = static_cast<int32>(sizeof(T));
-    if (s->read(&dst, size, &got) != kResultOk)
-        return false;
-    return got == size;
+    if constexpr (std::is_same_v<T, double>)
+        return s.readDouble(dst);
+    else if constexpr (std::is_same_v<T, Steinberg::int32>)
+        return s.readInt32(dst);
+    else if constexpr (std::is_same_v<T, std::uint8_t>)
+        return s.readInt8u(dst);
+    else
+        static_assert(sizeof(T) == 0, "readT: unsupported codec type");
 }
 
 template <typename T>
-void writeT(IBStream* s, const T& src) noexcept
+void writeT(IBStreamer& s, const T& src) noexcept
 {
-    // VST3 IBStream::write takes a void*; cast away const to satisfy the
-    // interface. Writes are treated as best-effort (failures are rare and
-    // the caller reports kResultOk regardless, matching legacy behaviour).
-    s->write(const_cast<T*>(&src), static_cast<int32>(sizeof(T)), nullptr);
+    if constexpr (std::is_same_v<T, double>)
+        s.writeDouble(src);
+    else if constexpr (std::is_same_v<T, Steinberg::int32>)
+        s.writeInt32(src);
+    else if constexpr (std::is_same_v<T, std::uint8_t>)
+        s.writeInt8u(src);
+    else
+        static_assert(sizeof(T) == 0, "writeT: unsupported codec type");
 }
 
 } // namespace
@@ -334,51 +349,53 @@ tresult writeKitBlob(IBStream* stream, const KitSnapshot& kit)
     if (!stream)
         return kResultFalse;
 
+    IBStreamer streamer(stream, kLittleEndian);
+
     const int32 version = kBlobVersion;
-    writeT(stream, version);
+    writeT(streamer, version);
 
     const int32 maxPoly = static_cast<int32>(kit.maxPolyphony);
-    writeT(stream, maxPoly);
+    writeT(streamer, maxPoly);
 
     const int32 stealPolicy = static_cast<int32>(kit.voiceStealingPolicy);
-    writeT(stream, stealPolicy);
+    writeT(streamer, stealPolicy);
 
     for (const auto& pad : kit.pads)
     {
         const int32 excI = static_cast<int32>(pad.exciterType);
         const int32 bodyI = static_cast<int32>(pad.bodyModel);
-        writeT(stream, excI);
-        writeT(stream, bodyI);
+        writeT(streamer, excI);
+        writeT(streamer, bodyI);
         for (double v : pad.sound)
-            writeT(stream, v);
-        writeT(stream, pad.chokeGroup);
-        writeT(stream, pad.outputBus);
+            writeT(streamer, v);
+        writeT(streamer, pad.chokeGroup);
+        writeT(streamer, pad.outputBus);
     }
 
     const int32 selPad = static_cast<int32>(kit.selectedPadIndex);
-    writeT(stream, selPad);
+    writeT(streamer, selPad);
 
-    writeT(stream, kit.globalCoupling);
-    writeT(stream, kit.snareBuzz);
-    writeT(stream, kit.tomResonance);
-    writeT(stream, kit.couplingDelayMs);
+    writeT(streamer, kit.globalCoupling);
+    writeT(streamer, kit.snareBuzz);
+    writeT(streamer, kit.tomResonance);
+    writeT(streamer, kit.couplingDelayMs);
 
     for (const auto& pad : kit.pads)
-        writeT(stream, pad.couplingAmount);
+        writeT(streamer, pad.couplingAmount);
 
     // Macros, pad-major (pad0.m0..pad0.m4, pad1.m0..pad1.m4, ...).
     for (const auto& pad : kit.pads)
         for (double m : pad.macros)
-            writeT(stream, m);
+            writeT(streamer, m);
 
     // Master gain norm, after macros, before optional uiMode.
-    writeT(stream, kit.masterGainNorm);
+    writeT(streamer, kit.masterGainNorm);
 
     // Session field, only if flagged. uiMode persists in kit presets.
     if (kit.hasSession)
     {
         const int32 uiMode = static_cast<int32>(kit.uiMode);
-        writeT(stream, uiMode);
+        writeT(streamer, uiMode);
     }
 
     return kResultOk;
@@ -389,17 +406,19 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     if (!stream)
         return kResultFalse;
 
+    IBStreamer streamer(stream, kLittleEndian);
+
     int32 version = 0;
-    if (!readT(stream, version))
+    if (!readT(streamer, version))
         return kResultFalse;
     if (version != kBlobVersion)
         return kResultFalse;
 
     int32 maxPoly = 8;
     int32 stealPolicy = 0;
-    if (!readT(stream, maxPoly))
+    if (!readT(streamer, maxPoly))
         return kResultFalse;
-    if (!readT(stream, stealPolicy))
+    if (!readT(streamer, stealPolicy))
         return kResultFalse;
     kit.maxPolyphony        = std::clamp(static_cast<int>(maxPoly), 4, 16);
     kit.voiceStealingPolicy = std::clamp(static_cast<int>(stealPolicy), 0, 2);
@@ -408,8 +427,8 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     {
         int32 excI = 0;
         int32 bodyI = 0;
-        if (!readT(stream, excI))  return kResultFalse;
-        if (!readT(stream, bodyI)) return kResultFalse;
+        if (!readT(streamer, excI))  return kResultFalse;
+        if (!readT(streamer, bodyI)) return kResultFalse;
         excI = std::clamp(excI, int32{0},
                           static_cast<int32>(ExciterType::kCount) - 1);
         bodyI = std::clamp(bodyI, int32{0},
@@ -419,17 +438,17 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
 
         for (double& slot : pad.sound)
         {
-            if (!readT(stream, slot))
+            if (!readT(streamer, slot))
                 return kResultFalse;
         }
-        if (!readT(stream, pad.chokeGroup)) return kResultFalse;
-        if (!readT(stream, pad.outputBus))  return kResultFalse;
+        if (!readT(streamer, pad.chokeGroup)) return kResultFalse;
+        if (!readT(streamer, pad.outputBus))  return kResultFalse;
         if (pad.chokeGroup > 8U)  pad.chokeGroup = 0;
         if (pad.outputBus  > 15U) pad.outputBus  = 0;
     }
 
     int32 selPad = 0;
-    if (!readT(stream, selPad))
+    if (!readT(streamer, selPad))
         return kResultFalse;
     kit.selectedPadIndex =
         std::clamp(static_cast<int>(selPad), 0, static_cast<int>(kit.pads.size()) - 1);
@@ -438,10 +457,10 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     double sb = 0.0;
     double tr = 0.0;
     double cd = 1.0;
-    if (!readT(stream, gc)) return kResultFalse;
-    if (!readT(stream, sb)) return kResultFalse;
-    if (!readT(stream, tr)) return kResultFalse;
-    if (!readT(stream, cd)) return kResultFalse;
+    if (!readT(streamer, gc)) return kResultFalse;
+    if (!readT(streamer, sb)) return kResultFalse;
+    if (!readT(streamer, tr)) return kResultFalse;
+    if (!readT(streamer, cd)) return kResultFalse;
     kit.globalCoupling  = std::clamp(gc, 0.0, 1.0);
     kit.snareBuzz       = std::clamp(sb, 0.0, 1.0);
     kit.tomResonance    = std::clamp(tr, 0.0, 1.0);
@@ -450,7 +469,7 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     for (auto& pad : kit.pads)
     {
         double amt = 0.5;
-        if (!readT(stream, amt))
+        if (!readT(streamer, amt))
             return kResultFalse;
         pad.couplingAmount = std::clamp(amt, 0.0, 1.0);
     }
@@ -459,20 +478,20 @@ tresult readKitBlob(IBStream* stream, KitSnapshot& kit)
     {
         for (double& m : pad.macros)
         {
-            if (!readT(stream, m))
+            if (!readT(streamer, m))
                 return kResultFalse;
             m = std::clamp(m, 0.0, 1.0);
         }
     }
 
     double mg = 0.5;
-    if (!readT(stream, mg))
+    if (!readT(streamer, mg))
         return kResultFalse;
     kit.masterGainNorm = std::clamp(mg, 0.0, 1.0);
 
     // Optional session field: present only when the producer set hasSession.
     int32 uiMode = 0;
-    if (readT(stream, uiMode))
+    if (readT(streamer, uiMode))
     {
         kit.uiMode     = std::clamp(static_cast<int>(uiMode), 0, 1);
         kit.hasSession = true;
@@ -494,16 +513,18 @@ tresult writePadPresetBlob(IBStream* stream, const PadPresetSnapshot& pad)
     if (!stream)
         return kResultFalse;
 
+    IBStreamer streamer(stream, kLittleEndian);
+
     const int32 version = kPadBlobVersion;
-    writeT(stream, version);
+    writeT(streamer, version);
 
     const int32 excI  = static_cast<int32>(pad.exciterType);
     const int32 bodyI = static_cast<int32>(pad.bodyModel);
-    writeT(stream, excI);
-    writeT(stream, bodyI);
+    writeT(streamer, excI);
+    writeT(streamer, bodyI);
 
     for (double v : pad.sound)
-        writeT(stream, v);
+        writeT(streamer, v);
 
     return kResultOk;
 }
@@ -513,16 +534,18 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
     if (!stream)
         return kResultFalse;
 
+    IBStreamer streamer(stream, kLittleEndian);
+
     int32 version = 0;
-    if (!readT(stream, version))
+    if (!readT(streamer, version))
         return kResultFalse;
     if (version != kPadBlobVersion)
         return kResultFalse;
 
     int32 excI = 0;
     int32 bodyI = 0;
-    if (!readT(stream, excI))  return kResultFalse;
-    if (!readT(stream, bodyI)) return kResultFalse;
+    if (!readT(streamer, excI))  return kResultFalse;
+    if (!readT(streamer, bodyI)) return kResultFalse;
     excI = std::clamp(excI, int32{0},
                       static_cast<int32>(ExciterType::kCount) - 1);
     bodyI = std::clamp(bodyI, int32{0},
@@ -532,7 +555,7 @@ tresult readPadPresetBlob(IBStream* stream, PadPresetSnapshot& pad)
 
     for (double& slot : pad.sound)
     {
-        if (!readT(stream, slot))
+        if (!readT(streamer, slot))
             return kResultFalse;
     }
     return kResultOk;

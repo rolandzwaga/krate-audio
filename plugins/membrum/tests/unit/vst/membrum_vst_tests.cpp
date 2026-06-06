@@ -12,6 +12,7 @@
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "public.sdk/source/common/memorystream.h"
 
+#include <array>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -307,6 +308,47 @@ TEST_CASE("Membrum Processor has 0 audio inputs and 1 stereo output",
     SpeakerArrangement stereo = SpeakerArr::kStereo;
     auto result = processor.setBusArrangements(nullptr, 0, &stereo, 1);
     CHECK(result == kResultOk);
+
+    REQUIRE(processor.terminate() == kResultOk);
+}
+
+// Audit finding 14: the render path reads channelBuffers32[0] and [1]
+// unconditionally on every output bus, so any non-stereo arrangement the host
+// proposes must be rejected. The base AudioEffect::setBusArrangements would
+// otherwise accept a mono/quad arrangement and then read out of bounds.
+TEST_CASE("Membrum setBusArrangements rejects non-stereo and audio inputs",
+          "[membrum][vst][buses]")
+{
+    Membrum::Processor processor;
+    REQUIRE(processor.initialize(nullptr) == kResultOk);
+
+    // A mono output bus must be rejected (would OOB-read channelBuffers32[1]).
+    SpeakerArrangement mono = SpeakerArr::kMono;
+    CHECK(processor.setBusArrangements(nullptr, 0, &mono, 1) == kResultFalse);
+
+    // A quad output bus must be rejected.
+    SpeakerArrangement quad = SpeakerArr::k40Cine;
+    CHECK(processor.setBusArrangements(nullptr, 0, &quad, 1) == kResultFalse);
+
+    // An audio input must be rejected -- Membrum is an instrument with no
+    // audio input buses.
+    SpeakerArrangement stereoIn = SpeakerArr::kStereo;
+    SpeakerArrangement stereoOut = SpeakerArr::kStereo;
+    CHECK(processor.setBusArrangements(&stereoIn, 1, &stereoOut, 1) == kResultFalse);
+
+    // A full 16-bus all-stereo proposal is accepted.
+    std::array<SpeakerArrangement, Membrum::kMaxOutputBuses> allStereo{};
+    allStereo.fill(SpeakerArr::kStereo);
+    CHECK(processor.setBusArrangements(
+              nullptr, 0, allStereo.data(),
+              static_cast<int32>(allStereo.size())) == kResultTrue);
+
+    // A proposal for more output buses than exist is rejected.
+    std::array<SpeakerArrangement, Membrum::kMaxOutputBuses + 1> tooMany{};
+    tooMany.fill(SpeakerArr::kStereo);
+    CHECK(processor.setBusArrangements(
+              nullptr, 0, tooMany.data(),
+              static_cast<int32>(tooMany.size())) == kResultFalse);
 
     REQUIRE(processor.terminate() == kResultOk);
 }

@@ -1096,6 +1096,33 @@ tresult PLUGIN_API Processor::activateBus(MediaType type, BusDirection dir,
     return result;
 }
 
+// Audit finding 14: lock every output bus to stereo. The render path
+// (process(), :713-746) reads channelBuffers32[0] and [1] unconditionally on
+// every bus, so the base AudioEffect::setBusArrangements default (which accepts
+// any host-proposed arrangement, including mono/quad) would let a non-compliant
+// host trigger an out-of-bounds heap read on the audio thread. Membrum is an
+// instrument: no audio inputs, 1 main + 15 aux stereo outputs.
+tresult PLUGIN_API Processor::setBusArrangements(
+    SpeakerArrangement* /*inputs*/, int32 numIns,
+    SpeakerArrangement* outputs, int32 numOuts)
+{
+    // No audio input buses exist; reject any input arrangement request.
+    if (numIns != 0)
+        return kResultFalse;
+
+    if (numOuts < 0 || numOuts > kMaxOutputBuses)
+        return kResultFalse;
+
+    // Every proposed output bus must be stereo.
+    for (int32 i = 0; i < numOuts; ++i)
+    {
+        if (outputs[i] != SpeakerArr::kStereo)
+            return kResultFalse;
+    }
+
+    return kResultTrue;
+}
+
 tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
 {
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)

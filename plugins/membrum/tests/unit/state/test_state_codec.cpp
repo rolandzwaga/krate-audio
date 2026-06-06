@@ -140,6 +140,35 @@ TEST_CASE("state_codec: readKitBlob rejects every version other than kBlobVersio
     }
 }
 
+// Audit finding 13: the codec must serialise multibyte values in an explicit,
+// host-endianness-independent byte order (little-endian, via IBStreamer),
+// matching the rest of the monorepo. This guards the on-wire layout so a
+// big-endian host would read back the same values a little-endian host wrote.
+TEST_CASE("state_codec: kit blob header is little-endian on the wire",
+          "[state_codec][endian]")
+{
+    KitSnapshot src = makePopulatedKit();
+    src.maxPolyphony = 12;  // 0x0000000C
+
+    MemoryStream stream;
+    REQUIRE(writeKitBlob(&stream, src) == kResultOk);
+
+    const auto* bytes = reinterpret_cast<const std::uint8_t*>(stream.getData());
+    REQUIRE(stream.getSize() >= 8);
+
+    // Offset 0: int32 version == kBlobVersion (2), little-endian.
+    CHECK(bytes[0] == static_cast<std::uint8_t>(Membrum::State::kBlobVersion));
+    CHECK(bytes[1] == 0x00);
+    CHECK(bytes[2] == 0x00);
+    CHECK(bytes[3] == 0x00);
+
+    // Offset 4: int32 maxPolyphony == 12, little-endian.
+    CHECK(bytes[4] == 0x0C);
+    CHECK(bytes[5] == 0x00);
+    CHECK(bytes[6] == 0x00);
+    CHECK(bytes[7] == 0x00);
+}
+
 TEST_CASE("state_codec: uiMode is optional on read, round-trips when written",
           "[state_codec][session]")
 {
