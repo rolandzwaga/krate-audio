@@ -54,6 +54,9 @@ public:
                                               Steinberg::Vst::BusDirection dir,
                                               Steinberg::int32 index,
                                               Steinberg::TBool state) override;
+    Steinberg::tresult PLUGIN_API setBusArrangements(
+        Steinberg::Vst::SpeakerArrangement* inputs, Steinberg::int32 numIns,
+        Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;

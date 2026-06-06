@@ -18,8 +18,11 @@
 #include "../ui/membrum_editor_controller.h"
 
 #include <array>
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <thread>
 
 namespace Krate::Plugins {
 class PresetManager;
@@ -179,6 +182,13 @@ private:
     VSTGUI::VST3Editor*              activeEditor_   = nullptr;
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
 
+    // Audit finding 12: UI-thread id captured in didOpen() (a guaranteed
+    // UI-thread callback) and the bitmask of ViewRefreshFlags queued from an
+    // off-UI-thread setParamNormalized()/setComponentState(), drained by the
+    // poll timer. See requestViewRefresh().
+    std::thread::id                  uiThreadId_{};
+    std::atomic<std::uint32_t>       pendingViewRefresh_{0};
+
     // Phase 6 sub-controller: listens to kUiModeId and drives the
     // Acoustic/Extended UIViewSwitchContainer. Created in didOpen();
     // released in willClose() (FObject refcount).
@@ -303,6 +313,27 @@ private:
     /// automatically when the host (preset load), a pad switch, or
     /// UIViewSwitchContainer rebuilds the template. Tolerant of a null display.
     void updatePitchEnvelopeDisplay() noexcept;
+
+    /// Audit finding 12: view mutations triggered by the SDK-`[UI-thread]`
+    /// callbacks setParamNormalized() / setComponentState() are applied
+    /// immediately when we are on the UI thread (the compliant-host case) and
+    /// otherwise deferred to the UI-thread poll timer. This is defense-in-depth
+    /// against non-compliant hosts that drive those callbacks from a worker
+    /// thread; the cached views must only ever be mutated on the UI thread.
+    enum ViewRefreshFlags : std::uint32_t
+    {
+        kRefreshMorphControls    = 1u << 0,
+        kRefreshPitchEnvControls = 1u << 1,
+        kRefreshMorphToggleVis   = 1u << 2,
+        kRefreshFilterEnvDisplay = 1u << 3,
+        kRefreshPitchEnvDisplay  = 1u << 4,
+    };
+
+    /// Apply now (UI thread) or queue for the poll timer (other thread).
+    void requestViewRefresh(std::uint32_t flags) noexcept;
+
+    /// Invoke the helper for each set bit. Always runs on the UI thread.
+    void applyViewRefresh(std::uint32_t flags) noexcept;
 
     /// Phase 8F: push the per-pad enable flags from a freshly-loaded
     /// KitSnapshot into the PadGridView mirror. Both load paths
