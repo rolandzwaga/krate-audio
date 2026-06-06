@@ -179,7 +179,6 @@ smtg_add_vst3plugin(${PLUGIN_NAME}
     src/ui/pad_grid_view.cpp
     src/ui/kit_meters_view.h
     src/ui/kit_meters_view.cpp
-    src/ui/membrum_editor_controller.cpp
 
     # Phase 3: voice pool (multi-voice polyphony, stealing, choke groups)
     src/voice_pool/voice_pool.h

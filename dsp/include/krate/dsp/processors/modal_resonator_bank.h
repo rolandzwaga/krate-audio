@@ -80,7 +80,12 @@ public:
     /// of the decayTime/brightness convenience pair.
     struct DampingLaw {
         float b1{0.0f};  ///< Flat damping, s^-1 (legacy: 1 / decayTime)
-        float b3{0.0f};  ///< Frequency-squared damping, s / rad^2
+        float b3{0.0f};  ///< Frequency-squared damping coefficient. Multiplies
+                         ///< f^2 with f in **Hz** (not angular freq), so its
+                         ///< units are s (decayRate_k = b1 + b3*f^2 is s^-1). A
+                         ///< value expressed per rad^2 would be (2*pi)^2 ~= 39.5x
+                         ///< too large -- see computeModeCoefficients() which
+                         ///< never converts Hz->rad/s.
     };
 
     /// Legacy b3 ceiling. Matches the (1 - brightness) * kMaxB3 formulation
@@ -693,7 +698,8 @@ private:
                 continue;
             }
 
-            // Frequency-dependent damping (FR-006, FR-014)
+            // Frequency-dependent damping (FR-006, FR-014). f_w is in Hz, so b3
+            // is in s (Hz convention), not the s/rad^2 of the angular form.
             float decayRate_k = b1 + b3 * f_w * f_w;
             float R_k = std::exp(-decayRate_k / sampleRate_);
 

@@ -13,8 +13,7 @@
 //   (e) Controller::createView("editor") construction and release
 //       -- the bundle resources are not resolvable in the test harness so we
 //          do NOT call IPlugView::attached(); creation + release is still an
-//          ASan-relevant path (sub-controller registration, IDependent wiring
-//          in MembrumEditorController constructors/destructors).
+//          ASan-relevant path.
 //   (f) Processor MIDI ingestion: a steady stream of note-on / note-off events
 //       drives voice_pool allocation / stealing / choke paths, which ASan must
 //       not flag as use-after-free under repeated init/terminate cycles.
@@ -26,7 +25,6 @@
 #include "controller/controller.h"
 #include "processor/processor.h"
 #include "plugin_ids.h"
-#include "ui/membrum_editor_controller.h"
 #include "dsp/pad_config.h"
 
 #include "public.sdk/source/common/memorystream.h"
@@ -133,29 +131,11 @@ TEST_CASE("Editor lifecycle: 100 full controller+processor cycles survive ASan",
             }
         }
 
-        // Editor open/close surface without a resolvable uidesc bundle:
-        // construct MembrumEditorController directly (same ctor chain that
-        // createView("editor") + VST3Editor would drive once the sub-view
-        // scope is resolved). Its ctor registers as IDependent on
-        // kUiModeId; its dtor must unregister. This is the exact
-        // add/removeDependent balance the plan.md gotcha calls out as
-        // use-after-free-prone.
-        //
-        // We do NOT invoke VST3Editor::createView itself because it
-        // requires the plugin bundle resource "editor.uidesc" to be
-        // resolvable and throws an SEH exception in headless tests.
-        // Host-integration (Reaper, auval, pluginval L5) covers the
-        // full attached-window path.
-        {
-            UI::MembrumEditorController subCtl(/*editor*/ nullptr, &ctl);
-            // Drive a parameter change while the sub-controller is alive
-            // so update() dispatches through the IDependent chain; the
-            // method is tolerant of null editor_ / uiModeSwitch_.
-            ctl.setParamNormalized(kUiModeId,
-                (cycle & 1) ? 0.0 : 1.0);
-            // subCtl goes out of scope here -> removeDependent. Any
-            // imbalance would manifest in subsequent cycles.
-        }
+        // Drive a UI-mode parameter change on the controller. The Acoustic/
+        // Extended view swap is handled by the uidesc UIViewSwitchContainer,
+        // not a C++ sub-controller; this still exercises the controller's
+        // setParamNormalized path under repeated init/terminate cycles.
+        ctl.setParamNormalized(kUiModeId, (cycle & 1) ? 0.0 : 1.0);
 
         REQUIRE(ctl.terminate() == kResultOk);
 

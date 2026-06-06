@@ -263,12 +263,12 @@ TEST_CASE("kUiModeId host automation from non-UI thread is thread-safe (T096)",
 // driven from a worker thread.
 //
 // Parameter::setNormalized() calls changed() which synchronously dispatches
-// to every registered IDependent. In production the MembrumEditorController
-// dependent forwards the change onto VSTGUI's UI thread via a
-// UIViewSwitchContainer::setCurrentViewIndex() call (plus a CVSTGUITimer
-// for exchangeView). The test harness cannot observe the VSTGUI deferral
-// because there is no UI thread, but it CAN pin the invariants that the
-// deferral path relies on:
+// to every registered IDependent. In production the kUiModeId change reaches
+// VSTGUI's UIViewSwitchContainer through a hidden CParamDisplay proxy
+// (template-switch-control="UiMode" in editor.uidesc), which performs the
+// Acoustic/Extended template swap on the UI thread. The test harness cannot
+// observe the VSTGUI deferral because there is no UI thread, but it CAN pin
+// the invariants that the deferral path relies on:
 //
 //   1. Every setParamNormalized from a non-UI thread MUST fire update() on
 //      a registered IDependent exactly once (toggled values only -- no

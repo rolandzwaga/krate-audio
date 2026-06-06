@@ -249,7 +249,6 @@ private:
     // setPadEnabled(). All pads default to enabled so the grid renders
     // correctly even before the controller's first sync.
     std::array<bool, kNumPads> padEnabled_{};
-    bool padEnabledInitialized_ = false;
 
     VSTGUI::SharedPointer<VSTGUI::CVSTGUITimer> pollTimer_;
     VSTGUI::SharedPointer<VSTGUI::CGradient>    glowGradient_;

@@ -45,7 +45,7 @@ struct MapperResult
 /// precedence when they are not the sentinel value (-1.0f).
 /// Denormalisation for the override path:
 ///   b1 = 0.2 + norm * 49.8     -> [0.2, 50.0] s^-1
-///   b3 = norm * 1.0e-3         -> [0, 1e-3] s * rad^-2 (~25 x legacy kMaxB3)
+///   b3 = norm * 1.0e-3         -> [0, 1e-3] s (Hz convention; ~25 x legacy kMaxB3)
 ///   b3 ceiling was widened empirically: the plan's original 8e-5 gave only
 ///   a ~2 dB drop in the above-1-kHz band (inaudible), 4e-4 gave ~6 dB, and
 ///   1e-3 gives the ~9 dB total-energy drop that the perceptual contract

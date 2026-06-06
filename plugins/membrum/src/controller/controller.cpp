@@ -206,7 +206,7 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadClickLayerBrightness, .name = "Click Brightness",    .isDiscrete = false, .stepCount = 0, .defaultValue = 0.6 },
     // Phase 8A: per-mode damping law. Default 0.5 = neutral override:
     //   b1 norm 0.5 -> 25 s^-1 (mid-tight)
-    //   b3 norm 0.5 -> 4e-5 s*rad^-2 (equivalent to legacy brightness=0.5)
+    //   b3 norm 0.5 -> 4e-5 s (Hz convention; equivalent to legacy brightness=0.5)
     // The effective override only kicks in once the host/user actively
     // writes a value; DrumVoice stores -1.0f sentinel by default, preserving
     // Phase 1 bit-identity for untouched pads (see DrumVoice::bodyDampingB1_).
@@ -544,6 +544,17 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
     // currently selected pad. Registered as a 16-entry StringListParameter
     // (Main, Aux 1..Aux 15) so the host and the COptionMenu populate entries
     // automatically.
+    //
+    // Audit finding 19: this proxy is a StringListParameter while the per-pad
+    // target (kPadOutputBus) is a stepped RangeParameter(stepCount=15). The
+    // asymmetry is INTENTIONAL and functionally safe: both ends share
+    // stepCount=15/min=0 and the SDK ToNormalized/FromNormalized mapping is
+    // bit-identical, so the normalized wire value round-trips exactly. The
+    // proxy is a StringList purely so the bound COptionMenu shows friendly
+    // labels (the same reason ChokeGroup was converted in finding 17); the
+    // per-pad target stays a RangeParameter because swapping the type on 32
+    // already-registered per-pad ParamIDs would disturb DAWs that cache
+    // parameter metadata, for zero functional gain. Do not "unify" the types.
     {
         auto* outputBusList = new StringListParameter(
             STR16("Output Bus"), kOutputBusId, nullptr,
@@ -1883,12 +1894,10 @@ void Controller::didOpen(VSTGUI::VST3Editor* editor)
     // (non-compliant host) from the normal in-thread case.
     uiThreadId_ = std::this_thread::get_id();
 
-    // Phase 6: instantiate the editor sub-controller that listens to
-    // kUiModeId and drives the Acoustic/Extended UIViewSwitchContainer.
-    // Without this the mode toggle only flips its own label.
-    editorSubController_ = Steinberg::owned(
-        new Membrum::UI::MembrumEditorController(editor, this));
-
+    // The Acoustic/Extended view swap is driven entirely by the uidesc:
+    // UIViewSwitchContainer's template-switch-control="UiMode" follows a hidden
+    // CParamDisplay proxy bound to kUiModeId (see editor.uidesc). No C++
+    // sub-controller is needed for it.
     pollTimer_ = VSTGUI::owned(new VSTGUI::CVSTGUITimer(
         [this](VSTGUI::CVSTGUITimer* /*timer*/) {
             // T046: read the last cached MetersBlock and push its values
@@ -2025,11 +2034,6 @@ void Controller::willClose(VSTGUI::VST3Editor* /*editor*/)
         pollTimer_->stop();
         pollTimer_ = nullptr;
     }
-    // Release the sub-controller before zeroing activeEditor_: its destructor
-    // deregisters IDependent subscriptions and cancels its deferred
-    // exchangeView timer, which references editor_.
-    editorSubController_ = nullptr;
-
     activeEditor_      = nullptr;
     // Audit finding 12: drop any queued view refreshes and forget the UI thread
     // id so a refresh queued against this (now torn-down) editor cannot leak

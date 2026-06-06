@@ -15,7 +15,6 @@
 #include "vstgui/plugin-bindings/vst3editor.h"
 #include "vstgui/lib/cvstguitimer.h"
 #include "vstgui/lib/iviewlistener.h"
-#include "../ui/membrum_editor_controller.h"
 
 #include <array>
 #include <atomic>
@@ -188,11 +187,6 @@ private:
     // poll timer. See requestViewRefresh().
     std::thread::id                  uiThreadId_{};
     std::atomic<std::uint32_t>       pendingViewRefresh_{0};
-
-    // Phase 6 sub-controller: listens to kUiModeId and drives the
-    // Acoustic/Extended UIViewSwitchContainer. Created in didOpen();
-    // released in willClose() (FObject refcount).
-    Steinberg::IPtr<Membrum::UI::MembrumEditorController> editorSubController_;
 
     // Phase 6 (T042): raw pointer to the active PadGridView. Lifetime is
     // owned by VSTGUI's view tree; zeroed in willClose().
