@@ -136,7 +136,12 @@ TEST_CASE("Phase 3 params: kVoiceStealingId is a 3-entry StringListParameter",
     REQUIRE(controller.terminate() == kResultOk);
 }
 
-TEST_CASE("Phase 3 params: kChokeGroupId is a stepped [0, 8] RangeParameter",
+// Audit finding 17: kChokeGroupId is now a 9-entry StringListParameter
+// ("None"/"CG1".."CG8") so the bound COptionMenu shows friendly labels. The
+// SDK ToNormalized/FromNormalized mapping is bit-identical to the previous
+// RangeParameter(0..8, stepCount=8): stepCount stays 8, default stays 0.0, and
+// norm 0.0/1.0 still map to plain index 0/8.
+TEST_CASE("Phase 3 params: kChokeGroupId is a 9-entry StringListParameter",
           "[membrum][vst][phase3_1][params]")
 {
     Membrum::Controller controller;
@@ -146,16 +151,18 @@ TEST_CASE("Phase 3 params: kChokeGroupId is a stepped [0, 8] RangeParameter",
     REQUIRE(param != nullptr);
 
     const auto& info = param->getInfo();
-    CHECK(info.stepCount == 8);
+    CHECK((info.flags & ParameterInfo::kIsList) != 0);
+    CHECK(info.stepCount == 8);  // 9 entries -> 8 steps
     CHECK(info.defaultNormalizedValue == Approx(0.0).margin(1e-12));
 
-    CHECK(controller.setParamNormalized(Membrum::kChokeGroupId, 0.0) == kResultTrue);
-    CHECK(param->toPlain(controller.getParamNormalized(Membrum::kChokeGroupId))
-          == Approx(0.0).margin(1e-9));
-
-    CHECK(controller.setParamNormalized(Membrum::kChokeGroupId, 1.0) == kResultTrue);
-    CHECK(param->toPlain(controller.getParamNormalized(Membrum::kChokeGroupId))
-          == Approx(8.0).margin(1e-9));
+    // Mapping unchanged: each of the 9 entries maps to a distinct integer 0..8.
+    for (int idx = 0; idx <= 8; ++idx)
+    {
+        const double norm = static_cast<double>(idx) / 8.0;
+        const int plain = static_cast<int>(param->toPlain(norm));
+        INFO("Choke group idx=" << idx << " plain=" << plain);
+        CHECK(plain == idx);
+    }
 
     REQUIRE(controller.terminate() == kResultOk);
 }
