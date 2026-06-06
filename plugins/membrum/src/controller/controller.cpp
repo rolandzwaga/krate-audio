@@ -315,7 +315,11 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         {.id = kExciterFMRatioId,            .name = "Exciter FM Ratio",            .defaultValue = 0.133333, .unit = nullptr },
         {.id = kExciterFeedbackAmountId,     .name = "Exciter Feedback Amount",     .defaultValue = 0.0,      .unit = nullptr },
         {.id = kExciterNoiseBurstDurationId, .name = "Exciter NoiseBurst Duration", .defaultValue = 0.230769, .unit = "ms" },
-        {.id = kExciterFrictionPressureId,   .name = "Exciter Friction Pressure",   .defaultValue = 0.3,      .unit = nullptr },
+        // Audit finding 10: proxy default aligned to the per-pad default (0.0,
+        // pad_config.h:216) so a fresh instance displays the value the DSP
+        // actually uses. Friction Pressure amount=0 reproduces legacy
+        // velocity-only behaviour, so this changes initial display only.
+        {.id = kExciterFrictionPressureId,   .name = "Exciter Friction Pressure",   .defaultValue = 0.0,      .unit = nullptr },
         {.id = kToneShaperFilterCutoffId,    .name = "Tone Shaper Filter Cutoff",   .defaultValue = 1.0,      .unit = "Hz" },
         {.id = kToneShaperFilterResonanceId, .name = "Tone Shaper Filter Resonance",.defaultValue = 0.0,      .unit = nullptr },
         {.id = kToneShaperFilterEnvAmountId, .name = "Tone Shaper Filter Env Amt",  .defaultValue = 0.5,      .unit = nullptr },
@@ -332,7 +336,9 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         {.id = kUnnaturalDecaySkewId,         .name = "Decay Skew",                 .defaultValue = 0.5,      .unit = nullptr },
         {.id = kUnnaturalModeInjectAmountId,  .name = "Mode Inject",                .defaultValue = 0.0,      .unit = nullptr },
         {.id = kUnnaturalNonlinearCouplingId, .name = "Nonlinear Coupling",         .defaultValue = 0.0,      .unit = nullptr },
-        {.id = kMorphEnabledId,    .name = "Morph Enabled",   .defaultValue = 0.0,      .unit = nullptr },
+        // Audit finding 11: kMorphEnabledId is a boolean toggle and is
+        // registered separately below with stepCount=1 (not in this
+        // stepCount=0 continuous batch).
         {.id = kMorphStartId,      .name = "Morph Start",     .defaultValue = 1.0,      .unit = nullptr },
         {.id = kMorphEndId,        .name = "Morph End",       .defaultValue = 0.0,      .unit = nullptr },
         {.id = kMorphDurationMsId, .name = "Morph Duration",  .defaultValue = 0.095477, .unit = "ms" },
@@ -355,6 +361,17 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
                                0.0, 1.0, spec.defaultValue, 0,
                                ParameterInfo::kCanAutomate));
     }
+
+    // Audit finding 11: Morph Enabled is a boolean toggle, so it must expose
+    // a single step (stepCount=1) to the host instead of a continuous range,
+    // matching its per-pad target (kPadMorphEnabled, controller.cpp:179).
+    // Kept as a RangeParameter (not switched to StringListParameter) so the
+    // registered VST3 parameter type is unchanged for hosts that cache param
+    // metadata; the ToggleButton snaps to 0/1 and DSP thresholds at 0.5.
+    parameters.addParameter(
+        new RangeParameter(STR16("Morph Enabled"), kMorphEnabledId, nullptr,
+                           0.0, 1.0, 0.0, /*stepCount=*/1,
+                           ParameterInfo::kCanAutomate));
 
     // Morph Curve selector (binary: Linear / Exponential). Registered as a
     // StringListParameter so the Advanced template's COptionMenu can populate
@@ -438,10 +455,27 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         stealList->appendString(STR16("Priority"));
         parameters.addParameter(stealList);
     }
-    parameters.addParameter(
-        new RangeParameter(STR16("Choke Group"), kChokeGroupId, STR16("group"),
-                           0.0, 8.0, 0.0, /*stepCount=*/8,
-                           ParameterInfo::kCanAutomate));
+    // Audit finding 17: register as a StringListParameter so the bound
+    // COptionMenu (ChokeGroupSel, tag 252) shows "None"/"CG1".."CG8" instead
+    // of raw "0".."8", matching the sibling OutputBus selector. The 9 entries
+    // yield stepCount=8 and the SDK ToNormalized/FromNormalized mapping is
+    // bit-identical to the previous RangeParameter(0..8, stepCount=8), so the
+    // normalized wire value and the per-pad proxy sync are unchanged.
+    {
+        auto* chokeList = new StringListParameter(
+            STR16("Choke Group"), kChokeGroupId, nullptr,
+            ParameterInfo::kCanAutomate | ParameterInfo::kIsList);
+        chokeList->appendString(STR16("None"));
+        chokeList->appendString(STR16("CG1"));
+        chokeList->appendString(STR16("CG2"));
+        chokeList->appendString(STR16("CG3"));
+        chokeList->appendString(STR16("CG4"));
+        chokeList->appendString(STR16("CG5"));
+        chokeList->appendString(STR16("CG6"));
+        chokeList->appendString(STR16("CG7"));
+        chokeList->appendString(STR16("CG8"));
+        parameters.addParameter(chokeList);
+    }
 
     // ---- Phase 4: kSelectedPadId ----
     parameters.addParameter(
@@ -774,6 +808,12 @@ tresult PLUGIN_API Controller::setParamNormalized(ParamID tag, ParamValue value)
         selectedPadIndex_ = std::clamp(
             static_cast<int>(value * 31.0 + 0.5), 0, 31);
         syncGlobalProxyFromPad(selectedPadIndex_);
+        // Audit finding 6: the grid highlight is otherwise only moved by a
+        // mouse-down, so host automation / a remote selection change would
+        // leave it stale. Push the new index into the grid (null-guarded;
+        // setSelectedPadIndex bounds-checks and no-ops when unchanged).
+        if (padGridView_ != nullptr)
+            padGridView_->setSelectedPadIndex(selectedPadIndex_);
         return result;
     }
 
@@ -962,6 +1002,10 @@ tresult PLUGIN_API Controller::setComponentState(IBStream* state)
     selectedPadIndex_ = kit.selectedPadIndex;
     pushKitEnabledToGrid(kit);
     syncGlobalProxyFromPad(selectedPadIndex_);
+    // Audit finding 6: a loaded project may select a non-zero pad; move the
+    // grid highlight to match instead of leaving it on the last clicked cell.
+    if (padGridView_ != nullptr)
+        padGridView_->setSelectedPadIndex(selectedPadIndex_);
 
     return kResultOk;
 }
@@ -1230,6 +1274,10 @@ VSTGUI::CView* Controller::createCustomView(
                 padParamId(i, kPadEnabled)));
             view->setPadEnabled(i, norm >= 0.5);
         }
+
+        // Audit finding 6: seed the highlight from the persisted selection so
+        // a re-opened editor (after a project load) shows the correct pad.
+        view->setSelectedPadIndex(selectedPadIndex_);
 
         padGridView_ = view;
         return view;

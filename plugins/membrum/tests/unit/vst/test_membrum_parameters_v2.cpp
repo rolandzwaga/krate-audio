@@ -91,7 +91,7 @@ const std::array<ExpectedParam, kGlobalParamCount> kGlobalExpectedParams = {{
     { Membrum::kMorphCurveId,      false, 0 },
     { Membrum::kMaxPolyphonyId,    false, 0 },
     { Membrum::kVoiceStealingId,   true,  2 },
-    { Membrum::kChokeGroupId,      false, 0 },
+    { Membrum::kChokeGroupId,      true,  8 },  // audit finding 17: StringList
 }};
 
 } // namespace
