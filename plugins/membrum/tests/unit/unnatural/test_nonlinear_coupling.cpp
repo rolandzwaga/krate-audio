@@ -62,7 +62,104 @@ double spectralCentroid(const float* samples, int start, int len,
     return den > 0.0 ? num / den : 0.0;
 }
 
+// Goertzel magnitude at a single frequency (for harmonic measurement).
+double goertzelMag(const float* samples, int start, int len, double sampleRate, double hz)
+{
+    const double w     = 2.0 * 3.14159265358979323846 * hz / sampleRate;
+    const double coeff = 2.0 * std::cos(w);
+    double s1 = 0.0, s2 = 0.0;
+    for (int i = 0; i < len; ++i)
+    {
+        const double s = static_cast<double>(samples[start + i]) + coeff * s1 - s2;
+        s2 = s1; s1 = s;
+    }
+    const double re = s1 - s2 * std::cos(w);
+    const double im = s2 * std::sin(w);
+    return std::sqrt(re * re + im * im);
+}
+
 } // namespace
+
+// ==============================================================================
+// M-3 (AUDIT-signal-path) -- continuity in amount: a tiny coupling amount
+// produces a proportionally tiny change in STEADY STATE. The old design ran
+// the WHOLE signal through recipSqrt whenever amount != 0, so even amount=0.02
+// compressed a held tone by ~10% (recipSqrt(0.5)=0.447) -- a discontinuous
+// jump from the exact amount=0 bypass. The AM-only redesign adds only the
+// (shaped - body) excess scaled by amount, so the steady-state deviation
+// scales with amount and is small for small amount.
+// ==============================================================================
+
+TEST_CASE("UnnaturalZone NonlinearCoupling -- small amount is near-bypass in steady state (M-3)",
+          "[UnnaturalZone][NonlinearCoupling][M3][continuity]")
+{
+    Membrum::NonlinearCoupling coupling;
+    coupling.prepare(kSampleRate);
+    coupling.setAmount(0.02f);
+    coupling.setVelocity(1.0f);
+
+    const double omega = 2.0 * 3.14159265358979323846 * 1000.0 / kSampleRate;
+    // Warm up so the RMS follower settles to steady state (dEnv -> 0).
+    for (int i = 0; i < 8820; ++i)
+        (void) coupling.processSample(0.5f * static_cast<float>(std::sin(omega * i)));
+
+    // Measure steady-state deviation over the next window.
+    constexpr int kN = 4410;
+    double sumIn = 0.0, sumDiff = 0.0;
+    for (int i = 8820; i < 8820 + kN; ++i)
+    {
+        const float in  = 0.5f * static_cast<float>(std::sin(omega * i));
+        const float out = coupling.processSample(in);
+        sumIn   += static_cast<double>(in) * in;
+        sumDiff += static_cast<double>(out - in) * (out - in);
+    }
+    const double relDev = std::sqrt(sumDiff / std::max(sumIn, 1e-30));
+    INFO("steady-state RMS deviation at amount=0.02: " << relDev);
+    // With amount=0.02 the steady-state change must be small (was ~0.10 when
+    // the whole signal went through recipSqrt regardless of amount).
+    CHECK(relDev < 0.05);
+}
+
+// ==============================================================================
+// M-4 (AUDIT-signal-path) -- the coupling amount has SUSTAINED authority: in a
+// held (steady-state) tone, raising amount must measurably increase harmonic
+// brightening. The old design's AM term was driven by dEnv, which -> 0 in
+// sustain, so steady-state output was recipSqrt(body) INDEPENDENT of amount:
+// amount=0.3 and amount=1.0 produced identical steady-state harmonics. The
+// env-LEVEL-driven redesign makes the waveshaper drive scale with amount, so
+// more amount = more odd-harmonic content that persists through the sustain.
+// ==============================================================================
+
+TEST_CASE("UnnaturalZone NonlinearCoupling -- amount drives sustained brightening (M-4)",
+          "[UnnaturalZone][NonlinearCoupling][M4][sustained]")
+{
+    const double omega = 2.0 * 3.14159265358979323846 * 1000.0 / kSampleRate;
+
+    auto steadyThirdHarmonicRatio = [&](float amount) {
+        Membrum::NonlinearCoupling coupling;
+        coupling.prepare(kSampleRate);
+        coupling.setAmount(amount);
+        coupling.setVelocity(1.0f);
+        // Warm up to steady state.
+        for (int i = 0; i < 8820; ++i)
+            (void) coupling.processSample(0.6f * static_cast<float>(std::sin(omega * i)));
+        constexpr int kN = 8820;
+        std::vector<float> out(static_cast<std::size_t>(kN), 0.0f);
+        for (int i = 0; i < kN; ++i)
+            out[static_cast<std::size_t>(i)] =
+                coupling.processSample(0.6f * static_cast<float>(std::sin(omega * (i + 8820))));
+        const double fund = goertzelMag(out.data(), 0, kN, kSampleRate, 1000.0);
+        const double h3   = goertzelMag(out.data(), 0, kN, kSampleRate, 3000.0);
+        return h3 / std::max(fund, 1e-30);
+    };
+
+    const double low  = steadyThirdHarmonicRatio(0.30f);
+    const double high = steadyThirdHarmonicRatio(1.00f);
+    INFO("steady-state 3rd-harmonic ratio: amount=0.30 -> " << low
+         << ", amount=1.00 -> " << high);
+    // Raising amount must increase sustained harmonic content meaningfully.
+    CHECK(high > low * 1.3);
+}
 
 // ==============================================================================
 // T105(a) -- Spectral centroid varies > 10% between early and late windows

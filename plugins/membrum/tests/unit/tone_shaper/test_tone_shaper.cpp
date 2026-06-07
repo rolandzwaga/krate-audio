@@ -131,6 +131,58 @@ TEST_CASE("ToneShaper: Drive harmonic generation increases with drive amount (US
     CHECK(computePeak(out1) <= 1.1);
 }
 
+TEST_CASE("ToneShaper: Drive is a flavour saturator, not a makeup compressor (M-2)",
+          "[membrum][tone_shaper][drive][makeup]")
+{
+    // M-2 (AUDIT-signal-path): the Drive stage maps amount -> internal gain
+    // 1..10 into recipSqrt with no makeup, so small-signal content is boosted
+    // up to ~10x while peaks pin to +/-1 -> the stage acts as a hidden
+    // compressor/limiter instead of a flavour saturator. The fix adds a
+    // post-shaper makeup of 1/slope-at-zero (= 1 / internalDrive) so the
+    // unity (small-signal) region stays at ~unity gain and Drive changes
+    // TIMBRE (harmonics), not LEVEL.
+    //
+    // This test feeds a very small sine (well inside the linear region of the
+    // shaper) and asserts the RMS gain stays ~1.0 across drive amounts. Before
+    // the fix the gain tracks the internal drive (up to ~10x) and this fails.
+    const int kN = 4410;
+    constexpr float kSmallAmp = 0.004f; // deep in the shaper's linear region
+    auto input = makeSine(kN, 1000.0f, kSampleRate);
+    for (auto& s : input) s *= kSmallAmp;
+
+    auto rmsGain = [&](float driveAmt) {
+        Membrum::ToneShaper ts;
+        ts.prepare(kSampleRate);
+        ts.setDriveAmount(driveAmt);
+        ts.setFoldAmount(0.0f);
+        ts.setFilterCutoff(20000.0f);
+        ts.setFilterEnvAmount(0.0f);
+        ts.setPitchEnvTimeMs(0.0f);
+        ts.noteOn(1.0f);
+
+        double sumIn = 0.0, sumOut = 0.0;
+        for (int i = 0; i < kN; ++i)
+        {
+            const float in  = input[static_cast<std::size_t>(i)];
+            const float out = ts.processSample(in);
+            sumIn  += static_cast<double>(in) * in;
+            sumOut += static_cast<double>(out) * out;
+        }
+        return std::sqrt(sumOut / std::max(sumIn, 1e-30));
+    };
+
+    const double g025 = rmsGain(0.25f);
+    const double g050 = rmsGain(0.50f);
+    const double g100 = rmsGain(1.00f);
+    INFO("small-signal RMS gain: drive=0.25 -> " << g025
+         << ", 0.50 -> " << g050 << ", 1.00 -> " << g100);
+
+    // Unity region must stay ~unity regardless of drive amount.
+    CHECK(g025 == Approx(1.0).margin(0.20));
+    CHECK(g050 == Approx(1.0).margin(0.20));
+    CHECK(g100 == Approx(1.0).margin(0.20));
+}
+
 TEST_CASE("ToneShaper: Wavefolder generates odd harmonics (US5-4)",
           "[membrum][tone_shaper][fold]")
 {

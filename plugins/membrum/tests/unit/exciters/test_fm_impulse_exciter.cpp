@@ -57,6 +57,67 @@ TEST_CASE("FMImpulseExciter: velocity spectral centroid ratio >= 2.0 (SC-004)",
     CHECK(cHi / cLo >= 2.0f);
 }
 
+TEST_CASE("FMImpulseExciter: velocity drives modulation index / high-order sidebands (L-3/L-4)",
+          "[membrum][exciter][fmimpulse][modindex]")
+{
+    // L-3 (AUDIT-signal-path): the modulation index (0.5..3.0 rad) was routed
+    // through FMOperator::setLevel, which clamps to [0,1]. That caps the index
+    // at 1.0 for any velocity >= 0.2, so the entire 1.0..3.0 range -- the range
+    // that spreads energy into wide, bright high-order sidebands -- is dead, and
+    // index/velocity sensitivity is lost.
+    //
+    // L-4: the old SC-004 test only checks the spectral CENTROID ratio, which
+    // passes purely on the 4x carrier-frequency sweep (400->2500 Hz) and is
+    // therefore blind to the index clamp. This test instead measures HIGH-ORDER
+    // sideband energy (carrier + 2..4 * modulator) relative to the CARRIER --
+    // a ratio that is independent of the carrier-frequency sweep and only grows
+    // when the modulation index actually increases. With the clamp both
+    // velocities cap at index 1.0 -> J2/J3/J4 stay tiny -> the ratios match and
+    // this fails. After the fix, v=1.0 reaches index 3.0 -> rich high-order
+    // sidebands -> a much larger ratio than v=0.5 (index 1.75).
+    constexpr double kSR = 44100.0;
+    constexpr int kSamples = 1024; // ~23 ms; captures the bright onset burst
+
+    auto goertzel = [&](const float* buf, double freq) noexcept {
+        const double w = 2.0 * 3.14159265358979323846 * freq / kSR;
+        const double coeff = 2.0 * std::cos(w);
+        double s1 = 0.0, s2 = 0.0;
+        for (int n = 0; n < kSamples; ++n)
+        {
+            const double s = static_cast<double>(buf[n]) + coeff * s1 - s2;
+            s2 = s1; s1 = s;
+        }
+        const double re = s1 - s2 * std::cos(w);
+        const double im = s2 * std::sin(w);
+        return std::sqrt(re * re + im * im);
+    };
+
+    // High-order-sideband-to-carrier ratio at a given velocity. At velocity v
+    // the base freq is 400*6.25^v, carrier = base, modulator = base*1.4.
+    auto sidebandRatio = [&](float velocity) {
+        Membrum::FMImpulseExciter exc;
+        exc.prepare(kSR, 0);
+        std::array<float, kSamples> buf{};
+        runBurst(exc, velocity, buf.data(), kSamples);
+
+        const double base    = 400.0 * std::pow(6.25, static_cast<double>(velocity));
+        const double carrier = base;          // carrier ratio 1.0
+        const double mod     = base * 1.4;    // default modulator ratio
+        const double cMag = goertzel(buf.data(), carrier);
+        const double upper = goertzel(buf.data(), carrier + 2.0 * mod)
+                           + goertzel(buf.data(), carrier + 3.0 * mod)
+                           + goertzel(buf.data(), carrier + 4.0 * mod);
+        return upper / std::max(cMag, 1e-12);
+    };
+
+    const double rLo = sidebandRatio(0.5f); // index 1.75 (clamped to 1.0 when broken)
+    const double rHi = sidebandRatio(1.0f); // index 3.0  (clamped to 1.0 when broken)
+    INFO("high-order sideband/carrier ratio: v=0.5 -> " << rLo << ", v=1.0 -> " << rHi);
+    // Higher velocity -> higher modulation index -> substantially more
+    // high-order sideband energy. The clamp flattens this (both cap at 1.0).
+    CHECK(rHi > rLo * 1.5);
+}
+
 TEST_CASE("FMImpulseExciter: 1 s output is finite and peak <= 1.0",
           "[membrum][exciter][fmimpulse][finite]")
 {

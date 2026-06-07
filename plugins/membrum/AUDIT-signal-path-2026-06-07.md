@@ -81,11 +81,23 @@ Test/tooling updates: plate table lock-step test rewritten to the Chladni conven
 
 Verification: `membrum_tests` 565 cases pass (incl. new free-free shape test + the regenerated plate table/strike tests); `membrum_fit_tests` body-classifier 6/6 pass; pluginval strictness-5 clean; clang-tidy 0/0.
 
+**Done — Phase-3 character-knob batch** (branch `fixes/membrum-character-knobs`):
+§5 Phase 3 step 8 (partial) — the three "flavour" stages that secretly compressed,
+clamped, or did nothing. The NonlinearCoupling redesign mechanism was chosen after an
+online literature review (see below).
+
+| Finding | What was done |
+|---------|---------------|
+| **M-2** ToneShaper Drive un-compensated ~9× makeup | `setDriveAmount()` now stores `driveMakeup_ = 1/internalDrive` (= 1/slope-at-zero of `recipSqrt(g·x)`); `processSample` applies it to the shaped signal so the unity (small-signal) region stays ~unity gain. Drive changes TIMBRE (harmonics), not LEVEL — a flavour saturator, not a hidden compressor. THD ratio is unchanged by the uniform makeup. New `[makeup]` test pins small-signal RMS gain ≈ 1.0 across drive amounts (was ~10×). |
+| **M-3 + M-4** NonlinearCoupling recipSqrt-over-whole-signal / transient-only AM | Replaced the dEnv-delta AM (which vanished in sustain, M-4) and the always-on full-signal `recipSqrt` (a fixed ~−18% compressor discontinuous from the amount=0 bypass, M-3) with **env-LEVEL-driven nonlinear waveshaping**: `drive = 1 + kDriveScale·vel·amount·env`, `shaped = recipSqrt(body·drive)`, return `body + amount·(shaped−body)`. Louder → harder drive → more odd harmonics → brighter, SUSTAINED through the ring; AM-only excess keeps the stage continuous (exact bypass at amount=0, ~passthrough for quiet/low-amount). `kDriveScale=6` (a hotter value squares a tonal body — re-introducing the compressor character — and trips the infinite-ring tonality guard). New `[M3]` (small-amount near-bypass in steady state) + `[M4]` (amount has SUSTAINED authority over harmonic content) tests; old T105(a/b/c/d) still green. **Mechanism grounded in literature** (Buchla envelope-controlled waveshaping; Stowell cymbal "tap=bell, hard=broadband"; Ducceschi/Bilbao von Kármán energy-cascade; Poirot 2024 coupled-filter matrix) — the full coupled-mode ODE is too costly/fragile for a character knob, so amplitude-driven waveshaping is the accepted cheap approximation. Pitch-glide (the OTHER amplitude effect) is intentionally left to the separate §3-A tension feature. |
+| **L-3** FM modulation index clamped to [0,1] by `setLevel` | The modulator now runs at UNIT level and the index (0.5..3.0 rad) is applied as an explicit gain on the modulator output, so the full range — and index/velocity sensitivity — is restored (was pinned to 1.0 for any velocity ≥ 0.2). |
+| **L-4** SC-004 FM test blind to the L-3 clamp | New `[modindex]` test measures HIGH-ORDER sideband energy (carrier + 2..4·modulator) relative to the CARRIER — a ratio independent of the velocity→carrier-frequency sweep that only grows when the index actually increases. RED on the clamped code (both velocities cap at index 1.0 → J2/J3/J4 tiny → ratios match), GREEN after (v=1.0 reaches index 3.0 → rich high-order sidebands). The original centroid test is kept (still valid end-to-end). |
+
+Verification: `membrum_tests` 569 cases / 88520 assertions pass (incl. 4 new + the infinite-ring tonality guard); pluginval strictness-5 clean (exit 0); clang-tidy 0/0 (membrum 11). No `dsp/` files changed.
+
 **Open — not yet started** (rough priority order):
-- ⬜ **M-2** ToneShaper Drive un-compensated ~9× makeup (acts as compressor).
-- ⬜ **M-3 / M-4** NonlinearCoupling recipSqrt over whole signal / AM near-inaudible.
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
-- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics); the frequency-ratio science in §3-A is already correct and must be left alone.
+- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour.
 
 ---
 
@@ -139,15 +151,15 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Bug: morph refresh re-runs the mapper only for Membrane; for other bodies the morph counter advances but the mapper is never re-applied. Static start value reaches the body; the intra-hit sweep is lost. (Opt-in / off by default in factory kit, hence medium not high.)
 - Fix: same as H-3 — re-run the body mapper on morph change for all body types.
 
-**M-2. Drive stage applies up to ~9× un-compensated makeup, compressing dynamics** — `tone_shaper.h:198-203,387-394`
+**M-2. Drive stage applies up to ~9× un-compensated makeup, compressing dynamics** — `tone_shaper.h:198-203,387-394` — ✅ DONE (`fixes/membrum-character-knobs`)
 - Bug: drive maps to internal gain 1–10 into `recipSqrt` with no makeup; small-signal boosted ~9× while peaks pin to ±1 → hard compressor/limiter. Only bites at high drive (bypassed at 0).
 - Fix: add post-shaper makeup normalization (≈1/g in the unity region) or reduce the drive range; treat as flavor saturator, not a compressor.
 
-**M-3. NonlinearCoupling applies recipSqrt to the ENTIRE signal whenever amount≠0** — `nonlinear_coupling.h:92-97`
+**M-3. NonlinearCoupling applies recipSqrt to the ENTIRE signal whenever amount≠0** — `nonlinear_coupling.h:92-97` — ✅ DONE (`fixes/membrum-character-knobs`, env-level waveshaping redesign)
 - Bug: at any non-zero amount the full body+noise+click+modeInject sum is run through `recipSqrt` even when the AM term ≈0; recipSqrt(0.7)=0.573 (−18%). Discontinuous compressor inserted by a "character" knob.
 - Fix: saturate only the AM-added component, or only when the signal exceeds threshold; keep the amount=0 exact-bypass behavior across the whole range.
 
-**M-4. NonlinearCoupling AM is near-inaudible (transient-only, vanishes in sustain)** — `nonlinear_coupling.h:75-92`
+**M-4. NonlinearCoupling AM is near-inaudible (transient-only, vanishes in sustain)** — `nonlinear_coupling.h:75-92` — ✅ DONE (`fixes/membrum-character-knobs`, sustained env-level drive replaces dEnv AM)
 - Bug: modulation `= 1 + vel·amt·8·dEnv`; `dEnv→0` in steady state so the effect is a brief attack-edge wiggle, not the promised "time-varying spectral centroid." Net effect of raising the knob is often a slight level cut (via M-3) rather than brightening.
 - Fix: drive a real time-varying parameter (e.g. modulate a filter cutoff or per-mode brightness) rather than envelope-delta AM.
 
@@ -175,8 +187,8 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 
 - **L-1. Dead `bodyGainCompensation_`/`secondaryGainCompensation_` (hard 1.0) + stale doc claiming `Σ(amp)·0.707`** — `drum_voice.h:251-252,676-681,701-706,1356-1361`. Dead branch + misleading comment. (Tied to H-2: deciding the *intended* body level is the real action item.)
 - **L-2. Dead `velocityGain_` + misleading comment** — `drum_voice.h:329,378,1315-1317`. Computed, never read; velocity actually flows via the ADSR. Latent double-scaling hazard if "re-enabled."
-- **L-3. FM modulation index clamped to [0,1] by `FMOperator::setLevel`** — `fm_impulse_exciter.h:90,123` + `fm_operator.h:222`. Intended 0.5–3.0 rad pinned to 1.0 for any velocity ≥0.2; upper ~67% of FM brightness range and all index-velocity sensitivity dead. Scoped to FMImpulse exciter (not in factory kit), but kills that exciter's bright/metallic character. Fix: scale a unit-level modulator by `modulationIndex_` instead of routing the index through the clamped `setLevel`.
-- **L-4. SC-004 FM test gives false confidence** — `test_fm_impulse_exciter.cpp:39-58`. Passes purely on the 4× carrier sweep; blind to the L-3 clamp. Fix: hold base freq constant, vary only velocity-driven index (or measure sideband/carrier ratio).
+- **L-3. FM modulation index clamped to [0,1] by `FMOperator::setLevel`** — `fm_impulse_exciter.h:90,123` + `fm_operator.h:222`. Intended 0.5–3.0 rad pinned to 1.0 for any velocity ≥0.2; upper ~67% of FM brightness range and all index-velocity sensitivity dead. Scoped to FMImpulse exciter (not in factory kit), but kills that exciter's bright/metallic character. ✅ DONE (`fixes/membrum-character-knobs`): modulator at unit level, index applied as explicit gain on the modulator output.
+- **L-4. SC-004 FM test gives false confidence** — `test_fm_impulse_exciter.cpp:39-58`. Passes purely on the 4× carrier sweep; blind to the L-3 clamp. ✅ DONE (`fixes/membrum-character-knobs`): new `[modindex]` test measures high-order sideband/carrier ratio (carrier-frequency-independent); RED on the clamped code.
 - **L-5. `1/sqrt(N)` uses total configured mode count, not active (post-cull) count** — `drum_voice.h:247-248`. Surviving modes over-attenuated when many culled (mainly Shell/Noise at small Size). Fix: use `getNumActiveModes()`.
 - **L-6. NoiseLayer resonance maps to Q up to 5.0 on the forced-Lowpass path** — `noise_layer.h:186-189`. "No spectral peak" rationale false above Q≈0.707; factory presets cap at norm 0.30 (Q≈1.7, only a few-dB hump), so low impact. Fix: cap resonance for the lowpass mode or correct the comment.
 - **L-7. `stabilityClampedCoupling` 0.25 ceiling now vestigial** — `drum_voice.h:1149-1156`. The feedback loop it bounded was removed (feedforward+additive now), so the ceiling only scales the (off-by-default) shell quieter. Linear scale, not a range-collapse. Fix: raise/remove the ceiling and update the stale comment.
@@ -247,7 +259,7 @@ Parameters with weak/dead audible effect: **pitch-env Start/End/Time/Curve/Knee/
 7. ✅ DONE (`fix/membrum-physics-plate-shell-bell-shapes`) — **Plate `(m+2n)^P` Chladni ratios; shell free-free mode shape; bell 2-D `(m,n)` shape; secondary-shell strikePos no longer hard-coded.** Larger; needed before metallic/bell presets are re-voiced or the tuning is wasted.
 
 **Phase 3 — flavor & polish:**
-8. **M-2** drive makeup, **M-3/M-4** coupling redesign (saturate only the AM term; drive a real time-varying param), **L-3/L-4** FM index clamp + test, **M-8** click-free retrigger, **M-9** per-pad pan.
+8. ✅ DONE (`fixes/membrum-character-knobs`) — **M-2** drive makeup, **M-3/M-4** coupling redesign (env-LEVEL-driven nonlinear waveshaping — literature-backed amplitude-dependent brightening, sustained + continuous in amount), **L-3/L-4** FM index clamp + carrier-independent test. STILL OPEN: **M-8** click-free retrigger, **M-9** per-pad pan.
 
 **Phase 4 — only now re-tune the factory presets** against the corrected, calibrated, fully-wired model.
 
