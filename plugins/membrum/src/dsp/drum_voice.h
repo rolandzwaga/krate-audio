@@ -616,7 +616,13 @@ private:
             // up-then-relax curve. Kirby & Sandler JASA 2021 describes the
             // related phenomenon via DCT analysis but is not the source of
             // this implementation.
-            const bool tensionActive = tensionAmtEffective_ > 1e-6f;
+            // Tension modulation is a Membrane-only physics path (a separate
+            // audit item). Gating tensionActive on Membrane keeps it from
+            // leaking into the now-generalized pitch-envelope branch below for
+            // other bodies, and skips the energy follower's wasted work there.
+            const bool tensionActive =
+                tensionAmtEffective_ > 1e-6f
+                && bodyBank_.getCurrentType() == BodyModelType::Membrane;
             const float tensionPitchMod =
                 tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
                               : 1.0f;
@@ -634,12 +640,11 @@ private:
                 // String waveguide retune).
                 retuneFundamental(pitchHz);
             }
-            else if (tensionActive
-                     && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+            else if (tensionActive)
             {
-                // No pitch env: apply tension mod as a direct frequency
-                // scale around the body's natural fundamental. (Tension
-                // modulation remains a Membrane-only physics path.)
+                // No pitch env: apply tension mod as a direct frequency scale
+                // around the body's natural fundamental. tensionActive already
+                // implies Membrane (gated above).
                 const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
                 updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
             }

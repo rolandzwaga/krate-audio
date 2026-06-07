@@ -14,6 +14,7 @@
 #include "bodies/plate_body.h"
 #include "bodies/shell_body.h"
 #include "bodies/string_body.h"
+#include "bodies/string_mapper.h"  // refreshStringMaterial() names Bodies::StringMapper
 #include "body_model_type.h"
 #include "voice_common_params.h"
 
