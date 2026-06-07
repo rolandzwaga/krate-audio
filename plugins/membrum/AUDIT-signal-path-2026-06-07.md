@@ -6,6 +6,37 @@
 
 ---
 
+## REMEDIATION STATUS — updated 2026-06-07
+
+Living tracker for work done against this audit. Findings are tagged inline below
+with ✅ (done) / ⬜ (open). Pick up open items from here in a new session.
+
+**Done — gain-staging batch** (branch `fixes/membrum-gain-staging`, pushed to origin; PR pending):
+the coupled output-stage cluster was fixed as one gain structure. Design rationale +
+per-step sequence: `PLAN-gain-staging-2026-06-07.md`. Commits:
+
+| Finding | What was done | Commit |
+|---------|---------------|--------|
+| **H-1** per-voice softClip gain stage | voice output made linear + transparent hardClip safety rail; new zero-latency `TruePeakLimiter` on the main bus at −1 dBTP owns the ceiling | `b4c63577`, `54bd6ff0`, `c6489e71` |
+| **H-2** body buried ~17 dB under layers | body normalised `1/√N` → `1/getInputGainSum()` unit-peak + `kBodyHeadroom` (−12 dBFS), dead make-up removed; noise/click re-balanced to ~−18 dBFS | `b4c63577` |
+| **H-4** Level inside softClip | `level_` is now a true (linear) attenuation before the safety rail | `b4c63577` |
+| **M-7** noise gain calibrated for Bandpass but voice forces Lowpass | noise standalone gain recalibrated (3.0→0.243) measured against the actual Lowpass output | `b4c63577` |
+
+Verification at last green state: `dsp_tests` (6750) + `membrum_tests` (551) pass; pluginval
+strictness-5 clean (reported latency 0); `diagnose_orch` body-only `peak=1.0 CLIPPING` → `0.557 clean`.
+
+**Open — not yet started** (rough priority order):
+- ⬜ **H-3** pitch envelope + Material Morph inert on 5/6 body types (high value, expressivity).
+- ⬜ **M-2** ToneShaper Drive un-compensated ~9× makeup (acts as compressor).
+- ⬜ **M-3 / M-4** NonlinearCoupling recipSqrt over whole signal / AM near-inaudible.
+- ⬜ **M-1, M-5, M-6** Material Morph / decaySkew / secondary-bank dropped on non-Membrane or slow path.
+- ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
+- ⬜ **§3 physics**: B3 damping ceiling, Plate SSSS→(m+2n) Chladni topology, Stretch indexing (L-1), etc.
+- ⬜ **Preset re-tuning** — only AFTER the gain-staging batch above (the fix gate); the frequency-ratio science in §3-A is already correct and must be left alone.
+- ⬜ **clang-tidy** pre-PR gate (needs a VS Developer shell to configure the ninja build).
+
+---
+
 ## 1. EXECUTIVE SUMMARY — Root causes of "presets sound the same and boring"
 
 The sameness is driven by **gain-staging collapse at the voice output**, compounded by **the timbre-carrying modal body being buried under broadband layers**, and by **several headline timbral parameters being inert on most body types**. In order of contribution:
@@ -28,12 +59,12 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 
 ### HIGH
 
-**H-1. Per-voice `softClip` runs in full saturation as the primary gain stage** — `drum_voice.h:446,769,782,885`
+**H-1. Per-voice `softClip` runs in full saturation as the primary gain stage** — `drum_voice.h:446,769,782,885` — ✅ DONE (`b4c63577`/`54bd6ff0`/`c6489e71`)
 - Bug: every voice ends with `softClip(shaped*env*level_)`; the chain arrives ~30× over the clip threshold. Measured (test-run): Kick + all toms pin to 0.5012 at vel 1.0 AND 0.5; `diagnose_orch` level=0.10 → peak 1.0, 7588 samples ≥0.99.
 - Fix: keep the per-voice output **linear** and bound the *summed* bus downstream (master limiter / true-peak brickwall). If saturation is wanted, make it an explicit input-gain-driven drive control, not a hidden always-on tanh at the hottest node (per STK Modal / Faust physmodels / Bilbao — none apply a tanh at the bank/voice output).
 - Audible win: restores per-velocity peak dynamics and lets distinct bodies sound distinct instead of one saturated square.
 
-**H-2. Modal body ~17 dB under un-attenuated noise(×3)/click(×2) layers** — `drum_voice.h:248,251,433-435,743-748`; `noise_layer.h:218`; `click_layer.h:153`
+**H-2. Modal body ~17 dB under un-attenuated noise(×3)/click(×2) layers** — `drum_voice.h:248,251,433-435,743-748`; `noise_layer.h:218`; `click_layer.h:153` — ✅ DONE (`b4c63577`)
 - Bug: body `= 1/sqrt(48)=0.144` with `bodyGainCompensation_` hard-set to 1.0 (dead make-up). Noise/click summed at full standalone gain; default kit mixes are high. The layers (filtered noise + raised-cosine click) don't change with body knobs, so they dominate and mask the body's Material/Size/StrikePos/damping character. (Note: the noise constant was calibrated against the *pre-Phase-11* un-attenuated body, so the imbalance is a calibration regression.)
 - Fix: re-balance — either restore amplitude-aware body make-up (use the bank's existing `getInputGainSum()` for a `1/Σ|aᵢ|` unit-peak ceiling) or lower the noise/click standalone gains to match the post-`1/sqrt(N)` body level, then re-derive default mixes.
 - Audible win: body timbre re-emerges; Material/Size/airLoading/damping become audible again.
@@ -43,7 +74,7 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Fix: extend `updateBodyFundamental()` to rescale each body's bank f0 for all body types (and have the mappers consume `pitchHz`), or at minimum apply the envelope as a multiplicative f0 scale uniformly across bodies.
 - Audible win: 808-style sweeps and per-hit pitch motion work on every body — a primary expressive axis restored.
 
-**H-4. Per-pad Level applied *inside* softClip — cannot attenuate an over-driven voice** — `drum_voice.h:446,769,782`
+**H-4. Per-pad Level applied *inside* softClip — cannot attenuate an over-driven voice** — `drum_voice.h:446,769,782` — ✅ DONE (`b4c63577`)
 - Bug: `softClip(shaped*env*level_)`; reducing `level_` slides along the clipper's flat region. `diagnose_orch` level=0.10 still clips.
 - Fix: move Level (and the master makeup) *after* the saturation/limiter once H-1 is done: `softClip(shaped*env) * level` (or fully linear voice → post-limiter level).
 - Audible win: Level becomes a real headroom control; presets differing only in level/velocity stop sounding identical.
@@ -76,7 +107,7 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Bug: `useSlowPath = feedbackExciter` is independent of coupling config; the slow path has no `secondaryBank_`/`effectiveCoupling_`. Feedback-exciter + coupling pads silently lose all shell character; two documented params become no-ops. (Not in factory presets → medium.)
 - Fix: replicate the Phase-8D shell stage in the slow path (or block-process the shell after the per-sample feedback loop).
 
-**M-7. NoiseLayer x3 gain calibrated for Bandpass but voice forces Lowpass** — `noise_layer.h:210-218` + `drum_voice.h:112`
+**M-7. NoiseLayer x3 gain calibrated for Bandpass but voice forces Lowpass** — `noise_layer.h:210-218` + `drum_voice.h:112` — ✅ DONE (`b4c63577`, recalibrated against Lowpass)
 - Bug: the 3× constant assumes a normalized 0 dB-peak bandpass (~0.1 RMS); a lowpass passes far more energy, so the parallel noise sits hotter than its "comparable to the modal body" target (worst at high cutoff). Feeds H-2.
 - Fix: re-calibrate the standalone gain against the actual lowpass response, or apply per-mode energy normalization.
 
