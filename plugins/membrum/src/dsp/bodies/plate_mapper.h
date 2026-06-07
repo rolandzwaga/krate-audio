@@ -28,7 +28,7 @@ namespace Membrum::Bodies {
 
 struct PlateMapper
 {
-    static constexpr int kModeCount = kPlateModeCount;  // 16
+    static constexpr int kModeCount = kPlateModeCount;  // 48
 
     [[nodiscard]] static MapperResult map(const VoiceCommonParams& params,
                                           float /*pitchHz*/) noexcept
@@ -38,7 +38,7 @@ struct PlateMapper
         // (1) Fundamental from Size (FR-032)
         const float f0 = 800.0f * std::pow(0.1f, params.size);
 
-        // (2) Mode frequencies = f0 * kPlateRatios (first 16)
+        // (2) Mode frequencies = f0 * kPlateRatios (all kModeCount modes)
         for (int k = 0; k < kModeCount; ++k)
             r.frequencies[k] = f0 * kPlateRatios[k];
 

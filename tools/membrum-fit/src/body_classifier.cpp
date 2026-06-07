@@ -22,16 +22,11 @@ std::vector<float> membraneRatios() {
 }
 
 std::vector<float> plateRatios() {
-    // Phase 4-plate model: f_{m,n}/f_{1,1} = (m^2+n^2)/2.
-    std::vector<float> r;
-    r.reserve(Membrum::Bodies::kPlateModeCount);
-    for (int i = 0; i < Membrum::Bodies::kPlateModeCount; ++i) {
-        const auto& idx = Membrum::Bodies::kPlateIndices[i];
-        const float base = (idx.m * idx.m + idx.n * idx.n) / 2.0f;
-        r.push_back(base / (Membrum::Bodies::kPlateIndices[0].m * Membrum::Bodies::kPlateIndices[0].m
-                          + Membrum::Bodies::kPlateIndices[0].n * Membrum::Bodies::kPlateIndices[0].n) * 2.0f);
-    }
-    return r;
+    // Free-plate Chladni model (signal-path audit §3-B): the template must match
+    // the ratios the body actually produces, so read the authoritative table
+    // directly rather than recomputing the (now superseded) (m^2+n^2)/2 ladder.
+    return std::vector<float>(std::begin(Membrum::Bodies::kPlateRatios),
+                              std::end(Membrum::Bodies::kPlateRatios));
 }
 
 std::vector<float> shellRatios() {

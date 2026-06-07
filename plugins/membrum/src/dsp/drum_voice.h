@@ -1160,10 +1160,15 @@ private:
         float amps[kSecondaryModes];
         const int shellCount =
             std::min(kSecondaryModes, Bodies::kShellModeCount);
+        // Strike position drives the secondary (shell) bank's mode shape too --
+        // audit §3-B: the strikePos was hard-coded to 0.3, so the coupled shell
+        // timbre never responded to the Strike Position knob. Use the voice's
+        // current strikePos so the shell accent tracks where the body is struck.
+        const float shellStrike = std::clamp(strikePos_, 0.0f, 1.0f);
         for (int k = 0; k < shellCount; ++k)
         {
             freqs[k] = f0 * Bodies::kShellRatios[k];
-            amps[k]  = std::abs(Bodies::computeShellAmplitude(k, 0.3f));
+            amps[k]  = std::abs(Bodies::computeShellAmplitude(k, shellStrike));
             if (amps[k] < 0.03f) amps[k] = 0.03f;
         }
         for (int k = shellCount; k < kSecondaryModes; ++k) {
