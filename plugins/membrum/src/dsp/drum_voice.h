@@ -19,9 +19,14 @@
 // ==============================================================================
 
 #include "body_bank.h"
+#include "bodies/bell_mapper.h"
 #include "bodies/membrane_mapper.h"
 #include "bodies/natural_fundamental.h"
+#include "bodies/noise_body_mapper.h"
+#include "bodies/plate_mapper.h"
+#include "bodies/shell_mapper.h"
 #include "bodies/shell_modes.h"
+#include "bodies/string_mapper.h"
 #include "body_model_type.h"
 #include "click_layer.h"
 #include "exciter_bank.h"
@@ -175,10 +180,15 @@ public:
             bodyBank_.getPendingType(), size_);
         toneShaper_.setNaturalFundamentalHz(naturalFundamentalHz_);
 
-        // Cache the baseline mapper result for per-sample pitch envelope updates.
-        // Only used for the Membrane body in Phase 7 (other bodies just ignore
-        // the per-sample fundamental updates).
-        cachedMapperResult_ = Bodies::MembraneMapper::map(params_, /*pitchHz*/ 0.0f);
+        // Cache the baseline mapper result for per-sample pitch-envelope and
+        // Material-Morph updates. Audit H-3/M-1: this must reflect the body
+        // that's ACTUALLY about to play (getPendingType() -- the deferred swap
+        // applies inside configureForNoteOn() below), so the pitch-envelope
+        // scaling and morph refresh operate on the correct modal spectrum for
+        // every modal body, not just Membrane. (String ignores this; its pitch
+        // and material run through the waveguide setters instead.)
+        cachedMapperResult_ =
+            mapModalBody(bodyBank_.getPendingType(), params_, /*pitchHz*/ 0.0f);
 
         // Tone shaper lifecycle (sets up filter env, pitch env gate).
         toneShaper_.noteOn(velocity);
@@ -257,13 +267,14 @@ public:
             // here would use the previous note's mode profile.
         }
 
-        // If the pitch envelope is active AND body is Membrane, seed the
-        // sharedBank with scaled frequencies matching the initial envelope Hz
-        // so the note starts at the start frequency rather than the natural f0.
-        if (toneShaper_.isPitchEnvActive()
-            && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+        // Audit H-3: if the pitch envelope is active, seed the body with the
+        // initial envelope Hz so the note starts at the START frequency rather
+        // than the body's natural f0 -- for EVERY body type, not just Membrane.
+        // retuneFundamental() scales the modal bank (Membrane/Plate/Shell/Bell/
+        // NoiseBody) or retunes the String waveguide as appropriate.
+        if (toneShaper_.isPitchEnvActive())
         {
-            updateMembraneFundamental(initialPitchHz);
+            retuneFundamental(initialPitchHz);
         }
 
         // UnnaturalZone: set Mode Inject fundamental (per-voice f0) and
@@ -491,10 +502,10 @@ public:
         }
 
         const float level = level_;
+        // Audit H-3: the pitch envelope drives every body type now (modal
+        // bodies via the shared bank, String via its waveguide), so the path
+        // selection no longer special-cases Membrane.
         const bool pitchEnvActive = toneShaper_.isPitchEnvActive();
-        const BodyModelType currentBody = bodyBank_.getCurrentType();
-        const bool pitchEnvForMembrane =
-            pitchEnvActive && (currentBody == BodyModelType::Membrane);
 
         const bool morphActive = unnaturalZone_.materialMorph.isEnabled();
         const bool feedbackExciter =
@@ -511,11 +522,11 @@ public:
 
         if (useSlowPath)
         {
-            processBlockSlow(out, numSamples, level, pitchEnvForMembrane, morphActive);
+            processBlockSlow(out, numSamples, level, pitchEnvActive, morphActive);
         }
         else
         {
-            processBlockFast(out, numSamples, level, morphActive, pitchEnvForMembrane);
+            processBlockFast(out, numSamples, level, morphActive, pitchEnvActive);
         }
 
         // Phase 8A.5 retirement: the amp envelope is now only a click-free
@@ -573,7 +584,7 @@ private:
                           int numSamples,
                           float level,
                           bool morphActive,
-                          bool pitchEnvForMembrane) noexcept
+                          bool pitchEnvActive) noexcept
     {
         // Scratch buffers live as DrumVoice members so we don't pay a large
         // stack allocation per processBlock call (audio-thread friendly).
@@ -605,12 +616,18 @@ private:
             // up-then-relax curve. Kirby & Sandler JASA 2021 describes the
             // related phenomenon via DCT analysis but is not the source of
             // this implementation.
-            const bool tensionActive = tensionAmtEffective_ > 1e-6f;
+            // Tension modulation is a Membrane-only physics path (a separate
+            // audit item). Gating tensionActive on Membrane keeps it from
+            // leaking into the now-generalized pitch-envelope branch below for
+            // other bodies, and skips the energy follower's wasted work there.
+            const bool tensionActive =
+                tensionAmtEffective_ > 1e-6f
+                && bodyBank_.getCurrentType() == BodyModelType::Membrane;
             const float tensionPitchMod =
                 tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
                               : 1.0f;
 
-            if (pitchEnvForMembrane)
+            if (pitchEnvActive)
             {
                 const float pitchHz =
                     toneShaper_.processPitchEnvelope() * tensionPitchMod;
@@ -619,15 +636,17 @@ private:
                 // the audio sample count.
                 for (int i = 1; i < chunk; ++i)
                     (void)toneShaper_.processPitchEnvelope();
-                updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+                // Audit H-3: dispatches per body type (modal bank scale or
+                // String waveguide retune).
+                retuneFundamental(pitchHz);
             }
-            else if (tensionActive
-                     && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+            else if (tensionActive)
             {
-                // No pitch env: apply tension mod as a direct frequency
-                // scale around the body's natural fundamental.
+                // No pitch env: apply tension mod as a direct frequency scale
+                // around the body's natural fundamental. tensionActive already
+                // implies Membrane (gated above).
                 const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
-                updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+                updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
             }
 
             // --- MaterialMorph block-rate refresh (Phase 9 fast path). -----
@@ -636,20 +655,14 @@ private:
             // in the chunk reuse this mapper state; per-sample resolution
             // below a single audio block is imperceptible for a morph that
             // spans hundreds of milliseconds.
-            if (morphActive && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+            if (morphActive)
             {
                 const float m = unnaturalZone_.materialMorph.process();
                 for (int i = 1; i < chunk; ++i)
                     (void)unnaturalZone_.materialMorph.process();
+                // Audit M-1: re-run the ACTIVE body's mapper (modal bodies push
+                // new modes; String re-applies its material-derived settings).
                 refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), m);
-            }
-            else if (morphActive)
-            {
-                // Non-Membrane bodies: advance the counter so timing stays
-                // correct but do NOT re-run the mapper (per-body refresh is
-                // unsupported for Phase 2 non-Membrane bodies anyway).
-                for (int i = 0; i < chunk; ++i)
-                    (void)unnaturalZone_.materialMorph.process();
             }
 
             // --- Exciter phase: per-sample into scratch. ------------------
@@ -807,19 +820,20 @@ private:
     void processBlockSlow(float* out,
                           int numSamples,
                           float level,
-                          bool pitchEnvForMembrane,
+                          bool pitchEnvActive,
                           bool morphActive) noexcept
     {
         // Block-rate refresh (Phase 9): advance each modulator by one sample
         // at the start of the block and refresh the modal bank once. The
         // remaining modulator steps are consumed below (inside the inner
-        // loop) without reissuing updateModes.
-        if (pitchEnvForMembrane)
+        // loop) without reissuing updateModes. Audit H-3/M-1: both refreshes
+        // now dispatch per body type instead of early-returning off Membrane.
+        if (pitchEnvActive)
         {
             const float pitchHz = toneShaper_.processPitchEnvelope();
-            updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+            retuneFundamental(pitchHz);
         }
-        if (morphActive && bodyBank_.getCurrentType() == BodyModelType::Membrane)
+        if (morphActive)
         {
             const float m = unnaturalZone_.materialMorph.process();
             refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), m);
@@ -828,9 +842,9 @@ private:
         // Nested single-visit: one std::visit on the exciter, one on the body.
         // Inside both visits we hold typed references so every sample call is
         // a direct non-virtual call — no per-sample variant dispatch.
-        exciterBank_.withActive([this, out, numSamples, level, pitchEnvForMembrane, morphActive](auto& exciter) noexcept {
+        exciterBank_.withActive([this, out, numSamples, level, pitchEnvActive, morphActive](auto& exciter) noexcept {
             bodyBank_.withActive(
-                [this, out, numSamples, level, pitchEnvForMembrane, morphActive, &exciter](
+                [this, out, numSamples, level, pitchEnvActive, morphActive, &exciter](
                     auto& body, Krate::DSP::ModalResonatorBank& sharedBank) noexcept {
                     // Phase 9 perf: hoist the modal bank's coefficient
                     // smoothing out of the per-sample inner loop. Without this
@@ -850,7 +864,7 @@ private:
                         // envelope counters in sync with the audio clock.
                         // The first sample's mapper refresh was done above;
                         // from i==1 onward we just tick the modulators.
-                        if (pitchEnvForMembrane && i > 0)
+                        if (pitchEnvActive && i > 0)
                             (void)toneShaper_.processPitchEnvelope();
                         if (morphActive && i > 0)
                             (void)unnaturalZone_.materialMorph.process();
@@ -1149,62 +1163,92 @@ private:
         return std::clamp(couplingStrength_, 0.0f, 1.0f) * 0.25f;
     }
 
-    void updateModalParameters() noexcept
+    /// Build the common parameter bundle from the voice's cached Phase-1/8
+    /// state, overriding only `material`. Single source of truth for the live
+    /// param-edit (updateModalParameters) and Material-Morph refresh paths.
+    VoiceCommonParams makeBodyParams(float material) noexcept
     {
-        if (bodyBank_.getCurrentType() != BodyModelType::Membrane)
-            return;
-
         VoiceCommonParams p{};
-        p.material   = material_;
-        p.size       = size_;
-        p.decay      = decay_;
-        p.strikePos  = strikePos_;
-        p.level      = level_;
-        p.modeStretch = unnaturalZone_.getModeStretch();
-        p.decaySkew   = unnaturalZone_.getDecaySkew();
+        p.material      = material;
+        p.size          = size_;
+        p.decay         = decay_;
+        p.strikePos     = strikePos_;
+        p.level         = level_;
+        p.modeStretch   = unnaturalZone_.getModeStretch();
+        p.decaySkew     = unnaturalZone_.getDecaySkew();
         p.bodyDampingB1 = bodyDampingB1_;
         p.bodyDampingB3 = bodyDampingB3_;
         p.airLoading    = airLoading_;
         p.modeScatter   = modeScatter_;
-
-        const auto r = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
-        cachedMapperResult_ = r;
-        bodyBank_.getSharedBank().updateModes(
-            r.frequencies, r.amplitudes, r.numPartials,
-            r.damping, r.stretch, r.scatter);
+        return p;
     }
 
-    /// Per-sample pitch envelope update dispatcher.
-    ///
-    /// Phase 2 scope: per-sample pitch envelope is only applied to Membrane
-    /// because SC-009 tests only Membrane. String/Plate/Bell/Shell/NoiseBody
-    /// receive the initial envelope value at noteOn via configureForNoteOn but
-    /// do not track the sweep per-sample. Extending per-sample glide to
-    /// WaveguideString/other bodies is a future phase deliverable.
-    void updateBodyFundamental(float pitchHz) noexcept
+    /// Dispatch the per-body modal mapper. Returns a MapperResult for any modal
+    /// body (Membrane/Plate/Shell/Bell/NoiseBody). String is a waveguide, not a
+    /// modal bank, so it falls through to the Membrane result, which the String
+    /// callers never consume (they route through the BodyBank waveguide setters
+    /// instead).
+    static Bodies::MapperResult mapModalBody(BodyModelType type,
+                                             const VoiceCommonParams& p,
+                                             float pitchHz) noexcept
+    {
+        switch (type)
+        {
+        case BodyModelType::Plate:     return Bodies::PlateMapper::map(p, pitchHz);
+        case BodyModelType::Shell:     return Bodies::ShellMapper::map(p, pitchHz);
+        case BodyModelType::Bell:      return Bodies::BellMapper::map(p, pitchHz);
+        // NoiseBodyMapper returns a composite (modal + noise-layer params);
+        // only the modal spectrum drives the shared bank that the pitch
+        // envelope / morph scale, so take its `.modal` MapperResult.
+        case BodyModelType::NoiseBody: return Bodies::NoiseBodyMapper::map(p, pitchHz).modal;
+        case BodyModelType::Membrane:
+        case BodyModelType::String:
+        case BodyModelType::kCount:
+        default:                       return Bodies::MembraneMapper::map(p, pitchHz);
+        }
+    }
+
+    /// Live Phase-1/8 parameter edit on a held note (Size/Material/StrikePos/
+    /// damping/air-loading/scatter). Audit H-3/M-1 theme: re-run the ACTIVE
+    /// body's mapper so these edits reach every modal body, not only Membrane.
+    /// String runs through its own waveguide setters and is left untouched here
+    /// (its sustained live retuning is a separate concern).
+    void updateModalParameters() noexcept
     {
         const BodyModelType t = bodyBank_.getCurrentType();
-        if (t == BodyModelType::Membrane)
-        {
-            updateMembraneFundamental(pitchHz);
-        }
-        // Other body types: no-op in Phase 7. String body would require
-        // hooking into the StringBody's waveguide from here; see task T095
-        // note. Phase 7 SC-009 test only uses Membrane.
+        if (t == BodyModelType::String)
+            return;
+
+        cachedMapperResult_ = mapModalBody(t, makeBodyParams(material_), 0.0f);
+        pushCachedModes(bodyBank_.getSharedBank());
     }
 
-    /// Recompute modal bank frequencies scaled by pitchHz / naturalFundamentalHz.
-    /// Uses updateModes() which preserves filter state (vs setModes() which resets).
-    void updateMembraneFundamental(float pitchHz) noexcept
+    /// Audit H-3: retune the active body to absolute pitchHz. Modal bodies
+    /// rescale their cached modes into the shared bank; the String waveguide
+    /// retunes via its frequency smoother. Used by the seed at noteOn and by
+    /// all three per-sample / block modulation paths.
+    void retuneFundamental(float pitchHz) noexcept
     {
-        updateMembraneFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
+        if (bodyBank_.getCurrentType() == BodyModelType::String)
+            bodyBank_.setStringFrequency(pitchHz);
+        else
+            updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
     }
 
-    /// Same as updateMembraneFundamental() but with the sharedBank reference
-    /// already resolved (for use inside the processBlock inner loop, where the
-    /// bodyBank_ visitor already holds a sharedBank reference).
-    void updateMembraneFundamentalOnBank(Krate::DSP::ModalResonatorBank& sharedBank,
-                                         float pitchHz) noexcept
+    /// Per-sample pitch-envelope dispatcher (process() per-sample path).
+    void updateBodyFundamental(float pitchHz) noexcept
+    {
+        retuneFundamental(pitchHz);
+    }
+
+    /// Recompute modal-bank frequencies scaled by pitchHz / naturalFundamentalHz,
+    /// preserving filter state via updateModes(). Body-agnostic: cachedMapperResult_
+    /// holds whichever modal body is active (set at noteOn / morph refresh), so
+    /// scaling its frequencies retunes Plate/Shell/Bell/NoiseBody exactly as it
+    /// does Membrane. The sharedBank reference is passed in for the processBlock
+    /// inner loop, where the bodyBank_ visitor already holds one.
+    void updateModalFundamentalOnBank(Krate::DSP::ModalResonatorBank& sharedBank,
+                                      float pitchHz) noexcept
     {
         if (naturalFundamentalHz_ <= 0.0f || cachedMapperResult_.numPartials <= 0)
             return;
@@ -1224,10 +1268,11 @@ private:
             cachedMapperResult_.scatter);
     }
 
-    /// FR-054: Material Morph refresh. Re-run the Membrane mapper with the
-    /// morph's current material value and push the new coefficients into the
-    /// shared bank via updateModes() (which preserves filter state). Only
-    /// Membrane in Phase 2 — other bodies ignore per-sample morph updates.
+    /// FR-054 / Audit M-1: Material Morph refresh. Re-run the ACTIVE body's
+    /// mapper with the morph's current material value and push the new
+    /// coefficients into the bank via updateModes() (state-preserving). Works
+    /// for every body type: modal bodies refresh their modes; String re-applies
+    /// its material-derived brightness/decay through the waveguide.
     void refreshBodyForMaterial(float material) noexcept
     {
         refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), material);
@@ -1236,23 +1281,23 @@ private:
     void refreshBodyForMaterialOnBank(Krate::DSP::ModalResonatorBank& sharedBank,
                                       float material) noexcept
     {
-        if (bodyBank_.getCurrentType() != BodyModelType::Membrane)
+        const BodyModelType t = bodyBank_.getCurrentType();
+        const VoiceCommonParams p = makeBodyParams(material);
+
+        if (t == BodyModelType::String)
+        {
+            bodyBank_.refreshStringMaterial(p);
             return;
+        }
 
-        VoiceCommonParams p{};
-        p.material    = material;
-        p.size        = size_;
-        p.decay       = decay_;
-        p.strikePos   = strikePos_;
-        p.level       = level_;
-        p.modeStretch = unnaturalZone_.getModeStretch();
-        p.bodyDampingB1 = bodyDampingB1_;
-        p.bodyDampingB3 = bodyDampingB3_;
-        p.airLoading    = airLoading_;
-        p.modeScatter   = modeScatter_;
-        p.decaySkew   = unnaturalZone_.getDecaySkew();
+        cachedMapperResult_ = mapModalBody(t, p, /*pitchHz*/ 0.0f);
+        pushCachedModes(sharedBank);
+    }
 
-        cachedMapperResult_ = Bodies::MembraneMapper::map(p, /*pitchHz*/ 0.0f);
+    /// Push cachedMapperResult_ into `sharedBank` via the state-preserving
+    /// updateModes() path. Shared by updateModalParameters / morph refresh.
+    void pushCachedModes(Krate::DSP::ModalResonatorBank& sharedBank) noexcept
+    {
         sharedBank.updateModes(
             cachedMapperResult_.frequencies,
             cachedMapperResult_.amplitudes,

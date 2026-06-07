@@ -14,6 +14,7 @@
 #include "bodies/plate_body.h"
 #include "bodies/shell_body.h"
 #include "bodies/string_body.h"
+#include "bodies/string_mapper.h"  // refreshStringMaterial() names Bodies::StringMapper
 #include "body_model_type.h"
 #include "voice_common_params.h"
 
@@ -114,6 +115,31 @@ public:
     }
 
     void setLastOutput(float y) noexcept { lastOutput_ = y; }
+
+    // Audit H-3: retune the active String waveguide to an absolute pitch (Hz).
+    // The String body owns a WaveguideString instead of the shared modal bank,
+    // so the pitch-envelope path can't reach it through updateModes(); this
+    // routes the per-sample/block pitch into the waveguide's frequency smoother.
+    // No-op for every modal body (their pitch is handled via the shared bank).
+    void setStringFrequency(float pitchHz) noexcept
+    {
+        if (auto* s = std::get_if<StringBody>(&active_))
+            s->string_.setFrequency(pitchHz);
+    }
+
+    // Audit M-1: re-apply the String mapper's material-derived settings
+    // (brightness / decay) for a live Material Morph WITHOUT re-triggering the
+    // note. Frequency and pick position are intentionally left untouched so the
+    // morph doesn't fight the pitch-envelope glide. No-op for modal bodies.
+    void refreshStringMaterial(const VoiceCommonParams& params) noexcept
+    {
+        if (auto* s = std::get_if<StringBody>(&active_))
+        {
+            const auto r = Bodies::StringMapper::map(params, 0.0f);
+            s->string_.setBrightness(r.brightness);
+            s->string_.setDecay(r.decayTime);
+        }
+    }
 
     [[nodiscard]] float getLastOutput() const noexcept { return lastOutput_; }
 

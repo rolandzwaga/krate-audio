@@ -25,11 +25,21 @@ the **Gain-staging design** appendix at the end of this file. Commits:
 Verification at last green state: `dsp_tests` (6750) + `membrum_tests` (551) pass; pluginval
 strictness-5 clean (reported latency 0); `diagnose_orch` body-only `peak=1.0 CLIPPING` → `0.557 clean`.
 
+**Done — dead-modulation-axis batch** (branch `fixes/membrum-pitch-env-morph-all-bodies`):
+the pitch envelope and Material Morph now drive ALL body types, not just Membrane.
+
+| Finding | What was done |
+|---------|---------------|
+| **H-3** pitch envelope inert on 5/6 bodies | `cachedMapperResult_` now caches the ACTUAL body's mapper at noteOn (was always `MembraneMapper`); seeding + `process()`/fast/slow block paths generalized via a body-agnostic `retuneFundamental()` (modal bodies rescale cached modes; String retunes its waveguide). The START pitch is now seeded on every body. |
+| **M-1** Material Morph dropped on non-Membrane | morph refresh re-runs the ACTIVE body's mapper (`mapModalBody` dispatch); String re-applies material-derived brightness/decay via `BodyBank::refreshStringMaterial`. Block-path Membrane special-case + counter-only stub removed. |
+| (bonus) live Size/Material edits | `updateModalParameters()` generalized to all modal bodies via the same dispatch. |
+
+Verification: `membrum_tests` 555 cases pass (incl. new `test_pitch_env_all_bodies.cpp`); pluginval strictness-5 clean; clang-tidy 0/0.
+
 **Open — not yet started** (rough priority order):
-- ⬜ **H-3** pitch envelope + Material Morph inert on 5/6 body types (high value, expressivity).
 - ⬜ **M-2** ToneShaper Drive un-compensated ~9× makeup (acts as compressor).
 - ⬜ **M-3 / M-4** NonlinearCoupling recipSqrt over whole signal / AM near-inaudible.
-- ⬜ **M-1, M-5, M-6** Material Morph / decaySkew / secondary-bank dropped on non-Membrane or slow path.
+- ⬜ **M-5, M-6** decaySkew / secondary-bank dropped on non-Membrane or slow path.
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
 - ⬜ **§3 physics**: B3 damping ceiling, Plate SSSS→(m+2n) Chladni topology, Stretch indexing (L-1), etc.
 - ⬜ **Preset re-tuning** — only AFTER the gain-staging batch above (the fix gate); the frequency-ratio science in §3-A is already correct and must be left alone.
@@ -69,7 +79,7 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Fix: re-balance — either restore amplitude-aware body make-up (use the bank's existing `getInputGainSum()` for a `1/Σ|aᵢ|` unit-peak ceiling) or lower the noise/click standalone gains to match the post-`1/sqrt(N)` body level, then re-derive default mixes.
 - Audible win: body timbre re-emerges; Material/Size/airLoading/damping become audible again.
 
-**H-3. Pitch envelope inert for Plate/Shell/String/Bell/NoiseBody** — `drum_voice.h:1190-1200,486-487,603-621`
+**H-3. Pitch envelope inert for Plate/Shell/String/Bell/NoiseBody** — `drum_voice.h:1190-1200,486-487,603-621` — ✅ DONE (`fixes/membrum-pitch-env-morph-all-bodies`)
 - Bug: `updateBodyFundamental()` only does work for Membrane; block paths gate on `pitchEnvForMembrane`. Worse than reported: the mappers also ignore `pitchHz` (`/*pitchHz*/`), so for 5/6 bodies *not even the start frequency* is applied — the whole Start/End/Time/Curve/Knee/Mid family is fully dead.
 - Fix: extend `updateBodyFundamental()` to rescale each body's bank f0 for all body types (and have the mappers consume `pitchHz`), or at minimum apply the envelope as a multiplicative f0 scale uniformly across bodies.
 - Audible win: 808-style sweeps and per-hit pitch motion work on every body — a primary expressive axis restored.
@@ -83,7 +93,7 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 
 ### MEDIUM
 
-**M-1. Material Morph sweep dropped for non-Membrane bodies** — `drum_voice.h:1158-1200,405-409,629-643`
+**M-1. Material Morph sweep dropped for non-Membrane bodies** — `drum_voice.h:1158-1200,405-409,629-643` — ✅ DONE (`fixes/membrum-pitch-env-morph-all-bodies`)
 - Bug: morph refresh re-runs the mapper only for Membrane; for other bodies the morph counter advances but the mapper is never re-applied. Static start value reaches the body; the intra-hit sweep is lost. (Opt-in / off by default in factory kit, hence medium not high.)
 - Fix: same as H-3 — re-run the body mapper on morph change for all body types.
 
