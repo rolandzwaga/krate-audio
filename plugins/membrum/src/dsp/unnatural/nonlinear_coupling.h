@@ -3,26 +3,39 @@
 // ==============================================================================
 // NonlinearCoupling -- Phase 2.E.4 (data-model.md §7, unnatural_zone_contract.md)
 // ==============================================================================
-// Velocity-dependent envelope-driven amplitude modulation that mimics one
+// Velocity-dependent, amplitude-driven nonlinear waveshaping that mimics one
 // audible symptom of nonlinear plate/shell coupling -- amplitude-dependent
-// spectral brightening -- via bilinear AM. This is NOT a von Karman cubic
-// coupling: the true nonlinearity is proportional to w^3 (displacement cubed)
-// whereas this module multiplies the body output by (1 + vel*amt*dEnv). It's
-// a character knob, not a physical model. See research.md Section 7.
-// Topology:
-//   if (amount_ == 0.0f) return bodyOutput;   // early-out bypass (FR-055)
-//   env       = envFollower_.processSample(bodyOutput)
-//   dEnv      = env - previousEnv_
-//   modulated = bodyOutput * (1.0 + velocity_*amount_ * dEnv)
-//   return Sigmoid::recipSqrt(modulated)      // x / sqrt(x^2 + 1) ceiling
+// spectral brightening (harder strike -> more high-frequency energy). It is a
+// character knob, not a full physical model: the von Karman cubic coupling and
+// the energy cascade from low to high modes (Ducceschi/Bilbao gong & cymbal
+// models; Poirot 2024 coupled-filter matrix) require per-sample coupled
+// nonlinear ODEs, too costly and stability-fragile for a flavour control. The
+// accepted cheap, controllable approximation -- Buchla-style envelope-
+// controlled waveshaping (drive a bounded shaper harder as amplitude rises ->
+// more harmonics) -- is used here instead.
 //
-// SC-008 guarantee: recipSqrt(x) = x / sqrt(x^2 + 1) is strictly bounded:
-// |output| < 1.0 for any finite input. Stateless and ~3x cheaper than the
-// previous TanhADAA limiter (no log1p, no antiderivative state).
+// Topology (M-3 / M-4, AUDIT-signal-path):
+//   if (amount_ == 0.0f) return bodyOutput;        // exact bypass (FR-055)
+//   env    = envFollower_.processSample(bodyOutput) // SUSTAINED RMS level
+//   drive  = 1 + kDriveScale*velocity_*amount_*env  // amplitude-dependent
+//   shaped = Sigmoid::recipSqrt(bodyOutput * drive) // odd-harmonic generation
+//   return bodyOutput + amount_ * (shaped - bodyOutput)  // AM-only, continuous
 //
-// Real-time safety (FR-056): stateless math operation; no allocation.
-// Early-out when amount_ == 0 returns input unchanged (exact bit-identical
-// bypass, contract item 8).
+// Why env LEVEL, not the previous dEnv (envelope delta): the old design's
+// modulation was proportional to dEnv, which -> 0 in sustain, so the effect
+// was a brief attack-edge wiggle that vanished while the body rang (M-4), and
+// the whole signal was always run through recipSqrt whenever amount != 0,
+// acting as a fixed ~-18% compressor independent of amount and discontinuous
+// from the amount=0 bypass (M-3). Driving the shaper from the sustained level
+// makes louder = brighter for the full ring, and adding only the (shaped -
+// body) excess scaled by amount keeps the stage continuous: amount -> 0 and
+// quiet passages both approach exact passthrough.
+//
+// Real-time safety (FR-056): one envelope-follower step + one recipSqrt; no
+// allocation. Early-out when amount_ == 0 returns input unchanged (exact
+// bit-identical bypass, contract item 8). Output peaks are owned downstream
+// by the per-voice hardClip safety rail + the main-bus true-peak limiter
+// (gain-staging design), not by this stage.
 // ==============================================================================
 
 #include <krate/dsp/core/sigmoid.h>
@@ -46,16 +59,14 @@ public:
         envFollower_.setReleaseTime(50.0f);
         envFollower_.reset();
 
-        // Phase 9 perf: energy limiter is now Sigmoid::recipSqrt (stateless).
-        // No setup needed. previousEnv_ tracks delta for the AM modulation.
-        previousEnv_ = 0.0f;
-        prepared_    = true;
+        // M-4: the follower now supplies the SUSTAINED body level that drives
+        // the waveshaper (no delta state needed).
+        prepared_ = true;
     }
 
     void reset() noexcept
     {
         envFollower_.reset();
-        previousEnv_ = 0.0f;
     }
 
     void setAmount(float amount) noexcept { amount_ = amount; }
@@ -71,37 +82,35 @@ public:
         if (amount_ == 0.0f)
             return bodyOutput;
 
-        // Track body output RMS energy.
+        // Sustained body RMS level: drives the shaper harder when the body is
+        // louder, so the brightening tracks amplitude through the whole ring
+        // instead of only the attack edge (M-4).
         const float env = envFollower_.processSample(bodyOutput);
 
-        // Delta envelope: rising edge contributes positively, decay contributes
-        // negatively. This produces the time-varying spectral centroid
-        // character required by US6-4 (contract item 6).
-        const float dEnv = env - previousEnv_;
-        previousEnv_     = env;
+        // Amplitude-dependent waveshaper drive. velocity_ defaults to 1.0 so
+        // tests that do not set it still see coupling proportional to amount_.
+        // kDriveScale sets how hard a unit-velocity, full-amount, loud hit is
+        // driven (drive ~ 1 + kDriveScale*env at the loudest). Kept moderate:
+        // recipSqrt is a soft clipper, so an over-hot drive squares a tonal
+        // body (lowers crest, sustains) -- reintroducing the very compressor
+        // character M-3 removed. This value brightens audibly while leaving a
+        // tonal pad's envelope/crest recognisably drum-like.
+        constexpr float kDriveScale = 6.0f;
+        const float drive  = 1.0f + kDriveScale * velocity_ * amount_ * env;
 
-        // couplingStrength is a scaled velocity * amount product. velocity_
-        // defaults to 1.0 so tests that do not explicitly set it still see
-        // coupling proportional to amount_. kCouplingScale is a fixed gain
-        // that prevents the (1 + couplingStrength*dEnv) factor from going
-        // negative (which would invert phase); TanhADAA catches any
-        // overshoot regardless.
-        constexpr float kCouplingScale = 8.0f;
-        const float couplingStrength   = velocity_ * amount_ * kCouplingScale;
-
-        const float modulated = bodyOutput * (1.0f + couplingStrength * dEnv);
-
-        // Energy limiter: recipSqrt(x) = x / sqrt(x^2 + 1) gives |output| < 1.0
-        // for any finite input (SC-008). Phase 9 perf: replaced TanhADAA which
-        // ran std::log1p per sample.
-        return Krate::DSP::Sigmoid::recipSqrt(modulated);
+        // recipSqrt(x) = x / sqrt(x^2 + 1): a bounded, odd-symmetric soft
+        // clipper. Driven harder it generates progressively more odd harmonics
+        // -> brighter. Add only the (shaped - body) excess scaled by amount so
+        // the stage is continuous in amount and approaches exact passthrough
+        // for quiet passages / small amount (M-3).
+        const float shaped = Krate::DSP::Sigmoid::recipSqrt(bodyOutput * drive);
+        return bodyOutput + amount_ * (shaped - bodyOutput);
     }
 
 private:
     Krate::DSP::EnvelopeFollower envFollower_;
     float  amount_       = 0.0f;
     float  velocity_     = 1.0f;  // default 1.0 so tests without setVelocity work
-    float  previousEnv_  = 0.0f;
     double sampleRate_   = 44100.0;
     bool   prepared_     = false;
 };

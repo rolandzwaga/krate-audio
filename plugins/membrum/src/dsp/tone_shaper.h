@@ -199,7 +199,17 @@ public:
     {
         driveAmount_ = std::clamp(amount, 0.0f, 1.0f);
         // Map [0, 1] to internal drive scaling [1.0, 10.0].
-        drive_.setDrive(1.0f + driveAmount_ * 9.0f);
+        const float internalDrive = 1.0f + driveAmount_ * 9.0f;
+        drive_.setDrive(internalDrive);
+        // M-2 (AUDIT-signal-path): post-shaper makeup = 1 / slope-at-zero.
+        // recipSqrt(g*x) = g*x / sqrt((g*x)^2 + 1) has small-signal slope g
+        // (== internalDrive), so without compensation the Drive stage boosts
+        // low-level content by up to ~10x while peaks pin to +/-1 -- a hidden
+        // compressor/limiter. Dividing the shaped signal by g restores
+        // ~unity gain in the linear region, so Drive changes TIMBRE (adds
+        // harmonics) rather than LEVEL, and stays a flavour saturator. The
+        // harmonic *ratio* (THD) is unchanged by this uniform scaling.
+        driveMakeup_ = 1.0f / internalDrive;
     }
 
     void setFoldAmount(float amount) noexcept
@@ -388,8 +398,10 @@ public:
         // Bypass when amount == 0 (FR-045).
         if (driveAmount_ > 0.0f)
         {
-            // Blend shaped vs dry so amount=0 is exactly dry.
-            const float shaped = drive_.process(x);
+            // Blend shaped vs dry so amount=0 is exactly dry. driveMakeup_
+            // (M-2) keeps the unity region at ~unity gain so Drive is a
+            // flavour saturator, not a hidden makeup compressor.
+            const float shaped = drive_.process(x) * driveMakeup_;
             x = x + driveAmount_ * (shaped - x);
         }
 
@@ -482,6 +494,7 @@ private:
 
     // Drive / fold state
     float driveAmount_ = 0.0f;
+    float driveMakeup_ = 1.0f;  // 1 / internalDrive (M-2 unity-region makeup)
     float foldAmount_  = 0.0f;
 
     // Pitch envelope state (Phase 10: 1-segment or 3-point with knee).

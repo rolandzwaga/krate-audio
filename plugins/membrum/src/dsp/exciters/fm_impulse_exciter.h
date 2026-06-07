@@ -117,11 +117,15 @@ struct FMImpulseExciter
         if (!active_)
             return 0.0f;
 
-        // Step 1: Modulator with envelope-scaled "level" (= modulation index).
-        //   FMOperator::process returns its sine output scaled by setLevel().
-        //   We treat that as the modulation input to the carrier in radians.
-        modulator_.setLevel(modulationIndex_ * modIndexEnv_);
-        const float modOut = modulator_.process(0.0f);
+        // Step 1: Modulator at UNIT level; the modulation index (radians of PM)
+        //   is applied as an explicit gain on the modulator output. L-3
+        //   (AUDIT-signal-path): routing modulationIndex_ (0.5..3.0) through
+        //   FMOperator::setLevel clamps it to [0,1], pinning the index at 1.0
+        //   for any velocity >= 0.2 -- killing the upper ~67% of the FM
+        //   brightness range and all index/velocity sensitivity. Scaling a
+        //   unit-level modulator preserves the full 0.5..3.0 rad range.
+        modulator_.setLevel(1.0f);
+        const float modOut = modulator_.process(0.0f) * (modulationIndex_ * modIndexEnv_);
 
         // Step 2: Carrier phase-modulated by modulator output.
         carrier_.setLevel(carrierAmplitude_ * ampEnv_);
