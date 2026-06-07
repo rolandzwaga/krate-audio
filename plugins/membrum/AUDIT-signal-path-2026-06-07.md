@@ -12,8 +12,8 @@ Living tracker for work done against this audit. Findings are tagged inline belo
 with ✅ (done) / ⬜ (open). Pick up open items from here in a new session.
 
 **Done — gain-staging batch** (branch `fixes/membrum-gain-staging`, pushed to origin; PR pending):
-the coupled output-stage cluster was fixed as one gain structure. Design rationale +
-per-step sequence: `PLAN-gain-staging-2026-06-07.md`. Commits:
+the coupled output-stage cluster was fixed as one gain structure. Design as built is in
+the **Gain-staging design** appendix at the end of this file. Commits:
 
 | Finding | What was done | Commit |
 |---------|---------------|--------|
@@ -202,3 +202,57 @@ Parameters with weak/dead audible effect: **pitch-env Start/End/Time/Curve/Knee/
 **Hard gates:** Do NOT re-tune presets before Phase 0–1 (gain staging + dead axes) — current presets were voiced against a clipped, buried chain. Do NOT re-voice metallic/inharmonic/bell kits before Phase 2 (Plate ratios, Stretch index, shell/bell strike shapes), or the tuning targets a physically wrong spectrum.
 
 Key files: `plugins/membrum/src/dsp/drum_voice.h`, `dsp/include/krate/dsp/processors/modal_resonator_bank.h`, `plugins/membrum/src/dsp/bodies/{plate_modes.h,shell_modes.h,bell_modes.h}`, `plugins/membrum/src/dsp/unnatural/{nonlinear_coupling.h,mode_inject.h}`, `plugins/membrum/src/dsp/{noise_layer.h,tone_shaper.h}`, `plugins/membrum/src/voice_pool/voice_pool.cpp`.
+
+---
+
+## APPENDIX — Gain-staging design (as built)
+
+The fix for the coupled output-stage cluster (H-1, H-2, H-4, M-7), designed as ONE
+gain structure and verified against the modal-synthesis / mastering literature
+(Faust `physmodels.lib` `1/N`; J.O. Smith / CCRMA per-mode fitted gains, no
+mode-count divisor; STK Modal applies only linear gain to the summed output — none
+put a waveshaper on a modal bank output; EBU R128 −1 dBTP true-peak ceiling).
+
+### Signal flow (as built)
+```
+[VOICE]   shaped * env                      (LINEAR — no per-voice softClip gain stage)
+        * level_                            per-pad Level = true attenuation
+        -> hardClip(±1.0)                   transparent safety rail (runaway/NaN only)
+[POOL]    Σ voices (linear, additive)       no 1/N — single hits keep full dynamics
+[BUS]     + coupling return (applyEnergyLimiter, unchanged, coupling-only)
+        -> TruePeakLimiter(-1 dBTP)         ZERO-latency true-peak brickwall (owns ceiling)
+        * masterGain (-24..+12 dB)          after the limiter
+        -> out
+```
+
+### Gain budget (unit-velocity, single voice)
+| Node | Target | Notes |
+|------|--------|-------|
+| Modal body peak | **−12 dBFS** (`kBodyHeadroom = 0.25`) | dominant; carries Material/Size/StrikePos/damping |
+| Noise / click layer peak (mix 1.0) | **~−18 dBFS** | transient accents, ~6 dB UNDER the body |
+| Per-voice safety rail | ±1.0 hardClip | never engages on a musical hit |
+| Main-bus ceiling | **−1 dBTP** | TruePeakLimiter; the single guarantee for the N-voice sum |
+
+### Body normalization
+`bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum())` — `1/Σ|a_k|` unit-peak
+(amplitude-aware: a strike excites all modes in phase, so the coherent peak ≈ Σ|a_k|).
+Replaces the old amplitude-blind `1/√N`, which normalised away per-body character. The
+dead `bodyGainCompensation_` make-up was removed. The shell/secondary bank uses the same
+norm, applied AFTER `configureSecondaryBank()` so it sees the current note's modes.
+
+### Bus limiter (`TruePeakLimiter`, `dsp/include/krate/dsp/processors/true_peak_limiter.h`)
+**Zero-latency** (not look-ahead): instantaneous-attack / one-pole-release peak limiting
+on the 4×-oversampled + raw peak, gain applied to the current sample; stereo-linked;
+RT-safe (buffers in `prepare()`); input chunked to `maxBlockSize`; non-finite input
+sanitized. Zero latency keeps the main and aux/multi-out buses sample-aligned (the
+original look-ahead design was changed during review — W1 — because reporting latency
+would have misaligned the aux buses). Trade-off: harder attack, acceptable for percussion.
+
+### Open-step designs (for whoever picks up M-2 / M-3)
+- **M-2 — ToneShaper Drive makeup:** add post-shaper unity-region makeup (≈ 1/slope-at-zero)
+  so Drive changes timbre, not level, and stays a flavor saturator instead of a hidden
+  compressor; keep exact dry passthrough at amount 0 (`tone_shaper.h:198-203,387-394`).
+- **M-3 / M-4 — NonlinearCoupling AM-only:** saturate only the AM-added component
+  (`bodyOut + recipSqrt(modulated − bodyOut)` or threshold-gate) instead of running the
+  whole sum through `recipSqrt`; preserve the `amount==0` bit-identical bypass and make
+  the path continuous as `amount → 0` (`nonlinear_coupling.h:75-97`).
