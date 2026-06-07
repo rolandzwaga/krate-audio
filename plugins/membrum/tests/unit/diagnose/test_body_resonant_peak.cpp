@@ -21,6 +21,7 @@
 
 #include "dsp/body_bank.h"
 #include "dsp/body_model_type.h"
+#include "dsp/drum_voice.h"
 #include "dsp/voice_common_params.h"
 
 #include <krate/dsp/processors/modal_resonator_bank.h>
@@ -174,6 +175,43 @@ TEST_CASE("N-1 spike: modal body resonant peak vs Sum|a_k| bound", "[diagnose_n1
         }
     }
 
+    SUCCEED("diagnostic only");
+}
+
+// Calibration check for the N-1 tension redesign: print the realised pitch
+// glide in semitones across velocity for the tom config used by
+// test_per_mode_damping, so kTensionEnergyScale can be set to the ~1-2 semitone
+// design target (Avanzini-Marogna-Bank).
+TEST_CASE("N-1 tension: glide in semitones vs velocity", "[diagnose_n1_tension]")
+{
+    auto peakF0 = [](float velocity) {
+        Membrum::DrumVoice v;
+        v.prepare(kSR, 256);
+        v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.3f);
+        v.setStrikePosition(0.3f); v.setLevel(0.8f);
+        v.setExciterType(Membrum::ExciterType::Mallet);
+        v.setBodyModel(Membrum::BodyModelType::Membrane);
+        v.setTensionModAmt(1.0f);
+        v.setNoiseLayerMix(0.0f); v.setClickLayerMix(0.0f);
+        v.noteOn(velocity);
+        auto& bank = v.getBodyBankForTest().getSharedBank();
+        std::vector<float> buf(256, 0.0f);
+        float pk = 0.0f;
+        for (int b = 0; b < 35; ++b) {
+            v.processBlock(buf.data(), 256);
+            pk = std::max(pk, bank.getModeFrequency(0));
+        }
+        return pk;
+    };
+    const float base = peakF0(0.01f);
+    std::printf("\n[diagnose_n1_tension] kTensionEnergyScale glide (base f0=%.2f Hz)\n", base);
+    for (float vel : {0.3f, 0.5f, 0.7f, 1.0f}) {
+        const float f = peakF0(vel);
+        const float semis = 12.0f * std::log2(f / base);
+        std::printf("[diagnose_n1_tension]   vel=%.2f  peakF0=%.2f Hz  glide=%.3f semitones\n",
+                    static_cast<double>(vel), static_cast<double>(f),
+                    static_cast<double>(semis));
+    }
     SUCCEED("diagnostic only");
 }
 

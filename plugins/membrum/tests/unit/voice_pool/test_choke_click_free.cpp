@@ -79,18 +79,18 @@ ChokeRender renderChoke(double sampleRate,
     // Open hat.
     pool.noteOn(46, 0.9f);
 
-    // Warmup long enough for the open-hat voice to decay below -30 dBFS
+    // Warmup long enough for the open-hat voice to decay well into its tail
     // before the choke event. Phase 8A.5 (commit 89cf0c64) decoupled the
     // amp envelope from voice lifetime -- the body now rings at its own
     // T60 (material=0.5/decay=0.3 defaults => ~1 s ring-out), not the old
-    // 200 ms envelope gate. Phase 11 (spec 145) removed the modal bank's
-    // -3 dBFS output saturator and applies a 1/sqrt(N) gain instead,
-    // dropping the bank's perceived loudness by ~6 dB and so voices
-    // reach the voice-pool silence threshold (-60 dBFS) sooner. 2 s of
-    // warmup is the sweet spot post-Phase-11 -- voice 46 reaches
-    // ~-45 dBFS (still above the -60 dBFS silence threshold, so it stays
-    // Active) and the residual fade is below the -30 dBFS click bound.
-    const int warmupBlocks = blocksForMs(sampleRate, 2000.0);
+    // 200 ms envelope gate. Audit N-1 replaced the impulse-bound body
+    // normalisation with a measured-strike one (~6 dBFS strike-peak budget),
+    // which removes the clipping that previously pinned hits near 0 dBFS and so
+    // drops the absolute tail level further -- voice 46 now crosses the
+    // -60 dBFS silence threshold sooner. 1 s of warmup keeps voice 46 audibly
+    // Active (above -60 dBFS) at the choke while still leaving a low-level tail
+    // for the click-free fade assertion.
+    const int warmupBlocks = blocksForMs(sampleRate, 1000.0);
     for (int b = 0; b < warmupBlocks; ++b)
         pool.processBlock(outL.data(), outR.data(), kBlockSize);
 

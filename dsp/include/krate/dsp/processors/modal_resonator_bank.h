@@ -396,6 +396,25 @@ public:
         return numActiveModes_;
     }
 
+    /// Total instantaneous modal (vibrational) energy: the sum over modes of
+    /// the coupled-form state magnitude `sin^2 + cos^2`. For a Gordon-Smith
+    /// phasor `sin^2 + cos^2` is the mode's amplitude^2 (a smooth envelope, not
+    /// an oscillating quantity), so this is the bank's stored vibrational
+    /// energy. It is INVARIANT to `outputGain_`/the soft-clip stage -- it
+    /// reflects only the internal physical state -- which makes it the correct
+    /// driver for tension modulation: the quasistatic tension variation that
+    /// produces percussion pitch glide is linearly proportional to the system
+    /// energy (Tolonen-Valimaki-Karjalainen 2000; Avanzini-Marogna-Bank 2012,
+    /// "quasistatic tension is linear in membrane energy"). Reading the radiated
+    /// output instead couples the glide to the (arbitrary) output gain staging.
+    [[nodiscard]] float getModalEnergy() const noexcept
+    {
+        float energy = 0.0f;
+        for (int k = 0; k < numModes_; ++k)
+            energy += sinState_[k] * sinState_[k] + cosState_[k] * cosState_[k];
+        return energy;
+    }
+
     /// Scale all mode radii toward a faster decay. Mirrors STK's Modal::damp()
     /// note-off idiom: multiply every active mode's radius (both smoothed and
     /// target) by `scale`, so the voice finishes through its own damping law

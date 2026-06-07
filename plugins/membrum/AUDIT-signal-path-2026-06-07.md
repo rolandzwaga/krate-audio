@@ -110,7 +110,21 @@ Verification: `membrum_tests` 573 cases / 88538 assertions pass (incl. 4 charact
 homogenization-guard + the infinite-ring tonality guard); pluginval strictness-5 clean (exit 0);
 clang-tidy 0/0 (membrum 11). No `dsp/` files changed.
 
+**Done — N-1 body resonant-peak normalization batch** (branch `fix/membrum-n1-body-resonant-peak-norm`):
+the body (and secondary shell) bank are now bounded against their REALISED
+resonant-strike peak instead of the `Σ|a_k|` impulse bound, and the tension
+glide was rebuilt onto a gain-invariant modal-energy driver.
+
+| Finding | What was done |
+|---------|---------------|
+| **N-1** body over the budget / rail re-engages | `DrumVoice::noteOn` now calls `measuredStrikeOutputGain()`: a one-time (cached on the mapper-input hash) probe that renders a canonical strike through the configured bank and sets `outputGain = kBodyHeadroom / measuredPeak`. Replaces `kBodyHeadroom/getInputGainSum()` for all modal bodies (String keeps the impulse bound — it bypasses the bank). Same norm applied to the secondary shell bank. New `test_body_headroom_budget.cpp` ([n1]) pins: a single body-only voice at level 1.0 stays under the ±1.0 rail AND keeps per-velocity peak dynamics (RED before: both pinned to 1.0). |
+| **budget** `kBodyHeadroom` 0.25→0.5 | Re-grounded as a −6 dBFS STRIKE-peak budget (was a −12 dBFS impulse budget mis-applied). Research-backed: per-element peak ≈ −6 dBFS + drums' 15–20 dB crest factor (so the RMS lands musical) + the −1 dBTP bus limiter owning N-voice sums. Final loudness make-up is master/Phase-4, not this budget. |
+| **tension redesign** (§3-A) | The pitch glide now reads the bank's gain-invariant `getModalEnergy()` (Σ mode amplitude²), not the radiated output² — the physically-correct driver (Tolonen-Välimäki-Karjalainen 2000; Avanzini-Marogna-Bank 2012: quasistatic tension is LINEAR in system/membrane energy). The N-1 level drop had collapsed the old output-keyed glide to ~0.08 semitone; it is recalibrated to ~2 semitones at full velocity (`kTensionEnergyScale`, clamped ~+3 st) and the redundant explicit velocity² (it double-counted, giving a non-physical vel⁴ law) was removed — energy carries velocity. New `[diagnose_n1_tension]` calibration record; `test_per_mode_damping` tension tests strengthened to pin the semitone range and use a tension on/off check on the energy-saturating feedback path. |
+
+Verification: `membrum_tests` 577 cases / 88549 assertions pass; `dsp_tests` (6755) + `innexus_tests` (552) green (the additive `getModalEnergy()` is the only shared-bank change). Re-blessed by-design level shift: Phase-1 golden regenerated; exciter×body audibility floor −60→−66 dBFS (Friction); processor note-on floor; choke warmup re-tuned; b3 energy-ratio threshold (peak now equalised across damping configs). Evidence spikes: `test_body_resonant_peak.cpp` ([diagnose_n1]/[diagnose_n1_axes]).
+
 **Open — not yet started** (rough priority order):
+- ✅ **N-1 — DONE** (see the N-1 batch above). Original finding + settled design rationale retained below for provenance.
 - ⬜ **N-1 (NEW, found during the Phase-3 review) — modal body output runs ~12× / +21 dB hotter
   than the −12 dBFS `kBodyHeadroom` budget.** Measured (coupling/drive/noise/click OFF, vel 1.0):
   the *body × env* peak is ~2.7–3.7 for modal bodies (Membrane 2.97, Bell 3.71), not the 0.25 the
@@ -366,17 +380,22 @@ put a waveshaper on a modal bank output; EBU R128 −1 dBTP true-peak ceiling).
 ### Gain budget (unit-velocity, single voice)
 | Node | Target | Notes |
 |------|--------|-------|
-| Modal body peak | **−12 dBFS** (`kBodyHeadroom = 0.25`) | dominant; carries Material/Size/StrikePos/damping. **⚠ N-1 (found 2026-06-07): the realised peak is ~+9.5 dBFS (≈2.7–3.7), ~21 dB over this budget — the `1/Σ\|a_k\|` impulse bound under-attenuates the resonant buildup ~10×. See open items.** |
+| Modal body STRIKE peak | **−6 dBFS** (`kBodyHeadroom = 0.5`) | dominant; carries Material/Size/StrikePos/damping. **✅ N-1 FIXED: bounded against the realised resonant-strike peak via `measuredStrikeOutputGain()`, not the `1/Σ\|a_k\|` impulse bound (which under-attenuated ~3–18×). Budget re-grounded as a −6 dBFS strike-peak (per-element peak + drum crest factor); the rail no longer engages on a single hit and per-velocity dynamics survive.** |
 | Noise / click layer peak (mix 1.0) | **~−18 dBFS** | transient accents, ~6 dB UNDER the body |
 | Per-voice safety rail | ±1.0 hardClip | never engages on a musical hit |
 | Main-bus ceiling | **−1 dBTP** | TruePeakLimiter; the single guarantee for the N-voice sum |
 
-### Body normalization
-`bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum())` — `1/Σ|a_k|` unit-peak
-(amplitude-aware: a strike excites all modes in phase, so the coherent peak ≈ Σ|a_k|).
-Replaces the old amplitude-blind `1/√N`, which normalised away per-body character. The
-dead `bodyGainCompensation_` make-up was removed. The shell/secondary bank uses the same
-norm, applied AFTER `configureSecondaryBank()` so it sees the current note's modes.
+### Body normalization (updated by N-1)
+`bank.setOutputGain(measuredStrikeOutputGain())` — `kBodyHeadroom / measuredStrikePeak`.
+A one-time probe (cached on the mapper-input hash) renders a canonical strike through the
+configured bank and trims the body so that strike peaks at `kBodyHeadroom` (−6 dBFS). This
+replaced the gain-staging-era `kBodyHeadroom / getInputGainSum()` (`1/Σ|a_k|`), which only
+bounded the t=0 in-phase IMPULSE peak and so under-attenuated the realised resonant-strike
+peak ~3–18× (audit N-1) — the body re-engaged the per-voice rail and collapsed velocity
+dynamics. `getInputGainSum()` (`1/√N` before that) is no longer the ceiling. The dead
+`bodyGainCompensation_` make-up remains removed. The shell/secondary bank uses the same
+measured-strike norm, applied AFTER `configureSecondaryBank()` so it sees the current note's
+modes. String keeps `1/Σ|a_k|` (harmless — it runs a waveguide, not the modal bank).
 
 ### Bus limiter (`TruePeakLimiter`, `dsp/include/krate/dsp/processors/true_peak_limiter.h`)
 **Zero-latency** (not look-ahead): instantaneous-attack / one-pole-release peak limiting
