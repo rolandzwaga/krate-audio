@@ -142,6 +142,9 @@ add_executable(membrum_tests
     # Physical-modelling audit: body-aware natural fundamental frequency
     unit/dsp/test_natural_fundamental_hz.cpp
 
+    # Signal-path audit H-3 / M-1: pitch envelope + Material Morph on all bodies
+    unit/dsp/test_pitch_env_all_bodies.cpp
+
     # Factory kit preset round-trip
     unit/preset/test_factory_kit_presets.cpp
 
