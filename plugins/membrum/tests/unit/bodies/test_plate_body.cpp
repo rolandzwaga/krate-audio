@@ -74,6 +74,55 @@ TEST_CASE("PlateModes: kPlateRatios == (m^2+n^2)/2 of kPlateIndices at every "
     }
 }
 
+// ==============================================================================
+// Correctness audit (Finding 8): every even-n plate mode must respond to the
+// Strike Position control. The previous mapping pinned y0 = 0.5, so the
+// sin(n*pi*y0) factor was exactly 0 for all even n at EVERY strike position —
+// half the modal palette (8 of the first 16 modes) was decoupled from the knob
+// and sat permanently at the amplitude floor. The diagonal sweep now varies y0
+// too. This checks computePlateAmplitude directly so the floor applied in the
+// mappers cannot mask the result.
+//
+// Pre-fix this is RED: for every even-n mode computePlateAmplitude returns 0 at
+// all three strike positions, so the "responds to the knob" check fails.
+// ==============================================================================
+TEST_CASE("PlateModes: even-n modes respond to Strike Position "
+          "(correctness audit Finding 8)",
+          "[membrum][body][plate][modes][strike]")
+{
+    using Membrum::Bodies::computePlateAmplitude;
+    using Membrum::Bodies::kPlateIndices;
+    using Membrum::Bodies::kPlateMaxModeCount;
+
+    bool checkedAnEvenNMode = false;
+    for (int k = 0; k < kPlateMaxModeCount; ++k)
+    {
+        if (kPlateIndices[k].n % 2 != 0)
+            continue;  // odd-n modes already responded to the knob
+        checkedAnEvenNMode = true;
+
+        const float aLow  = computePlateAmplitude(k, 0.15f);
+        const float aMid  = computePlateAmplitude(k, 0.50f);
+        const float aHigh = computePlateAmplitude(k, 0.85f);
+
+        INFO("even-n mode index " << k
+             << " (m=" << kPlateIndices[k].m
+             << ", n=" << kPlateIndices[k].n << ")"
+             << " aLow=" << aLow << " aMid=" << aMid << " aHigh=" << aHigh);
+
+        // (1) The Strike Position knob must actually move the amplitude. This
+        //     is the core Finding-8 fix: even-n modes were identically 0.
+        CHECK(std::abs(aHigh - aLow) > 0.01f);
+
+        // (2) For odd-m even-n modes (those NOT also nulled by the unchanged
+        //     x0=0.5 horizontal-node at the centred knob), the default strike
+        //     must now excite the mode instead of parking it at the floor.
+        if (kPlateIndices[k].m % 2 != 0)
+            CHECK(std::abs(aMid) > 0.01f);
+    }
+    REQUIRE(checkedAnEvenNMode);
+}
+
 TEST_CASE("PlateBody: first 8 partial ratios within +/-3% (SC-002, US2-2)",
           "[membrum][body][plate][modes][BodyModes]")
 {
@@ -271,13 +320,13 @@ TEST_CASE("PlateBody: Strike Position sweep changes first-5 mode weights "
     pA.size      = 0.7f;     // f0 ~ 159 Hz
     pA.decay     = 0.9f;
     pA.material  = 0.5f;
-    pA.strikePos = 0.5f;     // x0 = 0.5 -> even-m modes vanish
+    pA.strikePos = 0.5f;     // centred: x0=0.5 nulls even-m; y0=0.43 (off-node)
     std::vector<float> bufA(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::Plate, pA, kSR,
                    bufA.data(), kN);
 
     auto pB = pA;
-    pB.strikePos = 0.0f;     // x0 = 0.35 -> all modes non-zero
+    pB.strikePos = 0.0f;     // x0=0.35, y0=0.28 -> all modes non-zero
     std::vector<float> bufB(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::Plate, pB, kSR,
                    bufB.data(), kN);
