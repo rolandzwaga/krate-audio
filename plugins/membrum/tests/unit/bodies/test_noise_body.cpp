@@ -108,8 +108,10 @@ TEST_CASE("NoiseBody: modal layer uses plate ratios within +/-3%",
     REQUIRE(measuredF0 == Approx(expectedF0).epsilon(0.08));
 
     const float tol = 0.03f;
-    // Ratios 1, 2 -> 2.500, 3 -> 4.000
-    for (int k = 1; k <= 2; ++k)
+    // Free-plate Chladni ratios; check well-separated modes (index 2 -> 1.99,
+    // index 4 -> 3.25) -- the low (2,0)/(0,1) pair at 1.0/1.11 is too close to
+    // resolve robustly in NoiseBody's residual-rich spectrum.
+    for (int k : {2, 4})
     {
         const double expectedHz =
             measuredF0 * Membrum::Bodies::kPlateRatios[k];
@@ -280,13 +282,13 @@ TEST_CASE("NoiseBody: Strike Position sweep changes first-5 mode weights "
     pA.size      = 0.7f;     // f0 ~ 299 Hz
     pA.decay     = 0.95f;
     pA.material  = 0.5f;
-    pA.strikePos = 0.5f;     // x0 = 0.5 -> even-m modes vanish
+    pA.strikePos = 0.5f;     // mid strike point (radius+azimuth)
     std::vector<float> bufA(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::NoiseBody, pA, kSR,
                    bufA.data(), kN);
 
     auto pB = pA;
-    pB.strikePos = 0.0f;     // x0 = 0.35
+    pB.strikePos = 0.0f;     // edge / on-axis strike point
     std::vector<float> bufB(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::NoiseBody, pB, kSR,
                    bufB.data(), kN);

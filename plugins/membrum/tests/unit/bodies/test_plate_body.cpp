@@ -21,6 +21,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -45,17 +46,18 @@ TEST_CASE("PlateBody: configureForNoteOn + processSample is allocation-free",
 }
 
 // ==============================================================================
-// Correctness audit (Finding 1): kPlateRatios[k] must equal (m^2+n^2)/2 derived
-// from the (m,n) pair stored at the SAME index in kPlateIndices. Indices 8..15
-// were built from a different sort order, so the resonator bank was fed
-// frequencies that matched neither the labelled mode nor any valid plate mode
-// (several entries exceeded SC-002's +/-3% tolerance). The defect also
-// propagated to NoiseBody, which reads frequency from kPlateRatios[k] and
-// strike-amplitude from kPlateIndices[k] — for k=8..15 the two described
-// different modes. This pure-data check guards both arrays at every index.
+// Signal-path audit §3-B (Plate free-plate Chladni ratios): kPlateRatios[k] must
+// equal the free-plate Chladni value of the (m,n) pair stored at the SAME index
+// in kPlateIndices, normalized to the (2,0) fundamental:
+//     ratio = ((m + 2n)^P * (1 + kappa*n)) / ((2)^P)        P=1.7, kappa=0.11
+// (the old simply-supported (m^2+n^2)/2 ladder described a PINNED plate, not a
+// struck free-edged cymbal, and carried exact degenerate repeats). The two
+// arrays MUST stay in lock-step: the resonator bank reads frequency from
+// kPlateRatios[k] and strike amplitude from kPlateIndices[k] (this also feeds
+// NoiseBody). This pure-data check guards both arrays at every index.
 // ==============================================================================
-TEST_CASE("PlateModes: kPlateRatios == (m^2+n^2)/2 of kPlateIndices at every "
-          "index (correctness audit Finding 1)",
+TEST_CASE("PlateModes: kPlateRatios == free-plate Chladni (m+2n) of kPlateIndices "
+          "at every index (signal-path audit Plate ratios)",
           "[membrum][body][plate][modes][table]")
 {
     using Membrum::Bodies::kPlateMaxModeCount;
@@ -63,64 +65,60 @@ TEST_CASE("PlateModes: kPlateRatios == (m^2+n^2)/2 of kPlateIndices at every "
     using Membrum::Bodies::kPlateRatios;
     using Membrum::Bodies::PlateModeIndices;
 
+    constexpr double kP     = 1.7;
+    constexpr double kKappa = 0.11;
+    auto chladni = [](int m, int n) {
+        return std::pow(static_cast<double>(m) + 2.0 * n, kP) *
+               (1.0 + kKappa * static_cast<double>(n));
+    };
+    const double f0 = chladni(2, 0);  // (2,0) fundamental
+
     for (int k = 0; k < kPlateMaxModeCount; ++k)
     {
         const PlateModeIndices idx = kPlateIndices[k];
-        const float expected =
-            static_cast<float>(idx.m * idx.m + idx.n * idx.n) / 2.0f;
+        const double expected = chladni(idx.m, idx.n) / f0;
         INFO("index " << k << " (m=" << idx.m << ", n=" << idx.n
              << ") ratio=" << kPlateRatios[k] << " expected=" << expected);
-        CHECK(kPlateRatios[k] == Approx(expected).margin(1e-4));
+        CHECK(static_cast<double>(kPlateRatios[k]) ==
+              Approx(expected).epsilon(1e-3));
     }
 }
 
 // ==============================================================================
-// Correctness audit (Finding 8): every even-n plate mode must respond to the
-// Strike Position control. The previous mapping pinned y0 = 0.5, so the
-// sin(n*pi*y0) factor was exactly 0 for all even n at EVERY strike position —
-// half the modal palette (8 of the first 16 modes) was decoupled from the knob
-// and sat permanently at the amplitude floor. The diagonal sweep now varies y0
-// too. This checks computePlateAmplitude directly so the floor applied in the
-// mappers cannot mask the result.
-//
-// Pre-fix this is RED: for every even-n mode computePlateAmplitude returns 0 at
-// all three strike positions, so the "responds to the knob" check fails.
+// Signal-path audit §3-B (free-plate strike model): EVERY plate mode must
+// respond to the Strike Position control. The free-plate mode shape is
+//   phi(r,theta) = R_{mn}(r) * cos(m*theta)
+// and the knob sweeps BOTH the strike radius and azimuth, so no mode is parked
+// at a permanent node (the old simply-supported model nulled every even-n mode
+// at the y=0.5 line for all strike positions). This checks computePlateAmplitude
+// directly so the mapper floor cannot mask the result. Pre-fix (rectangular
+// sin(m*pi*x)*sin(n*pi*y)) several modes were constant or zero across the sweep.
 // ==============================================================================
-TEST_CASE("PlateModes: even-n modes respond to Strike Position "
-          "(correctness audit Finding 8)",
+TEST_CASE("PlateModes: every mode responds to Strike Position "
+          "(signal-path audit free-plate strike)",
           "[membrum][body][plate][modes][strike]")
 {
     using Membrum::Bodies::computePlateAmplitude;
     using Membrum::Bodies::kPlateIndices;
     using Membrum::Bodies::kPlateMaxModeCount;
 
-    bool checkedAnEvenNMode = false;
     for (int k = 0; k < kPlateMaxModeCount; ++k)
     {
-        if (kPlateIndices[k].n % 2 != 0)
-            continue;  // odd-n modes already responded to the knob
-        checkedAnEvenNMode = true;
-
-        const float aLow  = computePlateAmplitude(k, 0.15f);
-        const float aMid  = computePlateAmplitude(k, 0.50f);
-        const float aHigh = computePlateAmplitude(k, 0.85f);
-
-        INFO("even-n mode index " << k
+        float lo = 1e9f;
+        float hi = -1e9f;
+        for (int s = 0; s <= 20; ++s)
+        {
+            const float a = computePlateAmplitude(k, static_cast<float>(s) / 20.0f);
+            lo = std::min(lo, a);
+            hi = std::max(hi, a);
+        }
+        INFO("mode index " << k
              << " (m=" << kPlateIndices[k].m
              << ", n=" << kPlateIndices[k].n << ")"
-             << " aLow=" << aLow << " aMid=" << aMid << " aHigh=" << aHigh);
-
-        // (1) The Strike Position knob must actually move the amplitude. This
-        //     is the core Finding-8 fix: even-n modes were identically 0.
-        CHECK(std::abs(aHigh - aLow) > 0.01f);
-
-        // (2) For odd-m even-n modes (those NOT also nulled by the unchanged
-        //     x0=0.5 horizontal-node at the centred knob), the default strike
-        //     must now excite the mode instead of parking it at the floor.
-        if (kPlateIndices[k].m % 2 != 0)
-            CHECK(std::abs(aMid) > 0.01f);
+             << " range=" << (hi - lo));
+        // The Strike Position knob must move every mode's amplitude.
+        CHECK((hi - lo) > 0.01f);
     }
-    REQUIRE(checkedAnEvenNMode);
 }
 
 TEST_CASE("PlateBody: first 8 partial ratios within +/-3% (SC-002, US2-2)",
@@ -134,6 +132,9 @@ TEST_CASE("PlateBody: first 8 partial ratios within +/-3% (SC-002, US2-2)",
     params.size   = 0.7f;   // f0 = 800 * 0.1^0.7 ≈ 159.2 Hz
     params.decay  = 0.9f;
     params.strikePos = 0.37f;
+    // Measure the PURE Chladni ratios: neutralise the modeStretch warp
+    // (modeStretch 0.5 -> stretchNorm 0) which otherwise pushes high modes sharp.
+    params.modeStretch = 0.5f;
 
     std::vector<float> buf(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::Plate, params, kSR,
@@ -146,9 +147,12 @@ TEST_CASE("PlateBody: first 8 partial ratios within +/-3% (SC-002, US2-2)",
          << " expected " << expectedF0);
     REQUIRE(measuredF0 == Approx(expectedF0).epsilon(0.05));
 
-    // Expected ratios {1, 2.5, 4, 5, 6.5, 8.5, 9, 10}, tolerance +/-3%.
+    // Free-plate Chladni ratios (1.0, 1.11, 1.99, 2.21, 3.25, 3.61, 3.96,
+    // 4.75, ...). Check well-separated modes only (the (2,0)/(0,1) pair at
+    // 1.0/1.11 is too close to resolve robustly via peak picking); tolerance
+    // +/-3%.
     const float tol = 0.03f;
-    const int   modesToCheck[] = {1, 2, 3, 4};  // higher modes may be above Nyquist
+    const int   modesToCheck[] = {2, 4, 7};  // ratios 1.99, 3.25, 4.75
     for (int k : modesToCheck)
     {
         const double expectedHz =

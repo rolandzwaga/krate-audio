@@ -100,7 +100,12 @@ void prepareVoice(Membrum::DrumVoice& voice,
     voice.setMaterial(0.5f);
     voice.setSize(0.5f);
     voice.setDecay(0.5f);
-    voice.setStrikePosition(0.3f);
+    // Strike near the edge (antinode). Under the physically-correct free-free
+    // Shell shape and free-plate cos(m*theta) strike model (signal-path audit
+    // §3-B), the loudest excitation of a bar/plate is near its end -- the old,
+    // wrong sin(k*pi*x) shape peaked mid-bar and was zero at the struck ends.
+    // 0.1 keeps every bowed metallic combo above the -60 dBFS audibility floor.
+    voice.setStrikePosition(0.1f);
     voice.setLevel(0.8f);
     voice.setExciterType(ex);
     voice.setBodyModel(body);
@@ -334,7 +339,9 @@ void configureFor144(Membrum::DrumVoice& voice,
     voice.setMaterial(0.5f);
     voice.setSize(0.5f);
     voice.setDecay(0.5f);
-    voice.setStrikePosition(0.3f);
+    // Near-edge antinode (see prepareVoice) so every bowed metallic combo is
+    // audibly excited under the physically-correct free-free Shell shape.
+    voice.setStrikePosition(0.1f);
     voice.setLevel(0.8f);
     voice.setExciterType(ex);
     voice.setBodyModel(body);

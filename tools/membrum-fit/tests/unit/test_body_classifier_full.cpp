@@ -37,14 +37,11 @@ TEST_CASE("Body classifier: Membrane Bessel ratios -> Membrane") {
             == Membrum::BodyModelType::Membrane);
 }
 
-TEST_CASE("Body classifier: Plate (m^2+n^2)/2 ratios -> Plate") {
-    // Build first 8 plate ratios from kPlateIndices.
+TEST_CASE("Body classifier: Plate free-plate Chladni ratios -> Plate") {
+    // Build first 8 plate ratios from the authoritative free-plate table.
     float r[8];
-    for (int i = 0; i < 8; ++i) {
-        const auto& p = Membrum::Bodies::kPlateIndices[i];
-        const float base = (p.m * p.m + p.n * p.n) / 2.0f;
-        r[i] = base / 1.0f;  // (1,1) base = 1
-    }
+    for (int i = 0; i < 8; ++i)
+        r[i] = Membrum::Bodies::kPlateRatios[i];
     auto md = synthFromRatios(r, 8, 250.0f);
     MembrumFit::AttackFeatures f{};
     const auto best = MembrumFit::pickBestBody(MembrumFit::classifyBody(md, f));
@@ -63,10 +60,8 @@ TEST_CASE("Body classifier: Bell hum-prime-tierce-quint-nominal -> Bell") {
 
 TEST_CASE("Body classifier: noisy plate-like signal -> NoiseBody") {
     float r[8];
-    for (int i = 0; i < 8; ++i) {
-        const auto& p = Membrum::Bodies::kPlateIndices[i];
-        r[i] = (p.m * p.m + p.n * p.n) / 2.0f;
-    }
+    for (int i = 0; i < 8; ++i)
+        r[i] = Membrum::Bodies::kPlateRatios[i];
     auto md = synthFromRatios(r, 8, 250.0f);
     md.totalRms    = 1.0f;
     md.residualRms = 0.6f;  // > 0.3 threshold per spec §4.6

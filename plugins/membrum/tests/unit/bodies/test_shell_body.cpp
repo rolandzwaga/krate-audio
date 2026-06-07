@@ -76,6 +76,42 @@ TEST_CASE("ShellBody: first 6 partial ratios within +/-3% (SC-002, US2-3)",
     }
 }
 
+// ==============================================================================
+// Signal-path audit §3-B (free-free strike shape): the shell strike amplitude
+// must use the FREE-FREE Euler-Bernoulli mode shape, which has a MAXIMUM antinode
+// (|phi| ~ 1) at both ends -- exactly where a bar is struck. The previous
+// sin(k*pi*x/L) (simply-supported) shape was identically ZERO at both ends, so an
+// edge strike collapsed every mode to the floor and the body sounded the same
+// regardless of Strike Position. This was the RED case before the fix.
+// ==============================================================================
+TEST_CASE("ShellModes: free-free mode shape has end antinodes "
+          "(signal-path audit free-free strike)",
+          "[membrum][body][shell][modes][strike]")
+{
+    using Membrum::Bodies::computeShellAmplitude;
+    using Membrum::Bodies::kShellModeCount;
+
+    for (int k = 0; k < kShellModeCount; ++k)
+    {
+        const float aEnd0 = std::abs(computeShellAmplitude(k, 0.0f));
+        const float aEnd1 = std::abs(computeShellAmplitude(k, 1.0f));
+        INFO("mode " << k << " end0=" << aEnd0 << " end1=" << aEnd1);
+        // Both free ends are antinodes (would be 0 for the old sin(k*pi*x)).
+        CHECK(aEnd0 > 0.9f);
+        CHECK(aEnd1 > 0.9f);
+
+        // The shape stays bounded across the whole bar (numerically stable even
+        // for the highest mode, where the naive cosh-sigma*sinh form would blow
+        // up via catastrophic cancellation).
+        for (int s = 0; s <= 40; ++s)
+        {
+            const float a =
+                std::abs(computeShellAmplitude(k, static_cast<float>(s) / 40.0f));
+            CHECK(a <= 1.01f);
+        }
+    }
+}
+
 TEST_CASE("ShellBody: Size sweep covers >= 1 octave",
           "[membrum][body][shell][BodyModes]")
 {
@@ -218,10 +254,10 @@ TEST_CASE("ShellBody: mid-note body switch deferred, no crash",
 
 // ==============================================================================
 // Phase 6 (T080 / US4-3): Strike Position changes spectral weighting
-// (free-free beam sin(k*pi*x/L) approximation, per research.md §4.3).
+// (free-free Euler-Bernoulli mode shape, signal-path audit §3-B).
 // ==============================================================================
 TEST_CASE("ShellBody: Strike Position sweep changes first-5 mode weights "
-          "(US4-3 sin(k*pi*x/L))",
+          "(US4-3 free-free mode shape)",
           "[membrum][body][shell][BodyModes]")
 {
     constexpr double kSR = 96000.0;

@@ -224,10 +224,10 @@ TEST_CASE("BellBody: mid-note body switch deferred, no crash",
 
 // ==============================================================================
 // Phase 6 (T080 / US4-3): Strike Position changes spectral weighting
-// (Chladni radial approximation, r/R = strikePos).
+// (2-D meridional cos(m*theta) strike azimuth, signal-path audit §3-B).
 // ==============================================================================
 TEST_CASE("BellBody: Strike Position sweep changes first-5 mode weights "
-          "(US4-3 Chladni radial)",
+          "(US4-3 meridional strike azimuth)",
           "[membrum][body][bell][BodyModes]")
 {
     constexpr double kSR = 48000.0;
@@ -239,13 +239,13 @@ TEST_CASE("BellBody: Strike Position sweep changes first-5 mode weights "
     pA.size      = 0.5f;     // nominal ~ 253 Hz
     pA.decay     = 0.9f;
     pA.material  = 0.6f;
-    pA.strikePos = 0.15f;    // near crown -> different radial weights
+    pA.strikePos = 0.15f;    // strike azimuth A -> meridional weights
     std::vector<float> bufA(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::Bell, pA, kSR,
                    bufA.data(), kN);
 
     auto pB = pA;
-    pB.strikePos = 0.55f;    // near lip
+    pB.strikePos = 0.55f;    // strike azimuth B
     std::vector<float> bufB(kN, 0.0f);
     runBodyImpulse(bank, Membrum::BodyModelType::Bell, pB, kSR,
                    bufB.data(), kN);
