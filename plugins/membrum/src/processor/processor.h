@@ -22,6 +22,7 @@
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/processors/true_peak_limiter.h>
 
 #include <array>
 #include <atomic>
@@ -59,6 +60,13 @@ public:
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
+
+    /// Look-ahead of the main-bus true-peak limiter (samples). Reported so the
+    /// host can apply plugin delay compensation.
+    Steinberg::uint32 PLUGIN_API getLatencySamples() override
+    {
+        return static_cast<Steinberg::uint32>(busLimiter_.getLatencySamples());
+    }
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
@@ -124,6 +132,10 @@ private:
     // ---- Phase 5: Cross-pad coupling (sympathetic resonance) ----
     Krate::DSP::SympatheticResonance  couplingEngine_;
     Krate::DSP::DelayLine             couplingDelay_;
+    // Main-bus true-peak brickwall limiter (gain-staging Step 1). Bounds the
+    // summed voice + coupling output to -1 dBTP before the master gain so the
+    // per-voice path can run linear (no per-voice softClip gain stage).
+    Krate::DSP::TruePeakLimiter       busLimiter_;
     CouplingMatrix                    couplingMatrix_;
 
     // Global coupling parameters (atomics for thread-safe parameter updates)

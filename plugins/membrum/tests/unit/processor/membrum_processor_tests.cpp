@@ -504,6 +504,21 @@ TEST_CASE("Membrum: Velocity 127 is louder than velocity 30 (SC-005)",
 }
 
 // =============================================================================
+// Gain-staging Step 1: the main-bus true-peak limiter reports its look-ahead
+// as plugin latency (so the host can apply delay compensation).
+// =============================================================================
+TEST_CASE("Membrum: reports bus-limiter look-ahead as latency",
+          "[membrum][processor][gain_staging][latency]")
+{
+    MembrumTestFixture fx;  // setupProcessing() at kTestSampleRate
+    const auto expected =
+        static_cast<Steinberg::uint32>(std::lround(0.001 * kTestSampleRate));  // 1 ms look-ahead
+    INFO("reported latency = " << fx.processor.getLatencySamples()
+         << ", expected = " << expected);
+    REQUIRE(fx.processor.getLatencySamples() == expected);
+}
+
+// =============================================================================
 // T043(b): velocity=30 vs velocity=127: spectral centroid ratio > 2x (SC-005)
 // =============================================================================
 

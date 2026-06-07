@@ -795,6 +795,15 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
         }
 
         // ============================================================
+        // Gain-staging Step 1: main-bus true-peak brickwall limiter.
+        // Runs AFTER the voice sum + coupling return and BEFORE the master
+        // gain, so it bounds the mix to -1 dBTP. This is what lets the
+        // per-voice path drop its softClip gain stage (Step 2): the bus,
+        // not each voice, guarantees the ceiling.
+        // ============================================================
+        busLimiter_.processBlock(outL, outR, data.numSamples);
+
+        // ============================================================
         // Phase 9: master output gain on the main bus only.
         // norm 0..1 -> dB -24..+12 -> linear gain. The peak meter below
         // observes the post-master signal so the UI level reflects what
@@ -1142,6 +1151,10 @@ tresult PLUGIN_API Processor::setupProcessing(ProcessSetup& setup)
     couplingDelay_.prepare(sampleRate_, 0.002f);  // 2 ms max delay
     voicePool_.setCouplingEngine(&couplingEngine_);
     energyEnvelope_ = 0.0f;
+
+    // Gain-staging Step 1: main-bus true-peak brickwall limiter at -1 dBTP.
+    busLimiter_.prepare(sampleRate_, static_cast<std::size_t>(maxBlockSize_));
+    busLimiter_.setCeilingDb(-1.0f);
 
     return AudioEffect::setupProcessing(setup);
 }

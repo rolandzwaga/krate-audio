@@ -64,6 +64,12 @@ public:
     /// time the fast-release ramp hits its 1e-6 floor.
     static constexpr float kFastReleaseDampScale = 0.88f;
 
+    /// Gain-staging Step 3 (C-2): fixed body headroom trim applied on top of the
+    /// 1/sum|a| unit-peak normalisation, so a unit-velocity body peaks at
+    /// ~-12 dBFS. Leaves room for the parallel noise/click accents and for the
+    /// N-voice sum before the main-bus true-peak limiter.
+    static constexpr float kBodyHeadroom = 0.25f;  // -12 dBFS
+
     /// Apply the fast-release damp directly (used by VoicePool fast-release
     /// path). Equivalent to noteOff() but uses a more aggressive scale.
     void fastReleaseDamp() noexcept
@@ -230,30 +236,24 @@ public:
             }
             else
             {
-                // Phase 11 (spec 145): mode-count-aware peak normalisation
-                // + remove the legacy soft-clip on the non-feedback path.
-                // 1/sqrt(N) is the energy-equalisation norm (uncorrelated
-                // steady-state RMS for N modes); critically it is
-                // INDEPENDENT of per-mode amplitudes, so parameters that
-                // boost individual modes (decaySkew, modeScatter, future
-                // per-mode weights) preserve their relative effect rather
-                // than being self-cancelled by the normalisation. Per-body
-                // peak is roughly bounded by sum/sqrt(N) (Membrane ~0.36,
-                // Bell ~1.0, etc.); the downstream `softClip(shaped * env *
-                // level)` in this voice's post-chain bounds the audio
-                // output to [-1, 1] for the audio bus. FeedbackExciter
-                // keeps the legacy -3 dBFS clip as a documented passivity-
-                // loss safety net (Karjalainen et al.).
-                const int n = std::max(1, bank.getNumModes());
-                bank.setOutputGain(1.0f / std::sqrt(static_cast<float>(n)));
+                // Gain-staging Step 3 (C-2): amplitude-aware unit-peak
+                // normalisation. 1/sum|a_k| (getInputGainSum) bounds the
+                // coherent in-phase strike peak to ~unity for ANY body, then
+                // kBodyHeadroom trims to the -12 dBFS budget. Unlike the old
+                // flat 1/sqrt(N) (count-only, amplitude-blind -- it normalised
+                // away per-body loudness/attack differences and was a primary
+                // "all presets sound the same" cause), this preserves each
+                // body's amplitude profile while keeping the peak bounded.
+                // Per-mode boosts (decaySkew, modeScatter) change sum|a_k|, so
+                // their relative tilt is preserved, not self-cancelled. The
+                // main-bus true-peak limiter owns the final ceiling;
+                // FeedbackExciter keeps the legacy -3 dBFS passivity clip.
+                bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
                 bank.setOutputSoftClipThreshold(0.0f);
             }
-            bodyGainCompensation_      = 1.0f;
-            secondaryGainCompensation_ = 1.0f;
 
-            const int ns = std::max(1, secondaryBank_.getNumModes());
             secondaryBank_.setOutputGain(
-                1.0f / std::sqrt(static_cast<float>(ns)));
+                kBodyHeadroom / secondaryBank_.getInputGainSum());
             secondaryBank_.setOutputSoftClipThreshold(0.0f);
         }
 
@@ -443,7 +443,12 @@ public:
         const float coupled  = unnaturalZone_.nonlinearCoupling.processSample(injected);
         const float shaped   = toneShaper_.processSample(coupled);
         const float env      = ampEnvelope_.process();
-        return Krate::DSP::softClip(shaped * env * level_);
+        // Gain-staging Step 2 (H-1/H-4): voice output is LINEAR. `level_` is a
+        // true attenuation before a transparent safety rail (hardClip engages
+        // only on a pathological/runaway voice, never on a musical hit at the
+        // Step-3/4 budget). The real ceiling is owned by the main-bus true-peak
+        // limiter, not a per-voice softClip gain stage.
+        return Krate::DSP::hardClip(shaped * env * level_);
     }
 
     // Block-level audio-thread hot path (T043 / FR-001 / FR-002 / research.md §1,
@@ -670,15 +675,6 @@ private:
             // Single std::visit on the body; the body implementations route
             // to ModalResonatorBank::processBlock (SIMD) internally.
             bodyBank_.processBlock(bodyScratch, excScratch, chunk);
-            // Phase 11: compensate for the bank's 1/sum normalisation so the
-            // post-bank perceived loudness matches the pre-Phase-11 saturated
-            // peak. See the noteOn comment for the rationale.
-            if (bodyGainCompensation_ != 1.0f)
-            {
-                const float g = bodyGainCompensation_;
-                for (int i = 0; i < chunk; ++i)
-                    bodyScratch[i] *= g;
-            }
             lastBody = bodyScratch[chunk - 1];
 
             // --- Phase 8D: secondary (shell) bank with scalar coupling. --
@@ -697,13 +693,6 @@ private:
                 for (int i = 0; i < chunk; ++i)
                     secExc[i] = bodyScratch[i] * effectiveCoupling_;
                 secondaryBank_.processBlock(secExc, secOut, chunk);
-                // Phase 11: same 1/sum compensation for the shell bank.
-                if (secondaryGainCompensation_ != 1.0f)
-                {
-                    const float g = secondaryGainCompensation_;
-                    for (int i = 0; i < chunk; ++i)
-                        secOut[i] *= g;
-                }
                 // Mix shell output into the audible body output. This is
                 // passive (additive only, no return path into the body's
                 // modal excitation). The shell still rings audibly --
@@ -766,7 +755,7 @@ private:
                     const float combined = bodyScratch[i] + noiseScratch[i] + clickScratch[i];
                     const float shaped   = toneShaper_.processSample(combined);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = Krate::DSP::softClip(shaped * env * level);
+                    out[offset + i]      = Krate::DSP::hardClip(shaped * env * level);
                 }
             }
             else
@@ -779,7 +768,7 @@ private:
                         unnaturalZone_.nonlinearCoupling.processSample(injected);
                     const float shaped   = toneShaper_.processSample(coupled);
                     const float env      = ampEnvelope_.process();
-                    out[offset + i]      = Krate::DSP::softClip(shaped * env * level);
+                    out[offset + i]      = Krate::DSP::hardClip(shaped * env * level);
                 }
             }
 
@@ -882,7 +871,7 @@ private:
                             unnaturalZone_.nonlinearCoupling.processSample(injected);
                         const float shaped   = toneShaper_.processSample(coupled);
                         const float env      = ampEnvelope_.process();
-                        out[i]               = Krate::DSP::softClip(shaped * env * level);
+                        out[i]               = Krate::DSP::hardClip(shaped * env * level);
                     }
                     bodyBank_.setLastOutput(lastBody);
                 });
@@ -1352,13 +1341,6 @@ private:
     /// therefore never gets auto-noteOff'd) still retires after a few
     /// blocks of body-modal silence.
     int silentBlockCount_ = 0;
-
-    /// Phase 11 (spec 145): post-bank gain multiplier that restores the
-    /// historical perceived loudness after the bank's 1/sum amplitude
-    /// normalisation. Set in noteOn() from `sum(amplitudes) * 0.707`
-    /// (target = old saturated peak). 1.0 = no compensation (FeedbackExciter).
-    float bodyGainCompensation_      = 1.0f;
-    float secondaryGainCompensation_ = 1.0f;
 };
 
 } // namespace Membrum

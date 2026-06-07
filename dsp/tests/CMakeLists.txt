@@ -112,6 +112,7 @@ add_executable(dsp_tests
     unit/processors/saturation_processor_test.cpp
     unit/processors/envelope_follower_test.cpp
     unit/processors/dynamics_processor_test.cpp
+    unit/processors/true_peak_limiter_test.cpp
     unit/processors/ducking_processor_test.cpp
     unit/processors/noise_generator_test.cpp
     unit/processors/midside_processor_test.cpp

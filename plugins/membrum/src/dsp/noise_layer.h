@@ -207,15 +207,17 @@ private:
         return Krate::DSP::NoiseColor::Violet;
     }
 
-    // Amplitude calibration for the Phase 7 standalone-layer path in
-    // DrumVoice (not used by NoiseBody's hybrid-body delegation, which keeps
-    // the primitive's natural amplitude to preserve the pre-refactor mix
-    // balance). The bandpass SVF + ADSR chain attenuates white noise to
-    // ~0.1 RMS for typical Q values; a 3x boost lets mix=1.0 produce a
-    // layer peak comparable to the modal body without exceeding the 0 dBFS
-    // per-voice peak contract (SC-008).
+    // Amplitude calibration for the standalone-layer path in DrumVoice (not
+    // used by NoiseBody's hybrid-body delegation, which keeps the primitive's
+    // natural amplitude). Gain-staging Step 4 (H-2): the layer is a transient
+    // ACCENT and must sit ~6 dB UNDER the modal body's -12 dBFS budget, i.e.
+    // a ~-18 dBFS layer peak at mix=1.0. The previous 3.0 was calibrated
+    // against the pre-Phase-11 un-attenuated body and buried the body's
+    // Material/Size/StrikePos character under broadband noise (a primary
+    // "all presets sound the same" cause). Verified by
+    // gain_staging_balance_test.cpp.
 public:
-    static constexpr float kStandaloneOutputGain = 3.0f;
+    static constexpr float kStandaloneOutputGain = 0.243f;  // raw peak ~0.518 -> ~-18 dBFS
 private:
 
     [[maybe_unused]] double      sampleRate_ = 44100.0;
