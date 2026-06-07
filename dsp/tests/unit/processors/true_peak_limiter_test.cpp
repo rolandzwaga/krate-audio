@@ -68,8 +68,9 @@ TEST_CASE("TruePeakLimiter bounds a hot signal to the ceiling", "[true_peak_limi
 
     lim.processBlock(L.data(), R.data(), n);
 
-    // Ignore the look-ahead ramp-in region; check the steady state.
-    const int skip = static_cast<int>(lim.getLatencySamples()) + 64;
+    // Skip a few samples for the IIR detector to settle (zero latency -> no
+    // look-ahead delay to skip).
+    const int skip = 64;
     float samplePeak = 0.0f;
     std::vector<float> tail;
     for (int i = skip; i < n; ++i)
@@ -107,19 +108,25 @@ TEST_CASE("TruePeakLimiter passes a quiet signal transparently", "[true_peak_lim
 
     lim.processBlock(L.data(), R.data(), n);
 
-    // Audio path is a pure delay × unity gain when below threshold: output at
-    // i+latency must equal input at i (bit-exact, gain stayed 1.0).
-    const int lat = static_cast<int>(lim.getLatencySamples());
-    for (int i = 0; i < n - lat - 1; ++i)
-        REQUIRE(L[i + lat] == Approx(in[i]).margin(1.0e-6));
+    // Zero latency + below threshold => unity gain, output equals input at the
+    // SAME index, bit-exact.
+    for (int i = 0; i < n; ++i)
+        REQUIRE(L[i] == Approx(in[i]).margin(1.0e-6));
 }
 
-TEST_CASE("TruePeakLimiter reports look-ahead latency", "[true_peak_limiter][gain_staging]")
+TEST_CASE("TruePeakLimiter adds no latency (output not delayed)", "[true_peak_limiter][gain_staging]")
 {
+    const int n = 256;
     TruePeakLimiter lim;
-    lim.prepare(kSr, 512);
-    lim.setLookaheadMs(1.0f);
-    REQUIRE(lim.getLatencySamples() == static_cast<std::size_t>(std::lround(0.001 * kSr)));
+    lim.prepare(kSr, n);
+    lim.setCeilingDb(-1.0f);
+
+    std::vector<float> L(n, 0.0f), R(n, 0.0f);
+    L[100] = 0.5f; R[100] = 0.5f;  // below the ceiling -> passes at unity
+    lim.processBlock(L.data(), R.data(), n);
+
+    REQUIRE(std::fabs(L[100]) > 0.4f);            // energy at the SAME index
+    REQUIRE(L[99] == Approx(0.0f).margin(1.0e-6)); // nothing leaks earlier
 }
 
 TEST_CASE("TruePeakLimiter stays finite on extreme input", "[true_peak_limiter][gain_staging]")
@@ -135,7 +142,7 @@ TEST_CASE("TruePeakLimiter stays finite on extreme input", "[true_peak_limiter][
 
     lim.processBlock(L.data(), R.data(), n);
 
-    const int skip = static_cast<int>(lim.getLatencySamples()) + 8;
+    const int skip = 8;
     for (int i = skip; i < n; ++i)
     {
         REQUIRE(std::isfinite(L[i]));

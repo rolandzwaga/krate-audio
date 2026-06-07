@@ -504,18 +504,16 @@ TEST_CASE("Membrum: Velocity 127 is louder than velocity 30 (SC-005)",
 }
 
 // =============================================================================
-// Gain-staging Step 1: the main-bus true-peak limiter reports its look-ahead
-// as plugin latency (so the host can apply delay compensation).
+// Gain-staging Step 1: the main-bus true-peak limiter is ZERO-latency, so the
+// processor reports no plugin latency and the main/aux output buses stay
+// sample-aligned (no host delay compensation needed).
 // =============================================================================
-TEST_CASE("Membrum: reports bus-limiter look-ahead as latency",
+TEST_CASE("Membrum: bus limiter adds no latency",
           "[membrum][processor][gain_staging][latency]")
 {
     MembrumTestFixture fx;  // setupProcessing() at kTestSampleRate
-    const auto expected =
-        static_cast<Steinberg::uint32>(std::lround(0.001 * kTestSampleRate));  // 1 ms look-ahead
-    INFO("reported latency = " << fx.processor.getLatencySamples()
-         << ", expected = " << expected);
-    REQUIRE(fx.processor.getLatencySamples() == expected);
+    INFO("reported latency = " << fx.processor.getLatencySamples());
+    REQUIRE(fx.processor.getLatencySamples() == 0u);
 }
 
 // =============================================================================

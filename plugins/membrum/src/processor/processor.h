@@ -60,13 +60,6 @@ public:
         Steinberg::Vst::SpeakerArrangement* outputs, Steinberg::int32 numOuts) override;
     Steinberg::tresult PLUGIN_API setupProcessing(Steinberg::Vst::ProcessSetup& setup) override;
     Steinberg::tresult PLUGIN_API setActive(Steinberg::TBool state) override;
-
-    /// Look-ahead of the main-bus true-peak limiter (samples). Reported so the
-    /// host can apply plugin delay compensation.
-    Steinberg::uint32 PLUGIN_API getLatencySamples() override
-    {
-        return static_cast<Steinberg::uint32>(busLimiter_.getLatencySamples());
-    }
     Steinberg::tresult PLUGIN_API connect(Steinberg::Vst::IConnectionPoint* other) override;
     Steinberg::tresult PLUGIN_API disconnect(Steinberg::Vst::IConnectionPoint* other) override;
 
