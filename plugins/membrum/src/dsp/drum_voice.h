@@ -320,7 +320,7 @@ public:
             secondaryBank_.setOutputGain(
                 kBodyHeadroom / secondaryBank_.getInputGainSum());
             secondaryBank_.setOutputSoftClipThreshold(0.0f);
-            effectiveCoupling_ = stabilityClampedCoupling();
+            effectiveCoupling_ = effectiveCouplingStrength();
         }
 
         // Phase 8E: tension modulation depth scales with velocity^2 (the
@@ -698,10 +698,11 @@ private:
             // --- Phase 8D: secondary (shell) bank with scalar coupling. --
             // Only when the secondary bank was configured at noteOn (a
             // shortcut that keeps the default path zero-overhead). The
-            // coupling feedback is injected one sample late -- it reads
-            // the previous-block's primary output -- which is fine for a
-            // ~5-50 ms body decay at 64+ sample blocks (block-rate
-            // coupling update, per plan.md D.1).
+            // feedforward coupling is applied one sample late on this path --
+            // it reads the previous-block's primary output -- which is fine
+            // for a ~5-50 ms body decay at 64+ sample blocks (block-rate
+            // coupling update, per plan.md D.1). The slow path
+            // (processBlockSlow) applies the same stage per-sample.
             if (effectiveCoupling_ > 0.0f)
             {
                 float* secExc = secondaryExcScratch_.data();
@@ -823,6 +824,19 @@ private:
                           bool pitchEnvActive,
                           bool morphActive) noexcept
     {
+        // Phase 8E tension modulation (Avanzini et al. JASA 2012): an energy-
+        // dependent upward pitch jump at the strike that relaxes as vibration
+        // energy decays. Mirrors the fast-path branch (processBlockFast) so the
+        // FeedbackExciter route is not silently missing the glide. Membrane-only
+        // physics path; `energyEnv_` carries over from the previous block and is
+        // updated by the follower at the end of this block.
+        const bool tensionActive =
+            tensionAmtEffective_ > 1e-6f
+            && bodyBank_.getCurrentType() == BodyModelType::Membrane;
+        const float tensionPitchMod =
+            tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
+                          : 1.0f;
+
         // Block-rate refresh (Phase 9): advance each modulator by one sample
         // at the start of the block and refresh the modal bank once. The
         // remaining modulator steps are consumed below (inside the inner
@@ -830,8 +844,16 @@ private:
         // now dispatch per body type instead of early-returning off Membrane.
         if (pitchEnvActive)
         {
-            const float pitchHz = toneShaper_.processPitchEnvelope();
+            const float pitchHz =
+                toneShaper_.processPitchEnvelope() * tensionPitchMod;
             retuneFundamental(pitchHz);
+        }
+        else if (tensionActive)
+        {
+            // No pitch env: apply tension as a direct frequency scale around
+            // the body's natural fundamental (tensionActive implies Membrane).
+            const float pitchHz = naturalFundamentalHz_ * tensionPitchMod;
+            updateModalFundamentalOnBank(bodyBank_.getSharedBank(), pitchHz);
         }
         if (morphActive)
         {
@@ -839,12 +861,19 @@ private:
             refreshBodyForMaterialOnBank(bodyBank_.getSharedBank(), m);
         }
 
+        // Phase 8D secondary (shell) bank gate, mirrored from the fast path.
+        // Computed once per block; when engaged the per-sample loop drives a
+        // feedforward body -> shell coupling and mixes the shell output back
+        // into the audible signal (passive: no return path into the body's
+        // modal excitation, so it cannot self-oscillate at any coupling value).
+        const bool secondaryActive = effectiveCoupling_ > 0.0f;
+
         // Nested single-visit: one std::visit on the exciter, one on the body.
         // Inside both visits we hold typed references so every sample call is
         // a direct non-virtual call — no per-sample variant dispatch.
-        exciterBank_.withActive([this, out, numSamples, level, pitchEnvActive, morphActive](auto& exciter) noexcept {
+        exciterBank_.withActive([this, out, numSamples, level, pitchEnvActive, morphActive, secondaryActive](auto& exciter) noexcept {
             bodyBank_.withActive(
-                [this, out, numSamples, level, pitchEnvActive, morphActive, &exciter](
+                [this, out, numSamples, level, pitchEnvActive, morphActive, secondaryActive, &exciter](
                     auto& body, Krate::DSP::ModalResonatorBank& sharedBank) noexcept {
                     // Phase 9 perf: hoist the modal bank's coefficient
                     // smoothing out of the per-sample inner loop. Without this
@@ -857,7 +886,17 @@ private:
                     // through the SIMD modal kernel when bow taps are off.
                     sharedBank.prepareBlockSmoothing();
 
-                    float lastBody = bodyBank_.getLastOutput();
+                    // Audit M-6: the secondary (shell) bank must run on the
+                    // slow path too -- it was previously dropped, so
+                    // FeedbackExciter + coupling pads silently lost all shell
+                    // character. Use the same block-rate smoothing hoist as the
+                    // body bank so the 24-mode shell doesn't reintroduce per-
+                    // sample smoothing cost on the budget-sensitive slow path.
+                    if (secondaryActive)
+                        secondaryBank_.prepareBlockSmoothing();
+
+                    float lastBody  = bodyBank_.getLastOutput();
+                    float lastShell = secondaryLastOutput_;
                     for (int i = 0; i < numSamples; ++i)
                     {
                         // Consume the remaining modulator samples to keep the
@@ -876,12 +915,25 @@ private:
                         const float bodyOut = body.processSampleNoSmooth(sharedBank, exc);
                         lastBody            = bodyOut;
 
+                        // Phase 8D shell stage (slow path). Feedforward
+                        // body -> shell, then a passive additive mix into the
+                        // body signal -- identical topology to the fast path
+                        // (processBlockFast), just per-sample instead of
+                        // block-rate. No return path into the body excitation.
+                        float bodyWithShell = bodyOut;
+                        if (secondaryActive)
+                        {
+                            lastShell = secondaryBank_.processSampleNoSmooth(
+                                bodyOut * effectiveCoupling_);
+                            bodyWithShell += lastShell;
+                        }
+
                         // Parallel noise layer (Phase 7) sums into body
                         // output before the UnnaturalZone chain; click layer
                         // is mixed directly so it's heard as a transient.
                         const float noiseSample =
                             noiseLayer_.processSample() * NoiseLayer::kStandaloneOutputGain;
-                        const float combinedBody = bodyOut + noiseSample + clickSample;
+                        const float combinedBody = bodyWithShell + noiseSample + clickSample;
 
                         // UnnaturalZone chain per contract: body + modeInject
                         // → nonlinear coupling → tone shaper → env × level.
@@ -893,8 +945,27 @@ private:
                         out[i]               = Krate::DSP::hardClip(shaped * env * level);
                     }
                     bodyBank_.setLastOutput(lastBody);
+                    if (secondaryActive)
+                        secondaryLastOutput_ = lastShell;
                 });
         });
+
+        // Phase 8E energy follower (mirrors processBlockFast). Updates the
+        // one-pole |out|^2 tracker that feeds next block's tension pitch mod.
+        // Runs only when tension is active so the default slow path stays
+        // zero-overhead.
+        if (tensionActive)
+        {
+            const float alpha = energyAlpha_;
+            const float oneMinusAlpha = 1.0f - alpha;
+            float env = energyEnv_;
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const float s = out[i];
+                env = alpha * env + oneMinusAlpha * s * s;
+            }
+            energyEnv_ = env;
+        }
     }
 
 public:
@@ -1100,52 +1171,34 @@ private:
             amps[k]  = 0.0f;
         }
 
-        // Shell-like damping. The earlier values (b1 = 1.5..5.5 s^-1,
-        // t60 of 1.25..4.6 s) made the shell ring much longer than the
-        // body it's coupled to (typical body t60 ≈ 0.3 s under the
-        // default damping law). Because processBlock feeds the shell's
-        // output back into the body's excitation bus, a long shell tail
-        // keeps re-energising body modes that have already decayed below
-        // the silence threshold -- the voice never retires and the user
-        // hears a sustained sine at the shell's fundamental.
+        // Shell-like damping, following Chaigne (1993) / standard modal-
+        // synthesis form: R_k = b1 + b3·f_k², where b1 sets global decay and
+        // b3 gives high-frequency rolloff.
         //
-        // Range b1 in [25, 40] s^-1 (t60 ≈ 0.17..0.28 s) so the shell
-        // always decays faster than the bodies it's coupled to. The
-        // shell still contributes audible ring during the attack but
-        // won't outlast its primary. Reproduced and verified by the
-        // stress test in test_kit_switch_infinite_ring.cpp.
-        // Shell damping tuned to keep the body↔shell feedback loop stable.
+        // Topology note (audit L-7/L-8): the head<->shell coupling is now
+        // FEEDFORWARD + a PASSIVE additive mix -- the shell is a parallel
+        // resonator driven by the body output and summed into the audible
+        // signal, with NO return path into the body's modal excitation. The
+        // earlier closed-loop topology (shell output fed back into the body
+        // bus) could self-oscillate at frequency-aligned modes -- the source
+        // of the user-reported "continuous beep / infinite ring". That loop
+        // was removed, so there is no longer a closed-loop stability bound on
+        // the shell damping or on the coupling gain.
         //
-        // Damping law follows Chaigne (1993) / standard modal-synthesis
-        // form: R_k = b1 + b3·f_k², where b1 sets global decay and b3
-        // gives high-frequency rolloff.
-        //
-        // Stability requirement: at any pair of frequency-aligned body and
-        // shell modes the closed-loop gain
-        //     coupling² · 0.5 · Q_body · Q_shell
-        // must stay below unity (Q = ω / (2·b1)). Because effectiveCoupling
-        // is hard-clamped to 0.25 (max) the worst-case factor coupling²·0.5
-        // is 0.03125, so we need Q_body · Q_shell < 32. Real instrument
-        // research shows snare-drum shell modes at t60 ≈ 0.5..1.5 s
-        // (b1 ≈ 4.6..14 s⁻¹), but those values combined with the body Q
-        // produce loop gains in the hundreds -- the source of the
-        // user-reported "infinite ring" stress reproduction.
-        //
-        // We scale the shell's b1 to be a multiple of the primary body's
-        // b1 floor so shell t60 is always ≤ ~half the body's t60. With
-        // typical body b1 ≈ 20 s⁻¹ and the multiplier below, shell b1
-        // sits in [40, 80] s⁻¹ -- the shell still contributes audible
-        // ring on the attack but cannot outlast the body it's coupled
-        // to, so the feedback loop dies with the body.
+        // We still keep the shell decaying faster than the body it accents:
+        // not for stability, but so a long shell tail can't outlast its
+        // primary and leave an audible hanging layer after the body modes
+        // (which gate voice retirement) have gone silent. b1 sits roughly in
+        // [25, 80] s^-1 (t60 ≈ 0.09..0.28 s). Verified by the stress test in
+        // test_kit_switch_infinite_ring.cpp.
         const float mat = std::clamp(secondaryMaterial_, 0.0f, 1.0f);
         // Body's effective b1 from current per-pad damping override.
         const float bodyN = std::clamp((bodyDampingB1_ >= 0.0f)
                                        ? bodyDampingB1_ : 0.4f, 0.0f, 1.0f);
         const float bodyB1 = 0.2f + bodyN * 49.8f;
-        // Shell b1 must sit at least 2.5× above the body so its t60 is at
-        // most ~40 % of the body's; soft floor of 25 s⁻¹ keeps the loop
-        // stable even when the body is set to a low-damping (long-tail)
-        // configuration.
+        // Shell b1 sits at least 2.5× above the body so its t60 is at most
+        // ~40 % of the body's; soft floor of 25 s⁻¹ keeps the shell short
+        // even when the body is set to a low-damping (long-tail) config.
         const float b1 = std::max(25.0f, 2.5f * bodyB1) +
                          (1.0f - mat) * 15.0f;
         const float b3 = mat * 1.0e-5f;
@@ -1154,13 +1207,17 @@ private:
                                 law, /*stretch*/ 0.0f, /*scatter*/ 0.0f);
     }
 
-    // Plan D.5 stability: keep (coupling^2 * primaryDecay * secondaryDecay)
-    // below 1 so the feedback loop eigenvalue stays inside the unit circle.
-    // Primary/secondary decays are bounded by ~0.99995 per-sample, so a
-    // hard 0.25 ceiling is comfortably below the instability threshold.
-    float stabilityClampedCoupling() const noexcept
+    // Map the per-pad couplingStrength (0..1) to the feedforward drive gain
+    // for the shell stage. Audit L-7: the old 0.25 ceiling existed to keep the
+    // closed-loop eigenvalue (coupling² · primaryDecay · secondaryDecay) inside
+    // the unit circle. That loop was removed -- coupling is now a feedforward
+    // drive into a passive parallel resonator (see configureSecondaryBank), so
+    // there is no feedback eigenvalue to bound. The strength maps directly to
+    // the full range; the shell mix is bounded by the secondary bank's own
+    // unit-peak output normalisation and the main-bus true-peak limiter.
+    float effectiveCouplingStrength() const noexcept
     {
-        return std::clamp(couplingStrength_, 0.0f, 1.0f) * 0.25f;
+        return std::clamp(couplingStrength_, 0.0f, 1.0f);
     }
 
     /// Build the common parameter bundle from the voice's cached Phase-1/8

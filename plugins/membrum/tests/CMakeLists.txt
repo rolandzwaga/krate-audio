@@ -77,6 +77,7 @@ add_executable(membrum_tests
     unit/voice_pool/test_choke_allocation_free.cpp
     unit/voice_pool/test_polyphony_allocation_matrix.cpp
     unit/voice_pool/test_phase2_regression_maxpoly1.cpp
+    unit/voice_pool/test_secondary_shell_paths.cpp
     unit/voice_pool/test_poly_change_live.cpp
     unit/voice_pool/test_oversized_block.cpp
 

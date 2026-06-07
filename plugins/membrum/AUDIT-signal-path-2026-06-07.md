@@ -36,10 +36,25 @@ the pitch envelope and Material Morph now drive ALL body types, not just Membran
 
 Verification: `membrum_tests` 555 cases pass (incl. new `test_pitch_env_all_bodies.cpp`); pluginval strictness-5 clean; clang-tidy 0/0.
 
+**Done — FeedbackExciter slow-path completion batch** (branch `fixes/membrum-feedback-slow-path-completion`):
+Phase 1 #5 of §5. The slow (per-sample FeedbackExciter) path was a stripped-down copy
+that had silently lost the secondary shell stage and the tension glide; obsolete
+feedback-loop cruft was also cleaned up.
+
+| Finding | What was done |
+|---------|---------------|
+| **M-6** secondary shell dropped in `processBlockSlow` | Phase-8D shell stage replicated per-sample in the slow path (feedforward body→shell + passive additive mix), using the same `prepareBlockSmoothing()` hoist as the body bank so the 24-mode shell adds no per-sample smoothing cost. `secondaryLastOutput_` carried across blocks. |
+| **tension slow-path** (§3-A) | Phase-8E energy-dependent pitch glide added to `processBlockSlow` (Membrane-only), mirroring `processBlockFast`: tensionPitchMod applied to the pitch refresh + the energy follower run over the block output. FeedbackExciter pads now get the glide. |
+| **L-7** vestigial 0.25 coupling ceiling | `stabilityClampedCoupling()` → `effectiveCouplingStrength()`; the 0.25 stability clamp (bounded the removed feedback loop) dropped — couplingStrength now maps to the full 0..1 feedforward drive range, bounded by the shell's unit-peak norm + bus limiter. |
+| **L-8** stale feedback-loop comments | `configureSecondaryBank` damping rationale rewritten to describe the actual feedforward+passive topology (no closed-loop stability bound; shell kept short so it can't outlast the voice); fast-path Phase-8D comment de-"feedback"-ed. Damping values unchanged (no sonic regression). |
+| **L-9** coverage gap | New `test_secondary_shell_paths.cpp` asserts the shell is audible on BOTH fast (Impulse) and slow (Feedback) paths — the slow-path case was the failing red that M-6 fixes. |
+
+Verification: `membrum_tests` 557 cases pass (incl. 2 new L-9 + the infinite-ring/coupling/secondary 69-case regression); pluginval strictness-5 clean (exit 0); clang-tidy 0/0.
+
 **Open — not yet started** (rough priority order):
 - ⬜ **M-2** ToneShaper Drive un-compensated ~9× makeup (acts as compressor).
 - ⬜ **M-3 / M-4** NonlinearCoupling recipSqrt over whole signal / AM near-inaudible.
-- ⬜ **M-5, M-6** decaySkew / secondary-bank dropped on non-Membrane or slow path.
+- ⬜ **M-5** decaySkew scalar-only (no per-mode tilt) on Plate/Shell/Bell/NoiseBody.
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
 - ⬜ **§3 physics**: B3 damping ceiling, Plate SSSS→(m+2n) Chladni topology, Stretch indexing (L-1), etc.
 - ⬜ **Preset re-tuning** — only AFTER the gain-staging batch above (the fix gate); the frequency-ratio science in §3-A is already correct and must be left alone.
