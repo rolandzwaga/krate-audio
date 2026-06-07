@@ -1168,6 +1168,10 @@ tresult PLUGIN_API Processor::setActive(TBool state)
         voicePool_.setVoiceStealingPolicy(
             static_cast<VoiceStealingPolicy>(voiceStealingPolicy_.load()));
 
+        // Clear the bus limiter's look-ahead delay so a reactivation does not
+        // emit ~1 ms of stale audio from the previous run.
+        busLimiter_.reset();
+
         // Phase 6 (T045): open the DataExchange queue for MetersBlock.
         if (dataExchangeHandler_)
         {

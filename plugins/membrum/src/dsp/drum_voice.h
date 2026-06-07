@@ -251,10 +251,10 @@ public:
                 bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
                 bank.setOutputSoftClipThreshold(0.0f);
             }
-
-            secondaryBank_.setOutputGain(
-                kBodyHeadroom / secondaryBank_.getInputGainSum());
-            secondaryBank_.setOutputSoftClipThreshold(0.0f);
+            // NOTE: the secondary (shell) bank's output gain is set AFTER
+            // configureSecondaryBank() below, once its modes (and hence
+            // getInputGainSum()) are configured for THIS note -- setting it
+            // here would use the previous note's mode profile.
         }
 
         // If the pitch envelope is active AND body is Membrane, seed the
@@ -304,6 +304,11 @@ public:
         if (secondaryEnabled_ >= 0.5f && couplingStrength_ > 0.0f)
         {
             configureSecondaryBank();
+            // Now that the shell modes are set for this note, apply the same
+            // amplitude-aware unit-peak normalisation as the body (Step 3).
+            secondaryBank_.setOutputGain(
+                kBodyHeadroom / secondaryBank_.getInputGainSum());
+            secondaryBank_.setOutputSoftClipThreshold(0.0f);
             effectiveCoupling_ = stabilityClampedCoupling();
         }
 
