@@ -126,6 +126,50 @@ clang-tidy 0/0 (membrum 11). No `dsp/` files changed.
   body). Fix is its own PR + a body-level re-derivation (every preset level shifts ~20 dB → Phase-4
   re-tuning territory): bound the body to its true budget against the *resonant* peak (e.g. a short
   measured/standing normalization or a post-bank peak follower), not the Σ\|a_k\| impulse bound.
+
+  **N-1 DESIGN DECISION — settled 2026-06-07 (literature verification + measurement spike).**
+  Evidence artifact: `plugins/membrum/tests/unit/diagnose/test_body_resonant_peak.cpp`
+  (tags `[diagnose_n1]` / `[diagnose_n1_axes]`), which isolates `ModalResonatorBank` per body
+  (raw, pre-rail) and measures the over-run factor `F = peak_raw / Σ\|a_k\|`.
+
+  *Literature (verified):* a 2-pole resonator's peak gain is `2/(1−R²)` and grows without bound as
+  `R→1` (long decay / high Q) — J.O. Smith / Steiglitz "constant peak-gain resonator", CCRMA. The
+  `Σ\|a_k\|` quantity is only the **t=0 in-phase impulse** peak; it structurally under-bounds the
+  resonant buildup of a bank driven by a *multi-sample* exciter. Faust `modeFilter(freq,t60,gain)`
+  and STK carry a per-mode gain with no mode-count divisor — none put a waveshaper or a single
+  count-based norm on the bank output.
+
+  *Spike findings:*
+  - `F_impulse ≈ 1.0` for every modal body → confirms `Σ\|a_k\|` IS exactly the impulse bound (the
+    current code's premise is correct *for an impulse*).
+  - `F_strike` (realistic ~2 ms multi-sample strike) = **1.5×–18×** → N-1 reproduced. Membrane/Bell
+    land at realized `0.25·F ≈ 3.3–4.6` (matches the audit's 2.97/3.71) and **exceed the ±1.0 rail**;
+    Plate/Shell/NoiseBody over-run the −12 dBFS budget 6–18× but mostly stay under the rail. **The
+    clipping pathology is concentrated in Membrane + Bell.**
+  - `F_strike` is **decay-INDEPENDENT** (≤10% over the full decay range) but varies **3.5×–18×**
+    across material/size/strikePos, **dominated by Size**: `f0 = 500·0.1^size`, so larger bodies put
+    modes at lower frequencies where the `b3·f²` damping is weaker (R→1) → far more ring-up. (Material
+    ±20%, strikePos ~1.5×, both minor.)
+  - The analytic `2/(1−R²)` worst case is 8k–100k — a sustained-sine bound a strike never reaches.
+
+  *Decision (what to build):* because `F_strike` is **not a per-body constant** (3.5–18× span,
+  Size-driven), all of these are REJECTED:
+    - a precomputed per-body scalar (wrong by up to ~18× at the Size extremes);
+    - pure analytic constant-peak-gain `(1−R²)/2` per mode (over-attenuates ~1000× / +60 dB — bounds
+      the never-reached sustained-sine peak);
+    - a runtime per-voice peak follower (the buildup is front-loaded in the first ~2 ms attack; a
+      follower either adds look-ahead latency or lets the transient blow through, and re-introduces
+      the per-voice dynamics compression H-1 removed).
+  REQUIRED: a **configure-time, note-aware measured-strike normalization** — at noteOn, *after*
+  `setModes`, render the bank's response to a canonical strike for ~5–10 ms, take the peak, and set
+  `outputGain = kBodyHeadroom / measuredPeak`. `Σ\|a_k\|` is demoted from the ceiling role (it stays
+  available to carry per-preset amplitude character). The per-voice `hardClip` becomes the
+  rarely-engaged safety rail; the bus `TruePeakLimiter` keeps the final ceiling. Implementation
+  notes: (1) cache the factor keyed on the mode-config hash so the ~480-sample × N-mode render only
+  re-runs when material/size/decay/stretch change, not every hit; (2) a measured render uses the
+  *real* excitation shape, removing the one caveat of the spike — its 2 ms raised-cosine proxy likely
+  over-excites HF modes vs the real Mallet, so the absolute `F` magnitudes above may be inflated
+  ~2–3× (the Size-dominated *shape* of the conclusion is robust to that).
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
 - ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour. **Blocked on N-1** for any level/dynamics-sensitive voicing.
 
