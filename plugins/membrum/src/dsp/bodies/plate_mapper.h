@@ -72,6 +72,24 @@ struct PlateMapper
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay)) *
             skewBias;
 
+        // Per-mode amplitude tilt for Decay Skew (audit M-5): the scalar bias
+        // above scales global decay equally for every mode and so leaves the
+        // spectral BALANCE unchanged. Mirror the Membrane mapper's tilt — boost
+        // high modes by ratio^(-decaySkew) so negative skew shifts perceived
+        // energy toward the high partials. decaySkew == 0 is bit-identical
+        // (ratio^0 == 1), guarded so the default-off path is untouched.
+        if (params.decaySkew != 0.0f)
+        {
+            for (int k = 0; k < kModeCount; ++k)
+            {
+                const float ratio = kPlateRatios[k];
+                if (ratio > 0.0f)
+                    r.amplitudes[k] *= std::clamp(
+                        std::exp(-params.decaySkew * std::log(ratio)),
+                        1.0f / kDecaySkewMaxModeTilt, kDecaySkewMaxModeTilt);
+            }
+        }
+
         r.numPartials = kModeCount;
         r.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);
