@@ -40,6 +40,16 @@ struct MapperResult
     Krate::DSP::ModalResonatorBank::DampingLaw damping{};
 };
 
+/// Upper bound (and reciprocal lower bound) on the per-mode Decay-Skew
+/// amplitude tilt factor `ratio^(-decaySkew)`. Without a bound, bodies whose
+/// frequency-ratio tables span a wide range (Shell reaches ~466, Plate ~65,
+/// NoiseBody ~52) would boost their top mode by 1-2 orders of magnitude at high
+/// |decaySkew|, collapsing the bank's unit-peak-normalised spectrum onto a
+/// single partial and defeating Size/Material/StrikePos. 8.0 (~+18 dB)
+/// approximates the Membrane body's natural tilt depth (max ratio ~8.16) and
+/// keeps Decay Skew a spectral-balance control rather than a mode selector.
+inline constexpr float kDecaySkewMaxModeTilt = 8.0f;
+
 /// Build a DampingLaw from the mapper's legacy decayTime/brightness pair,
 /// letting explicit VoiceCommonParams.bodyDamping{B1,B3} overrides take
 /// precedence when they are not the sentinel value (-1.0f).
@@ -154,8 +164,10 @@ struct MembraneMapper
                 const float ratio = kMembraneRatios[static_cast<std::size_t>(k)];
                 if (ratio > 0.0f)
                 {
-                    const float exponent = -params.decaySkew * std::log(ratio);
-                    r.amplitudes[k] *= std::exp(exponent);
+                    const float tilt = std::clamp(
+                        std::exp(-params.decaySkew * std::log(ratio)),
+                        1.0f / kDecaySkewMaxModeTilt, kDecaySkewMaxModeTilt);
+                    r.amplitudes[k] *= tilt;
                 }
             }
         }

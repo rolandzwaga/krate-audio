@@ -79,8 +79,9 @@ struct BellMapper
             {
                 const float ratio = kBellRatios[k];
                 if (ratio > 0.0f)
-                    r.amplitudes[k] *=
-                        std::exp(-params.decaySkew * std::log(ratio));
+                    r.amplitudes[k] *= std::clamp(
+                        std::exp(-params.decaySkew * std::log(ratio)),
+                        1.0f / kDecaySkewMaxModeTilt, kDecaySkewMaxModeTilt);
             }
         }
 

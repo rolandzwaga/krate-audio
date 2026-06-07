@@ -94,6 +94,12 @@ TEST_CASE("DecaySkew per-mode tilt -- Shell", "[UnnaturalZone][DecaySkew][Shell]
 
     CHECK(hiLoRatio(rNeg, kLo, kHi) > base * 2.0);
     CHECK(hiLoRatio(rPos, kLo, kHi) < base * 0.6);
+
+    // Bound check (kDecaySkewMaxModeTilt): shell's ratio[7]=31.87 would, without
+    // the per-mode tilt clamp, boost the high mode ~32x and collapse the
+    // normalised spectrum onto one partial. The clamp caps the high-mode factor
+    // at 8x, so the hi/lo boost must stay well under the unclamped 32x.
+    CHECK(hiLoRatio(rNeg, kLo, kHi) < base * 9.0);
 }
 
 // ------------------------------------------------------------------------------

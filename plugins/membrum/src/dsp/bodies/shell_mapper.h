@@ -33,7 +33,7 @@ namespace Membrum::Bodies {
 
 struct ShellMapper
 {
-    static constexpr int kModeCount = kShellModeCount;  // 12
+    static constexpr int kModeCount = kShellModeCount;  // 32
 
     [[nodiscard]] static MapperResult map(const VoiceCommonParams& params,
                                           float /*pitchHz*/) noexcept
@@ -82,8 +82,9 @@ struct ShellMapper
             {
                 const float ratio = kShellRatios[k];
                 if (ratio > 0.0f)
-                    r.amplitudes[k] *=
-                        std::exp(-params.decaySkew * std::log(ratio));
+                    r.amplitudes[k] *= std::clamp(
+                        std::exp(-params.decaySkew * std::log(ratio)),
+                        1.0f / kDecaySkewMaxModeTilt, kDecaySkewMaxModeTilt);
             }
         }
 
