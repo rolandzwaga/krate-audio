@@ -113,12 +113,21 @@ inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
 /// Strike-position amplitude for rectangular-plate mode (m,n):
 ///   A_{m,n} = sin(m * pi * x0 / a) * sin(n * pi * y0 / b)
 ///
-/// The single user-facing Strike Position scalar is mapped diagonally across
-/// the unit square per research.md §4.7:
-///   (x0/a, y0/b) = (0.5 + 0.3 * (strikePos - 0.5), 0.5)
+/// The single user-facing Strike Position scalar is mapped to a 2-D point that
+/// sweeps a diagonal of the unit square (research.md §4.7, the documented
+/// "diagonal" mapping):
+///   x0/a = 0.5  + 0.3 * (strikePos - 0.5)    -> [0.35, 0.65]
+///   y0/b = 0.43 + 0.3 * (strikePos - 0.5)    -> [0.28, 0.58]
 ///
-/// This keeps the strike on the central horizontal axis (where the (m,1)
-/// modes are maximally excited) while the scalar translates horizontally.
+/// BOTH coordinates move, so every (m,n) mode — including even-n modes — is
+/// excited as a function of the knob. The earlier mapping pinned y0 = 0.5,
+/// which parked every even-n mode on its horizontal nodal line (sin(n*pi/2)=0)
+/// for ALL strike positions, decoupling half the modal palette from the knob
+/// (correctness-audit Finding 8). The y axis is centred at 0.43 (off the
+/// y=0.5 nodal line) so the default, centred-knob strike excites even-n modes
+/// rather than nulling them. The x axis keeps its documented horizontal range,
+/// so even-m modes still node at the centred knob (a genuine centre-strike
+/// property of the horizontal axis) but respond elsewhere in the sweep.
 [[nodiscard]] inline float computePlateAmplitude(int modeIdx,
                                                  float strikePos) noexcept
 {
@@ -126,8 +135,9 @@ inline constexpr float kPlateRatios[kPlateMaxModeCount] = {
         return 0.0f;
     const PlateModeIndices idx = kPlateIndices[modeIdx];
     constexpr float kPi = 3.14159265358979f;
-    const float x0 = 0.5f + 0.3f * (strikePos - 0.5f);  // research.md §4.7
-    const float y0 = 0.5f;
+    const float d  = strikePos - 0.5f;
+    const float x0 = 0.5f  + 0.3f * d;  // research.md §4.7 (horizontal sweep)
+    const float y0 = 0.43f + 0.3f * d;  // vertical sweep, off the y=0.5 node
     const float fm = static_cast<float>(idx.m);
     const float fn = static_cast<float>(idx.n);
     return std::sin(fm * kPi * x0) * std::sin(fn * kPi * y0);
