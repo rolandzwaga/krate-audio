@@ -48,6 +48,7 @@ add_executable(membrum_tests
     unit/unnatural/test_decay_skew_all_bodies.cpp
     unit/unnatural/test_mode_inject.cpp
     unit/unnatural/test_nonlinear_coupling.cpp
+    unit/unnatural/test_coupling_no_homogenization.cpp
     unit/unnatural/test_material_morph.cpp
     unit/unnatural/test_material_morph_audibility.cpp
     unit/unnatural/test_morph_diagnose.cpp

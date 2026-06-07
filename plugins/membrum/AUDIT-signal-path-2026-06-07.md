@@ -93,11 +93,41 @@ online literature review (see below).
 | **L-3** FM modulation index clamped to [0,1] by `setLevel` | The modulator now runs at UNIT level and the index (0.5..3.0 rad) is applied as an explicit gain on the modulator output, so the full range — and index/velocity sensitivity — is restored (was pinned to 1.0 for any velocity ≥ 0.2). |
 | **L-4** SC-004 FM test blind to the L-3 clamp | New `[modindex]` test measures HIGH-ORDER sideband energy (carrier + 2..4·modulator) relative to the CARRIER — a ratio independent of the velocity→carrier-frequency sweep that only grows when the index actually increases. RED on the clamped code (both velocities cap at index 1.0 → J2/J3/J4 tiny → ratios match), GREEN after (v=1.0 reaches index 3.0 → rich high-order sidebands). The original centroid test is kept (still valid end-to-end). |
 
-Verification: `membrum_tests` 569 cases / 88520 assertions pass (incl. 4 new + the infinite-ring tonality guard); pluginval strictness-5 clean (exit 0); clang-tidy 0/0 (membrum 11). No `dsp/` files changed.
+**Post-merge review** (same branch): a meticulous re-review confirmed the M-3/M-4 redesign does
+NOT re-introduce the homogenizing always-on softClip the gain-staging PR removed. The coupling
+soft-clipper is knob-gated (exact bypass at amount=0 — the default kit and most presets are
+bit-identical), sits UPSTREAM of the gain stage (body→coupling→ToneShaper→×env×level→hardClip
+rail→bus limiter, all unchanged), and when engaged stays UNDER the rail. Direct DrumVoice
+measurement (post-rail, pre-bus): coupling-on LOWERS peak vs off (it soft-saturates below the
+hard rail), PRESERVES velocity dynamics (peak v1.0/v0.5 ≈ 2.05, even restores Bell from a
+rail-pinned 1.00→2.00), and keeps bodies spectrally DISTINCT (centroids Bell 259 / String 1099 Hz
+do not converge). M-2's makeup also makes Drive *gentler* than before (unity small-signal, capped
+at 1/g) — a net reduction in homogenization risk. New permanent guard
+`test_coupling_no_homogenization.cpp` (4 cases) pins: exact bypass at amount=0, coupling never
+blows the chain up / into the rail, velocity dynamics survive, bodies stay distinct.
+
+Verification: `membrum_tests` 573 cases / 88538 assertions pass (incl. 4 character-knob + 4
+homogenization-guard + the infinite-ring tonality guard); pluginval strictness-5 clean (exit 0);
+clang-tidy 0/0 (membrum 11). No `dsp/` files changed.
 
 **Open — not yet started** (rough priority order):
+- ⬜ **N-1 (NEW, found during the Phase-3 review) — modal body output runs ~12× / +21 dB hotter
+  than the −12 dBFS `kBodyHeadroom` budget.** Measured (coupling/drive/noise/click OFF, vel 1.0):
+  the *body × env* peak is ~2.7–3.7 for modal bodies (Membrane 2.97, Bell 3.71), not the 0.25 the
+  gain-staging appendix claims; String (waveguide, different norm) ≈ 0.99. The raw exciter is ~unit
+  (Impulse 1.23, Mallet 1.05), so it is NOT the exciter — it is **modal resonant buildup**: the
+  bank's real peak response to a multi-sample, resonantly-amplified excitation exceeds the
+  `getInputGainSum()` = Σ\|a_k\| *t=0 coherent-impulse* bound (which `setOutputGain(kBodyHeadroom/Σ)`
+  assumes) by ~10×. Consequence: the per-voice `hardClip` rail engages on a single voice at any
+  `level > ~0.34` at high velocity — re-collapsing velocity dynamics above that threshold and adding
+  harsh hard-clip distortion, i.e. the gain-staging "rail never engages on a musical hit" claim is
+  only true at the low test level (0.10) it was validated at. **Pre-existing** (independent of the
+  Phase-3 character knobs; the new coupling actually *masks* it by incidentally clamping the hot
+  body). Fix is its own PR + a body-level re-derivation (every preset level shifts ~20 dB → Phase-4
+  re-tuning territory): bound the body to its true budget against the *resonant* peak (e.g. a short
+  measured/standing normalization or a post-bank peak follower), not the Σ\|a_k\| impulse bound.
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
-- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour.
+- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour. **Blocked on N-1** for any level/dynamics-sensitive voicing.
 
 ---
 
@@ -292,7 +322,7 @@ put a waveshaper on a modal bank output; EBU R128 −1 dBTP true-peak ceiling).
 ### Gain budget (unit-velocity, single voice)
 | Node | Target | Notes |
 |------|--------|-------|
-| Modal body peak | **−12 dBFS** (`kBodyHeadroom = 0.25`) | dominant; carries Material/Size/StrikePos/damping |
+| Modal body peak | **−12 dBFS** (`kBodyHeadroom = 0.25`) | dominant; carries Material/Size/StrikePos/damping. **⚠ N-1 (found 2026-06-07): the realised peak is ~+9.5 dBFS (≈2.7–3.7), ~21 dB over this budget — the `1/Σ\|a_k\|` impulse bound under-attenuates the resonant buildup ~10×. See open items.** |
 | Noise / click layer peak (mix 1.0) | **~−18 dBFS** | transient accents, ~6 dB UNDER the body |
 | Per-voice safety rail | ±1.0 hardClip | never engages on a musical hit |
 | Main-bus ceiling | **−1 dBTP** | TruePeakLimiter; the single guarantee for the N-voice sum |
