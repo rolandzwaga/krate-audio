@@ -20,6 +20,8 @@
 #include <krate/dsp/primitives/oversampler.h>
 
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 using Catch::Approx;
@@ -44,6 +46,23 @@ float measureTruePeak(const std::vector<float>& x)
     for (float s : up)
         peak = std::max(peak, std::fabs(s));
     return peak;
+}
+
+// Build a non-finite float from a bit pattern through a volatile sink so it
+// survives -ffast-math (macOS CI), where literal NaN/Inf fold to finite garbage.
+float fromBits(std::uint32_t bits) noexcept
+{
+    volatile std::uint32_t b = bits;
+    float f = 0.0f;
+    std::memcpy(&f, const_cast<const std::uint32_t*>(&b), sizeof(f));
+    return f;
+}
+
+bool finiteBits(float x) noexcept
+{
+    std::uint32_t b = 0;
+    std::memcpy(&b, &x, sizeof(b));
+    return (b & 0x7F800000u) != 0x7F800000u;
 }
 
 } // namespace
@@ -150,4 +169,76 @@ TEST_CASE("TruePeakLimiter stays finite on extreme input", "[true_peak_limiter][
         REQUIRE(std::fabs(L[i]) <= ceil + 1.0e-4f);
         REQUIRE(std::fabs(R[i]) <= ceil + 1.0e-4f);
     }
+}
+
+// S1: a host block larger than the prepared maxBlockSize must not overflow the
+// oversampling scratch buffers (processBlock chunks internally).
+TEST_CASE("TruePeakLimiter handles blocks larger than maxBlockSize",
+          "[true_peak_limiter][gain_staging]")
+{
+    TruePeakLimiter lim;
+    lim.prepare(kSr, /*maxBlockSize*/ 64);  // deliberately small
+    lim.setCeilingDb(-1.0f);
+    const float ceil = lim.getCeilingLinear();
+
+    const int n = 300;  // > maxBlockSize -> exercises internal chunking
+    std::vector<float> L(n), R(n);
+    for (int i = 0; i < n; ++i)
+    {
+        const float s = 2.0f * std::sin(2.0f * 3.14159265f * 1000.0f
+                                        * static_cast<float>(i) / static_cast<float>(kSr));
+        L[i] = s; R[i] = s;
+    }
+
+    lim.processBlock(L.data(), R.data(), n);  // must not crash / overflow
+
+    for (int i = 96; i < n; ++i)
+    {
+        REQUIRE(std::isfinite(L[i]));
+        REQUIRE(std::fabs(L[i]) <= ceil + 1.0e-4f);
+    }
+}
+
+// S2: non-finite (NaN/Inf) input must be sanitized so it cannot poison the gain
+// state; clean samples after a non-finite burst must still be limited normally.
+TEST_CASE("TruePeakLimiter sanitizes non-finite input",
+          "[true_peak_limiter][gain_staging]")
+{
+    const int n = 512;
+    TruePeakLimiter lim;
+    lim.prepare(kSr, n);
+    lim.setCeilingDb(-1.0f);
+    const float ceil = lim.getCeilingLinear();
+
+    const float kNaN = fromBits(0x7FC00000u);
+    const float kInf = fromBits(0x7F800000u);
+    REQUIRE_FALSE(finiteBits(kNaN));
+    REQUIRE_FALSE(finiteBits(kInf));
+
+    std::vector<float> L(n), R(n);
+    for (int i = 0; i < n; ++i)
+    {
+        if (i < 32)            { L[i] = kNaN; R[i] = kInf; }      // non-finite burst
+        else                   { L[i] = 2.0f; R[i] = -2.0f; }     // loud, must be limited
+    }
+
+    lim.processBlock(L.data(), R.data(), n);
+
+    // Every output finite (no NaN/Inf propagation).
+    for (int i = 0; i < n; ++i)
+    {
+        REQUIRE(finiteBits(L[i]));
+        REQUIRE(finiteBits(R[i]));
+    }
+    // After the burst, the gain recovered and the loud signal is bounded
+    // (the NaN did not latch the gain to a stuck value).
+    for (int i = 64; i < n; ++i)
+    {
+        REQUIRE(std::fabs(L[i]) <= ceil + 1.0e-4f);
+        REQUIRE(std::fabs(R[i]) <= ceil + 1.0e-4f);
+    }
+    // ...and it is actually passing audible level (not stuck at zero gain).
+    float tail = 0.0f;
+    for (int i = n - 64; i < n; ++i) tail = std::max(tail, std::fabs(L[i]));
+    REQUIRE(tail > 0.1f);
 }

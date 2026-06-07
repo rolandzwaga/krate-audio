@@ -31,6 +31,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 namespace Krate {
@@ -99,10 +101,37 @@ public:
 
     /// @brief Process a stereo block in place. L/R are limited with a linked,
     /// zero-latency gain. Output appears at the same sample index as input.
+    /// Blocks larger than the prepared maxBlockSize are processed in chunks so
+    /// the oversampling scratch buffers can never overflow (S1).
     void processBlock(float* left, float* right, int numSamples) noexcept
     {
         if (numSamples <= 0)
             return;
+        const int maxChunk = static_cast<int>(maxBlockSize_);
+        int offset = 0;
+        int remaining = numSamples;
+        while (remaining > 0)
+        {
+            const int chunk = remaining < maxChunk ? remaining : maxChunk;
+            processChunk(left + offset, right + offset, chunk);
+            offset    += chunk;
+            remaining -= chunk;
+        }
+    }
+
+private:
+    /// Sample value is non-finite (NaN/Inf) iff its exponent field is all ones.
+    /// Bit-pattern test so it stays correct under -ffast-math (where
+    /// std::isnan/std::isinf are unreliable).
+    [[nodiscard]] static bool isFinite(float x) noexcept
+    {
+        std::uint32_t bits = 0;
+        std::memcpy(&bits, &x, sizeof(bits));
+        return (bits & 0x7F800000u) != 0x7F800000u;
+    }
+
+    void processChunk(float* left, float* right, int numSamples) noexcept
+    {
         const std::size_t n = static_cast<std::size_t>(numSamples);
 
         // 4x oversample each channel for true-peak detection (zero added latency).
@@ -111,8 +140,10 @@ public:
 
         for (std::size_t i = 0; i < n; ++i)
         {
-            const float inL = left[i];
-            const float inR = right[i];
+            // S2: sanitize non-finite input so a stray NaN/Inf can never poison
+            // the gain state (which would otherwise persist and mute the bus).
+            const float inL = isFinite(left[i])  ? left[i]  : 0.0f;
+            const float inR = isFinite(right[i]) ? right[i] : 0.0f;
 
             // True-peak = max |.| across this sample's 4 oversampled phases,
             // linked across L/R. Fold in the raw samples so tp >= |sample|
@@ -120,8 +151,10 @@ public:
             float tp = std::max(std::fabs(inL), std::fabs(inR));
             for (std::size_t k = 0; k < 4; ++k)
             {
-                tp = std::max(tp, std::fabs(osBufL_[i * 4 + k]));
-                tp = std::max(tp, std::fabs(osBufR_[i * 4 + k]));
+                const float sl = osBufL_[i * 4 + k];
+                const float sr = osBufR_[i * 4 + k];
+                if (isFinite(sl)) tp = std::max(tp, std::fabs(sl));
+                if (isFinite(sr)) tp = std::max(tp, std::fabs(sr));
             }
 
             const float required = (tp > ceilingLin_ && tp > 0.0f)
@@ -135,12 +168,14 @@ public:
             else
                 currentGain_ += (required - currentGain_) * releaseCoeff_;
 
+            // Invariant guard: gain is always a valid attenuation in [0, 1].
+            currentGain_ = std::clamp(currentGain_, 0.0f, 1.0f);
+
             left[i]  = inL * currentGain_;
             right[i] = inR * currentGain_;
         }
     }
 
-private:
     float sampleRate_   = 44100.0f;
     std::size_t maxBlockSize_ = 512;
 
