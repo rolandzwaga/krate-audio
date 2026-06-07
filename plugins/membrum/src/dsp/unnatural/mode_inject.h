@@ -42,17 +42,20 @@ public:
         bank_.prepare(sampleRate);
         rng_.seed(voiceId);
 
-        // Build the static harmonic frame shape. Amplitudes are 1/k^2 (close
-        // to natural harmonic falloff) then normalized so the bank's internal
-        // RMS normalization produces a modest output level. Phases are
-        // overwritten on every trigger().
+        // Build the static harmonic frame shape. Amplitudes follow the natural
+        // harmonic falloff 1/k (-6 dB/oct, the sawtooth/bowed spectrum), then
+        // normalized so the bank's internal RMS normalization produces a modest
+        // output level. The earlier 1/k^2 (-12 dB/oct) was the triangle/plucked
+        // spectrum, which is fundamental-dominated and dull (audit §3-B); 1/k
+        // gives the injected series a brighter, more distinctive timbre. Phases
+        // are overwritten on every trigger().
         for (int k = 0; k < kNumPartials; ++k)
         {
             const int harmonicIndex = k + 1;
             frame_.partials[k].harmonicIndex       = harmonicIndex;
             frame_.partials[k].relativeFrequency   = static_cast<float>(harmonicIndex);
             frame_.partials[k].inharmonicDeviation = 0.0f;
-            frame_.partials[k].amplitude           = 1.0f / static_cast<float>(harmonicIndex * harmonicIndex);
+            frame_.partials[k].amplitude           = 1.0f / static_cast<float>(harmonicIndex);
             frame_.partials[k].phase               = 0.0f;
             frame_.partials[k].bandwidth           = 0.0f;
             frame_.partials[k].stability           = 1.0f;

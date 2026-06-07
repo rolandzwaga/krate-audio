@@ -200,6 +200,7 @@ add_executable(dsp_tests
     unit/processors/multi_source_sieve_tests.cpp
     unit/processors/partial_tracker_polyphonic_tests.cpp
     unit/processors/test_modal_resonator_bank.cpp
+    unit/processors/test_modal_bank_stretch.cpp
     unit/processors/impact_exciter_test.cpp
     unit/processors/waveguide_string_test.cpp
     unit/processors/bow_exciter_test.cpp
@@ -530,6 +531,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         unit/processors/multi_source_sieve_tests.cpp
         unit/processors/partial_tracker_polyphonic_tests.cpp
         unit/processors/test_modal_resonator_bank.cpp
+        unit/processors/test_modal_bank_stretch.cpp
         unit/processors/impact_exciter_test.cpp
         unit/processors/waveguide_string_test.cpp
         unit/processors/bow_exciter_test.cpp

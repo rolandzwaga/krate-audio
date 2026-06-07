@@ -22,6 +22,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -308,8 +309,21 @@ TEST_CASE("MembraneBody: Material sweep changes decay tilt monotonically (US4-4)
     base.strikePos = 0.37f;
 
     const double f0      = 500.0 * std::pow(0.1, 0.5);
-    const double lowHz   = f0 * Membrum::kMembraneRatios[0];
-    const double highHz  = f0 * Membrum::kMembraneRatios[4];
+
+    // The membrane mapper folds Material into the bank's stretch scalar
+    // (stretch = material*0.3 at the unity modeStretch default), so a higher
+    // Material also detunes the high modes upward via stiff-string
+    // inharmonicity (audit §3-B widened B_max to 0.01). Measure each mode at
+    // its ACTUAL stretch-warped frequency so this test isolates the
+    // Material->brightness damping tilt it targets rather than tracking a fixed
+    // (now stale) bin the mode has moved away from.
+    auto warpedHz = [&](float materialVal, int idx) noexcept {
+        const float stretch = std::clamp(materialVal * 0.3f, 0.0f, 1.0f);
+        const double B = static_cast<double>(stretch) * stretch * 0.01;
+        const double n = static_cast<double>(idx + 1);
+        return f0 * static_cast<double>(Membrum::kMembraneRatios[idx])
+               * std::sqrt(1.0 + B * n * n);
+    };
 
     // Tail window: skip the first 100 ms (transient) and measure over 300 ms.
     const int tailStart  = static_cast<int>(kSR * 0.10);
@@ -321,6 +335,8 @@ TEST_CASE("MembraneBody: Material sweep changes decay tilt monotonically (US4-4)
         std::vector<float> buf(kN, 0.0f);
         runBodyImpulse(bank, Membrum::BodyModelType::Membrane, p, kSR,
                        buf.data(), kN);
+        const double lowHz  = warpedHz(materialVal, 0);
+        const double highHz = warpedHz(materialVal, 4);
         const float magLow =
             goertzelWindowMag(buf.data(), tailStart, tailLength, kSR, lowHz);
         const float magHigh =

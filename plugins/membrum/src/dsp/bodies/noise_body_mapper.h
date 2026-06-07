@@ -112,6 +112,21 @@ struct NoiseBodyMapper
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay)) *
             skewBias;
 
+        // Per-mode amplitude tilt for Decay Skew (audit M-5): boost high modes
+        // by ratio^(-decaySkew) so the skew re-balances the modal spectrum
+        // rather than only nudging global decay. decaySkew == 0 is bit-identical
+        // (guarded), preserving the default-off path.
+        if (params.decaySkew != 0.0f)
+        {
+            for (int k = 0; k < numModes; ++k)
+            {
+                const float ratio = kPlateRatios[k];
+                if (ratio > 0.0f)
+                    out.modal.amplitudes[k] *=
+                        std::exp(-params.decaySkew * std::log(ratio));
+            }
+        }
+
         out.modal.numPartials = numModes;
         out.modal.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         out.modal.damping     = dampingLawFromParams(

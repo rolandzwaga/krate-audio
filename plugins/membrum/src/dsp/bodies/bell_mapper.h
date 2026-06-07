@@ -67,6 +67,23 @@ struct BellMapper
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay)) *
             skewBias;
 
+        // Per-mode amplitude tilt for Decay Skew (audit M-5): boost high modes
+        // by ratio^(-decaySkew) so the skew re-balances the spectrum rather than
+        // only nudging global decay. The bell ratios run below 1.0 (hum/prime),
+        // so the tilt pivots around the nominal partial (ratio 1.0): negative
+        // skew cuts the hum and lifts the upper partials. decaySkew == 0 stays
+        // bit-identical (guarded).
+        if (params.decaySkew != 0.0f)
+        {
+            for (int k = 0; k < kModeCount; ++k)
+            {
+                const float ratio = kBellRatios[k];
+                if (ratio > 0.0f)
+                    r.amplitudes[k] *=
+                        std::exp(-params.decaySkew * std::log(ratio));
+            }
+        }
+
         r.numPartials = kModeCount;
         r.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);

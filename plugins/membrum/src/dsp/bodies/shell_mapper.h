@@ -72,6 +72,21 @@ struct ShellMapper
             std::exp(lerp(std::log(0.3f), std::log(3.0f), params.decay)) *
             skewBias;
 
+        // Per-mode amplitude tilt for Decay Skew (audit M-5): the scalar bias
+        // scales global decay equally for every mode; boost high modes by
+        // ratio^(-decaySkew) to actually re-balance the spectrum. decaySkew == 0
+        // is bit-identical (guarded), preserving the default-off path.
+        if (params.decaySkew != 0.0f)
+        {
+            for (int k = 0; k < kModeCount; ++k)
+            {
+                const float ratio = kShellRatios[k];
+                if (ratio > 0.0f)
+                    r.amplitudes[k] *=
+                        std::exp(-params.decaySkew * std::log(ratio));
+            }
+        }
+
         r.numPartials = kModeCount;
         r.scatter     = std::clamp(params.modeScatter, 0.0f, 1.0f);
         r.damping     = dampingLawFromParams(params, r.decayTime, r.brightness);

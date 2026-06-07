@@ -19,6 +19,7 @@
 
 #include <allocation_detector.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
@@ -34,6 +35,23 @@ inline bool isFiniteSample(float x) noexcept
     std::uint32_t bits = 0;
     std::memcpy(&bits, &x, sizeof(bits));
     return (bits & 0x7F800000u) != 0x7F800000u;
+}
+
+// Goertzel single-bin magnitude over [0, len).
+double goertzelMag(const float* samples, int len, double sampleRate,
+                   double targetHz)
+{
+    const double omega = 2.0 * 3.14159265358979323846 * targetHz / sampleRate;
+    const double coeff = 2.0 * std::cos(omega);
+    double q1 = 0.0, q2 = 0.0;
+    for (int i = 0; i < len; ++i)
+    {
+        const double q0 = coeff * q1 - q2 + static_cast<double>(samples[i]);
+        q2 = q1;
+        q1 = q0;
+    }
+    const double mag2 = q1 * q1 + q2 * q2 - q1 * q2 * coeff;
+    return std::sqrt(std::max(0.0, mag2));
 }
 
 } // namespace
@@ -74,6 +92,37 @@ TEST_CASE("UnnaturalZone ModeInject -- trigger randomizes partial phases",
         diff += std::abs(static_cast<double>(first[i]) - static_cast<double>(second[i]));
     INFO("Sum|first - second| = " << diff);
     CHECK(diff > 1e-3);
+}
+
+// ==============================================================================
+// Audit §3-B "mode_inject 1/k^2 mislabeled natural falloff" -- the injected
+// harmonic series must roll off at the NATURAL -6 dB/oct (amplitude 1/k), not
+// the triangle/plucked -12 dB/oct (1/k^2). Measured as the 2nd-harmonic /
+// fundamental amplitude ratio: 1/k -> 0.5, the old 1/k^2 -> 0.25.
+// ==============================================================================
+
+TEST_CASE("UnnaturalZone ModeInject -- partials roll off at 1/k (natural, -6 dB/oct)",
+          "[UnnaturalZone][ModeInject]")
+{
+    Membrum::ModeInject inject;
+    inject.prepare(kSampleRate, /*voiceId*/ 11u);
+    inject.setFundamentalHz(220.0f);
+    inject.setAmount(1.0f);
+    inject.trigger();
+
+    constexpr int kLen = 8820; // 200 ms @ 44.1 kHz (steady-state oscillators)
+    std::vector<float> out(static_cast<std::size_t>(kLen), 0.0f);
+    for (int i = 0; i < kLen; ++i)
+        out[static_cast<std::size_t>(i)] = inject.process();
+
+    const double h1 = goertzelMag(out.data(), kLen, kSampleRate, 220.0);
+    const double h2 = goertzelMag(out.data(), kLen, kSampleRate, 440.0);
+    REQUIRE(h1 > 1e-6);
+    const double ratio = h2 / h1;
+    INFO("2nd-harmonic / fundamental amplitude ratio = " << ratio
+         << " (expect ~0.5 for 1/k, ~0.25 for 1/k^2)");
+    // 1/k slope => 0.5. The old 1/k^2 (0.25) is well outside this band.
+    CHECK(ratio == Catch::Approx(0.5).margin(0.12));
 }
 
 // ==============================================================================

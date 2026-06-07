@@ -51,14 +51,26 @@ feedback-loop cruft was also cleaned up.
 
 Verification: `membrum_tests` 557 cases pass (incl. 2 new L-9 + the infinite-ring/coupling/secondary 69-case regression); pluginval strictness-5 clean (exit 0); clang-tidy 0/0.
 
+**Done — Phase-2 small physics batch** (branch `fix/membrum-physics-stretch-modeinject-decayskew`):
+§5 Phase 2 step 6 — the three small, high-value physics-correctness fixes that
+unblock metallic-kit re-tuning, landed together.
+
+| Finding | What was done |
+|---------|---------------|
+| **Stretch index + range** (§3-B, L-1) | `modal_resonator_bank.h` warp is now 1-indexed in the partial number: `sqrt(1 + B·(k+1)²)` (was `B·k²`, which left the fundamental unstretched and gave every partial the dispersion of the one below it). `B_max` widened 0.001→0.01 so full Stretch reaches a clearly metallic spectrum. New `test_modal_bank_stretch.cpp` pins the 1-based index, the musical range, and the `stretch==0` bit-exact guard; the two pre-existing dual-convention warp tests were rewritten to the corrected convention. |
+| **`mode_inject` → `1/k`** (§3-B) | `mode_inject.h` partial amplitudes changed `1/k²` (−12 dB/oct triangle/plucked) → `1/k` (−6 dB/oct natural sawtooth/bowed). New slope test in `test_mode_inject.cpp` asserts h2/h1 ≈ 0.5. |
+| **M-5 decaySkew per-mode tilt** | Plate/Shell/Bell/NoiseBody mappers now apply the Membrane-style `ratio^(−decaySkew)` per-mode amplitude tilt (guarded by `decaySkew != 0` for default-off bit-identity), so the knob re-balances the spectrum instead of only nudging global decay. New `test_decay_skew_all_bodies.cpp` covers all four bodies + the default-off guard. |
+
+Cross-plugin note: the Stretch fix is in the **shared** `ModalResonatorBank`, so it also corrects Innexus's Resonance Stretch knob. All Innexus tests use stretch=0 (B=0), so they were unaffected; `innexus_tests` stayed green (552 cases). **Accepted consequence (user-approved):** widening `B_max` changes the DEFAULT timbre of all Membrum bodies, because the mappers feed a non-zero stretch at the unity default (membrane `material·0.3`; plate/shell/bell/noisebody `stretchNorm=0.333`). The Phase-1 default-patch golden was re-blessed and two focused physics tests (`test_membrane_body` material-tilt, `test_per_mode_damping` airLoading) were updated to measure at the stretch-warped frequencies / with stretch isolated.
+
+Verification: `dsp_tests` (6755) + `membrum_tests` (564) + `innexus_tests` (552) pass; pluginval strictness-5 clean on Membrum AND Innexus (exit 0); clang-tidy 0/0 on dsp (258) + membrum (11).
+
 **Open — not yet started** (rough priority order):
 - ⬜ **M-2** ToneShaper Drive un-compensated ~9× makeup (acts as compressor).
 - ⬜ **M-3 / M-4** NonlinearCoupling recipSqrt over whole signal / AM near-inaudible.
-- ⬜ **M-5** decaySkew scalar-only (no per-mode tilt) on Plate/Shell/Bell/NoiseBody.
 - ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
-- ⬜ **§3 physics**: B3 damping ceiling, Plate SSSS→(m+2n) Chladni topology, Stretch indexing (L-1), etc.
+- ⬜ **§3 physics (Phase 2 step 7, larger)**: Plate SSSS→(m+2n) Chladni topology, shell free-free mode shape, bell 2-D (m,n) shape, secondary-shell strikePos hard-code, B3 damping ceiling.
 - ⬜ **Preset re-tuning** — only AFTER the gain-staging batch above (the fix gate); the frequency-ratio science in §3-A is already correct and must be left alone.
-- ⬜ **clang-tidy** pre-PR gate (needs a VS Developer shell to configure the ninja build).
 
 ---
 
@@ -124,7 +136,7 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Bug: modulation `= 1 + vel·amt·8·dEnv`; `dEnv→0` in steady state so the effect is a brief attack-edge wiggle, not the promised "time-varying spectral centroid." Net effect of raising the knob is often a slight level cut (via M-3) rather than brightening.
 - Fix: drive a real time-varying parameter (e.g. modulate a filter cutoff or per-mode brightness) rather than envelope-delta AM.
 
-**M-5. decaySkew degrades to ±30% global decay nudge for Plate/Shell/Bell/NoiseBody** — `plate_mapper.h:69; shell_mapper.h:69; bell_mapper.h:64; noise_body_mapper.h:109`
+**M-5. decaySkew degrades to ±30% global decay nudge for Plate/Shell/Bell/NoiseBody** — `plate_mapper.h:69; shell_mapper.h:69; bell_mapper.h:64; noise_body_mapper.h:109` — ✅ DONE (`fix/membrum-physics-stretch-modeinject-decayskew`)
 - Bug: only Membrane applies the per-mode amplitude tilt `ratio^(−decaySkew)`; the other four bodies get only a `[0.7,1.3]` scalar on global decay (near JND, no spectral tilt).
 - Fix: add the per-mode tilt term to the other four mappers.
 
@@ -177,8 +189,8 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 ### B) The math is WRONG or OVERSIMPLIFIED (contributes to sameness)
 
 - **Plate/cymbal uses SSSS `(m²+n²)/2` ratios** — OVERSIMPLIFIED, strong. `plate_modes.h:42-111`. A real cymbal/gong (free edges, often non-flat) follows a Chladni power law in `(m+2n)`: classical `(m+2n)²`, modified-measured `C_n·(m+2n)^P_n` with empirical exponents ~1.73/1.60 (Rossing). SSSS describes a hinged/pinned plate — a struck cymbal is not pinned. The coded table is quasi-regular with exact degenerate repeats (12.5, 25.0 appear twice), *more* ordered than a real inharmonic cymbal. Since the ratio topology is fixed, Size/Material/modeStretch/modeScatter only scale/tilt the same skeleton → metallic presets converge. Also missing the cymbal/gong dynamic nonlinearity (pitch glide, HF energy cascade). **Correct form:** free-plate eigenvalues (Leissa free-free / Waller) or `(m+2n)^P` Chladni fit. (F&R; Rossing & Peterson JASA; Chladni/Kirchhoff; Waller 1939; Fletcher 1999.) → *Must land before re-tuning metallic kits.*
-- **Stretch inharmonicity: form right, index wrong, range tiny** — NUANCED, strong. `modal_resonator_bank.h:670,687`. `√(1+B·k²)` is correct stiff-string form, but uses 0-based array index `k` → computes `√(1+B·k²)` instead of `√(1+B·(k+1)²)`: fundamental left unstretched, every partial gets the dispersion of partial `m−1` (the bow-weight code at :608 correctly uses `k+1`, confirming the anomaly). And `B_max=0.001` is orders of magnitude below real piano/bar values. So the Stretch knob barely moves partials and mistunes them. **Fix:** index `(k+1)` and widen `B_max`. (Russell PSU; F&R; Young 1952; arXiv:1603.05516.)
-- **`mode_inject` uses `1/k²` mislabeled "natural harmonic falloff"** — OVERSIMPLIFIED, strong. `mode_inject.h:46-55`. `1/k²` (−12 dB/oct) is the *triangle*/plucked-envelope spectrum, not the generic natural (sawtooth/bowed) `1/k` (−6 dB/oct). 8th partial is 36 dB down vs 18 dB for `1/k`, so the injected series is fundamental-dominated and dull; the ModeInject knob adds dark low-harmonic tone rather than distinctive timbre. **Fix:** default to `1/k` or a tunable exponent. (F&R; ThinkDSP; Triangle/Sawtooth-wave refs.)
+- **Stretch inharmonicity: form right, index wrong, range tiny** — ✅ DONE (`fix/membrum-physics-stretch-modeinject-decayskew`): index corrected to `(k+1)`, `B_max` widened 0.001→0.01. `modal_resonator_bank.h:670,687`. `√(1+B·k²)` is correct stiff-string form, but uses 0-based array index `k` → computes `√(1+B·k²)` instead of `√(1+B·(k+1)²)`: fundamental left unstretched, every partial gets the dispersion of partial `m−1` (the bow-weight code at :608 correctly uses `k+1`, confirming the anomaly). And `B_max=0.001` is orders of magnitude below real piano/bar values. So the Stretch knob barely moves partials and mistunes them. **Fix:** index `(k+1)` and widen `B_max`. (Russell PSU; F&R; Young 1952; arXiv:1603.05516.)
+- **`mode_inject` uses `1/k²` mislabeled "natural harmonic falloff"** — ✅ DONE (`fix/membrum-physics-stretch-modeinject-decayskew`): default changed to `1/k` (−6 dB/oct). `mode_inject.h:46-55`. `1/k²` (−12 dB/oct) is the *triangle*/plucked-envelope spectrum, not the generic natural (sawtooth/bowed) `1/k` (−6 dB/oct). 8th partial is 36 dB down vs 18 dB for `1/k`, so the injected series is fundamental-dominated and dull; the ModeInject knob adds dark low-harmonic tone rather than distinctive timbre. **Fix:** default to `1/k` or a tunable exponent. (F&R; ThinkDSP; Triangle/Sawtooth-wave refs.)
 - **Shell strike shape is simply-supported `sin(k·π·x)`, not free-free** — OVERSIMPLIFIED, strong. `shell_modes.h:48-57`. Ratios are free-free but the mode shape is pinned: at the free ends (x=0, x=L — the most common strike region) the true free-free shape is a *maximum* antinode (|φ|=1) while `sin` is identically *zero*. With the abs()+0.05 floor, an edge strike collapses the whole mode set to a flat floor → same dull spectrum regardless of params. And the secondary shell hard-codes `strikePos=0.3`, so coupling timbre never responds to Strike Position. **Fix:** use the real free-free eigenfunction (small per-mode `βₙL`/`σₙ` lookup) or at least a `|cos(k·π·x/L)|` family with end antinodes. (F&R Ch.2; Rossing & Fletcher §2.19.)
 - **Bell strike shape `|cos((k+1)·π·r)|` is not a bell mode shape** — OVERSIMPLIFIED, strong. `bell_modes.h:56-65`. Bell modes are 2-D `(m nodal meridians, n nodal circles)`; partial ordering is decoupled from any single radial index, so binding amplitude to `(k+1)` radial half-waves has no physical correspondence to the partial it multiplies. Plus a real clapper strikes a *fixed* soundbow (`r≈R`), so sweeping r is unphysical; the 0.05 floor blunts what's left. Strike Position has weak/non-characteristic authority on bells. **Fix:** meridional `cos(mθ)` × through-thickness `φₙ` at the strike location. (Rossing Science of Percussion Ch.5; Perrin et al. 1983/1985; Hibberts 2014.)
 

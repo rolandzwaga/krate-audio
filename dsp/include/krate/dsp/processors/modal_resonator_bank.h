@@ -667,7 +667,15 @@ private:
         // to 10 % so Membrum's mode-scatter knob produces a musically
         // useful sweep. Callers that never populate scatter (Innexus)
         // are unaffected because scatter stays at 0.
-        const float B = stretch * stretch * 0.001f;
+        //
+        // `B` is the stiff-string inharmonicity coefficient in
+        // f_n = n*f0 * sqrt(1 + B*n^2) (Fletcher & Rossing; Young 1952). The
+        // ceiling was 0.001 — orders of magnitude below real piano/bar values
+        // (~5e-5 bass to >1e-2 treble) — so the Stretch knob barely moved the
+        // partials. Widened to 0.01 so full Stretch reaches a clearly metallic,
+        // inharmonic spectrum (audit §3-B). Callers with stretch==0 (Innexus
+        // default, Membrum default-off) get B==0 and are bit-identical.
+        const float B = stretch * stretch * 0.01f;
         const float C = scatter * 0.10f;
 
         for (int k = 0; k < numPartials; ++k) {
@@ -684,7 +692,14 @@ private:
             }
 
             // Apply Stretch warping (FR-011): stiff-string inharmonicity
-            float f_w = f_k * std::sqrt(1.0f + B * static_cast<float>(k) * static_cast<float>(k));
+            // f_n = n*f0 * sqrt(1 + B*n^2). Partial number n is 1-based, so the
+            // array index k maps to n = k+1: the fundamental (k=0) gets
+            // sqrt(1+B) and the dispersion grows with the true partial number.
+            // (Previously used k directly, which left the fundamental unstretched
+            // and gave every partial the dispersion of the partial below it —
+            // audit §3-B. The bow-weight code below already uses k+1.)
+            const float n_k = static_cast<float>(k + 1);
+            float f_w = f_k * std::sqrt(1.0f + B * n_k * n_k);
 
             // Apply Scatter warping (FR-012): deterministic sinusoidal displacement
             f_w *= (1.0f + C * std::sin(static_cast<float>(k) * kScatterD));

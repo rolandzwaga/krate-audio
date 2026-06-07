@@ -842,29 +842,25 @@ TEST_CASE("ModalResonatorBank Stretch=0 Scatter=0 harmonic modes match configure
     }
 }
 
-TEST_CASE("ModalResonatorBank Stretch=1 warps mode k=5 frequency correctly",
+TEST_CASE("ModalResonatorBank Stretch=1 warps mode n=5 frequency correctly",
           "[modal_resonator_bank][warping][stretch]")
 {
-    // Stretch=1 (maximum): B = 1.0 * 1.0 * 0.001 = 0.001
-    // Mode at 500 Hz (5th harmonic, array index 4):
-    // The code uses 0-indexed k, so mode number in the formula = array index.
-    // We measure the actual spectral peak and compare to what the code produces.
+    // Stretch=1 (maximum): B = 1.0 * 1.0 * 0.01 = 0.01 (B_max widened from 0.001
+    // to 0.01 in the audit §3-B fix). The stiff-string form is 1-indexed in the
+    // partial number n: array index k maps to n = k+1, so the 5th harmonic
+    // (array index 4) warps by sqrt(1 + B * 5^2), NOT sqrt(1 + B * 4^2). This
+    // test pins the corrected 1-based convention (previously it tolerated either
+    // index because of the off-by-one bug).
     Krate::DSP::ModalResonatorBank bank;
     bank.prepare(kSampleRate);
 
-    constexpr float B = 0.001f;
-    // Code uses k=4 (0-indexed) for 5th partial: f_warped = 500 * sqrt(1 + B * 4^2)
-    constexpr int kIndex = 4;
-    constexpr float fBase = 500.0f;
-    const float fWarped_0idx =
-        fBase * std::sqrt(1.0f + B * static_cast<float>(kIndex * kIndex));
-    // Physics uses n=5 (1-indexed): f_warped = 500 * sqrt(1 + B * 5^2)
-    constexpr int modeNum = 5;
-    const float fWarped_1idx =
+    constexpr float B = 0.01f;
+    constexpr int   modeNum = 5;   // 5th partial -> n = 5
+    constexpr float fBase   = 500.0f;
+    const float fWarped =
         fBase * std::sqrt(1.0f + B * static_cast<float>(modeNum * modeNum));
 
-    INFO("Expected warped freq (0-idx k=4): " << fWarped_0idx << " Hz");
-    INFO("Expected warped freq (1-idx n=5): " << fWarped_1idx << " Hz");
+    INFO("Expected warped freq (1-idx n=5): " << fWarped << " Hz");
 
     // Configure 5 harmonic modes at 100, 200, 300, 400, 500 Hz with Stretch=1
     std::array<float, kMaxModes> freqs{};
@@ -883,20 +879,14 @@ TEST_CASE("ModalResonatorBank Stretch=1 warps mode k=5 frequency correctly",
     for (int i = 1; i < kN; ++i)
         ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
 
-    // Search around the expected warped frequency range
-    float searchLow = std::min(fWarped_0idx, fWarped_1idx) - 5.0f;
-    float searchHigh = std::max(fWarped_0idx, fWarped_1idx) + 5.0f;
-    float measuredFreq = findDftPeakFreq(
-        ir.data(), kN, static_cast<float>(kSampleRate), searchLow, searchHigh);
+    // Search a window around the corrected 1-indexed warped frequency.
+    const float measuredFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate),
+        fWarped - 8.0f, fWarped + 8.0f);
 
     INFO("Measured spectral peak: " << measuredFreq << " Hz");
-
-    // The measured frequency should match one of the indexing conventions within 1 Hz
-    bool matches0idx = std::abs(measuredFreq - fWarped_0idx) <= 1.0f;
-    bool matches1idx = std::abs(measuredFreq - fWarped_1idx) <= 1.0f;
-    INFO("Error vs 0-indexed: " << std::abs(measuredFreq - fWarped_0idx) << " Hz");
-    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fWarped_1idx) << " Hz");
-    REQUIRE((matches0idx || matches1idx));
+    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fWarped) << " Hz");
+    REQUIRE(std::abs(measuredFreq - fWarped) <= 2.0f);
 }
 
 TEST_CASE("ModalResonatorBank Scatter=1 warps mode k=1 frequency correctly",
@@ -953,21 +943,20 @@ TEST_CASE("ModalResonatorBank Stretch+Scatter combine multiplicatively in warped
     Krate::DSP::ModalResonatorBank bank;
     bank.prepare(kSampleRate);
 
-    constexpr float B = 0.001f; // stretch=1
+    constexpr float B = 0.01f;  // stretch=1, B_max widened 0.001 -> 0.01 (audit §3-B)
     constexpr float C = 0.10f;  // scatter=1 (Phase 8C widened 2% -> 10%, commit b794450c)
     const float D = std::numbers::pi_v<float> * (std::numbers::phi_v<float> - 1.0f);
 
-    constexpr int modeIdx = 2;
+    constexpr int modeIdx = 2;      // array index 2
+    constexpr int modeNum = modeIdx + 1;  // partial number n = 3 (1-indexed)
     constexpr float fBase = 300.0f;
 
-    // Code uses 0-indexed k:
-    float fStretch_0idx = fBase * std::sqrt(1.0f + B * static_cast<float>(modeIdx * modeIdx));
-    float fCombined_0idx = fStretch_0idx * (1.0f + C * std::sin(static_cast<float>(modeIdx) * D));
-
-    // Physics uses 1-indexed n:
-    int modeNum = modeIdx + 1;
-    float fStretch_1idx = fBase * std::sqrt(1.0f + B * static_cast<float>(modeNum * modeNum));
-    float fCombined_1idx = fStretch_1idx * (1.0f + C * std::sin(static_cast<float>(modeIdx) * D));
+    // Stiff-string stretch is 1-indexed in the partial number n; the scatter
+    // dither uses the array index k (a deterministic per-slot displacement).
+    const float fStretch =
+        fBase * std::sqrt(1.0f + B * static_cast<float>(modeNum * modeNum));
+    const float fCombined =
+        fStretch * (1.0f + C * std::sin(static_cast<float>(modeIdx) * D));
 
     // Configure 3 modes with both warps active
     std::array<float, kMaxModes> freqs{};
@@ -986,23 +975,18 @@ TEST_CASE("ModalResonatorBank Stretch+Scatter combine multiplicatively in warped
     for (int i = 1; i < kN; ++i)
         ir[static_cast<size_t>(i)] = bank.processSample(0.0f);
 
-    float searchLow = std::min(fCombined_0idx, fCombined_1idx) - 5.0f;
-    float searchHigh = std::max(fCombined_0idx, fCombined_1idx) + 5.0f;
-    float measuredFreq = findDftPeakFreq(
-        ir.data(), kN, static_cast<float>(kSampleRate), searchLow, searchHigh);
+    const float measuredFreq = findDftPeakFreq(
+        ir.data(), kN, static_cast<float>(kSampleRate),
+        fCombined - 8.0f, fCombined + 8.0f);
 
-    INFO("Combined warp (0-idx): " << fCombined_0idx << " Hz");
-    INFO("Combined warp (1-idx): " << fCombined_1idx << " Hz");
+    INFO("Combined warp (1-idx): " << fCombined << " Hz");
     INFO("Measured: " << measuredFreq << " Hz");
 
     // Must NOT be at the original harmonic position
     REQUIRE(std::abs(measuredFreq - 300.0f) > 0.5f);
-    // Must be within 1 Hz of at least one combined formula
-    bool matches0idx = std::abs(measuredFreq - fCombined_0idx) <= 1.0f;
-    bool matches1idx = std::abs(measuredFreq - fCombined_1idx) <= 1.0f;
-    INFO("Error vs 0-indexed: " << std::abs(measuredFreq - fCombined_0idx) << " Hz");
-    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fCombined_1idx) << " Hz");
-    REQUIRE((matches0idx || matches1idx));
+    // Must match the combined (1-indexed stretch x scatter) formula.
+    INFO("Error vs 1-indexed: " << std::abs(measuredFreq - fCombined) << " Hz");
+    REQUIRE(std::abs(measuredFreq - fCombined) <= 2.0f);
 }
 
 TEST_CASE("ModalResonatorBank Stretch pushes modes above Nyquist reduces active count",

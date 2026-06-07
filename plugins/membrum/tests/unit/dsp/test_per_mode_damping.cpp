@@ -637,7 +637,13 @@ TEST_CASE("Phase 8C: airLoading=1 produces the Rossing timpani series",
                                   std::array<float, 6>& out) {
         DrumVoice v;
         v.prepare(44100.0, 0u);
-        v.setMaterial(0.5f); v.setSize(0.5f); v.setDecay(0.5f);
+        // Material = 0 so the membrane mapper's material->stretch coupling
+        // (stretch = material*0.3 at the unity modeStretch default) yields
+        // stretch = 0. This isolates the airLoading frequency morph from the
+        // stiff-string inharmonicity warp (which, with the widened B_max, would
+        // otherwise inflate the high/low ratios by ~1%). Mode frequencies are
+        // material-independent, so the Rossing morph itself is unaffected.
+        v.setMaterial(0.0f); v.setSize(0.5f); v.setDecay(0.5f);
         v.setStrikePosition(0.3f); v.setLevel(0.8f);
         v.setExciterType(Membrum::ExciterType::Impulse);
         v.setBodyModel(Membrum::BodyModelType::Membrane);
