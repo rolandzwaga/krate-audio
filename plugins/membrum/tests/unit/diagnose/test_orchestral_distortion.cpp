@@ -110,7 +110,7 @@ TEST_CASE("Orchestral timpani kick: bisect distortion source", "[diagnose_orch]"
                 if (a >= 0.99f) ++samplesNearClip;
             }
         }
-        const float rms = std::sqrt(sumSq / kTotalSamples);
+        const float rms = static_cast<float>(std::sqrt(sumSq / kTotalSamples));
 
         std::printf("[diagnose_orch] %-18s peak=%.4f  rms=%.4f  "
                     "samples>=0.99: %d  %s\n",

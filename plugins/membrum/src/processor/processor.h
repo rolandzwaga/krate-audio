@@ -22,6 +22,7 @@
 
 #include <krate/dsp/systems/sympathetic_resonance.h>
 #include <krate/dsp/primitives/delay_line.h>
+#include <krate/dsp/processors/true_peak_limiter.h>
 
 #include <array>
 #include <atomic>
@@ -124,6 +125,10 @@ private:
     // ---- Phase 5: Cross-pad coupling (sympathetic resonance) ----
     Krate::DSP::SympatheticResonance  couplingEngine_;
     Krate::DSP::DelayLine             couplingDelay_;
+    // Main-bus true-peak brickwall limiter (gain-staging Step 1). Bounds the
+    // summed voice + coupling output to -1 dBTP before the master gain so the
+    // per-voice path can run linear (no per-voice softClip gain stage).
+    Krate::DSP::TruePeakLimiter       busLimiter_;
     CouplingMatrix                    couplingMatrix_;
 
     // Global coupling parameters (atomics for thread-safe parameter updates)

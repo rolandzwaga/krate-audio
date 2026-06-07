@@ -134,6 +134,7 @@ add_executable(membrum_tests
     # Phase 7: parallel noise layer + always-on click transient
     unit/dsp/test_noise_layer.cpp
     unit/dsp/test_click_layer.cpp
+    unit/dsp/gain_staging_balance_test.cpp
 
     # Phase 8A: per-mode damping law
     unit/dsp/test_per_mode_damping.cpp

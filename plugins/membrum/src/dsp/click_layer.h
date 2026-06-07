@@ -147,10 +147,13 @@ private:
     static constexpr float kPi = 3.14159265358979323846f;
 
 public:
-    // Amplitude calibration for the Phase 7 standalone path in DrumVoice.
-    // 2x keeps the combined (body + click) peak under 0 dBFS (SC-008) while
-    // making the click's transient clearly audible. See processSample() docs.
-    static constexpr float kStandaloneOutputGain = 2.0f;
+    // Amplitude calibration for the standalone path in DrumVoice. Gain-staging
+    // Step 4 (H-2): the click is a transient ACCENT sitting ~6 dB under the
+    // body's -12 dBFS budget (~-18 dBFS click peak at mix=1.0, vel=1.0). The
+    // previous 2.0 was calibrated against the pre-Phase-11 un-attenuated body
+    // and let the beater transient mask the modal body. Verified by
+    // gain_staging_balance_test.cpp.
+    static constexpr float kStandaloneOutputGain = 0.445f;  // raw peak ~0.283 -> ~-18 dBFS
 private:
 
     static float denormContactMs(float norm) noexcept
