@@ -126,6 +126,8 @@ add_executable(membrum_tests
     unit/controller/test_adsr_persist.cpp
     unit/controller/test_audit_ui_controller_batch.cpp
     unit/diagnose/test_orchestral_distortion.cpp
+    unit/diagnose/test_body_resonant_peak.cpp
+    unit/dsp/test_body_headroom_budget.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp

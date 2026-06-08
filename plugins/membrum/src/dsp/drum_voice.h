@@ -45,6 +45,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 
 namespace Membrum {
 
@@ -69,11 +70,34 @@ public:
     /// time the fast-release ramp hits its 1e-6 floor.
     static constexpr float kFastReleaseDampScale = 0.88f;
 
-    /// Gain-staging Step 3 (C-2): fixed body headroom trim applied on top of the
-    /// 1/sum|a| unit-peak normalisation, so a unit-velocity body peaks at
-    /// ~-12 dBFS. Leaves room for the parallel noise/click accents and for the
-    /// N-voice sum before the main-bus true-peak limiter.
-    static constexpr float kBodyHeadroom = 0.25f;  // -12 dBFS
+    /// Audit N-1: per-voice body STRIKE-peak budget. The measured-strike
+    /// normalisation (see measuredStrikeOutputGain) trims the body so that a
+    /// canonical hard strike peaks at this level. Set to the field-standard
+    /// per-element peak of -6 dBFS: drums have a 15-20 dB crest factor, so the
+    /// transient PEAK must sit near the top for the RMS to land at a musical
+    /// ~-18 to -24 dBFS; a -12 dBFS peak budget left the body ~15 dB too quiet.
+    /// The per-voice hardClip rail stays disengaged (0.5 << 1.0) and the
+    /// main-bus -1 dBTP true-peak limiter owns the N-voice coincident sum.
+    /// Final loudness make-up is master gain + per-pad Level (Phase-4 tuning),
+    /// NOT this budget. (Was 0.25 / -12 dBFS, an impulse-peak budget mis-applied
+    /// as a strike budget.)
+    static constexpr float kBodyHeadroom = 0.5f;  // -6 dBFS strike-peak budget
+
+    /// Audit N-1: tension-modulation energy scale. `tensionPitchMod = 1 +
+    /// (knob * this) * modalEnergy`, with modalEnergy from the bank's
+    /// gain-invariant getModalEnergy(). Calibrated so a full-knob hard hit
+    /// glides ~1-2 semitones at the modal-energy peak (see
+    /// test_per_mode_damping "Tom tension modulation"). Replaces the old
+    /// 0.15 * velocity^2 coefficient that was applied to output energy.
+    /// (Modal energy for a hard tom hit peaks ~2.4e3, so this scale yields
+    /// ~1.5 semitones; the glide is clamped below for runaway energy.)
+    static constexpr float kTensionEnergyScale = 3.3e-5f;
+
+    /// Audit N-1: hard ceiling on the tension pitch-glide factor (~3 semitones)
+    /// so a pathologically hot strike cannot drive the fundamental into a
+    /// non-physical sweep. Real membranes saturate; the linear energy law only
+    /// holds for moderate amplitudes (Avanzini-Marogna-Bank).
+    static constexpr float kTensionPitchModMax = 1.19f;  // ~+3 semitones
 
     /// Apply the fast-release damp directly (used by VoicePool fast-release
     /// path). Equivalent to noteOff() but uses a more aggressive scale.
@@ -244,21 +268,33 @@ public:
                 bank.setOutputGain(1.0f);
                 bank.setOutputSoftClipThreshold(0.707f);
             }
+            else if (bodyBank_.getCurrentType() == BodyModelType::String)
+            {
+                // String runs a WaveguideString, not the shared modal bank, so
+                // the bank's output gain never reaches the audio path. Keep the
+                // cheap impulse-bound norm (harmless; no modes are configured,
+                // getInputGainSum() returns 1.0).
+                bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
+                bank.setOutputSoftClipThreshold(0.0f);
+            }
             else
             {
-                // Gain-staging Step 3 (C-2): amplitude-aware unit-peak
-                // normalisation. 1/sum|a_k| (getInputGainSum) bounds the
-                // coherent in-phase strike peak to ~unity for ANY body, then
-                // kBodyHeadroom trims to the -12 dBFS budget. Unlike the old
-                // flat 1/sqrt(N) (count-only, amplitude-blind -- it normalised
-                // away per-body loudness/attack differences and was a primary
-                // "all presets sound the same" cause), this preserves each
-                // body's amplitude profile while keeping the peak bounded.
-                // Per-mode boosts (decaySkew, modeScatter) change sum|a_k|, so
-                // their relative tilt is preserved, not self-cancelled. The
-                // main-bus true-peak limiter owns the final ceiling;
-                // FeedbackExciter keeps the legacy -3 dBFS passivity clip.
-                bank.setOutputGain(kBodyHeadroom / bank.getInputGainSum());
+                // Audit N-1: bound the body to its budget against the REALISED
+                // resonant-strike peak, not the t=0 in-phase impulse bound
+                // (getInputGainSum). A bank driven by a multi-sample strike
+                // rings UP -- its real peak exceeds Sum|a_k| by ~3-18x, and the
+                // over-run is NOT a per-body constant (it is dominated by Size:
+                // larger body -> lower f0 -> weaker b3*f^2 damping -> more
+                // ring-up). So a precomputed scalar, a pure constant-peak-gain
+                // (2/(1-R^2)) norm, and a runtime peak follower are all wrong
+                // (see AUDIT-signal-path-2026-06-07.md N-1 design decision +
+                // J.O. Smith / Steiglitz constant-peak-gain resonator). Instead
+                // we measure the configured bank's peak response to a canonical
+                // strike once per mode-config and normalise kBodyHeadroom to it.
+                // Cached on the mapper inputs so repeated hits on an unchanged
+                // pad pay the probe render only once.
+                bank.setOutputGain(measuredStrikeOutputGain(bank, params_,
+                                                            bodyBank_.getCurrentType()));
                 bank.setOutputSoftClipThreshold(0.0f);
             }
             // NOTE: the secondary (shell) bank's output gain is set AFTER
@@ -316,20 +352,30 @@ public:
         {
             configureSecondaryBank();
             // Now that the shell modes are set for this note, apply the same
-            // amplitude-aware unit-peak normalisation as the body (Step 3).
+            // measured-strike normalisation as the body (audit N-1): the shell
+            // is a modal bank too, so its resonant-strike peak likewise exceeds
+            // the Sum|a_k| impulse bound. Not cached -- the secondary path is
+            // off by default and only runs when coupling is enabled.
             secondaryBank_.setOutputGain(
-                kBodyHeadroom / secondaryBank_.getInputGainSum());
+                measuredStrikeOutputGain(secondaryBank_));
             secondaryBank_.setOutputSoftClipThreshold(0.0f);
             effectiveCoupling_ = effectiveCouplingStrength();
         }
 
-        // Phase 8E: tension modulation depth scales with velocity^2 (the
-        // mechanical tension variation is proportional to vibration
-        // energy, which is proportional to velocity^2). Max knob 1.0 *
-        // vel^2 -> 0.15 effective, capping pitch shift at ~2 semitones.
-        const float vClamp = std::clamp(velocity, 0.0f, 1.0f);
+        // Phase 8E / audit N-1: tension modulation depth. The quasistatic
+        // tension variation is LINEAR in the system's vibrational energy
+        // (Avanzini-Marogna-Bank 2012; Tolonen-Valimaki-Karjalainen 2000), and
+        // that energy already carries the velocity dependence (a harder strike
+        // injects more modal energy ~ velocity^2). So the effective depth is
+        // just knob * a fixed scale -- the explicit velocity^2 here was
+        // double-counting (it multiplied an output-energy term that itself
+        // scaled with velocity^2, giving a non-physical velocity^4 law). The
+        // glide is now driven by the bank's gain-invariant modal energy (see
+        // the energy follower below), not the radiated output, so it no longer
+        // tracks the output gain staging. kTensionEnergyScale is calibrated so
+        // a hard hit (knob 1.0) reaches ~1-2 semitones at the modal-energy peak.
         tensionAmtEffective_ =
-            std::clamp(tensionModAmt_, 0.0f, 1.0f) * 0.15f * vClamp * vClamp;
+            std::clamp(tensionModAmt_, 0.0f, 1.0f) * kTensionEnergyScale;
         energyEnv_ = 0.0f;
 
         // Reset the amp envelope so its attack ramps from 0 instead of
@@ -624,7 +670,8 @@ private:
                 tensionAmtEffective_ > 1e-6f
                 && bodyBank_.getCurrentType() == BodyModelType::Membrane;
             const float tensionPitchMod =
-                tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
+                tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
+                                         kTensionPitchModMax)
                               : 1.0f;
 
             if (pitchEnvActive)
@@ -791,20 +838,19 @@ private:
                 }
             }
 
-            // Phase 8E: per-sample one-pole energy follower. Runs only
-            // when the tension modulator is active so the default path
-            // stays zero-overhead. `energyAlpha_` is the per-sample
-            // coefficient from prepare() (20 ms tau).
+            // Audit N-1: one-pole follower on the bank's MODAL energy (not the
+            // radiated output^2). getModalEnergy() = sum of mode amplitude^2 is
+            // a smooth envelope and is invariant to the body output gain, so the
+            // tension glide is physically grounded (Avanzini-Marogna-Bank 2012)
+            // and no longer collapses when the gain budget changes. Read once
+            // per chunk (the energy envelope is sub-audio-rate) with the
+            // per-sample 20 ms coefficient raised to the chunk length. Runs only
+            // when tension is active so the default path stays zero-overhead.
             if (tensionActive)
             {
-                const float alpha = energyAlpha_;
-                const float oneMinusAlpha = 1.0f - alpha;
-                float env = energyEnv_;
-                for (int i = 0; i < chunk; ++i) {
-                    const float s = out[offset + i];
-                    env = alpha * env + oneMinusAlpha * s * s;
-                }
-                energyEnv_ = env;
+                const float e = bodyBank_.getSharedBank().getModalEnergy();
+                const float a = std::pow(energyAlpha_, static_cast<float>(chunk));
+                energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
             }
 
             offset    += chunk;
@@ -834,7 +880,8 @@ private:
             tensionAmtEffective_ > 1e-6f
             && bodyBank_.getCurrentType() == BodyModelType::Membrane;
         const float tensionPitchMod =
-            tensionActive ? (1.0f + tensionAmtEffective_ * energyEnv_)
+            tensionActive ? std::min(1.0f + tensionAmtEffective_ * energyEnv_,
+                                     kTensionPitchModMax)
                           : 1.0f;
 
         // Block-rate refresh (Phase 9): advance each modulator by one sample
@@ -950,21 +997,15 @@ private:
                 });
         });
 
-        // Phase 8E energy follower (mirrors processBlockFast). Updates the
-        // one-pole |out|^2 tracker that feeds next block's tension pitch mod.
-        // Runs only when tension is active so the default slow path stays
-        // zero-overhead.
+        // Audit N-1 energy follower (mirrors processBlockFast). Tracks the
+        // bank's gain-invariant MODAL energy (not the radiated output^2) that
+        // feeds next block's tension pitch mod. Runs only when tension is active
+        // so the default slow path stays zero-overhead.
         if (tensionActive)
         {
-            const float alpha = energyAlpha_;
-            const float oneMinusAlpha = 1.0f - alpha;
-            float env = energyEnv_;
-            for (int i = 0; i < numSamples; ++i)
-            {
-                const float s = out[i];
-                env = alpha * env + oneMinusAlpha * s * s;
-            }
-            energyEnv_ = env;
+            const float e = bodyBank_.getSharedBank().getModalEnergy();
+            const float a = std::pow(energyAlpha_, static_cast<float>(numSamples));
+            energyEnv_ = a * energyEnv_ + (1.0f - a) * e;
         }
     }
 
@@ -1140,6 +1181,70 @@ private:
     /// Only Membrane supports mid-note parameter updates in Phase 2; other bodies
     /// recompute via setModes on noteOn only — live-update path is deferred to a
     /// future phase.
+    // Audit N-1: render a canonical strike through the (already mode-configured)
+    // bank and return its raw peak. RT-safe: no allocation, the excitation is a
+    // short raised-cosine generated per-sample, and the probe state is cleared
+    // afterwards (reset() zeroes the oscillators but preserves the modes), so
+    // the real note proceeds from a clean bank. The probe window covers the
+    // input pulse plus the early resonant ring-up where the strike peak lives.
+    [[nodiscard]] float probeStrikePeak(Krate::DSP::ModalResonatorBank& bank) const noexcept
+    {
+        const float sr = static_cast<float>(sampleRate_);
+        const int strikeLen = std::max(1, static_cast<int>(0.002f * sr));  // 2 ms
+        const int probeLen  = std::max(strikeLen,
+                                       static_cast<int>(0.020f * sr));     // 20 ms
+
+        const float prevGain = bank.getOutputGain();
+        const float prevClip = bank.getOutputSoftClipThreshold();
+        bank.setOutputGain(1.0f);
+        bank.setOutputSoftClipThreshold(0.0f);
+
+        float peak = 0.0f;
+        for (int i = 0; i < probeLen; ++i) {
+            float in = 0.0f;
+            if (i < strikeLen) {
+                const float ph = static_cast<float>(i) / static_cast<float>(strikeLen);
+                in = 0.5f * (1.0f - std::cos(2.0f * std::numbers::pi_v<float> * ph));
+            }
+            peak = std::max(peak, std::abs(bank.processSample(in)));
+        }
+
+        bank.reset();  // clear probe oscillator state, keep configured modes
+        bank.setOutputGain(prevGain);
+        bank.setOutputSoftClipThreshold(prevClip);
+        return peak;
+    }
+
+    // Audit N-1: output gain that normalises the bank's measured resonant-strike
+    // peak to kBodyHeadroom. Guards a near-silent probe (falls back to the
+    // impulse bound) so an empty/degenerate bank can't divide-by-~0.
+    [[nodiscard]] float measuredStrikeOutputGain(
+        Krate::DSP::ModalResonatorBank& bank) const noexcept
+    {
+        const float peak = probeStrikePeak(bank);
+        if (peak <= 1.0e-4f)
+            return kBodyHeadroom / bank.getInputGainSum();
+        return kBodyHeadroom / peak;
+    }
+
+    // Cached variant for the primary body: re-measures only when the mapper
+    // inputs (and hence the configured mode set) change.
+    [[nodiscard]] float measuredStrikeOutputGain(
+        Krate::DSP::ModalResonatorBank& bank,
+        const VoiceCommonParams& p,
+        BodyModelType body) noexcept
+    {
+        const StrikeNormKey key{
+            body, p.material, p.size, p.decay, p.strikePos, p.modeStretch,
+            p.decaySkew, p.airLoading, p.modeScatter,
+            p.bodyDampingB1, p.bodyDampingB3};
+        if (!(key == strikeNormKey_)) {
+            strikeNormGain_ = measuredStrikeOutputGain(bank);
+            strikeNormKey_  = key;
+        }
+        return strikeNormGain_;
+    }
+
     // Phase 8D: configure the secondary bank's modes from the per-pad
     // secondarySize + secondaryMaterial. Uses a small shell-style mode
     // set (24 partials, free-free beam ratios, shell damping) at a
@@ -1402,6 +1507,19 @@ private:
 
     // Cached baseline mapper result (used for per-sample pitch env scaling).
     Bodies::MapperResult cachedMapperResult_{};
+
+    // Audit N-1: cache for the body's measured-strike output gain. Keyed on the
+    // mapper inputs that change the configured mode set; a repeated hit on an
+    // unchanged pad reuses the gain instead of re-running the probe render.
+    struct StrikeNormKey {
+        BodyModelType body = BodyModelType::kCount;  // sentinel = "no cache yet"
+        float material = 0.0f, size = 0.0f, decay = 0.0f, strikePos = 0.0f;
+        float modeStretch = 0.0f, decaySkew = 0.0f, airLoading = 0.0f;
+        float modeScatter = 0.0f, b1 = 0.0f, b3 = 0.0f;
+        [[nodiscard]] bool operator==(const StrikeNormKey&) const = default;
+    };
+    StrikeNormKey strikeNormKey_{};
+    float         strikeNormGain_ = 1.0f;
 
     // Natural (Size-derived) body fundamental in Hz, computed at noteOn.
     float naturalFundamentalHz_ = 0.0f;

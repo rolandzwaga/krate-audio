@@ -172,7 +172,13 @@ TEST_CASE("Membrum: Note-on (note=36) produces audio > -12 dBFS",
 
     // Phase 9: master gain default is -6 dB, so original -12 dBFS threshold
     // becomes -18 dBFS post-master = 10^(-18/20) ~= 0.126.
-    REQUIRE(peak > 0.125f);
+    // Audit N-1: the measured-strike body norm (-6 dBFS strike-peak budget)
+    // removed the clipping that previously held a default hit near 0 dBFS, so a
+    // sub-max hit (vel 100/127, level 0.8) now peaks ~-18.4 dBFS post-master.
+    // It is still clearly audible; final loudness make-up belongs to master gain
+    // / per-pad Level (Phase-4 tuning), not the per-voice budget. Floor relaxed
+    // to -20 dBFS post-master to assert "audible note-on", not a specific level.
+    REQUIRE(peak > 0.10f);
 }
 
 // =============================================================================
