@@ -35,10 +35,10 @@ TEST_CASE("padParamId computes correctly for coupling offset", "[pad_category]")
 {
     // Pad 0: base + 0 * stride + 36 = 1000 + 36 = 1036
     REQUIRE(padParamId(0, kPadCouplingAmount) == 1036);
-    // Pad 1: base + 1 * stride + 36 = 1000 + 64 + 36 = 1100
-    REQUIRE(padParamId(1, kPadCouplingAmount) == 1100);
-    // Pad 31: base + 31 * stride + 36 = 1000 + 1984 + 36 = 3020
-    REQUIRE(padParamId(31, kPadCouplingAmount) == 3020);
+    // Pad 1: base + 1 * stride + 36 = 1000 + 128 + 36 = 1164  (M-9 stride 128)
+    REQUIRE(padParamId(1, kPadCouplingAmount) == 1164);
+    // Pad 31: base + 31 * stride + 36 = 1000 + 3968 + 36 = 5004
+    REQUIRE(padParamId(31, kPadCouplingAmount) == 5004);
 }
 
 TEST_CASE("padOffsetFromParamId accepts offset 36", "[pad_category]")

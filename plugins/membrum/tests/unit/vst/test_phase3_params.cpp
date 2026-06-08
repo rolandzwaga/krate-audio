@@ -66,6 +66,9 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
     // + 32 * 4 per-pad.
     constexpr int kPhase10Globals       = 4;
     constexpr int kPhase10PerPadParams  = 32 * 4;
+    // M-9 adds 1 global pan proxy (kPadPanId) + 32*1 per-pad pan.
+    constexpr int kM9Globals            = 1;
+    constexpr int kM9PerPadParams       = 32 * 1;
     CHECK(controller.getParameterCount() ==
           kPhase2ParameterCount + kPhase3NewParameters + 1 + 32 * 36
           + kPhase5NewParameters + kPhase6US4Parameters
@@ -78,7 +81,8 @@ TEST_CASE("Phase 3 params: controller exposes Phase 2 count + 3",
           + kPhase8EGlobals + kPhase8EPerPadParams
           + kPhase8FGlobals + kPhase8FPerPadParams
           + kPhase9Globals
-          + kPhase10Globals + kPhase10PerPadParams);
+          + kPhase10Globals + kPhase10PerPadParams
+          + kM9Globals + kM9PerPadParams);
 
     REQUIRE(controller.terminate() == kResultOk);
 }

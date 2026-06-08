@@ -161,15 +161,15 @@ TEST_CASE("Per-pad preset load preserves outputBus and couplingAmount",
     const double macroTBefore  = controller.getParamNormalized(macroT);
     const double macroPBefore  = controller.getParamNormalized(macroP);
 
-    // Build a per-pad preset blob with distinct sound values (Phase 10 width).
+    // Build a per-pad preset blob with distinct sound values (M-9 width).
     auto* stream = new MemoryStream();
-    int32 version = 2;  // Phase 10 codec version
+    int32 version = 3;  // M-9 codec version
     stream->write(&version, sizeof(version), nullptr);
     int32 et = 1;
     stream->write(&et, sizeof(et), nullptr);
     int32 bm = 2;
     stream->write(&bm, sizeof(bm), nullptr);
-    for (int i = 0; i < 56; ++i) {
+    for (int i = 0; i < 57; ++i) {
         double v = 0.7;  // distinctive sound value
         stream->write(&v, sizeof(v), nullptr);
     }

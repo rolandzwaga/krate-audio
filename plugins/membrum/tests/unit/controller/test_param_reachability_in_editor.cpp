@@ -221,6 +221,8 @@ std::vector<GlobalProxyPair> globalProxyMap()
         { kPitchEnvMidPitchId,    kPadTSPitchEnvMidPitch },
         { kPitchEnvMidFractionId, kPadTSPitchEnvMidFraction },
         { kPitchEnvCurve2Id,      kPadTSPitchEnvCurve2 },
+        // M-9: per-pad pan.
+        { kPadPanId,              kPadPan },
     };
 }
 
@@ -261,6 +263,8 @@ std::set<int> proxiedOffsets()
         // Phase 10: three-point pitch envelope extension offsets.
         kPadTSPitchEnvKneeEnabled, kPadTSPitchEnvMidPitch,
         kPadTSPitchEnvMidFraction, kPadTSPitchEnvCurve2,
+        // M-9: per-pad pan offset.
+        kPadPan,
     };
 }
 

@@ -34,22 +34,22 @@ using Catch::Approx;
 
 namespace {
 
-constexpr int64 kPadPresetBytes = 460;  // version(4) + exciter(4) + body(4) + 56*float64(448) (Phase 10)
+constexpr int64 kPadPresetBytes = 468;  // version(4) + exciter(4) + body(4) + 57*float64(456) (M-9)
 
 /// Number of sound params serialized as float64.
-constexpr int kPadPresetSoundParamCount = 56;
+constexpr int kPadPresetSoundParamCount = 57;  // M-9: added pan at index 56
 
 /// Build a pad preset blob manually for testing load.
-/// Writes version=kPadBlobVersion, exciterType, bodyModel, and 56 float64 sound values.
+/// Writes version=kPadBlobVersion, exciterType, bodyModel, and 57 float64 sound values.
 MemoryStream* buildPadPresetBlob(int32 exciterType, int32 bodyModel,
-                                  double soundParams[56])
+                                  double soundParams[kPadPresetSoundParamCount])
 {
     auto* stream = new MemoryStream();
-    int32 version = 2;  // Phase 10 codec version
+    int32 version = 3;  // M-9 codec version
     stream->write(&version, sizeof(version), nullptr);
     stream->write(&exciterType, sizeof(exciterType), nullptr);
     stream->write(&bodyModel, sizeof(bodyModel), nullptr);
-    for (int i = 0; i < 56; ++i)
+    for (int i = 0; i < kPadPresetSoundParamCount; ++i)
         stream->write(&soundParams[i], sizeof(soundParams[i]), nullptr);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
     return stream;
@@ -116,7 +116,7 @@ TEST_CASE("Pad preset: blob format is version + exciterType + bodyModel + 56 flo
 
     int32 version = 0;
     stream->read(&version, sizeof(version), nullptr);
-    CHECK(version == 2);  // Phase 10 codec version
+    CHECK(version == 3);  // M-9 codec version
 
     int32 exciterTypeI32 = -1;
     stream->read(&exciterTypeI32, sizeof(exciterTypeI32), nullptr);
@@ -156,9 +156,9 @@ TEST_CASE("Pad preset: LoadProvider applies to selected pad only, others unchang
     const double pad3Before = controller.getParamNormalized(pad3MatId);
 
     // Build a pad preset with material = 0.99
-    double soundParams[56] = {};
+    double soundParams[kPadPresetSoundParamCount] = {};
     soundParams[0] = 0.99;  // material (offset 2 -> index 0 in sound array)
-    for (int i = 1; i < 56; ++i)
+    for (int i = 1; i < kPadPresetSoundParamCount; ++i)
         soundParams[i] = 0.5;  // fill rest with 0.5
 
     auto* stream = buildPadPresetBlob(0, 0, soundParams);
@@ -200,8 +200,8 @@ TEST_CASE("Pad preset: choke group and output bus are NOT modified by load",
     const double busBefore = controller.getParamNormalized(pad2BusId);
 
     // Build a pad preset blob (choke/bus positions contain arbitrary values)
-    double soundParams[56] = {};
-    for (int i = 0; i < 56; ++i)
+    double soundParams[kPadPresetSoundParamCount] = {};
+    for (int i = 0; i < kPadPresetSoundParamCount; ++i)
         soundParams[i] = 0.5;
     // Positions 28 and 29 in the sound array correspond to offsets 30-31 (choke/bus)
     soundParams[28] = 7.0;   // choke group as float64 in kit format
@@ -339,8 +339,8 @@ TEST_CASE("Pad preset: wrong version fails gracefully",
     REQUIRE(controller.initialize(nullptr) == kResultOk);
 
     // Build a blob with version=99
-    double soundParams[56] = {};
-    for (int i = 0; i < 56; ++i)
+    double soundParams[kPadPresetSoundParamCount] = {};
+    for (int i = 0; i < kPadPresetSoundParamCount; ++i)
         soundParams[i] = 0.5;
 
     auto* stream = new MemoryStream();
@@ -350,7 +350,7 @@ TEST_CASE("Pad preset: wrong version fails gracefully",
     stream->write(&et, sizeof(et), nullptr);
     int32 bm = 0;
     stream->write(&bm, sizeof(bm), nullptr);
-    for (int i = 0; i < 56; ++i)
+    for (int i = 0; i < kPadPresetSoundParamCount; ++i)
         stream->write(&soundParams[i], sizeof(soundParams[i]), nullptr);
     stream->seek(0, IBStream::kIBSeekSet, nullptr);
 

@@ -74,6 +74,8 @@ add_executable(membrum_tests
     unit/voice_pool/test_steal_click_free.cpp
     unit/voice_pool/test_fast_release_denormals.cpp
     unit/voice_pool/test_fast_release_double_steal.cpp
+    unit/voice_pool/test_fast_release_resteal_collision.cpp
+    unit/voice_pool/test_per_pad_pan.cpp
     unit/voice_pool/test_choke_group.cpp
     unit/voice_pool/test_choke_click_free.cpp
     unit/voice_pool/test_choke_allocation_free.cpp

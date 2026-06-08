@@ -141,6 +141,9 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
     snap.sound[54] = static_cast<double>(cfg.tsPitchEnvMidFraction);
     snap.sound[55] = static_cast<double>(cfg.tsPitchEnvCurve2);
 
+    // M-9: per-pad pan (offset 64).
+    snap.sound[56] = static_cast<double>(cfg.pan);
+
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
     snap.couplingAmount = static_cast<double>(cfg.couplingAmount);
@@ -230,6 +233,8 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.tsPitchEnvMidPitch    = std::clamp(static_cast<float>(snap.sound[53]), 0.0f, 1.0f);
     cfg.tsPitchEnvMidFraction = std::clamp(static_cast<float>(snap.sound[54]), 0.0f, 1.0f);
     cfg.tsPitchEnvCurve2      = std::clamp(static_cast<float>(snap.sound[55]), 0.0f, 1.0f);
+    // M-9: per-pad pan (offset 64).
+    cfg.pan                   = std::clamp(static_cast<float>(snap.sound[56]), 0.0f, 1.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -252,10 +257,10 @@ PadPresetSnapshot toPadPresetSnapshot(const PadConfig& cfg) noexcept
     // flag, so loading a preset onto a pad never silently flips its
     // enable state.
     const PadSnapshot full = toPadSnapshot(cfg);
-    // PadPresetSnapshot::sound mirrors PadSnapshot::sound exactly (Phase 10:
-    // both 56 slots); index 51 (kit-level enabled flag) and 28-29 (choke/bus
-    // float64 mirrors) are written but ignored on load -- see
-    // applyPadPresetSnapshot below.
+    // PadPresetSnapshot::sound mirrors PadSnapshot::sound exactly (M-9: both
+    // 57 slots); indices 28-29 (choke/bus float64 mirrors), 51 (kit-level
+    // enabled flag) and 56 (pan -- positioning, not sound character) are
+    // written but ignored on load -- see applyPadPresetSnapshot below.
     std::copy_n(full.sound.begin(), snap.sound.size(), snap.sound.begin());
     return snap;
 }

@@ -123,7 +123,23 @@ glide was rebuilt onto a gain-invariant modal-energy driver.
 
 Verification: `membrum_tests` 577 cases / 88549 assertions pass; `dsp_tests` (6755) + `innexus_tests` (552) green (the additive `getModalEnergy()` is the only shared-bank change). Re-blessed by-design level shift: Phase-1 golden regenerated; exciter×body audibility floor −60→−66 dBFS (Friction); processor note-on floor; choke warmup re-tuned; b3 energy-ratio threshold (peak now equalised across damping configs). Evidence spikes: `test_body_resonant_peak.cpp` ([diagnose_n1]/[diagnose_n1_axes]).
 
+**Done — retrigger-click + per-pad-pan batch** (branch `fixes/membrum-retrigger-pan`):
+§5 Phase 3 step 8 (remainder) — the last two open MEDIUM findings, closing Phase 3
+before any Phase-4 preset re-tuning.
+
+| Finding | What was done |
+|---------|---------------|
+| **M-8** fast-retrigger hard-cut click | `beginFastRelease` gained a `force` param. A same-slot re-steal whose shadow is still fading from a PRIOR steal (e.g. fast same-note retrigger, FR-012) now re-snapshots the CURRENT full-amplitude main voice into the shadow instead of letting the incoming attack hard-overwrite the ringing voice — only the older, already-attenuated tail is truncated (a far smaller discontinuity). The voice-steal call site passes `force=true`; choke-completeness and poly-shrink keep the idempotent default (FR-127). New `test_fast_release_resteal_collision.cpp` ([m8]) reproduces the collision (maxPoly clamps ≥4, so it drives the same slot via same-note retrigger) and measures the boundary discontinuity of the isolated stolen voice as a fraction of its pre-collision level — RED ≈1.0 (whole ring discarded in one sample), GREEN ≈0.08 (continuous fade). |
+| **M-9** mono path / no per-pad pan | Per-pad equal-power pan added. `PadConfig::pan` (norm, 0.5=center) + a new per-pad offset (kPadPan=64). **The per-pad param stride was full (Phase 10 filled 0–63), so it was widened 64→128** (no host-project break — pre-release; state version bumped 2→3, factory presets regenerated, `PadSnapshot::sound` grown 56→57). `VoicePool::panGainsForNote()` applies `gainL=√2·cos(θ)`, `gainR=√2·sin(θ)`, `θ=pan·π/2` in BOTH processBlock paths (main + shadow + aux), referenced to unity-at-center so a default pad is bit-identical to the legacy mono dup (`gainL==gainR==1.0`); constant power (`gainL²+gainR²==2`). New `kPadPanId` selected-pad proxy + controller registration + uidesc Pan knob (both UI templates). New `test_per_pad_pan.cpp` ([pan]): center = bit-identical mono dup, hard-L/R silence the opposite channel (≥120 dB), constant power across pan. |
+| **L-2** dead `velocityGain_` | Removed (computed at noteOn, never read; velocity flows via the ADSR). |
+| **L-12** dead `applyPadConfigToVoice()` | Removed from `processor.cpp` (never called; the live path is `voice_pool.cpp::applyPadConfigToSlot`). Stale referencing comments updated. |
+| **L-5** (`1/√N` → active mode count) | **Obsolete** — the `1/√N` norm it targeted was replaced by `measuredStrikeOutputGain()` in the N-1 batch; the configured-vs-active-count concern no longer exists. No change. |
+| **L-11** (auto-release on post-`level_` peak) | **Deferred** — making voice retirement level-independent needs a new body-silence signal from `DrumVoice` (an API change disproportionate to a ride-along cleanup); the audit notes defaults are unaffected and the dominant retire path is already level-independent. Left for a focused follow-up. |
+
+Verification: `membrum_tests` 581 cases / 91327 assertions pass (incl. new [m8] + [pan]); `dsp_tests` (6755) green; pluginval strictness-5 clean (exit 0); clang-tidy 0/0 (membrum 11). 20 factory kit presets regenerated at blob v3 (`generate_membrum_presets`). All param-count / stride / blob-size / state-version tests rebaselined (stride 64→128, +33 params, +256-byte kit blob, +8-byte pad-preset blob, state v2→v3).
+
 **Open — not yet started** (rough priority order):
+- ✅ **M-8 + M-9 — DONE** (see the retrigger-click + per-pad-pan batch above). Phase 3 step 8 is now complete; **all fix gates for Phase-4 preset re-tuning are cleared.**
 - ✅ **N-1 — DONE** (see the N-1 batch above). Original finding + settled design rationale retained below for provenance.
 - ⬜ **N-1 (NEW, found during the Phase-3 review) — modal body output runs ~12× / +21 dB hotter
   than the −12 dBFS `kBodyHeadroom` budget.** Measured (coupling/drive/noise/click OFF, vel 1.0):
@@ -184,8 +200,9 @@ Verification: `membrum_tests` 577 cases / 88549 assertions pass; `dsp_tests` (67
   *real* excitation shape, removing the one caveat of the spike — its 2 ms raised-cosine proxy likely
   over-excites HF modes vs the real Mallet, so the absolute `F` magnitudes above may be inflated
   ~2–3× (the Size-dominated *shape* of the conclusion is robust to that).
-- ⬜ **M-8** fast-retrigger hard-cut click; **M-9** mono path (no per-pad pan).
-- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour. **Blocked on N-1** for any level/dynamics-sensitive voicing.
+- ✅ **M-8** fast-retrigger hard-cut click — DONE; **M-9** mono path (per-pad pan) — DONE (see the retrigger-click + per-pad-pan batch above).
+- ⬜ **L-11** auto-release on post-`level_` peak (deferred; needs a level-independent body-silence signal from `DrumVoice`, defaults unaffected).
+- ⬜ **Preset re-tuning** — all fix gates are now cleared (gain-staging Phase 0–1 + Phase 2 step 6/7 physics + Phase 3 character knobs + M-8/M-9 + N-1); the frequency-ratio science in §3-A is already correct and must be left alone. NOTE: presets that enabled NonlinearCoupling/Drive were voiced against the old broken stages — re-voice them against the corrected behaviour. **No longer blocked** (N-1 done) — this is now the next PR.
 
 ---
 
@@ -263,13 +280,13 @@ The sameness is driven by **gain-staging collapse at the voice output**, compoun
 - Bug: the 3× constant assumes a normalized 0 dB-peak bandpass (~0.1 RMS); a lowpass passes far more energy, so the parallel noise sits hotter than its "comparable to the modal body" target (worst at high cutoff). Feeds H-2.
 - Fix: re-calibrate the standalone gain against the actual lowpass response, or apply per-mode energy normalization.
 
-**M-8. Fast same-pad retrigger / re-steal hard-cuts when shadow slot is busy (click)** — `voice_pool.cpp:925-1001,196-248`
+**M-8. Fast same-pad retrigger / re-steal hard-cuts when shadow slot is busy (click)** — `voice_pool.cpp:925-1001,196-248` — ✅ DONE (`fixes/membrum-retrigger-pan`)
 - Bug: `beginFastRelease()` is idempotent; on a same-slot Steal+NoteOn within the ~5 ms fade the swap is skipped and the ringing main voice is overwritten with a fresh attack → discontinuity. Single-shadow-per-slot reservation degrades to a hard cut. Narrow timing window (>~200 Hz same-pad), untested. Not a sameness contributor.
-- Fix: when the shadow is occupied, zero/ramp the main voice before re-noteOn, or extend/queue the fade.
+- Fix: `beginFastRelease(slot, force=true)` on the steal path re-snapshots the ringing main voice into the busy shadow (truncating only the older, quieter tail) instead of hard-overwriting it; choke/poly-shrink keep the idempotent default. New `[m8]` test pins the boundary discontinuity ≤20 % of the faded voice (RED ≈100 %).
 
-**M-9. Voice/pool path is mono — no per-pad pan or decorrelation** — `voice_pool.cpp:350-356,451-457`
+**M-9. Voice/pool path is mono — no per-pad pan or decorrelation** — `voice_pool.cpp:350-356,451-457` — ✅ DONE (`fixes/membrum-retrigger-pan`)
 - Bug: `outL[i]+=scratch; outR[i]+=scratch` for every voice; `scratchR_` allocated but unused; `PadConfig` has no pan field; master sums to mono. All 32 pads dead-center. Secondary contributor to a flat/lifeless image (doesn't homogenize timbre per se).
-- Fix: add a per-pad pan field + equal-power pan law in the pool (and a future stereo body for decorrelation).
+- Fix: `PadConfig::pan` + `VoicePool::panGainsForNote()` equal-power law (√2·cos/sin, unity-at-center → default bit-identical to mono dup) in both processBlock paths (main + shadow + aux). New `kPadPanId` proxy + per-pad offset 64 (stride widened 64→128, state v2→v3, presets regenerated) + uidesc Pan knob. New `[pan]` test (center mono-dup, hard-pan channel isolation, constant power). Stereo body decorrelation left as a future enhancement.
 
 ### LOW
 
@@ -347,7 +364,7 @@ Parameters with weak/dead audible effect: **pitch-env Start/End/Time/Curve/Knee/
 7. ✅ DONE (`fix/membrum-physics-plate-shell-bell-shapes`) — **Plate `(m+2n)^P` Chladni ratios; shell free-free mode shape; bell 2-D `(m,n)` shape; secondary-shell strikePos no longer hard-coded.** Larger; needed before metallic/bell presets are re-voiced or the tuning is wasted.
 
 **Phase 3 — flavor & polish:**
-8. ✅ DONE (`fixes/membrum-character-knobs`) — **M-2** drive makeup, **M-3/M-4** coupling redesign (env-LEVEL-driven nonlinear waveshaping — literature-backed amplitude-dependent brightening, sustained + continuous in amount), **L-3/L-4** FM index clamp + carrier-independent test. STILL OPEN: **M-8** click-free retrigger, **M-9** per-pad pan.
+8. ✅ DONE — **M-2** drive makeup, **M-3/M-4** coupling redesign (env-LEVEL-driven nonlinear waveshaping — literature-backed amplitude-dependent brightening, sustained + continuous in amount), **L-3/L-4** FM index clamp + carrier-independent test (`fixes/membrum-character-knobs`); **M-8** click-free retrigger + **M-9** per-pad pan (`fixes/membrum-retrigger-pan`). Phase 3 step 8 complete.
 
 **Phase 4 — only now re-tune the factory presets** against the corrected, calibrated, fully-wired model.
 

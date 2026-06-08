@@ -26,7 +26,9 @@ static constexpr auto kSubCategories = "Instrument|Drum";
 // State version for serialization. Single, current format -- the plugin has
 // not shipped, so no legacy versions are accepted on read. Phase 10 bumped
 // this from 1 to 2 to accompany the per-pad sound-slot widening (52 -> 56).
-constexpr Steinberg::int32 kCurrentStateVersion = 2;
+// M-9 bumped 2 -> 3 to accompany the per-pad pan slot (56 -> 57) and the
+// per-pad param-stride widening (64 -> 128).
+constexpr Steinberg::int32 kCurrentStateVersion = 3;
 
 // Number of new globals introduced by Phase 6 (kUiModeId, kOutputBusId).
 constexpr int kPhase6GlobalCount = 2;
@@ -171,6 +173,11 @@ enum ParameterIds : Steinberg::Vst::ParamID
     kPitchEnvMidPitchId           = 322,  // 0..1 -> 20..2000 Hz log (matches Start/End)
     kPitchEnvMidFractionId        = 323,  // 0..1 fraction of total time
     kPitchEnvCurve2Id             = 324,  // 0..1 -> -1..+1 power, default 0.5 (linear)
+
+    // ====== M-9: per-pad pan ======
+    // Selected-pad proxy for kPadPan (per-pad offset 64). RangeParameter
+    // [0, 1], default 0.5 = center. Restores the stereo image (audit M-9).
+    kPadPanId                     = 325,
 };
 
 // Compile-time collision guard: Phase 1 IDs (100-104) must not overlap Phase 2
@@ -210,8 +217,8 @@ static_assert(kCouplingDelayId < kUiModeId,
               "Phase 5 and Phase 6 parameter ID ranges must not overlap");
 static_assert(kUiModeId + kPhase6GlobalCount <= kPadBaseId,
               "Phase 6 global parameters must not collide with per-pad range");
-static_assert(kCurrentStateVersion == 2,
-              "Pre-release codec is pinned at state version 2 (Phase 10)");
+static_assert(kCurrentStateVersion == 3,
+              "Pre-release codec is pinned at state version 3 (M-9 per-pad pan)");
 
 // Phase 7 collision guards: proxy IDs 290..297 must sit below the per-pad base.
 static_assert(kClickLayerBrightnessId < kPadBaseId,
@@ -244,5 +251,9 @@ static_assert(kMasterGainId < kPadBaseId,
 // Phase 10 collision guard: pitch-env extension proxies sit below per-pad base.
 static_assert(kPitchEnvCurve2Id < kPadBaseId,
               "Phase 10 pitch-env IDs must not collide with per-pad range");
+
+// M-9 collision guard: pan proxy ID sits below the per-pad base.
+static_assert(kPadPanId < kPadBaseId,
+              "M-9 pan proxy ID must not collide with per-pad range");
 
 } // namespace Membrum

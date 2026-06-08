@@ -13,7 +13,7 @@ TEST_CASE("PadConfig constants are correct", "[pad_config]")
 {
     CHECK(kNumPads == 32);
     CHECK(kPadBaseId == 1000);
-    CHECK(kPadParamStride == 64);
+    CHECK(kPadParamStride == 128);  // M-9: widened 64 -> 128 for per-pad pan
     CHECK(kMaxOutputBuses == 16);
     CHECK(kFirstDrumNote == 36);
     CHECK(kLastDrumNote == 67);
@@ -136,16 +136,16 @@ TEST_CASE("padParamId computes correct IDs", "[pad_config]")
     // Pad 0, offset 35 (last active) => 1035
     CHECK(padParamId(0, 35) == 1035);
 
-    // Pad 1, offset 0 => 1064
-    CHECK(padParamId(1, 0) == 1064);
+    // Pad 1, offset 0 => 1000 + 1*128 = 1128  (M-9 stride widened to 128)
+    CHECK(padParamId(1, 0) == 1128);
 
-    // Pad 31, offset 0 => 1000 + 31*64 = 2984
-    CHECK(padParamId(31, 0) == 2984);
+    // Pad 31, offset 0 => 1000 + 31*128 = 4968
+    CHECK(padParamId(31, 0) == 4968);
 
-    // Pad 31, offset 35 => 2984 + 35 = 3019
-    CHECK(padParamId(31, 35) == 3019);
+    // Pad 31, offset 35 => 4968 + 35 = 5003
+    CHECK(padParamId(31, 35) == 5003);
 
-    // Stride check: consecutive pads differ by 64
+    // Stride check: consecutive pads differ by 128
     CHECK(padParamId(1, 0) - padParamId(0, 0) == kPadParamStride);
     CHECK(padParamId(5, 0) - padParamId(4, 0) == kPadParamStride);
 }
@@ -174,9 +174,9 @@ TEST_CASE("padIndexFromParamId rejects out-of-range IDs", "[pad_config]")
     CHECK(padIndexFromParamId(0) == -1);
     CHECK(padIndexFromParamId(999) == -1);
 
-    // Above pad 31's range: 1000 + 32*64 = 3048
-    CHECK(padIndexFromParamId(3048) == -1);
-    CHECK(padIndexFromParamId(5000) == -1);
+    // Above pad 31's range: 1000 + 32*128 = 5096 (M-9 stride widened to 128)
+    CHECK(padIndexFromParamId(5096) == -1);
+    CHECK(padIndexFromParamId(9000) == -1);
 
     // Negative (cast to int)
     CHECK(padIndexFromParamId(-1) == -1);
@@ -248,18 +248,19 @@ TEST_CASE("padOffsetFromParamId rejects reserved offsets", "[pad_config]")
         CHECK(padOffsetFromParamId(kPadBaseId + off) == off);
     }
 
-    // After Phase 10 there are no reserved offsets remaining within the
-    // 64-stride; the next reserved range opens at offset 64 (which lands in
-    // the NEXT pad's stride anyway, so padOffsetFromParamId returns its
-    // offset 0 = kPadExciterType). The reserved-range guard is preserved
-    // by future-phase expansions.
+    // M-9: offset 64 is now active (per-pad pan); the stride was widened to
+    // 128, so the reserved range is offsets 65..127.
+    CHECK(padOffsetFromParamId(kPadBaseId + 64) == 64);
+    CHECK(padOffsetFromParamId(kPadBaseId + 65) == -1);  // first reserved offset
+    CHECK(padOffsetFromParamId(kPadBaseId + 127) == -1); // last reserved offset
 }
 
 TEST_CASE("padOffsetFromParamId rejects out-of-range IDs", "[pad_config]")
 {
     CHECK(padOffsetFromParamId(0) == -1);
     CHECK(padOffsetFromParamId(999) == -1);
-    CHECK(padOffsetFromParamId(3048) == -1);
+    // 1000 + 32*128 = 5096 is above all pads' ranges.
+    CHECK(padOffsetFromParamId(5096) == -1);
 }
 
 // ==============================================================================
