@@ -388,7 +388,6 @@ public:
         ampEnvelope_.reset();
         ampEnvelope_.setVelocity(velocity);
         ampEnvelope_.gate(true);
-        velocityGain_ = std::clamp(velocity, 0.0f, 1.0f);
         silentBlockCount_ = 0;
         active_ = true;
     }
@@ -437,7 +436,6 @@ public:
         // if the morph state is non-default until the next noteOn
         // overwrites it.
         energyEnv_           = 0.0f;
-        velocityGain_        = 0.0f;
         tensionAmtEffective_ = 0.0f;
         silentBlockCount_    = 0;
         active_              = false;
@@ -1530,10 +1528,6 @@ private:
     float decay_     = 0.3f;
     float strikePos_ = 0.3f;
     float level_     = 0.8f;
-
-    // Phase 8A.5: velocity scaling applied at the output (previously handled
-    // by the amp envelope's peakLevel_). Captured at each noteOn.
-    float velocityGain_ = 1.0f;
 
     // Phase 8A: per-mode damping law overrides (-1.0f = use legacy derivation).
     float bodyDampingB1_ = -1.0f;

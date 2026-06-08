@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion pinned at 2 (Phase 10)")
+    SECTION("kCurrentStateVersion pinned at 3 (M-9 per-pad pan)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 2);
+        STATIC_REQUIRE(kCurrentStateVersion == 3);
     }
 }
 
@@ -85,14 +85,14 @@ TEST_CASE("padParamId computes pad+offset combinations", "[phase6_params]")
         REQUIRE(padParamId(0, kPadMacroComplexity) == 1041);
     }
 
-    SECTION("Pad 31 offset 37 -> 3021 (1000 + 31*64 + 37)")
+    SECTION("Pad 31 offset 37 (1000 + 31*128 + 37)")
     {
-        REQUIRE(padParamId(31, kPadMacroTightness) == 1000 + 31 * 64 + 37);
+        REQUIRE(padParamId(31, kPadMacroTightness) == 1000 + 31 * 128 + 37);
     }
 
     SECTION("Pad 31 offset 41 -> last macro ID")
     {
-        REQUIRE(padParamId(31, kPadMacroComplexity) == 1000 + 31 * 64 + 41);
+        REQUIRE(padParamId(31, kPadMacroComplexity) == 1000 + 31 * 128 + 41);
     }
 }
 

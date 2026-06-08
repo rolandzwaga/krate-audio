@@ -48,90 +48,6 @@ using namespace Steinberg::Vst;
 
 namespace {
 
-// Helper: denormalize a pad config's normalized values and apply to a voice.
-// This is called after loading state to push values into the DSP voice.
-void applyPadConfigToVoice(DrumVoice& v, const PadConfig& cfg) noexcept
-{
-    v.setExciterType(cfg.exciterType);
-    v.setBodyModel(cfg.bodyModel);
-    v.setMaterial(cfg.material);
-    v.setSize(cfg.size);
-    v.setDecay(cfg.decay);
-    v.setStrikePosition(cfg.strikePosition);
-    v.setLevel(cfg.level);
-
-    // Tone Shaper
-    {
-        const int filterTypeIdx = std::clamp(static_cast<int>(cfg.tsFilterType * 3.0f), 0, 2);
-        v.toneShaper().setFilterType(static_cast<ToneShaperFilterType>(filterTypeIdx));
-    }
-    v.toneShaper().setFilterCutoff(
-        20.0f * std::pow(1000.0f, std::clamp(cfg.tsFilterCutoff, 0.0f, 1.0f)));
-    v.toneShaper().setFilterResonance(cfg.tsFilterResonance);
-    v.toneShaper().setFilterEnvAmount(cfg.tsFilterEnvAmount * 2.0f - 1.0f);
-    // Filter envelope time scaling: cubic decode (norm^3 * maxMs) to match
-    // the ADSRDisplay's drag encoding. Linear scaling here would round-trip
-    // incorrectly through the display: the user drags to a target ms, the
-    // display sends back the cubic-encoded normalized value, and any linear
-    // decode here produces a different ms than was drawn. Sustain is a pure
-    // [0,1] level and needs no scaling. See adsr_display.h::normalizedToTimeMs.
-    {
-        const float aN = std::clamp(cfg.tsFilterEnvAttack,  0.0f, 1.0f);
-        const float dN = std::clamp(cfg.tsFilterEnvDecay,   0.0f, 1.0f);
-        const float rN = std::clamp(cfg.tsFilterEnvRelease, 0.0f, 1.0f);
-        v.toneShaper().setFilterEnvAttackMs (aN * aN * aN * 500.0f);
-        v.toneShaper().setFilterEnvDecayMs  (dN * dN * dN * 2000.0f);
-        v.toneShaper().setFilterEnvSustain  (cfg.tsFilterEnvSustain);
-        v.toneShaper().setFilterEnvReleaseMs(rN * rN * rN * 2000.0f);
-    }
-    v.toneShaper().setDriveAmount(cfg.tsDriveAmount);
-    v.toneShaper().setFoldAmount(cfg.tsFoldAmount);
-    {
-        const float startHz = 20.0f * std::pow(100.0f, std::clamp(cfg.tsPitchEnvStart, 0.0f, 1.0f));
-        v.toneShaper().setPitchEnvStartHz(startHz);
-    }
-    {
-        const float endHz = 20.0f * std::pow(100.0f, std::clamp(cfg.tsPitchEnvEnd, 0.0f, 1.0f));
-        v.toneShaper().setPitchEnvEndHz(endHz);
-    }
-    v.toneShaper().setPitchEnvTimeMs(cfg.tsPitchEnvTime * 500.0f);
-    // Phase 10: continuous curve mapping. Norm 0.5 -> linear (curveAmount 0);
-    // norm 0 -> -1 (very fast initial drop), norm 1 -> +1 (slow start).
-    v.toneShaper().setPitchEnvCurveAmount(
-        2.0f * std::clamp(cfg.tsPitchEnvCurve, 0.0f, 1.0f) - 1.0f);
-    // Phase 10: knee + middle breakpoint.
-    v.toneShaper().setPitchEnvKneeEnabled(cfg.tsPitchEnvKneeEnabled >= 0.5f);
-    {
-        const float midHz = 20.0f * std::pow(100.0f,
-            std::clamp(cfg.tsPitchEnvMidPitch, 0.0f, 1.0f));
-        v.toneShaper().setPitchEnvMidHz(midHz);
-    }
-    v.toneShaper().setPitchEnvMidFraction(
-        std::clamp(cfg.tsPitchEnvMidFraction, 0.0f, 1.0f));
-    v.toneShaper().setPitchEnvCurve2Amount(
-        2.0f * std::clamp(cfg.tsPitchEnvCurve2, 0.0f, 1.0f) - 1.0f);
-
-    // Unnatural Zone
-    v.unnaturalZone().setModeStretch(
-        0.5f + std::clamp(cfg.modeStretch, 0.0f, 1.0f) * 1.5f);
-    v.unnaturalZone().setDecaySkew(
-        std::clamp(cfg.decaySkew, 0.0f, 1.0f) * 2.0f - 1.0f);
-    v.unnaturalZone().modeInject.setAmount(
-        std::clamp(cfg.modeInjectAmount, 0.0f, 1.0f));
-    v.unnaturalZone().nonlinearCoupling.setAmount(
-        std::clamp(cfg.nonlinearCoupling, 0.0f, 1.0f));
-
-    // Material Morph
-    v.unnaturalZone().materialMorph.setEnabled(cfg.morphEnabled >= 0.5f);
-    v.unnaturalZone().materialMorph.setStart(
-        std::clamp(cfg.morphStart, 0.0f, 1.0f));
-    v.unnaturalZone().materialMorph.setEnd(
-        std::clamp(cfg.morphEnd, 0.0f, 1.0f));
-    v.unnaturalZone().materialMorph.setDurationMs(
-        10.0f + std::clamp(cfg.morphDuration, 0.0f, 1.0f) * 1990.0f);
-    v.unnaturalZone().materialMorph.setCurve(cfg.morphCurve >= 0.5f);
-}
-
 // Helper: apply a normalized parameter change to a voice for a given pad offset.
 // Used by processParameterChanges to update currently-sounding voices when a
 // per-pad param changes. This is the Phase 4 replacement for the Phase 2/3
@@ -275,7 +191,7 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
         const float fValue = static_cast<float>(value);
 
         // ------------------------------------------------------------------
-        // 1. Check if paramId is in per-pad range [kPadBaseId, kPadBaseId + 32*64)
+        // 1. Check if paramId is in per-pad range [kPadBaseId, kPadBaseId + 32*128)
         // ------------------------------------------------------------------
         const int padIdx = padIndexFromParamId(static_cast<int>(paramId));
         const int padOff = padOffsetFromParamId(static_cast<int>(paramId));
@@ -616,6 +532,11 @@ void Processor::processParameterChanges(IParameterChanges* paramChanges)
             break;
         case kPitchEnvCurve2Id:
             voicePool_.setPadConfigField(selectedPadIndex_, kPadTSPitchEnvCurve2, fValue);
+            break;
+
+        // ---- M-9: per-pad pan ----
+        case kPadPanId:
+            voicePool_.setPadConfigField(selectedPadIndex_, kPadPan, fValue);
             break;
 
         // ---- Phase 9: global master output gain ----

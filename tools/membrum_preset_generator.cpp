@@ -1,16 +1,16 @@
 // ==============================================================================
 // Factory Kit Preset Generator for Membrum
 // ==============================================================================
-// Generates .vstpreset files containing kit blobs in the v1 state codec
+// Generates .vstpreset files containing kit blobs in the v3 state codec
 // format produced by Membrum::State::writeKitBlob (see state_codec.{h,cpp}).
 //
 // On-wire layout (little-endian):
-//   [int32 version = 1]
+//   [int32 version = 3]
 //   [int32 maxPolyphony]
 //   [int32 stealPolicy]
 //   For each of 32 pads:
 //     [int32 exciterType][int32 bodyModel]
-//     [52 x float64 sound, with choke/bus mirrored at indices 28/29]
+//     [57 x float64 sound, with choke/bus mirrored at indices 28/29]
 //     [uint8 chokeGroup][uint8 outputBus]
 //   [int32 selectedPadIndex]
 //   [4 x float64: globalCoupling, snareBuzz, tomResonance, couplingDelayMs]
@@ -38,8 +38,8 @@
 // ==============================================================================
 
 constexpr int kNumPads           = 32;
-constexpr int kVersion           = 2;  // Phase 10: 56-slot sound array
-constexpr int kSoundSlotsPerPad  = 56;
+constexpr int kVersion           = 3;  // M-9: 57-slot sound array (added pan)
+constexpr int kSoundSlotsPerPad  = 57;
 
 // kProcessorUID(0x4D656D62, 0x72756D50, 0x726F6331, 0x00000136)
 const char kClassIdAscii[33] = "4D656D6272756D50726F633100000136";
@@ -147,6 +147,8 @@ struct Pad {
     double tsPitchEnvMidPitch    = 0.5;
     double tsPitchEnvMidFraction = 0.5;
     double tsPitchEnvCurve2      = 0.5;
+    // M-9: per-pad pan. 0.5 = center (equal-power, unity to both channels).
+    double pan = 0.5;
 };
 
 struct OverrideEntry {
@@ -234,7 +236,7 @@ void writePadToBuffer(std::vector<std::uint8_t>& buf, const Pad& p) {
     writeI32(buf, p.exciterType);
     writeI32(buf, p.bodyModel);
 
-    // 52 x float64 -- layout matches PadSnapshot::sound.
+    // 57 x float64 -- layout matches PadSnapshot::sound.
     const double sound[kSoundSlotsPerPad] = {
         // [0..27] Phase 1-6 contiguous block.
         p.material, p.size, p.decay, p.strikePosition, p.level,
@@ -274,6 +276,8 @@ void writePadToBuffer(std::vector<std::uint8_t>& buf, const Pad& p) {
         p.tsPitchEnvMidPitch,
         p.tsPitchEnvMidFraction,
         p.tsPitchEnvCurve2,
+        // [56] M-9 per-pad pan.
+        p.pan,
     };
     for (double v : sound)
         writeF64(buf, v);

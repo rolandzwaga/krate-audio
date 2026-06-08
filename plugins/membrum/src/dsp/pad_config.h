@@ -19,8 +19,10 @@ constexpr int kNumPads = 32;
 constexpr int kPadBaseId = 1000;
 
 /// Stride between consecutive pads' parameter ID ranges.
-/// Offsets 0-35 are active; 36-63 reserved for future phases.
-constexpr int kPadParamStride = 64;
+/// Offsets 0-64 are active (through M-9 per-pad pan); 65-127 reserved for
+/// future phases. M-9 widened this 64 -> 128 because Phase 10 filled the
+/// original 64-wide stride exactly, leaving no room for the pan offset.
+constexpr int kPadParamStride = 128;
 
 /// Maximum number of output buses (1 main + 15 aux).
 constexpr int kMaxOutputBuses = 16;
@@ -158,6 +160,14 @@ enum PadParamOffset : int
     kPadTSPitchEnvMidFraction = 62,  // 0..1 fraction of total time, default 0.5
     kPadTSPitchEnvCurve2      = 63,  // 0..1 -> -1..+1 power, default 0.5 (linear)
     kPadActiveParamCountV10   = 64,  // offsets 0-63 are active after Phase 10
+
+    // M-9: per-pad pan. Equal-power pan law applied in VoicePool's mix stage
+    // (the voice itself is mono); 0.5 = center (bit-identical to the legacy
+    // mono-dup mix), 0 = hard left, 1 = hard right. This is the first param to
+    // overflow the original 64-wide stride, so kPadParamStride was widened to
+    // 128. Restores the stereo image (audit M-9).
+    kPadPan                   = 64,
+    kPadActiveParamCountV11   = 65,  // offsets 0-64 are active after M-9
 };
 
 /// Complete configuration for one drum pad. Pre-allocated, no dynamic memory.
@@ -208,6 +218,11 @@ struct PadConfig
     // Kit-level per-pad settings
     std::uint8_t chokeGroup = 0;  // [0, 8], 0 = no choke
     std::uint8_t outputBus  = 0;  // [0, 15], 0 = main only
+
+    // M-9: per-pad pan (normalized). 0.5 = center (equal-power law referenced
+    // to unity-at-center, so the default is bit-identical to the legacy mono
+    // duplication), 0 = hard left, 1 = hard right.
+    float pan = 0.5f;
 
     // Exciter secondary params (per-pad, Phase 4)
     float fmRatio            = 0.133333f; // norm of [1.0,4.0]; default -> 1.4 bell
@@ -323,7 +338,7 @@ struct PadConfig
     if (padIdx >= kNumPads)
         return -1;
     const int offset = relative % kPadParamStride;
-    if (offset >= kPadActiveParamCountV10)
+    if (offset >= kPadActiveParamCountV11)
         return -1;  // reserved range
     return offset;
 }

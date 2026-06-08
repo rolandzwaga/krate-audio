@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <numbers>
 #include <type_traits>
 #include <utility>
 
@@ -207,7 +208,15 @@ void VoicePool::noteOn(std::uint8_t midiNote, float velocity) noexcept
             // FR-126/FR-127: fade out the stolen voice through the shadow
             // slot. The hot path must not touch `voices_[ev.voiceIndex]` after
             // this — the new note will overwrite it below.
-            beginFastRelease(static_cast<int>(ev.voiceIndex));
+            //
+            // Audit M-8: force=true so a same-slot re-steal whose shadow is
+            // still fading from a prior steal (e.g. fast same-note retrigger)
+            // re-snapshots the ringing main voice instead of letting the
+            // incoming attack hard-overwrite it (a click). A steal only ever
+            // targets a genuinely-Active voice — choke already frees + retires
+            // its victims before the allocator runs — so a busy shadow here is
+            // always the M-8 collision, never the choke-completeness re-scan.
+            beginFastRelease(static_cast<int>(ev.voiceIndex), /*force*/ true);
             // After stealing we mark the main slot Free; the NoteOn event
             // that follows will transition it back to Active.
             meta_[ev.voiceIndex].state = VoiceSlotState::Free;
@@ -344,15 +353,22 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
         {
             VP_VOICES[slot].processBlock(scratch, numSamples);
 
+            // M-9: equal-power per-pad pan (DrumVoice is mono).
+            float gainL = 1.0f;
+            float gainR = 1.0f;
+            panGainsForNote(meta_[slot].originatingNote, gainL, gainR);
+
             // FR-165: per-block peak into VoiceMeta.currentLevel. One pass
-            // through the scratch, then one write. Not per-sample.
+            // through the scratch, then one write. Not per-sample. The peak is
+            // measured PRE-pan (the voice's intrinsic level) so stealing
+            // policies stay pan-independent.
             float peak = 0.0f;
             for (int i = 0; i < numSamples; ++i)
             {
                 const float a = std::fabs(scratch[i]);
                 peak           = std::max(peak, a);
-                outL[i] += scratch[i];
-                outR[i] += scratch[i];
+                outL[i] += scratch[i] * gainL;
+                outR[i] += scratch[i] * gainR;
             }
             meta_[slot].currentLevel = peak;
 
@@ -396,10 +412,15 @@ void VoicePool::processBlock(float* outL, float* outR, int numSamples) noexcept
         // continues into the next block).
         const int liveCount = applyFastRelease(slot, scratch, numSamples);
 
+        // M-9: the fading shadow voice keeps its pad's pan position.
+        float gainL = 1.0f;
+        float gainR = 1.0f;
+        panGainsForNote(releasingMeta_[slot].originatingNote, gainL, gainR);
+
         for (int i = 0; i < liveCount; ++i)
         {
-            outL[i] += scratch[i];
-            outR[i] += scratch[i];
+            outL[i] += scratch[i] * gainL;
+            outR[i] += scratch[i] * gainR;
         }
 
         // When the slot has transitioned back to Free (floor triggered),
@@ -447,13 +468,18 @@ void VoicePool::processBlock(float* outL, float* outR,
         {
             VP_VOICES[slot].processBlock(scratch, numSamples);
 
+            // M-9: equal-power per-pad pan (applied to main and aux alike).
+            float gainL = 1.0f;
+            float gainR = 1.0f;
+            panGainsForNote(meta_[slot].originatingNote, gainL, gainR);
+
             float peak = 0.0f;
             for (int i = 0; i < numSamples; ++i)
             {
                 const float a = std::fabs(scratch[i]);
                 peak = std::max(peak, a);
-                outL[i] += scratch[i];
-                outR[i] += scratch[i];
+                outL[i] += scratch[i] * gainL;
+                outR[i] += scratch[i] * gainR;
             }
             meta_[slot].currentLevel = peak;
 
@@ -471,8 +497,8 @@ void VoicePool::processBlock(float* outL, float* outR,
                 {
                     for (int i = 0; i < numSamples; ++i)
                     {
-                        auxL[bus][i] += scratch[i];
-                        auxR[bus][i] += scratch[i];
+                        auxL[bus][i] += scratch[i] * gainL;
+                        auxR[bus][i] += scratch[i] * gainR;
                     }
                 }
             }
@@ -500,10 +526,15 @@ void VoicePool::processBlock(float* outL, float* outR,
         VP_RVOICES[slot].processBlock(scratch, numSamples);
         const int liveCount = applyFastRelease(slot, scratch, numSamples);
 
+        // M-9: the fading shadow voice keeps its pad's pan position.
+        float gainL = 1.0f;
+        float gainR = 1.0f;
+        panGainsForNote(releasingMeta_[slot].originatingNote, gainL, gainR);
+
         for (int i = 0; i < liveCount; ++i)
         {
-            outL[i] += scratch[i];
-            outR[i] += scratch[i];
+            outL[i] += scratch[i] * gainL;
+            outR[i] += scratch[i] * gainR;
         }
 
         // FR-044: also route fast-releasing voices to their aux bus
@@ -520,8 +551,8 @@ void VoicePool::processBlock(float* outL, float* outR,
             {
                 for (int i = 0; i < liveCount; ++i)
                 {
-                    auxL[bus][i] += scratch[i];
-                    auxR[bus][i] += scratch[i];
+                    auxL[bus][i] += scratch[i] * gainL;
+                    auxR[bus][i] += scratch[i] * gainR;
                 }
             }
         }
@@ -613,6 +644,7 @@ void VoicePool::setPadConfigField(int padIndex, int offset, float normalizedValu
         chokeGroups_.setEntry(static_cast<std::size_t>(padIndex), g);
         break;
     }
+    case kPadPan:                 cfg.pan = normalizedValue; break;
     case kPadOutputBus:
     {
         cfg.outputBus = static_cast<std::uint8_t>(
@@ -706,6 +738,31 @@ void VoicePool::setPadChokeGroup(int padIndex, std::uint8_t group) noexcept
     chokeGroups_.setEntry(static_cast<std::size_t>(padIndex), group);
 }
 
+void VoicePool::panGainsForNote(std::uint8_t originatingNote,
+                                float& gainL, float& gainR) const noexcept
+{
+    // Default: center / unity-to-both (legacy mono-dup behaviour).
+    gainL = 1.0f;
+    gainR = 1.0f;
+
+    const int pad = static_cast<int>(originatingNote)
+                  - static_cast<int>(kFirstDrumNote);
+    if (pad < 0 || pad >= kNumPads)
+        return;
+
+    const float panNorm =
+        std::clamp(padConfigs_[static_cast<std::size_t>(pad)].pan, 0.0f, 1.0f);
+
+    // Equal-power pan referenced to unity-at-center. theta sweeps [0, pi/2] as
+    // pan sweeps [0, 1]; the sqrt(2) factor lifts the -3 dB center of a textbook
+    // equal-power law back to 0 dB so the default (pan 0.5) stays bit-identical
+    // to the old `outL += s; outR += s` mix. gainL^2 + gainR^2 == 2 for all pan.
+    constexpr float kHalfPi = std::numbers::pi_v<float> / 2.0f;
+    const float theta = panNorm * kHalfPi;
+    gainL = std::numbers::sqrt2_v<float> * std::cos(theta);
+    gainR = std::numbers::sqrt2_v<float> * std::sin(theta);
+}
+
 void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
 {
     if (slot < 0 || slot >= kMaxVoices)
@@ -757,11 +814,12 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
     v.setTensionModAmt(cfg.tensionModAmt);
 
     // ---- Tone Shaper -------------------------------------------------------
-    // BUG FIX: this whole block was missing for years -- a dedicated
-    // applyPadConfigToVoice() helper exists in processor.cpp but was never
-    // called from anywhere, so loading a kit preset never propagated the
-    // tone-shaper / pitch-envelope / filter-envelope / unnatural-zone /
-    // material-morph fields into voices. Every voice played with whatever
+    // BUG FIX: this whole block was missing for years -- a divergent
+    // applyPadConfigToVoice() helper used to exist in processor.cpp but was
+    // never called from anywhere (it was dead code, removed in audit L-12), so
+    // loading a kit preset never propagated the tone-shaper / pitch-envelope /
+    // filter-envelope / unnatural-zone / material-morph fields into voices.
+    // Every voice played with whatever
     // tone-shaper state was set when the plugin booted. Most visible
     // symptom: the 808 tom row sounded identical across pads because the
     // per-pad pitch envelope (the iconic 808 boom-thud glide) never
@@ -829,8 +887,7 @@ void VoicePool::applyPadConfigToSlot(int slot, int padIndex) noexcept
         std::clamp(cfg.morphStart, 0.0f, 1.0f));
     v.unnaturalZone().materialMorph.setEnd(
         std::clamp(cfg.morphEnd,   0.0f, 1.0f));
-    // Morph duration: linear norm over [10, 2000] ms (matches the legacy
-    // applyPadConfigToVoice mapping; default 0.095477 -> 200 ms).
+    // Morph duration: linear norm over [10, 2000] ms (default 0.095477 -> 200 ms).
     v.unnaturalZone().materialMorph.setDurationMs(
         10.0f + std::clamp(cfg.morphDuration, 0.0f, 1.0f) * 1990.0f);
     v.unnaturalZone().materialMorph.setCurve(cfg.morphCurve >= 0.5f);
@@ -922,15 +979,25 @@ int VoicePool::selectQuietestActiveSlot() const noexcept
     return bestSlot;
 }
 
-void VoicePool::beginFastRelease(int slot) noexcept
+void VoicePool::beginFastRelease(int slot, bool force) noexcept
 {
     if (slot < 0 || slot >= kMaxVoices)
         return;
 
     // FR-127: idempotent. If the shadow slot is already fast-releasing,
-    // leave the in-flight fade alone so a double-steal does NOT re-snapshot
-    // the gain.
-    if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing)
+    // leave the in-flight fade alone so a re-entrant call (the choke-
+    // completeness re-scan) does NOT re-snapshot the gain.
+    //
+    // Audit M-8: the EXCEPTION is a voice-steal that re-steals this slot
+    // while its shadow is still fading from a PRIOR steal (`force == true`).
+    // The current main voice is a full-amplitude ring about to be hard-
+    // overwritten by the incoming note's attack; the existing shadow holds an
+    // older, already-attenuated tail. Re-snapshot so the louder ring fades
+    // smoothly through the shadow and only the quieter old tail is truncated —
+    // a far smaller discontinuity. Fall through to the swap + reset below; the
+    // old shadow voice ends up in the main slot and is cleanly overwritten by
+    // the incoming note's applyPadConfigToSlot + noteOn.
+    if (releasingMeta_[slot].state == VoiceSlotState::FastReleasing && !force)
         return;
 
     // FR-124 / Q5 / T3.2.4: snapshot the currently-sounding DrumVoice into

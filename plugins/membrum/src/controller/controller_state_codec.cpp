@@ -55,7 +55,7 @@ struct LateSlot {
     int         offset;
     std::size_t snapIndex;
 };
-constexpr std::array<LateSlot, 22> kLateSlots = {{
+constexpr std::array<LateSlot, 23> kLateSlots = {{
     // Phase 7 noise layer (sound[34..38] -> offsets 42..46).
     {.offset = kPadNoiseLayerMix,        .snapIndex = 34},
     {.offset = kPadNoiseLayerCutoff,     .snapIndex = 35},
@@ -86,6 +86,8 @@ constexpr std::array<LateSlot, 22> kLateSlots = {{
     {.offset = kPadTSPitchEnvMidPitch,     .snapIndex = 53},
     {.offset = kPadTSPitchEnvMidFraction,  .snapIndex = 54},
     {.offset = kPadTSPitchEnvCurve2,       .snapIndex = 55},
+    // M-9 per-pad pan (sound[56] -> offset 64).
+    {.offset = kPadPan,                    .snapIndex = 56},
 }};
 
 // Macro block (Phase 6): 5 normalised values, one per macro.

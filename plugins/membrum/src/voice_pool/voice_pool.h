@@ -273,7 +273,17 @@ private:
     /// the fast-release ramp. Phase 3.1 provides a scaffolding body that
     /// transitions `releasingMeta_[slot]` to `FastReleasing`; Phase 3.2
     /// replaces it with the full exponential decay.
-    void beginFastRelease(int slot) noexcept;
+    ///
+    /// `force` (audit M-8): the default (false) keeps the FR-127 idempotent
+    /// short-circuit — a re-entrant call on a slot already FastReleasing
+    /// leaves the in-flight fade alone (used by the choke-completeness
+    /// re-scan). When true, a re-steal whose shadow is still busy from a
+    /// PRIOR steal re-snapshots the CURRENT (full-amplitude) main voice into
+    /// the shadow, so it fades smoothly and only the older, already-attenuated
+    /// tail is truncated — instead of hard-overwriting the ringing main voice
+    /// with the incoming note's attack (a click). The voice-steal path passes
+    /// true; choke and poly-shrink keep the idempotent default.
+    void beginFastRelease(int slot, bool force = false) noexcept;
 
     /// Phase 3.2 hook — per-sample exponential decay applied to `scratch`
     /// with `releasingMeta_[slot].fastReleaseGain`. Returns the number of
@@ -297,6 +307,15 @@ private:
     /// Apply pad N's configuration to a voice slot at noteOn time.
     /// Called internally by noteOn() using the midiNote-to-pad mapping.
     void applyPadConfigToSlot(int slot, int padIndex) noexcept;
+
+    /// M-9: equal-power per-pad pan gains for a voice, looked up from the
+    /// voice's originating note. `gainL`/`gainR` default to unity (center) for
+    /// notes outside the pad range. The law is referenced to unity-at-center so
+    /// a default (pan 0.5) pad reproduces the legacy mono-duplication mix
+    /// exactly (gainL == gainR == 1.0); hard-panned pads reach +3 dB on one
+    /// side (constant power: gainL^2 + gainR^2 == 2).
+    void panGainsForNote(std::uint8_t originatingNote,
+                         float& gainL, float& gainR) const noexcept;
 
 
     // ------------------------------------------------------------------

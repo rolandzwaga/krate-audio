@@ -96,13 +96,13 @@ std::vector<std::uint8_t> readAllBytes(MemoryStream& stream)
 } // namespace
 
 // ==============================================================================
-// kCurrentStateVersion sanity check (pinned at 2 by the Phase 10 update).
+// kCurrentStateVersion sanity check (pinned at 3 by the M-9 per-pad pan update).
 // ==============================================================================
 
-TEST_CASE("State (FR-080): kCurrentStateVersion is 2",
+TEST_CASE("State (FR-080): kCurrentStateVersion is 3",
           "[phase6_state][state_v6][state]")
 {
-    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 2);
+    STATIC_REQUIRE(Membrum::kCurrentStateVersion == 3);
 }
 
 // ==============================================================================
@@ -187,11 +187,11 @@ TEST_CASE("State (FR-084): blob wraps macros + sound slots + master gain, no ove
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Layout (see state_codec.h, Phase 10 update):
-    //   12 (header) + 32 * 458 (per-pad block: 4 exc + 4 body + 56*8 sound + 2 routing)
+    // Layout (see state_codec.h, M-9 update):
+    //   12 (header) + 32 * 466 (per-pad block: 4 exc + 4 body + 57*8 sound + 2 routing)
     //   + 4 (selPad) + 32 (4 globals) + 256 (32 coupling amounts)
-    //   + 1280 (160 macros) + 8 (master gain) = 16248 bytes.
-    CHECK(bytes.size() == 16248u);
+    //   + 1280 (160 macros) + 8 (master gain) = 16504 bytes.
+    CHECK(bytes.size() == 16504u);
 
     // Version field is the first 4 bytes and must equal kCurrentStateVersion.
     int32 version = 0;
@@ -208,7 +208,7 @@ TEST_CASE("State: setState rejects every version other than kCurrentStateVersion
           "[phase6_state][state_v6][state]")
 {
     V6Fixture fx;
-    for (int32 v : {0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
+    for (int32 v : {0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 99, -1})
     {
         std::vector<std::uint8_t> buf;
         appendBytes(buf, &v, sizeof(v));
@@ -235,9 +235,9 @@ TEST_CASE("State (FR-082): session-scoped params are not on the wire",
     REQUIRE(fx.processor.getState(&stream) == kResultOk);
     auto bytes = readAllBytes(stream);
 
-    // Expected size: 16248 bytes (see FR-084 test, Phase 10 update). If
+    // Expected size: 16504 bytes (see FR-084 test, M-9 update). If
     // kUiModeId had leaked into the processor blob it would add 4 bytes.
-    CHECK(bytes.size() == 16248u);
+    CHECK(bytes.size() == 16504u);
 }
 
 // ==============================================================================

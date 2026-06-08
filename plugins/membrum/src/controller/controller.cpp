@@ -138,6 +138,8 @@ constexpr ProxyMapping kProxyMappings[] = {
     {.globalId = kPitchEnvMidPitchId,           .padOffset = kPadTSPitchEnvMidPitch },
     {.globalId = kPitchEnvMidFractionId,        .padOffset = kPadTSPitchEnvMidFraction },
     {.globalId = kPitchEnvCurve2Id,             .padOffset = kPadTSPitchEnvCurve2 },
+    // M-9: per-pad pan (offset 64).
+    {.globalId = kPadPanId,                     .padOffset = kPadPan },
 };
 
 // Per-pad parameter name table
@@ -229,13 +231,15 @@ const PadParamSpec kPadParamSpecs[] = {
     {.offset = kPadTSPitchEnvMidPitch,   .name = "PitchEnv Mid",        .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadTSPitchEnvMidFraction,.name = "PitchEnv Mid Frac",   .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
     {.offset = kPadTSPitchEnvCurve2,     .name = "PitchEnv Curve2",     .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
+    // M-9: per-pad pan (offset 64). 0.5 = center.
+    {.offset = kPadPan,                  .name = "Pan",                 .isDiscrete = false, .stepCount = 0, .defaultValue = 0.5 },
 };
 
 constexpr int kPadParamSpecCount =
     static_cast<int>(sizeof(kPadParamSpecs) / sizeof(kPadParamSpecs[0]));
 
-static_assert(kPadParamSpecCount == kPadActiveParamCountV10,
-              "Pad param specs must match active param count (64 after Phase 10)");
+static_assert(kPadParamSpecCount == kPadActiveParamCountV11,
+              "Pad param specs must match active param count (65 after M-9)");
 
 // Helper: convert narrow string to TChar buffer
 void narrowToTChar(const char* src, TChar* dst, int maxLen)
@@ -638,7 +642,13 @@ tresult PLUGIN_API Controller::initialize(FUnknown* context)
         new RangeParameter(STR16("Pad Enabled"), kPadEnabledId, nullptr,
                            0.0, 1.0, 1.0, /*stepCount=*/1, ParameterInfo::kCanAutomate));
 
-    // ---- Phase 4/7/8A..8F: 1920 per-pad parameters (32 pads x 60 offsets) ----
+    // ---- M-9 global proxy: per-pad pan ----
+    // Continuous [0, 1], default 0.5 = center.
+    parameters.addParameter(
+        new RangeParameter(STR16("Pan"), kPadPanId, nullptr,
+                           0.0, 1.0, 0.5, 0, ParameterInfo::kCanAutomate));
+
+    // ---- Phase 4/7/8A..8F/M-9: 2080 per-pad parameters (32 pads x 65 offsets) ----
     for (int pad = 0; pad < kNumPads; ++pad)
     {
         for (const auto& spec : kPadParamSpecs)
