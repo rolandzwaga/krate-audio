@@ -1,0 +1,4645 @@
+{
+  "kits": [
+    {
+      "name": "Acoustic Studio Kit",
+      "builderFn": "acousticKit()",
+      "category": "Acoustic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Acoustic Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.35, size 0.85 (~big shell, f0~600/0.1^.85 low), decay 0.25, level 0.85; pitchEnv 160->50Hz / 40ms; airLoading 0.78; couplingStrength 0.35 + secondaryEnabled (size 0.40, mat 0.60); tensionMod 0.18; clickMix 0.70 contact 0.20 bright 0.45; noiseMix 0.10"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Acoustic Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.38, size 0.64, decay 0.66, level 1.0; noiseBurst ~4ms; clickMix 0.92 contact 0.06 bright 0.92; noiseMix 0.82 cutoff 0.88 color 0.78 decay 0.32; airLoading 0.42 modeScatter 0.42 b1 0.28 b3 0.03; nonlinearCoupling 0.20; couplingStrength 0.78 secondary size 0.78 mat 0.52; tensionMod 0.32; pitchEnv 200->130/65ms curve 0.15; drive 0.40; filter LP cutoff 0.85 envAmt 0.78 decay 0.385"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Side Stick",
+          "bodyModel": "Shell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.8, size 0.2, decay 0.15; clickMix 0.85 contact 0.10 bright 0.85; noiseMix 0; airLoading 0; modeScatter 0.40"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hi-hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.88 size 0.15 decay 0.1; chokeGroup 1; noiseMix 0.70 cutoff 0.86 color 0.78 decay 0.10; clickMix 0.18; airLoading 0; modeScatter 0.35; b3 0; b1 0.55"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hi-hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone of pad6: decay 0.05, noiseDecay 0.06, b1 0.65, choke 1"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hi-hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone of pad6: decay 0.6, noiseDecay 0.55, b1 0.30, choke 1"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1 (lowest)",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop: material 0.4, size 0.8, decay 0.5; airLoading 0.70 modeScatter 0.10; b1 0.30+0.02i b3 0.10; couplingStrength 0.40 secondary size 0.30+0.02i mat 0.55; tensionMod 0.22; noiseMix 0.18 clickMix 0.50"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.7, same recipe as pad5 with size-graded values"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.6"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.5"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.45"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6 (highest)",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.4"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Cymbal/Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop: material 0.95 size 0.3 decay 0.8; modeScatter 0.55 airLoading 0 b3 0 b1 0.30; noiseMix 0.50 cutoff 0.90 color 0.80 decay 0.70; clickMix 0.20 bright 0.85"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (NOT in crafted -> disabled in final preset)"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (disabled, not crafted)"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (disabled, not crafted)"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (disabled)"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (disabled)"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "Cymbal",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "cymbal loop (disabled)"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop: material 0.7 size 0.3 decay 0.3; airLoading 0.30 modeScatter 0.18; clickMix 0.40 contact 0.25 bright 0.65; noiseMix 0.12 (disabled, not crafted)"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "Misc perc",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "perc loop (disabled)"
+        }
+      ],
+      "weaknesses": "Crafted set is only 13 pads (kick/snare/sidestick/3 hats/6 toms/1 cymbal); pads 15-31 are configured identically in loops then DISABLED, so the kit is functionally small. Toms are 6 near-identical Membrane/Mallet voices differing only by size + a tiny b1 ramp (0.30+0.02*i) and secondary size ramp — exactly the audit §4 sameness complaint (one timbre stamped with a size sweep). The 7 cymbal slots are byte-identical NoiseBody loops. modeStretch left at default 0.333 (so the corrected B_max=0.01 metallic axis is unused on toms/cymbals), decaySkew default 0.5 everywhere (the now-working per-mode tilt unused), modeInject 0 everywhere (the 1/k fix unused), pan 0.5 everywhere (M-9 stereo unused). Snare leans heavily on click(0.92)+noise(0.82) over body — the H-2 'noisy thwack masks body' pattern, though it now adds real shell coupling."
+    },
+    {
+      "name": "Jazz Brushes",
+      "builderFn": "jazzBrushesKit()",
+      "category": "Acoustic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Soft Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.45 size 0.72 decay 0.32; pitchEnv 140->60/25ms; airLoading 0.78; coupling 0.30 secondary 0.40/0.55; tensionMod 0.12; click 0.28 contact 0.40 bright 0.22 (soft); noise 0.06; macros set (tight 0.45 bright 0.30 punch 0.32)"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Brush Snare (sweep)",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.42 size 0.60 decay 0.55; noiseBurstDur 0.85 (long sweep) frictionPressure 0.60; clickMix 0.0 (intentionally no crack); morph on 0.55->0.30/dur 0.35; noise 0.75 cutoff 0.62 color 0.45 decay 0.55; filter HP cutoff 0.25; coupling 0.60 secondary 0.65/0.45; couplingAmount 0.65; macros set"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Brush Snare (tap)",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.40 size 0.60 decay 0.58; noiseBurst ~5ms; soft click 0.62 contact 0.14; noise 0.65; coupling 0.62 secondary 0.68/0.48; pitchEnv 210->150/60ms"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.13 decay 0.07; choke 1; noise 0.85 cutoff 0.78 color 0.65; modeScatter 0.70; b1 0.60; macros bright 0.55"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.05 b1 0.70"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.55 noiseDecay 0.78 cutoff 0.92 modeScatter 0.85 b1 0.55 b3 0.20"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop: material 0.40-0.60 ramp, size 0.72->0.36, decay 0.45->0.24, b1 ramp, pitchEnv per-tom 200/110..470/290; airLoading 0.65; coupling 0.32 secondary; tension 0.18; click 0.40 contact 0.38; macros"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Ride Cymbal",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.42 decay 0.85; fmRatio 0.35 feedback 0.05; modeScatter 0.85 (overwrites 0.28); b3 0.30 b1 0.40; noise 0.30 cutoff 0.85 decay 0.75; click 0.45 contact 0.10 bright 0.85; outputBus 1; macros"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.32 decay 0.65; modeScatter 0.85; noise 0.55 cutoff 0.78 color 0.62 decay 0.60; click 0.20; outputBus 1"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Wood Block",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.68 size 0.22 decay 0.20; modeStretch 0.50; click 0.70 contact 0.12 bright 0.75; airLoading 0.10 modeScatter 0.20; b1 0.50"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default Pad, not crafted -> disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Best-developed Acoustic kit (macros + couplingAmount actually used, two distinct snare flavours, brush snare uses friction sweep + morph rather than noise crack). Still the 6-tom row is a size/material/pitch sweep over ONE recipe (audit §4 #3). modeStretch unused on toms/membranes (default 0.333), decaySkew default on all drums, modeInject 0 throughout, pan 0.5 throughout. Ride/crash duplicate the cymbal-as-NoiseBody/Bell pattern. Brush snare's reliance on noise layer is by design (no body crack) so it's a defensible exception, not the H-2 problem."
+    },
+    {
+      "name": "Rock Big Room",
+      "builderFn": "rockBigRoomKit()",
+      "category": "Acoustic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Big-room Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.35 size 0.95 (huge) decay 0.30; pitchEnv 180->45/25ms; drive 0.30; airLoading 0.85; coupling 0.50 secondary 0.55/0.50; tension 0.20; click 0.85 contact 0.18; macros punch 0.85 bodySize 0.85; couplingAmount 0.75"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Crack Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.38 size 0.66 decay 0.68; noiseBurst ~4ms; drive 0.42; noise 0.85 cutoff 0.88; click 0.95 contact 0.06 bright 0.92; airLoading 0.42 scatter 0.42; nonlinearCoupling 0.22; coupling 0.78 secondary 0.80/0.52; tension 0.32; pitchEnv 220->130/70ms; macros punch 0.85"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Rim Shot",
+          "bodyModel": "Shell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.70 size 0.30 decay 0.18; modeStretch 0.45; click 0.95 contact 0.08 bright 0.92; noise 0.20; modeScatter 0.40; b1 0.50 b3 0.30; macroPunch 0.95"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.18 decay 0.12 choke 1; noise 0.85 cutoff 0.90 color 0.85; modeScatter 0.70; b1 0.50"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.06 b1 0.65"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.65 b1 0.30"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop: size 0.92->0.48, material 0.30->0.58, decay 0.65->0.30, pitchEnv 180/70..480/215; drive 0.18; airLoading 0.78; coupling 0.55 secondary; tension 0.30; click 0.55; macroPunch 0.85; couplingAmount 0.70"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash 1",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.45 decay 0.85; modeScatter 0.55; noise 0.65 cutoff 0.92 color 0.85 decay 0.75; click 0.30 bright 0.85; outputBus 1; macroBright 0.85"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Ride",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone of crash13 then Bell + fmRatio 0.30; size 0.55 decay 0.95; click 0.55 bright 0.92; outputBus 1"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "Splash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone crash13: size 0.22 decay 0.28 noiseDecay 0.25; outputBus 1"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 16,18-31 all default+disabled)"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Uses kit-level globals (globalCoupling 0.30, snareBuzz 0.35, tomResonance 0.45, maxPoly 12) — more dialed than acousticKit. Snare/kick are well-voiced with coupling. Same 6-tom sweep-of-one-recipe structure. modeStretch default everywhere, decaySkew default everywhere, modeInject 0 everywhere, pan 0.5 everywhere (audit §4 #4/#7 axes unused). Crash/ride/splash all derive from a single NoiseBody crash via clone+tweak. Strongly leans on click(0.85-0.95)+noise on kick/snare/rim."
+    },
+    {
+      "name": "Vintage Wood",
+      "builderFn": "vintageWoodKit()",
+      "category": "Acoustic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Wood-shell Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.28 size 0.78 decay 0.27; pitchEnv 150->55/22ms; drive 0.45 fold 0.10; airLoading 0.70; coupling 0.55 secondary 0.42/0.32 (woody mat); tension 0.18; click 0.62; macros bodySize 0.70"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Wood-shell Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.32 size 0.62 decay 0.66; noiseBurst ~5ms; drive 0.38; noise 0.78 cutoff 0.78; click 0.88 contact 0.08; airLoading 0.45 scatter 0.40; nonlinearCoupling 0.22; coupling 0.80 secondary 0.75/0.32; tension 0.30; pitchEnv 200->130/65ms; macroTight 0.70"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Side Stick",
+          "bodyModel": "Shell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.20 decay 0.18; click 0.92 contact 0.10 bright 0.78; noise 0.05; modeScatter 0.55; b1 0.42"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.13; noise 0.85 cutoff 0.72 color 0.55 (warmer); modeScatter 0.70; b1 0.55; choke 1"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.05"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.45 b1 0.30"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop size 0.72->0.35, material 0.30->0.55, decay 0.42->0.22, pitchEnv 200/95..480/260; drive 0.25; airLoading 0.55; coupling 0.50 secondary mat 0.30 (woody); tension 0.22; click 0.50; macroBright 0.35"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash 1",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.30 decay 0.65; modeScatter 0.55; noise 0.55 cutoff 0.78 color 0.65; click 0.18"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Wood Block hi",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.20 decay 0.18; modeStretch 0.55 decaySkew 0.30 (one of few decaySkew uses); click 0.78 bright 0.80; noise 0; modeScatter 0.18; b1 0.45"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Wood Block lo",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "clone pad1: size 0.30 decay 0.22 material 0.28 click bright 0.65"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Cowbell",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.78 size 0.26 decay 0.30; fmRatio 0.45; click 0.55 contact 0.10 bright 0.70; noise 0.10; modeScatter 0.20; b3 0 b1 0.40; macroBright 0.65"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 16-31 default+disabled)"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Distinguishes itself from rockBigRoom mainly by lower brightness/secondaryMaterial 0.30-0.32 (wood) and fold 0.10 on kick — a thin margin of differentiation given identical body/exciter/structure. Snare/kick/tom recipes are structurally the SAME as the other 3 acoustic kits (Membrane+Mallet/NoiseBurst, click+noise+coupling), so cross-kit sameness within the Acoustic category is high. modeStretch only on wood blocks; decaySkew only on pad1 (0.30); modeInject 0 throughout; pan 0.5 throughout."
+    },
+    {
+      "name": "Orchestral",
+      "builderFn": "orchestralKit()",
+      "category": "Acoustic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Timpani (kick slot)",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.30 size 0.92 decay 0.85 (long); level 0.70 (headroom cut); pitchEnv 180->85/50ms curve 0.5; airLoading 0.70; coupling 0.0 secondary OFF (single-head fix to avoid clip); tension 0.18; click 0.32; macroBodySize 0.95"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Concert Bass Drum",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.32 size 0.90 decay 0.55 level 0.72; pitchEnv 110->40/30ms; airLoading 0.70; secondary OFF; tension 0.15; click 0.30 contact 0.42 bright 0.20 (soft)"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Orchestral Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.55 size 0.38 decay 0.30 (tight); drive 0.06 (near-zero, intentional); noise 0.98 (snare IS noise) cutoff 0.94 color 0.90; click 0.95 contact 0.05 bright 0.95; NO pitchEnv (start/end/time all 0); coupling 0.28 secondary 0.32/0.70; tension 0.18; b1 0.62 b3 0.18 (fast body = transient tat)"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Timpani tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "timpani loop: size 0.88->0.60, material 0.32+0.04i, decay 0.80->0.50, level 0.65, pitchEnv 180/80..440/215; airLoading 0.65; secondary OFF; tension 0.15; b1 0.10->0.21; macroBodySize 0.85->"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Timpani tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "timpani loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Timpani tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "timpani loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Timpani tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "timpani loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Timpani tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "timpani loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Triangle",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.95 size 0.10 decay 0.85; fmRatio 0.45; modeStretch 0.55; click 0.55 bright 0.95; noise 0; b3 0 b1 0.30; macroBright 0.95"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Suspended Cymbal/Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.88 size 0.16 decay 0.15 choke 1; noise 0.65 cutoff 0.82; modeScatter 0.30; b1 0.45"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Suspended Cymbal (pedal)",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.06 b1 0.65"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Suspended Cymbal roll",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.42 decay 0.95; morph on 0.55->0.95/dur 0.85; modeScatter 0.65; noise 0.65 decay 0.95; decaySkew 0.55; outputBus 1; click 0"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Gong",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "material 0.85 size 0.85 decay 0.95; fmRatio 0.30 feedback 0.10; modeStretch 0.55; morph on 0.85->0.55/dur 0.85; modeScatter 0.65; decaySkew 0.65; tension 0.22; outputBus 1; couplingAmount 0.95; macroComplexity 0.85"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Crotales hi",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "material 0.92 size 0.18 decay 0.85; fmRatio 0.55; click 0.40 bright 0.85; outputBus 1; macroBright 0.85"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "Crotales lo",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "clone pad15 size 0.25 fmRatio 0.40 material 0.88"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Tubular Bell",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "material 0.85 size 0.55 decay 0.92; modeStretch 0.50; click 0.40 contact 0.20; noise 0.10; b1 0.30 b3 0.20; decaySkew 0.55"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 16,18-31 default+disabled)"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Most varied Acoustic kit by body palette (Membrane timpani, Bell triangle/gong/crotales, String tubular bell, NoiseBody cymbals) and uses morph + decaySkew + modeStretch on several metallic pads. Headroom comments reveal gain-staging tuning predates N-1 fix (level/airLoading/secondary cut to avoid the OLD clip) — these conservative cuts should be REVISITED now that the body norm is measured-strike-bounded. modeInject 0 throughout; pan 0.5 throughout; decaySkew still default on the 5 timpani toms (the per-mode tilt fix unused there). Bell/gong voiced against the OLD bell strike shape — must be re-voiced per audit Phase 2 step 7."
+    },
+    {
+      "name": "808 Electronic Kit",
+      "builderFn": "electronicKit()",
+      "category": "Electronic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "808 Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.15 size 0.9 decay 0.35; pitchEnv 200->40/30ms; airLoading 0 coupling 0 secondary OFF (clean sub); tension 0.30; click 0.35 bright 0.30; noise 0"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "808 Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.58 size 0.68 decay 0.85; coupling 0.35 secondary 0.38/0.85 (metallic shimmer body); b1 0.18 b3 0.05; drive 0.48; tension 0.35; pitchEnv 400->110/65ms curve 0.10; noise 0.62 cutoff 0.82 decay 0.40; click 0.55 contact 0.08"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "808 Snare (sister)",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.66 size 0.60 decay 0.72; secondary 0.38/0.85; pitchEnv 480->160/50ms; brighter shorter sister of pad2"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.1 decay 0.08 choke 1; noiseBurst ~3ms; noise 0.85 cutoff 0.92 color 0.85 decay 0.10; click 0; airLoading 0"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 material 0.88 size 0.12 decay 0.06"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 material 0.9 size 0.2 decay 0.5 noiseDecay 0.55"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.35 decay 0.7; noise 0.55 cutoff 0.92 color 0.82 decay 0.65"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "808 Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop with iconic boom-glide: size 0.85->0.40, material 0.18->0.60, decay 0.65->0.28, pitchEnv 220/80..500/220 with LONG times 0.50->0.18, curve 0.5 (linear); airLoading 0 secondary OFF; tension 0.30; b1 0.10->0.42; noise 0.05 click 0.05"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "808 Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded (boom-glide)"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "808 Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "808 Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "808 Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "808 Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop: material 0.7 size 0.25 decay 0.2; fmRatio 0.4; click 0.15 bright 0.7; b3 0; noise 0 (only pad1 survives, rest disabled)"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "FM-bell perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "perc loop (disabled)"
+        }
+      ],
+      "weaknesses": "808 toms have the best pitch-env motion in the library (long glide times). Snares use a metallic secondary body (good differentiation). But airLoading/coupling/scatter deliberately ZEROED ('clean modal pitches') means most physics axes are off — the kit relies on pitchEnv + secondary body + noise/click only. modeStretch default everywhere (the metallic shimmer body could exploit the new B_max), decaySkew default everywhere, modeInject 0 throughout, pan 0.5 throughout. 19 FM-bell perc slots configured identically then disabled (only pad1 used)."
+    },
+    {
+      "name": "909 Drum Machine",
+      "builderFn": "nineOhNineKit()",
+      "category": "Electronic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "909 Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.18 size 0.78 decay 0.22; pitchEnv 180->55/20ms; drive 0.20; airLoading 0 coupling 0 secondary OFF; tension 0.10; click 0.55 contact 0.12 bright 0.55; b1 0.42 b3 0.30; macroPunch 0.85"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "909 Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.58 size 0.58 decay 0.55; drive 0.48; tension 0.32; pitchEnv 380->140/45ms curve 0.10; coupling 0.38 secondary 0.32/0.90 (metallic ping); noise 0.78 cutoff 0.86 decay 0.48 (long tail); click 0.62; b1 0.38 b3 0.20; macroBright 0.85"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Rim Shot",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.75 size 0.18 decay 0.10; click 0.92 bright 0.95 contact 0.08; noise 0; b1 0.55 b3 0"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.10 decay 0.07; noise 0.85 cutoff 0.95 color 0.95 decay 0.07; click 0; airLoading 0 scatter 0 (pure noise hat); b1 0.65; choke 1"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.04 b1 0.78"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.42 b1 0.30"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop: size 0.65->0.28, material 0.20->0.50, decay 0.32->0.18, pitchEnv 240/85..590/210 curve 0.15 (log); airLoading 0 secondary OFF; tension 0.20; click 0.32; b1 0.30 b3 0.18; macroPunch 0.65"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.32 decay 0.55; modeScatter 0.50; noise 0.65 cutoff 0.95 color 0.92 decay 0.55"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Clap",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.18 decay 0.18; noiseBurst 0.55; noise 0.85 cutoff 0.78 resonance 0.40 (clap formant) decay 0.20; click 0.45 contact 0.22; modeScatter 0.40; b1 0.50; macroBright 0.65"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 1,16-31 default+disabled)"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Snare has good dual-layer design (metallic secondary 0.90 + long noise tail). Toms are 6 Impulse/Membrane with a pitch sweep — structurally the same as the 909/electronic tom rows in the sibling kits, differing only in exciter (Impulse vs Mallet). All physics axes zeroed (airLoading/scatter 0), modeStretch default, decaySkew default, modeInject 0, pan 0.5 — same Electronic-category profile as electronicKit. Clap is the only pad using noiseResonance for a formant. Only 14 crafted; pads 1,16-31 default+disabled."
+    },
+    {
+      "name": "LinnDrum CR-78",
+      "builderFn": "linnDrumKit()",
+      "category": "Electronic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "LinnDrum Kick",
+          "bodyModel": "Membrane",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.20 size 0.72 decay 0.28; fmRatio 0.30; pitchEnv 160->50/20ms; fold 0.18; airLoading 0 coupling 0; click 0.40; b1 0.38 b3 0.30; macroPunch 0.55"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "LinnDrum Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.45 size 0.52 decay 0.45; drive 0.28; tension 0.28; pitchEnv 240->170/55ms; noise 0.82 cutoff 0.84 decay 0.28; click 0.88 contact 0.07; airLoading 0 scatter 0.10; b1 0.30 b3 0.10 (no secondary body — thinner than 808/909 snare)"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "CR-78 Cowbell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.78 size 0.22 decay 0.30; fmRatio 0.55; click 0.30; noise 0.08; b3 0 b1 0.32; macroBright 0.65"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.78 size 0.12 decay 0.10 choke 1; noise 0.78 cutoff 0.65 color 0.50 (dark, retro); click 0.18; b1 0.55"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Pedal Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.06"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.40 b1 0.30"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop: size 0.62->0.30, material 0.25->0.58, decay 0.30-0.02i, pitchEnv 220/90..570/240 curve 0.15 (log); airLoading 0 scatter 0; tension 0.20; click 0.32; b1 0.32 b3 0.20"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Cabasa",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.88 size 0.08 decay 0.08; noiseBurst 0.18; noise 0.85 cutoff 0.85 decay 0.10; click 0; b1 0.55"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Clave",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.85 size 0.12 decay 0.18; fmRatio 0.62; click 0.65 bright 0.85; noise 0; b3 0 b1 0.40"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.30 decay 0.55; modeScatter 0.45; noise 0.55 cutoff 0.78 color 0.62 decay 0.55"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 15-31 default+disabled)"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Retro character comes ONLY from darker noise (cutoff 0.65, color 0.50) and FMImpulse on kick/cowbell/clave — a thin distinction from 909. Snare lacks the secondary metallic body the 808/909 snares have, so it is structurally a simpler version of the same Membrane+NoiseBurst recipe. All physics axes off (airLoading/scatter 0), modeStretch default, decaySkew default, modeInject 0, pan 0.5. Toms again a single Mallet/Membrane recipe size-swept. 14 crafted, 15-31 disabled."
+    },
+    {
+      "name": "Modular West Coast",
+      "builderFn": "modularWestCoastKit()",
+      "category": "Electronic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "West Coast Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Feedback",
+          "notableValues": "material 0.25 size 0.85 decay 0.40; feedback 0.45; pitchEnv 220->45/30ms; fold 0.30; coupling 0.20 secondary 0.45/0.85; tension 0.45; nonlinearCoupling 0.40; b1 0.30 b3 0.30; macroComplexity 0.85"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "FM Plate Snare",
+          "bodyModel": "Plate",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.45 size 0.55 decay 0.55; fmRatio 0.55; modeStretch 0.55; nonlinearCoupling 0.45; drive 0.28; tension 0.30; pitchEnv 230->160/60ms; morph on 0.55->0.80/dur 0.30; noise 0.60; click 0.85 contact 0.07; modeScatter 0.45; b1 0.28 b3 0.18"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Sub-bell Perc",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.55 size 0.32 decay 0.55; fmRatio 0.72 feedback 0.30; modeStretch 0.50; nonlinearCoupling 0.30; click 0.45; decaySkew 0.45; b3 0 b1 0.30"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Friction String Drone",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "material 0.50 size 0.55 decay 0.85; frictionPressure 0.55; modeStretch 0.40; nonlinearCoupling 0.55; morph on 0.40->0.85/dur 0.55; decaySkew 0.65; outputBus 1; macroComplexity 0.85; click 0"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "FM-bell Hat (closed)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.92 size 0.10 decay 0.08 choke 1; fmRatio 0.78; modeScatter 0.55; noise 0.40 cutoff 0.92; click 0.25 bright 0.92; b3 0 b1 0.55"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "FM-bell Hat (pedal)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "clone pad6 decay 0.05 fmRatio 0.65"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "FM-bell Hat (open)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "clone pad6 decay 0.50 fmRatio 0.55 noiseDecay 0.48"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1 (inharmonic plate)",
+          "bodyModel": "Plate",
+          "exciter": "FMImpulse/Feedback alternating",
+          "notableValues": "tom loop: exciter alternates FMImpulse(even)/Feedback(odd); material 0.40+0.06i, size 0.85->0.35, decay 0.65->0.40, fmRatio 0.30+0.08i, feedback, modeStretch 0.30+0.05i, nonlinearCoupling 0.40, decaySkew 0.50, pitchEnv 280+/70+, scatter 0.30+, coupling 0.30 secondary 0.40/0.75, tension 0.45; macroComplexity 0.75; couplingAmount 0.65"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "tom loop graded (odd=Feedback)"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Plate",
+          "exciter": "FMImpulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Plate",
+          "exciter": "FMImpulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.92 size 0.45 decay 0.78; fmRatio 0.45; modeStretch 0.55; modeScatter 0.65; nonlinearCoupling 0.45; noise 0.40 cutoff 0.92; click 0.35"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 3,15-31 default+disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Most experimental Electronic kit: Feedback/FMImpulse/Friction exciters, Plate/Bell/String bodies, heavy nonlinearCoupling (0.30-0.55) and modeStretch use, morph on snare/drone, globalCoupling 0.65 + tomResonance 0.55. CRITICAL re-voicing flag: every nonlinearCoupling and Drive value here was set against the OLD broken stages (M-2 un-compensated drive makeup, M-3/M-4 transient-only/full-signal recipSqrt) — per audit Phase 4 these MUST be re-voiced against the redesigned env-level waveshaping. modeInject still 0 throughout (the 1/k fix unused); decaySkew used but not heavily; pan 0.5 throughout. Plate toms voiced against OLD SSSS ratios — re-voice per Phase 2."
+    },
+    {
+      "name": "Trap Modern",
+      "builderFn": "trapModernKit()",
+      "category": "Electronic",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Sub 808 Kick",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.10 size 0.95 decay 0.65 (long sub); pitchEnv 250->35/30ms; drive 0.18; airLoading 0 coupling 0; tension 0.85 (very high glide); decaySkew 0.45; b1 0.30 b3 0.30; macroPunch 0.95 bodySize 0.95"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Crispy Snare",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.48 size 0.56 decay 0.52; filter LP cutoff 0.92 envAmt 0.78; drive 0.34; tension 0.32; pitchEnv 250->170/50ms; noise 0.90 cutoff 0.95 color 0.96 (very bright); click 0.95 contact 0.06 bright 0.97; coupling 0.55 secondary 0.62/0.55; b1 0.30 b3 0.10; macroBright 0.95 tight 0.85"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Rim Shot (snare layer)",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.78 size 0.16 decay 0.10; click 0.95 contact 0.06 bright 0.95; noise 0.18 color 0.92; modeScatter 0.20; b1 0.50 b3 0"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Closed Hat 1",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "hat loop (6,7,8): material 0.92 size 0.10 decay 0.05/0.08/0.12; choke 1; noise 0.85 cutoff 0.95 color 0.95; click 0.18 bright 0.92; b1 0.78-0.10i"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Closed Hat 2",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "hat loop decay 0.08"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Closed Hat 3",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "hat loop decay 0.12"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Open Hat",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.92 size 0.18 decay 0.55 choke 1; noise 0.78 cutoff 0.92 color 0.92 decay 0.50; modeScatter 0.30; b1 0.30"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop (5,9,11,12,14 only - note NO pad7): size 0.65->0.32, material 0.20->0.55, decay 0.30-0.03i, pitchEnv 240/80..540/210 curve 0.15; drive 0.18; tension 0.55 (high); click 0.45; b1 0.30+0.03i b3 0.30; macroPunch 0.78"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Trap Clave",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.92 size 0.10 decay 0.15; fmRatio 0.65; click 0.85 bright 0.95 contact 0.06; noise 0; b3 0 b1 0.42"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crash",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.32 decay 0.72; modeScatter 0.65; noise 0.78 cutoff 0.95 color 0.92 decay 0.70"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 3,15-31 default+disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Distinguished by very high tensionMod (kick 0.85, toms 0.55) and very bright noise (color 0.92-0.96) — trap signatures. Snare/kick recipes still the same Membrane base as other Electronic kits. Only 14 crafted (note: tom row skips pad7, used as a 3rd closed hat). Physics axes off (airLoading 0/0.10, scatter low), modeStretch default, decaySkew only on kick (0.45), modeInject 0 throughout, pan 0.5 throughout. stealingPolicy 2, maxPoly 16."
+    },
+    {
+      "name": "Hand Drums",
+      "builderFn": "handDrumsKit()",
+      "category": "Percussive",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Conga lo",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.45 size 0.62 decay 0.40 strikePos 0.45; pitchEnv 200->150/20ms; airLoading 0.55; coupling 0.32 secondary 0.48/0.40; tension 0.20; click 0.50; noise 0.10; b1 0.30 b3 0.10; macroBodySize 0.55"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Conga hi",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.50 size 0.50 decay 0.32 strikePos 0.30; pitchEnv 280->210; airLoading 0.50; coupling 0.28 secondary; click 0.55"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Conga slap",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.55 size 0.50 decay 0.18 strikePos 0.10 (edge); airLoading 0.40 scatter 0.30; coupling 0.20 secondary; click 0.85 contact 0.10; b1 0.45; macroPunch 0.85"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Bongo hi",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.55 size 0.32 decay 0.28 strikePos 0.30; pitchEnv 420->350; airLoading 0.42; coupling 0.25 secondary 0.30; tension 0.22; click 0.55"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Bongo lo",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad6 size 0.40 decay 0.32 pitchEnv 340->280"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Djembe bass",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.78 decay 0.45 strikePos 0.50; pitchEnv 150->85/25ms; airLoading 0.65; coupling 0.40 secondary 0.50/0.30; tension 0.22; click 0.40; macroBodySize 0.85"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Djembe slap",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad10 decay 0.20 strikePos 0.10 click 0.85; pitchEnv 280->220"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Cajon bass",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.32 size 0.62 decay 0.35 strikePos 0.50; modeStretch 0.42; airLoading 0.30; coupling 0.30 secondary 0.50/0.30; click 0.55; pitchEnv 180->95/25ms; b1 0.30"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Cajon slap",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "clone pad5 decay 0.20 strikePos 0.15 click 0.85 material 0.50"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Frame drum",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.40 size 0.85 decay 0.55; airLoading 0.78 scatter 0.20; coupling 0.22; click 0.32 contact 0.30; noise 0.20; decaySkew 0.45; b1 0.30"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Hand Shaker",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.12 decay 0.10; noiseBurst 0.25; noise 0.85 cutoff 0.78; click 0; modeScatter 0.20; b1 0.55"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Wood Block",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.32 size 0.18 decay 0.18; modeStretch 0.55; click 0.85 bright 0.78 contact 0.10; noise 0; b1 0.45"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Bongo perc filler",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.55 size 0.25 decay 0.18 strikePos 0.20; airLoading 0.30; click 0.65; noise 0.10; b1 0.32"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (crafted lists 0,2-14 but not 1; pads 1,14-31 not configured -> 14 listed in crafted but pad14 is default; effectively 1,15-31 disabled)"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "(unused/default)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "in crafted list but never configured -> plays a DEFAULT pad (latent bug: crafted includes 14 but no pad14 setup)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Good use of strikePosition (the only kit family that varies it per-pad: bass 0.45-0.50 vs slap 0.08-0.15) — exploits the audit-confirmed working Membrane strike weighting. BUT strikePosition is dead/wrong on the Plate cajon/woodblock pads (audit §B: Plate strike shape was wrong, now fixed but these were voiced before). Latent bug: crafted list includes pad 14 which is never configured -> a default Membrane voice sounds. modeStretch only on cajon/woodblock; decaySkew only on frame drum; modeInject 0 throughout; pan 0.5 throughout; tension low. Conga/bongo/djembe are all the same Impulse/Membrane recipe distinguished by size + pitchEnv + strikePos."
+    },
+    {
+      "name": "Latin Perc",
+      "builderFn": "latinPercKit()",
+      "category": "Percussive",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Clave hi",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.85 size 0.10 decay 0.18; fmRatio 0.62; modeStretch 0.50; click 0.92 contact 0.06 bright 0.92; noise 0; b3 0 b1 0.40; macroBright 0.85"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Clave lo",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "clone pad0 size 0.16 decay 0.22 fmRatio 0.50"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Cowbell hi",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.78 size 0.20 decay 0.30; fmRatio 0.55 feedback 0.10; click 0.55; noise 0.10; modeScatter 0.18; b3 0 b1 0.32; macroBright 0.75"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Cowbell lo",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "clone pad4 size 0.28 decay 0.40 fmRatio 0.42 choke 0"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Agogo hi",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.85 size 0.14 decay 0.28; fmRatio 0.72; click 0.55 bright 0.85; noise 0; b3 0 b1 0.30"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Agogo lo",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "clone pad8 size 0.22 fmRatio 0.55 decay 0.35"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Timbale hi",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.55 size 0.40 decay 0.30; noiseBurst 0.25; pitchEnv 380->280; airLoading 0.40; coupling 0.50 secondary 0.40/0.65; tension 0.22; click 0.65 contact 0.12; noise 0.30; b1 0.32"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Timbale lo",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad12 size 0.55 decay 0.40 material 0.50 pitchEnv 280->200 secondary 0.50"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Cabasa",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.10 decay 0.10; noiseBurst 0.25; noise 0.85 cutoff 0.85 color 0.78; click 0; modeScatter 0.30; b1 0.55"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Maracas",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.78 size 0.14 decay 0.18; noiseBurst 0.45; noise 0.85 cutoff 0.55 color 0.50; modeScatter 0.42; b1 0.45"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tambourine",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.20 decay 0.22; noiseBurst 0.30; noise 0.78 cutoff 0.92 color 0.92; click 0.30 bright 0.85; modeScatter 0.55; coupling 0.40 secondary 0.20/0.85 (metallic jingles); b1 0.32; macroComplexity 0.65"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Triangle",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.95 size 0.08 decay 0.85; fmRatio 0.55; modeStretch 0.55; click 0.55 bright 0.95 contact 0.06; noise 0; b3 0 b1 0.30"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Guiro",
+          "bodyModel": "NoiseBody",
+          "exciter": "Friction",
+          "notableValues": "material 0.65 size 0.18 decay 0.30; frictionPressure 0.55; noise 0.65 cutoff 0.62 color 0.55; click 0; modeScatter 0.30; decaySkew 0.55; b1 0.42"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Vibraslap",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.22 decay 0.32; noiseBurst 0.55; noise 0.85 cutoff 0.78 resonance 0.30; click 0.30 contact 0.30; modeScatter 0.62; b1 0.32; macroComplexity 0.78"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Bongo perc filler",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.55 size 0.25 decay 0.18 strikePos 0.20; airLoading 0.30; click 0.65; noise 0.10; b1 0.32"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Timbale lo (dup)",
+          "bodyModel": "Membrane",
+          "exciter": "NoiseBurst",
+          "notableValues": "see pad14 above (Timbale lo)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (pads 15-31 default+disabled)"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Heavily Bell-based (clave/cowbell/agogo/triangle all Bell+FM/Impulse) — these were voiced against the OLD bell strike shape (audit §B, now fixed), so the partial balance is wrong and must be re-voiced. The clave/cowbell/agogo pairs are clone+detune of one Bell recipe. modeStretch only on bells (0.50-0.55, all near default); decaySkew only on guiro; modeInject 0 throughout; pan 0.5 throughout (a pan-spread would greatly help a perc kit). Tambourine's metallic secondary (0.85) is a nice touch. Shaker/maracas/cabasa are 3 near-identical NoiseBody noise patches."
+    },
+    {
+      "name": "Tabla",
+      "builderFn": "tablaKit()",
+      "category": "Percussive",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Bayan (bass)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.72 decay 0.55 strikePos 0.50; pitchEnv 180->70/100ms curve 0.5; airLoading 0.62; coupling 0.32 secondary 0.45/0.40; tension 0.65 (HIGH - tabla pitch bend); decaySkew 0.55; click 0.45; b1 0.30 b3 0.05; macroComplexity 0.70"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Bayan slap",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad0 decay 0.20 strikePos 0.20 click 0.85 tension 0.20"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Dayan",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.50 size 0.42 decay 0.58 strikePos 0.40; pitchEnv 420->380; airLoading 0.45; coupling 0.35 secondary 0.35/0.45; tension 0.25; click 0.55; decaySkew 0.60; nonlinearCoupling 0.20; b3 0.05"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Tin",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad2 decay 0.22 strikePos 0.10 click 0.85 bright 0.85 tension 0.15 decaySkew 0.40"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Tha",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.50 size 0.42 decay 0.45 strikePos 0.50; airLoading 0.42; coupling 0.30 secondary; tension 0.30; click 0.40 contact 0.30; decaySkew 0.50; b3 0.05"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Na",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.55 size 0.42 decay 0.45 strikePos 0.18; morph on 0.45->0.65/dur 0.40; airLoading 0.38 scatter 0.45; coupling 0.38 secondary; decaySkew 0.65; nonlinearCoupling 0.32; click 0.55"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Ge",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad0 (Bayan) decay 0.78 tension 0.85 (extreme glide) decaySkew 0.65"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Ka",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad1 material 0.30 size 0.65"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Tete",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad3 decay 0.10 decaySkew 0.30"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tanpura drone",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "material 0.55 size 0.65 decay 0.95; frictionPressure 0.32; modeStretch 0.40; nonlinearCoupling 0.45; morph on 0.55->0.65/dur 0.85; decaySkew 0.85; outputBus 1; macroComplexity 0.85; click 0"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (only 10 crafted: 0-9; pads 10-31 default+disabled)"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Best use of tensionMod in the library (Bayan/Ge 0.65-0.85 for the iconic tabla pitch bend) and decaySkew (0.30-0.85 across strokes) — these exploit working axes. But only 10 crafted pads, and 5 of them (1,6,7,8) are clones of 0/2/3. modeStretch only on tanpura; modeInject 0 throughout; pan 0.5 throughout. Dayan/Tha/Na all the same ~0.42-size Membrane differing by exciter/decaySkew/morph. The kit is small and would benefit from filling the empty 22 slots. Strong candidate to KEEP its tension/decaySkew character while re-voicing the String tanpura against any String changes."
+    },
+    {
+      "name": "World Metal",
+      "builderFn": "worldMetalKit()",
+      "category": "Percussive",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Kalimba 1",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop (0-7): material 0.42->0.88, size 0.40->0.18, decay 0.65, fmRatio 0.42+0.02i, modeStretch 0.40, click 0.45, b3 0 b1 0.30, decaySkew 0.55, macroBright 0.60+0.03i"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Kalimba 2",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Kalimba 3",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Kalimba 4",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Kalimba 5",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Kalimba 6",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Kalimba 7",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Kalimba 8",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "kalimba loop graded"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Mbira 1",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "mbira loop (8-11): material 0.50->0.82, size 0.32->0.20, decay 0.78, modeStretch 0.42, nonlinearCoupling 0.18, click 0.32, b1 0.30 b3 0.22, decaySkew 0.60"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Mbira 2",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "mbira loop graded"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Mbira 3",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "mbira loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Mbira 4",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "mbira loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Bell tree",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.30 decay 0.85; fmRatio 0.55; modeStretch 0.55 scatter 0.55; morph on 0.85->0.55; click 0.55 bright 0.92; noise 0.42; decaySkew 0.78"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Crotales hi",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "material 0.92 size 0.16 decay 0.85; fmRatio 0.62; click 0.45 bright 0.92; b3 0 b1 0.30; decaySkew 0.55"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Crotales lo",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "clone pad13 size 0.22 fmRatio 0.45"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Singing bowl",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "material 0.78 size 0.45 decay 0.95; frictionPressure 0.28; modeStretch 0.45; nonlinearCoupling 0.22; morph on 0.78->0.55/dur 0.85; tension 0.40; decaySkew 0.85; outputBus 1; macroComplexity 0.85"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "Wood block hi",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.18 decay 0.18; modeStretch 0.55; click 0.85 bright 0.78; noise 0; b1 0.42"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "Wood block lo",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "clone pad16 size 0.28 material 0.28 decay 0.22"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "Tibetan tingsha",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "material 0.95 size 0.12 decay 0.92; fmRatio 0.78; modeStretch 0.55; click 0.50 bright 0.95; noise 0; decaySkew 0.65"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "Indian temple bell",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "material 0.85 size 0.50 decay 0.92; fmRatio 0.30; modeStretch 0.50; click 0.30; decaySkew 0.78; tension 0.18"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (20 crafted: 0-19; pads 20-31 default+disabled)"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Most fully-populated kit (20 crafted). Almost entirely Bell+Mallet (kalimba 8, crotales 2, tingsha, temple bell, bell tree) plus String mbira — heavily exposed to the OLD bell strike-shape bug (audit §B, now fixed) so EVERY metallic pad needs re-voicing. The 8 kalimba pads are one Bell recipe with a material/size/fmRatio ramp (audit §4 #4 sameness). modeStretch present but all near default 0.40-0.55 (the new B_max axis barely used). modeInject 0 throughout despite being a metallic kit that would benefit from inharmonic injection. decaySkew used well (0.55-0.85). pan 0.5 throughout."
+    },
+    {
+      "name": "Cajon and Frames",
+      "builderFn": "cajonFramesKit()",
+      "category": "Percussive",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Cajon bass",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "material 0.30 size 0.65 decay 0.40 strikePos 0.50; modeStretch 0.42; pitchEnv 150->78/20ms; airLoading 0.45 scatter 0.18; coupling 0.45 secondary 0.55/0.30; tension 0.18; click 0.55; b1 0.30; macroBodySize 0.78"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Cajon slap",
+          "bodyModel": "Plate",
+          "exciter": "Impulse",
+          "notableValues": "clone pad0 decay 0.22 strikePos 0.10 material 0.42 click 0.85 pitchEnv 280->220 macroPunch 0.85"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Cajon snare side",
+          "bodyModel": "Plate",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.35 size 0.58 decay 0.55; noiseBurst ~5ms; modeStretch 0.42 decaySkew 0.40; drive 0.25; tension 0.25; pitchEnv 210->140/65ms; noise 0.75 cutoff 0.75; click 0.72 contact 0.10; airLoading 0.35 scatter 0.38; nonlinearCoupling 0.18; coupling 0.62 secondary 0.62/0.30; b1 0.28 b3 0.05"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Frame drum tap",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "material 0.40 size 0.78 decay 0.50 strikePos 0.35; airLoading 0.85; coupling 0.30 secondary 0.40/0.32; tension 0.20; click 0.40 contact 0.30; noise 0.18; b1 0.30"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Frame drum slap",
+          "bodyModel": "Membrane",
+          "exciter": "Mallet",
+          "notableValues": "clone pad6 decay 0.22 strikePos 0.08 click 0.85"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Bodhran",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.45 size 0.72 decay 0.40 strikePos 0.40; airLoading 0.78; coupling 0.32 secondary 0.42/0.30; tension 0.30; click 0.65 contact 0.18; noise 0.18; b1 0.30"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Dholak hi",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.48 size 0.55 decay 0.45 strikePos 0.32; pitchEnv 320->220/40ms; airLoading 0.55; coupling 0.50 secondary 0.45/0.32; tension 0.30; click 0.55; decaySkew 0.50; b1 0.30"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Dholak lo",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad12 size 0.65 material 0.40 pitchEnv 220->140 decay 0.55"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Riq",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.50 size 0.42 decay 0.32 strikePos 0.30; airLoading 0.45 scatter 0.42; coupling 0.45 secondary 0.20/0.85 (metallic jingles); click 0.65; noise 0.45 cutoff 0.85 color 0.85; b1 0.32; macroComplexity 0.78"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Pandeiro shake",
+          "bodyModel": "NoiseBody",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.85 size 0.18 decay 0.20; noiseBurst 0.40; noise 0.85 cutoff 0.92 color 0.88; click 0.20 bright 0.85; modeScatter 0.55; b1 0.32"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tabla-style filler",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "material 0.50 size 0.32 decay 0.30 strikePos 0.30; airLoading 0.40; click 0.55; noise 0.10; b1 0.32"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tabla-style filler",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad9 size 0.42 decay 0.38 material 0.45"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Tabla-style filler",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "clone pad9 size 0.22 decay 0.20 material 0.55 click bright 0.78"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (13 crafted: 0,2,4-14; pads 1,15-31 disabled)"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Good strikePosition variation (bass 0.50 vs slap 0.08-0.15) and the cajon uses Plate body (voiced against OLD SSSS ratios - re-voice). Frame/bodhran/dholak are the same Impulse/Membrane recipe differing by size + airLoading + pitchEnv (overlaps heavily with handDrumsKit - cross-kit Percussive sameness). 3 tabla-style fillers are clone+detune of one recipe. modeStretch only on cajon pads; modeInject 0 throughout; decaySkew only on cajon-snare/dholak; pan 0.5 throughout. Riq's metallic secondary (0.85) is a highlight."
+    },
+    {
+      "name": "Experimental FX Kit",
+      "builderFn": "experimentalKit()",
+      "category": "Unnatural",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "FM Kick (chaotic)",
+          "bodyModel": "Membrane",
+          "exciter": "FMImpulse",
+          "notableValues": "material 0.2 size 0.95 decay 0.4; fmRatio 0.6; pitchEnv 300->30/40ms; airLoading 0.40 scatter 0.20; coupling 0.50 secondary 0.60/0.85; tension 0.50; click 0.45; noise 0.25"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Feedback Snare",
+          "bodyModel": "Shell",
+          "exciter": "Feedback",
+          "notableValues": "material 0.55 size 0.55 decay 0.58; feedback 0.4; modeScatter 0.42; nonlinearCoupling 0.22; coupling 0.65 secondary 0.65/0.70; tension 0.40; drive 0.30; pitchEnv 230->160/60ms; noise 0.70 click 0.85; b1 0.28 b3 0.04"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Friction FX",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "material 0.5 size 0.6 decay 0.7; frictionPressure 0.5; modeScatter 0.50; coupling 0.30; tension 0.25; noise 0.30"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Metal Hat (closed)",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "material 0.95 size 0.1 decay 0.08 choke 1; morph on 0.95->0.3/dur 0.2; modeScatter 0.45; b3 0; noise 0.55 cutoff 0.90"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Metal Hat (pedal)",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.04"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Metal Hat (open)",
+          "bodyModel": "Bell",
+          "exciter": "NoiseBurst",
+          "notableValues": "clone pad6 decay 0.6"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Tom 1 (inharmonic plate)",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop: material 0.5, size 0.85->0.35, decay 0.6, modeStretch 0.5, nonlinearCoupling 0.3, modeScatter 0.50, airLoading 0.20, coupling 0.30+0.04i secondary 0.30+0.05i/0.65, tension 0.40, click 0.40, b1 0.30+0.04i"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Tom 2",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Tom 3",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Tom 4",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Tom 5",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Tom 6",
+          "bodyModel": "Plate",
+          "exciter": "Mallet",
+          "notableValues": "tom loop graded"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Bell/String/Shell/Plate cycle",
+          "exciter": "FMImpulse/Feedback alternating",
+          "notableValues": "fx loop (1,3,13,15-31): exciter even=FMImpulse odd=Feedback; body cycles Bell/String/Shell/Plate; material 0.3+0.03i, size 0.2+0.02i, modeStretch 0.2+0.04i, modeInject 0.2 (ONLY kit using modeInject!), nonlinearCoupling 0.15, fmRatio/feedback graded, scatter 0.25+, coupling on i%3==0, tension 0.20+, noise/click graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "String",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded, modeInject 0.2"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded, modeInject 0.2"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded, modeInject 0.2"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded, modeInject 0.2"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "String",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "String",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "String",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "String",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "fx loop graded"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "FX pad (cycle)",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "fx loop graded"
+        }
+      ],
+      "weaknesses": "The ONLY kit that uses ALL 32 pads (no crafted gating) and the ONLY kit using modeInjectAmount (0.2 on the FX cycle). Most diverse body/exciter palette. BUT the 20-pad FX cycle is fully algorithmic (i-indexed ramps over body cycle), so adjacent FX pads differ only by small parametric increments - varied but not individually crafted. CRITICAL re-voice flag: Feedback snare + all nonlinearCoupling/Drive values voiced against OLD M-2/M-3/M-4 stages; Plate toms + Shell/Bell FX pads voiced against OLD SSSS/bell/shell shapes (Phase 2). modeStretch used (0.2-0.5). decaySkew default on most. pan 0.5 throughout. globalCoupling not set (default 0)."
+    },
+    {
+      "name": "Glass Bell Garden",
+      "builderFn": "glassBellGardenKit()",
+      "category": "Unnatural",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Glass bell (algorithmic)",
+          "bodyModel": "Bell",
+          "exciter": "Mallet/FMImpulse/Friction cycle",
+          "notableValues": "all-Bell loop (0-15): exciter i%4==3 Friction, i%3==0 Mallet, else FMImpulse; material 0.40+i/15*0.55, size 0.10+(15-i)/15*0.60, decay 0.55+(i%6)*0.07, fmRatio 0.30+, nonlinearCoupling (i%4)*0.10, decaySkew 0.55+(i%4)*0.08, modeScatter 0.30+, morph on i%5==0, secondaryMaterial 0.85, noise/click graded; couplingAmount 0.55+"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "loop graded (i%4==3 friction, frictionPressure 0.30+)"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "loop graded (i%3==0)"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "loop graded, outputBus 1 (i%8==7)"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "Glass bell",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "loop graded, outputBus 1"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (16 crafted: 0-15; 16-31 disabled)"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Entirely ONE body (Bell) for all 16 crafted pads, voiced via i-indexed parametric ramps. This is the PUREST example of audit §4 #4 sameness: the bell partial topology is fixed, so size/material/fmRatio/decaySkew only scale and tilt the SAME skeleton across all 16 pads. ALL pads voiced against the OLD bell strike shape (audit §B) - the entire kit must be re-voiced. modeInject 0 throughout (a bell garden is exactly where 1/k inharmonic injection would add variety - missed). modeStretch present but capped low (0.30-0.72). pan 0.5 throughout (a bell garden screams for stereo spread). globalCoupling 0.65, couplingAmount used."
+    },
+    {
+      "name": "Drone and Sustain",
+      "builderFn": "droneSustainKit()",
+      "category": "Unnatural",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Friction string drone",
+          "bodyModel": "String/Membrane alternating",
+          "exciter": "Friction",
+          "notableValues": "loop 0-7: body even=String odd=Membrane; material 0.35->0.85, size 0.40+, decay 0.92 (all long), frictionPressure 0.35+, nonlinearCoupling 0.40+, decaySkew 0.85, filter LP cutoff 0.45 res 0.35 with full ADSR (atk 0.20 sus 0.55 rel 0.65), coupling 0.18 secondary, tension 0.25+, noise 0.18+, outputBus i%2; couplingAmount 0.85"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "Membrane",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "Membrane",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "Membrane",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Friction drone",
+          "bodyModel": "Membrane",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "loop 8-13: body even=Plate odd=Shell; material 0.40+, size 0.45+, decay 0.92, feedback 0.40+, nonlinearCoupling 0.55, decaySkew 0.78, filter BP cutoff 0.55 res 0.45, modeScatter 0.40, airLoading 0.20, coupling 0.30, tension 0.45, noise 0.30, outputBus 1; couplingAmount 0.85"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Shell",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Shell",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Feedback drone",
+          "bodyModel": "Shell",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (14 crafted: 0-13; 14-31 disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "The only sustain/drone kit - all decay 0.92, heavy nonlinearCoupling (0.40-0.55), filter ADSR sustain used (the only kit with sustained filter envelopes), high globalCoupling 0.85 + tomResonance 0.65. Two algorithmic halves (8 Friction strings, 6 Feedback plates/shells), each an i-indexed parametric ramp - varied but not individually crafted. CRITICAL re-voice: nonlinearCoupling everywhere voiced against OLD M-3/M-4 (now sustained env-level waveshaping - drones will sound very different); Feedback path now has the M-6 secondary shell + tension restored (was dropped) so 8-13 will change; Plate/Shell shapes corrected (Phase 2). modeInject 0 throughout; pan 0.5 (uses outputBus i%2 for some L/R but no equal-power pan). decaySkew heavy (0.78-0.85)."
+    },
+    {
+      "name": "Chaos Engine",
+      "builderFn": "chaosEngineKit()",
+      "category": "Unnatural",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Chaos voice (algorithmic)",
+          "bodyModel": "Plate/Shell/String/Bell/Membrane/NoiseBody cycle",
+          "exciter": "Feedback/FMImpulse/Friction cycle",
+          "notableValues": "loop 0-13: exciter i%3 cycle, body i%6 cycle; material/size fmod-ramped, decay 0.40+, feedback 0.40+, frictionPressure 0.30+, modeStretch 0.40+(i%5)*0.12, nonlinearCoupling 0.65+(i%3)*0.10 (HIGHEST in lib), decaySkew 0.40+, morph on i%2==0, filter cycle LP/HP/BP res 0.55+, drive 0.30+, fold 0.20+(i%3)*0.18, scatter 0.55+, coupling 0.40+ secondary ON, tension 0.78+(i%4)*0.05 (HIGHEST), full noise+click, chokeGroup i<4?0:(i%2)+1, outputBus i%4, pitchEnv 180+/40+, macros all spread; couplingAmount 0.78"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Bell",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Membrane",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "NoiseBody",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "String",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Bell",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Membrane",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "NoiseBody",
+          "exciter": "Friction",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Plate",
+          "exciter": "Feedback",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Chaos voice",
+          "bodyModel": "Shell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (14 crafted: 0-13; 14-31 disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Maxes out nearly every knob (nonlinearCoupling 0.65-0.85, tension 0.78-0.93, fold, drive, all bodies/exciters cycled, globalCoupling 0.92, snareBuzz 0.55, tomResonance 0.78, stealingPolicy 2). Despite that, it is fully algorithmic over 14 pads - no individually-crafted voices. CRITICAL re-voice: this kit leans HARDEST on the redesigned/fixed stages (nonlinearCoupling now env-level waveshaping, Drive makeup, Feedback secondary shell restored, all body shapes corrected, tension recalibrated ~2 st) so it will sound DRAMATICALLY different post-fix and is the highest-priority re-voice. modeInject still 0 throughout (ironic for a 'chaos' kit). pan 0.5 (uses outputBus i%4). Likely now near or over the rail given max-everything values predate N-1."
+    },
+    {
+      "name": "Ghost Bones",
+      "builderFn": "ghostBonesKit()",
+      "category": "Unnatural",
+      "pads": [
+        {
+          "index": 0,
+          "intendedDrum": "Ghost tone (algorithmic)",
+          "bodyModel": "Bell/String alternating",
+          "exciter": "Mallet/FMImpulse/Impulse/Friction cycle",
+          "notableValues": "loop 0-13: body even=Bell odd=String; exciter i%5==4 Friction else i%3 cycle Mallet/FMImpulse/Impulse; material 0.30+, size 0.20+(13-i)/13*0.55, decay 0.85-, modeStretch 0.65+(i%4)*0.08 (HIGH stretch), nonlinearCoupling 0.20+, decaySkew 0.78+ (HIGH), morph on i%3!=0, filter HP cutoff 0.18+ res 0.30, scatter 0.40+, coupling i%2 secondary, tension 0.30+, noise low, click low, outputBus i%4==3?1:0; couplingAmount 0.85; macroComplexity 0.85"
+        },
+        {
+          "index": 1,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 2,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 3,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 4,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "Friction",
+          "notableValues": "loop graded (i%5==4)"
+        },
+        {
+          "index": 5,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 6,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 7,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 8,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 9,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "Impulse",
+          "notableValues": "loop graded, outputBus 1 (i%4==3)"
+        },
+        {
+          "index": 10,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "Mallet",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 11,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "FMImpulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 12,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "Bell",
+          "exciter": "Impulse",
+          "notableValues": "loop graded"
+        },
+        {
+          "index": 13,
+          "intendedDrum": "Ghost tone",
+          "bodyModel": "String",
+          "exciter": "Mallet",
+          "notableValues": "loop graded, outputBus 1"
+        },
+        {
+          "index": 14,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled (14 crafted: 0-13; 14-31 disabled)"
+        },
+        {
+          "index": 15,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 16,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 17,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 18,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 19,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 20,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 21,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 22,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 23,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 24,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 25,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 26,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 27,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 28,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 29,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 30,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        },
+        {
+          "index": 31,
+          "intendedDrum": "(unused)",
+          "bodyModel": "Membrane",
+          "exciter": "Impulse",
+          "notableValues": "default, disabled"
+        }
+      ],
+      "weaknesses": "Skeletal/eerie character from high modeStretch (0.65-0.89 - the most aggressive use of the now-widened B_max axis), high decaySkew (0.78+), HP filter, long decays. Fully algorithmic over 14 Bell/String pads. CRITICAL re-voice: Bell pads against OLD bell shape (Phase 2); modeStretch values were set against the OLD off-by-one + B_max=0.001 (now corrected to (k+1)/B_max=0.01) so the stretch is now FAR more extreme than intended - this kit will sound much more inharmonic and MUST be re-checked. modeInject 0 throughout. pan 0.5 (uses outputBus). globalCoupling 0.78. This kit's high-stretch reliance makes it the SECOND-highest re-voice priority after chaosEngine."
+    }
+  ],
+  "padStructFieldMap": "Generator Pad-struct field -> controller param name -> PadParamOffset enum -> physical denormalization (from voice_pool.cpp::applyPadConfigToSlot + drum_voice.h). All Pad-struct values are NORMALIZED [0,1] on the wire.\n\nSELECTORS (int, not normalized):\n- exciterType -> \"Exciter Type\" (kPadExciterType=0). 0=Impulse,1=Mallet,2=NoiseBurst,3=Friction,4=FMImpulse,5=Feedback.\n- bodyModel -> \"Body Model\" (kPadBodyModel=1). 0=Membrane,1=Plate,2=Shell,3=String,4=Bell,5=NoiseBody.\n\nCORE:\n- material -> \"Material\" (kPadMaterial=2, default 0.5). Body-specific brightness/stiffness; feeds mapper.\n- size -> \"Size\" (kPadSize=3, default 0.5). Drives fundamental: f0 ~= 500*0.1^size Hz (larger size -> lower f0; e.g. 0.5->~158Hz, 0.9->~31Hz).\n- decay -> \"Decay\" (kPadDecay=4, default 0.3). Base t60; combines with bodyDampingB1 override.\n- strikePosition -> \"Strike Position\" (kPadStrikePosition=5, default 0.3). Mode-shape weighting; norm [0,1] across the body (radius/azimuth depending on body).\n- level -> \"Level\" (kPadLevel=6, default 0.8). True linear voice attenuation (post-N-1 gain-staging).\n\nTONE SHAPER:\n- tsFilterType -> \"Filter Type\" (kPadTSFilterType=7). clamp(int(v*3),0,2): 0=LP,1=HP,2=BP (the FilterType:: namespace uses LP=0.0,HP=0.5,BP=1.0).\n- tsFilterCutoff -> \"Filter Cutoff\" (8, default 1.0). 20*1000^v Hz (v=1->20kHz).\n- tsFilterResonance -> \"Filter Resonance\" (9, default 0.0). Q.\n- tsFilterEnvAmount -> \"Filter Env Amount\" (10, default 0.5). bipolar: v*2-1.\n- tsDriveAmount -> \"Drive Amount\" (11, default 0.0). Saturator drive (now unity-makeup-compensated per M-2).\n- tsFoldAmount -> \"Fold Amount\" (12, default 0.0). Wavefolder.\n- tsPitchEnvStart -> \"PitchEnv Start\" (13, default 0.0). 20*100^v Hz (toLogNorm(hz)=ln(hz/20)/ln(100)). v=0->20Hz, v=1->2000Hz.\n- tsPitchEnvEnd -> \"PitchEnv End\" (14, default 0.0). same 20*100^v Hz.\n- tsPitchEnvTime -> \"PitchEnv Time\" (15, default 0.0). v*500 ms (v=0.1->50ms).\n- tsPitchEnvCurve -> \"PitchEnv Curve\" (16, default 0.5). curveAmount = 2v-1 (0.5->0 linear; 0.15->-0.7 log/exp drop; segment-1 curve).\n- tsFilterEnvAttack -> \"Filter Env Atk\" (17, default 0.0). CUBIC: v^3*500 ms.\n- tsFilterEnvDecay -> \"Filter Env Dec\" (18, default 0.1). CUBIC: v^3*2000 ms (0.385->~114ms).\n- tsFilterEnvSustain -> \"Filter Env Sus\" (19, default 0.0). [0,1].\n- tsFilterEnvRelease -> \"Filter Env Rel\" (20, default 0.1). CUBIC: v^3*2000 ms.\n\nUNNATURAL ZONE:\n- modeStretch -> \"Mode Stretch\" (21, default 0.333333). denorm 0.5+v*1.5 (0.333->1.0 = physical/no stretch). Drives ModalResonatorBank inharmonicity B (B_max now 0.01 post-fix).\n- decaySkew -> \"Decay Skew\" (22, default 0.5). bipolar v*2-1 (0.5->0). Per-mode amplitude tilt ratio^(-skew) (now on ALL bodies post-M-5).\n- modeInjectAmount -> \"Mode Inject\" (23, default 0.0). Injects extra partials at 1/k slope (post-fix). Only experimentalKit uses (0.2).\n- nonlinearCoupling -> \"Nonlinear Coupling\" (24, default 0.0). Now env-LEVEL-driven waveshaping (drive=1+kDriveScale*vel*amount*env) per M-3/M-4 redesign. amount=0 = exact bypass.\n\nMATERIAL MORPH:\n- morphEnabled -> \"Morph Enabled\" (25, bool >=0.5).\n- morphStart -> \"Morph Start\" (26, default 1.0). material value at start.\n- morphEnd -> \"Morph End\" (27, default 0.0). material value at end.\n- morphDuration -> \"Morph Duration\" (28, default 0.095477). 10+v*1990 ms (0.0955->200ms).\n- morphCurve -> \"Morph Curve\" (29, bool >=0.5: 0=Lin,1=Exp).\n\nROUTING (int):\n- chokeGroup -> \"Choke Group\" (30). [0,8], 0=no choke.\n- outputBus -> \"Output Bus\" (31). [0,15], 0=main.\n\nEXCITER SECONDARY:\n- fmRatio -> \"FM Ratio\" (32, default 0.133333). norm of [1,4]; default->1.4. FMImpulse modulator ratio.\n- feedbackAmount -> \"Feedback Amount\" (33, default 0.0). Feedback exciter / FM feedback.\n- noiseBurstDuration -> \"NoiseBurst Duration\" (34, default 0.5). Burst contact ms; generator often uses (ms-2)/13 mapping (~2-15ms).\n- frictionPressure -> \"Friction Pressure\" (35, default 0.0). STK bow pressure (slope=5-4*pressure).\n\nCOUPLING/MACROS:\n- couplingAmount -> \"Coupling Amount\" (36, default 0.5). Per-pad participation in global sympathetic coupling.\n- macroTightness -> \"Tightness\" (37, default 0.5 neutral). MacroMapper delta.\n- macroBrightness -> \"Brightness\" (38, default 0.5).\n- macroBodySize -> \"Body Size\" (39, default 0.5).\n- macroPunch -> \"Punch\" (40, default 0.5).\n- macroComplexity -> \"Complexity\" (41, default 0.5).\n\nNOISE LAYER (Phase 7):\n- noiseLayerMix -> \"Noise Mix\" (42, default 0.35).\n- noiseLayerCutoff -> \"Noise Cutoff\" (43, default 0.5).\n- noiseLayerResonance -> \"Noise Resonance\" (44, default 0.2).\n- noiseLayerDecay -> \"Noise Decay\" (45, default 0.3).\n- noiseLayerColor -> \"Noise Color\" (46, default 0.5).\n\nCLICK LAYER (Phase 7):\n- clickLayerMix -> \"Click Mix\" (47, default 0.5).\n- clickLayerContactMs -> \"Click Contact\" (48, default 0.3). norm: 0=2ms,1=5ms.\n- clickLayerBrightness -> \"Click Brightness\" (49, default 0.6).\n\nDAMPING (Phase 8A):\n- bodyDampingB1 -> \"Body Damping b1\" (50, generator default 0.40; PadConfig sentinel -1.0='derive'). 0->0.2 s^-1, 1->50 s^-1.\n- bodyDampingB3 -> \"Body Damping b3\" (51, generator default 0.40; sentinel -1.0). 0->0 (metallic), 1->8e-5 (woody HF damping).\n\nAIR/SCATTER (Phase 8C):\n- airLoading -> \"Air Loading\" (52, default 0.6). 0=pure Bessel, 1=full Rossing timpani-series depression.\n- modeScatter -> \"Mode Scatter\" (53, default 0.0). 0=pure ratios, 1=15% sinusoidal dither.\n\nCOUPLING/SECONDARY (Phase 8D):\n- couplingStrength -> \"Coupling Strength\" (54, default 0.0). Head<->shell feedforward drive (full 0..1 range post-L-7).\n- secondaryEnabled -> \"Secondary Enabled\" (55, bool >=0.5).\n- secondarySize -> \"Secondary Size\" (56, default 0.5). Shell f0 offset from head.\n- secondaryMaterial -> \"Secondary Material\" (57, default 0.4).\n\nTENSION (Phase 8E):\n- tensionModAmt -> \"Tension Mod\" (58, default 0.0). Energy-dependent pitch glide (~2 semitones at full vel post-N-1 recalibration; reads getModalEnergy()).\n\nENABLE (Phase 8F):\n- enabled -> \"Pad Enabled\" (59, bool >=0.5, default 1.0). disableUncraftedPads() sets 0 on non-crafted pads.\n\nPITCH ENV KNEE (Phase 10):\n- tsPitchEnvKneeEnabled -> \"PitchEnv Knee\" (60, bool, default 0.0/OFF).\n- tsPitchEnvMidPitch -> \"PitchEnv Mid\" (61, default 0.5). 20*100^v Hz.\n- tsPitchEnvMidFraction -> \"PitchEnv Mid Frac\" (62, default 0.5). fraction of total time.\n- tsPitchEnvCurve2 -> \"PitchEnv Curve2\" (63, default 0.5). segment-2 curveAmount = 2v-1.\n\nPAN (M-9):\n- pan -> \"Pan\" (64=kPadPan, default 0.5=center). Equal-power: gainL=sqrt2*cos(pan*pi/2), gainR=sqrt2*sin(pan*pi/2). NOT a Pad-struct field that any kit sets - left default 0.5 in ALL 20 kits (stereo image unused).\n\nWIRE NOTE: writePadToBuffer emits 57 float64 in PadSnapshot::sound order (NOT enum order): indices [0..27] core/toneshaper/unnatural/morph block, [28..29] choke/bus mirrors, [30..33] fm/feedback/noiseburst/friction, [34..38] noise layer, [39..41] click, [42..43] damping b1/b3, [44..45] airLoading/scatter, [46..49] coupling/secondaryEnabled/secondarySize/secondaryMaterial, [50] tension, [51] enabled, [52..55] pitchEnvKnee/mid/midFraction/curve2, [56] pan. Per-pad couplingAmount + 5 macros are written SEPARATELY (pad-major blocks after the per-pad loop), NOT in the 57-slot sound array. chokeGroup/outputBus also written as uint8 after the sound array."
+}

@@ -1,0 +1,863 @@
+{
+  "perPadParams": [
+    {
+      "name": "Exciter Type",
+      "offset": 0,
+      "normToPhysical": "DISCRETE selector. Stored as the ExciterType enum directly in PadConfig.exciterType. On-wire as a StringListParameter: per-pad spec declares stepCount=5 (6 entries → 5 steps), idx = round(norm*5). Decode in voice_pool.cpp setPadConfigSelector / setPadConfigField clamps to [0, ExciterType::kCount-1]. Enum order: 0=Impulse,1=Mallet,2=NoiseBurst,3=Friction,4=FMImpulse,5=Feedback. Applied via DrumVoice::setExciterType at applyPadConfigToSlot (voice_pool.cpp:775).",
+      "controls": "Which excitation backend strikes the body. Each exciter shapes the transient and what the body 'hears': Impulse=raised-cosine click; Mallet=softer beater; NoiseBurst=violet-noise bandpass burst; Friction=transient struck-bow (BowExciter); FMImpulse=Chowning bell-FM tone (drives carrier); Feedback=energy-limited self-oscillating body↔exciter loop.",
+      "meaningfulFor": "all (selector). Note: secondary exciter params 32/33/34/35 are no-ops unless the matching exciter is selected.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Body Model",
+      "offset": 1,
+      "normToPhysical": "DISCRETE selector. Stored as BodyModelType enum in PadConfig.bodyModel. On-wire StringListParameter; global selector (kBodyModelId) has 6 entries {Membrane,Plate,Shell,String,Bell,NoiseBody}, per-pad spec declares stepCount=5. Decode clamps to [0,BodyModelType::kCount-1]. Enum: 0=Membrane,1=Plate,2=Shell,3=String,4=Bell,5=NoiseBody. Applied via DrumVoice::setBodyModel.",
+      "controls": "The resonator. Membrane=Bessel circular drumhead (48 modes); Plate=Kirchhoff square plate (48 modes, metallic); Shell=free-free Euler-Bernoulli bar/glockenspiel ratios (32 modes); String=WaveguideString (NOT modal bank); Bell=church-bell Chladni partials (16 modes, hum at 0.25*f0); NoiseBody=plate ratios (32 modes) + internal noise layer (cymbal/hat). Sets natural f0 base: Membrane 500, Plate/String/Bell 800, Shell/NoiseBody 1500 Hz, all *0.1^size.",
+      "meaningfulFor": "all (selector). Determines which mapper runs and which params matter (e.g. String ignores modeStretch/scatter/damping-b1/b3, air-loading; tension mod is Membrane-only).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Material",
+      "offset": 2,
+      "normToPhysical": "Continuous [0,1] stored verbatim in PadConfig.material; passed un-denormalized to the mapper as VoiceCommonParams.material. Mapper-specific effect: Membrane brightness=material, baseDecayTime=lerp(0.15,0.8,material)*(1+0.1*size), stretch=material*0.3(+modeStretch delta); Plate brightness=0.5+0.5*material, decay base lerp(0.4,2.0,material); Shell brightness=0.85+0.15*material, base lerp(0.15,0.8); Bell brightness=0.7+0.3*material, base lerp(0.4,1.4); NoiseBody brightness=0.7+0.3*material, base lerp(0.2,1.0), noise cutoff=clamp(1500+5000*material), noise reso=0.6+0.4*material; String brightness_=1-material (inverted loop-filter), decay base lerp(0.5,4.0,material). Brightness then drives the b3 high-freq damping unless b1/b3 overrides set.",
+      "controls": "Woody↔metallic. Controls modal brightness (high-mode damping b3 via legacy derivation), decay-time base scale, and per-body spectral tilt. Also the target of Material Morph and Tightness/Body Size macros.",
+      "meaningfulFor": "all bodies (different formula each). Strongest perceptual lever.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Size",
+      "offset": 3,
+      "normToPhysical": "Continuous [0,1] stored in PadConfig.size, passed verbatim as VoiceCommonParams.size. f0 = base * 0.1^size where base is body-specific (Membrane 500, Plate/String/Bell 800, Shell/NoiseBody 1500 Hz). So norm 0→base Hz (small/high), norm 1→base/10 Hz (large/low). Also adds (1+0.1*size) to baseDecayTime in every modal mapper. naturalFundamentalHz computed in bodies/natural_fundamental.h.",
+      "controls": "Body fundamental pitch (1 decade range). Larger body = lower f0 = longer ring-up (weaker b3*f^2 damping). Drives ToneShaper pitch-env baseline, ModeInject f0, tension-mod center, and the secondary-shell f0.",
+      "meaningfulFor": "all bodies.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Decay",
+      "offset": 4,
+      "normToPhysical": "Continuous [0,1], PadConfig.decay. In every modal mapper: decayTime = baseDecayTime * exp(lerp(ln0.3, ln3.0, decay)) * skewBias — i.e. a 0.3x..3.0x (10x range) multiplier on the body's base decay time. NoiseBody also scales its noise envelope decay 60ms*same factor. String: decayTime=base*same factor. NOTE: when bodyDampingB1 override is non-sentinel, b1 replaces the decayTime-derived flat damping, so Decay's effect on the flat-damping term is overridden (it still feeds the legacy law fallback / cache key).",
+      "controls": "Ring length / RT60 of the body. Maps to the modal bank's flat damping b1 (1/decayTime) in the legacy derivation.",
+      "meaningfulFor": "all bodies. Overridden by Body Damping b1 (offset 50) when that is set off-sentinel.",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Strike Position",
+      "offset": 5,
+      "normToPhysical": "Continuous [0,1], PadConfig.strikePosition → VoiceCommonParams.strikePos. Membrane: r_over_a=strikePos*0.9, amplitudes=|J_m(j_mn*r_over_a)| (Bessel mode-shape sampling). Plate/Shell/NoiseBody: per-mode amplitude via computePlateAmplitude/computeShellAmplitude(k,strikePos), floored at 0.05/0.03. Bell: computeBellAmplitude. String: pickPosition=clamp(strikePos,0.02,0.98) (comb-filter pluck position). Also drives the secondary shell bank's mode shape (drum_voice.h:1270).",
+      "controls": "Center↔edge strike. Re-weights which modes get energy (mode-shape sampling), changing timbre/brightness without changing pitch. For String it's pick position (notch comb).",
+      "meaningfulFor": "all bodies (Bessel for Membrane, beam/plate mode shapes for others, pick position for String).",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Level",
+      "offset": 6,
+      "normToPhysical": "Continuous [0,1], PadConfig.level → DrumVoice::setLevel(level_). Applied LINEARLY as final voice gain: out = hardClip(shaped*env*level_) (drum_voice.h:511). NOT dB; it is a linear attenuation before the transparent hardClip safety rail. Per-pad pan and master gain are applied after, downstream.",
+      "controls": "Per-pad output volume / mix balance. Linear pre-limiter attenuation. Primary per-pad loudness make-up together with Master Gain.",
+      "meaningfulFor": "all.",
+      "defaultNorm": 0.8
+    },
+    {
+      "name": "Filter Type",
+      "offset": 7,
+      "normToPhysical": "DISCRETE float-as-3-way. PadConfig.tsFilterType. Decode in applyPadConfigToSlot: idx=clamp(int(tsFilterType*3.0),0,2) → 0=Lowpass,1=Highpass,2=Bandpass. (per-pad spec stepCount=2 → 3 entries.) Note the header comment '0=LP,0.5=HP,1.0=BP' matches *3 truncation. Applied to ToneShaper SVF.",
+      "controls": "ToneShaper post-body SVF response shape.",
+      "meaningfulFor": "all, but a no-op unless the filter is engaged (cutoff < 20 kHz OR filter-env amount != 0).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Filter Cutoff",
+      "offset": 8,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsFilterCutoff. Denorm: hz = 20 * 1000^cutoff → 20 Hz (norm 0) .. 20000 Hz (norm 1), log. Applied ToneShaper::setFilterCutoff (voice_pool.cpp:833). Filter BYPASSED when cutoffHz>=20000 AND filterEnvAmount==0, so norm 1.0 default = transparent.",
+      "controls": "ToneShaper SVF base cutoff. Also target of the Brightness macro.",
+      "meaningfulFor": "all (post-body tone shaping). Default 1.0 = bypass.",
+      "defaultNorm": 1
+    },
+    {
+      "name": "Filter Resonance",
+      "offset": 9,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsFilterResonance. ToneShaper::setFilterResonance maps q = kButterworthQ + clamp(q,0,1)*(10.0 - kButterworthQ). So norm 0 = Butterworth (~0.707), norm 1 = Q 10.",
+      "controls": "SVF resonance/emphasis at cutoff.",
+      "meaningfulFor": "all (only audible when filter engaged).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Filter Env Amount",
+      "offset": 10,
+      "normToPhysical": "Continuous [0,1] BIPOLAR. PadConfig.tsFilterEnvAmount. Denorm: amount = tsFilterEnvAmount*2 - 1 → [-1,+1] (voice_pool.cpp:836). Per-sample cutoff modulation: modCutoff = cutoffHz * 2^(3*amount*envValue) (i.e. up to ±3 octaves). norm 0.5 = 0 = no modulation (and keeps filter bypassed if cutoff>=20k).",
+      "controls": "How much the filter envelope sweeps the SVF cutoff, and direction (down/up).",
+      "meaningfulFor": "all; no-op at norm 0.5.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Drive Amount",
+      "offset": 11,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsDriveAmount → ToneShaper::setDriveAmount. internalDrive = 1 + drive*9 → [1,10]. Waveshaper is ReciprocalSqrt (x/sqrt(x^2+1)); post makeup driveMakeup_=1/internalDrive (M-2: unity small-signal gain, so Drive adds harmonics not level). Wet/dry: x + drive*(shaped-x). Stage BYPASSED at norm 0 (exact dry).",
+      "controls": "Saturation / odd-harmonic warmth (timbre, not loudness after M-2 makeup).",
+      "meaningfulFor": "all; bypassed at 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Fold Amount",
+      "offset": 12,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsFoldAmount → ToneShaper::setFoldAmount. wavefolder foldAmount = fold*PI → [0,pi] (Serge-typical sine fold). Wet/dry: x + fold*(folded-x). Bypassed at 0.",
+      "controls": "Wavefolding (aggressive added harmonics, west-coast timbre).",
+      "meaningfulFor": "all; bypassed at 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "PitchEnv Start",
+      "offset": 13,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.tsPitchEnvStart. Denorm: hz = 20 * 100^start, clamped [20,2000] → 20 Hz (norm 0) .. 2000 Hz (norm 1). norm 0 → 20 Hz. ToneShaper::setPitchEnvStartHz. Pitch env only active when PitchEnv Time > 0.",
+      "controls": "Start frequency of the body's pitch glide (the iconic 808 boom start). Also nudged by the Punch macro.",
+      "meaningfulFor": "all bodies (modal bodies rescale all modes; String retunes waveguide). No-op when PitchEnv Time==0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "PitchEnv End",
+      "offset": 14,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.tsPitchEnvEnd. Denorm: hz = 20*100^end clamped [20,2000]. Same mapping as Start. ToneShaper::setPitchEnvEndHz.",
+      "controls": "Final (settle) frequency of the pitch glide.",
+      "meaningfulFor": "all bodies. No-op when PitchEnv Time==0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "PitchEnv Time",
+      "offset": 15,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsPitchEnvTime. Denorm: ms = tsPitchEnvTime*500 → [0,500] ms (voice_pool.cpp:857). 0 = pitch envelope DISABLED (returns naturalFundamentalHz). This is the master enable for the whole pitch-env feature.",
+      "controls": "Duration of the pitch glide; 0 disables it entirely.",
+      "meaningfulFor": "all bodies. SENTINEL: 0 = pitch env off.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "PitchEnv Curve",
+      "offset": 16,
+      "normToPhysical": "Continuous [0,1] (Phase 10 repurposed from a 2-step Exp/Lin StringList). PadConfig.tsPitchEnvCurve. Denorm: curveAmount = 2*curve - 1 → [-1,+1] (voice_pool.cpp:860). 0.5=linear; <0.5 fast initial drop (classic 808 exp decay); >0.5 slow start/fast end. Segment-1 curve (Start→Mid if knee on, else Start→End).",
+      "controls": "Shape of pitch-glide segment 1.",
+      "meaningfulFor": "all bodies. No-op when PitchEnv Time==0. Default spec 0.5; PadConfig struct default 0.0.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Filter Env Atk",
+      "offset": 17,
+      "normToPhysical": "Continuous [0,1] CUBIC, PadConfig.tsFilterEnvAttack. Denorm: ms = aN^3 * 500 → [0,500] ms (cubic, matches ADSRDisplay drag encoding, voice_pool.cpp:844). ToneShaper filter ADSR attack.",
+      "controls": "Filter-envelope attack time.",
+      "meaningfulFor": "all; only audible when Filter Env Amount != 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Filter Env Dec",
+      "offset": 18,
+      "normToPhysical": "Continuous [0,1] CUBIC, PadConfig.tsFilterEnvDecay. Denorm: ms = dN^3 * 2000 → [0,2000] ms. ToneShaper filter ADSR decay.",
+      "controls": "Filter-envelope decay time.",
+      "meaningfulFor": "all; only audible when Filter Env Amount != 0.",
+      "defaultNorm": 0.1
+    },
+    {
+      "name": "Filter Env Sus",
+      "offset": 19,
+      "normToPhysical": "Continuous [0,1] LINEAR, PadConfig.tsFilterEnvSustain → ToneShaper::setFilterEnvSustain verbatim [0,1] sustain level.",
+      "controls": "Filter-envelope sustain level.",
+      "meaningfulFor": "all; only audible when Filter Env Amount != 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Filter Env Rel",
+      "offset": 20,
+      "normToPhysical": "Continuous [0,1] CUBIC, PadConfig.tsFilterEnvRelease. Denorm: ms = rN^3 * 2000 → [0,2000] ms. ToneShaper filter ADSR release.",
+      "controls": "Filter-envelope release time.",
+      "meaningfulFor": "all; only audible when Filter Env Amount != 0.",
+      "defaultNorm": 0.1
+    },
+    {
+      "name": "Mode Stretch",
+      "offset": 21,
+      "normToPhysical": "Continuous [0,1], PadConfig.modeStretch is the NORM of physical [0.5,2.0]. UnnaturalZone denorm: physical = 0.5 + modeStretch*1.5 (voice_pool.cpp:876). Default norm 0.333333 → physical 1.0 = unstretched/physical. Mappers convert back: stretchNorm=clamp((phys-0.5)/1.5,0,1) fed to the bank as its [0,1] stretch scalar; Membrane additionally blends with material*0.3 so unity is Phase-1 bit-identical.",
+      "controls": "Inharmonicity: stretches/compresses modal partial spacing away from the physical ratios. Body Size macro nudges it.",
+      "meaningfulFor": "modal bodies (Membrane/Plate/Shell/Bell/NoiseBody). NO-OP for String (waveguide, ignores stretch). norm 0.333 = neutral.",
+      "defaultNorm": 0.333333
+    },
+    {
+      "name": "Decay Skew",
+      "offset": 22,
+      "normToPhysical": "Continuous [0,1], PadConfig.decaySkew is NORM of bipolar [-1,+1]. UnnaturalZone denorm: phys = decaySkew*2 - 1 (voice_pool.cpp:878). Default norm 0.5 → 0.0 = no skew. Two effects in every modal mapper: (a) global skewBias=1-0.3*skew on decayTime; (b) per-mode amplitude tilt ratio^(-skew), clamped to [1/8,8] (kDecaySkewMaxModeTilt). skew==0 is bit-identical (guarded).",
+      "controls": "Tilts spectral energy/decay balance high↔low across modes (per-mode decaySkew tilt added to all bodies in the audit). Tightness macro nudges it.",
+      "meaningfulFor": "modal bodies. NO-OP for String. norm 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Mode Inject",
+      "offset": 23,
+      "normToPhysical": "Continuous [0,1], PadConfig.modeInjectAmount → UnnaturalZone.modeInject.setAmount verbatim. ModeInject = 8 integer-harmonic oscillators (1..8) at the body f0, amplitudes 1/k (-6dB/oct), phases re-randomized per noteOn. Output = amount*bank.process(); ZERO-LEAK bypass at amount==0 (no oscillator call). Summed into the signal pre-ToneShaper.",
+      "controls": "Adds a synthetic tonal harmonic series on top of the body (pitched 'body' / extra fundamental weight). Brightness + Complexity macros both nudge it.",
+      "meaningfulFor": "all bodies (uses naturalFundamentalHz). Exact bypass at 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Nonlinear Coupling",
+      "offset": 24,
+      "normToPhysical": "Continuous [0,1], PadConfig.nonlinearCoupling → UnnaturalZone.nonlinearCoupling.setAmount. Amplitude-dependent waveshaping: env=RMS follower of body; drive=1+6.0*velocity*amount*env; shaped=recipSqrt(body*drive); out=body+amount*(shaped-body). EXACT bypass at amount==0 (no follower update).",
+      "controls": "Louder=brighter dynamic harmonic excitation (mimics nonlinear plate/shell coupling); velocity-sensitive. Complexity macro nudges it.",
+      "meaningfulFor": "all bodies. Exact bypass at 0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Morph Enabled",
+      "offset": 25,
+      "normToPhysical": "DISCRETE float-as-bool [0,1], stepCount=1. PadConfig.morphEnabled. setEnabled(morphEnabled>=0.5). When ON, Material is driven by the Material Morph envelope from Start→End over Duration each noteOn; when OFF the voice uses its own material_ (Phase-1 path).",
+      "controls": "Toggles the per-note Material Morph (time-varying material/timbre sweep).",
+      "meaningfulFor": "all bodies (morph drives Material into the active mapper / String setters).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Morph Start",
+      "offset": 26,
+      "normToPhysical": "Continuous [0,1], PadConfig.morphStart → materialMorph.setStart verbatim (a Material value [0,1]).",
+      "controls": "Material value at note start when Morph Enabled.",
+      "meaningfulFor": "all bodies; no-op unless Morph Enabled.",
+      "defaultNorm": 1
+    },
+    {
+      "name": "Morph End",
+      "offset": 27,
+      "normToPhysical": "Continuous [0,1], PadConfig.morphEnd → materialMorph.setEnd verbatim (Material value).",
+      "controls": "Material value the morph settles to.",
+      "meaningfulFor": "all bodies; no-op unless Morph Enabled.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Morph Duration",
+      "offset": 28,
+      "normToPhysical": "Continuous [0,1] LINEAR, PadConfig.morphDuration. Denorm: ms = 10 + morphDuration*1990 → [10,2000] ms (voice_pool.cpp:891). Default norm 0.095477 → 200 ms.",
+      "controls": "Time over which Material morphs Start→End.",
+      "meaningfulFor": "all bodies; no-op unless Morph Enabled.",
+      "defaultNorm": 0.095477
+    },
+    {
+      "name": "Morph Curve",
+      "offset": 29,
+      "normToPhysical": "DISCRETE float-as-bool [0,1], stepCount=1. PadConfig.morphCurve. setCurve(morphCurve>=0.5): false=Linear lerp, true=Exponential (start*(end/start)^t).",
+      "controls": "Linear vs exponential shape of the Material morph.",
+      "meaningfulFor": "all bodies; no-op unless Morph Enabled.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Choke Group",
+      "offset": 30,
+      "normToPhysical": "DISCRETE [0,8], stepCount=8. PadConfig.chokeGroup (uint8). Decode: g = clamp(int(norm*8 + 0.5),0,8). 0 = no choke; 1..8 = choke-group membership (a new hit in the same group cuts others via fast-release). Also written to chokeGroups_ table.",
+      "controls": "Mute-group assignment (e.g. open/closed hat).",
+      "meaningfulFor": "all (kit-level routing). SENTINEL: 0 = no choke.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Output Bus",
+      "offset": 31,
+      "normToPhysical": "DISCRETE [0,15], stepCount=15. PadConfig.outputBus (uint8). Decode: clamp(int(norm*15 + 0.5),0,15). 0 = main bus only; 1..15 = aux bus index. Aux buses are PRE-master sends (master gain applies to main only).",
+      "controls": "Multi-out routing for the pad.",
+      "meaningfulFor": "all (routing). 0 = main.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "FM Ratio",
+      "offset": 32,
+      "normToPhysical": "Continuous [0,1], PadConfig.fmRatio → FMImpulseExciter::setModulatorRatio. Denorm: modulatorRatio = 1.0 + 3.0*norm → [1.0,4.0] carrier:modulator ratio. Default norm 0.133333 → 1.4 (classic Chowning bell). Applied at trigger; carrier ratio fixed 1.0, base freq velocity-driven 400..2500 Hz.",
+      "controls": "FM modulator:carrier ratio = bell/metallic inharmonic spectrum of the FMImpulse exciter.",
+      "meaningfulFor": "FMImpulse exciter ONLY. NO-OP for all other exciters.",
+      "defaultNorm": 0.133333
+    },
+    {
+      "name": "Feedback Amount",
+      "offset": 33,
+      "normToPhysical": "Continuous [0,1], PadConfig.feedbackAmount → FeedbackExciter::setFeedbackAmount (feedbackDrive_). At trigger: drive = velocity + feedbackDrive*(1-velocity); feedbackAmount_ = drive*kMaxFeedback(0.85). 0 = velocity-only (legacy); 1 = always max permitted feedback. SC-008 stability preserved (≤0.85).",
+      "controls": "Self-oscillation drive floor of the Feedback exciter (sustained energy / squeal intensity).",
+      "meaningfulFor": "Feedback exciter ONLY. NO-OP for all other exciters. (Feedback exciter also forces the body's slow per-sample path + keeps the -3 dBFS soft-clip.)",
+      "defaultNorm": 0
+    },
+    {
+      "name": "NoiseBurst Duration",
+      "offset": 34,
+      "normToPhysical": "Continuous [0,1], PadConfig.noiseBurstDuration → NoiseBurstExciter::setContactMs (via setNoiseBurstContactMs, passes NORM). Denorm inside: ms = 2 + norm*13 → [2,15] ms burst length. Velocity then shortens it (factor 1.2..0.8). Violet noise → bandpass.",
+      "controls": "Length of the NoiseBurst exciter's filtered-noise burst (snare/clap body contact time).",
+      "meaningfulFor": "NoiseBurst exciter ONLY. NO-OP for other exciters. (Also reused by the Punch macro as a generic attack proxy.)",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Friction Pressure",
+      "offset": 35,
+      "normToPhysical": "Continuous [0,1], PadConfig.frictionPressure → FrictionExciter::setPressure (pressureAmount_). At trigger: bow pressure = clamp(0.1 + 0.4*velocity + pressure*0.5, 0,1). 0 = velocity-only; 1 = +0.5 heavier bowing.",
+      "controls": "Bow pressure bias of the Friction (struck-bow) exciter — scrape/squeal intensity.",
+      "meaningfulFor": "Friction exciter ONLY. NO-OP for other exciters.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Coupling Amount",
+      "offset": 36,
+      "normToPhysical": "Continuous [0,1], PadConfig.couplingAmount. Per-pad participation weight in the GLOBAL cross-pad sympathetic-resonance engine (Phase 5). Read by VoicePool/coupling engine on noteOn to scale how much this pad drives/receives sympathetic resonators. Complexity macro nudges it.",
+      "controls": "How strongly this pad participates in inter-pad sympathetic coupling (snare buzz / tom resonance network).",
+      "meaningfulFor": "all (only audible when the kit-level Global Coupling / Snare Buzz / Tom Resonance > 0). Distinct from per-pad head↔shell Coupling Strength (offset 54).",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Tightness",
+      "offset": 37,
+      "normToPhysical": "MACRO, normalised [0,1], neutral 0.5. PadConfig.macroTightness. MacroMapper layers delta-from-0.5 onto underlying params: material += linDelta(m,0.30); decay -= expDelta(m,0.25) (inverted); decaySkew += linDelta(m,1.00). All deltas incremental and clamped [0,1]. 0.5 = zero delta (preserves preset values).",
+      "controls": "One-knob 'tightness': brighter material + shorter decay + skew toward fast modes as it rises.",
+      "meaningfulFor": "all bodies (proxies onto material/decay/decaySkew which are themselves body-dependent). 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Brightness",
+      "offset": 38,
+      "normToPhysical": "MACRO [0,1], neutral 0.5. PadConfig.macroBrightness. Deltas: tsFilterCutoff += linDelta(m,0.40); modeInjectAmount += linDelta(m,0.30). Incremental, clamped.",
+      "controls": "One-knob brightness: opens the tone-shaper filter + adds injected harmonics.",
+      "meaningfulFor": "all bodies. 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Body Size",
+      "offset": 39,
+      "normToPhysical": "MACRO [0,1], neutral 0.5. PadConfig.macroBodySize. Deltas: size += linDelta(m,0.40); modeStretch += linDelta(m,0.20); decay += linDelta(m,0.20). Incremental, clamped. (Note: nudges the NORM of size/modeStretch/decay, which then denormalize per their own mappings.)",
+      "controls": "One-knob body scale: lower pitch (bigger), more stretch, longer decay as it rises.",
+      "meaningfulFor": "all bodies (modeStretch delta is a no-op for String). 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Punch",
+      "offset": 40,
+      "normToPhysical": "MACRO [0,1], neutral 0.5. PadConfig.macroPunch. Deltas: tsPitchEnvStart += expDelta(m,0.50); tsPitchEnvTime -= linDelta(m,0.40) (faster); noiseBurstDuration -= linDelta(m,0.30) (shorter attack). Incremental, clamped.",
+      "controls": "One-knob attack punch: deeper+faster pitch-env drop and shorter exciter contact.",
+      "meaningfulFor": "all bodies; pitch-env deltas only audible once PitchEnv Time>0 (the macro can itself raise Time from 0). 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Complexity",
+      "offset": 41,
+      "normToPhysical": "MACRO [0,1], neutral 0.5. PadConfig.macroComplexity. Deltas: couplingAmount += linDelta(m,0.50); nonlinearCoupling += linDelta(m,0.30); modeInjectAmount += linDelta(m,0.30). Incremental, clamped.",
+      "controls": "One-knob complexity: more sympathetic coupling, nonlinear brightening, and injected modes.",
+      "meaningfulFor": "all bodies. 0.5 = neutral.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Noise Mix",
+      "offset": 42,
+      "normToPhysical": "Continuous [0,1], PadConfig.noiseLayerMix → NoiseLayer.mix (verbatim, clamped). The parallel noise layer output = mix*env*filteredNoise, then *kStandaloneOutputGain(0.243) into the mix. mix<=0 fully bypasses the layer (zero output). Layer is always-on, independent of Body Model.",
+      "controls": "Level of the always-on parallel filtered-noise layer (snare hiss, hat sizzle, breathiness).",
+      "meaningfulFor": "all bodies (separate from NoiseBody's internal noise). 0 = off.",
+      "defaultNorm": 0.35
+    },
+    {
+      "name": "Noise Cutoff",
+      "offset": 43,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.noiseLayerCutoff. NoiseLayer denormCutoff: hz = exp(ln40 + norm*(ln18000-ln40)) → [40,18000] Hz. Filter is LOWPASS in the parallel DrumVoice layer (switched from bandpass in prepare to avoid a pitched-beep peak).",
+      "controls": "Noise-layer filter cutoff (timbre/brightness of the noise).",
+      "meaningfulFor": "all bodies; no-op when Noise Mix==0.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Noise Resonance",
+      "offset": 44,
+      "normToPhysical": "Continuous [0,1], PadConfig.noiseLayerResonance. denormResonance: q = 0.3 + norm*4.7 → [0.3,5.0]. NoiseLayer SVF resonance.",
+      "controls": "Noise-layer filter resonance.",
+      "meaningfulFor": "all bodies; no-op when Noise Mix==0.",
+      "defaultNorm": 0.2
+    },
+    {
+      "name": "Noise Decay",
+      "offset": 45,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.noiseLayerDecay. denormDecayMs: ms = exp(ln20 + norm*(ln2000-ln20)) → [20,2000] ms; envelope decay=ms, release=ms*0.5, sustain 0.",
+      "controls": "Noise-layer amplitude-envelope decay length.",
+      "meaningfulFor": "all bodies; no-op when Noise Mix==0.",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Noise Color",
+      "offset": 46,
+      "normToPhysical": "DISCRETE-from-continuous [0,1], PadConfig.noiseLayerColor. denormColor thresholds: <0.25 Brown, <0.55 Pink, <0.80 White, else Violet (4 bands). Sets NoiseOscillator color.",
+      "controls": "Spectral tilt of the noise source (Brown→Violet, dark→bright).",
+      "meaningfulFor": "all bodies; no-op when Noise Mix==0.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Click Mix",
+      "offset": 47,
+      "normToPhysical": "Continuous [0,1], PadConfig.clickLayerMix → ClickLayer.mix. Always-on attack transient (2-5 ms shaped filtered-noise). Output = mix*velocity*env*filteredNoise; routed BOTH half-amplitude into the exciter feed (drives body modes) AND full into the output, scaled by kStandaloneOutputGain(0.445). mix<=0 = silent.",
+      "controls": "Level of the always-on beater/contact click transient (attack definition).",
+      "meaningfulFor": "all bodies and all exciters (fires alongside the selected exciter). 0 = off.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Click Contact",
+      "offset": 48,
+      "normToPhysical": "Continuous [0,1], PadConfig.clickLayerContactMs. denormContactMs: ms = 2 + norm*3 → [2,5] ms burst. Velocity shortens it (factor 1-0.3*vel).",
+      "controls": "Click transient duration (contact time).",
+      "meaningfulFor": "all; no-op when Click Mix==0.",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Click Brightness",
+      "offset": 49,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.clickLayerBrightness. denormBrightness: hz = exp(ln200 + norm*(ln12000-ln200)) → [200,12000] Hz bandpass center.",
+      "controls": "Click transient bandpass center frequency (dull thud → sharp tick).",
+      "meaningfulFor": "all; no-op when Click Mix==0.",
+      "defaultNorm": 0.6
+    },
+    {
+      "name": "Body Damping b1",
+      "offset": 50,
+      "normToPhysical": "Continuous [0,1] with SENTINEL. PadConfig.bodyDampingB1 default -1.0 (sentinel) = derive from Decay knob (legacy 1/decayTime). When >=0: b1 = 0.2 + norm*49.8 → [0.2,50.0] s^-1 flat damping (dampingLawFromParams, membrane_mapper.h). spec default 0.5 → 25 s^-1 (mid-tight) once written. CRITICAL: registered/displayed default is 0.5 but DrumVoice stores -1.0f sentinel until the host actively writes it (preserves bit-identity).",
+      "controls": "Per-mode FLAT damping (frequency-independent decay floor / overall RT60). Overrides the Decay knob's flat-damping derivation when set.",
+      "meaningfulFor": "modal bodies (Membrane/Plate/Shell/Bell/NoiseBody). NO-OP for String. SENTINEL -1 = use Decay. Also seeds the secondary-shell b1.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Body Damping b3",
+      "offset": 51,
+      "normToPhysical": "Continuous [0,1] with SENTINEL. PadConfig.bodyDampingB3 default -1.0 (sentinel) = derive from material/brightness ((1-brightness)*kMaxB3). When >=0: b3 = norm*1.0e-3 → [0,1e-3] s (Hz convention). spec default 0.5 → 5e-4. norm 0 = pure flat (metallic, long highs); norm 1 = strong f^2 damping (wood thump). Registered default 0.5; DrumVoice stores -1 sentinel until written.",
+      "controls": "Per-mode FREQUENCY-SQUARED (b3*f^2) damping = perceived material (metal↔wood). Overrides material-derived high-freq damping when set.",
+      "meaningfulFor": "modal bodies. NO-OP for String. SENTINEL -1 = derive from Material.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Air Loading",
+      "offset": 52,
+      "normToPhysical": "Continuous [0,1], PadConfig.airLoading → VoiceCommonParams.airLoading. Membrane mapper: each mode freq scaled by scale=1 + airLoading*(targetScale[k]-1) interpolating pure Bessel (0) → Rossing air-loaded curve (1) (kAirLoadingTargetScale). Default 0.6 = realistic deeper membrane. Other modal mappers do NOT consume airLoading (membrane-only frequency correction).",
+      "controls": "Depresses the lowest Bessel modes per real-drum air-loading physics (Rossing 1982) — 'deeper, less whistly' membrane.",
+      "meaningfulFor": "Membrane body effectively (frequency table applies only in membrane_mapper). NO-OP for Plate/Shell/Bell/NoiseBody/String. Default 0.6.",
+      "defaultNorm": 0.6
+    },
+    {
+      "name": "Mode Scatter",
+      "offset": 53,
+      "normToPhysical": "Continuous [0,1], PadConfig.modeScatter → MapperResult.scatter (clamped [0,1]) → bank's sinusoidal frequency dither (~0 to 15%). 0 = pure ratios (bit-identical).",
+      "controls": "Natural-imperfection detune dither on modal frequencies (organic variation).",
+      "meaningfulFor": "modal bodies (passed to ModalResonatorBank). NO-OP for String. 0 = none.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Coupling Strength",
+      "offset": 54,
+      "normToPhysical": "Continuous [0,1], PadConfig.couplingStrength → DrumVoice.couplingStrength_. effectiveCoupling = clamp(strength,0,1) used as feedforward drive: secondary(shell) excitation = bodyOut*coupling, shell output mixed PASSIVELY into the signal (no return path). Only engages when Secondary Enabled>=0.5 AND strength>0.",
+      "controls": "Head↔shell coupling drive: how much the body excites the parallel secondary (shell) resonator.",
+      "meaningfulFor": "modal bodies, and ONLY when Secondary Enabled (offset 55) is on. NO-OP at 0 or with secondary disabled.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Secondary Enabled",
+      "offset": 55,
+      "normToPhysical": "DISCRETE float-as-bool [0,1], stepCount=1. PadConfig.secondaryEnabled. ON when >=0.5. Spins up the 24-mode secondary shell bank at noteOn (only if also Coupling Strength>0).",
+      "controls": "Enables the parallel secondary (shell) resonator for head↔shell coupling (adds body weight to kicks/shells).",
+      "meaningfulFor": "all modal bodies (the shell bank is shell-ratio regardless). No-op unless Coupling Strength>0. Off by default.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Secondary Size",
+      "offset": 56,
+      "normToPhysical": "Continuous [0,1], PadConfig.secondarySize. configureSecondaryBank: sizeRatio = 1 - secondarySize*0.75 → shell f0 = head_f0 * sizeRatio. norm 0 → f0=head f0; norm 0.5 → ~0.625*head f0 (Chromaphone ~0.6 rule); norm 1 → 0.25*head f0.",
+      "controls": "Shell fundamental relative to the head (lower = bigger shell).",
+      "meaningfulFor": "only when Secondary Enabled + Coupling Strength>0. NO-OP otherwise.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Secondary Material",
+      "offset": 57,
+      "normToPhysical": "Continuous [0,1], PadConfig.secondaryMaterial. configureSecondaryBank: mat=clamp; shell b1 = max(25, 2.5*bodyB1) + (1-mat)*15 s^-1; shell b3 = mat*1e-5. Higher material = brighter/longer shell highs, slightly shorter flat decay.",
+      "controls": "Shell material/damping (metal↔wood character of the coupled shell).",
+      "meaningfulFor": "only when Secondary Enabled + Coupling Strength>0. NO-OP otherwise.",
+      "defaultNorm": 0.4
+    },
+    {
+      "name": "Tension Mod",
+      "offset": 58,
+      "normToPhysical": "Continuous [0,1], PadConfig.tensionModAmt → DrumVoice.tensionModAmt_. tensionAmtEffective = clamp(amt)*kTensionEnergyScale(3.3e-5). Pitch factor = min(1 + tensionAmtEffective*modalEnergyEnv, kTensionPitchModMax≈1.19 = +3 semitones). Drives an energy-dependent upward pitch jump that relaxes as the body decays (Avanzini et al. JASA 2012). 0 = off (no follower work).",
+      "controls": "Energy-dependent pitch glide ('kerthump' tom tension modulation).",
+      "meaningfulFor": "MEMBRANE body ONLY (gated bodyBank getCurrentType==Membrane). NO-OP for all other bodies. 0 = off.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Pad Enabled",
+      "offset": 59,
+      "normToPhysical": "DISCRETE float-as-bool [0,1], stepCount=1. PadConfig.enabled. ON when >=0.5 (default 1.0=ON). When OFF, VoicePool::noteOn early-returns: the pad neither auditions nor allocates a voice nor consumes CPU.",
+      "controls": "Per-pad on/off (silences a pad without removing it from the kit).",
+      "meaningfulFor": "all. SENTINEL/default 1.0 = enabled.",
+      "defaultNorm": 1
+    },
+    {
+      "name": "PitchEnv Knee",
+      "offset": 60,
+      "normToPhysical": "DISCRETE float-as-bool [0,1], stepCount=1. PadConfig.tsPitchEnvKneeEnabled. setPitchEnvKneeEnabled(>=0.5). OFF (default) = single-segment Start→End. ON = three-point Start→Mid→End at fraction.",
+      "controls": "Enables the middle breakpoint of the pitch envelope (two-segment glide).",
+      "meaningfulFor": "all bodies; no-op when PitchEnv Time==0. Off by default.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "PitchEnv Mid",
+      "offset": 61,
+      "normToPhysical": "Continuous [0,1] LOG, PadConfig.tsPitchEnvMidPitch. Denorm: hz = 20*100^norm clamped [20,2000] (same mapping as Start/End, voice_pool.cpp:864). Default norm 0.5 → ~141 Hz.",
+      "controls": "Pitch at the middle breakpoint of the 3-point pitch env.",
+      "meaningfulFor": "all bodies; only when PitchEnv Time>0 AND PitchEnv Knee on.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "PitchEnv Mid Frac",
+      "offset": 62,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsPitchEnvMidFraction → setPitchEnvMidFraction (clamped [0,1]) verbatim = fraction of total PitchEnv Time at which the Mid breakpoint occurs.",
+      "controls": "Time position of the middle breakpoint (fraction of total glide time).",
+      "meaningfulFor": "all bodies; only when PitchEnv Time>0 AND PitchEnv Knee on.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "PitchEnv Curve2",
+      "offset": 63,
+      "normToPhysical": "Continuous [0,1], PadConfig.tsPitchEnvCurve2. Denorm: amount = 2*norm - 1 → [-1,+1] (voice_pool.cpp:869). 0.5=linear; <0.5 fast drop; >0.5 slow start. Curve of segment 2 (Mid→End).",
+      "controls": "Shape of pitch-glide segment 2.",
+      "meaningfulFor": "all bodies; only when PitchEnv Time>0 AND PitchEnv Knee on.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Pan",
+      "offset": 64,
+      "normToPhysical": "Continuous [0,1], PadConfig.pan. Equal-power law referenced to unity-at-center (panGainsForNote, voice_pool.cpp:741): theta=pan*(pi/2); gainL=sqrt2*cos(theta), gainR=sqrt2*sin(theta). norm 0=hard L, 0.5=center (bit-identical to legacy mono-dup), 1=hard R. Applied in the VoicePool mix stage (voice itself is mono), to main and aux alike, AFTER per-voice Level.",
+      "controls": "Per-pad stereo placement.",
+      "meaningfulFor": "all. 0.5 = center (default, restores stereo image, audit M-9). First param past the original 64-wide stride (stride widened to 128).",
+      "defaultNorm": 0.5
+    }
+  ],
+  "globalParams": [
+    {
+      "name": "Material (global proxy)",
+      "id": 100,
+      "normToPhysical": "RangeParameter [0,1] default 0.5. UI/automation PROXY that forwards to the SELECTED pad's kPadMaterial (offset 2). Not a separate DSP value. (Phase-1 frozen ID 100.)",
+      "controls": "Edits the selected pad's Material.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Size (global proxy)",
+      "id": 101,
+      "normToPhysical": "RangeParameter [0,1] default 0.5. Proxy → selected pad kPadSize (offset 3).",
+      "controls": "Edits the selected pad's Size.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Resonance/Decay (global proxy)",
+      "id": 102,
+      "normToPhysical": "RangeParameter [0,1] default 0.3 (labelled 'Resonance' in UI). Proxy → selected pad kPadDecay (offset 4).",
+      "controls": "Edits the selected pad's Decay.",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Strike Point (global proxy)",
+      "id": 103,
+      "normToPhysical": "RangeParameter [0,1] default 0.3. Proxy → selected pad kPadStrikePosition (offset 5).",
+      "controls": "Edits the selected pad's Strike Position.",
+      "defaultNorm": 0.3
+    },
+    {
+      "name": "Level (global proxy)",
+      "id": 104,
+      "normToPhysical": "RangeParameter [0,1] default 0.8 (unit dB label). Proxy → selected pad kPadLevel (offset 6).",
+      "controls": "Edits the selected pad's Level.",
+      "defaultNorm": 0.8
+    },
+    {
+      "name": "Exciter Type (global proxy)",
+      "id": 200,
+      "normToPhysical": "StringListParameter 6 entries {Impulse,Mallet,NoiseBurst,Friction,FMImpulse,Feedback}. Proxy → selected pad kPadExciterType (offset 0).",
+      "controls": "Edits selected pad's exciter.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Body Model (global proxy)",
+      "id": 201,
+      "normToPhysical": "StringListParameter 6 entries {Membrane,Plate,Shell,String,Bell,NoiseBody}. Proxy → selected pad kPadBodyModel (offset 1).",
+      "controls": "Edits selected pad's body model.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Exciter FM Ratio (proxy)",
+      "id": 202,
+      "normToPhysical": "Continuous proxy → kPadFMRatio (offset 32). norm→[1.0,4.0] ratio. Registered default 0.133333 (→1.4).",
+      "controls": "Selected pad FM ratio. Meaningful only for FMImpulse exciter.",
+      "defaultNorm": 0.133333
+    },
+    {
+      "name": "Exciter Feedback Amount (proxy)",
+      "id": 203,
+      "normToPhysical": "Continuous proxy → kPadFeedbackAmount (offset 33). norm→ feedback drive floor, *0.85 max. Default 0.0.",
+      "controls": "Selected pad feedback drive. Feedback exciter only.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Exciter NoiseBurst Duration (proxy)",
+      "id": 204,
+      "normToPhysical": "Continuous proxy → kPadNoiseBurstDuration (offset 34). norm→[2,15] ms. Registered default 0.230769 (≈5 ms). (Per-pad PadConfig default differs: 0.5.)",
+      "controls": "Selected pad noise-burst length. NoiseBurst exciter only.",
+      "defaultNorm": 0.230769
+    },
+    {
+      "name": "Exciter Friction Pressure (proxy)",
+      "id": 205,
+      "normToPhysical": "Continuous proxy → kPadFrictionPressure (offset 35). norm→ +pressure*0.5 bias. Registered default 0.0 (aligned to per-pad default).",
+      "controls": "Selected pad bow pressure. Friction exciter only.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper Filter Type (proxy)",
+      "id": 210,
+      "normToPhysical": "StringListParameter LP/HP/BP. Proxy → kPadTSFilterType (offset 7). idx=int(norm*3).",
+      "controls": "Selected pad ToneShaper filter type.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper Filter Cutoff (proxy)",
+      "id": 211,
+      "normToPhysical": "Continuous proxy → kPadTSFilterCutoff (offset 8). norm→20*1000^norm Hz [20,20000]. Default 1.0 (bypass).",
+      "controls": "Selected pad filter cutoff.",
+      "defaultNorm": 1
+    },
+    {
+      "name": "Tone Shaper Filter Resonance (proxy)",
+      "id": 212,
+      "normToPhysical": "Continuous proxy → kPadTSFilterResonance (offset 9). norm→Q [0.707,10]. Default 0.0.",
+      "controls": "Selected pad filter resonance.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper Filter Env Amt (proxy)",
+      "id": 213,
+      "normToPhysical": "Continuous proxy → kPadTSFilterEnvAmount (offset 10). norm*2-1 → [-1,+1]. Default 0.5 (=0).",
+      "controls": "Selected pad filter-env depth (bipolar).",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Tone Shaper Drive (proxy)",
+      "id": 214,
+      "normToPhysical": "Continuous proxy → kPadTSDriveAmount (offset 11). norm→drive [1,10] with unity makeup. Default 0.0.",
+      "controls": "Selected pad drive.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper Fold (proxy)",
+      "id": 215,
+      "normToPhysical": "Continuous proxy → kPadTSFoldAmount (offset 12). norm→fold [0,pi]. Default 0.0.",
+      "controls": "Selected pad wavefold.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper PitchEnv Start (proxy)",
+      "id": 216,
+      "normToPhysical": "Continuous proxy → kPadTSPitchEnvStart (offset 13). norm→20*100^norm Hz [20,2000]. Registered default 0.070721 (≈160 Hz). (Per-pad PadConfig default 0.0.)",
+      "controls": "Selected pad pitch-env start.",
+      "defaultNorm": 0.070721
+    },
+    {
+      "name": "Tone Shaper PitchEnv End (proxy)",
+      "id": 217,
+      "normToPhysical": "Continuous proxy → kPadTSPitchEnvEnd (offset 14). norm→20*100^norm Hz. Default 0.0 (→20 Hz).",
+      "controls": "Selected pad pitch-env end.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper PitchEnv Time (proxy)",
+      "id": 218,
+      "normToPhysical": "Continuous proxy → kPadTSPitchEnvTime (offset 15). norm*500 ms [0,500]. 0 disables pitch env. Default 0.0.",
+      "controls": "Selected pad pitch-env time / enable.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tone Shaper PitchEnv Curve (proxy)",
+      "id": 219,
+      "normToPhysical": "Continuous proxy → kPadTSPitchEnvCurve (offset 16). Phase 10 repurposed from 2-step Exp/Lin StringList to continuous: norm*2-1 → [-1,+1], 0.5=linear. Default 0.5.",
+      "controls": "Selected pad pitch-env segment-1 curve. NOTE (M-7 memory): swapping this param's underlying type between StringList and Range at the same ID can break host editor caches.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Tone Shaper Filter Atk/Dec/Sus/Rel (proxies)",
+      "id": 220,
+      "normToPhysical": "IDs 220-223 → kPadTSFilterEnvAttack/Decay/Sustain/Release (offsets 17-20). Atk: norm^3*500 ms; Dec: norm^3*2000 ms; Sus: [0,1] level; Rel: norm^3*2000 ms. Defaults: Atk 0.0, Dec 0.1, Sus 0.0, Rel 0.1.",
+      "controls": "Selected pad filter ADSR. defaultNorm column here reflects Attack (0.0).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Unnatural Mode Stretch (proxy)",
+      "id": 230,
+      "normToPhysical": "Continuous proxy → kPadModeStretch (offset 21). norm is norm-of-[0.5,2.0]; phys=0.5+norm*1.5. Default 0.333333 (→1.0).",
+      "controls": "Selected pad mode stretch.",
+      "defaultNorm": 0.333333
+    },
+    {
+      "name": "Unnatural Decay Skew (proxy)",
+      "id": 231,
+      "normToPhysical": "Continuous proxy → kPadDecaySkew (offset 22). norm*2-1 → [-1,+1]. Default 0.5 (→0).",
+      "controls": "Selected pad decay skew.",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Unnatural Mode Inject (proxy)",
+      "id": 232,
+      "normToPhysical": "Continuous proxy → kPadModeInjectAmount (offset 23). verbatim [0,1]. Default 0.0.",
+      "controls": "Selected pad mode inject amount.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Unnatural Nonlinear Coupling (proxy)",
+      "id": 233,
+      "normToPhysical": "Continuous proxy → kPadNonlinearCoupling (offset 24). verbatim [0,1]. Default 0.0.",
+      "controls": "Selected pad nonlinear coupling.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Morph Enabled (proxy)",
+      "id": 240,
+      "normToPhysical": "Bool toggle (stepCount=1) proxy → kPadMorphEnabled (offset 25). >=0.5 = on. Default 0.0.",
+      "controls": "Selected pad material morph enable.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Morph Start/End/Duration/Curve (proxies)",
+      "id": 241,
+      "normToPhysical": "IDs 241-244 → kPadMorphStart/End/Duration/Curve (offsets 26-29). Start [0,1] def 1.0; End [0,1] def 0.0; Duration→10+norm*1990 ms def 0.095477(→200ms); Curve bool Lin/Exp def 0.0.",
+      "controls": "Selected pad material-morph params. defaultNorm column reflects Morph Start (1.0).",
+      "defaultNorm": 1
+    },
+    {
+      "name": "Choke Group (global proxy)",
+      "id": 252,
+      "normToPhysical": "RangeParameter stepped [0,8] default 0. Proxy → kPadChokeGroup (offset 30). norm→clamp(int(norm*8+0.5),0,8).",
+      "controls": "Selected pad choke group.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Selected Pad",
+      "id": 260,
+      "normToPhysical": "RangeParameter stepped [0,31] default 0 (31 steps). NOT a DSP param: selects which pad the global proxies (IDs 100-252, 282, 290-325) read/write. selectedPadIndex_ in processor & controller.",
+      "controls": "Which pad is shown/edited in the Selected-Pad panel.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Global Coupling",
+      "id": 270,
+      "normToPhysical": "RangeParameter [0,1] (UI 0-100%) default 0.0. KIT-LEVEL. processor: clamp→globalCoupling_; couplingEngine_.setAmount(clamped). Drives the cross-pad sympathetic-resonance engine master amount.",
+      "controls": "Master amount of inter-pad sympathetic resonance (whole kit). 0 = engine effectively bypassed.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Snare Buzz",
+      "id": 271,
+      "normToPhysical": "RangeParameter [0,1] (0-100%) default 0.0. KIT-LEVEL. clamp→snareBuzz_; triggers recomputeCouplingMatrix(). Weights snare-wire sympathetic coupling in the coupling matrix.",
+      "controls": "Amount of snare-wire buzz sympathetic coupling. Audible only with Global Coupling>0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tom Resonance",
+      "id": 272,
+      "normToPhysical": "RangeParameter [0,1] (0-100%) default 0.0. KIT-LEVEL. clamp→tomResonance_; recomputeCouplingMatrix(). Weights tom-to-tom sympathetic coupling.",
+      "controls": "Amount of tom sympathetic resonance. Audible only with Global Coupling>0.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Coupling Delay",
+      "id": 273,
+      "normToPhysical": "RangeParameter [0.5,2.0] ms default 1.0. KIT-LEVEL. processor denorm from norm: delayMs = 0.5 + norm*1.5 → [0.5,2.0] ms; couplingDelayMs_. The pre-delay of the sympathetic coupling send (read via couplingDelay_ ring).",
+      "controls": "Delay time of the cross-pad coupling feed.",
+      "defaultNorm": 0.333333
+    },
+    {
+      "name": "UI Mode",
+      "id": 280,
+      "normToPhysical": "StringListParameter {Simple,Advanced} (a.k.a. Acoustic/Extended). SESSION-scoped: NOT persisted in processor state; resets to 0 on state load; persisted only in the kit preset (codec hasSession). Pure UI visibility toggle, no DSP effect.",
+      "controls": "UI complexity mode. No audio effect.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Output Bus (global proxy)",
+      "id": 282,
+      "normToPhysical": "StringListParameter 16 entries (Main, Aux 1..15). Proxy → kPadOutputBus (offset 31). idx=clamp(int(norm*15+0.5),0,15).",
+      "controls": "Selected pad output-bus routing.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Noise/Click layer (global proxies)",
+      "id": 290,
+      "normToPhysical": "IDs 290-297 → kPadNoiseLayerMix/Cutoff/Resonance/Decay/Color (290-294) and kPadClickLayerMix/ContactMs/Brightness (295-297), offsets 42-49. Each forwards verbatim norm to the selected pad; denorm happens per the per-pad entries. Defaults: NoiseMix 0.35, NoiseCutoff 0.5, NoiseReso 0.2, NoiseDecay 0.3, NoiseColor 0.5, ClickMix 0.5, ClickContact 0.3, ClickBright 0.6.",
+      "controls": "Selected pad noise/click layer. defaultNorm column reflects Noise Mix (0.35).",
+      "defaultNorm": 0.35
+    },
+    {
+      "name": "Body Damping b1/b3 (global proxies)",
+      "id": 300,
+      "normToPhysical": "IDs 300-301 → kPadBodyDampingB1/B3 (offsets 50-51). Registered/displayed default 0.5 each; DrumVoice keeps -1.0 sentinel until a write occurs. norm→b1 [0.2,50] s^-1; b3 [0,1e-3] s.",
+      "controls": "Selected pad per-mode damping law. defaultNorm reflects b1 (0.5).",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "Air Loading (global proxy)",
+      "id": 302,
+      "normToPhysical": "Proxy → kPadAirLoading (offset 52). verbatim [0,1]. Default 0.6.",
+      "controls": "Selected pad air-loading (Membrane-effective).",
+      "defaultNorm": 0.6
+    },
+    {
+      "name": "Mode Scatter (global proxy)",
+      "id": 303,
+      "normToPhysical": "Proxy → kPadModeScatter (offset 53). verbatim [0,1]→[0,15%] dither. Default 0.0.",
+      "controls": "Selected pad mode scatter.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Coupling Strength/Secondary (global proxies)",
+      "id": 304,
+      "normToPhysical": "IDs 304-307 → kPadCouplingStrength/SecondaryEnabled/SecondarySize/SecondaryMaterial (offsets 54-57). CouplingStrength verbatim [0,1] def 0.0; SecondaryEnabled bool def 0.0; SecondarySize [0,1] def 0.5; SecondaryMaterial [0,1] def 0.4.",
+      "controls": "Selected pad head↔shell coupling. defaultNorm reflects Coupling Strength (0.0).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Tension Mod (global proxy)",
+      "id": 308,
+      "normToPhysical": "Proxy → kPadTensionModAmt (offset 58). verbatim [0,1]. Default 0.0. Membrane-only effect.",
+      "controls": "Selected pad tension-mod pitch glide.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Pad Enabled (global proxy)",
+      "id": 309,
+      "normToPhysical": "Bool proxy → kPadEnabled (offset 59). >=0.5 on. Default 1.0.",
+      "controls": "Selected pad enable toggle.",
+      "defaultNorm": 1
+    },
+    {
+      "name": "Max Polyphony",
+      "id": 250,
+      "normToPhysical": "RangeParameter stepped [4,16] voices, default 8, stepCount=12. KIT-LEVEL. processor: n = 4 + round(norm*12), clamp [4,16] → voicePool_.setMaxPolyphony. (Range param so its 'norm' is the [4,16] linear map; default 8 ≈ norm 0.333.)",
+      "controls": "Voice pool size for the whole instrument.",
+      "defaultNorm": 0.333333
+    },
+    {
+      "name": "Voice Stealing",
+      "id": 251,
+      "normToPhysical": "StringListParameter {Oldest,Quietest,Priority}. KIT-LEVEL. processor: idx=clamp(int(norm*3),0,2) → setVoiceStealingPolicy. Default Oldest (0).",
+      "controls": "Policy used when the pool is exhausted.",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Master Gain",
+      "id": 320,
+      "normToPhysical": "RangeParameter [-24,+12] dB, default -6 dB, precision 1. KIT-LEVEL. processor stores masterGainNorm_; at output: dB = -24 + 36*norm; gain = 10^(dB/20). Applied to MAIN output L/R only (aux buses are pre-master). Default -6 dB ≈ norm 0.5.",
+      "controls": "Global master output level (post-mix, pre-true-peak-limiter on main bus).",
+      "defaultNorm": 0.5
+    },
+    {
+      "name": "PitchEnv Knee/Mid/MidFrac/Curve2 (global proxies)",
+      "id": 321,
+      "normToPhysical": "IDs 321-324 → kPadTSPitchEnvKneeEnabled/MidPitch/MidFraction/Curve2 (offsets 60-63). Knee bool def 0.0; Mid norm→20*100^norm Hz def 0.5(~141Hz); MidFrac [0,1] def 0.5; Curve2 norm*2-1 def 0.5(linear).",
+      "controls": "Selected pad 3-point pitch-env extension. defaultNorm reflects Knee (0.0).",
+      "defaultNorm": 0
+    },
+    {
+      "name": "Pad Pan (global proxy)",
+      "id": 325,
+      "normToPhysical": "RangeParameter [0,1] default 0.5. Proxy → kPadPan (offset 64). Equal-power pan; 0=L, 0.5=center, 1=R.",
+      "controls": "Selected pad pan position.",
+      "defaultNorm": 0.5
+    }
+  ],
+  "notes": "DISCRETE / float-as-bool params (>=0.5 = ON, else OFF unless noted): kPadMorphEnabled(25), kPadMorphCurve(29, false=Lin/true=Exp), kPadSecondaryEnabled(55), kPadEnabled(59, default 1.0=ON), kPadTSPitchEnvKneeEnabled(60). DISCRETE selectors decoded by truncation/round: kPadExciterType(0, *idx clamp to ExciterType::kCount), kPadBodyModel(1), kPadTSFilterType(7, int(norm*3)→LP/HP/BP), kPadChokeGroup(30, round(*8)), kPadOutputBus(31, round(*15)), kPadNoiseLayerColor(46, 4 threshold bands). Note the per-pad spec gives Exciter/Body stepCount=5 even though there are 6 entries — relies on the codec storing the enum directly, so values round-trip exactly; the StringList global proxies have the correct 6 entries.\n\nSENTINEL params: kPadBodyDampingB1(50) and kPadBodyDampingB3(51) default to -1.0f in PadConfig (NOT the 0.5 registered/displayed default). -1.0 means 'derive from Decay (b1) / Material-brightness (b3)' and preserves Phase-1 bit-identity; the 0.5 default only takes effect once the host actively writes the param. A preset that wants the legacy behaviour must NOT write these (leave at -1 sentinel); writing 0.5 changes the sound (b1→25 s^-1, b3→5e-4). kPadTSPitchEnvTime(15)==0 is the master OFF sentinel for the ENTIRE pitch envelope (Start/End/Curve/Mid/Knee/Curve2 are all no-ops when Time==0). kPadChokeGroup(30)==0 = no choke. kPadOutputBus(31)==0 = main only. Mix params (NoiseMix 42, ClickMix 47, ModeInject 23, NonlinearCoupling 24)==0 are exact-bypass sentinels (zero added signal, no DSP work).\n\nNORM-OF-A-RANGE params (the stored norm is NOT the physical value and 0.5 is NOT neutral): kPadModeStretch(21) default 0.333333 → physical 1.0 (norm-of [0.5,2.0]); kPadDecaySkew(22) default 0.5 → physical 0.0 (norm-of [-1,+1]); kPadTSFilterEnvAmount(10) default 0.5 → 0.0 bipolar; kPadTSPitchEnvCurve(16)/Curve2(63) default 0.5 → 0.0 (linear); kPadMorphDuration(28) 0.095477 → 200 ms. The 5 macros (37-41) are neutral at 0.5 (zero delta) but are NOT direct DSP — MacroMapper layers incremental deltas onto underlying per-pad params at control rate; a preset that sets both a macro and its underlying param can double-apply, and macros only move the *delta from the cached value*.\n\nPER-BODY meaningfulness: modeStretch(21), decaySkew(22), modeScatter(53), bodyDampingB1/B3(50/51) are NO-OPs for the String body (waveguide, not a modal bank). airLoading(52) only affects frequencies in the MEMBRANE mapper (other modal mappers ignore it; String ignores it) — it is effectively Membrane-only. tensionModAmt(58) is MEMBRANE-ONLY (gated on getCurrentType()==Membrane in DrumVoice). Secondary/coupling (54-57) only run when secondaryEnabled>=0.5 AND couplingStrength>0; otherwise zero overhead and silent.\n\nPER-EXCITER meaningfulness: fmRatio(32)=FMImpulse only; feedbackAmount(33)=Feedback only (and Feedback forces the slow per-sample body path + keeps the -3 dBFS body soft-clip while all other exciters get the transparent measured-strike norm); noiseBurstDuration(34)=NoiseBurst only (also reused by the Punch macro as a generic attack proxy); frictionPressure(35)=Friction only. The always-on Click(47-49) and Noise(42-46) layers and the pitch/filter/unnatural stages run regardless of exciter.\n\nGAIN-STAGING (audit-corrected, AUDIT-signal-path-2026-06-07.md): voice out = hardClip(shaped*env*Level) — Level(6) is LINEAR, not dB; the per-voice hardClip is a transparent safety rail (kBodyHeadroom 0.5 = -6 dBFS strike-peak budget) not a musical gain stage. Body output gain uses the MEASURED-STRIKE normalisation (N-1): the bank is probed once per mode-config with a 2 ms raised-cosine strike and normalised so the resonant-strike PEAK hits kBodyHeadroom; cached on StrikeNormKey(body,material,size,decay,strikePos,modeStretch,decaySkew,airLoading,modeScatter,b1,b3) — so changing ANY of those re-probes. The parallel Noise and Click layers are calibrated ~6 dB UNDER the body (kStandaloneOutputGain 0.243 and 0.445 → ~-18 dBFS peak at mix=1) so they accent rather than mask the modal body. ToneShaper Drive has a 1/internalDrive makeup (M-2) so Drive adds harmonics, not level. NonlinearCoupling is a continuous, env-LEVEL-driven (not delta) AM brightener with exact amount==0 bypass (M-3/M-4). FM index is scaled on a unit-level modulator (0.5..3.0 rad) rather than clamped through setLevel (L-3). ModeInject uses 1/k (-6 dB/oct) amplitudes (audit §3-B). Final loudness make-up is Master Gain(320, default -6 dB) + per-pad Level — never the body headroom budget. Master Gain applies to the MAIN bus only (aux buses are pre-master sends). Per-pad Pan(64) is applied in the VoicePool mix AFTER Level, equal-power referenced to unity-at-center so 0.5 is bit-identical to the legacy mono duplication (M-9).\n\nPROXY vs REAL: every global ID in 100-252, 282, 290-325 (except the kit-level set below) is a SELECTED-PAD PROXY forwarding to kPad* of the pad chosen by kSelectedPadId(260). They are not independent DSP state. True KIT-LEVEL (instrument-wide) params: kMaxPolyphonyId(250), kVoiceStealingId(251), kGlobalCouplingId(270), kSnareBuzzId(271), kTomResonanceId(272), kCouplingDelayId(273), kMasterGainId(320), and the session-only kUiModeId(280). Per-pad couplingAmount(36) is the pad's participation weight in that global coupling engine and is distinct from the per-pad head↔shell couplingStrength(54). Some proxy 'registered defaults' differ from the PadConfig struct defaults (e.g. ID204 NoiseBurst 0.230769 vs pad 0.5; ID216 PitchEnv Start 0.070721 vs pad 0.0) — these are display-only initial values; the authoritative DSP defaults are the PadConfig struct / kPadParamSpecs per-pad defaults. Param-stride is 128 (offsets 0-64 active, 65-127 reserved); padParamId = 1000 + padIndex*128 + offset. State version pinned at 3."
+}
