@@ -3145,7 +3145,14 @@ Kit handDrumsKit() {
     Kit k{"Hand Drums", "Percussive", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Conga lo (0)
+    // 100% Membrane+Impulse pitched hand-drum ensemble. Cross-kit
+    // duplicates (cajon/woodblock/frame/shaker) removed; pads 3/5/7/9/11
+    // re-cast as hand-drum articulations + new voices on 1/13/14/15.
+    // NEW axes per plan: pan spread, decaySkew tilt (0.38 dry -> 0.62 deep),
+    // modeInject 1/k on deep voices, NLC bloom on open/tone/bass (0 on
+    // slaps/tips), tensionMod 0 on chokes -> 0.45 on the udu hand-bend.
+
+    // Conga lo / tumba open (0)
     pads[0].exciterType = ExciterType::Impulse;
     pads[0].bodyModel = BodyModelType::Membrane;
     pads[0].material = 0.45; pads[0].size = 0.62; pads[0].decay = 0.40;
@@ -3154,6 +3161,8 @@ Kit handDrumsKit() {
     pads[0].tsPitchEnvEnd   = toLogNorm(150);
     pads[0].tsPitchEnvTime  = 0.04;
     pads[0].airLoading = 0.55; pads[0].modeScatter = 0.10;
+    pads[0].modeInjectAmount = 0.10; pads[0].decaySkew = 0.60;
+    pads[0].nonlinearCoupling = 0.18;
     pads[0].couplingStrength = 0.32; pads[0].secondaryEnabled = 1.0;
     pads[0].secondarySize = 0.48; pads[0].secondaryMaterial = 0.40;
     pads[0].tensionModAmt = 0.20;
@@ -3162,8 +3171,25 @@ Kit handDrumsKit() {
     pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerColor = 0.40;
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.55;
+    pads[0].pan = 0.40;
 
-    // Conga hi (2)
+    // Conga lo MUTE (1, new) -- damped tumba, no glide
+    pads[1].exciterType = ExciterType::Impulse;
+    pads[1].bodyModel = BodyModelType::Membrane;
+    pads[1].material = 0.45; pads[1].size = 0.62; pads[1].decay = 0.14;
+    pads[1].level = 0.74; pads[1].strikePosition = 0.30;
+    pads[1].airLoading = 0.50; pads[1].modeScatter = 0.15;
+    pads[1].decaySkew = 0.42;
+    pads[1].couplingStrength = 0.30; pads[1].secondaryEnabled = 1.0;
+    pads[1].secondarySize = 0.48; pads[1].secondaryMaterial = 0.40;
+    pads[1].tensionModAmt = 0.0;
+    pads[1].clickLayerMix = 0.55; pads[1].clickLayerContactMs = 0.15;
+    pads[1].clickLayerBrightness = 0.50;
+    pads[1].noiseLayerMix = 0.08; pads[1].noiseLayerColor = 0.40;
+    pads[1].bodyDampingB1 = 0.45; pads[1].bodyDampingB3 = 0.10;
+    pads[1].pan = 0.40;
+
+    // Conga hi open (2)
     pads[2].exciterType = ExciterType::Impulse;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.50; pads[2].size = 0.50; pads[2].decay = 0.32;
@@ -3172,6 +3198,7 @@ Kit handDrumsKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(210);
     pads[2].tsPitchEnvTime  = 0.04;
     pads[2].airLoading = 0.50; pads[2].modeScatter = 0.10;
+    pads[2].decaySkew = 0.50; pads[2].nonlinearCoupling = 0.14;
     pads[2].couplingStrength = 0.28; pads[2].secondaryEnabled = 1.0;
     pads[2].secondarySize = 0.40; pads[2].secondaryMaterial = 0.40;
     pads[2].tensionModAmt = 0.18;
@@ -3179,22 +3206,61 @@ Kit handDrumsKit() {
     pads[2].clickLayerBrightness = 0.65;
     pads[2].noiseLayerMix = 0.12; pads[2].noiseLayerColor = 0.45;
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
+    pads[2].pan = 0.46;
 
-    // Conga slap (4)
+    // Quinto open (3, new -- highest conga, replaces Shaker)
+    pads[3].exciterType = ExciterType::Impulse;
+    pads[3].bodyModel = BodyModelType::Membrane;
+    pads[3].material = 0.52; pads[3].size = 0.42; pads[3].decay = 0.28;
+    pads[3].level = 0.80; pads[3].strikePosition = 0.30;
+    pads[3].tsPitchEnvStart = toLogNorm(320);
+    pads[3].tsPitchEnvEnd   = toLogNorm(250);
+    pads[3].tsPitchEnvTime  = 0.04;
+    pads[3].airLoading = 0.45; pads[3].modeScatter = 0.10;
+    pads[3].decaySkew = 0.46; pads[3].nonlinearCoupling = 0.12;
+    pads[3].couplingStrength = 0.26; pads[3].secondaryEnabled = 1.0;
+    pads[3].secondarySize = 0.38; pads[3].secondaryMaterial = 0.40;
+    pads[3].tensionModAmt = 0.20;
+    pads[3].clickLayerMix = 0.55; pads[3].clickLayerContactMs = 0.16;
+    pads[3].clickLayerBrightness = 0.68;
+    pads[3].noiseLayerMix = 0.10; pads[3].noiseLayerColor = 0.40;
+    pads[3].bodyDampingB1 = 0.30; pads[3].bodyDampingB3 = 0.10;
+    pads[3].pan = 0.52;
+
+    // Conga slap (4) -- choked, no glide/NLC
     pads[4].exciterType = ExciterType::Impulse;
     pads[4].bodyModel = BodyModelType::Membrane;
     pads[4].material = 0.55; pads[4].size = 0.50; pads[4].decay = 0.18;
     pads[4].level = 0.85; pads[4].strikePosition = 0.10;
     pads[4].airLoading = 0.40; pads[4].modeScatter = 0.30;
+    pads[4].decaySkew = 0.40;
     pads[4].couplingStrength = 0.20; pads[4].secondaryEnabled = 1.0;
     pads[4].secondarySize = 0.40; pads[4].secondaryMaterial = 0.40;
+    pads[4].tensionModAmt = 0.0;
     pads[4].clickLayerMix = 0.85; pads[4].clickLayerContactMs = 0.10;
     pads[4].clickLayerBrightness = 0.85;
-    pads[4].noiseLayerMix = 0.15;
+    pads[4].noiseLayerMix = 0.15; pads[4].noiseLayerColor = 0.40;
     pads[4].bodyDampingB1 = 0.45; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroPunch = 0.85;
+    pads[4].pan = 0.42;
 
-    // Bongo hi (6) / lo (8)
+    // Conga heel-tip (5, new -- driest stroke, replaces Cajon bass)
+    pads[5].exciterType = ExciterType::Impulse;
+    pads[5].bodyModel = BodyModelType::Membrane;
+    pads[5].material = 0.50; pads[5].size = 0.50; pads[5].decay = 0.10;
+    pads[5].level = 0.70; pads[5].strikePosition = 0.50;
+    pads[5].airLoading = 0.45; pads[5].modeScatter = 0.20;
+    pads[5].decaySkew = 0.38;
+    pads[5].couplingStrength = 0.20; pads[5].secondaryEnabled = 1.0;
+    pads[5].secondarySize = 0.40; pads[5].secondaryMaterial = 0.40;
+    pads[5].tensionModAmt = 0.0;
+    pads[5].clickLayerMix = 0.60; pads[5].clickLayerContactMs = 0.20;
+    pads[5].clickLayerBrightness = 0.45;
+    pads[5].noiseLayerMix = 0.08; pads[5].noiseLayerColor = 0.40;
+    pads[5].bodyDampingB1 = 0.50; pads[5].bodyDampingB3 = 0.10;
+    pads[5].pan = 0.38;
+
+    // Bongo hi / macho open (6)
     pads[6].exciterType = ExciterType::Impulse;
     pads[6].bodyModel = BodyModelType::Membrane;
     pads[6].material = 0.55; pads[6].size = 0.32; pads[6].decay = 0.28;
@@ -3203,18 +3269,46 @@ Kit handDrumsKit() {
     pads[6].tsPitchEnvEnd   = toLogNorm(350);
     pads[6].tsPitchEnvTime  = 0.04;
     pads[6].airLoading = 0.42; pads[6].modeScatter = 0.10;
+    pads[6].decaySkew = 0.46; pads[6].nonlinearCoupling = 0.12;
     pads[6].couplingStrength = 0.25; pads[6].secondaryEnabled = 1.0;
     pads[6].secondarySize = 0.30; pads[6].secondaryMaterial = 0.40;
     pads[6].tensionModAmt = 0.22;
     pads[6].clickLayerMix = 0.55; pads[6].clickLayerContactMs = 0.15;
     pads[6].clickLayerBrightness = 0.72;
-    pads[6].noiseLayerMix = 0.10;
+    pads[6].noiseLayerMix = 0.10; pads[6].noiseLayerColor = 0.40;
     pads[6].bodyDampingB1 = 0.30; pads[6].bodyDampingB3 = 0.10;
+    pads[6].pan = 0.60;
 
+    // Bongo hi slap (7, new -- replaces Cajon slap)
+    pads[7] = pads[6];
+    pads[7].decay = 0.16; pads[7].strikePosition = 0.10;
+    pads[7].tsPitchEnvTime = 0.0;   // slap: no glide
+    pads[7].decaySkew = 0.40; pads[7].nonlinearCoupling = 0.0;
+    pads[7].tensionModAmt = 0.0;
+    pads[7].clickLayerMix = 0.85; pads[7].clickLayerContactMs = 0.10;
+    pads[7].clickLayerBrightness = 0.82;
+    pads[7].bodyDampingB1 = 0.45;
+    pads[7].pan = 0.62;
+
+    // Bongo lo / hembra open (8)
     pads[8] = pads[6];
     pads[8].size = 0.40; pads[8].decay = 0.32;
     pads[8].tsPitchEnvStart = toLogNorm(340);
     pads[8].tsPitchEnvEnd   = toLogNorm(280);
+    pads[8].tsPitchEnvTime  = 0.04;
+    pads[8].decaySkew = 0.50; pads[8].nonlinearCoupling = 0.14;
+    pads[8].pan = 0.56;
+
+    // Bongo lo slap (9, new -- replaces Wood Block)
+    pads[9] = pads[8];
+    pads[9].decay = 0.18; pads[9].strikePosition = 0.10;
+    pads[9].tsPitchEnvTime = 0.0;   // slap: no glide
+    pads[9].decaySkew = 0.42; pads[9].nonlinearCoupling = 0.0;
+    pads[9].tensionModAmt = 0.0;
+    pads[9].clickLayerMix = 0.85; pads[9].clickLayerContactMs = 0.10;
+    pads[9].clickLayerBrightness = 0.80;
+    pads[9].bodyDampingB1 = 0.45;
+    pads[9].pan = 0.58;
 
     // Djembe bass (10)
     pads[10].exciterType = ExciterType::Impulse;
@@ -3225,6 +3319,8 @@ Kit handDrumsKit() {
     pads[10].tsPitchEnvEnd   = toLogNorm(85);
     pads[10].tsPitchEnvTime  = 0.05;
     pads[10].airLoading = 0.65; pads[10].modeScatter = 0.18;
+    pads[10].modeInjectAmount = 0.12; pads[10].decaySkew = 0.60;
+    pads[10].nonlinearCoupling = 0.20;
     pads[10].couplingStrength = 0.40; pads[10].secondaryEnabled = 1.0;
     pads[10].secondarySize = 0.50; pads[10].secondaryMaterial = 0.30;
     pads[10].tensionModAmt = 0.22;
@@ -3233,81 +3329,107 @@ Kit handDrumsKit() {
     pads[10].noiseLayerMix = 0.18; pads[10].noiseLayerColor = 0.45;
     pads[10].bodyDampingB1 = 0.30; pads[10].bodyDampingB3 = 0.10;
     pads[10].macroBodySize = 0.85;
+    pads[10].pan = 0.50;
 
-    // Djembe slap (12)
+    // Djembe tone (11, new -- mid tone, replaces Frame Drum)
+    pads[11].exciterType = ExciterType::Impulse;
+    pads[11].bodyModel = BodyModelType::Membrane;
+    pads[11].material = 0.40; pads[11].size = 0.65; pads[11].decay = 0.30;
+    pads[11].level = 0.80; pads[11].strikePosition = 0.35;
+    pads[11].tsPitchEnvStart = toLogNorm(220);
+    pads[11].tsPitchEnvEnd   = toLogNorm(160);
+    pads[11].tsPitchEnvTime  = 0.04;
+    pads[11].airLoading = 0.60; pads[11].modeScatter = 0.15;
+    pads[11].decaySkew = 0.50; pads[11].nonlinearCoupling = 0.16;
+    pads[11].couplingStrength = 0.35; pads[11].secondaryEnabled = 1.0;
+    pads[11].secondarySize = 0.50; pads[11].secondaryMaterial = 0.30;
+    pads[11].tensionModAmt = 0.18;
+    pads[11].clickLayerMix = 0.55; pads[11].clickLayerContactMs = 0.18;
+    pads[11].clickLayerBrightness = 0.60;
+    pads[11].noiseLayerMix = 0.12; pads[11].noiseLayerColor = 0.40;
+    pads[11].bodyDampingB1 = 0.32; pads[11].bodyDampingB3 = 0.10;
+    pads[11].pan = 0.48;
+
+    // Djembe slap (12) -- choked: reset glide/NLC/modeInject from bass copy
     pads[12] = pads[10];
     pads[12].decay = 0.20; pads[12].strikePosition = 0.10;
-    pads[12].clickLayerMix = 0.85; pads[12].clickLayerBrightness = 0.78;
-    pads[12].clickLayerContactMs = 0.12;
     pads[12].tsPitchEnvStart = toLogNorm(280);
     pads[12].tsPitchEnvEnd   = toLogNorm(220);
+    pads[12].tsPitchEnvTime  = 0.0;   // slap: no glide
+    pads[12].modeInjectAmount = 0.0; pads[12].nonlinearCoupling = 0.0;
+    pads[12].decaySkew = 0.40; pads[12].tensionModAmt = 0.0;
+    pads[12].clickLayerMix = 0.85; pads[12].clickLayerBrightness = 0.78;
+    pads[12].clickLayerContactMs = 0.12;
+    pads[12].bodyDampingB1 = 0.45;
+    pads[12].pan = 0.46;
 
-    // Cajón bass (5)
-    pads[5].exciterType = ExciterType::Impulse;
-    pads[5].bodyModel = BodyModelType::Plate;
-    pads[5].material = 0.32; pads[5].size = 0.62; pads[5].decay = 0.35;
-    pads[5].level = 0.82; pads[5].strikePosition = 0.50;
-    pads[5].modeStretch = 0.42;
-    pads[5].airLoading = 0.30; pads[5].modeScatter = 0.15;
-    pads[5].couplingStrength = 0.30; pads[5].secondaryEnabled = 1.0;
-    pads[5].secondarySize = 0.50; pads[5].secondaryMaterial = 0.30;
-    pads[5].clickLayerMix = 0.55; pads[5].clickLayerContactMs = 0.20;
-    pads[5].clickLayerBrightness = 0.40;
-    pads[5].noiseLayerMix = 0.12; pads[5].noiseLayerColor = 0.40;
-    pads[5].bodyDampingB1 = 0.30; pads[5].bodyDampingB3 = 0.10;
-    pads[5].tsPitchEnvStart = toLogNorm(180);
-    pads[5].tsPitchEnvEnd   = toLogNorm(95);
-    pads[5].tsPitchEnvTime  = 0.05;
+    // Udu / clay-pot bass (13, new) -- signature hand-over-hole bend
+    pads[13].exciterType = ExciterType::Impulse;
+    pads[13].bodyModel = BodyModelType::Membrane;
+    pads[13].material = 0.30; pads[13].size = 0.78; pads[13].decay = 0.42;
+    pads[13].level = 0.82; pads[13].strikePosition = 0.45;
+    pads[13].tsPitchEnvStart = toLogNorm(149);
+    pads[13].tsPitchEnvEnd   = toLogNorm(85);
+    pads[13].tsPitchEnvTime  = 0.05;
+    pads[13].airLoading = 0.70; pads[13].modeScatter = 0.18;
+    pads[13].modeInjectAmount = 0.14; pads[13].decaySkew = 0.60;
+    pads[13].nonlinearCoupling = 0.18;
+    pads[13].couplingStrength = 0.40; pads[13].secondaryEnabled = 1.0;
+    pads[13].secondarySize = 0.55; pads[13].secondaryMaterial = 0.30;
+    pads[13].tensionModAmt = 0.45;   // hand-over-hole pitch bend (max in kit)
+    pads[13].clickLayerMix = 0.40; pads[13].clickLayerContactMs = 0.22;
+    pads[13].clickLayerBrightness = 0.40;
+    pads[13].noiseLayerMix = 0.15; pads[13].noiseLayerColor = 0.40;
+    pads[13].bodyDampingB1 = 0.30; pads[13].bodyDampingB3 = 0.10;
+    pads[13].macroBodySize = 0.85;
+    pads[13].pan = 0.50;
 
-    // Cajón slap (7)
-    pads[7] = pads[5];
-    pads[7].decay = 0.20; pads[7].strikePosition = 0.15;
-    pads[7].clickLayerMix = 0.85; pads[7].clickLayerBrightness = 0.78;
-    pads[7].material = 0.50;
+    // Tan-tan / repinique hi (14, new) -- bright nylon-head single drum
+    pads[14].exciterType = ExciterType::Impulse;
+    pads[14].bodyModel = BodyModelType::Membrane;
+    pads[14].material = 0.45; pads[14].size = 0.36; pads[14].decay = 0.26;
+    pads[14].level = 0.80; pads[14].strikePosition = 0.30;
+    pads[14].tsPitchEnvStart = toLogNorm(348);
+    pads[14].tsPitchEnvEnd   = toLogNorm(280);
+    pads[14].tsPitchEnvTime  = 0.04;
+    pads[14].airLoading = 0.45; pads[14].modeScatter = 0.12;
+    pads[14].decaySkew = 0.46; pads[14].nonlinearCoupling = 0.12;
+    pads[14].couplingStrength = 0.28; pads[14].secondaryEnabled = 1.0;
+    pads[14].secondarySize = 0.36; pads[14].secondaryMaterial = 0.45;
+    pads[14].tensionModAmt = 0.18;
+    pads[14].clickLayerMix = 0.55; pads[14].clickLayerContactMs = 0.15;
+    pads[14].clickLayerBrightness = 0.72;
+    pads[14].noiseLayerMix = 0.10; pads[14].noiseLayerColor = 0.40;
+    pads[14].bodyDampingB1 = 0.30; pads[14].bodyDampingB3 = 0.08;  // keep highs
+    pads[14].pan = 0.64;
 
-    // Frame drum (11)
-    pads[11].exciterType = ExciterType::Mallet;
-    pads[11].bodyModel = BodyModelType::Membrane;
-    pads[11].material = 0.40; pads[11].size = 0.85; pads[11].decay = 0.55;
-    pads[11].level = 0.78;
-    pads[11].airLoading = 0.78; pads[11].modeScatter = 0.20;
-    pads[11].couplingStrength = 0.22;
-    pads[11].clickLayerMix = 0.32; pads[11].clickLayerContactMs = 0.30;
-    pads[11].clickLayerBrightness = 0.30;
-    pads[11].noiseLayerMix = 0.20; pads[11].noiseLayerColor = 0.40;
-    pads[11].bodyDampingB1 = 0.30; pads[11].bodyDampingB3 = 0.10;
-    pads[11].decaySkew = 0.45;
-
-    // Hand shaker (3)
-    pads[3].exciterType = ExciterType::NoiseBurst;
-    pads[3].bodyModel = BodyModelType::NoiseBody;
-    pads[3].material = 0.85; pads[3].size = 0.12; pads[3].decay = 0.10;
-    pads[3].level = 0.65;
-    pads[3].noiseBurstDuration = 0.25;
-    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.78;
-    pads[3].noiseLayerColor = 0.65; pads[3].noiseLayerDecay = 0.10;
-    pads[3].clickLayerMix = 0.0;
-    pads[3].airLoading = 0.0; pads[3].modeScatter = 0.20;
-    pads[3].bodyDampingB3 = 0.0; pads[3].bodyDampingB1 = 0.55;
-
-    // Wood block (9)
-    pads[9].exciterType = ExciterType::Impulse;
-    pads[9].bodyModel = BodyModelType::Plate;
-    pads[9].material = 0.32; pads[9].size = 0.18; pads[9].decay = 0.18;
-    pads[9].level = 0.75;
-    pads[9].modeStretch = 0.55;
-    pads[9].clickLayerMix = 0.85; pads[9].clickLayerBrightness = 0.78;
-    pads[9].clickLayerContactMs = 0.10;
-    pads[9].noiseLayerMix = 0.0;
-    pads[9].airLoading = 0.0;
-    pads[9].bodyDampingB1 = 0.45; pads[9].bodyDampingB3 = 0.10;
+    // Surdo bass (15, new) -- deepest samba bass drum
+    pads[15].exciterType = ExciterType::Impulse;
+    pads[15].bodyModel = BodyModelType::Membrane;
+    pads[15].material = 0.28; pads[15].size = 0.82; pads[15].decay = 0.48;
+    pads[15].level = 0.86; pads[15].strikePosition = 0.45;
+    pads[15].tsPitchEnvStart = toLogNorm(138);
+    pads[15].tsPitchEnvEnd   = toLogNorm(80);
+    pads[15].tsPitchEnvTime  = 0.05;
+    pads[15].airLoading = 0.78; pads[15].modeScatter = 0.18;
+    pads[15].modeInjectAmount = 0.10; pads[15].decaySkew = 0.62;
+    pads[15].nonlinearCoupling = 0.20;
+    pads[15].couplingStrength = 0.45; pads[15].secondaryEnabled = 1.0;
+    pads[15].secondarySize = 0.55; pads[15].secondaryMaterial = 0.30;
+    pads[15].tensionModAmt = 0.25;
+    pads[15].clickLayerMix = 0.40; pads[15].clickLayerContactMs = 0.24;
+    pads[15].clickLayerBrightness = 0.38;
+    pads[15].noiseLayerMix = 0.15; pads[15].noiseLayerColor = 0.40;
+    pads[15].bodyDampingB1 = 0.28; pads[15].bodyDampingB3 = 0.12;
+    pads[15].macroBodySize = 0.90;
+    pads[15].pan = 0.50;
 
     k.opts.maxPolyphony    = 12;
     k.opts.globalCoupling  = 0.30;
     k.opts.snareBuzz       = 0.15;
     k.opts.tomResonance    = 0.20;
     k.opts.couplingDelayMs = 0.9;
-    k.crafted = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     return k;
 }
 Kit latinPercKit() {
