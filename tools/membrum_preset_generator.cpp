@@ -1621,12 +1621,14 @@ Kit jazzBrushesKit() {
     Kit k{"Jazz Brushes", "Acoustic", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Kit globals: dial in the sympathetic snare-buzz + tom-resonance
-    // network so the per-pad couplingAmount weights become audible.
+    // Gentle sympathetic snare-buzz + tom-resonance for brush character. Kept
+    // moderate: the infinite-ring accumulators were pad 3 (continuous Friction)
+    // and the crash modeInject, both now fixed, so a light network no longer
+    // builds into a sustained ring under dense repeated hits.
     k.opts.maxPolyphony   = 10;
-    k.opts.globalCoupling = 0.30;
-    k.opts.snareBuzz      = 0.30;
-    k.opts.tomResonance   = 0.40;
+    k.opts.globalCoupling = 0.18;
+    k.opts.snareBuzz      = 0.18;
+    k.opts.tomResonance   = 0.22;
 
     // Kick: soft mallet, deep airLoading, almost no click.
     pads[0].exciterType = ExciterType::Mallet;
@@ -1825,7 +1827,7 @@ Kit jazzBrushesKit() {
     pads[15].bodyModel   = BodyModelType::NoiseBody;
     pads[15].material = 0.92; pads[15].size = 0.32; pads[15].decay = 0.65;
     pads[15].level = 0.70;
-    pads[15].modeStretch = 0.55; pads[15].modeInjectAmount = 0.20;
+    pads[15].modeStretch = 0.55; pads[15].modeInjectAmount = 0.0; // inject off: 1/k modes ring ~2s undamped (infinite-ring regression)
     pads[15].nonlinearCoupling = 0.30; pads[15].decaySkew = 0.60;
     pads[15].modeScatter = 0.60; pads[15].airLoading = 0.0;
     pads[15].bodyDampingB3 = 0.30; pads[15].bodyDampingB1 = 0.40;
@@ -1850,23 +1852,29 @@ Kit jazzBrushesKit() {
     pads[1].pan = 0.40;
 
     // ---- Pad 3: Brush Swirl / Buzz-Roll (Membrane/Friction) -- NEW ----
-    // The kit's only Friction + modeInject voice. Filter ADSR left inert
-    // (envAmt 0.5) so the LP is a static dark bed.
-    pads[3].exciterType = ExciterType::Friction;
+    // The kit's only Friction + modeInject voice. Kept as a SHORT brush swirl
+    // NoiseBurst (NOT Friction): the kit is triggered with one-shot note-ons
+    // (no note-off), so a continuous Friction drive would sustain as a flat
+    // tone until the voice is stolen and bleed into the next hit (infinite-ring
+    // regression). A long-burst NoiseBurst over a dark LP membrane gives the
+    // same dark brush-swirl character but decays naturally. Held out of the
+    // sympathetic network (couplingStrength 0, secondary off).
+    pads[3].exciterType = ExciterType::NoiseBurst;
     pads[3].bodyModel   = BodyModelType::Membrane;
-    pads[3].material = 0.40; pads[3].size = 0.58; pads[3].decay = 0.70;
-    pads[3].frictionPressure  = 0.45;   // LIVE under Friction
-    pads[3].modeInjectAmount  = 0.18;   // 1/k bowed series
-    pads[3].nonlinearCoupling = 0.45;
-    pads[3].decaySkew = 0.85;           // low-tilt
-    pads[3].tensionModAmt = 0.30;
-    pads[3].airLoading = 0.50;
+    pads[3].material = 0.40; pads[3].size = 0.58; pads[3].decay = 0.42;
+    pads[3].level = 0.62;
+    pads[3].noiseBurstDuration = 0.85;  // long brush-swirl smear
+    pads[3].nonlinearCoupling = 0.0;
+    pads[3].decaySkew = 0.55;
+    pads[3].tensionModAmt = 0.0;
+    pads[3].airLoading = 0.45; pads[3].modeScatter = 0.30;
     pads[3].tsFilterType   = FilterType::LP;
-    pads[3].tsFilterCutoff = 0.55;      // static dark bed (env inert)
+    pads[3].tsFilterCutoff = 0.55;      // dark bed
     pads[3].clickLayerMix = 0.0;
-    pads[3].noiseLayerMix = 0.20; pads[3].noiseLayerColor = 0.40;  // pink, long
-    pads[3].noiseLayerDecay = 0.70;
-    pads[3].couplingStrength = 0.18; pads[3].secondaryEnabled = 1.0;
+    pads[3].noiseLayerMix = 0.30; pads[3].noiseLayerColor = 0.40;  // pink
+    pads[3].noiseLayerDecay = 0.50;
+    pads[3].couplingStrength = 0.0; pads[3].secondaryEnabled = 0.0;
+    pads[3].bodyDampingB1 = 0.40; pads[3].bodyDampingB3 = 0.10;
     pads[3].pan = 0.45;
 
     // ---- Pad 16: Ride Bell / Cup FM (Bell/FMImpulse) -- NEW (GM Chinese) ----
@@ -2726,8 +2734,8 @@ Kit orchestralKit() {
 
     // Kit globals: headroom recovered post-N-1, so coupling/polyphony
     // restored (long timpani/gong/chime tails overlap; sympathetic
-    // timpani resonance back on).
-    k.opts.maxPolyphony    = 20;
+    // timpani resonance back on). Capped at the plugin's [4,16] range.
+    k.opts.maxPolyphony    = 16;
     k.opts.globalCoupling  = 0.28;
     k.opts.snareBuzz       = 0.20;
     k.opts.tomResonance    = 0.35;
@@ -5199,7 +5207,7 @@ Kit worldMetalKit() {
     pads[29].bodyDampingB3 = 0.0; pads[29].bodyDampingB1 = 0.20;
     pads[29].pan = 0.60;
 
-    k.opts.maxPolyphony    = 20;
+    k.opts.maxPolyphony    = 16; // plugin range is [4,16]
     k.opts.globalCoupling  = 0.40;
     k.opts.couplingDelayMs = 1.4;
     k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -5761,7 +5769,7 @@ Kit glassBellGardenKit() {
         }
     }
 
-    k.opts.maxPolyphony    = 24;
+    k.opts.maxPolyphony    = 16; // plugin range is [4,16] (24 requested; capped)
     k.opts.globalCoupling  = 0.65;
     k.opts.couplingDelayMs = 1.8;
     for (int i = 0; i < kNumPads; ++i) k.crafted.push_back(i);
