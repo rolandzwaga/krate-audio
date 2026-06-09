@@ -2853,14 +2853,22 @@ Kit linnDrumKit() {
     pads[0].tsPitchEnvEnd   = toLogNorm(50);
     pads[0].tsPitchEnvTime  = 0.04;
     pads[0].tsFoldAmount = 0.18;
-    pads[0].airLoading = 0.0; pads[0].couplingStrength = 0.0;
+    pads[0].airLoading = 0.0;
+    // Woody secondary shell for sub-weight (documented delta; both Enabled
+    // AND Coupling>0 required for the shell to sound).
+    pads[0].couplingStrength = 0.20; pads[0].secondaryEnabled = 1.0;
+    pads[0].secondarySize = 0.50; pads[0].secondaryMaterial = 0.30;
+    pads[0].modeInjectAmount = 0.12; // 1/k harmonic body fill
     pads[0].clickLayerMix = 0.40; pads[0].clickLayerContactMs = 0.15;
     pads[0].clickLayerBrightness = 0.45;
     pads[0].noiseLayerMix = 0.06;
     pads[0].bodyDampingB1 = 0.38; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.55; pads[0].macroBodySize = 0.45;
+    pads[0].pan = 0.5;
 
-    // LinnDrum snare (redesigned: retro sampled-style, audible body + click)
+    // LinnDrum snare (single-layer by design — the archetype's defining
+    // identity is the thin/dry sample-machine snare; NO secondary metallic
+    // shell. A light 1/k modeInject adds a touch of fundamental fill only.)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.45; pads[2].size = 0.52; pads[2].decay = 0.45;
@@ -2886,19 +2894,24 @@ Kit linnDrumKit() {
     pads[2].clickLayerMix = 0.88; pads[2].clickLayerContactMs = 0.07;
     pads[2].clickLayerBrightness = 0.85;
     pads[2].airLoading = 0.0; pads[2].modeScatter = 0.10;
+    pads[2].couplingStrength = 0.0; pads[2].secondaryEnabled = 0.0; // single-layer
+    pads[2].modeInjectAmount = 0.10; // gentle 1/k fundamental fill only
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
+    pads[2].pan = 0.5;
 
-    // CR-78 cowbell (4)
+    // CR-78 cowbell (4) — +stretch/scatter/skew, light two-tone modeInject.
     pads[4].exciterType = ExciterType::FMImpulse;
     pads[4].bodyModel = BodyModelType::Bell;
     pads[4].material = 0.78; pads[4].size = 0.22; pads[4].decay = 0.30;
-    pads[4].level = 0.75;
+    pads[4].strikePosition = 0.30; pads[4].level = 0.75;
     pads[4].fmRatio = 0.55;
     pads[4].clickLayerMix = 0.30; pads[4].clickLayerBrightness = 0.62;
     pads[4].noiseLayerMix = 0.08;
     pads[4].airLoading = 0.0;
+    pads[4].modeStretch = 0.55; pads[4].modeScatter = 0.20; pads[4].decaySkew = 0.42;
+    pads[4].modeInjectAmount = 0.10; // documented kit delta (two-tone reinforce)
     pads[4].bodyDampingB3 = 0.0; pads[4].bodyDampingB1 = 0.32;
-    pads[4].macroBrightness = 0.65;
+    pads[4].macroBrightness = 0.65; pads[4].pan = 0.62;
 
     // Hats
     pads[6].exciterType = ExciterType::NoiseBurst;
@@ -2918,15 +2931,20 @@ Kit linnDrumKit() {
     pads[10].decay = 0.40; pads[10].noiseLayerDecay = 0.38;
     pads[10].bodyDampingB1 = 0.30;
 
-    // Toms
+    // Toms split into two distinct timbres across the pan arc (audit §4):
+    // 5/7/9 stay Mallet (LinnDrum sampled-acoustic, softer attack, lower 3);
+    // 11/12/14 become Impulse (CR-78 snappier pulse-triggered synth, hotter
+    // click, upper 3). Physics axes stay neutral (clean pitched oscillators).
     const int    tomPads[]  = {5, 7, 9, 11, 12, 14};
     const double tomSizes[] = {0.62, 0.55, 0.48, 0.42, 0.36, 0.30};
     const double tomMat[]   = {0.25, 0.30, 0.36, 0.42, 0.50, 0.58};
     const double tomHi[]    = {220, 270, 330, 400, 480, 570};
     const double tomLo[]    = {90, 110, 135, 165, 200, 240};
+    const double tomPan[]   = {0.30, 0.38, 0.46, 0.54, 0.62, 0.70};
     for (int i = 0; i < 6; ++i) {
         const int p = tomPads[i];
-        pads[p].exciterType = ExciterType::Mallet;
+        const bool synth = (i >= 3); // upper 3 = CR-78 Impulse synth toms
+        pads[p].exciterType = synth ? ExciterType::Impulse : ExciterType::Mallet;
         pads[p].bodyModel = BodyModelType::Membrane;
         pads[p].material = tomMat[i]; pads[p].size = tomSizes[i];
         pads[p].decay = 0.30 - 0.02 * i; pads[p].level = 0.75;
@@ -2937,44 +2955,198 @@ Kit linnDrumKit() {
         pads[p].airLoading = 0.0; pads[p].modeScatter = 0.0;
         pads[p].tensionModAmt = 0.20;
         pads[p].noiseLayerMix = 0.06;
-        pads[p].clickLayerMix = 0.32; pads[p].clickLayerBrightness = 0.55;
+        pads[p].clickLayerMix = synth ? 0.42 : 0.32; // hotter click on synth toms
+        pads[p].clickLayerBrightness = 0.55;
         pads[p].bodyDampingB1 = 0.32; pads[p].bodyDampingB3 = 0.20;
+        pads[p].pan = tomPan[i];
     }
 
-    // Cabasa (1)
-    pads[1].exciterType = ExciterType::NoiseBurst;
-    pads[1].bodyModel = BodyModelType::NoiseBody;
-    pads[1].material = 0.88; pads[1].size = 0.08; pads[1].decay = 0.08;
-    pads[1].level = 0.65;
-    pads[1].noiseBurstDuration = 0.18;
-    pads[1].noiseLayerMix = 0.85; pads[1].noiseLayerCutoff = 0.85;
-    pads[1].noiseLayerColor = 0.75; pads[1].noiseLayerDecay = 0.10;
-    pads[1].clickLayerMix = 0.0;
-    pads[1].airLoading = 0.0; pads[1].modeScatter = 0.0;
-    pads[1].bodyDampingB3 = 0.0; pads[1].bodyDampingB1 = 0.55;
+    // Rim Shot (1) — was Cabasa; Shell/Impulse free-free bar (cabasa moves to 16).
+    pads[1].exciterType = ExciterType::Impulse;
+    pads[1].bodyModel = BodyModelType::Shell;
+    pads[1].material = 0.85; pads[1].size = 0.34; pads[1].decay = 0.18;
+    pads[1].strikePosition = 0.15; pads[1].level = 0.9;
+    pads[1].clickLayerMix = 0.94; pads[1].clickLayerContactMs = 0.20;
+    pads[1].clickLayerBrightness = 0.94;
+    pads[1].modeScatter = 0.40; pads[1].modeStretch = 0.45;
+    pads[1].noiseLayerMix = 0.20; pads[1].noiseLayerColor = 0.85;
+    pads[1].bodyDampingB1 = 0.50; pads[1].bodyDampingB3 = 0.30;
+    pads[1].macroPunch = 0.92; pads[1].pan = 0.42;
 
-    // Clave (3)
-    pads[3].exciterType = ExciterType::FMImpulse;
-    pads[3].bodyModel = BodyModelType::Bell;
-    pads[3].material = 0.85; pads[3].size = 0.12; pads[3].decay = 0.18;
-    pads[3].level = 0.75;
-    pads[3].fmRatio = 0.62;
-    pads[3].clickLayerMix = 0.65; pads[3].clickLayerBrightness = 0.85;
-    pads[3].noiseLayerMix = 0.0;
-    pads[3].airLoading = 0.0;
-    pads[3].bodyDampingB3 = 0.0; pads[3].bodyDampingB1 = 0.40;
+    // Handclap (3) — was Clave; NoiseBody/NoiseBurst, flam smear + formant.
+    pads[3].exciterType = ExciterType::NoiseBurst;
+    pads[3].bodyModel = BodyModelType::NoiseBody;
+    pads[3].material = 0.85; pads[3].size = 0.18; pads[3].decay = 0.18;
+    pads[3].strikePosition = 0.30; pads[3].level = 0.78;
+    pads[3].noiseBurstDuration = 0.55;
+    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.78;
+    pads[3].noiseLayerResonance = 0.40; pads[3].noiseLayerColor = 0.65;
+    pads[3].noiseLayerDecay = 0.20;
+    pads[3].clickLayerMix = 0.30; pads[3].clickLayerContactMs = 0.22;
+    pads[3].clickLayerBrightness = 0.62;
+    pads[3].airLoading = 0.0; pads[3].modeScatter = 0.40;
+    pads[3].bodyDampingB1 = 0.50; pads[3].bodyDampingB3 = 0.0;
+    pads[3].macroBrightness = 0.65; pads[3].macroComplexity = 0.55;
+    pads[3].pan = 0.5;
 
-    // Crash (13)
+    // Crash (13) — +stretch/inject/nonlinear bloom, aux bus 1. Keeps the dark
+    // CR-78 noise colour.
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.92; pads[13].size = 0.30; pads[13].decay = 0.55;
-    pads[13].level = 0.70;
-    pads[13].modeScatter = 0.45; pads[13].airLoading = 0.0;
+    pads[13].strikePosition = 0.55; pads[13].level = 0.70;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.45;
+    pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.62; pads[13].noiseLayerDecay = 0.55;
+    pads[13].outputBus = 1; pads[13].pan = 0.42;
 
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+    // Ride (15) — NEW; Bell/FMImpulse, long wash + decay tilt, aux bus 1.
+    pads[15].exciterType = ExciterType::FMImpulse;
+    pads[15].bodyModel = BodyModelType::Bell;
+    pads[15].material = 0.95; pads[15].size = 0.30; pads[15].decay = 0.90;
+    pads[15].strikePosition = 0.18; pads[15].level = 0.72;
+    pads[15].fmRatio = 0.30;
+    pads[15].modeStretch = 0.45; pads[15].decaySkew = 0.62;
+    pads[15].nonlinearCoupling = 0.18; pads[15].modeScatter = 0.55;
+    pads[15].bodyDampingB1 = 0.16; pads[15].bodyDampingB3 = 0.0;
+    pads[15].noiseLayerMix = 0.45; pads[15].noiseLayerCutoff = 0.90;
+    pads[15].noiseLayerColor = 0.85; pads[15].noiseLayerDecay = 0.78;
+    pads[15].clickLayerMix = 0.45; pads[15].clickLayerBrightness = 0.82;
+    pads[15].outputBus = 1; pads[15].pan = 0.58;
+
+    // Cabasa (16) — relocated from pad 1; +noise resonance.
+    pads[16].exciterType = ExciterType::NoiseBurst;
+    pads[16].bodyModel = BodyModelType::NoiseBody;
+    pads[16].material = 0.88; pads[16].size = 0.08; pads[16].decay = 0.08;
+    pads[16].level = 0.65;
+    pads[16].noiseBurstDuration = 0.18;
+    pads[16].noiseLayerMix = 0.85; pads[16].noiseLayerCutoff = 0.85;
+    pads[16].noiseLayerResonance = 0.16;
+    pads[16].noiseLayerColor = 0.75; pads[16].noiseLayerDecay = 0.10;
+    pads[16].clickLayerMix = 0.0;
+    pads[16].airLoading = 0.0; pads[16].modeScatter = 0.0;
+    pads[16].bodyDampingB3 = 0.0; pads[16].bodyDampingB1 = 0.55;
+    pads[16].pan = 0.65;
+
+    // Agogo Hi (17) — NEW; Bell/FMImpulse bright Latin bell.
+    pads[17].exciterType = ExciterType::FMImpulse;
+    pads[17].bodyModel = BodyModelType::Bell;
+    pads[17].material = 0.80; pads[17].size = 0.18; pads[17].decay = 0.35;
+    pads[17].strikePosition = 0.30; pads[17].level = 0.72;
+    pads[17].fmRatio = 0.72; // mod ratio ~3.16, bright hi
+    pads[17].clickLayerMix = 0.45; pads[17].clickLayerContactMs = 0.30;
+    pads[17].clickLayerBrightness = 0.78;
+    pads[17].noiseLayerMix = 0.05;
+    pads[17].modeStretch = 0.50; pads[17].modeScatter = 0.20; pads[17].decaySkew = 0.45;
+    pads[17].bodyDampingB1 = 0.30; pads[17].bodyDampingB3 = 0.0;
+    pads[17].macroBrightness = 0.70; pads[17].pan = 0.38;
+
+    // Tambourine (18) — NEW; NoiseBody/NoiseBurst CR-78 signature jingles.
+    pads[18].exciterType = ExciterType::NoiseBurst;
+    pads[18].bodyModel = BodyModelType::NoiseBody;
+    pads[18].material = 0.95; pads[18].size = 0.20; pads[18].decay = 0.30;
+    pads[18].level = 0.68;
+    pads[18].noiseBurstDuration = 0.30;
+    pads[18].noiseLayerMix = 0.80; pads[18].noiseLayerCutoff = 0.92;
+    pads[18].noiseLayerResonance = 0.20;
+    pads[18].noiseLayerColor = 0.85; pads[18].noiseLayerDecay = 0.28;
+    pads[18].clickLayerMix = 0.30; pads[18].clickLayerContactMs = 0.20;
+    pads[18].clickLayerBrightness = 0.80;
+    pads[18].airLoading = 0.0; pads[18].modeScatter = 0.40;
+    pads[18].bodyDampingB1 = 0.40; pads[18].bodyDampingB3 = 0.0;
+    pads[18].pan = 0.65;
+
+    // Agogo Lo (19) — NEW; pair with 17, lower bell.
+    pads[19].exciterType = ExciterType::FMImpulse;
+    pads[19].bodyModel = BodyModelType::Bell;
+    pads[19].material = 0.80; pads[19].size = 0.28; pads[19].decay = 0.38;
+    pads[19].strikePosition = 0.30; pads[19].level = 0.72;
+    pads[19].fmRatio = 0.55;
+    pads[19].clickLayerMix = 0.45; pads[19].clickLayerContactMs = 0.30;
+    pads[19].clickLayerBrightness = 0.72;
+    pads[19].noiseLayerMix = 0.05;
+    pads[19].modeStretch = 0.50; pads[19].modeScatter = 0.20; pads[19].decaySkew = 0.45;
+    pads[19].bodyDampingB1 = 0.30; pads[19].bodyDampingB3 = 0.0;
+    pads[19].macroBrightness = 0.62; pads[19].pan = 0.60;
+
+    // Conga Hi (20) — NEW; Membrane/Impulse, woody barrel shell + tension.
+    pads[20].exciterType = ExciterType::Impulse;
+    pads[20].bodyModel = BodyModelType::Membrane;
+    pads[20].material = 0.30; pads[20].size = 0.45; pads[20].decay = 0.28;
+    pads[20].strikePosition = 0.25; pads[20].level = 0.78;
+    pads[20].tsPitchEnvStart = toLogNorm(300);
+    pads[20].tsPitchEnvEnd   = toLogNorm(220);
+    pads[20].tsPitchEnvTime  = 0.04; pads[20].tsPitchEnvCurve = 0.15;
+    pads[20].airLoading = 0.40; pads[20].tensionModAmt = 0.25;
+    pads[20].couplingStrength = 0.20; pads[20].secondaryEnabled = 1.0;
+    pads[20].secondarySize = 0.45; pads[20].secondaryMaterial = 0.30;
+    pads[20].modeScatter = 0.10;
+    pads[20].noiseLayerMix = 0.05;
+    pads[20].clickLayerMix = 0.35; pads[20].clickLayerContactMs = 0.15;
+    pads[20].bodyDampingB1 = 0.32; pads[20].bodyDampingB3 = 0.10;
+    pads[20].macroPunch = 0.60; pads[20].pan = 0.40;
+
+    // Claves (21) — relocated; Shell/Impulse, dry-wood HF damping override.
+    pads[21].exciterType = ExciterType::Impulse;
+    pads[21].bodyModel = BodyModelType::Shell;
+    pads[21].material = 0.85; pads[21].size = 0.0; pads[21].decay = 0.12;
+    pads[21].strikePosition = 0.12; pads[21].level = 0.80;
+    pads[21].bodyDampingB3 = 0.70; // dry-wood high-mode damping
+    pads[21].clickLayerMix = 0.55; pads[21].clickLayerContactMs = 0.15;
+    pads[21].clickLayerBrightness = 0.82;
+    pads[21].noiseLayerMix = 0.0; pads[21].pan = 0.40;
+
+    // Maracas (22) — NEW; NoiseBody/NoiseBurst dark Pink shaker.
+    pads[22].exciterType = ExciterType::NoiseBurst;
+    pads[22].bodyModel = BodyModelType::NoiseBody;
+    pads[22].material = 0.40; pads[22].size = 0.10; pads[22].decay = 0.08;
+    pads[22].strikePosition = 0.50; pads[22].level = 0.66;
+    pads[22].noiseBurstDuration = 0.20;
+    pads[22].noiseLayerMix = 0.85; pads[22].noiseLayerCutoff = 0.70;
+    pads[22].noiseLayerResonance = 0.16;
+    pads[22].noiseLayerColor = 0.50; pads[22].noiseLayerDecay = 0.08; // Pink (dark)
+    pads[22].clickLayerMix = 0.0;
+    pads[22].airLoading = 0.0; pads[22].modeScatter = 0.15;
+    pads[22].bodyDampingB3 = 0.0; pads[22].bodyDampingB1 = 0.55;
+    pads[22].pan = 0.35;
+
+    // Guiro (23) — NEW; NoiseBody/Friction (the kit's only Friction voice).
+    pads[23].exciterType = ExciterType::Friction;
+    pads[23].bodyModel = BodyModelType::NoiseBody;
+    pads[23].material = 0.50; pads[23].size = 0.20; pads[23].decay = 0.35;
+    pads[23].strikePosition = 0.30; pads[23].level = 0.70;
+    pads[23].frictionPressure = 0.50;
+    pads[23].decaySkew = 0.55;
+    pads[23].noiseLayerMix = 0.75; pads[23].noiseLayerCutoff = 0.60;
+    pads[23].noiseLayerResonance = 0.20;
+    pads[23].noiseLayerColor = 0.50; pads[23].noiseLayerDecay = 0.30;
+    pads[23].clickLayerMix = 0.10;
+    pads[23].airLoading = 0.0; pads[23].modeScatter = 0.20;
+    pads[23].bodyDampingB3 = 0.0; pads[23].bodyDampingB1 = 0.42;
+    pads[23].pan = 0.55;
+
+    // Conga Lo (24) — NEW; pair with 20, lower barrel.
+    pads[24].exciterType = ExciterType::Impulse;
+    pads[24].bodyModel = BodyModelType::Membrane;
+    pads[24].material = 0.22; pads[24].size = 0.55; pads[24].decay = 0.32;
+    pads[24].strikePosition = 0.25; pads[24].level = 0.78;
+    pads[24].tsPitchEnvStart = toLogNorm(220);
+    pads[24].tsPitchEnvEnd   = toLogNorm(160);
+    pads[24].tsPitchEnvTime  = 0.04; pads[24].tsPitchEnvCurve = 0.15;
+    pads[24].airLoading = 0.40; pads[24].tensionModAmt = 0.25;
+    pads[24].couplingStrength = 0.20; pads[24].secondaryEnabled = 1.0;
+    pads[24].secondarySize = 0.50; pads[24].secondaryMaterial = 0.30;
+    pads[24].modeScatter = 0.10;
+    pads[24].noiseLayerMix = 0.05;
+    pads[24].clickLayerMix = 0.35; pads[24].clickLayerContactMs = 0.15;
+    pads[24].bodyDampingB1 = 0.30; pads[24].bodyDampingB3 = 0.10;
+    pads[24].macroPunch = 0.60; pads[24].pan = 0.58;
+
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                 15, 16, 17, 18, 19, 20, 21, 22, 23, 24};
     return k;
 }
 
