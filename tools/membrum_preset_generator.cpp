@@ -6184,61 +6184,121 @@ Kit ghostBonesKit() {
     Kit k{"Ghost Bones", "Unnatural", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    for (int i = 0; i <= 13; ++i) {
-        const int p = i;
-        const bool useFriction = (i % 5 == 4);
-        pads[p].exciterType = useFriction ? ExciterType::Friction
-            : (i % 3 == 0) ? ExciterType::Mallet
-            : (i % 3 == 1) ? ExciterType::FMImpulse : ExciterType::Impulse;
-        pads[p].bodyModel = (i % 2 == 0) ? BodyModelType::Bell : BodyModelType::String;
-        pads[p].material = 0.30 + std::fmod(i * 0.04, 0.55);
-        pads[p].size     = 0.20 + ((13 - i) / 13.0) * 0.55;
-        pads[p].decay    = 0.85 - (i % 5) * 0.05;
-        pads[p].level    = 0.65;
-        pads[p].fmRatio  = 0.30 + std::fmod(i * 0.05, 0.50);
-        pads[p].frictionPressure = useFriction ? 0.30 : 0.0;
-        pads[p].modeStretch      = 0.65 + (i % 4) * 0.08;
-        pads[p].modeInjectAmount = 0.0;
-        pads[p].nonlinearCoupling = 0.20 + (i % 4) * 0.08;
-        pads[p].decaySkew        = 0.78 + (i % 3) * 0.06;
-        pads[p].morphEnabled = (i % 3 != 0) ? 1.0 : 0.0;
-        if (pads[p].morphEnabled != 0.0) {
-            pads[p].morphStart = 0.40 + (i % 4) * 0.10;
-            pads[p].morphEnd   = 0.80;
-            pads[p].morphDuration = 0.65 + (i % 3) * 0.10;
-            pads[p].morphCurve = 0.35 + (i % 4) * 0.10;
+    // 16-voice register-graded choir (low->high f0). Bell pads (even) run the
+    // live modal bank (Stretch/Skew/Scatter/b1/b3); String pads (odd) bypass it
+    // (those axes are inherent no-ops, left unset). modeStretch 0.66-0.88 is the
+    // kit signature. Shared HP filter, Brown noise, long decays, Material morph.
+
+    // --- Bell pads (modal) ---
+    {
+        const int    pd[]   = {0, 2, 4, 6, 8, 9, 10, 12, 14};
+        const int    exc[]  = {ExciterType::Mallet, ExciterType::Impulse,
+                              ExciterType::FMImpulse, ExciterType::Mallet,
+                              ExciterType::FMImpulse, ExciterType::FMImpulse,
+                              ExciterType::Mallet, ExciterType::Impulse,
+                              ExciterType::Mallet};
+        const double mat[]  = {0.42, 0.46, 0.50, 0.52, 0.55, 0.58, 0.60, 0.62, 0.64};
+        const double sz[]   = {0.78, 0.66, 0.55, 0.46, 0.38, 0.34, 0.30, 0.24, 0.20};
+        const double dec[]  = {0.85, 0.82, 0.82, 0.80, 0.78, 0.78, 0.76, 0.74, 0.72};
+        const double stk[]  = {0.28, 0.32, 0.30, 0.34, 0.30, 0.36, 0.32, 0.34, 0.30};
+        const double cut[]  = {0.16, 0.24, 0.30, 0.36, 0.42, 0.44, 0.46, 0.48, 0.48};
+        const double str[]  = {0.66, 0.72, 0.78, 0.80, 0.84, 0.88, 0.82, 0.86, 0.84};
+        const double skw[]  = {0.82, 0.80, 0.80, 0.78, 0.78, 0.80, 0.78, 0.78, 0.78};
+        const double nlc[]  = {0.28, 0.30, 0.34, 0.32, 0.36, 0.40, 0.32, 0.34, 0.36};
+        const double sct[]  = {0.40, 0.50, 0.55, 0.60, 0.65, 0.70, 0.55, 0.60, 0.68};
+        const double fmr[]  = {-1,   -1,   0.40, -1,   0.50, 0.47, -1,   -1,   -1};
+        const double mOn[]  = {0,    1,    1,    1,    1,    1,    1,    1,    1};
+        const double mSt[]  = {0,    0.45, 0.45, 0.45, 0.45, 0.50, 0.45, 0.50, 0.50};
+        const double mEn[]  = {0,    0.80, 0.80, 0.80, 0.82, 0.82, 0.80, 0.82, 0.85};
+        const double nmx[]  = {0.10, 0.12, 0.12, 0.12, 0.11, 0.10, 0.11, 0.10, 0.10};
+        const double nct[]  = {0.30, 0.35, 0.35, 0.40, 0.40, 0.40, 0.40, 0.40, 0.40};
+        const double clk[]  = {0.10, 0.14, 0.08, 0.12, 0.08, 0.08, 0.10, 0.14, 0.10};
+        const double cbr[]  = {0.55, 0.62, -1,   0.66, -1,   -1,   0.66, 0.70, 0.70};
+        const double b1[]   = {0.33, 0.35, 0.35, 0.36, 0.37, 0.37, 0.36, 0.36, 0.36};
+        const double pan[]  = {0.50, 0.65, 0.55, 0.70, 0.50, 0.80, 0.40, 0.60, 0.30};
+        for (int i = 0; i < 9; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = exc[i];
+            pads[p].bodyModel = BodyModelType::Bell;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = stk[i]; pads[p].level = 0.64;
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = skw[i];
+            pads[p].nonlinearCoupling = nlc[i]; pads[p].modeScatter = sct[i];
+            pads[p].modeInjectAmount = 0.0;
+            if (fmr[i] >= 0.0) pads[p].fmRatio = fmr[i];
+            pads[p].tsFilterType = FilterType::HP;
+            pads[p].tsFilterCutoff = cut[i]; pads[p].tsFilterResonance = 0.30;
+            pads[p].tsFilterEnvAmount = 0.45; pads[p].tsFilterEnvDecay = 0.30;
+            if (mOn[i] != 0.0) {
+                pads[p].morphEnabled = 1.0; pads[p].morphStart = mSt[i];
+                pads[p].morphEnd = mEn[i]; pads[p].morphDuration = 0.70;
+                pads[p].morphCurve = 0.4; // linear
+            }
+            pads[p].noiseLayerMix = nmx[i]; pads[p].noiseLayerColor = 0.20; // brown
+            pads[p].noiseLayerCutoff = nct[i]; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = clk[i];
+            if (cbr[i] >= 0.0) pads[p].clickLayerBrightness = cbr[i];
+            pads[p].bodyDampingB1 = b1[i]; pads[p].bodyDampingB3 = 0.0;
+            pads[p].airLoading = 0.0;
+            pads[p].macroComplexity = 0.85; pads[p].couplingAmount = 0.85;
+            pads[p].pan = pan[i];
         }
-        pads[p].tsFilterType = FilterType::HP;
-        pads[p].tsFilterCutoff = 0.18 + (i % 4) * 0.10;
-        pads[p].tsFilterResonance = 0.30;
-        pads[p].tsFilterEnvAmount = 0.45;
-        pads[p].tsFilterEnvDecay  = 0.30;
-        pads[p].modeScatter = 0.40 + (i % 4) * 0.10;
-        pads[p].airLoading  = 0.0;
-        pads[p].couplingStrength = (i % 2) * 0.30;
-        pads[p].secondaryEnabled = (i % 2) ? 1.0 : 0.0;
-        pads[p].secondarySize    = 0.25 + (i % 3) * 0.08;
-        pads[p].secondaryMaterial = 0.85;
-        pads[p].tensionModAmt = 0.30 + (i % 4) * 0.12;
-        pads[p].noiseLayerMix = 0.10 + (i % 5) * 0.06;
-        pads[p].noiseLayerCutoff = 0.30 + (i % 6) * 0.10;
-        pads[p].noiseLayerColor  = 0.20 + (i % 4) * 0.10;
-        pads[p].noiseLayerDecay  = 0.85;
-        pads[p].clickLayerMix    = 0.10 + (i % 4) * 0.08;
-        pads[p].clickLayerBrightness = 0.55 + (i % 4) * 0.08;
-        pads[p].bodyDampingB1 = 0.30 + (i % 5) * 0.02;
-        pads[p].bodyDampingB3 = (pads[p].bodyModel == BodyModelType::Bell) ? 0.0 : 0.18;
-        pads[p].outputBus = (i % 4 == 3) ? 1 : 0;
-        pads[p].macroBrightness = 0.30 + (i % 4) * 0.12;
-        pads[p].macroComplexity = 0.85;
-        pads[p].macroBodySize   = 0.55;
-        pads[p].couplingAmount  = 0.85;
+    }
+
+    // --- String pads (waveguide — modal-bank axes are inherent no-ops, unset) ---
+    {
+        const int    pd[]   = {1, 3, 5, 7, 11, 13, 15};
+        const int    exc[]  = {ExciterType::Friction, ExciterType::FMImpulse,
+                              ExciterType::Mallet, ExciterType::Impulse,
+                              ExciterType::Friction, ExciterType::Impulse,
+                              ExciterType::Mallet};
+        const double mat[]  = {0.40, 0.42, 0.44, 0.46, 0.50, 0.52, 0.55};
+        const double sz[]   = {0.72, 0.60, 0.50, 0.42, 0.26, 0.22, 0.20};
+        const double dec[]  = {0.88, 0.84, 0.83, 0.82, 0.86, 0.80, 0.82};
+        const double stk[]  = {0.35, 0.38, 0.40, 0.42, 0.40, 0.45, 0.50};
+        const double cut[]  = {0.20, 0.28, 0.34, 0.40, 0.40, 0.44, 0.46};
+        const double fea[]  = {0.60, 0.45, 0.50, 0.45, 0.60, 0.50, 0.50};
+        const double fed[]  = {0.45, 0.30, 0.30, 0.30, 0.45, 0.30, 0.30};
+        const double nlc[]  = {0.40, 0.38, 0.36, 0.40, 0.42, 0.38, 0.40};
+        const double fmr[]  = {-1,   0.45, -1,   -1,   -1,   -1,   -1};
+        const double fri[]  = {0.35, -1,   -1,   -1,   0.40, -1,   -1};
+        const double mSt[]  = {0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.50};
+        const double mEn[]  = {0.75, 0.78, 0.78, 0.80, 0.78, 0.80, 0.82};
+        const double mDu[]  = {0.65, 0.68, 0.66, 0.68, 0.66, 0.64, 0.64};
+        const double nmx[]  = {0.16, 0.14, 0.13, 0.14, 0.16, 0.12, 0.12};
+        const double nct[]  = {0.40, 0.40, 0.40, 0.45, 0.45, 0.45, 0.45};
+        const double clk[]  = {0.0,  0.08, 0.12, 0.14, 0.0,  0.16, 0.14};
+        const int    bus[]  = {0,    1,    0,    1,    1,    0,    1};
+        const double pan[]  = {0.35, 0.25, 0.45, 0.30, 0.60, 0.50, 0.70};
+        for (int i = 0; i < 7; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = exc[i];
+            pads[p].bodyModel = BodyModelType::String;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = stk[i]; pads[p].level = (i == 4) ? 0.60 : 0.62;
+            pads[p].nonlinearCoupling = nlc[i];
+            if (fmr[i] >= 0.0) pads[p].fmRatio = fmr[i];
+            if (fri[i] >= 0.0) pads[p].frictionPressure = fri[i];
+            pads[p].tsFilterType = FilterType::HP;
+            pads[p].tsFilterCutoff = cut[i]; pads[p].tsFilterResonance = 0.30;
+            pads[p].tsFilterEnvAmount = fea[i]; pads[p].tsFilterEnvDecay = fed[i];
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = mSt[i];
+            pads[p].morphEnd = mEn[i]; pads[p].morphDuration = mDu[i];
+            pads[p].morphCurve = 0.4; // linear
+            pads[p].noiseLayerMix = nmx[i]; pads[p].noiseLayerColor = 0.20; // brown
+            pads[p].noiseLayerCutoff = nct[i]; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = clk[i];
+            pads[p].macroComplexity = 0.85; pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = bus[i]; pads[p].pan = pan[i];
+            // Mode Stretch/Skew/Scatter/Inject, b1/b3, airLoading, tensionMod
+            // left unset — inherent no-ops on the WaveguideString body.
+        }
     }
 
     k.opts.maxPolyphony    = 12;
     k.opts.globalCoupling  = 0.78;
     k.opts.tomResonance    = 0.55;
     k.opts.couplingDelayMs = 2.0;
-    for (int i = 0; i < 14; ++i) k.crafted.push_back(i);
+    for (int i = 0; i < 16; ++i) k.crafted.push_back(i);
     return k;
 }
