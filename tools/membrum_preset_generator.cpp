@@ -1925,8 +1925,9 @@ Kit vintageWoodKit() {
     pads[0].tsPitchEnvStart = toLogNorm(150);
     pads[0].tsPitchEnvEnd   = toLogNorm(55);
     pads[0].tsPitchEnvTime  = 0.045;
-    pads[0].tsDriveAmount   = 0.45;
-    pads[0].tsFoldAmount    = 0.10;
+    pads[0].tsDriveAmount   = 0.20;   // M-2 unity makeup: Drive = flavour
+    pads[0].tsFoldAmount    = 0.10;   // signature vintage saturator
+    pads[0].decaySkew       = 0.55;   // per-mode tilt (was flat)
     pads[0].airLoading       = 0.70;
     pads[0].couplingStrength = 0.55;
     pads[0].secondaryEnabled = 1.0;
@@ -1968,7 +1969,7 @@ Kit vintageWoodKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(130);
     pads[2].tsPitchEnvTime  = 0.13;
     pads[2].tsPitchEnvCurve = 0.15;
-    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.04;
+    pads[2].bodyDampingB1 = 0.60; pads[2].bodyDampingB3 = 0.04;  // ~30 s^-1 short snares-on tat
     pads[2].macroTightness = 0.70; pads[2].macroBrightness = 0.55;
     pads[2].macroComplexity = 0.55;
 
@@ -1983,6 +1984,7 @@ Kit vintageWoodKit() {
     pads[4].airLoading = 0.0; pads[4].modeScatter = 0.55;
     pads[4].bodyDampingB1 = 0.42; pads[4].bodyDampingB3 = 0.10;
     pads[4].macroComplexity = 0.30;
+    pads[4].pan = 0.40;   // L
 
     // Hi-hats
     pads[6].exciterType = ExciterType::NoiseBurst;
@@ -1995,6 +1997,7 @@ Kit vintageWoodKit() {
     pads[6].airLoading = 0.0; pads[6].modeScatter = 0.70;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.55;
     pads[6].macroBrightness = 0.40;
+    pads[6].pan = 0.62;   // R (inherited by pedal/open copies)
 
     pads[8] = pads[6];
     pads[8].decay = 0.05; pads[8].noiseLayerDecay = 0.06;
@@ -2003,7 +2006,9 @@ Kit vintageWoodKit() {
     pads[10].decay = 0.45; pads[10].noiseLayerDecay = 0.42;
     pads[10].bodyDampingB1 = 0.30;
 
-    // Toms
+    // Toms -- NEW: exp glide (curve 0.15), graded decaySkew + pan spread
+    // 0.36->0.64. secondaryMaterial 0.30 = deliberate dark-shell vintage
+    // identity (documented departure from the archetype's "up" note).
     const int    tomPads[]      = {5, 7, 9, 11, 12, 14};
     const double tomSizes[]     = {0.72, 0.62, 0.55, 0.48, 0.42, 0.35};
     const double tomMaterial[]  = {0.30, 0.32, 0.36, 0.42, 0.48, 0.55};
@@ -2011,6 +2016,8 @@ Kit vintageWoodKit() {
     const double tomB1[]        = {0.30, 0.32, 0.35, 0.38, 0.42, 0.46};
     const double tomPitchHi[]   = {200, 240, 290, 340, 400, 480};
     const double tomPitchLo[]   = {95, 115, 140, 170, 210, 260};
+    const double tomSkew[]      = {0.44, 0.46, 0.48, 0.50, 0.52, 0.54};
+    const double tomPan[]       = {0.36, 0.416, 0.472, 0.528, 0.584, 0.64};
     for (int i = 0; i < 6; ++i) {
         const int p = tomPads[i];
         pads[p].exciterType = ExciterType::Mallet;
@@ -2022,10 +2029,11 @@ Kit vintageWoodKit() {
         pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
         pads[p].tsPitchEnvTime  = 0.10;
-        pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
+        pads[p].tsPitchEnvCurve = 0.15;  // exp glide
         pads[p].tsDriveAmount   = 0.25;
         pads[p].airLoading      = 0.55;
         pads[p].modeScatter     = 0.18;
+        pads[p].decaySkew       = tomSkew[i];
         pads[p].couplingStrength = 0.50;
         pads[p].secondaryEnabled = 1.0;
         pads[p].secondarySize    = 0.32 + 0.02 * i;
@@ -2037,18 +2045,25 @@ Kit vintageWoodKit() {
         pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.10;
         pads[p].macroBodySize = 0.45 + 0.04 * i;
         pads[p].macroBrightness = 0.35;
+        pads[p].pan = tomPan[i];
     }
 
-    // Crash 1 (13)
+    // Crash 1 (13) -- NEW axes: modeStretch + modeInject 1/k + NLC bloom,
+    // aux bus 1, pan L. (Amounts sourced from crash-cymbal.md, matching the
+    // approved sibling-kit crashes.)
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.92; pads[13].size = 0.30; pads[13].decay = 0.65;
     pads[13].level = 0.72;
+    pads[13].modeStretch = 0.55; pads[13].modeInjectAmount = 0.20;
+    pads[13].nonlinearCoupling = 0.30;
     pads[13].modeScatter = 0.55; pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.55; pads[13].noiseLayerCutoff = 0.78;
     pads[13].noiseLayerColor = 0.65; pads[13].noiseLayerDecay = 0.60;
     pads[13].clickLayerMix = 0.18; pads[13].clickLayerBrightness = 0.65;
+    pads[13].outputBus = 1;
+    pads[13].pan = 0.40;   // L
 
     // Wood blocks (1, 3)
     pads[1].exciterType = ExciterType::Impulse;
@@ -2067,25 +2082,57 @@ Kit vintageWoodKit() {
     pads[3].material = 0.28;
     pads[3].clickLayerBrightness = 0.65;
 
-    // Cowbell (15)
-    pads[15].exciterType = ExciterType::Impulse;
-    pads[15].bodyModel = BodyModelType::Bell;
-    pads[15].material = 0.78; pads[15].size = 0.26; pads[15].decay = 0.30;
-    pads[15].level = 0.75;
-    pads[15].fmRatio = 0.45;
-    pads[15].clickLayerMix = 0.55; pads[15].clickLayerContactMs = 0.10;
-    pads[15].clickLayerBrightness = 0.70;
-    pads[15].noiseLayerMix = 0.10;
-    pads[15].airLoading = 0.05; pads[15].modeScatter = 0.20;
-    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.40;
-    pads[15].macroBrightness = 0.65;
+    // Ride (15) -- NEW, replaces cowbell-on-GM-ride (MIDI 51) violation.
+    // Bell body + NoiseBurst; fmRatio inert (the tuned ping is the Bell body).
+    // Recipe sourced from ride-cymbal-bell-bow-cymbal.md (matches approved
+    // sibling-kit rides). bus 1, pan R.
+    pads[15].exciterType = ExciterType::NoiseBurst;
+    pads[15].bodyModel   = BodyModelType::Bell;
+    pads[15].material = 0.95; pads[15].size = 0.30; pads[15].decay = 0.90;
+    pads[15].level = 0.72;
+    pads[15].strikePosition = 0.18;
+    pads[15].modeStretch = 0.45; pads[15].decaySkew = 0.62;
+    pads[15].nonlinearCoupling = 0.18; pads[15].modeScatter = 0.55;
+    pads[15].bodyDampingB1 = 0.16; pads[15].bodyDampingB3 = 0.0;
+    pads[15].noiseLayerMix = 0.45; pads[15].noiseLayerCutoff = 0.90;
+    pads[15].noiseLayerColor = 0.90; pads[15].noiseLayerDecay = 0.78;  // violet
+    pads[15].clickLayerMix = 0.45; pads[15].clickLayerContactMs = 0.25;
+    pads[15].clickLayerBrightness = 0.82;
+    pads[15].airLoading = 0.0;
+    pads[15].macroBrightness = 0.70;
+    pads[15].outputBus = 1;
+    pads[15].pan = 0.62;   // R
+
+    // Crash 2 (16) -- NEW, darker/larger sister of crash 1 (lower f0).
+    // bus 1, pan R. Inherits crash 1's metallic axes, then de-brightened.
+    pads[16] = pads[13];
+    pads[16].size = 0.34;            // larger -> lower register
+    pads[16].material = 0.90;
+    pads[16].noiseLayerColor = 0.58; // darker
+    pads[16].pan = 0.62;             // R
+
+    // Cowbell (17) -- relocated off the GM ride slot; vintage-wood Impulse
+    // variant (Material 0.72, Decay 0.34, Click 0.62) + clang axes. pan L.
+    pads[17].exciterType = ExciterType::Impulse;
+    pads[17].bodyModel = BodyModelType::Bell;
+    pads[17].material = 0.72; pads[17].size = 0.26; pads[17].decay = 0.34;
+    pads[17].level = 0.75;
+    pads[17].modeStretch = 0.55; pads[17].decaySkew = 0.42;
+    pads[17].clickLayerMix = 0.62; pads[17].clickLayerContactMs = 0.10;
+    pads[17].clickLayerBrightness = 0.70;
+    pads[17].noiseLayerMix = 0.10;
+    pads[17].airLoading = 0.0; pads[17].modeScatter = 0.20;
+    pads[17].bodyDampingB3 = 0.0; pads[17].bodyDampingB1 = 0.40;
+    pads[17].macroBrightness = 0.65;
+    pads[17].pan = 0.40;   // L
 
     k.opts.maxPolyphony    = 10;
     k.opts.globalCoupling  = 0.20;
     k.opts.snareBuzz       = 0.30;
     k.opts.tomResonance    = 0.30;
     k.opts.couplingDelayMs = 1.0;
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    // 18 sounding pads; pads 18-31 stay disabled (focused core).
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
     return k;
 }
 Kit orchestralKit() {
