@@ -3437,29 +3437,32 @@ Kit trapModernKit() {
     Kit k{"Trap Modern", "Electronic", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Sub 808 kick
+    // Sub 808 kick (Membrane/Impulse) — tensionMod glide signature.
     pads[0].exciterType = ExciterType::Impulse;
     pads[0].bodyModel = BodyModelType::Membrane;
     pads[0].material = 0.10; pads[0].size = 0.95; pads[0].decay = 0.65;
-    pads[0].level = 0.92;
+    pads[0].strikePosition = 0.30; pads[0].level = 0.92;
     pads[0].tsPitchEnvStart = toLogNorm(250);
     pads[0].tsPitchEnvEnd   = toLogNorm(35);
-    pads[0].tsPitchEnvTime  = 0.06;
+    pads[0].tsPitchEnvTime  = 0.06; pads[0].tsPitchEnvCurve = 0.15;
     pads[0].tsDriveAmount   = 0.18;
     pads[0].airLoading = 0.0; pads[0].couplingStrength = 0.0;
     pads[0].tensionModAmt = 0.85;
+    pads[0].modeInjectAmount = 0.20; // 1/k body weight
     pads[0].clickLayerMix = 0.42; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.32;
     pads[0].noiseLayerMix = 0.0;
     pads[0].decaySkew = 0.45;
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.95; pads[0].macroBodySize = 0.95;
+    pads[0].pan = 0.5;
 
-    // Modern crispy snare (redesigned: trap brightness + audible housing)
+    // Crispy Snare (Membrane/NoiseBurst). Size 0.56 = f0 ~138 Hz (deliberately
+    // deep boomy trap body under the dominant bright noise layer).
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.48; pads[2].size = 0.56; pads[2].decay = 0.52;
-    pads[2].level = 1.0;
+    pads[2].strikePosition = 0.45; pads[2].level = 1.0;
     pads[2].noiseBurstDuration = (3.0 - 2.0) / 13.0;
     pads[2].tsFilterType = FilterType::LP;
     pads[2].tsFilterCutoff = 0.92;
@@ -3481,45 +3484,41 @@ Kit trapModernKit() {
     pads[2].clickLayerMix = 0.95; pads[2].clickLayerContactMs = 0.06;
     pads[2].clickLayerBrightness = 0.97;
     pads[2].airLoading = 0.10; pads[2].modeScatter = 0.25;
-    pads[2].nonlinearCoupling = 0.18;
+    pads[2].decaySkew = 0.42; pads[2].nonlinearCoupling = 0.18;
     pads[2].couplingStrength = 0.55; pads[2].secondaryEnabled = 1.0;
     pads[2].secondarySize = 0.62; pads[2].secondaryMaterial = 0.55;
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
     pads[2].macroBrightness = 0.95; pads[2].macroPunch = 0.85;
     pads[2].macroTightness = 0.85;
+    pads[2].pan = 0.5;
 
-    // Snare layer rim shot (4)
+    // Rim Shot (4) — Shell/Impulse free-free bar (was Plate; physically-correct).
     pads[4].exciterType = ExciterType::Impulse;
-    pads[4].bodyModel = BodyModelType::Plate;
-    pads[4].material = 0.78; pads[4].size = 0.16; pads[4].decay = 0.10;
-    pads[4].level = 0.85;
-    pads[4].clickLayerMix = 0.95; pads[4].clickLayerContactMs = 0.06;
-    pads[4].clickLayerBrightness = 0.95;
-    pads[4].noiseLayerMix = 0.18; pads[4].noiseLayerColor = 0.92;
-    pads[4].airLoading = 0.0; pads[4].modeScatter = 0.20;
-    pads[4].bodyDampingB1 = 0.50; pads[4].bodyDampingB3 = 0.0;
+    pads[4].bodyModel = BodyModelType::Shell;
+    pads[4].material = 0.85; pads[4].size = 0.34; pads[4].decay = 0.18;
+    pads[4].strikePosition = 0.15; pads[4].level = 0.90;
+    pads[4].clickLayerMix = 0.94; pads[4].clickLayerContactMs = 0.20;
+    pads[4].clickLayerBrightness = 0.94;
+    pads[4].modeScatter = 0.40; pads[4].modeStretch = 0.45;
+    pads[4].noiseLayerMix = 0.20; pads[4].noiseLayerColor = 0.92;
+    pads[4].airLoading = 0.0;
+    pads[4].bodyDampingB1 = 0.50; pads[4].bodyDampingB3 = 0.30;
+    pads[4].macroPunch = 0.92; pads[4].pan = 0.5;
 
-    // Closed hat variants (6, 7, 8)
-    const int hatPads[] = {6, 7, 8};
-    const double hatDecays[] = {0.05, 0.08, 0.12};
-    for (int i = 0; i < 3; ++i) {
-        const int p = hatPads[i];
-        pads[p].exciterType = ExciterType::NoiseBurst;
-        pads[p].bodyModel = BodyModelType::NoiseBody;
-        pads[p].material = 0.92; pads[p].size = 0.10;
-        pads[p].decay = hatDecays[i]; pads[p].level = 0.72;
-        pads[p].chokeGroup = 1;
-        pads[p].noiseLayerMix = 0.85; pads[p].noiseLayerCutoff = 0.95;
-        pads[p].noiseLayerColor = 0.95;
-        pads[p].noiseLayerDecay = hatDecays[i];
-        pads[p].noiseLayerResonance = 0.10;
-        pads[p].clickLayerMix = 0.18; pads[p].clickLayerBrightness = 0.92;
-        pads[p].airLoading = 0.0; pads[p].modeScatter = 0.25;
-        pads[p].bodyDampingB3 = 0.0;
-        pads[p].bodyDampingB1 = 0.78 - 0.10 * i;
-    }
+    // Closed Hat (6) — NoiseBody/NoiseBurst, choke 1.
+    pads[6].exciterType = ExciterType::NoiseBurst;
+    pads[6].bodyModel = BodyModelType::NoiseBody;
+    pads[6].material = 0.92; pads[6].size = 0.10; pads[6].decay = 0.05;
+    pads[6].level = 0.72; pads[6].chokeGroup = 1;
+    pads[6].noiseLayerMix = 0.85; pads[6].noiseLayerCutoff = 0.95;
+    pads[6].noiseLayerColor = 0.95; pads[6].noiseLayerDecay = 0.05;
+    pads[6].noiseLayerResonance = 0.10;
+    pads[6].clickLayerMix = 0.18; pads[6].clickLayerBrightness = 0.92;
+    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.25;
+    pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.78;
+    pads[6].pan = 0.58;
 
-    // Open hat (10)
+    // Open Hat (10) — NoiseBody/NoiseBurst, choke 1.
     pads[10].exciterType = ExciterType::NoiseBurst;
     pads[10].bodyModel = BodyModelType::NoiseBody;
     pads[10].material = 0.92; pads[10].size = 0.18; pads[10].decay = 0.55;
@@ -3528,57 +3527,125 @@ Kit trapModernKit() {
     pads[10].noiseLayerColor = 0.92; pads[10].noiseLayerDecay = 0.50;
     pads[10].modeScatter = 0.30;
     pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.30;
+    pads[10].pan = 0.55;
 
-    // Toms
-    const int    tomPads[]  = {5, 9, 11, 12, 14};
-    const double tomSizes[] = {0.65, 0.55, 0.45, 0.38, 0.32};
-    const double tomMat[]   = {0.20, 0.28, 0.36, 0.45, 0.55};
-    const double tomHi[]    = {240, 290, 360, 440, 540};
-    const double tomLo[]    = {80, 100, 130, 165, 210};
-    for (int i = 0; i < 5; ++i) {
+    // Tom row (Membrane/Impulse) — 6 graded toms; pitchEnv norms via toLogNorm.
+    const int    tomPads[]  = {5, 7, 9, 11, 12, 14};
+    const double tomSizes[] = {0.65, 0.55, 0.45, 0.38, 0.35, 0.32};
+    const double tomMat[]   = {0.20, 0.28, 0.36, 0.45, 0.50, 0.55};
+    const double tomDecay[] = {0.30, 0.27, 0.24, 0.21, 0.19, 0.18};
+    const double tomHi[]    = {240, 290, 360, 440, 500, 540};
+    const double tomLo[]    = {80, 100, 130, 165, 175, 210};
+    const double tomB1[]    = {0.30, 0.33, 0.36, 0.39, 0.42, 0.42};
+    const double tomPan[]   = {0.38, 0.44, 0.50, 0.56, 0.62, 0.38};
+    for (int i = 0; i < 6; ++i) {
         const int p = tomPads[i];
         pads[p].exciterType = ExciterType::Impulse;
         pads[p].bodyModel = BodyModelType::Membrane;
         pads[p].material = tomMat[i]; pads[p].size = tomSizes[i];
-        pads[p].decay = 0.30 - 0.03 * i; pads[p].level = 0.78;
+        pads[p].decay = tomDecay[i]; pads[p].level = 0.78;
         pads[p].tsPitchEnvStart = toLogNorm(tomHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(tomLo[i]);
         pads[p].tsPitchEnvTime  = 0.06;
-        pads[p].tsPitchEnvCurve = 0.15; // Phase 10: was "Exp" StringList -> norm 0.15 ~= curveAmount -0.7 (legacy log shape)
+        pads[p].tsPitchEnvCurve = 0.15;
         pads[p].tsDriveAmount   = 0.18;
         pads[p].airLoading = 0.0;
         pads[p].tensionModAmt = 0.55;
+        pads[p].modeInjectAmount = 0.15; // 1/k body weight
         pads[p].noiseLayerMix = 0.05;
         pads[p].clickLayerMix = 0.45; pads[p].clickLayerBrightness = 0.78;
-        pads[p].bodyDampingB1 = 0.30 + 0.03 * i; pads[p].bodyDampingB3 = 0.30;
-        pads[p].macroPunch = 0.78;
+        pads[p].bodyDampingB1 = tomB1[i]; pads[p].bodyDampingB3 = 0.30;
+        pads[p].macroPunch = 0.78; pads[p].pan = tomPan[i];
     }
 
-    // Trap clave (1)
+    // Trap Clave (1) — Shell/Impulse free-free bar (was Bell; corrected). b3
+    // kept 0 as a flagged synthetic-trap-clave choice (brighter ring; the
+    // acoustically-woody alternative is b3 0.70).
     pads[1].exciterType = ExciterType::Impulse;
-    pads[1].bodyModel = BodyModelType::Bell;
-    pads[1].material = 0.92; pads[1].size = 0.10; pads[1].decay = 0.15;
-    pads[1].level = 0.78;
-    pads[1].fmRatio = 0.65;
+    pads[1].bodyModel = BodyModelType::Shell;
+    pads[1].material = 0.85; pads[1].size = 0.10; pads[1].decay = 0.15;
+    pads[1].strikePosition = 0.12; pads[1].level = 0.78;
     pads[1].clickLayerMix = 0.85; pads[1].clickLayerBrightness = 0.95;
     pads[1].clickLayerContactMs = 0.06;
     pads[1].noiseLayerMix = 0.0;
     pads[1].airLoading = 0.0;
     pads[1].bodyDampingB3 = 0.0; pads[1].bodyDampingB1 = 0.42;
+    pads[1].pan = 0.40;
 
-    // Crash (13)
+    // Trap Cowbell (3) — NEW; Bell/FMImpulse detuned-fifth 808 clang.
+    pads[3].exciterType = ExciterType::FMImpulse;
+    pads[3].bodyModel = BodyModelType::Bell;
+    pads[3].material = 0.78; pads[3].size = 0.22; pads[3].decay = 0.30;
+    pads[3].strikePosition = 0.30; pads[3].level = 0.75;
+    pads[3].fmRatio = 0.50; // mod ratio 2.5
+    pads[3].modeStretch = 0.55; pads[3].decaySkew = 0.42; pads[3].modeScatter = 0.20;
+    pads[3].clickLayerMix = 0.55; pads[3].clickLayerContactMs = 0.10;
+    pads[3].clickLayerBrightness = 0.72;
+    pads[3].noiseLayerMix = 0.10; pads[3].noiseLayerCutoff = 0.62;
+    pads[3].noiseLayerColor = 0.40; pads[3].noiseLayerDecay = 0.20; // Pink halo
+    pads[3].bodyDampingB1 = 0.32; pads[3].bodyDampingB3 = 0.0;
+    pads[3].macroBrightness = 0.65; pads[3].pan = 0.60;
+
+    // 909 Hand Clap (8) — NEW; NoiseBody/NoiseBurst flam smear + formant.
+    pads[8].exciterType = ExciterType::NoiseBurst;
+    pads[8].bodyModel = BodyModelType::NoiseBody;
+    pads[8].material = 0.85; pads[8].size = 0.18; pads[8].decay = 0.18;
+    pads[8].level = 0.80;
+    pads[8].noiseBurstDuration = 0.55;
+    pads[8].noiseLayerMix = 0.85; pads[8].noiseLayerCutoff = 0.78;
+    pads[8].noiseLayerResonance = 0.40; pads[8].noiseLayerColor = 0.65;
+    pads[8].noiseLayerDecay = 0.20;
+    pads[8].clickLayerMix = 0.45; pads[8].clickLayerContactMs = 0.22;
+    pads[8].clickLayerBrightness = 0.62;
+    pads[8].airLoading = 0.0; pads[8].modeScatter = 0.40;
+    pads[8].bodyDampingB1 = 0.50; pads[8].bodyDampingB3 = 0.0;
+    pads[8].macroBrightness = 0.65; pads[8].macroComplexity = 0.55;
+    pads[8].pan = 0.5;
+
+    // Crash 1 (13) — NoiseBody/NoiseBurst, full bloom, aux bus 1.
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
     pads[13].material = 0.95; pads[13].size = 0.32; pads[13].decay = 0.72;
-    pads[13].level = 0.72;
+    pads[13].strikePosition = 0.55; pads[13].level = 0.72;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].nonlinearCoupling = 0.35; pads[13].decaySkew = 0.55;
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.78; pads[13].noiseLayerCutoff = 0.95;
     pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.70;
+    pads[13].clickLayerMix = 0.20; pads[13].clickLayerBrightness = 0.82;
+    pads[13].outputBus = 1; pads[13].pan = 0.45;
+
+    // Crash 2 / Splash (15) — NEW; NoiseBody/NoiseBurst, aux bus 1.
+    pads[15].exciterType = ExciterType::NoiseBurst;
+    pads[15].bodyModel = BodyModelType::NoiseBody;
+    pads[15].material = 0.95; pads[15].size = 0.22; pads[15].decay = 0.40;
+    pads[15].strikePosition = 0.55; pads[15].level = 0.72;
+    pads[15].modeStretch = 0.55; pads[15].modeInjectAmount = 0.20;
+    pads[15].nonlinearCoupling = 0.30; pads[15].decaySkew = 0.55;
+    pads[15].modeScatter = 0.70; pads[15].airLoading = 0.0;
+    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.30;
+    pads[15].noiseLayerMix = 0.72; pads[15].noiseLayerCutoff = 0.95;
+    pads[15].noiseLayerColor = 0.92; pads[15].noiseLayerDecay = 0.40;
+    pads[15].clickLayerMix = 0.22; pads[15].clickLayerBrightness = 0.82;
+    pads[15].outputBus = 1; pads[15].pan = 0.55;
+
+    // Trap Shaker (16) — NEW; NoiseBody/NoiseBurst cabasa-bright Violet sizzle.
+    pads[16].exciterType = ExciterType::NoiseBurst;
+    pads[16].bodyModel = BodyModelType::NoiseBody;
+    pads[16].material = 0.85; pads[16].size = 0.12; pads[16].decay = 0.10;
+    pads[16].level = 0.62;
+    pads[16].noiseBurstDuration = 0.45;
+    pads[16].noiseLayerMix = 0.85; pads[16].noiseLayerCutoff = 0.82;
+    pads[16].noiseLayerColor = 0.92; pads[16].noiseLayerDecay = 0.10; // Violet
+    pads[16].clickLayerMix = 0.0;
+    pads[16].airLoading = 0.0; pads[16].modeScatter = 0.20;
+    pads[16].bodyDampingB3 = 0.0; pads[16].bodyDampingB1 = 0.55;
+    pads[16].pan = 0.66;
 
     k.opts.maxPolyphony   = 16;
     k.opts.stealingPolicy = 2;
-    k.crafted = {0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     return k;
 }
 Kit handDrumsKit() {
