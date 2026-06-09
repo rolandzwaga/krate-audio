@@ -4279,146 +4279,302 @@ Kit worldMetalKit() {
     Kit k{"World Metal", "Percussive", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Kalimba pads (0-7)
-    const int    kalimbaPads[] = {0, 1, 2, 3, 4, 5, 6, 7};
-    const double kalimbaMat[]  = {0.42, 0.48, 0.55, 0.62, 0.68, 0.75, 0.82, 0.88};
-    const double kalimbaSize[] = {0.40, 0.36, 0.32, 0.28, 0.25, 0.22, 0.20, 0.18};
-    for (int i = 0; i < 8; ++i) {
+    // Tuned-metal idiophone kit. Kalimba scale-graded (no x8 sameness),
+    // mbira on String, full FM-bell family added (FMImpulse live post L-3).
+    // modeInject 0 + airLoading 0 kit-wide (physically correct on
+    // Bell/Plate/Shell/String); tensionMod inert (no Membrane voice).
+    // 12 single voices have explicit plan values; the rest follow the
+    // cited archetypes within the plan's documented semantics.
+
+    // Kalimba C4-E5 (0-7) + F5/A5 octave extensions (30/31) -- one
+    // instrument across a scale: pitch grade + center-out pan + decaySkew.
+    const int    kalimbaPads[] = {0, 1, 2, 3, 4, 5, 6, 7, 30, 31};
+    const double kalimbaMat[]  = {0.40, 0.46, 0.52, 0.58, 0.63, 0.69, 0.74, 0.80, 0.83, 0.86};
+    const double kalimbaSize[] = {0.485, 0.435, 0.385, 0.310, 0.260, 0.185, 0.135, 0.085, 0.05, 0.02};
+    const double kalimbaDec[]  = {0.60, 0.56, 0.52, 0.47, 0.43, 0.38, 0.34, 0.30, 0.28, 0.26};
+    const double kalimbaPan[]  = {0.50, 0.38, 0.62, 0.30, 0.70, 0.25, 0.75, 0.50, 0.35, 0.65};
+    for (int i = 0; i < 10; ++i) {
         const int p = kalimbaPads[i];
         pads[p].exciterType = ExciterType::Mallet;
         pads[p].bodyModel = BodyModelType::Bell;
         pads[p].material = kalimbaMat[i]; pads[p].size = kalimbaSize[i];
-        pads[p].decay = 0.65; pads[p].level = 0.72;
-        pads[p].fmRatio = 0.42 + i * 0.02;
-        pads[p].modeStretch = 0.40;
-        pads[p].clickLayerMix = 0.45; pads[p].clickLayerContactMs = 0.18;
-        pads[p].clickLayerBrightness = 0.65;
-        pads[p].noiseLayerMix = 0.08;
+        pads[p].decay = kalimbaDec[i]; pads[p].level = 0.72;
+        pads[p].strikePosition = 0.15;
+        pads[p].modeStretch = 0.40; pads[p].decaySkew = 0.62;
+        pads[p].modeScatter = 0.08;
+        pads[p].clickLayerMix = 0.42; pads[p].clickLayerContactMs = 0.25;
+        pads[p].clickLayerBrightness = 0.78;
+        pads[p].noiseLayerMix = 0.10; pads[p].noiseLayerCutoff = 0.60;
+        pads[p].noiseLayerResonance = 0.30; pads[p].noiseLayerDecay = 0.20;
+        pads[p].noiseLayerColor = 0.65;
         pads[p].airLoading = 0.0;
-        pads[p].bodyDampingB3 = 0.0; pads[p].bodyDampingB1 = 0.30;
-        pads[p].decaySkew = 0.55;
-        pads[p].macroBrightness = 0.60 + i * 0.03;
+        pads[p].bodyDampingB1 = 0.18; pads[p].bodyDampingB3 = 0.10;
+        pads[p].pan = kalimbaPan[i];
     }
 
-    // Mbira (8-11)
+    // Mbira tines (8-11) -- String/Mallet; modal axes are String no-ops
+    // left neutral. material rises with pitch (darkens top sustain).
     const int    mbiraPads[] = {8, 9, 10, 11};
     const double mbiraMat[]  = {0.50, 0.62, 0.72, 0.82};
     const double mbiraSize[] = {0.32, 0.28, 0.24, 0.20};
+    const double mbiraPan[]  = {0.40, 0.47, 0.53, 0.60};
     for (int i = 0; i < 4; ++i) {
         const int p = mbiraPads[i];
         pads[p].exciterType = ExciterType::Mallet;
         pads[p].bodyModel = BodyModelType::String;
         pads[p].material = mbiraMat[i]; pads[p].size = mbiraSize[i];
         pads[p].decay = 0.78; pads[p].level = 0.70;
-        pads[p].modeStretch = 0.42;
+        pads[p].strikePosition = 0.85;   // pick near tip
         pads[p].nonlinearCoupling = 0.18;
         pads[p].clickLayerMix = 0.32; pads[p].clickLayerContactMs = 0.14;
         pads[p].clickLayerBrightness = 0.70;
-        pads[p].noiseLayerMix = 0.12;
+        pads[p].noiseLayerMix = 0.12; pads[p].noiseLayerCutoff = 0.72;
+        pads[p].noiseLayerResonance = 0.15; pads[p].noiseLayerDecay = 0.35;
+        pads[p].noiseLayerColor = 0.78;
         pads[p].airLoading = 0.0;
-        pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.22;
-        pads[p].decaySkew = 0.60;
+        pads[p].pan = mbiraPan[i];
     }
 
-    // Bell tree (12)
+    // Bell Tree (12) -- Bell/NoiseBurst inharmonic shimmer + morph dim
     pads[12].exciterType = ExciterType::NoiseBurst;
     pads[12].bodyModel = BodyModelType::Bell;
     pads[12].material = 0.95; pads[12].size = 0.30; pads[12].decay = 0.85;
     pads[12].level = 0.70;
-    pads[12].fmRatio = 0.55;
-    pads[12].modeStretch = 0.55;
-    pads[12].modeScatter = 0.55;
+    pads[12].modeStretch = 0.55; pads[12].modeScatter = 0.55;
+    pads[12].decaySkew = 0.78;
     pads[12].morphEnabled = 1.0;
     pads[12].morphStart = 0.85; pads[12].morphEnd = 0.55;
-    pads[12].morphDuration = 0.55; pads[12].morphCurve = 0.3;
+    pads[12].morphDuration = 0.55; pads[12].morphCurve = 0.0;  // linear
     pads[12].clickLayerMix = 0.55; pads[12].clickLayerBrightness = 0.92;
     pads[12].noiseLayerMix = 0.42; pads[12].noiseLayerCutoff = 0.92;
-    pads[12].noiseLayerColor = 0.85; pads[12].noiseLayerDecay = 0.85;
+    pads[12].noiseLayerColor = 0.90; pads[12].noiseLayerDecay = 0.85;  // violet
     pads[12].airLoading = 0.0;
     pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.30;
-    pads[12].decaySkew = 0.78;
+    pads[12].pan = 0.50;
 
-    // Crotales hi (13)
+    // Crotales hi (13) -- Bell, harmonic octave (modeStretch physical)
     pads[13].exciterType = ExciterType::Mallet;
     pads[13].bodyModel = BodyModelType::Bell;
-    pads[13].material = 0.92; pads[13].size = 0.16; pads[13].decay = 0.85;
+    pads[13].material = 0.92; pads[13].size = 0.12; pads[13].decay = 0.85;
     pads[13].level = 0.72;
-    pads[13].fmRatio = 0.62;
-    pads[13].clickLayerMix = 0.45; pads[13].clickLayerBrightness = 0.92;
+    pads[13].decaySkew = 0.58;
+    pads[13].clickLayerMix = 0.42; pads[13].clickLayerBrightness = 0.85;
     pads[13].noiseLayerMix = 0.0;
     pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
-    pads[13].decaySkew = 0.55;
+    pads[13].pan = 0.62;
 
     // Crotales lo (14)
     pads[14] = pads[13];
-    pads[14].size = 0.22; pads[14].fmRatio = 0.45;
+    pads[14].size = 0.22;
+    pads[14].pan = 0.38;
 
-    // Singing bowl (15)
+    // Singing Bowl (15) -- Bell/Friction, long bowed ring, aux bus 1
     pads[15].exciterType = ExciterType::Friction;
     pads[15].bodyModel = BodyModelType::Bell;
     pads[15].material = 0.78; pads[15].size = 0.45; pads[15].decay = 0.95;
     pads[15].level = 0.65;
     pads[15].frictionPressure = 0.28;
-    pads[15].modeStretch = 0.45;
+    pads[15].modeStretch = 0.45; pads[15].decaySkew = 0.85;
+    pads[15].modeScatter = 0.06;
     pads[15].nonlinearCoupling = 0.22;
     pads[15].morphEnabled = 1.0;
     pads[15].morphStart = 0.78; pads[15].morphEnd = 0.55;
-    pads[15].morphDuration = 0.85; pads[15].morphCurve = 0.5;
-    pads[15].tensionModAmt = 0.40;
-    pads[15].decaySkew = 0.85;
-    pads[15].noiseLayerMix = 0.10; pads[15].noiseLayerColor = 0.45;
+    pads[15].morphDuration = 0.85; pads[15].morphCurve = 0.15;  // exp, ~1.7 s
+    pads[15].noiseLayerMix = 0.10; pads[15].noiseLayerColor = 0.40;
     pads[15].clickLayerMix = 0.0;
     pads[15].airLoading = 0.0;
     pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.30;
     pads[15].outputBus = 1;
     pads[15].macroComplexity = 0.85;
+    pads[15].pan = 0.50;
 
-    // Wood blocks (16, 17)
+    // Wood block hi (16) -- Plate free-plate Chladni
     pads[16].exciterType = ExciterType::Impulse;
     pads[16].bodyModel = BodyModelType::Plate;
-    pads[16].material = 0.30; pads[16].size = 0.18; pads[16].decay = 0.18;
+    pads[16].material = 0.30; pads[16].size = 0.18; pads[16].decay = 0.16;
     pads[16].level = 0.72;
-    pads[16].modeStretch = 0.55;
-    pads[16].clickLayerMix = 0.85; pads[16].clickLayerBrightness = 0.78;
-    pads[16].clickLayerContactMs = 0.10;
+    pads[16].modeStretch = 0.50; pads[16].decaySkew = 0.50;
+    pads[16].modeScatter = 0.20;
+    pads[16].clickLayerMix = 0.78; pads[16].clickLayerContactMs = 0.10;
+    pads[16].clickLayerBrightness = 0.78;
     pads[16].noiseLayerMix = 0.0;
     pads[16].airLoading = 0.0;
-    pads[16].bodyDampingB1 = 0.42; pads[16].bodyDampingB3 = 0.10;
+    pads[16].bodyDampingB1 = 0.50; pads[16].bodyDampingB3 = 0.10;
+    pads[16].pan = 0.42;
 
+    // Wood block lo (17)
     pads[17] = pads[16];
-    pads[17].size = 0.28; pads[17].material = 0.28; pads[17].decay = 0.22;
+    pads[17].size = 0.28; pads[17].material = 0.28; pads[17].decay = 0.20;
+    pads[17].pan = 0.58;
 
-    // Tibetan tingsha (18)
+    // Tibetan Tingsha (18) -- Bell/Impulse, tens-of-sec ring
     pads[18].exciterType = ExciterType::Impulse;
     pads[18].bodyModel = BodyModelType::Bell;
     pads[18].material = 0.95; pads[18].size = 0.12; pads[18].decay = 0.92;
     pads[18].level = 0.65;
-    pads[18].fmRatio = 0.78; pads[18].modeStretch = 0.55;
-    pads[18].clickLayerMix = 0.50; pads[18].clickLayerBrightness = 0.95;
+    pads[18].modeStretch = 0.62; pads[18].decaySkew = 0.38;
+    pads[18].nonlinearCoupling = 0.22; pads[18].modeScatter = 0.12;
+    pads[18].clickLayerMix = 0.40; pads[18].clickLayerBrightness = 0.85;
     pads[18].noiseLayerMix = 0.0;
     pads[18].airLoading = 0.0;
-    pads[18].bodyDampingB3 = 0.0; pads[18].bodyDampingB1 = 0.30;
-    pads[18].decaySkew = 0.65;
+    pads[18].bodyDampingB3 = 0.04; pads[18].bodyDampingB1 = 0.08;
+    pads[18].pan = 0.50;
 
-    // Indian temple bell (19)
+    // Indian Temple Bell (19) -- Bell/Mallet, warm hum
     pads[19].exciterType = ExciterType::Mallet;
     pads[19].bodyModel = BodyModelType::Bell;
-    pads[19].material = 0.85; pads[19].size = 0.50; pads[19].decay = 0.92;
+    pads[19].material = 0.82; pads[19].size = 0.50; pads[19].decay = 0.92;
     pads[19].level = 0.70;
-    pads[19].fmRatio = 0.30;
-    pads[19].modeStretch = 0.50;
-    pads[19].clickLayerMix = 0.30; pads[19].clickLayerBrightness = 0.65;
-    pads[19].noiseLayerMix = 0.05;
+    pads[19].modeStretch = 0.40; pads[19].decaySkew = 0.78;
+    pads[19].modeScatter = 0.06;
+    pads[19].clickLayerMix = 0.28; pads[19].clickLayerBrightness = 0.42;
+    pads[19].noiseLayerMix = 0.04;
     pads[19].airLoading = 0.0;
-    pads[19].bodyDampingB3 = 0.0; pads[19].bodyDampingB1 = 0.30;
-    pads[19].decaySkew = 0.78;
-    pads[19].tensionModAmt = 0.18;
+    pads[19].bodyDampingB3 = 0.06; pads[19].bodyDampingB1 = 0.18;
+    pads[19].pan = 0.50;
 
-    k.opts.maxPolyphony    = 16;
+    // Gong / Tam-Tam (20, NEW) -- Bell/Mallet, bloom + head-shell secondary
+    pads[20].exciterType = ExciterType::Mallet;
+    pads[20].bodyModel = BodyModelType::Bell;
+    pads[20].material = 0.85; pads[20].size = 0.85; pads[20].decay = 0.95;
+    pads[20].level = 0.78; pads[20].strikePosition = 0.60;
+    pads[20].modeStretch = 0.62; pads[20].modeScatter = 0.55;
+    pads[20].decaySkew = 0.65; pads[20].nonlinearCoupling = 0.80;
+    pads[20].morphEnabled = 1.0;
+    pads[20].morphStart = 0.85; pads[20].morphEnd = 0.55;
+    pads[20].morphDuration = 0.85; pads[20].morphCurve = 0.5;
+    pads[20].couplingStrength = 0.85; pads[20].secondaryEnabled = 1.0;
+    pads[20].secondarySize = 0.40; pads[20].secondaryMaterial = 0.70;
+    pads[20].clickLayerMix = 0.30; pads[20].clickLayerContactMs = 0.22;
+    pads[20].clickLayerBrightness = 0.40;
+    pads[20].noiseLayerMix = 0.30; pads[20].noiseLayerColor = 0.90;  // violet
+    pads[20].noiseLayerDecay = 0.90;
+    pads[20].airLoading = 0.0;
+    pads[20].bodyDampingB3 = 0.0; pads[20].bodyDampingB1 = 0.30;
+    pads[20].outputBus = 1;
+    pads[20].macroComplexity = 0.85;
+    pads[20].pan = 0.50;
+
+    // Triangle (21, NEW) -- Shell free-free bar (only Shell body)
+    pads[21].exciterType = ExciterType::Impulse;
+    pads[21].bodyModel = BodyModelType::Shell;
+    pads[21].material = 0.95; pads[21].size = 0.085; pads[21].decay = 0.85;
+    pads[21].level = 0.70; pads[21].strikePosition = 0.18;
+    pads[21].modeStretch = 0.62; pads[21].decaySkew = 0.40;
+    pads[21].modeScatter = 0.12;
+    pads[21].clickLayerMix = 0.95; pads[21].clickLayerContactMs = 0.06;
+    pads[21].clickLayerBrightness = 0.97;
+    pads[21].noiseLayerMix = 0.0;
+    pads[21].airLoading = 0.0;
+    pads[21].bodyDampingB3 = 0.02; pads[21].bodyDampingB1 = 0.30;
+    pads[21].pan = 0.60;
+
+    // Tubular Bell (22, NEW) -- String/Mallet long tube
+    pads[22].exciterType = ExciterType::Mallet;
+    pads[22].bodyModel = BodyModelType::String;
+    pads[22].material = 0.85; pads[22].size = 0.55; pads[22].decay = 0.92;
+    pads[22].level = 0.72; pads[22].strikePosition = 0.30;
+    pads[22].nonlinearCoupling = 0.12;
+    pads[22].clickLayerMix = 0.40; pads[22].clickLayerContactMs = 0.20;
+    pads[22].clickLayerBrightness = 0.65;
+    pads[22].noiseLayerMix = 0.10;
+    pads[22].airLoading = 0.0;
+    pads[22].pan = 0.50;
+
+    // Agogo hi (23, NEW) -- Bell/FMImpulse
+    pads[23].exciterType = ExciterType::FMImpulse;
+    pads[23].bodyModel = BodyModelType::Bell;
+    pads[23].material = 0.85; pads[23].size = 0.14; pads[23].decay = 0.28;
+    pads[23].level = 0.74;
+    pads[23].fmRatio = 0.72;   // -> 3.16
+    pads[23].modeStretch = 0.45; pads[23].decaySkew = 0.40;
+    pads[23].clickLayerMix = 0.55; pads[23].clickLayerBrightness = 0.85;
+    pads[23].noiseLayerMix = 0.0;
+    pads[23].airLoading = 0.0;
+    pads[23].bodyDampingB3 = 0.0; pads[23].bodyDampingB1 = 0.30;
+    pads[23].macroBrightness = 0.65;
+    pads[23].pan = 0.42;
+
+    // Agogo lo (24, NEW)
+    pads[24] = pads[23];
+    pads[24].size = 0.22; pads[24].decay = 0.35; pads[24].fmRatio = 0.55;  // -> 2.65
+    pads[24].pan = 0.58;
+
+    // Cowbell (25, NEW) -- Bell/FMImpulse, detuned-fifth clang
+    pads[25].exciterType = ExciterType::FMImpulse;
+    pads[25].bodyModel = BodyModelType::Bell;
+    pads[25].material = 0.78; pads[25].size = 0.22; pads[25].decay = 0.30;
+    pads[25].level = 0.76;
+    pads[25].fmRatio = 0.50;   // -> 2.5
+    pads[25].modeStretch = 0.55; pads[25].modeScatter = 0.20;
+    pads[25].clickLayerMix = 0.55; pads[25].clickLayerBrightness = 0.72;
+    pads[25].noiseLayerMix = 0.10; pads[25].noiseLayerColor = 0.40;  // pink halo
+    pads[25].airLoading = 0.0;
+    pads[25].bodyDampingB3 = 0.0; pads[25].bodyDampingB1 = 0.32;
+    pads[25].macroBrightness = 0.65;
+    pads[25].pan = 0.50;
+
+    // FM-Bell Perc (26, NEW) -- Bell/FMImpulse ping
+    pads[26].exciterType = ExciterType::FMImpulse;
+    pads[26].bodyModel = BodyModelType::Bell;
+    pads[26].material = 0.80; pads[26].size = 0.25; pads[26].decay = 0.20;
+    pads[26].level = 0.74;
+    pads[26].fmRatio = 0.40;   // -> 2.2
+    pads[26].clickLayerMix = 0.15;
+    pads[26].noiseLayerMix = 0.0;
+    pads[26].airLoading = 0.0;
+    pads[26].bodyDampingB3 = 0.0; pads[26].bodyDampingB1 = 0.30;
+    pads[26].pan = 0.50;
+
+    // Sub-Bell Perc (27, NEW) -- Bell/FMImpulse, the only Drive user
+    pads[27].exciterType = ExciterType::FMImpulse;
+    pads[27].bodyModel = BodyModelType::Bell;
+    pads[27].material = 0.70; pads[27].size = 0.35; pads[27].decay = 0.40;
+    pads[27].level = 0.80;   // kit's loudest pad (recipe default)
+    pads[27].fmRatio = 0.72;   // -> 3.16 grit
+    pads[27].modeStretch = 0.45; pads[27].decaySkew = 0.42;
+    pads[27].nonlinearCoupling = 0.40; pads[27].tsDriveAmount = 0.30;
+    pads[27].clickLayerMix = 0.50; pads[27].clickLayerBrightness = 0.80;
+    pads[27].noiseLayerMix = 0.12; pads[27].noiseLayerColor = 0.90;  // violet
+    pads[27].airLoading = 0.0;
+    pads[27].bodyDampingB3 = 0.0; pads[27].bodyDampingB1 = 0.30;
+    pads[27].pan = 0.50;
+
+    // Ride Bell ping (28, NEW) -- Bell/NoiseBurst, aux bus 1
+    pads[28].exciterType = ExciterType::NoiseBurst;
+    pads[28].bodyModel = BodyModelType::Bell;
+    pads[28].material = 0.90; pads[28].size = 0.18; pads[28].decay = 0.70;
+    pads[28].level = 0.72;
+    pads[28].noiseBurstDuration = 0.20;
+    pads[28].modeStretch = 0.45; pads[28].decaySkew = 0.55;
+    pads[28].modeScatter = 0.15;
+    pads[28].noiseLayerMix = 0.30; pads[28].noiseLayerCutoff = 0.90;
+    pads[28].noiseLayerColor = 0.90; pads[28].noiseLayerDecay = 0.55;  // violet
+    pads[28].clickLayerMix = 0.45; pads[28].clickLayerBrightness = 0.88;
+    pads[28].airLoading = 0.0;
+    pads[28].bodyDampingB3 = 0.0; pads[28].bodyDampingB1 = 0.25;
+    pads[28].outputBus = 1;
+    pads[28].pan = 0.40;
+
+    // Glass Bell (29, NEW) -- Bell/FMImpulse, pure clean counterpart
+    pads[29].exciterType = ExciterType::FMImpulse;
+    pads[29].bodyModel = BodyModelType::Bell;
+    pads[29].material = 0.85; pads[29].size = 0.20; pads[29].decay = 0.85;
+    pads[29].level = 0.72;
+    pads[29].fmRatio = 0.30;   // -> 1.9 pure
+    pads[29].modeStretch = 0.40; pads[29].decaySkew = 0.45;
+    pads[29].clickLayerMix = 0.30;
+    pads[29].noiseLayerMix = 0.0;
+    pads[29].airLoading = 0.0;
+    pads[29].bodyDampingB3 = 0.0; pads[29].bodyDampingB1 = 0.20;
+    pads[29].pan = 0.60;
+
+    k.opts.maxPolyphony    = 20;
     k.opts.globalCoupling  = 0.40;
     k.opts.couplingDelayMs = 1.4;
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
     return k;
 }
 Kit cajonFramesKit() {
