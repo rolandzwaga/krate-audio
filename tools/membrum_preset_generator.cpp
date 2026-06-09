@@ -3158,22 +3158,26 @@ Kit modularWestCoastKit() {
     pads[0].exciterType = ExciterType::Feedback;
     pads[0].bodyModel = BodyModelType::Membrane;
     pads[0].material = 0.25; pads[0].size = 0.85; pads[0].decay = 0.40;
-    pads[0].level = 0.80;
+    pads[0].strikePosition = 0.30; pads[0].level = 0.80;
     pads[0].feedbackAmount = 0.45;
     pads[0].tsPitchEnvStart = toLogNorm(220);
     pads[0].tsPitchEnvEnd   = toLogNorm(45);
     pads[0].tsPitchEnvTime  = 0.06;
+    pads[0].tsPitchEnvCurve = 0.15;
     pads[0].tsFoldAmount    = 0.30;
-    pads[0].airLoading = 0.0;
+    pads[0].airLoading = 0.0; pads[0].modeScatter = 0.0;
+    pads[0].modeStretch = 0.45; pads[0].decaySkew = 0.50; // neutral skew per archetype
     pads[0].couplingStrength = 0.20; pads[0].secondaryEnabled = 1.0;
     pads[0].secondarySize = 0.45; pads[0].secondaryMaterial = 0.85;
     pads[0].tensionModAmt = 0.45;
     pads[0].clickLayerMix = 0.30; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.55;
-    pads[0].noiseLayerMix = 0.20;
+    pads[0].noiseLayerMix = 0.20; pads[0].noiseLayerCutoff = 0.50;
+    pads[0].noiseLayerColor = 0.40; pads[0].noiseLayerDecay = 0.30; // Pink
     pads[0].nonlinearCoupling = 0.40;
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroComplexity = 0.85; pads[0].macroPunch = 0.65;
+    pads[0].pan = 0.50;
 
     // Snare (FM Plate, redesigned: keeps FM character, gains body + click)
     pads[2].exciterType = ExciterType::FMImpulse;
@@ -3182,7 +3186,7 @@ Kit modularWestCoastKit() {
     pads[2].level = 0.95;
     pads[2].fmRatio = 0.55;
     pads[2].modeStretch = 0.55;
-    pads[2].modeInjectAmount = 0.0;
+    pads[2].modeInjectAmount = 0.12; // FIX: was 0.0 despite plan claim (1/k fill)
     pads[2].nonlinearCoupling = 0.45;
     pads[2].tsDriveAmount = 0.28;
     pads[2].tsFilterType = FilterType::LP;
@@ -3208,22 +3212,24 @@ Kit modularWestCoastKit() {
     pads[2].clickLayerBrightness = 0.85;
     pads[2].airLoading = 0.0; pads[2].modeScatter = 0.45;
     pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.18;
+    pads[2].pan = 0.50;
 
     // Sub-bell perc (4)
     pads[4].exciterType = ExciterType::FMImpulse;
     pads[4].bodyModel = BodyModelType::Bell;
-    pads[4].material = 0.55; pads[4].size = 0.32; pads[4].decay = 0.55;
-    pads[4].level = 0.75;
-    pads[4].fmRatio = 0.72; pads[4].feedbackAmount = 0.30;
+    pads[4].material = 0.60; pads[4].size = 0.32; pads[4].decay = 0.55;
+    pads[4].strikePosition = 0.20; pads[4].level = 0.75;
+    pads[4].fmRatio = 0.72; pads[4].feedbackAmount = 0.30; // feedbackAmount inert under FMImpulse (doc only)
     pads[4].modeStretch = 0.50;
     pads[4].nonlinearCoupling = 0.30;
     pads[4].clickLayerMix = 0.45; pads[4].clickLayerBrightness = 0.85;
     pads[4].noiseLayerMix = 0.10;
     pads[4].airLoading = 0.0;
     pads[4].bodyDampingB3 = 0.0; pads[4].bodyDampingB1 = 0.30;
-    pads[4].decaySkew = 0.45;
+    pads[4].decaySkew = 0.45; pads[4].pan = 0.42;
 
-    // Friction string drone (1)
+    // Friction string drone (1) — aux bus 1. Note: modeStretch/decaySkew/b1/b3
+    // are set but INERT on String (String bypasses the modal bank).
     pads[1].exciterType = ExciterType::Friction;
     pads[1].bodyModel = BodyModelType::String;
     pads[1].material = 0.50; pads[1].size = 0.55; pads[1].decay = 0.85;
@@ -3239,7 +3245,7 @@ Kit modularWestCoastKit() {
     pads[1].clickLayerMix = 0.0;
     pads[1].bodyDampingB1 = 0.30; pads[1].bodyDampingB3 = 0.20;
     pads[1].outputBus = 1;
-    pads[1].macroComplexity = 0.85;
+    pads[1].macroComplexity = 0.85; pads[1].pan = 0.30;
 
     // Hats: FM bell + scatter
     pads[6].exciterType = ExciterType::FMImpulse;
@@ -3253,6 +3259,7 @@ Kit modularWestCoastKit() {
     pads[6].clickLayerMix = 0.25; pads[6].clickLayerBrightness = 0.92;
     pads[6].airLoading = 0.0;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.55;
+    pads[6].pan = 0.62;
 
     pads[8] = pads[6];
     pads[8].decay = 0.05; pads[8].fmRatio = 0.65;
@@ -3261,8 +3268,12 @@ Kit modularWestCoastKit() {
     pads[10].decay = 0.50; pads[10].fmRatio = 0.55;
     pads[10].noiseLayerDecay = 0.48;
 
-    // Toms (inharmonic plates)
-    const int tomPads[] = {5, 7, 9, 11, 12, 14};
+    // Toms (inharmonic plates). decaySkew 0.40 (FIX: was neutral 0.50 — applies
+    // the real M-5 per-mode tilt the plan claimed). tensionMod 0.45 is INERT on
+    // Plate (Membrane-only); the kerthump comes from the pitch env. Pan sweeps
+    // L->R across the row.
+    const int    tomPads[] = {5, 7, 9, 11, 12, 14};
+    const double tomPan[]  = {0.30, 0.38, 0.46, 0.54, 0.62, 0.70};
     for (int i = 0; i < 6; ++i) {
         const int p = tomPads[i];
         pads[p].exciterType = (i % 2 == 0) ? ExciterType::FMImpulse : ExciterType::Feedback;
@@ -3276,7 +3287,7 @@ Kit modularWestCoastKit() {
         pads[p].modeStretch = 0.30 + i * 0.05;
         pads[p].modeInjectAmount = 0.0;
         pads[p].nonlinearCoupling = 0.40;
-        pads[p].decaySkew = 0.50;
+        pads[p].decaySkew = 0.40;
         pads[p].tsPitchEnvStart = toLogNorm(280 + i * 60);
         pads[p].tsPitchEnvEnd   = toLogNorm(70 + i * 25);
         pads[p].tsPitchEnvTime  = 0.10;
@@ -3290,29 +3301,135 @@ Kit modularWestCoastKit() {
         pads[p].bodyDampingB1 = 0.30 + 0.03 * i; pads[p].bodyDampingB3 = 0.30;
         pads[p].macroComplexity = 0.75;
         pads[p].couplingAmount = 0.65;
+        pads[p].pan = tomPan[i];
     }
 
     // Crash (13)
     pads[13].exciterType = ExciterType::FMImpulse;
     pads[13].bodyModel = BodyModelType::Bell;
     pads[13].material = 0.92; pads[13].size = 0.45; pads[13].decay = 0.78;
-    pads[13].level = 0.72;
+    pads[13].strikePosition = 0.32; pads[13].level = 0.72;
     pads[13].fmRatio = 0.45;
     pads[13].modeStretch = 0.55;
     pads[13].modeScatter = 0.65;
+    pads[13].modeInjectAmount = 0.10; // FIX: was unset despite plan claim
     pads[13].nonlinearCoupling = 0.45;
     pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].noiseLayerMix = 0.40; pads[13].noiseLayerCutoff = 0.92;
     pads[13].noiseLayerColor = 0.85; pads[13].noiseLayerDecay = 0.72;
     pads[13].clickLayerMix = 0.35; pads[13].clickLayerBrightness = 0.85;
+    pads[13].pan = 0.58;
+
+    // NEW pads: Clap/Rim (3), Ride (15), Splash (16), Hi Sub-Bell (17),
+    // Feedback-Plate Drone (18, +in-loop bandpass), Friction-Membrane Drone (19).
+    // Pad 3 — Inharmonic-Plate Clap/Rim (Plate/Impulse).
+    pads[3].exciterType = ExciterType::Impulse;
+    pads[3].bodyModel = BodyModelType::Plate;
+    pads[3].material = 0.78; pads[3].size = 0.18; pads[3].decay = 0.12;
+    pads[3].level = 0.85;
+    pads[3].modeStretch = 0.55; pads[3].modeScatter = 0.45;
+    pads[3].nonlinearCoupling = 0.30;
+    pads[3].clickLayerMix = 0.90; pads[3].clickLayerContactMs = 0.06;
+    pads[3].clickLayerBrightness = 0.92;
+    pads[3].noiseLayerMix = 0.30; pads[3].noiseLayerDecay = 0.15;
+    pads[3].airLoading = 0.0;
+    pads[3].bodyDampingB1 = 0.50; pads[3].bodyDampingB3 = 0.10;
+    pads[3].pan = 0.55;
+
+    // Pad 15 — FM-Bell Ride (Bell/FMImpulse, aux bus 1).
+    pads[15].exciterType = ExciterType::FMImpulse;
+    pads[15].bodyModel = BodyModelType::Bell;
+    pads[15].material = 0.90; pads[15].size = 0.38; pads[15].decay = 0.85;
+    pads[15].strikePosition = 0.25; pads[15].level = 0.70;
+    pads[15].fmRatio = 0.40;
+    pads[15].modeStretch = 0.40; pads[15].modeScatter = 0.45; pads[15].decaySkew = 0.45;
+    pads[15].nonlinearCoupling = 0.35;
+    pads[15].noiseLayerMix = 0.30; pads[15].noiseLayerCutoff = 0.88;
+    pads[15].noiseLayerColor = 0.85; pads[15].noiseLayerDecay = 0.70;
+    pads[15].clickLayerMix = 0.50; pads[15].clickLayerBrightness = 0.90;
+    pads[15].airLoading = 0.0;
+    pads[15].bodyDampingB1 = 0.25; pads[15].bodyDampingB3 = 0.0;
+    pads[15].outputBus = 1; pads[15].pan = 0.66;
+
+    // Pad 16 — FM-Bell Splash (Bell/FMImpulse).
+    pads[16].exciterType = ExciterType::FMImpulse;
+    pads[16].bodyModel = BodyModelType::Bell;
+    pads[16].material = 0.92; pads[16].size = 0.28; pads[16].decay = 0.35;
+    pads[16].level = 0.70;
+    pads[16].fmRatio = 0.50;
+    pads[16].modeStretch = 0.55; pads[16].modeScatter = 0.65;
+    pads[16].nonlinearCoupling = 0.40;
+    pads[16].noiseLayerMix = 0.35; pads[16].noiseLayerCutoff = 0.92;
+    pads[16].noiseLayerColor = 0.85; pads[16].noiseLayerDecay = 0.28;
+    pads[16].clickLayerMix = 0.35; pads[16].clickLayerBrightness = 0.85;
+    pads[16].airLoading = 0.0;
+    pads[16].bodyDampingB1 = 0.35; pads[16].bodyDampingB3 = 0.0;
+    pads[16].pan = 0.34;
+
+    // Pad 17 — Hi Sub-Bell Perc (Bell/FMImpulse).
+    pads[17].exciterType = ExciterType::FMImpulse;
+    pads[17].bodyModel = BodyModelType::Bell;
+    pads[17].material = 0.62; pads[17].size = 0.22; pads[17].decay = 0.40;
+    pads[17].strikePosition = 0.20; pads[17].level = 0.72;
+    pads[17].fmRatio = 0.65;
+    pads[17].modeStretch = 0.45; pads[17].decaySkew = 0.45;
+    pads[17].nonlinearCoupling = 0.30;
+    pads[17].tsDriveAmount = 0.25;
+    pads[17].clickLayerMix = 0.45; pads[17].clickLayerBrightness = 0.85;
+    pads[17].noiseLayerMix = 0.10;
+    pads[17].airLoading = 0.0;
+    pads[17].bodyDampingB1 = 0.30; pads[17].bodyDampingB3 = 0.0;
+    pads[17].pan = 0.58;
+
+    // Pad 18 — Feedback-Plate Drone (Plate/Feedback, aux bus 1). The in-loop
+    // BANDPASS ToneShaper is the regenerative band-selector that makes the
+    // drone evolve rather than squeal (the plan's biggest correctness fix).
+    pads[18].exciterType = ExciterType::Feedback;
+    pads[18].bodyModel = BodyModelType::Plate;
+    pads[18].material = 0.62; pads[18].size = 0.60; pads[18].decay = 0.88;
+    pads[18].strikePosition = 0.45; pads[18].level = 0.60;
+    pads[18].feedbackAmount = 0.55; pads[18].tsFoldAmount = 0.25;
+    pads[18].modeStretch = 0.50; pads[18].modeScatter = 0.35;
+    pads[18].modeInjectAmount = 0.15; pads[18].nonlinearCoupling = 0.50;
+    pads[18].decaySkew = 0.78;
+    pads[18].tsFilterType = FilterType::BP;
+    pads[18].tsFilterCutoff = 0.55; pads[18].tsFilterResonance = 0.45;
+    pads[18].tsFilterEnvAmount = 0.65; pads[18].tsFilterEnvAttack = 0.45;
+    pads[18].tsFilterEnvDecay = 0.60; pads[18].tsFilterEnvSustain = 0.55;
+    pads[18].tsFilterEnvRelease = 0.65;
+    pads[18].noiseLayerMix = 0.30; pads[18].noiseLayerCutoff = 0.55;
+    pads[18].noiseLayerColor = 0.70; pads[18].noiseLayerDecay = 0.85; // White
+    pads[18].clickLayerMix = 0.0;
+    pads[18].airLoading = 0.0;
+    pads[18].bodyDampingB1 = 0.20; pads[18].bodyDampingB3 = 0.20;
+    pads[18].outputBus = 1; pads[18].macroComplexity = 0.80; pads[18].pan = 0.72;
+
+    // Pad 19 — Friction-Membrane Drone (Membrane/Friction, aux bus 1). Uses
+    // tensionMod (cuica glide) and airLoading, both Membrane-consumed.
+    pads[19].exciterType = ExciterType::Friction;
+    pads[19].bodyModel = BodyModelType::Membrane;
+    pads[19].material = 0.45; pads[19].size = 0.70; pads[19].decay = 0.80;
+    pads[19].level = 0.60;
+    pads[19].frictionPressure = 0.60;
+    pads[19].nonlinearCoupling = 0.50;
+    pads[19].tensionModAmt = 0.40; pads[19].airLoading = 0.70;
+    pads[19].modeStretch = 0.40; pads[19].modeScatter = 0.18;
+    pads[19].morphEnabled = 1.0;
+    pads[19].morphStart = 0.40; pads[19].morphEnd = 0.75;
+    pads[19].morphDuration = 0.55; pads[19].morphCurve = 0.5;
+    pads[19].noiseLayerMix = 0.18; pads[19].noiseLayerColor = 0.12; // Brown
+    pads[19].clickLayerMix = 0.0;
+    pads[19].bodyDampingB1 = 0.25; pads[19].bodyDampingB3 = 0.20;
+    pads[19].outputBus = 1; pads[19].pan = 0.28;
 
     k.opts.maxPolyphony    = 12;
     k.opts.stealingPolicy  = 1;
     k.opts.globalCoupling  = 0.65;
     k.opts.tomResonance    = 0.55;
     k.opts.couplingDelayMs = 1.4;
-    k.crafted = {0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                 15, 16, 17, 18, 19};
     return k;
 }
 
