@@ -5650,78 +5650,263 @@ Kit droneSustainKit() {
     Kit k{"Drone and Sustain", "Unnatural", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Friction strings (0-7)
-    for (int i = 0; i <= 7; ++i) {
-        const int p = i;
-        pads[p].exciterType = ExciterType::Friction;
-        pads[p].bodyModel = (i % 2 == 0) ? BodyModelType::String : BodyModelType::Membrane;
-        pads[p].material = 0.35 + (i / 7.0) * 0.50;
-        pads[p].size     = 0.40 + (i % 4) * 0.10;
-        pads[p].decay    = 0.92;
-        pads[p].level    = 0.62;
-        pads[p].frictionPressure = 0.35 + (i % 3) * 0.12;
-        pads[p].modeStretch = 0.30 + (i % 6) * 0.06;
-        pads[p].modeInjectAmount = 0.0;
-        pads[p].nonlinearCoupling = 0.40 + (i % 4) * 0.10;
-        pads[p].decaySkew = 0.85;
-        pads[p].morphEnabled = (i % 3 == 0) ? 1.0 : 0.0;
-        if (pads[p].morphEnabled != 0.0) {
-            pads[p].morphStart = 0.40; pads[p].morphEnd = 0.85;
-            pads[p].morphDuration = 0.85; pads[p].morphCurve = 0.5;
+    // 32-pad layer-and-hold sustain instrument: 7 drone families. Morph
+    // durations (seconds in plan) approximated to normalized morphDuration:
+    // ~1.7 s->0.85, ~1.4 s->0.75, ~0.4 s->0.30.
+
+    // --- Friction String Drone 0,2,4,6 (String/Friction, west-coast Drive/Fold) ---
+    {
+        const int    pd[]  = {0, 2, 4, 6};
+        const double mat[] = {0.45, 0.55, 0.64, 0.74};
+        const double sz[]  = {0.40, 0.47, 0.55, 0.62};
+        const double fri[] = {0.45, 0.49, 0.53, 0.57};
+        const double nlc[] = {0.35, 0.37, 0.38, 0.40};
+        const double cut[] = {0.45, 0.47, 0.50, 0.52};
+        const double pan[] = {0.14, 0.32, 0.52, 0.72};
+        for (int i = 0; i < 4; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Friction;
+            pads[p].bodyModel = BodyModelType::String;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.92;
+            pads[p].level = 0.62;
+            pads[p].frictionPressure = fri[i];
+            pads[p].modeStretch = 0.30 + i * 0.04; // inert on String, kept for consistency
+            pads[p].nonlinearCoupling = nlc[i];
+            pads[p].decaySkew = 0.85;
+            pads[p].tsFilterType = FilterType::LP;
+            pads[p].tsFilterCutoff = cut[i]; pads[p].tsFilterResonance = 0.35;
+            pads[p].tsFilterEnvAmount = 0.62; pads[p].tsFilterEnvAttack = 0.20;
+            pads[p].tsFilterEnvDecay = 0.40; pads[p].tsFilterEnvSustain = 0.55;
+            pads[p].tsFilterEnvRelease = 0.65;
+            pads[p].tsDriveAmount = 0.26; pads[p].tsFoldAmount = 0.22; // west-coast
+            pads[p].modeScatter = 0.10 + i * 0.04;
+            pads[p].airLoading = 0.0;
+            pads[p].couplingStrength = 0.18; pads[p].secondaryEnabled = 1.0;
+            pads[p].secondarySize = 0.50; pads[p].secondaryMaterial = 0.65;
+            pads[p].noiseLayerMix = 0.16; pads[p].noiseLayerColor = 0.12; // Brown
+            pads[p].noiseLayerCutoff = 0.50; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = 0.0;
+            pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.20;
+            pads[p].macroComplexity = 0.85; pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+            if (i % 3 == 0) { // morph on a subset
+                pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.40;
+                pads[p].morphEnd = 0.85; pads[p].morphDuration = 0.85;
+                pads[p].morphCurve = 0.5;
+            }
         }
-        pads[p].tsFilterType = FilterType::LP;
-        pads[p].tsFilterCutoff = 0.45;
-        pads[p].tsFilterResonance = 0.35;
-        pads[p].tsFilterEnvAmount = 0.55;
-        pads[p].tsFilterEnvAttack = 0.20;
-        pads[p].tsFilterEnvDecay  = 0.40;
-        pads[p].tsFilterEnvSustain = 0.55;
-        pads[p].tsFilterEnvRelease = 0.65;
-        pads[p].modeScatter = 0.10 + (i % 4) * 0.08;
-        pads[p].airLoading  = 0.0;
-        pads[p].couplingStrength = 0.18; pads[p].secondaryEnabled = 1.0;
-        pads[p].secondarySize = 0.50; pads[p].secondaryMaterial = 0.65;
-        pads[p].tensionModAmt = 0.25 + (i % 4) * 0.10;
-        pads[p].noiseLayerMix = 0.18 + (i % 4) * 0.08;
-        pads[p].noiseLayerCutoff = 0.50;
-        pads[p].noiseLayerColor  = 0.40;
-        pads[p].noiseLayerDecay  = 0.85;
-        pads[p].clickLayerMix    = 0.0;
-        pads[p].bodyDampingB1 = 0.30 + (i % 6) * 0.02;
-        pads[p].bodyDampingB3 = 0.18 + (i % 4) * 0.05;
-        pads[p].outputBus = i % 2;
-        pads[p].macroComplexity = 0.78;
-        pads[p].couplingAmount = 0.85;
     }
 
-    // Feedback drones (8-13)
-    for (int i = 8; i <= 13; ++i) {
-        const int p = i;
-        pads[p].exciterType = ExciterType::Feedback;
-        pads[p].bodyModel = (i % 2 == 0) ? BodyModelType::Plate : BodyModelType::Shell;
-        pads[p].material = 0.40 + ((i - 8) / 6.0) * 0.45;
-        pads[p].size     = 0.45 + (i % 3) * 0.12;
-        pads[p].decay    = 0.92;
-        pads[p].level    = 0.62;
-        pads[p].feedbackAmount = 0.40 + (i % 4) * 0.10;
-        pads[p].modeStretch = 0.25 + (i % 5) * 0.08;
-        pads[p].modeInjectAmount = 0.0;
-        pads[p].nonlinearCoupling = 0.55;
-        pads[p].decaySkew = 0.78;
-        pads[p].tsFilterType = FilterType::BP;
-        pads[p].tsFilterCutoff = 0.55;
-        pads[p].tsFilterResonance = 0.45;
-        pads[p].tsFilterEnvAmount = 0.30;
-        pads[p].modeScatter = 0.40;
-        pads[p].airLoading  = 0.20;
-        pads[p].couplingStrength = 0.30;
-        pads[p].tensionModAmt = 0.45;
-        pads[p].noiseLayerMix = 0.30; pads[p].noiseLayerCutoff = 0.55;
-        pads[p].noiseLayerColor = 0.55; pads[p].noiseLayerDecay = 0.85;
-        pads[p].clickLayerMix = 0.0;
-        pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.20;
-        pads[p].outputBus = 1;
-        pads[p].couplingAmount = 0.85;
+    // --- Friction Membrane Drone 1,3,5,7 (Membrane/Friction, cuica glide) ---
+    {
+        const int    pd[]  = {1, 3, 5, 7};
+        const double mat[] = {0.40, 0.55, 0.70, 0.85};
+        const double sz[]  = {0.50, 0.57, 0.63, 0.70};
+        const double ten[] = {0.40, 0.45, 0.50, 0.55};
+        const double pan[] = {0.22, 0.40, 0.60, 0.80};
+        for (int i = 0; i < 4; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Friction;
+            pads[p].bodyModel = BodyModelType::Membrane;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.92;
+            pads[p].level = 0.62;
+            pads[p].frictionPressure = 0.45;
+            pads[p].decaySkew = 0.85;
+            pads[p].modeInjectAmount = 0.18; // 1/k bowed (stick-slip) series
+            pads[p].nonlinearCoupling = 0.38;
+            pads[p].airLoading = 0.50;
+            pads[p].tensionModAmt = ten[i]; // Membrane-only cuica glide
+            pads[p].tsFilterType = FilterType::LP;
+            pads[p].tsFilterCutoff = 0.48; pads[p].tsFilterResonance = 0.35;
+            pads[p].tsFilterEnvAmount = 0.55; pads[p].tsFilterEnvAttack = 0.20;
+            pads[p].tsFilterEnvDecay = 0.40; pads[p].tsFilterEnvSustain = 0.55;
+            pads[p].tsFilterEnvRelease = 0.65;
+            pads[p].modeScatter = 0.12;
+            pads[p].couplingStrength = 0.18; pads[p].secondaryEnabled = 1.0;
+            pads[p].secondarySize = 0.50; pads[p].secondaryMaterial = 0.65;
+            pads[p].noiseLayerMix = 0.20; pads[p].noiseLayerColor = 0.40; // Pink
+            pads[p].noiseLayerCutoff = 0.50; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = 0.0;
+            pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.20;
+            pads[p].macroComplexity = 0.85; pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Feedback Plate (8,10,12) / Shell (9,11,13) Drone (evolving BP bloom) ---
+    {
+        const double mat[]  = {0.62, 0.67, 0.72, 0.77, 0.81, 0.85};
+        const double sz[]   = {0.45, 0.49, 0.53, 0.59, 0.63, 0.67};
+        const double fb[]   = {0.45, 0.46, 0.47, 0.48, 0.49, 0.50};
+        const double str[]  = {0.45, 0.47, 0.50, 0.53, 0.55, 0.57};
+        const double cut[]  = {0.55, 0.56, 0.57, 0.56, 0.57, 0.58};
+        const double pan[]  = {0.16, 0.30, 0.44, 0.58, 0.72, 0.86};
+        for (int i = 0; i < 6; ++i) {
+            const int p = 8 + i;
+            pads[p].exciterType = ExciterType::Feedback;
+            pads[p].bodyModel = (p % 2 == 0) ? BodyModelType::Plate : BodyModelType::Shell;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.92;
+            pads[p].level = 0.62;
+            pads[p].feedbackAmount = fb[i];
+            pads[p].modeStretch = str[i];
+            pads[p].nonlinearCoupling = 0.45; // pulled down for sustained env
+            pads[p].decaySkew = 0.78;
+            pads[p].tsFilterType = FilterType::BP;
+            pads[p].tsFilterCutoff = cut[i]; pads[p].tsFilterResonance = 0.45;
+            pads[p].tsFilterEnvAmount = 0.65; pads[p].tsFilterEnvAttack = 0.45; // bloom
+            pads[p].tsFilterEnvDecay = 0.60; pads[p].tsFilterEnvSustain = 0.55;
+            pads[p].tsFilterEnvRelease = 0.65;
+            pads[p].modeScatter = 0.40;
+            pads[p].airLoading = 0.0;
+            pads[p].tensionModAmt = 0.0; // no-op on Plate/Shell (removed)
+            pads[p].couplingStrength = 0.30; pads[p].secondaryEnabled = 0.0;
+            pads[p].noiseLayerMix = 0.30; pads[p].noiseLayerColor = 0.70; // White
+            pads[p].noiseLayerCutoff = 0.55; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = 0.0;
+            pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.20;
+            pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Singing Bowls 14-17 + Bowed-Bell shimmer 18-19 (Bell/Friction, aux 1) ---
+    {
+        const int    pd[]  = {14, 15, 16, 17, 18, 19};
+        const double mat[] = {0.74, 0.79, 0.85, 0.90, 0.88, 0.86};
+        const double sz[]  = {0.22, 0.38, 0.54, 0.70, 0.20, 0.45};
+        const double fri[] = {0.28, 0.30, 0.33, 0.35, 0.32, 0.32};
+        const double nlc[] = {0.22, 0.25, 0.27, 0.30, 0.26, 0.26};
+        const double skw[] = {0.85, 0.86, 0.87, 0.88, 0.85, 0.85};
+        const double sct[] = {0.06, 0.06, 0.06, 0.06, 0.08, 0.08};
+        const double lvl[] = {0.74, 0.73, 0.72, 0.70, 0.72, 0.72};
+        const double pan[] = {0.20, 0.40, 0.60, 0.80, 0.30, 0.70};
+        for (int i = 0; i < 6; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Friction;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.95;
+            pads[p].strikePosition = 0.20; pads[p].level = lvl[i];
+            pads[p].frictionPressure = fri[i];
+            pads[p].modeStretch = 0.44; pads[p].decaySkew = skw[i];
+            pads[p].nonlinearCoupling = nlc[i];
+            pads[p].modeScatter = sct[i];
+            pads[p].modeInjectAmount = 0.0; // keep inharmonic
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.78; pads[p].morphEnd = 0.55;
+            pads[p].morphDuration = 0.85; pads[p].morphCurve = 0.0; // exp
+            pads[p].noiseLayerMix = 0.10; pads[p].noiseLayerColor = 0.40; // pink
+            pads[p].clickLayerMix = 0.0;
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].macroComplexity = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Ghost Tones 20,22 (Bell/Mallet) + 21 (String/FMImpulse) + 23 (String/Friction) ---
+    {
+        const int    pd[]  = {20, 22, 21, 23};
+        const int    body[]= {BodyModelType::Bell, BodyModelType::Bell,
+                              BodyModelType::String, BodyModelType::String};
+        const int    exc[] = {ExciterType::Mallet, ExciterType::Mallet,
+                              ExciterType::FMImpulse, ExciterType::Friction};
+        const double mat[] = {0.50, 0.55, 0.50, 0.50};
+        const double sz[]  = {0.50, 0.30, 0.45, 0.50};
+        const double str[] = {0.71, 0.89, 0.71, 0.74};
+        const double hpc[] = {0.24, 0.30, 0.24, 0.26};
+        const double pan[] = {0.14, 0.62, 0.38, 0.86};
+        for (int i = 0; i < 4; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = exc[i];
+            pads[p].bodyModel = body[i];
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.80;
+            pads[p].strikePosition = 0.30; pads[p].level = 0.64;
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = 0.81;
+            pads[p].nonlinearCoupling = 0.32;
+            pads[p].modeScatter = 0.45;
+            pads[p].modeInjectAmount = 0.0; // keep inharmonic skeleton
+            pads[p].tsFilterType = FilterType::HP;
+            pads[p].tsFilterCutoff = hpc[i]; pads[p].tsFilterResonance = 0.30;
+            pads[p].tsFilterEnvAmount = 0.45;
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.45; pads[p].morphEnd = 0.80;
+            pads[p].morphDuration = 0.75; pads[p].morphCurve = 0.5; // lin
+            pads[p].noiseLayerMix = 0.12; pads[p].noiseLayerColor = 0.12; // brown
+            pads[p].noiseLayerCutoff = 0.35; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = 0.12;
+            pads[p].bodyDampingB1 = 0.35;
+            pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+        pads[21].fmRatio = 0.40;          // c:m 2.2
+        pads[23].frictionPressure = 0.30;
+    }
+
+    // --- Tubular Bell / Chimes 24-27 (String/Mallet) ---
+    {
+        const double mat[] = {0.85, 0.86, 0.87, 0.88};
+        const double sz[]  = {0.62, 0.54, 0.46, 0.38};
+        const double dec[] = {0.90, 0.91, 0.91, 0.92};
+        const double cbr[] = {0.65, 0.67, 0.70, 0.72};
+        const double pan[] = {0.20, 0.40, 0.60, 0.80};
+        for (int i = 0; i < 4; ++i) {
+            const int p = 24 + i;
+            pads[p].exciterType = ExciterType::Mallet;
+            pads[p].bodyModel = BodyModelType::String;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.30; pads[p].level = 0.70;
+            pads[p].clickLayerMix = 0.40; pads[p].clickLayerContactMs = 0.20;
+            pads[p].clickLayerBrightness = cbr[i];
+            pads[p].noiseLayerMix = 0.10;
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].couplingAmount = 0.85;
+            pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Gong / Tam-Tam 28-29 (Bell/Mallet, bloom + sub-octave shell) ---
+    {
+        const int    pd[]  = {28, 29};
+        const double sz[]  = {0.85, 0.80};
+        const double str[] = {0.62, 0.58};
+        for (int i = 0; i < 2; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Mallet;
+            pads[p].material = 0.60; pads[p].size = sz[i]; pads[p].decay = 0.95;
+            pads[p].strikePosition = 0.35; pads[p].level = 0.66;
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = 0.62;
+            pads[p].nonlinearCoupling = 0.55; // bloom stand-in
+            pads[p].modeScatter = 0.47;
+            pads[p].couplingStrength = 0.95; pads[p].secondaryEnabled = 1.0;
+            pads[p].secondarySize = 0.40; pads[p].secondaryMaterial = 0.80; // sub-octave metal
+            pads[p].couplingAmount = 0.85;
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.85; pads[p].morphEnd = 0.55;
+            pads[p].morphDuration = 0.30; pads[p].morphCurve = 0.5; // lin
+            pads[p].noiseLayerMix = 0.20; pads[p].noiseLayerColor = 0.92; // violet
+            pads[p].noiseLayerCutoff = 0.85;
+            pads[p].clickLayerMix = 0.15;
+            pads[p].bodyDampingB1 = 0.28;
+            pads[p].pan = 0.50;
+        }
+    }
+
+    // --- Temple Bells 30-31 (Bell/Mallet, 1/k hum delta at nominal) ---
+    {
+        const int    pd[]  = {30, 31};
+        const double mat[] = {0.82, 0.85};
+        const double sz[]  = {0.50, 0.38};
+        const double lvl[] = {0.78, 0.76};
+        const double pan[] = {0.38, 0.62};
+        for (int i = 0; i < 2; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Mallet;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.92;
+            pads[p].strikePosition = 0.18; pads[p].level = lvl[i];
+            pads[p].modeStretch = 0.40; pads[p].decaySkew = 0.78;
+            pads[p].modeInjectAmount = 0.22; // kit-character hum delta (overrides recipe)
+            pads[p].modeScatter = 0.06;
+            pads[p].bodyDampingB1 = 0.18; pads[p].bodyDampingB3 = 0.06;
+            pads[p].clickLayerMix = 0.28; pads[p].clickLayerContactMs = 0.45;
+            pads[p].clickLayerBrightness = 0.42;
+            pads[p].noiseLayerMix = 0.04;
+            pads[p].pan = pan[i];
+        }
     }
 
     k.opts.maxPolyphony    = 8;
@@ -5729,7 +5914,7 @@ Kit droneSustainKit() {
     k.opts.globalCoupling  = 0.85;
     k.opts.tomResonance    = 0.65;
     k.opts.couplingDelayMs = 1.9;
-    for (int i = 0; i < 14; ++i) k.crafted.push_back(i);
+    for (int i = 0; i < kNumPads; ++i) k.crafted.push_back(i);
     return k;
 }
 
