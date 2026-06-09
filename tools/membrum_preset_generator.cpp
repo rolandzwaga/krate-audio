@@ -5921,81 +5921,262 @@ Kit droneSustainKit() {
 Kit chaosEngineKit() {
     Kit k{"Chaos Engine", "Unnatural", defaultPads(), {}, {}};
     auto& pads = k.pads;
-    const int bodyCycle[] = {BodyModelType::Plate, BodyModelType::Shell,
-                             BodyModelType::String, BodyModelType::Bell,
-                             BodyModelType::Membrane, BodyModelType::NoiseBody};
-    const double filterCycle[] = {FilterType::LP, FilterType::HP, FilterType::BP};
 
-    for (int i = 0; i <= 13; ++i) {
-        const int p = i;
-        pads[p].exciterType = (i % 3 == 0) ? ExciterType::Feedback
-            : (i % 3 == 1) ? ExciterType::FMImpulse : ExciterType::Friction;
-        pads[p].bodyModel = bodyCycle[i % 6];
-        pads[p].material = 0.20 + std::fmod(i * 0.06, 0.75);
-        pads[p].size     = 0.25 + std::fmod(i * 0.05, 0.65);
-        pads[p].decay    = 0.40 + (i % 7) * 0.07;
-        pads[p].level    = 0.72;
-        pads[p].fmRatio  = 0.20 + std::fmod(i * 0.07, 0.70);
-        pads[p].feedbackAmount   = 0.40 + (i % 4) * 0.12;
-        pads[p].frictionPressure = 0.30 + (i % 3) * 0.15;
-        pads[p].modeStretch      = 0.40 + (i % 5) * 0.12;
-        pads[p].modeInjectAmount = 0.0;
-        pads[p].nonlinearCoupling = 0.65 + (i % 3) * 0.10;
-        pads[p].decaySkew        = 0.40 + (i % 5) * 0.12;
-        pads[p].morphEnabled = (i % 2 == 0) ? 1.0 : 0.0;
-        if (pads[p].morphEnabled != 0.0) {
-            pads[p].morphStart = (i % 4) * 0.20;
-            pads[p].morphEnd   = 0.85 - (i % 3) * 0.20;
-            pads[p].morphDuration = 0.20 + (i % 5) * 0.15;
-            pads[p].morphCurve = (i % 7) * 0.14;
+    // 18 individually-crafted max-instability voices (was one fmod-ramped
+    // loop). tensionMod/airLoading are Membrane-only (kick only). modeInject
+    // finally used on the ghost/algorithmic pads (16/17). Per-pad pan + 4
+    // output buses + choke groups place the field.
+
+    // Pad 0 — Chaos Kick (Membrane/FMImpulse).
+    pads[0].exciterType = ExciterType::FMImpulse;
+    pads[0].bodyModel = BodyModelType::Membrane;
+    pads[0].material = 0.20; pads[0].size = 0.85; pads[0].decay = 0.45;
+    pads[0].level = 0.70; pads[0].fmRatio = 0.55;
+    pads[0].tsPitchEnvStart = toLogNorm(220); pads[0].tsPitchEnvEnd = toLogNorm(40);
+    pads[0].tsPitchEnvTime = 0.05; pads[0].tsPitchEnvCurve = 0.15;
+    pads[0].tsDriveAmount = 0.25; pads[0].tsFoldAmount = 0.30;
+    pads[0].tensionModAmt = 0.50; pads[0].airLoading = 0.40; // Membrane-only
+    pads[0].modeStretch = 0.45; pads[0].decaySkew = 0.45;
+    pads[0].nonlinearCoupling = 0.40;
+    pads[0].clickLayerMix = 0.35; pads[0].clickLayerContactMs = 0.15;
+    pads[0].noiseLayerMix = 0.10;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.30;
+    pads[0].macroPunch = 0.85; pads[0].macroComplexity = 0.85;
+    pads[0].couplingAmount = 0.78; pads[0].pan = 0.50;
+
+    // Pad 1 — Metal snare-squeal (Shell/Feedback).
+    pads[1].exciterType = ExciterType::Feedback;
+    pads[1].bodyModel = BodyModelType::Shell;
+    pads[1].material = 0.70; pads[1].size = 0.45; pads[1].decay = 0.40;
+    pads[1].level = 0.66; pads[1].feedbackAmount = 0.55;
+    pads[1].tsPitchEnvStart = toLogNorm(600); pads[1].tsPitchEnvEnd = toLogNorm(300);
+    pads[1].tsPitchEnvTime = 0.04; pads[1].tsPitchEnvCurve = 0.15; // fast-exp chirp
+    pads[1].modeStretch = 0.55; pads[1].decaySkew = 0.60;
+    pads[1].nonlinearCoupling = 0.45; pads[1].modeScatter = 0.55;
+    pads[1].couplingStrength = 0.30; pads[1].secondaryEnabled = 1.0;
+    pads[1].secondarySize = 0.65; pads[1].secondaryMaterial = 0.85; // ~217 Hz
+    pads[1].tsFilterType = FilterType::BP;
+    pads[1].tsFilterCutoff = 0.60; pads[1].tsFilterResonance = 0.50;
+    pads[1].tsFilterEnvAmount = 0.45;
+    pads[1].noiseLayerMix = 0.40; pads[1].noiseLayerColor = 0.70; // white
+    pads[1].noiseLayerCutoff = 0.85; pads[1].noiseLayerDecay = 0.40;
+    pads[1].clickLayerMix = 0.30; pads[1].clickLayerBrightness = 0.85;
+    pads[1].bodyDampingB1 = 0.30; pads[1].bodyDampingB3 = 0.20;
+    pads[1].macroComplexity = 0.85; pads[1].couplingAmount = 0.78; pads[1].pan = 0.40;
+
+    // Pad 2 — Plate snare-crack (Plate/FMImpulse, inharmonic-plate-tom).
+    pads[2].exciterType = ExciterType::FMImpulse;
+    pads[2].bodyModel = BodyModelType::Plate;
+    pads[2].material = 0.55; pads[2].size = 0.50; pads[2].decay = 0.30;
+    pads[2].strikePosition = 0.62; pads[2].level = 0.68; pads[2].fmRatio = 0.45;
+    pads[2].tsPitchEnvStart = toLogNorm(300); pads[2].tsPitchEnvEnd = toLogNorm(120);
+    pads[2].tsPitchEnvTime = 0.05; pads[2].tsPitchEnvCurve = 0.15;
+    pads[2].modeStretch = 0.50; pads[2].decaySkew = 0.40; pads[2].modeScatter = 0.50;
+    pads[2].nonlinearCoupling = 0.40;
+    pads[2].couplingStrength = 0.30; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.40; pads[2].secondaryMaterial = 0.75;
+    pads[2].noiseLayerMix = 0.18; pads[2].noiseLayerColor = 0.70;
+    pads[2].clickLayerMix = 0.40; pads[2].clickLayerBrightness = 0.85;
+    pads[2].bodyDampingB1 = 0.40; pads[2].bodyDampingB3 = 0.30;
+    pads[2].macroComplexity = 0.75; pads[2].couplingAmount = 0.65; pads[2].pan = 0.60;
+
+    // Pad 3 — Chaos core A (Plate/Feedback, short clang).
+    pads[3].exciterType = ExciterType::Feedback;
+    pads[3].bodyModel = BodyModelType::Plate;
+    pads[3].material = 0.50; pads[3].size = 0.45; pads[3].decay = 0.40;
+    pads[3].strikePosition = 0.50; pads[3].level = 0.68; pads[3].feedbackAmount = 0.55;
+    pads[3].modeStretch = 0.60; pads[3].decaySkew = 0.50; pads[3].modeScatter = 0.65;
+    pads[3].nonlinearCoupling = 0.70;
+    pads[3].tsDriveAmount = 0.35; pads[3].tsFoldAmount = 0.30;
+    pads[3].tsFilterType = FilterType::BP;
+    pads[3].tsFilterCutoff = 0.50; pads[3].tsFilterResonance = 0.55;
+    pads[3].tsFilterEnvAmount = 0.55; pads[3].tsFilterEnvAttack = 0.05;
+    pads[3].tsFilterEnvDecay = 0.20;
+    pads[3].couplingStrength = 0.40; pads[3].secondaryEnabled = 1.0;
+    pads[3].secondarySize = 0.40; pads[3].secondaryMaterial = 0.60;
+    pads[3].noiseLayerMix = 0.25; pads[3].clickLayerMix = 0.30;
+    pads[3].bodyDampingB1 = 0.35; pads[3].bodyDampingB3 = 0.20;
+    pads[3].macroComplexity = 0.85; pads[3].couplingAmount = 0.78; pads[3].pan = 0.35;
+
+    // Pad 4 — Chaos core B (Bell/FMImpulse).
+    pads[4].exciterType = ExciterType::FMImpulse;
+    pads[4].bodyModel = BodyModelType::Bell;
+    pads[4].material = 0.60; pads[4].size = 0.35; pads[4].decay = 0.50;
+    pads[4].level = 0.68; pads[4].fmRatio = 0.62;
+    pads[4].modeStretch = 0.60; pads[4].decaySkew = 0.55; pads[4].modeScatter = 0.60;
+    pads[4].nonlinearCoupling = 0.50;
+    pads[4].tsDriveAmount = 0.30; pads[4].tsFoldAmount = 0.25;
+    pads[4].noiseLayerMix = 0.20; pads[4].clickLayerMix = 0.30;
+    pads[4].clickLayerBrightness = 0.80;
+    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.0;
+    pads[4].macroComplexity = 0.85; pads[4].couplingAmount = 0.78; pads[4].pan = 0.65;
+
+    // Pad 5 — Chaos core C (NoiseBody/Friction).
+    pads[5].exciterType = ExciterType::Friction;
+    pads[5].bodyModel = BodyModelType::NoiseBody;
+    pads[5].material = 0.55; pads[5].size = 0.40; pads[5].decay = 0.45;
+    pads[5].strikePosition = 0.45; pads[5].level = 0.68; pads[5].frictionPressure = 0.45;
+    pads[5].modeStretch = 0.60; pads[5].decaySkew = 0.55; pads[5].modeScatter = 0.65;
+    pads[5].nonlinearCoupling = 0.65;
+    pads[5].tsDriveAmount = 0.30; pads[5].tsFoldAmount = 0.30;
+    pads[5].noiseLayerMix = 0.35; pads[5].noiseLayerCutoff = 0.50;
+    pads[5].noiseLayerColor = 0.50; pads[5].noiseLayerDecay = 0.50;
+    pads[5].clickLayerMix = 0.20;
+    pads[5].bodyDampingB1 = 0.35; pads[5].bodyDampingB3 = 0.20;
+    pads[5].macroComplexity = 0.85; pads[5].couplingAmount = 0.78; pads[5].pan = 0.45;
+
+    // Pads 6/7/8 — Chaos hats (Bell/FMImpulse, choke 1).
+    {
+        const double sz[]  = {0.12, 0.10, 0.16};
+        const double dec[] = {0.06, 0.04, 0.40};
+        const double b1[]  = {0.65, 0.78, 0.30};
+        const double ndc[] = {0.06, 0.04, 0.40};
+        for (int i = 0; i < 3; ++i) {
+            const int p = 6 + i;
+            pads[p].exciterType = ExciterType::FMImpulse;
+            pads[p].bodyModel = BodyModelType::Bell;
+            pads[p].material = 0.92; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].level = 0.66; pads[p].chokeGroup = 1; pads[p].fmRatio = 0.70;
+            pads[p].modeStretch = 0.55; pads[p].decaySkew = 0.58; pads[p].modeScatter = 0.55;
+            pads[p].noiseLayerMix = 0.40; pads[p].noiseLayerColor = 0.92; // violet
+            pads[p].noiseLayerCutoff = 0.92; pads[p].noiseLayerDecay = ndc[i];
+            pads[p].clickLayerMix = 0.20; pads[p].clickLayerBrightness = 0.92;
+            pads[p].bodyDampingB1 = b1[i]; pads[p].bodyDampingB3 = 0.0;
+            pads[p].pan = 0.60;
         }
-        pads[p].tsFilterType = filterCycle[i % 3];
-        pads[p].tsFilterCutoff    = 0.30 + std::fmod(i * 0.07, 0.60);
-        pads[p].tsFilterResonance = 0.55 + (i % 4) * 0.10;
-        pads[p].tsFilterEnvAmount = 0.55;
-        pads[p].tsFilterEnvAttack = (i % 5) * 0.04;
-        pads[p].tsFilterEnvDecay  = 0.10 + (i % 4) * 0.10;
-        pads[p].tsDriveAmount     = 0.30 + (i % 4) * 0.12;
-        pads[p].tsFoldAmount      = 0.20 + (i % 3) * 0.18;
-        pads[p].modeScatter       = 0.55 + (i % 5) * 0.08;
-        pads[p].airLoading        = (i % 4) * 0.20;
-        pads[p].couplingStrength  = 0.40 + (i % 3) * 0.15;
-        pads[p].secondaryEnabled  = 1.0;
-        pads[p].secondarySize     = 0.30 + std::fmod(i * 0.05, 0.50);
-        pads[p].secondaryMaterial = std::fmod(i * 0.07, 1.0);
-        pads[p].tensionModAmt     = 0.78 + (i % 4) * 0.05;
-        pads[p].noiseLayerMix     = 0.20 + (i % 5) * 0.10;
-        pads[p].noiseLayerCutoff  = 0.30 + (i % 6) * 0.10;
-        pads[p].noiseLayerResonance = 0.30 + (i % 4) * 0.12;
-        pads[p].noiseLayerColor   = 0.30 + (i % 5) * 0.12;
-        pads[p].noiseLayerDecay   = 0.40 + (i % 7) * 0.08;
-        pads[p].clickLayerMix     = 0.20 + (i % 5) * 0.10;
-        pads[p].clickLayerContactMs = 0.10 + (i % 4) * 0.10;
-        pads[p].clickLayerBrightness = 0.40 + (i % 5) * 0.12;
-        pads[p].bodyDampingB1 = 0.30 + (i % 6) * 0.05;
-        pads[p].bodyDampingB3 = (pads[p].bodyModel == BodyModelType::Bell) ? 0.0
-                              : (0.20 + (i % 4) * 0.10);
-        pads[p].chokeGroup    = (i < 4) ? 0 : ((i % 2) + 1);
-        pads[p].outputBus     = i % 4;
-        pads[p].tsPitchEnvStart = toLogNorm(180 + std::fmod(i * 30.0, 350.0));
-        pads[p].tsPitchEnvEnd   = toLogNorm(40 + std::fmod(i * 12.0, 200.0));
-        pads[p].tsPitchEnvTime  = 0.04 + (i % 5) * 0.04;
-        pads[p].tsPitchEnvCurve = (i % 2) ? 0.5 : 0.15;  // Phase 10: was Lin/Exp toggle -> linear/log curveAmounts
-        pads[p].macroTightness  = 0.20 + (i % 5) * 0.15;
-        pads[p].macroBrightness = 0.30 + (i % 4) * 0.18;
-        pads[p].macroBodySize   = 0.30 + (i % 5) * 0.14;
-        pads[p].macroPunch      = 0.40 + (i % 4) * 0.15;
-        pads[p].macroComplexity = 0.85;
-        pads[p].couplingAmount  = 0.78;
     }
+
+    // Pads 9/10/11 — Plate toms LO/MID/HI (Plate/FMImpulse, inharmonic-plate-tom).
+    {
+        const double sz[]  = {0.60, 0.48, 0.38};
+        const double mat[] = {0.45, 0.55, 0.65};
+        const double dec[] = {0.45, 0.40, 0.35};
+        const double fmr[] = {0.40, 0.50, 0.60};
+        const double hi[]  = {280, 360, 460};
+        const double lo[]  = {90, 130, 165};
+        const double b1[]  = {0.40, 0.40, 0.42};
+        const double pan[] = {0.30, 0.50, 0.70};
+        for (int i = 0; i < 3; ++i) {
+            const int p = 9 + i;
+            pads[p].exciterType = ExciterType::FMImpulse;
+            pads[p].bodyModel = BodyModelType::Plate;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.62; pads[p].level = 0.72; pads[p].fmRatio = fmr[i];
+            pads[p].tsPitchEnvStart = toLogNorm(hi[i]); pads[p].tsPitchEnvEnd = toLogNorm(lo[i]);
+            pads[p].tsPitchEnvTime = 0.06; pads[p].tsPitchEnvCurve = 0.15;
+            pads[p].modeStretch = 0.50; pads[p].decaySkew = 0.40; pads[p].modeScatter = 0.45;
+            pads[p].nonlinearCoupling = 0.40;
+            pads[p].couplingStrength = 0.30; pads[p].secondaryEnabled = 1.0;
+            pads[p].secondarySize = 0.40; pads[p].secondaryMaterial = 0.75;
+            pads[p].noiseLayerMix = 0.18; pads[p].noiseLayerColor = 0.70;
+            pads[p].clickLayerMix = 0.30; pads[p].clickLayerBrightness = 0.65;
+            pads[p].bodyDampingB1 = b1[i]; pads[p].bodyDampingB3 = 0.30;
+            pads[p].macroComplexity = 0.75; pads[p].couplingAmount = 0.65;
+            pads[p].pan = pan[i];
+        }
+    }
+
+    // Pad 12 — Feedback plate drone (Plate/Feedback, aux 1, choke 2, BP bloom).
+    pads[12].exciterType = ExciterType::Feedback;
+    pads[12].bodyModel = BodyModelType::Plate;
+    pads[12].material = 0.62; pads[12].size = 0.60; pads[12].decay = 0.88;
+    pads[12].strikePosition = 0.45; pads[12].level = 0.62; pads[12].feedbackAmount = 0.55;
+    pads[12].tsFoldAmount = 0.25;
+    pads[12].modeStretch = 0.50; pads[12].modeScatter = 0.35;
+    pads[12].modeInjectAmount = 0.15; pads[12].nonlinearCoupling = 0.50;
+    pads[12].decaySkew = 0.78;
+    pads[12].tsFilterType = FilterType::BP;
+    pads[12].tsFilterCutoff = 0.55; pads[12].tsFilterResonance = 0.45;
+    pads[12].tsFilterEnvAmount = 0.65; pads[12].tsFilterEnvAttack = 0.45;
+    pads[12].tsFilterEnvDecay = 0.60; pads[12].tsFilterEnvSustain = 0.55;
+    pads[12].tsFilterEnvRelease = 0.65;
+    pads[12].noiseLayerMix = 0.30; pads[12].noiseLayerColor = 0.70;
+    pads[12].noiseLayerCutoff = 0.55; pads[12].noiseLayerDecay = 0.85;
+    pads[12].clickLayerMix = 0.0;
+    pads[12].bodyDampingB1 = 0.20; pads[12].bodyDampingB3 = 0.20;
+    pads[12].chokeGroup = 2; pads[12].outputBus = 1;
+    pads[12].macroComplexity = 0.80; pads[12].couplingAmount = 0.85; pads[12].pan = 0.30;
+
+    // Pad 13 — Feedback shell drone (Shell/Feedback, aux 2, choke 2).
+    pads[13] = pads[12];
+    pads[13].bodyModel = BodyModelType::Shell;
+    pads[13].size = 0.55; pads[13].outputBus = 2; pads[13].pan = 0.70;
+
+    // Pad 14 — Singing-bowl drone (Bell/Friction, aux 3, choke 2).
+    pads[14].exciterType = ExciterType::Friction;
+    pads[14].bodyModel = BodyModelType::Bell;
+    pads[14].material = 0.85; pads[14].size = 0.50; pads[14].decay = 0.95;
+    pads[14].strikePosition = 0.20; pads[14].level = 0.72; pads[14].frictionPressure = 0.30;
+    pads[14].modeStretch = 0.44; pads[14].decaySkew = 0.86;
+    pads[14].nonlinearCoupling = 0.25; pads[14].modeScatter = 0.06;
+    pads[14].modeInjectAmount = 0.0; // keep inharmonic
+    pads[14].morphEnabled = 1.0; pads[14].morphStart = 0.78; pads[14].morphEnd = 0.55;
+    pads[14].morphDuration = 0.85; pads[14].morphCurve = 0.0; // exp
+    pads[14].noiseLayerMix = 0.10; pads[14].noiseLayerColor = 0.40; // pink
+    pads[14].clickLayerMix = 0.0;
+    pads[14].bodyDampingB1 = 0.30; pads[14].bodyDampingB3 = 0.0;
+    pads[14].chokeGroup = 2; pads[14].outputBus = 3;
+    pads[14].macroComplexity = 0.85; pads[14].couplingAmount = 0.85; pads[14].pan = 0.50;
+
+    // Pad 15 — Friction string drone (String/Friction, aux 1). modeStretch/
+    // decaySkew/scatter/airLoading/b1/b3/tension are inherent String no-ops.
+    pads[15].exciterType = ExciterType::Friction;
+    pads[15].bodyModel = BodyModelType::String;
+    pads[15].material = 0.55; pads[15].size = 0.50; pads[15].decay = 0.92;
+    pads[15].level = 0.62; pads[15].frictionPressure = 0.50;
+    pads[15].nonlinearCoupling = 0.38;
+    pads[15].tsFilterType = FilterType::LP;
+    pads[15].tsFilterCutoff = 0.48; pads[15].tsFilterResonance = 0.35;
+    pads[15].tsFilterEnvAmount = 0.62; pads[15].tsFilterEnvAttack = 0.20;
+    pads[15].tsFilterEnvDecay = 0.40; pads[15].tsFilterEnvSustain = 0.55;
+    pads[15].tsFilterEnvRelease = 0.65;
+    pads[15].tsDriveAmount = 0.26; pads[15].tsFoldAmount = 0.22;
+    pads[15].couplingStrength = 0.18; pads[15].secondaryEnabled = 1.0;
+    pads[15].secondarySize = 0.50; pads[15].secondaryMaterial = 0.65;
+    pads[15].noiseLayerMix = 0.16; pads[15].noiseLayerColor = 0.12; // brown
+    pads[15].noiseLayerDecay = 0.85; pads[15].clickLayerMix = 0.0;
+    pads[15].outputBus = 1; pads[15].macroComplexity = 0.85;
+    pads[15].couplingAmount = 0.85; pads[15].pan = 0.40;
+
+    // Pad 16 — Ghost bell (Bell/FMImpulse, aux 1) — modeInject 0.20 chaos delta.
+    pads[16].exciterType = ExciterType::FMImpulse;
+    pads[16].bodyModel = BodyModelType::Bell;
+    pads[16].material = 0.50; pads[16].size = 0.40; pads[16].decay = 0.80;
+    pads[16].strikePosition = 0.30; pads[16].level = 0.64; pads[16].fmRatio = 0.40;
+    pads[16].modeStretch = 0.71; pads[16].decaySkew = 0.81; pads[16].modeScatter = 0.45;
+    pads[16].modeInjectAmount = 0.20; pads[16].nonlinearCoupling = 0.32;
+    pads[16].tsFilterType = FilterType::HP;
+    pads[16].tsFilterCutoff = 0.24; pads[16].tsFilterResonance = 0.30;
+    pads[16].tsFilterEnvAmount = 0.45;
+    pads[16].morphEnabled = 1.0; pads[16].morphStart = 0.45; pads[16].morphEnd = 0.80;
+    pads[16].morphDuration = 0.75; pads[16].morphCurve = 0.5; // lin
+    pads[16].noiseLayerMix = 0.12; pads[16].noiseLayerColor = 0.12; // brown
+    pads[16].noiseLayerCutoff = 0.35; pads[16].noiseLayerDecay = 0.85;
+    pads[16].clickLayerMix = 0.12;
+    pads[16].bodyDampingB1 = 0.35; pads[16].bodyDampingB3 = 0.0;
+    pads[16].outputBus = 1; pads[16].couplingAmount = 0.85; pads[16].pan = 0.60;
+
+    // Pad 17 — FM-bell modeInject hybrid (Bell/FMImpulse, aux 2, Algorithmic FX).
+    pads[17].exciterType = ExciterType::FMImpulse;
+    pads[17].bodyModel = BodyModelType::Bell;
+    pads[17].material = 0.60; pads[17].size = 0.30; pads[17].decay = 0.60;
+    pads[17].strikePosition = 0.30; pads[17].level = 0.66; pads[17].fmRatio = 0.65;
+    pads[17].modeStretch = 0.60; pads[17].decaySkew = 0.55; pads[17].modeScatter = 0.55;
+    pads[17].modeInjectAmount = 0.25; pads[17].nonlinearCoupling = 0.45;
+    pads[17].tsDriveAmount = 0.30; pads[17].tsFoldAmount = 0.25;
+    pads[17].noiseLayerMix = 0.20; pads[17].clickLayerMix = 0.25;
+    pads[17].clickLayerBrightness = 0.80;
+    pads[17].bodyDampingB1 = 0.30; pads[17].bodyDampingB3 = 0.0;
+    pads[17].outputBus = 2; pads[17].macroComplexity = 0.85;
+    pads[17].couplingAmount = 0.78; pads[17].pan = 0.50;
 
     k.opts.maxPolyphony    = 12;
     k.opts.stealingPolicy  = 2;
-    k.opts.globalCoupling  = 0.92;
+    k.opts.globalCoupling  = 0.80;
     k.opts.snareBuzz       = 0.55;
     k.opts.tomResonance    = 0.78;
     k.opts.couplingDelayMs = 1.7;
-    for (int i = 0; i < 14; ++i) k.crafted.push_back(i);
+    for (int i = 0; i < 18; ++i) k.crafted.push_back(i);
     return k;
 }
 
