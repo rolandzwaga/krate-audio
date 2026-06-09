@@ -1420,6 +1420,13 @@ Kit jazzBrushesKit() {
     Kit k{"Jazz Brushes", "Acoustic", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
+    // Kit globals: dial in the sympathetic snare-buzz + tom-resonance
+    // network so the per-pad couplingAmount weights become audible.
+    k.opts.maxPolyphony   = 10;
+    k.opts.globalCoupling = 0.30;
+    k.opts.snareBuzz      = 0.30;
+    k.opts.tomResonance   = 0.40;
+
     // Kick: soft mallet, deep airLoading, almost no click.
     pads[0].exciterType = ExciterType::Mallet;
     pads[0].bodyModel   = BodyModelType::Membrane;
@@ -1514,8 +1521,9 @@ Kit jazzBrushesKit() {
     pads[4].bodyDampingB1 = 0.28; pads[4].bodyDampingB3 = 0.04;
     pads[4].macroTightness = 0.55; pads[4].macroBrightness = 0.55;
     pads[4].macroComplexity = 0.40;
+    pads[4].pan = 0.52;
 
-    // Hi-hats
+    // Hi-hats (closed pan 0.40, inherited by pedal/open copies)
     pads[6].exciterType = ExciterType::NoiseBurst;
     pads[6].bodyModel   = BodyModelType::NoiseBody;
     pads[6].material = 0.85; pads[6].size = 0.13; pads[6].decay = 0.07;
@@ -1526,6 +1534,7 @@ Kit jazzBrushesKit() {
     pads[6].airLoading = 0.0; pads[6].modeScatter = 0.70;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.60;
     pads[6].macroBrightness = 0.55; pads[6].macroTightness = 0.70;
+    pads[6].pan = 0.40;
 
     pads[8] = pads[6];
     pads[8].decay = 0.05; pads[8].noiseLayerDecay = 0.06;
@@ -1540,7 +1549,9 @@ Kit jazzBrushesKit() {
     pads[10].bodyDampingB3 = 0.20;
     pads[10].modeScatter = 0.85;
 
-    // Toms
+    // Toms -- size-graded row with NEW graded decaySkew / modeScatter / pan
+    // (airLoading 0.65->0.45 graded, skew 0.46->0.54, scatter 0.10->0.15,
+    // pan 0.38->0.60 L->R).
     const int    tomPads[]      = {5, 7, 9, 11, 12, 14};
     const double tomSizes[]     = {0.72, 0.62, 0.55, 0.48, 0.42, 0.36};
     const double tomMaterials[] = {0.40, 0.43, 0.46, 0.50, 0.55, 0.60};
@@ -1548,6 +1559,10 @@ Kit jazzBrushesKit() {
     const double tomB1[]        = {0.30, 0.32, 0.34, 0.36, 0.38, 0.42};
     const double tomPitchStart[] = {200, 240, 290, 340, 400, 470};
     const double tomPitchEnd[]   = {110, 135, 165, 200, 240, 290};
+    const double tomAir[]        = {0.65, 0.61, 0.57, 0.53, 0.49, 0.45};
+    const double tomSkew[]       = {0.46, 0.476, 0.492, 0.508, 0.524, 0.54};
+    const double tomScatter[]    = {0.10, 0.11, 0.12, 0.13, 0.14, 0.15};
+    const double tomPan[]        = {0.38, 0.424, 0.468, 0.512, 0.556, 0.60};
     for (int i = 0; i < 6; ++i) {
         const int p = tomPads[i];
         pads[p].exciterType = ExciterType::Mallet;
@@ -1560,8 +1575,9 @@ Kit jazzBrushesKit() {
         pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchEnd[i]);
         pads[p].tsPitchEnvTime  = 0.10;
         pads[p].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
-        pads[p].airLoading      = 0.65;
-        pads[p].modeScatter     = 0.10;
+        pads[p].airLoading      = tomAir[i];
+        pads[p].modeScatter     = tomScatter[i];
+        pads[p].decaySkew       = tomSkew[i];
         pads[p].couplingStrength  = 0.32;
         pads[p].secondaryEnabled  = 1.0;
         pads[p].secondarySize     = 0.32 + 0.02 * i;
@@ -1575,17 +1591,22 @@ Kit jazzBrushesKit() {
         pads[p].macroPunch     = 0.35;
         pads[p].macroBrightness = 0.40;
         pads[p].macroComplexity = 0.45;
+        pads[p].pan = tomPan[i];
     }
 
-    // Ride cymbal (13)
+    // Ride bow (13) -- GM Crash-1 slot (inherited ride<->crash swap, kept).
+    // Fixes: single modeScatter 0.62 (was 0.28->0.85 double-assign),
+    // metallic b1 0.16/b3 0.0 (was 0.40/0.30), + strikePos/stretch/skew/NLC.
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel   = BodyModelType::Bell;
     pads[13].material = 0.92; pads[13].size = 0.42; pads[13].decay = 0.85;
     pads[13].level = 0.74;
-    pads[13].fmRatio = 0.35; pads[13].feedbackAmount = 0.05;
-    pads[13].modeScatter = 0.28; pads[13].airLoading = 0.0;
-    pads[13].bodyDampingB3 = 0.30; pads[13].bodyDampingB1 = 0.40;
-    pads[13].modeScatter = 0.85;
+    pads[13].strikePosition = 0.18;   // near soundbow antinode -> full partials
+    pads[13].fmRatio = 0.35; pads[13].feedbackAmount = 0.05;  // inert under NoiseBurst
+    pads[13].modeStretch = 0.45; pads[13].decaySkew = 0.62;
+    pads[13].nonlinearCoupling = 0.18;
+    pads[13].modeScatter = 0.62; pads[13].airLoading = 0.0;
+    pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.16;
     pads[13].noiseLayerMix = 0.30; pads[13].noiseLayerCutoff = 0.85;
     pads[13].noiseLayerResonance = 0.0;
     pads[13].noiseLayerColor = 0.75; pads[13].noiseLayerDecay = 0.75;
@@ -1594,33 +1615,137 @@ Kit jazzBrushesKit() {
     pads[13].outputBus = 1;
     pads[13].macroTightness = 0.30; pads[13].macroBrightness = 0.75;
     pads[13].macroComplexity = 0.55;
+    pads[13].pan = 0.60;
 
-    // Crash (15)
+    // Crash (15) -- GM Ride-1 slot (inherited ride<->crash swap, kept).
+    // Fixes: single modeScatter 0.60 (was 0.55->0.85 double-assign),
+    // + modeStretch/modeInject/NLC bloom/decaySkew.
     pads[15].exciterType = ExciterType::NoiseBurst;
     pads[15].bodyModel   = BodyModelType::NoiseBody;
     pads[15].material = 0.92; pads[15].size = 0.32; pads[15].decay = 0.65;
     pads[15].level = 0.70;
-    pads[15].modeScatter = 0.55; pads[15].airLoading = 0.0;
+    pads[15].modeStretch = 0.55; pads[15].modeInjectAmount = 0.20;
+    pads[15].nonlinearCoupling = 0.30; pads[15].decaySkew = 0.60;
+    pads[15].modeScatter = 0.60; pads[15].airLoading = 0.0;
     pads[15].bodyDampingB3 = 0.30; pads[15].bodyDampingB1 = 0.40;
-    pads[15].modeScatter = 0.85;
     pads[15].noiseLayerMix = 0.55; pads[15].noiseLayerCutoff = 0.78;
     pads[15].noiseLayerColor = 0.62; pads[15].noiseLayerDecay = 0.60;
     pads[15].clickLayerMix = 0.20; pads[15].clickLayerBrightness = 0.70;
     pads[15].outputBus = 1;
+    pads[15].pan = 0.58;
 
-    // Wood block (1)
+    // Wood block (1) -- material 0.60 per archetype (was 0.68);
+    // airLoading 0 (no-op on Plate).
     pads[1].exciterType = ExciterType::Impulse;
     pads[1].bodyModel = BodyModelType::Plate;
-    pads[1].material = 0.68; pads[1].size = 0.22; pads[1].decay = 0.20;
+    pads[1].material = 0.60; pads[1].size = 0.22; pads[1].decay = 0.20;
     pads[1].level = 0.72;
     pads[1].modeStretch = 0.50;
     pads[1].clickLayerMix = 0.70; pads[1].clickLayerContactMs = 0.12;
     pads[1].clickLayerBrightness = 0.75;
     pads[1].noiseLayerMix = 0.05;
-    pads[1].airLoading = 0.10; pads[1].modeScatter = 0.20;
+    pads[1].airLoading = 0.0; pads[1].modeScatter = 0.20;
     pads[1].bodyDampingB1 = 0.50; pads[1].bodyDampingB3 = 0.10;
+    pads[1].pan = 0.40;
 
-    k.crafted = {0, 1, 2, 4, 5, 7, 9, 11, 12, 14, 6, 8, 10, 13, 15};
+    // ---- Pad 3: Brush Swirl / Buzz-Roll (Membrane/Friction) -- NEW ----
+    // The kit's only Friction + modeInject voice. Filter ADSR left inert
+    // (envAmt 0.5) so the LP is a static dark bed.
+    pads[3].exciterType = ExciterType::Friction;
+    pads[3].bodyModel   = BodyModelType::Membrane;
+    pads[3].material = 0.40; pads[3].size = 0.58; pads[3].decay = 0.70;
+    pads[3].frictionPressure  = 0.45;   // LIVE under Friction
+    pads[3].modeInjectAmount  = 0.18;   // 1/k bowed series
+    pads[3].nonlinearCoupling = 0.45;
+    pads[3].decaySkew = 0.85;           // low-tilt
+    pads[3].tensionModAmt = 0.30;
+    pads[3].airLoading = 0.50;
+    pads[3].tsFilterType   = FilterType::LP;
+    pads[3].tsFilterCutoff = 0.55;      // static dark bed (env inert)
+    pads[3].clickLayerMix = 0.0;
+    pads[3].noiseLayerMix = 0.20; pads[3].noiseLayerColor = 0.40;  // pink, long
+    pads[3].noiseLayerDecay = 0.70;
+    pads[3].couplingStrength = 0.18; pads[3].secondaryEnabled = 1.0;
+    pads[3].pan = 0.45;
+
+    // ---- Pad 16: Ride Bell / Cup FM (Bell/FMImpulse) -- NEW (GM Chinese) ----
+    // The kit's only audible FM voice. fmRatio 0.30 -> modRatio 1.9 (Chowning).
+    pads[16].exciterType = ExciterType::FMImpulse;
+    pads[16].bodyModel   = BodyModelType::Bell;
+    pads[16].material = 0.90; pads[16].size = 0.34; pads[16].decay = 0.70;
+    pads[16].fmRatio = 0.30;            // LIVE clang
+    pads[16].modeStretch = 0.45; pads[16].decaySkew = 0.60;
+    pads[16].nonlinearCoupling = 0.15; pads[16].modeScatter = 0.35;
+    pads[16].bodyDampingB1 = 0.18; pads[16].bodyDampingB3 = 0.0;
+    pads[16].clickLayerMix = 0.40; pads[16].clickLayerBrightness = 0.82;
+    pads[16].noiseLayerMix = 0.12;     // sheen
+    pads[16].airLoading = 0.0;
+    pads[16].outputBus = 1;
+    pads[16].pan = 0.62;
+
+    // ---- Pad 17: Splash (NoiseBody/NoiseBurst) -- NEW (GM Ride-Bell) ----
+    pads[17].exciterType = ExciterType::NoiseBurst;
+    pads[17].bodyModel   = BodyModelType::NoiseBody;
+    pads[17].material = 0.95; pads[17].size = 0.22; pads[17].decay = 0.28;
+    pads[17].strikePosition = 0.35;
+    pads[17].modeStretch = 0.55; pads[17].decaySkew = 0.58;
+    pads[17].modeScatter = 0.50;
+    pads[17].bodyDampingB1 = 0.30; pads[17].bodyDampingB3 = 0.0;
+    pads[17].noiseLayerMix = 0.55; pads[17].noiseLayerCutoff = 0.92;
+    pads[17].noiseLayerColor = 0.90; pads[17].noiseLayerDecay = 0.25;  // violet
+    pads[17].clickLayerMix = 0.30; pads[17].clickLayerBrightness = 0.85;
+    pads[17].noiseBurstDuration = 0.40;
+    pads[17].macroBrightness = 0.70;
+    pads[17].airLoading = 0.0;
+    pads[17].outputBus = 1;
+    pads[17].pan = 0.66;
+
+    // ---- Pad 18: Cymbal Swell (NoiseBody/NoiseBurst, Morph) -- NEW (GM Tamb) ----
+    // 2nd Morph user; nonlinearCoupling 0.45 is the energy-cascade swell lever.
+    pads[18].exciterType = ExciterType::NoiseBurst;
+    pads[18].bodyModel   = BodyModelType::NoiseBody;
+    pads[18].material = 0.90; pads[18].size = 0.40; pads[18].decay = 0.85;
+    pads[18].strikePosition = 0.90;     // edge strike, broad mode set
+    pads[18].morphEnabled = 1.0; pads[18].morphStart = 0.55;
+    pads[18].morphEnd = 0.95; pads[18].morphDuration = 0.85;  // slow bloom
+    pads[18].modeStretch = 0.55; pads[18].decaySkew = 0.55;
+    pads[18].nonlinearCoupling = 0.45; pads[18].modeScatter = 0.65;
+    pads[18].clickLayerMix = 0.0;
+    pads[18].noiseLayerMix = 0.65; pads[18].noiseLayerCutoff = 0.85;
+    pads[18].noiseLayerDecay = 0.90;
+    pads[18].bodyDampingB1 = 0.22; pads[18].bodyDampingB3 = 0.0;
+    pads[18].airLoading = 0.0;
+    pads[18].outputBus = 1;
+    pads[18].pan = 0.55;
+
+    // ---- Pad 19: Side Stick / Cross-Stick (Shell/Impulse) -- NEW (GM Splash) ----
+    pads[19].exciterType = ExciterType::Impulse;
+    pads[19].bodyModel   = BodyModelType::Shell;
+    pads[19].material = 0.30; pads[19].size = 0.20; pads[19].decay = 0.16;
+    pads[19].strikePosition = 0.30;
+    pads[19].bodyDampingB1 = 0.42; pads[19].bodyDampingB3 = 0.10;
+    pads[19].modeScatter = 0.50;
+    pads[19].clickLayerMix = 0.88; pads[19].clickLayerBrightness = 0.62;  // woody
+    pads[19].noiseLayerMix = 0.0;
+    pads[19].airLoading = 0.0;
+    pads[19].pan = 0.50;
+
+    // ---- Pad 20: Shaker / Cabasa (NoiseBody/NoiseBurst) -- NEW (GM Cowbell) ----
+    pads[20].exciterType = ExciterType::NoiseBurst;
+    pads[20].bodyModel   = BodyModelType::NoiseBody;
+    pads[20].material = 0.85; pads[20].size = 0.08; pads[20].decay = 0.08;
+    pads[20].noiseLayerMix = 0.85; pads[20].noiseLayerCutoff = 0.73;
+    pads[20].noiseLayerResonance = 0.16; pads[20].noiseLayerColor = 0.75;  // white
+    pads[20].noiseLayerDecay = 0.12;
+    pads[20].clickLayerMix = 0.0;
+    pads[20].noiseBurstDuration = 0.20;
+    pads[20].bodyDampingB1 = 0.55; pads[20].bodyDampingB3 = 0.0;
+    pads[20].airLoading = 0.0;
+    pads[20].pan = 0.64;
+
+    // 21 sounding pads (0-20); pads 21-31 stay disabled (focused set).
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                 16, 17, 18, 19, 20};
     return k;
 }
 Kit rockBigRoomKit() {
