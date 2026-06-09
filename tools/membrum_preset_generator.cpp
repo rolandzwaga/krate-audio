@@ -2626,6 +2626,7 @@ Kit nineOhNineKit() {
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(55);
     pads[0].tsPitchEnvTime  = 0.04;
+    pads[0].tsPitchEnvCurve = 0.15;
     pads[0].tsDriveAmount   = 0.20;
     pads[0].airLoading       = 0.0;
     pads[0].couplingStrength = 0.0;
@@ -2636,6 +2637,7 @@ Kit nineOhNineKit() {
     pads[0].noiseLayerMix = 0.05;
     pads[0].bodyDampingB1 = 0.42; pads[0].bodyDampingB3 = 0.30;
     pads[0].macroPunch = 0.85; pads[0].macroBodySize = 0.45;
+    pads[0].pan = 0.5;
 
     // 909 snare (redesigned: dual tonal layers + long noise tail. The
     // primary membrane is the boop body with moderate damping (decays in
@@ -2644,7 +2646,7 @@ Kit nineOhNineKit() {
     // for the snare-wire shhh tail.)
     pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.58; pads[2].size = 0.58; pads[2].decay = 0.55;
+    pads[2].material = 0.58; pads[2].size = 0.398; pads[2].decay = 0.55;
     pads[2].level = 1.0;
     pads[2].noiseBurstDuration = (3.0 - 2.0) / 13.0;
     pads[2].tsDriveAmount = 0.48;
@@ -2661,6 +2663,7 @@ Kit nineOhNineKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(140);
     pads[2].tsPitchEnvTime  = 0.09;
     pads[2].tsPitchEnvCurve = 0.10;
+    pads[2].nonlinearCoupling = 0.0; pads[2].modeInjectAmount = 0.0;
     // Metallic secondary body for the 909 "ping" shimmer.
     pads[2].couplingStrength = 0.38;
     pads[2].secondaryEnabled = 1.0;
@@ -2678,27 +2681,36 @@ Kit nineOhNineKit() {
     // either ringing forever (steady sine) or decaying instantly (thin hat).
     pads[2].bodyDampingB1 = 0.38; pads[2].bodyDampingB3 = 0.20;
     pads[2].macroBrightness = 0.85; pads[2].macroPunch = 0.65;
+    pads[2].pan = 0.5;
 
-    // Rim shot (4)
+    // Rim Shot (4) — Shell/Impulse free-free bar (was Plate; post-audit Shell
+    // is the correct inharmonic metal-bar body). Jagged inharmonic via
+    // modeScatter+modeStretch; free-end antinode strike.
     pads[4].exciterType = ExciterType::Impulse;
-    pads[4].bodyModel = BodyModelType::Plate;
-    pads[4].material = 0.75; pads[4].size = 0.18; pads[4].decay = 0.10;
-    pads[4].level = 0.78;
-    pads[4].clickLayerMix = 0.92; pads[4].clickLayerBrightness = 0.95;
-    pads[4].clickLayerContactMs = 0.08;
-    pads[4].noiseLayerMix = 0.0;
-    pads[4].bodyDampingB1 = 0.55; pads[4].bodyDampingB3 = 0.0;
+    pads[4].bodyModel = BodyModelType::Shell;
+    pads[4].material = 0.85; pads[4].size = 0.34; pads[4].decay = 0.18;
+    pads[4].strikePosition = 0.15;
+    pads[4].level = 0.9;
+    pads[4].clickLayerMix = 0.94; pads[4].clickLayerContactMs = 0.20;
+    pads[4].clickLayerBrightness = 0.94;
+    pads[4].modeScatter = 0.40; pads[4].modeStretch = 0.45;
+    pads[4].noiseLayerMix = 0.20; pads[4].noiseLayerColor = 0.85;
+    pads[4].bodyDampingB1 = 0.50; pads[4].bodyDampingB3 = 0.30;
+    pads[4].macroPunch = 0.92; pads[4].pan = 0.42;
 
-    // Hi-hats
+    // Hi-hats (6 closed / 8 pedal / 10 open) — NoiseBody/NoiseBurst, choke 1.
     pads[6].exciterType = ExciterType::NoiseBurst;
     pads[6].bodyModel = BodyModelType::NoiseBody;
     pads[6].material = 0.95; pads[6].size = 0.10; pads[6].decay = 0.07;
     pads[6].level = 0.72; pads[6].chokeGroup = 1;
+    pads[6].noiseBurstDuration = 0.10; // ~3.3 ms sharp 909 tss attack
     pads[6].noiseLayerMix = 0.85; pads[6].noiseLayerCutoff = 0.95;
+    pads[6].noiseLayerResonance = 0.12; // Q~0.86, flat broadband (no whistle)
     pads[6].noiseLayerColor = 0.95; pads[6].noiseLayerDecay = 0.07;
-    pads[6].clickLayerMix = 0.0;
+    pads[6].clickLayerMix = 0.0; // documented kit deviation: cleanest tss
     pads[6].airLoading = 0.0; pads[6].modeScatter = 0.0;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.65;
+    pads[6].pan = 0.58;
 
     pads[8] = pads[6];
     pads[8].decay = 0.04; pads[8].noiseLayerDecay = 0.05;
@@ -2706,62 +2718,122 @@ Kit nineOhNineKit() {
 
     pads[10] = pads[6];
     pads[10].decay = 0.42; pads[10].noiseLayerDecay = 0.40;
-    pads[10].bodyDampingB1 = 0.30;
+    pads[10].bodyDampingB1 = 0.30; pads[10].pan = 0.60;
 
-    // Toms
-    const int    tomPads[]      = {5, 7, 9, 11, 12, 14};
-    const double tomSizes[]     = {0.65, 0.55, 0.48, 0.40, 0.34, 0.28};
-    const double tomMaterial[]  = {0.20, 0.25, 0.30, 0.36, 0.42, 0.50};
-    const double tomDecay[]     = {0.32, 0.28, 0.25, 0.22, 0.20, 0.18};
-    const double tomPitchHi[]   = {240, 290, 350, 420, 500, 590};
-    const double tomPitchLo[]   = {85, 100, 120, 145, 175, 210};
-    for (int i = 0; i < 6; ++i) {
-        const int p = tomPads[i];
-        pads[p].exciterType = ExciterType::Impulse;
-        pads[p].bodyModel = BodyModelType::Membrane;
-        pads[p].material = tomMaterial[i];
-        pads[p].size = tomSizes[i];
-        pads[p].decay = tomDecay[i];
-        pads[p].level = 0.78;
-        pads[p].tsPitchEnvStart = toLogNorm(tomPitchHi[i]);
-        pads[p].tsPitchEnvEnd   = toLogNorm(tomPitchLo[i]);
-        pads[p].tsPitchEnvTime  = 0.10;
-        pads[p].tsPitchEnvCurve = 0.15; // Phase 10: was "Exp" StringList -> norm 0.15 ~= curveAmount -0.7 (legacy log shape)
-        pads[p].airLoading = 0.0;
-        pads[p].couplingStrength = 0.0;
-        pads[p].secondaryEnabled = 0.0;
-        pads[p].tensionModAmt = 0.20;
-        pads[p].noiseLayerMix = 0.05;
-        pads[p].clickLayerMix = 0.32; pads[p].clickLayerContactMs = 0.15;
-        pads[p].clickLayerBrightness = 0.55;
-        pads[p].bodyDampingB1 = 0.30; pads[p].bodyDampingB3 = 0.18;
-        pads[p].macroPunch = 0.65;
-    }
+    // 909 toms collapsed 6 -> 3 real voices (Hi 5 / Mid 7 / Low 9). Tom pitch-env
+    // norms corrected so settle pitches actually reach the stated low Hz.
+    // Hi Tom (5)
+    pads[5].exciterType = ExciterType::Impulse;
+    pads[5].bodyModel = BodyModelType::Membrane;
+    pads[5].material = 0.50; pads[5].size = 0.28; pads[5].decay = 0.18;
+    pads[5].level = 0.78;
+    pads[5].tsPitchEnvStart = toLogNorm(590);
+    pads[5].tsPitchEnvEnd   = toLogNorm(210);
+    pads[5].tsPitchEnvTime  = 0.10; pads[5].tsPitchEnvCurve = 0.15;
+    pads[5].airLoading = 0.0; pads[5].couplingStrength = 0.0;
+    pads[5].secondaryEnabled = 0.0; pads[5].tensionModAmt = 0.20;
+    pads[5].noiseLayerMix = 0.05;
+    pads[5].clickLayerMix = 0.32; pads[5].clickLayerContactMs = 0.15;
+    pads[5].bodyDampingB1 = 0.42; pads[5].bodyDampingB3 = 0.18;
+    pads[5].macroPunch = 0.65; pads[5].pan = 0.64;
 
-    // Crash (13)
+    // Mid Tom (7)
+    pads[7].exciterType = ExciterType::Impulse;
+    pads[7].bodyModel = BodyModelType::Membrane;
+    pads[7].material = 0.34; pads[7].size = 0.48; pads[7].decay = 0.25;
+    pads[7].level = 0.78;
+    pads[7].tsPitchEnvStart = toLogNorm(350);
+    pads[7].tsPitchEnvEnd   = toLogNorm(120);
+    pads[7].tsPitchEnvTime  = 0.10; pads[7].tsPitchEnvCurve = 0.15;
+    pads[7].airLoading = 0.0; pads[7].couplingStrength = 0.0;
+    pads[7].secondaryEnabled = 0.0; pads[7].tensionModAmt = 0.20;
+    pads[7].noiseLayerMix = 0.05;
+    pads[7].clickLayerMix = 0.32; pads[7].clickLayerContactMs = 0.15;
+    pads[7].bodyDampingB1 = 0.36; pads[7].bodyDampingB3 = 0.18;
+    pads[7].macroPunch = 0.65; pads[7].pan = 0.50;
+
+    // Low Tom (9)
+    pads[9].exciterType = ExciterType::Impulse;
+    pads[9].bodyModel = BodyModelType::Membrane;
+    pads[9].material = 0.20; pads[9].size = 0.65; pads[9].decay = 0.32;
+    pads[9].level = 0.78;
+    pads[9].tsPitchEnvStart = toLogNorm(240);
+    pads[9].tsPitchEnvEnd   = toLogNorm(85);
+    pads[9].tsPitchEnvTime  = 0.10; pads[9].tsPitchEnvCurve = 0.15;
+    pads[9].airLoading = 0.0; pads[9].couplingStrength = 0.0;
+    pads[9].secondaryEnabled = 0.0; pads[9].tensionModAmt = 0.20;
+    pads[9].noiseLayerMix = 0.05;
+    pads[9].clickLayerMix = 0.32; pads[9].clickLayerContactMs = 0.15;
+    pads[9].bodyDampingB1 = 0.30; pads[9].bodyDampingB3 = 0.18;
+    pads[9].macroPunch = 0.65; pads[9].pan = 0.36;
+
+    // Clave / Woodblock (11) — Shell/Impulse, dry-wood HF damping override.
+    pads[11].exciterType = ExciterType::Impulse;
+    pads[11].bodyModel = BodyModelType::Shell;
+    pads[11].material = 0.85; pads[11].size = 0.0; pads[11].decay = 0.12;
+    pads[11].strikePosition = 0.12; pads[11].level = 0.80;
+    pads[11].bodyDampingB3 = 0.70; // dry-wood high-mode damping override
+    pads[11].clickLayerMix = 0.55; pads[11].clickLayerContactMs = 0.15;
+    pads[11].clickLayerBrightness = 0.82;
+    pads[11].noiseLayerMix = 0.0; pads[11].pan = 0.30;
+
+    // Cowbell (12) — Bell/FMImpulse, detuned-fifth clang.
+    pads[12].exciterType = ExciterType::FMImpulse;
+    pads[12].bodyModel = BodyModelType::Bell;
+    pads[12].material = 0.78; pads[12].size = 0.22; pads[12].decay = 0.30;
+    pads[12].strikePosition = 0.30; pads[12].level = 0.75;
+    pads[12].fmRatio = 0.50; // modulator ratio 2.5
+    pads[12].clickLayerMix = 0.55; pads[12].clickLayerContactMs = 0.10;
+    pads[12].clickLayerBrightness = 0.72;
+    pads[12].noiseLayerMix = 0.10; pads[12].noiseLayerColor = 0.40;
+    pads[12].noiseLayerCutoff = 0.62; pads[12].noiseLayerDecay = 0.20;
+    pads[12].bodyDampingB1 = 0.32; pads[12].bodyDampingB3 = 0.0;
+    pads[12].modeStretch = 0.55; pads[12].modeScatter = 0.20;
+    pads[12].decaySkew = 0.42;
+    pads[12].macroBrightness = 0.65; pads[12].pan = 0.66;
+
+    // Crash (13) — NoiseBody/NoiseBurst, full Chladni bloom, aux bus 1.
     pads[13].exciterType = ExciterType::NoiseBurst;
     pads[13].bodyModel = BodyModelType::NoiseBody;
-    pads[13].material = 0.95; pads[13].size = 0.32; pads[13].decay = 0.55;
-    pads[13].level = 0.72;
-    pads[13].modeScatter = 0.50; pads[13].airLoading = 0.0;
+    pads[13].material = 0.95; pads[13].size = 0.35; pads[13].decay = 0.70;
+    pads[13].strikePosition = 0.55; pads[13].level = 0.72;
+    pads[13].modeStretch = 0.60; pads[13].modeInjectAmount = 0.25;
+    pads[13].nonlinearCoupling = 0.35; pads[13].modeScatter = 0.60;
+    pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
-    pads[13].noiseLayerMix = 0.65; pads[13].noiseLayerCutoff = 0.95;
-    pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.55;
+    pads[13].noiseLayerMix = 0.50; pads[13].noiseLayerCutoff = 0.90;
+    pads[13].noiseLayerColor = 0.92; pads[13].noiseLayerDecay = 0.60;
+    pads[13].clickLayerMix = 0.20; pads[13].clickLayerBrightness = 0.82;
+    pads[13].outputBus = 1; pads[13].pan = 0.40;
 
-    // Clap (15)
+    // Ride (14) — Bell/NoiseBurst, long sustain + decay tilt, aux bus 1.
+    pads[14].exciterType = ExciterType::NoiseBurst;
+    pads[14].bodyModel = BodyModelType::Bell;
+    pads[14].material = 0.95; pads[14].size = 0.30; pads[14].decay = 0.90;
+    pads[14].strikePosition = 0.18; pads[14].level = 0.72;
+    pads[14].modeStretch = 0.45; pads[14].decaySkew = 0.62;
+    pads[14].nonlinearCoupling = 0.18; pads[14].modeScatter = 0.55;
+    pads[14].bodyDampingB1 = 0.16; pads[14].bodyDampingB3 = 0.0;
+    pads[14].noiseLayerMix = 0.45; pads[14].noiseLayerCutoff = 0.90;
+    pads[14].noiseLayerColor = 0.85; pads[14].noiseLayerDecay = 0.78;
+    pads[14].clickLayerMix = 0.45; pads[14].clickLayerBrightness = 0.82;
+    pads[14].outputBus = 1; pads[14].pan = 0.62;
+
+    // Hand Clap (15) — NoiseBody/NoiseBurst, flam smear + clap formant.
     pads[15].exciterType = ExciterType::NoiseBurst;
     pads[15].bodyModel = BodyModelType::NoiseBody;
     pads[15].material = 0.85; pads[15].size = 0.18; pads[15].decay = 0.18;
     pads[15].level = 0.78;
     pads[15].noiseBurstDuration = 0.55;
     pads[15].noiseLayerMix = 0.85; pads[15].noiseLayerCutoff = 0.78;
-    pads[15].noiseLayerResonance = 0.40;
+    pads[15].noiseLayerResonance = 0.40; // Q~2.18 clap formant
     pads[15].noiseLayerColor = 0.65; pads[15].noiseLayerDecay = 0.20;
     pads[15].clickLayerMix = 0.45; pads[15].clickLayerContactMs = 0.22;
     pads[15].clickLayerBrightness = 0.62;
     pads[15].airLoading = 0.0; pads[15].modeScatter = 0.40;
     pads[15].bodyDampingB1 = 0.50; pads[15].bodyDampingB3 = 0.0;
     pads[15].macroBrightness = 0.65; pads[15].macroComplexity = 0.55;
+    pads[15].pan = 0.50;
 
     k.crafted = {0, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
     return k;
