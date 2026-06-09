@@ -3858,33 +3858,45 @@ Kit tablaKit() {
     Kit k{"Tabla", "Percussive", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Bayan (left, bass) (0)
+    // Full N/S-Indian classical ensemble: 30 distinct pads (was 10, 5 clones).
+    // Tabla bol set (0-8), Dholak/Mridangam/Ghatam/Kanjira/Daf, a pitched
+    // tarang melodic row, Manjira/Tingsha (Bell), Chimta (NoiseBody),
+    // Khartal (Shell), and a 2-string Tanpura drone (String/Friction, aux1).
+    // ModeInject 0.30 = the 1/k syahi stand-in on the harmonic dayan/
+    // mridangam/tarang heads. tensionMod/airLoading Membrane-only.
+    // NOTE: only ~7 voices have explicit plan values; the rest are
+    // reconstructed from the dayan/bayan archetypes (no structured table).
+
+    // Bayan 'Dha/Ge' open bass (0)
     pads[0].exciterType = ExciterType::Impulse;
     pads[0].bodyModel = BodyModelType::Membrane;
-    pads[0].material = 0.30; pads[0].size = 0.72; pads[0].decay = 0.55;
+    pads[0].material = 0.30; pads[0].size = 0.72; pads[0].decay = 0.78;
     pads[0].level = 0.82; pads[0].strikePosition = 0.50;
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(70);
-    pads[0].tsPitchEnvTime  = 0.20;
-    pads[0].tsPitchEnvCurve = 0.5;  // Phase 10: was "Lin" StringList -> norm 0.5 = linear (curveAmount 0)
+    pads[0].tsPitchEnvTime  = 0.20;   // 100 ms
     pads[0].airLoading = 0.62; pads[0].modeScatter = 0.10;
     pads[0].couplingStrength = 0.32; pads[0].secondaryEnabled = 1.0;
     pads[0].secondarySize = 0.45; pads[0].secondaryMaterial = 0.40;
-    pads[0].tensionModAmt = 0.65;
+    pads[0].tensionModAmt = 0.78;
     pads[0].clickLayerMix = 0.45; pads[0].clickLayerContactMs = 0.18;
     pads[0].clickLayerBrightness = 0.45;
     pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerColor = 0.42;
     pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.05;
-    pads[0].decaySkew = 0.55;
+    pads[0].decaySkew = 0.65;
     pads[0].macroComplexity = 0.70;
+    pads[0].pan = 0.42;
 
-    // Bayan slap (1)
+    // Bayan 'Ka' damped bass (1)
     pads[1] = pads[0];
-    pads[1].decay = 0.20; pads[1].strikePosition = 0.20;
+    pads[1].decay = 0.18; pads[1].strikePosition = 0.20;
+    pads[1].tensionModAmt = 0.0;   // damped: no gliss
+    pads[1].decaySkew = 0.45;
     pads[1].clickLayerMix = 0.85; pads[1].clickLayerBrightness = 0.65;
-    pads[1].tensionModAmt = 0.20;
+    pads[1].tsPitchEnvTime = 0.0;
+    pads[1].bodyDampingB1 = 0.45;
 
-    // Dayan (2)
+    // Dayan 'Na' open tone (2) -- syahi 1/k via ModeInject 0.30
     pads[2].exciterType = ExciterType::Impulse;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.50; pads[2].size = 0.42; pads[2].decay = 0.58;
@@ -3893,93 +3905,374 @@ Kit tablaKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(380);
     pads[2].tsPitchEnvTime  = 0.04;
     pads[2].airLoading = 0.45; pads[2].modeScatter = 0.05;
+    pads[2].modeInjectAmount = 0.30; pads[2].decaySkew = 0.65;
     pads[2].couplingStrength = 0.35; pads[2].secondaryEnabled = 1.0;
     pads[2].secondarySize = 0.35; pads[2].secondaryMaterial = 0.45;
     pads[2].tensionModAmt = 0.25;
     pads[2].clickLayerMix = 0.55; pads[2].clickLayerContactMs = 0.12;
-    pads[2].clickLayerBrightness = 0.75;
+    pads[2].clickLayerBrightness = 0.78;
     pads[2].noiseLayerMix = 0.08;
-    pads[2].decaySkew = 0.60;
     pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.05;
     pads[2].nonlinearCoupling = 0.20;
+    pads[2].pan = 0.58;
 
-    // Tin (3)
+    // Dayan 'Tin' edge (3)
     pads[3] = pads[2];
     pads[3].decay = 0.22; pads[3].strikePosition = 0.10;
+    pads[3].modeInjectAmount = 0.20; pads[3].decaySkew = 0.40;
     pads[3].clickLayerMix = 0.85; pads[3].clickLayerBrightness = 0.85;
-    pads[3].tensionModAmt = 0.15; pads[3].decaySkew = 0.40;
+    pads[3].tensionModAmt = 0.15;
+    pads[3].pan = 0.58;
 
-    // Tha (4)
+    // Dayan 'Tha' palm (4) -- Mallet
     pads[4].exciterType = ExciterType::Mallet;
     pads[4].bodyModel = BodyModelType::Membrane;
     pads[4].material = 0.50; pads[4].size = 0.42; pads[4].decay = 0.45;
     pads[4].level = 0.80; pads[4].strikePosition = 0.50;
     pads[4].airLoading = 0.42; pads[4].modeScatter = 0.10;
+    pads[4].decaySkew = 0.50;
     pads[4].couplingStrength = 0.30; pads[4].secondaryEnabled = 1.0;
     pads[4].secondarySize = 0.35; pads[4].secondaryMaterial = 0.45;
     pads[4].tensionModAmt = 0.30;
     pads[4].clickLayerMix = 0.40; pads[4].clickLayerContactMs = 0.30;
     pads[4].clickLayerBrightness = 0.45;
-    pads[4].noiseLayerMix = 0.15;
+    pads[4].noiseLayerMix = 0.15; pads[4].noiseLayerColor = 0.42;
     pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.05;
-    pads[4].decaySkew = 0.50;
+    pads[4].pan = 0.58;
 
-    // Na (5)
+    // Dayan 'Tete' damped tap (5)
     pads[5].exciterType = ExciterType::Impulse;
     pads[5].bodyModel = BodyModelType::Membrane;
-    pads[5].material = 0.55; pads[5].size = 0.42; pads[5].decay = 0.45;
-    pads[5].level = 0.78; pads[5].strikePosition = 0.18;
-    pads[5].morphEnabled = 1.0;
-    pads[5].morphStart = 0.45; pads[5].morphEnd = 0.65;
-    pads[5].morphDuration = 0.40; pads[5].morphCurve = 0.4;
-    pads[5].airLoading = 0.38; pads[5].modeScatter = 0.45;
-    pads[5].decaySkew = 0.50;
-    pads[5].couplingStrength = 0.38; pads[5].secondaryEnabled = 1.0;
-    pads[5].secondarySize = 0.32; pads[5].secondaryMaterial = 0.50;
-    pads[5].tensionModAmt = 0.18;
-    pads[5].clickLayerMix = 0.55; pads[5].clickLayerBrightness = 0.78;
-    pads[5].clickLayerContactMs = 0.14;
-    pads[5].noiseLayerMix = 0.05;
-    pads[5].decaySkew = 0.65;
-    pads[5].nonlinearCoupling = 0.32;
-    pads[5].bodyDampingB1 = 0.30; pads[5].bodyDampingB3 = 0.05;
+    pads[5].material = 0.50; pads[5].size = 0.42; pads[5].decay = 0.10;
+    pads[5].level = 0.76; pads[5].strikePosition = 0.20;
+    pads[5].airLoading = 0.42; pads[5].modeScatter = 0.10;
+    pads[5].decaySkew = 0.30;
+    pads[5].couplingStrength = 0.30; pads[5].secondaryEnabled = 1.0;
+    pads[5].secondarySize = 0.35; pads[5].secondaryMaterial = 0.45;
+    pads[5].tensionModAmt = 0.0;
+    pads[5].clickLayerMix = 0.80; pads[5].clickLayerContactMs = 0.12;
+    pads[5].clickLayerBrightness = 0.78;
+    pads[5].noiseLayerMix = 0.05; pads[5].noiseLayerColor = 0.42;
+    pads[5].bodyDampingB1 = 0.45; pads[5].bodyDampingB3 = 0.05;
+    pads[5].pan = 0.58;
 
-    // Ge (6)
+    // Bayan 'Ge' extreme gliss (6)
     pads[6] = pads[0];
-    pads[6].decay = 0.78; pads[6].tensionModAmt = 0.85;
+    pads[6].decay = 0.85; pads[6].tensionModAmt = 0.85;
     pads[6].decaySkew = 0.65;
 
-    // Ka (7)
-    pads[7] = pads[1];
-    pads[7].material = 0.30; pads[7].size = 0.65;
+    // Dayan 'Ti' damped edge (7)
+    pads[7] = pads[3];
+    pads[7].decay = 0.14; pads[7].decaySkew = 0.35;
+    pads[7].modeInjectAmount = 0.0; pads[7].tensionModAmt = 0.0;
+    pads[7].bodyDampingB1 = 0.45;
 
-    // Tete (8)
-    pads[8] = pads[3];
-    pads[8].decay = 0.10; pads[8].decaySkew = 0.30;
+    // Dayan 'Na' bloom (8) -- material morph
+    pads[8].exciterType = ExciterType::Impulse;
+    pads[8].bodyModel = BodyModelType::Membrane;
+    pads[8].material = 0.55; pads[8].size = 0.42; pads[8].decay = 0.45;
+    pads[8].level = 0.78; pads[8].strikePosition = 0.18;
+    pads[8].morphEnabled = 1.0;
+    pads[8].morphStart = 0.45; pads[8].morphEnd = 0.65;
+    pads[8].morphDuration = 0.40; pads[8].morphCurve = 0.4;
+    pads[8].airLoading = 0.38; pads[8].modeScatter = 0.45;
+    pads[8].modeInjectAmount = 0.30; pads[8].decaySkew = 0.65;
+    pads[8].couplingStrength = 0.38; pads[8].secondaryEnabled = 1.0;
+    pads[8].secondarySize = 0.32; pads[8].secondaryMaterial = 0.50;
+    pads[8].tensionModAmt = 0.18;
+    pads[8].clickLayerMix = 0.55; pads[8].clickLayerContactMs = 0.14;
+    pads[8].clickLayerBrightness = 0.78;
+    pads[8].noiseLayerMix = 0.05; pads[8].noiseLayerColor = 0.42;
+    pads[8].nonlinearCoupling = 0.32;
+    pads[8].bodyDampingB1 = 0.30; pads[8].bodyDampingB3 = 0.05;
+    pads[8].pan = 0.55;
 
-    // Tanpura drone (9)
-    pads[9].exciterType = ExciterType::Friction;
-    pads[9].bodyModel = BodyModelType::String;
-    pads[9].material = 0.55; pads[9].size = 0.65; pads[9].decay = 0.95;
-    pads[9].level = 0.55;
-    pads[9].frictionPressure = 0.32;
-    pads[9].modeStretch = 0.40;
-    pads[9].nonlinearCoupling = 0.45;
-    pads[9].morphEnabled = 1.0;
-    pads[9].morphStart = 0.55; pads[9].morphEnd = 0.65;
-    pads[9].morphDuration = 0.85; pads[9].morphCurve = 0.5;
-    pads[9].decaySkew = 0.85;
-    pads[9].noiseLayerMix = 0.18; pads[9].noiseLayerCutoff = 0.45;
-    pads[9].clickLayerMix = 0.0;
-    pads[9].bodyDampingB1 = 0.30; pads[9].bodyDampingB3 = 0.18;
-    pads[9].outputBus = 1;
-    pads[9].macroComplexity = 0.85;
+    // Dholak HI (9) -- plain membrane, no ModeInject
+    pads[9].exciterType = ExciterType::Impulse;
+    pads[9].bodyModel = BodyModelType::Membrane;
+    pads[9].material = 0.48; pads[9].size = 0.46; pads[9].decay = 0.34;
+    pads[9].level = 0.80; pads[9].strikePosition = 0.35;
+    pads[9].tsPitchEnvStart = toLogNorm(320);
+    pads[9].tsPitchEnvEnd   = toLogNorm(220);
+    pads[9].tsPitchEnvTime  = 0.05;   // 25 ms
+    pads[9].airLoading = 0.50; pads[9].modeScatter = 0.10;
+    pads[9].decaySkew = 0.50;
+    pads[9].couplingStrength = 0.30; pads[9].secondaryEnabled = 1.0;
+    pads[9].secondarySize = 0.42; pads[9].secondaryMaterial = 0.40;
+    pads[9].tensionModAmt = 0.16;
+    pads[9].clickLayerMix = 0.50; pads[9].clickLayerContactMs = 0.16;
+    pads[9].clickLayerBrightness = 0.60;
+    pads[9].noiseLayerMix = 0.10; pads[9].noiseLayerColor = 0.42;
+    pads[9].bodyDampingB1 = 0.32; pads[9].bodyDampingB3 = 0.08;
+    pads[9].pan = 0.58;
+
+    // Dholak LO (10)
+    pads[10] = pads[9];
+    pads[10].material = 0.36; pads[10].size = 0.62; pads[10].decay = 0.42;
+    pads[10].tsPitchEnvStart = toLogNorm(220);
+    pads[10].tsPitchEnvEnd   = toLogNorm(140);
+    pads[10].tsPitchEnvTime  = 0.16;   // 80 ms
+    pads[10].airLoading = 0.58; pads[10].tensionModAmt = 0.34;
+    pads[10].decaySkew = 0.58; pads[10].secondarySize = 0.50;
+    pads[10].bodyDampingB3 = 0.12;
+    pads[10].pan = 0.42;
+
+    // Mridangam BASS / thoppi (11) -- modeInject syahi
+    pads[11].exciterType = ExciterType::Impulse;
+    pads[11].bodyModel = BodyModelType::Membrane;
+    pads[11].material = 0.32; pads[11].size = 0.66; pads[11].decay = 0.50;
+    pads[11].level = 0.82; pads[11].strikePosition = 0.45;
+    pads[11].tsPitchEnvStart = toLogNorm(180);
+    pads[11].tsPitchEnvEnd   = toLogNorm(110);
+    pads[11].tsPitchEnvTime  = 0.06;
+    pads[11].airLoading = 0.58; pads[11].modeScatter = 0.10;
+    pads[11].modeInjectAmount = 0.18; pads[11].decaySkew = 0.60;
+    pads[11].nonlinearCoupling = 0.16;
+    pads[11].couplingStrength = 0.38; pads[11].secondaryEnabled = 1.0;
+    pads[11].secondarySize = 0.50; pads[11].secondaryMaterial = 0.40;
+    pads[11].tensionModAmt = 0.20;
+    pads[11].clickLayerMix = 0.45; pads[11].clickLayerContactMs = 0.20;
+    pads[11].clickLayerBrightness = 0.45;
+    pads[11].noiseLayerMix = 0.10; pads[11].noiseLayerColor = 0.42;
+    pads[11].bodyDampingB1 = 0.30; pads[11].bodyDampingB3 = 0.08;
+    pads[11].macroBodySize = 0.80;
+    pads[11].pan = 0.40;
+
+    // Mridangam TREBLE / valanthalai (12)
+    pads[12].exciterType = ExciterType::Impulse;
+    pads[12].bodyModel = BodyModelType::Membrane;
+    pads[12].material = 0.52; pads[12].size = 0.40; pads[12].decay = 0.40;
+    pads[12].level = 0.80; pads[12].strikePosition = 0.30;
+    pads[12].tsPitchEnvStart = toLogNorm(360);
+    pads[12].tsPitchEnvEnd   = toLogNorm(300);
+    pads[12].tsPitchEnvTime  = 0.04;
+    pads[12].airLoading = 0.45; pads[12].modeScatter = 0.06;
+    pads[12].modeInjectAmount = 0.30; pads[12].decaySkew = 0.60;
+    pads[12].couplingStrength = 0.32; pads[12].secondaryEnabled = 1.0;
+    pads[12].secondarySize = 0.35; pads[12].secondaryMaterial = 0.45;
+    pads[12].tensionModAmt = 0.20;
+    pads[12].clickLayerMix = 0.55; pads[12].clickLayerContactMs = 0.12;
+    pads[12].clickLayerBrightness = 0.78;
+    pads[12].noiseLayerMix = 0.08; pads[12].noiseLayerColor = 0.45;
+    pads[12].bodyDampingB1 = 0.30; pads[12].bodyDampingB3 = 0.05;
+    pads[12].pan = 0.60;
+
+    // Ghatam clay pot (13) -- deep cavity membrane
+    pads[13].exciterType = ExciterType::Impulse;
+    pads[13].bodyModel = BodyModelType::Membrane;
+    pads[13].material = 0.34; pads[13].size = 0.70; pads[13].decay = 0.38;
+    pads[13].level = 0.80; pads[13].strikePosition = 0.50;
+    pads[13].tsPitchEnvStart = toLogNorm(160);
+    pads[13].tsPitchEnvEnd   = toLogNorm(110);
+    pads[13].tsPitchEnvTime  = 0.05;
+    pads[13].airLoading = 0.70; pads[13].modeScatter = 0.12;
+    pads[13].modeInjectAmount = 0.12; pads[13].decaySkew = 0.55;
+    pads[13].couplingStrength = 0.40; pads[13].secondaryEnabled = 1.0;
+    pads[13].secondarySize = 0.55; pads[13].secondaryMaterial = 0.35;
+    pads[13].tensionModAmt = 0.30;
+    pads[13].clickLayerMix = 0.55; pads[13].clickLayerContactMs = 0.16;
+    pads[13].clickLayerBrightness = 0.55;
+    pads[13].noiseLayerMix = 0.10; pads[13].noiseLayerColor = 0.42;
+    pads[13].bodyDampingB1 = 0.32; pads[13].bodyDampingB3 = 0.10;
+    pads[13].pan = 0.50;
+
+    // Kanjira frame drum (14)
+    pads[14].exciterType = ExciterType::Impulse;
+    pads[14].bodyModel = BodyModelType::Membrane;
+    pads[14].material = 0.45; pads[14].size = 0.40; pads[14].decay = 0.30;
+    pads[14].level = 0.78; pads[14].strikePosition = 0.35;
+    pads[14].tsPitchEnvStart = toLogNorm(300);
+    pads[14].tsPitchEnvEnd   = toLogNorm(220);
+    pads[14].tsPitchEnvTime  = 0.04;
+    pads[14].airLoading = 0.40; pads[14].modeScatter = 0.30;  // monkey-skin pitch bend
+    pads[14].decaySkew = 0.50;
+    pads[14].couplingStrength = 0.28; pads[14].secondaryEnabled = 1.0;
+    pads[14].secondarySize = 0.36; pads[14].secondaryMaterial = 0.50;
+    pads[14].tensionModAmt = 0.40;   // pronounced kanjira bend
+    pads[14].clickLayerMix = 0.55; pads[14].clickLayerContactMs = 0.15;
+    pads[14].clickLayerBrightness = 0.68;
+    pads[14].noiseLayerMix = 0.12; pads[14].noiseLayerColor = 0.45;
+    pads[14].bodyDampingB1 = 0.32; pads[14].bodyDampingB3 = 0.08;
+    pads[14].pan = 0.62;
+
+    // Daf / Duff frame drum (15) -- Mallet
+    pads[15].exciterType = ExciterType::Mallet;
+    pads[15].bodyModel = BodyModelType::Membrane;
+    pads[15].material = 0.40; pads[15].size = 0.78; pads[15].decay = 0.42;
+    pads[15].level = 0.78; pads[15].strikePosition = 0.45;
+    pads[15].airLoading = 0.62; pads[15].modeScatter = 0.18;
+    pads[15].decaySkew = 0.52;
+    pads[15].couplingStrength = 0.25; pads[15].secondaryEnabled = 1.0;
+    pads[15].secondarySize = 0.45; pads[15].secondaryMaterial = 0.40;
+    pads[15].tensionModAmt = 0.20;
+    pads[15].clickLayerMix = 0.35; pads[15].clickLayerContactMs = 0.28;
+    pads[15].clickLayerBrightness = 0.40;
+    pads[15].noiseLayerMix = 0.15; pads[15].noiseLayerColor = 0.42;
+    pads[15].bodyDampingB1 = 0.30; pads[15].bodyDampingB3 = 0.10;
+    pads[15].pan = 0.45;
+
+    // Dayan-tarang melodic row (16/17/18) -- pitched harmonic heads
+    const int    tarangPads[]  = {16, 17, 18};
+    const double tarangSize[]  = {0.48, 0.42, 0.36};
+    const double tarangHi[]    = {300, 360, 430};
+    const double tarangPan[]   = {0.48, 0.52, 0.56};
+    for (int i = 0; i < 3; ++i) {
+        const int p = tarangPads[i];
+        pads[p].exciterType = ExciterType::Impulse;
+        pads[p].bodyModel = BodyModelType::Membrane;
+        pads[p].material = 0.52; pads[p].size = tarangSize[i];
+        pads[p].decay = 0.55; pads[p].level = 0.78;
+        pads[p].strikePosition = 0.40;
+        pads[p].tsPitchEnvStart = toLogNorm(tarangHi[i]);
+        pads[p].tsPitchEnvEnd   = toLogNorm(tarangHi[i] * 0.94);
+        pads[p].tsPitchEnvTime  = 0.03;
+        pads[p].airLoading = 0.45; pads[p].modeScatter = 0.05;
+        pads[p].modeInjectAmount = 0.30; pads[p].decaySkew = 0.58;
+        pads[p].couplingStrength = 0.32; pads[p].secondaryEnabled = 1.0;
+        pads[p].secondarySize = 0.35; pads[p].secondaryMaterial = 0.45;
+        pads[p].tensionModAmt = 0.12;
+        pads[p].clickLayerMix = 0.45; pads[p].clickLayerContactMs = 0.14;
+        pads[p].clickLayerBrightness = 0.72;
+        pads[p].noiseLayerMix = 0.06; pads[p].noiseLayerColor = 0.45;
+        pads[p].bodyDampingB1 = 0.28; pads[p].bodyDampingB3 = 0.05;
+        pads[p].pan = tarangPan[i];
+    }
+
+    // Manjira hand cymbals (19) -- Bell
+    pads[19].exciterType = ExciterType::Impulse;
+    pads[19].bodyModel = BodyModelType::Bell;
+    pads[19].material = 0.90; pads[19].size = 0.12; pads[19].decay = 0.70;
+    pads[19].level = 0.72;
+    pads[19].modeStretch = 0.55; pads[19].decaySkew = 0.40;
+    pads[19].modeScatter = 0.18;
+    pads[19].clickLayerMix = 0.55; pads[19].clickLayerContactMs = 0.06;
+    pads[19].clickLayerBrightness = 0.90;
+    pads[19].noiseLayerMix = 0.0;
+    pads[19].airLoading = 0.0;
+    pads[19].bodyDampingB3 = 0.0; pads[19].bodyDampingB1 = 0.30;
+    pads[19].macroBrightness = 0.85;
+    pads[19].pan = 0.30;
+
+    // Tingsha / large Manjira (20) -- Bell, more inharmonic
+    pads[20] = pads[19];
+    pads[20].size = 0.18; pads[20].decay = 0.82;
+    pads[20].modeStretch = 0.60; pads[20].decaySkew = 0.38;
+    pads[20].pan = 0.70;
+
+    // Chimta metallic shaker (21) -- NoiseBody + metallic Shell secondary
+    pads[21].exciterType = ExciterType::NoiseBurst;
+    pads[21].bodyModel = BodyModelType::NoiseBody;
+    pads[21].material = 0.85; pads[21].size = 0.16; pads[21].decay = 0.20;
+    pads[21].level = 0.68;
+    pads[21].noiseBurstDuration = 0.30;
+    pads[21].noiseLayerMix = 0.45; pads[21].noiseLayerCutoff = 0.92;
+    pads[21].noiseLayerColor = 0.90; pads[21].noiseLayerDecay = 0.18;  // violet
+    pads[21].clickLayerMix = 0.20;
+    pads[21].airLoading = 0.0; pads[21].modeScatter = 0.30;
+    pads[21].couplingStrength = 0.40; pads[21].secondaryEnabled = 1.0;
+    pads[21].secondarySize = 0.20; pads[21].secondaryMaterial = 0.85;
+    pads[21].bodyDampingB3 = 0.0; pads[21].bodyDampingB1 = 0.45;
+    pads[21].pan = 0.65;
+
+    // Khartal wood clapper (22) -- Shell free-free bar
+    pads[22].exciterType = ExciterType::Impulse;
+    pads[22].bodyModel = BodyModelType::Shell;
+    pads[22].material = 0.80; pads[22].size = 0.12; pads[22].decay = 0.14;
+    pads[22].level = 0.78; pads[22].strikePosition = 0.85;
+    pads[22].modeStretch = 0.50; pads[22].decaySkew = 0.42;
+    pads[22].modeScatter = 0.10;
+    pads[22].clickLayerMix = 0.90; pads[22].clickLayerContactMs = 0.06;
+    pads[22].clickLayerBrightness = 0.88;
+    pads[22].noiseLayerMix = 0.0;
+    pads[22].airLoading = 0.0;
+    pads[22].bodyDampingB3 = 0.70; pads[22].bodyDampingB1 = 0.40;  // dry wood
+    pads[22].pan = 0.38;
+
+    // Tabla 'Dhin' composite (23) -- open dayan with ring
+    pads[23] = pads[2];
+    pads[23].decay = 0.62; pads[23].strikePosition = 0.42;
+    pads[23].tensionModAmt = 0.20; pads[23].decaySkew = 0.62;
+    pads[23].pan = 0.50;
+
+    // Tanpura drone Sa (24) -- String/Friction, aux bus 1
+    pads[24].exciterType = ExciterType::Friction;
+    pads[24].bodyModel = BodyModelType::String;
+    pads[24].material = 0.55; pads[24].size = 0.65; pads[24].decay = 0.95;
+    pads[24].level = 0.55;
+    pads[24].frictionPressure = 0.45;
+    pads[24].modeStretch = 0.40;
+    pads[24].nonlinearCoupling = 0.50;
+    pads[24].tsDriveAmount = 0.20; pads[24].tsFoldAmount = 0.22;  // jivari buzz
+    pads[24].morphEnabled = 1.0;
+    pads[24].morphStart = 0.45; pads[24].morphEnd = 0.70;
+    pads[24].morphDuration = 0.85; pads[24].morphCurve = 0.5;
+    pads[24].decaySkew = 0.85;
+    pads[24].noiseLayerMix = 0.18; pads[24].noiseLayerCutoff = 0.45;
+    pads[24].clickLayerMix = 0.0;
+    pads[24].bodyDampingB1 = 0.30; pads[24].bodyDampingB3 = 0.18;
+    pads[24].outputBus = 1;
+    pads[24].macroComplexity = 0.85;
+    pads[24].pan = 0.50;
+
+    // Tanpura drone Pa / 5th (25)
+    pads[25] = pads[24];
+    pads[25].size = 0.58;
+
+    // Bayan-tarang low melodic (26)
+    pads[26].exciterType = ExciterType::Impulse;
+    pads[26].bodyModel = BodyModelType::Membrane;
+    pads[26].material = 0.32; pads[26].size = 0.58; pads[26].decay = 0.60;
+    pads[26].level = 0.80; pads[26].strikePosition = 0.45;
+    pads[26].tsPitchEnvStart = toLogNorm(180);
+    pads[26].tsPitchEnvEnd   = toLogNorm(165);
+    pads[26].tsPitchEnvTime  = 0.04;
+    pads[26].airLoading = 0.58; pads[26].modeScatter = 0.06;
+    pads[26].modeInjectAmount = 0.30; pads[26].decaySkew = 0.60;
+    pads[26].couplingStrength = 0.35; pads[26].secondaryEnabled = 1.0;
+    pads[26].secondarySize = 0.48; pads[26].secondaryMaterial = 0.40;
+    pads[26].tensionModAmt = 0.12;
+    pads[26].clickLayerMix = 0.45; pads[26].clickLayerContactMs = 0.16;
+    pads[26].clickLayerBrightness = 0.55;
+    pads[26].noiseLayerMix = 0.08; pads[26].noiseLayerColor = 0.42;
+    pads[26].bodyDampingB1 = 0.28; pads[26].bodyDampingB3 = 0.05;
+    pads[26].pan = 0.40;
+
+    // Dayan-tarang very-hi (27)
+    pads[27] = pads[16];
+    pads[27].size = 0.30;
+    pads[27].tsPitchEnvStart = toLogNorm(500);
+    pads[27].tsPitchEnvEnd   = toLogNorm(470);
+    pads[27].pan = 0.58;
+
+    // Mridangam 'chapu' slap (28)
+    pads[28] = pads[12];
+    pads[28].decay = 0.18; pads[28].strikePosition = 0.10;
+    pads[28].modeInjectAmount = 0.0; pads[28].tensionModAmt = 0.0;
+    pads[28].decaySkew = 0.38;
+    pads[28].clickLayerMix = 0.85; pads[28].clickLayerBrightness = 0.85;
+    pads[28].bodyDampingB1 = 0.45;
+    pads[28].pan = 0.62;
+
+    // Khol / Mridangam bass roll (29) -- Mallet
+    pads[29] = pads[11];
+    pads[29].exciterType = ExciterType::Mallet;
+    pads[29].decay = 0.58; pads[29].clickLayerMix = 0.32;
+    pads[29].clickLayerContactMs = 0.28; pads[29].clickLayerBrightness = 0.38;
+    pads[29].pan = 0.40;
+
+    // Dayan-tarang spare (30) + Bayan-tarang spare (31) -- optional
+    pads[30] = pads[17];
+    pads[30].pan = 0.50;
+    pads[31] = pads[26];
+    pads[31].size = 0.62;
+    pads[31].pan = 0.44;
 
     k.opts.maxPolyphony    = 12;
     k.opts.globalCoupling  = 0.30;
     k.opts.tomResonance    = 0.45;
     k.opts.couplingDelayMs = 1.1;
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
     return k;
 }
 Kit worldMetalKit() {
