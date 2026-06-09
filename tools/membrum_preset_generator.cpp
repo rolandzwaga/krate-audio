@@ -3436,178 +3436,422 @@ Kit latinPercKit() {
     Kit k{"Latin Perc", "Percussive", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Clave hi (0)
+    // Latin Perc -- 28 distinct voices, family-grouped. Key corrections:
+    // clave/triangle Bell->Shell (free-free bar) with b3=0.70 wood override
+    // on claves/castanets; timbales de-duplicated; cowbell feedback no-op
+    // removed; pandeiro b1/b3 set explicit (metallic shimmer). Exact per-pad
+    // values reconstructed from the cited archetypes + sibling kits within
+    // the plan's documented semantics (no structured table in repo).
+
+    // Bongo Macho hi (0) -- Membrane/Impulse
     pads[0].exciterType = ExciterType::Impulse;
-    pads[0].bodyModel = BodyModelType::Bell;
-    pads[0].material = 0.85; pads[0].size = 0.10; pads[0].decay = 0.18;
-    pads[0].level = 0.80;
-    pads[0].fmRatio = 0.62;
-    pads[0].modeStretch = 0.50;
-    pads[0].clickLayerMix = 0.92; pads[0].clickLayerContactMs = 0.06;
-    pads[0].clickLayerBrightness = 0.92;
-    pads[0].noiseLayerMix = 0.0;
-    pads[0].airLoading = 0.0;
-    pads[0].bodyDampingB3 = 0.0; pads[0].bodyDampingB1 = 0.40;
-    pads[0].macroBrightness = 0.85;
+    pads[0].bodyModel = BodyModelType::Membrane;
+    pads[0].material = 0.55; pads[0].size = 0.32; pads[0].decay = 0.28;
+    pads[0].level = 0.80; pads[0].strikePosition = 0.30;
+    pads[0].tsPitchEnvStart = toLogNorm(420);
+    pads[0].tsPitchEnvEnd   = toLogNorm(350);
+    pads[0].tsPitchEnvTime  = 0.04;
+    pads[0].airLoading = 0.42; pads[0].modeScatter = 0.10;
+    pads[0].decaySkew = 0.46; pads[0].nonlinearCoupling = 0.12;
+    pads[0].couplingStrength = 0.25; pads[0].secondaryEnabled = 1.0;
+    pads[0].secondarySize = 0.30; pads[0].secondaryMaterial = 0.40;
+    pads[0].tensionModAmt = 0.22;
+    pads[0].clickLayerMix = 0.55; pads[0].clickLayerContactMs = 0.15;
+    pads[0].clickLayerBrightness = 0.72;
+    pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerColor = 0.40;
+    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
+    pads[0].pan = 0.60;
 
-    // Clave lo (2)
-    pads[2] = pads[0];
-    pads[2].size = 0.16; pads[2].decay = 0.22;
-    pads[2].fmRatio = 0.50;
+    // Bongo Hembra lo (1)
+    pads[1] = pads[0];
+    pads[1].size = 0.40; pads[1].decay = 0.32;
+    pads[1].tsPitchEnvStart = toLogNorm(340);
+    pads[1].tsPitchEnvEnd   = toLogNorm(280);
+    pads[1].decaySkew = 0.50; pads[1].nonlinearCoupling = 0.14;
+    pads[1].pan = 0.56;
 
-    // Cowbell hi (4)
-    pads[4].exciterType = ExciterType::FMImpulse;
-    pads[4].bodyModel = BodyModelType::Bell;
-    pads[4].material = 0.78; pads[4].size = 0.20; pads[4].decay = 0.30;
-    pads[4].level = 0.78;
-    pads[4].fmRatio = 0.55; pads[4].feedbackAmount = 0.10;
-    pads[4].clickLayerMix = 0.55; pads[4].clickLayerContactMs = 0.10;
-    pads[4].clickLayerBrightness = 0.78;
-    pads[4].noiseLayerMix = 0.10; pads[4].noiseLayerColor = 0.65;
-    pads[4].airLoading = 0.0; pads[4].modeScatter = 0.18;
-    pads[4].bodyDampingB3 = 0.0; pads[4].bodyDampingB1 = 0.32;
-    pads[4].macroBrightness = 0.75;
+    // Conga Hi open (2)
+    pads[2].exciterType = ExciterType::Impulse;
+    pads[2].bodyModel = BodyModelType::Membrane;
+    pads[2].material = 0.50; pads[2].size = 0.50; pads[2].decay = 0.32;
+    pads[2].level = 0.80; pads[2].strikePosition = 0.30;
+    pads[2].tsPitchEnvStart = toLogNorm(280);
+    pads[2].tsPitchEnvEnd   = toLogNorm(210);
+    pads[2].tsPitchEnvTime  = 0.04;
+    pads[2].airLoading = 0.50; pads[2].modeScatter = 0.10;
+    pads[2].decaySkew = 0.50; pads[2].nonlinearCoupling = 0.14;
+    pads[2].couplingStrength = 0.28; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.40; pads[2].secondaryMaterial = 0.40;
+    pads[2].tensionModAmt = 0.18;
+    pads[2].clickLayerMix = 0.55; pads[2].clickLayerContactMs = 0.16;
+    pads[2].clickLayerBrightness = 0.65;
+    pads[2].noiseLayerMix = 0.12; pads[2].noiseLayerColor = 0.45;
+    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.10;
+    pads[2].pan = 0.44;
 
-    // Cowbell lo (6)
-    pads[6] = pads[4];
-    pads[6].size = 0.28; pads[6].decay = 0.40;
-    pads[6].fmRatio = 0.42;
-    pads[6].chokeGroup = 0;
+    // Conga Lo open (3)
+    pads[3].exciterType = ExciterType::Impulse;
+    pads[3].bodyModel = BodyModelType::Membrane;
+    pads[3].material = 0.45; pads[3].size = 0.62; pads[3].decay = 0.40;
+    pads[3].level = 0.80; pads[3].strikePosition = 0.45;
+    pads[3].tsPitchEnvStart = toLogNorm(200);
+    pads[3].tsPitchEnvEnd   = toLogNorm(150);
+    pads[3].tsPitchEnvTime  = 0.04;
+    pads[3].airLoading = 0.55; pads[3].modeScatter = 0.10;
+    pads[3].modeInjectAmount = 0.10; pads[3].decaySkew = 0.60;
+    pads[3].nonlinearCoupling = 0.18;
+    pads[3].couplingStrength = 0.32; pads[3].secondaryEnabled = 1.0;
+    pads[3].secondarySize = 0.48; pads[3].secondaryMaterial = 0.40;
+    pads[3].tensionModAmt = 0.20;
+    pads[3].clickLayerMix = 0.50; pads[3].clickLayerContactMs = 0.18;
+    pads[3].clickLayerBrightness = 0.55;
+    pads[3].noiseLayerMix = 0.10; pads[3].noiseLayerColor = 0.40;
+    pads[3].bodyDampingB1 = 0.30; pads[3].bodyDampingB3 = 0.10;
+    pads[3].macroBodySize = 0.55;
+    pads[3].pan = 0.40;
 
-    // Agogo hi (8)
-    pads[8].exciterType = ExciterType::FMImpulse;
-    pads[8].bodyModel = BodyModelType::Bell;
-    pads[8].material = 0.85; pads[8].size = 0.14; pads[8].decay = 0.28;
-    pads[8].level = 0.75;
-    pads[8].fmRatio = 0.72;
-    pads[8].clickLayerMix = 0.55; pads[8].clickLayerBrightness = 0.85;
-    pads[8].noiseLayerMix = 0.0;
-    pads[8].airLoading = 0.0;
-    pads[8].bodyDampingB3 = 0.0; pads[8].bodyDampingB1 = 0.30;
+    // Conga Slap (4)
+    pads[4].exciterType = ExciterType::Impulse;
+    pads[4].bodyModel = BodyModelType::Membrane;
+    pads[4].material = 0.55; pads[4].size = 0.50; pads[4].decay = 0.18;
+    pads[4].level = 0.85; pads[4].strikePosition = 0.10;
+    pads[4].airLoading = 0.40; pads[4].modeScatter = 0.30;
+    pads[4].decaySkew = 0.40;
+    pads[4].couplingStrength = 0.20; pads[4].secondaryEnabled = 1.0;
+    pads[4].secondarySize = 0.40; pads[4].secondaryMaterial = 0.40;
+    pads[4].tensionModAmt = 0.0;
+    pads[4].clickLayerMix = 0.85; pads[4].clickLayerContactMs = 0.10;
+    pads[4].clickLayerBrightness = 0.85;
+    pads[4].noiseLayerMix = 0.15; pads[4].noiseLayerColor = 0.40;
+    pads[4].bodyDampingB1 = 0.45; pads[4].bodyDampingB3 = 0.10;
+    pads[4].macroPunch = 0.85;
+    pads[4].pan = 0.42;
 
-    // Agogo lo (10)
-    pads[10] = pads[8];
-    pads[10].size = 0.22; pads[10].fmRatio = 0.55;
-    pads[10].decay = 0.35;
-
-    // Timbale hi (12)
-    pads[12].exciterType = ExciterType::NoiseBurst;
-    pads[12].bodyModel = BodyModelType::Membrane;
-    pads[12].material = 0.55; pads[12].size = 0.40; pads[12].decay = 0.30;
-    pads[12].level = 0.82;
-    pads[12].noiseBurstDuration = 0.25;
-    pads[12].tsPitchEnvStart = toLogNorm(380);
-    pads[12].tsPitchEnvEnd   = toLogNorm(280);
-    pads[12].tsPitchEnvTime  = 0.04;
-    pads[12].airLoading = 0.40; pads[12].modeScatter = 0.18;
-    pads[12].couplingStrength = 0.50; pads[12].secondaryEnabled = 1.0;
-    pads[12].secondarySize = 0.40; pads[12].secondaryMaterial = 0.65;
-    pads[12].tensionModAmt = 0.22;
-    pads[12].clickLayerMix = 0.65; pads[12].clickLayerContactMs = 0.12;
-    pads[12].clickLayerBrightness = 0.78;
-    pads[12].noiseLayerMix = 0.30; pads[12].noiseLayerColor = 0.65;
-    pads[12].bodyDampingB1 = 0.32; pads[12].bodyDampingB3 = 0.10;
-
-    // Timbale lo (14)
-    pads[14] = pads[12];
-    pads[14].size = 0.55; pads[14].decay = 0.40;
-    pads[14].material = 0.50;
-    pads[14].tsPitchEnvStart = toLogNorm(280);
-    pads[14].tsPitchEnvEnd   = toLogNorm(200);
-    pads[14].secondarySize = 0.50;
-
-    // Cabasa (1)
-    pads[1].exciterType = ExciterType::NoiseBurst;
-    pads[1].bodyModel = BodyModelType::NoiseBody;
-    pads[1].material = 0.85; pads[1].size = 0.10; pads[1].decay = 0.10;
-    pads[1].level = 0.65;
-    pads[1].noiseBurstDuration = 0.25;
-    pads[1].noiseLayerMix = 0.85; pads[1].noiseLayerCutoff = 0.85;
-    pads[1].noiseLayerColor = 0.78; pads[1].noiseLayerDecay = 0.10;
-    pads[1].clickLayerMix = 0.0;
-    pads[1].airLoading = 0.0; pads[1].modeScatter = 0.30;
-    pads[1].bodyDampingB3 = 0.0; pads[1].bodyDampingB1 = 0.55;
-
-    // Maracas (3)
-    pads[3].exciterType = ExciterType::NoiseBurst;
-    pads[3].bodyModel = BodyModelType::NoiseBody;
-    pads[3].material = 0.78; pads[3].size = 0.14; pads[3].decay = 0.18;
-    pads[3].level = 0.65;
-    pads[3].noiseBurstDuration = 0.45;
-    pads[3].noiseLayerMix = 0.85; pads[3].noiseLayerCutoff = 0.55;
-    pads[3].noiseLayerColor = 0.50; pads[3].noiseLayerDecay = 0.18;
-    pads[3].clickLayerMix = 0.0;
-    pads[3].airLoading = 0.0; pads[3].modeScatter = 0.42;
-    pads[3].bodyDampingB3 = 0.0; pads[3].bodyDampingB1 = 0.45;
-
-    // Tambourine (5)
+    // Timbale Hi macho (5) -- Membrane/NoiseBurst + metal shell
     pads[5].exciterType = ExciterType::NoiseBurst;
-    pads[5].bodyModel = BodyModelType::NoiseBody;
-    pads[5].material = 0.85; pads[5].size = 0.20; pads[5].decay = 0.22;
-    pads[5].level = 0.72;
-    pads[5].noiseBurstDuration = 0.30;
-    pads[5].noiseLayerMix = 0.78; pads[5].noiseLayerCutoff = 0.92;
-    pads[5].noiseLayerColor = 0.92; pads[5].noiseLayerDecay = 0.22;
-    pads[5].clickLayerMix = 0.30; pads[5].clickLayerBrightness = 0.85;
-    pads[5].airLoading = 0.0; pads[5].modeScatter = 0.55;
-    pads[5].couplingStrength = 0.40; pads[5].secondaryEnabled = 1.0;
-    pads[5].secondarySize = 0.20; pads[5].secondaryMaterial = 0.85;
-    pads[5].bodyDampingB3 = 0.0; pads[5].bodyDampingB1 = 0.32;
-    pads[5].macroComplexity = 0.65;
+    pads[5].bodyModel = BodyModelType::Membrane;
+    pads[5].material = 0.55; pads[5].size = 0.40; pads[5].decay = 0.30;
+    pads[5].level = 0.82;
+    pads[5].noiseBurstDuration = 0.25;
+    pads[5].tsPitchEnvStart = toLogNorm(380);
+    pads[5].tsPitchEnvEnd   = toLogNorm(280);
+    pads[5].tsPitchEnvTime  = 0.04;
+    pads[5].airLoading = 0.40; pads[5].modeScatter = 0.18;
+    pads[5].decaySkew = 0.50;
+    pads[5].couplingStrength = 0.50; pads[5].secondaryEnabled = 1.0;
+    pads[5].secondarySize = 0.40; pads[5].secondaryMaterial = 0.65;
+    pads[5].tensionModAmt = 0.22;
+    pads[5].clickLayerMix = 0.65; pads[5].clickLayerContactMs = 0.12;
+    pads[5].clickLayerBrightness = 0.78;
+    pads[5].noiseLayerMix = 0.30; pads[5].noiseLayerColor = 0.65;
+    pads[5].bodyDampingB1 = 0.32; pads[5].bodyDampingB3 = 0.10;
+    pads[5].pan = 0.64;
 
-    // Triangle (7)
-    pads[7].exciterType = ExciterType::Impulse;
+    // Timbale Lo hembra (6)
+    pads[6] = pads[5];
+    pads[6].size = 0.55; pads[6].decay = 0.40; pads[6].material = 0.50;
+    pads[6].tsPitchEnvStart = toLogNorm(280);
+    pads[6].tsPitchEnvEnd   = toLogNorm(200);
+    pads[6].secondarySize = 0.50;
+    pads[6].pan = 0.60;
+
+    // Cowbell Hi (7) -- Bell/FMImpulse (feedback no-op removed)
+    pads[7].exciterType = ExciterType::FMImpulse;
     pads[7].bodyModel = BodyModelType::Bell;
-    pads[7].material = 0.95; pads[7].size = 0.08; pads[7].decay = 0.85;
-    pads[7].level = 0.65;
-    pads[7].fmRatio = 0.55; pads[7].modeStretch = 0.55;
-    pads[7].clickLayerMix = 0.55; pads[7].clickLayerBrightness = 0.95;
-    pads[7].clickLayerContactMs = 0.06;
-    pads[7].noiseLayerMix = 0.0;
-    pads[7].airLoading = 0.0;
-    pads[7].bodyDampingB3 = 0.0; pads[7].bodyDampingB1 = 0.30;
+    pads[7].material = 0.78; pads[7].size = 0.20; pads[7].decay = 0.30;
+    pads[7].level = 0.78;
+    pads[7].fmRatio = 0.55;
+    pads[7].modeStretch = 0.50; pads[7].decaySkew = 0.50;
+    pads[7].clickLayerMix = 0.55; pads[7].clickLayerContactMs = 0.10;
+    pads[7].clickLayerBrightness = 0.78;
+    pads[7].noiseLayerMix = 0.10; pads[7].noiseLayerColor = 0.65;
+    pads[7].airLoading = 0.0; pads[7].modeScatter = 0.18;
+    pads[7].bodyDampingB3 = 0.0; pads[7].bodyDampingB1 = 0.32;
+    pads[7].macroBrightness = 0.75;
+    pads[7].pan = 0.66;
 
-    // Guiro (9)
-    pads[9].exciterType = ExciterType::Friction;
-    pads[9].bodyModel = BodyModelType::NoiseBody;
-    pads[9].material = 0.65; pads[9].size = 0.18; pads[9].decay = 0.30;
-    pads[9].level = 0.70;
-    pads[9].frictionPressure = 0.55;
-    pads[9].noiseLayerMix = 0.65; pads[9].noiseLayerCutoff = 0.62;
-    pads[9].noiseLayerColor = 0.55; pads[9].noiseLayerDecay = 0.30;
-    pads[9].clickLayerMix = 0.0;
-    pads[9].airLoading = 0.0; pads[9].modeScatter = 0.30;
-    pads[9].bodyDampingB3 = 0.0; pads[9].bodyDampingB1 = 0.42;
-    pads[9].decaySkew = 0.55;
+    // Cowbell Lo (8)
+    pads[8] = pads[7];
+    pads[8].size = 0.28; pads[8].decay = 0.40; pads[8].fmRatio = 0.42;
+    pads[8].pan = 0.62;
 
-    // Vibraslap (11)
-    pads[11].exciterType = ExciterType::NoiseBurst;
-    pads[11].bodyModel = BodyModelType::NoiseBody;
-    pads[11].material = 0.85; pads[11].size = 0.22; pads[11].decay = 0.32;
-    pads[11].level = 0.70;
-    pads[11].noiseBurstDuration = 0.55;
-    pads[11].noiseLayerMix = 0.85; pads[11].noiseLayerCutoff = 0.78;
-    pads[11].noiseLayerResonance = 0.30;
-    pads[11].noiseLayerColor = 0.62; pads[11].noiseLayerDecay = 0.32;
-    pads[11].clickLayerMix = 0.30; pads[11].clickLayerContactMs = 0.30;
-    pads[11].airLoading = 0.0; pads[11].modeScatter = 0.62;
-    pads[11].bodyDampingB3 = 0.0; pads[11].bodyDampingB1 = 0.32;
-    pads[11].macroComplexity = 0.78;
+    // Agogo Hi (9) -- Bell/FMImpulse
+    pads[9].exciterType = ExciterType::FMImpulse;
+    pads[9].bodyModel = BodyModelType::Bell;
+    pads[9].material = 0.85; pads[9].size = 0.14; pads[9].decay = 0.28;
+    pads[9].level = 0.75;
+    pads[9].fmRatio = 0.72;
+    pads[9].decaySkew = 0.50; pads[9].modeScatter = 0.15;
+    pads[9].clickLayerMix = 0.55; pads[9].clickLayerBrightness = 0.85;
+    pads[9].noiseLayerMix = 0.0;
+    pads[9].airLoading = 0.0;
+    pads[9].bodyDampingB3 = 0.0; pads[9].bodyDampingB1 = 0.30;
+    pads[9].pan = 0.36;
 
-    // Bongo perc filler (13)
+    // Agogo Lo (10)
+    pads[10] = pads[9];
+    pads[10].size = 0.22; pads[10].fmRatio = 0.55; pads[10].decay = 0.35;
+    pads[10].pan = 0.40;
+
+    // Clave Hi (11) -- Bell -> Shell (free-free bar), b3=0.70 dry-wood override
+    pads[11].exciterType = ExciterType::Impulse;
+    pads[11].bodyModel = BodyModelType::Shell;
+    pads[11].material = 0.85; pads[11].size = 0.10; pads[11].decay = 0.12;
+    pads[11].level = 0.80; pads[11].strikePosition = 0.85;  // free-end antinode
+    pads[11].modeStretch = 0.50; pads[11].decaySkew = 0.45;
+    pads[11].modeScatter = 0.10;
+    pads[11].clickLayerMix = 0.92; pads[11].clickLayerContactMs = 0.06;
+    pads[11].clickLayerBrightness = 0.92;
+    pads[11].noiseLayerMix = 0.0;
+    pads[11].airLoading = 0.0;
+    pads[11].bodyDampingB3 = 0.70; pads[11].bodyDampingB1 = 0.40;
+    pads[11].macroBrightness = 0.85;
+    pads[11].pan = 0.34;
+
+    // Clave Lo (12)
+    pads[12] = pads[11];
+    pads[12].size = 0.16; pads[12].decay = 0.16;
+    pads[12].pan = 0.38;
+
+    // Woodblock Hi (13) -- Plate/Impulse (free-plate Chladni)
     pads[13].exciterType = ExciterType::Impulse;
-    pads[13].bodyModel = BodyModelType::Membrane;
-    pads[13].material = 0.55; pads[13].size = 0.25; pads[13].decay = 0.18;
-    pads[13].level = 0.75; pads[13].strikePosition = 0.20;
-    pads[13].airLoading = 0.30;
-    pads[13].clickLayerMix = 0.65; pads[13].clickLayerBrightness = 0.65;
-    pads[13].noiseLayerMix = 0.10;
-    pads[13].bodyDampingB1 = 0.32; pads[13].bodyDampingB3 = 0.10;
+    pads[13].bodyModel = BodyModelType::Plate;
+    pads[13].material = 0.32; pads[13].size = 0.18; pads[13].decay = 0.18;
+    pads[13].level = 0.76; pads[13].strikePosition = 0.30;
+    pads[13].modeStretch = 0.55; pads[13].decaySkew = 0.30;
+    pads[13].modeScatter = 0.18;
+    pads[13].clickLayerMix = 0.85; pads[13].clickLayerContactMs = 0.10;
+    pads[13].clickLayerBrightness = 0.78;
+    pads[13].noiseLayerMix = 0.0;
+    pads[13].airLoading = 0.0;
+    pads[13].bodyDampingB1 = 0.45; pads[13].bodyDampingB3 = 0.10;
+    pads[13].pan = 0.66;
 
-    k.opts.maxPolyphony    = 12;
-    k.opts.globalCoupling  = 0.10;
+    // Woodblock Lo (14)
+    pads[14] = pads[13];
+    pads[14].size = 0.28; pads[14].decay = 0.22; pads[14].material = 0.30;
+    pads[14].pan = 0.62;
+
+    // Maracas (15) -- NoiseBody, PhISEM tight (reso 0.40, r~0.96)
+    pads[15].exciterType = ExciterType::NoiseBurst;
+    pads[15].bodyModel = BodyModelType::NoiseBody;
+    pads[15].material = 0.78; pads[15].size = 0.14; pads[15].decay = 0.18;
+    pads[15].level = 0.65;
+    pads[15].noiseBurstDuration = 0.45;
+    pads[15].noiseLayerMix = 0.85; pads[15].noiseLayerCutoff = 0.65;
+    pads[15].noiseLayerResonance = 0.40;
+    pads[15].noiseLayerColor = 0.70; pads[15].noiseLayerDecay = 0.18;
+    pads[15].clickLayerMix = 0.0;
+    pads[15].airLoading = 0.0; pads[15].modeScatter = 0.42;
+    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.45;
+    pads[15].pan = 0.44;
+
+    // Cabasa (16) -- NoiseBody, PhISEM broad (reso 0.16, r=0.7)
+    pads[16].exciterType = ExciterType::NoiseBurst;
+    pads[16].bodyModel = BodyModelType::NoiseBody;
+    pads[16].material = 0.85; pads[16].size = 0.10; pads[16].decay = 0.10;
+    pads[16].level = 0.65;
+    pads[16].noiseBurstDuration = 0.25;
+    pads[16].noiseLayerMix = 0.85; pads[16].noiseLayerCutoff = 0.73;
+    pads[16].noiseLayerResonance = 0.16;
+    pads[16].noiseLayerColor = 0.75; pads[16].noiseLayerDecay = 0.10;
+    pads[16].clickLayerMix = 0.0;
+    pads[16].airLoading = 0.0; pads[16].modeScatter = 0.30;
+    pads[16].bodyDampingB3 = 0.0; pads[16].bodyDampingB1 = 0.55;
+    pads[16].pan = 0.56;
+
+    // Hand Shaker (17) -- NoiseBody, PhISEM mid
+    pads[17].exciterType = ExciterType::NoiseBurst;
+    pads[17].bodyModel = BodyModelType::NoiseBody;
+    pads[17].material = 0.82; pads[17].size = 0.12; pads[17].decay = 0.12;
+    pads[17].level = 0.66;
+    pads[17].noiseBurstDuration = 0.35;
+    pads[17].noiseLayerMix = 0.85; pads[17].noiseLayerCutoff = 0.70;
+    pads[17].noiseLayerResonance = 0.28;
+    pads[17].noiseLayerColor = 0.72; pads[17].noiseLayerDecay = 0.12;
+    pads[17].clickLayerMix = 0.0;
+    pads[17].airLoading = 0.0; pads[17].modeScatter = 0.36;
+    pads[17].bodyDampingB3 = 0.0; pads[17].bodyDampingB1 = 0.50;
+    pads[17].pan = 0.50;
+
+    // Guiro (18) -- NoiseBody/Friction scrape
+    pads[18].exciterType = ExciterType::Friction;
+    pads[18].bodyModel = BodyModelType::NoiseBody;
+    pads[18].material = 0.65; pads[18].size = 0.18; pads[18].decay = 0.30;
+    pads[18].level = 0.70;
+    pads[18].frictionPressure = 0.55;
+    pads[18].noiseLayerMix = 0.65; pads[18].noiseLayerCutoff = 0.62;
+    pads[18].noiseLayerColor = 0.55; pads[18].noiseLayerDecay = 0.30;
+    pads[18].clickLayerMix = 0.0;
+    pads[18].airLoading = 0.0; pads[18].modeScatter = 0.30;
+    pads[18].bodyDampingB3 = 0.0; pads[18].bodyDampingB1 = 0.42;
+    pads[18].decaySkew = 0.55;
+    pads[18].pan = 0.58;
+
+    // Tambourine (19) -- NoiseBody jingle, choke group 1
+    pads[19].exciterType = ExciterType::NoiseBurst;
+    pads[19].bodyModel = BodyModelType::NoiseBody;
+    pads[19].material = 0.85; pads[19].size = 0.20; pads[19].decay = 0.22;
+    pads[19].level = 0.72;
+    pads[19].chokeGroup = 1;
+    pads[19].noiseBurstDuration = 0.30;
+    pads[19].noiseLayerMix = 0.78; pads[19].noiseLayerCutoff = 0.92;
+    pads[19].noiseLayerColor = 0.92; pads[19].noiseLayerDecay = 0.22;
+    pads[19].clickLayerMix = 0.30; pads[19].clickLayerBrightness = 0.85;
+    pads[19].airLoading = 0.0; pads[19].modeScatter = 0.55;
+    pads[19].couplingStrength = 0.40; pads[19].secondaryEnabled = 1.0;
+    pads[19].secondarySize = 0.20; pads[19].secondaryMaterial = 0.85;
+    pads[19].bodyDampingB3 = 0.0; pads[19].bodyDampingB1 = 0.32;
+    pads[19].macroComplexity = 0.65;
+    pads[19].pan = 0.62;
+
+    // Pandeiro (20) -- NoiseBody jingle + head, choke group 1.
+    // b1/b3 explicit (struct b3=0.40 would kill the metallic shimmer).
+    pads[20].exciterType = ExciterType::NoiseBurst;
+    pads[20].bodyModel = BodyModelType::NoiseBody;
+    pads[20].material = 0.85; pads[20].size = 0.22; pads[20].decay = 0.25;
+    pads[20].level = 0.72;
+    pads[20].chokeGroup = 1;
+    pads[20].noiseBurstDuration = 0.35;
+    pads[20].noiseLayerMix = 0.70; pads[20].noiseLayerCutoff = 0.90;
+    pads[20].noiseLayerColor = 0.90; pads[20].noiseLayerDecay = 0.25;
+    pads[20].clickLayerMix = 0.35; pads[20].clickLayerBrightness = 0.80;
+    pads[20].airLoading = 0.0; pads[20].modeScatter = 0.50;
+    pads[20].couplingStrength = 0.35; pads[20].secondaryEnabled = 1.0;
+    pads[20].secondarySize = 0.25; pads[20].secondaryMaterial = 0.80;
+    pads[20].bodyDampingB1 = 0.32; pads[20].bodyDampingB3 = 0.0;  // FIXED
+    pads[20].macroComplexity = 0.60;
+    pads[20].pan = 0.38;
+
+    // Vibraslap (21) -- NoiseBody rattle
+    pads[21].exciterType = ExciterType::NoiseBurst;
+    pads[21].bodyModel = BodyModelType::NoiseBody;
+    pads[21].material = 0.85; pads[21].size = 0.22; pads[21].decay = 0.32;
+    pads[21].level = 0.70;
+    pads[21].noiseBurstDuration = 0.55;
+    pads[21].noiseLayerMix = 0.85; pads[21].noiseLayerCutoff = 0.78;
+    pads[21].noiseLayerResonance = 0.30;
+    pads[21].noiseLayerColor = 0.62; pads[21].noiseLayerDecay = 0.32;
+    pads[21].clickLayerMix = 0.30; pads[21].clickLayerContactMs = 0.30;
+    pads[21].airLoading = 0.0; pads[21].modeScatter = 0.62;
+    pads[21].bodyDampingB3 = 0.0; pads[21].bodyDampingB1 = 0.32;
+    pads[21].macroComplexity = 0.78;
+    pads[21].pan = 0.34;
+
+    // Triangle (22) -- Bell -> Shell (free-free steel rod)
+    pads[22].exciterType = ExciterType::Impulse;
+    pads[22].bodyModel = BodyModelType::Shell;
+    pads[22].material = 0.95; pads[22].size = 0.085; pads[22].decay = 0.85;
+    pads[22].level = 0.70; pads[22].strikePosition = 0.18;
+    pads[22].modeStretch = 0.62; pads[22].decaySkew = 0.40;
+    pads[22].modeScatter = 0.12;
+    pads[22].clickLayerMix = 0.95; pads[22].clickLayerContactMs = 0.06;
+    pads[22].clickLayerBrightness = 0.95;
+    pads[22].noiseLayerMix = 0.0;
+    pads[22].airLoading = 0.0;
+    pads[22].bodyDampingB3 = 0.02; pads[22].bodyDampingB1 = 0.30;
+    pads[22].macroBrightness = 0.85;
+    pads[22].pan = 0.66;
+
+    // Conga Bass center (23) -- deep open conga + 1/k weight
+    pads[23].exciterType = ExciterType::Impulse;
+    pads[23].bodyModel = BodyModelType::Membrane;
+    pads[23].material = 0.42; pads[23].size = 0.60; pads[23].decay = 0.42;
+    pads[23].level = 0.82; pads[23].strikePosition = 0.50;
+    pads[23].tsPitchEnvStart = toLogNorm(200);
+    pads[23].tsPitchEnvEnd   = toLogNorm(150);
+    pads[23].tsPitchEnvTime  = 0.05;
+    pads[23].airLoading = 0.58; pads[23].modeScatter = 0.12;
+    pads[23].modeInjectAmount = 0.12; pads[23].decaySkew = 0.60;
+    pads[23].nonlinearCoupling = 0.18;
+    pads[23].couplingStrength = 0.35; pads[23].secondaryEnabled = 1.0;
+    pads[23].secondarySize = 0.50; pads[23].secondaryMaterial = 0.35;
+    pads[23].tensionModAmt = 0.20;
+    pads[23].clickLayerMix = 0.45; pads[23].clickLayerContactMs = 0.20;
+    pads[23].clickLayerBrightness = 0.45;
+    pads[23].noiseLayerMix = 0.12; pads[23].noiseLayerColor = 0.40;
+    pads[23].bodyDampingB1 = 0.30; pads[23].bodyDampingB3 = 0.10;
+    pads[23].macroBodySize = 0.80;
+    pads[23].pan = 0.50;
+
+    // Surdo (24) -- Membrane/Mallet bass skin
+    pads[24].exciterType = ExciterType::Mallet;
+    pads[24].bodyModel = BodyModelType::Membrane;
+    pads[24].material = 0.28; pads[24].size = 0.82; pads[24].decay = 0.48;
+    pads[24].level = 0.86; pads[24].strikePosition = 0.45;
+    pads[24].tsPitchEnvStart = toLogNorm(150);
+    pads[24].tsPitchEnvEnd   = toLogNorm(85);
+    pads[24].tsPitchEnvTime  = 0.05;
+    pads[24].airLoading = 0.78; pads[24].modeScatter = 0.18;
+    pads[24].modeInjectAmount = 0.10; pads[24].decaySkew = 0.62;
+    pads[24].nonlinearCoupling = 0.20;
+    pads[24].couplingStrength = 0.45; pads[24].secondaryEnabled = 1.0;
+    pads[24].secondarySize = 0.55; pads[24].secondaryMaterial = 0.30;
+    pads[24].tensionModAmt = 0.25;
+    pads[24].clickLayerMix = 0.35; pads[24].clickLayerContactMs = 0.24;
+    pads[24].clickLayerBrightness = 0.38;
+    pads[24].noiseLayerMix = 0.15; pads[24].noiseLayerColor = 0.40;
+    pads[24].bodyDampingB1 = 0.28; pads[24].bodyDampingB3 = 0.12;
+    pads[24].macroBodySize = 0.90;
+    pads[24].pan = 0.50;
+
+    // Quinto Slap (25) -- smallest/highest conga, choked
+    pads[25].exciterType = ExciterType::Impulse;
+    pads[25].bodyModel = BodyModelType::Membrane;
+    pads[25].material = 0.55; pads[25].size = 0.44; pads[25].decay = 0.16;
+    pads[25].level = 0.82; pads[25].strikePosition = 0.10;
+    pads[25].airLoading = 0.42; pads[25].modeScatter = 0.30;
+    pads[25].decaySkew = 0.40;
+    pads[25].couplingStrength = 0.24; pads[25].secondaryEnabled = 1.0;
+    pads[25].secondarySize = 0.38; pads[25].secondaryMaterial = 0.40;
+    pads[25].tensionModAmt = 0.0;
+    pads[25].clickLayerMix = 0.85; pads[25].clickLayerContactMs = 0.10;
+    pads[25].clickLayerBrightness = 0.85;
+    pads[25].noiseLayerMix = 0.12; pads[25].noiseLayerColor = 0.40;
+    pads[25].bodyDampingB1 = 0.45; pads[25].bodyDampingB3 = 0.10;
+    pads[25].macroPunch = 0.85;
+    pads[25].pan = 0.48;
+
+    // Cuica (26) -- Membrane/Friction FX squeak (kit deltas: skew 0.55,
+    // no secondary box; material morph + high tensionMod + NLC).
+    pads[26].exciterType = ExciterType::Friction;
+    pads[26].bodyModel = BodyModelType::Membrane;
+    pads[26].material = 0.45; pads[26].size = 0.50; pads[26].decay = 0.50;
+    pads[26].level = 0.76; pads[26].strikePosition = 0.40;
+    pads[26].frictionPressure = 0.50;
+    pads[26].modeInjectAmount = 0.16; pads[26].nonlinearCoupling = 0.40;
+    pads[26].decaySkew = 0.55;
+    pads[26].tensionModAmt = 0.40;
+    pads[26].airLoading = 0.55; pads[26].modeScatter = 0.20;
+    pads[26].morphEnabled = 1.0; pads[26].morphStart = 0.50;
+    pads[26].morphEnd = 0.80; pads[26].morphDuration = 0.40;
+    pads[26].clickLayerMix = 0.0;
+    pads[26].noiseLayerMix = 0.15; pads[26].noiseLayerColor = 0.40;
+    pads[26].bodyDampingB1 = 0.34; pads[26].bodyDampingB3 = 0.10;
+    pads[26].pan = 0.50;
+
+    // Castanets (27) -- Shell/Impulse dry-wood click pair, choke group 2
+    pads[27].exciterType = ExciterType::Impulse;
+    pads[27].bodyModel = BodyModelType::Shell;
+    pads[27].material = 0.80; pads[27].size = 0.06; pads[27].decay = 0.08;
+    pads[27].level = 0.76; pads[27].strikePosition = 0.85;
+    pads[27].chokeGroup = 2;
+    pads[27].modeStretch = 0.50; pads[27].decaySkew = 0.42;
+    pads[27].modeScatter = 0.10;
+    pads[27].clickLayerMix = 0.92; pads[27].clickLayerContactMs = 0.06;
+    pads[27].clickLayerBrightness = 0.90;
+    pads[27].noiseLayerMix = 0.0;
+    pads[27].airLoading = 0.0;
+    pads[27].bodyDampingB3 = 0.70; pads[27].bodyDampingB1 = 0.40;
+    pads[27].pan = 0.56;
+
+    k.opts.maxPolyphony    = 16;
+    k.opts.globalCoupling  = 0.20;
+    k.opts.snareBuzz       = 0.10;
+    k.opts.tomResonance    = 0.25;
     k.opts.couplingDelayMs = 0.8;
-    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+                 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
     return k;
 }
 Kit tablaKit() {
