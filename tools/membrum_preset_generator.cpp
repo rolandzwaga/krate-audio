@@ -5392,56 +5392,257 @@ Kit glassBellGardenKit() {
     Kit k{"Glass Bell Garden", "Unnatural", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    for (int i = 0; i <= 15; ++i) {
-        const int p = i;
-        const bool useFriction = (i % 4 == 3);
-        pads[p].exciterType = useFriction ? ExciterType::Friction
-            : ((i % 3 == 0) ? ExciterType::Mallet : ExciterType::FMImpulse);
-        pads[p].bodyModel = BodyModelType::Bell;
-        pads[p].material = 0.40 + (i / 15.0) * 0.55;
-        pads[p].size     = 0.10 + ((15 - i) / 15.0) * 0.60;
-        pads[p].decay    = 0.55 + (i % 6) * 0.07;
-        pads[p].level    = 0.68;
-        pads[p].fmRatio  = 0.30 + std::fmod(i * 0.04, 0.65);
-        pads[p].feedbackAmount = useFriction ? 0.0 : (i % 5) * 0.08;
-        pads[p].frictionPressure = useFriction ? (0.30 + (i % 4) * 0.10) : 0.0;
-        pads[p].modeStretch = 0.30 + (i % 7) * 0.06;
-        pads[p].modeInjectAmount = 0.0;
-        pads[p].nonlinearCoupling = (i % 4) * 0.10;
-        pads[p].decaySkew = 0.55 + (i % 4) * 0.08;
-        pads[p].morphEnabled = (i % 5 == 0) ? 1.0 : 0.0;
-        if (pads[p].morphEnabled != 0.0) {
-            pads[p].morphStart = 0.40 + (i % 3) * 0.15;
-            pads[p].morphEnd   = 0.85;
-            pads[p].morphDuration = 0.45;
-            pads[p].morphCurve = 0.5;
-        }
-        pads[p].modeScatter = 0.30 + (i % 5) * 0.08;
-        pads[p].airLoading  = 0.0;
-        pads[p].couplingStrength = (i % 3 == 0) ? 0.25 : 0.0;
-        pads[p].secondaryEnabled = (i % 3 == 0) ? 1.0 : 0.0;
-        pads[p].secondarySize    = 0.30 + (i % 4) * 0.08;
-        pads[p].secondaryMaterial = 0.85;
-        pads[p].tensionModAmt = (i % 4) * 0.08;
-        pads[p].noiseLayerMix = 0.05 + (i % 5) * 0.08;
-        pads[p].noiseLayerCutoff = 0.85;
-        pads[p].noiseLayerColor  = 0.78 - (i % 4) * 0.08;
-        pads[p].noiseLayerDecay  = 0.65 + (i % 4) * 0.08;
-        pads[p].clickLayerMix    = 0.32 + (i % 3) * 0.12;
-        pads[p].clickLayerContactMs = 0.10 + (i % 3) * 0.06;
-        pads[p].clickLayerBrightness = 0.65 + (i % 4) * 0.08;
+    // All 32 pads are Bell (the only tuned long-ring resonator), voiced as 7
+    // distinct sub-roles rather than one i-ramp. airLoading/tensionMod are
+    // Membrane-only no-ops on Bell (left 0, documented). b3=0 = pure metal.
+    // Morph durations (seconds in the plan) are approximated to the normalized
+    // morphDuration field: ~1.7 s->0.85, 1.4 s->0.75, 1.1 s->0.65, 0.4 s->0.30.
+    for (int p = 0; p < kNumPads; ++p) {
+        pads[p].bodyModel  = BodyModelType::Bell;
+        pads[p].airLoading = 0.0;
+        pads[p].tensionModAmt = 0.0;
         pads[p].bodyDampingB3 = 0.0;
-        pads[p].bodyDampingB1 = 0.30 + (i % 7) * 0.04;
-        pads[p].outputBus = (i % 8 == 7) ? 1 : 0;
-        pads[p].macroBrightness = 0.55 + (i / 15.0) * 0.40;
-        pads[p].macroComplexity = 0.55 + (i % 5) * 0.06;
-        pads[p].couplingAmount = 0.55 + (i % 4) * 0.10;
     }
 
-    k.opts.maxPolyphony    = 16;
+    // --- Struck glass bells 0-5 (Mallet) ---
+    {
+        const double mat[]    = {0.55, 0.62, 0.68, 0.75, 0.82, 0.90};
+        const double size[]   = {0.62, 0.54, 0.46, 0.38, 0.30, 0.22};
+        const double dec[]    = {0.86, 0.84, 0.82, 0.80, 0.78, 0.76};
+        const double str[]    = {0.42, 0.43, 0.44, 0.45, 0.46, 0.47};
+        const double skew[]   = {0.60, 0.62, 0.64, 0.66, 0.68, 0.70};
+        const double scat[]   = {0.46, 0.48, 0.50, 0.52, 0.54, 0.56};
+        const double clk[]    = {0.32, 0.34, 0.36, 0.38, 0.40, 0.42};
+        const double nmix[]   = {0.13, 0.13, 0.13, 0.12, 0.12, 0.12};
+        const double cpl[]    = {0.55, 0.60, 0.65, 0.70, 0.70, 0.75};
+        const double pan[]    = {0.18, 0.30, 0.42, 0.58, 0.70, 0.82};
+        const double spos[]   = {0.300, 0.284, 0.268, 0.252, 0.236, 0.220};
+        const double lvl[]    = {0.700, 0.692, 0.684, 0.676, 0.668, 0.660};
+        const double cbr[]    = {0.720, 0.752, 0.784, 0.816, 0.848, 0.880};
+        for (int i = 0; i < 6; ++i) {
+            const int p = i;
+            pads[p].exciterType = ExciterType::Mallet;
+            pads[p].material = mat[i]; pads[p].size = size[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = spos[i]; pads[p].level = lvl[i];
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = skew[i];
+            pads[p].modeScatter = scat[i];
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].clickLayerMix = clk[i]; pads[p].clickLayerBrightness = cbr[i];
+            pads[p].noiseLayerMix = nmix[i];
+            pads[p].couplingAmount = cpl[i];
+            pads[p].pan = pan[i];
+        }
+        // Coupled shells on 2 and 5.
+        pads[2].couplingStrength = 0.25; pads[2].secondaryEnabled = 1.0;
+        pads[2].secondarySize = 0.38; pads[2].secondaryMaterial = 0.85;
+        pads[5].couplingStrength = 0.25; pads[5].secondaryEnabled = 1.0;
+        pads[5].secondarySize = 0.42; pads[5].secondaryMaterial = 0.85;
+    }
+
+    // --- FM-glass pings 6-11 (FMImpulse) ---
+    {
+        const double mat[]  = {0.70, 0.73, 0.76, 0.80, 0.85, 0.90};
+        const double size[] = {0.42, 0.37, 0.32, 0.27, 0.22, 0.16};
+        const double dec[]  = {0.55, 0.55, 0.52, 0.50, 0.48, 0.46};
+        const double fmr[]  = {0.30, 0.38, 0.46, 0.54, 0.62, 0.60};
+        const double str[]  = {0.42, 0.43, 0.44, 0.45, 0.46, 0.47};
+        const double skew[] = {0.58, 0.60, 0.62, 0.64, 0.66, 0.68};
+        const double minj[] = {0.12, 0.12, 0.10, 0.10, 0.08, 0.00};
+        const double nlc[]  = {0.12, 0.16, 0.20, 0.24, 0.28, 0.30};
+        const double cpl[]  = {0.55, 0.60, 0.65, 0.70, 0.70, 0.75};
+        const double pan[]  = {0.26, 0.38, 0.50, 0.62, 0.74, 0.86};
+        const double lvl[]  = {0.720, 0.712, 0.704, 0.696, 0.688, 0.680};
+        for (int i = 0; i < 6; ++i) {
+            const int p = 6 + i;
+            pads[p].exciterType = ExciterType::FMImpulse;
+            pads[p].material = mat[i]; pads[p].size = size[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.30; pads[p].level = lvl[i];
+            pads[p].fmRatio = fmr[i];
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = skew[i];
+            pads[p].modeInjectAmount = minj[i]; pads[p].nonlinearCoupling = nlc[i];
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].clickLayerMix = 0.15; pads[p].clickLayerBrightness = 0.70;
+            pads[p].noiseLayerMix = 0.0;
+            pads[p].couplingAmount = cpl[i];
+            pads[p].pan = pan[i];
+        }
+        // Coupled shell on 11.
+        pads[11].couplingStrength = 0.25; pads[11].secondaryEnabled = 1.0;
+        pads[11].secondarySize = 0.46; pads[11].secondaryMaterial = 0.85;
+    }
+
+    // --- Bowed singing-glass 12/13 + glass-harmonica 26 (Friction, aux 1) ---
+    {
+        // {pad, mat, size, decay, stretch, skew, fric, morphStart, morphEnd,
+        //  scatter, level, pan}
+        const int    pd[]  = {12, 13, 26};
+        const double mat[] = {0.78, 0.85, 0.80};
+        const double sz[]  = {0.55, 0.42, 0.35};
+        const double strc[]= {0.45, 0.47, 0.43};
+        const double skw[] = {0.85, 0.82, 0.83};
+        const double fri[] = {0.28, 0.32, 0.26};
+        const double mS[]  = {0.78, 0.85, 0.80};
+        const double mE[]  = {0.55, 0.60, 0.60};
+        const double sct[] = {0.06, 0.10, 0.08};
+        const double lvl[] = {0.60, 0.62, 0.60};
+        const double pan[] = {0.34, 0.66, 0.50};
+        for (int i = 0; i < 3; ++i) {
+            const int p = pd[i];
+            pads[p].exciterType = ExciterType::Friction;
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = 0.95;
+            pads[p].strikePosition = 0.20; pads[p].level = lvl[i];
+            pads[p].frictionPressure = fri[i];
+            pads[p].modeStretch = strc[i]; pads[p].decaySkew = skw[i];
+            pads[p].nonlinearCoupling = 0.22;
+            pads[p].modeScatter = sct[i];
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = mS[i];
+            pads[p].morphEnd = mE[i]; pads[p].morphDuration = 0.85; pads[p].morphCurve = 0.0; // exp
+            pads[p].clickLayerMix = 0.0;
+            pads[p].noiseLayerMix = 0.10; pads[p].noiseLayerColor = 0.40; // pink
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].macroComplexity = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Glass gong 14 (Mallet, bloom, heavy shell, aux 1) ---
+    pads[14].exciterType = ExciterType::Mallet;
+    pads[14].material = 0.60; pads[14].size = 0.85; pads[14].decay = 0.95;
+    pads[14].strikePosition = 0.35; pads[14].level = 0.66;
+    pads[14].modeStretch = 0.62; pads[14].decaySkew = 0.65;
+    pads[14].nonlinearCoupling = 0.80; // bloom
+    pads[14].modeScatter = 0.47;
+    pads[14].couplingStrength = 0.95; pads[14].secondaryEnabled = 1.0;
+    pads[14].secondarySize = 0.40; pads[14].secondaryMaterial = 0.85;
+    pads[14].couplingAmount = 0.85;
+    pads[14].morphEnabled = 1.0; pads[14].morphStart = 0.85; pads[14].morphEnd = 0.55;
+    pads[14].morphDuration = 0.30; pads[14].morphCurve = 0.5; // lin
+    pads[14].noiseLayerMix = 0.30; pads[14].noiseLayerColor = 0.92; // violet
+    pads[14].noiseLayerCutoff = 0.85;
+    pads[14].clickLayerMix = 0.20;
+    pads[14].bodyDampingB1 = 0.28;
+    pads[14].outputBus = 1; pads[14].pan = 0.50;
+
+    // --- FM-glass shatter-crash 15 (FMImpulse, aux 1, static) ---
+    pads[15].exciterType = ExciterType::FMImpulse;
+    pads[15].material = 0.92; pads[15].size = 0.45; pads[15].decay = 0.78;
+    pads[15].strikePosition = 0.32; pads[15].level = 0.66;
+    pads[15].fmRatio = 0.45;
+    pads[15].modeStretch = 0.55; pads[15].decaySkew = 0.60;
+    pads[15].nonlinearCoupling = 0.45;
+    pads[15].modeScatter = 0.65;
+    pads[15].noiseLayerMix = 0.40; pads[15].noiseLayerColor = 0.92; // violet
+    pads[15].noiseLayerCutoff = 0.92; pads[15].noiseLayerDecay = 0.72;
+    pads[15].noiseLayerResonance = 0.20;
+    pads[15].clickLayerMix = 0.35; pads[15].clickLayerBrightness = 0.85;
+    pads[15].clickLayerContactMs = 0.30;
+    pads[15].bodyDampingB1 = 0.30;
+    pads[15].couplingAmount = 0.75;
+    pads[15].outputBus = 1; pads[15].pan = 0.50;
+
+    // --- Crotale-glass tines 16-20 (Mallet, NEUTRAL stretch, Mode Inject 1/k) ---
+    {
+        const double mat[]  = {0.92, 0.92, 0.92, 0.90, 0.95};
+        const double size[] = {0.12, 0.16, 0.20, 0.22, 0.08};
+        const double dec[]  = {0.85, 0.84, 0.83, 0.82, 0.80};
+        const double minj[] = {0.16, 0.16, 0.14, 0.14, 0.12};
+        const double cbr[]  = {0.85, 0.85, 0.85, 0.85, 0.88};
+        const double pan[]  = {0.22, 0.36, 0.50, 0.64, 0.78};
+        const double lvl[]  = {0.720, 0.715, 0.710, 0.705, 0.700};
+        for (int i = 0; i < 5; ++i) {
+            const int p = 16 + i;
+            pads[p].exciterType = ExciterType::Mallet;
+            pads[p].material = mat[i]; pads[p].size = size[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.10; pads[p].level = lvl[i];
+            pads[p].modeStretch = 0.333333; pads[p].decaySkew = 0.58;
+            pads[p].modeInjectAmount = minj[i];
+            pads[p].modeScatter = 0.08;
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].clickLayerMix = 0.42; pads[p].clickLayerContactMs = 0.20;
+            pads[p].clickLayerBrightness = cbr[i];
+            pads[p].noiseLayerMix = 0.0;
+            pads[p].pan = pan[i];
+        }
+    }
+
+    // --- Temple-glass bell 21 (Mallet, warm low hum) ---
+    pads[21].exciterType = ExciterType::Mallet;
+    pads[21].material = 0.82; pads[21].size = 0.50; pads[21].decay = 0.92;
+    pads[21].strikePosition = 0.18; pads[21].level = 0.78;
+    pads[21].modeStretch = 0.40; pads[21].decaySkew = 0.78;
+    pads[21].modeInjectAmount = 0.0; // would contradict the tuned hum
+    pads[21].modeScatter = 0.06;
+    pads[21].bodyDampingB1 = 0.18; pads[21].bodyDampingB3 = 0.06;
+    pads[21].clickLayerMix = 0.28; pads[21].clickLayerContactMs = 0.45;
+    pads[21].clickLayerBrightness = 0.42;
+    pads[21].noiseLayerMix = 0.04;
+    pads[21].pan = 0.50;
+
+    // --- Ghost-glass sustains 22-25 (HP filter + Morph + aux 1) ---
+    {
+        const int    exc[] = {ExciterType::Mallet, ExciterType::FMImpulse,
+                              ExciterType::Mallet, ExciterType::Friction};
+        const double mat[] = {0.45, 0.50, 0.55, 0.50};
+        const double sz[]  = {0.55, 0.45, 0.30, 0.50};
+        const double dec[] = {0.80, 0.80, 0.80, 0.82};
+        const double str[] = {0.66, 0.71, 0.77, 0.74};
+        const double skw[] = {0.78, 0.81, 0.81, 0.81};
+        const double hpc[] = {0.22, 0.24, 0.30, 0.26};
+        const double pan[] = {0.14, 0.38, 0.62, 0.86};
+        const double lvl[] = {0.65, 0.64, 0.64, 0.63};
+        for (int i = 0; i < 4; ++i) {
+            const int p = 22 + i;
+            pads[p].exciterType = exc[i];
+            pads[p].material = mat[i]; pads[p].size = sz[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.30; pads[p].level = lvl[i];
+            pads[p].modeStretch = str[i]; pads[p].decaySkew = skw[i];
+            pads[p].nonlinearCoupling = 0.32;
+            pads[p].modeScatter = 0.45;
+            pads[p].modeInjectAmount = 0.0;
+            pads[p].tsFilterType = FilterType::HP;
+            pads[p].tsFilterCutoff = hpc[i]; pads[p].tsFilterResonance = 0.30;
+            pads[p].tsFilterEnvAmount = 0.45;
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.45; pads[p].morphEnd = 0.80;
+            pads[p].morphDuration = 0.75; pads[p].morphCurve = 0.5; // lin
+            pads[p].noiseLayerMix = 0.12; pads[p].noiseLayerColor = 0.12; // brown
+            pads[p].noiseLayerCutoff = 0.35; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = (i == 3) ? 0.0 : 0.12; // pad 25 bowed, no onset
+            pads[p].bodyDampingB1 = 0.35;
+            pads[p].couplingAmount = 0.85;
+            pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+        pads[23].fmRatio = 0.40;          // c:m 2.2
+        pads[25].frictionPressure = 0.30;
+    }
+
+    // --- Bell-tree glissando cascade 27-31 (NoiseBurst, choke 1, aux 1) ---
+    {
+        const double size[] = {0.34, 0.28, 0.22, 0.16, 0.10};
+        const double dec[]  = {0.85, 0.84, 0.83, 0.82, 0.80};
+        const double pan[]  = {0.10, 0.30, 0.50, 0.70, 0.90};
+        const double lvl[]  = {0.70, 0.69, 0.68, 0.67, 0.66};
+        for (int i = 0; i < 5; ++i) {
+            const int p = 27 + i;
+            pads[p].exciterType = ExciterType::NoiseBurst;
+            pads[p].material = 0.95; pads[p].size = size[i]; pads[p].decay = dec[i];
+            pads[p].strikePosition = 0.30; pads[p].level = lvl[i];
+            pads[p].modeStretch = 0.55; pads[p].decaySkew = 0.78;
+            pads[p].modeScatter = 0.55;
+            pads[p].noiseBurstDuration = 0.45;
+            pads[p].noiseLayerMix = 0.42; pads[p].noiseLayerColor = 0.92; // violet
+            pads[p].noiseLayerCutoff = 0.92; pads[p].noiseLayerDecay = 0.85;
+            pads[p].clickLayerMix = 0.55; pads[p].clickLayerBrightness = 0.92;
+            pads[p].bodyDampingB1 = 0.30;
+            pads[p].morphEnabled = 1.0; pads[p].morphStart = 0.85; pads[p].morphEnd = 0.55;
+            pads[p].morphDuration = 0.65; pads[p].morphCurve = 0.5; // lin
+            pads[p].chokeGroup = 1; pads[p].outputBus = 1; pads[p].pan = pan[i];
+        }
+    }
+
+    k.opts.maxPolyphony    = 24;
     k.opts.globalCoupling  = 0.65;
     k.opts.couplingDelayMs = 1.8;
-    for (int i = 0; i < 16; ++i) k.crafted.push_back(i);
+    for (int i = 0; i < kNumPads; ++i) k.crafted.push_back(i);
     return k;
 }
 
