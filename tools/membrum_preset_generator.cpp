@@ -2246,111 +2246,102 @@ Kit orchestralKit() {
     Kit k{"Orchestral", "Acoustic", defaultPads(), {}, {}};
     auto& pads = k.pads;
 
-    // Timpani (kick slot). Aggressive headroom cut: level / airLoading /
-    // tensionModAmt all dropped well below the previous values because the
-    // first pass at 0.65/0.65/0.30 was still clipping. The 1/sqrt(N)
-    // summation gain on the bank (Phase 11) raised effective per-mode
-    // amplitudes, so what used to be safe levels now overshoot the post-
-    // chain softClip [-1, 1] clamp.
+    // Timpani low (kick slot, Membrane/Mallet). Single-head kettle drum:
+    // secondary shell OFF (adds unscaled RMS -> clip). Levels/airLoading
+    // restored post-N-1 (old cut was to dodge the fixed clip).
     pads[0].exciterType = ExciterType::Mallet;
     pads[0].bodyModel = BodyModelType::Membrane;
-    pads[0].material = 0.30; pads[0].size = 0.92; pads[0].decay = 0.85;
-    pads[0].level = 0.70;
+    pads[0].material = 0.32; pads[0].size = 0.90; pads[0].decay = 0.82;
+    pads[0].strikePosition = 0.28;
+    pads[0].level = 0.84;
     pads[0].tsPitchEnvStart = toLogNorm(180);
     pads[0].tsPitchEnvEnd   = toLogNorm(85);
-    pads[0].tsPitchEnvTime  = 0.10;
-    pads[0].tsPitchEnvCurve = 0.5;
-    pads[0].airLoading       = 0.70;
-    // Timpani is a kettle drum: single head, no shell ring. The secondary
-    // modal bank's output is added directly to the body without gain
-    // scaling (drum_voice.h:731), which on a large low-damping timpani
-    // dominated the body signal and saturated the post-chain softClip.
-    // Verified via diagnose_orch: enabling secondary multiplied RMS ~3.4x
-    // and caused 7000+ clipped samples; disabling it drops to ~100 (just
-    // the brief attack transient, inaudible).
+    pads[0].tsPitchEnvTime  = 0.10;   // 50 ms
+    pads[0].tsPitchEnvCurve = 0.35;
+    pads[0].airLoading       = 0.80;
     pads[0].couplingStrength = 0.0;
     pads[0].secondaryEnabled = 0.0;
-    pads[0].tensionModAmt    = 0.18;
-    pads[0].clickLayerMix       = 0.32; pads[0].clickLayerContactMs = 0.28;
-    pads[0].clickLayerBrightness = 0.30;
-    pads[0].noiseLayerMix = 0.12;
-    pads[0].bodyDampingB1 = 0.30; pads[0].bodyDampingB3 = 0.10;
+    pads[0].tensionModAmt    = 0.16;
+    pads[0].modeScatter      = 0.06;
+    pads[0].modeInjectAmount = 0.12;  // small post-audit 1/k activation
+    pads[0].clickLayerMix       = 0.32; pads[0].clickLayerContactMs = 0.40;
+    pads[0].clickLayerBrightness = 0.32;
+    pads[0].noiseLayerMix = 0.10; pads[0].noiseLayerCutoff = 0.40;
+    pads[0].noiseLayerColor = 0.12; pads[0].noiseLayerDecay = 0.20;  // Brown
+    pads[0].bodyDampingB1 = 0.12; pads[0].bodyDampingB3 = 0.10;
     pads[0].macroBodySize = 0.95; pads[0].macroComplexity = 0.55;
     pads[0].couplingAmount = 0.60;
+    pads[0].pan = 0.42;
 
-    // Bass drum (2). Same aggressive headroom cut.
-    pads[2].exciterType = ExciterType::Mallet;
+    // Orchestral Snare (2, moved off the bass slot). Fixed high-tension
+    // head: NO pitch glide (tensionMod 0), tight 14x5 secondary shell.
+    pads[2].exciterType = ExciterType::NoiseBurst;
     pads[2].bodyModel = BodyModelType::Membrane;
-    pads[2].material = 0.32; pads[2].size = 0.90; pads[2].decay = 0.55;
-    pads[2].level = 0.72;
-    pads[2].tsPitchEnvStart = toLogNorm(110);
-    pads[2].tsPitchEnvEnd   = toLogNorm(40);
-    pads[2].tsPitchEnvTime  = 0.06;
-    pads[2].airLoading       = 0.70;
-    // Concert bass drum is also single-head; same secondary-disable fix.
-    pads[2].couplingStrength = 0.0;
-    pads[2].secondaryEnabled = 0.0;
-    pads[2].tensionModAmt    = 0.15;
-    pads[2].clickLayerMix       = 0.30; pads[2].clickLayerContactMs = 0.42;
-    pads[2].clickLayerBrightness = 0.20;
-    pads[2].noiseLayerMix = 0.08;
-    pads[2].bodyDampingB1 = 0.30; pads[2].bodyDampingB3 = 0.08;
-    pads[2].couplingAmount = 0.60;
+    pads[2].material = 0.60; pads[2].size = 0.33; pads[2].decay = 0.30;
+    pads[2].level = 0.90;
+    pads[2].noiseBurstDuration = (3.0 - 2.0) / 13.0;
+    pads[2].tsDriveAmount = 0.06;
+    pads[2].tsFilterType = FilterType::LP;
+    pads[2].tsFilterCutoff = 0.92;
+    pads[2].tsFilterResonance = 0.12;
+    pads[2].tsFilterEnvAmount = 0.55;
+    pads[2].tsFilterEnvAttack = 0.0;
+    pads[2].tsFilterEnvDecay = 0.32;
+    pads[2].tsFilterEnvSustain = 0.0;
+    pads[2].tsFilterEnvRelease = 0.15;
+    pads[2].noiseLayerMix    = 0.98; pads[2].noiseLayerCutoff = 0.90;
+    pads[2].noiseLayerResonance = 0.10;
+    pads[2].noiseLayerColor  = 0.90; pads[2].noiseLayerDecay = 0.55;  // Violet
+    pads[2].clickLayerMix    = 0.95; pads[2].clickLayerContactMs = 0.18;
+    pads[2].clickLayerBrightness = 0.93;
+    pads[2].nonlinearCoupling = 0.12;
+    pads[2].modeStretch = 0.40; pads[2].decaySkew = 0.58;
+    pads[2].modeScatter = 0.18;
+    pads[2].airLoading = 0.60;
+    pads[2].couplingStrength = 0.28; pads[2].secondaryEnabled = 1.0;
+    pads[2].secondarySize = 0.32; pads[2].secondaryMaterial = 0.70;
+    pads[2].tensionModAmt = 0.0;   // FIXED: concert snare has no pitch glide
+    pads[2].tsPitchEnvStart = 0.0;
+    pads[2].tsPitchEnvEnd   = 0.0;
+    pads[2].tsPitchEnvTime  = 0.0;
+    pads[2].bodyDampingB1 = 0.62; pads[2].bodyDampingB3 = 0.30;
+    pads[2].macroBrightness = 0.65; pads[2].macroComplexity = 0.55;
+    pads[2].pan = 0.50;
 
-    // Snare drum (4, redesigned: orchestral snare without ANY pitch glide
-    // and with minimal drive. The pitch glide + drive combo reads as a
-    // synth kick; a real snare just has a sharp stick crack, bright wire
-    // buzz, and a short tat from the head -- no synthesized "boop".)
-    pads[4].exciterType = ExciterType::NoiseBurst;
+    // Concert Bass Drum (4, moved off the snare slot). Single-head:
+    // secondary OFF. Deep slow pitch drop.
+    pads[4].exciterType = ExciterType::Mallet;
     pads[4].bodyModel = BodyModelType::Membrane;
-    // Tight, high-tuned head (~320 Hz). The body is a brief transient
-    // element, NOT a sustained tonal layer.
-    pads[4].material = 0.55; pads[4].size = 0.38; pads[4].decay = 0.30;
-    pads[4].level = 0.92;
-    pads[4].noiseBurstDuration = (3.0 - 2.0) / 13.0;
-    // Drive near zero: a real snare has no distortion; drive on a tonal
-    // body is exactly what makes it sound like a saturated synth kick.
-    pads[4].tsDriveAmount = 0.06;
-    pads[4].tsFilterType = FilterType::LP;
-    pads[4].tsFilterCutoff = 0.92;
-    pads[4].tsFilterResonance = 0.12;
-    pads[4].tsFilterEnvAmount = 0.55;
-    pads[4].tsFilterEnvAttack = 0.0;
-    pads[4].tsFilterEnvDecay = 0.32;     // ~33 ms after cubic decode
-    pads[4].tsFilterEnvSustain = 0.0;
-    pads[4].tsFilterEnvRelease = 0.15;
-    // The snare IS the noise. Wires dominate.
-    pads[4].noiseLayerMix    = 0.98; pads[4].noiseLayerCutoff = 0.94;
-    pads[4].noiseLayerResonance = 0.10;
-    pads[4].noiseLayerColor  = 0.90; pads[4].noiseLayerDecay = 0.30;
-    pads[4].clickLayerMix    = 0.95; pads[4].clickLayerContactMs = 0.05;
-    pads[4].clickLayerBrightness = 0.95;
-    pads[4].airLoading = 0.25; pads[4].modeScatter = 0.25;
-    pads[4].nonlinearCoupling = 0.0;
-    // Light shell coupling, small tight shell -- the orchestral snare is
-    // 14"x5", not a deep ringing housing.
-    pads[4].couplingStrength = 0.28; pads[4].secondaryEnabled = 1.0;
-    pads[4].secondarySize = 0.32; pads[4].secondaryMaterial = 0.70;
-    // Tiny tension blip on attack (real snare heads pitch up briefly
-    // under stick energy then relax -- this is the natural snare crack).
-    pads[4].tensionModAmt = 0.18;
-    // NO pitch envelope. The body sits at its natural ~320 Hz fundamental
-    // determined by size + material; any glide makes it sound synth.
-    pads[4].tsPitchEnvStart = 0.0;
-    pads[4].tsPitchEnvEnd   = 0.0;
-    pads[4].tsPitchEnvTime  = 0.0;
-    pads[4].tsPitchEnvCurve = 0.5;
-    // Fast body damping so the body is a transient tat, not a tonal note.
-    pads[4].bodyDampingB1 = 0.62; pads[4].bodyDampingB3 = 0.18;
-    pads[4].macroBrightness = 0.65; pads[4].macroComplexity = 0.55;
+    pads[4].material = 0.30; pads[4].size = 0.90; pads[4].decay = 0.55;
+    pads[4].level = 0.88;
+    pads[4].tsPitchEnvStart = toLogNorm(110);
+    pads[4].tsPitchEnvEnd   = toLogNorm(40);
+    pads[4].tsPitchEnvTime  = 0.24;   // 120 ms
+    pads[4].tsPitchEnvCurve = 0.15;   // exp
+    pads[4].airLoading       = 0.80;
+    pads[4].couplingStrength = 0.0;
+    pads[4].secondaryEnabled = 0.0;
+    pads[4].tensionModAmt    = 0.12;
+    pads[4].clickLayerMix       = 0.35; pads[4].clickLayerContactMs = 0.42;
+    pads[4].clickLayerBrightness = 0.20;
+    pads[4].noiseLayerMix = 0.18; pads[4].noiseLayerCutoff = 0.30;
+    pads[4].noiseLayerColor = 0.12; pads[4].noiseLayerDecay = 0.45;  // Brown
+    pads[4].bodyDampingB1 = 0.30; pads[4].bodyDampingB3 = 0.55;
+    pads[4].couplingAmount = 0.60;
+    pads[4].pan = 0.50;
 
-    // Timpani toms. Aggressive headroom cut.
-    const int    timpaniPads[] = {5, 7, 9, 11, 14};
-    const double timpaniSize[] = {0.88, 0.82, 0.75, 0.68, 0.60};
-    const double timpaniHi[]   = {180, 220, 280, 350, 440};
-    const double timpaniLo[]   = {80, 100, 130, 165, 215};
-    const double timpaniDecay[] = {0.80, 0.72, 0.65, 0.58, 0.50};
-    const double timpaniB1[]   = {0.10, 0.12, 0.14, 0.17, 0.21};
+    // Timpani toms -- the SAME instrument as pad 0, 5 tunings. airLoading
+    // 0.80 (matches pad 0, pitch-fusion), level restored 0.82, NEW per-mode
+    // decaySkew tilt + small modeInject + pan row sweep.
+    const int    timpaniPads[]   = {5, 7, 9, 11, 14};
+    const double timpaniSize[]   = {0.88, 0.82, 0.75, 0.68, 0.60};
+    const double timpaniHi[]     = {180, 220, 280, 350, 440};
+    const double timpaniLo[]     = {80, 100, 130, 165, 215};
+    const double timpaniDecay[]  = {0.80, 0.72, 0.65, 0.58, 0.50};
+    const double timpaniB1[]     = {0.10, 0.12, 0.14, 0.17, 0.21};
+    const double timpaniInject[] = {0.10, 0.105, 0.11, 0.115, 0.12};
+    const double timpaniSkew[]   = {0.45, 0.47, 0.50, 0.53, 0.55};
+    const double timpaniPan[]    = {0.38, 0.43, 0.47, 0.52, 0.57};
     for (int i = 0; i < 5; ++i) {
         const int p = timpaniPads[i];
         pads[p].exciterType = ExciterType::Mallet;
@@ -2358,14 +2349,15 @@ Kit orchestralKit() {
         pads[p].material = 0.32 + 0.04 * i;
         pads[p].size = timpaniSize[i];
         pads[p].decay = timpaniDecay[i];
-        pads[p].level = 0.65;
+        pads[p].level = 0.82;
         pads[p].tsPitchEnvStart = toLogNorm(timpaniHi[i]);
         pads[p].tsPitchEnvEnd   = toLogNorm(timpaniLo[i]);
         pads[p].tsPitchEnvTime  = 0.12;
-        pads[p].tsPitchEnvCurve = 0.5;
-        pads[p].airLoading       = 0.65;
+        pads[p].tsPitchEnvCurve = 0.35;
+        pads[p].airLoading       = 0.80;
         pads[p].modeScatter      = 0.08;
-        // Timpani: kettle drum, no shell. Same secondary-disable fix.
+        pads[p].modeInjectAmount = timpaniInject[i];
+        pads[p].decaySkew        = timpaniSkew[i];
         pads[p].couplingStrength = 0.0;
         pads[p].secondaryEnabled = 0.0;
         pads[p].tensionModAmt    = 0.15;
@@ -2376,63 +2368,75 @@ Kit orchestralKit() {
         pads[p].macroBodySize = 0.85 - 0.05 * i;
         pads[p].macroComplexity = 0.55;
         pads[p].couplingAmount = 0.55;
+        pads[p].pan = timpaniPan[i];
     }
 
-    // Triangle (12)
+    // Triangle (12) -- Bell -> Shell (free-free bar 1:2.757:5.404).
     pads[12].exciterType = ExciterType::Impulse;
-    pads[12].bodyModel = BodyModelType::Bell;
-    pads[12].material = 0.95; pads[12].size = 0.10; pads[12].decay = 0.85;
+    pads[12].bodyModel = BodyModelType::Shell;
+    pads[12].material = 0.95; pads[12].size = 0.085; pads[12].decay = 0.85;
     pads[12].level = 0.65;
-    pads[12].fmRatio = 0.45;
-    pads[12].modeStretch = 0.55;
-    pads[12].clickLayerMix = 0.55; pads[12].clickLayerContactMs = 0.08;
-    pads[12].clickLayerBrightness = 0.95;
+    pads[12].strikePosition = 0.18;   // free-end antinode
+    pads[12].modeStretch = 0.62; pads[12].decaySkew = 0.40;
+    pads[12].modeScatter = 0.12;
+    pads[12].clickLayerMix = 0.95; pads[12].clickLayerContactMs = 0.10;
+    pads[12].clickLayerBrightness = 0.97;
     pads[12].noiseLayerMix = 0.0;
     pads[12].airLoading = 0.0;
-    pads[12].bodyDampingB3 = 0.0; pads[12].bodyDampingB1 = 0.30;
+    pads[12].bodyDampingB3 = 0.02; pads[12].bodyDampingB1 = 0.30;
+    pads[12].outputBus = 1;
     pads[12].macroBrightness = 0.95; pads[12].macroComplexity = 0.30;
+    pads[12].pan = 0.62;
 
-    // Hi-hats / suspended cymbal
+    // Suspended cymbal -- struck (6), choke group 1
     pads[6].exciterType = ExciterType::NoiseBurst;
     pads[6].bodyModel = BodyModelType::NoiseBody;
-    pads[6].material = 0.88; pads[6].size = 0.16; pads[6].decay = 0.15;
+    pads[6].material = 0.90; pads[6].size = 0.20; pads[6].decay = 0.50;
     pads[6].level = 0.70; pads[6].chokeGroup = 1;
+    pads[6].modeStretch = 0.55; pads[6].decaySkew = 0.58;
+    pads[6].nonlinearCoupling = 0.25;
     pads[6].noiseLayerMix = 0.65; pads[6].noiseLayerCutoff = 0.82;
     pads[6].noiseLayerColor = 0.70; pads[6].noiseLayerDecay = 0.12;
     pads[6].clickLayerMix = 0.20;
-    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.30;
+    pads[6].airLoading = 0.0; pads[6].modeScatter = 0.40;
     pads[6].bodyDampingB3 = 0.0; pads[6].bodyDampingB1 = 0.45;
+    pads[6].pan = 0.65;
 
+    // Suspended cymbal -- pedal (8), short choke
     pads[8] = pads[6];
-    pads[8].decay = 0.06; pads[8].noiseLayerDecay = 0.07;
+    pads[8].decay = 0.18; pads[8].noiseLayerDecay = 0.07;
     pads[8].bodyDampingB1 = 0.65;
 
-    // Suspended cymbal roll (10)
+    // Suspended cymbal roll (10) -- morph swell, aux1, choke 1
     pads[10].exciterType = ExciterType::NoiseBurst;
     pads[10].bodyModel = BodyModelType::NoiseBody;
     pads[10].material = 0.95; pads[10].size = 0.42; pads[10].decay = 0.95;
-    pads[10].level = 0.72;
+    pads[10].level = 0.72; pads[10].chokeGroup = 1;
     pads[10].morphEnabled = 1.0;
     pads[10].morphStart = 0.55; pads[10].morphEnd = 0.95;
-    pads[10].morphDuration = 0.85; pads[10].morphCurve = 0.4;
+    pads[10].morphDuration = 0.85; pads[10].morphCurve = 0.4;  // ~1.7 s
     pads[10].modeScatter = 0.65; pads[10].airLoading = 0.0;
+    pads[10].nonlinearCoupling = 0.20;
     pads[10].bodyDampingB3 = 0.0; pads[10].bodyDampingB1 = 0.30;
     pads[10].noiseLayerMix = 0.65; pads[10].noiseLayerCutoff = 0.82;
     pads[10].noiseLayerColor = 0.78; pads[10].noiseLayerDecay = 0.95;
     pads[10].clickLayerMix = 0.0;
     pads[10].decaySkew = 0.55;
     pads[10].outputBus = 1;
+    pads[10].pan = 0.65;
 
-    // Gong (13)
+    // Gong / Tam-Tam (13) -- Bell + stretch + bloom (secondary OFF by design).
     pads[13].exciterType = ExciterType::Mallet;
     pads[13].bodyModel = BodyModelType::Bell;
     pads[13].material = 0.85; pads[13].size = 0.85; pads[13].decay = 0.95;
-    pads[13].level = 0.78;
-    pads[13].fmRatio = 0.30; pads[13].feedbackAmount = 0.10;
-    pads[13].modeStretch = 0.55;
+    pads[13].level = 0.82;
+    pads[13].strikePosition = 0.60;
+    pads[13].modeStretch = 0.62;
+    pads[13].nonlinearCoupling = 0.80;   // bloom
+    pads[13].modeInjectAmount = 0.15;
     pads[13].morphEnabled = 1.0;
     pads[13].morphStart = 0.85; pads[13].morphEnd = 0.55;
-    pads[13].morphDuration = 0.85; pads[13].morphCurve = 0.5;
+    pads[13].morphDuration = 0.85; pads[13].morphCurve = 0.5;  // ~1.7 s
     pads[13].modeScatter = 0.65; pads[13].airLoading = 0.0;
     pads[13].bodyDampingB3 = 0.0; pads[13].bodyDampingB1 = 0.30;
     pads[13].clickLayerMix = 0.30; pads[13].clickLayerContactMs = 0.22;
@@ -2440,34 +2444,75 @@ Kit orchestralKit() {
     pads[13].noiseLayerMix = 0.20; pads[13].noiseLayerCutoff = 0.55;
     pads[13].noiseLayerColor = 0.45; pads[13].noiseLayerDecay = 0.92;
     pads[13].decaySkew = 0.65;
-    pads[13].tensionModAmt = 0.22;
+    pads[13].tensionModAmt = 0.0;   // Bell: tensionMod is a no-op
     pads[13].outputBus = 1;
     pads[13].macroBodySize = 0.95; pads[13].macroComplexity = 0.85;
     pads[13].couplingAmount = 0.95;
+    pads[13].pan = 0.50;
 
-    // Crotales hi (15)
-    pads[15].exciterType = ExciterType::Mallet;
+    // Ride Cymbal (15, NEW role on the GM ride slot) -- Bell/NoiseBurst.
+    pads[15].exciterType = ExciterType::NoiseBurst;
     pads[15].bodyModel = BodyModelType::Bell;
-    pads[15].material = 0.92; pads[15].size = 0.18; pads[15].decay = 0.85;
+    pads[15].material = 0.95; pads[15].size = 0.30; pads[15].decay = 0.90;
     pads[15].level = 0.72;
-    pads[15].fmRatio = 0.55;
-    pads[15].clickLayerMix = 0.40; pads[15].clickLayerBrightness = 0.85;
-    pads[15].noiseLayerMix = 0.0;
+    pads[15].strikePosition = 0.18;
+    pads[15].modeStretch = 0.45; pads[15].decaySkew = 0.62;
+    pads[15].nonlinearCoupling = 0.18; pads[15].modeScatter = 0.55;
+    pads[15].bodyDampingB1 = 0.16; pads[15].bodyDampingB3 = 0.0;
+    pads[15].noiseLayerMix = 0.45; pads[15].noiseLayerCutoff = 0.90;
+    pads[15].noiseLayerColor = 0.90; pads[15].noiseLayerDecay = 0.78;  // Violet
+    pads[15].clickLayerMix = 0.45; pads[15].clickLayerContactMs = 0.25;
+    pads[15].clickLayerBrightness = 0.82;
     pads[15].airLoading = 0.0;
-    pads[15].bodyDampingB3 = 0.0; pads[15].bodyDampingB1 = 0.30;
     pads[15].outputBus = 1;
     pads[15].macroBrightness = 0.85;
+    pads[15].pan = 0.62;
 
-    // Crotales lo (17)
-    pads[17] = pads[15];
-    pads[17].size = 0.25; pads[17].fmRatio = 0.40;
-    pads[17].material = 0.88;
+    // Crotales hi (17) -- Bell/Mallet.
+    pads[17].exciterType = ExciterType::Mallet;
+    pads[17].bodyModel = BodyModelType::Bell;
+    pads[17].material = 0.92; pads[17].size = 0.12; pads[17].decay = 0.85;
+    pads[17].level = 0.72;
+    pads[17].strikePosition = 0.10;
+    pads[17].decaySkew = 0.58;
+    pads[17].clickLayerMix = 0.42; pads[17].clickLayerContactMs = 0.20;
+    pads[17].clickLayerBrightness = 0.85;
+    pads[17].noiseLayerMix = 0.0;
+    pads[17].airLoading = 0.0;
+    pads[17].bodyDampingB3 = 0.0; pads[17].bodyDampingB1 = 0.30;
+    pads[17].outputBus = 1;
+    pads[17].macroBrightness = 0.85;
+    pads[17].pan = 0.68;
 
-    // Tubular bell (3)
+    // Crotales lo (19, NEW) -- larger constituent bells.
+    pads[19] = pads[17];
+    pads[19].size = 0.22; pads[19].material = 0.88;
+    pads[19].pan = 0.32;
+
+    // Bell Tree (1, NEW) -- Bell/NoiseBurst cascade with morph dim.
+    pads[1].exciterType = ExciterType::NoiseBurst;
+    pads[1].bodyModel = BodyModelType::Bell;
+    pads[1].material = 0.93; pads[1].size = 0.10; pads[1].decay = 0.60;
+    pads[1].strikePosition = 0.15;
+    pads[1].modeStretch = 0.45; pads[1].decaySkew = 0.78;
+    pads[1].modeScatter = 0.35;
+    pads[1].bodyDampingB1 = 0.35; pads[1].bodyDampingB3 = 0.0;
+    pads[1].noiseLayerMix = 0.15; pads[1].noiseLayerColor = 0.90;  // Violet
+    pads[1].noiseLayerDecay = 0.40;
+    pads[1].clickLayerMix = 0.30; pads[1].clickLayerBrightness = 0.85;
+    pads[1].morphEnabled = 1.0;
+    pads[1].morphStart = 0.85; pads[1].morphEnd = 0.55;
+    pads[1].morphDuration = 0.50; pads[1].morphCurve = 0.0;  // ~1.1 s linear
+    pads[1].airLoading = 0.0;
+    pads[1].outputBus = 1;
+    pads[1].pan = 0.55;
+
+    // Tubular bell (3) -- String/Mallet (modal axes inert no-ops on String).
     pads[3].exciterType = ExciterType::Mallet;
     pads[3].bodyModel = BodyModelType::String;
     pads[3].material = 0.85; pads[3].size = 0.55; pads[3].decay = 0.92;
-    pads[3].level = 0.72;
+    pads[3].level = 0.78;
+    pads[3].strikePosition = 0.30;
     pads[3].modeStretch = 0.50;
     pads[3].clickLayerMix = 0.40; pads[3].clickLayerContactMs = 0.20;
     pads[3].clickLayerBrightness = 0.65;
@@ -2475,17 +2520,19 @@ Kit orchestralKit() {
     pads[3].airLoading = 0.0;
     pads[3].bodyDampingB1 = 0.30; pads[3].bodyDampingB3 = 0.20;
     pads[3].decaySkew = 0.55;
+    pads[3].outputBus = 1;
+    pads[3].pan = 0.58;
 
-    k.opts.maxPolyphony    = 16;
-    // Kit-level coupling globals reduced: globalCoupling=0.45 +
-    // tomResonance=0.55 were piling sympathetic energy across voices,
-    // pushing the body sum into the post-chain softClip on the body-heavy
-    // timpani / bass / tom pads.
-    k.opts.globalCoupling  = 0.20;
+    // Kit globals: headroom recovered post-N-1, so coupling/polyphony
+    // restored (long timpani/gong/chime tails overlap; sympathetic
+    // timpani resonance back on).
+    k.opts.maxPolyphony    = 20;
+    k.opts.globalCoupling  = 0.28;
     k.opts.snareBuzz       = 0.20;
-    k.opts.tomResonance    = 0.25;
+    k.opts.tomResonance    = 0.35;
     k.opts.couplingDelayMs = 1.6;
-    k.crafted = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17};
+    // 18 sounding pads; 16, 18, 20-31 disabled (no aux-perc role).
+    k.crafted = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19};
     return k;
 }
 Kit nineOhNineKit() {
