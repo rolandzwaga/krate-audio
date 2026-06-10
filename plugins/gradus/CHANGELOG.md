@@ -5,6 +5,16 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-06-11
+
+### Fixed
+
+- **Crash when closing the plugin editor window in a host (macOS/Ableton Live).** `Controller::willClose` removed the speed-curve container view — which owns the toggle, preset menu, and depth knobs as child views — *before* `dynamic_cast`ing those child pointers to unregister their control listeners. Removing the container destroyed the children, so the subsequent `dynamic_cast` dereferenced freed memory, crashing in `__dynamic_cast` (`EXC_BAD_ACCESS` / pointer-authentication failure) during window teardown. Listeners are now unregistered while the controls are still alive, before the container is removed.
+
+### Changed
+
+- **Added a headless editor open/close lifecycle test** (`[lifecycle]` tag) that drives the full `attached()`/`willClose()` teardown path, plus a nightly Valgrind/memcheck CI job so editor-teardown use-after-free regressions are caught automatically.
+
 ## [1.8.0] - 2026-05-24
 
 ### Added

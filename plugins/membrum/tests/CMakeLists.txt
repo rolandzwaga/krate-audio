@@ -129,11 +129,17 @@ add_executable(membrum_tests
     unit/controller/test_audit_ui_controller_batch.cpp
     unit/diagnose/test_orchestral_distortion.cpp
     unit/diagnose/test_body_resonant_peak.cpp
+    unit/diagnose/test_snare_body_diagnose.cpp
     unit/dsp/test_body_headroom_budget.cpp
     unit/ui/test_pad_grid_view.cpp
     unit/ui/test_pitch_envelope_display.cpp
     unit/preset/test_kit_uimode_roundtrip.cpp
     integration/test_editor_asan_lifecycle.cpp
+
+    # Editor open/close lifecycle regression (willClose UAF guard) -- unlike the
+    # ASan stress test above, this one DOES call IPlugView::attached(), building
+    # the full view tree and running verifyView/willClose via the shared harness.
+    unit/controller/editor_lifecycle_test.cpp
 
     # Shared state/preset codec unit tests
     unit/state/test_state_codec.cpp
@@ -195,6 +201,11 @@ target_include_directories(membrum_tests
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
+)
+
+target_compile_definitions(membrum_tests
+    PRIVATE
+        MEMBRUM_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 target_compile_features(membrum_tests PRIVATE cxx_std_20)

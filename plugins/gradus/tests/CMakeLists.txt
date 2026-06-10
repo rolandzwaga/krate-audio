@@ -40,6 +40,9 @@ add_executable(gradus_tests
     unit/ui/piano_roll_playhead_test.cpp
     unit/ui/piano_roll_visibility_test.cpp
 
+    # Editor open/close lifecycle regression (willClose UAF guard)
+    unit/ui/editor_lifecycle_test.cpp
+
     # Processor/Controller implementation (needed by plugin shell tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/processor/processor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
@@ -91,6 +94,9 @@ target_compile_features(gradus_tests PRIVATE cxx_std_20)
 target_compile_definitions(gradus_tests
     PRIVATE
         GRADUS_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+        # Absolute path to the plugin's UI resources so the editor-lifecycle
+        # harness can locate editor.uidesc without a plugin bundle.
+        GRADUS_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 # Compiler warnings matching the plugin target

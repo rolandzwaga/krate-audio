@@ -70,6 +70,9 @@ add_executable(disrumpo_tests
     # Unit tests - Preset Integration (010-preset-system)
     unit/controller/preset_integration_test.cpp
 
+    # Editor open/close lifecycle regression (willClose UAF guard)
+    unit/controller/editor_lifecycle_test.cpp
+
     # DSP sources (needed for tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/distortion_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/dsp/morph_engine.cpp
@@ -156,6 +159,11 @@ target_include_directories(disrumpo_tests
         ${CMAKE_CURRENT_SOURCE_DIR}/../src
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
+)
+
+target_compile_definitions(disrumpo_tests
+    PRIVATE
+        DISRUMPO_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 target_compile_features(disrumpo_tests PRIVATE cxx_std_20)
