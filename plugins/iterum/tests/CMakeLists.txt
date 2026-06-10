@@ -59,8 +59,25 @@ add_executable(plugin_tests
     unit/vst/toggle_control_test.cpp
     unit/vst/version_display_test.cpp
 
+    # Editor open/close lifecycle regression (willClose UAF guard) -- builds the
+    # real view tree via IPlugView::attached() and runs verifyView/willClose.
+    unit/vst/editor_open_close_test.cpp
+
+    # Controller + UI sources needed to instantiate the editor in the open/close
+    # lifecycle test.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/custom_views.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/delay_time_sync_controller.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/ui/tap_pattern_editor.cpp
+
     # Source files needed for linking
     ${vst3sdk_SOURCE_DIR}/public.sdk/source/common/memorystream.cpp
+
+    # Stubs for GetPluginFactory/moduleHandle + SDK module init (needed by
+    # vstgui_support, esp. on the Linux/valgrind lane).
+    vstgui_test_stubs.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/moduleinit.cpp
+    ${vst3sdk_SOURCE_DIR}/public.sdk/source/main/pluginfactory.cpp
 )
 
 target_link_libraries(plugin_tests
@@ -69,8 +86,11 @@ target_link_libraries(plugin_tests
         KratePluginsShared
         Catch2::Catch2
         test_helpers
+        # vstgui_support (the full uidescription + plugin-bindings stack) is
+        # required for VST3Editor in the open/close lifecycle test. It must come
+        # before sdk so GNU ld resolves the SDK module-init symbols.
+        vstgui_support
         sdk
-        vstgui
 )
 
 target_include_directories(plugin_tests
@@ -79,6 +99,11 @@ target_include_directories(plugin_tests
         ${CMAKE_SOURCE_DIR}/tests
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4
+)
+
+target_compile_definitions(plugin_tests
+    PRIVATE
+        ITERUM_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 target_compile_features(plugin_tests PRIVATE cxx_std_20)

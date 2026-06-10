@@ -398,12 +398,29 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
     // template. We only drop the cache pointer here — the view is torn down
     // by the frame.
     pianoRollView_ = nullptr;
-    // Speed curve views are owned by the frame — remove before nulling
+    // Unregister listeners from the speed-curve controls BEFORE removing the
+    // container. speedCurveContainer_ owns the toggle/label/knobs/preset as
+    // child views, so frame->removeView(container) destroys them. Touching
+    // speedCurveToggle_/PresetMenu_/DepthKnobs_ after that — even a
+    // dynamic_cast — is a use-after-free that crashes inside __dynamic_cast
+    // when the host closes the editor window (EXC_BAD_ACCESS / pointer-auth
+    // failure). Unregister while the controls are still alive. (W9)
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurveToggle_))
+        ctrl->unregisterControlListener(speedCurveToggleListener_.get());
+    if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurvePresetMenu_))
+        ctrl->unregisterControlListener(speedCurvePresetListener_.get());
+    for (auto* knob : speedCurveDepthKnobs_) {
+        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(knob))
+            ctrl->unregisterControlListener(speedCurveDepthListener_.get());
+    }
+
+    // Speed curve views are owned by the frame — remove after unregistering.
     if (auto* frame = editor->getFrame()) {
         for (auto*& sce : speedCurveEditors_) {
             if (sce) { frame->removeView(sce); sce = nullptr; }
         }
-        // Container owns toggle/label/knobs/preset as children
+        // Container owns toggle/label/knobs/preset as children; removing it
+        // destroys those child controls.
         if (speedCurveContainer_) {
             frame->removeView(speedCurveContainer_);
             speedCurveContainer_ = nullptr;
@@ -412,21 +429,7 @@ void Controller::willClose([[maybe_unused]] VSTGUI::VST3Editor* editor)
         speedCurveEditors_.fill(nullptr);
         speedCurveContainer_ = nullptr;
     }
-    // Unregister listeners from controls before resetting shared_ptrs (W9)
-    if (speedCurveToggle_) {
-        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurveToggle_))
-            ctrl->unregisterControlListener(speedCurveToggleListener_.get());
-    }
-    if (speedCurvePresetMenu_) {
-        if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(speedCurvePresetMenu_))
-            ctrl->unregisterControlListener(speedCurvePresetListener_.get());
-    }
-    for (auto* knob : speedCurveDepthKnobs_) {
-        if (knob) {
-            if (auto* ctrl = dynamic_cast<VSTGUI::CControl*>(knob))
-                ctrl->unregisterControlListener(speedCurveDepthListener_.get());
-        }
-    }
+    // Drop the now-dangling cache pointers and listeners.
     speedCurveToggle_ = nullptr;
     speedCurveDepthLabel_ = nullptr;
     speedCurvePresetMenu_ = nullptr;

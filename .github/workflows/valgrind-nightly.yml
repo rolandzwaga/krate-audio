@@ -1,4 +1,4 @@
-name: Valgrind Nightly (Membrum)
+name: Valgrind Nightly
 
 # ============================================================================
 # Nightly Valgrind / memcheck run for the Membrum test suite.
@@ -115,8 +115,96 @@ jobs:
             --errors-for-leak-kinds=none \
             --track-origins=yes \
             --num-callers=25 \
-            "$BIN" '~[performance]~[perf]~[benchmark]~[!benchmark]' --skip-benchmarks \
+            "$BIN" '~[performance]~[perf]~[benchmark]~[!benchmark]~[lifecycle]' --skip-benchmarks \
               --order rand --rng-seed "$SEED"
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
+
+  # ==========================================================================
+  # Editor open/close lifecycle under memcheck, for ALL plugins.
+  # ==========================================================================
+  # The shared harness (tests/test_helpers/editor_lifecycle_harness.h) drives
+  # each plugin's VST3 editor through repeated IPlugView::attached()/removed()
+  # cycles. attached() builds the real view tree from the .uidesc and runs the
+  # controller's verifyView/didOpen/willClose delegate hooks -- the exact path
+  # where editor-teardown use-after-free bugs live (e.g. a controller that frees
+  # a view container and then dynamic_cast's its dangling child pointers).
+  #
+  # Why memcheck, not plain Release: the dangling read often hits freed-but-not-
+  # reused memory, so a normal Release run passes by luck (which is why such
+  # crashes only surface in a real DAW). memcheck flags the read of freed memory
+  # deterministically.
+  #
+  # xvfb provides the X display the VSTGUI X11 platform factory needs.
+  # --undef-value-errors=no suppresses the noisy "uninitialised value" reports
+  # that X11/cairo/fontconfig emit, while keeping the addressability checks
+  # (invalid read/write, mismatched free) that actually catch use-after-free.
+  # ==========================================================================
+  valgrind-editor-lifecycle:
+    name: Linux Valgrind (Editor Lifecycle, all plugins)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: >-
+            valgrind ninja-build xvfb libx11-dev libxcb1-dev libxkbcommon-x11-dev libx11-xcb-dev
+            libxcb-util1 libxcb-util-dev libxcb-keysyms1-dev libxcb-cursor-dev
+            libxcb-xkb-dev libxkbcommon-dev libfontconfig1-dev libfreetype6-dev
+            libcairo2-dev libgtkmm-3.0-dev libsqlite3-dev
+          version: 1.0
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.20
+        with:
+          key: linux-valgrind-editor-${{ env.BUILD_TYPE }}
+          max-size: ${{ env.CCACHE_MAXSIZE }}
+
+      - name: Cache FetchContent
+        uses: actions/cache@v5
+        with:
+          path: build-vg-editor/_deps
+          key: fetchcontent-${{ github.repository }}-${{ runner.os }}-vgedit-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-${{ github.repository }}-${{ runner.os }}-vgedit-
+
+      - name: Configure CMake (Release)
+        run: |
+          cmake -S . -B build-vg-editor -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build all plugin test targets
+        run: |
+          cmake --build build-vg-editor --parallel --target \
+            gradus_tests plugin_tests disrumpo_tests ruinae_tests innexus_tests membrum_tests
+
+      - name: Run editor-lifecycle tests under Valgrind/memcheck (xvfb)
+        timeout-minutes: 60
+        run: |
+          set -e
+          BINDIR="build-vg-editor/bin/${{ env.BUILD_TYPE }}"
+          for bin in gradus_tests plugin_tests disrumpo_tests ruinae_tests innexus_tests membrum_tests; do
+            echo "==== $bin [lifecycle] ===="
+            test -x "$BINDIR/$bin" || { echo "FAIL: $BINDIR/$bin not found"; exit 1; }
+            xvfb-run -a valgrind \
+              --tool=memcheck \
+              --error-exitcode=99 \
+              --leak-check=no \
+              --errors-for-leak-kinds=none \
+              --undef-value-errors=no \
+              --num-callers=25 \
+              "$BINDIR/$bin" '[lifecycle]'
+          done
 
       - name: Show ccache stats
         if: always()

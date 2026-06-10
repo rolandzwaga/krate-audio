@@ -94,6 +94,9 @@ add_executable(ruinae_tests
     # Chord/Inversion Lane Disabled State Tests (arp-chord-lane)
     unit/controller/chord_lane_disabled_test.cpp
 
+    # Editor open/close lifecycle regression (willClose UAF guard)
+    unit/controller/editor_lifecycle_test.cpp
+
     # Preset Format Compatibility Tests (generator ↔ processor)
     unit/preset_format_compat_test.cpp
 
@@ -186,6 +189,7 @@ target_compile_features(ruinae_tests PRIVATE cxx_std_20)
 target_compile_definitions(ruinae_tests
     PRIVATE
         RUINAE_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+        RUINAE_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 # Disable -ffast-math for IEEE 754 compliant NaN handling

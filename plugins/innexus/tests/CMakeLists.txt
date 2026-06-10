@@ -167,6 +167,9 @@ add_executable(innexus_tests
     unit/controller/test_sample_drop.cpp
     unit/controller/test_adsr_display_wiring.cpp
 
+    # Editor open/close lifecycle regression (willClose UAF guard)
+    unit/controller/editor_lifecycle_test.cpp
+
     # UI custom view implementations (needed by controller tests)
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/harmonic_display_view.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/controller/views/confidence_indicator_view.cpp
@@ -200,6 +203,11 @@ target_include_directories(innexus_tests
         ${CMAKE_SOURCE_DIR}/extern/dr_libs
         ${vst3sdk_SOURCE_DIR}
         ${vst3sdk_SOURCE_DIR}/vstgui4
+)
+
+target_compile_definitions(innexus_tests
+    PRIVATE
+        INNEXUS_RESOURCES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources"
 )
 
 target_compile_features(innexus_tests PRIVATE cxx_std_20)
