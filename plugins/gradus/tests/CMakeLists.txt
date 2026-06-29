@@ -35,6 +35,9 @@ add_executable(gradus_tests
     # FR-022 inertness + source toggle hygiene tests (spec 142, Phase 7, US5)
     unit/processor/source_mode_toggle_test.cpp
 
+    # Sequencer transport-gating tests (spec 142, FR-031 at the Processor boundary)
+    unit/processor/sequencer_transport_gating_test.cpp
+
     # Piano-roll view tests (spec 142, Phase 6, US3)
     unit/ui/piano_roll_view_test.cpp
     unit/ui/piano_roll_playhead_test.cpp

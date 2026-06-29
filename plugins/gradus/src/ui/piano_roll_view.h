@@ -23,6 +23,7 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cframe.h"
 
 #include "base/source/fobject.h"
@@ -30,6 +31,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 namespace Gradus {
 
@@ -73,6 +75,7 @@ public:
         drawGrid(context);
         drawHoverCell(context);
         drawNotes(context);
+        drawHoveredNoteLabel(context);
         drawPlayhead(context);
         setDirty(false);
     }
@@ -90,6 +93,11 @@ public:
         const int pitch = PianoRollLogic::pitchFromY(static_cast<float>(local.y),
                                             static_cast<float>(getViewSize().getHeight()));
         if (pitch < 0) return VSTGUI::kMouseEventNotHandled;
+
+        // Clear hover state so no stale note label is drawn while painting/
+        // right-clicking; the next non-drag move re-establishes hover.
+        hoveredStep_  = -1;
+        hoveredPitch_ = -1;
 
         if (buttons.isRightButton()) {
             auto edit = stateMachine_.onRightMouseDown(step, steps_[stepIndex(step)]);
@@ -254,6 +262,8 @@ private:
     VSTGUI::CColor inactiveColor_   {0x10, 0x10, 0x18, 0xFF};
     VSTGUI::CColor playheadColor_   {0xFF, 0xFF, 0xFF, 0x30};
     VSTGUI::CColor hoverColor_      {0xD4, 0xA8, 0x56, 0x40}; // accent @ 25% alpha
+    VSTGUI::CColor noteLabelColor_  {0x1A, 0x1A, 0x2E, 0xFF}; // dark — reads on gold note
+    VSTGUI::CColor ghostLabelColor_ {0xE0, 0xC9, 0x90, 0xFF}; // light gold — reads on ghost
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -336,6 +346,27 @@ private:
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.top},
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.bottom});
         }
+    }
+
+    // Render the hovered cell's note name (e.g. "D#4") centered in the cell.
+    // Shown for ANY hovered cell — a placed note OR the empty/ghost cell under
+    // the cursor — so the user sees the note they're about to place. Color is
+    // dark on the solid gold note, light on the dark ghost cell. Called from
+    // draw() after drawNotes() so the text sits on top.
+    void drawHoveredNoteLabel(VSTGUI::CDrawContext* ctx)
+    {
+        const int len = currentActiveLength();
+        const std::string label = PianoRollLogic::hoveredCellNoteLabel(
+            hoveredStep_, hoveredPitch_, len);
+        if (label.empty()) return;
+        const auto rect = cellRect(hoveredStep_, hoveredPitch_);
+        const bool placed = PianoRollLogic::isPlacedNoteCell(
+            steps_, hoveredStep_, hoveredPitch_, len);
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11.0);
+        ctx->setFont(font);
+        ctx->setFontColor(placed ? noteLabelColor_ : ghostLabelColor_);
+        ctx->drawString(VSTGUI::UTF8String(label.c_str()), rect,
+                        VSTGUI::kCenterText);
     }
 
     void drawHoverCell(VSTGUI::CDrawContext* ctx)

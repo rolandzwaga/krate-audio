@@ -148,20 +148,26 @@ tresult PLUGIN_API Processor::process(ProcessData& data)
     BlockContext blockCtx{};
     blockCtx.sampleRate = sampleRate_;
     blockCtx.blockSize = static_cast<size_t>(data.numSamples);
+    // Source = Sequencer behaves like a step sequencer and follows the host
+    // transport (spec 142 US1/FR-031): Stop must halt note emission. Source =
+    // Live is a classic arp that free-runs off held notes, so it must keep
+    // clocking even when the transport is stopped.
+    const bool isSequencer =
+        arpParams_.sourceMode.load(std::memory_order_relaxed) == 1;
     if (data.processContext) {
         const bool transportPlaying =
             (data.processContext->state & ProcessContext::kPlaying) != 0;
         blockCtx.tempoBPM = data.processContext->tempo;
-        // In Gradus, the arp is always "playing" — when transport is stopped,
-        // the arp still clocks itself (free-rate mode works without transport,
-        // tempo-sync uses host tempo but doesn't require transport running).
-        blockCtx.isPlaying = true;
+        // Sequencer follows the host transport; Live free-runs.
+        blockCtx.isPlaying = isSequencer ? transportPlaying : true;
         // Only sync to musical position when transport is actually playing
         if (!transportPlaying) {
             blockCtx.tempoBPM = data.processContext->tempo > 0
                 ? data.processContext->tempo : 120.0;
         }
     } else {
+        // No host transport context (e.g. offline/standalone): Sequencer has no
+        // transport to follow, so keep it running; Live free-runs as always.
         blockCtx.tempoBPM = 120.0;
         blockCtx.isPlaying = true;
     }

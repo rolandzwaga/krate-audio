@@ -18,8 +18,23 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace Gradus { namespace PianoRollViewLogic {
+
+// -----------------------------------------------------------------------------
+// MIDI pitch → note name (scientific pitch notation, C4 = middle C = MIDI 60).
+// Matches the grid's row labeling: MIDI 36 = "C2", 60 = "C4", 83 = "B5". Used
+// by the view's hover tooltip so the user sees which note a row represents.
+// -----------------------------------------------------------------------------
+[[nodiscard]] inline std::string noteName(int midi) {
+    static constexpr const char* kNames[12] = {
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    if (midi < 0) midi = 0;
+    if (midi > 127) midi = 127;
+    const int octave = midi / 12 - 1;   // MIDI 60 → octave 4
+    return std::string(kNames[midi % 12]) + std::to_string(octave);
+}
 
 // Grid constants — FR-028: exactly 4 octaves (C2..B5).
 inline constexpr int kMidiLow      = 36;                                // C2
@@ -46,6 +61,39 @@ struct StepData {
 };
 
 using StepArray = std::array<StepData, kMaxSteps>;
+
+// -----------------------------------------------------------------------------
+// Hover label: the note name to render inside the hovered cell — the hovered
+// pitch ROW's name — whenever the cell is a valid, active hover target (mirrors
+// drawHoverCell's "ghost" rule: step in [0, activeLength) and pitch in
+// [kMidiLow, kMidiHigh]). Returns "" off the active grid. Applies to BOTH placed
+// notes and empty/ghost cells so the user sees the note they're about to place.
+// -----------------------------------------------------------------------------
+[[nodiscard]] inline std::string hoveredCellNoteLabel(int hoveredStep,
+                                                      int hoveredPitch,
+                                                      int activeLength) {
+    if (hoveredStep < 0 || hoveredStep >= activeLength ||
+        hoveredStep >= kMaxSteps) {
+        return {};
+    }
+    if (hoveredPitch < kMidiLow || hoveredPitch > kMidiHigh) return {};
+    return noteName(hoveredPitch);
+}
+
+// True when the hovered cell is exactly a placed (non-rest) note — i.e. the
+// cursor sits on the note's own rectangle. Used to pick the label color: dark
+// text on the solid gold note vs light text on the empty/ghost cell.
+[[nodiscard]] inline bool isPlacedNoteCell(const StepArray& steps,
+                                           int hoveredStep,
+                                           int hoveredPitch,
+                                           int activeLength) {
+    if (hoveredStep < 0 || hoveredStep >= activeLength ||
+        hoveredStep >= kMaxSteps) {
+        return false;
+    }
+    const StepData& s = steps[static_cast<std::size_t>(hoveredStep)];
+    return !s.isRest && static_cast<int>(s.pitch) == hoveredPitch;
+}
 
 // -----------------------------------------------------------------------------
 // Geometry helpers (cellRect-style hit-tests). Local coordinates: (0,0) at

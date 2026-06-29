@@ -43,6 +43,60 @@ TEST_CASE("PianoRollView: 48 rows from C2 to B5",
 }
 
 // -----------------------------------------------------------------------------
+// 1b. noteName — MIDI → scientific pitch notation for the hover tooltip
+// -----------------------------------------------------------------------------
+TEST_CASE("PianoRollView: noteName maps MIDI to scientific pitch notation",
+          "[gradus][piano_roll][ui][tooltip]")
+{
+    // Grid anchors (C2 = MIDI 36, C4 = middle C = MIDI 60, B5 = MIDI 83).
+    CHECK(Logic::noteName(36) == "C2");
+    CHECK(Logic::noteName(60) == "C4");
+    CHECK(Logic::noteName(83) == "B5");
+    // Accidentals use sharps.
+    CHECK(Logic::noteName(61) == "C#4");
+    CHECK(Logic::noteName(66) == "F#4");
+    // Octave boundary: B3 → C4.
+    CHECK(Logic::noteName(59) == "B3");
+    // Extremes are clamped into 0..127 and still produce a valid label.
+    CHECK(Logic::noteName(0) == "C-1");
+    CHECK(Logic::noteName(127) == "G9");
+    CHECK(Logic::noteName(-5) == "C-1");
+    CHECK(Logic::noteName(200) == "G9");
+}
+
+// -----------------------------------------------------------------------------
+// 1c. hoveredCellNoteLabel / isPlacedNoteCell — in-cell note label on hover
+// (shown for placed notes AND empty/ghost cells)
+// -----------------------------------------------------------------------------
+TEST_CASE("PianoRollView: hovered cell shows the row note name; placed-note predicate",
+          "[gradus][piano_roll][ui][hover_label]")
+{
+    Logic::StepArray steps{};
+    // Step 0: a placed note at pitch 64 (E4). Step 1: a rest at pitch 60.
+    steps[0] = Logic::StepData{ /*pitch=*/64, /*isRest=*/false };
+    steps[1] = Logic::StepData{ /*pitch=*/60, /*isRest=*/true };
+    const int activeLength = 8;
+
+    // Label = the hovered ROW's name for any valid active cell — note OR ghost.
+    CHECK(Logic::hoveredCellNoteLabel(0, 64, activeLength) == "E4"); // on the note
+    CHECK(Logic::hoveredCellNoteLabel(0, 65, activeLength) == "F4"); // empty row, same step
+    CHECK(Logic::hoveredCellNoteLabel(3, 60, activeLength) == "C4"); // empty cell elsewhere
+    // Off the active grid → empty.
+    CHECK(Logic::hoveredCellNoteLabel(0, 64, /*activeLength=*/0).empty());
+    CHECK(Logic::hoveredCellNoteLabel(-1, 64, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(Logic::kMaxSteps, 64, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(0, Logic::kMidiLow - 1, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(0, Logic::kMidiHigh + 1, activeLength).empty());
+
+    // Placed-note predicate (color selector): true only on the note's own cell.
+    CHECK(Logic::isPlacedNoteCell(steps, 0, 64, activeLength));
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 0, 65, activeLength)); // different row
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 1, 60, activeLength)); // rest
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 3, 60, activeLength)); // empty cell
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 0, 64, /*activeLength=*/0)); // inactive
+}
+
+// -----------------------------------------------------------------------------
 // 2. clickOnRestingStepPlacesNote — FR-030
 // -----------------------------------------------------------------------------
 TEST_CASE("PianoRollView: click on a resting step places a note at the clicked row",
