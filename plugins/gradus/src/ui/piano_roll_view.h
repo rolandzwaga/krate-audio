@@ -151,7 +151,10 @@ public:
         if (hoveredStep_ != -1 || hoveredPitch_ != -1) {
             hoveredStep_  = -1;
             hoveredPitch_ = -1;
-            setTooltipText(nullptr);
+            // Note: do NOT clear the tooltip text here. The frame's tooltip
+            // support already hides the popup on exit; leaving the attribute
+            // non-empty keeps the tooltip armed for the next entry (see the
+            // note in attached()).
             invalid();
         }
         return VSTGUI::kMouseEventHandled;
@@ -187,9 +190,18 @@ public:
         }
         // Enable the frame's tooltip support so the per-row note-name tooltip
         // (updated on hover) is shown.
+        //
+        // The tooltip attribute MUST be non-empty *before* the mouse enters the
+        // view: CFrame::checkMouseViews() calls CTooltipSupport::onMouseEntered()
+        // — which only arms the show-timer if the view already has tooltip text —
+        // BEFORE dispatching the view's own enter event. So we seed a placeholder
+        // here and keep it updated on hover; we never clear it back to empty (an
+        // empty attribute would silently disable the tooltip on the next entry).
         if (auto* frame = getFrame()) {
             frame->enableTooltips(true, 500);
         }
+        setTooltipText(VSTGUI::UTF8String(
+            PianoRollLogic::noteName(60)).data());  // placeholder (C4)
         invalid();
         return result;
     }
@@ -347,15 +359,15 @@ private:
     }
 
     // Set the platform tooltip to the note name of the hovered row (e.g.
-    // "C4"), or clear it when the cursor is off the pitch grid.
+    // "C4"). When the cursor is off the pitch grid we leave the previous text
+    // in place rather than removing the attribute — removing it would disarm
+    // the frame's tooltip support for the next entry (see note in attached()).
     void updateTooltip()
     {
         if (hoveredPitch_ >= PianoRollLogic::kMidiLow &&
             hoveredPitch_ <= PianoRollLogic::kMidiHigh) {
             const std::string name = PianoRollLogic::noteName(hoveredPitch_);
             setTooltipText(VSTGUI::UTF8String(name).data());
-        } else {
-            setTooltipText(nullptr);
         }
     }
 
