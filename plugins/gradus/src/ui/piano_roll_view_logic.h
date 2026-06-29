@@ -63,6 +63,26 @@ struct StepData {
 using StepArray = std::array<StepData, kMaxSteps>;
 
 // -----------------------------------------------------------------------------
+// Hover label: the note name to render inside a hovered note's cell, or "" when
+// the hovered cell is not a placed note. "On the note" means the hovered step is
+// in range (0..activeLength-1), the step is not a rest, and the hovered pitch
+// row equals the note's pitch (the cursor is on the note rectangle itself).
+// -----------------------------------------------------------------------------
+[[nodiscard]] inline std::string hoveredNoteLabel(const StepArray& steps,
+                                                  int hoveredStep,
+                                                  int hoveredPitch,
+                                                  int activeLength) {
+    if (hoveredStep < 0 || hoveredStep >= activeLength ||
+        hoveredStep >= kMaxSteps) {
+        return {};
+    }
+    const StepData& s = steps[static_cast<std::size_t>(hoveredStep)];
+    if (s.isRest) return {};
+    if (static_cast<int>(s.pitch) != hoveredPitch) return {};
+    return noteName(static_cast<int>(s.pitch));
+}
+
+// -----------------------------------------------------------------------------
 // Geometry helpers (cellRect-style hit-tests). Local coordinates: (0,0) at
 // view top-left; row 0 at the TOP corresponds to MIDI 83 (B5), row 47 at the
 // BOTTOM corresponds to MIDI 36 (C2). Steps go left-to-right.

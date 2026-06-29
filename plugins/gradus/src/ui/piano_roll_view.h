@@ -23,6 +23,7 @@
 #include "vstgui/lib/cdrawcontext.h"
 #include "vstgui/lib/cgraphicspath.h"
 #include "vstgui/lib/ccolor.h"
+#include "vstgui/lib/cfont.h"
 #include "vstgui/lib/cframe.h"
 
 #include "base/source/fobject.h"
@@ -74,6 +75,7 @@ public:
         drawGrid(context);
         drawHoverCell(context);
         drawNotes(context);
+        drawHoveredNoteLabel(context);
         drawPlayhead(context);
         setDirty(false);
     }
@@ -91,6 +93,11 @@ public:
         const int pitch = PianoRollLogic::pitchFromY(static_cast<float>(local.y),
                                             static_cast<float>(getViewSize().getHeight()));
         if (pitch < 0) return VSTGUI::kMouseEventNotHandled;
+
+        // Clear hover state so no stale note label is drawn while painting/
+        // right-clicking; the next non-drag move re-establishes hover.
+        hoveredStep_  = -1;
+        hoveredPitch_ = -1;
 
         if (buttons.isRightButton()) {
             auto edit = stateMachine_.onRightMouseDown(step, steps_[stepIndex(step)]);
@@ -124,7 +131,6 @@ public:
             if (hover.changed) {
                 hoveredStep_  = hover.step;
                 hoveredPitch_ = hover.pitch;
-                updateTooltip();
                 invalid();
             }
             return VSTGUI::kMouseEventHandled;
@@ -151,10 +157,6 @@ public:
         if (hoveredStep_ != -1 || hoveredPitch_ != -1) {
             hoveredStep_  = -1;
             hoveredPitch_ = -1;
-            // Note: do NOT clear the tooltip text here. The frame's tooltip
-            // support already hides the popup on exit; leaving the attribute
-            // non-empty keeps the tooltip armed for the next entry (see the
-            // note in attached()).
             invalid();
         }
         return VSTGUI::kMouseEventHandled;
@@ -188,20 +190,6 @@ public:
             refreshAllFromController();
             dependentsRegistered_ = true;
         }
-        // Enable the frame's tooltip support so the per-row note-name tooltip
-        // (updated on hover) is shown.
-        //
-        // The tooltip attribute MUST be non-empty *before* the mouse enters the
-        // view: CFrame::checkMouseViews() calls CTooltipSupport::onMouseEntered()
-        // — which only arms the show-timer if the view already has tooltip text —
-        // BEFORE dispatching the view's own enter event. So we seed a placeholder
-        // here and keep it updated on hover; we never clear it back to empty (an
-        // empty attribute would silently disable the tooltip on the next entry).
-        if (auto* frame = getFrame()) {
-            frame->enableTooltips(true, 500);
-        }
-        setTooltipText(VSTGUI::UTF8String(
-            PianoRollLogic::noteName(60)).data());  // placeholder (C4)
         invalid();
         return result;
     }
@@ -274,6 +262,7 @@ private:
     VSTGUI::CColor inactiveColor_   {0x10, 0x10, 0x18, 0xFF};
     VSTGUI::CColor playheadColor_   {0xFF, 0xFF, 0xFF, 0x30};
     VSTGUI::CColor hoverColor_      {0xD4, 0xA8, 0x56, 0x40}; // accent @ 25% alpha
+    VSTGUI::CColor noteLabelColor_  {0x1A, 0x1A, 0x2E, 0xFF}; // dark — reads on gold
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -358,17 +347,21 @@ private:
         }
     }
 
-    // Set the platform tooltip to the note name of the hovered row (e.g.
-    // "C4"). When the cursor is off the pitch grid we leave the previous text
-    // in place rather than removing the attribute — removing it would disarm
-    // the frame's tooltip support for the next entry (see note in attached()).
-    void updateTooltip()
+    // Render the note name (e.g. "D#4") centered inside the hovered note's
+    // rectangle. Drawn only when the cursor is on a placed note (not a rest or
+    // empty cell) — see PianoRollLogic::hoveredNoteLabel. Called from draw()
+    // after drawNotes() so the text sits on top of the gold note fill.
+    void drawHoveredNoteLabel(VSTGUI::CDrawContext* ctx)
     {
-        if (hoveredPitch_ >= PianoRollLogic::kMidiLow &&
-            hoveredPitch_ <= PianoRollLogic::kMidiHigh) {
-            const std::string name = PianoRollLogic::noteName(hoveredPitch_);
-            setTooltipText(VSTGUI::UTF8String(name).data());
-        }
+        const std::string label = PianoRollLogic::hoveredNoteLabel(
+            steps_, hoveredStep_, hoveredPitch_, currentActiveLength());
+        if (label.empty()) return;
+        const auto rect = cellRect(hoveredStep_, hoveredPitch_);
+        auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11.0);
+        ctx->setFont(font);
+        ctx->setFontColor(noteLabelColor_);
+        ctx->drawString(VSTGUI::UTF8String(label.c_str()), rect,
+                        VSTGUI::kCenterText);
     }
 
     void drawHoverCell(VSTGUI::CDrawContext* ctx)

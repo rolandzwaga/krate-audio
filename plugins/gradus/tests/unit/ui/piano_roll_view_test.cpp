@@ -65,6 +65,32 @@ TEST_CASE("PianoRollView: noteName maps MIDI to scientific pitch notation",
 }
 
 // -----------------------------------------------------------------------------
+// 1c. hoveredNoteLabel — in-cell note label shown on hover over a placed note
+// -----------------------------------------------------------------------------
+TEST_CASE("PianoRollView: hoveredNoteLabel returns the note name only over a placed note",
+          "[gradus][piano_roll][ui][hover_label]")
+{
+    Logic::StepArray steps{};
+    // Step 0: a placed note at pitch 64 (E4). Step 1: a rest at pitch 60.
+    steps[0] = Logic::StepData{ /*pitch=*/64, /*isRest=*/false };
+    steps[1] = Logic::StepData{ /*pitch=*/60, /*isRest=*/true };
+    const int activeLength = 8;
+
+    // Cursor on the note's own cell → its name.
+    CHECK(Logic::hoveredNoteLabel(steps, 0, 64, activeLength) == "E4");
+    // Same step, a different pitch row (not on the note) → empty.
+    CHECK(Logic::hoveredNoteLabel(steps, 0, 65, activeLength).empty());
+    CHECK(Logic::hoveredNoteLabel(steps, 0, 63, activeLength).empty());
+    // Resting step → empty even if the pitch row matches the stored pitch.
+    CHECK(Logic::hoveredNoteLabel(steps, 1, 60, activeLength).empty());
+    // Step at/after the active length → empty (note exists but is inactive).
+    CHECK(Logic::hoveredNoteLabel(steps, 0, 64, /*activeLength=*/0).empty());
+    // Out-of-range step indices → empty (no crash).
+    CHECK(Logic::hoveredNoteLabel(steps, -1, 64, activeLength).empty());
+    CHECK(Logic::hoveredNoteLabel(steps, Logic::kMaxSteps, 64, activeLength).empty());
+}
+
+// -----------------------------------------------------------------------------
 // 2. clickOnRestingStepPlacesNote — FR-030
 // -----------------------------------------------------------------------------
 TEST_CASE("PianoRollView: click on a resting step places a note at the clicked row",
