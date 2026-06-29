@@ -235,8 +235,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(pluginterfaces PRIVATE -Wno-format)
     # -Wsuggest-override: missing override in cscrollview.cpp
     # -Wcpp: #warning TODO directives in cairobitmap.cpp, x11frame.cpp
+    # -Wdeprecated-declarations: newer libc++ (Xcode 26.5 / macOS 26 SDK) marks
+    #   std::wstring_convert / std::codecvt_utf8_utf16 (deprecated since C++17)
+    #   as deprecated; VSTGUI's generictextedit.cpp still uses them and builds
+    #   with -Werror, so the deprecation became a hard error. We cannot modify
+    #   the SDK source, so don't treat the deprecation as an error here.
     if(TARGET vstgui)
-        target_compile_options(vstgui PRIVATE -Wno-suggest-override -Wno-cpp)
+        target_compile_options(vstgui PRIVATE
+            -Wno-suggest-override -Wno-cpp -Wno-deprecated-declarations)
+    endif()
+    if(TARGET vstgui_uidescription)
+        target_compile_options(vstgui_uidescription PRIVATE -Wno-deprecated-declarations)
+    endif()
+    if(TARGET vstgui_support)
+        target_compile_options(vstgui_support PRIVATE -Wno-deprecated-declarations)
     endif()
     # -Wsuggest-override passed to C compiler for wayland protocol .c files
     if(TARGET vstgui_wayland_protocols)
