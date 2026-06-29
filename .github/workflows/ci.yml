@@ -123,7 +123,11 @@ jobs:
 
   build-windows:
     name: Windows (MSVC)
-    runs-on: windows-latest
+    # Pinned to windows-2022: GitHub migrated `windows-latest` to Windows Server
+    # 2025 + Visual Studio 2026 (VS 18) in June 2026, so the "Visual Studio 17
+    # 2022" generator below can no longer find an install on `windows-latest`.
+    # windows-2022 keeps VS 2022 (supported by GitHub into ~2028).
+    runs-on: windows-2022
     needs: detect-changes
 
     steps:
