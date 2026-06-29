@@ -18,8 +18,23 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace Gradus { namespace PianoRollViewLogic {
+
+// -----------------------------------------------------------------------------
+// MIDI pitch → note name (scientific pitch notation, C4 = middle C = MIDI 60).
+// Matches the grid's row labeling: MIDI 36 = "C2", 60 = "C4", 83 = "B5". Used
+// by the view's hover tooltip so the user sees which note a row represents.
+// -----------------------------------------------------------------------------
+[[nodiscard]] inline std::string noteName(int midi) {
+    static constexpr const char* kNames[12] = {
+        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    if (midi < 0) midi = 0;
+    if (midi > 127) midi = 127;
+    const int octave = midi / 12 - 1;   // MIDI 60 → octave 4
+    return std::string(kNames[midi % 12]) + std::to_string(octave);
+}
 
 // Grid constants — FR-028: exactly 4 octaves (C2..B5).
 inline constexpr int kMidiLow      = 36;                                // C2

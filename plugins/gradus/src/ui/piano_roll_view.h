@@ -30,6 +30,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 
 namespace Gradus {
 
@@ -123,6 +124,7 @@ public:
             if (hover.changed) {
                 hoveredStep_  = hover.step;
                 hoveredPitch_ = hover.pitch;
+                updateTooltip();
                 invalid();
             }
             return VSTGUI::kMouseEventHandled;
@@ -149,6 +151,7 @@ public:
         if (hoveredStep_ != -1 || hoveredPitch_ != -1) {
             hoveredStep_  = -1;
             hoveredPitch_ = -1;
+            setTooltipText(nullptr);
             invalid();
         }
         return VSTGUI::kMouseEventHandled;
@@ -181,6 +184,11 @@ public:
             registerAllDependents();
             refreshAllFromController();
             dependentsRegistered_ = true;
+        }
+        // Enable the frame's tooltip support so the per-row note-name tooltip
+        // (updated on hover) is shown.
+        if (auto* frame = getFrame()) {
+            frame->enableTooltips(true, 500);
         }
         invalid();
         return result;
@@ -335,6 +343,19 @@ private:
             ctx->drawLine(
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.top},
                 VSTGUI::CPoint{size.left + static_cast<VSTGUI::CCoord>(x), size.bottom});
+        }
+    }
+
+    // Set the platform tooltip to the note name of the hovered row (e.g.
+    // "C4"), or clear it when the cursor is off the pitch grid.
+    void updateTooltip()
+    {
+        if (hoveredPitch_ >= PianoRollLogic::kMidiLow &&
+            hoveredPitch_ <= PianoRollLogic::kMidiHigh) {
+            const std::string name = PianoRollLogic::noteName(hoveredPitch_);
+            setTooltipText(VSTGUI::UTF8String(name).data());
+        } else {
+            setTooltipText(nullptr);
         }
     }
 

@@ -43,6 +43,28 @@ TEST_CASE("PianoRollView: 48 rows from C2 to B5",
 }
 
 // -----------------------------------------------------------------------------
+// 1b. noteName — MIDI → scientific pitch notation for the hover tooltip
+// -----------------------------------------------------------------------------
+TEST_CASE("PianoRollView: noteName maps MIDI to scientific pitch notation",
+          "[gradus][piano_roll][ui][tooltip]")
+{
+    // Grid anchors (C2 = MIDI 36, C4 = middle C = MIDI 60, B5 = MIDI 83).
+    CHECK(Logic::noteName(36) == "C2");
+    CHECK(Logic::noteName(60) == "C4");
+    CHECK(Logic::noteName(83) == "B5");
+    // Accidentals use sharps.
+    CHECK(Logic::noteName(61) == "C#4");
+    CHECK(Logic::noteName(66) == "F#4");
+    // Octave boundary: B3 → C4.
+    CHECK(Logic::noteName(59) == "B3");
+    // Extremes are clamped into 0..127 and still produce a valid label.
+    CHECK(Logic::noteName(0) == "C-1");
+    CHECK(Logic::noteName(127) == "G9");
+    CHECK(Logic::noteName(-5) == "C-1");
+    CHECK(Logic::noteName(200) == "G9");
+}
+
+// -----------------------------------------------------------------------------
 // 2. clickOnRestingStepPlacesNote — FR-030
 // -----------------------------------------------------------------------------
 TEST_CASE("PianoRollView: click on a resting step places a note at the clicked row",
