@@ -5,6 +5,16 @@ All notable changes to Gradus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-06-29
+
+### Added
+
+- **Note name shown in the piano roll on hover.** Hovering a cell in the Sequencer piano roll renders the note name (e.g. `D#4`) centered in that cell — on placed notes (dark text on the gold block) and on the empty "ghost" cell under the cursor (light text), so you can see the note you're about to place. Drawn directly in the view, scientific pitch notation (C4 = middle C = MIDI 60).
+
+### Fixed
+
+- **Sequencer mode now follows the host transport.** In Source = Sequencer the processor hard-coded the engine's "playing" flag to true on every block, so the sequencer kept clocking and emitting notes after the host pressed Stop (and could leave a stuck note). Sequencer playback is now gated on the host transport (Stop halts emission and releases sounding notes); Live mode still free-runs off held notes as before.
+
 ## [1.8.1] - 2026-06-11
 
 ### Fixed
