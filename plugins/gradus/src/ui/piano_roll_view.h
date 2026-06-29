@@ -262,7 +262,8 @@ private:
     VSTGUI::CColor inactiveColor_   {0x10, 0x10, 0x18, 0xFF};
     VSTGUI::CColor playheadColor_   {0xFF, 0xFF, 0xFF, 0x30};
     VSTGUI::CColor hoverColor_      {0xD4, 0xA8, 0x56, 0x40}; // accent @ 25% alpha
-    VSTGUI::CColor noteLabelColor_  {0x1A, 0x1A, 0x2E, 0xFF}; // dark — reads on gold
+    VSTGUI::CColor noteLabelColor_  {0x1A, 0x1A, 0x2E, 0xFF}; // dark — reads on gold note
+    VSTGUI::CColor ghostLabelColor_ {0xE0, 0xC9, 0x90, 0xFF}; // light gold — reads on ghost
 
     // -------------------------------------------------------------------------
     // Helpers
@@ -347,19 +348,23 @@ private:
         }
     }
 
-    // Render the note name (e.g. "D#4") centered inside the hovered note's
-    // rectangle. Drawn only when the cursor is on a placed note (not a rest or
-    // empty cell) — see PianoRollLogic::hoveredNoteLabel. Called from draw()
-    // after drawNotes() so the text sits on top of the gold note fill.
+    // Render the hovered cell's note name (e.g. "D#4") centered in the cell.
+    // Shown for ANY hovered cell — a placed note OR the empty/ghost cell under
+    // the cursor — so the user sees the note they're about to place. Color is
+    // dark on the solid gold note, light on the dark ghost cell. Called from
+    // draw() after drawNotes() so the text sits on top.
     void drawHoveredNoteLabel(VSTGUI::CDrawContext* ctx)
     {
-        const std::string label = PianoRollLogic::hoveredNoteLabel(
-            steps_, hoveredStep_, hoveredPitch_, currentActiveLength());
+        const int len = currentActiveLength();
+        const std::string label = PianoRollLogic::hoveredCellNoteLabel(
+            hoveredStep_, hoveredPitch_, len);
         if (label.empty()) return;
         const auto rect = cellRect(hoveredStep_, hoveredPitch_);
+        const bool placed = PianoRollLogic::isPlacedNoteCell(
+            steps_, hoveredStep_, hoveredPitch_, len);
         auto font = VSTGUI::makeOwned<VSTGUI::CFontDesc>("Arial", 11.0);
         ctx->setFont(font);
-        ctx->setFontColor(noteLabelColor_);
+        ctx->setFontColor(placed ? noteLabelColor_ : ghostLabelColor_);
         ctx->drawString(VSTGUI::UTF8String(label.c_str()), rect,
                         VSTGUI::kCenterText);
     }

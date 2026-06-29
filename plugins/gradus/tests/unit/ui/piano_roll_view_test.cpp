@@ -65,9 +65,10 @@ TEST_CASE("PianoRollView: noteName maps MIDI to scientific pitch notation",
 }
 
 // -----------------------------------------------------------------------------
-// 1c. hoveredNoteLabel — in-cell note label shown on hover over a placed note
+// 1c. hoveredCellNoteLabel / isPlacedNoteCell — in-cell note label on hover
+// (shown for placed notes AND empty/ghost cells)
 // -----------------------------------------------------------------------------
-TEST_CASE("PianoRollView: hoveredNoteLabel returns the note name only over a placed note",
+TEST_CASE("PianoRollView: hovered cell shows the row note name; placed-note predicate",
           "[gradus][piano_roll][ui][hover_label]")
 {
     Logic::StepArray steps{};
@@ -76,18 +77,23 @@ TEST_CASE("PianoRollView: hoveredNoteLabel returns the note name only over a pla
     steps[1] = Logic::StepData{ /*pitch=*/60, /*isRest=*/true };
     const int activeLength = 8;
 
-    // Cursor on the note's own cell → its name.
-    CHECK(Logic::hoveredNoteLabel(steps, 0, 64, activeLength) == "E4");
-    // Same step, a different pitch row (not on the note) → empty.
-    CHECK(Logic::hoveredNoteLabel(steps, 0, 65, activeLength).empty());
-    CHECK(Logic::hoveredNoteLabel(steps, 0, 63, activeLength).empty());
-    // Resting step → empty even if the pitch row matches the stored pitch.
-    CHECK(Logic::hoveredNoteLabel(steps, 1, 60, activeLength).empty());
-    // Step at/after the active length → empty (note exists but is inactive).
-    CHECK(Logic::hoveredNoteLabel(steps, 0, 64, /*activeLength=*/0).empty());
-    // Out-of-range step indices → empty (no crash).
-    CHECK(Logic::hoveredNoteLabel(steps, -1, 64, activeLength).empty());
-    CHECK(Logic::hoveredNoteLabel(steps, Logic::kMaxSteps, 64, activeLength).empty());
+    // Label = the hovered ROW's name for any valid active cell — note OR ghost.
+    CHECK(Logic::hoveredCellNoteLabel(0, 64, activeLength) == "E4"); // on the note
+    CHECK(Logic::hoveredCellNoteLabel(0, 65, activeLength) == "F4"); // empty row, same step
+    CHECK(Logic::hoveredCellNoteLabel(3, 60, activeLength) == "C4"); // empty cell elsewhere
+    // Off the active grid → empty.
+    CHECK(Logic::hoveredCellNoteLabel(0, 64, /*activeLength=*/0).empty());
+    CHECK(Logic::hoveredCellNoteLabel(-1, 64, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(Logic::kMaxSteps, 64, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(0, Logic::kMidiLow - 1, activeLength).empty());
+    CHECK(Logic::hoveredCellNoteLabel(0, Logic::kMidiHigh + 1, activeLength).empty());
+
+    // Placed-note predicate (color selector): true only on the note's own cell.
+    CHECK(Logic::isPlacedNoteCell(steps, 0, 64, activeLength));
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 0, 65, activeLength)); // different row
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 1, 60, activeLength)); // rest
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 3, 60, activeLength)); // empty cell
+    CHECK_FALSE(Logic::isPlacedNoteCell(steps, 0, 64, /*activeLength=*/0)); // inactive
 }
 
 // -----------------------------------------------------------------------------

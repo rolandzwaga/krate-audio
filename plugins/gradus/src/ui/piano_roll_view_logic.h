@@ -63,23 +63,36 @@ struct StepData {
 using StepArray = std::array<StepData, kMaxSteps>;
 
 // -----------------------------------------------------------------------------
-// Hover label: the note name to render inside a hovered note's cell, or "" when
-// the hovered cell is not a placed note. "On the note" means the hovered step is
-// in range (0..activeLength-1), the step is not a rest, and the hovered pitch
-// row equals the note's pitch (the cursor is on the note rectangle itself).
+// Hover label: the note name to render inside the hovered cell — the hovered
+// pitch ROW's name — whenever the cell is a valid, active hover target (mirrors
+// drawHoverCell's "ghost" rule: step in [0, activeLength) and pitch in
+// [kMidiLow, kMidiHigh]). Returns "" off the active grid. Applies to BOTH placed
+// notes and empty/ghost cells so the user sees the note they're about to place.
 // -----------------------------------------------------------------------------
-[[nodiscard]] inline std::string hoveredNoteLabel(const StepArray& steps,
-                                                  int hoveredStep,
-                                                  int hoveredPitch,
-                                                  int activeLength) {
+[[nodiscard]] inline std::string hoveredCellNoteLabel(int hoveredStep,
+                                                      int hoveredPitch,
+                                                      int activeLength) {
     if (hoveredStep < 0 || hoveredStep >= activeLength ||
         hoveredStep >= kMaxSteps) {
         return {};
     }
+    if (hoveredPitch < kMidiLow || hoveredPitch > kMidiHigh) return {};
+    return noteName(hoveredPitch);
+}
+
+// True when the hovered cell is exactly a placed (non-rest) note — i.e. the
+// cursor sits on the note's own rectangle. Used to pick the label color: dark
+// text on the solid gold note vs light text on the empty/ghost cell.
+[[nodiscard]] inline bool isPlacedNoteCell(const StepArray& steps,
+                                           int hoveredStep,
+                                           int hoveredPitch,
+                                           int activeLength) {
+    if (hoveredStep < 0 || hoveredStep >= activeLength ||
+        hoveredStep >= kMaxSteps) {
+        return false;
+    }
     const StepData& s = steps[static_cast<std::size_t>(hoveredStep)];
-    if (s.isRest) return {};
-    if (static_cast<int>(s.pitch) != hoveredPitch) return {};
-    return noteName(static_cast<int>(s.pitch));
+    return !s.isRest && static_cast<int>(s.pitch) == hoveredPitch;
 }
 
 // -----------------------------------------------------------------------------
