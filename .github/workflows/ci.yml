@@ -123,7 +123,14 @@ jobs:
 
   build-windows:
     name: Windows (MSVC)
-    runs-on: windows-latest
+    # Pinned to windows-2022 (Visual Studio 2022 / MSVC v143). GitHub migrated
+    # `windows-latest` to Windows Server 2025 + Visual Studio 2026 (MSVC v144)
+    # in June 2026, whose floating-point codegen differs from v143 and breaks
+    # this project's bit-exact / tight-margin DSP tests (svf, reverse_buffer,
+    # disrumpo, innexus). DSP numerical determinism requires a pinned compiler,
+    # so we stay on VS 2022 (GitHub-supported into ~2028) rather than re-tune
+    # every numerical tolerance for v144.
+    runs-on: windows-2022
     needs: detect-changes
 
     steps:
@@ -144,13 +151,9 @@ jobs:
 
       # Note: sccache/ccache with Ninja causes PDB conflicts with VSTGUI's /Zi flag
       # Visual Studio generator handles PDB files correctly via mspdbsrv.exe
-      #
-      # GitHub migrated `windows-latest` to Windows Server 2025 + Visual Studio
-      # 2026 (VS 18) in June 2026, replacing VS 2022. We target VS 2026 to stay
-      # on the supported `windows-latest` image. The "Visual Studio 18 2026"
-      # generator needs CMake >= 4.2 (the image ships 4.3.4).
+      # VS 2022 generator matches the windows-2022 runner pinned above (see note).
       - name: Configure CMake
-        run: cmake -S . -B build -G "Visual Studio 18 2026" -A x64
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 
       # Build all changed targets in a single cmake invocation.
       # MSBuild's --parallel flag builds independent targets concurrently,
