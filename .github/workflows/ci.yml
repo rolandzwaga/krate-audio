@@ -123,11 +123,7 @@ jobs:
 
   build-windows:
     name: Windows (MSVC)
-    # Pinned to windows-2022: GitHub migrated `windows-latest` to Windows Server
-    # 2025 + Visual Studio 2026 (VS 18) in June 2026, so the "Visual Studio 17
-    # 2022" generator below can no longer find an install on `windows-latest`.
-    # windows-2022 keeps VS 2022 (supported by GitHub into ~2028).
-    runs-on: windows-2022
+    runs-on: windows-latest
     needs: detect-changes
 
     steps:
@@ -148,8 +144,13 @@ jobs:
 
       # Note: sccache/ccache with Ninja causes PDB conflicts with VSTGUI's /Zi flag
       # Visual Studio generator handles PDB files correctly via mspdbsrv.exe
+      #
+      # GitHub migrated `windows-latest` to Windows Server 2025 + Visual Studio
+      # 2026 (VS 18) in June 2026, replacing VS 2022. We target VS 2026 to stay
+      # on the supported `windows-latest` image. The "Visual Studio 18 2026"
+      # generator needs CMake >= 4.2 (the image ships 4.3.4).
       - name: Configure CMake
-        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+        run: cmake -S . -B build -G "Visual Studio 18 2026" -A x64
 
       # Build all changed targets in a single cmake invocation.
       # MSBuild's --parallel flag builds independent targets concurrently,
