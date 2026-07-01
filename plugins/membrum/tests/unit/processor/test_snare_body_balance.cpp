@@ -26,10 +26,14 @@
 #include "pluginterfaces/vst/ivstaudioprocessor.h"
 #include "pluginterfaces/vst/ivstevents.h"
 
+#include "public.sdk/source/vst/vstpresetfile.h"
+#include "base/source/fstreamer.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 using namespace Steinberg;
@@ -198,6 +202,45 @@ double spectralCentroid(const std::vector<float>& x, double sr, double lo, doubl
 
 double toDb(double powerRatio) { return 10.0 * std::log10(std::max(powerRatio, 1e-30)); }
 
+struct SnareMetrics
+{
+    double peak;
+    double bodyVsHashDb;  // body(150-450 Hz) vs hash(2-7 kHz), power ratio in dB
+    double centroid;      // onset spectral centroid (Hz)
+};
+
+// Shared body-vs-hash + centroid analysis over an onset render.
+SnareMetrics analyzeSnare(const std::vector<float>& s)
+{
+    const double bodyPow  = bandPower(s, kSampleRate, 150.0, 450.0, 5.0);
+    const double hashPow  = bandPower(s, kSampleRate, 2000.0, 7000.0, 25.0);
+    const double centroid = spectralCentroid(s, kSampleRate, 100.0, 12000.0, 25.0);
+    return { peakAbs(s), toDb(bodyPow) - toDb(hashPow), centroid };
+}
+
+// Load the component-state chunk of a .vstpreset into the processor
+// (mirrors the snare diagnostic's loader). Returns false if the file is absent.
+bool loadPresetComponentState(Membrum::Processor& proc, const std::string& path)
+{
+    auto* stream = Steinberg::Vst::FileStream::open(path.c_str(), "rb");
+    if (!stream) return false;
+    bool ok = false;
+    {
+        Steinberg::Vst::PresetFile pf(stream);
+        if (pf.readChunkList() && pf.seekToComponentState()) {
+            const auto* entry = pf.getEntry(Steinberg::Vst::kComponentState);
+            if (entry) {
+                auto comp = Steinberg::owned(new Steinberg::Vst::ReadOnlyBStream(
+                    stream, entry->offset, entry->size));
+                comp->seek(0, Steinberg::IBStream::kIBSeekSet, nullptr);
+                ok = (proc.setState(comp) == Steinberg::kResultOk);
+            }
+        }
+    }
+    stream->release();
+    return ok;
+}
+
 } // namespace
 
 TEST_CASE("Snare has audible body, not just hi-hat noise",
@@ -209,32 +252,51 @@ TEST_CASE("Snare has audible body, not just hi-hat noise",
     const int kOnset = 4096;      // ~85 ms onset window at 48 kHz
 
     const auto snare = fix.render(kSnareMidi, kOnset);
+    const SnareMetrics m = analyzeSnare(snare);
 
-    REQUIRE(peakAbs(snare) > 1e-4);  // it actually made sound
+    REQUIRE(m.peak > 1e-4);  // it actually made sound
 
-    // Body: pitched membrane region (fundamental + low overtones).
-    const double bodyPow  = bandPower(snare, kSampleRate, 150.0, 450.0, 5.0);
-    // "Hi-hat hash": the mid/high broadband hump that dominates the broken
-    // snare -- the NoiseBurst bandpass (~5.8 kHz at v0.8), the click (~3.5 kHz),
-    // and the bright wire lowpass all pile up here. This is the band that must
-    // NOT out-mass the body if the sound is to read as a snare, not a hi-hat.
-    const double hashPow  = bandPower(snare, kSampleRate, 2000.0, 7000.0, 25.0);
-    // Onset centroid over the full audible-ish band.
-    const double centroid = spectralCentroid(snare, kSampleRate, 100.0, 12000.0, 25.0);
-
-    const double bodyVsHashDb = toDb(bodyPow) - toDb(hashPow);
-
-    INFO("body(150-450Hz) power=" << bodyPow);
-    INFO("hash(2-7kHz) power=" << hashPow);
-    INFO("body - hash = " << bodyVsHashDb << " dB (>= 0 dB required)");
-    INFO("onset spectral centroid = " << centroid << " Hz (< 1500 Hz required)");
+    INFO("body - hash = " << m.bodyVsHashDb << " dB (>= 0 dB required)");
+    INFO("onset spectral centroid = " << m.centroid << " Hz (< 1500 Hz required)");
 
     // (1) The pitched body must at least equal the mid/high hash. A snare whose
     //     body sits below the 2-7 kHz hump (NoiseBurst + click + bright wires)
     //     reads as a hi-hat; a real snare is body-dominant at the onset.
-    CHECK(bodyVsHashDb >= 0.0);
+    CHECK(m.bodyVsHashDb >= 0.0);
 
     // (2) The onset must be body-weighted, not noise-weighted: centroid below
     //     the ~1.5 kHz body/noise crossover of a real snare.
-    CHECK(centroid < 1500.0);
+    CHECK(m.centroid < 1500.0);
+}
+
+TEST_CASE("Factory Acoustic Studio Kit snare has audible body, not hi-hat",
+          "[membrum][processor][snare][balance][preset]")
+{
+    // The factory kits are generated independently of default_kit.h
+    // (tools/membrum_preset_generator.cpp). This guards the SHIPPED preset path:
+    // the generator's Acoustic snare was the exact noise-dominant recipe the
+    // investigation flagged (and that the [.snare-diag] test loads to reproduce
+    // the bug). Renders the regenerated preset's snare and applies the same
+    // body-dominance gates so a regression in the generator can't re-ship a
+    // hi-hat snare.
+    const std::string presetPath =
+        std::string(MEMBRUM_RESOURCES_DIR) +
+        "/presets/Kit Presets/Acoustic/Acoustic Studio Kit.vstpreset";
+
+    Fixture fix;
+    REQUIRE(loadPresetComponentState(fix.processor, presetPath));
+
+    const int16 kSnareMidi = 38;
+    const int kOnset = 4096;  // ~85 ms
+
+    const auto snare = fix.render(kSnareMidi, kOnset);
+    const SnareMetrics m = analyzeSnare(snare);
+
+    REQUIRE(m.peak > 1e-4);
+
+    INFO("factory body - hash = " << m.bodyVsHashDb << " dB (>= 0 dB required)");
+    INFO("factory onset centroid = " << m.centroid << " Hz (< 1500 Hz required)");
+
+    CHECK(m.bodyVsHashDb >= 0.0);
+    CHECK(m.centroid < 1500.0);
 }

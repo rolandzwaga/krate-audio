@@ -537,8 +537,10 @@ Kit acousticKit() {
     pads[1].airLoading = 0.0;   // Membrane-only no-op on Shell
     pads[1].pan = 0.58;
 
-    // ---- Pad 2: Acoustic Snare (Membrane/NoiseBurst) -- crack + wires + shell ----
-    pads[2].exciterType = ExciterType::NoiseBurst;
+    // ---- Pad 2: Acoustic Snare (Membrane/Impulse) -- struck body + wires + shell ----
+    // Snare-body fix (INVESTIGATION-snare-body): coherent Impulse strike (was
+    // NoiseBurst, which under-drove the low modes so the snare read as a hi-hat).
+    pads[2].exciterType = ExciterType::Impulse;
     pads[2].bodyModel   = BodyModelType::Membrane;
     pads[2].material = 0.50;
     pads[2].size = 0.42;            // ~190 Hz head
@@ -560,14 +562,16 @@ Kit acousticKit() {
     pads[2].nonlinearCoupling = 0.22;
     pads[2].modeScatter = 0.28;
     pads[2].bodyDampingB1 = 0.28;
-    pads[2].bodyDampingB3 = 0.03;
+    pads[2].bodyDampingB3 = 0.50;  // snare-body fix: tame metallic ring -> woody thock
     pads[2].airLoading = 0.42;
-    pads[2].noiseLayerMix       = 0.82;
-    pads[2].noiseLayerCutoff    = 0.90;
+    // Snare-body fix: wires are an ACCENT, not the instrument -- mix ~0.45,
+    // darker (~800 Hz) pink band so they stop masking the struck body.
+    pads[2].noiseLayerMix       = 0.45;
+    pads[2].noiseLayerCutoff    = 0.55;
     pads[2].noiseLayerResonance = 0.10;
     pads[2].noiseLayerDecay     = 0.48;
-    pads[2].noiseLayerColor     = 0.90;  // Violet
-    pads[2].clickLayerMix        = 0.92;
+    pads[2].noiseLayerColor     = 0.45;  // pink (was 0.90 violet)
+    pads[2].clickLayerMix        = 0.55;  // stick crack, pulled back (was 0.92)
     pads[2].clickLayerContactMs  = 0.18;
     pads[2].clickLayerBrightness = 0.90;
     pads[2].couplingStrength  = 0.78;
@@ -1985,7 +1989,9 @@ Kit rockBigRoomKit() {
     pads[0].couplingAmount = 0.75;
 
     // Crack snare (redesigned: massive housing, big-room body)
-    pads[2].exciterType = ExciterType::NoiseBurst;
+    // Snare-body fix (INVESTIGATION-snare-body): Impulse strike (was NoiseBurst)
+    // so the big-room body rings instead of reading as filtered noise.
+    pads[2].exciterType = ExciterType::Impulse;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.38; pads[2].size = 0.66; pads[2].decay = 0.68;
     pads[2].strikePosition = 0.35;   // off-center crack pair
@@ -2000,10 +2006,11 @@ Kit rockBigRoomKit() {
     pads[2].tsFilterEnvDecay = 0.385;
     pads[2].tsFilterEnvSustain = 0.0;
     pads[2].tsFilterEnvRelease = 0.20;
-    pads[2].noiseLayerMix    = 0.85; pads[2].noiseLayerCutoff = 0.88;
+    // Snare-body fix: wires/click pulled back to accent level, darker pink band.
+    pads[2].noiseLayerMix    = 0.48; pads[2].noiseLayerCutoff = 0.58;
     pads[2].noiseLayerResonance = 0.15;
-    pads[2].noiseLayerColor  = 0.80; pads[2].noiseLayerDecay = 0.35;
-    pads[2].clickLayerMix    = 0.95; pads[2].clickLayerContactMs = 0.06;
+    pads[2].noiseLayerColor  = 0.50; pads[2].noiseLayerDecay = 0.35;
+    pads[2].clickLayerMix    = 0.55; pads[2].clickLayerContactMs = 0.06;
     pads[2].clickLayerBrightness = 0.92;
     pads[2].airLoading = 0.42; pads[2].modeScatter = 0.42;
     pads[2].nonlinearCoupling = 0.22;
@@ -2014,7 +2021,7 @@ Kit rockBigRoomKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(130);
     pads[2].tsPitchEnvTime  = 0.14;
     pads[2].tsPitchEnvCurve = 0.15;
-    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.10;  // Mylar HF damping (big-room b1 0.28 kept)
+    pads[2].bodyDampingB1 = 0.28; pads[2].bodyDampingB3 = 0.50;  // snare-body fix: strong HF damping -> body not metal (big-room b1 0.28 kept)
     pads[2].macroPunch = 0.85; pads[2].macroBrightness = 0.70;
     pads[2].macroComplexity = 0.50; pads[2].macroTightness = 0.65;
     pads[2].couplingAmount = 0.70;
@@ -2257,7 +2264,9 @@ Kit vintageWoodKit() {
     pads[0].macroBrightness = 0.30; pads[0].macroComplexity = 0.45;
 
     // Wood-shell snare (redesigned: deeper wood housing, warmer body)
-    pads[2].exciterType = ExciterType::NoiseBurst;
+    // Snare-body fix (INVESTIGATION-snare-body): Impulse strike (was NoiseBurst)
+    // so the warm wood body rings instead of reading as filtered noise.
+    pads[2].exciterType = ExciterType::Impulse;
     pads[2].bodyModel = BodyModelType::Membrane;
     pads[2].material = 0.32; pads[2].size = 0.62; pads[2].decay = 0.66;
     pads[2].level = 1.0;
@@ -2271,10 +2280,11 @@ Kit vintageWoodKit() {
     pads[2].tsFilterEnvDecay = 0.385;
     pads[2].tsFilterEnvSustain = 0.0;
     pads[2].tsFilterEnvRelease = 0.20;
-    pads[2].noiseLayerMix    = 0.78; pads[2].noiseLayerCutoff = 0.78;
+    // Snare-body fix: wires/click pulled back to accent level, darker pink band.
+    pads[2].noiseLayerMix    = 0.45; pads[2].noiseLayerCutoff = 0.55;
     pads[2].noiseLayerResonance = 0.12;
-    pads[2].noiseLayerColor  = 0.62; pads[2].noiseLayerDecay = 0.35;
-    pads[2].clickLayerMix    = 0.88; pads[2].clickLayerContactMs = 0.08;
+    pads[2].noiseLayerColor  = 0.45; pads[2].noiseLayerDecay = 0.35;
+    pads[2].clickLayerMix    = 0.52; pads[2].clickLayerContactMs = 0.08;
     pads[2].clickLayerBrightness = 0.78;
     pads[2].airLoading = 0.45; pads[2].modeScatter = 0.40;
     pads[2].nonlinearCoupling = 0.22;
@@ -2285,7 +2295,7 @@ Kit vintageWoodKit() {
     pads[2].tsPitchEnvEnd   = toLogNorm(130);
     pads[2].tsPitchEnvTime  = 0.13;
     pads[2].tsPitchEnvCurve = 0.15;
-    pads[2].bodyDampingB1 = 0.60; pads[2].bodyDampingB3 = 0.04;  // ~30 s^-1 short snares-on tat
+    pads[2].bodyDampingB1 = 0.60; pads[2].bodyDampingB3 = 0.50;  // snare-body fix: HF damping -> warm wood thock (~30 s^-1 short snares-on tat)
     pads[2].macroTightness = 0.70; pads[2].macroBrightness = 0.55;
     pads[2].macroComplexity = 0.55;
 
