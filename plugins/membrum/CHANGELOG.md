@@ -5,6 +5,48 @@ All notable changes to Membrum will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-07-01
+
+### Added
+
+- **Per-pad noise-layer gain (`noiseLayerGain`).** A per-pad multiplier on the
+  parallel noise layer's standalone gain (default `1.0`). Bodies whose identity
+  IS the wire buzz (snares) push it above 1 so the wire can reach near-body
+  level — the `noiseLayerMix` knob plus the global -18 dBFS accent ceiling alone
+  cap the layer as a quiet accent, which left snares sounding like a hollow
+  woodblock. Other pads are unaffected (hi-hats keep their bright-noise
+  attenuation, toms/kick are unchanged).
+
+### Fixed
+
+- **Snares sounded wrong — first a thin hi-hat, then a hollow woodblock.** A
+  multi-stage investigation traced it to four compounding causes: the membrane
+  body was excited by a `NoiseBurst` (which under-drove the low modes), the
+  strike-normalisation probe under-scaled the body (raised-cosine proxy vs. the
+  real excitation), the noise-layer gain didn't track cutoff, and the wire buzz
+  was capped far below the body. The snare is now a **short body "tat" + a
+  bright broadband wire buzz** that carries the tail: Impulse strike, Size 0.4
+  (~199 Hz), fast head decay (`decay ~0.13` + `b1 ~30 s⁻¹`), bright wires
+  (~5 kHz, white/violet, tail past the body) lifted to snare level via
+  `noiseLayerGain`. Applied to the default kit and the Acoustic Studio, Rock Big
+  Room, and Vintage Wood factory kits. The electronic (808/909/LinnDrum/trap/
+  modular), experimental (feedback-shell/FM-plate), orchestral, and jazz-brush
+  snares are intentional designs and were left as-is.
+- **Strike normalisation now probes with the real excitation.** The modal body's
+  output gain is calibrated against the actual exciter (+ click) at a canonical
+  hard strike instead of a clean raised-cosine, so every modal drum lands on its
+  `-6 dBFS` strike-peak budget instead of several dB under it.
+
+### Changed
+
+- **Noise-layer standalone gain tracks cutoff.** Holds the parallel noise layer
+  at its calibrated ~-18 dBFS accent level across preset cutoffs (a bright
+  preset no longer ships several dB hot).
+- **State/preset blob format bumped to version 4** (per-pad `noiseLayerGain`
+  slot). Pre-release, strict version check with no migration: state and presets
+  saved by older builds are rejected on load. All 20 factory kit presets are
+  regenerated in the new format.
+
 ## [0.10.2] - 2026-05-22
 
 ### Fixed
