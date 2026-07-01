@@ -4,13 +4,14 @@
 // Guards the "snare sounds like a thin hi-hat" regression. Renders the SHIPPED
 // default-kit snare (pad 2, MIDI 38 -- DefaultKit::apply runs in
 // Processor::initialize, FR-030) through the full processor and measures the
-// onset spectrum. A convincing snare has a definite pitched BODY (150-400 Hz)
-// that is NOT buried under the broadband wire noise (5-10 kHz); when the body
-// collapses more than ~9-12 dB below the noise the sound reads as a hi-hat.
+// onset spectrum. A convincing snare has a definite pitched BODY (150-450 Hz)
+// that is NOT buried under the mid/high broadband "hash" (2-7 kHz: NoiseBurst
+// bandpass, click, bright wires); when the body sinks below that hash the sound
+// reads as a hi-hat.
 //
 // The four snare fixes (body retune, recipe rebalance, cutoff-tracking noise
 // gain, real-excitation strike normalisation) must keep:
-//   (1) body-band energy within ~9 dB of the wire-noise band, and
+//   (1) body-band (150-450 Hz) energy at least equal to the 2-7 kHz hash, and
 //   (2) the onset spectral centroid below the ~1.5 kHz body/noise crossover.
 //
 // Deterministic: fixed PRNG seeds (voiceId-derived) + fixed default kit, so the
