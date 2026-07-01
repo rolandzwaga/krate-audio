@@ -15,6 +15,7 @@ add_executable(membrum_tests
     # Processor tests
     unit/processor/membrum_processor_tests.cpp
     unit/processor/test_morph_host_simulation.cpp
+    unit/processor/test_snare_body_balance.cpp
 
     # Phase 2: architecture refactor tests
     unit/architecture/test_exciter_bank.cpp

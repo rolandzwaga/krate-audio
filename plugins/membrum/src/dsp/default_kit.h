@@ -83,28 +83,43 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
             break;
 
         case DrumTemplate::Snare:
-            cfg.exciterType = ExciterType::NoiseBurst;
+            // Snare-body investigation (INVESTIGATION-snare-body-2026-07-01):
+            // the snare used to read as a thin hi-hat because a NoiseBurst
+            // exciter under-drove the membrane's low modes while noise+click
+            // layers carried the sound. Fix B: strike the body with a coherent
+            // Impulse so the ~200 Hz body actually rings, and pull the wire
+            // layers back to accent level (mix ~0.45) with darker, pinker wires.
+            cfg.exciterType = ExciterType::Impulse;
             cfg.bodyModel   = BodyModelType::Membrane;
             cfg.material       = 0.5f;
-            cfg.size           = 0.5f;
+            // Fix A: Size 0.4 -> f0 ~199 Hz, on the measured 14" (0,1) mode
+            // (Rossing & Bork 1992). Was 0.5 -> ~158 Hz, a whole tone flat.
+            cfg.size           = 0.4f;
             cfg.decay          = 0.4f;
             cfg.strikePosition = 0.3f;
             cfg.level          = 0.8f;
-            // NoiseBurstDuration = 8ms -> (8-2)/13 = 0.461538...
+            // Impulse exciter ignores noiseBurstDuration; kept as a seed value
+            // for users who switch the exciter back to NoiseBurst.
             cfg.noiseBurstDuration = static_cast<float>((8.0 - 2.0) / 13.0);
-            // Phase 7.1: wires-dominant -- the snare wire rustle IS the
-            // instrument's identity. Load noise layer heavily.
-            cfg.noiseLayerMix        = 0.9f;
-            cfg.noiseLayerCutoff     = 0.72f;  // ~3 kHz wire rustle band
+            // Fix B: wires are an ACCENT, not the instrument. Half the level,
+            // darker band (~800 Hz), pink (not white) so the sizzle stops
+            // masking the body.
+            cfg.noiseLayerMix        = 0.45f;
+            cfg.noiseLayerCutoff     = 0.5f;   // ~800 Hz wire rustle band
             cfg.noiseLayerResonance  = 0.25f;
             cfg.noiseLayerDecay      = 0.35f;
-            cfg.noiseLayerColor      = 0.75f;  // bright white → violet
-            cfg.clickLayerMix        = 0.6f;
+            cfg.noiseLayerColor      = 0.45f;  // pink (was 0.75 white)
+            cfg.clickLayerMix        = 0.45f;  // stick crack, pulled back
             cfg.clickLayerContactMs  = 0.2f;
             cfg.clickLayerBrightness = 0.7f;
-            // Phase 8C: moderate air-loading + a bit more scatter than kick.
+            // Fix B: strong high-frequency (b3) damping tames the metallic
+            // upper-mode ring so the body reads as a wood/skin thock, not a
+            // bell. b1 stays derived from the decay knob.
+            cfg.bodyDampingB3 = 0.6f;
+            // Phase 8C: moderate air-loading; Fix A bumps scatter to 0.28 to
+            // reproduce the (0,1)/(1,1) mode splitting of a real snare head.
             cfg.airLoading  = 0.5f;
-            cfg.modeScatter = 0.20f;
+            cfg.modeScatter = 0.28f;
             // Phase 8D coupling: off by default, seed values for snare shell.
             cfg.secondarySize     = 0.6f;
             cfg.secondaryMaterial = 0.5f;
