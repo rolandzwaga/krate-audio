@@ -492,7 +492,7 @@ public:
         // layer is also mixed directly here so it's heard as a broadband
         // transient independent of the body's modal response.
         const float noiseSample =
-            noiseLayer_.processSample() * noiseLayer_.standaloneGain();
+            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
         const float combinedBody = body + noiseSample + clickSample;
 
         // UnnaturalZone chain per contract: body + modeInject → nonlinear
@@ -796,7 +796,7 @@ private:
             // signal.
             noiseLayer_.processBlock(noiseScratch, chunk);
             {
-                const float gain = noiseLayer_.standaloneGain();
+                const float gain = noiseLayer_.standaloneGain() * noiseLayerGain_;
                 for (int i = 0; i < chunk; ++i)
                     noiseScratch[i] *= gain;
             }
@@ -978,7 +978,7 @@ private:
                         // output before the UnnaturalZone chain; click layer
                         // is mixed directly so it's heard as a transient.
                         const float noiseSample =
-                            noiseLayer_.processSample() * noiseLayer_.standaloneGain();
+                            noiseLayer_.processSample() * noiseLayer_.standaloneGain() * noiseLayerGain_;
                         const float combinedBody = bodyWithShell + noiseSample + clickSample;
 
                         // UnnaturalZone chain per contract: body + modeInject
@@ -1076,6 +1076,10 @@ public:
     void setNoiseLayerResonance(float v) noexcept { noiseLayerParams_.resonance = v; }
     void setNoiseLayerDecay(float v) noexcept     { noiseLayerParams_.decay     = v; }
     void setNoiseLayerColor(float v) noexcept     { noiseLayerParams_.color     = v; }
+    /// Snare-body fix: per-pad multiplier on the standalone noise-layer gain
+    /// (default 1.0). Lets a snare push its wire buzz to near-body level, which
+    /// the mix knob + global -18 dBFS ceiling cannot reach on their own.
+    void setNoiseLayerGain(float v) noexcept      { noiseLayerGain_ = v; }
 
     void setClickLayerMix(float v) noexcept        { clickLayerParams_.mix        = v; }
     void setClickLayerContactMs(float v) noexcept  { clickLayerParams_.contactMs  = v; }
@@ -1583,6 +1587,8 @@ private:
     // Phase 7 per-voice layer params (applied at noteOn).
     NoiseLayerParams noiseLayerParams_{};
     ClickLayerParams clickLayerParams_{};
+    // Snare-body fix: per-pad noise-layer gain multiplier (default 1.0).
+    float noiseLayerGain_ = 1.0f;
 
     // Reusable parameter bundle (populated on every noteOn to avoid alloc).
     VoiceCommonParams params_{};

@@ -163,13 +163,13 @@ TEST_CASE("Per-pad preset load preserves outputBus and couplingAmount",
 
     // Build a per-pad preset blob with distinct sound values (M-9 width).
     auto* stream = new MemoryStream();
-    int32 version = 3;  // M-9 codec version
+    int32 version = 4;  // snare-body codec version
     stream->write(&version, sizeof(version), nullptr);
     int32 et = 1;
     stream->write(&et, sizeof(et), nullptr);
     int32 bm = 2;
     stream->write(&bm, sizeof(bm), nullptr);
-    for (int i = 0; i < 57; ++i) {
+    for (int i = 0; i < 58; ++i) {
         double v = 0.7;  // distinctive sound value
         stream->write(&v, sizeof(v), nullptr);
     }

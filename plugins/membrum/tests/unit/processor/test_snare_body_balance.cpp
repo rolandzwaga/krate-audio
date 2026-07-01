@@ -44,6 +44,14 @@ namespace {
 constexpr int    kBlockSize  = 256;
 constexpr double kSampleRate = 48000.0;
 
+// Presence floors over the 4096-sample onset render (Goertzel power sums).
+// Calibrated from the tuned snares: default body 23000 / wire 900, factory
+// body 90000 / wire 430. The hi-hat regression has bodyPow ~20 (no body); the
+// woodblock regression has wirePow ~0 (no wire). Floors sit an order of
+// magnitude below the good values and well above the regressions.
+constexpr double kBodyFloor = 5000.0;   // below this = hi-hat (no pitched body)
+constexpr double kWireFloor = 100.0;    // below this = woodblock (no wire buzz)
+
 class NoteEventList : public IEventList
 {
 public:
@@ -205,17 +213,21 @@ double toDb(double powerRatio) { return 10.0 * std::log10(std::max(powerRatio, 1
 struct SnareMetrics
 {
     double peak;
-    double bodyVsHashDb;  // body(150-450 Hz) vs hash(2-7 kHz), power ratio in dB
-    double centroid;      // onset spectral centroid (Hz)
+    double bodyPow;   // pitched membrane band (150-450 Hz)
+    double wirePow;   // wire-buzz band (4-10 kHz)
+    double centroid;  // onset spectral centroid (Hz)
 };
 
-// Shared body-vs-hash + centroid analysis over an onset render.
+// A snare = a pitched BODY + a broadband WIRE buzz. Measure that BOTH are
+// present: a hi-hat has ~no body; a hollow woodblock has ~no wire. (Goertzel
+// power of a sustained tone scales differently from noise, so we assert
+// per-band presence floors, not a tone-vs-noise ratio.)
 SnareMetrics analyzeSnare(const std::vector<float>& s)
 {
     const double bodyPow  = bandPower(s, kSampleRate, 150.0, 450.0, 5.0);
-    const double hashPow  = bandPower(s, kSampleRate, 2000.0, 7000.0, 25.0);
+    const double wirePow  = bandPower(s, kSampleRate, 4000.0, 10000.0, 25.0);
     const double centroid = spectralCentroid(s, kSampleRate, 100.0, 12000.0, 25.0);
-    return { peakAbs(s), toDb(bodyPow) - toDb(hashPow), centroid };
+    return { peakAbs(s), bodyPow, wirePow, centroid };
 }
 
 // Load the component-state chunk of a .vstpreset into the processor
@@ -256,17 +268,14 @@ TEST_CASE("Snare has audible body, not just hi-hat noise",
 
     REQUIRE(m.peak > 1e-4);  // it actually made sound
 
-    INFO("body - hash = " << m.bodyVsHashDb << " dB (>= 0 dB required)");
-    INFO("onset spectral centroid = " << m.centroid << " Hz (< 1500 Hz required)");
+    INFO("bodyPow(150-450) = " << m.bodyPow << " (> " << kBodyFloor << " required: not a hi-hat)");
+    INFO("wirePow(4-10k)   = " << m.wirePow << " (> " << kWireFloor << " required: not a woodblock)");
+    INFO("onset centroid   = " << m.centroid << " Hz");
 
-    // (1) The pitched body must at least equal the mid/high hash. A snare whose
-    //     body sits below the 2-7 kHz hump (NoiseBurst + click + bright wires)
-    //     reads as a hi-hat; a real snare is body-dominant at the onset.
-    CHECK(m.bodyVsHashDb >= 0.0);
-
-    // (2) The onset must be body-weighted, not noise-weighted: centroid below
-    //     the ~1.5 kHz body/noise crossover of a real snare.
-    CHECK(m.centroid < 1500.0);
+    // (1) Pitched body present -- guards against the hi-hat regression.
+    CHECK(m.bodyPow > kBodyFloor);
+    // (2) Wire buzz present -- guards against the hollow-woodblock regression.
+    CHECK(m.wirePow > kWireFloor);
 }
 
 TEST_CASE("Factory Acoustic Studio Kit snare has audible body, not hi-hat",
@@ -294,9 +303,10 @@ TEST_CASE("Factory Acoustic Studio Kit snare has audible body, not hi-hat",
 
     REQUIRE(m.peak > 1e-4);
 
-    INFO("factory body - hash = " << m.bodyVsHashDb << " dB (>= 0 dB required)");
-    INFO("factory onset centroid = " << m.centroid << " Hz (< 1500 Hz required)");
+    INFO("factory bodyPow(150-450) = " << m.bodyPow << " (> " << kBodyFloor << ")");
+    INFO("factory wirePow(4-10k)   = " << m.wirePow << " (> " << kWireFloor << ")");
+    INFO("factory onset centroid   = " << m.centroid << " Hz");
 
-    CHECK(m.bodyVsHashDb >= 0.0);
-    CHECK(m.centroid < 1500.0);
+    CHECK(m.bodyPow > kBodyFloor);
+    CHECK(m.wirePow > kWireFloor);
 }

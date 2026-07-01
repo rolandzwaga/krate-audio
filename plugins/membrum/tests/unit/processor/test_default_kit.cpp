@@ -119,7 +119,10 @@ TEST_CASE("DefaultKit Snare template - pad 2 (MIDI 38)", "[default_kit]")
     REQUIRE(snare.material == Approx(0.5f).margin(0.01f));
     // Fix A: Size 0.4 -> f0 ~199 Hz (measured 14" (0,1) mode), was 0.5 (~158 Hz).
     REQUIRE(snare.size == Approx(0.4f).margin(0.01f));
-    REQUIRE(snare.decay == Approx(0.4f).margin(0.01f));
+    // Snare-body fix: short "tat" body (decay 0.13 + b1 override) so the wire
+    // buzz carries the tail instead of a sustained tone.
+    REQUIRE(snare.decay == Approx(0.13f).margin(0.01f));
+    REQUIRE(snare.noiseLayerGain == Approx(6.2f).margin(0.01f));
     REQUIRE(snare.level == Approx(0.8f).margin(0.01f));
 
     // NoiseBurstDuration kept as a seed value (Impulse ignores it):

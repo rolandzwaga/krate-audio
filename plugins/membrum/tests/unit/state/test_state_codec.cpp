@@ -125,7 +125,7 @@ TEST_CASE("state_codec: readKitBlob rejects every version other than kBlobVersio
 {
     // Pre-release reset: only the single current kBlobVersion is accepted on
     // read. Every other version (legacy or future) is rejected.
-    for (int32 badVersion : { 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 99 })
+    for (int32 badVersion : { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);
@@ -237,10 +237,10 @@ TEST_CASE("state_codec: per-pad preset round-trip",
     MemoryStream stream;
     REQUIRE(writePadPresetBlob(&stream, src) == kResultOk);
 
-    // Confirm the exact size: 4 (version) + 4 (exciter) + 4 (body) + 57*8 = 468.
+    // Confirm the exact size: 4 (version) + 4 (exciter) + 4 (body) + 58*8 = 476.
     int64 bytes = 0;
     stream.seek(0, IBStream::kIBSeekEnd, &bytes);
-    CHECK(bytes == 468);
+    CHECK(bytes == 476);
 
     stream.seek(0, IBStream::kIBSeekSet, nullptr);
     PadPresetSnapshot dst;
@@ -258,7 +258,7 @@ TEST_CASE("state_codec: readPadPresetBlob rejects every version other than kPadB
           "[state_codec][pad_preset][version]")
 {
     // Pre-release reset: only the single current kPadBlobVersion is accepted.
-    for (int32 badVersion : { 0, 1, 2, 4, 5, 6, 7, 8, 99 })
+    for (int32 badVersion : { 0, 1, 2, 3, 5, 6, 7, 8, 99 })
     {
         MemoryStream stream;
         stream.write(&badVersion, sizeof(badVersion), nullptr);

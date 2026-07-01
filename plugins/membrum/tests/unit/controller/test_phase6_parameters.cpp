@@ -34,9 +34,9 @@ TEST_CASE("Phase 6 global parameter IDs are allocated correctly", "[phase6_param
         STATIC_REQUIRE(kPhase6GlobalCount == 2);
     }
 
-    SECTION("kCurrentStateVersion pinned at 3 (M-9 per-pad pan)")
+    SECTION("kCurrentStateVersion pinned at 4 (snare-body noiseLayerGain)")
     {
-        STATIC_REQUIRE(kCurrentStateVersion == 3);
+        STATIC_REQUIRE(kCurrentStateVersion == 4);
     }
 }
 

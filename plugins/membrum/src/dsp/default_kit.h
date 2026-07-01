@@ -84,40 +84,47 @@ inline void applyTemplate(PadConfig& cfg, DrumTemplate tmpl, float sizeOverride 
 
         case DrumTemplate::Snare:
             // Snare-body investigation (INVESTIGATION-snare-body-2026-07-01):
-            // the snare used to read as a thin hi-hat because a NoiseBurst
-            // exciter under-drove the membrane's low modes while noise+click
-            // layers carried the sound. Fix B: strike the body with a coherent
-            // Impulse so the ~200 Hz body actually rings, and pull the wire
-            // layers back to accent level (mix ~0.45) with darker, pinker wires.
+            // a snare = a SHORT body "tat" + a bright broadband WIRE buzz on top.
+            // The old NoiseBurst recipe was all wires / no body (hi-hat); the
+            // first fix pass over-corrected to a long tonal body with no wires
+            // (hollow woodblock). This is the tuned balance (audition wire_high):
+            //   * Impulse strike gives a real ~200 Hz body.
+            //   * Short body (low decay + high b1) so the head is a quick tat
+            //     that gets out of the way -- the wire buzz carries the tail.
+            //   * Bright, loud wires via noiseLayerGain (the mix knob + the
+            //     -18 dBFS accent ceiling alone can't reach snare-wire level).
             cfg.exciterType = ExciterType::Impulse;
             cfg.bodyModel   = BodyModelType::Membrane;
             cfg.material       = 0.5f;
-            // Fix A: Size 0.4 -> f0 ~199 Hz, on the measured 14" (0,1) mode
-            // (Rossing & Bork 1992). Was 0.5 -> ~158 Hz, a whole tone flat.
+            // Size 0.4 -> f0 ~199 Hz, on the measured 14" (0,1) mode (Rossing &
+            // Bork 1992). Was 0.5 -> ~158 Hz, a whole tone flat.
             cfg.size           = 0.4f;
-            cfg.decay          = 0.4f;
+            // Short "tat": fast decay + b1 override (~30 s^-1) so the body is a
+            // snares-on thwack, not a sustained tom-like tone (the woodblock).
+            cfg.decay          = 0.13f;
             cfg.strikePosition = 0.3f;
             cfg.level          = 0.8f;
             // Impulse exciter ignores noiseBurstDuration; kept as a seed value
             // for users who switch the exciter back to NoiseBurst.
             cfg.noiseBurstDuration = static_cast<float>((8.0 - 2.0) / 13.0);
-            // Fix B: wires are an ACCENT, not the instrument. Half the level,
-            // darker band (~800 Hz), pink (not white) so the sizzle stops
-            // masking the body.
-            cfg.noiseLayerMix        = 0.45f;
-            cfg.noiseLayerCutoff     = 0.5f;   // ~800 Hz wire rustle band
+            // WIRE buzz -- the snare's identity. Bright band (~5 kHz), white/
+            // violet, decays a touch past the body. noiseLayerGain lifts it to
+            // near-body level (mix + global ceiling cap it as a quiet accent).
+            cfg.noiseLayerMix        = 0.65f;
+            cfg.noiseLayerCutoff     = 0.80f;  // ~5 kHz wire sizzle band
             cfg.noiseLayerResonance  = 0.25f;
-            cfg.noiseLayerDecay      = 0.35f;
-            cfg.noiseLayerColor      = 0.45f;  // pink (was 0.75 white)
-            cfg.clickLayerMix        = 0.45f;  // stick crack, pulled back
+            cfg.noiseLayerDecay      = 0.55f;  // wire tail outlasts the body tat
+            cfg.noiseLayerColor      = 0.75f;  // white->violet (bright rattle)
+            cfg.noiseLayerGain       = 6.2f;   // wire reaches snare level (calibrated)
+            cfg.clickLayerMix        = 0.55f;  // stick crack
             cfg.clickLayerContactMs  = 0.2f;
             cfg.clickLayerBrightness = 0.7f;
-            // Fix B: strong high-frequency (b3) damping tames the metallic
-            // upper-mode ring so the body reads as a wood/skin thock, not a
-            // bell. b1 stays derived from the decay knob.
-            cfg.bodyDampingB3 = 0.6f;
-            // Phase 8C: moderate air-loading; Fix A bumps scatter to 0.28 to
-            // reproduce the (0,1)/(1,1) mode splitting of a real snare head.
+            // Short-tat damping: b1 ~30 s^-1 (fast head decay), moderate b3 so
+            // the body still has some crack (not over-damped into a dull thud).
+            cfg.bodyDampingB1 = 0.60f;
+            cfg.bodyDampingB3 = 0.40f;
+            // Phase 8C: moderate air-loading; scatter 0.28 reproduces the
+            // (0,1)/(1,1) mode splitting of a real snare head.
             cfg.airLoading  = 0.5f;
             cfg.modeScatter = 0.28f;
             // Phase 8D coupling: off by default, seed values for snare shell.

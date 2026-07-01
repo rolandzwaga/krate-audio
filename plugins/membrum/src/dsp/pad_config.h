@@ -247,6 +247,12 @@ struct PadConfig
     float noiseLayerResonance  = 0.2f;
     float noiseLayerDecay      = 0.3f;
     float noiseLayerColor      = 0.5f;
+    // Snare-body fix: per-pad multiplier on the standalone noise-layer gain.
+    // Default 1.0 = the calibrated ~-18 dBFS accent ceiling. Bodies whose
+    // identity IS the wire buzz (snare) push this above 1 so the wire can reach
+    // near-body level -- the noiseLayerMix + global ceiling alone cap it as a
+    // quiet accent, which leaves a snare sounding like a hollow woodblock.
+    float noiseLayerGain       = 1.0f;
 
     // Phase 7: always-on attack "click" transient (2-5 ms raised-cosine
     // filtered-noise burst, fires at noteOn alongside the selected exciter).

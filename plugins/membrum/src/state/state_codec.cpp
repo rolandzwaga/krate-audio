@@ -143,6 +143,8 @@ PadSnapshot toPadSnapshot(const PadConfig& cfg) noexcept
 
     // M-9: per-pad pan (offset 64).
     snap.sound[56] = static_cast<double>(cfg.pan);
+    // Snare-body fix: per-pad noise-layer gain multiplier.
+    snap.sound[57] = static_cast<double>(cfg.noiseLayerGain);
 
     snap.chokeGroup     = cfg.chokeGroup;
     snap.outputBus      = cfg.outputBus;
@@ -235,6 +237,8 @@ void applyPadSnapshot(const PadSnapshot& snap, PadConfig& cfg) noexcept
     cfg.tsPitchEnvCurve2      = std::clamp(static_cast<float>(snap.sound[55]), 0.0f, 1.0f);
     // M-9: per-pad pan (offset 64).
     cfg.pan                   = std::clamp(static_cast<float>(snap.sound[56]), 0.0f, 1.0f);
+    // Snare-body fix: per-pad noise-layer gain multiplier (sanity-clamped).
+    cfg.noiseLayerGain        = std::clamp(static_cast<float>(snap.sound[57]), 0.1f, 16.0f);
 
     cfg.chokeGroup      = (snap.chokeGroup > 8U) ? std::uint8_t{0} : snap.chokeGroup;
     cfg.outputBus       = (snap.outputBus > 15U) ? std::uint8_t{0} : snap.outputBus;
@@ -314,6 +318,8 @@ void applyPadPresetSnapshot(const PadPresetSnapshot& snap, PadConfig& cfg) noexc
     cfg.clickLayerMix        = std::clamp(static_cast<float>(snap.sound[39]), 0.0f, 1.0f);
     cfg.clickLayerContactMs  = std::clamp(static_cast<float>(snap.sound[40]), 0.0f, 1.0f);
     cfg.clickLayerBrightness = std::clamp(static_cast<float>(snap.sound[41]), 0.0f, 1.0f);
+    // Snare-body fix: per-pad noise-layer gain (preset carries wire level).
+    cfg.noiseLayerGain       = std::clamp(static_cast<float>(snap.sound[57]), 0.1f, 16.0f);
     // Phase 8A: per-mode damping law overrides (sentinel -1.0f kept verbatim).
     {
         const double b1Raw = snap.sound[42];
